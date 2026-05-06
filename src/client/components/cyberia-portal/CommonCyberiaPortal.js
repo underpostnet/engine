@@ -330,11 +330,12 @@ const DefaultCyberiaDialogues = [
 ];
 
 /**
- * Default action catalog — maps each NPC skin ID to one or more interactive
- * actions the player can trigger from the interact overlay.
+ * Default action catalog — provide base metadata default actions,
+ * this provide for entities dynamicaale match when init instance init x and init y
+ * positions of entitie for the fallback world or custom instance, and seed dialogue
+ * for quest-talk actions.
  *
  * type values:          'quest-talk' | 'shop' | 'craft' | 'storage'
- * provideItemId:        The NPC's skin itemId that identifies this entity.
  * dialogCode:           General-purpose default dialogue opened for this action
  *                       (any action type). Used as the immediate greeting/intro.
  * questDialogueCodes:   Ordered list of CyberiaDialogue codes that must be
@@ -349,7 +350,6 @@ const DefaultCyberiaActions = [
     code: 'wason-quest-intro',
     type: 'quest-talk',
     label: 'Quest',
-    provideItemId: 'wason',
     dialogCode: 'quest-talk-wason',
     questDialogueCodes: ['quest-talk-wason'],
   },
@@ -357,7 +357,6 @@ const DefaultCyberiaActions = [
     code: 'alex-quest-talk',
     type: 'quest-talk',
     label: 'Quest Talk',
-    provideItemId: 'alex',
     dialogCode: 'quest-talk-alex',
     questDialogueCodes: ['quest-talk-alex'],
   },
@@ -365,16 +364,13 @@ const DefaultCyberiaActions = [
     code: 'agent-mission-brief',
     type: 'quest-talk',
     label: 'Mission Brief',
-    provideItemId: 'agent',
     dialogCode: 'default-agent',
     questDialogueCodes: ['default-agent'],
   },
   {
-    // Wason also starts the second test quest after the intro quest is done.
     code: 'wason-bounty-brief',
     type: 'quest-talk',
     label: '📜 Bounty Brief',
-    provideItemId: 'wason',
     dialogCode: 'quest-talk-wason',
     questDialogueCodes: ['quest-talk-wason'],
   },
@@ -384,17 +380,11 @@ const DefaultCyberiaActions = [
  * Default quest definitions for the fallback world.
  * Mirrors the CyberiaQuestSchema.
  *
- * Steps are sequential; the first step where not all objectives are satisfied
- * is the active step.  Within a step, all objectives must be met before the
- * step is marked complete.
- *
  * Objective types:
  *   'talk'    — itemId = provideItemId of the NPC to interact with
  *   'collect' — itemId = item to receive in inventory; quantity = amount
  *   'kill'    — itemId = entity skin itemId; quantity = kill count
  *
- * The Go server uses objective.itemId as the canonical event-match key in
- * RecordTalkEvent / RecordCollectEvent / RecordKillEvent.
  */
 const DefaultCyberiaQuests = [
   {

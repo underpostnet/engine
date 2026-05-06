@@ -5,6 +5,12 @@ import { ITEM_TYPES, QUEST_STEPS_TYPES } from '../../client/components/cyberia-p
 
 const CyberiaQuestSchema = new Schema(
   {
+    // The quest must be provided for the entity that initially
+    // matches the initial position 'x' and initial position 'y'
+    sourceMapCode: { type: String, trim: true },
+    sourceCellX: { type: Number },
+    sourceCellY: { type: Number },
+
     // Stable slug, e.g. "fallback-intro-quest"
     code: { type: String, required: true, unique: true, trim: true },
     title: { type: String, required: true, trim: true },
