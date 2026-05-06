@@ -675,28 +675,27 @@ class DefaultManagement {
       EventsUI.onClick(`.management-table-btn-clear-filter-${id}`, async () => {
         try {
           const gridApi = AgGrid.grids[gridId];
-          // Clear all filters
-          DefaultManagement.clearIdFilter(id);
-          if (gridApi) {
-            gridApi.setFilterModel({});
-            gridApi.applyColumnState({ defaultState: { sort: null } });
-          }
-          // Clear token state
-          if (DefaultManagement.Tokens[id]) {
-            DefaultManagement.Tokens[id].filterModel = {};
-            DefaultManagement.Tokens[id].sortModel = [];
-          }
-          // Update URL - keep only page and limit
-          const queryParams = getQueryParams();
-          setQueryParams({
-            page: queryParams.page || 1,
-            limit: queryParams.limit || DefaultManagement.Tokens[id]?.limit || 10,
-            filterModel: null,
-            sortModel: null,
-            id: null,
+          await DefaultManagement.runIsolated(id, async () => {
+            // Clear all filters without letting grid/query listeners trigger their own reloads.
+            DefaultManagement.clearIdFilter(id);
+            if (gridApi) {
+              gridApi.setFilterModel({});
+              gridApi.applyColumnState({ defaultState: { sort: null } });
+            }
+            if (DefaultManagement.Tokens[id]) {
+              DefaultManagement.Tokens[id].filterModel = {};
+              DefaultManagement.Tokens[id].sortModel = [];
+            }
+            const queryParams = getQueryParams();
+            setQueryParams({
+              page: queryParams.page || 1,
+              limit: queryParams.limit || DefaultManagement.Tokens[id]?.limit || 10,
+              filterModel: null,
+              sortModel: null,
+              id: null,
+            });
+            await DefaultManagement.loadTable(id, { force: true, reload: true, skipUrlUpdate: true });
           });
-          // Reload table
-          await DefaultManagement.loadTable(id, { force: true, reload: true });
           NotificationManager.Push({
             html: Translate.instance('success-clear-filter') || 'Filters cleared',
             status: 'success',
@@ -729,15 +728,11 @@ class DefaultManagement {
       s(`#ag-pagination-${gridId}`).addEventListener('page-change', async (event) => {
         const token = DefaultManagement.Tokens[id];
         token.page = event.detail.page;
-        // Skip URL update since Pagination component already updated it
-        await DefaultManagement.loadTable(id, { skipUrlUpdate: true });
       });
       s(`#ag-pagination-${gridId}`).addEventListener('limit-change', async (event) => {
         const token = DefaultManagement.Tokens[id];
         token.limit = event.detail.limit;
         token.page = 1; // Reset to first page
-        // Skip URL update since Pagination component already updated it
-        await DefaultManagement.loadTable(id, { skipUrlUpdate: true });
       });
       RouterEvents[id] = async (...args) => {
         const queryParams = getQueryParams();
