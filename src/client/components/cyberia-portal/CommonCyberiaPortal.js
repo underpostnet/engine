@@ -342,7 +342,6 @@ const DefaultCyberiaDialogues = [
  *                       validation.  Distinct from dialogCode — for simple
  *                       actions they may overlap; for multi-stage quests they
  *                       can diverge.
- * grantQuestCode:       CyberiaQuest.code to grant when this quest-talk action
  *                       is completed.  Empty string = no quest granted.
  */
 const DefaultCyberiaActions = [
@@ -353,7 +352,6 @@ const DefaultCyberiaActions = [
     provideItemId: 'wason',
     dialogCode: 'quest-talk-wason',
     questDialogueCodes: ['quest-talk-wason'],
-    grantQuestCode: 'fallback-intro-quest',
   },
   {
     code: 'alex-quest-talk',
@@ -362,7 +360,6 @@ const DefaultCyberiaActions = [
     provideItemId: 'alex',
     dialogCode: 'quest-talk-alex',
     questDialogueCodes: ['quest-talk-alex'],
-    grantQuestCode: '',
   },
   {
     code: 'agent-mission-brief',
@@ -371,7 +368,6 @@ const DefaultCyberiaActions = [
     provideItemId: 'agent',
     dialogCode: 'default-agent',
     questDialogueCodes: ['default-agent'],
-    grantQuestCode: '',
   },
   {
     // Wason also starts the second test quest after the intro quest is done.
@@ -381,7 +377,6 @@ const DefaultCyberiaActions = [
     provideItemId: 'wason',
     dialogCode: 'quest-talk-wason',
     questDialogueCodes: ['quest-talk-wason'],
-    grantQuestCode: 'bounty-quest-alpha',
   },
 ];
 

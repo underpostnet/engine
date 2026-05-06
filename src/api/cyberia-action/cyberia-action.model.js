@@ -4,6 +4,12 @@ import { Schema, model } from 'mongoose';
 
 const CyberiaActionSchema = new Schema(
   {
+    // The action must be provided by the entity that initially
+    // matches the initial position 'x' and initial position 'y'
+    sourceMapCode: { type: String, trim: true },
+    sourceCellX: { type: Number },
+    sourceCellY: { type: Number },
+
     // ── Identity ──────────────────────────────────────────────────────────
     code: { type: String, required: true, trim: true },
     type: {
@@ -13,15 +19,10 @@ const CyberiaActionSchema = new Schema(
       enum: ['craft', 'shop', 'storage', 'quest-talk'],
     },
     label: { type: String, trim: true, default: '' },
-    // The NPC/entity skin itemId that offers this action.
-    provideItemId: { type: String, required: true, trim: true },
+
     // General-purpose default dialogue opened for this action (any action type).
     // For quest-talk this is the immediate greeting shown when the button is clicked.
     dialogCode: { type: String, trim: true, default: '' },
-
-    sourceMapCode: { type: String, trim: true },
-    sourceCellX: { type: Number },
-    sourceCellY: { type: Number },
 
     // ── Shop payload (populated when type="shop") ──────────────────
     shopItems: [
@@ -59,10 +60,6 @@ const CyberiaActionSchema = new Schema(
     // Separate from dialogCode — for simple actions they may share codes;
     // for multi-stage quests the sequences can diverge.
     questDialogueCodes: [{ type: String, trim: true }],
-
-    // Quest this action grants when completed (quest-talk only).
-    // References CyberiaQuest.code.  Empty string = no quest granted.
-    grantQuestCode: { type: String, trim: true, default: '' },
   },
   { timestamps: true },
 );
