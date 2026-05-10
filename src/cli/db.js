@@ -839,6 +839,8 @@ class UnderpostDB {
                 pods: podsToProcess.map((p) => p.NAME),
               });
 
+              let exportSucceeded = false;
+
               // Process each pod
               for (const pod of podsToProcess) {
                 logger.info('Processing pod', { podName: pod.NAME, node: pod.NODE, status: pod.STATUS });
@@ -871,7 +873,7 @@ class UnderpostDB {
 
                     if (options.export === true) {
                       const outputPath = options.outPath || toNewSqlPath;
-                      await Underpost.db._exportMariaDB({
+                      const success = await Underpost.db._exportMariaDB({
                         pod,
                         namespace,
                         dbName,
@@ -879,6 +881,7 @@ class UnderpostDB {
                         password,
                         outputPath,
                       });
+                      exportSucceeded = exportSucceeded || success;
                     }
                     break;
                   }
@@ -909,13 +912,14 @@ class UnderpostDB {
 
                     if (options.export === true) {
                       const outputPath = options.outPath || toNewBsonPath;
-                      Underpost.db._exportMongoDB({
+                      const success = Underpost.db._exportMongoDB({
                         pod,
                         namespace,
                         dbName,
                         outputPath,
                         collections: options.collections,
                       });
+                      exportSucceeded = exportSucceeded || success;
                     }
                     break;
                   }
@@ -924,6 +928,10 @@ class UnderpostDB {
                     logger.warn('Unsupported database provider', { provider });
                     break;
                 }
+              }
+
+              if (options.export === true && exportSucceeded === true) {
+                Underpost.db._enforceBackupRetention(`../${repoName}/${hostFolder}`);
               }
 
               // Mark this host+path combination as processed
@@ -946,6 +954,43 @@ class UnderpostDB {
       } catch (error) {
         logger.error('Database operation failed', { error: error.message });
         throw error;
+      }
+    },
+    /**
+     * Helper: Removes old timestamp backup folders and keeps only the newest ones.
+     * @method _enforceBackupRetention
+     * @memberof UnderpostDB
+     * @param {string} backupDir - Path to host-folder backup directory.
+     * @param {number} [maxRetention=MAX_BACKUP_RETENTION] - Maximum folders to keep.
+     * @return {number} Number of removed backup folders.
+     */
+    _enforceBackupRetention(backupDir, maxRetention = MAX_BACKUP_RETENTION) {
+      try {
+        if (!fs.existsSync(backupDir)) return 0;
+
+        const timestamps = fs
+          .readdirSync(backupDir)
+          .filter((entry) => /^\d+$/.test(entry))
+          .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+
+        if (timestamps.length <= maxRetention) return 0;
+
+        const staleTimestamps = timestamps.slice(maxRetention);
+        staleTimestamps.forEach((timestamp) => {
+          fs.removeSync(`${backupDir}/${timestamp}`);
+        });
+
+        logger.info('Pruned old backup timestamp folders', {
+          backupDir,
+          kept: maxRetention,
+          removed: staleTimestamps.length,
+          removedTimestamps: staleTimestamps,
+        });
+
+        return staleTimestamps.length;
+      } catch (error) {
+        logger.error('Failed to enforce backup retention', { backupDir, maxRetention, error: error.message });
+        return 0;
       }
     },
 
