@@ -88,7 +88,7 @@
         "mariadb": "^3.2.2",
         "marked": "^18.0.3",
         "mocha": "^11.3.0",
-        "mongoose": "^9.6.1",
+        "mongoose": "^9.6.2",
         "morgan": "^1.10.0",
         "nodemailer": "^8.0.7",
         "nodemon": "^3.0.1",
