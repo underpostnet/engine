@@ -180,9 +180,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         ...CyberiaDependencies,
       };
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
-      fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
-      fs.copySync(`./hardhat/WHITE-PAPER.md`, `${basePath}/WHITE-PAPER.md`);
       for (const path of [
         '/src/grpc/cyberia',
         '/src/client/ssr/pages/CyberiaServerMetrics.js',
