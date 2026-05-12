@@ -255,9 +255,11 @@ class Auth {
    * @returns {Promise<object>} A promise resolving to the newly created guest session data.
    */
   async sessionOut() {
-    // 1. End User Session
+    // 1. End User Session — skip the network call when there is no active user session
+    // (avoids a wasted DELETE round-trip for guests / new visitors)
+    const hasUserSession = !!GuestService.getUserToken();
     try {
-      const result = await UserService.delete({ id: 'logout' });
+      const result = hasUserSession ? await UserService.delete({ id: 'logout' }) : null;
       SearchBox.RecentResults.clear();
       this.deleteToken();
       if (this.#refreshTimeout) {
@@ -267,7 +269,7 @@ class Auth {
       this.renderGuestUi();
       // Reset user data in the LogIn state/model
       LogIn.Scope.user.main.model.user = {};
-      await LogOut.Trigger(result);
+      if (result) await LogOut.Trigger(result);
     } catch (error) {
       logger.error('Error during user logout:', error);
     }
@@ -279,8 +281,16 @@ class Auth {
 
       if (result.status === 'success' && result.data.token) {
         this.setGuestToken(result.data.token);
-        // Recursively call sessionIn to complete the guest login process (UI update, etc.)
-        return await this.sessionIn();
+        // Use the POST response data directly — avoids a redundant GET /user/auth
+        // round-trip that would otherwise re-verify the token we just received.
+        await GuestService.setMeta('guest-session', {
+          role: result.data.user?.role,
+          userId: result.data.user?._id,
+        });
+        LogIn.Scope.user.main.model.user = {};
+        await LogIn.Trigger(result.data);
+        await Account.updateForm(result.data.user);
+        return result.data;
       } else {
         logger.error('Failed to get a new guest token.');
         return { user: UserMock.default };
