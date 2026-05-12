@@ -15,7 +15,14 @@ class SessionMetaDb extends Dexie {
   }
 }
 
-const db = new SessionMetaDb();
+// Lazy singleton — avoids opening IndexedDB at module-load time.
+// Firefox is measurably slower at IDB open than Chromium; deferring the
+// open until first actual read/write eliminates that latency from page startup.
+let _db = null;
+const getDb = () => {
+  if (!_db) _db = new SessionMetaDb();
+  return _db;
+};
 
 class GuestService {
   static setUserToken(value = '') {
@@ -59,7 +66,7 @@ class GuestService {
 
   static async setMeta(key, value) {
     try {
-      await db.meta.put({ key, value, updatedAt: Date.now() });
+      await getDb().meta.put({ key, value, updatedAt: Date.now() });
     } catch (error) {
       logger.warn('session meta write failed', { key, error: error?.message });
     }
@@ -67,7 +74,7 @@ class GuestService {
 
   static async getMeta(key) {
     try {
-      const row = await db.meta.get(key);
+      const row = await getDb().meta.get(key);
       return row ? row.value : null;
     } catch (error) {
       logger.warn('session meta read failed', { key, error: error?.message });

@@ -161,36 +161,33 @@ class PwaWorker {
 
     this.RouterInstance = typeof router?.instance === 'function' ? router.instance() : router();
     if (this.RouterInstance?.Routes) registerRoutes(this.RouterInstance.Routes);
-    const isInstall = await this.status();
-    if (!isInstall) await this.install();
+    // Defer SW registration entirely out of the render critical path.
+    // Firefox IPC for SW registration is notably slower than Chromium;
+    // scheduling after 'load' means the first meaningful paint is not blocked.
+    this.registerServiceWorkerDeferred();
 
     // ── declarative bootstrap path ──────────────────────────────────────────
-    if (typeof render !== 'function' || render.instance) {
-      // shared core inits
-      if (themes) await Css.loadThemes(themes);
-      await this.runComponentInit(TranslateCore);
-      await this.runComponentInit(translate);
-      await this.runComponentInit(Responsive);
-      // app shell render
-      if (render && typeof render.instance === 'function') {
-        const htmlMainBody = typeof template === 'function' ? template : undefined;
-        await this.runComponentInit(render, htmlMainBody ? { htmlMainBody } : undefined);
-      }
-      // socket init
-      const channels = appStore ? appStore.Data : (session && session.socket && session.socket.Data) || undefined;
-      await this.runComponentInit(SocketIo, { channels, path: socketPath });
-      if (session) {
-        await this.runComponentInit(session.socket);
-        await this.runComponentInit(session.login);
-        await this.runComponentInit(session.logout || session.signout);
-        await this.runComponentInit(session.signup);
-        await this.runComponentInit(session.account);
-      }
-      await this.runComponentInit(Keyboard);
-    } else {
-      // ── legacy raw render callback (backward-compat) ─────────────────────
-      await render();
+    // shared core inits
+    if (themes) await Css.loadThemes(themes);
+    await this.runComponentInit(TranslateCore);
+    await this.runComponentInit(translate);
+    await this.runComponentInit(Responsive);
+    // app shell render
+    if (render && typeof render.instance === 'function') {
+      const htmlMainBody = typeof template === 'function' ? template : undefined;
+      await this.runComponentInit(render, htmlMainBody ? { htmlMainBody } : undefined);
     }
+    // socket init
+    const channels = appStore ? appStore.Data : (session && session.socket && session.socket.Data) || undefined;
+    await this.runComponentInit(SocketIo, { channels, path: socketPath });
+    if (session) {
+      await this.runComponentInit(session.socket);
+      await this.runComponentInit(session.login);
+      await this.runComponentInit(session.logout || session.signout);
+      await this.runComponentInit(session.signup);
+      await this.runComponentInit(session.account);
+    }
+    await this.runComponentInit(Keyboard);
     // ────────────────────────────────────────────────────────────────────────
     await LoadRouter(this.RouterInstance);
     LoadingAnimation.removeSplashScreen();
@@ -313,6 +310,30 @@ class PwaWorker {
         }
       }
       await this.updateServiceWorker();
+    }
+  }
+
+  /**
+   * Schedules SW registration to run after the page 'load' event (or immediately
+   * if the page is already loaded). This keeps SW work off the render critical path,
+   * which is the primary cause of Firefox being slower than Chromium on first load.
+   * @memberof PwaWorker
+   * @returns {void}
+   */
+  registerServiceWorkerDeferred() {
+    if (!('serviceWorker' in navigator)) {
+      logger.warn('Service Worker Disabled in browser');
+      return;
+    }
+    const register = () => {
+      this.status().then((isInstall) => {
+        if (!isInstall) this.install();
+      });
+    };
+    if (document.readyState === 'complete') {
+      register();
+    } else {
+      window.addEventListener('load', register, { once: true });
     }
   }
 
