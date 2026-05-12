@@ -3,7 +3,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { Css, darkTheme, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { buildBadgeToolTipMenuOption, Modal, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
-import { htmls, s, sIframe } from './VanillaJs.js';
+import { htmls, s, sa, sIframe } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 class Docs {
   static async RenderModal(type) {
@@ -316,7 +316,7 @@ class Docs {
           label: html`<span class="inl menu-btn-icon">${subMenuIcon}</span
             ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
           tabHref,
-          tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(docData.text, 'right')),
+          tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(docData.text)),
           useMenuBtn: true,
         })}
       `;
@@ -324,6 +324,11 @@ class Docs {
     // s(`.menu-btn-container-children`).classList.remove('hide');
     // htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
     htmls('.menu-btn-container-children-docs', docMenuRender);
+    // If the slide-menu is currently in collapsed (icon-only) mode, hide the
+    // labels on the newly-inserted submenu items to match the other buttons.
+    if (s('.btn-icon-menu-mode-right') && !s('.btn-icon-menu-mode-right').classList.contains('hide')) {
+      sa('.menu-label-text-docs').forEach((el) => el.classList.add('hide'));
+    }
     {
       const docsData = [
         {

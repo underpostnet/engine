@@ -1789,6 +1789,12 @@ class Modal {
             if (options.onCollapseMenu) options.onCollapseMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
             s(`.nav-path-container-${'modal-menu'}`).classList.add('hide');
+            // Shrink any already-open submenu containers to icon-only width
+            Object.keys(Modal.subMenuBtnClass).forEach((subMenuId) => {
+              const container = s(`.menu-btn-container-children-${subMenuId}`);
+              if (container && container.style.height && container.style.height !== '0px')
+                container.style.width = `${collapseSlideMenuWidth}px`;
+            });
             Object.keys(this.Data[idModal].onCollapseMenuListener).map((keyListener) =>
               this.Data[idModal].onCollapseMenuListener[keyListener](),
             );
@@ -1806,6 +1812,12 @@ class Modal {
             if (options.onExtendMenu) options.onExtendMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
             s(`.nav-path-container-${'modal-menu'}`).classList.remove('hide');
+            // Expand any already-open submenu containers back to full width
+            Object.keys(Modal.subMenuBtnClass).forEach((subMenuId) => {
+              const container = s(`.menu-btn-container-children-${subMenuId}`);
+              if (container && container.style.height && container.style.height !== '0px')
+                container.style.width = `${originSlideMenuWidth}px`;
+            });
             Object.keys(this.Data[idModal].onExtendMenuListener).map((keyListener) =>
               this.Data[idModal].onExtendMenuListener[keyListener](),
             );
@@ -2769,9 +2781,12 @@ const subMenuRender = async (subMenuId) => {
     setTimeout(() => {
       Modal.menuTextLabelAnimation('modal-menu', subMenuId);
     });
-    // Open animation
+    // Open animation — match the current menu width (collapsed = 50px, extended = 320px)
+    const _isMenuCollapsed =
+      s(`.btn-icon-menu-mode-right`) && !s(`.btn-icon-menu-mode-right`).classList.contains('hide');
+    const _menuContainerWidth = _isMenuCollapsed ? 50 : 320;
     setTimeout(top, 360);
-    menuContainer.style.width = '320px';
+    menuContainer.style.width = `${_menuContainerWidth}px`;
     menuContainer.style.overflow = null;
     menuContainer.style.height = '0px';
     menuContainer.style.height = `${_hBtn * 6}px`;
