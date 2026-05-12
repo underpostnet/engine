@@ -1,6 +1,15 @@
 {
   "name": "Nexodev - ERP, CRM Development & Cloud DevOps Services",
-  "entryPoints": ["./src/server", "./src/api", "./src/db", "./src/ws", "./src/grpc", "./src/mailer", "./src/runtime"],
+  "entryPoints": [
+    "./src/server",
+    "./src/api",
+    "./src/cli",
+    "./src/db",
+    "./src/ws",
+    "./src/grpc",
+    "./src/mailer",
+    "./src/runtime"
+  ],
   "entryPointStrategy": "expand",
   "exclude": ["**/node_modules/**", "**/docs/**", "**/client/**"],
   "out": "./public/www.nexodev.org/docs/",

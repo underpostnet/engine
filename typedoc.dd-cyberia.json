@@ -1,10 +1,19 @@
 {
   "name": "CYBERIA Online",
-  "entryPoints": ["./src/server", "./src/api", "./src/db", "./src/ws", "./src/grpc", "./src/mailer", "./src/runtime"],
+  "entryPoints": [
+    "./src/server",
+    "./src/api",
+    "./src/cli",
+    "./src/db",
+    "./src/ws",
+    "./src/grpc",
+    "./src/mailer",
+    "./src/runtime"
+  ],
   "entryPointStrategy": "expand",
   "exclude": ["**/node_modules/**", "**/docs/**", "**/client/**", "**/hardhat/**"],
   "out": "./public/www.cyberiaonline.com/docs/",
-  "readme": "./src/public/cyberia-docs/ARCHITECTURE.md",
+  "readme": "./src/client/public/cyberia-docs/ARCHITECTURE.md",
   "tsconfig": "./tsconfig.docs.json",
   "skipErrorChecking": true,
   "logLevel": "Error",
