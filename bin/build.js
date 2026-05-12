@@ -198,6 +198,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/runtime/cyberia-server',
         '/src/runtime/cyberia-client',
         '/.github/workflows/hardhat.ci.yml',
+        '/src/client/public/cyberia-docs',
       ])
         fs.copySync(`.${path}`, `${basePath}${path}`);
 

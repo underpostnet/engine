@@ -107,6 +107,7 @@ try {
           './src/runtime/cyberia-server',
           './src/runtime/cyberia-client',
           './test/shape-generator.test.js',
+          './src/client/public/cyberia-docs',
           'bin/cyberia.js',
         ]) {
           if (fs.existsSync(deletePath)) fs.removeSync('../pwa-microservices-template/' + deletePath);
