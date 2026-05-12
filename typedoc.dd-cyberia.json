@@ -4,7 +4,7 @@
   "entryPointStrategy": "expand",
   "exclude": ["**/node_modules/**", "**/docs/**", "**/client/**", "**/hardhat/**"],
   "out": "./public/www.cyberiaonline.com/docs/",
-  "readme": "./hardhat/README.md",
+  "readme": "./src/public/cyberia-docs/ARCHITECTURE.md",
   "tsconfig": "./tsconfig.docs.json",
   "skipErrorChecking": true,
   "logLevel": "Error",
