@@ -1,9 +1,7 @@
-import { Badge } from './Badge.js';
-import { BtnIcon } from './BtnIcon.js';
-import { Css, darkTheme, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
-import { buildBadgeToolTipMenuOption, Modal, renderViewTitle } from './Modal.js';
+import { Css, darkTheme, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
+import { Modal, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
-import { htmls, s, sa, sIframe } from './VanillaJs.js';
+import { s, sIframe } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 class Docs {
   static async RenderModal(type) {
@@ -289,46 +287,15 @@ class Docs {
         },
       });
     });
-    let docMenuRender = '';
+    // Register theme events for items that have them (Docs-specific concern)
     for (const docData of Docs.Data) {
       if (docData.themeEvent) {
         ThemeEvents[`doc-icon-${docData.type}`] = docData.themeEvent;
         setTimeout(ThemeEvents[`doc-icon-${docData.type}`]);
       }
-      let tabHref, style, labelStyle;
-      switch (docData.type) {
-        case 'repo':
-        case 'coverage-link':
-          style = renderCssAttr({ style: { height: '45px' } });
-          labelStyle = renderCssAttr({ style: { top: '8px', left: '9px' } });
-          break;
-        default:
-          break;
-      }
-      tabHref = docData.url();
-      const subMenuIcon =
-        options.subMenuIcon && typeof options.subMenuIcon === 'function'
-          ? options.subMenuIcon(docData.type)
-          : docData.icon;
-      docMenuRender += html`
-        ${await BtnIcon.instance({
-          class: `in wfa main-btn-menu submenu-btn btn-docs btn-docs-${docData.type}`,
-          label: html`<span class="inl menu-btn-icon">${subMenuIcon}</span
-            ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
-          tabHref,
-          tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(docData.text)),
-          useMenuBtn: true,
-        })}
-      `;
     }
-    // s(`.menu-btn-container-children`).classList.remove('hide');
-    // htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
-    htmls('.menu-btn-container-children-docs', docMenuRender);
-    // If the slide-menu is currently in collapsed (icon-only) mode, hide the
-    // labels on the newly-inserted submenu items to match the other buttons.
-    if (s('.btn-icon-menu-mode-right') && !s('.btn-icon-menu-mode-right').classList.contains('hide')) {
-      sa('.menu-label-text-docs').forEach((el) => el.classList.add('hide'));
-    }
+    // Build submenu items and populate — submenu system is owned by Modal
+    Modal.subMenuPopulate('docs', await Modal.buildSubMenuItemsHtml('docs', Docs.Data, options));
     {
       const docsData = [
         {
