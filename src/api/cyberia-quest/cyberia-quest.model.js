@@ -13,7 +13,7 @@ const CyberiaQuestSchema = new Schema(
     sourceCellY: { type: Number },
 
     // Stable slug, e.g. "fallback-intro-quest"
-    code: { type: String, required: true, unique: true, trim: true },
+    code: { type: String, required: true, trim: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
 
