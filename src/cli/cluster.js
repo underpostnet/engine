@@ -453,12 +453,11 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       shellExec(`sudo sysctl -w fs.inotify.max_queued_events=2099999999`);
 
       // shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
-      // Apply NAT iptables rules.
+      // Apply NAT iptables rules and configure firewalld for Kubernetes.
+      // nat-iptables.sh enables firewalld and opens all required ports; do NOT stop it
+      // afterwards — keeping firewalld running with these rules is required for
+      // multi-machine kubeadm inter-node communication.
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
-
-      // Disable firewalld (common cause of network issues in Kubernetes)
-      shellExec(`sudo systemctl stop firewalld`); // Stop if running
-      shellExec(`sudo systemctl disable firewalld`); // Disable from starting on boot
     },
 
     /**
@@ -575,8 +574,10 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         shellExec('sudo systemctl stop kubelet');
         shellExec('sudo systemctl stop docker');
         shellExec('sudo systemctl stop podman');
-        // Safely unmount pod filesystems to avoid errors.
-        shellExec('sudo umount -f /var/lib/kubelet/pods/*/*');
+        // Lazy-unmount all kubelet pod mounts to avoid 'Device or resource busy' on rm.
+        shellExec(
+          `sudo sh -c 'findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l' 2>/dev/null || true`,
+        );
 
         // Phase 3: Execute official uninstallation commands (type-specific)
         const clusterType = options.clusterType || 'kind';
@@ -584,6 +585,14 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
           `Phase 3/7: Executing official reset/uninstallation commands for cluster type: '${clusterType}'...`,
         );
         if (clusterType === 'kubeadm') {
+          // Kill control plane processes that hold ports (6443, 10257, 10259, 2379, 2380)
+          // so the next `kubeadm init` does not fail with [ERROR Port-xxxx].
+          logger.info('  -> Stopping and killing control plane containers and processes...');
+          shellExec('sudo crictl rm -a -f 2>/dev/null || true');
+          shellExec('sudo crictl rmp -a -f 2>/dev/null || true');
+          shellExec('sudo systemctl stop etcd 2>/dev/null || true');
+          for (const port of [6443, 10259, 10257, 2379, 2380])
+            shellExec(`sudo fuser -k ${port}/tcp 2>/dev/null || true`);
           logger.info('  -> Executing kubeadm reset...');
           shellExec('sudo kubeadm reset --force');
         } else if (clusterType === 'k3s') {
@@ -600,7 +609,12 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Remove any leftover configurations and data.
         shellExec('sudo rm -rf /etc/kubernetes/*');
         shellExec('sudo rm -rf /etc/cni/net.d/*');
+        // Second-pass lazy umount before rm to clear any remaining busy mounts.
+        shellExec(
+          `sudo sh -c 'findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l' 2>/dev/null || true`,
+        );
         shellExec('sudo rm -rf /var/lib/kubelet/*');
+        shellExec('sudo rm -rf /var/lib/etcd');
         shellExec('sudo rm -rf /var/lib/cni/*');
         shellExec('sudo rm -rf /var/lib/docker/*');
         shellExec('sudo rm -rf /var/lib/containerd/*');
@@ -613,11 +627,14 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Remove iptables rules and CNI network interfaces.
         shellExec('sudo iptables -F');
         shellExec('sudo iptables -t nat -F');
-        shellExec('sudo ip link del cni0');
-        shellExec('sudo ip link del flannel.1');
+        shellExec('sudo ip link del cni0 2>/dev/null || true');
+        shellExec('sudo ip link del flannel.1 2>/dev/null || true');
+        shellExec('sudo ip link del vxlan.calico 2>/dev/null || true');
+        shellExec('sudo ip link del tunl0 2>/dev/null || true');
 
         logger.info('Phase 6/7: Clean up images');
-        shellExec(`podman rmi $(podman images -qa) --force`);
+        shellExec('sudo podman rmi --all --force 2>/dev/null || true');
+        shellExec('sudo crictl rmi --prune 2>/dev/null || true');
 
         // Phase 6: Reload daemon and finalize
         logger.info('Phase 7/7: Reloading the system daemon and finalizing...');
