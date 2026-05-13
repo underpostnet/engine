@@ -133,11 +133,19 @@ class UnderpostStartUp {
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      * @param {boolean} options.skipPullBase - Whether to skip pulling the base code.
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
+     * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle before starting.
      */
     async callback(
       deployId = 'dd-default',
       env = 'development',
-      options = { build: false, run: false, underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false },
+      options = {
+        build: false,
+        run: false,
+        underpostQuicklyInstall: false,
+        skipPullBase: false,
+        skipFullBuild: false,
+        pullBundle: false,
+      },
     ) {
       Underpost.env.set('container-status', `${deployId}-${env}-build-deployment`);
       if (options.build === true) await Underpost.start.build(deployId, env, options);
@@ -152,12 +160,14 @@ class UnderpostStartUp {
      * @param {boolean} options.skipPullBase - Whether to skip pulling the base code and use the current workspace code directly.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
+     * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle (must be pushed first with push-bundle).
+     *   This flag is independent of skipFullBuild: it can be combined with skipFullBuild or used alone.
      * @memberof UnderpostStartUp
      */
     async build(
       deployId = 'dd-default',
       env = 'development',
-      options = { underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false },
+      options = { underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false, pullBundle: false },
     ) {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
@@ -176,7 +186,8 @@ class UnderpostStartUp {
         for (const itcScript of itcScripts)
           if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
       }
-      if (!options.skipFullBuild) shellExec(`node bin client ${deployId}`);
+      if (options.pullBundle === true) shellExec(`node bin run pull-bundle --deploy-id ${deployId}`);
+      else if (!options.skipFullBuild) shellExec(`node bin client ${deployId}`);
     },
     /**
      * Runs a deployment.

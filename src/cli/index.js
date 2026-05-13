@@ -66,6 +66,10 @@ program
   .option('--underpost-quickly-install', 'Uses Underpost Quickly Install for dependency installation.')
   .option('--skip-pull-base', 'Skips cloning repositories, uses current workspace code directly.')
   .option('--skip-full-build', 'Skips the full client bundle build during deployment.')
+  .option(
+    '--pull-bundle',
+    'Downloads the pre-built client bundle from Cloudinary via pull-bundle before starting. Use together with --skip-full-build to skip the local build entirely.',
+  )
   .action(Underpost.start.callback)
   .description('Initiates application servers, build pipelines, or other defined services based on the deployment ID.');
 
@@ -333,6 +337,14 @@ program
     'Sets the local:remote port to expose when --expose is active (overrides auto-detected service port).',
   )
   .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
+  .option(
+    '--skip-full-build',
+    'Skip client bundle rebuild; container will pull pre-built bundle via pull-bundle instead.',
+  )
+  .option(
+    '--pull-bundle',
+    'Explicitly pull the pre-built client bundle from Cloudinary inside the container. Use together with --skip-full-build.',
+  )
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 
@@ -661,6 +673,14 @@ program
       '(e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").',
   )
   .option('--copy', 'Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).')
+  .option(
+    '--skip-full-build',
+    'Skip client bundle rebuild; triggers pull-bundle in container startup (supported by: sync, template-deploy).',
+  )
+  .option(
+    '--pull-bundle',
+    'Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build.',
+  )
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
 

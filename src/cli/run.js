@@ -110,6 +110,10 @@ const logger = loggerFactory(import.meta);
  * @property {string|Array<{ip: string, hostnames: string[]}>} hostAliases - Adds entries to the Pod /etc/hosts via Kubernetes hostAliases.
  *   As a string (CLI): semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote").
  *   As an array (programmatic): objects with `ip` and `hostnames` fields (e.g., [{ ip: "127.0.0.1", hostnames: ["foo.local"] }]).
+ * @property {boolean} gitClean - Whether to perform a `git clean` before running.
+ * @property {boolean} copy - Whether to copy the command to the clipboard instead of executing it.
+ * @property {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment (supported by: sync, template-deploy).
+ * @property {boolean} pullBundle - Whether to pull the bundle before running. Use together with --skip-full-build to skip the local build entirely (supported by: sync, template-deploy).
  * @memberof UnderpostRun
  */
 const DEFAULT_OPTION = {
@@ -174,6 +178,8 @@ const DEFAULT_OPTION = {
   hostAliases: '',
   gitClean: false,
   copy: false,
+  skipFullBuild: false,
+  pullBundle: false,
 };
 
 /**
@@ -435,6 +441,15 @@ class UnderpostRun {
         deployType = 'init';
       }
 
+      // If --build is set and path is a sync-engine-* target, push the pre-built client bundle
+      // to Cloudinary so the remote container can pull it instead of rebuilding from source.
+      if (options.build && deployConfId && deployConfId.startsWith('engine-')) {
+        const confName = deployConfId.replace(/^engine-/, '');
+        const pushDeployId = options.deployId || `dd-${confName}`;
+        logger.info(`[template-deploy] Running push-bundle for deployId: ${pushDeployId}`);
+        shellExec(`${baseCommand} run push-bundle --deploy-id ${pushDeployId}`);
+      }
+
       // Dispatch npmpkg CI workflow — this builds pwa-microservices-template first.
       // If deployConfId is set, npmpkg.ci.yml will dispatch the engine-<conf-id> CI
       // with sync=true after template build completes. The engine CI then dispatches
@@ -683,12 +698,15 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         : '';
       const gitCleanFlag = options.gitClean ? ' --git-clean' : '';
 
+      const skipFullBuildFlag = options.skipFullBuild ? ' --skip-full-build' : '';
+      const pullBundleFlag = options.pullBundle ? ' --pull-bundle' : '';
+
       shellExec(
         `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
           image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${
           options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString}${gitCleanFlag} ${deployId} ${env}`,
+        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag} ${deployId} ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -2371,9 +2389,11 @@ EOF`;
     /**
      * @method pull-bundle
      * @description Downloads split zip parts from file storage, merges and extracts them, and moves the result into the public directory.
-     *   Steps: set cron env, download parts (omit-unzip), merge zip, unzip, remove zip, move to public/<host>.
-     * @param {string} path - Optional host name(s) used to locate zip(s) and as public destination(s) (e.g. 'underpost.net' or 'a.com,b.com').
-     *   If omitted, hosts are loaded from `engine-private/conf/<deployId>/conf.server.json`.
+     *   Steps: set env, download parts (omit-unzip), merge zip, unzip, remove zip + parts, move to public/<host>[/path].
+     *   Iterates over every non-singleReplica, non-redirect, non-disabledRebuild route in conf.server.json
+     *   so that multi-path deployments are handled correctly.
+     * @param {string} path - Optional comma-separated host name(s) to restrict processing (e.g. 'underpost.net' or 'a.com,b.com').
+     *   If omitted, all hosts from `engine-private/conf/<deployId>/conf.server.json` are used.
      * @param {Object} options - The default underpost runner options for customizing workflow.
      * @param {string} [options.deployId] - Deploy ID for storage lookup (defaults to 'dd-default').
      * @param {boolean} [options.dev] - Use development environment; defaults to production.
@@ -2384,21 +2404,16 @@ EOF`;
       const env = options.dev ? 'development' : 'production';
       const deployId = options.deployId || 'dd-default';
       const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-      const hosts = path
+      const confServer = fs.existsSync(confServerPath) ? loadConfServerJson(confServerPath) : {};
+      const hostsArg = path
         ? path
             .split(',')
             .map((h) => h.trim())
             .filter(Boolean)
-        : fs.existsSync(confServerPath)
-          ? Object.keys(loadConfServerJson(confServerPath))
-          : [];
+        : Object.keys(confServer);
 
-      if (hosts.length === 0) {
-        logger.error('pull-bundle: no hosts resolved', {
-          deployId,
-          path,
-          confServerPath,
-        });
+      if (hostsArg.length === 0) {
+        logger.error('pull-bundle: no hosts resolved', { deployId, path, confServerPath });
         return;
       }
 
@@ -2407,28 +2422,62 @@ EOF`;
       shellExec(
         `${baseCommand} fs build --recursive --deploy-id ${deployId} --storage-file-path engine-private/conf/${deployId}/storage.bundle.json --pull --omit-unzip`,
       );
-      for (const host of hosts) {
-        const zipPath = `build/${host}-.zip`;
-        const hasZip = fs.existsSync(zipPath);
-        const hasParts =
-          fs.existsSync('./build') &&
-          fs
-            .readdirSync('./build')
-            .some((name) => name.startsWith(`${host}-.zip.part`) || name.startsWith(`${host}-.zip-part`));
 
-        if (!hasZip && !hasParts) {
-          logger.warn(`Bundle not found for host '${host}'. Skipping host.`, {
-            zipPath,
-            deployId,
-          });
-          continue;
+      for (const host of hostsArg) {
+        // Gather all routes for this host; fall back to root '/' when host is not in confServer
+        // (e.g. when hosts were provided explicitly via the path argument).
+        const routePaths = confServer[host] ? Object.keys(confServer[host]) : ['/'];
+
+        for (const routePath of routePaths) {
+          const routeConf = confServer[host] ? confServer[host][routePath] || {} : {};
+          // Skip routes that are not built by buildClient (mirrors buildClient skip conditions)
+          if (routeConf.singleReplica || routeConf.redirect || routeConf.disabledRebuild) continue;
+
+          // buildClient names the zip as "<host>-<path-no-slashes>.zip"
+          // e.g. host="underpost.net", path="/" → buildId="underpost.net-", zip="build/underpost.net-.zip"
+          // e.g. host="app.net", path="/admin" → buildId="app.net-admin", zip="build/app.net-admin.zip"
+          const buildId = `${host}-${routePath.replaceAll('/', '')}`;
+          const zipPath = `build/${buildId}.zip`;
+          const buildDir = './build';
+          const hasZip = fs.existsSync(zipPath);
+          const hasParts =
+            fs.existsSync(buildDir) &&
+            fs
+              .readdirSync(buildDir)
+              .some((name) => name.startsWith(`${buildId}.zip.part`) || name.startsWith(`${buildId}.zip-part`));
+
+          if (!hasZip && !hasParts) {
+            logger.warn(`Bundle not found for '${host}${routePath}'. Skipping.`, { zipPath, deployId });
+            continue;
+          }
+
+          if (hasParts) shellExec(`${baseCommand} client --merge-zip ${zipPath}`);
+          shellExec(`${baseCommand} client --unzip ${zipPath}`);
+          shellExec(`sudo rm -rf ${zipPath}`);
+
+          // Clean up downloaded part wrapper zips left by --omit-unzip pull
+          if (fs.existsSync(buildDir)) {
+            fs.readdirSync(buildDir)
+              .filter((name) => name.startsWith(`${buildId}.zip.part`) || name.startsWith(`${buildId}.zip-part`))
+              .forEach((partFile) => shellExec(`sudo rm -rf ${buildDir}/${partFile}`));
+          }
+
+          // unzipClientBuild extracts to buildId with trailing '-' stripped
+          // e.g. "build/underpost.net-" → "build/underpost.net"
+          // e.g. "build/app.net-admin" → "build/app.net-admin" (no trailing dash, no change)
+          const extractedDir = `build/${buildId.replace(/-$/, '')}`;
+          if (!fs.existsSync(extractedDir)) {
+            logger.warn(`Extracted build dir not found: ${extractedDir}. Skipping move for '${host}${routePath}'.`);
+            continue;
+          }
+
+          // Destination mirrors the public directory layout used by the server
+          const publicDestPath = routePath === '/' ? `public/${host}` : `public/${host}${routePath}`;
+          if (fs.existsSync(publicDestPath)) shellExec(`sudo rm -rf ${publicDestPath}`);
+          // Ensure parent directory exists for sub-paths
+          if (routePath !== '/') shellExec(`sudo mkdir -p public/${host}`);
+          shellExec(`sudo mv ${extractedDir} ${publicDestPath}`);
         }
-
-        if (hasParts) shellExec(`${baseCommand} client --merge-zip ${zipPath}`);
-        shellExec(`${baseCommand} client --unzip ${zipPath}`);
-        shellExec(`sudo rm -rf ${zipPath}`);
-        if (fs.existsSync(`public/${host}`)) shellExec(`sudo rm -rf public/${host}`);
-        shellExec(`sudo mv build/${host} public/${host}`);
       }
     },
   };

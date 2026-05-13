@@ -125,17 +125,39 @@ class UnderpostDeploy {
      * @param {string} namespace - Kubernetes namespace for the deployment.
      * @param {Array<object>} volumes - Volume configurations for the deployment.
      * @param {Array<string>} cmd - Command to run in the deployment container.
+     * @param {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment.
+     * @param {boolean} pullBundle - Whether to pull the pre-built client bundle from Cloudinary before starting. Use together with skipFullBuild to skip the local build entirely.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
-    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
+    deploymentYamlPartsFactory({
+      deployId,
+      env,
+      suffix,
+      resources,
+      replicas,
+      image,
+      namespace,
+      volumes,
+      cmd,
+      skipFullBuild,
+      pullBundle,
+    }) {
       if (!cmd)
-        cmd = [
-          // `npm install -g npm@11.2.0`,
-          // `npm install -g underpost`,
-          `underpost secret underpost --create-from-env`,
-          `underpost start --build --run ${deployId} ${env}`,
-        ];
+        cmd =
+          pullBundle || skipFullBuild
+            ? [
+                // When pullBundle (or skipFullBuild) is set the container pulls the pre-built client
+                // bundle from Cloudinary (push-bundle must have been run on the dev machine beforehand).
+                `underpost secret underpost --create-from-env`,
+                `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
+              ]
+            : [
+                // `npm install -g npm@11.2.0`,
+                // `npm install -g underpost`,
+                `underpost secret underpost --create-from-env`,
+                `underpost start --build --run ${deployId} ${env}`,
+              ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes) volumes = [];
       const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
@@ -224,6 +246,8 @@ spec:
      * @param {string} [options.retryPerTryTimeout] - Retry per-try timeout setting for the deployment.
      * @param {boolean} [options.disableDeploymentProxy] - Whether to disable deployment proxy.
      * @param {string} [options.traffic] - Traffic status for the deployment.
+     * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; forwarded to deploymentYamlPartsFactory to generate a pull-bundle startup command.
+     * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; forwarded to deploymentYamlPartsFactory. Use together with skipFullBuild.
      * @returns {Promise<void>} - Promise that resolves when the manifest is built.
      * @memberof UnderpostDeploy
      */
@@ -260,6 +284,8 @@ ${Underpost.deploy
     image,
     namespace: options.namespace,
     cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
+    skipFullBuild: options.skipFullBuild,
+    pullBundle: options.pullBundle,
   })
   .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
@@ -553,10 +579,13 @@ spec:
      * @param {string} [options.kindType] - Type of Kubernetes resource to retrieve information for.
      * @param {number} [options.port] - Port number for exposing the deployment.
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
+     * @param {number} [options.exposePort] - Local:remote port override when --expose is active (overrides auto-detected service port).
      * @param {boolean} [options.k3s] - Whether to use k3s cluster context.
      * @param {boolean} [options.kubeadm] - Whether to use kubeadm cluster context.
      * @param {boolean} [options.kind] - Whether to use kind cluster context.
      * @param {boolean} [options.gitClean] - Whether to run git clean on volume mount paths before copying.
+     * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; passed through to buildManifest/deploymentYamlPartsFactory.
+     * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; passed through to buildManifest/deploymentYamlPartsFactory. Use together with skipFullBuild.
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
