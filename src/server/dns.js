@@ -102,6 +102,22 @@ class Dns {
   }
 
   /**
+   * Gets the MAC address of the main (default route) network interface.
+   * @static
+   * @memberof UnderpostDns
+   * @returns {string|null} The MAC address, or null if not found.
+   */
+  static getMainInterfaceMac() {
+    const interfaceName = Dns.getDefaultNetworkInterface();
+    const networkInfo = os.networkInterfaces()[interfaceName];
+    if (!networkInfo || networkInfo.length === 0) {
+      logger.error(`Could not find network interface: ${interfaceName}`);
+      return null;
+    }
+    return networkInfo[0].mac;
+  }
+
+  /**
    * Setup nftables tables and chains if they don't exist.
    * @static
    * @memberof UnderpostDns
@@ -489,6 +505,12 @@ class Dns {
         Dns.unbanIngress(ip);
         Dns.unbanEgress(ip);
       });
+    }
+
+    if (options.mac) {
+      const mac = Dns.getMainInterfaceMac();
+      console.log(mac);
+      return mac;
     }
 
     let ip;

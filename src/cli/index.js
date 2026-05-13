@@ -234,6 +234,7 @@ program
   .option('--ban-egress-clear', 'Clears all banned egress IP addresses.')
   .option('--ban-both-add', 'Adds IP addresses to both banned ingress and egress lists.')
   .option('--ban-both-remove', 'Removes IP addresses from both banned ingress and egress lists.')
+  .option('--mac', 'Prints the MAC address of the main network interface.')
   .description('Displays the current public machine IP addresses.')
   .action(Underpost.dns.ipDispatcher);
 
