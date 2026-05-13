@@ -401,6 +401,7 @@ class UnderpostRepository {
 
     /**
      * Retrieves the message of the last Git commit.
+     * @param {number} [skip=0] - Number of commits to skip from HEAD (0 = most recent).
      * @returns {string} The last commit message.
      * @memberof UnderpostRepository
      */
@@ -949,6 +950,7 @@ Prevent build private config repo.`,
     /**
      * Retrieves the Git commit history.
      * @param {number} [sinceCommit=1] - The number of recent commits to retrieve.
+     * @param {string} [repoPath='.'] - The path to the repository.
      * @returns {Array<{hash: string, message: string, files: string}>} An array of commit objects with hash, message, and files.
      * @memberof UnderpostRepository
      */
@@ -1270,19 +1272,10 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Returns metadata about unpushed commits in a git repository.
-     * Fetches from origin, then counts commits ahead of the remote branch.
-     * @param {string} [repoPath='.'] - Path to the git repository.
-     * @param {number} [fallback=1] - Value to return as `count` when no unpushed commits are detected.
-     * @returns {{ count: number, branch: string, hasUnpushed: boolean }} Unpush metadata.
-     * @memberof UnderpostRepository
-     */
-    /**
-     * Checks whether a remote Git repository URL is reachable.
-     * Uses `git ls-remote` with `|| true` so the process always exits 0.
-     * Injects `GITHUB_TOKEN` into GitHub HTTPS URLs when available.
-     * @param {string} url - Full HTTPS clone URL to test (e.g. "https://github.com/org/repo.git").
-     * @returns {boolean} `true` when the remote responded with at least one ref hash.
+     * Resolves a Git remote URL, normalizing short-form owner/repo references to full
+     * GitHub HTTPS URLs and injecting GITHUB_TOKEN when available.
+     * @param {string} url - The repository URL or short-form (e.g. "owner/repo" or full HTTPS URL).
+     * @returns {string} The resolved (and optionally authenticated) HTTPS URL.
      * @memberof UnderpostRepository
      */
     resolveAuthUrl(url) {
@@ -1300,7 +1293,14 @@ Prevent build private config repo.`,
       }
       return normalized;
     },
-
+    /**
+     * Checks whether a remote Git repository URL is reachable.
+     * Uses `git ls-remote` with `|| true` so the process always exits 0.
+     * Injects `GITHUB_TOKEN` into GitHub HTTPS URLs when available.
+     * @param {string} url - Full HTTPS clone URL to test (e.g. "https://github.com/org/repo.git").
+     * @returns {boolean} `true` when the remote responded with at least one ref hash.
+     * @memberof UnderpostRepository
+     */
     isRemoteRepo(url) {
       if (!url) return false;
       const authUrl = Underpost.repo.resolveAuthUrl(url);
@@ -1314,6 +1314,14 @@ Prevent build private config repo.`,
       return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
     },
 
+    /**
+     * Returns metadata about unpushed commits in a git repository.
+     * Fetches from origin, then counts commits ahead of the remote branch.
+     * @param {string} [repoPath='.'] - Path to the git repository.
+     * @param {number} [fallback=1] - Value to return as `count` when no unpushed commits are detected.
+     * @returns {{ count: number, branch: string, hasUnpushed: boolean }} Unpush metadata.
+     * @memberof UnderpostRepository
+     */
     getUnpushedCount(repoPath = '.', fallback = 1) {
       const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
         stdout: true,
@@ -1353,19 +1361,6 @@ Prevent build private config repo.`,
         .trim()
         .replaceAll('] - ', '] ');
     },
-
-    /**
-     * Manages a cron-backup Git repository: clone, pull, commit, or push.
-     * Resolves the repository path as `../<repoName>` relative to the CWD.
-     * Requires the `GITHUB_USERNAME` environment variable to be set.
-     * @param {object} params
-     * @param {string} params.repoName - Repository name (e.g. `engine-cyberia-cron-backups`).
-     * @param {'clone'|'pull'|'commit'|'push'} params.operation - Git operation to perform.
-     * @param {string} [params.message=''] - Commit message (used by the `commit` operation).
-     * @param {boolean} [params.forceClone=false] - Remove existing clone before re-cloning.
-     * @returns {boolean} `true` on success, `false` if GITHUB_USERNAME is unset or on error.
-     * @memberof UnderpostRepository
-     */
     /**
      * Initializes a git repository at the given path and configures user identity
      * from environment variables (`GITHUB_USERNAME` / `GITHUB_EMAIL`).
@@ -1398,7 +1393,18 @@ Prevent build private config repo.`,
         }
       }
     },
-
+    /**
+     * Manages a cron-backup Git repository: clone, pull, commit, or push.
+     * Resolves the repository path as `../<repoName>` relative to the CWD.
+     * Requires the `GITHUB_USERNAME` environment variable to be set.
+     * @param {object} params
+     * @param {string} params.repoName - Repository name (e.g. `engine-cyberia-cron-backups`).
+     * @param {'clone'|'pull'|'commit'|'push'} params.operation - Git operation to perform.
+     * @param {string} [params.message=''] - Commit message (used by the `commit` operation).
+     * @param {boolean} [params.forceClone=false] - Remove existing clone before re-cloning.
+     * @returns {boolean} `true` on success, `false` if GITHUB_USERNAME is unset or on error.
+     * @memberof UnderpostRepository
+     */
     manageBackupRepo({ repoName, operation, message = '', forceClone = false }) {
       try {
         const username = process.env.GITHUB_USERNAME;

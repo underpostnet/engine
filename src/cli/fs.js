@@ -150,8 +150,12 @@ class UnderpostFileStorage {
           } else pullSkipCount++;
         }
         if (pullSkipCount > 0) logger.warn(`Pull skipped ${pullSkipCount} files that already exist`);
-        Underpost.repo.initLocalRepo({ path });
-        shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`);
+        // Only run git init/commit when the caller explicitly requests git tracking (--git flag).
+        // For bundle pulls into ./build the git step is unwanted and would error on a non-repo path.
+        if (options.git === true) {
+          Underpost.repo.initLocalRepo({ path });
+          shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`);
+        }
       } else {
         const files =
           options.git === true ? Underpost.repo.getChangedFiles(path) : await fs.readdir(path, { recursive: true });
@@ -203,11 +207,13 @@ class UnderpostFileStorage {
      * @description Uploads a file to Cloudinary.
      * @param {string} path - The path to the file to upload.
      * @param {object} [options] - An object containing options for the upload.
-     * @param {boolean} [options.force=false] - Flag to force file operations.
+     * @param {string} [options.deployId=''] - The identifier for the deployment (used to locate the storage config file).
+     * @param {boolean} [options.force=false] - Flag to force file operations (overwrites existing remote asset).
      * @param {string} [options.storageFilePath=''] - The path to the storage configuration file.
      * @returns {Promise<object>} A promise that resolves to the upload result.
      * @memberof UnderpostFileStorage
      */
+
     async upload(
       path,
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, storageFilePath: '' },
@@ -235,6 +241,7 @@ class UnderpostFileStorage {
      * @param {string} path - The path to the file to pull.
      * @param {object} [options] - Pull options.
      * @param {boolean} [options.omitUnzip=false] - If true, do not extract zip and keep downloaded zip file.
+     * @param {boolean} [options.force=false] - If true, re-download even if the local zip already exists.
      * @returns {Promise<void>} A promise that resolves when the file is pulled.
      * @memberof UnderpostFileStorage
      */
@@ -264,6 +271,13 @@ class UnderpostFileStorage {
       path = Underpost.fs.zip2File(zipPath);
       fs.removeSync(`${path}.zip`);
     },
+    /**
+     * @method delete
+     * @description Deletes a file from Cloudinary by its public ID.
+     * @param {string} path - The path (public ID) of the file to delete.
+     * @returns {Promise<object>} A promise that resolves to the Cloudinary delete result.
+     * @memberof UnderpostFileStorage
+     */
     async delete(path) {
       Underpost.fs.cloudinaryConfig();
       const deleteResult = await cloudinary.api
