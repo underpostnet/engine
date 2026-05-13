@@ -2488,6 +2488,8 @@ class Modal {
    */
   static buildSubMenuItemsHtml = async (subMenuId, items = [], options = {}) => {
     let result = '';
+    const _menuMode = Modal.Data['modal-menu']?.options?.mode;
+    const _tooltipSide = options.tooltipSide || (_menuMode === 'slide-menu-right' ? 'right' : 'left');
     for (const item of items) {
       const tabHref = typeof item.url === 'function' ? item.url() : item.url || '';
       const icon =
@@ -2497,7 +2499,7 @@ class Modal {
         label: html`<span class="inl menu-btn-icon">${icon}</span
           ><span class="menu-label-text menu-label-text-${subMenuId}"> ${item.text} </span>`,
         tabHref,
-        tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(item.text)),
+        tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(item.text, _tooltipSide)),
         useMenuBtn: true,
       })} `;
     }
@@ -2512,7 +2514,10 @@ class Modal {
    */
   static subMenuPopulate = (subMenuId, itemsHtml) => {
     htmls(`.menu-btn-container-children-${subMenuId}`, itemsHtml);
-    if (s('.btn-icon-menu-mode-right') && !s('.btn-icon-menu-mode-right').classList.contains('hide')) {
+    const _menuMode = Modal.Data['modal-menu']?.options?.mode;
+    const _collapseIndicatorClass =
+      _menuMode === 'slide-menu-right' ? '.btn-icon-menu-mode-left' : '.btn-icon-menu-mode-right';
+    if (s(_collapseIndicatorClass) && !s(_collapseIndicatorClass).classList.contains('hide')) {
       sa(`.menu-label-text-${subMenuId}`).forEach((el) => el.classList.add('hide'));
     }
   };
@@ -2823,8 +2828,10 @@ const subMenuRender = async (subMenuId) => {
       Modal.menuTextLabelAnimation('modal-menu', subMenuId);
     });
     // Open animation — match the current menu width (collapsed = 50px, extended = 320px)
-    const _isMenuCollapsed =
-      s(`.btn-icon-menu-mode-right`) && !s(`.btn-icon-menu-mode-right`).classList.contains('hide');
+    const _menuMode = Modal.Data['modal-menu']?.options?.mode;
+    const _collapseIndicatorClass =
+      _menuMode === 'slide-menu-right' ? '.btn-icon-menu-mode-left' : '.btn-icon-menu-mode-right';
+    const _isMenuCollapsed = s(_collapseIndicatorClass) && !s(_collapseIndicatorClass).classList.contains('hide');
     const _menuContainerWidth = _isMenuCollapsed ? 50 : 320;
     setTimeout(top, 360);
     menuContainer.style.width = `${_menuContainerWidth}px`;
