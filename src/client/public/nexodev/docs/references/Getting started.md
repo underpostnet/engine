@@ -20,13 +20,13 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 **1.3** Install node v24.10.0:
 
 ```bash
-nvm install 24.10.0
+nvm install 24.15.0
 ```
 
 **1.4** Set node version:
 
 ```bash
-nvm use 24.10.0
+nvm use 24.15.0
 ```
 
 **1.5** Install underpost environment:
