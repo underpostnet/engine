@@ -1,26 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
-# Disable firewalld
-sudo systemctl disable --now iptables
-sudo systemctl disable --now ufw
-sudo systemctl disable --now firewalld
+# Enable firewalld
+sudo systemctl enable --now firewalld
 
+# Optional: persistent IP forwarding
+sudo tee /etc/sysctl.d/99-forwarding.conf >/dev/null <<'EOF'
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+EOF
 
-# Remove any existing entries, then append exactly one
-sudo sed -i '/^net.ipv4.ip_forward/d' /etc/sysctl.conf
-sudo sed -i '/^net.ipv6.conf.all.forwarding/d' /etc/sysctl.conf
-echo "net.ipv4.ip_forward = 1"               | sudo tee -a /etc/sysctl.conf
-echo "net.ipv6.conf.all.forwarding = 1"       | sudo tee -a /etc/sysctl.conf
-# ---
+sudo sysctl --system
 
-sudo sysctl -p
+# Open SSH + web + custom ports in the default zone
+sudo firewall-cmd --permanent --zone=public --add-service=ssh
+sudo firewall-cmd --permanent --zone=public --add-port=80/tcp
+sudo firewall-cmd --permanent --zone=public --add-port=443/tcp
+sudo firewall-cmd --permanent --zone=public --add-port=5000/tcp
+sudo firewall-cmd --permanent --zone=public --add-port=9090/tcp
 
-# Accept all traffic
-sudo iptables -P INPUT ACCEPT
-sudo iptables -P FORWARD ACCEPT
-sudo iptables -P OUTPUT ACCEPT
+# Apply changes
+sudo firewall-cmd --reload
 
-# List iptables rules and forwarding flag
-sudo iptables -L -n
-sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+# Show status
+sudo sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+sudo firewall-cmd --zone=public --list-all
