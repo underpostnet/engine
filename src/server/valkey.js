@@ -22,7 +22,7 @@ const logger = loggerFactory(import.meta);
 /** @type {Record<string, import('iovalkey').default>} */
 const ValkeyInstances = {};
 
-/** @type {Record<string, 'connected' | 'error'>} */
+/** @type {Record<string, 'connected' | 'reconnecting' | 'error'>} */
 const ValkeyStatus = {};
 
 /**
@@ -57,7 +57,10 @@ const createValkeyConnection = async (instance = {}, connectionOptions = {}) => 
   const client = new Valkey({
     port: connectionOptions.port ?? undefined,
     host: connectionOptions.host ?? undefined,
-    retryStrategy: (attempt) => (attempt === 1 ? undefined : 1000),
+    // Retry indefinitely with capped exponential backoff (1 s → 30 s)
+    retryStrategy: (attempt) => Math.min(attempt * 1000, 30000),
+    // Fail commands immediately when not connected; do NOT queue them
+    maxRetriesPerRequest: 0,
   });
 
   client.on('ready', () => {
@@ -67,6 +70,10 @@ const createValkeyConnection = async (instance = {}, connectionOptions = {}) => 
   client.on('error', (err) => {
     ValkeyStatus[key] = 'error';
     logger.error('Valkey error', { err: err?.message, instance });
+  });
+  client.on('reconnecting', () => {
+    ValkeyStatus[key] = 'reconnecting';
+    logger.warn('Valkey reconnecting...', { instance });
   });
   client.on('end', () => {
     ValkeyStatus[key] = 'error';
