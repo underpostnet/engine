@@ -172,9 +172,19 @@ class UnderpostCluster {
           const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
           const controlPlaneEndpoint = options.controlPlaneEndpoint || `${os.hostname()}:6443`;
 
-          // Initialize kubeadm control plane
+          // Initialize kubeadm control plane.
+          // Use CRI-O socket when available, otherwise fall back to containerd.
+          const crioSocket = 'unix:///var/run/crio/crio.sock';
+          const containerdSocket = 'unix:///run/containerd/containerd.sock';
+          const criSocket =
+            shellExec(`test -S /var/run/crio/crio.sock && echo crio || echo containerd`, {
+              stdout: true,
+              silent: true,
+            }).trim() === 'crio'
+              ? crioSocket
+              : containerdSocket;
           shellExec(
-            `sudo kubeadm init --pod-network-cidr=${podNetworkCidr} --control-plane-endpoint="${controlPlaneEndpoint}"`,
+            `sudo kubeadm init --pod-network-cidr=${podNetworkCidr} --control-plane-endpoint="${controlPlaneEndpoint}" --cri-socket=${criSocket}`,
           );
           // Configure kubectl for the current user
           Underpost.cluster.chown('kubeadm'); // Pass 'kubeadm' to chown
@@ -389,8 +399,17 @@ EOF
         );
         shellExec(`rm -f ${tarPath}`);
       } else if (options.kubeadm || options.k3s) {
-        // Kubeadm / K3s: use crictl to pull directly into containerd
-        shellExec(`sudo crictl pull ${image}`);
+        // Kubeadm / K3s: use crictl to pull directly into the active CRI runtime.
+        // crictl is not in sudo's secure_path; pass full PATH through env.
+        // Point crictl at CRI-O when the socket exists, otherwise fall back to containerd.
+        const criSock =
+          shellExec(`test -S /var/run/crio/crio.sock && echo crio || echo containerd`, {
+            stdout: true,
+            silent: true,
+          }).trim() === 'crio'
+            ? 'unix:///var/run/crio/crio.sock'
+            : 'unix:///run/containerd/containerd.sock';
+        shellExec(`sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint ${criSock} pull ${image}`);
       }
     },
 
@@ -704,6 +723,9 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       // Install Podman
       shellExec(`sudo dnf -y install podman`);
 
+      // Install CRI-O (required for kubeadm with CRI-O socket)
+      shellExec(`node bin run install-crio`);
+
       // Install Kind (Kubernetes in Docker)
       shellExec(`[ $(uname -m) = ${archData.name} ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-${archData.alias}
 chmod +x ./kind
@@ -760,6 +782,14 @@ EOF`);
       // Remove Podman
       console.log('Removing Podman...');
       shellExec(`sudo dnf -y remove podman`);
+
+      // Remove CRI-O
+      console.log('Removing CRI-O...');
+      shellExec(`sudo systemctl stop crio 2>/dev/null || true`);
+      shellExec(`sudo systemctl disable crio 2>/dev/null || true`);
+      shellExec(`sudo dnf -y remove cri-o`);
+      shellExec(`sudo rm -f /etc/yum.repos.d/cri-o.repo`);
+      shellExec(`sudo rm -f /etc/crictl.yaml`);
 
       // Remove Kubeadm, Kubelet, and Kubectl
       console.log('Removing Kubernetes tools...');
