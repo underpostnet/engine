@@ -1,54 +1,36 @@
-FROM rockylinux:9
+# --- Build Image
+FROM rockylinux/rockylinux:9 AS builder
 
-# System packages 
 RUN dnf -y update && \
     dnf -y install epel-release && \
     dnf -y install --allowerasing \
-    bzip2 \
-    sudo \
-    curl \
-    net-tools \
-    openssh-server \
-    nano \
-    vim-enhanced \
-    less \
-    openssl-devel \
-    wget \
     git \
-    gnupg2 \
-    libnsl \
-    perl && \
+    make \
+    golang && \
     dnf clean all
 
-# Install Node.js
-RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
-RUN dnf install nodejs -y
-RUN dnf clean all
+WORKDIR /build
 
-# Verify Node.js and npm versions
-RUN node --version
-RUN npm --version
+# Cache dependency downloads independently of source changes
+COPY cyberia-server/go.mod cyberia-server/go.sum ./
+RUN go mod download
 
-# Install underpost CLI 
-RUN npm install -g underpost
-RUN underpost --version
+COPY cyberia-server/ ./
+RUN chmod +x build.sh && ./build.sh
 
-# Runtime root expected by startup/build scripts.
-WORKDIR /home/dd
+# --- Runtime Image
+FROM rockylinux/rockylinux:9-minimal AS runtime
 
-RUN underpost clone underpostnet/engine-cyberia && \
-    mv /home/dd/engine-cyberia /home/dd/engine && \
-    cd /home/dd/engine && npm install
+RUN dnf -y update && \
+    dnf -y install epel-release curl git && \
+    curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
+    dnf install -y nodejs && \
+    dnf clean all
 
-RUN mkdir -p /home/dd/engine/cyberia-server
-COPY cyberia-server/ /home/dd/engine/cyberia-server/
+WORKDIR /home/dd/engine/cyberia-server
 
-RUN cd /home/dd/engine/cyberia-server && \
-    go mod download && \
-    chmod +x build.sh && \
-    ./build.sh
+COPY --from=builder /build/server ./server
 
 EXPOSE 8081
 
-CMD ["/home/dd/engine/cyberia-server/server"]
-
+ENTRYPOINT ["/home/dd/engine/cyberia-server/server"]
