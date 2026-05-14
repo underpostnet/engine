@@ -2037,28 +2037,29 @@ try {
           }
         }
 
-        // 4d. Export dialogues for all relevant itemIds. If an item has no dialogue docs yet
-        //     but ships with DefaultCyberiaDialogues, seed those defaults into Mongo first.
+        // 4d. Export dialogues for all relevant object-layer items. Codes follow the pattern
+        //     "default-<itemId>". If an item has no dialogue docs yet but ships with
+        //     DefaultCyberiaDialogues, seed those defaults into Mongo first.
         if (objectLayerItemIds.size > 0) {
           const requestedItemIds = [...objectLayerItemIds];
+          const requestedCodes = requestedItemIds.map((id) => `default-${id}`);
           const defaultDialoguesByItemId = getDefaultDialoguesByItemId(requestedItemIds);
           const existingDialogueDocs = await CyberiaDialogue.find({
-            itemId: { $in: requestedItemIds },
+            code: { $in: requestedCodes },
           })
-            .sort({ itemId: 1, order: 1 })
+            .sort({ code: 1, order: 1 })
             .lean();
 
-          const existingDialogueItemIds = new Set(
-            existingDialogueDocs.map((dialogue) => dialogue.itemId).filter(Boolean),
-          );
+          const existingDialogueCodes = new Set(existingDialogueDocs.map((dialogue) => dialogue.code).filter(Boolean));
           let seededDialogueCount = 0;
 
           for (const [itemId, dialogues] of defaultDialoguesByItemId.entries()) {
-            if (existingDialogueItemIds.has(itemId)) continue;
+            const firstCode = dialogues[0]?.code;
+            if (firstCode && existingDialogueCodes.has(firstCode)) continue;
 
             for (const dialogue of dialogues) {
               await CyberiaDialogue.findOneAndUpdate(
-                { itemId: dialogue.itemId, order: dialogue.order },
+                { code: dialogue.code, order: dialogue.order },
                 {
                   $set: {
                     speaker: dialogue.speaker,
@@ -2072,8 +2073,8 @@ try {
             }
           }
 
-          const dialogueDocs = await CyberiaDialogue.find({ itemId: { $in: requestedItemIds } })
-            .sort({ itemId: 1, order: 1 })
+          const dialogueDocs = await CyberiaDialogue.find({ code: { $in: requestedCodes } })
+            .sort({ code: 1, order: 1 })
             .lean();
 
           if (seededDialogueCount > 0) {
@@ -2082,23 +2083,23 @@ try {
 
           if (dialogueDocs.length > 0) {
             fs.ensureDirSync(`${backupDir}/cyberia-dialogues`);
-            const dialoguesByItemId = new Map();
+            const dialoguesByCode = new Map();
 
             for (const dialogue of dialogueDocs) {
-              if (!dialoguesByItemId.has(dialogue.itemId)) {
-                dialoguesByItemId.set(dialogue.itemId, []);
+              if (!dialoguesByCode.has(dialogue.code)) {
+                dialoguesByCode.set(dialogue.code, []);
               }
-              dialoguesByItemId.get(dialogue.itemId).push(dialogue);
+              dialoguesByCode.get(dialogue.code).push(dialogue);
             }
 
-            for (const [itemId, dialogues] of dialoguesByItemId.entries()) {
-              fs.writeJsonSync(`${backupDir}/cyberia-dialogues/${encodeURIComponent(itemId)}.json`, dialogues, {
+            for (const [code, dialogues] of dialoguesByCode.entries()) {
+              fs.writeJsonSync(`${backupDir}/cyberia-dialogues/${encodeURIComponent(code)}.json`, dialogues, {
                 spaces: 2,
               });
             }
 
             logger.info(`Exported ${dialogueDocs.length} CyberiaDialogue document(s)`, {
-              itemIds: [...dialoguesByItemId.keys()],
+              codes: [...dialoguesByCode.keys()],
             });
           }
         }
@@ -2461,10 +2462,9 @@ try {
             }
 
             if (dropOlItemIds.size > 0) {
-              const dialogueResult = await CyberiaDialogue.deleteMany({ itemId: { $in: [...dropOlItemIds] } });
+              const dropDialogueCodes = [...dropOlItemIds].map((id) => `default-${id}`);
+              const dialogueResult = await CyberiaDialogue.deleteMany({ code: { $in: dropDialogueCodes } });
               logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
-
-              // Gather ObjectLayers to collect related doc IDs and CIDs
               const olDocs = await ObjectLayer.find(
                 { 'data.item.id': { $in: [...dropOlItemIds] } },
                 {
@@ -2767,13 +2767,13 @@ try {
           for (const file of dialogueFiles) {
             const rawDialogueData = fs.readJsonSync(`${dialoguesDir}/${file}`);
             const dialogues = Array.isArray(rawDialogueData) ? rawDialogueData : [rawDialogueData];
-            const dialogueItemIds = [...new Set(dialogues.map((dialogue) => dialogue.itemId).filter(Boolean))];
-            if (dialogueItemIds.length === 0) {
-              logger.warn(`Skipping CyberiaDialogue backup without itemId: ${file}`);
+            const dialogueCodes = [...new Set(dialogues.map((dialogue) => dialogue.code).filter(Boolean))];
+            if (dialogueCodes.length === 0) {
+              logger.warn(`Skipping CyberiaDialogue backup without code: ${file}`);
               continue;
             }
 
-            await CyberiaDialogue.deleteMany({ itemId: { $in: dialogueItemIds } });
+            await CyberiaDialogue.deleteMany({ code: { $in: dialogueCodes } });
 
             const dialogueIds = dialogues.map((dialogue) => dialogue._id).filter(Boolean);
             if (dialogueIds.length > 0) {
@@ -3121,7 +3121,8 @@ try {
           }
 
           if (dropOlItemIds.size > 0) {
-            const dialogueResult = await CyberiaDialogue.deleteMany({ itemId: { $in: [...dropOlItemIds] } });
+            const dropDialogueCodes = [...dropOlItemIds].map((id) => `default-${id}`);
+            const dialogueResult = await CyberiaDialogue.deleteMany({ code: { $in: dropDialogueCodes } });
             logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
 
             const olDocs = await ObjectLayer.find(
