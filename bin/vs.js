@@ -65,7 +65,7 @@ switch (process.argv[2]) {
 
   case 'clean': {
     shellExec(`sudo rm -rf ${vsCodeRootPath}/*`);
-    shellExec(`sudo rn -rf ${vsConfigRootPath}`);
+    shellExec(`sudo rm -rf ${vsConfigRootPath}`);
     break;
   }
   default:
