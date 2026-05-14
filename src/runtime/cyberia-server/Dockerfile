@@ -19,10 +19,11 @@ COPY cyberia-server/ ./
 RUN chmod +x build.sh && ./build.sh
 
 # --- Runtime Image
-FROM rockylinux/rockylinux:9-minimal AS runtime
+FROM rockylinux/rockylinux:9 AS runtime
 
 RUN dnf -y update && \
-    dnf -y install epel-release curl git && \
+    dnf -y install epel-release && \
+    dnf -y install --allowerasing curl git && \
     curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
     dnf install -y nodejs && \
     dnf clean all

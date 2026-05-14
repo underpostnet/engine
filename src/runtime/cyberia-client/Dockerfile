@@ -38,7 +38,9 @@ RUN dnf groupinstall -y "Development Tools" && \
         freeglut-devel \
         glfw-devel \
         libatomic.x86_64 && \
-    dnf clean all
+    dnf clean all && \
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2 && \
+    alternatives --set python3 /usr/bin/python3.11
 ENV EMSDK=/opt/emsdk
 ENV PATH="${EMSDK}:${EMSDK}/upstream/emscripten:${PATH}"
 
@@ -51,15 +53,16 @@ RUN ./emsdk install ${EMSDK_VERSION} && \
     ./emsdk activate ${EMSDK_VERSION}
 
 WORKDIR /cyberia-client
-COPY . .
+COPY cyberia-client/ .
 
 RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 
 # --- Runtime Image
-FROM rockylinux/rockylinux:9-minimal AS runtime
+FROM rockylinux/rockylinux:9 AS runtime
 
 RUN dnf -y update && \
-    dnf -y install epel-release curl git python3 && \
+    dnf -y install epel-release && \
+    dnf -y install --allowerasing curl git python3 && \
     curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
     dnf install -y nodejs && \
     dnf clean all
