@@ -1,10 +1,110 @@
 # Changelog
 
-## 2026-05-01
+## 2026-05-14
+
+### client-core
+
+- Enhance Modal component to support dynamic tooltip positioning and menu collapse behavior ([4c01f4011](https://github.com/underpostnet/engine/commit/4c01f4011b55feeb8d02b52547f5cf376fff6ca0))
+- Add support for pulling pre-built client bundles and skipping full builds during deployment ([7f86db25a](https://github.com/underpostnet/engine/commit/7f86db25a13ede6a0027b63867b30fc9576a9263))
+- Refactor Docs and Modal components to centralize submenu item rendering and improve code organization ([5fdd051e9](https://github.com/underpostnet/engine/commit/5fdd051e923c9adffc2b5261637b9ade88b96fc9))
+- Enhance modal and docs components to improve submenu behavior and animations ([ebf257c38](https://github.com/underpostnet/engine/commit/ebf257c38c12c0f2d66dda681b2f09f97ccfccbc))
+- Defer service worker registration to improve initial load performance in PwaWorker ([88b52b8fc](https://github.com/underpostnet/engine/commit/88b52b8fc0a49642b0530d5dc0b0edfaa5395c9d))
+- Refactor filter clearing logic in DefaultManagement to use runIsolated for better control over grid/query listeners ([325f6bd66](https://github.com/underpostnet/engine/commit/325f6bd66bb381adec15feb12b0bd0ba8fa539e7))
+- Fix LoadFileActionsRenderer and LoadFolderActionsRenderer to use instance methods for GUI management ([9e6507a0c](https://github.com/underpostnet/engine/commit/9e6507a0ccc667433b9cac6a1cc645ecf6d4e7b3))
+- Fix disable functions to use instance method for visibility checks ([7f5701c8d](https://github.com/underpostnet/engine/commit/7f5701c8df74bc6576894d8b5f7655b64cc6797a))
+
+### cli-run
+
+- Enhance promote method to support TLS configuration for blue/green deployments ([a31185676](https://github.com/underpostnet/engine/commit/a31185676cef0ca639621c722df31114a2b172a1))
+- Add CRI-O installation and configuration methods for kubeadm clusters ([44743552e](https://github.com/underpostnet/engine/commit/44743552ee5e2bcd13c157ab4e30e9dfc15979f6))
+
+### cli-cluster
+
+- Enhance nat-iptables.sh for comprehensive Kubernetes firewall configuration and service exposure ([9087a946a](https://github.com/underpostnet/engine/commit/9087a946ab29526e63d5f87b389f1ad500f30d78))
+
+### cli-dns
+
+- Add MAC address retrieval option to CLI and implement corresponding method in DNS class ([52b319467](https://github.com/underpostnet/engine/commit/52b3194674419624d99835dfe63699ab30683bfb))
+
+### engine
+
+- Update Node.js version to 24.15.0 in setup scripts and documentation ([e05a472ca](https://github.com/underpostnet/engine/commit/e05a472cae67429321b7e1b3c601e0965d3e7b67))
+
+### scripts
+
+- Enable firewalld and configure persistent IP forwarding in nat-iptables.sh ([845a09791](https://github.com/underpostnet/engine/commit/845a09791187613b512f95cea12bc3b0a53dd13f))
+
+### cli-fs
+
+- Enhance UnderpostFileStorage and UnderpostRepository with additional options and methods for improved Git operations ([a812d4e66](https://github.com/underpostnet/engine/commit/a812d4e666edd2cd17c9cafc34dfdc44e5bab994))
+
+### server-valkey
+
+- Enhance Valkey connection handling with reconnecting status and improved retry strategy ([50b26c215](https://github.com/underpostnet/engine/commit/50b26c2155c7160a9e4704aadb8c74554c7d81bd))
+
+### bin-build
+
+- Remove unnecessary copy docs md in cyberia build repo workdlow ([50a5399f6](https://github.com/underpostnet/engine/commit/50a5399f6d3b72dd7dc00092294b425f7ba618b4))
+
+### package
+
+- Update dependencies for @protobufjs packages and fast-uri ([829026a8c](https://github.com/underpostnet/engine/commit/829026a8c685e5714a48bd2fb636c13b0419d818))
+- Add peer dependency flag to multiple packages in package-lock.json ([c2a7870eb](https://github.com/underpostnet/engine/commit/c2a7870eb75cc44af4966a2dcb898a08e9dfe84e))
+
+### docs
+
+- Refactor entryPoints in typedoc configuration files for improved readability and consistency ([fe77bcf3f](https://github.com/underpostnet/engine/commit/fe77bcf3fb17766be2d9af31bd57d6c2481b7f87))
+
+### engine-cyberia
+
+- Update README path in typedoc configuration to point to ARCHITECTURE.md ([74ee0e45e](https://github.com/underpostnet/engine/commit/74ee0e45e355472d4f21eb8795b76c79c84c43e6))
+- Add cyberia-docs path to build and file scripts for documentation inclusion ([851e126bf](https://github.com/underpostnet/engine/commit/851e126bf80b9427661b6477d3bf8f52462cec87))
+- Remove unique constraint from code field in CyberiaQuestSchema ([b39aa3a7b](https://github.com/underpostnet/engine/commit/b39aa3a7b162b7dd230301f7eaf0747687c1c1b4))
+- Rewrite and centralize cyberia docs source ([00e40986a](https://github.com/underpostnet/engine/commit/00e40986a51b87c9f5f0354479c77f841a1b9221))
+- Remove legacy cyberia docs ([a5546128a](https://github.com/underpostnet/engine/commit/a5546128a20945645fe3008f5c98f01772ff055f))
+- Refactor Cyberia schemas and update quest/action definitions for clarity and consistency ([cd7313206](https://github.com/underpostnet/engine/commit/cd7313206903035232da6f842f13475e8af77346))
+- Add source map coordinates to CyberiaQuest schema and update action catalog metadata, and remove lefacy seed runners in cyberia CLI ([b39958485](https://github.com/underpostnet/engine/commit/b3995848556c87def6ff1045c73605c50201a1a3))
+- Refactor CyberiaActionSchema by removing grantQuestCode field and update description in STATUS_ICONS for clarity ([221a8f072](https://github.com/underpostnet/engine/commit/221a8f072393238adf83c26c46d09fe05aa24466))
+- Add seeding commands for Cyberia actions and quests, update schemas and default data structures ([70cd5f17d](https://github.com/underpostnet/engine/commit/70cd5f17d08eb1d6c812d7428b8a5a6c76d72728))
+- Refactor Cyberia schemas to enhance action and quest structures, replacing itemId with more descriptive fields and adding new properties for better data management ([8736f2bac](https://github.com/underpostnet/engine/commit/8736f2bac3534180d798ea2ae2e6aac9781db9c2))
+- Refactor Cyberia dialogue handling to use 'code' instead of 'itemId' for dialogue retrieval and update related schemas and data structures ([d8d50325e](https://github.com/underpostnet/engine/commit/d8d50325e2fbe8a118edde7e9bd7fb01d1507233))
+- Update CyberiaActionSchema to correct action types and add storage payload structure ([88b68cb68](https://github.com/underpostnet/engine/commit/88b68cb6839900230ffb54fa44f6b11056aca5c0))
+- Add Cyberia action and quest default data structures with schemas ([8171b6b43](https://github.com/underpostnet/engine/commit/8171b6b43b2aee98f0d8fe0151362493b09fdfd5))
+- Implement Cyberia Quest and Progress APIs with controllers, services, models, and routers ([ba3c7bcb0](https://github.com/underpostnet/engine/commit/ba3c7bcb05f79f3999ec0f20daf49d4f02a2c9e2))
+
+### github-actions
+
+- Remove run metadata worflow in engine-core sync deploy ([84d684d4b](https://github.com/underpostnet/engine/commit/84d684d4bf694605c67bf521617d60920ea43205))
+- Increase timeout for sync command in engine lampp workflow ([949d693b5](https://github.com/underpostnet/engine/commit/949d693b5d4aaa28226b0417c2e2b87511eec885))
+- Remove ssh-deploy sync-engine-test command from release deployment workflow ([0e6cf3af4](https://github.com/underpostnet/engine/commit/0e6cf3af48a2e0e904dd2e646a66931cf0cea784))
+
+### clien-core
+
+- Optimize sessionOut and guest login process to skip unnecessary network calls ([b16a21fe3](https://github.com/underpostnet/engine/commit/b16a21fe3ce12d6c3c636677b06e1fa064500b6c))
+
+### cli-db
+
+- Add export success tracking and enforce backup retention in UnderpostDB ([678ed675f](https://github.com/underpostnet/engine/commit/678ed675ff51ae681b6177c34ba1295543f5a916))
+
+### api-cyberia
+
+- Remove CyberiaAchievement API controller, service, and router files to streamline codebase ([f5f31700f](https://github.com/underpostnet/engine/commit/f5f31700fed2940a475149ed0a948eae548c78e2))
+
+### runtime-cyberia-client
+
+- Refactor cyberia-client Dockerfile to streamline package installations and improve build process ([66edc28c1](https://github.com/underpostnet/engine/commit/66edc28c1c3877bbf1d1ad0bdb8dbe259746f18d))
+
+### server-data-query
+
+- Refactor DataQuery to use class syntax and static methods for improved structure and clarity ([b27221124](https://github.com/underpostnet/engine/commit/b27221124d096a046141d87fbc37de951c58aa92))
+
+### engine-core
+
+- Fix rename AppointmentFormHealthcare to AppointmentFormHealthCare for consistency ([02839072b](https://github.com/underpostnet/engine/commit/02839072b6aaa77d7f524934a8ab92a24d4d5040))
 
 ### cli-release
 
-- Update workflows to reflect new underpost image versions ([9a5577cba](https://github.com/underpostnet/engine/commit/9a5577cba856b2666e6ac023a9a319782301891d))
+- Update workflows to reflect new underpost image versions ([f5e18de0c](https://github.com/underpostnet/engine/commit/f5e18de0c9209fb6da2254a8dca94e8ef37ae394))
 
 ## New release v:3.2.8 (2026-05-01)
 

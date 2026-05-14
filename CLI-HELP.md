@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.2.8
+## underpost ci/cd cli v3.2.9
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -137,6 +137,10 @@ Options:
                                workspace code directly.
   --skip-full-build            Skips the full client bundle build during
                                deployment.
+  --pull-bundle                Downloads the pre-built client bundle from
+                               Cloudinary via pull-bundle before starting. Use
+                               together with --skip-full-build to skip the local
+                               build entirely.
   -h, --help                   display help for command
  
 ```
@@ -389,6 +393,7 @@ Options:
                         lists.
   --ban-both-remove     Removes IP addresses from both banned ingress and egress
                         lists.
+  --mac                 Prints the MAC address of the main network interface.
   -h, --help            display help for command
  
 ```
@@ -553,6 +558,13 @@ Options:
                                       auto-detected service port).
   --cmd <cmd>                         Custom initialization command for
                                       deployment (comma-separated commands).
+  --skip-full-build                   Skip client bundle rebuild; container will
+                                      pull pre-built bundle via pull-bundle
+                                      instead.
+  --pull-bundle                       Explicitly pull the pre-built client
+                                      bundle from Cloudinary inside the
+                                      container. Use together with
+                                      --skip-full-build.
   -h, --help                          display help for command
  
 ```
@@ -891,7 +903,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -959,6 +971,8 @@ Options:
   --create-job-now                                After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).
   --host-aliases <host-aliases>                   Adds entries to the Pod /etc/hosts via hostAliases. Format: semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").
   --copy                                          Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).
+  --skip-full-build                               Skip client bundle rebuild; triggers pull-bundle in container startup (supported by: sync, template-deploy).
+  --pull-bundle                                   Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build.
   -h, --help                                      display help for command
  
 ```
