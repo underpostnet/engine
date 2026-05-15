@@ -36,6 +36,9 @@ updates:
           - 'mongoose'
           - 'mariadb'
           - 'iovalkey'
+      grpc:
+        patterns:
+          - '@grpc/*'
       frontend-libs:
         patterns:
           - '@fortawesome/*'
@@ -43,11 +46,16 @@ updates:
           - '@neodrag/*'
           - 'ag-grid-community'
           - 'd3'
+          - 'dexie'
           - 'easymde'
           - 'fullcalendar'
           - 'sortablejs'
           - 'vanilla-jsoneditor'
           - 'peerjs'
+          - 'peer'
+      workbox:
+        patterns:
+          - 'workbox-*'
       tooling:
         patterns:
           - 'nodemon'
@@ -58,17 +66,13 @@ updates:
           - 'clean-jsdoc-theme'
           - 'swagger-autogen'
           - 'swagger-ui-express'
+          - 'typedoc'
+          - 'typescript'
       testing:
         patterns:
           - 'mocha'
           - 'chai'
           - 'c8'
-      cyberia:
-        patterns:
-          - 'maxrects-packer'
-          - 'pngjs'
-          - 'jimp'
-          - 'sharp'
       utilities:
         patterns:
           - 'axios'
@@ -88,6 +92,12 @@ updates:
           - 'sitemap'
           - 'socket.io'
           - 'prom-client'
+          - 'escape-string-regexp'
+          - 'fast-json-stable-stringify'
+          - 'ignore-walk'
+          - 'read'
+          - 'split-file'
+          - 'clipboardy'
     commit-message:
       prefix: 'deps(engine)'
 
@@ -111,38 +121,14 @@ updates:
         patterns:
           - 'hardhat'
           - '@nomicfoundation/*'
-          - '@typechain/*'
-          - 'typechain'
-          - 'ethers'
-          - 'hardhat-gas-reporter'
-          - 'solidity-coverage'
-          - 'chai'
       openzeppelin:
         patterns:
           - '@openzeppelin/*'
-    # Pin to hh2 ecosystem — ignore Hardhat 3+ major bumps that break plugins
-    ignore:
-      - dependency-name: 'hardhat'
-        versions: ['>=3.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-toolbox'
-        versions: ['>=7.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-chai-matchers'
-        versions: ['>=3.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-ethers'
-        versions: ['>=4.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-network-helpers'
-        versions: ['>=2.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-verify'
-        versions: ['>=3.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-ignition'
-        versions: ['>=1.0.0']
-      - dependency-name: '@nomicfoundation/hardhat-ignition-ethers'
-        versions: ['>=1.0.0']
-      - dependency-name: '@nomicfoundation/ignition-core'
-        versions: ['>=1.0.0']
-      # chai v5+ is ESM-only and breaks hardhat-chai-matchers
-      - dependency-name: 'chai'
-        versions: ['>=5.0.0']
+      hardhat-utilities:
+        patterns:
+          - 'dotenv'
+          - 'fs-extra'
+    # hardhat/package.json already uses Hardhat 3 — no ignore blocks needed
     commit-message:
       prefix: 'deps(hardhat)'
 
