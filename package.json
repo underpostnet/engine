@@ -54,7 +54,7 @@
         "@grpc/proto-loader": "^0.8.0",
         "@neodrag/vanilla": "^2.3.1",
         "adm-zip": "^0.5.17",
-        "ag-grid-community": "^35.2.1",
+        "ag-grid-community": "^35.3.0",
         "axios": "^1.16.0",
         "chai": "^6.2.2",
         "clipboardy": "^5.3.1",
