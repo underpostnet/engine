@@ -18,7 +18,7 @@ _Stackable Rendering Layers as a Unified Tokenized Reality_
 
 ---
 
-**Version:** 3.0.3 | **Status:** Draft | **Authors:** Underpost Engineering
+**Version:** 3.2.9 | **Status:** Draft | **Authors:** Underpost Engineering
 
 ---
 

@@ -1,3 +1,19 @@
+<p align="center">
+  <img src="https://www.cyberiaonline.com/assets/splash/apple-touch-icon-precomposed.png" alt="CYBERIA Network Object Layer Engine"/>
+</p>
+
+<div align="center">
+
+### CYBERIA
+
+**Network Object Layers**
+
+_Stackable Rendering Layers as a Unified Tokenized Reality_
+
+[![Version](https://img.shields.io/npm/v/cyberia.svg)](https://www.npmjs.org/package/cyberia)
+
+</div>
+
 # Cyberia CLI
 
 **Path:** `bin/cyberia.js`
