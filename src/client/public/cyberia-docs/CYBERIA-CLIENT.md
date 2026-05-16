@@ -44,43 +44,47 @@
 
 ## Source Files
 
-| File                                                      | Responsibility                                           |
-| --------------------------------------------------------- | -------------------------------------------------------- |
-| `main.c`                                                  | Entry point, Raylib init, main game loop, event dispatch |
-| `client.c / client.h`                                     | Client session state (player UUID, position, coins)      |
-| `game_state.c / game_state.h`                             | World state: entity registry, map grid, frame tick       |
-| `game_render.c / game_render.h`                           | Top-level render pipeline (map tiles → entities → UI)    |
-| `entity_render.c / entity_render.h`                       | Per-entity composited layer stack rendering              |
-| `binary_aoi_decoder.c / binary_aoi_decoder.h`             | Binary AOI message parser (0x01–0x05 messages)           |
-| `message_parser.c / message_parser.h`                     | JSON message parser for `init_data` (0x02)               |
-| `network.c / network.h`                                   | WebSocket connect, send, receive wrappers                |
-| `object_layer.c / object_layer.h`                         | ObjectLayer metadata struct + LRU cache                  |
-| `object_layers_management.c / object_layers_management.h` | ObjectLayer fetch pipeline (API → cache → render)        |
-| `texture_manager.c / texture_manager.h`                   | Atlas texture LRU cache keyed by IPFS CID                |
-| `layer_z_order.c / layer_z_order.h`                       | Z-order comparator for entity layer stack rendering      |
-| `serial.c / serial.h`                                     | IDBFS-based persistent local storage                     |
-| `input.c / input.h`                                       | Mouse/touch event → game action translation              |
-| `tap_effect.c / tap_effect.h`                             | Visual tap ripple animation                              |
-| `floating_combat_text.c / floating_combat_text.h`         | FCT pop-up renderer (damage, regen, coin, item)          |
-| `interaction_bubble.c / interaction_bubble.h`             | NPC interaction indicator bubble above entity            |
-| `entity_overhead_ui.c / entity_overhead_ui.h`             | Name plates, HP bars above entities                      |
-| `nameplate.c / nameplate.h`                               | Entity nameplate rendering                               |
-| `inventory_bar.c / inventory_bar.h`                       | Equipped items bar (bottom of screen)                    |
-| `inventory_modal.c / inventory_modal.h`                   | Full inventory grid modal                                |
-| `modal.c / modal.h`                                       | Base modal container (backdrop, open/close animation)    |
-| `modal_dialogue.c / modal_dialogue.h`                     | Dialogue modal — renders NPC conversation + choices      |
-| `modal_player.c / modal_player.h`                         | Player profile modal (stats, wallet, equipment)          |
-| `dialogue_data.c / dialogue_data.h`                       | Dialogue tree data structure                             |
-| `ol_as_animated_ico.c / ol_as_animated_ico.h`             | Render ObjectLayer as animated icon (inventory cells)    |
-| `ol_stack_ico.c / ol_stack_ico.h`                         | Render ObjectLayer stack as composite icon               |
-| `ui_icon.c / ui_icon.h`                                   | Generic icon primitives                                  |
-| `dev_ui.c / dev_ui.h`                                     | Development overlay (coords, FPS, entity count)          |
-| `helper.h`                                                | Common macros and utility definitions                    |
-| `config.h`                                                | Compile-time configuration constants                     |
-| `shell.html`                                              | Emscripten HTML shell template                           |
-| `js/services.js`                                          | JS↔WASM bridge: fetch atlas, file blob, object-layer     |
-| `js/interact_overlay.js`                                  | JS overlay for tap-to-interact element                   |
-| `js/notify_badge.js`                                      | Browser notification badge helper                        |
+Paths are relative to `cyberia-client/`. C/H translation units live under `src/`; JS bridges live under `src/js/`. The Emscripten HTML shell template is `src/shell.html`. `Web.mk` writes intermediate object files to `build/web/<MODE>/` and the final web bundle (`index.html`, `index.wasm`, `index.js`, `index.data`) to `bin/`.
+
+| File                                                              | Responsibility                                           |
+| ----------------------------------------------------------------- | -------------------------------------------------------- |
+| `src/main.c`                                                      | Entry point, Raylib init, main game loop, event dispatch |
+| `src/client.c / src/client.h`                                     | Client session state (player UUID, position, coins)      |
+| `src/game_state.c / src/game_state.h`                             | World state: entity registry, map grid, frame tick       |
+| `src/game_render.c / src/game_render.h`                           | Top-level render pipeline (map tiles → entities → UI)    |
+| `src/render.c / src/render.h`                                     | Low-level draw helpers shared by the render pipeline     |
+| `src/entity_render.c / src/entity_render.h`                       | Per-entity composited layer stack rendering              |
+| `src/binary_aoi_decoder.c / src/binary_aoi_decoder.h`             | Binary AOI message parser (0x01–0x05 messages)           |
+| `src/message_parser.c / src/message_parser.h`                     | JSON message parser for `init_data` (0x02)               |
+| `src/network.c / src/network.h`                                   | WebSocket connect, send, receive wrappers                |
+| `src/object_layer.c / src/object_layer.h`                         | ObjectLayer metadata struct + LRU cache                  |
+| `src/object_layers_management.c / src/object_layers_management.h` | ObjectLayer fetch pipeline (API → cache → render)        |
+| `src/texture_manager.c / src/texture_manager.h`                   | Atlas texture LRU cache keyed by IPFS CID                |
+| `src/layer_z_order.c / src/layer_z_order.h`                       | Z-order comparator for entity layer stack rendering      |
+| `src/serial.c / src/serial.h`                                     | IDBFS-based persistent local storage                     |
+| `src/input.c / src/input.h`                                       | Mouse/touch event → game action translation              |
+| `src/tap_effect.c / src/tap_effect.h`                             | Visual tap ripple animation                              |
+| `src/floating_combat_text.c / src/floating_combat_text.h`         | FCT pop-up renderer (damage, regen, coin, item)          |
+| `src/interaction_bubble.c / src/interaction_bubble.h`             | NPC interaction indicator bubble above entity            |
+| `src/entity_overhead_ui.c / src/entity_overhead_ui.h`             | Name plates, HP bars above entities                      |
+| `src/nameplate.c / src/nameplate.h`                               | Entity nameplate rendering                               |
+| `src/inventory_bar.c / src/inventory_bar.h`                       | Equipped items bar (bottom of screen)                    |
+| `src/inventory_modal.c / src/inventory_modal.h`                   | Full inventory grid modal                                |
+| `src/modal.c / src/modal.h`                                       | Base modal container (backdrop, open/close animation)    |
+| `src/modal_dialogue.c / src/modal_dialogue.h`                     | Dialogue modal — renders NPC conversation + choices      |
+| `src/modal_player.c / src/modal_player.h`                         | Player profile modal (stats, wallet, equipment)          |
+| `src/dialogue_data.c / src/dialogue_data.h`                       | Dialogue tree data structure                             |
+| `src/ol_as_animated_ico.c / src/ol_as_animated_ico.h`             | Render ObjectLayer as animated icon (inventory cells)    |
+| `src/ol_stack_ico.c / src/ol_stack_ico.h`                         | Render ObjectLayer stack as composite icon               |
+| `src/ui_icon.c / src/ui_icon.h`                                   | Generic icon primitives                                  |
+| `src/dev_ui.c / src/dev_ui.h`                                     | Development overlay (coords, FPS, entity count)          |
+| `src/helper.h`                                                    | Common macros and utility definitions                    |
+| `src/config.h`                                                    | Compile-time configuration constants                     |
+| `src/js/interact_bridge.c / src/js/interact_bridge.h`             | C side of JS interaction-overlay bridge                  |
+| `src/js/services.js / src/js/services.h`                          | JS↔WASM bridge: fetch atlas, file blob, object-layer     |
+| `src/js/interact_overlay.js`                                      | JS overlay for tap-to-interact element                   |
+| `src/js/notify_badge.js / src/js/notify_badge.h`                  | Browser notification badge helper                        |
+| `src/shell.html`                                                  | Emscripten HTML shell template                           |
 
 ---
 

@@ -47,29 +47,37 @@ graph TB
 
 ## Source Files
 
-| File                    | Responsibility                                                                                 |
-| ----------------------- | ---------------------------------------------------------------------------------------------- |
-| `main.go`               | Entry point — HTTP/WS server, signal handling                                                  |
-| `server.go`             | WebSocket lifecycle, game loop, player/bot registry                                            |
-| `types.go`              | Core data structures (PlayerState, BotState, ObjectLayer, etc.)                                |
-| `aoi_binary.go`         | Binary AOI wire format encoder + message type constants                                        |
-| `object_layer.go`       | ObjectLayer Go types mirroring MongoDB schema                                                  |
-| `instance_loader.go`    | Reconstructs world from gRPC `GetFullInstanceResponse`                                         |
-| `collision.go`          | Grid collision detection, portal transitions, death handling                                   |
-| `pathfinding.go`        | A\* pathfinding for bot/player navigation                                                      |
-| `skill.go`              | Skill entry points: `HandlePlayerTapAction`, `HandleOnKillSkills`, `GetAssociatedSkillItemIDs` |
-| `skill_dispatcher.go`   | Skill registry: `InitSkills()`, `DispatchSkill()`, `dispatchSkillsForEntity()`                 |
-| `skill_projectile.go`   | Projectile skill handler (spawns `skill` bot entities)                                         |
-| `skill_doppelganger.go` | Doppelganger skill handler (spawns allied clone bots)                                          |
-| `economy.go`            | Fountain & Sink coin economy — all economy methods                                             |
-| `life_regen.go`         | HP regeneration ticker                                                                         |
-| `ai.go`                 | Bot AI — aggro, wander, target selection                                                       |
-| `stats.go`              | Active stat aggregation, sum-stats limit enforcement                                           |
-| `entity_status.go`      | Entity Status Indicator (ESI) computation                                                      |
-| `frozen_state.go`       | FrozenInteractionState — modal protection for players                                          |
-| `handlers.go`           | WebSocket message handlers (move, action, inventory, etc.)                                     |
-| `static.go`             | Static file serving for the WASM client                                                        |
-| `grpcclient/`           | gRPC client for the Engine data service                                                        |
+Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the gRPC client and world builder under `src/grpcclient/`; the chi-based REST router under `api/`.
+
+| File                             | Responsibility                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `main.go`                        | Entry point — loads `.env`, dials Engine gRPC, mounts WS and `/api` router, starts listener    |
+| `src/server.go`                  | WebSocket lifecycle, game loop, player/bot registry                                            |
+| `src/types.go`                   | Core data structures (PlayerState, BotState, ObjectLayer, etc.)                                |
+| `src/aoi_binary.go`              | Binary AOI wire format encoder + message type constants                                        |
+| `src/object_layer.go`            | ObjectLayer Go types mirroring MongoDB schema                                                  |
+| `src/instance_loader.go`         | Reconstructs world from gRPC `GetFullInstanceResponse` (`BuildWorldFromInstance`)              |
+| `src/collision.go`               | Grid collision detection, portal transitions, death handling                                   |
+| `src/pathfinding.go`             | A\* pathfinding for bot/player navigation                                                      |
+| `src/skill.go`                   | Skill entry points: `HandlePlayerTapAction`, `HandleOnKillSkills`, `GetAssociatedSkillItemIDs` |
+| `src/skill_dispatcher.go`        | Skill registry: `InitSkills()`, `DispatchSkill()`, `dispatchSkillsForEntity()`                 |
+| `src/skill_projectile.go`        | Projectile skill handler (spawns `skill` bot entities)                                         |
+| `src/skill_doppelganger.go`      | Doppelganger skill handler (spawns allied clone bots)                                          |
+| `src/economy.go`                 | Fountain & Sink coin economy — all economy methods                                             |
+| `src/life_regen.go`              | HP regeneration ticker                                                                         |
+| `src/ai.go`                      | Bot AI — aggro, wander, target selection                                                       |
+| `src/stats.go`                   | Active stat aggregation, sum-stats limit enforcement                                           |
+| `src/entity_status.go`           | Entity Status Indicator (ESI) computation                                                      |
+| `src/entity_defaults.go`         | Default entity/Skill rule constants                                                            |
+| `src/frozen_state.go`            | FrozenInteractionState — modal protection for players                                          |
+| `src/handlers.go`                | WebSocket message handlers (move, action, inventory, etc.)                                     |
+| `src/static.go`                  | Static file serving for the WASM client                                                        |
+| `src/grpcclient/client.go`       | gRPC client wrapper for the Engine data service                                                |
+| `src/grpcclient/world_builder.go`| Translates gRPC payloads into in-memory world structures                                       |
+| `api/router.go`                  | chi router — mounts `/v1/health` and metrics endpoints                                         |
+| `api/metrics.go`                 | Prometheus-style metrics handlers                                                              |
+| `proto/cyberia.proto`            | gRPC service contract (shared with the Node.js Engine)                                         |
+| `proto/cyberia.pb.go`, `proto/cyberia_grpc.pb.go` | Generated protobuf + gRPC stubs                                          |
 
 ---
 

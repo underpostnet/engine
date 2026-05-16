@@ -3,6 +3,7 @@
 /public
 /engine-private
 /conf
+.claude
 /tmp
 /logs
 /build

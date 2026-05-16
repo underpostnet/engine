@@ -106,28 +106,31 @@ graph LR
     E --> F["Binary WS Messages\nto C clients"]
 ```
 
-**Key source files:**
+**Key source files** (paths relative to `cyberia-server/`; gameplay code lives under `src/`):
 
-| File                    | Responsibility                                        |
-| ----------------------- | ----------------------------------------------------- |
-| `server.go`             | WebSocket lifecycle, game loop, player registry       |
-| `aoi_binary.go`         | Binary AOI wire format encoder/decoder                |
-| `object_layer.go`       | ObjectLayer Go types mirroring the MongoDB schema     |
-| `collision.go`          | Grid collision detection, portal transitions          |
-| `pathfinding.go`        | A\* pathfinding for bot navigation                    |
-| `skill.go`              | Skill entry points: tap action trigger, on-kill hooks |
-| `skill_dispatcher.go`   | Skill registry: `InitSkills`, `DispatchSkill`         |
-| `skill_projectile.go`   | Projectile skill handler                              |
-| `skill_doppelganger.go` | Doppelganger skill handler                            |
-| `economy.go`            | Fountain & Sink coin economy                          |
-| `frozen_state.go`       | FrozenInteractionState (modal protection)             |
-| `entity_status.go`      | Entity Status Indicator (ESI) computation             |
-| `life_regen.go`         | HP regeneration loop                                  |
-| `ai.go`                 | Bot AI behavior (hostile/passive)                     |
-| `stats.go`              | Stat aggregation and sum-stats limit enforcement      |
-| `instance_loader.go`    | World reconstruction from gRPC data                   |
-| `handlers.go`           | WebSocket message handlers                            |
-| `grpcclient/`           | gRPC client implementation                            |
+| File                          | Responsibility                                        |
+| ----------------------------- | ----------------------------------------------------- |
+| `main.go`                     | Bootstrap: env load, gRPC dial, mount HTTP + WS       |
+| `src/server.go`               | WebSocket lifecycle, game loop, player registry       |
+| `src/aoi_binary.go`           | Binary AOI wire format encoder/decoder                |
+| `src/object_layer.go`         | ObjectLayer Go types mirroring the MongoDB schema     |
+| `src/collision.go`            | Grid collision detection, portal transitions          |
+| `src/pathfinding.go`          | A\* pathfinding for bot navigation                    |
+| `src/skill.go`                | Skill entry points: tap action trigger, on-kill hooks |
+| `src/skill_dispatcher.go`     | Skill registry: `InitSkills`, `DispatchSkill`         |
+| `src/skill_projectile.go`     | Projectile skill handler                              |
+| `src/skill_doppelganger.go`   | Doppelganger skill handler                            |
+| `src/economy.go`              | Fountain & Sink coin economy                          |
+| `src/frozen_state.go`         | FrozenInteractionState (modal protection)             |
+| `src/entity_status.go`        | Entity Status Indicator (ESI) computation             |
+| `src/life_regen.go`           | HP regeneration loop                                  |
+| `src/ai.go`                   | Bot AI behavior (hostile/passive)                     |
+| `src/stats.go`                | Stat aggregation and sum-stats limit enforcement      |
+| `src/instance_loader.go`      | World reconstruction from gRPC data (`BuildWorldFromInstance`) |
+| `src/handlers.go`             | WebSocket message handlers                            |
+| `src/grpcclient/`             | gRPC client + world builder for the Engine data service |
+| `api/router.go`, `api/metrics.go` | chi REST router (mounted at `/api`) and metrics handlers |
+| `proto/cyberia.proto`         | gRPC service contract (shared with Node.js Engine)    |
 
 ---
 
@@ -135,32 +138,32 @@ graph LR
 
 Game client compiled to WebAssembly with Emscripten. Runs in the browser.
 
-**Key source files:**
+**Key source files** (paths relative to `cyberia-client/`; C/H files live under `src/`):
 
-| File                         | Responsibility                          |
-| ---------------------------- | --------------------------------------- |
-| `main.c`                     | Entry point, game loop                  |
-| `game_render.c`              | Main rendering pipeline                 |
-| `game_state.c`               | Client-side game state management       |
-| `network.c`                  | WebSocket connection + message dispatch |
-| `binary_aoi_decoder.c`       | Binary AOI message parser               |
-| `object_layer.c`             | ObjectLayer metadata store              |
-| `object_layers_management.c` | Multi-layer management per entity       |
-| `entity_render.c`            | Per-entity layer compositing            |
-| `layer_z_order.c`            | Z-order sorting for rendering           |
-| `ol_as_animated_ico.c`       | Animated Object Layer rendering         |
-| `ol_stack_ico.c`             | Stacked icon rendering                  |
-| `texture_manager.c`          | Atlas texture loading and caching       |
-| `input.c`                    | Tap/click input handling                |
-| `floating_combat_text.c`     | FCT event rendering                     |
-| `inventory_bar.c`            | Bottom inventory bar UI                 |
-| `inventory_modal.c`          | Full inventory modal                    |
-| `entity_overhead_ui.c`       | Nameplate + status icon rendering       |
-| `interaction_bubble.c`       | NPC interaction prompt bubble           |
-| `tap_effect.c`               | Tap visual feedback animation           |
-| `modal_dialogue.c`           | NPC dialogue modal                      |
-| `modal_player.c`             | Player info modal                       |
-| `message_parser.c`           | Server message routing                  |
+| File                             | Responsibility                          |
+| -------------------------------- | --------------------------------------- |
+| `src/main.c`                     | Entry point, game loop                  |
+| `src/game_render.c`              | Main rendering pipeline                 |
+| `src/game_state.c`               | Client-side game state management       |
+| `src/network.c`                  | WebSocket connection + message dispatch |
+| `src/binary_aoi_decoder.c`       | Binary AOI message parser               |
+| `src/object_layer.c`             | ObjectLayer metadata store              |
+| `src/object_layers_management.c` | Multi-layer management per entity       |
+| `src/entity_render.c`            | Per-entity layer compositing            |
+| `src/layer_z_order.c`            | Z-order sorting for rendering           |
+| `src/ol_as_animated_ico.c`       | Animated Object Layer rendering         |
+| `src/ol_stack_ico.c`             | Stacked icon rendering                  |
+| `src/texture_manager.c`          | Atlas texture loading and caching       |
+| `src/input.c`                    | Tap/click input handling                |
+| `src/floating_combat_text.c`     | FCT event rendering                     |
+| `src/inventory_bar.c`            | Bottom inventory bar UI                 |
+| `src/inventory_modal.c`          | Full inventory modal                    |
+| `src/entity_overhead_ui.c`       | Nameplate + status icon rendering       |
+| `src/interaction_bubble.c`       | NPC interaction prompt bubble           |
+| `src/tap_effect.c`               | Tap visual feedback animation           |
+| `src/modal_dialogue.c`           | NPC dialogue modal                      |
+| `src/modal_player.c`             | Player info modal                       |
+| `src/message_parser.c`           | Server message routing                  |
 
 **Build system:**
 

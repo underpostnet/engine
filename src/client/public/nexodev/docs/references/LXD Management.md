@@ -21,7 +21,7 @@ Minimalist reference for managing LXD virtual machines as K3s Kubernetes nodes u
 
 ```bash
 underpost lxd [options]
-node bin run lxd [options]    # dev mode (--dev)
+node bin lxd [options]    # dev mode (--dev)
 ```
 
 ---
