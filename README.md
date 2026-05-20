@@ -20,19 +20,13 @@
 
 </div>
 
-<div align="center">
-
 <!-- template-title -->
-
-<div style="font-size: 20px;"><em>End2end</em> continuous integration and continuous deployment cloud applications toolchain. Develop, build, deploy, test, monitor, and manage multiple runtime applications on virtual machines or container instances.</div>
-
-</div>
 
 ## Underpost Platform
 
-**Underpost Platform** is the umbrella product — an infrastructure, toolchain, and application platform that spans from bare metal up through container orchestration and application delivery. The `underpost` npm package is its CLI surface.
+**Underpost** is an platform for application delivery, from infrastructure to runtime. The `underpost` npm package is its CLI toolchain surface.
 
-Underpost Platform covers:
+The project covers:
 
 - **Bare metal provisioning** on Rocky Linux 9.
 - **Kubernetes / K3s / kubeadm / LXD** workflows for production, edge, and isolated workloads.
@@ -43,17 +37,17 @@ Underpost Platform covers:
 - **ERP/CRM-style PWA base applications** as the default workload.
 - **Cyberia** — a dedicated MMO extension built on top of the platform, with its own content backend (`engine-cyberia`), authoritative simulation runtime (`cyberia-server`), and presentation runtime (`cyberia-client`).
 
-Documentation: see [`src/client/public/cyberia-docs/UNDERPOST-PLATFORM.md`](src/client/public/cyberia-docs/UNDERPOST-PLATFORM.md) for the full platform doc, and the per-area reference docs in [`src/client/public/nexodev/docs/references/`](src/client/public/nexodev/docs/references/).
+<a target="_top" href="Https://github.com/underpostnet/engine/blob/master/src/client/public/cyberia-docs/UNDERPOST-PLATFORM.md">See Detailed platform doc.</a>
 
 ### Architectural roles (Cyberia stack)
 
 When the platform is hosting the Cyberia MMO extension, three runtime processes participate. Their boundaries are non-overlapping and their startup order is **strictly sequential** — not parallel.
 
-| Process | Role |
-|---|---|
-| **engine-cyberia** (Node.js) | Content authority: maps, object layers, atlas/asset metadata, world configuration, persistence, validation, gRPC + REST data services, editor backend, asset distribution. **Not** a real-time runtime. |
-| **cyberia-server** (Go) | Authoritative simulation runtime: tick advancement, AOI replication, input command processing, snapshot generation. **Not** a content authority and **not** a render policy authority. |
-| **cyberia-client** (C → WebAssembly) | Presentation runtime: rendering, UI, input capture, prediction, reconciliation, interpolation, client-side presentation defaults. **Not** authoritative for world simulation. |
+| Process                              | Role                                                                                                                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **engine-cyberia** (Node.js)         | Content authority: maps, object layers, atlas/asset metadata, world configuration, persistence, validation, gRPC + REST data services, editor backend, asset distribution. |
+| **cyberia-server** (Go)              | Authoritative simulation runtime: tick advancement, AOI replication, input command processing, snapshot generation.                                                        |
+| **cyberia-client** (C → WebAssembly) | Presentation runtime: rendering, UI, input capture, prediction, reconciliation, interpolation, client-side presentation defaults.                                          |
 
 **Startup order — sequential, in order:**
 
@@ -61,7 +55,7 @@ When the platform is hosting the Cyberia MMO extension, three runtime processes 
 2. **cyberia-server** — authoritative Go simulation runtime; dials engine-cyberia gRPC at boot to load world configuration.
 3. **cyberia-client** — rendering, UI, prediction, interpolation, reconciliation; connects to cyberia-server via WebSocket.
 
-Detailed architecture: [`ARCHITECTURE.md`](src/client/public/cyberia-docs/ARCHITECTURE.md). Process docs: [`CYBERIA-SERVER.md`](src/client/public/cyberia-docs/CYBERIA-SERVER.md), [`CYBERIA-CLIENT.md`](src/client/public/cyberia-docs/CYBERIA-CLIENT.md).
+<a target="_top" href="https://github.com/underpostnet/engine-cyberia/blob/master/src/client/public/cyberia-docs/ARCHITECTURE.md">See Detailed architecture.</a>
 
 ## Create a new project
 
@@ -93,7 +87,7 @@ Run dev client server
 npm run dev
 ```
 
-<a target="_top" href="https://www.nexodev.org/docs?cid=src">See Docs here.</a>
+<a target="_top" href="https://www.nexodev.org/docs?cid=src">See Docs.</a>
 
 <!-- cli-index-start -->
 
@@ -141,4 +135,4 @@ help [command]                                             display help for comm
 
 <!-- cli-index-end -->
 
-<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/CLI-HELP.md">See CLI Docs here.</a>
+<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/CLI-HELP.md">See CLI Docs.</a>
