@@ -39,7 +39,7 @@
 
 import express from 'express';
 import { loggerFactory } from '../../server/logger.js';
-import { CYBERIA_CLIENT_HINTS_DEFAULTS } from './cyberia-presentation-hints.defaults.js';
+import { CYBERIA_CLIENT_HINTS_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { resolveClientHints } from './cyberia-client-hints.service.js';
 
 const logger = loggerFactory(import.meta);

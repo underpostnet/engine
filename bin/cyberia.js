@@ -45,7 +45,7 @@ import {
   DefaultCyberiaDialogues,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
-} from '../src/client/components/cyberia-portal/CommonCyberiaPortal.js';
+} from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.
@@ -3230,7 +3230,7 @@ try {
         if (fs.existsSync(envPath)) dotenv.config({ path: envPath, override: true });
 
         const { CYBERIA_CLIENT_HINTS_DEFAULTS, buildClientHints } = await import(
-          '../src/api/cyberia-client-hints/cyberia-presentation-hints.defaults.js'
+          '../src/client/components/cyberia/SharedDefaultsCyberia.js'
         );
 
         const deployId = process.env.DEFAULT_DEPLOY_ID;
@@ -4126,7 +4126,7 @@ try {
         logger.error(
           'import-default-items aborted: item ids referenced by defaults are missing from DefaultCyberiaItems:',
           missing.join(', '),
-          '— add them to CommonCyberiaPortal.js before seeding.',
+          '— add them to cyberia-server-defaults.js before seeding.',
         );
         process.exit(1);
       }

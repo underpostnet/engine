@@ -264,6 +264,7 @@ Every Cyberia and Underpost Platform document uses the same terms. Aliases are n
 | **snapshot** | AOI-filtered world view at one tick for one player. |
 | **prediction** | Optimistic local apply of input commands to the predicted self entity. |
 | **reconciliation** | Drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs. |
+| **display smoothing** | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries. |
 | **interpolation** | Render-time smoothing of remote entities, sampled from snapshot history. |
 | **authoritative server** | `cyberia-server`. Sole authority on world state. |
 | **content authority** | `engine-cyberia`. Sole authority on persisted content and world configuration. |

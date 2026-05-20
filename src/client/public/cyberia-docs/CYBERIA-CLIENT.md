@@ -53,7 +53,7 @@ The client is the last process in the sequential startup order. It cannot do use
 3. cyberia-client                    ← this process
    ├─ initWindow, render init
    ├─ load compile-time presentation defaults
-   ├─ (optional) GET /api/cyberia-client-hints/:INSTANCE_CODE
+   ├─ (optional) GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE
    ├─ initialize prediction
    ├─ open WebSocket to cyberia-server
    └─ enter render loop
@@ -129,8 +129,8 @@ The client owns its render policy. The authoritative server holds no presentatio
 
 Three layers, strictly inward-dependent:
 
-1. **`domain/presentation_defaults.{c,h}`** — compile-time canonical defaults. Always present, always sufficient for the client to render. Kept in 1-to-1 parity with engine-cyberia's `src/api/cyberia-client-hints/cyberia-presentation-hints.defaults.js`.
-2. **`domain/presentation_runtime.{c,h}`** — runtime hydration. On startup fires an asynchronous GET against `/api/cyberia-client-hints/:INSTANCE_CODE`; merges the response over the compile-time defaults. Polled once per render frame. Non-blocking: the client renders with defaults from frame 0 regardless of fetch outcome.
+1. **`domain/presentation_defaults.{c,h}`** — compile-time canonical defaults. Always present, always sufficient for the client to render. Kept in 1-to-1 parity with engine-cyberia's `src/client/components/cyberia/SharedDefaultsCyberia.js` (the isomorphic JS/Node defaults module that backs the REST hints response).
+2. **`domain/presentation_runtime.{c,h}`** — runtime hydration. On startup fires an asynchronous GET against `/api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`; merges the response over the compile-time defaults. Polled once per render frame. Non-blocking: the client renders with defaults from frame 0 regardless of fetch outcome.
 3. **Renderers** — call `presentation_runtime_palette("KEY")`, `presentation_runtime_status_icon(u8)`, `presentation_runtime_status_border(u8)`, `presentation_entity_fallback_color(entity_type)` at each use site.
 
 What lives in this layer:
@@ -179,12 +179,13 @@ No authentication; presentation hints are not secret. The Go authoritative serve
 
 ### Prediction
 
-`prediction/prediction.{c,h}` owns the predicted self position. It is the only writer of the predicted state.
+`prediction/prediction.{c,h}` owns the predicted self position. It is the only writer of the predicted state. Internally it tracks **two** positions: the discrete per-tick `predicted_pos` (where the simulation says the player is) and the continuous render-frame `display_pos` (what the renderer reads). The renderer never sees the discrete value.
 
 - `prediction_apply(cmd)` — optimistic local apply of an input command + push onto replay buffer.
-- `prediction_step(dt)` — fixed-timestep advance, called by the accumulator.
-- `prediction_reconcile()` — on snapshot arrival: drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs.
-- `prediction_self_position()` — render-time accessor.
+- `prediction_step(dt)` — fixed-timestep advance, called by the accumulator. Mutates `predicted_pos` only.
+- `prediction_reconcile()` — on snapshot arrival: drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs. Mutates `predicted_pos` only.
+- `prediction_display_step(frame_dt)` — per-render-frame exponential lerp of `display_pos` toward `predicted_pos`. This is the layer that absorbs reconcile snaps and sim-tick stepping so the visible main player moves continuously.
+- `prediction_self_position()` — render-time accessor; returns the smoothed `display_pos`.
 
 ### Interpolation
 
@@ -286,7 +287,7 @@ bin/
 | --------------------------- | ----------------------------------- | -------------------------------------------------- |
 | `WS_URL`                    | `wss://server.cyberiaonline.com/ws` | WebSocket endpoint of cyberia-server               |
 | `API_BASE_URL`              | `https://www.cyberiaonline.com`     | engine-cyberia REST base URL                       |
-| `INSTANCE_CODE`             | `cyberia-main`                      | Used to scope the optional client-hints fetch      |
+| `CYBERIA_CLIENT_HINTS_CODE` | `cyberia-main`                      | Lookup key for the optional client-hints fetch (presentation override key — never an instance/server identifier) |
 | `HTTP_TIMEOUT_SECONDS`      | `10`                                | HTTP request timeout                               |
 | `MAX_TEXTURE_CACHE_SIZE`    | `512`                               | Atlas texture LRU cap                              |
 | `MAX_LAYER_CACHE_SIZE`      | `256`                               | ObjectLayer metadata LRU cap                       |

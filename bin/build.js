@@ -174,7 +174,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         'atlas-sprite-sheet',
       ];
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
-      const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
+      const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
       packageJson.dependencies = {
         ...originPackageJson.dependencies,
         ...CyberiaDependencies,

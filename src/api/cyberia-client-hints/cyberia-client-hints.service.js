@@ -9,7 +9,7 @@
  *   2. Compatibility read on CyberiaInstanceConf with the same `code` —
  *      covers instances seeded before CyberiaClientHints existed.
  *   3. Canonical compile-time defaults from
- *      cyberia-presentation-hints.defaults.js. The C client bakes the
+ *      SharedDefaultsCyberia.js. The C client bakes the
  *      same defaults at compile time, so this branch returns exactly the
  *      values the client already has.
  *
@@ -26,7 +26,7 @@ import { loggerFactory } from '../../server/logger.js';
 import {
   buildClientHints,
   CYBERIA_CLIENT_HINTS_DEFAULTS,
-} from './cyberia-presentation-hints.defaults.js';
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 

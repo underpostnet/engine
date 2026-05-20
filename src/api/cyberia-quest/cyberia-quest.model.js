@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { QUEST_STEPS_TYPES } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+import { QUEST_STEPS_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 

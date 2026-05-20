@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { CYBERIA_ACTION_TYPES } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+import { CYBERIA_ACTION_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 

@@ -156,6 +156,7 @@ const DefaultConf = /**/ {
       publicRef: 'cyberia',
       components: {
         cyberia: [
+          'SharedDefaultsCyberia',
           'MapEngineCyberia',
           'ObjectLayerEngine',
           'ObjectLayerEngineModal',
@@ -217,7 +218,6 @@ const DefaultConf = /**/ {
           'AppShellCyberiaPortal',
           'RouterCyberiaPortal',
           'AppStoreCyberiaPortal',
-          'CommonCyberiaPortal',
           'CssCyberiaPortal',
           'LogInCyberiaPortal',
           'LogOutCyberiaPortal',

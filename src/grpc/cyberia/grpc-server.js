@@ -20,8 +20,8 @@ import {
   ENTITY_TYPE_DEFAULTS,
   // STATUS_ICONS deliberately not imported here — see toInstanceConfig.
   // Server simulation only cares about the numeric u8 IDs (which travel on
-  // the AOI wire). Icon stems + border colours live in cyberia-client-hints.
-} from '../../api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
+  // the AOI wire). Icon stems + border colours live in SharedDefaultsCyberia.
+} from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 
 const logger = loggerFactory(import.meta);
@@ -29,7 +29,7 @@ const logger = loggerFactory(import.meta);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROTO_PATH = path.resolve(__dirname, '../../../cyberia-server/proto/cyberia.proto');
+const PROTO_PATH = path.resolve(__dirname, '../../../cyberia-server/gen/proto/cyberia.proto');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: false,
@@ -279,7 +279,7 @@ function toInstanceConfig(gc) {
   //
   // The Go simulation does not need these to advance world state and the
   // C client owns its own render policy. See
-  // src/api/cyberia-client-hints/cyberia-presentation-hints.defaults.js.
+  // src/client/components/cyberia/SharedDefaultsCyberia.js.
 
   // Merge entity defaults while preserving duplicate builds (for example,
   // multiple resource or portal variants sharing the same entityType).

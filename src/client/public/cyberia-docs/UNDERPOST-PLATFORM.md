@@ -220,6 +220,7 @@ Every Underpost Platform document uses these exact terms. Aliases are not permit
 | **input command** | Typed client→server frame: `{kind, clientTick, sequence, payload}`. The unit of client input. |
 | **prediction** | Optimistic local apply of input commands to the predicted self entity on the client. |
 | **reconciliation** | On snapshot arrival, the client drops acknowledged input commands and replays unacked ones. |
+| **display smoothing** | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Hides reconcile snaps and per-tick stepping for the main player. |
 | **interpolation** | Render-time smoothing of remote entities, sampled from snapshot history. |
 | **AOI** | Area-of-interest: the spatial filter that defines which entities a given player receives. |
 | **replication** | Production and delivery of snapshots from `cyberia-server` to each client. |

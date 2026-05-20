@@ -61,7 +61,7 @@ Cyberia Online uses the **Fountain & Sink** economy — the industry standard fo
 
 Economy parameters live in `CyberiaInstanceConf.economyRules`. A document without an `economyRules` sub-document receives canonical defaults automatically.
 
-### 2.1 JavaScript Defaults (`cyberia-instance-conf.defaults.js`)
+### 2.1 JavaScript Defaults (`cyberia-server-defaults.js`)
 
 ```javascript
 economyRules: {

@@ -714,7 +714,7 @@ nvidia/gpu-operator \
     }
 
     case 'cyberia': {
-      const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
+      const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
       for (const dep of Object.keys(CyberiaDependencies)) {
         const ver = CyberiaDependencies[dep];
         shellExec(`npm install ${dep}@${ver}`);

@@ -313,7 +313,7 @@ These are read by `cyberia-client-hints.service.js` as a step-2 fallback in the 
 
 1. `CyberiaClientHints` collection — `src/api/cyberia-client-hints/` (per-instance explicit override)
 2. Legacy fallback from `CyberiaInstanceConf` fields above
-3. Canonical defaults from `src/api/cyberia-client-hints/cyberia-presentation-hints.defaults.js`
+3. Canonical defaults from `src/client/components/cyberia/SharedDefaultsCyberia.js`
 
 **Why retained:**  
 Removing these fields from the schema and model breaks existing instances that store presentation overrides there and have no corresponding `CyberiaClientHints` document.

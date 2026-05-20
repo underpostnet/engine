@@ -13,7 +13,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getProxyPath } from '../core/Router.js';
-import { ENTITY_TYPES, getDefaultCyberiaItemById } from '../cyberia-portal/CommonCyberiaPortal.js';
+import { ENTITY_TYPES, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;

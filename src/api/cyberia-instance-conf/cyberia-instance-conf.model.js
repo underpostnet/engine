@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from './cyberia-instance-conf.defaults.js';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const ColorEntrySchema = new Schema(
   {
@@ -57,7 +57,7 @@ const SkillConfigEntrySchema = new Schema(
 // ── StatusIconEntrySchema ────────────────────────────────────────────────────
 // Maps a u8 status ID to an overhead icon and a border colour used by the
 // interaction bubble / interact overlay on the C/WASM client.
-// See STATUS_ICONS in cyberia-instance-conf.defaults.js.
+// See STATUS_ICONS in cyberia-server-defaults.js.
 const StatusIconBorderColorSchema = new Schema(
   {
     r: { type: Number, default: 100 },
@@ -82,7 +82,7 @@ const StatusIconEntrySchema = new Schema(
 
 // ── EconomyRulesSchema ───────────────────────────────────────────────────────
 // Mirrors the EconomyRules proto message and the economyRules sub-document in
-// cyberia-instance-conf.defaults.js.  All fields default from those canonical
+// cyberia-server-defaults.js.  All fields default from those canonical
 // values so a freshly created document is immediately playable.
 // See OFF_CHAIN_ECONOMY.md for the full Fountain & Sink architecture.
 const EconomyRulesSchema = new Schema(
@@ -105,7 +105,7 @@ const EconomyRulesSchema = new Schema(
 // ── EquipmentRulesSchema ─────────────────────────────────────────────────────
 // Governs which ObjectLayer item types can be simultaneously active on a
 // character entity and enforces the one-active-per-type constraint.
-// See EQUIPMENT_RULES_DEFAULTS in cyberia-instance-conf.defaults.js.
+// See EQUIPMENT_RULES_DEFAULTS in cyberia-server-defaults.js.
 const EquipmentRulesSchema = new Schema(
   {
     // Item types that players are allowed to activate (equip).
@@ -205,7 +205,7 @@ const CyberiaInstanceConfSchema = new Schema(
 
     // ── Entity Status Indicators ────────────────────────────────────
     // Overhead icon mapping + per-status border colour.
-    // See STATUS_ICONS in cyberia-instance-conf.defaults.js.
+    // See STATUS_ICONS in cyberia-server-defaults.js.
     statusIcons: { type: [StatusIconEntrySchema], default: D.statusIcons },
 
     // ── Skill system ─────────────────────────────────────────────────

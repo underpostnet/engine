@@ -35,9 +35,12 @@ import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
-} from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
-import { CYBERIA_CLIENT_HINTS_DEFAULTS } from '../cyberia-client-hints/cyberia-presentation-hints.defaults.js';
-import { DefaultCyberiaItems } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+  DefaultCyberiaItems,
+} from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import {
+  CYBERIA_CLIENT_HINTS_DEFAULTS,
+  PALETTE,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -98,7 +101,7 @@ function auditFallbackItemIds() {
  * Everything except floor tiles is randomized.
  *
  * @param {string} mapCode
- * @param {Array} colors             Palette from CYBERIA_INSTANCE_CONF_DEFAULTS.
+ * @param {Array} colors             Palette (PALETTE from SharedDefaultsCyberia).
  * @param {object} [opts]
  * @param {number} [opts.gridSize]
  * @param {number} [opts.obstacleCount]
@@ -182,7 +185,12 @@ function generateFallbackWorld(opts = {}) {
     foregroundCount,
     botCount,
     resourceCount,
-    colors = CYBERIA_INSTANCE_CONF_DEFAULTS.colors,
+    // Palette lives in SharedDefaultsCyberia (presentation-owned). The
+    // world generator only uses it to stamp a cosmetic rgba(...) string on
+    // entities so the browser editor / preview can render a coloured
+    // fallback before atlases load. The C client resolves real colours
+    // through domain/presentation_runtime — it does not read this value.
+    colors = PALETTE,
   } = opts;
 
   // Surface item-id drift loudly on the very first build, so a missing
