@@ -309,6 +309,7 @@ const DefaultConf = /**/ {
         'cyberia-quest',
         'cyberia-quest-progress',
         'cyberia-action',
+        'cyberia-client-hints',
       ],
     },
     cryptokoyn: {
@@ -661,6 +662,7 @@ const DefaultConf = /**/ {
           'cyberia-quest',
           'cyberia-quest-progress',
           'cyberia-action',
+          'cyberia-client-hints',
         ],
         ws: 'core',
         peer: true,

@@ -1,268 +1,308 @@
-# Cyberia Server
+# cyberia-server
 
-**Path:** `cyberia-server/` | **Language:** Go
+**Path:** `cyberia-server/` · **Language:** Go · **Role:** authoritative simulation runtime for Cyberia
 
----
+`cyberia-server` is the authoritative simulation runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It owns world state, advances a fixed-rate tick, drains typed input commands from connected clients, and dispatches AOI-filtered snapshots on a separately-paced replication tick.
 
-## Overview
-
-`cyberia-server` is the real-time multiplayer game server for Cyberia Online. It maintains the authoritative game state, runs the AI and physics simulation, and communicates with clients via a custom binary WebSocket protocol. It connects to the Node.js Engine at startup via gRPC to load the game world and Object Layer data.
+It is **not** a content authority and it is **not** a render-policy authority. World content is loaded once at boot from [engine-cyberia](UNDERPOST-PLATFORM.md#engine-cyberia-nodejs--content-authority) over gRPC. Presentation is owned by [cyberia-client](CYBERIA-CLIENT.md).
 
 ---
 
-## Architecture
+## Process model
 
-```mermaid
-graph TB
-    subgraph cyberia-server["cyberia-server (Go)"]
-        main["main.go\nHTTP + WS listener"]
-        loader["instance_loader.go\nWorld Builder from gRPC"]
-        server["server.go\nGame loop + Player registry"]
-        aoi["aoi_binary.go\nBinary AOI Protocol"]
-        collision["collision.go\nGrid collision + portals"]
-        pathfind["pathfinding.go\nA* bot navigation"]
-        skills["skill.go\nSkill tap/kill entry\nskill_dispatcher.go\nSkill registry"]
-        economy["economy.go\nFountain & Sink"]
-        ai["ai.go\nBot behavior"]
-        frozen["frozen_state.go\nModal protection"]
-        static["static.go\nStatic file serving (WASM client)"]
-    end
+```
+engine-cyberia (Node.js)                cyberia-server (Go)              cyberia-client (C/WASM)
+─────────────────────────               ──────────────────               ───────────────────────
+content authority                       authoritative simulation         presentation runtime
+persisted maps + rules                  tick + AOI + snapshots           render + prediction
 
-    grpcClient["grpcclient/\nEngine gRPC client"] --> loader
-    loader --> server
-    server --> aoi
-    server --> collision
-    server --> pathfind
-    server --> skills
-    server --> economy
-    server --> ai
-    server --> frozen
-
-    Engine["engine-cyberia :50051\n(gRPC)"] <-->|gRPC| grpcClient
-    Client["cyberia-client\n(C/WASM)"] <-->|WS binary| aoi
-    Client <-->|REST /api/v1/*| server
+      │  gRPC  GetFullInstance               │  WebSocket binary
+      │────────────────────────────────────► │  AOI snapshots + init
+      │  (world configuration:               │  ▲
+      │   AOI radius, economy,               │  │ typed input commands
+      │   skill, equipment,                  │  │
+      │   entity gameplay defaults)          │  │
+      │                                      │  │
+      ▼                                      ▼  ▼
+   (boot only)                            tick loop + replication
 ```
 
+The server speaks two protocols:
+
+- **gRPC, inbound, at boot:** consumes world configuration from engine-cyberia.
+- **WebSocket binary, ongoing:** delivers snapshots to clients, accepts typed input commands.
+
+There is no per-tick traffic between the server and engine-cyberia.
+
 ---
 
-## Source Files
+## Startup order
+
+Startup is sequential. `cyberia-server` cannot start before its content backend, and exits on gRPC dial failure rather than fabricate a world.
+
+```
+1. Persistent backend / sidecar data layer
+   ├─ databases (MongoDB; optional MariaDB)
+   ├─ engine-cyberia (gRPC :50051, REST :4005)
+   └─ static asset backend (Cloudinary + IPFS where applicable)
+
+2. cyberia-server
+   ├─ dials engine-cyberia gRPC
+   ├─ loads world configuration via GetFullInstance(instanceCode)
+   ├─ initializes simulation tick + AOI replication tick
+   └─ opens WebSocket + REST health/metrics on :8081
+
+3. cyberia-client
+   └─ connects to cyberia-server via WebSocket
+```
+
+Underpost Platform deploy orchestration enforces this ordering. Do not describe or invoke the three layers in parallel.
+
+---
+
+## Tick model
+
+The tick is the universal coordinate of the simulation.
+
+| Concept | Default | Notes |
+|---|---|---|
+| **tick** | `uint32` | Monotonic, advanced once per simulation step. Resets only on world rebuild. |
+| **tick rate** | `30` Hz | Simulation Hz. Loaded from world configuration. **The string `fps` is not used to describe this rate.** |
+| **snapshot rate** | `20` Hz | AOI replication Hz. Decoupled from tick rate so bandwidth scales independently of simulation fidelity. |
+| **tick duration** | `1 / tick_rate` | The dt used by every simulation phase. |
+| **current tick** | `uint32` | The simulation step about to run (or just produced). Stamped into every outgoing snapshot. |
+
+Two independent tickers:
+
+| Ticker | Rate | Responsibility |
+|---|---|---|
+| simulation | `tickRate` Hz | advance world by exactly one tick; run phases in fixed order |
+| replication | `snapshotRate` Hz | per-player AOI filter + encode + dispatch |
+
+Movement integration is `dt`-based: `step = speed * tickDuration.Seconds()`. Frame-count integration is not used anywhere on the server.
+
+---
+
+## Simulation phases
+
+Inside one simulation tick, the phases run in a fixed order. Phases are the **only** functions allowed to mutate world state.
+
+1. **`phaseInput`** — drain each player's `InputQueue`; dispatch typed input commands to gameplay handlers.
+2. **`phaseLifecycle`** — respawn timers, despawn expirations.
+3. **`phaseSkills`** — skill projectile collisions.
+4. **`phaseAI`** — bot behaviour decisions.
+5. **`phaseMovement`** — integrate positions using `tickDuration`.
+6. **`phasePortals`** — portal entry and teleport.
+
+Separately, on the replication ticker:
+
+7. **`phaseReplication`** — per player: compute AOI rectangle, build snapshot, dispatch via the player's WebSocket write channel.
+
+Phases never read presentation data. Phases consume world configuration (gameplay rules) and the per-player input queue.
+
+---
+
+## Input command pipeline
+
+Client input is typed end-to-end. There is no JSON intermediate on the binary path. The simulation tick is the only consumer of input commands.
+
+```
+WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequence, payload}
+                                              │
+                                              ▼
+                                              dispatchInputCommand
+                                              │
+                                              ▼
+                                              PlayerState.InputQueue (per-player, bounded ring)
+                                              │
+                                              ▼
+                         phaseInput (under world mutex, once per simulation tick)
+                                              │
+                                              ▼
+                         phase_input_handlers.go — typed dispatch per InputKind
+                                              │
+                                              ▼
+                         authoritative world state
+```
+
+| Property | Detail |
+|---|---|
+| One queue per player | drained exactly once per simulation tick |
+| One typed handler per `InputKind` | each handler runs under the world mutex held by `phaseInput` |
+| One source of truth | `phase_input_handlers.go` is the only file that translates an input command into world state |
+| Sequence numbering | `InputCommand.Sequence` is monotonic per client; the server tracks the highest applied sequence per player in `PlayerState.LastAckedInputSequence` |
+
+A second uplink path, `handleJSONUplink`, parses text-framed JSON uplinks into the same typed `InputCommand` and routes them through the same per-tick queue. No synchronous game-state mutation runs on the WebSocket read goroutine.
+
+### Input kinds
+
+| Kind | Wire byte | Effect |
+|---|---|---|
+| `PlayerAction` | `0x11` | TAP — movement intent + skill trigger |
+| `ItemActivation` | `0x12` | Equip/unequip an ObjectLayer item; validated against equipment rules |
+| `FreezeStart` | `0x13` | Enter FrozenInteractionState (blocks movement/damage; rest of world unaffected) |
+| `FreezeEnd` | `0x14` | Exit FrozenInteractionState |
+| `Chat` | `0x15` | Pure relay; no game-state mutation |
+| `GetItemsIDs` | `0x16` | Skill-item-id lookup; produces a response frame |
+| `Handshake` | `0x10` | Connection establishment; no gameplay effect |
+
+---
+
+## AOI replication
+
+The AOI system filters world state per-player so each client receives only what its character can perceive.
+
+Per player:
+
+- AOI is a rectangle centered on the player position with size determined by `aoiRadius` from world configuration.
+- On each replication tick, the server iterates the player's map, includes any entity whose bounding rectangle overlaps the AOI, and emits a snapshot.
+
+### Snapshot header (binary, little-endian)
+
+```
+[0]      u8   msgType     0x01 = aoi_update, 0x03 = full_aoi
+[1..4]   u32  tick        simulation tick at which the snapshot was produced
+[5..8]   u32  lastAcked   highest InputCommand.Sequence applied for this player
+[9..10]  u16  entityCount entity blocks that follow
+```
+
+The `tick` and `lastAcked` fields are how the client reconciles its predicted self with authoritative state. The client drops input commands with `sequence ≤ lastAcked` from its replay buffer, then rewinds and replays the rest.
+
+Other message types (init data, FCT) carry their own headers and are not part of the per-tick replication stream.
+
+---
+
+## World configuration
+
+World configuration is loaded once at boot from engine-cyberia via gRPC `GetFullInstance(instanceCode)`. The simulation consumes the following from it:
+
+| Field | Used for |
+|---|---|
+| `cellSize` | grid math |
+| `tickRate` | simulation Hz |
+| `aoiRadius` | per-player AOI rectangle size |
+| `entityBaseSpeed`, `entityBaseMaxLife`, `entityBaseActionCooldownMs` | base stats |
+| `economyRules` | Fountain & Sink coin economy |
+| `skillRules` | projectile / doppelganger spawn rates and lifetimes |
+| `equipmentRules` | item activation constraints (one-per-type, requireSkin, activeItemTypes) |
+| `entityDefaults[*]` | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
+
+World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. See [Presentation metadata ownership](#presentation-metadata-ownership).
+
+Hot reload of ObjectLayers is supported via periodic `GetObjectLayerManifest` calls; world topology and gameplay rules are reloaded only on server restart.
+
+---
+
+## Presentation metadata ownership
+
+`cyberia-server` holds **no** presentation state. There is no field on the server for:
+
+- palette
+- status-icon iconId or border color
+- camera smoothing or camera zoom
+- dev-overlay flag
+- screen-factor overrides
+- interpolation window
+
+These live in [cyberia-client](CYBERIA-CLIENT.md)'s compile-time defaults. Per-instance presentation overrides are served by engine-cyberia at `GET /api/cyberia-client-hints/:instanceCode` and consumed directly by the client. The Go process never calls that endpoint.
+
+### `sim_palette.go`
+
+A small internal RGBA table inside `sim_palette.go` exists solely to fill the optional per-entity color bytes on the AOI wire for portals, skill projectiles, and freshly spawned players. The table is:
+
+- compile-time constant
+- not loaded from any contract (gRPC, REST, proto, env)
+- read only at world-build and one-shot spawn paths
+- never consulted during any per-tick simulation phase
+
+The client treats those wire bytes as a hint and resolves the actual fallback color from its own palette by entity type.
+
+---
+
+## Source layout
 
 Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the gRPC client and world builder under `src/grpcclient/`; the chi-based REST router under `api/`.
 
-| File                             | Responsibility                                                                                 |
-| -------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `main.go`                        | Entry point — loads `.env`, dials Engine gRPC, mounts WS and `/api` router, starts listener    |
-| `src/server.go`                  | WebSocket lifecycle, game loop, player/bot registry                                            |
-| `src/types.go`                   | Core data structures (PlayerState, BotState, ObjectLayer, etc.)                                |
-| `src/aoi_binary.go`              | Binary AOI wire format encoder + message type constants                                        |
-| `src/object_layer.go`            | ObjectLayer Go types mirroring MongoDB schema                                                  |
-| `src/instance_loader.go`         | Reconstructs world from gRPC `GetFullInstanceResponse` (`BuildWorldFromInstance`)              |
-| `src/collision.go`               | Grid collision detection, portal transitions, death handling                                   |
-| `src/pathfinding.go`             | A\* pathfinding for bot/player navigation                                                      |
-| `src/skill.go`                   | Skill entry points: `HandlePlayerTapAction`, `HandleOnKillSkills`, `GetAssociatedSkillItemIDs` |
-| `src/skill_dispatcher.go`        | Skill registry: `InitSkills()`, `DispatchSkill()`, `dispatchSkillsForEntity()`                 |
-| `src/skill_projectile.go`        | Projectile skill handler (spawns `skill` bot entities)                                         |
-| `src/skill_doppelganger.go`      | Doppelganger skill handler (spawns allied clone bots)                                          |
-| `src/economy.go`                 | Fountain & Sink coin economy — all economy methods                                             |
-| `src/life_regen.go`              | HP regeneration ticker                                                                         |
-| `src/ai.go`                      | Bot AI — aggro, wander, target selection                                                       |
-| `src/stats.go`                   | Active stat aggregation, sum-stats limit enforcement                                           |
-| `src/entity_status.go`           | Entity Status Indicator (ESI) computation                                                      |
-| `src/entity_defaults.go`         | Default entity/Skill rule constants                                                            |
-| `src/frozen_state.go`            | FrozenInteractionState — modal protection for players                                          |
-| `src/handlers.go`                | WebSocket message handlers (move, action, inventory, etc.)                                     |
-| `src/static.go`                  | Static file serving for the WASM client                                                        |
-| `src/grpcclient/client.go`       | gRPC client wrapper for the Engine data service                                                |
-| `src/grpcclient/world_builder.go`| Translates gRPC payloads into in-memory world structures                                       |
-| `api/router.go`                  | chi router — mounts `/v1/health` and metrics endpoints                                         |
-| `api/metrics.go`                 | Prometheus-style metrics handlers                                                              |
-| `proto/cyberia.proto`            | gRPC service contract (shared with the Node.js Engine)                                         |
-| `proto/cyberia.pb.go`, `proto/cyberia_grpc.pb.go` | Generated protobuf + gRPC stubs                                          |
+| File | Responsibility |
+|---|---|
+| `main.go` | Entry point — loads `.env`, dials engine-cyberia gRPC, mounts WS and `/api` router, starts listener |
+| `src/tick.go` | `Tick`, `InputSequence` types and tick rate constants |
+| `src/server.go` | `GameServer` struct, simulation+replication tickers, `ApplyInstanceConfig`, world mutator orchestration |
+| `src/types.go` | Core data structures (`PlayerState`, `BotState`, `MapState`, `ObjectLayerState`, etc.) |
+| `src/simulation_phases.go` | Phase entry points called from the tick loop |
+| `src/phase_input_handlers.go` | Typed dispatch per `InputKind`; the only translator from input commands to world state |
+| `src/input_command.go` | `InputCommand` struct, `InputKind` constants, per-player queue helper |
+| `src/aoi_binary.go` | Binary AOI snapshot encoder; message type constants |
+| `src/object_layer.go` | ObjectLayer Go types mirroring MongoDB schema |
+| `src/instance_loader.go` | World reconstruction from gRPC payload |
+| `src/collision.go` | Grid collision, portal transitions, death handling |
+| `src/pathfinding.go` | A* pathfinding for bot and player navigation |
+| `src/skill.go`, `src/skill_dispatcher.go`, `src/skill_projectile.go`, `src/skill_doppelganger.go` | Skill registry and per-skill handlers |
+| `src/economy.go` | Fountain & Sink coin economy |
+| `src/life_regen.go` | HP regeneration |
+| `src/ai.go` | Bot AI |
+| `src/stats.go` | Active stat aggregation, sum-stats limit enforcement |
+| `src/entity_status.go` | Entity Status Indicator (ESI) numeric IDs |
+| `src/frozen_state.go` | FrozenInteractionState |
+| `src/handlers.go` | WebSocket lifecycle, binary uplink decoder, JSON-uplink back-compat adapter |
+| `src/sim_palette.go` | Internal RGBA fill for AOI wire bytes (not a contract) |
+| `src/grpcclient/` | gRPC client + world builder for engine-cyberia |
+| `api/router.go`, `api/metrics.go` | chi router; `/api/v1/*` endpoints |
+| `proto/cyberia.proto` | gRPC service contract shared with engine-cyberia |
 
 ---
 
-## gRPC World Loading
+## REST surface
 
-At startup, the Go server dials the Engine gRPC endpoint and calls `GetFullInstance(instanceCode)`:
+`/api/v1/*` is the operational surface; it is independent of the WebSocket gameplay protocol.
 
-```mermaid
-sequenceDiagram
-    participant G as Go Server
-    participant E as Engine (gRPC :50051)
-    participant DB as MongoDB
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/health` | GET | Simple health check |
+| `/api/v1/metrics` | GET | Complete server metrics snapshot |
+| `/api/v1/metrics/health` | GET | Detailed health with entity/player counts |
+| `/api/v1/metrics/entities` | GET | Entity-type breakdown |
+| `/api/v1/metrics/websocket` | GET | Active connections, message rates |
+| `/api/v1/metrics/workload` | GET | Per-map entity workload |
 
-    G->>E: GetFullInstance("cyberia-main")
-    E->>DB: Query CyberiaInstance + all CyberiaMap + CyberiaEntity + ObjectLayer
-    E-->>G: GetFullInstanceResponse { instance, maps[], entities[], objectLayers[], config }
-    G->>G: BuildWorldFromInstance → in-memory map grid + entity registry
-    G->>G: ApplyInstanceConfig → sets economy rules, skill config, equipment rules
-    G->>G: ReplaceObjectLayerCache → indexes all ObjectLayer metadata by itemId
-    G->>E: GetObjectLayerBatch() (stream — cache warm-up)
-    Note over G: gRPC load complete — WebSocket server ready
-```
-
-**Fallback:** If the `instanceCode` doesn't match any MongoDB record, the Engine returns a minimal playable fallback (empty 64×64 map) instead of `NOT_FOUND`. If the Engine is unreachable, the Go server exits with a fatal error (gRPC is required).
+All content data (ObjectLayer metadata, asset blobs, optional client hints) is served directly by engine-cyberia REST. `cyberia-server` does not proxy content.
 
 ---
 
-## WebSocket Message Handlers
+## Environment
 
-Incoming client messages dispatch through `handlers.go`:
-
-| Message Type                      | Description                                                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `player_action`                   | Player tap action — carries `targetX`/`targetY`; triggers `HandlePlayerTapAction` (movement + skill dispatch) |
-| `item_activation`                 | Equip/unequip an Object Layer item; enforces one-per-type and `maxActiveLayers` rules                         |
-| `get_items_ids`                   | Given an `itemId`, returns the list of associated skill entity item IDs (`skill_item_ids` response)           |
-| `freeze_start` / `dialogue_start` | Enter FrozenInteractionState (blocks movement and damage); `dialogue_start` accepted for backward compat      |
-| `freeze_end` / `dialogue_end`     | Exit FrozenInteractionState                                                                                   |
-| `chat`                            | Pure relay — forward JSON chat message to target player, no game-state mutation                               |
-
-> **Pre-alpha scope:** Action/quest/shop/craft/portal WS handlers are not yet implemented in the Go server. These systems are defined in the Node.js Engine API (`src/api/cyberia-action`, `src/api/cyberia-quest`) and are planned for the alpha milestone.
+| Variable | Default | Description |
+|---|---|---|
+| `ENGINE_GRPC_ADDRESS` | `localhost:50051` | engine-cyberia gRPC address (**required**) |
+| `INSTANCE_CODE` | `default` | Instance code to load on startup |
+| `ENGINE_API_BASE_URL` | _(empty)_ | engine-cyberia REST base URL; forwarded to clients |
+| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_ | ObjectLayer hot-reload polling interval |
+| `SERVER_PORT` | `8081` | WebSocket + HTTP listen port |
+| `STATIC_DIR` | `./public` | Directory for static WASM client files |
+| `READY_CMD` | _(empty)_ | Shell command run after listen — used by deploy orchestration to signal readiness |
 
 ---
 
-## Area of Interest (AOI)
-
-The AOI system ensures each client receives only data about nearby entities, reducing bandwidth and server load:
-
-- Each player has a rectangular AOI bounding box centered on their position.
-- AOI size is configured per instance (`aoi_width`, `aoi_height` in `CyberiaInstanceConf`).
-- On each tick, the server computes the delta (entities entered/left AOI) and sends a binary `aoi_update` (0x01) message.
-- On initial connect, the server sends a full AOI snapshot (`full_aoi`, 0x03) plus `init_data` (0x02).
-
----
-
-## Skill System
-
-### Trigger Pipeline
-
-```
-player_action WS message
-  → HandlePlayerTapAction(player, mapState, target)
-    → dispatchSkillsForEntity(player, mapState, target)
-      → iterate player.ObjectLayers (active items)
-        → build skillMap: itemId → []SkillDefinition
-          → for each SkillDefinition:
-              DispatchSkill(logicEventId, SkillContext)
-                "projectile"            → skill_projectile.go handler
-                "doppelganger"          → skill_doppelganger.go handler
-                "coin_drop_or_transaction" → economy.go handler
-```
-
-### Skill Rules (SkillRules proto message → server fields)
-
-| Field                             | Description                                            |
-| --------------------------------- | ------------------------------------------------------ |
-| `projectileSpawnChance`           | Probability [0–1] of spawning a projectile per trigger |
-| `projectileLifetimeMs`            | Projectile lifetime in milliseconds                    |
-| `projectileWidth/Height`          | Entity dimensions (in cells)                           |
-| `projectileSpeedMultiplier`       | Speed multiplier relative to base entity speed         |
-| `doppelgangerSpawnChance`         | Probability of spawning a doppelganger                 |
-| `doppelgangerLifetimeMs`          | Doppelganger lifetime                                  |
-| `doppelgangerSpawnRadius`         | Max spawn distance from triggering player (cells)      |
-| `doppelgangerInitialLifeFraction` | Starting HP as fraction of player max HP               |
-
----
-
-## Bot AI
-
-Bots are spawned from `CyberiaEntity` records with `entityType: "bot"`. The `ai.go` module drives their behavior:
-
-| Behavior  | Description                                                                              |
-| --------- | ---------------------------------------------------------------------------------------- |
-| `hostile` | Has a weapon; will pathfind to and attack players/other bots within `aggroRange`         |
-| `passive` | No weapon; wanders randomly within `spawnRadius`                                         |
-| `skill`   | Projectile entity — moves in a fixed direction, despawns on collision or lifetime expiry |
-| `coin`    | Static collectible — grants coins on player contact, then despawns                       |
-
-**Bot respawn:** Dead bots respawn at their `spawnPoint` after a configurable delay. Each respawn calls `FountainInitBot(bot)` to reset the coin wallet to `botSpawnCoins`.
-
----
-
-## FrozenInteractionState
-
-While a player has a modal open (dialogue, shop, inventory, craft), they enter **FrozenInteractionState**:
-
-```go
-// frozen_state.go
-FreezePlayer(player, reason string)  // freezes: no damage, no movement, no events
-ThawPlayer(player)                   // unfreezes: returns to normal gameplay
-```
-
-The player's `Frozen` flag is broadcast to clients on each AOI tick so other players see the frozen (chat-icon) status indicator.
-
----
-
-## Hot-Reload
-
-The Go server supports **incremental ObjectLayer hot-reload** without restart:
-
-1. At interval `ENGINE_GRPC_RELOAD_INTERVAL_SEC`, the server calls `GetObjectLayerManifest()`.
-2. It diffs the returned `{ itemId, sha256 }` pairs against the cached manifest.
-3. For changed items, it calls `GetObjectLayer(itemId)` to fetch updated data.
-4. `ReplaceObjectLayerCache` atomically replaces the stale entry.
-
----
-
-## REST API
-
-The Go server exposes a metrics and health REST API under `/api/v1/`:
-
-| Endpoint                    | Method | Description                                                   |
-| --------------------------- | ------ | ------------------------------------------------------------- |
-| `/api/v1/health`            | GET    | Simple health check — `{"status":"ok"}`                       |
-| `/api/v1/metrics`           | GET    | Complete server metrics snapshot                              |
-| `/api/v1/metrics/health`    | GET    | Detailed health with entity/player counts                     |
-| `/api/v1/metrics/entities`  | GET    | Entity type breakdown and active counts                       |
-| `/api/v1/metrics/websocket` | GET    | Active WebSocket connections, message rates                   |
-| `/api/v1/metrics/workload`  | GET    | Per-map entity workload (players, bots, floors, ObjectLayers) |
-
-All other game data (ObjectLayer metadata, instance config, file blobs) is served by the **Node.js Engine REST API** directly to the client — the Go server does not proxy Engine data.
-
----
-
-## Environment Variables
-
-| Variable                          | Default           | Description                                                                          |
-| --------------------------------- | ----------------- | ------------------------------------------------------------------------------------ |
-| `ENGINE_GRPC_ADDRESS`             | `localhost:50051` | Engine gRPC address (**required**)                                                   |
-| `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                                                     |
-| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval                                              |
-| `SERVER_PORT`                     | `8081`            | HTTP + WS listen port                                                                |
-| `STATIC_DIR`                      | `./public`        | Directory for static WASM client files                                               |
-| `READY_CMD`                       | _(empty)_         | Shell command to run after server starts (used by orchestration to signal readiness) |
-
----
-
-## Build and Run
+## Build and run
 
 ```bash
-# Development
 cd cyberia-server
+
+# Development
 go run main.go
 
 # Production binary
 go build -o cyberia-server .
 ./cyberia-server
-
-# Docker
-docker build -t cyberia-server .
-docker run -e ENGINE_GRPC_ADDRESS=engine:50051 -e INSTANCE_CODE=cyberia-main cyberia-server
 ```
+
+Deploy orchestration goes through the [Underpost CLI](UNDERPOST-PLATFORM.md#underpost-cli-v329--command-surface) (`underpost cluster`, `underpost deploy`).
 
 ---
 
-## Kubernetes Deployment
+## Cross-references
 
-The Go server deploys as `mmo-server` in the Kubernetes cluster:
-
-```yaml
-# Key environment variables in deployment.yaml
-- name: ENGINE_GRPC_ADDRESS
-  value: 'dd-cyberia-service:50051' # cluster-internal Engine service
-- name: INSTANCE_CODE
-  value: 'cyberia-main'
-- name: SERVER_PORT
-  value: '8081'
-```
+- [Underpost Platform](UNDERPOST-PLATFORM.md) — umbrella product, infra and toolchain scope.
+- [Architecture](ARCHITECTURE.md) — three-process model, canonical vocabulary, wire protocol.
+- [Cyberia Client](CYBERIA-CLIENT.md) — presentation runtime that consumes server snapshots.
+- [Cyberia CLI](CYBERIA-CLI.md) — Cyberia-specific CLI extensions to Underpost CLI.

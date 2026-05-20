@@ -73,6 +73,12 @@ const DefaultCyberiaItems = [
   { item: { id: 'alex', type: ITEM_TYPES.skin } },
   { item: { id: 'agent', type: ITEM_TYPES.skin } },
   { item: { id: 'grass', type: ITEM_TYPES.floor } },
+  { item: { id: 'wood-1', type: ITEM_TYPES.resource } },
+  { item: { id: 'wood-2', type: ITEM_TYPES.resource } },
+  { item: { id: 'wood-extracted-1', type: ITEM_TYPES.resource } },
+  { item: { id: 'wood-extracted-2', type: ITEM_TYPES.resource } },
+  { item: { id: 'wood-drop-1', type: ITEM_TYPES.resource } },
+  { item: { id: 'wood-drop-2', type: ITEM_TYPES.resource } },
 ];
 const DEFAULT_CYBERIA_ITEM_BY_ID = Object.freeze(
   DefaultCyberiaItems.reduce((acc, entry) => {

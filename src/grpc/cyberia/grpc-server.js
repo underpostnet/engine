@@ -18,7 +18,9 @@ import { loggerFactory } from '../../server/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   ENTITY_TYPE_DEFAULTS,
-  STATUS_ICONS,
+  // STATUS_ICONS deliberately not imported here — see toInstanceConfig.
+  // Server simulation only cares about the numeric u8 IDs (which travel on
+  // the AOI wire). Icon stems + border colours live in cyberia-client-hints.
 } from '../../api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 
@@ -264,36 +266,41 @@ function toInstanceConfig(gc) {
   const fb = FALLBACK_CONFIG_DEFAULTS;
   if (!gc) return buildFallbackConfig();
 
-  // Per-key merge: start with canonical defaults, overlay any DB-defined colours.
-  const dbColorMap = new Map((gc.colors || []).map((c) => [c.key, c]));
-  const colors = fb.colors.map((c) => {
-    const ov = dbColorMap.get(c.key);
-    return ov ? { key: c.key, r: ov.r ?? c.r, g: ov.g ?? c.g, b: ov.b ?? c.b, a: ov.a ?? c.a } : { ...c };
-  });
-  // Append any DB colours whose keys are absent from the canonical defaults.
-  for (const [key, c] of dbColorMap) {
-    if (!colors.some((fc) => fc.key === key)) {
-      colors.push({ key, r: c.r ?? 0, g: c.g ?? 0, b: c.b ?? 0, a: c.a ?? 255 });
-    }
-  }
+  // STRICT BOUNDARY — this function produces the *simulation* config for
+  // cyberia-server. Presentation fields are EXCLUDED here on purpose:
+  //
+  //   - palette (colors)                  → /api/cyberia-client-hints
+  //   - cameraSmoothing / cameraZoom      → /api/cyberia-client-hints
+  //   - defaultWidth/HeightScreenFactor   → /api/cyberia-client-hints
+  //   - devUi                             → /api/cyberia-client-hints
+  //   - interpolationMs                   → /api/cyberia-client-hints
+  //   - statusIcons (iconId + border)     → /api/cyberia-client-hints
+  //   - entityDefaults[].colorKey         → /api/cyberia-client-hints
+  //
+  // The Go simulation does not need these to advance world state and the
+  // C client owns its own render policy. See
+  // src/api/cyberia-client-hints/cyberia-presentation-hints.defaults.js.
 
   // Merge entity defaults while preserving duplicate builds (for example,
   // multiple resource or portal variants sharing the same entityType).
+  // Strip the presentation-only colorKey field — the client resolves
+  // colors locally from entityType via its built-in palette mapping.
   const gcDefaults = gc.entityDefaults && gc.entityDefaults.length > 0 ? gc.entityDefaults : [];
-  const entityDefaults = mergeEntityDefaults(gcDefaults);
+  const entityDefaults = mergeEntityDefaults(gcDefaults).map((d) => {
+    // Strip colorKey from each merged entry — it is presentation-only.
+    const { colorKey: _omit, ...sim } = d;
+    return sim;
+  });
 
   return {
     cellSize: gc.cellSize ?? fb.cellSize,
+    // `tick_rate` (proto field 65) is the canonical simulation Hz field.
+    // `fps` (proto field 2) is preserved for configs produced by older
+    // engine versions that pre-date the rename.
+    tickRate: gc.fps ?? fb.fps,
     fps: gc.fps ?? fb.fps,
-    interpolationMs: gc.interpolationMs ?? fb.interpolationMs,
     defaultObjWidth: gc.defaultObjWidth ?? fb.defaultObjWidth,
     defaultObjHeight: gc.defaultObjHeight ?? fb.defaultObjHeight,
-    cameraSmoothing: gc.cameraSmoothing ?? fb.cameraSmoothing,
-    cameraZoom: gc.cameraZoom ?? fb.cameraZoom,
-    defaultWidthScreenFactor: gc.defaultWidthScreenFactor ?? fb.defaultWidthScreenFactor,
-    defaultHeightScreenFactor: gc.defaultHeightScreenFactor ?? fb.defaultHeightScreenFactor,
-    devUi: gc.devUi ?? fb.devUi,
-    colors,
     aoiRadius: gc.aoiRadius ?? fb.aoiRadius,
     portalHoldTimeMs: gc.portalHoldTimeMs ?? fb.portalHoldTimeMs,
     portalSpawnRadius: gc.portalSpawnRadius ?? fb.portalSpawnRadius,
@@ -352,23 +359,6 @@ function toInstanceConfig(gc) {
       onePerType: gc.equipmentRules?.onePerType ?? fb.equipmentRules.onePerType,
       requireSkin: gc.equipmentRules?.requireSkin ?? fb.equipmentRules.requireSkin,
     },
-    // Status icon mapping — u8 ID → icon filename stem + border colour.
-    // Border colours come from the frozen STATUS_ICONS constant (canonical
-    // source of truth).  DB entries may override iconId but borderColor is
-    // always canonical — the DB schema defaults are generic grey, not the
-    // actual per-status colours.
-    statusIcons: STATUS_ICONS.map((canon) => {
-      const dbEntry = (gc.statusIcons || []).find((s) => s.id === canon.id);
-      const bc = canon.borderColor || {};
-      return {
-        id: canon.id,
-        iconId: (dbEntry && dbEntry.iconId) || canon.iconId || '',
-        borderColorR: bc.r ?? 100,
-        borderColorG: bc.g ?? 100,
-        borderColorB: bc.b ?? 100,
-        borderColorA: bc.a ?? 200,
-      };
-    }),
   };
 }
 

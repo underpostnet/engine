@@ -1,272 +1,270 @@
-# Cyberia Client
+# cyberia-client
 
-**Path:** `cyberia-client/` | **Language:** C (C11/GNU11) → WebAssembly via Emscripten
+**Path:** `cyberia-client/` · **Language:** C11/GNU11 → WebAssembly (Emscripten) · **Role:** presentation runtime for Cyberia
 
----
+`cyberia-client` is the rendering and interactive runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It captures input, predicts the local player, reconciles against authoritative snapshots, interpolates remote entities, and renders the world. It owns the entire render policy locally and runs with no required input from the authoritative server beyond the per-tick snapshot stream.
 
-## Overview
-
-`cyberia-client` is the real-time game client for Cyberia Online. It is written in C, compiled to WebAssembly via Emscripten, and rendered in a `<canvas>` element inside a browser. It uses **Raylib** for rendering (OpenGL ES2 under WASM) and connects to the Go game server via a persistent binary WebSocket.
+It is **not** a world-simulation authority. The authoritative simulation runs on [cyberia-server](CYBERIA-SERVER.md). Persistent content (maps, atlases, object layers) comes from [engine-cyberia](UNDERPOST-PLATFORM.md#engine-cyberia-nodejs--content-authority) via REST.
 
 ---
 
-## Architecture
+## Process model
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  Browser                                                   │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  index.html + shell.html                            │  │
-│  │  JS glue (Emscripten + services.js + interact_overlay.js + notify_badge.js)  │
-│  │                                                      │  │
-│  │  ┌────────────────────────────────────────────────┐ │  │
-│  │  │  index.wasm (main.c → game loop)               │ │  │
-│  │  │                                                │ │  │
-│  │  │  Raylib (OpenGL ES2)  ←  game_render.c         │ │  │
-│  │  │  Input system         ←  input.c               │ │  │
-│  │  │  AOI decoder          ←  binary_aoi_decoder.c  │ │  │
-│  │  │  ObjectLayer cache    ←  object_layer.c        │ │  │
-│  │  │  Texture manager      ←  texture_manager.c     │ │  │
-│  │  │  Game state           ←  game_state.c          │ │  │
-│  │  │  Network I/O          ←  network.c             │ │  │
-│  │  │  UI components        ←  modal.c, inventory_*.c│ │  │
-│  │  └────────────────────────────────────────────────┘ │  │
-│  └──────────────────────────────────────────────────────┘  │
-│       │ WebSocket binary                ↑ HTTP JSON         │
-└───────┼─────────────────────────────────┼──────────────────┘
-        │                                 │
-        ▼                                 ▼
-  Go Game Server :8081              Engine REST API :4005
-  (AOI binary protocol)             (atlas, file/blob, object-layer)
+engine-cyberia          cyberia-server          cyberia-client
+─────────────           ──────────────          ──────────────
+content authority       simulation authority    presentation runtime
+
+      ▲                       │
+      │ REST                  │ WebSocket binary
+      │ atlases               │ snapshots (server → client)
+      │ asset metadata        │ input commands (client → server)
+      │ optional              ▼
+      │ client hints      ┌──────────────────────────────────────┐
+      └───────────────────┤  Browser tab                         │
+                          │  ┌────────────────────────────────┐ │
+                          │  │  cyberia-client (WASM)         │ │
+                          │  │  ──────────────────────────    │ │
+                          │  │  Raylib (OpenGL ES2)           │ │
+                          │  │  prediction · reconciliation   │ │
+                          │  │  interpolation · render        │ │
+                          │  │  presentation_defaults         │ │
+                          │  │  presentation_runtime          │ │
+                          │  └────────────────────────────────┘ │
+                          └──────────────────────────────────────┘
 ```
 
----
+The client speaks two transports:
 
-## Source Files
+- **WebSocket binary** to `cyberia-server` for snapshots and input commands.
+- **REST** to engine-cyberia for atlas frames, asset blobs, and optional client-hints overrides.
 
-Paths are relative to `cyberia-client/`. C/H translation units live under `src/`; JS bridges live under `src/js/`. The Emscripten HTML shell template is `src/shell.html`. `Web.mk` writes intermediate object files to `build/web/<MODE>/` and the final web bundle (`index.html`, `index.wasm`, `index.js`, `index.data`) to `bin/`.
-
-| File                                                              | Responsibility                                           |
-| ----------------------------------------------------------------- | -------------------------------------------------------- |
-| `src/main.c`                                                      | Entry point, Raylib init, main game loop, event dispatch |
-| `src/client.c / src/client.h`                                     | Client session state (player UUID, position, coins)      |
-| `src/game_state.c / src/game_state.h`                             | World state: entity registry, map grid, frame tick       |
-| `src/game_render.c / src/game_render.h`                           | Top-level render pipeline (map tiles → entities → UI)    |
-| `src/render.c / src/render.h`                                     | Low-level draw helpers shared by the render pipeline     |
-| `src/entity_render.c / src/entity_render.h`                       | Per-entity composited layer stack rendering              |
-| `src/binary_aoi_decoder.c / src/binary_aoi_decoder.h`             | Binary AOI message parser (0x01–0x05 messages)           |
-| `src/message_parser.c / src/message_parser.h`                     | JSON message parser for `init_data` (0x02)               |
-| `src/network.c / src/network.h`                                   | WebSocket connect, send, receive wrappers                |
-| `src/object_layer.c / src/object_layer.h`                         | ObjectLayer metadata struct + LRU cache                  |
-| `src/object_layers_management.c / src/object_layers_management.h` | ObjectLayer fetch pipeline (API → cache → render)        |
-| `src/texture_manager.c / src/texture_manager.h`                   | Atlas texture LRU cache keyed by IPFS CID                |
-| `src/layer_z_order.c / src/layer_z_order.h`                       | Z-order comparator for entity layer stack rendering      |
-| `src/serial.c / src/serial.h`                                     | IDBFS-based persistent local storage                     |
-| `src/input.c / src/input.h`                                       | Mouse/touch event → game action translation              |
-| `src/tap_effect.c / src/tap_effect.h`                             | Visual tap ripple animation                              |
-| `src/floating_combat_text.c / src/floating_combat_text.h`         | FCT pop-up renderer (damage, regen, coin, item)          |
-| `src/interaction_bubble.c / src/interaction_bubble.h`             | NPC interaction indicator bubble above entity            |
-| `src/entity_overhead_ui.c / src/entity_overhead_ui.h`             | Name plates, HP bars above entities                      |
-| `src/nameplate.c / src/nameplate.h`                               | Entity nameplate rendering                               |
-| `src/inventory_bar.c / src/inventory_bar.h`                       | Equipped items bar (bottom of screen)                    |
-| `src/inventory_modal.c / src/inventory_modal.h`                   | Full inventory grid modal                                |
-| `src/modal.c / src/modal.h`                                       | Base modal container (backdrop, open/close animation)    |
-| `src/modal_dialogue.c / src/modal_dialogue.h`                     | Dialogue modal — renders NPC conversation + choices      |
-| `src/modal_player.c / src/modal_player.h`                         | Player profile modal (stats, wallet, equipment)          |
-| `src/dialogue_data.c / src/dialogue_data.h`                       | Dialogue tree data structure                             |
-| `src/ol_as_animated_ico.c / src/ol_as_animated_ico.h`             | Render ObjectLayer as animated icon (inventory cells)    |
-| `src/ol_stack_ico.c / src/ol_stack_ico.h`                         | Render ObjectLayer stack as composite icon               |
-| `src/ui_icon.c / src/ui_icon.h`                                   | Generic icon primitives                                  |
-| `src/dev_ui.c / src/dev_ui.h`                                     | Development overlay (coords, FPS, entity count)          |
-| `src/helper.h`                                                    | Common macros and utility definitions                    |
-| `src/config.h`                                                    | Compile-time configuration constants                     |
-| `src/js/interact_bridge.c / src/js/interact_bridge.h`             | C side of JS interaction-overlay bridge                  |
-| `src/js/services.js / src/js/services.h`                          | JS↔WASM bridge: fetch atlas, file blob, object-layer     |
-| `src/js/interact_overlay.js`                                      | JS overlay for tap-to-interact element                   |
-| `src/js/notify_badge.js / src/js/notify_badge.h`                  | Browser notification badge helper                        |
-| `src/shell.html`                                                  | Emscripten HTML shell template                           |
+Asset distribution flows through Underpost Platform's [static + PWA pipeline](UNDERPOST-PLATFORM.md#what-underpost-platform-covers); large media may be delivered via the Cloudinary-backed static asset flow where applicable.
 
 ---
 
-## Rendering Pipeline
+## Startup order
 
-Each frame:
+The client is the last process in the sequential startup order. It cannot do useful work until both [the content backend](UNDERPOST-PLATFORM.md#engine-cyberia-nodejs--content-authority) and [the authoritative server](CYBERIA-SERVER.md) are accepting requests.
 
 ```
-BeginDrawing()
-  └─ game_render_frame()
-       ├─ RenderMapLayer(ground tiles)        ← atlas-clipped tile sprites
-       ├─ RenderMapLayer(object tiles)        ← decorative overlay tiles
-       ├─ for each entity in z-sorted list:
-       │    entity_render_entity()
-       │      ├─ for each ObjectLayer in entity stack (bottom → top z-order):
-       │      │    texture_manager_get_texture(layer.cid)
-       │      │    DrawTextureRec(atlas, frame_rect, position)
-       │      ├─ entity_overhead_ui (nameplate + HP bar)
-       │      └─ interaction_bubble (if NPC with action)
-       ├─ floating_combat_text_tick()         ← animated pop-ups
-       ├─ tap_effect_tick()                   ← tap ripple animations
-       ├─ inventory_bar_render()              ← equipped items (bottom HUD)
-       └─ dev_ui_render()                     ← debug overlay (if ENABLE_DEV_UI)
-EndDrawing()
+1. Persistent backend                (engine-cyberia + DB + asset backend)
+2. cyberia-server                    (authoritative simulation, WS open)
+3. cyberia-client                    ← this process
+   ├─ initWindow, render init
+   ├─ load compile-time presentation defaults
+   ├─ (optional) GET /api/cyberia-client-hints/:INSTANCE_CODE
+   ├─ initialize prediction
+   ├─ open WebSocket to cyberia-server
+   └─ enter render loop
 ```
 
-**Atlas clipping:** Every sprite is a rectangular clip from a texture atlas. The atlas CID (IPFS) is fetched from the Engine API at `/api/atlas-sprite-sheet/{cid}`. The engine returns frame metadata JSON; the client clips `DrawTextureRec(atlas, {x,y,w,h}, screenPos)`.
+Underpost Platform deploy orchestration enforces this ordering. The client never runs in parallel with the server.
 
 ---
 
-## Binary AOI Protocol (Decoder)
+## Render loop
 
-`binary_aoi_decoder.c` parses all server → client messages:
+The render loop runs at vsync. Tick simulation is decoupled from render frames via a fixed-timestep accumulator. Step ordering inside one render frame:
 
-| Message Type | Byte   | Decoder Function    | Description                               |
-| ------------ | ------ | ------------------- | ----------------------------------------- |
-| `aoi_update` | `0x01` | `decode_aoi_update` | Delta AOI — entities entered/left view    |
-| `init_data`  | `0x02` | `decode_init_data`  | Full config on connect (JSON sub-payload) |
-| `full_aoi`   | `0x03` | `decode_full_aoi`   | Full AOI snapshot                         |
-| `FCT`        | `0x04` | `decode_fct`        | Floating Combat Text (14-byte fixed)      |
-| `ItemFCT`    | `0x05` | `decode_item_fct`   | Item FCT with string item ID (variable)   |
+1. **Optional client hints poll** — advance the asynchronous hints fetch state machine.
+2. **Input capture** — drain raw OS events.
+3. **Input dispatch** — UI hit-test → build typed input command (`kind`, `clientTick`, `sequence`, payload) → apply to prediction → send on the wire.
+4. **Reconciliation** — apply latest snapshot's `lastAcked`: drop acknowledged input commands from the replay buffer; rewind predicted self to authoritative position; replay unacked input commands.
+5. **Fixed-timestep prediction** — while accumulator ≥ `tickDuration`, advance prediction one tick.
+6. **Interpolation** — compute remote-entity view positions at `renderTick = serverTickEstimate − INTERP_TICKS`.
+7. **Render** — read view models; never mutate world state.
 
-**All multi-byte integers: little-endian.**
-
-**FCT type → visual:**
-
-| FCT Type | Byte   | Color  |
-| -------- | ------ | ------ |
-| Damage   | `0x00` | Red    |
-| Regen    | `0x01` | Green  |
-| CoinGain | `0x02` | Yellow |
-| CoinLoss | `0x03` | Yellow |
-| ItemGain | `0x04` | Cyan   |
-| ItemLoss | `0x05` | Purple |
+Render frame rate is independent of simulation tick rate. The fixed-timestep accumulator ensures the predicted simulation advances at the authoritative `tickRate` regardless of FPS.
 
 ---
 
-## ObjectLayer Cache
+## Module map
 
-`object_layer.c` maintains an LRU cache (`MAX_LAYER_CACHE_SIZE = 256`) of parsed `ObjectLayerMetadata` structs:
+Directional dependency: from outermost (UI / render) inward toward `domain/`. Nothing in `domain/` imports outward.
 
 ```
-Fetch pipeline per item ID:
-  1. Check LRU cache → hit? return immediately
-  2. Call JS bridge: services.fetchObjectLayer(itemId)
-     → GET {API_BASE_URL}/api/object-layer/{itemId}
-  3. Parse JSON response → populate ObjectLayerMetadata
-  4. Evict LRU entry if cache full → insert new entry
-  5. Trigger texture fetch for each layer CID
+src/
+  domain/
+    tick.h                          tick rate constants, monotonic types
+    presentation_defaults.{c,h}     canonical palette + status-icon table + render knobs
+    presentation_runtime.{c,h}      async fetch of /api/cyberia-client-hints/:code; overrides
+  input/
+    input_command.{c,h}             typed InputCommand factory; sequence allocation
+  prediction/
+    prediction.{c,h}                predicted self position; replay buffer; reconcile
+  interpolation/
+    interpolation.{c,h}             remote entity view positions at renderTick
+  network/
+    session.{c,h}                   last server tick, last acked sequence, tick estimate
+    client.{c,h}                    WebSocket lifecycle + binary I/O
+    socket.{c,h}                    Emscripten WebSocket bridge
+  ui/                               modals, HUD, inventory bar, FCT, nameplates
+  game_state.{c,h}                  world state mirror (gameplay subset only)
+  binary_aoi_decoder.{c,h}          server snapshot parser
+  game_render.{c,h}, render.{c,h}   render pipeline
+  main.c                            entry point + render loop
+  js/services.{js,c,h}              REST fetch bridge (atlas, ui-icons, client-hints)
 ```
 
+| Owner                          | Owns                                                                   | Reads                       | Writes                                             |
+| ------------------------------ | ---------------------------------------------------------------------- | --------------------------- | -------------------------------------------------- |
+| `domain/presentation_defaults` | compile-time palette, status icons, camera knobs, interpolation window | —                           | —                                                  |
+| `domain/presentation_runtime`  | resolved palette (defaults ∪ overrides), async hints fetch state       | defaults + JSON response    | own override table                                 |
+| `input/input_command`          | typed InputCommand factory                                             | session for tick + sequence | —                                                  |
+| `prediction/`                  | predicted self position, input replay buffer                           | snapshot self + session ack | predicted self                                     |
+| `interpolation/`               | remote entity `interp_pos`                                             | snapshot history            | remote `interp_pos` only                           |
+| `network/session`              | last server tick, last acked sequence                                  | snapshot header             | session singletons                                 |
+| `binary_aoi_decoder`           | wire parser                                                            | binary frames               | `game_state` + session + prediction (via callback) |
+| `game_state`                   | gameplay world mirror                                                  | —                           | —                                                  |
+| `render/`, `ui/`               | rendering                                                              | view models                 | screen                                             |
+
+`game_state` holds only the gameplay subset of world state (entities, positions, life, AOI, equipment, frozen flag, coins). It does not carry palette state, status-icon visuals, or any other presentation field.
+
 ---
 
-## Texture Manager
+## Presentation ownership
 
-`texture_manager.c` maintains an LRU cache (`MAX_TEXTURE_CACHE_SIZE = 512`) of Raylib `Texture2D` objects:
+The client owns its render policy. The authoritative server holds no presentation state.
+
+Three layers, strictly inward-dependent:
+
+1. **`domain/presentation_defaults.{c,h}`** — compile-time canonical defaults. Always present, always sufficient for the client to render. Kept in 1-to-1 parity with engine-cyberia's `src/api/cyberia-client-hints/cyberia-presentation-hints.defaults.js`.
+2. **`domain/presentation_runtime.{c,h}`** — runtime hydration. On startup fires an asynchronous GET against `/api/cyberia-client-hints/:INSTANCE_CODE`; merges the response over the compile-time defaults. Polled once per render frame. Non-blocking: the client renders with defaults from frame 0 regardless of fetch outcome.
+3. **Renderers** — call `presentation_runtime_palette("KEY")`, `presentation_runtime_status_icon(u8)`, `presentation_runtime_status_border(u8)`, `presentation_entity_fallback_color(entity_type)` at each use site.
+
+What lives in this layer:
+
+- Named palette (colors).
+- Per-entity-type fallback color keys.
+- Status-icon visual table (icon stem + border color per numeric ID).
+- Camera smoothing / zoom defaults.
+- Interpolation window.
+- Dev-overlay flag.
+- Viewport screen factors.
+
+What does **not** travel on the WebSocket init or AOI streams:
+
+- Palette.
+- Camera knobs.
+- Dev-overlay flag.
+- Interpolation window.
+- Status-icon visuals.
+- Per-entity-type color keys.
+
+The numeric status-icon u8 still rides on the AOI wire — that is the protocol-level half. The icon stem and border color are presentation and are resolved entirely on the client.
+
+### Optional client hints
+
+`GET /api/cyberia-client-hints/:instanceCode` (engine-cyberia REST, **not** cyberia-server) returns a JSON document mirroring the structure of the compile-time defaults. The client is required to function with no successful call to this endpoint:
+
+- 200 with `{ palette, entityColorKeys, statusIcons, cameraSmoothing, cameraZoom, defaultWidthScreenFactor, defaultHeightScreenFactor, interpolationMs, devUi }` — overrides applied on top of defaults.
+- 404 if the instance has no overrides — defaults are used.
+- Network error — defaults are used.
+
+No authentication; presentation hints are not secret. The Go authoritative server never calls this endpoint.
+
+---
+
+## Tick-aware components
+
+### Session
+
+`network/session.{c,h}` tracks per-connection tick state:
+
+- `last_server_tick` — highest snapshot tick observed.
+- `last_acked_input_sequence` — highest sequence the server has applied for this client; echoed in every snapshot header.
+- `next_input_sequence` — monotonic counter for outgoing input commands.
+- `server_tick_estimate` — extrapolation of last server tick by elapsed wall time, used to stamp outgoing input commands and to compute `renderTick`.
+
+### Prediction
+
+`prediction/prediction.{c,h}` owns the predicted self position. It is the only writer of the predicted state.
+
+- `prediction_apply(cmd)` — optimistic local apply of an input command + push onto replay buffer.
+- `prediction_step(dt)` — fixed-timestep advance, called by the accumulator.
+- `prediction_reconcile()` — on snapshot arrival: drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs.
+- `prediction_self_position()` — render-time accessor.
+
+### Interpolation
+
+`interpolation/interpolation.{c,h}` owns remote-entity render-time positions. It is the only writer of remote `interp_pos`. It never touches the local player (prediction owns that). Sampling happens at `renderTick = serverTickEstimate − INTERP_TICKS`.
+
+### Input command pipeline
 
 ```
-Fetch pipeline per CID:
-  1. Check cache by CID → hit? return Texture2D*
-  2. Call JS bridge: services.fetchFileBlob(cid)
-     → GET {API_BASE_URL}/api/file/blob/{cid}
-  3. Decode PNG blob → Raylib Image → Texture2D (GPU upload)
-  4. Evict LRU on full cache → insert new entry
+mouse / touch / keyboard
+        │
+        ▼
+input/input_capture
+        │
+        ▼
+UI hit-test cascade  ──► modal/inventory/HUD consumed?
+        │  no
+        ▼
+input_command_build_*   stamps client_tick + sequence
+        │
+        ▼
+prediction_apply        optimistic local apply
+        │
+        ▼
+uplink send             WebSocket binary frame
 ```
 
----
-
-## Input System (Tap-Based)
-
-The client uses a **tap-first** interaction model:
-
-| Input                           | Action                                                       |
-| ------------------------------- | ------------------------------------------------------------ |
-| Tap empty tile                  | Send `tap_move` WS message → player moves to cell            |
-| Tap entity (NPC/resource)       | Send `tap_entity` WS message → server dispatches interaction |
-| Tap inventory item              | Toggle equip/unequip → send `item_activation`                |
-| Tap interact overlay (JS layer) | Opens action modal via `_c_open_dialogue_from_js`            |
-
-`input.c` translates raw Raylib mouse/touch events into game-world cell coordinates using the current camera offset, then dispatches the appropriate WS message via `network_send_message`.
+`InputCommand.Sequence` is allocated by `session_next_input_sequence`. Monotonic, never reused. The server echoes the highest applied sequence in every snapshot header; the prediction module drops acked commands from its replay buffer on reconciliation.
 
 ---
 
-## JS↔WASM Bridge
+## Binary AOI snapshot format
 
-Emscripten exported C functions (callable from JavaScript):
+The client decodes server-pushed AOI frames. Header (little-endian, 11 bytes for `0x01`/`0x03`):
 
-| C Function                        | Description                                   |
-| --------------------------------- | --------------------------------------------- |
-| `_c_send_ws_message(ptr, len)`    | Send raw bytes over the WebSocket             |
-| `_c_open_dialogue_from_js(ptr)`   | Open dialogue modal with serialized JSON      |
-| `_c_interact_overlay_did_close()` | Notify WASM that the JS overlay was dismissed |
+```
+[0]      u8   msgType     0x01 aoi_update | 0x03 full_aoi
+[1..4]   u32  tick        simulation tick at which the snapshot was produced
+[5..8]   u32  lastAcked   highest InputCommand.Sequence applied for this client
+[9..10]  u16  entityCount entity blocks that follow
+```
 
-JavaScript library functions (callable from C via `EM_ASM` / `--js-library`):
+After parsing the header, the decoder invokes `session_on_snapshot(tick, lastAcked)` and then `prediction_reconcile()` so the predicted self stays consistent with the just-arrived authoritative state.
 
-| JS Function                               | Source                   | Description                            |
-| ----------------------------------------- | ------------------------ | -------------------------------------- |
-| `services.fetchObjectLayer(itemId, cb)`   | `js/services.js`         | Fetch ObjectLayer JSON from Engine API |
-| `services.fetchAtlasSpriteSheet(cid, cb)` | `js/services.js`         | Fetch atlas frame metadata             |
-| `services.fetchFileBlob(cid, cb)`         | `js/services.js`         | Fetch raw IPFS-addressed blob          |
-| `interact_overlay.show(entityId)`         | `js/interact_overlay.js` | Show tap-to-interact HTML overlay      |
-| `notify_badge.set(count)`                 | `js/notify_badge.js`     | Update browser notification badge      |
+Other message types — init data (0x02), FCT (0x04), ItemFCT (0x05) — carry their own headers and are not part of the per-tick replication stream.
 
 ---
 
-## Compile-Time Configuration (`config.h`)
+## REST fetches (engine-cyberia)
 
-| Constant                    | Default                             | Description                                    |
-| --------------------------- | ----------------------------------- | ---------------------------------------------- |
-| `WS_URL`                    | `wss://server.cyberiaonline.com/ws` | WebSocket endpoint                             |
-| `API_BASE_URL`              | `https://www.cyberiaonline.com`     | Engine REST API base URL                       |
-| `HTTP_TIMEOUT_SECONDS`      | `10`                                | HTTP request timeout (asset fetching)          |
-| `MAX_TEXTURE_CACHE_SIZE`    | `512`                               | Max atlas textures in VRAM cache               |
-| `MAX_LAYER_CACHE_SIZE`      | `256`                               | Max ObjectLayer metadata entries in cache      |
-| `MAX_ATLAS_CACHE_SIZE`      | `256`                               | Max atlas sprite sheet metadata entries        |
-| `DEFAULT_FRAME_DURATION_MS` | `100`                               | Default animation frame rate                   |
-| `ENABLE_DEV_UI`             | `false`                             | Force dev overlay on (override server setting) |
-| `APP_VERSION`               | `"1.0.0"`                           | Application version string                     |
+The client speaks REST directly to engine-cyberia for content. None of these calls go through cyberia-server.
 
-For local development, change `WS_URL` and `API_BASE_URL` to `localhost` variants before rebuilding.
+| Endpoint                                         | Purpose                              |
+| ------------------------------------------------ | ------------------------------------ |
+| `GET /api/atlas-sprite-sheet/metadata/:itemKey`  | Frame layout JSON for a sprite atlas |
+| `GET /api/atlas-sprite-sheet/blob/:itemKey`      | Atlas PNG                            |
+| `GET /api/object-layer/:itemId`                  | ObjectLayer JSON metadata            |
+| `GET /api/cyberia-dialogue/code/default-:itemId` | Dialogue lines for an NPC            |
+| `GET /assets/ui-icons/:iconId.png`               | Status-bar icons                     |
+| `GET /api/cyberia-client-hints/:instanceCode`    | Optional presentation overrides      |
+
+All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
 
 ---
 
-## Build System
-
-### Dependencies
-
-| Library    | Version | Usage                               |
-| ---------- | ------- | ----------------------------------- |
-| Emscripten | ≥ 3.1   | C → WASM compiler + JS runtime      |
-| Raylib     | ≥ 5.0   | Rendering (OpenGL ES2 via WebGL)    |
-| cJSON      | 1.7.x   | JSON parsing (ObjectLayer metadata) |
-
-Raylib and cJSON are vendored under `libs/`.
-
-### Build Modes
-
-| Mode              | Flags                | Use                                             |
-| ----------------- | -------------------- | ----------------------------------------------- |
-| `DEBUG` (default) | `-O0 -g --profiling` | Development — includes symbols, no optimization |
-| `RELEASE`         | `-O3 -DNDEBUG`       | Production — fully optimized                    |
-
-### Build Commands
+## Build and run
 
 ```bash
 cd cyberia-client
 
-# Debug build (default)
-make -f Web.mk
+# Development build
+make -f Web.mk clean && make -f Web.mk web
 
 # Release build
-make -f Web.mk BUILD_MODE=RELEASE
+make -f Web.mk clean && make -f Web.mk web BUILD_MODE=RELEASE
 
 # Build + serve on dev port :8082
 make -f Web.mk serve-development
-
-# Build release + serve on production port :8081
-make -f Web.mk serve-production
-
-# Clean build artifacts
-make -f Web.mk clean
 ```
+
+The build is part of the Underpost Platform [static + PWA pipeline](UNDERPOST-PLATFORM.md#what-underpost-platform-covers); production deploys go through `underpost client` and `underpost deploy`.
 
 ### Output
 
@@ -275,43 +273,47 @@ bin/
   index.html    — Emscripten HTML container (from shell.html template)
   index.wasm    — Compiled WebAssembly module
   index.js      — Emscripten JS glue
-  index.data    — Preloaded data bundle (assets)
+  index.data    — Preloaded data bundle
 ```
 
 ---
 
-## Persistent Storage
+## Compile-time configuration
 
-`serial.c` uses Emscripten's **IDBFS** (IndexedDB File System) to persist:
+`src/config.h`:
 
-- Player authentication token (EIP-712 signature)
-- Local game settings (audio volume, key bindings)
-- Cached ObjectLayer metadata (session cache warm-up)
+| Constant                    | Default                             | Description                                        |
+| --------------------------- | ----------------------------------- | -------------------------------------------------- |
+| `WS_URL`                    | `wss://server.cyberiaonline.com/ws` | WebSocket endpoint of cyberia-server               |
+| `API_BASE_URL`              | `https://www.cyberiaonline.com`     | engine-cyberia REST base URL                       |
+| `INSTANCE_CODE`             | `cyberia-main`                      | Used to scope the optional client-hints fetch      |
+| `HTTP_TIMEOUT_SECONDS`      | `10`                                | HTTP request timeout                               |
+| `MAX_TEXTURE_CACHE_SIZE`    | `512`                               | Atlas texture LRU cap                              |
+| `MAX_LAYER_CACHE_SIZE`      | `256`                               | ObjectLayer metadata LRU cap                       |
+| `MAX_ATLAS_CACHE_SIZE`      | `256`                               | Atlas metadata LRU cap                             |
+| `DEFAULT_FRAME_DURATION_MS` | `100`                               | Default animation frame duration                   |
+| `ENABLE_DEV_UI`             | `false`                             | Force dev overlay regardless of presentation hints |
+| `APP_VERSION`               | `"1.0.0"`                           | Application version string                         |
 
-Data is stored at `/persistent/` in the virtual IDBFS mount.
+For local development, point `WS_URL` and `API_BASE_URL` at `localhost` before rebuilding.
 
 ---
 
-## Environment: Local Development
+## Persistent storage
 
-Change these two constants in `src/config.h` and rebuild:
+`serial.c` uses Emscripten's IDBFS (IndexedDB File System) at `/persistent/` for:
 
-```c
-static const char* WS_URL = "ws://localhost:8081/ws";
-static const char* API_BASE_URL = "http://localhost:4005";
-```
+- Player authentication token (EIP-712 signature).
+- Local game settings (audio volume, key bindings).
+- Cached ObjectLayer metadata (session warm-up cache).
 
-Then:
+No game state is persisted client-side; the authoritative server is the source of truth.
 
-```bash
-# Terminal 1 — Engine (Node.js)
-cd /path/to/engine && node src/index.js
+---
 
-# Terminal 2 — Go game server
-cd cyberia-server && go run main.go
+## Cross-references
 
-# Terminal 3 — Client build + serve
-cd cyberia-client && make -f Web.mk serve-development
-```
-
-Open `http://localhost:8082` in a browser.
+- [Underpost Platform](UNDERPOST-PLATFORM.md) — umbrella product, static + PWA + Workbox + Cloudinary delivery.
+- [Architecture](ARCHITECTURE.md) — three-process model, canonical vocabulary.
+- [Cyberia Server](CYBERIA-SERVER.md) — authoritative simulation runtime.
+- [Cyberia CLI](CYBERIA-CLI.md) — Cyberia-specific CLI extensions to Underpost CLI.
