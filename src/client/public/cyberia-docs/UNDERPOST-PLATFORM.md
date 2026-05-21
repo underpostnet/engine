@@ -18,7 +18,7 @@
 │  └──────┬───────┘  └──────┬───────┘  └──────┬────────┘  └─────┬─────┘ │
 │         │                 │                 │                 │       │
 │  ┌──────┴─────────────────┴─────────────────┴─────────────────┴─────┐ │
-│  │              Underpost CLI v3.2.9 — toolchain backbone           │ │
+│  │              Underpost CLI — toolchain backbone           │ │
 │  │  init · build · deploy · cluster · cron · db · image · secret ·  │ │
 │  │  metadata · monitor · ssh · runner · lxd · baremetal · release   │ │
 │  └────────────────────────────────────────────────────────────────┬─┘ │
@@ -48,7 +48,7 @@ Underpost Platform manages base ERP/CRM-style PWA applications by default. Cyber
 
 ### Toolchain
 
-- **Underpost CLI v3.2.9** — the toolchain backbone. Every other workflow in this document goes through it. See [Underpost CLI v3.2.9 — command surface](#underpost-cli-v329--command-surface).
+- **Underpost CLI** — the toolchain backbone. Every other workflow in this document goes through it.
 - **GitHub OSS repository workflow** — clone, pull, push, commit, release, and CI integrations are first-class CLI subcommands.
 - **CI/CD orchestration** — GitHub Actions integrations, container builds, multi-environment deployments.
 - **Cron jobs** — scheduled platform-managed jobs (backups, reload loops, periodic content tasks).
@@ -72,32 +72,32 @@ Underpost Platform manages base ERP/CRM-style PWA applications by default. Cyber
 
 ---
 
-## Underpost CLI v3.2.9 — command surface
+## Underpost CLI — command surface
 
-`underpost` (installed via `npm install -g underpost`) is the single entry point for every platform operation. The CLI v3.2.9 covers the following concerns; each is a top-level subcommand or subcommand group:
+`underpost` (installed via `npm install -g underpost`) is the single entry point for every platform operation. The CLI covers the following concerns; each is a top-level subcommand or subcommand group:
 
-| Concern | Coverage |
-|---|---|
-| **Project initialization** | `underpost new <app-name>` — scaffolds a deploy with config, conf, build, and dev wiring. |
-| **Client builds** | `underpost client` — produces a static SPA + PWA + service worker bundle. |
-| **Start / deploy orchestration** | `underpost start`, `underpost deploy` — local dev runs and per-target deployments. |
-| **GitHub OSS flows** | `underpost clone`, `underpost pull`, `underpost push`, `underpost commit`, `underpost pr` — repository workflows for OSS projects. |
-| **Environment configuration** | `underpost env <deploy-id> <env>` — populates `.env.*` and the npm start script for the targeted deploy. |
-| **Static builds** | static-generator workflows for per-deploy host/path slices. |
-| **Kubernetes / cluster operations** | `underpost cluster` — apply manifests, manage namespaces, drive K3s/kubeadm. |
-| **Secrets** | `underpost secret` — manage the resolved-at-runtime secret pipeline. |
-| **Images** | `underpost image` — container image build/tag/push. |
-| **Databases** | `underpost db` — backup, restore, schema operations. |
-| **Metadata** | `underpost metadata` — bundle/version/asset metadata flows. |
-| **Cron jobs** | `underpost cron` — schedule, list, and run platform-managed cron entries. |
-| **File storage** | static + object storage workflows including the Cloudinary path. |
-| **Tests** | `underpost test` — integration test runs against a live deploy. |
-| **Monitoring** | `underpost monitor` — cluster + runner monitoring. |
-| **SSH** | `underpost ssh` — managed remote-host operations. |
-| **Runners** | `underpost runner` — CI runner registration and lifecycle. |
-| **LXD** | `underpost lxd` — LXD container workflows. |
-| **Bare metal** | `underpost baremetal` — host provisioning. |
-| **Release orchestration** | `underpost release` — version, tag, and publish. |
+| Concern                             | Coverage                                                                                                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Project initialization**          | `underpost new <app-name>` — scaffolds a deploy with config, conf, build, and dev wiring.                                          |
+| **Client builds**                   | `underpost client` — produces a static SPA + PWA + service worker bundle.                                                          |
+| **Start / deploy orchestration**    | `underpost start`, `underpost deploy` — local dev runs and per-target deployments.                                                 |
+| **GitHub OSS flows**                | `underpost clone`, `underpost pull`, `underpost push`, `underpost commit`, `underpost pr` — repository workflows for OSS projects. |
+| **Environment configuration**       | `underpost env <deploy-id> <env>` — populates `.env.*` and the npm start script for the targeted deploy.                           |
+| **Static builds**                   | static-generator workflows for per-deploy host/path slices.                                                                        |
+| **Kubernetes / cluster operations** | `underpost cluster` — apply manifests, manage namespaces, drive K3s/kubeadm.                                                       |
+| **Secrets**                         | `underpost secret` — manage the resolved-at-runtime secret pipeline.                                                               |
+| **Images**                          | `underpost image` — container image build/tag/push.                                                                                |
+| **Databases**                       | `underpost db` — backup, restore, schema operations.                                                                               |
+| **Metadata**                        | `underpost metadata` — bundle/version/asset metadata flows.                                                                        |
+| **Cron jobs**                       | `underpost cron` — schedule, list, and run platform-managed cron entries.                                                          |
+| **File storage**                    | static + object storage workflows including the Cloudinary path.                                                                   |
+| **Tests**                           | `underpost test` — integration test runs against a live deploy.                                                                    |
+| **Monitoring**                      | `underpost monitor` — cluster + runner monitoring.                                                                                 |
+| **SSH**                             | `underpost ssh` — managed remote-host operations.                                                                                  |
+| **Runners**                         | `underpost runner` — CI runner registration and lifecycle.                                                                         |
+| **LXD**                             | `underpost lxd` — LXD container workflows.                                                                                         |
+| **Bare metal**                      | `underpost baremetal` — host provisioning.                                                                                         |
+| **Release orchestration**           | `underpost release` — version, tag, and publish.                                                                                   |
 
 Full command listings are in `CLI-HELP.md` (autogenerated from `underpost --help`) and in the reference docs under `nexodev/docs/references/`.
 
@@ -212,24 +212,24 @@ Failure of any earlier step prevents the next from starting cleanly. The platfor
 
 Every Underpost Platform document uses these exact terms. Aliases are not permitted.
 
-| Term | Definition |
-|---|---|
-| **tick** | Monotonic simulation step counter, advanced by `cyberia-server` once per simulation step. |
-| **tick rate** | Simulation Hz on `cyberia-server`. The string `fps` does not describe the server. |
-| **snapshot** | An AOI-filtered world view at a given tick for one player. Includes `tick` and `lastAckedSequence`. |
-| **input command** | Typed client→server frame: `{kind, clientTick, sequence, payload}`. The unit of client input. |
-| **prediction** | Optimistic local apply of input commands to the predicted self entity on the client. |
-| **reconciliation** | On snapshot arrival, the client drops acknowledged input commands and replays unacked ones. |
-| **display smoothing** | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Hides reconcile snaps and per-tick stepping for the main player. |
-| **interpolation** | Render-time smoothing of remote entities, sampled from snapshot history. |
-| **AOI** | Area-of-interest: the spatial filter that defines which entities a given player receives. |
-| **replication** | Production and delivery of snapshots from `cyberia-server` to each client. |
-| **simulation phase** | A named step inside one simulation tick. Phases are the only mutators of authoritative state. |
-| **authoritative server** | `cyberia-server`. Sole authority on world state. |
-| **content authority** | `engine-cyberia`. Sole authority on persisted content and world configuration. |
-| **client hints** | Optional presentation overrides served by engine-cyberia. The simulation never reads them. |
-| **world configuration** | Gameplay parameters loaded once at server boot from engine-cyberia via gRPC. |
-| **presentation metadata** | Render-only data (palette, status-icon visuals, camera defaults, dev overlay flag, interpolation window). Client-owned. |
+| Term                      | Definition                                                                                                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **tick**                  | Monotonic simulation step counter, advanced by `cyberia-server` once per simulation step.                                                                                        |
+| **tick rate**             | Simulation Hz on `cyberia-server`. The string `fps` does not describe the server.                                                                                                |
+| **snapshot**              | An AOI-filtered world view at a given tick for one player. Includes `tick` and `lastAckedSequence`.                                                                              |
+| **input command**         | Typed client→server frame: `{kind, clientTick, sequence, payload}`. The unit of client input.                                                                                    |
+| **prediction**            | Optimistic local apply of input commands to the predicted self entity on the client.                                                                                             |
+| **reconciliation**        | On snapshot arrival, the client drops acknowledged input commands and replays unacked ones.                                                                                      |
+| **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Hides reconcile snaps and per-tick stepping for the main player. |
+| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                         |
+| **AOI**                   | Area-of-interest: the spatial filter that defines which entities a given player receives.                                                                                        |
+| **replication**           | Production and delivery of snapshots from `cyberia-server` to each client.                                                                                                       |
+| **simulation phase**      | A named step inside one simulation tick. Phases are the only mutators of authoritative state.                                                                                    |
+| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                 |
+| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                   |
+| **client hints**          | Optional presentation overrides served by engine-cyberia. The simulation never reads them.                                                                                       |
+| **world configuration**   | Gameplay parameters loaded once at server boot from engine-cyberia via gRPC.                                                                                                     |
+| **presentation metadata** | Render-only data (palette, status-icon visuals, camera defaults, dev overlay flag, interpolation window). Client-owned.                                                          |
 
 Forbidden usages:
 
@@ -247,15 +247,15 @@ Forbidden usages:
 
 Presentation metadata is client-owned. The authoritative simulation must function with no presentation data of any kind.
 
-| Class | Owner | Where it lives |
-|---|---|---|
-| Palette (named ColorRGBA entries) | client | compile-time defaults in `cyberia-client/src/domain/presentation_defaults.{c,h}` |
-| Status-icon visuals (icon stems + border colors) | client | same |
-| Per-entity-type fallback color keys | client | same |
-| Camera smoothing / zoom defaults | client | same |
-| Interpolation window | client | same |
-| Dev-overlay flag | client | same |
-| Per-instance presentation overrides (optional) | engine-cyberia (REST only) | `GET /api/cyberia-client-hints/:instanceCode` |
+| Class                                            | Owner                      | Where it lives                                                                   |
+| ------------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------- |
+| Palette (named ColorRGBA entries)                | client                     | compile-time defaults in `cyberia-client/src/domain/presentation_defaults.{c,h}` |
+| Status-icon visuals (icon stems + border colors) | client                     | same                                                                             |
+| Per-entity-type fallback color keys              | client                     | same                                                                             |
+| Camera smoothing / zoom defaults                 | client                     | same                                                                             |
+| Interpolation window                             | client                     | same                                                                             |
+| Dev-overlay flag                                 | client                     | same                                                                             |
+| Per-instance presentation overrides (optional)   | engine-cyberia (REST only) | `GET /api/cyberia-client-hints/:instanceCode`                                    |
 
 The `cyberia-server` process does not store any of the above. It does not load palette or icon configuration from `engine-cyberia` over gRPC. It does not forward presentation data on the WebSocket. The simulation tick has zero presentation reads.
 
@@ -278,14 +278,3 @@ Cyberia adds three things on top of the base platform:
 3. Real-time WebSocket protocol scaffolding (binary AOI, typed input commands).
 
 Everything else — persistence, content APIs, static delivery, deployment, CI/CD — is Underpost Platform.
-
----
-
-## Cross-references
-
-- [Architecture (Cyberia)](ARCHITECTURE.md) — Cyberia-specific architecture details on top of this platform document.
-- [Cyberia Server](CYBERIA-SERVER.md) — authoritative simulation runtime details.
-- [Cyberia Client](CYBERIA-CLIENT.md) — presentation runtime details.
-- [Cyberia CLI](CYBERIA-CLI.md) — Cyberia-specific CLI extensions to Underpost CLI.
-- `nexodev/docs/references/` — per-area reference docs (bare metal, K8s, cron, image, LXD, SSH, static generator, DB).
-- `CLI-HELP.md` — generated mirror of `underpost --help` (CLI v3.2.9).

@@ -64,20 +64,20 @@ Underpost Platform deploy orchestration enforces this ordering. Do not describe 
 
 The tick is the universal coordinate of the simulation.
 
-| Concept | Default | Notes |
-|---|---|---|
-| **tick** | `uint32` | Monotonic, advanced once per simulation step. Resets only on world rebuild. |
-| **tick rate** | `30` Hz | Simulation Hz. Loaded from world configuration. **The string `fps` is not used to describe this rate.** |
-| **snapshot rate** | `20` Hz | AOI replication Hz. Decoupled from tick rate so bandwidth scales independently of simulation fidelity. |
-| **tick duration** | `1 / tick_rate` | The dt used by every simulation phase. |
-| **current tick** | `uint32` | The simulation step about to run (or just produced). Stamped into every outgoing snapshot. |
+| Concept           | Default         | Notes                                                                                                   |
+| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------- |
+| **tick**          | `uint32`        | Monotonic, advanced once per simulation step. Resets only on world rebuild.                             |
+| **tick rate**     | `30` Hz         | Simulation Hz. Loaded from world configuration. **The string `fps` is not used to describe this rate.** |
+| **snapshot rate** | `20` Hz         | AOI replication Hz. Decoupled from tick rate so bandwidth scales independently of simulation fidelity.  |
+| **tick duration** | `1 / tick_rate` | The dt used by every simulation phase.                                                                  |
+| **current tick**  | `uint32`        | The simulation step about to run (or just produced). Stamped into every outgoing snapshot.              |
 
 Two independent tickers:
 
-| Ticker | Rate | Responsibility |
-|---|---|---|
-| simulation | `tickRate` Hz | advance world by exactly one tick; run phases in fixed order |
-| replication | `snapshotRate` Hz | per-player AOI filter + encode + dispatch |
+| Ticker      | Rate              | Responsibility                                               |
+| ----------- | ----------------- | ------------------------------------------------------------ |
+| simulation  | `tickRate` Hz     | advance world by exactly one tick; run phases in fixed order |
+| replication | `snapshotRate` Hz | per-player AOI filter + encode + dispatch                    |
 
 Movement integration is `dt`-based: `step = speed * tickDuration.Seconds()`. Frame-count integration is not used anywhere on the server.
 
@@ -125,26 +125,26 @@ WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequen
                          authoritative world state
 ```
 
-| Property | Detail |
-|---|---|
-| One queue per player | drained exactly once per simulation tick |
-| One typed handler per `InputKind` | each handler runs under the world mutex held by `phaseInput` |
-| One source of truth | `phase_input_handlers.go` is the only file that translates an input command into world state |
-| Sequence numbering | `InputCommand.Sequence` is monotonic per client; the server tracks the highest applied sequence per player in `PlayerState.LastAckedInputSequence` |
+| Property                          | Detail                                                                                                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One queue per player              | drained exactly once per simulation tick                                                                                                           |
+| One typed handler per `InputKind` | each handler runs under the world mutex held by `phaseInput`                                                                                       |
+| One source of truth               | `phase_input_handlers.go` is the only file that translates an input command into world state                                                       |
+| Sequence numbering                | `InputCommand.Sequence` is monotonic per client; the server tracks the highest applied sequence per player in `PlayerState.LastAckedInputSequence` |
 
 A second uplink path, `handleJSONUplink`, parses text-framed JSON uplinks into the same typed `InputCommand` and routes them through the same per-tick queue. No synchronous game-state mutation runs on the WebSocket read goroutine.
 
 ### Input kinds
 
-| Kind | Wire byte | Effect |
-|---|---|---|
-| `PlayerAction` | `0x11` | TAP — movement intent + skill trigger |
-| `ItemActivation` | `0x12` | Equip/unequip an ObjectLayer item; validated against equipment rules |
-| `FreezeStart` | `0x13` | Enter FrozenInteractionState (blocks movement/damage; rest of world unaffected) |
-| `FreezeEnd` | `0x14` | Exit FrozenInteractionState |
-| `Chat` | `0x15` | Pure relay; no game-state mutation |
-| `GetItemsIDs` | `0x16` | Skill-item-id lookup; produces a response frame |
-| `Handshake` | `0x10` | Connection establishment; no gameplay effect |
+| Kind             | Wire byte | Effect                                                                          |
+| ---------------- | --------- | ------------------------------------------------------------------------------- |
+| `PlayerAction`   | `0x11`    | TAP — movement intent + skill trigger                                           |
+| `ItemActivation` | `0x12`    | Equip/unequip an ObjectLayer item; validated against equipment rules            |
+| `FreezeStart`    | `0x13`    | Enter FrozenInteractionState (blocks movement/damage; rest of world unaffected) |
+| `FreezeEnd`      | `0x14`    | Exit FrozenInteractionState                                                     |
+| `Chat`           | `0x15`    | Pure relay; no game-state mutation                                              |
+| `GetItemsIDs`    | `0x16`    | Skill-item-id lookup; produces a response frame                                 |
+| `Handshake`      | `0x10`    | Connection establishment; no gameplay effect                                    |
 
 ---
 
@@ -176,16 +176,16 @@ Other message types (init data, FCT) carry their own headers and are not part of
 
 World configuration is loaded once at boot from engine-cyberia via gRPC `GetFullInstance(instanceCode)`. The simulation consumes the following from it:
 
-| Field | Used for |
-|---|---|
-| `cellSize` | grid math |
-| `tickRate` | simulation Hz |
-| `aoiRadius` | per-player AOI rectangle size |
-| `entityBaseSpeed`, `entityBaseMaxLife`, `entityBaseActionCooldownMs` | base stats |
-| `economyRules` | Fountain & Sink coin economy |
-| `skillRules` | projectile / doppelganger spawn rates and lifetimes |
-| `equipmentRules` | item activation constraints (one-per-type, requireSkin, activeItemTypes) |
-| `entityDefaults[*]` | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
+| Field                                                                | Used for                                                                          |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `cellSize`                                                           | grid math                                                                         |
+| `tickRate`                                                           | simulation Hz                                                                     |
+| `aoiRadius`                                                          | per-player AOI rectangle size                                                     |
+| `entityBaseSpeed`, `entityBaseMaxLife`, `entityBaseActionCooldownMs` | base stats                                                                        |
+| `economyRules`                                                       | Fountain & Sink coin economy                                                      |
+| `skillRules`                                                         | projectile / doppelganger spawn rates and lifetimes                               |
+| `equipmentRules`                                                     | item activation constraints (one-per-type, requireSkin, activeItemTypes)          |
+| `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
 
 World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. See [Presentation metadata ownership](#presentation-metadata-ownership).
 
@@ -223,32 +223,32 @@ The client treats those wire bytes as a hint and resolves the actual fallback co
 
 Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the gRPC client and world builder under `src/grpcclient/`; the chi-based REST router under `api/`.
 
-| File | Responsibility |
-|---|---|
-| `main.go` | Entry point — loads `.env`, dials engine-cyberia gRPC, mounts WS and `/api` router, starts listener |
-| `src/tick.go` | `Tick`, `InputSequence` types and tick rate constants |
-| `src/server.go` | `GameServer` struct, simulation+replication tickers, `ApplyInstanceConfig`, world mutator orchestration |
-| `src/types.go` | Core data structures (`PlayerState`, `BotState`, `MapState`, `ObjectLayerState`, etc.) |
-| `src/simulation_phases.go` | Phase entry points called from the tick loop |
-| `src/phase_input_handlers.go` | Typed dispatch per `InputKind`; the only translator from input commands to world state |
-| `src/input_command.go` | `InputCommand` struct, `InputKind` constants, per-player queue helper |
-| `src/aoi_binary.go` | Binary AOI snapshot encoder; message type constants |
-| `src/object_layer.go` | ObjectLayer Go types mirroring MongoDB schema |
-| `src/instance_loader.go` | World reconstruction from gRPC payload |
-| `src/collision.go` | Grid collision, portal transitions, death handling |
-| `src/pathfinding.go` | A* pathfinding for bot and player navigation |
-| `src/skill.go`, `src/skill_dispatcher.go`, `src/skill_projectile.go`, `src/skill_doppelganger.go` | Skill registry and per-skill handlers |
-| `src/economy.go` | Fountain & Sink coin economy |
-| `src/life_regen.go` | HP regeneration |
-| `src/ai.go` | Bot AI |
-| `src/stats.go` | Active stat aggregation, sum-stats limit enforcement |
-| `src/entity_status.go` | Entity Status Indicator (ESI) numeric IDs |
-| `src/frozen_state.go` | FrozenInteractionState |
-| `src/handlers.go` | WebSocket lifecycle, binary uplink decoder, JSON-uplink back-compat adapter |
-| `src/sim_palette.go` | Internal RGBA fill for AOI wire bytes (not a contract) |
-| `src/grpcclient/` | gRPC client + world builder for engine-cyberia |
-| `api/router.go`, `api/metrics.go` | chi router; `/api/v1/*` endpoints |
-| `proto/cyberia.proto` | gRPC service contract shared with engine-cyberia |
+| File                                                                                              | Responsibility                                                                                          |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `main.go`                                                                                         | Entry point — loads `.env`, dials engine-cyberia gRPC, mounts WS and `/api` router, starts listener     |
+| `src/tick.go`                                                                                     | `Tick`, `InputSequence` types and tick rate constants                                                   |
+| `src/server.go`                                                                                   | `GameServer` struct, simulation+replication tickers, `ApplyInstanceConfig`, world mutator orchestration |
+| `src/types.go`                                                                                    | Core data structures (`PlayerState`, `BotState`, `MapState`, `ObjectLayerState`, etc.)                  |
+| `src/simulation_phases.go`                                                                        | Phase entry points called from the tick loop                                                            |
+| `src/phase_input_handlers.go`                                                                     | Typed dispatch per `InputKind`; the only translator from input commands to world state                  |
+| `src/input_command.go`                                                                            | `InputCommand` struct, `InputKind` constants, per-player queue helper                                   |
+| `src/aoi_binary.go`                                                                               | Binary AOI snapshot encoder; message type constants                                                     |
+| `src/object_layer.go`                                                                             | ObjectLayer Go types mirroring MongoDB schema                                                           |
+| `src/instance_loader.go`                                                                          | World reconstruction from gRPC payload                                                                  |
+| `src/collision.go`                                                                                | Grid collision, portal transitions, death handling                                                      |
+| `src/pathfinding.go`                                                                              | A\* pathfinding for bot and player navigation                                                           |
+| `src/skill.go`, `src/skill_dispatcher.go`, `src/skill_projectile.go`, `src/skill_doppelganger.go` | Skill registry and per-skill handlers                                                                   |
+| `src/economy.go`                                                                                  | Fountain & Sink coin economy                                                                            |
+| `src/life_regen.go`                                                                               | HP regeneration                                                                                         |
+| `src/ai.go`                                                                                       | Bot AI                                                                                                  |
+| `src/stats.go`                                                                                    | Active stat aggregation, sum-stats limit enforcement                                                    |
+| `src/entity_status.go`                                                                            | Entity Status Indicator (ESI) numeric IDs                                                               |
+| `src/frozen_state.go`                                                                             | FrozenInteractionState                                                                                  |
+| `src/handlers.go`                                                                                 | WebSocket lifecycle, binary uplink decoder, JSON-uplink back-compat adapter                             |
+| `src/sim_palette.go`                                                                              | Internal RGBA fill for AOI wire bytes (not a contract)                                                  |
+| `src/grpcclient/`                                                                                 | gRPC client + world builder for engine-cyberia                                                          |
+| `api/router.go`, `api/metrics.go`                                                                 | chi router; `/api/v1/*` endpoints                                                                       |
+| `proto/cyberia.proto`                                                                             | gRPC service contract shared with engine-cyberia                                                        |
 
 ---
 
@@ -256,14 +256,14 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the 
 
 `/api/v1/*` is the operational surface; it is independent of the WebSocket gameplay protocol.
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/v1/health` | GET | Simple health check |
-| `/api/v1/metrics` | GET | Complete server metrics snapshot |
-| `/api/v1/metrics/health` | GET | Detailed health with entity/player counts |
-| `/api/v1/metrics/entities` | GET | Entity-type breakdown |
-| `/api/v1/metrics/websocket` | GET | Active connections, message rates |
-| `/api/v1/metrics/workload` | GET | Per-map entity workload |
+| Endpoint                    | Method | Description                               |
+| --------------------------- | ------ | ----------------------------------------- |
+| `/api/v1/health`            | GET    | Simple health check                       |
+| `/api/v1/metrics`           | GET    | Complete server metrics snapshot          |
+| `/api/v1/metrics/health`    | GET    | Detailed health with entity/player counts |
+| `/api/v1/metrics/entities`  | GET    | Entity-type breakdown                     |
+| `/api/v1/metrics/websocket` | GET    | Active connections, message rates         |
+| `/api/v1/metrics/workload`  | GET    | Per-map entity workload                   |
 
 All content data (ObjectLayer metadata, asset blobs, optional client hints) is served directly by engine-cyberia REST. `cyberia-server` does not proxy content.
 
@@ -271,15 +271,15 @@ All content data (ObjectLayer metadata, asset blobs, optional client hints) is s
 
 ## Environment
 
-| Variable | Default | Description |
-|---|---|---|
-| `ENGINE_GRPC_ADDRESS` | `localhost:50051` | engine-cyberia gRPC address (**required**) |
-| `INSTANCE_CODE` | `default` | Instance code to load on startup |
-| `ENGINE_API_BASE_URL` | _(empty)_ | engine-cyberia REST base URL; forwarded to clients |
-| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_ | ObjectLayer hot-reload polling interval |
-| `SERVER_PORT` | `8081` | WebSocket + HTTP listen port |
-| `STATIC_DIR` | `./public` | Directory for static WASM client files |
-| `READY_CMD` | _(empty)_ | Shell command run after listen — used by deploy orchestration to signal readiness |
+| Variable                          | Default           | Description                                                                       |
+| --------------------------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `ENGINE_GRPC_ADDRESS`             | `localhost:50051` | engine-cyberia gRPC address (**required**)                                        |
+| `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                                                  |
+| `ENGINE_API_BASE_URL`             | _(empty)_         | engine-cyberia REST base URL; forwarded to clients                                |
+| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval                                           |
+| `SERVER_PORT`                     | `8081`            | WebSocket + HTTP listen port                                                      |
+| `STATIC_DIR`                      | `./public`        | Directory for static WASM client files                                            |
+| `READY_CMD`                       | _(empty)_         | Shell command run after listen — used by deploy orchestration to signal readiness |
 
 ---
 
@@ -295,14 +295,3 @@ go run main.go
 go build -o cyberia-server .
 ./cyberia-server
 ```
-
-Deploy orchestration goes through the [Underpost CLI](UNDERPOST-PLATFORM.md#underpost-cli-v329--command-surface) (`underpost cluster`, `underpost deploy`).
-
----
-
-## Cross-references
-
-- [Underpost Platform](UNDERPOST-PLATFORM.md) — umbrella product, infra and toolchain scope.
-- [Architecture](ARCHITECTURE.md) — three-process model, canonical vocabulary, wire protocol.
-- [Cyberia Client](CYBERIA-CLIENT.md) — presentation runtime that consumes server snapshots.
-- [Cyberia CLI](CYBERIA-CLI.md) — Cyberia-specific CLI extensions to Underpost CLI.

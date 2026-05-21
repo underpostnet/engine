@@ -8,7 +8,7 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 // ─── Runtime config injected by client-build.js ───────────────────────────────
-const CACHE_PREFIX = self.renderPayload?.CACHE_PREFIX || 'engine-core-v3';
+const CACHE_PREFIX = self.renderPayload?.CACHE_PREFIX || 'engine-core';
 const PRE_CACHED_RESOURCES = Array.isArray(self.renderPayload?.PRE_CACHED_RESOURCES)
   ? self.renderPayload.PRE_CACHED_RESOURCES
   : [];
@@ -66,7 +66,7 @@ self.addEventListener('install', (event) => {
       // does not prevent the other page from being cached.
       cache
         .addAll([offlineUrl, maintenanceUrl])
-        .catch(() => Promise.all([cache.add(offlineUrl).catch(() => {}), cache.add(maintenanceUrl).catch(() => {})])),
+        .catch(() => Promise.all([cache.add(offlineUrl).catch(() => { }), cache.add(maintenanceUrl).catch(() => { })])),
     ),
   );
 });

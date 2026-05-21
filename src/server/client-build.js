@@ -750,9 +750,8 @@ const buildClient = async (
           )
         )
           for (const view of views) {
-            const buildPath = `${
-              rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-            }${view.path === '/' ? view.path : `${view.path}/`}`;
+            const buildPath = `${rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+              }${view.path === '/' ? view.path : `${view.path}/`}`;
 
             if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
@@ -768,9 +767,8 @@ const buildClient = async (
             fs.writeFileSync(`${buildPath}${buildId}.js`, jsSrc, 'utf8');
             const title = metadata.title ? metadata.title : title;
 
-            const canonicalURL = `https://${host}${path}${
-              view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
-            }`;
+            const canonicalURL = `https://${host}${path}${view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
+              }`;
 
             let ssrHeadComponents = ``;
             let ssrBodyComponents = ``;
@@ -904,12 +902,12 @@ const buildClient = async (
               `${buildPath}index.html`,
               minifyBuild
                 ? await minify(htmlSrc, {
-                    minifyCSS: true,
-                    minifyJS: true,
-                    collapseBooleanAttributes: true,
-                    collapseInlineTagWhitespace: true,
-                    collapseWhitespace: true,
-                  })
+                  minifyCSS: true,
+                  minifyJS: true,
+                  collapseBooleanAttributes: true,
+                  collapseInlineTagWhitespace: true,
+                  collapseWhitespace: true,
+                })
                 : htmlSrc,
               'utf8',
             );
@@ -1004,9 +1002,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
                 },
               });
 
-              const buildPath = `${
-                rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-              }${page.path === '/' ? page.path : `${page.path}/`}`;
+              const buildPath = `${rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+                }${page.path === '/' ? page.path : `${page.path}/`}`;
 
               // Install-time precache is intentionally restricted to SSR offline pages.
               // All other routes/assets are loaded lazily at runtime.
@@ -1024,12 +1021,12 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
                 buildHtmlPath,
                 minifyBuild
                   ? await minify(htmlSrc, {
-                      minifyCSS: true,
-                      minifyJS: true,
-                      collapseBooleanAttributes: true,
-                      collapseInlineTagWhitespace: true,
-                      collapseWhitespace: true,
-                    })
+                    minifyCSS: true,
+                    minifyJS: true,
+                    collapseBooleanAttributes: true,
+                    collapseInlineTagWhitespace: true,
+                    collapseWhitespace: true,
+                  })
                   : htmlSrc,
                 'utf8',
               );
@@ -1071,7 +1068,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           const renderPayload = {
             PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
             PROXY_PATH: path,
-            CACHE_PREFIX: `engine-core-v3-${cacheScope}`,
+            CACHE_PREFIX: `engine-core-${cacheScope}`,
             OFFLINE_PATH: offlinePath,
             MAINTENANCE_PATH: maintenancePath,
           };
