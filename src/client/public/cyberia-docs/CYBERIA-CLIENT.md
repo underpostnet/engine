@@ -28,8 +28,9 @@ content authority       simulation authority    presentation runtime
                           │  │  Raylib (OpenGL ES2)           │ │
                           │  │  prediction · reconciliation   │ │
                           │  │  interpolation · render        │ │
-                          │  │  presentation_defaults         │ │
                           │  │  presentation_runtime          │ │
+                          │  │  (palette/icons/camera fetched │ │
+                          │  │   from cyberia-client-hints)   │ │
                           │  └────────────────────────────────┘ │
                           └──────────────────────────────────────┘
 ```
@@ -52,7 +53,7 @@ The client is the last process in the sequential startup order. It cannot do use
 2. cyberia-server                    (authoritative simulation, WS open)
 3. cyberia-client                    ← this process
    ├─ initWindow, render init
-   ├─ load compile-time presentation defaults
+   ├─ load tiny inline bootstrap (neutral grey only)
    ├─ (optional) GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE
    ├─ initialize prediction
    ├─ open WebSocket to cyberia-server
@@ -87,8 +88,10 @@ Directional dependency: from outermost (UI / render) inward toward `domain/`. No
 src/
   domain/
     tick.h                          tick rate constants, monotonic types
-    presentation_defaults.{c,h}     canonical palette + status-icon table + render knobs
-    presentation_runtime.{c,h}      async fetch of /api/cyberia-client-hints/:code; overrides
+    presentation_runtime.{c,h}      sole owner of presentation: async fetch of
+                                    /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE,
+                                    palette/status-icon/camera accessors, tiny
+                                    inline bootstrap fallback
   input/
     input_command.{c,h}             typed InputCommand factory; sequence allocation
   prediction/
@@ -109,8 +112,7 @@ src/
 
 | Owner                          | Owns                                                                   | Reads                       | Writes                                             |
 | ------------------------------ | ---------------------------------------------------------------------- | --------------------------- | -------------------------------------------------- |
-| `domain/presentation_defaults` | compile-time palette, status icons, camera knobs, interpolation window | —                           | —                                                  |
-| `domain/presentation_runtime`  | resolved palette (defaults ∪ overrides), async hints fetch state       | defaults + JSON response    | own override table                                 |
+| `domain/presentation_runtime`  | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
 | `input/input_command`          | typed InputCommand factory                                             | session for tick + sequence | —                                                  |
 | `prediction/`                  | predicted self position, input replay buffer                           | snapshot self + session ack | predicted self                                     |
 | `interpolation/`               | remote entity `interp_pos`                                             | snapshot history            | remote `interp_pos` only                           |
@@ -129,9 +131,8 @@ The client owns its render policy. The authoritative server holds no presentatio
 
 Three layers, strictly inward-dependent:
 
-1. **`domain/presentation_defaults.{c,h}`** — compile-time canonical defaults. Always present, always sufficient for the client to render. Kept in 1-to-1 parity with engine-cyberia's `src/client/components/cyberia/SharedDefaultsCyberia.js` (the isomorphic JS/Node defaults module that backs the REST hints response).
-2. **`domain/presentation_runtime.{c,h}`** — runtime hydration. On startup fires an asynchronous GET against `/api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`; merges the response over the compile-time defaults. Polled once per render frame. Non-blocking: the client renders with defaults from frame 0 regardless of fetch outcome.
-3. **Renderers** — call `presentation_runtime_palette("KEY")`, `presentation_runtime_status_icon(u8)`, `presentation_runtime_status_border(u8)`, `presentation_entity_fallback_color(entity_type)` at each use site.
+1. **`domain/presentation_runtime.{c,h}`** — sole owner of every presentation value. Fires a single asynchronous GET against `/api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE` at startup, polled once per render frame. When the response settles, parses palette, entity colour keys, status-icon visuals, and camera/cell tunings into a process-local table and writes a one-shot hydration into `g_game_state` (cell_size, interpolation_ms, camera.zoom). The C client carries NO compile-time palette or status table — only a tiny inline neutral-grey bootstrap so the splash screen has something to draw while the fetch is in flight. The canonical schema for the response lives at engine-cyberia's `src/client/components/cyberia/SharedDefaultsCyberia.js`.
+2. **Renderers** — call `presentation_runtime_palette("KEY")`, `presentation_runtime_status_icon(u8)`, `presentation_runtime_status_border(u8)`, `presentation_runtime_entity_fallback_color(entity_type)` at each use site.
 
 What lives in this layer:
 

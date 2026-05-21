@@ -221,14 +221,26 @@ export const ENTITY_COLOR_KEYS = Object.freeze([
 ]);
 
 /**
- * Camera and render-tuning defaults. Pure presentation — the server
- * never reads any of these.
+ * Camera and render-tuning defaults. Pure presentation — the cyberia-server
+ * never reads any of these. The cyberia-client fetches the whole bundle
+ * from /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE at startup
+ * and treats this object as the on-disk schema.
  *
- * `interpolationMs` is the smoothing window the client lerps remote
- * entities across; the server ticks at TickRate, snapshots at
- * SnapshotRate, and lets the client decide how to display the stream.
+ *   cellSize        — pixels per simulation cell on the client viewport.
+ *                     Authoritative server works in cell units; this value
+ *                     only governs how cells map to pixels for rendering.
+ *   interpolationMs — render-time smoothing window for remote entities.
+ *                     Server ticks at TickRate, snapshots at SnapshotRate,
+ *                     client decides how to display the stream.
+ *   defaultObjWidth /
+ *   defaultObjHeight — default entity dimensions used by the world editor
+ *                     and the client when a doc omits dims. Presentation
+ *                     because dims-in-cells is just a visual sizing.
  */
 export const RENDER_DEFAULTS = Object.freeze({
+  cellSize: 45,
+  defaultObjWidth: 1,
+  defaultObjHeight: 1,
   cameraSmoothing: 0.1,
   cameraZoom: 1.0,
   defaultWidthScreenFactor: 1,
@@ -299,6 +311,9 @@ export function buildClientHints(overrides = {}) {
     palette,
     entityColorKeys: ENTITY_COLOR_KEYS.map((e) => ({ ...e })),
     statusIcons,
+    cellSize: ov.cellSize ?? RENDER_DEFAULTS.cellSize,
+    defaultObjWidth: ov.defaultObjWidth ?? RENDER_DEFAULTS.defaultObjWidth,
+    defaultObjHeight: ov.defaultObjHeight ?? RENDER_DEFAULTS.defaultObjHeight,
     cameraSmoothing: ov.cameraSmoothing ?? RENDER_DEFAULTS.cameraSmoothing,
     cameraZoom: ov.cameraZoom ?? RENDER_DEFAULTS.cameraZoom,
     defaultWidthScreenFactor: ov.defaultWidthScreenFactor ?? RENDER_DEFAULTS.defaultWidthScreenFactor,

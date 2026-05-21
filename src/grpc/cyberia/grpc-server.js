@@ -74,7 +74,6 @@ function normalizeEntityDefault(entityDefault = {}, canonical = {}) {
     liveItemIds: [...(entityDefault.liveItemIds ?? canonical.liveItemIds ?? [])],
     deadItemIds: [...(entityDefault.deadItemIds ?? canonical.deadItemIds ?? [])],
     dropItemIds: [...(entityDefault.dropItemIds ?? canonical.dropItemIds ?? [])],
-    colorKey: entityDefault.colorKey ?? canonical.colorKey ?? '',
     defaultObjectLayers: defaultObjectLayers.map((ol) => ({
       itemId: ol.itemId || '',
       active: !!ol.active,
@@ -98,10 +97,6 @@ function selectCanonicalEntityDefaultIndex(entityDefault, canonicalDefaults, use
       if (firstSameTypeIndex === -1) {
         firstSameTypeIndex = index;
       }
-      if (entityDefault.colorKey && canonical.colorKey === entityDefault.colorKey) {
-        return index;
-      }
-
       const liveOverlap = countSharedItemIds(entityDefault.liveItemIds, canonical.liveItemIds);
       if (
         liveOverlap > 0 &&
@@ -267,40 +262,23 @@ function toInstanceConfig(gc) {
   if (!gc) return buildFallbackConfig();
 
   // STRICT BOUNDARY — this function produces the *simulation* config for
-  // cyberia-server. Presentation fields are EXCLUDED here on purpose:
+  // cyberia-server only. Every presentation concern is excluded:
   //
-  //   - palette (colors)                  → /api/cyberia-client-hints
-  //   - cameraSmoothing / cameraZoom      → /api/cyberia-client-hints
-  //   - defaultWidth/HeightScreenFactor   → /api/cyberia-client-hints
-  //   - devUi                             → /api/cyberia-client-hints
-  //   - interpolationMs                   → /api/cyberia-client-hints
-  //   - statusIcons (iconId + border)     → /api/cyberia-client-hints
-  //   - entityDefaults[].colorKey         → /api/cyberia-client-hints
+  //   - palette (colors), camera tunings, screen factors, devUi,
+  //     interpolationMs, status-icon visuals, entityDefaults[].colorKey,
+  //     cellSize, defaultObj* — all of these reach the client through
+  //     /api/cyberia-client-hints, never through gRPC.
   //
-  // The Go simulation does not need these to advance world state and the
-  // C client owns its own render policy. See
+  // The Go simulation does not need any of them to advance world state;
+  // the C/WASM cyberia-client owns its own render policy. See
   // src/client/components/cyberia/SharedDefaultsCyberia.js.
 
-  // Merge entity defaults while preserving duplicate builds (for example,
-  // multiple resource or portal variants sharing the same entityType).
-  // Strip the presentation-only colorKey field — the client resolves
-  // colors locally from entityType via its built-in palette mapping.
   const gcDefaults = gc.entityDefaults && gc.entityDefaults.length > 0 ? gc.entityDefaults : [];
-  const entityDefaults = mergeEntityDefaults(gcDefaults).map((d) => {
-    // Strip colorKey from each merged entry — it is presentation-only.
-    const { colorKey: _omit, ...sim } = d;
-    return sim;
-  });
+  const entityDefaults = mergeEntityDefaults(gcDefaults);
 
   return {
-    cellSize: gc.cellSize ?? fb.cellSize,
-    // `tick_rate` (proto field 65) is the canonical simulation Hz field.
-    // `fps` (proto field 2) is preserved for configs produced by older
-    // engine versions that pre-date the rename.
-    tickRate: gc.fps ?? fb.fps,
-    fps: gc.fps ?? fb.fps,
-    defaultObjWidth: gc.defaultObjWidth ?? fb.defaultObjWidth,
-    defaultObjHeight: gc.defaultObjHeight ?? fb.defaultObjHeight,
+    tickRate: gc.tickRate ?? fb.tickRate,
+    snapshotRate: gc.snapshotRate ?? fb.snapshotRate,
     aoiRadius: gc.aoiRadius ?? fb.aoiRadius,
     portalHoldTimeMs: gc.portalHoldTimeMs ?? fb.portalHoldTimeMs,
     portalSpawnRadius: gc.portalSpawnRadius ?? fb.portalSpawnRadius,

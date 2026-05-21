@@ -42,7 +42,7 @@ Owns:
 - Web UI tools for content authoring.
 - Asset distribution endpoints.
 - Static content backend.
-- Optional client-hints REST endpoint for per-instance presentation overrides.
+- The `/api/cyberia-client-hints/:code` REST endpoint: the **canonical** source of every presentation value the cyberia-client renders with (palette, entity colour keys, status-icon visuals, camera tunings, cell-pixel size, default object dims, interpolation window, dev-overlay flag).
 
 Does **not** own:
 
@@ -82,8 +82,7 @@ Owns:
 - Client-side prediction of the local player.
 - Reconciliation against authoritative snapshots.
 - Interpolation of remote entities.
-- Compile-time presentation defaults: palette, status-icon visuals, camera knobs, interpolation window, dev-overlay flag.
-- Optional client-hints fetch for per-instance presentation overrides.
+- Presentation runtime that fetches palette, entity colour keys, status-icon visuals, camera tunings, cell-pixel size, default object dims, interpolation window, and dev-overlay flag from `GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE` — the **sole** source of presentation values. A tiny inline neutral-grey bootstrap in `presentation_runtime.c` covers the few frames between window-up and fetch-complete; nothing else is compiled in.
 
 Does **not** own:
 
@@ -108,8 +107,8 @@ Startup is strictly sequential. Documentation must reflect this verbatim — do 
    ├─ loads world configuration
    └─ opens WebSocket + REST health/metrics
 3. cyberia-client
-   ├─ loads compile-time presentation defaults
-   ├─ (optional) fetches /api/cyberia-client-hints/:instanceCode
+   ├─ load tiny inline bootstrap (neutral grey only — splash render)
+   ├─ fetch /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE  (sole presentation source)
    ├─ connects to cyberia-server WebSocket
    └─ enters render frame + prediction loop
 ```
@@ -297,32 +296,53 @@ Items listed here require a coordinated protocol change or explicit design decis
 
 ---
 
-### 11.2 `CyberiaInstanceConf` legacy presentation fields (`pending-review`)
+### 11.2 `CyberiaInstanceConf` legacy presentation fields (`resolved`)
 
-**Status:** Retained as active fallback — pending explicit removal decision.
+**Status:** All presentation fields removed from `CyberiaInstanceConfSchema`. Simulation contract is now strictly gameplay.
 
-**Context:**  
-`src/api/cyberia-instance-conf/cyberia-instance-conf.model.js` includes the following presentation-metadata fields in `CyberiaInstanceConfSchema`:
+**Removed fields:**
 
 ```
-fps, interpolationMs, cameraSmoothing, cameraZoom,
-defaultWidthScreenFactor, defaultHeightScreenFactor, devUi, colors
+cellSize, fps, interpolationMs, defaultObjWidth, defaultObjHeight,
+cameraSmoothing, cameraZoom, defaultWidthScreenFactor,
+defaultHeightScreenFactor, devUi, colors
 ```
 
-These are read by `cyberia-client-hints.service.js` as a step-2 fallback in the three-step resolution chain:
+Also removed: `StatusIconEntrySchema.iconId`, `.bounce`, `.borderColor` (kept only `id`, `name`, `description`); `EntityDefaultSchema.colorKey`.
 
-1. `CyberiaClientHints` collection — `src/api/cyberia-client-hints/` (per-instance explicit override)
-2. Legacy fallback from `CyberiaInstanceConf` fields above
-3. Canonical defaults from `src/client/components/cyberia/SharedDefaultsCyberia.js`
+**Resolution chain:** the three-step lookup collapsed to two:
 
-**Why retained:**  
-Removing these fields from the schema and model breaks existing instances that store presentation overrides there and have no corresponding `CyberiaClientHints` document.
+1. `CyberiaClientHints` collection — `src/api/cyberia-client-hints/` (per-deployment override)
+2. Canonical defaults from `src/client/components/cyberia/SharedDefaultsCyberia.js`
 
-**Action when resolved:**  
-Run a migration script to copy populated presentation fields from `CyberiaInstanceConf` documents into `CyberiaClientHints`; then remove the fields from `CyberiaInstanceConfSchema` and remove the step-2 path from `cyberia-client-hints.service.js`.
+The intermediate `CyberiaInstanceConf` step is gone. Deployments that previously stored presentation overrides on `CyberiaInstanceConf` must migrate to `CyberiaClientHints` documents (see `cyberia run-workflow seed-client-hints` in the CLI).
 
 ---
 
 ### 11.3 `ClientHints` / `ColorEntry` / `StatusIconEntry` / `EntityColorKey` proto messages (`resolved`)
 
 **Status:** Removed from the proto. The presentation REST endpoint emits JSON; there is no protobuf message in that path. `cyberia.pb.go` regenerated; zero consumers across the three repos.
+
+---
+
+### 11.4 `presentation_defaults.{h,c}` in cyberia-client (`resolved`)
+
+**Status:** Deleted. The C/WASM client no longer carries a compile-time palette, status-icon table, or render-tuning constants.
+
+**Why:** the architecture rule is "client = presentation runtime, engine = content authority". Baking presentation defaults into the C client made the client a co-authority on its own render policy, which violated the rule and forced every palette change to ship as a binary rebuild.
+
+**After:**
+
+- `domain/presentation_runtime.{c,h}` is the sole owner of presentation state. It fires a single GET to `/api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE` on startup, parses palette + entity colour keys + status-icon visuals + camera/cell tunings into a process-local table, and writes a one-shot hydration into `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom`.
+- A tiny inline neutral-grey bootstrap inside `presentation_runtime.c` covers the few frames between window-up and fetch-complete. Splash screen renders; nothing breaks if the fetch fails (gameplay is unaffected — every accessor returns the bootstrap value).
+- All call sites that used `presentation_palette_lookup`, `presentation_entity_fallback_color`, `presentation_status_icon_id`, `presentation_status_icon_border`, or any `PRESENTATION_*_DEFAULT` macro now use the runtime accessors.
+
+### 11.5 Proto: `cell_size`, `default_obj_width`, `default_obj_height` reserved (`resolved`)
+
+**Status:** Fields 1, 4, 5 reserved in `InstanceConfig`. `cyberia.pb.go` regenerated. Go server's `GameServer` struct dropped `cellSize`, `defaultObjWidth`, `defaultObjHeight`. `InitPayload` JSON no longer carries them.
+
+**Rationale:** cell-pixel size and object dimensions are presentation, not simulation. They reach the client through `/api/cyberia-client-hints`, not gRPC and not the WebSocket init payload. The simulation operates in cell units; pixel mapping is the renderer's concern.
+
+### 11.6 `CYBERIA_CLIENT_HINTS_CODE` rename (`resolved`)
+
+**Status:** The C client's `config.h` constant renamed from `INSTANCE_CODE` to `CYBERIA_CLIENT_HINTS_CODE`. The old name implied the C client knew about server instances; in fact it only carries a key for looking up its own presentation overrides at the engine REST endpoint. The Go server's separate `INSTANCE_CODE` env var (which scopes the gRPC instance load) is unrelated and kept.

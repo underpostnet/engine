@@ -1,17 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
-const ColorEntrySchema = new Schema(
-  {
-    key: { type: String, required: true },
-    r: { type: Number, default: 0 },
-    g: { type: Number, default: 0 },
-    b: { type: Number, default: 0 },
-    a: { type: Number, default: 255 },
-  },
-  { _id: false },
-);
-
 // ObjectLayer inventory slot: itemId + whether it starts active + initial quantity.
 // Used by EntityDefaultSchema.defaultObjectLayers.
 const ObjectLayerSlotSchema = new Schema(
@@ -23,6 +12,9 @@ const ObjectLayerSlotSchema = new Schema(
   { _id: false },
 );
 
+// Per-entity-type simulation defaults. ONLY authoritative item-id wiring
+// lives here — presentation (palette, colour keys) is the client's
+// responsibility and travels through the CyberiaClientHints REST contract.
 const EntityDefaultSchema = new Schema(
   {
     // Entity category string (matches entity_type_str / bot Behavior in game engine)
@@ -30,13 +22,10 @@ const EntityDefaultSchema = new Schema(
     // Default ObjectLayer item IDs when the entity is alive and carries no assigned items.
     liveItemIds: { type: [String], default: [] },
     // Default ObjectLayer item IDs for the dead / ghost / respawning state.
-    // Empty array = use liveItemIds solid fill color.
     deadItemIds: { type: [String], default: [] },
     // Resource-only inventory items granted on extraction/depletion.
     // These are not auto-activated on the entity itself.
     dropItemIds: { type: [String], default: [] },
-    // Palette key for solid-color fallback when no OL items are assigned.
-    colorKey: { type: String, default: '' },
     // Full default ObjectLayer inventory for this entity type.
     // Each entry specifies itemId, whether it starts active, and its initial quantity.
     // The coin slot must always have active:false — coins are non-activable.
@@ -55,26 +44,14 @@ const SkillConfigEntrySchema = new Schema(
 );
 
 // ── StatusIconEntrySchema ────────────────────────────────────────────────────
-// Maps a u8 status ID to an overhead icon and a border colour used by the
-// interaction bubble / interact overlay on the C/WASM client.
-// See STATUS_ICONS in cyberia-server-defaults.js.
-const StatusIconBorderColorSchema = new Schema(
-  {
-    r: { type: Number, default: 100 },
-    g: { type: Number, default: 100 },
-    b: { type: Number, default: 100 },
-    a: { type: Number, default: 200 },
-  },
-  { _id: false },
-);
-
+// Numeric Entity Status Indicator (ESI) IDs. The Go server stamps one of
+// these u8 IDs on every entity in the AOI binary wire format. Visual
+// resolution (icon stem, border colour, bounce) is the C client's job and
+// arrives through the /api/cyberia-client-hints REST contract — NOT here.
 const StatusIconEntrySchema = new Schema(
   {
     id: { type: Number, required: true },
     name: { type: String, default: '' },
-    iconId: { type: String, default: null },
-    bounce: { type: Boolean, default: false },
-    borderColor: { type: StatusIconBorderColorSchema },
     description: { type: String, default: '' },
   },
   { _id: false },
@@ -147,20 +124,9 @@ const CyberiaInstanceConfSchema = new Schema(
     // Back-reference to the owning instance (indexed for fast lookup by code).
     instanceCode: { type: String, required: true, unique: true, trim: true },
 
-    // ── Rendering / camera ──────────────────────────────────────────
-    cellSize: { type: Number, default: D.cellSize },
-    fps: { type: Number, default: D.fps },
-    interpolationMs: { type: Number, default: D.interpolationMs },
-    defaultObjWidth: { type: Number, default: D.defaultObjWidth },
-    defaultObjHeight: { type: Number, default: D.defaultObjHeight },
-    cameraSmoothing: { type: Number, default: D.cameraSmoothing },
-    cameraZoom: { type: Number, default: D.cameraZoom },
-    defaultWidthScreenFactor: { type: Number, default: D.defaultWidthScreenFactor },
-    defaultHeightScreenFactor: { type: Number, default: D.defaultHeightScreenFactor },
-    devUi: { type: Boolean, default: D.devUi },
-    // Empty array by default — colours must be configured per-instance.
-    // toInstanceConfig() fills in CYBERIA_INSTANCE_CONF_DEFAULTS.colors when the array is empty.
-    colors: { type: [ColorEntrySchema], default: [] },
+    // ── Tick model (authoritative simulation cadence) ─────────────────
+    tickRate: { type: Number, default: D.tickRate },
+    snapshotRate: { type: Number, default: D.snapshotRate },
 
     // ── World / AOI ─────────────────────────────────────────────────
     aoiRadius: { type: Number, default: D.aoiRadius },

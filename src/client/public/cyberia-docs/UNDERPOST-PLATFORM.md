@@ -192,9 +192,9 @@ The three processes start in a fixed order. Do not describe this as parallel.
    └─ exposes WebSocket + REST health/metrics
 
 3. cyberia-client
-   ├─ loads compile-time presentation defaults
-   ├─ (optional) fetches engine-cyberia /api/cyberia-client-hints/:code
-   │   for per-instance presentation overrides
+   ├─ load tiny inline bootstrap (neutral grey only — splash render)
+   ├─ fetch engine-cyberia /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE
+   │   — the sole source of palette / status-icon visuals / camera / cell tunings
    ├─ connects to cyberia-server via WebSocket
    └─ enters render frame + prediction loop
 ```
@@ -247,19 +247,21 @@ Forbidden usages:
 
 Presentation metadata is client-owned. The authoritative simulation must function with no presentation data of any kind.
 
-| Class                                            | Owner                      | Where it lives                                                                   |
-| ------------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------- |
-| Palette (named ColorRGBA entries)                | client                     | compile-time defaults in `cyberia-client/src/domain/presentation_defaults.{c,h}` |
-| Status-icon visuals (icon stems + border colors) | client                     | same                                                                             |
-| Per-entity-type fallback color keys              | client                     | same                                                                             |
-| Camera smoothing / zoom defaults                 | client                     | same                                                                             |
-| Interpolation window                             | client                     | same                                                                             |
-| Dev-overlay flag                                 | client                     | same                                                                             |
-| Per-instance presentation overrides (optional)   | engine-cyberia (REST only) | `GET /api/cyberia-client-hints/:instanceCode`                                    |
+| Class                                            | Owner                 | Where it lives                                                                                  |
+| ------------------------------------------------ | --------------------- | ----------------------------------------------------------------------------------------------- |
+| Palette (named ColorRGBA entries)                | engine-cyberia (REST) | served by `GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`. Schema: `SharedDefaultsCyberia.js`. |
+| Status-icon visuals (icon stems + border colors) | engine-cyberia (REST) | same                                                                                            |
+| Per-entity-type fallback color keys              | engine-cyberia (REST) | same                                                                                            |
+| Camera smoothing / zoom defaults                 | engine-cyberia (REST) | same                                                                                            |
+| Cell-pixel size, default object dims              | engine-cyberia (REST) | same                                                                                            |
+| Interpolation window                             | engine-cyberia (REST) | same                                                                                            |
+| Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                                            |
 
-The `cyberia-server` process does not store any of the above. It does not load palette or icon configuration from `engine-cyberia` over gRPC. It does not forward presentation data on the WebSocket. The simulation tick has zero presentation reads.
+The `cyberia-client` carries **no** compile-time palette. The single tiny exception is an inline neutral-grey bootstrap in `presentation_runtime.c` used for the few frames between window-up and fetch-complete. Every real presentation value comes from the REST hints fetch.
 
-`engine-cyberia` does not act as a render-state authority. It exposes presentation overrides only as a read-only REST endpoint, used by `cyberia-client` opportunistically. The client must run end-to-end with no successful call to that endpoint.
+The `cyberia-server` process does not store any of the above. It does not load palette or icon configuration from `engine-cyberia` over gRPC. It does not forward presentation data on the WebSocket. The only "representational" element on the simulation wire is the **active item IDs** carried inside each AOI snapshot.
+
+`engine-cyberia` is the content authority. It exposes presentation as a read-only REST endpoint backed by `CyberiaClientHints` Mongo documents (per-deployment overrides) merged on top of the canonical `SharedDefaultsCyberia.js` schema.
 
 ---
 

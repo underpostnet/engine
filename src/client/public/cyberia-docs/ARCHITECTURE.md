@@ -128,8 +128,8 @@ Startup is strictly sequential. Do not describe or attempt to orchestrate these 
    └─ opens WebSocket + REST health/metrics
 
 3. cyberia-client (presentation runtime)
-   ├─ loads compile-time presentation defaults
-   ├─ (optional) GET /api/cyberia-client-hints/:instanceCode for per-instance overrides
+   ├─ load tiny inline bootstrap (neutral grey only — splash render)
+   ├─ GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE  (required for real palette)
    ├─ connects to cyberia-server via WebSocket
    └─ enters render frame + prediction loop
 ```
@@ -236,20 +236,20 @@ WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequen
 
 Presentation is client-owned. The authoritative server holds no presentation state.
 
-| Concern                                          | Owner                 | Mechanism                                                     |
-| ------------------------------------------------ | --------------------- | ------------------------------------------------------------- |
-| Palette (named ColorRGBA entries)                | cyberia-client        | compile-time defaults in `domain/presentation_defaults.{c,h}` |
-| Status-icon visuals (icon stems + border colors) | cyberia-client        | same                                                          |
-| Per-entity-type fallback color keys              | cyberia-client        | same                                                          |
-| Camera defaults (smoothing, zoom)                | cyberia-client        | same                                                          |
-| Interpolation window                             | cyberia-client        | same                                                          |
-| Dev-overlay flag                                 | cyberia-client        | same                                                          |
-| Per-instance presentation overrides (optional)   | engine-cyberia (REST) | `GET /api/cyberia-client-hints/:instanceCode`                 |
-| World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf`                                         |
+| Concern                                          | Owner                 | Mechanism                                                                 |
+| ------------------------------------------------ | --------------------- | ------------------------------------------------------------------------- |
+| Palette (named ColorRGBA entries)                | engine-cyberia (REST) | served by `GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`. Source schema: `SharedDefaultsCyberia.js`. |
+| Status-icon visuals (icon stems + border colors) | engine-cyberia (REST) | same                                                                      |
+| Per-entity-type fallback color keys              | engine-cyberia (REST) | same                                                                      |
+| Camera defaults (smoothing, zoom)                | engine-cyberia (REST) | same                                                                      |
+| Cell-pixel size, default object dims              | engine-cyberia (REST) | same                                                                      |
+| Interpolation window                             | engine-cyberia (REST) | same                                                                      |
+| Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                      |
+| World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf` — no presentation; only simulation                  |
 
-`cyberia-server` never reads any presentation field. The simulation runs identically whether or not the optional client-hints fetch succeeds.
+The cyberia-client carries **no** compile-time palette. `domain/presentation_runtime.{c,h}` fetches the full presentation surface on startup; until the fetch settles the runtime returns a tiny inline neutral-grey bootstrap so the splash screen has something to draw. The simulation is unaffected by the fetch outcome.
 
-The simulation does retain a hardcoded internal palette used solely to fill the optional RGBA bytes that the AOI wire carries for a few entity blocks (portals, skill projectiles, freshly spawned players). The client treats these bytes as a hint; it resolves the actual fallback color from its own palette by entity type.
+`cyberia-server` never reads any presentation field. The only "representational" data on the simulation wire is the **active item IDs** carried inside each AOI snapshot. Everything else visual is the client's job, fed by the hints REST endpoint.
 
 ---
 
@@ -324,7 +324,7 @@ Topology modes: `linear`, `hub-spoke`, `open`, `grid`.
 
 ### Entity Status Indicator
 
-The simulation assigns a `status` u8 per entity each replication tick. The numeric IDs are part of the protocol; the visual mapping (icon stem + border color) is client-owned and lives in `domain/presentation_defaults`.
+The simulation assigns a `status` u8 per entity each replication tick. The numeric IDs are part of the protocol; the visual mapping (icon stem + border color) is fetched by the client from `GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE` and resolved through `domain/presentation_runtime`.
 
 | `id` | Name                 | Description                      |
 | ---- | -------------------- | -------------------------------- |

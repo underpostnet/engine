@@ -321,14 +321,14 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
 
 /**
  * Canonical default Cyberia instance configuration consumed by the gRPC
- * `InstanceConfig` payload. Only gameplay-affecting values live here.
+ * `InstanceConfig` payload. ONLY gameplay-affecting values live here.
+ *
+ * Anything that does not influence the authoritative simulation (cell-pixel
+ * size, camera tunings, palette, interpolation window, render flags) is
+ * forbidden — see `SharedDefaultsCyberia.js` and the
+ * `/api/cyberia-client-hints` REST endpoint for presentation overrides.
  */
 export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
-  // ── Simulation grid + world build ──────────────────────────────────
-  cellSize: 45,
-  defaultObjWidth: 1,
-  defaultObjHeight: 1,
-
   // ── Tick model ─────────────────────────────────────────────────────
   tickRate: 60,
   snapshotRate: 20,

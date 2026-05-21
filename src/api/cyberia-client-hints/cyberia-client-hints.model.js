@@ -73,7 +73,11 @@ const CyberiaClientHintsSchema = new Schema(
         // Optional status-icon visual overrides (id → iconId + borderColor).
         statusIcons: { type: [StatusIconHintSchema], default: [] },
 
-        // Camera and viewport tunings — null/undefined means "use client default".
+        // Camera, viewport, and cell-sizing tunings — null/undefined means
+        // "use the SharedDefaultsCyberia.RENDER_DEFAULTS value".
+        cellSize: { type: Number, default: null },
+        defaultObjWidth: { type: Number, default: null },
+        defaultObjHeight: { type: Number, default: null },
         cameraSmoothing: { type: Number, default: null },
         cameraZoom: { type: Number, default: null },
         defaultWidthScreenFactor: { type: Number, default: null },
