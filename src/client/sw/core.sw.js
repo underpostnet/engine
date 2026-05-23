@@ -20,19 +20,37 @@ const MAINTENANCE_URL = payload.MAINTENANCE_URL || '/maintenance/index.html';
 // fails (e.g. a precache manifest entry returns non-200 during install).
 const FALLBACK_CACHE = `${CACHE_PREFIX}-fallbacks`;
 
-// ─── Ultimate inline HTML fallbacks ──────────────────────────────────────────
-// When neither the FALLBACK_CACHE nor precache has the offline/maintenance page
-// (e.g. first install while server is down), these inline responses ensure the
-// user never sees a browser error page.
-const INLINE_FALLBACKS = {
-  offline: `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Offline</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;color:#333;padding:1rem;text-align:center}h1{font-size:2rem;margin-bottom:.5rem}p{font-size:1rem;color:#666;max-width:24rem}</style></head><body><h1>🌐 You are offline</h1><p>Please check your internet connection and try again.</p></body></html>`,
-  maintenance: `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Maintenance</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;color:#333;padding:1rem;text-align:center}h1{font-size:2rem;margin-bottom:.5rem}p{font-size:1rem;color:#666;max-width:24rem}</style></head><body><h1>🔧 Under Maintenance</h1><p>We'll be back shortly. Please try again later.</p></body></html>`,
+/**
+ * Ultimate inline HTML fallback used ONLY when the network is unavailable and
+ * the custom SSR pages (NoNetworkConnection / Maintenance views from config)
+ * have not yet been cached. Once cached on first successful visit, the custom
+ * pages take over.
+ * @param {'offline'|'maintenance'} kind
+ * @returns {Response}
+ */
+const inlineFallback = (kind) => {
+  const title = kind === 'offline' ? 'Offline' : 'Maintenance';
+  const icon = kind === 'offline' ? '🌐' : '🔧';
+  const msg =
+    kind === 'offline'
+      ? 'You are offline. Please check your internet connection and try again.'
+      : 'The server is under maintenance. We\'ll be back shortly.';
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${title}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;color:#333;padding:1rem;text-align:center}h1{font-size:2rem;margin-bottom:.5rem}p{font-size:1rem;color:#666;max-width:24rem}</style></head><body><h1>${icon} ${title}</h1><p>${msg}</p></body></html>`;
+  return new Response(html, {
+    status: 200,
+    statusText: 'OK',
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
 };
 
 /**
- * Returns a Response for the cached fallback page. Tries the dedicated fallback
- * cache first, then the Workbox precache, then the inline HTML strings above.
- * Never returns Response.error() — always produces a usable page.
+ * Returns a Response for the cached fallback page.
+ * Tries (in order):
+ *   1. Dedicated FALLBACK_CACHE (primary & secondary URL)
+ *   2. Workbox precache (primary & secondary URL)
+ *   3. If online, fetches the custom SSR page from the server (caches it for next time)
+ *   4. Ultimate inline HTML string (never a browser error page)
+ *
  * @param {'offline'|'maintenance'} kind
  * @returns {Promise<Response>}
  */
@@ -41,22 +59,57 @@ const getFallback = async (kind) => {
   const secondary = kind === 'maintenance' ? OFFLINE_URL : MAINTENANCE_URL;
   const cache = await caches.open(FALLBACK_CACHE);
 
-  // Try dedicated fallback cache first
+  // ── 1. Try cache (own + precache) ──────────────────────────────────────
   const cached =
     (await cache.match(primary)) ||
     (await matchPrecache(primary)) ||
     (await cache.match(secondary)) ||
     (await matchPrecache(secondary));
-
   if (cached) return cached;
 
-  // Ultimate inline fallback — never expose the user to a browser error page
-  const html = INLINE_FALLBACKS[kind] || INLINE_FALLBACKS.offline;
-  return new Response(html, {
-    status: 200,
-    statusText: 'OK',
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
+  // ── 2. If we appear online, try to fetch the custom SSR page from server ─
+  // This handles the case where the install-time caching didn't happen yet
+  // (e.g. first install while server was up, but fallback pages weren't cached).
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+    try {
+      const fetchResp = await fetch(primary, { credentials: 'same-origin' });
+      if (fetchResp.ok) {
+        cache.put(primary, fetchResp.clone()).catch(() => { });
+        return fetchResp;
+      }
+    } catch (_) { }
+    try {
+      const fetchResp = await fetch(secondary, { credentials: 'same-origin' });
+      if (fetchResp.ok) {
+        cache.put(secondary, fetchResp.clone()).catch(() => { });
+        return fetchResp;
+      }
+    } catch (_) { }
+  }
+
+  // ── 3. Ultimate inline fallback ────────────────────────────────────────
+  return inlineFallback(kind);
+};
+
+/**
+ * Background-caches the offline and maintenance SSR pages for future use.
+ * Called after each successful navigation so the custom views are available
+ * the next time the network is unreachable.
+ */
+const cacheFallbackPages = async () => {
+  const cache = await caches.open(FALLBACK_CACHE);
+  for (const url of [OFFLINE_URL, MAINTENANCE_URL]) {
+    try {
+      if (!(await cache.match(url))) {
+        const response = await fetch(url, { credentials: 'same-origin' });
+        if (response.ok) {
+          await cache.put(url, response);
+        }
+      }
+    } catch (_) {
+      // Network unavailable now — will try again on next navigation.
+    }
+  }
 };
 
 // ─── Core setup ───────────────────────────────────────────────────────────────
@@ -65,22 +118,10 @@ clientsClaim();
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(FALLBACK_CACHE);
-      // Try to cache each fallback page individually. If the network is
-      // unavailable during install (server down, first-time setup), fetch
-      // will throw — the inline HTML fallback covers this case.
-      for (const url of [OFFLINE_URL, MAINTENANCE_URL]) {
-        try {
-          const response = await fetch(url);
-          if (response.ok) await cache.put(url, response);
-        } catch (_) {
-          // Network unavailable during install — inline fallbacks handle this.
-        }
-      }
-    })(),
-  );
+  // Note: install-time caching of fallback pages is unreliable in some browsers.
+  // We rely on the post-navigation eager caching in the navigation handler.
+  // The inline HTML fallback ensures the user never sees a browser error page
+  // before the custom SSR pages are cached.
 });
 
 self.addEventListener('activate', (event) => {
@@ -159,6 +200,9 @@ registerRoute(
 //   - fetch() throws on network failure → catch → fallback page
 //   - fetch() returns 5xx → maintenance fallback
 //
+// After each successful fetch, we eagerly cache the custom offline/maintenance
+// SSR pages so they're available when the network goes down.
+//
 // The dispatcher logic:
 //   1. If navigator.onLine === false → offline fallback immediately
 //   2. Try navigation preload — if it succeeds (< 500) use it, else fall through
@@ -179,37 +223,36 @@ registerRoute(
     try {
       const preload = await event.preloadResponse;
       if (preload && preload.status < 500) {
+        // Fire-and-forget: eagerly cache fallback pages in the background
+        // after a successful navigation so they're available when offline.
+        cacheFallbackPages().catch(() => { });
         return preload;
       }
-      // preload returned a 5xx or was empty — fall through to direct fetch
     } catch (_) {
-      // preload threw — fall through to direct fetch
+      // Preload threw — fall through to direct fetch
     }
 
     // ── 3. Try direct fetch to the server ─────────────────────────────────
-    // We use fetch() directly (not NetworkFirst) because NetworkFirst would
-    // return a stale cached real page on network failure, which defeats the
-    // purpose of having offline/maintenance fallback pages.
     try {
       const response = await fetch(event.request);
 
       if (response.status >= 500) {
-        // Server returned a server error — show maintenance page
         return getFallback('maintenance');
       }
 
       if (response.ok) {
-        // Cache the successful response for preload to serve next time
+        // Cache the successful response for future navigations
         const cache = await caches.open(`${CACHE_PREFIX}-pages`);
         cache.put(event.request, response.clone()).catch(() => { });
+
+        // Eagerly cache fallback pages in the background
+        cacheFallbackPages().catch(() => { });
+
         return response;
       }
 
-      // Non-okay, non-5xx (e.g. 404) — return as-is
       return response;
     } catch (_) {
-      // fetch() threw: DNS failure, connection refused, timeout, TLS error, etc.
-      // navigator.onLine may be true (server is down but network is up) or false.
       const reallyOffline =
         typeof navigator !== 'undefined' && navigator.onLine === false;
       return getFallback(reallyOffline ? 'offline' : 'maintenance');
