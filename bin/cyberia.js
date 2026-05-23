@@ -4328,25 +4328,56 @@ try {
 
   runner
     .command('build-manifest')
-    .description('Build k8s resource manifest YAML files from templates')
-    .action(() => {
-      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' --kubeadm`);
-      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' --kind --dev`);
-      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' --kubeadm`);
-      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' --kind --dev`);
+    .option('--dev', 'Build dev-variant manifests (kind cluster, Dockerfile.dev). Default builds prod (kubeadm, Dockerfile).')
+    .description(
+      'Build k8s resource manifests for the Cyberia mmo-server + mmo-client instances. ' +
+        'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
+    )
+    .action((options) => {
+      const isDev = !!options.dev;
+      const flags = isDev ? '--kind --dev' : '--kubeadm';
+      // shellExec is fail-fast by default: any non-zero exit throws
+      // ShellExecError, which propagates to the outer catch and exits
+      // the CLI non-zero — observable by GitHub Actions.
+      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
+      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+      logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
     });
 
-  if (underpostProgram.commands.find((c) => c._name == process.argv[2]))
+  // Passthrough check: if the user invoked a command that is OWNED by the
+  // underpost CLI (not the cyberia overlay), throw the sentinel error so
+  // the catch block below can re-run argv through underpost. The match is
+  // strict on process.argv[2] (the first positional after `node bin/cyberia`)
+  // so we only passthrough when the top-level command name actually
+  // belongs to underpost.
+  if (
+    process.argv[2] &&
+    underpostProgram.commands.find((c) => c._name === process.argv[2]) &&
+    !program.commands.find((c) => c._name === process.argv[2])
+  ) {
     throw new Error('Trigger underpost passthrough');
+  }
 
   program.parse();
 } catch (error) {
-  logger.warn(error);
-  process.argv = process.argv.filter((c) => c !== 'underpost');
-  logger.warn('Rerouting to underpost cli...');
-  try {
-    underpostProgram.parse();
-  } catch (error) {
+  // ONLY reroute on the explicit passthrough sentinel. Any other thrown
+  // error (subprocess non-zero from shellExec's fail-fast default, CLI
+  // parse errors, missing modules) must propagate as a non-zero process
+  // exit so GitHub Actions / CI parents observe the failure. Without this
+  // guard, a genuine build failure was being silently rerouted into the
+  // underpost CLI and then masked behind a misleading "unknown command"
+  // line.
+  if (error && error.message === 'Trigger underpost passthrough') {
+    process.argv = process.argv.filter((c) => c !== 'underpost');
+    logger.warn('Rerouting to underpost cli...');
+    try {
+      underpostProgram.parse();
+    } catch (err) {
+      logger.error(err);
+      process.exit(1);
+    }
+  } else {
     logger.error(error);
+    process.exit(1);
   }
 }

@@ -45,3 +45,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Keep the underpost CLI installed in the image aligned with the
+          # image tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
+          # BUILD_MODE defaults to RELEASE inside the Dockerfile; override
+          # via workflow_dispatch input if a DEBUG image is ever needed.
+          build-args: |
+            UNDERPOST_VERSION=3.2.9
+            BUILD_MODE=RELEASE

@@ -45,3 +45,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Keep the underpost CLI installed in the image aligned with the
+          # image tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
+          build-args: |
+            UNDERPOST_VERSION=3.2.9

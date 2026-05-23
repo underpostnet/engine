@@ -60,12 +60,21 @@ RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 # --- Runtime Image
 FROM rockylinux/rockylinux:9 AS runtime
 
+# Runtime needs:
+#   - python3 (serves the built /bin/ static files via server.py)
+#   - nodejs + the underpost CLI globally, for the container-status
+#     lifecycle hooks invoked from conf.instances.json before / after
+#     launching server.py. Installing it at build time avoids the slow
+#     `npm install -g` startup the K8S cmd would otherwise repeat.
+ARG UNDERPOST_VERSION=3.2.9
 RUN dnf -y update && \
     dnf -y install epel-release && \
     dnf -y install --allowerasing curl git python3 && \
     curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
     dnf install -y nodejs && \
-    dnf clean all
+    npm install -g underpost@${UNDERPOST_VERSION} && \
+    dnf clean all && \
+    npm cache clean --force
 
 WORKDIR /home/dd/engine/cyberia-client
 
@@ -77,4 +86,7 @@ ENV CYBERIA_MODE=production
 
 EXPOSE 8081 8082
 
+# Default CMD when the image is run directly (not via K8S cmd).
+# In K8S deploys conf.instances.json supplies its own cmd that wraps
+# container-status hooks + this same server.py invocation.
 CMD ["sh", "-c", "exec python3 server.py ${CYBERIA_PORT} bin ${CYBERIA_MODE}"]

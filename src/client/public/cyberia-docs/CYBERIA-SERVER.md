@@ -279,7 +279,6 @@ All content data (ObjectLayer metadata, asset blobs, optional client hints) is s
 | `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval                                           |
 | `SERVER_PORT`                     | `8081`            | WebSocket + HTTP listen port                                                      |
 | `STATIC_DIR`                      | `./public`        | Directory for static WASM client files                                            |
-| `READY_CMD`                       | _(empty)_         | Shell command run after listen — used by deploy orchestration to signal readiness |
 
 ---
 
