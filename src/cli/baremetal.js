@@ -356,7 +356,7 @@ class UnderpostBaremetal {
 
         // Build phase (skip if upload-only mode)
         if (options.packerMaasImageBuild) {
-          if (shellExec('packer version').code !== 0) {
+          if (shellExec('packer version', { silentOnError: true }).code !== 0) {
             throw new Error('Packer is not installed. Please install Packer to proceed.');
           }
 
@@ -424,7 +424,9 @@ rm -rf ${artifacts.join(' ')}`);
         const uploadCmd = `${uploadScript} ${process.env.MAAS_ADMIN_USERNAME} "${workflow.maas.name}" "${workflow.maas.title}" "${workflow.maas.architecture}" "${workflow.maas.base_image}" "${workflow.maas.filetype}" "${tarballPath}"`;
 
         logger.info(`Uploading to MAAS using: ${uploadScript}`);
-        const uploadResult = shellExec(uploadCmd);
+        // silentOnError: caller logs stdout/stderr structure on failure
+        // before throwing its own, more informative error.
+        const uploadResult = shellExec(uploadCmd, { silentOnError: true });
         if (uploadResult.code !== 0) {
           logger.error(`Upload failed with exit code: ${uploadResult.code}`);
           if (uploadResult.stdout) {
@@ -2895,9 +2897,16 @@ EOF`);
           for (const mountPath of mounts[mountCmd]) {
             const hostMountPath = `${process.env.NFS_EXPORT_PATH}/${hostname}${mountPath}`;
             // Check if the path is already mounted using `mountpoint` command.
-            const isPathMounted = !shellExec(`mountpoint ${hostMountPath}`, { silent: true, stdout: true }).match(
-              'not a mountpoint',
-            );
+            // `mountpoint` exits 1 when the path is not a mountpoint — silentOnError
+            // prevents ShellExecError so we can inspect stdout/stderr for the string.
+            const mountpointOut = shellExec(`mountpoint ${hostMountPath}`, {
+              silent: true,
+              stdout: true,
+              silentOnError: true,
+            });
+            const isPathMounted = typeof mountpointOut === 'string' && mountpointOut.length > 0
+              ? !mountpointOut.match('not a mountpoint') && !mountpointOut.match('No such file')
+              : false;
 
             if (isPathMounted) {
               logger.warn('Nfs path already mounted', mountPath);
@@ -3041,10 +3050,10 @@ udp-port = 32766
         // Check both /usr/local/bin (compiled) and system paths
         let qemuAarch64Path = null;
 
-        if (shellExec('test -x /usr/local/bin/qemu-system-aarch64').code === 0) {
+        if (shellExec('test -x /usr/local/bin/qemu-system-aarch64', { silentOnError: true }).code === 0) {
           qemuAarch64Path = '/usr/local/bin/qemu-system-aarch64';
-        } else if (shellExec('which qemu-system-aarch64').code === 0) {
-          qemuAarch64Path = shellExec('which qemu-system-aarch64').stdout.trim();
+        } else if (shellExec('which qemu-system-aarch64', { silentOnError: true }).code === 0) {
+          qemuAarch64Path = shellExec('which qemu-system-aarch64', { stdout: true }).trim();
         }
 
         if (!qemuAarch64Path) {
@@ -3070,10 +3079,10 @@ udp-port = 32766
         // Check both /usr/local/bin (compiled) and system paths
         let qemuX86Path = null;
 
-        if (shellExec('test -x /usr/local/bin/qemu-system-x86_64').code === 0) {
+        if (shellExec('test -x /usr/local/bin/qemu-system-x86_64', { silentOnError: true }).code === 0) {
           qemuX86Path = '/usr/local/bin/qemu-system-x86_64';
-        } else if (shellExec('which qemu-system-x86_64').code === 0) {
-          qemuX86Path = shellExec('which qemu-system-x86_64').stdout.trim();
+        } else if (shellExec('which qemu-system-x86_64', { silentOnError: true }).code === 0) {
+          qemuX86Path = shellExec('which qemu-system-x86_64', { stdout: true }).trim();
         }
 
         if (!qemuX86Path) {

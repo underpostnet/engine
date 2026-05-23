@@ -4,6 +4,7 @@
  * @namespace UnderpostTest
  */
 
+import fs from 'fs-extra';
 import { timer } from '../client/components/core/CommonJs.js';
 import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
@@ -42,7 +43,13 @@ class UnderpostTest {
      */
     run() {
       actionInitLog();
-      shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
+      const underpostTestPath = `${getNpmRootPath()}/underpost`;
+      if (fs.existsSync(underpostTestPath)) {
+        shellExec(`cd ${underpostTestPath} && npm run test`);
+      } else {
+        logger.warn(`Global underpost not found at ${underpostTestPath}, running local npm test instead`);
+        shellExec('npm test');
+      }
     },
     /**
      * @method callback
@@ -148,8 +155,7 @@ class UnderpostTest {
           const pods = Underpost.kubectl.get(podName, kindType);
           let result = pods.find((p) => p.STATUS === status || (status === 'Running' && p.STATUS === 'Completed'));
           logger.info(
-            `Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}s - attempt ${
-              index + 1
+            `Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}s - attempt ${index + 1
             }/${maxAttempts}`,
             pods[0] ? pods[0].STATUS : 'Not found kind object',
           );

@@ -29,14 +29,21 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 [
   {
     "id": "app-instance-1",
+    "runtime": "my-runtime",
     "host": "myapp.example.com",
     "path": "/",
     "image": "underpost/underpost-engine:latest",
     "fromPort": 8080,
     "toPort": 8080,
     "cmd": {
-      "development": "npm run dev",
-      "production": "npm start"
+      "development": [
+        "underpost config set container-status dd-myapp-app-instance-1-development-initializing-deployment",
+        "node server.js"
+      ],
+      "production": [
+        "underpost config set container-status dd-myapp-app-instance-1-production-initializing-deployment",
+        "node server.js"
+      ]
     },
     "volumes": [
       {
@@ -53,19 +60,103 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 
 ### Configuration Parameters
 
-| Parameter       | Type   | Description                                                                               |
-| --------------- | ------ | ----------------------------------------------------------------------------------------- |
-| `id`            | string | Unique identifier for the instance                                                        |
-| `host`          | string | Domain name for the instance                                                              |
-| `path`          | string | URL path prefix (default: `/`)                                                            |
-| `image`         | string | Docker image to deploy (optional, defaults to `underpost/underpost-engine`)               |
-| `fromPort`      | number | Container port to expose (production)                                                     |
-| `toPort`        | number | Target port mapping (production)                                                          |
-| `fromDebugPort` | number | Container port to expose in development/`--dev` mode (optional, falls back to `fromPort`) |
-| `toDebugPort`   | number | Target port mapping in development/`--dev` mode (optional, falls back to `toPort`)        |
-| `cmd`           | object | Commands for different environments                                                       |
-| `volumes`       | array  | Volume mount configurations                                                               |
-| `metadata`      | object | Additional metadata                                                                       |
+| Parameter       | Type           | Description                                                                                                                                          |
+| --------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | string         | Unique identifier for the instance                                                                                                                   |
+| `runtime`       | string         | (Optional) Dockerfile source dir under `src/runtime/<runtime>/Dockerfile` used by `instance-build-manifest`. Omit when the image is pre-built/pulled. |
+| `host`          | string         | Domain name for the instance                                                                                                                         |
+| `path`          | string         | URL path prefix (default: `/`)                                                                                                                       |
+| `image`         | string         | Docker image to deploy (optional, defaults to `underpost/underpost-engine`)                                                                          |
+| `fromPort`      | number         | Container port to expose (production)                                                                                                                |
+| `toPort`        | number         | Target port mapping (production)                                                                                                                     |
+| `fromDebugPort` | number         | Container port to expose in development/`--dev` mode (optional, falls back to `fromPort`)                                                            |
+| `toDebugPort`   | number         | Target port mapping in development/`--dev` mode (optional, falls back to `toPort`)                                                                   |
+| `cmd`           | object         | `{development: string[], production: string[]}` — array of shell commands joined by the runner. Supports the `{{grpc-service-dns}}` template.        |
+| `volumes`       | array          | Volume mount configurations                                                                                                                          |
+| `metadata`      | object         | Additional metadata                                                                                                                                  |
+
+### `cmd` conventions
+
+`cmd[env]` is an array of shell strings. The runner joins them with `&&` and executes the result as the container's command. Two conventions every instance should follow:
+
+1. **Container-status lifecycle**. Stamp `initializing` and `stopping` from `lifecycle.postStart.exec` / `lifecycle.preStop.exec` hooks (see the next subsection) — never inside the `cmd` chain. The `running` state is owned by Kubernetes: when the `readinessProbe` succeeds the pod's `status.conditions[Ready]` flips to True, and the orchestrator reads that condition directly. The runtime process must never shell out to a wrapper command after starting; if it cannot bind its listening socket it must exit non-zero, which surfaces as CrashLoopBackOff.
+
+2. **Image-baked CLI**. The runtime image must already include the `underpost` CLI; do **not** `npm install -g underpost` in `cmd`. That step belongs in the Dockerfile (see `src/runtime/cyberia-server/Dockerfile` and `src/runtime/cyberia-client/Dockerfile` for the `ARG UNDERPOST_VERSION` + `npm install -g` pattern).
+
+### `runtime` field and Dockerfile resolution
+
+When you set `runtime: "<name>"`, `underpost run instance-build-manifest` copies a Dockerfile from `src/runtime/<name>/` into the generated manifest directory. Dev/prod selection:
+
+| Mode                   | Lookup order                                    | Fallback                                      |
+| ---------------------- | ----------------------------------------------- | --------------------------------------------- |
+| `--dev`                | `Dockerfile.dev` → `Dockerfile`                 | Warns and uses `Dockerfile` if `.dev` missing |
+| production (default)   | `Dockerfile`                                    | —                                             |
+
+`Dockerfile.dev` is a **full Dockerfile, not an overlay** — each runtime owns the contract between its dev and prod images. Reference dev variants for the Cyberia stack:
+
+- `src/runtime/cyberia-server/Dockerfile.dev` — Go build with `-gcflags="all=-N -l"` (no inlining/opt), runtime image keeps `procps-ng`, `strace`, `lsof`, `vim-minimal` for live inspection.
+- `src/runtime/cyberia-client/Dockerfile.dev` — Emscripten build with `BUILD_MODE=DEBUG` (DWARF symbols, asserts), default `CYBERIA_PORT=8082` + `CYBERIA_MODE=development`.
+
+Every runtime Dockerfile must:
+
+- Multi-stage build (builder → runtime).
+- Install `underpost@<image-tag-version>` in the runtime stage (so `cmd` skips the slow install at every pod boot).
+- Expose the port that `fromPort` references.
+- Ship a useful default `ENTRYPOINT` / `CMD` for `docker run` direct invocations; K8S deploys override this with `cmd[env]`.
+
+### Lifecycle, readiness, and liveness — moving status hooks out of `cmd`
+
+An instance config may declare K8S-native lifecycle hooks and probes. These splice directly into the container spec generated by `instance-build-manifest` / `instance`, **replacing the anti-pattern of chaining `underpost config set container-status …` calls inside the shell `cmd` string**.
+
+```jsonc
+{
+  "id": "mmo-server",
+  "runtime": "cyberia-server",
+  "image": "underpost/cyberia-server:v3.2.9",
+  "fromPort": 8081,
+  "toPort": 8081,
+  "cmd": {
+    "production": [
+      "set -a && . /env/production.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && exec /home/dd/engine/cyberia-server/server"
+    ]
+  },
+  "lifecycle": {
+    "production": {
+      "postStart": {
+        "exec": { "command": ["sh", "-c", "underpost config set container-status dd-cyberia-mmo-server-production-initializing-deployment || true"] }
+      },
+      "preStop": {
+        "exec": { "command": ["sh", "-c", "underpost config set container-status dd-cyberia-mmo-server-production-stopping-deployment || true"] }
+      }
+    }
+  },
+  "readinessProbe": {
+    "tcpSocket": { "port": 8081 },
+    "initialDelaySeconds": 3,
+    "periodSeconds": 5,
+    "timeoutSeconds": 3,
+    "failureThreshold": 6
+  },
+  "livenessProbe": {
+    "tcpSocket": { "port": 8081 },
+    "initialDelaySeconds": 30,
+    "periodSeconds": 20,
+    "failureThreshold": 3
+  }
+}
+```
+
+Status transitions explained:
+
+| Status                  | Stamped by                                                                                                 | Trigger                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `initializing-deployment` | `lifecycle.postStart.exec` — K8S runs this immediately after the container starts.                         | Pod boot.                                                                |
+| `running-deployment`    | Kubernetes `readinessProbe` (TCP socket) passes — kubelet sets `Ready: True`.                                        | Successful socket bind; a crashing runtime never reaches Ready.          |
+| `stopping-deployment`   | `lifecycle.preStop.exec` — K8S runs this before sending SIGTERM.                                            | Pod termination (scale-down, rolling update, eviction).                  |
+
+K8S marks the pod **Ready** only when `readinessProbe` succeeds (TCP socket on the listening port). A runtime that crashes on startup exits non-zero, kubelet surfaces a CrashLoopBackOff, and the pod's Ready condition stays False — the orchestrator gate never opens.
+
+Each block (`lifecycle`, `readinessProbe`, `livenessProbe`) may be either a single object (shared across envs) or `{ development: {...}, production: {...} }` for env-scoped values — useful when dev runs on a different port than prod.
 
 ## Core Commands
 
@@ -443,8 +534,14 @@ kubectl delete HTTPProxy myapp.example.com -n production
     "fromPort": 3000,
     "toPort": 3000,
     "cmd": {
-      "development": "npm run dev",
-      "production": "node server.js"
+      "development": [
+        "underpost config set container-status dd-mywebapp-frontend-development-initializing-deployment",
+        "exec node server.js"
+      ],
+      "production": [
+        "underpost config set container-status dd-mywebapp-frontend-production-initializing-deployment",
+        "node server.js"
+      ]
     },
     "volumes": [
       {
@@ -465,8 +562,14 @@ kubectl delete HTTPProxy myapp.example.com -n production
     "fromPort": 8080,
     "toPort": 8080,
     "cmd": {
-      "development": "npm run dev",
-      "production": "node dist/main.js"
+      "development": [
+        "underpost config set container-status dd-mywebapp-api-development-initializing-deployment",
+        "set -a && . /var/run/secrets/mywebapp/api/development.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && node dist/main.js"
+      ],
+      "production": [
+        "underpost config set container-status dd-mywebapp-api-production-initializing-deployment",
+        "set -a && . /var/run/secrets/mywebapp/api/production.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && node dist/main.js"
+      ]
     },
     "volumes": [],
     "metadata": {
@@ -509,6 +612,18 @@ underpost run get-proxy api.mycompany.com
 curl https://app.mycompany.com
 curl https://api.mycompany.com/api/health
 ```
+
+## Reference: Cyberia MMO instances
+
+The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`. They illustrate every pattern the runner expects from third-party instance configs.
+
+**File:** `./engine-private/conf/dd-cyberia/conf.instances.json`
+
+- **`mmo-server`** — `runtime: "cyberia-server"` (Dockerfile at `src/runtime/cyberia-server/Dockerfile`). The Go binary `/home/dd/engine/cyberia-server/server` is the long-running process. `cmd[env]` sources a deployment-secret env file from the `instance-cyberia-server` PVC, exports the runner-resolved `ENGINE_GRPC_ADDRESS` from the `{{grpc-service-dns}}` template, then exec's the binary. Readiness is observed by Kubernetes through the `readinessProbe` (TCP socket on port 8081).
+
+- **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. No env file or gRPC wiring — the client is presentation-only and talks to the cyberia-server WebSocket / engine REST endpoints at runtime.
+
+Both Dockerfiles install `underpost@${UNDERPOST_VERSION}` at build time (`ARG UNDERPOST_VERSION=3.2.9`), so the `cmd` entries can call `underpost config set container-status …` without paying an `npm install -g` cost on every pod boot. The two CI workflows that publish these images forward `UNDERPOST_VERSION` as a build-arg to keep the in-image CLI aligned with the image tag.
 
 ## Best Practices
 

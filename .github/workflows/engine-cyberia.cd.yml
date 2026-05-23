@@ -45,6 +45,7 @@ jobs:
           # Commands to run on the remote VM
           script: |
             set -e
+            set -o pipefail
             echo "Starting remote deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
@@ -78,6 +79,7 @@ jobs:
           # Commands to run on the remote VM
           script: |
             set -e
+            set -o pipefail
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
@@ -116,6 +118,7 @@ jobs:
           # Commands to run on the remote VM
           script: |
             set -e
+            set -o pipefail
             echo "Starting init deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"

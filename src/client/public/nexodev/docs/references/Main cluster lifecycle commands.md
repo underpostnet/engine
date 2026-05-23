@@ -607,3 +607,160 @@ node bin run deploy-job my-job --image-name my-app:v1 --host-aliases "127.0.0.1=
 - `./engine-private/deploy/dd.router` populated with deploy-ids (format: `dd-<conf-id>,dd-<conf-id>,...`)
 - `./engine-private/deploy/dd.cron` populated with cron deploy-id (format: `dd-<conf-id>`)
 - Per-deploy `.env.*` files in `./engine-private/conf/dd-<conf-id>/` with required secret values (see [Credential Security](#credential-security))
+
+---
+
+## Image build dev/prod variants
+
+When an instance config (`conf.instances.json`) declares `runtime: "<name>"`, `node bin run instance-build-manifest` copies a Dockerfile from `src/runtime/<name>/`:
+
+- **production (default):** uses `src/runtime/<name>/Dockerfile`.
+- **`--dev`:** prefers `src/runtime/<name>/Dockerfile.dev`, falls back to `Dockerfile` if the dev variant is absent (with a warning).
+
+`Dockerfile.dev` is a full Dockerfile — not an overlay. Each runtime owns the contract between its dev image and its prod image (debug build flags, extra tooling, default ports, etc.). The Cyberia stack ships two reference variants:
+
+| Runtime          | Dev variant tweaks                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `cyberia-server` | Go build with `-gcflags="all=-N -l"` (debugger-friendly), runtime image keeps `procps-ng`, `strace`, `lsof`, `vim-minimal` |
+| `cyberia-client` | Emscripten WASM build with `BUILD_MODE=DEBUG` (DWARF symbols, asserts), default `CYBERIA_PORT=8082`, `CYBERIA_MODE=development` |
+
+See [Deploy custom instance to K8S](./Deploy%20custom%20instance%20to%20K8S.md#runtime-field-and-dockerfile-resolution) for the full contract.
+
+---
+
+## Process execution model (`shellExec` / `shellCd`)
+
+The CLI executes shell commands through [`src/server/process.js`](../../../../server/process.js). The module ships a backward-compatible, hardened wrapper around `shelljs.exec` plus a process-wide signal-forwarding controller. Code paths that need deterministic CI behavior should opt into the strict modes.
+
+### `shellExec(cmd, options)`
+
+```js
+import { shellExec, ShellExecError } from '../server/process.js';
+
+// 1. Default: FAIL-FAST. A non-zero exit throws ShellExecError carrying
+//    cmd, code, stdout, stderr. The uncaught throw propagates to the
+//    workflow step, which exits non-zero. This is the right behaviour
+//    for the vast majority of call sites — kubectl, git, docker, npm,
+//    go, ssh — where a silent failure would corrupt later steps.
+shellExec('kubectl apply -f deploy.yaml');
+
+// 2. Hermetic cwd: runs the command in the given directory without
+//    mutating the shelljs/global cwd. Snapshot + restore.
+shellExec('npm ci', { cwd: '/home/dd/engine' });
+
+// 3. silentOnError: opt-out of the fail-fast default. Use ONLY for
+//    existence checks and other places where a non-zero exit is a
+//    valid answer (not an error). The returned ShellString has the
+//    usual .code/.stdout/.stderr; the caller decides what to do.
+const packerCheck = shellExec('packer version', { silentOnError: true });
+if (packerCheck.code !== 0) {
+  throw new Error('Packer not installed — install it before running this command.');
+}
+```
+
+| Option              | Type      | Behaviour                                                                                |
+| ------------------- | --------- | ---------------------------------------------------------------------------------------- |
+| `silent`            | boolean   | Suppress child stdout/stderr to the parent terminal.                                     |
+| `async`             | boolean   | Run asynchronously. Use with a `callback`.                                               |
+| `stdout`            | boolean   | Return the captured stdout string instead of the `ShellString` result object.            |
+| `disableLog`        | boolean   | Skip the `[process] cmd …` info log line.                                                |
+| `callback`          | function  | Async callback `(code, stdout, stderr) => void` when `async: true`. Bypasses fail-fast — the callback owns its own error handling. |
+| **`silentOnError`** | boolean   | Opt OUT of the fail-fast default. Non-zero exit returns the `ShellString` instead of throwing. Use for existence checks (`test`, `which`, `kubectl get` when missing is a valid state). |
+| **`cwd`**           | string    | Run the command in this directory. Snapshot + restore — does NOT leak into the process.  |
+
+### `ShellExecError`
+
+Subclass of `Error` with `cmd`, `code`, `stdout`, `stderr` fields. Catch it in CI orchestration paths to map shell failures onto structured workflow output. Re-throw to abort the parent step.
+
+### Signal propagation
+
+`ProcessController.init()` (called from the engine bootstrap) registers handlers for `SIGINT`, `SIGTERM`, `SIGHUP`, and the other signals listed in `ProcessController.SIG`. On a terminating signal it:
+
+1. Forwards `SIGTERM` to every tracked child process (`ProcessController.children`).
+2. Waits 5 seconds for clean exit, then escalates to `SIGKILL`.
+3. On `SIGINT` (Ctrl+C), the parent itself exits with code 130 after a 200ms grace window — long enough for children to start cleanup, short enough that interactive shells feel responsive.
+
+This is the K8S-friendly model: pods receive `SIGTERM` from kubelet on shutdown and have `terminationGracePeriodSeconds` (default 30s) to exit cleanly. The parent process now propagates that signal to every shellExec'd child so cleanup hooks fire reliably.
+
+### `shellCd`
+
+`shellCd(path)` mutates the shelljs global cwd. Prefer `shellExec(cmd, { cwd })` for one-shot directory-scoped commands; reserve `shellCd` for the outermost driver where the cwd is intentionally persistent across many calls. Two concurrent `shellExec` calls each passing different `cwd` options are safe; two concurrent flows that interleave `shellCd` plus bare `shellExec` will race.
+
+### Usage guidance
+
+- **Default (fail-fast):** just call `shellExec(cmd)` — non-zero exits throw and the failure propagates to the workflow.
+- **Existence checks:** add `silentOnError: true` and inspect `result.code`. Examples in the codebase: `Underpost.kubectl.get` (no pods is OK), `getCurrentTraffic` (no HTTPProxy yet is OK), `packer version` (binary missing → throw a friendly error), `test -x …` and `which …` probes.
+- **Async path:** `callback: fn` already owns its error handling; the fail-fast throw does not apply when a callback is provided.
+
+---
+
+## Runtime lifecycle ownership (Cyberia)
+
+Runtime processes own their own lifecycle. **No process orchestrated by `underpost` accepts an executable shell command as a runtime argument.**
+
+### Lifecycle event model
+
+| Event                 | Where it happens                                           | What observes it                                                                                          |
+| --------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **start**             | Container starts                                           | `lifecycle.postStart.exec` (K8S native) — stamps `…-initializing-deployment`                              |
+| **runtime ready**     | Listening socket binds inside the runtime process          | `readinessProbe` (TCP socket) in the deployment YAML — K8S marks pod `Ready: True`                        |
+| **runtime crash**    | Runtime exits non-zero or panics                            | K8S CrashLoopBackOff. The pod's Ready condition stays `False`; the orchestrator never marks it running.   |
+| **terminate**         | K8S sends SIGTERM (scale-down, rolling update, evict)      | `lifecycle.preStop.exec` (K8S native) — stamps `…-stopping-deployment`                                    |
+| **orchestrator gate** | `Underpost.deploy.checkDeploymentReadyStatus`              | Reads `status.conditions[type=Ready].status == "True"` via `kubectl get pod -o json`                      |
+
+The result:
+
+- A crashed runtime exits non-zero → kubelet CrashLoopBackOff → `Ready` stays `False` → orchestrator gate never opens.
+- The orchestrator queries kubelet via `kubectl get pod -o json` — the authoritative source of pod readiness.
+
+---
+
+## GitHub Actions failure propagation
+
+CD workflows that run remote shell commands over SSH (`appleboy/ssh-action`) use `script: |` blocks. Every such block now starts with:
+
+```yaml
+script: |
+  set -e
+  set -o pipefail
+  …
+```
+
+- `set -e` aborts the script on the first non-zero exit.
+- `set -o pipefail` makes the exit status of a pipeline the rightmost non-zero command's exit status — without it, `cmd | tee file` always exits 0 even when `cmd` failed.
+
+Wrapping pattern inside these scripts:
+
+```bash
+sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-cyberia"
+```
+
+`bash -lc "cmd"` exits with `cmd`'s exit code; `sudo -n --` preserves that exit; the outer `set -e` aborts the script. Three layers all forwarding the same code. The Node link in the chain is automatic now: `shellExec` is fail-fast by default, so any subprocess non-zero throws `ShellExecError`. Uncaught, that becomes a non-zero `process.exit` — observable by the SSH wrapper, observable by GitHub Actions.
+
+The end-to-end chain:
+
+```
+shell command in pod / VM
+    ↓ (non-zero exit)
+shellExec(cmd)   // fail-fast by default
+    ↓ (throws ShellExecError)
+node bin run … (uncaught)
+    ↓ (process.exit non-zero)
+bash -lc "node bin run …"
+    ↓ (exits non-zero)
+sudo -n -- bash -lc
+    ↓ (exits non-zero)
+set -e in SSH script
+    ↓ (script aborts non-zero)
+appleboy/ssh-action
+    ↓ (action step fails)
+GitHub Actions job
+    ↓ (workflow step fails)
+```
+
+If any single link drops the exit code, the chain fails silently above it. The hardened `shellExec` closes the bottom link; `set -e` + `set -o pipefail` closes the script link. Audit checklist for new CI flows:
+
+- [ ] Every `script: |` starts with `set -e` and `set -o pipefail`.
+- [ ] Every `shellExec` in deploy / CI paths uses the fail-fast default. Reserve `silentOnError: true` for explicit existence checks.
+- [ ] Every long-running runtime exits non-zero on startup failure (no silent recoveries).
+- [ ] Every K8S deployment has a `readinessProbe` so kubelet observes runtime readiness; never rely on in-container shell hooks for the orchestrator's "running" signal.

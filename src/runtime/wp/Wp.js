@@ -56,10 +56,11 @@ class WpService {
    * to `/usr/local/bin/wp` if it is not already present.
    */
   static ensureWpCli() {
-    const existing = shellExec(`PATH="${LAMPP_BIN}:$PATH" which wp 2>/dev/null || true`, {
+    const existing = shellExec(`PATH="${LAMPP_BIN}:$PATH" which wp`, {
       stdout: true,
       silent: true,
       disableLog: true,
+      silentOnError: true,
     });
     if (existing && existing.trim()) return;
     logger.info('WP-CLI not found — installing to /usr/local/bin/wp');
@@ -76,10 +77,11 @@ class WpService {
    */
   static ensureSendmail() {
     const sendmailPath = '/usr/sbin/sendmail';
-    const existing = shellExec(`test -x "${sendmailPath}" && echo ok || true`, {
+    const existing = shellExec(`test -x "${sendmailPath}" && echo ok`, {
       stdout: true,
       silent: true,
       disableLog: true,
+      silentOnError: true,
     });
     if (existing && existing.trim() === 'ok') return;
     logger.info('sendmail stub missing — creating no-op at /usr/sbin/sendmail');
@@ -494,7 +496,7 @@ Thumbs.db
    * `git clone` yields a fully working site without needing a fresh install.
    *
    * Safe to call repeatedly — `git commit` is a no-op when the working tree
-   * is clean (`|| true` prevents non-zero exit).
+   * is clean (`silentOnError: true` swallows the non-zero exit gracefully).
    *
    * @param {object} opts
    * @param {string}      opts.siteRoot   - Absolute path to the WordPress root.
@@ -514,7 +516,8 @@ Thumbs.db
 
     logger.info(`${host}: persisting site to repository`);
     shellExec(
-      `cd "${siteRoot}" && git add -A && git commit -m "wp provision ${host} $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`,
+      `cd "${siteRoot}" && git add -A && git commit -m "wp provision ${host} $(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
+      { silentOnError: true },
     );
     shellExec(`cd "${siteRoot}" && underpost push . ${githubOrg}/${repoName} -f`);
     logger.info(`${host}: initial commit pushed to ${githubOrg}/${repoName}`);
@@ -627,7 +630,7 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 
     // MariaDB export is handled by the shared db.js backup flow — no duplicate dump here.
     if (fs.existsSync(path.join(siteRoot, '.git'))) {
-      shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`);
+      shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"`, { silentOnError: true });
       shellExec(`cd "${siteRoot}" && underpost push . ${githubOrg}/${repository.split('/').pop().split('.')[0]}`);
       logger.info(`backup: git push done for ${siteRoot}`);
     } else {

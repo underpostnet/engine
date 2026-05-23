@@ -358,7 +358,7 @@ class UnderpostDB {
 
         // Execute the script
         const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --eval "${script}"`;
-        const output = shellExec(command, { stdout: true, silent: true });
+        const output = shellExec(command, { stdout: true, silent: true, silentOnError: true });
 
         if (!output || output.trim() === '') {
           logger.warn('No collections found or empty output');
@@ -415,7 +415,7 @@ class UnderpostDB {
         logger.info('Getting MariaDB table statistics', { podName, dbName });
 
         const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mariadb -u ${user} -p${password} ${dbName} -e "SELECT TABLE_NAME as 'table', TABLE_ROWS as 'count' FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME;" --skip-column-names --batch`;
-        const output = shellExec(command, { stdout: true, silent: true, disableLog: true });
+        const output = shellExec(command, { stdout: true, silent: true, disableLog: true, silentOnError: true });
 
         if (!output || output.trim() === '') {
           logger.warn('No tables found or empty output');
@@ -491,7 +491,7 @@ class UnderpostDB {
         logger.info('Checking for MongoDB primary pod', { namespace, checkingPod: podName });
 
         const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --eval 'rs.status().members.filter(m => m.stateStr=="PRIMARY").map(m=>m.name)'`;
-        const output = shellExec(command, { stdout: true, silent: true });
+        const output = shellExec(command, { stdout: true, silent: true, silentOnError: true });
 
         if (!output || output.trim() === '') {
           logger.warn('No primary pod found in replica set');

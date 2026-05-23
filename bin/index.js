@@ -9,4 +9,5 @@ try {
   program.parse();
 } catch (error) {
   logger.error(error);
+  process.exit(1);
 }

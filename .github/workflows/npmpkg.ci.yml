@@ -81,6 +81,7 @@ jobs:
       - name: Clone github package repository
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
         run: |
           cd .. && node engine/bin clone underpostnet/pwa-microservices-template
           cd engine

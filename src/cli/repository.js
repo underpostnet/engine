@@ -1295,7 +1295,7 @@ Prevent build private config repo.`,
     },
     /**
      * Checks whether a remote Git repository URL is reachable.
-     * Uses `git ls-remote` with `|| true` so the process always exits 0.
+     * Uses `silentOnError` so a non-reachable remote returns false instead of throwing.
      * Injects `GITHUB_TOKEN` into GitHub HTTPS URLs when available.
      * @param {string} url - Full HTTPS clone URL to test (e.g. "https://github.com/org/repo.git").
      * @returns {boolean} `true` when the remote responded with at least one ref hash.
@@ -1305,10 +1305,11 @@ Prevent build private config repo.`,
       if (!url) return false;
       const authUrl = Underpost.repo.resolveAuthUrl(url);
       // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
-      const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git ls-remote "${authUrl}" HEAD 2>&1 || true`, {
+      const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git ls-remote "${authUrl}" HEAD 2>&1`, {
         stdout: true,
         silent: true,
         disableLog: true,
+        silentOnError: true,
       });
       logger.info('isRemoteRepo', { url, raw: (raw || '').slice(0, 120) });
       return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
@@ -1382,9 +1383,10 @@ Prevent build private config repo.`,
       shellExec(`cd "${repoPath}" && git config user.email '${gitEmail}'`);
 
       if (origin) {
-        const currentRemote = shellExec(`cd "${repoPath}" && git remote get-url origin 2>/dev/null || true`, {
+        const currentRemote = shellExec(`cd "${repoPath}" && git remote get-url origin`, {
           stdout: true,
           silent: true,
+          silentOnError: true,
         }).trim();
         if (!currentRemote) {
           shellExec(`cd "${repoPath}" && git remote add origin "${origin}"`);

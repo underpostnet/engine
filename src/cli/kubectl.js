@@ -47,9 +47,12 @@ class UnderpostKubectl {
      * @memberof UnderpostKubectl
      */
     get(deployId, kindType = 'pods', namespace = '') {
+      // Existence-check style: a missing kubectl context, a non-existent
+      // namespace, or no pods matching the filter must return an empty
+      // list (not throw). silentOnError keeps the legacy contract.
       const raw = shellExec(
         `sudo kubectl get ${kindType}${namespace ? ` -n ${namespace}` : ` --all-namespaces`} -o wide`,
-        { stdout: true, disableLog: true, silent: true },
+        { stdout: true, disableLog: true, silent: true, silentOnError: true },
       );
 
       const heads = raw

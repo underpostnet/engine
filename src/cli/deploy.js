@@ -78,8 +78,7 @@ class UnderpostDeploy {
       return `
     - conditions:
         - prefix: ${path}
-      ${
-        pathRewritePolicy
+      ${pathRewritePolicy
           ? `pathRewritePolicy:
           replacePrefix:
           ${pathRewritePolicy.map(
@@ -89,30 +88,26 @@ class UnderpostDeploy {
           ).join(`
 `)}`
           : ''
-      }${
-        timeoutPolicy
-          ? `\n      timeoutPolicy:\n${timeoutPolicy.response ? `        response: ${timeoutPolicy.response}\n` : ''}${
-              timeoutPolicy.idle ? `        idle: ${timeoutPolicy.idle}\n` : ''
-            }`
+        }${timeoutPolicy
+          ? `\n      timeoutPolicy:\n${timeoutPolicy.response ? `        response: ${timeoutPolicy.response}\n` : ''}${timeoutPolicy.idle ? `        idle: ${timeoutPolicy.idle}\n` : ''
+          }`
           : ''
-      }${
-        retryPolicy
-          ? `\n      retryPolicy:\n${retryPolicy.count !== undefined ? `        count: ${retryPolicy.count}\n` : ''}${
-              retryPolicy.perTryTimeout ? `        perTryTimeout: ${retryPolicy.perTryTimeout}\n` : ''
-            }`
+        }${retryPolicy
+          ? `\n      retryPolicy:\n${retryPolicy.count !== undefined ? `        count: ${retryPolicy.count}\n` : ''}${retryPolicy.perTryTimeout ? `        perTryTimeout: ${retryPolicy.perTryTimeout}\n` : ''
+          }`
           : ''
-      }
+        }
       enableWebsockets: true
       services:
     ${deploymentVersions
-      .map(
-        (version, i) =>
-          `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
+          .map(
+            (version, i) =>
+              `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
           port: ${port}
           weight: ${i === 0 ? 100 : 0}
     `,
-      )
-      .join('')}`;
+          )
+          .join('')}`;
     },
     /**
      * Creates a YAML deployment configuration for a deployment.
@@ -142,22 +137,32 @@ class UnderpostDeploy {
       cmd,
       skipFullBuild,
       pullBundle,
+      // K8S lifecycle + probe wiring. Pass-through structures shaped like the
+      // upstream Kubernetes API, spliced verbatim into the container spec.
+      //   lifecycle:        { postStart: { exec: { command: [...] } }, preStop: { exec: { command: [...] } } }
+      //   readinessProbe:   { tcpSocket: { port: 8081 }, ... }
+      //   livenessProbe:    { tcpSocket: { port: 8081 }, ... }
+      //   containerPort:    integer; rendered as ports[0].containerPort. Optional.
+      lifecycle,
+      readinessProbe,
+      livenessProbe,
+      containerPort,
     }) {
       if (!cmd)
         cmd =
           pullBundle || skipFullBuild
             ? [
-                // When pullBundle (or skipFullBuild) is set the container pulls the pre-built client
-                // bundle from Cloudinary (push-bundle must have been run on the dev machine beforehand).
-                `underpost secret underpost --create-from-env`,
-                `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
-              ]
+              // When pullBundle (or skipFullBuild) is set the container pulls the pre-built client
+              // bundle from Cloudinary (push-bundle must have been run on the dev machine beforehand).
+              `underpost secret underpost --create-from-env`,
+              `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
+            ]
             : [
-                // `npm install -g npm@11.2.0`,
-                // `npm install -g underpost`,
-                `underpost secret underpost --create-from-env`,
-                `underpost start --build --run ${deployId} ${env}`,
-              ];
+              // `npm install -g npm@11.2.0`,
+              // `npm install -g underpost`,
+              `underpost secret underpost --create-from-env`,
+              `underpost start --build --run ${deployId} ${env}`,
+            ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes) volumes = [];
       const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
@@ -192,32 +197,60 @@ spec:
           envFrom:
             - secretRef:
                 name: underpost-config
-${
-  resources
-    ? `          resources:
+${containerPort
+          ? `          ports:
+            - containerPort: ${containerPort}
+`
+          : ''
+        }${resources
+          ? `          resources:
             requests:
               memory: "${resources.requests.memory}"
               cpu: "${resources.requests.cpu}"
             limits:
               memory: "${resources.limits.memory}"
               cpu: "${resources.limits.cpu}"`
-    : ''
-}
+          : ''
+        }
           command:
             - /bin/sh
             - -c
             - >
               ${cmd.join(' &&\n              ')}
+${readinessProbe
+          ? `          readinessProbe:
+${JSON.stringify(readinessProbe, null, 2)
+            .split('\n')
+            .map((l) => '            ' + l)
+            .join('\n')}
+`
+          : ''
+        }${livenessProbe
+          ? `          livenessProbe:
+${JSON.stringify(livenessProbe, null, 2)
+            .split('\n')
+            .map((l) => '            ' + l)
+            .join('\n')}
+`
+          : ''
+        }${lifecycle
+          ? `          lifecycle:
+${JSON.stringify(lifecycle, null, 2)
+            .split('\n')
+            .map((l) => '            ' + l)
+            .join('\n')}
+`
+          : ''
+        }
 
-${
-  volumes.length > 0
-    ? Underpost.deploy
-        .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
-        .render.split(`\n`)
-        .map((l) => '    ' + l)
-        .join(`\n`)
-    : ''
-}
+${volumes.length > 0
+          ? Underpost.deploy
+            .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
+            .render.split(`\n`)
+            .map((l) => '    ' + l)
+            .join(`\n`)
+          : ''
+        }
 ---
 apiVersion: v1
 kind: Service
@@ -276,18 +309,18 @@ spec:
         for (const deploymentVersion of deploymentVersions) {
           deploymentYamlParts += `---
 ${Underpost.deploy
-  .deploymentYamlPartsFactory({
-    deployId,
-    env,
-    suffix: deploymentVersion,
-    replicas,
-    image,
-    namespace: options.namespace,
-    cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
-    skipFullBuild: options.skipFullBuild,
-    pullBundle: options.pullBundle,
-  })
-  .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
+              .deploymentYamlPartsFactory({
+                deployId,
+                env,
+                suffix: deploymentVersion,
+                replicas,
+                image,
+                namespace: options.namespace,
+                cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
+                skipFullBuild: options.skipFullBuild,
+                pullBundle: options.pullBundle,
+              })
+              .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
@@ -339,20 +372,20 @@ ${Underpost.deploy
           let proxyRoutes = '';
           const globalTimeoutPolicy =
             (options.timeoutResponse && options.timeoutResponse !== '') ||
-            (options.timeoutIdle && options.timeoutIdle !== '')
+              (options.timeoutIdle && options.timeoutIdle !== '')
               ? {
-                  response: options.timeoutResponse,
-                  idle: options.timeoutIdle,
-                }
+                response: options.timeoutResponse,
+                idle: options.timeoutIdle,
+              }
               : undefined;
           const globalRetryPolicy =
             options.retryCount ||
-            options.retryCount === 0 ||
-            (options.retryPerTryTimeout && options.retryPerTryTimeout !== '')
+              options.retryCount === 0 ||
+              (options.retryPerTryTimeout && options.retryPerTryTimeout !== '')
               ? {
-                  count: options.retryCount,
-                  perTryTimeout: options.retryPerTryTimeout,
-                }
+                count: options.retryCount,
+                perTryTimeout: options.retryPerTryTimeout,
+              }
               : undefined;
           if (!options.disableDeploymentProxy)
             for (const conditionObj of pathPortAssignment) {
@@ -509,10 +542,15 @@ spec:
       const hostTest = options?.hostTest
         ? options.hostTest
         : Object.keys(loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`))[0];
+      // Missing HTTPProxy is the canonical "no traffic colour set yet" state
+      // for blue/green rollouts. silentOnError swallows kubectl's NotFound
+      // exit so the function can return null cleanly.
       const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -n ${options.namespace} -o yaml`, {
         silent: true,
         stdout: true,
+        silentOnError: true,
       });
+      if (!info) return null;
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
     },
 
@@ -535,13 +573,12 @@ metadata:
   namespace: ${options.namespace}
 spec:
   virtualhost:
-    fqdn: ${host}${
-      env === 'development'
-        ? ''
-        : `
+    fqdn: ${host}${env === 'development'
+          ? ''
+          : `
     tls:
       secretName: ${host}`
-    }
+        }
   routes:`;
     },
 
@@ -801,25 +838,41 @@ EOF`);
      * @memberof UnderpostDeploy
      */
     async checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
-      const cmd = `underpost config get container-status`;
       const pods = Underpost.kubectl.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
       const readyPods = [];
       const notReadyPods = [];
+
+      // Readiness signal: the pod's Kubernetes `Ready` condition driven by the
+      // container's readinessProbe (TCP socket, HTTP get, or exec). Set by kubelet
+      // when the probe passes. A failed or crashing runtime never becomes Ready —
+      // kubelet surfaces CrashLoopBackOff and this gate stays closed.
       for (const pod of pods) {
         const { NAME } = pod;
         if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
-        const out = await new Promise((resolve) => {
-          shellExec(`sudo kubectl exec -i ${NAME} -n ${namespace} -- sh -c "${cmd}"`, {
+
+        let podJson = null;
+        try {
+          // Pod may not exist yet (between deployment apply and pod
+          // scheduling). silentOnError lets the monitor loop continue
+          // instead of aborting on the transient NotFound exit.
+          const raw = shellExec(`sudo kubectl get pod ${NAME} -n ${namespace} -o json`, {
             silent: true,
             disableLog: true,
-            callback: function (code, stdout, stderr) {
-              return resolve(JSON.stringify({ code, stdout, stderr }));
-            },
+            stdout: true,
+            silentOnError: true,
           });
-        });
-        pod.out = out;
-        const ready = out.match(`${deployId}-${env}-running-deployment`);
-        ready ? readyPods.push(pod) : notReadyPods.push(pod);
+          podJson = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+          podJson = null;
+        }
+        const conditions = podJson?.status?.conditions || [];
+        const readyCondition = conditions.find((c) => c.type === 'Ready');
+        const k8sReady = readyCondition?.status === 'True';
+
+        pod.out = JSON.stringify({ k8sReady, condition: readyCondition ?? null });
+
+        if (k8sReady) readyPods.push(pod);
+        else notReadyPods.push(pod);
       }
       return {
         ready: pods.length > 0 && notReadyPods.length === 0,
@@ -940,10 +993,10 @@ EOF`);
       shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
       shellExec(`kubectl apply -f - -n ${namespace} <<EOF
 ${Underpost.deploy.persistentVolumeFactory({
-  hostPath: rootVolumeHostPath,
-  pvcId,
-  namespace,
-})}
+        hostPath: rootVolumeHostPath,
+        pvcId,
+        namespace,
+      })}
 EOF
 `);
     },
@@ -1002,23 +1055,22 @@ ${secret ? `          readOnly: true\n` : ''}`;
 
         _volumes += `
     - name: ${volumeName}
- ${
-   emptyDir
-     ? `     emptyDir: {}`
-     : secret
-       ? `     secret:
+ ${emptyDir
+            ? `     emptyDir: {}`
+            : secret
+              ? `     secret:
         secretName: ${secret}`
-       : configMap
-         ? `     configMap:
+              : configMap
+                ? `     configMap:
         name: ${configMap}`
-         : claimName
-           ? `     persistentVolumeClaim:
+                : claimName
+                  ? `     persistentVolumeClaim:
         claimName: ${claimName}`
-           : `     hostPath:
+                  : `     hostPath:
         path: ${volumeHostPath}
         type: ${volumeType}
 `
- }
+          }
 
   `;
       });
@@ -1099,7 +1151,7 @@ spec:
         fs.writeFileSync(
           `/etc/hosts`,
           fs.readFileSync(`/etc/hosts`, 'utf8') +
-            `
+          `
 ${renderHosts}`,
           'utf8',
         );
@@ -1150,12 +1202,33 @@ ${renderHosts}`,
           logger.error(
             `${iteratorTag} | Deployment check ready status timeout. Max iterations reached: ${maxIterations}`,
           );
-          break;
+          // Surface a non-zero exit so CI workflows (GitHub Actions) fail
+          // deterministically when the deployment never goes Ready. Without
+          // this the monitor returns ready:false silently and the workflow
+          // step shows green while the rollout is broken.
+          throw new Error(
+            `monitorReadyRunner timeout: ${deploymentId} did not become Ready within ${maxIterations}*${checkStatusIterationMsDelay}ms`,
+          );
         }
         result = await Underpost.deploy.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods, namespace);
         if (result.ready === true) {
           readyOk++;
           logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
+
+          // Orchestrator-side status stamp. The runtime no longer stamps
+          // its own `running` status (READY_CMD was removed); instead the
+          // orchestrator observes the K8S Ready condition and writes the
+          // canonical marker once stably ready. Wrapped in try/catch so a
+          // missing underpost-config secret never blocks the rollout.
+          if (readyOk === minReadyOk) {
+            try {
+              Underpost.env.set(`container-status`, `${deployId}-${env}-running-deployment`);
+              logger.info(`${iteratorTag} | container-status → ${deployId}-${env}-running-deployment`);
+            } catch (err) {
+              logger.warn(`${iteratorTag} | container-status stamp failed (non-fatal):`, err?.message || err);
+            }
+          }
+
           for (const pod of result.readyPods) {
             const { NAME } = pod;
             lastMsg[NAME] = 'Deployment ready';
@@ -1169,22 +1242,25 @@ ${renderHosts}`,
         }
 
         {
-          let indexOf = -1;
+          // not-ready summary. `pod.out` is the JSON we stamped in
+          // checkDeploymentReadyStatus: { k8sReady, condition }. The
+          // Ready condition's `reason` / `message` fields (set by kubelet)
+          // are the canonical explanation for why a pod is not Ready —
+          // PodScheduled, ContainersNotReady, CrashLoopBackOff, etc.
           for (const pod of result.notReadyPods) {
-            indexOf++;
             const { NAME, out } = pod;
-
-            if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match(deploymentId))
-              lastMsg[NAME] = 'Starting deployment';
-            // else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('underpost'))
-            //   lastMsg[NAME] = 'Installing underpost cli';
-            else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('task'))
-              lastMsg[NAME] = 'Initializing setup task';
-            else if (out.match('Empty environment variables')) lastMsg[NAME] = 'Setup environment';
-            else if (out.match(`${deployId}-${env}-build-deployment`)) lastMsg[NAME] = 'Building apps/services';
-            else if (out.match(`${deployId}-${env}-initializing-deployment`))
-              lastMsg[NAME] = 'Initializing apps/services';
-            else if (!lastMsg[NAME]) lastMsg[NAME] = `Waiting for status`;
+            let parsed = null;
+            try {
+              parsed = out ? JSON.parse(out) : null;
+            } catch (_) {
+              parsed = null;
+            }
+            const cond = parsed?.condition;
+            if (cond && (cond.reason || cond.message)) {
+              lastMsg[NAME] = `Not ready: ${cond.reason || ''}${cond.message ? ` — ${cond.message}` : ''}`.trim();
+            } else if (!lastMsg[NAME]) {
+              lastMsg[NAME] = 'Waiting for K8S Ready condition';
+            }
 
             console.log(
               'Target pod:',

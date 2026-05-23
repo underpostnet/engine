@@ -34,6 +34,7 @@ jobs:
           # Commands to run on the remote VM
           script: |
             set -e
+            set -o pipefail
             echo "Starting remote release deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"

@@ -15,9 +15,13 @@ import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
 
-dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
-
-logger.info('argv', process.argv);
+if (fs.existsSync('./engine-private/conf/dd-cron/.env.production'))
+  dotenv.config({
+    path:
+      `./engine-private/conf/dd-cron/.env.production`,
+    override: true
+  });
+else dotenv.config();
 
 let [exe, dir, type] = process.argv;
 let rawPath = process.argv[3].replaceAll(`'`, '');
@@ -56,10 +60,10 @@ try {
 
       if (type === 'update-template') {
         if (!fs.existsSync(toPath))
-          shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/pwa-microservices-template`);
+          shellExec(`cd .. && node engine/bin clone ${process.env.GITHUB_USERNAME}/pwa-microservices-template`);
         else {
           shellExec(`cd ${toPath} && git reset && git checkout . && git clean -f -d`);
-          shellExec(`underpost pull ${toPath} ${process.env.GITHUB_USERNAME}/pwa-microservices-template`);
+          shellExec(`node bin pull ${toPath} ${process.env.GITHUB_USERNAME}/pwa-microservices-template`);
           shellExec(`sudo rm -rf ${toPath}/engine-private`);
           shellExec(`sudo rm -rf ${toPath}/logs`);
         }
@@ -199,4 +203,5 @@ try {
   }
 } catch (error) {
   logger.error(error, error.stack);
+  process.exit(1);
 }
