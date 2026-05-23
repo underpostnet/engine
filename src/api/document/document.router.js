@@ -1,31 +1,36 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DocumentController } from './document.controller.js';
 import express from 'express';
-import fs from 'fs-extra';
+
 const logger = loggerFactory(import.meta);
 
-const DocumentRouter = (options) => {
-  const router = express.Router();
-  const authMiddleware = options.authMiddleware;
-  router.post(`/:id`, authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
-  router.post(`/`, authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
-  router.get(`/public/high`, async (req, res) => await DocumentController.get(req, res, options));
-  router.get(`/public`, async (req, res) => await DocumentController.get(req, res, options));
-  router.get(`/:id`, authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
-  router.get(`/`, authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
-  router.put(`/:id`, authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
-  router.put(`/`, authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
-  router.patch(`/:id/copy-share-link`, async (req, res) => await DocumentController.patch(req, res, options));
-  router.patch(
-    `/:id/toggle-public`,
-    authMiddleware,
-    async (req, res) => await DocumentController.patch(req, res, options),
-  );
-  router.delete(`/:id`, authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
-  router.delete(`/`, authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
-  return router;
-};
+class DocumentRouter {
+  /**
+   * @param {import('../types.js').RouterOptions} options
+   * @returns {import('express').Router}
+   */
+  static router(options) {
+    const router = express.Router();
+    router.post(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
+    router.post(`/`, options.authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
+    router.get(`/public/high`, async (req, res) => await DocumentController.get(req, res, options));
+    router.get(`/public`, async (req, res) => await DocumentController.get(req, res, options));
+    router.get(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
+    router.get(`/`, options.authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
+    router.put(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
+    router.put(`/`, options.authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
+    router.patch(`/:id/copy-share-link`, async (req, res) => await DocumentController.patch(req, res, options));
+    router.patch(
+      `/:id/toggle-public`,
+      options.authMiddleware,
+      async (req, res) => await DocumentController.patch(req, res, options),
+    );
+    router.delete(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
+    router.delete(`/`, options.authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
+    return router;
+  }
+}
 
-const ApiRouter = DocumentRouter;
+const ApiRouter = (options) => DocumentRouter.router(options);
 
 export { ApiRouter, DocumentRouter };

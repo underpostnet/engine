@@ -4,39 +4,44 @@ import express from 'express';
 
 const logger = loggerFactory(import.meta);
 
-const AtlasSpriteSheetRouter = (options) => {
-  const router = express.Router();
-  const authMiddleware = options.authMiddleware;
-  router.post(
-    `/generate/:id`,
-    authMiddleware,
-    async (req, res) => await AtlasSpriteSheetController.generate(req, res, options),
-  );
-  router.delete(
-    `/object-layer/:id`,
-    authMiddleware,
-    async (req, res) => await AtlasSpriteSheetController.deleteByObjectLayerId(req, res, options),
-  );
-  router.post(`/:id`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
-  router.post(`/`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
-  router.get(`/blob/:itemKey`, async (req, res) => await AtlasSpriteSheetController.blob(req, res, options));
-  // Metadata endpoints: returns itemKey, atlasWidth, atlasHeight, cellPixelDim, frames (no fileId).
-  // Client fetches /metadata/:itemKey once, caches it, then fetches /blob/:itemKey for the PNG.
-  router.get(`/metadata/:itemKey`, async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options));
-  router.get(`/metadata`, async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options));
-  router.get(
-    `/:id`,
-    // authMiddleware,
-    async (req, res) => await AtlasSpriteSheetController.get(req, res, options),
-  );
-  router.get(`/`, async (req, res) => await AtlasSpriteSheetController.get(req, res, options));
-  router.put(`/:id`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.put(req, res, options));
-  router.put(`/`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.put(req, res, options));
-  router.delete(`/:id`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.delete(req, res, options));
-  router.delete(`/`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.delete(req, res, options));
-  return router;
-};
+class AtlasSpriteSheetRouter {
+  /**
+   * @param {import('../types.js').RouterOptions} options
+   * @returns {import('express').Router}
+   */
+  static router(options) {
+    const router = express.Router();
+    router.post(
+      `/generate/:id`,
+      options.authMiddleware,
+      async (req, res) => await AtlasSpriteSheetController.generate(req, res, options),
+    );
+    router.delete(
+      `/object-layer/:id`,
+      options.authMiddleware,
+      async (req, res) => await AtlasSpriteSheetController.deleteByObjectLayerId(req, res, options),
+    );
+    router.post(`/:id`, options.authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
+    router.post(`/`, options.authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
+    router.get(`/blob/:itemKey`, async (req, res) => await AtlasSpriteSheetController.blob(req, res, options));
+    // Metadata endpoints: returns itemKey, atlasWidth, atlasHeight, cellPixelDim, frames (no fileId).
+    // Client fetches /metadata/:itemKey once, caches it, then fetches /blob/:itemKey for the PNG.
+    router.get(`/metadata/:itemKey`, async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options));
+    router.get(`/metadata`, async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options));
+    router.get(
+      `/:id`,
+      // options.authMiddleware,
+      async (req, res) => await AtlasSpriteSheetController.get(req, res, options),
+    );
+    router.get(`/`, async (req, res) => await AtlasSpriteSheetController.get(req, res, options));
+    router.put(`/:id`, options.authMiddleware, async (req, res) => await AtlasSpriteSheetController.put(req, res, options));
+    router.put(`/`, options.authMiddleware, async (req, res) => await AtlasSpriteSheetController.put(req, res, options));
+    router.delete(`/:id`, options.authMiddleware, async (req, res) => await AtlasSpriteSheetController.delete(req, res, options));
+    router.delete(`/`, options.authMiddleware, async (req, res) => await AtlasSpriteSheetController.delete(req, res, options));
+    return router;
+  }
+}
 
-const ApiRouter = AtlasSpriteSheetRouter;
+const ApiRouter = (options) => AtlasSpriteSheetRouter.router(options);
 
 export { ApiRouter, AtlasSpriteSheetRouter };

@@ -1,3 +1,12 @@
+/**
+ * User service module for handling user account operations.
+ * Provides REST API handlers for authentication, registration, profile management,
+ * email verification, password recovery, and guest user lifecycle management.
+ *
+ * @module src/api/user/user.service.js
+ * @namespace UserService
+ */
+
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import {
@@ -23,8 +32,27 @@ import { GuestService } from './guest.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const UserService = {
-  post: async (req, res, options) => {
+/**
+ * User Service for handling REST API user operations.
+ * Manages authentication, registration, profile CRUD, email verification,
+ * password recovery, session management, and guest user lifecycle.
+ * @namespace UserService
+ */
+class UserService {
+  /**
+   * POST - Create or authenticate users.
+   * Supports authentication, guest account creation, email verification,
+   * and password recovery email sending.
+   * @async
+   * @function post
+   * @memberof UserService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} User data with auth token, or status message.
+   * @throws {Error} If authentication fails, email is invalid, or email send error.
+   */
+  static post = async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
@@ -46,9 +74,8 @@ const UserService = {
       const payloadToken = jwtSign({ email: req.body.email }, options, 15);
       const id = `${options.host}${options.path}`;
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
-      const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${
-        req.body.proxyPath
-      }recover?payload=${payloadToken}`;
+      const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${req.body.proxyPath
+        }recover?payload=${payloadToken}`;
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
@@ -130,10 +157,9 @@ const UserService = {
         });
         const getMinutesRemaining = () => (-1 * user.failedLoginAttempts - new Date().getTime()) / (1000 * 60);
         const accountLocketMessage = () =>
-          `Account locked. Please try again in: ${
-            getMinutesRemaining() < 1
-              ? `${(getMinutesRemaining() * 60).toFixed(0)} s`
-              : `${getMinutesRemaining().toFixed(0)} min`
+          `Account locked. Please try again in: ${getMinutesRemaining() < 1
+            ? `${(getMinutesRemaining() * 60).toFixed(0)} s`
+            : `${getMinutesRemaining().toFixed(0)} min`
           }.`;
 
         if (user) {
@@ -231,8 +257,23 @@ const UserService = {
       default:
         return await createUserAndSession(req, res, User, options);
     }
-  },
-  get: async (req, res, options) => {
+  };
+
+  /**
+   * GET - Retrieve user data.
+   * Supports public profile lookup by username, asset retrieval,
+   * email lookup, password recovery flow, email verification,
+   * admin user listing, authentication refresh, and profile retrieval.
+   * @async
+   * @function get
+   * @memberof UserService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} User data with optional session token.
+   * @throws {Error} If user not found, profile is private, or token invalid.
+   */
+  static get = async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
@@ -384,8 +425,21 @@ const UserService = {
         }
       }
     }
-  },
-  delete: async (req, res, options) => {
+  };
+
+  /**
+   * DELETE - Remove user accounts or log out sessions.
+   * Supports admin bulk deletion, user self-deletion, and session logout.
+   * @async
+   * @function delete
+   * @memberof UserService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Deleted user data or logout status message.
+   * @throws {Error} If logout fails, user not found, or token invalid.
+   */
+  static delete = async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
@@ -417,8 +471,21 @@ const UserService = {
         }
       }
     }
-  },
-  put: async (req, res, options) => {
+  };
+
+  /**
+   * PUT - Update user data.
+   * Supports profile image upload, password recovery, and profile field updates.
+   * @async
+   * @function put
+   * @memberof UserService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Updated user data.
+   * @throws {Error} If user not found, token invalid, or invalid file.
+   */
+  static put = async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
@@ -511,7 +578,7 @@ const UserService = {
         }
       }
     }
-  },
-};
+  };
+}
 
 export { UserService };

@@ -1,3 +1,12 @@
+/**
+ * Document service module for handling document CRUD operations.
+ * Provides REST API handlers for document management with security-aware
+ * public/private document access control, search, and file cleanup integration.
+ *
+ * @module src/api/document/document.service.js
+ * @namespace DocumentService
+ */
+
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
@@ -8,8 +17,24 @@ import { FileCleanup } from '../file/file.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const DocumentService = {
-  post: async (req, res, options) => {
+/**
+ * Document Service for handling REST API document operations.
+ * Implements a security model for public/private document access control
+ * with support for high-query typeahead search, tag filtering, and pagination.
+ * @namespace DocumentService
+ */
+class DocumentService {
+  /**
+   * POST - Create a new document.
+   * @async
+   * @function post
+   * @memberof DocumentService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Created document object.
+   */
+  static post = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
 
@@ -25,8 +50,22 @@ const DocumentService = {
 
         return await new Document(req.body).save();
     }
-  },
-  get: async (req, res, options) => {
+  };
+
+  /**
+   * GET - Retrieve documents.
+   * Supports public high-query search, public tag-filtered listing,
+   * and authenticated user document retrieval with pagination.
+   * @async
+   * @function get
+   * @memberof DocumentService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Document data with optional pagination metadata.
+   * @throws {Error} If search query is invalid or document not found.
+   */
+  static get = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../user/user.model.js').UserModel} */
@@ -436,8 +475,20 @@ const DocumentService = {
         };
       }
     }
-  },
-  delete: async (req, res, options) => {
+  };
+
+  /**
+   * DELETE - Remove a document and its associated files.
+   * @async
+   * @function delete
+   * @memberof DocumentService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Deleted document object.
+   * @throws {Error} If document not found or user not authorized.
+   */
+  static delete = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../file/file.model.js').FileModel} */
@@ -460,8 +511,21 @@ const DocumentService = {
         return await Document.findByIdAndDelete(req.params.id);
       }
     }
-  },
-  put: async (req, res, options) => {
+  };
+
+  /**
+   * PUT - Update a document.
+   * Cleans up replaced files and handles tag-based isPublic extraction.
+   * @async
+   * @function put
+   * @memberof DocumentService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Updated document object.
+   * @throws {Error} If document not found.
+   */
+  static put = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../file/file.model.js').FileModel} */
@@ -500,8 +564,21 @@ const DocumentService = {
         return await Document.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
       }
     }
-  },
-  patch: async (req, res, options) => {
+  };
+
+  /**
+   * PATCH - Partially update a document.
+   * Supports toggle-public and copy-share-link operations.
+   * @async
+   * @function patch
+   * @memberof DocumentService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Updated document or result object.
+   * @throws {Error} If document not found or invalid patch endpoint.
+   */
+  static patch = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
 
@@ -550,7 +627,7 @@ const DocumentService = {
     }
 
     throw new Error('Invalid patch endpoint');
-  },
-};
+  };
+}
 
 export { DocumentService };

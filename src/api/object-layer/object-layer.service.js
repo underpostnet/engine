@@ -515,7 +515,10 @@ class ObjectLayerService {
 
       logger.info(`Executing command: ${cmd}`);
 
-      const result = shellExec(cmd, { silent: false });
+      // silentOnError so we can build a domain-specific Error with the
+      // captured stderr/stdout context (callers want a friendly message,
+      // not a generic ShellExecError).
+      const result = shellExec(cmd, { silent: false, silentOnError: true });
 
       if (result.code !== 0) {
         throw new Error(`img2webp command failed: ${result.stderr || result.stdout}`);

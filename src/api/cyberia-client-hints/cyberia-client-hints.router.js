@@ -18,15 +18,15 @@
  * Endpoint
  * --------
  *   GET /api/cyberia-client-hints/:instanceCode
- *     → 200 { palette, entityColorKeys, statusIcons, cameraSmoothing,
- *             cameraZoom, defaultWidthScreenFactor,
- *             defaultHeightScreenFactor, interpolationMs, devUi }
- *     → 404 if no instance with that code exists in the database — the
- *           client falls back to its built-in defaults on 404 (this is
- *           the normal path for stateless servers / fresh deployments).
+ *     -> 200 { palette, entityColorKeys, statusIcons, cameraSmoothing,
+ *              cameraZoom, defaultWidthScreenFactor,
+ *              defaultHeightScreenFactor, interpolationMs, devUi }
+ *     -> 404 if no instance with that code exists in the database — the
+ *            client falls back to its built-in defaults on 404 (this is
+ *            the normal path for stateless servers / fresh deployments).
  *
  *   GET /api/cyberia-client-hints/
- *     → 200 canonical defaults — same shape as above, no DB read.
+ *     -> 200 canonical defaults — same shape as above, no DB read.
  *
  * What it intentionally does NOT do
  * ---------------------------------
@@ -44,47 +44,55 @@ import { resolveClientHints } from './cyberia-client-hints.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaClientHintsRouter = (options) => {
-  const router = express.Router();
-  const dbHost = options.host || 'default';
-  const dbPath = options.path || '/';
+class CyberiaClientHintsRouter {
+  /**
+   * @param {import('../types.js').RouterOptions} options
+   * @returns {import('express').Router}
+   */
+  static router(options) {
+    const router = express.Router();
 
-  // GET /:code → resolved hints.
-  // Resolution order is documented in cyberia-client-hints.service.js:
-  //   1. In-memory TTL cache.
-  //   2. CyberiaClientHints collection (preferred).
-  //   3. Legacy presentation fields on CyberiaInstanceConf (back-compat).
-  //   4. Canonical client defaults (never cached so a later DB insert wins).
-  router.get('/:code', async (req, res) => {
-    try {
-      if (req && req.headers && req.headers.origin) {
-        res.set('Access-Control-Allow-Origin', req.headers.origin);
+    // GET /:code -> resolved hints.
+    // Resolution order is documented in cyberia-client-hints.service.js:
+    //   1. In-memory TTL cache.
+    //   2. CyberiaClientHints collection (preferred).
+    //   3. Legacy presentation fields on CyberiaInstanceConf (back-compat).
+    //   4. Canonical client defaults (never cached so a later DB insert wins).
+    router.get('/:code', async (req, res) => {
+      try {
+        if (req && req.headers && req.headers.origin) {
+          res.set('Access-Control-Allow-Origin', req.headers.origin);
+        } else res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        const { data, source } = await resolveClientHints(req.params.code, {
+          host: options.host || 'default',
+          path: options.path || '/',
+        });
+        // Surface the resolution source as a non-authoritative header so
+        // operators can see whether the runtime fetched from the new
+        // collection, the compatibility read on instance-conf, the cache, or defaults.
+        res.setHeader('X-Cyberia-Hints-Source', source);
+        return res.status(200).json({ status: 'success', data });
+      } catch (err) {
+        logger.error('cyberia-client-hints GET failed:', err);
+        return res.status(500).json({ status: 'error', message: err.message });
+      }
+    });
+
+    // GET / -> canonical defaults. No DB read. Documentation/diagnostic.
+    router.get('/', async (_req, res) => {
+      if (_req && _req.headers && _req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', _req.headers.origin);
       } else res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      const { data, source } = await resolveClientHints(req.params.code, { host: dbHost, path: dbPath });
-      // Surface the resolution source as a non-authoritative header so
-      // operators can see whether the runtime fetched from the new
-      // collection, the compatibility read on instance-conf, the cache, or defaults.
-      res.setHeader('X-Cyberia-Hints-Source', source);
-      return res.status(200).json({ status: 'success', data });
-    } catch (err) {
-      logger.error('cyberia-client-hints GET failed:', err);
-      return res.status(500).json({ status: 'error', message: err.message });
-    }
-  });
+      res.setHeader('X-Cyberia-Hints-Source', 'defaults');
+      return res.status(200).json({ status: 'success', data: CYBERIA_CLIENT_HINTS_DEFAULTS });
+    });
 
-  // GET / → canonical defaults. No DB read. Documentation/diagnostic.
-  router.get('/', async (_req, res) => {
-    if (_req && _req.headers && _req.headers.origin) {
-      res.set('Access-Control-Allow-Origin', _req.headers.origin);
-    } else res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('X-Cyberia-Hints-Source', 'defaults');
-    return res.status(200).json({ status: 'success', data: CYBERIA_CLIENT_HINTS_DEFAULTS });
-  });
+    return router;
+  }
+}
 
-  return router;
-};
+const ApiRouter = (options) => CyberiaClientHintsRouter.router(options);
 
-const ApiRouter = CyberiaClientHintsRouter;
 export { ApiRouter, CyberiaClientHintsRouter };

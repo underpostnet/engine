@@ -22,12 +22,13 @@ const _guestTtlMs = () => {
  */
 const buildGuestUser = (options) => {
   const now = new Date().toISOString();
-  const _id = new mongoose.Types.ObjectId().toString();
+  const objectId = new mongoose.Types.ObjectId().toString();
   const role = 'guest';
+  const username = `${role}${objectId.slice(-5)}`;
   return {
-    _id: `${role}${_id}`,
-    username: `${role}${_id.slice(-5)}`,
-    email: `${_id}@${options.host || 'localhost'}`,
+    _id: `${role}${objectId}`,
+    username,
+    email: `${username}@${options.host || 'localhost'}`,
     password: hashPassword(process.env.JWT_SECRET),
     role,
     emailConfirmed: false,

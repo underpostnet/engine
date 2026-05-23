@@ -5,36 +5,41 @@ import express from 'express';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaMapRouter = (options) => {
-  const router = express.Router();
-  const authMiddleware = options.authMiddleware;
-  router.post(
-    `/:id`,
-    authMiddleware,
-    userGuard,
-    async (req, res) => await CyberiaMapController.post(req, res, options),
-  );
-  router.post(`/`, authMiddleware, userGuard, async (req, res) => await CyberiaMapController.post(req, res, options));
-  router.get(`/search-codes`, async (req, res) => await CyberiaMapController.get(req, res, options));
-  router.get(`/:id`, async (req, res) => await CyberiaMapController.get(req, res, options));
-  router.get(`/`, async (req, res) => await CyberiaMapController.get(req, res, options));
-  router.put(`/:id`, authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
-  router.put(`/`, authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
-  router.delete(
-    `/:id`,
-    authMiddleware,
-    userGuard,
-    async (req, res) => await CyberiaMapController.delete(req, res, options),
-  );
-  router.delete(
-    `/`,
-    authMiddleware,
-    adminGuard,
-    async (req, res) => await CyberiaMapController.delete(req, res, options),
-  );
-  return router;
-};
+class CyberiaMapRouter {
+  /**
+   * @param {import('../types.js').RouterOptions} options
+   * @returns {import('express').Router}
+   */
+  static router(options) {
+    const router = express.Router();
+    router.post(
+      `/:id`,
+      options.authMiddleware,
+      userGuard,
+      async (req, res) => await CyberiaMapController.post(req, res, options),
+    );
+    router.post(`/`, options.authMiddleware, userGuard, async (req, res) => await CyberiaMapController.post(req, res, options));
+    router.get(`/search-codes`, async (req, res) => await CyberiaMapController.get(req, res, options));
+    router.get(`/:id`, async (req, res) => await CyberiaMapController.get(req, res, options));
+    router.get(`/`, async (req, res) => await CyberiaMapController.get(req, res, options));
+    router.put(`/:id`, options.authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
+    router.put(`/`, options.authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
+    router.delete(
+      `/:id`,
+      options.authMiddleware,
+      userGuard,
+      async (req, res) => await CyberiaMapController.delete(req, res, options),
+    );
+    router.delete(
+      `/`,
+      options.authMiddleware,
+      adminGuard,
+      async (req, res) => await CyberiaMapController.delete(req, res, options),
+    );
+    return router;
+  }
+}
 
-const ApiRouter = CyberiaMapRouter;
+const ApiRouter = (options) => CyberiaMapRouter.router(options);
 
 export { ApiRouter, CyberiaMapRouter };
