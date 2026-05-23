@@ -399,7 +399,7 @@ const buildCoverage = async ({ docs, docsDestination }) => {
         shellExec(`cd ${coveragePath} && npm run coverage`, { silent: true });
       } else if (pkg.scripts && pkg.scripts.test) {
         logger.info('generating coverage via test', coveragePath);
-        shellExec(`cd ${coveragePath} && npm test`, { silent: true });
+        shellExec(`cd ${coveragePath} && npm test`, { silent: true, silentOnError: true });
       }
     }
   }
