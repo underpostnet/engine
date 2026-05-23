@@ -670,8 +670,8 @@ program
   .option(
     '--host-aliases <host-aliases>',
     'Adds entries to the Pod /etc/hosts via hostAliases. ' +
-      'Format: semicolon-separated entries of "ip=hostname1,hostname2" ' +
-      '(e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").',
+    'Format: semicolon-separated entries of "ip=hostname1,hostname2" ' +
+    '(e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").',
   )
   .option('--copy', 'Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).')
   .option(
@@ -688,7 +688,7 @@ program
 program
   .command('lxd')
   .option('--init', 'Initializes LXD on the current machine via preseed.')
-  .option('--reset', 'Removes the LXD snap and purges all data.')
+  .option('--reset', 'SAFE complete reset: cleans all VMs (proxy devices first), profiles, networks, then removes LXD snap.')
   .option('--install', 'Installs the LXD snap.')
   .option('--dev', 'Use local paths instead of the global npm installation.')
   .option('--create-virtual-network', 'Creates the lxdbr0 bridge network.')
@@ -697,7 +697,7 @@ program
   .option('--control', 'Initialize the target VM as a K3s control plane node.')
   .option('--worker', 'Initialize the target VM as a K3s worker node.')
   .option('--create-vm <vm-name>', 'Copy the LXC launch command for a new K3s VM to the clipboard.')
-  .option('--delete-vm <vm-name>', 'Stop and delete the specified VM.')
+  .option('--delete-vm <vm-name>', 'SAFELY stop and delete VM (removes proxy devices first, then stops, then deletes). Safe to re-run.')
   .option('--init-vm <vm-name>', 'Run k3s-node-setup.sh on the specified VM (use with --control or --worker).')
   .option('--info-vm <vm-name>', 'Display full configuration and status for the specified VM.')
   .option('--test <vm-name>', 'Run connectivity and health checks on the specified VM.')
@@ -705,13 +705,11 @@ program
   .option(
     '--join-node <nodes>',
     'Join a K3s worker to a control plane. Standalone format: "workerName,controlName". ' +
-      'When used with --init-vm --worker, provide just the control node name for auto-join.',
+    'When used with --init-vm --worker, provide just the control node name for auto-join.',
   )
   .option('--expose <vm-name:ports>', 'Proxy host ports to a VM (e.g., "k3s-control:80,443").')
   .option('--delete-expose <vm-name:ports>', 'Remove proxied ports from a VM (e.g., "k3s-control:80,443").')
-  .option('--workflow-id <workflow-id>', 'Workflow ID to execute via runWorkflow.')
-  .option('--vm-id <vm-name>', 'Target VM name for workflow execution.')
-  .option('--deploy-id <deploy-id>', 'Deployment ID context for workflow execution.')
+  .option('--bootstrap-engine <vm-name>', 'Replicate /home/dd/engine source into the VM after init completes.')
   .option('--namespace <namespace>', 'Kubernetes namespace context (defaults to "default").')
   .description('Manages LXD virtual machines as K3s nodes (control plane or workers).')
   .action(Underpost.lxd.callback);
@@ -814,7 +812,7 @@ program
   .option(
     '--ci-push <deploy-id>',
     'Local equivalent of engine-*.ci.yml: builds dd-{deploy-id} and pushes to the engine-{deploy-id} repository. ' +
-      'Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia".',
+    'Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia".',
   )
   .option(
     '--message <message>',

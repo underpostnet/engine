@@ -8,6 +8,13 @@ set -e
 #   --worker                    Initialize as K3s worker node
 #   --control-ip=<ip>           Control plane IP (required for --worker)
 #   --token=<token>             K3s node token (required for --worker)
+#
+# DESIGN NOTES:
+# - This script installs the underpost CLI globally via npm.
+# - It then uses the global CLI binary for configuration and K3s setup.
+# - Engine source replication (e.g. via --bootstrap-engine from the host)
+#   is a SEPARATE step. This script does NOT depend on /home/dd/engine
+#   being pre-pushed. Use --bootstrap-engine after --init-vm completes.
 # ---------------------------------------------------------------------------
 
 ROLE="control"
@@ -48,19 +55,31 @@ Installing underpost VM node...
 
 npm install -g underpost
 
-cd /home/dd/engine
-
 echo "Applying host configuration..."
 
-npm install
+# Use the globally installed underpost CLI
+# NOTE: --dev is used to match the host dev context
+underpost cluster --dev --config
 
-node bin run secret
-
-node bin cluster --dev --config
+# Check if /home/dd/engine exists locally for engine-specific operations.
+# This directory is populated by the host running --bootstrap-engine.
+# If absent, the global underpost CLI handles all operations.
+if [ -d /home/dd/engine ]; then
+  echo "Local engine source found at /home/dd/engine. Using local underpost."
+  cd /home/dd/engine
+  npm install
+  node bin run secret
+else
+  echo "No local engine source at /home/dd/engine. Using global underpost CLI."
+  echo "Engine source can be replicated later with --bootstrap-engine from the host."
+  # The globally installed underpost handles secret generation via its own config
+  underpost secret underpost --init
+fi
 
 if [ "$ROLE" = "control" ]; then
   echo "Initializing K3s control plane..."
-  node bin cluster --dev --k3s
+  # Use global underpost CLI for K3s setup
+  underpost cluster --dev --k3s
 
   echo ""
   echo "K3s control plane is ready."

@@ -2,6 +2,28 @@
  * LXD module for managing LXD virtual machines as K3s nodes.
  * @module src/cli/lxd.js
  * @namespace UnderpostLxd
+ *
+ * ### Proxy Device Safety
+ *
+ * Proxy devices (created by `--expose`) attach LXD proxy devices to VMs. If you
+ * stop + delete a VM without removing proxy devices first, LXD may crash or
+ * leave stale NAT rules in iptables. Both `_safeDeleteVm()` and reset() now
+ * enumerate and remove proxy devices before stopping/deleting VMs.
+ *
+ * ### Idempotency
+ *
+ * Every destructive operation (deleteVm, reset) is safe to re-run. If a VM is
+ * already gone, proxy device removal is silently skipped. If the LXD snap is
+ * already removed, reset continues gracefully.
+ *
+ * ### Lifecycle
+ *
+ * - `--reset` is the only complete teardown path: cleans ALL VMs, profiles,
+ *   networks, and finally the LXD snap itself.
+ * - `--delete-vm` is a single-VM teardown that removes proxy devices first.
+ * - `--init-vm` handles OS + K3s setup. Engine replication is a separate step
+ *   via `--bootstrap-engine`.
+ * - `--bootstrap-engine` replicates /home/dd/engine into the VM after init.
  */
 
 import { getNpmRootPath } from '../server/conf.js';
@@ -13,40 +35,33 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
-/**
- * @class UnderpostLxd
- * @description Provides a set of static methods to interact with LXD,
- * encapsulating common LXD operations for VM management and network testing.
- * @memberof UnderpostLxd
- */
 class UnderpostLxd {
   static API = {
     /**
      * @method callback
-     * @description Main entry point for LXD VM operations. Each VM is a K3s node (control or worker).
+     * @description Main entry point for all LXD CLI operations.
      * @param {object} options
      * @param {boolean} [options.init=false] - Initialize LXD via preseed.
-     * @param {boolean} [options.reset=false] - Remove LXD snap and purge data.
+     * @param {boolean} [options.reset=false] - Complete safe reset: cleans all VMs
+     *   (proxy devices removed first), profiles, networks, then removes LXD snap.
      * @param {boolean} [options.dev=false] - Use local paths instead of npm global.
      * @param {boolean} [options.install=false] - Install LXD snap.
      * @param {boolean} [options.createVirtualNetwork=false] - Create lxdbr0 bridge network.
-     * @param {string} [options.ipv4Address='10.250.250.1/24'] - IPv4 address/CIDR for the lxdbr0 bridge network.
+     * @param {string} [options.ipv4Address='10.250.250.1/24'] - IPv4 address/CIDR for lxdbr0.
      * @param {boolean} [options.createAdminProfile=false] - Create admin-profile for VMs.
-     * @param {boolean} [options.control=false] - Initialize VM as K3s control plane node.
-     * @param {boolean} [options.worker=false] - Initialize VM as K3s worker node.
-     * @param {string} [options.initVm=''] - VM name to initialize as a K3s node.
-     * @param {string} [options.deleteVm=''] - VM name to stop and delete.
-     * @param {string} [options.createVm=''] - VM name to create (copies launch command to clipboard).
+     * @param {boolean} [options.control=false] - Initialize VM as K3s control plane.
+     * @param {boolean} [options.worker=false] - Initialize VM as K3s worker.
+     * @param {string} [options.initVm=''] - VM name to initialize as K3s node.
+     * @param {string} [options.deleteVm=''] - VM name to safely stop and delete
+     *   (removes proxy devices first).
+     * @param {string} [options.createVm=''] - VM name to create (copies command to clipboard).
      * @param {string} [options.infoVm=''] - VM name to inspect.
-     * @param {string} [options.rootSize=''] - Root disk size in GiB for new VMs (e.g. '32').
-     * @param {string} [options.joinNode=''] - Join format: 'workerName,controlName' (standalone join). When used with --init-vm --worker, just the control node name.
+     * @param {string} [options.rootSize=''] - Root disk size in GiB for new VMs.
+     * @param {string} [options.joinNode=''] - Join format: 'workerName,controlName'.
      * @param {string} [options.expose=''] - Expose VM ports to host: 'vmName:port1,port2'.
      * @param {string} [options.deleteExpose=''] - Remove exposed ports: 'vmName:port1,port2'.
-     * @param {string} [options.test=''] - VM name to run connectivity and health checks on.
-     * @param {string} [options.workflowId=''] - Workflow ID for runWorkflow.
-     * @param {string} [options.vmId=''] - VM name for workflow execution.
-     * @param {string} [options.deployId=''] - Deployment ID for workflow context.
-     * @param {string} [options.namespace=''] - Kubernetes namespace context.
+     * @param {string} [options.test=''] - VM name for connectivity and health checks.
+     * @param {string} [options.bootstrapEngine=''] - VM name to replicate /home/dd/engine into.
      * @memberof UnderpostLxd
      */
     async callback(
@@ -69,22 +84,58 @@ class UnderpostLxd {
         expose: '',
         deleteExpose: '',
         test: '',
-        workflowId: '',
-        vmId: '',
-        deployId: '',
-        namespace: '',
+        bootstrapEngine: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
 
+      // =====================================================================
+      // RESET: Complete, safe teardown of all LXD state
+      // =====================================================================
       if (options.reset === true) {
-        shellExec(`sudo systemctl stop snap.lxd.daemon`);
-        shellExec(`sudo snap remove lxd --purge`);
+        logger.info('=== SAFE LXD RESET ===');
+        logger.info('Phase 1/5: Enumerating all VMs and removing proxy devices...');
+        const vmList = UnderpostLxd._listVms();
+        for (const vmName of vmList) {
+          UnderpostLxd._removeProxyDevices(vmName);
+        }
+
+        logger.info('Phase 2/5: Stopping all VMs gracefully...');
+        for (const vmName of vmList) {
+          logger.info(`  Stopping VM: ${vmName}`);
+          shellExec(`lxc stop ${vmName} --timeout 30 2>/dev/null || true`, { silent: true, silentOnError: true });
+        }
+
+        logger.info('Phase 3/5: Deleting all VMs...');
+        for (const vmName of vmList) {
+          logger.info(`  Deleting VM: ${vmName}`);
+          shellExec(`lxc delete ${vmName} --force 2>/dev/null || true`, { silent: true, silentOnError: true });
+        }
+
+        logger.info('Phase 4/5: Removing admin-profile and network...');
+        shellExec(`lxc profile delete admin-profile 2>/dev/null || true`, { silent: true, silentOnError: true });
+        shellExec(`lxc network delete lxdbr0 2>/dev/null || true`, { silent: true, silentOnError: true });
+
+        logger.info('Phase 5/5: Stopping LXD snap daemon and purging snap...');
+        shellExec(`sudo systemctl stop snap.lxd.daemon 2>/dev/null || true`, { silent: true, silentOnError: true });
+        shellExec(`sudo snap remove lxd --purge 2>/dev/null || true`, { silent: true, silentOnError: true });
+
+        logger.info('=== LXD RESET COMPLETE ===');
+        logger.info('All VMs, proxy devices, profiles, networks, and the LXD snap have been removed.');
+        return;
       }
 
-      if (options.install === true) shellExec(`sudo snap install lxd`);
+      // =====================================================================
+      // INSTALL
+      // =====================================================================
+      if (options.install === true) {
+        shellExec(`sudo snap install lxd`);
+      }
 
+      // =====================================================================
+      // INIT (LXD preseed)
+      // =====================================================================
       if (options.init === true) {
         shellExec(`sudo systemctl start snap.lxd.daemon`);
         shellExec(`sudo systemctl status snap.lxd.daemon`);
@@ -95,6 +146,9 @@ class UnderpostLxd {
         shellExec(`lxc cluster list`);
       }
 
+      // =====================================================================
+      // CREATE VIRTUAL NETWORK
+      // =====================================================================
       if (options.createVirtualNetwork === true) {
         const ipv4Address = options.ipv4Address ? options.ipv4Address : '10.250.250.1/24';
         shellExec(`lxc network create lxdbr0 \
@@ -104,6 +158,9 @@ ipv4.dhcp=true \
 ipv6.address=none`);
       }
 
+      // =====================================================================
+      // CREATE ADMIN PROFILE
+      // =====================================================================
       if (options.createAdminProfile === true) {
         const existingProfiles = await new Promise((resolve) => {
           shellExec(`lxc profile show admin-profile`, {
@@ -120,25 +177,28 @@ ipv6.address=none`);
         }
       }
 
+      // =====================================================================
+      // DELETE VM (safe: removes proxy devices first)
+      // =====================================================================
       if (options.deleteVm) {
         const vmName = options.deleteVm;
-        logger.info(`Stopping VM: ${vmName}`);
-        shellExec(`lxc stop ${vmName}`);
-        logger.info(`Deleting VM: ${vmName}`);
-        shellExec(`lxc delete ${vmName}`);
-        logger.info(`VM ${vmName} deleted.`);
+        UnderpostLxd._safeDeleteVm(vmName);
       }
 
+      // =====================================================================
+      // CREATE VM (copy launch command to clipboard)
+      // =====================================================================
       if (options.createVm) {
         pbcopy(
-          `lxc launch images:rockylinux/9 ${
-            options.createVm
-          } --vm --target lxd-node1 -c limits.cpu=2 -c limits.memory=4GB --profile admin-profile -d root,size=${
-            options.rootSize ? options.rootSize + 'GiB' : '32GiB'
+          `lxc launch images:rockylinux/9 ${options.createVm
+          } --vm --target lxd-node1 -c limits.cpu=2 -c limits.memory=4GB --profile admin-profile -d root,size=${options.rootSize ? options.rootSize + 'GiB' : '32GiB'
           }`,
         );
       }
 
+      // =====================================================================
+      // INIT VM (OS setup + K3s role, no engine push)
+      // =====================================================================
       if (options.initVm) {
         const vmName = options.initVm;
         const lxdSetupPath = `${underpostRoot}/scripts/lxd-vm-setup.sh`;
@@ -147,10 +207,8 @@ ipv6.address=none`);
         // Step 1: OS base setup (disk, packages, kernel modules)
         shellExec(`cat ${lxdSetupPath} | lxc exec ${vmName} -- bash`);
 
-        // Step 2: Push engine source from host to VM
-        await Underpost.lxd.runWorkflow({ workflowId: 'engine', vmName, dev: options.dev });
-
-        // Step 3: K3s role setup (installs Node, npm deps, then k3s via node bin --dev)
+        // Step 2: K3s role setup (installs Node, npm deps, then k3s via underpost CLI)
+        // Engine source replication is a separate step via --bootstrap-engine.
         if (options.worker === true) {
           if (options.joinNode) {
             const controlNode = options.joinNode.includes(',') ? options.joinNode.split(',').pop() : options.joinNode;
@@ -174,16 +232,52 @@ ipv6.address=none`);
         }
       }
 
-      if (options.workflowId) {
-        await Underpost.lxd.runWorkflow({
-          workflowId: options.workflowId,
-          vmName: options.vmId,
-          deployId: options.deployId,
-          dev: options.dev,
-        });
+      // =====================================================================
+      // BOOTSTRAP ENGINE: Replicate /home/dd/engine into a VM
+      // =====================================================================
+      if (options.bootstrapEngine) {
+        const vmName = options.bootstrapEngine;
+        logger.info(`Bootstrapping engine source into VM: ${vmName}...`);
+
+        const includesFile = `/tmp/lxd-push-${vmName}-${Date.now()}.txt`;
+        const srcPath = `/home/dd/engine`;
+        const files = await new Promise((resolve) =>
+          walk({ path: srcPath, ignoreFiles: ['.gitignore'], includeEmpty: false, follow: false }, (_, result) =>
+            resolve(result),
+          ),
+        );
+        fs.writeFileSync(includesFile, files.join('\n'));
+        shellExec(`lxc exec ${vmName} -- bash -c 'rm -rf /home/dd/engine && mkdir -p /home/dd/engine'`);
+        shellExec(`tar -C ${srcPath} -cf - --files-from=${includesFile} | lxc exec ${vmName} -- tar -C /home/dd/engine -xf -`);
+        fs.removeSync(includesFile);
+
+        // Also push engine-private if it exists
+        const privateSrcPath = `/home/dd/engine/engine-private`;
+        if (fs.existsSync(privateSrcPath)) {
+          const privateFiles = await new Promise((resolve) =>
+            walk(
+              {
+                path: privateSrcPath,
+                ignoreFiles: ['/home/dd/engine/.gitignore', '.gitignore'],
+                includeEmpty: false,
+                follow: false,
+              },
+              (_, result) => resolve(result),
+            ),
+          );
+          const privateIncludes = `/tmp/lxd-push-${vmName}-private-${Date.now()}.txt`;
+          fs.writeFileSync(privateIncludes, privateFiles.join('\n'));
+          shellExec(`lxc exec ${vmName} -- bash -c 'rm -rf /home/dd/engine/engine-private && mkdir -p /home/dd/engine/engine-private'`);
+          shellExec(`tar -C ${privateSrcPath} -cf - --files-from=${privateIncludes} | lxc exec ${vmName} -- tar -C /home/dd/engine/engine-private -xf -`);
+          fs.removeSync(privateIncludes);
+        }
+
+        logger.info(`Engine source bootstrapped into ${vmName}:/home/dd/engine`);
       }
 
-      // Standalone join: --join-node workerName,controlName (without --init-vm)
+      // =====================================================================
+      // STANDALONE JOIN
+      // =====================================================================
       if (options.joinNode && !options.initVm) {
         const [workerNode, controlNode] = options.joinNode.split(',');
         const k3sToken = shellExec(
@@ -201,6 +295,9 @@ ipv6.address=none`);
         logger.info(`Worker ${workerNode} joined successfully.`);
       }
 
+      // =====================================================================
+      // INFO VM
+      // =====================================================================
       if (options.infoVm) {
         shellExec(`lxc config show ${options.infoVm}`);
         shellExec(`lxc info --show-log ${options.infoVm}`);
@@ -208,6 +305,9 @@ ipv6.address=none`);
         shellExec(`lxc list ${options.infoVm}`);
       }
 
+      // =====================================================================
+      // EXPOSE (proxy host ports to VM)
+      // =====================================================================
       if (options.expose) {
         const [vmName, ports] = options.expose.split(':');
         const protocols = ['tcp'];
@@ -232,6 +332,9 @@ ipv6.address=none`);
         }
       }
 
+      // =====================================================================
+      // DELETE EXPOSE
+      // =====================================================================
       if (options.deleteExpose) {
         const [vmName, ports] = options.deleteExpose.split(':');
         const protocols = ['tcp'];
@@ -242,6 +345,9 @@ ipv6.address=none`);
         }
       }
 
+      // =====================================================================
+      // TEST (connectivity and health checks)
+      // =====================================================================
       if (options.test) {
         const vmName = options.test;
         const vmIp = shellExec(
@@ -264,93 +370,69 @@ ipv6.address=none`);
         shellExec(`lxc exec ${vmName} -- bash -c 'sudo k3s kubectl get nodes'`);
       }
     },
-
-    /**
-     * @method pushDirectory
-     * @description Pushes a host directory into a VM using ignore-walk (respecting .gitignore)
-     * and a tar pipe. Skips gitignored paths (e.g. node_modules, .git, build artifacts).
-     * @param {object} params
-     * @param {string} params.srcPath - Absolute path of the source directory on the host.
-     * @param {string} params.vmName - Target LXD VM name.
-     * @param {string} params.destPath - Absolute path of the destination directory inside the VM.
-     * @param {string[]} [params.ignoreFiles=['.gitignore']] - Ignore-file names to respect during walk.
-     * @returns {Promise<void>}
-     * @memberof UnderpostLxd
-     */
-    async pushDirectory({ srcPath, vmName, destPath, ignoreFiles }) {
-      const includesFile = `/tmp/lxd-push-${vmName}-${Date.now()}.txt`;
-      if (!ignoreFiles) ignoreFiles = ['.gitignore'];
-      // Collect non-ignored files via ignore-walk
-      const files = await new Promise((resolve) =>
-        walk(
-          {
-            path: srcPath,
-            ignoreFiles,
-            includeEmpty: false,
-            follow: false,
-          },
-          (_, result) => resolve(result),
-        ),
-      );
-
-      // Write relative paths (one per line) to a temp includes file
-      fs.writeFileSync(includesFile, files.join('\n'));
-      logger.info(`lxd pushDirectory: ${files.length} files collected`, { srcPath, vmName, destPath, includesFile });
-
-      // Reset destination directory inside the VM
-      shellExec(`lxc exec ${vmName} -- bash -c 'rm -rf ${destPath} && mkdir -p ${destPath}'`);
-
-      // Stream tar archive from host into VM
-      shellExec(
-        `tar -C ${srcPath} -cf - --files-from=${includesFile} | lxc exec ${vmName} -- tar -C ${destPath} -xf -`,
-      );
-
-      // Clean up temp includes file
-      fs.removeSync(includesFile);
-    },
-
-    /**
-     * @method runWorkflow
-     * @description Executes predefined workflows on LXD VMs.
-     * @param {object} params
-     * @param {string} params.workflowId - Workflow ID to execute.
-     * @param {string} params.vmName - Target VM name.
-     * @param {string} [params.deployId] - Deployment identifier.
-     * @param {boolean} [params.dev=false] - Use local paths.
-     * @memberof UnderpostLxd
-     */
-    async runWorkflow({ workflowId, vmName, deployId, dev }) {
-      switch (workflowId) {
-        case 'engine': {
-          await Underpost.lxd.pushDirectory({
-            srcPath: `/home/dd/engine`,
-            vmName,
-            destPath: `/home/dd/engine`,
-          });
-          await Underpost.lxd.pushDirectory({
-            srcPath: `/home/dd/engine/engine-private`,
-            vmName,
-            destPath: `/home/dd/engine/engine-private`,
-            ignoreFiles: ['/home/dd/engine/.gitignore', '.gitignore'],
-          });
-          break;
-        }
-        case 'engine-recursive-push': {
-          const enginePath = '/home/dd/engine';
-          shellExec(`lxc exec ${vmName} -- bash -c 'rm -rf ${enginePath}'`);
-          shellExec(`lxc exec ${vmName} -- bash -c 'mkdir -p /home/dd'`);
-          shellExec(`lxc file push ${enginePath} ${vmName}/home/dd --recursive`);
-          break;
-        }
-        case 'dev-reset': {
-          shellExec(
-            `lxc exec ${vmName} -- bash -lc 'cd /home/dd/engine && node bin cluster --dev --reset --k3s && node bin cluster --dev --k3s'`,
-          );
-          break;
-        }
-      }
-    },
   };
+
+  // =====================================================================
+  // PRIVATE HELPERS
+  // =====================================================================
+
+  /**
+   * Lists all LXD VM (virtual-machine) instance names.
+   * @returns {string[]} Array of VM names.
+   * @private
+   */
+  static _listVms() {
+    const raw = shellExec(
+      `lxc list --format json | jq -r '.[] | select(.type=="virtual-machine") | .name // empty' 2>/dev/null || true`,
+      { stdout: true, silent: true, silentOnError: true },
+    ).trim();
+    if (!raw) return [];
+    return raw.split('\n').filter((n) => n.length > 0);
+  }
+
+  /**
+   * Enumerates and removes all proxy devices attached to a VM.
+   * Proxy devices are named with the pattern <vmName>-<protocol>-port-<port>.
+   * Fails silently if the VM or device is already gone (idempotent).
+   * @param {string} vmName - The VM name to clean proxy devices from.
+   * @private
+   */
+  static _removeProxyDevices(vmName) {
+    logger.info(`  Removing proxy devices from ${vmName}...`);
+    const devicesRaw = shellExec(
+      `lxc config device list ${vmName} 2>/dev/null | grep -E "^${vmName}-tcp-port-" || true`,
+      { stdout: true, silent: true, silentOnError: true },
+    ).trim();
+    if (!devicesRaw) {
+      logger.info(`  No proxy devices found on ${vmName}.`);
+      return;
+    }
+    for (const deviceName of devicesRaw.split('\n')) {
+      const name = deviceName.trim();
+      if (!name) continue;
+      logger.info(`    Removing device: ${name}`);
+      shellExec(`lxc config device remove ${vmName} ${name} 2>/dev/null || true`, {
+        silent: true,
+        silentOnError: true,
+      });
+    }
+  }
+
+  /**
+   * Safely deletes a single VM: removes proxy devices first, then stops and deletes.
+   * Idempotent: safe to re-run if VM is already gone.
+   * @param {string} vmName - The VM name to delete.
+   * @private
+   */
+  static _safeDeleteVm(vmName) {
+    logger.info(`Safely deleting VM: ${vmName}`);
+    UnderpostLxd._removeProxyDevices(vmName);
+    logger.info(`  Stopping VM: ${vmName}`);
+    shellExec(`lxc stop ${vmName} --timeout 30 2>/dev/null || true`, { silent: true, silentOnError: true });
+    logger.info(`  Deleting VM: ${vmName}`);
+    shellExec(`lxc delete ${vmName} --force 2>/dev/null || true`, { silent: true, silentOnError: true });
+    logger.info(`VM ${vmName} safely deleted.`);
+  }
 }
 
 export default UnderpostLxd;
