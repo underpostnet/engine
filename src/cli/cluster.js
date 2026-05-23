@@ -212,12 +212,12 @@ class UnderpostCluster {
           // Kind cluster initialization (if not using kubeadm or k3s)
           logger.info('Initializing Kind cluster...');
           shellExec(
-            `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
-              options.dev ? '-dev' : ''
+            `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${options.dev ? '-dev' : ''
             }.yaml`,
           );
           Underpost.cluster.chown('kind'); // Pass 'kind' to chown
         }
+        Underpost.cluster.natSetup({ underpostRoot });
       }
 
       // --- Optional Component Deployments (Databases, Ingress, Cert-Manager) ---
@@ -420,7 +420,8 @@ EOF
      * This method ensures proper SELinux, Docker, Containerd, and Sysctl settings
      * are applied for a healthy Kubernetes environment. It explicitly avoids
      * iptables flushing commands to prevent conflicts with Kubernetes' own network management.
-     * @param {string} underpostRoot - The root directory of the underpost project.
+     * @param {object} [options] - Configuration options for host setup.
+     * @param {string} [options.underpostRoot] - The root path of the underpost project, used for locating scripts if needed.
      * @memberof UnderpostCluster
      */
     config(options = { underpostRoot: '.' }) {
@@ -452,6 +453,27 @@ EOF
       // Reload systemd daemon to pick up new unit files/changes
       shellExec(`sudo systemctl daemon-reload`);
 
+      // Increase inotify limits
+      shellExec(`sudo sysctl -w fs.inotify.max_user_watches=2099999999`);
+      shellExec(`sudo sysctl -w fs.inotify.max_user_instances=2099999999`);
+      shellExec(`sudo sysctl -w fs.inotify.max_queued_events=2099999999`);
+
+    },
+
+    /**
+     * @method natSetup
+     * @description Configures NAT and iptables settings for Kubernetes networking.
+     * This method enables necessary sysctl settings for bridge networking and applies iptables rules
+     * required for Kubernetes cluster communication. It is designed to work with kubeadm and k3s clusters, ensuring that
+     * traffic through Linux bridges is processed by iptables, which is crucial for CNI plugins to function correctly.
+     * The method also applies NAT iptables rules and configures firewalld for Kubernetes, which is required for multi-machine kubeadm inter-node communication.
+     * Note: This method should be called after the cluster is initialized and before deploying any workloads that require network communication.
+     * @param {object} [options] - Configuration options for NAT setup.
+     * @param {string} [options.underpostRoot] - The root path of the underpost project, used to locate the nat-iptables.sh script.
+     * @memberof UnderpostCluster
+     */
+    natSetup(options = { underpostRoot: '.' }) {
+      const { underpostRoot } = options;
       // Enable bridge-nf-call-iptables for Kubernetes networking
       // This ensures traffic through Linux bridges is processed by iptables (crucial for CNI)
       for (const iptableConfPath of [
@@ -466,12 +488,6 @@ net.bridge.bridge-nf-call-arptables = 1
 net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
           { silent: true },
         );
-
-      // Increase inotify limits
-      shellExec(`sudo sysctl -w fs.inotify.max_user_watches=2099999999`);
-      shellExec(`sudo sysctl -w fs.inotify.max_user_instances=2099999999`);
-      shellExec(`sudo sysctl -w fs.inotify.max_queued_events=2099999999`);
-
       // shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
       // Apply NAT iptables rules and configure firewalld for Kubernetes.
       // nat-iptables.sh enables firewalld and opens all required ports; do NOT stop it
@@ -622,7 +638,13 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         } else {
           // Default: kind
           logger.info('  -> Deleting Kind clusters...');
-          shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster');
+          shellExec(`clusters=$(kind get clusters)
+if [ -n "$clusters" ]; then
+  for c in $clusters; do
+    echo "Deleting cluster: $c"
+    kind delete cluster --name "$c"
+  done
+fi`);
         }
 
         // Phase 4: File system cleanup
