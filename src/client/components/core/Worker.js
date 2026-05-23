@@ -1,65 +1,44 @@
 /**
- * Utility class for managing Progressive Web App (PWA) worker functionalities,
- * including service worker registration, caching, and notification management.
- * This class is designed to be used as a singleton instance (exported as 'Worker').
+ * Progressive Web App (PWA) worker integration: service worker lifecycle,
+ * cache management, and the bootstrap path that wires the app's router,
+ * shell, translation, sockets, and session components together.
+ *
+ * The public surface is a single `PwaWorker` class with one shared instance,
+ * re-exported as `Worker` for backward compatibility.
+ *
  * @module src/client/components/core/Worker.js
  * @namespace PwaWorker
  */
 
 import { BtnIcon } from './BtnIcon.js';
-import { s4 } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
-import { LoadRouter } from './Router.js';
-import { registerRoutes } from './Router.js';
-import { Translate } from './Translate.js';
+import { LoadRouter, registerRoutes, getProxyPath } from './Router.js';
+import { Translate, TranslateCore } from './Translate.js';
 import { s } from './VanillaJs.js';
-import { getProxyPath } from './Router.js';
 import { Css } from './Css.js';
-import { TranslateCore } from './Translate.js';
 import { Responsive } from './Responsive.js';
 import { SocketIo } from './SocketIo.js';
 import { Keyboard } from './Keyboard.js';
+
 const logger = loggerFactory(import.meta);
 
+const SW_URL = () => `${getProxyPath()}sw.js`;
+
 /**
- * Manages the PWA lifecycle, service workers, and related client-side events.
  * @memberof PwaWorker
  */
 class PwaWorker {
-  /**
-   * The application title, usually from the <title> tag content.
-   * @type {string}
-   */
+  /** App title sourced from <title>. @type {string} */
   title = '';
 
-  /**
-   * Tracks if notification permission has been granted and is active.
-   * @type {boolean}
-   */
-  notificationActive = false;
-
-  /**
-   * A function reference to the service worker's update method (registration.update()),
-   * dynamically set upon successful registration status check.
-   * @type {function(): Promise<void>}
-   */
-  updateServiceWorker = async () => {};
-
-  /**
-   * Router instance reference, initialized during the `instance` call.
-   * @type {object | null}
-   */
+  /** Router instance reference, set during bootstrap. @type {object | null} */
   RouterInstance = null;
 
-  /**
-   * Creates an instance of PwaWorker and initializes the application title.
-   * @memberof PwaWorker
-   */
   constructor() {
     this.title = `${s('title').textContent}`;
-    if (!window.renderPayload.dev) {
+    if (!window.renderPayload?.dev) {
       console.log = () => null;
       console.error = () => null;
       console.info = () => null;
@@ -67,58 +46,47 @@ class PwaWorker {
     }
   }
 
-  /**
-   * Checks if the application is running in development mode (localhost or 127.0.0.1).
-   * @method devMode
-   * @memberof PwaWorker
-   * @returns {boolean} True if in development mode.
-   */
+  /** @returns {boolean} True when running on localhost or with renderPayload.dev. */
   devMode() {
-    return window.renderPayload.dev || location.origin.match('localhost') || location.origin.match('127.0.0.1');
+    return Boolean(
+      window.renderPayload?.dev || location.origin.match('localhost') || location.origin.match('127.0.0.1'),
+    );
   }
 
-  async runComponentInit(component, options) {
+  /**
+   * Awaits a component's `instance()` method, a plain function, or an array of either.
+   * Used by `instance()` to keep the bootstrap declarative.
+   * @private
+   */
+  async #initComponent(component, options) {
     if (!component) return;
     if (Array.isArray(component)) {
-      for (const item of component) await this.runComponentInit(item, options);
+      for (const item of component) await this.#initComponent(item, options);
       return;
     }
-    if (typeof component.instance === 'function') {
-      await component.instance(options);
-      return;
-    }
-    if (typeof component === 'function') {
-      await component(options);
-    }
+    if (typeof component.instance === 'function') return void (await component.instance(options));
+    if (typeof component === 'function') await component(options);
   }
 
   /**
-   * Bootstraps the app with a declarative options object.
-   * Shared core inits (Css, TranslateCore, Responsive, SocketIo, Keyboard) run
-   * internally in the correct order so index entrypoints only list app-specific components.
+   * Bootstraps the app with a declarative options object. Shared core inits
+   * (Css, TranslateCore, Responsive, SocketIo, Keyboard) run in the correct
+   * order so per-app entrypoints only declare what's app-specific.
    *
    * @param {object} options
-   * @param {function(): object}          options.router       - Function returning the router instance.
-   * @param {function(): Promise<string>} [options.template]   - Async function returning the landing HTML body.
-   * @param {Array}                       [options.themes]     - CSS theme array passed to Css.loadThemes().
-   * @param {object|Array}                [options.translate]  - App translate class(es) with static instance().
-   * @param {object}                      [options.render]     - AppShell class with static instance().
-   * @param {string}                      [options.socketPath] - Socket.IO path override.
-   * @param {object}                      [options.appStore]   - AppStore whose .Data is used for socket channels.
-   * @param {object}                      [options.session]    - Session components: { socket, login, signout, signup }.
-   * @param {function(): Promise<void>}   [options.render]     - Legacy raw render callback (backward-compat).
+   * @param {function|object}             options.router       Router class (with static `instance()`) or factory.
+   * @param {function(): Promise<string>} [options.template]   Async function returning the landing HTML body.
+   * @param {Array}                       [options.themes]     CSS theme list passed to `Css.loadThemes()`.
+   * @param {object|Array}                [options.translate]  App-level translation class(es).
+   * @param {object}                      [options.render]     AppShell class with `instance({ htmlMainBody })`.
+   * @param {string}                      [options.socketPath] Socket.IO path override.
+   * @param {object}                      [options.appStore]   AppStore whose `.Data` supplies socket channels.
+   * @param {object}                      [options.session]    `{ socket, login, signout|logout, signup, account }`.
    * @returns {Promise<void>}
    */
   async instance({ router, template, themes, translate, render, socketPath, appStore, session }) {
-    window.ononline = async () => {
-      logger.warn('ononline');
-    };
-    window.onoffline = async () => {
-      logger.warn('onoffline');
-    };
-    setTimeout(() => {
-      if ('onLine' in navigator && navigator.onLine) window.ononline();
-    });
+    window.ononline = () => logger.warn('ononline');
+    window.onoffline = () => logger.warn('onoffline');
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -126,123 +94,115 @@ class PwaWorker {
       });
       navigator.serviceWorker.ready.then((worker) => {
         logger.info('Service Worker Ready', worker);
-
-        // event message listener
         navigator.serviceWorker.addEventListener('message', (event) => {
           logger.info('Received event message', event.data);
-          const { status } = event.data;
-
-          switch (status) {
-            case 'loader':
-              {
-                LoadingAnimation.RenderCurrentSrcLoad(event);
-              }
-              break;
-
-            default:
-              break;
-          }
+          if (event.data?.status === 'loader') LoadingAnimation.RenderCurrentSrcLoad(event);
         });
-
-        // if (navigator.serviceWorker.controller)
-        //   navigator.serviceWorker.controller.postMessage({
-        //     title: 'Hello from Client event message',
-        //   });
-
-        // broadcast message
-        // const channel = new BroadcastChannel('sw-messages');
-        // channel.addEventListener('message', (event) => {
-        //   logger.info('Received broadcast message', event.data);
-        // });
-        // channel.postMessage({ title: 'Hello from Client broadcast message' });
-        // channel.close();
       });
     }
 
     this.RouterInstance = typeof router?.instance === 'function' ? router.instance() : router();
     if (this.RouterInstance?.Routes) registerRoutes(this.RouterInstance.Routes);
-    // Defer SW registration entirely out of the render critical path.
-    // Firefox IPC for SW registration is notably slower than Chromium;
-    // scheduling after 'load' means the first meaningful paint is not blocked.
-    this.registerServiceWorkerDeferred();
 
-    // ── declarative bootstrap path ──────────────────────────────────────────
-    // shared core inits
+    // Defer SW registration out of the render critical path. Firefox in
+    // particular pays a non-trivial IPC cost for SW registration; running it
+    // after `load` keeps first paint unblocked across all engines.
+    this.#registerDeferred();
+
+    // Shared core inits — keep order: theme → translation → responsive → shell.
     if (themes) await Css.loadThemes(themes);
-    await this.runComponentInit(TranslateCore);
-    await this.runComponentInit(translate);
-    await this.runComponentInit(Responsive);
-    // app shell render
+    await this.#initComponent(TranslateCore);
+    await this.#initComponent(translate);
+    await this.#initComponent(Responsive);
+
     if (render && typeof render.instance === 'function') {
       const htmlMainBody = typeof template === 'function' ? template : undefined;
-      await this.runComponentInit(render, htmlMainBody ? { htmlMainBody } : undefined);
+      await this.#initComponent(render, htmlMainBody ? { htmlMainBody } : undefined);
     }
-    // socket init
-    const channels = appStore ? appStore.Data : (session && session.socket && session.socket.Data) || undefined;
-    await this.runComponentInit(SocketIo, { channels, path: socketPath });
+
+    const channels = appStore?.Data ?? session?.socket?.Data;
+    await this.#initComponent(SocketIo, { channels, path: socketPath });
+
     if (session) {
-      await this.runComponentInit(session.socket);
-      await this.runComponentInit(session.login);
-      await this.runComponentInit(session.logout || session.signout);
-      await this.runComponentInit(session.signup);
-      await this.runComponentInit(session.account);
+      await this.#initComponent(session.socket);
+      await this.#initComponent(session.login);
+      await this.#initComponent(session.logout || session.signout);
+      await this.#initComponent(session.signup);
+      await this.#initComponent(session.account);
     }
-    await this.runComponentInit(Keyboard);
-    // ────────────────────────────────────────────────────────────────────────
+
+    await this.#initComponent(Keyboard);
     await LoadRouter(this.RouterInstance);
     LoadingAnimation.removeSplashScreen();
-    if (this.devMode()) {
-      // const delayLiveReload = 1250;
-      // window.addEventListener('visibilitychange', () => {
-      //   if (document.visibilityState === 'visible') {
-      //     this.reload(delayLiveReload);
-      //   }
-      // });
-      // window.addEventListener('focus', () => {
-      //   this.reload(delayLiveReload);
-      // });
-    }
     window.serviceWorkerReady = true;
   }
 
   /**
-   * Gets the current service worker registration.
-   * @memberof PwaWorker
-   * @returns {Promise<ServiceWorkerRegistration | undefined>} The service worker registration object, or undefined.
+   * Schedules SW registration to run after page `load` (or immediately if
+   * the page is already loaded). Idempotent: existing registrations are
+   * left alone; missing ones are registered.
+   * @private
    */
-  async getRegistration() {
-    return navigator.serviceWorker.getRegistration();
+  #registerDeferred() {
+    if (!('serviceWorker' in navigator)) {
+      logger.warn('Service Worker disabled in browser');
+      return;
+    }
+    const run = async () => {
+      const registration = await this.getRegistration();
+      if (!registration) await this.register();
+    };
+    if (document.readyState === 'complete') run();
+    else window.addEventListener('load', run, { once: true });
+  }
+
+  /** Returns the current service worker registration, if any. */
+  getRegistration() {
+    return 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration() : Promise.resolve(undefined);
+  }
+
+  /** Registers `sw.js` with the browser. Resolves with the registration (or `null` on failure). */
+  async register() {
+    if (!('serviceWorker' in navigator)) {
+      logger.warn('Service Worker disabled in browser');
+      return null;
+    }
+    try {
+      const registration = await navigator.serviceWorker.register(SW_URL());
+      logger.warn('Service Worker registered', registration);
+      return registration;
+    } catch (error) {
+      logger.error('Error registering service worker:', error);
+      return null;
+    }
   }
 
   /**
-   * Forces the current service worker to skip waiting and reloads the page
-   * to apply the new service worker immediately.
-   * @memberof PwaWorker
-   * @param {number} [timeOut=3000] - Delay in milliseconds before reloading the page.
-   * @returns {Promise<void>} A promise that resolves after the page is reloaded.
+   * Reloads the page, asking the active SW to skip waiting first so the
+   * new version takes effect on the next load.
+   * @param {number} [delay=3000] Milliseconds before reload.
    */
-  async reload(timeOut = 3000) {
-    return new Promise((resolve) => {
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          status: 'skipWaiting',
-        });
-      }
-      setTimeout(() => resolve(location.reload()), timeOut);
-    });
+  async reload(delay = 3000) {
+    navigator.serviceWorker?.controller?.postMessage({ status: 'skipWaiting' });
+    return new Promise((resolve) => setTimeout(() => resolve(location.reload()), delay));
   }
 
+  /** Deletes every cache visible to the SW. Returns the number of caches removed. */
   async clearAllCaches() {
-    const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-    return cacheNames.length;
+    const names = await caches.keys();
+    await Promise.all(names.map((name) => caches.delete(name)));
+    return names.length;
   }
 
+  /**
+   * Deletes Workbox/background-sync IndexedDB databases that may pin stale state
+   * across reloads. Safe no-op in browsers without `indexedDB.databases`.
+   */
   async clearWorkboxIndexedDb() {
     if (!('indexedDB' in window) || typeof indexedDB.databases !== 'function') return 0;
     const databases = await indexedDB.databases();
-    const workboxDatabases = databases
-      .map((database) => database.name)
+    const targets = databases
+      .map((db) => db.name)
       .filter(
         (name) =>
           typeof name === 'string' &&
@@ -252,263 +212,102 @@ class PwaWorker {
       );
 
     await Promise.all(
-      workboxDatabases.map(
+      targets.map(
         (name) =>
           new Promise((resolve) => {
-            const request = indexedDB.deleteDatabase(name);
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => resolve(false);
-            request.onblocked = () => resolve(false);
+            const req = indexedDB.deleteDatabase(name);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+            req.onblocked = () => resolve(false);
           }),
       ),
     );
-
-    return workboxDatabases.length;
+    return targets.length;
   }
 
+  /**
+   * Asks the active SW to drop its caches and confirm. Resolves `false`
+   * after 1500 ms if the SW does not reply.
+   */
   async requestWorkboxReset() {
-    if (!(navigator.serviceWorker && navigator.serviceWorker.controller)) return false;
-
+    if (!navigator.serviceWorker?.controller) return false;
     return new Promise((resolve) => {
       const channel = new MessageChannel();
       const timeoutId = setTimeout(() => resolve(false), 1500);
-
       channel.port1.onmessage = (event) => {
         clearTimeout(timeoutId);
         resolve(event.data?.status === 'workbox-reset-done');
       };
-
       navigator.serviceWorker.controller.postMessage({ status: 'workbox-reset' }, [channel.port2]);
     });
   }
 
-  async resetWorkboxAndRestart() {
+  /**
+   * Targeted cache invalidation: removes app-shell entries for components,
+   * services, and index bundles, then forces the SW registration to update.
+   * Cheaper than a full reset; used as the default "Update" action.
+   */
+  async update() {
+    const registration = await this.getRegistration();
+    if (!registration) return;
+    const names = await caches.keys();
+    for (const name of names) {
+      if (name.match('components/') || name.match('services/') || name.match('.index.js')) {
+        await caches.delete(name);
+      }
+    }
+    await registration.update();
+  }
+
+  /** Unregisters all SWs and drops every cache. */
+  async unregister() {
+    if (!('serviceWorker' in navigator)) {
+      logger.warn('Service Worker disabled in browser');
+      return;
+    }
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await this.clearAllCaches();
+      for (const registration of registrations) {
+        logger.info('Removing service worker registration', registration);
+        registration.unregister();
+      }
+    } catch (error) {
+      logger.error('Error during service worker unregistration:', error);
+    }
+  }
+
+  /** Full reset: workbox runtime + SW + client storage. Use when caches are visibly stale. */
+  async resetAndRestart() {
     localStorage.clear();
     sessionStorage.clear();
-
     await this.requestWorkboxReset();
-    await this.uninstall();
+    await this.unregister();
     await this.clearAllCaches();
     await this.clearWorkboxIndexedDb();
-    await this.install();
+    await this.register();
     await this.reload(600);
   }
 
-  /**
-   * Updates the application by clearing specific caches and running the service worker update logic.
-   * Cache names matching 'components/', 'services/', or '.index.js' are deleted.
-   * @memberof PwaWorker
-   * @returns {Promise<void>}
-   */
-  async update() {
-    const isInstall = await this.status();
-    if (isInstall) {
-      const cacheNames = await caches.keys();
-      for (const cacheName of cacheNames) {
-        if (cacheName.match('components/') || cacheName.match('services/') || cacheName.match('.index.js')) {
-          await caches.delete(cacheName);
-        }
-      }
-      await this.updateServiceWorker();
-    }
-  }
-
-  /**
-   * Schedules SW registration to run after the page 'load' event (or immediately
-   * if the page is already loaded). This keeps SW work off the render critical path,
-   * which is the primary cause of Firefox being slower than Chromium on first load.
-   * @memberof PwaWorker
-   * @returns {void}
-   */
-  registerServiceWorkerDeferred() {
-    if (!('serviceWorker' in navigator)) {
-      logger.warn('Service Worker Disabled in browser');
-      return;
-    }
-    const register = () => {
-      this.status().then((isInstall) => {
-        if (!isInstall) this.install();
-      });
-    };
-    if (document.readyState === 'complete') {
-      register();
-    } else {
-      window.addEventListener('load', register, { once: true });
-    }
-  }
-
-  /**
-   * Checks the current status of all service worker registrations and sets the
-   * `updateServiceWorker` function reference if an active worker is found.
-   * @memberof PwaWorker
-   * @returns {Promise<boolean>} True if at least one service worker is registered.
-   */
-  status() {
-    let status = false;
-    return new Promise((resolve) => {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker
-          .getRegistrations()
-          .then((registrations) => {
-            for (const registration of registrations) {
-              if (registration.installing) logger.info('installing', registration);
-              else if (registration.waiting) logger.info('waiting', registration);
-              else if (registration.active) {
-                logger.info('active', registration);
-                // Dynamically set the update function
-                this.updateServiceWorker = async () => await registration.update();
-              }
-            }
-            if (registrations.length > 0) status = true;
-            resolve(status);
-          })
-          .catch((...args) => {
-            logger.error('Error getting service worker registrations:', ...args);
-            resolve(false);
-          });
-      } else {
-        logger.warn('Service Worker Disabled in browser');
-        resolve(false);
-      }
-    });
-  }
-
-  /**
-   * Registers the service worker (`sw.js`) with the browser.
-   * @memberof PwaWorker
-   * @returns {Promise<Array<any>>} A promise that resolves with the registration arguments.
-   */
-  install() {
-    return new Promise((resolve) => {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker
-          .register(`${getProxyPath()}sw.js`)
-          .then((...args) => {
-            logger.warn('Service Worker Registered', args);
-            resolve(args);
-          })
-          .catch((...args) => {
-            logger.error('Error registering service worker:', ...args);
-            resolve(args);
-          });
-      } else {
-        logger.warn('Service Worker Disabled in browser');
-        resolve([]);
-      }
-    });
-  }
-
-  /**
-   * Unregisters all service workers and deletes all application caches.
-   * @memberof PwaWorker
-   * @returns {Promise<Array<any>>} A promise that resolves after uninstallation.
-   */
-  uninstall() {
-    return new Promise(async (resolve) => {
-      if ('serviceWorker' in navigator) {
-        try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          const cacheNames = await caches.keys();
-          for (const cacheName of cacheNames) await caches.delete(cacheName);
-          for (const registration of registrations) {
-            logger.info('Removing service worker registration', registration);
-            registration.unregister();
-          }
-          resolve([]);
-        } catch (error) {
-          logger.error('Error during service worker uninstallation:', error);
-          resolve([error]);
-        }
-      } else {
-        logger.warn('Service Worker Disabled in browser');
-        resolve([]);
-      }
-    });
-  }
-
-  /**
-   * Requests permission from the user to display notifications.
-   * Sets the internal `notificationActive` state.
-   * @memberof PwaWorker
-   * @returns {Promise<boolean>} True if permission is granted, false otherwise.
-   */
-  notificationRequestPermission() {
-    return new Promise((resolve) =>
-      Notification.requestPermission().then((result) => {
-        if (result === 'granted') {
-          this.notificationActive = true;
-          resolve(true);
-        } else {
-          this.notificationActive = false;
-          resolve(false);
-        }
-      }),
-    );
-  }
-
-  /**
-   * Shows a sample notification if permission is granted.
-   * @memberof PwaWorker
-   * @returns {void}
-   */
-  notificationShow() {
-    Notification.requestPermission().then((result) => {
-      if (result === 'granted') {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.showNotification('Vibration Sample', {
-            body: 'Buzz! Buzz!',
-            icon: '../images/touch/chrome-touch-icon.png',
-            vibrate: [200, 100, 200, 100, 200, 100, 200],
-            tag: 'vibration-sample',
-            requireInteraction: true,
-          });
-        });
-      }
-    });
-  }
-
-  /**
-   * Renders the UI for PWA settings, including buttons for cleaning cache and worker management.
-   * It also attaches the click handler for the 'clean-cache' button.
-   * @memberof PwaWorker
-   * @returns {Promise<string>} The HTML string for the settings section.
-   */
+  /** Settings panel UI: a single "clean cache" action wired to `resetAndRestart`. */
   async RenderSetting() {
     setTimeout(() => {
-      // Event listener for the clean cache button
       EventsUI.onClick(`.btn-clean-cache`, async (e) => {
         e.preventDefault();
-        // Full reset: workbox runtime state + SW registrations + client storage.
-        await this.resetWorkboxAndRestart();
+        await this.resetAndRestart();
       });
     });
     return html` <div class="in">
       ${await BtnIcon.instance({
-        class: 'inl section-mp btn-custom btn-install-service-controller hide',
-        label: html`<i class="fas fa-download"></i> ${Translate.instance('Install control service')}`,
-      })}
-      ${await BtnIcon.instance({
-        class: 'inl section-mp btn-custom btn-uninstall-service-controller hide',
-        label: html`<i class="far fa-trash-alt"></i> ${Translate.instance('Uninstall control service')}`,
-      })}
-      ${await BtnIcon.instance({
         class: 'inl section-mp btn-custom btn-clean-cache',
         label: html`<i class="fa-solid fa-broom"></i> ${Translate.instance('clean-cache')}`,
-      })}
-      ${await BtnIcon.instance({
-        class: 'inl section-mp btn-custom btn-reload hide',
-        label: html`<i class="fas fa-sync-alt"></i> ${Translate.instance('Reload')}`,
       })}
     </div>`;
   }
 }
 
-// Create the singleton instance
 const PwaWorkerInstance = new PwaWorker();
 
-// Export the new class name for modern usage
 export { PwaWorker };
-
-// Export the instance with the old name (`Worker`) for backward compatibility,
-// ensuring existing code consuming the module continues to work.
+// Backward-compat alias — older code imports the singleton as `Worker`.
 export { PwaWorkerInstance as Worker };

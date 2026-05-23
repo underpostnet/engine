@@ -724,23 +724,24 @@ const buildClient = async (
       const ssrPath = path === '/' ? path : `${path}/`;
       const Render = await ssrFactory();
 
+      const swSrcPath = `./src/client/sw/core.sw.js`;
+      const swPublicPath = `${rootClientPath}/sw.js`;
+      const swShouldRebuild =
+        views && !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
+      // Transformed SW JS is held in memory; it gets prepended with renderPayload
+      // and written once below, after PRE_CACHED_RESOURCES are known.
+      let swTransformedJs = '';
+      if (swShouldRebuild) {
+        swTransformedJs = await transformClientJs(swSrcPath, {
+          dists,
+          proxyPath: path,
+          baseHost,
+          minify: minifyBuild,
+          externalizeBareImports: false,
+        });
+      }
+
       if (views) {
-        const jsSrcPath = `./src/client/sw/core.sw.js`;
-
-        const jsPublicPath = `${rootClientPath}/sw.js`;
-
-        if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
-          const jsSrc = await transformClientJs(jsSrcPath, {
-            dists,
-            proxyPath: path,
-            baseHost,
-            minify: minifyBuild,
-            externalizeBareImports: false,
-          });
-
-          fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
-        }
-
         if (
           !(
             enableLiveRebuild &&
@@ -965,118 +966,85 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
       }
 
       if (client) {
-        let PRE_CACHED_RESOURCES = [];
+        const proxyPrefix = path === '/' ? '' : path;
+        const buildIndexUrl = (routePath) => `${proxyPrefix}${routePath === '/' ? '' : routePath}/index.html`;
 
-        const normalizePrecacheRoutePath = (candidatePath) => {
-          const routePath =
-            typeof candidatePath === 'string' && candidatePath.trim().length > 0 ? candidatePath.trim() : '/offline';
-          const withLeadingSlash = routePath.startsWith('/') ? routePath : `/${routePath}`;
-          const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
-          return withoutTrailingSlash.length > 0 ? withoutTrailingSlash : '/';
-        };
+        // SSR views: a single declarative array. The role of each view (regular
+        // page vs. offline/maintenance fallback) is expressed by per-entry flags;
+        // fallback-flagged views are also precached so the SW can serve them
+        // when the network is unreachable.
+        const ssrClientConf = confSSR[getCapVariableName(client)] || {};
+        const ssrViews = Array.isArray(ssrClientConf.views) ? ssrClientConf.views : [];
+        const PRE_CACHED_RESOURCES = [];
+        let offlineFallbackUrl = null;
+        let maintenanceFallbackUrl = null;
 
-        const toPrecacheIndexUrl = (routePath) => {
-          const normalizedRoutePath = normalizePrecacheRoutePath(routePath);
-          return `${path === '/' ? '' : path}${normalizedRoutePath === '/' ? '' : normalizedRoutePath}/index.html`;
-        };
+        for (const view of ssrViews) {
+          const SsrComponent = await ssrFactory(`./src/client/ssr/views/${view.client}.js`);
 
-        for (const pageType of ['offline', 'pages']) {
-          if (confSSR[getCapVariableName(client)] && confSSR[getCapVariableName(client)][pageType]) {
-            for (const page of confSSR[getCapVariableName(client)][pageType]) {
-              const SsrComponent = await ssrFactory(`./src/client/ssr/${pageType}/${page.client}.js`);
+          const htmlSrc = Render({
+            title: view.title,
+            ssrPath,
+            ssrHeadComponents: '<base target="_top">',
+            ssrBodyComponents: SsrComponent(),
+            renderPayload: {
+              apiBaseProxyPath,
+              apiBaseHost,
+              apiBasePath: process.env.BASE_API,
+              version: Underpost.version,
+              ...(isDevelopment ? { dev: true } : undefined),
+            },
+            renderApi: { JSONweb },
+          });
 
-              const htmlSrc = Render({
-                title: page.title,
-                ssrPath,
-                ssrHeadComponents: '<base target="_top">',
-                ssrBodyComponents: SsrComponent(),
-                renderPayload: {
-                  apiBaseProxyPath,
-                  apiBaseHost,
-                  apiBasePath: process.env.BASE_API,
-                  version: Underpost.version,
-                  ...(isDevelopment ? { dev: true } : undefined),
-                },
-                renderApi: {
-                  JSONweb,
-                },
-              });
+          const buildPath = `${rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+            }${view.path === '/' ? view.path : `${view.path}/`}`;
 
-              const buildPath = `${rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-                }${page.path === '/' ? page.path : `${page.path}/`}`;
-
-              // Install-time precache is intentionally restricted to SSR offline pages.
-              // All other routes/assets are loaded lazily at runtime.
-              if (pageType === 'offline') {
-                PRE_CACHED_RESOURCES.push(toPrecacheIndexUrl(page.path));
-              }
-
-              if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
-
-              const buildHtmlPath = `${buildPath}index.html`;
-
-              logger.info('ssr page build', buildHtmlPath);
-
-              fs.writeFileSync(
-                buildHtmlPath,
-                minifyBuild
-                  ? await minify(htmlSrc, {
-                    minifyCSS: true,
-                    minifyJS: true,
-                    collapseBooleanAttributes: true,
-                    collapseInlineTagWhitespace: true,
-                    collapseWhitespace: true,
-                  })
-                  : htmlSrc,
-                'utf8',
-              );
-            }
+          const indexUrl = buildIndexUrl(view.path);
+          if (view.offlineDefault) {
+            offlineFallbackUrl = indexUrl;
+            PRE_CACHED_RESOURCES.push(indexUrl);
           }
+          if (view.maintenanceDefault) {
+            maintenanceFallbackUrl = indexUrl;
+            PRE_CACHED_RESOURCES.push(indexUrl);
+          }
+
+          if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
+          const buildHtmlPath = `${buildPath}index.html`;
+          logger.info('ssr view build', buildHtmlPath);
+
+          fs.writeFileSync(
+            buildHtmlPath,
+            minifyBuild
+              ? await minify(htmlSrc, {
+                minifyCSS: true,
+                minifyJS: true,
+                collapseBooleanAttributes: true,
+                collapseInlineTagWhitespace: true,
+                collapseWhitespace: true,
+              })
+              : htmlSrc,
+            'utf8',
+          );
         }
 
-        {
+        if (swShouldRebuild) {
           const cacheScope = path === '/' ? 'root' : path.replaceAll('/', '_');
-          const ssrClientConf = confSSR[getCapVariableName(client)] || {};
-          const ssrOfflinePages = Array.isArray(ssrClientConf.offline) ? ssrClientConf.offline : [];
-          const normalizeSsrRoutePath = (candidatePath, fallbackPath) => {
-            const value =
-              typeof candidatePath === 'string' && candidatePath.trim().length > 0
-                ? candidatePath.trim()
-                : fallbackPath;
-            const withLeadingSlash = value.startsWith('/') ? value : `/${value}`;
-            const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
-            return withoutTrailingSlash.length > 0 ? withoutTrailingSlash : '/';
-          };
-
-          const offlineSsrPage =
-            ssrOfflinePages.find(
-              (page) =>
-                page?.client === 'NoNetworkConnection' ||
-                /no\s*network|offline/i.test(`${page?.title || ''} ${page?.client || ''} ${page?.path || ''}`),
-            ) || ssrOfflinePages[0];
-
-          const maintenanceSsrPage =
-            ssrOfflinePages.find(
-              (page) =>
-                page?.client === 'Maintenance' ||
-                /maintenance/i.test(`${page?.title || ''} ${page?.client || ''} ${page?.path || ''}`),
-            ) || ssrOfflinePages[1];
-
-          const offlinePath = normalizeSsrRoutePath(offlineSsrPage?.path, '/offline');
-          const maintenancePath = normalizeSsrRoutePath(maintenanceSsrPage?.path, '/maintenance');
-
           const renderPayload = {
             PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
             PROXY_PATH: path,
             CACHE_PREFIX: `engine-core-${cacheScope}`,
-            OFFLINE_PATH: offlinePath,
-            MAINTENANCE_PATH: maintenancePath,
+            OFFLINE_URL: offlineFallbackUrl || buildIndexUrl('/offline'),
+            MAINTENANCE_URL: maintenanceFallbackUrl || buildIndexUrl('/maintenance'),
           };
+
+          // Single write: prepend the payload prelude to the transformed SW JS.
           fs.writeFileSync(
-            `${rootClientPath}/sw.js`,
+            swPublicPath,
             `self.renderPayload = ${JSONweb(renderPayload)};
 self.__WB_DISABLE_DEV_LOGS = true;
-${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
+${swTransformedJs}`,
             'utf8',
           );
         }

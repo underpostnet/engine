@@ -168,11 +168,25 @@ const DefaultConf = /**/ {
       head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
       body: ['CacheControl', 'DefaultSplashScreen', '404', '500', 'SwaggerDarkMode'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
-      offline: [
-        { path: '/offline', title: 'No Network Connection', client: 'NoNetworkConnection', head: [], body: [] },
-        { path: '/maintenance', title: 'Server Maintenance', client: 'Maintenance', head: [], body: [] },
+      views: [
+        {
+          path: '/offline',
+          title: 'No Network Connection',
+          client: 'NoNetworkConnection',
+          head: [],
+          body: [],
+          offlineDefault: true,
+        },
+        {
+          path: '/maintenance',
+          title: 'Server Maintenance',
+          client: 'Maintenance',
+          head: [],
+          body: [],
+          maintenanceDefault: true,
+        },
+        { path: '/test', title: 'Test', client: 'Test', head: [], body: [] },
       ],
-      pages: [{ path: '/test', title: 'Test', client: 'Test', head: [], body: [] }],
     },
   },
   server: {

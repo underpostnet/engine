@@ -188,7 +188,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
       for (const path of [
         '/src/grpc/cyberia',
-        '/src/client/ssr/pages/CyberiaServerMetrics.js',
+        '/src/client/ssr/views/CyberiaServerMetrics.js',
         '/src/server/object-layer.js',
         '/src/server/atlas-sprite-sheet-generator.js',
         '/src/server/shape-generator.js',

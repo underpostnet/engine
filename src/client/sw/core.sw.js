@@ -8,49 +8,40 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 // ─── Runtime config injected by client-build.js ───────────────────────────────
-const CACHE_PREFIX = self.renderPayload?.CACHE_PREFIX || 'engine-core';
-const PRE_CACHED_RESOURCES = Array.isArray(self.renderPayload?.PRE_CACHED_RESOURCES)
-  ? self.renderPayload.PRE_CACHED_RESOURCES
-  : [];
-const PROXY_PATH = self.renderPayload?.PROXY_PATH || '/';
-const OFFLINE_PATH = self.renderPayload?.OFFLINE_PATH || '/offline';
-const MAINTENANCE_PATH = self.renderPayload?.MAINTENANCE_PATH || '/maintenance';
-const proxyBase = PROXY_PATH === '/' ? '' : PROXY_PATH;
-const normalizeRoutePath = (candidatePath, fallbackPath) => {
-  const routePath = typeof candidatePath === 'string' && candidatePath.length > 0 ? candidatePath : fallbackPath;
-  const withLeadingSlash = routePath.startsWith('/') ? routePath : `/${routePath}`;
-  const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
-  return withoutTrailingSlash.length > 0 ? withoutTrailingSlash : '/';
-};
-const offlinePath = normalizeRoutePath(OFFLINE_PATH, '/offline');
-const maintenancePath = normalizeRoutePath(MAINTENANCE_PATH, '/maintenance');
-const toRouteIndexUrl = (routePath) => `${proxyBase}${routePath === '/' ? '' : routePath}/index.html`;
-const offlineUrl = toRouteIndexUrl(offlinePath);
-const maintenanceUrl = toRouteIndexUrl(maintenancePath);
+// OFFLINE_URL and MAINTENANCE_URL are absolute (proxy-prefixed) index.html paths
+// resolved at build time from the SSR config's `fallbacks` map.
+const payload = self.renderPayload || {};
+const CACHE_PREFIX = payload.CACHE_PREFIX || 'engine-core';
+const PRE_CACHED_RESOURCES = Array.isArray(payload.PRE_CACHED_RESOURCES) ? payload.PRE_CACHED_RESOURCES : [];
+const OFFLINE_URL = payload.OFFLINE_URL || '/offline/index.html';
+const MAINTENANCE_URL = payload.MAINTENANCE_URL || '/maintenance/index.html';
 
-// Dedicated cache for fallback pages — populated independently from precacheAndRoute
-// so offline/maintenance pages are always available even if the main precache install fails.
-const FALLBACK_CACHE_NAME = `${CACHE_PREFIX}-fallbacks`;
+// Dedicated cache for fallback pages so they're available even if precacheAndRoute
+// fails (e.g. a precache manifest entry returns non-200 during install).
+const FALLBACK_CACHE = `${CACHE_PREFIX}-fallbacks`;
 
-const getFallbackResponse = async (preferMaintenance) => {
-  const cache = await caches.open(FALLBACK_CACHE_NAME);
-  if (preferMaintenance) {
-    return (
-      (await cache.match(maintenanceUrl)) ||
-      (await matchPrecache(maintenanceUrl)) ||
-      (await cache.match(offlineUrl)) ||
-      (await matchPrecache(offlineUrl)) ||
-      Response.error()
-    );
-  }
+/**
+ * Returns the cached fallback page. Tries the dedicated fallback cache first,
+ * then the Workbox precache. The `kind` argument selects which page to prefer;
+ * the other is used as a secondary fallback before giving up.
+ * @param {'offline'|'maintenance'} kind
+ */
+const getFallback = async (kind) => {
+  const primary = kind === 'maintenance' ? MAINTENANCE_URL : OFFLINE_URL;
+  const secondary = kind === 'maintenance' ? OFFLINE_URL : MAINTENANCE_URL;
+  const cache = await caches.open(FALLBACK_CACHE);
   return (
-    (await cache.match(offlineUrl)) ||
-    (await matchPrecache(offlineUrl)) ||
-    (await cache.match(maintenanceUrl)) ||
-    (await matchPrecache(maintenanceUrl)) ||
+    (await cache.match(primary)) ||
+    (await matchPrecache(primary)) ||
+    (await cache.match(secondary)) ||
+    (await matchPrecache(secondary)) ||
     Response.error()
   );
 };
+
+// True offline = device reports no network. Anything else (server 5xx, DNS, TLS)
+// is treated as a transient outage and shows the maintenance page.
+const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
 // ─── Core setup ───────────────────────────────────────────────────────────────
 setCacheNameDetails({ prefix: CACHE_PREFIX });
@@ -58,15 +49,16 @@ clientsClaim();
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  // Cache fallback pages in a dedicated cache so they are available even if
-  // precacheAndRoute fails (e.g. some asset in the manifest returns non-200).
   event.waitUntil(
-    caches.open(FALLBACK_CACHE_NAME).then((cache) =>
-      // Try together first; fall back to individual adds so a single failure
-      // does not prevent the other page from being cached.
-      cache
-        .addAll([offlineUrl, maintenanceUrl])
-        .catch(() => Promise.all([cache.add(offlineUrl).catch(() => { }), cache.add(maintenanceUrl).catch(() => { })])),
+    caches.open(FALLBACK_CACHE).then((cache) =>
+      // Try together; on partial failure, add each individually so a single
+      // broken page does not prevent the other from being cached.
+      cache.addAll([OFFLINE_URL, MAINTENANCE_URL]).catch(() =>
+        Promise.all([
+          cache.add(OFFLINE_URL).catch(() => { }),
+          cache.add(MAINTENANCE_URL).catch(() => { }),
+        ]),
+      ),
     ),
   );
 });
@@ -82,21 +74,17 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  const payload = event.data || {};
-
-  if (payload.status === 'skipWaiting') {
+  const { status } = event.data || {};
+  if (status === 'skipWaiting') {
     self.skipWaiting();
     return;
   }
-
-  if (payload.status === 'workbox-reset') {
+  if (status === 'workbox-reset') {
     event.waitUntil(
       (async () => {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-        if (event.ports && event.ports[0]) {
-          event.ports[0].postMessage({ status: 'workbox-reset-done', deleted: cacheNames.length });
-        }
+        const names = await caches.keys();
+        await Promise.all(names.map((name) => caches.delete(name)));
+        event.ports?.[0]?.postMessage({ status: 'workbox-reset-done', deleted: names.length });
       })(),
     );
   }
@@ -115,13 +103,8 @@ registerRoute(
   new StaleWhileRevalidate({
     cacheName: `${CACHE_PREFIX}-assets`,
     plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 350,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-      }),
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 350, maxAgeSeconds: 30 * 24 * 60 * 60 }),
     ],
   }),
 );
@@ -133,13 +116,8 @@ registerRoute(
     cacheName: `${CACHE_PREFIX}-api-get`,
     networkTimeoutSeconds: 5,
     plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 120,
-        maxAgeSeconds: 5 * 60, // 5 minutes
-      }),
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 120, maxAgeSeconds: 5 * 60 }),
     ],
   }),
 );
@@ -148,63 +126,40 @@ registerRoute(
 registerRoute(
   ({ request, url }) => request.method !== 'GET' && url.pathname.includes('/api/'),
   new NetworkOnly({
-    plugins: [
-      new BackgroundSyncPlugin('api-mutation-queue', {
-        maxRetentionTime: 24 * 60, // 24 hours
-      }),
-    ],
+    plugins: [new BackgroundSyncPlugin('api-mutation-queue', { maxRetentionTime: 24 * 60 })],
   }),
 );
 
-// ─── Navigation: NetworkFirst with offline fallback ───────────────────────────
+// ─── Navigation: NetworkFirst with offline/maintenance fallback ──────────────
+const navigationStrategy = new NetworkFirst({
+  cacheName: `${CACHE_PREFIX}-pages`,
+  networkTimeoutSeconds: 4,
+  plugins: [
+    new CacheableResponsePlugin({ statuses: [0, 200] }),
+    new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 12 * 60 * 60 }),
+  ],
+});
+
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   async ({ event }) => {
-    const navigationStrategy = new NetworkFirst({
-      cacheName: `${CACHE_PREFIX}-pages`,
-      networkTimeoutSeconds: 4,
-      plugins: [
-        new CacheableResponsePlugin({
-          statuses: [0, 200],
-        }),
-        new ExpirationPlugin({
-          maxEntries: 60,
-          maxAgeSeconds: 12 * 60 * 60, // 12 hours
-        }),
-      ],
-    });
-
-    // Distinguish server-down (online but unreachable) from no-network (offline).
-    // navigator.onLine is false only when the device has no network at all.
-    const isOnline = () => typeof navigator !== 'undefined' && navigator.onLine !== false;
-
     try {
       const preload = await event.preloadResponse;
-      if (preload) {
-        if (preload.status >= 500) {
-          return getFallbackResponse(true);
-        }
-        return preload;
-      }
+      if (preload) return preload.status >= 500 ? getFallback('maintenance') : preload;
 
-      const networkResponse = await navigationStrategy.handle({ event, request: event.request });
-      if (networkResponse && networkResponse.status >= 500) {
-        return getFallbackResponse(true);
-      }
-      return networkResponse;
+      const response = await navigationStrategy.handle({ event, request: event.request });
+      return response && response.status >= 500 ? getFallback('maintenance') : response;
     } catch (_) {
-      // If device reports it has network but the request failed, it means the
-      // server is unreachable/down → show maintenance. True offline → show offline.
-      return getFallbackResponse(isOnline());
+      // Request threw before producing a response: network down, DNS, TLS, etc.
+      // If the device still has connectivity, the origin is the problem → maintenance.
+      return getFallback(isOnline() ? 'maintenance' : 'offline');
     }
   },
 );
 
-// ─── Global catch handler ─────────────────────────────────────────────────────
+// ─── Global catch handler (non-navigation failures) ──────────────────────────
 setCatchHandler(async ({ request }) => {
-  if (request.mode === 'navigate') {
-    return getFallbackResponse(typeof navigator !== 'undefined' && navigator.onLine !== false);
-  }
+  if (request.mode === 'navigate') return getFallback(isOnline() ? 'maintenance' : 'offline');
   return new Response(JSON.stringify({ status: 'error', message: 'request failed' }), {
     status: 503,
     headers: { 'Content-Type': 'application/json' },
