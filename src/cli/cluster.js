@@ -30,6 +30,53 @@ const logger = loggerFactory(import.meta);
 class UnderpostCluster {
   static API = {
     /**
+     * @method cleanKindMongoHostPaths
+     * @description Best-effort cleanup of MongoDB hostPath directories inside Kind node containers.
+     * This prevents stale replica/auth state when hostPath data lives in node-local container filesystems.
+     * @param {object} [options]
+     * @param {string} [options.basePath='/data/mongodb'] - Node-internal base path for MongoDB data.
+     * @param {number} [options.replicaCount=3] - Number of replica ordinal directories (v0..vN-1).
+     * @memberof UnderpostCluster
+     */
+    cleanKindMongoHostPaths(options = { basePath: '/data/mongodb', replicaCount: 3 }) {
+      const basePath = options.basePath || '/data/mongodb';
+      const replicaCount = Math.max(Number(options.replicaCount) || 3, 1);
+      const nodesRaw = shellExec('kind get nodes', {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+      });
+      const nodes = nodesRaw
+        .split('\n')
+        .map((node) => node.trim())
+        .filter((node) => !!node);
+
+      if (nodes.length === 0) {
+        logger.info('No Kind nodes detected for node-local MongoDB hostPath cleanup.');
+        return;
+      }
+
+      for (const node of nodes) {
+        logger.info(
+          `Cleaning Kind node-local MongoDB paths '${basePath}/v0..v${replicaCount - 1}' on node '${node}'...`,
+        );
+        const prepareReplicaDirsCmd = Array.from(
+          { length: replicaCount },
+          (_, index) => `mkdir -p ${basePath}/v${index}; rm -rf ${basePath}/v${index}/*;`,
+        ).join(' ');
+        const verifyReplicaDirsCmd = Array.from(
+          { length: replicaCount },
+          (_, index) => `test -d ${basePath}/v${index};`,
+        ).join(' ');
+        shellExec(
+          `sudo docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`,
+          { silentOnError: true },
+        );
+        shellExec(`sudo docker exec ${node} sh -lc '${verifyReplicaDirsCmd}'`);
+      }
+    },
+
+    /**
      * @method init
      * @description Initializes and configures the Kubernetes cluster based on provided options.
      * This method handles host prerequisites, cluster initialization (Kind, Kubeadm, or K3s),
@@ -218,6 +265,13 @@ class UnderpostCluster {
         } else {
           // Kind cluster initialization (if not using kubeadm or k3s)
           logger.info('Initializing Kind cluster...');
+          if (options.dev) {
+            const devReplicaCount = Math.max(Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT, 3);
+            shellExec(`sudo mkdir -p /data/mongodb`);
+            for (let index = 0; index < devReplicaCount; index++) {
+              shellExec(`sudo mkdir -p /data/mongodb/v${index}`);
+            }
+          }
           shellExec(
             `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${options.dev ? '-dev' : ''
             }.yaml`,
@@ -325,62 +379,388 @@ EOF
           );
         }
       } else if (options.mongodb) {
+
         const enginePrivateRoot = `${process.cwd()}/engine-private`;
         const replicaCount = Math.max(Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT, 3);
         const mongoReplicaHosts = resolveMongoReplicaHosts({
           hostList: options.mongoDbHost,
           replicaCount,
         });
+        const mongoRootUsername = fs.readFileSync(`${enginePrivateRoot}/mongodb-username`, 'utf8').replace(/\r?\n/g, '').trim();
+        const mongoRootPassword = fs.readFileSync(`${enginePrivateRoot}/mongodb-password`, 'utf8').replace(/\r?\n/g, '').trim();
+        const useExplicitMongoReplicaHosts = !!`${options.mongoDbHost || ''}`.trim();
         const mongoReplicaSet = MONGODB_DEFAULT_REPLICA_SET;
-        const mongoSecretFiles = {
-          'mongodb keyfile': `${enginePrivateRoot}/mongodb-keyfile`,
-          'mongodb password': `${enginePrivateRoot}/mongodb-password`,
-          'mongodb username': `${enginePrivateRoot}/mongodb-username`,
-        };
+
+        if (options.dev) {
+          const kindNodesRaw = shellExec('kind get nodes', {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+          });
+          const kindNodes = kindNodesRaw
+            .split('\n')
+            .map((node) => node.trim())
+            .filter((node) => !!node);
+          const missingMountNodes = kindNodes.length === 0
+            ? ['<no-kind-nodes>']
+            : kindNodes.filter((node) => {
+              const hasMongoMount = shellExec(
+                `sudo docker inspect ${node} --format '{{range .Mounts}}{{if eq .Destination "/data/mongodb"}}yes{{end}}{{end}}'`,
+                {
+                  stdout: true,
+                  silent: true,
+                  silentOnError: true,
+                },
+              )
+                .trim()
+                .includes('yes');
+              return !hasMongoMount;
+            });
+
+          if (missingMountNodes.length > 0) {
+            throw new Error(
+              `Kind cluster is missing required mount '/data/mongodb' on nodes: ${missingMountNodes.join(', ')}. ` +
+              `Run 'node bin cluster --dev --reset && node bin cluster --dev' and retry '--mongodb'.`,
+            );
+          }
+        }
 
         if (options.pullImage) Underpost.cluster.pullImage('mongo:latest', options);
+
+        // Apply security secrets for replication keyfile and root credentials
         shellExec(
-          `sudo kubectl create secret generic mongodb-keyfile --from-file=${enginePrivateRoot}/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          `sudo kubectl create secret generic mongodb-keyfile --from-literal=mongodb-keyfile="$(tr -d '\\r\\n' < ${enginePrivateRoot}/mongodb-keyfile)" --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(
-          `sudo kubectl create secret generic mongodb-secret --from-file=username=${enginePrivateRoot}/mongodb-username --from-file=password=${enginePrivateRoot}/mongodb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          `sudo kubectl create secret generic mongodb-secret --from-literal=username="$(tr -d '\\r\\n' < ${enginePrivateRoot}/mongodb-username)" --from-literal=password="$(tr -d '\\r\\n' < ${enginePrivateRoot}/mongodb-password)" --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
+
         shellExec(`kubectl delete statefulset ${MONGODB_STATEFULSET_NAME} -n ${options.namespace} --ignore-not-found`);
+
+        // Ensure StatefulSet pods are fully gone before touching hostPath data.
+        // Without this barrier, host-side cleanup can race with terminating pods.
+        shellExec(
+          `kubectl wait --for=delete pod -l app=mongodb -n ${options.namespace} --timeout=180s`,
+          { silentOnError: true },
+        );
+
+        // Handle explicit wipeouts or dev environments deterministically
+        if (options.dev || options.reset) {
+          // Forcefully delete previous PVCs mapped by volumeClaimTemplates label selectors
+          shellExec(`kubectl delete pvc -l app=mongodb -n ${options.namespace} --ignore-not-found`);
+          shellExec(`kubectl delete pvc mongodb-pvc -n ${options.namespace} --ignore-not-found`);
+          shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
+          shellExec(`kubectl delete pv mongodb-pv --ignore-not-found`);
+          if (options.dev) {
+            shellExec(`sudo mkdir -p /data/mongodb && sudo rm -rf /data/mongodb/*`);
+            for (let index = 0; index < replicaCount; index++) {
+              shellExec(`sudo mkdir -p /data/mongodb/v${index}`);
+            }
+          }
+          // In Kind, hostPath often lives in node-container filesystems, not the host OS root.
+          Underpost.cluster.cleanKindMongoHostPaths({
+            basePath: '/data/mongodb',
+            replicaCount,
+          });
+        }
+
         shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml -n ${options.namespace}`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb -n ${options.namespace}`);
         shellExec(
           `kubectl scale statefulset/${MONGODB_STATEFULSET_NAME} --replicas=${replicaCount} -n ${options.namespace}`,
         );
 
-        for (let index = 0; index < replicaCount; index++) {
-          await Underpost.test.statusMonitor(`${MONGODB_STATEFULSET_NAME}-${index}`, 'Running', 'pods', 1000, 60 * 10);
+        // Wait for all expected replicas before bootstrapping replica set/auth,
+        // so desired DNS hosts resolve and mongosh reconfig doesn't flap.
+        const replicaReadyResults = await Promise.all(
+          Array.from({ length: replicaCount }, async (_, index) => {
+            const podName = `${MONGODB_STATEFULSET_NAME}-${index}`;
+            const ready = await Underpost.test.statusMonitor(
+              podName,
+              'Running',
+              'pods',
+              1000,
+              60 * 10,
+            );
+            return { index, ready };
+          }),
+        );
+        const missingReplicaPods = replicaReadyResults.filter((result) => !result.ready).map((result) => result.index);
+        if (missingReplicaPods.length > 0) {
+          throw new Error(
+            `MongoDB replica pods did not reach Running state in time: ${missingReplicaPods
+              .map((index) => `${MONGODB_STATEFULSET_NAME}-${index}`)
+              .join(', ')}`,
+          );
         }
 
-        const mongoConfig = {
-          _id: mongoReplicaSet,
-          members: mongoReplicaHosts.map((host, index) => ({ _id: index, host })),
-        };
-        const mongoInitScript = [
+        // Single atomic orchestration script injected into mongosh
+        const buildDeterministicMongoScript = () => [
+          `const replicaSetName = ${JSON.stringify(mongoReplicaSet)};`,
+          `const replicaCount = ${JSON.stringify(replicaCount)};`,
+          `const statefulSetName = ${JSON.stringify(MONGODB_STATEFULSET_NAME)};`,
+          `const serviceName = ${JSON.stringify(MONGODB_SERVICE_NAME)};`,
+          `const explicitHosts = ${JSON.stringify(mongoReplicaHosts)};`,
+          `const useExplicitHosts = ${JSON.stringify(useExplicitMongoReplicaHosts)};`,
+          `const rootUser = ${JSON.stringify(mongoRootUsername)};`,
+          `const rootPassword = ${JSON.stringify(mongoRootPassword)};`,
+          'const mePort = "27017";',
+          'const defaultShortHosts = Array.from({ length: replicaCount }, (_, i) => statefulSetName + "-" + i + "." + serviceName + ":" + mePort);',
+          'const desiredHosts = (useExplicitHosts ? explicitHosts : defaultShortHosts).slice(0, replicaCount);',
+          'const desiredConfig = { _id: replicaSetName, members: desiredHosts.map((host, index) => ({ _id: index, host })) };',
+
+          'const ensureRootUser = (targetDb) => {',
+          '  if (!rootUser || !rootPassword) return;',
+          '  const adminDb = targetDb.getSiblingDB("admin");',
+          '  try {',
+          '    adminDb.createUser({ user: rootUser, pwd: rootPassword, roles: [{ role: "root", db: "admin" }] });',
+          '    print("SUCCESS_USER_CREATED");',
+          '  } catch (e) {',
+          '    const errStr = String(e);',
+          '    if (errStr.includes("already exists") || errStr.includes("DuplicateKey")) {',
+          '      print("SUCCESS_USER_EXISTS");',
+          '    } else {',
+          '      throw e;',
+          '    }',
+          '  }',
+          '};',
+
+          'const runAdminReconfig = () => {',
+          '  let primaryReady = false;',
+          '  for (let i = 0; i < 30; i++) {',
+          '    const h = db.hello ? db.hello() : db.isMaster();',
+          '    if (h.isWritablePrimary || h.ismaster) { primaryReady = true; break; }',
+          '    sleep(1000);',
+          '  }',
+          '  if (!primaryReady) throw new Error("Timed out waiting for writable primary to apply configuration");',
+          '  const currentConfig = rs.conf();',
+          '  const currentHosts = currentConfig.members.map(m => m.host).sort().join(",");',
+          '  const nextHosts = desiredConfig.members.map(m => m.host).sort().join(",");',
+          '  if (currentHosts !== nextHosts || currentConfig._id !== desiredConfig._id) {',
+          '    const reconfig = { ...desiredConfig, version: (currentConfig.version || 1) + 1 };',
+          '    rs.reconfig(reconfig, { force: true });',
+          '    print("SUCCESS_RECONFIGURED");',
+          '  } else {',
+          '    print("SUCCESS_ALREADY_MATCHES");',
+          '  }',
+          '};',
+
+          'const bootstrapViaLocalhostAndReconfig = () => {',
+          '  const localBootstrapConfig = { _id: replicaSetName, members: [{ _id: 0, host: "localhost:" + mePort }] };',
+          '  try {',
+          '    rs.initiate(localBootstrapConfig);',
+          '  } catch (initErr) {',
+          '    const initStr = String(initErr);',
+          '    if (!initStr.includes("already initialized") && !initStr.includes("AlreadyInitialized")) {',
+          '      throw initErr;',
+          '    }',
+          '  }',
+          '  let elected = false;',
+          '  for (let i = 0; i < 30; i++) {',
+          '    const check = db.hello ? db.hello() : db.isMaster();',
+          '    if (check.isWritablePrimary || check.ismaster) { elected = true; break; }',
+          '    sleep(1000);',
+          '  }',
+          '  if (!elected) throw new Error("Timed out waiting for localhost bootstrap primary election");',
+          '  runAdminReconfig();',
+          '  ensureRootUser(db);',
+          '  print("SUCCESS_LOCALHOST_BOOTSTRAP_AND_RECONFIG");',
+          '};',
+
           'try {',
           '  const status = rs.status();',
           '  if (status.ok === 1) {',
-          '    print("Replica set already initialized");',
+          '    runAdminReconfig();',
           '    quit(0);',
           '  }',
           '} catch (error) {',
-          '  if (!String(error).includes("NotYetInitialized") && !String(error).includes("no replset config has been received")) {',
-          '    throw error;',
+          '  const msg = String(error);',
+          '  if (msg.includes("maps to this node")) {',
+          '    bootstrapViaLocalhostAndReconfig();',
+          '    quit(0);',
           '  }',
-          '}',
-          `rs.initiate(${JSON.stringify(mongoConfig)});`,
-          'rs.status();',
+          '  if (msg.includes("NotYetInitialized") || msg.includes("no replset config")) {',
+          '    try {',
+          '      rs.initiate(desiredConfig);',
+          '      let elected = false;',
+          '      for (let i = 0; i < 15; i++) {',
+          '        const check = db.hello ? db.hello() : db.isMaster();',
+          '        if (check.isWritablePrimary || check.ismaster) { elected = true; break; }',
+          '        sleep(1000);',
+          '      }',
+          '      ensureRootUser(db);',
+          '      print("SUCCESS_INITIALIZED_AND_CREATION_FLOW");',
+          '      quit(0);',
+          '    } catch (initErr) {',
+          '      const initStr = String(initErr);',
+          '      if (initStr.includes("already initialized") || initStr.includes("AlreadyInitialized")) {',
+          '        runAdminReconfig();',
+          '        quit(0);',
+          '      }',
+          '      if (initStr.includes("maps to this node")) {',
+          '        bootstrapViaLocalhostAndReconfig();',
+          '        quit(0);',
+          '      }',
+          '      throw initErr;',
+          '    }',
+          '  }',
+          '  throw error;',
+          '}'
         ].join(' ');
 
-        shellExec(
-          `sudo kubectl exec -i ${MONGODB_STATEFULSET_NAME}-0 -n ${options.namespace} -- sh -lc 'mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval ${JSON.stringify(
-            mongoInitScript,
-          )}'`,
-        );
+        const mongoLocalhostBootstrapAndReconfigScript = [
+          `const replicaSetName = ${JSON.stringify(mongoReplicaSet)};`,
+          `const replicaCount = ${JSON.stringify(replicaCount)};`,
+          `const statefulSetName = ${JSON.stringify(MONGODB_STATEFULSET_NAME)};`,
+          `const serviceName = ${JSON.stringify(MONGODB_SERVICE_NAME)};`,
+          `const explicitHosts = ${JSON.stringify(mongoReplicaHosts)};`,
+          `const useExplicitHosts = ${JSON.stringify(useExplicitMongoReplicaHosts)};`,
+          `const rootUser = ${JSON.stringify(mongoRootUsername)};`,
+          `const rootPassword = ${JSON.stringify(mongoRootPassword)};`,
+          'const mePort = "27017";',
+          'const defaultShortHosts = Array.from({ length: replicaCount }, (_, i) => statefulSetName + "-" + i + "." + serviceName + ":" + mePort);',
+          'const desiredHosts = (useExplicitHosts ? explicitHosts : defaultShortHosts).slice(0, replicaCount);',
+          'const desiredConfig = { _id: replicaSetName, members: desiredHosts.map((host, index) => ({ _id: index, host })) };',
+          'if (!rootUser || !rootPassword) throw new Error("Missing MongoDB root credentials for bootstrap");',
+
+          'const waitPrimary = () => {',
+          '  for (let i = 0; i < 30; i++) {',
+          '    const h = db.hello ? db.hello() : db.isMaster();',
+          '    if (h.isWritablePrimary || h.ismaster) return;',
+          '    sleep(1000);',
+          '  }',
+          '  throw new Error("Timed out waiting for bootstrap primary election");',
+          '};',
+
+          'const ensureRootUser = () => {',
+          '  const adminDb = db.getSiblingDB("admin");',
+          '  try {',
+          '    adminDb.createUser({ user: rootUser, pwd: rootPassword, roles: [{ role: "root", db: "admin" }] });',
+          '    print("SUCCESS_USER_BOOTSTRAPPED");',
+          '  } catch (e) {',
+          '    const errStr = String(e);',
+          '    if (errStr.includes("already exists") || errStr.includes("DuplicateKey")) {',
+          '      print("SUCCESS_USER_EXISTS");',
+          '    } else if (errStr.includes("requires authentication") || errStr.includes("Unauthorized") || errStr.includes("not authorized")) {',
+          '      print("SUCCESS_USER_GUARDED");',
+          '    } else {',
+          '      throw e;',
+          '    }',
+          '  }',
+          '};',
+
+          'const authenticateForReconfig = () => {',
+          '  const adminDb = db.getSiblingDB("admin");',
+          '  try {',
+          '    const ok = adminDb.auth(rootUser, rootPassword);',
+          '    return ok === 1 || ok === true;',
+          '  } catch (authErr) {',
+          '    return false;',
+          '  }',
+          '};',
+
+          'let initialized = false;',
+          'try {',
+          '  const status = rs.status();',
+          '  if (status && status.ok === 1) initialized = true;',
+          '} catch (statusError) {',
+          '  const statusErrStr = String(statusError);',
+          '  if (statusErrStr.includes("requires authentication") || statusErrStr.includes("Unauthorized") || statusErrStr.includes("not authorized")) {',
+          '    initialized = true;',
+          '  } else if (!statusErrStr.includes("NotYetInitialized") && !statusErrStr.includes("no replset config")) {',
+          '    throw statusError;',
+          '  }',
+          '}',
+          'if (!initialized) {',
+          '  try {',
+          '    rs.initiate({ _id: replicaSetName, members: [{ _id: 0, host: "localhost:" + mePort }] });',
+          '  } catch (initError) {',
+          '    const initErrStr = String(initError);',
+          '    if (!initErrStr.includes("already initialized") && !initErrStr.includes("AlreadyInitialized")) {',
+          '      throw initError;',
+          '    }',
+          '  }',
+          '}',
+          'waitPrimary();',
+          'ensureRootUser();',
+
+          'if (!authenticateForReconfig()) {',
+          '  print("SUCCESS_USER_BOOTSTRAPPED_NO_RECONFIG");',
+          '  quit(0);',
+          '}',
+
+          'const currentConfig = rs.conf();',
+          'const currentHosts = currentConfig.members.map(m => m.host).sort().join(",");',
+          'const nextHosts = desiredConfig.members.map(m => m.host).sort().join(",");',
+          'if (currentHosts !== nextHosts || currentConfig._id !== desiredConfig._id) {',
+          '  const reconfig = { ...desiredConfig, version: (currentConfig.version || 1) + 1 };',
+          '  rs.reconfig(reconfig, { force: true });',
+          '  print("SUCCESS_FINAL_REPLICA_SET_CONFIGURED");',
+          '} else {',
+          '  print("SUCCESS_ALREADY_MATCHES");',
+          '}',
+        ].join(' ');
+
+        const mongoDeterministicScript = buildDeterministicMongoScript();
+
+        // Execution command path 1: Authenticated mode (Used when data volumes persist across hot reboots)
+        const mongoInitWithAuthCmd = `sudo kubectl exec -i ${MONGODB_STATEFULSET_NAME}-0 -n ${options.namespace} -- sh -lc 'mongosh --quiet --host localhost --authenticationDatabase admin -u ${JSON.stringify(
+          mongoRootUsername,
+        )} -p ${JSON.stringify(mongoRootPassword)} --eval ${JSON.stringify(
+          mongoDeterministicScript,
+        )}'`;
+
+        // Execution command path 2: Localhost Exception mode for full bootstrap.
+        const mongoBootstrapNoAuthCmd = `sudo kubectl exec -i ${MONGODB_STATEFULSET_NAME}-0 -n ${options.namespace} -- sh -lc 'mongosh --quiet --host localhost --eval ${JSON.stringify(
+          mongoLocalhostBootstrapAndReconfigScript,
+        )}'`;
+
+        let mongoInitDone = false;
+        const maxInitAttempts = 5;
+
+        for (let attempt = 1; attempt <= maxInitAttempts; attempt++) {
+          // Localhost exception must run first on pristine volumes so rs.initiate + first user
+          // creation can happen before auth-only paths are required.
+          const noAuthBootstrapResult = shellExec(mongoBootstrapNoAuthCmd, { silentOnError: true });
+          if (noAuthBootstrapResult.code === 0) {
+            const postBootstrapAuthResult = shellExec(mongoInitWithAuthCmd, { silentOnError: true });
+            if (postBootstrapAuthResult.code === 0) {
+              mongoInitDone = true;
+              break;
+            }
+
+            logger.warn('Localhost bootstrap succeeded but authenticated reconciliation failed. Retrying execution loop...', {
+              attempt,
+              stderr: (postBootstrapAuthResult.stderr || '').trim(),
+            });
+          } else {
+            logger.info(`MongoDB localhost bootstrap path failed (Code: ${noAuthBootstrapResult.code}). Trying authenticated path fallback...`, {
+              attempt,
+            });
+            const authInitResult = shellExec(mongoInitWithAuthCmd, { silentOnError: true });
+            if (authInitResult.code === 0) {
+              mongoInitDone = true;
+              break;
+            }
+
+            logger.warn('Both localhost exception and authenticated script branches rejected execution. Retrying execution loop...', {
+              attempt,
+              stderr: (authInitResult.stderr || noAuthBootstrapResult.stderr || '').trim(),
+            });
+          }
+
+          if (attempt < maxInitAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+        }
+
+        if (!mongoInitDone) {
+          throw new Error(
+            'MongoDB cluster architecture initialization failed after maximum verification retries. ' +
+            'Ensure podManagementPolicy is updated to OrderedReady in statefulset.yaml to protect against internal write election faults.'
+          );
+        }
+
       }
 
       if (options.contour) {
@@ -606,6 +986,10 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Phase 1: Clean up Persistent Volumes with hostPath
         // This targets data created by Kubernetes Persistent Volumes that use hostPath.
         logger.info('Phase 1/7: Cleaning Kubernetes hostPath volumes...');
+        if ((options.clusterType || 'kind') === 'kind') {
+          logger.info('  -> Kind detected: cleaning node-local MongoDB hostPath directories...');
+          Underpost.cluster.cleanKindMongoHostPaths({ basePath: '/data/mongodb', replicaCount: 3 });
+        }
         if (options.removeVolumeHostPaths)
           try {
             const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, {

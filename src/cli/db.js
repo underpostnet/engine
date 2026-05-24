@@ -229,9 +229,12 @@ class UnderpostDB {
      * @param {string} params.bsonPath - BSON directory path.
      * @param {boolean} params.drop - Whether to drop existing database.
      * @param {boolean} params.preserveUUID - Whether to preserve UUIDs.
+      * @param {string} [params.user=''] - MongoDB username for authenticated restore.
+      * @param {string} [params.password=''] - MongoDB password for authenticated restore.
+      * @param {string} [params.authDatabase='admin'] - Auth database for restore command.
      * @return {boolean} Success status.
      */
-    _importMongoDB({ pod, namespace, dbName, bsonPath, drop, preserveUUID }) {
+    _importMongoDB({ pod, namespace, dbName, bsonPath, drop, preserveUUID, user = '', password = '', authDatabase = 'admin' }) {
       try {
         const podName = pod.NAME;
         const containerBsonPath = `/${dbName}`;
@@ -268,8 +271,10 @@ class UnderpostDB {
         }
 
         // Restore database
-        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''
-          }`;
+        const authFlags = user && password
+          ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
+          : '';
+        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
         Underpost.kubectl.exec({ podName, namespace, command: restoreCmd });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
@@ -290,9 +295,12 @@ class UnderpostDB {
      * @param {string} params.dbName - Database name.
      * @param {string} params.outputPath - Output directory path.
      * @param {string} [params.collections=''] - Comma-separated collection list.
+      * @param {string} [params.user=''] - MongoDB username for authenticated dump.
+      * @param {string} [params.password=''] - MongoDB password for authenticated dump.
+      * @param {string} [params.authDatabase='admin'] - Auth database for dump command.
      * @return {boolean} Success status.
      */
-    _exportMongoDB({ pod, namespace, dbName, outputPath, collections = '' }) {
+    _exportMongoDB({ pod, namespace, dbName, outputPath, collections = '', user = '', password = '', authDatabase = 'admin' }) {
       try {
         const podName = pod.NAME;
         const containerBsonPath = `/${dbName}`;
@@ -307,14 +315,18 @@ class UnderpostDB {
         });
 
         // Dump database or specific collections
+        const authFlags = user && password
+          ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
+          : '';
+
         if (collections) {
           const collectionList = collections.split(',').map((c) => c.trim());
           for (const collection of collectionList) {
-            const dumpCmd = `mongodump -d ${dbName} --collection ${collection} -o /`;
+            const dumpCmd = `mongodump -d ${dbName} --collection ${collection} -o /${authFlags}`;
             Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
           }
         } else {
-          const dumpCmd = `mongodump -d ${dbName} -o /`;
+          const dumpCmd = `mongodump -d ${dbName} -o /${authFlags}`;
           Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
         }
 
@@ -346,9 +358,12 @@ class UnderpostDB {
      * @param {string} params.podName - Pod name.
      * @param {string} params.namespace - Namespace.
      * @param {string} params.dbName - Database name.
+      * @param {string} [params.user=''] - MongoDB username for authenticated stats query.
+      * @param {string} [params.password=''] - MongoDB password for authenticated stats query.
+      * @param {string} [params.authDatabase='admin'] - Auth database for stats query.
      * @return {Object|null} Collection statistics or null on error.
      */
-    _getMongoStats({ podName, namespace, dbName }) {
+    _getMongoStats({ podName, namespace, dbName, user = '', password = '', authDatabase = 'admin' }) {
       try {
         logger.info('Getting MongoDB collection statistics', { podName, dbName });
 
@@ -356,7 +371,10 @@ class UnderpostDB {
         const script = `db.getSiblingDB('${dbName}').getCollectionNames().map(function(c) { return { collection: c, count: db.getSiblingDB('${dbName}')[c].countDocuments() }; })`;
 
         // Execute the script
-        const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --eval "${script}"`;
+        const authFlags = user && password
+          ? ` --authenticationDatabase ${JSON.stringify(authDatabase)} -u ${JSON.stringify(user)} -p ${JSON.stringify(password)}`
+          : '';
+        const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet${authFlags} --eval "${script}"`;
         const output = shellExec(command, { stdout: true, silent: true, silentOnError: true });
 
         if (!output || output.trim() === '') {
@@ -481,6 +499,9 @@ class UnderpostDB {
      * @param {Object} [options={}] - Options for getting primary pod.
      * @param {string} [options.namespace='default'] - Kubernetes namespace.
      * @param {string} [options.podName='mongodb-0'] - Initial pod name to query replica set status.
+     * @param {string} [options.username] - Optional MongoDB admin username for authenticated status query.
+     * @param {string} [options.password] - Optional MongoDB admin password for authenticated status query.
+     * @param {string} [options.authDatabase='admin'] - Optional auth database for authenticated status query.
      * @return {string|null} Primary pod name or null if not found.
      */
     getMongoPrimaryPodName(options = { namespace: 'default', podName: 'mongodb-0' }) {
@@ -489,8 +510,44 @@ class UnderpostDB {
       try {
         logger.info('Checking for MongoDB primary pod', { namespace, checkingPod: podName });
 
-        const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --eval 'rs.status().members.filter(m => m.stateStr=="PRIMARY").map(m=>m.name)'`;
-        const output = shellExec(command, { stdout: true, silent: true, silentOnError: true });
+        const readTrimmedFile = (filePath) => {
+          try {
+            if (fs.existsSync(filePath)) {
+              return fs.readFileSync(filePath, 'utf8').trim();
+            }
+          } catch (readError) {
+            logger.warn('Unable to read MongoDB credential file for primary pod detection', {
+              filePath,
+              error: readError.message,
+            });
+          }
+          return '';
+        };
+
+        const authDatabase = options.authDatabase || process.env.MONGODB_AUTH_DB || 'admin';
+        const username =
+          options.username ||
+          process.env.MONGODB_USERNAME ||
+          process.env.DB_USER ||
+          readTrimmedFile('/home/dd/engine/engine-private/mongodb-username') ||
+          readTrimmedFile('./engine-private/mongodb-username');
+        const password =
+          options.password ||
+          process.env.MONGODB_PASSWORD ||
+          process.env.DB_PASSWORD ||
+          readTrimmedFile('/home/dd/engine/engine-private/mongodb-password') ||
+          readTrimmedFile('./engine-private/mongodb-password');
+
+        const evalExpr = 'rs.status().members.filter(m => m.stateStr=="PRIMARY").map(m=>m.name)';
+        const noAuthCommand = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --eval '${evalExpr}'`;
+        let output = shellExec(noAuthCommand, { stdout: true, silent: true, silentOnError: true });
+
+        if ((!output || output.trim() === '') && username && password) {
+          const authCommand = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --authenticationDatabase ${JSON.stringify(
+            authDatabase,
+          )} -u ${JSON.stringify(username)} -p ${JSON.stringify(password)} --eval '${evalExpr}'`;
+          output = shellExec(authCommand, { stdout: true, silent: true, silentOnError: true });
+        }
 
         if (!output || output.trim() === '') {
           logger.warn('No primary pod found in replica set');
@@ -625,7 +682,13 @@ class UnderpostDB {
         });
 
         if (options.primaryPodEnsure) {
-          const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: options.primaryPodEnsure });
+          const primaryPodName = Underpost.db.getMongoPrimaryPodName({
+            namespace,
+            podName: options.primaryPodEnsure,
+            username: process.env.MONGODB_USERNAME || process.env.DB_USER || '',
+            password: process.env.MONGODB_PASSWORD || process.env.DB_PASSWORD || '',
+            authDatabase: process.env.MONGODB_AUTH_DB || 'admin',
+          });
           if (!primaryPodName) {
             const baseCommand = options.dev ? 'node bin' : 'underpost';
             const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -812,7 +875,13 @@ class UnderpostDB {
                   podsToProcess = [];
                 } else {
                   const firstPod = targetPods[0].NAME;
-                  const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: firstPod });
+                  const primaryPodName = Underpost.db.getMongoPrimaryPodName({
+                    namespace,
+                    podName: firstPod,
+                    username: user,
+                    password,
+                    authDatabase: 'admin',
+                  });
 
                   if (primaryPodName) {
                     const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
@@ -891,6 +960,9 @@ class UnderpostDB {
                         podName: pod.NAME,
                         namespace,
                         dbName,
+                        user,
+                        password,
+                        authDatabase: 'admin',
                       });
                       if (stats) {
                         Underpost.db._displayStats({ provider, dbName, stats });
@@ -906,6 +978,9 @@ class UnderpostDB {
                         bsonPath,
                         drop: options.drop,
                         preserveUUID: options.preserveUUID,
+                        user,
+                        password,
+                        authDatabase: 'admin',
                       });
                     }
 
@@ -917,6 +992,9 @@ class UnderpostDB {
                         dbName,
                         outputPath,
                         collections: options.collections,
+                        user,
+                        password,
+                        authDatabase: 'admin',
                       });
                       exportSucceeded = exportSucceeded || success;
                     }

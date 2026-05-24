@@ -1,23 +1,59 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: mongodb-pv
+  name: mongodb-pv-0
+  labels:
+    app: mongodb
 spec:
   capacity:
     storage: 5Gi
   accessModes:
     - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mongodb-storage-class
+  claimRef:
+    namespace: default
+    name: mongodb-storage-mongodb-0
   hostPath:
-    path: /data/mongodb
+    path: /data/mongodb/v0
+    type: DirectoryOrCreate
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: PersistentVolume
 metadata:
-  name: mongodb-pvc
+  name: mongodb-pv-1
+  labels:
+    app: mongodb
 spec:
-  storageClassName: ''
+  capacity:
+    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mongodb-storage-class
+  claimRef:
+    namespace: default
+    name: mongodb-storage-mongodb-1
+  hostPath:
+    path: /data/mongodb/v1
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-2
+  labels:
+    app: mongodb
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mongodb-storage-class
+  claimRef:
+    namespace: default
+    name: mongodb-storage-mongodb-2
+  hostPath:
+    path: /data/mongodb/v2
+    type: DirectoryOrCreate

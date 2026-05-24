@@ -4,7 +4,7 @@ metadata:
   name: mongodb # Specifies the name of the statefulset
 spec:
   serviceName: 'mongodb-service' # Specifies the service to use
-  podManagementPolicy: Parallel # or OrderedReady
+  podManagementPolicy: OrderedReady # or Parallel
   replicas: 3
   selector:
     matchLabels:
@@ -14,20 +14,46 @@ spec:
       labels:
         app: mongodb
     spec:
+      subdomain: mongodb-service
+      securityContext:
+        fsGroup: 999
+      initContainers:
+        - name: internal-keyfile-provisioner
+          image: docker.io/library/mongo:latest
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - sh
+            - -c
+            - |
+              set -ex
+              mkdir -p /opt/mongodb
+              cp /tmp/raw-keyfile/mongodb-keyfile /opt/mongodb/mongodb-keyfile
+              chmod 400 /opt/mongodb/mongodb-keyfile
+              chown -R 999:999 /opt/mongodb
+              chown -R 999:999 /data/db
+              rm -f /data/db/mongod.lock
+          volumeMounts:
+            - name: raw-secret-keyfile-volume
+              mountPath: /tmp/raw-keyfile
+            - name: isolated-runtime-keyfile-volume
+              mountPath: /opt/mongodb
+            - name: mongodb-storage
+              mountPath: /data/db
       containers:
         - name: mongodb
           image: docker.io/library/mongo:latest
           command:
             - mongod
+          args:
             - '--replSet'
             - 'rs0'
             - '--auth'
             - '--clusterAuthMode'
             - 'keyFile'
             - '--keyFile'
-            - '/etc/mongodb-keyfile/mongodb-keyfile'
-            - '--logpath'
-            - '/var/log/mongodb/mongod.log'
+            - '/opt/mongodb/mongodb-keyfile'
             - '--bind_ip_all'
           # command: ['sh', '-c']
           # args:
@@ -66,11 +92,10 @@ spec:
           ports:
             - containerPort: 27017
           volumeMounts:
+            - name: isolated-runtime-keyfile-volume
+              mountPath: /opt/mongodb
             - name: mongodb-storage
               mountPath: /data/db
-            - name: keyfile
-              mountPath: /etc/mongodb-keyfile
-              readOnly: true
             # - name: mongodb-configuration-file
             #   mountPath: /etc/mongod.conf
             #   subPath: mongod.conf
@@ -91,20 +116,14 @@ spec:
                   name: mongodb-secret
                   key: password
           readinessProbe:
-            exec:
-              command:
-                - sh
-                - -lc
-                - 'mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval ''db.adminCommand({ ping: 1 })'''
+            tcpSocket:
+              port: 27017
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
-            exec:
-              command:
-                - sh
-                - -lc
-                - 'mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval ''db.adminCommand({ ping: 1 })'''
+            tcpSocket:
+              port: 27017
             initialDelaySeconds: 30
             periodSeconds: 20
             timeoutSeconds: 5
@@ -116,10 +135,12 @@ spec:
               cpu: '500m'
               memory: '512Mi'
       volumes:
-        - name: keyfile
+        - name: raw-secret-keyfile-volume
           secret:
             secretName: mongodb-keyfile
             defaultMode: 0400
+        - name: isolated-runtime-keyfile-volume
+          emptyDir: {}
         # - name: mongodb-configuration-file
         #   configMap:
         #     name: mongodb-config-file
