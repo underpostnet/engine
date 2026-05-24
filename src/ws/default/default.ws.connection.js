@@ -17,17 +17,17 @@ class DefaultWsConnectionHandler {
   /**
    * Handles a new WebSocket connection.
    * @param {import('socket.io').Socket} socket
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static handle(socket, wsManagementId) {
+  static handle(socket, hostKeyContext) {
     logger.info(`DefaultWsConnection ${socket.id}`);
 
-    DefaultWsMainChannel.connection(socket, wsManagementId);
+    DefaultWsMainChannel.connection(socket, hostKeyContext);
 
     socket.on('disconnect', (reason) => {
       logger.info(`DefaultWsConnection ${socket.id} due to reason: ${reason}`);
 
-      DefaultWsMainChannel.disconnect(socket, reason, wsManagementId);
+      DefaultWsMainChannel.disconnect(socket, reason, hostKeyContext);
     });
   }
 }

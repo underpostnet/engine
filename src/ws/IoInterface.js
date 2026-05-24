@@ -46,9 +46,9 @@ class IoChannel {
   constructor(IoInterface) {
     this.#IoInterface = {
       channel: '',
-      connection: async (socket = {}, client = {}, wsManagementId = '') => {},
-      controller: async (socket = {}, client = {}, payload = {}, wsManagementId = '', args = []) => {},
-      disconnect: async (socket = {}, client = {}, reason = '', wsManagementId = '') => {},
+      connection: async (socket = {}, client = {}, hostKeyContext = '') => { },
+      controller: async (socket = {}, client = {}, payload = {}, hostKeyContext = '', args = []) => { },
+      disconnect: async (socket = {}, client = {}, reason = '', hostKeyContext = '') => { },
       stream: false,
       ...IoInterface,
     };
@@ -68,18 +68,18 @@ class IoChannel {
    * Sets up the listener for the channel message.
    *
    * @param {Socket} socket - The Socket.IO socket object.
-   * @param {string} wsManagementId - Unique identifier for the WebSocket management context.
+   * @param {string} hostKeyContext - Unique identifier for the WebSocket management context.
    * @returns {Promise<void>}
    */
-  async connection(socket, wsManagementId) {
+  async connection(socket, hostKeyContext) {
     try {
       this.client[socket.id] = socket;
       // Use bind/arrow function to maintain 'this' context for the controller
-      socket.on(this.channel, (...args) => this.controller(socket, args, wsManagementId));
-      await this.#IoInterface.connection(socket, this.client, wsManagementId);
+      socket.on(this.channel, (...args) => this.controller(socket, args, hostKeyContext));
+      await this.#IoInterface.connection(socket, this.client, hostKeyContext);
       logger.debug(`Socket ${socket.id} connected to channel ${this.channel}`);
     } catch (error) {
-      logger.error(error, { channel: this.channel, wsManagementId, stack: error.stack });
+      logger.error(error, { channel: this.channel, hostKeyContext, stack: error.stack });
     }
   }
 
@@ -89,10 +89,10 @@ class IoChannel {
    * @method
    * @param {Socket} socket - The Socket.IO socket object.
    * @param {any[]} args - The raw arguments received from the socket event.
-   * @param {string} wsManagementId - Unique identifier for the WebSocket management context.
+   * @param {string} hostKeyContext - Unique identifier for the WebSocket management context.
    * @returns {Promise<void>}
    */
-  async controller(socket, args, wsManagementId) {
+  async controller(socket, args, hostKeyContext) {
     try {
       if (!args || args.length === 0) {
         logger.warn(`No arguments received for channel: ${this.channel}`, { socketId: socket.id });
@@ -101,9 +101,9 @@ class IoChannel {
       // Determine if JSON parsing is needed based on the stream flag
       const payload = this.#IoInterface.stream ? args[0] : JSON.parse(args[0]);
 
-      await this.#IoInterface.controller(socket, this.client, payload, wsManagementId, args);
+      await this.#IoInterface.controller(socket, this.client, payload, hostKeyContext, args);
     } catch (error) {
-      logger.error(error, { channel: this.channel, wsManagementId, socketId: socket.id, args, stack: error.stack });
+      logger.error(error, { channel: this.channel, hostKeyContext, socketId: socket.id, args, stack: error.stack });
     }
   }
 
@@ -112,16 +112,16 @@ class IoChannel {
    *
    * @param {Socket} socket - The Socket.IO socket object.
    * @param {string} reason - The reason for disconnection (e.g., 'client namespace disconnect').
-   * @param {string} wsManagementId - Unique identifier for the WebSocket management context.
+   * @param {string} hostKeyContext - Unique identifier for the WebSocket management context.
    * @returns {Promise<void>}
    */
-  async disconnect(socket, reason, wsManagementId) {
+  async disconnect(socket, reason, hostKeyContext) {
     try {
-      await this.#IoInterface.disconnect(socket, this.client, reason, wsManagementId);
+      await this.#IoInterface.disconnect(socket, this.client, reason, hostKeyContext);
       delete this.client[socket.id];
       logger.debug(`Socket ${socket.id} disconnected from channel ${this.channel}. Reason: ${reason}`);
     } catch (error) {
-      logger.error(error, { channel: this.channel, wsManagementId, reason, socketId: socket.id, stack: error.stack });
+      logger.error(error, { channel: this.channel, hostKeyContext, reason, socketId: socket.id, stack: error.stack });
     }
   }
 }

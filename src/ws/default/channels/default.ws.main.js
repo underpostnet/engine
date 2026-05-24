@@ -10,7 +10,7 @@ import { IoChannel } from '../../IoInterface.js';
  * @classdesc Provides a no-op main channel for the default WebSocket server.
  */
 class DefaultWsMainChannel {
-  /** @type {Object.<string, Object>} Per-instance state keyed by wsManagementId. */
+  /** @type {Object.<string, Object>} Per-instance state keyed by hostKeyContext. */
   static #state = {};
 
   /** @type {IoChannel} */
@@ -28,29 +28,29 @@ class DefaultWsMainChannel {
 
   /**
    * Initializes state for a server instance.
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static init(wsManagementId) {
-    this.#state[wsManagementId] = {};
+  static init(hostKeyContext) {
+    this.#state[hostKeyContext] = {};
   }
 
   /**
    * Registers a socket connection.
    * @param {import('socket.io').Socket} socket
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static connection(socket, wsManagementId) {
-    return this.#io.connection(socket, wsManagementId);
+  static connection(socket, hostKeyContext) {
+    return this.#io.connection(socket, hostKeyContext);
   }
 
   /**
    * Handles socket disconnection.
    * @param {import('socket.io').Socket} socket
    * @param {string} reason
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static disconnect(socket, reason, wsManagementId) {
-    return this.#io.disconnect(socket, reason, wsManagementId);
+  static disconnect(socket, reason, hostKeyContext) {
+    return this.#io.disconnect(socket, reason, hostKeyContext);
   }
 }
 

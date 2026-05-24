@@ -28,13 +28,13 @@ class CoreWsServer {
    */
   static create(httpServer, options) {
     const { host, path } = options;
-    const wsManagementId = resolveHostKeyContext({ host, path });
+    const hostKeyContext = resolveHostKeyContext({ host, path });
 
-    CoreWsChatChannel.init(wsManagementId);
-    CoreWsMailerChannel.init(wsManagementId);
-    CoreWsStreamChannel.init(wsManagementId);
+    CoreWsChatChannel.init(hostKeyContext);
+    CoreWsMailerChannel.init(hostKeyContext);
+    CoreWsStreamChannel.init(hostKeyContext);
 
-    return IoServer.create(httpServer, options, (socket) => CoreWsConnectionHandler.handle(socket, wsManagementId));
+    return IoServer.create(httpServer, options, (socket) => CoreWsConnectionHandler.handle(socket, hostKeyContext));
   }
 }
 

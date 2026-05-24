@@ -12,29 +12,29 @@ import { IoChannel } from '../../IoInterface.js';
  * Handles register/unregister messages and cleanup on disconnect.
  */
 class CoreWsMailerChannel {
-  /** @type {Object.<string, Object.<string, { model: { user: Object } }>>} Socket data keyed by `[wsManagementId][socketId]`. */
+  /** @type {Object.<string, Object.<string, { model: { user: Object } }>>} Socket data keyed by `[hostKeyContext][socketId]`. */
   static #data = {};
 
-  /** @type {Object.<string, Object.<string, string>>} Reverse index: `[wsManagementId][userId]` → socketId. */
+  /** @type {Object.<string, Object.<string, string>>} Reverse index: `[hostKeyContext][userId]` → socketId. */
   static #userIndex = {};
 
   /** @type {IoChannel} */
   static #io = new IoChannel({
     channel: 'mailer',
-    controller(socket, client, payload, wsManagementId) {
+    controller(socket, client, payload, hostKeyContext) {
       switch (payload.status) {
         case 'register-user':
-          CoreWsMailerChannel.setUser(wsManagementId, socket.id, payload.user);
+          CoreWsMailerChannel.setUser(hostKeyContext, socket.id, payload.user);
           break;
         case 'unregister-user':
-          CoreWsMailerChannel.removeSocket(wsManagementId, socket.id);
+          CoreWsMailerChannel.removeSocket(hostKeyContext, socket.id);
           break;
         default:
           break;
       }
     },
-    disconnect(socket, client, reason, wsManagementId) {
-      CoreWsMailerChannel.removeSocket(wsManagementId, socket.id);
+    disconnect(socket, client, reason, hostKeyContext) {
+      CoreWsMailerChannel.removeSocket(hostKeyContext, socket.id);
     },
   });
 
@@ -50,66 +50,66 @@ class CoreWsMailerChannel {
 
   /**
    * Initializes state for a server instance.
-   * @param {string} wsManagementId - Unique server context ID (`${host}${path}`).
+   * @param {string} hostKeyContext - Unique server context ID (`${host}${path}`).
    */
-  static init(wsManagementId) {
-    this.#data[wsManagementId] = {};
-    this.#userIndex[wsManagementId] = {};
+  static init(hostKeyContext) {
+    this.#data[hostKeyContext] = {};
+    this.#userIndex[hostKeyContext] = {};
   }
 
   /**
    * Registers a socket connection.
    * @param {import('socket.io').Socket} socket
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static connection(socket, wsManagementId) {
-    return this.#io.connection(socket, wsManagementId);
+  static connection(socket, hostKeyContext) {
+    return this.#io.connection(socket, hostKeyContext);
   }
 
   /**
    * Handles socket disconnection.
    * @param {import('socket.io').Socket} socket
    * @param {string} reason
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static disconnect(socket, reason, wsManagementId) {
-    return this.#io.disconnect(socket, reason, wsManagementId);
+  static disconnect(socket, reason, hostKeyContext) {
+    return this.#io.disconnect(socket, reason, hostKeyContext);
   }
 
   /**
    * Registers a user↔socket mapping.
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    * @param {string} socketId
    * @param {Object} user - User data with `_id` property.
    */
-  static setUser(wsManagementId, socketId, user) {
-    this.#data[wsManagementId][socketId] = { model: { user } };
+  static setUser(hostKeyContext, socketId, user) {
+    this.#data[hostKeyContext][socketId] = { model: { user } };
     if (user?._id) {
-      this.#userIndex[wsManagementId][user._id.toString()] = socketId;
+      this.#userIndex[hostKeyContext][user._id.toString()] = socketId;
     }
   }
 
   /**
    * Removes a socket entry and its reverse user index.
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    * @param {string} socketId
    */
-  static removeSocket(wsManagementId, socketId) {
-    const entry = this.#data[wsManagementId]?.[socketId];
+  static removeSocket(hostKeyContext, socketId) {
+    const entry = this.#data[hostKeyContext]?.[socketId];
     if (entry?.model?.user?._id) {
-      delete this.#userIndex[wsManagementId][entry.model.user._id.toString()];
+      delete this.#userIndex[hostKeyContext][entry.model.user._id.toString()];
     }
-    delete this.#data[wsManagementId]?.[socketId];
+    delete this.#data[hostKeyContext]?.[socketId];
   }
 
   /**
    * Finds the socket ID for a user (O(1) reverse index lookup).
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    * @param {string} userId - The user `_id`.
    * @returns {string|undefined} Socket ID, or `undefined` if not connected.
    */
-  static getUserWsId(wsManagementId, userId) {
-    return this.#userIndex[wsManagementId]?.[userId];
+  static getUserWsId(hostKeyContext, userId) {
+    return this.#userIndex[hostKeyContext]?.[userId];
   }
 }
 

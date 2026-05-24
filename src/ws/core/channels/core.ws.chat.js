@@ -12,13 +12,13 @@ import { CoreWsEmitter } from '../core.ws.emit.js';
  * Broadcasts incoming messages to all other connected sockets.
  */
 class CoreWsChatChannel {
-  /** @type {Object.<string, Object>} Per-instance state keyed by wsManagementId. */
+  /** @type {Object.<string, Object>} Per-instance state keyed by hostKeyContext. */
   static #state = {};
 
   /** @type {IoChannel} */
   static #io = new IoChannel({
     channel: 'chat',
-    controller(socket, client, payload, wsManagementId) {
+    controller(socket, client, payload, hostKeyContext) {
       for (const socketId of Object.keys(client)) {
         if (socketId !== socket.id) {
           CoreWsEmitter.emit('chat', client[socketId], { id: socket.id, ...payload });
@@ -39,29 +39,29 @@ class CoreWsChatChannel {
 
   /**
    * Initializes state for a server instance.
-   * @param {string} wsManagementId - Unique server context ID.
+   * @param {string} hostKeyContext - Unique server context ID.
    */
-  static init(wsManagementId) {
-    this.#state[wsManagementId] = {};
+  static init(hostKeyContext) {
+    this.#state[hostKeyContext] = {};
   }
 
   /**
    * Registers a socket connection.
    * @param {import('socket.io').Socket} socket
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static connection(socket, wsManagementId) {
-    return this.#io.connection(socket, wsManagementId);
+  static connection(socket, hostKeyContext) {
+    return this.#io.connection(socket, hostKeyContext);
   }
 
   /**
    * Handles socket disconnection.
    * @param {import('socket.io').Socket} socket
    * @param {string} reason
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static disconnect(socket, reason, wsManagementId) {
-    return this.#io.disconnect(socket, reason, wsManagementId);
+  static disconnect(socket, reason, hostKeyContext) {
+    return this.#io.disconnect(socket, reason, hostKeyContext);
   }
 }
 

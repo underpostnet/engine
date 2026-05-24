@@ -25,11 +25,11 @@ class DefaultWsServer {
    */
   static create(httpServer, options) {
     const { host, path } = options;
-    const wsManagementId = resolveHostKeyContext({ host, path });
+    const hostKeyContext = resolveHostKeyContext({ host, path });
 
-    DefaultWsMainChannel.init(wsManagementId);
+    DefaultWsMainChannel.init(hostKeyContext);
 
-    return IoServer.create(httpServer, options, (socket) => DefaultWsConnectionHandler.handle(socket, wsManagementId));
+    return IoServer.create(httpServer, options, (socket) => DefaultWsConnectionHandler.handle(socket, hostKeyContext));
   }
 }
 

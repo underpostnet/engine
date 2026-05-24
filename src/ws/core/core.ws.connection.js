@@ -19,21 +19,21 @@ class CoreWsConnectionHandler {
   /**
    * Handles a new WebSocket connection.
    * @param {import('socket.io').Socket} socket
-   * @param {string} wsManagementId
+   * @param {string} hostKeyContext
    */
-  static handle(socket, wsManagementId) {
+  static handle(socket, hostKeyContext) {
     logger.info(`New connection established. Socket ID: ${socket.id}`);
 
-    CoreWsChatChannel.connection(socket, wsManagementId);
-    CoreWsMailerChannel.connection(socket, wsManagementId);
-    CoreWsStreamChannel.connection(socket, wsManagementId);
+    CoreWsChatChannel.connection(socket, hostKeyContext);
+    CoreWsMailerChannel.connection(socket, hostKeyContext);
+    CoreWsStreamChannel.connection(socket, hostKeyContext);
 
     socket.on('disconnect', (reason) => {
       logger.info(`Connection disconnected. Socket ID: ${socket.id}, reason: ${reason}`);
 
-      CoreWsChatChannel.disconnect(socket, reason, wsManagementId);
-      CoreWsMailerChannel.disconnect(socket, reason, wsManagementId);
-      CoreWsStreamChannel.disconnect(socket, reason, wsManagementId);
+      CoreWsChatChannel.disconnect(socket, reason, hostKeyContext);
+      CoreWsMailerChannel.disconnect(socket, reason, hostKeyContext);
+      CoreWsStreamChannel.disconnect(socket, reason, hostKeyContext);
     });
   }
 }
