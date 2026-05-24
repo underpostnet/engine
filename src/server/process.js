@@ -138,7 +138,6 @@ class ProcessController {
       ProcessController._forwardToChildren('SIGKILL');
     });
     ProcessController.onSigListen();
-    Underpost.env.delete('await-deploy');
   }
 }
 /**
@@ -202,6 +201,7 @@ const shellExec = (cmd, options = {}) => {
     try {
       process.chdir(options.cwd);
     } catch (err) {
+      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error')
       throw new ShellExecError(cmd, -1, '', `chdir(${options.cwd}) failed: ${err.message}`);
     }
   }
@@ -215,6 +215,7 @@ const shellExec = (cmd, options = {}) => {
     const result = shell.exec(cmd, shellOpts);
 
     if (!options.silentOnError && result && typeof result.code === 'number' && result.code !== 0) {
+      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error')
       throw new ShellExecError(cmd, result.code, result.stdout || '', result.stderr || '');
     }
 

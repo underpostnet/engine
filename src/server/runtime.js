@@ -176,7 +176,7 @@ const buildRuntime = async () => {
   }
 
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
-
+  Underpost.env.delete('await-deploy');
   Underpost.start.logRuntimeRouter();
 };
 
