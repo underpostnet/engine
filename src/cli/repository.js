@@ -51,8 +51,7 @@ class UnderpostRepository {
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
       shellExec(
-        `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
-          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
+        `git clone ${options?.bare === true ? ` --bare ` : ''}https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
         }github.com/${gitUri}${gExtension}`,
         {
           disableLog: true,
@@ -74,8 +73,7 @@ class UnderpostRepository {
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
-        `cd ${repoPath} && git pull https://${
-          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
+        `cd ${repoPath} && git pull https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
         }github.com/${gitUri}${gExtension}`,
         {
           disableLog: true,
@@ -158,10 +156,10 @@ class UnderpostRepository {
         const branch =
           options.p === true
             ? shellExec(`cd ${repoPath} && git branch --show-current`, {
-                stdout: true,
-                silent: true,
-                disableLog: true,
-              }).trim()
+              stdout: true,
+              silent: true,
+              disableLog: true,
+            }).trim()
             : options.p;
         console.log(
           shellExec(`cd ${repoPath} && git --no-pager reflog show refs/heads/${branch}`, {
@@ -390,9 +388,8 @@ class UnderpostRepository {
         return;
       }
       if (options.info) return logger.info('', commitData);
-      const _message = `${commitType}${subModule ? `(${subModule})` : ''}: ${
-        commitData[commitType].emoji
-      } ${message ? message : commitData[commitType].description}`;
+      const _message = `${commitType}${subModule ? `(${subModule})` : ''}: ${commitData[commitType].emoji
+        } ${message ? message : commitData[commitType].description}`;
       if (options.copy) return pbcopy(_message);
       shellExec(
         `cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}${options.edit ? `--amend  --no-edit ` : `-m "${_message}"`}`,
@@ -429,8 +426,7 @@ class UnderpostRepository {
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
-        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${
-          options?.f === true ? ' --force' : ''
+        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${options?.f === true ? ' --force' : ''
         }`,
         {
           disableLog: true,
@@ -1008,11 +1004,14 @@ Prevent build private config repo.`,
             const host = 'default.net';
             const path = '/';
             DefaultConf.server[host][path].valkey = {
-              port: 6379,
-              host: 'valkey-service.default.svc.cluster.local',
+              port: 'env:VALKEY_PORT:int:6379',
+              host: 'env:VALKEY_HOST:127.0.0.1',
             };
-            // mongodb-0.mongodb-service
-            DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';
+            DefaultConf.server[host][path].db.host = 'env:DB_HOST:mongodb://127.0.0.1:27017';
+            DefaultConf.server[host][path].db.replicaSet = 'env:DB_REPLICA_SET:rs0';
+            DefaultConf.server[host][path].db.authSource = 'env:DB_AUTH_SOURCE:admin';
+            DefaultConf.server[host][path].db.user = 'env:DB_USER:';
+            DefaultConf.server[host][path].db.password = 'env:DB_PASSWORD:';
             defaultConf = true;
             break;
           }
@@ -1262,10 +1261,10 @@ Prevent build private config repo.`,
         const payloadJson = JSON.stringify(payload).replace(/'/g, "'\\''");
         shellExec(
           `curl -s -f -X POST ` +
-            `-H "Accept: application/vnd.github.v3+json" ` +
-            `-H "Authorization: token ${token}" ` +
-            `"https://api.github.com/repos/${repo}/actions/workflows/${workflowFile}/dispatches" ` +
-            `-d '${payloadJson}'`,
+          `-H "Accept: application/vnd.github.v3+json" ` +
+          `-H "Authorization: token ${token}" ` +
+          `"https://api.github.com/repos/${repo}/actions/workflows/${workflowFile}/dispatches" ` +
+          `-d '${payloadJson}'`,
         );
       }
       logger.info('Dispatched workflow', `${repo} -> ${workflowFile}`, inputs.job ? `(job: ${inputs.job})` : '');

@@ -7,6 +7,13 @@
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
+import {
+  MONGODB_DEFAULT_REPLICA_COUNT,
+  MONGODB_DEFAULT_REPLICA_SET,
+  MONGODB_SERVICE_NAME,
+  MONGODB_STATEFULSET_NAME,
+  resolveMongoReplicaHosts,
+} from '../db/mongo/MongooseDB.js';
 import os from 'os';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
@@ -318,33 +325,62 @@ EOF
           );
         }
       } else if (options.mongodb) {
+        const enginePrivateRoot = `${process.cwd()}/engine-private`;
+        const replicaCount = Math.max(Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT, 3);
+        const mongoReplicaHosts = resolveMongoReplicaHosts({
+          hostList: options.mongoDbHost,
+          replicaCount,
+        });
+        const mongoReplicaSet = MONGODB_DEFAULT_REPLICA_SET;
+        const mongoSecretFiles = {
+          'mongodb keyfile': `${enginePrivateRoot}/mongodb-keyfile`,
+          'mongodb password': `${enginePrivateRoot}/mongodb-password`,
+          'mongodb username': `${enginePrivateRoot}/mongodb-username`,
+        };
+
         if (options.pullImage) Underpost.cluster.pullImage('mongo:latest', options);
         shellExec(
-          `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          `sudo kubectl create secret generic mongodb-keyfile --from-file=${enginePrivateRoot}/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(
-          `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          `sudo kubectl create secret generic mongodb-secret --from-file=username=${enginePrivateRoot}/mongodb-username --from-file=password=${enginePrivateRoot}/mongodb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
-        shellExec(`kubectl delete statefulset mongodb -n ${options.namespace} --ignore-not-found`);
+        shellExec(`kubectl delete statefulset ${MONGODB_STATEFULSET_NAME} -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml -n ${options.namespace}`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb -n ${options.namespace}`);
+        shellExec(
+          `kubectl scale statefulset/${MONGODB_STATEFULSET_NAME} --replicas=${replicaCount} -n ${options.namespace}`,
+        );
 
-        const successInstance = await Underpost.test.statusMonitor('mongodb-0', 'Running', 'pods', 1000, 60 * 10);
-
-        if (successInstance) {
-          if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-0.mongodb-service';
-          const mongoConfig = {
-            _id: 'rs0',
-            members: options.mongoDbHost.split(',').map((host, index) => ({ _id: index, host: `${host}:27017` })),
-          };
-
-          shellExec(
-            `sudo kubectl exec -i mongodb-0 -- mongosh --quiet --json=relaxed \
-        --eval 'use admin' \
-        --eval 'rs.initiate(${JSON.stringify(mongoConfig)})' \
-        --eval 'rs.status()'`,
-          );
+        for (let index = 0; index < replicaCount; index++) {
+          await Underpost.test.statusMonitor(`${MONGODB_STATEFULSET_NAME}-${index}`, 'Running', 'pods', 1000, 60 * 10);
         }
+
+        const mongoConfig = {
+          _id: mongoReplicaSet,
+          members: mongoReplicaHosts.map((host, index) => ({ _id: index, host })),
+        };
+        const mongoInitScript = [
+          'try {',
+          '  const status = rs.status();',
+          '  if (status.ok === 1) {',
+          '    print("Replica set already initialized");',
+          '    quit(0);',
+          '  }',
+          '} catch (error) {',
+          '  if (!String(error).includes("NotYetInitialized") && !String(error).includes("no replset config has been received")) {',
+          '    throw error;',
+          '  }',
+          '}',
+          `rs.initiate(${JSON.stringify(mongoConfig)});`,
+          'rs.status();',
+        ].join(' ');
+
+        shellExec(
+          `sudo kubectl exec -i ${MONGODB_STATEFULSET_NAME}-0 -n ${options.namespace} -- sh -lc 'mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval ${JSON.stringify(
+            mongoInitScript,
+          )}'`,
+        );
       }
 
       if (options.contour) {

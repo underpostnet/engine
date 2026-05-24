@@ -29,6 +29,7 @@ import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { timer } from '../../client/components/core/CommonJs.js';
 import { GuestService } from './guest.service.js';
+import { resolveHostKeyContext } from '../../server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -53,11 +54,10 @@ class UserService {
    * @throws {Error} If authentication fails, email is invalid, or email send error.
    */
   static post = async (req, res, options) => {
-    /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
-
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProvider.getModel('file', options);
+    /** @type {import('./user.model.js').UserModel} */
+    const User = DataBaseProvider.getModel('user', options);
 
     if (req.params.id === 'recover-verify-email') {
       const user = await User.findOne({
@@ -72,7 +72,7 @@ class UserService {
 
       const token = jwtSign({ email: req.body.email }, options, 15);
       const payloadToken = jwtSign({ email: req.body.email }, options, 15);
-      const id = `${options.host}${options.path}`;
+      const id = resolveHostKeyContext(options);
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
       const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${req.body.proxyPath
         }recover?payload=${payloadToken}`;
@@ -108,7 +108,7 @@ class UserService {
       if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
 
       const token = jwtSign({ email: req.body.email }, options, 15);
-      const id = `${options.host}${options.path}`;
+      const id = resolveHostKeyContext(options);
       const user = await User.findById(req.auth.user._id);
 
       if (user.emailConfirmed) throw new Error('email already confirmed');
@@ -274,11 +274,10 @@ class UserService {
    * @throws {Error} If user not found, profile is private, or token invalid.
    */
   static get = async (req, res, options) => {
-    /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
-
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProvider.getModel('file', options);
+    /** @type {import('./user.model.js').UserModel} */
+    const User = DataBaseProvider.getModel('user', options);
 
     if (req.path.startsWith('/u/')) {
       // First lookup user by username
@@ -350,7 +349,7 @@ class UserService {
         {
           const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
         }
-        const userWsId = CoreWsMailerChannel.getUserWsId(`${options.host}${options.path}`, user._id.toString());
+        const userWsId = CoreWsMailerChannel.getUserWsId(resolveHostKeyContext(options), user._id.toString());
         if (userWsId && CoreWsMailerChannel.client[userWsId]) {
           CoreWsEmitter.emit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
             status: 'email-confirmed',
@@ -441,7 +440,7 @@ class UserService {
    */
   static delete = async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+    const User = DataBaseProvider.getModel('user', options);
 
     if (req.params.id === 'logout') {
       const result = await logoutSession(User, req, res);
@@ -486,11 +485,10 @@ class UserService {
    * @throws {Error} If user not found, token invalid, or invalid file.
    */
   static put = async (req, res, options) => {
-    /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
-
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProvider.getModel('file', options);
+    /** @type {import('./user.model.js').UserModel} */
+    const User = DataBaseProvider.getModel('user', options);
 
     // req.path | req.baseUrl
 

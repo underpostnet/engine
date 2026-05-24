@@ -4,7 +4,8 @@ metadata:
   name: mongodb # Specifies the name of the statefulset
 spec:
   serviceName: 'mongodb-service' # Specifies the service to use
-  replicas: 2
+  podManagementPolicy: Parallel # or OrderedReady
+  replicas: 3
   selector:
     matchLabels:
       app: mongodb
@@ -20,21 +21,11 @@ spec:
             - mongod
             - '--replSet'
             - 'rs0'
-            # - '--config'
-            # - '-f'
-            # - '/etc/mongod.conf'
-            # - '--auth'
-            # - '--clusterAuthMode'
-            # - 'keyFile'
-            # - '--keyFile'
-            # - '/etc/mongodb-keyfile'
-            # - '--interleave'
-            # - 'all'
-            # - '--wiredTigerCacheSizeGB'
-            # - '0.25'
-            # - '--setParameter'
-            # - 'authenticationMechanisms=SCRAM-SHA-1'
-            # - '--fork'
+            - '--auth'
+            - '--clusterAuthMode'
+            - 'keyFile'
+            - '--keyFile'
+            - '/etc/mongodb-keyfile/mongodb-keyfile'
             - '--logpath'
             - '/var/log/mongodb/mongod.log'
             - '--bind_ip_all'
@@ -87,6 +78,8 @@ spec:
             # - name: mongodb-config
             #   mountPath: /config
           env:
+            - name: MONGO_REPLICA_SET_NAME
+              value: rs0
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -97,6 +90,24 @@ spec:
                 secretKeyRef:
                   name: mongodb-secret
                   key: password
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -lc
+                - mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval 'db.adminCommand({ ping: 1 })'
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -lc
+                - mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval 'db.adminCommand({ ping: 1 })'
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: '100m'

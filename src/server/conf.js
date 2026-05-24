@@ -42,6 +42,20 @@ const logger = loggerFactory(import.meta);
 const ENV_REF_PREFIX = 'env:';
 
 /**
+ * Resolves a standardized context key from host/path descriptors.
+ * The key is used across DB, WS, mailer, and cache registries.
+ *
+ * @method resolveHostKeyContext
+ * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or prebuilt key.
+ * @returns {string} Host key context string.
+ * @memberof ServerConfBuilder
+ */
+const resolveHostKeyContext = (context = { host: '', path: '' }) => {
+  if (typeof context === 'string') return context;
+  return `${context.host || ''}${context.path || ''}`;
+};
+
+/**
  * Recursively walks a configuration object and replaces every string value that
  * starts with {@link ENV_REF_PREFIX} (`"env:"`) with the corresponding
  * `process.env[VAR_NAME]` value.
@@ -1308,59 +1322,6 @@ const mergeFile = async (parts = [], outputFilePath) => {
 };
 
 /**
- * @method rebuildConfFactory
- * @description Rebuilds the conf factory.
- * @param {object} options - The options.
- * @param {string} options.deployId - The deploy ID.
- * @param {string} options.valkey - The valkey.
- * @param {boolean} [options.mongo=false] - The mongo.
- * @returns {object} - The rebuild conf factory.
- * @memberof ServerConfBuilder
- */
-const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
-  const confServer = loadReplicas(deployId, loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`));
-  const hosts = {};
-  for (const host of Object.keys(confServer)) {
-    hosts[host] = {};
-    for (const path of Object.keys(confServer[host])) {
-      if (!confServer[host][path].db) continue;
-      const { singleReplica, replicas, db } = confServer[host][path];
-      const { provider } = db;
-      if (singleReplica) {
-        for (const replica of replicas) {
-          const deployIdReplica = buildReplicaId({ replica, deployId });
-          const confServerReplica = loadConfServerJson(`./engine-private/replica/${deployIdReplica}/conf.server.json`);
-          for (const _host of Object.keys(confServerReplica)) {
-            for (const _path of Object.keys(confServerReplica[_host])) {
-              hosts[host][_path] = { replica: { host, path } };
-              confServerReplica[_host][_path].valkey = valkey;
-              switch (provider) {
-                case 'mongoose':
-                  confServerReplica[_host][_path].db.host = mongo.host;
-                  break;
-              }
-            }
-          }
-          fs.writeFileSync(
-            `./engine-private/replica/${deployIdReplica}/conf.server.json`,
-            JSON.stringify(confServerReplica, null, 4),
-            'utf8',
-          );
-        }
-      } else hosts[host][path] = {};
-      confServer[host][path].valkey = valkey;
-      switch (provider) {
-        case 'mongoose':
-          confServer[host][path].db.host = mongo.host;
-          break;
-      }
-    }
-  }
-  fs.writeFileSync(`./engine-private/conf/${deployId}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
-  return { hosts };
-};
-
-/**
  * @method getPathsSSR
  * @description Gets the paths SSR.
  * @param {object} conf - The conf.
@@ -1768,7 +1729,6 @@ export {
   pathPortAssignmentFactory,
   deployRangePortFactory,
   awaitDeployMonitor,
-  rebuildConfFactory,
   buildCliDoc,
   getInstanceContext,
   buildApiConf,
@@ -1778,6 +1738,7 @@ export {
   devProxyHostFactory,
   isTlsDevProxy,
   getTlsHosts,
+  resolveHostKeyContext,
   resolveConfSecrets,
   loadConfServerJson,
   getConfFolder,

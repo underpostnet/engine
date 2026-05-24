@@ -1,5 +1,7 @@
 import { MongooseDB } from './mongo/MongooseDB.js';
 import { loggerFactory } from '../server/logger.js';
+import { getCapVariableName } from '../client/components/core/CommonJs.js';
+import { resolveHostKeyContext } from '../server/conf.js';
 
 /**
  * Module for managing and loading various database connections (e.g., Mongoose, MariaDB).
@@ -32,6 +34,79 @@ class DataBaseProviderService {
     return this.#instance;
   }
 
+
+  /**
+   * Retrieves a loaded provider bucket for a context.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {{models: object, connection: object, close: Function, dbSignature?: string}} Provider bucket.
+   * @throws {Error} When the provider is not loaded for the context.
+   */
+  getProvider(context = { host: '', path: '' }, provider = 'mongoose') {
+    const key = resolveHostKeyContext(context);
+    const entry = this.#instance[key]?.[provider];
+
+    if (!entry) throw new Error(`Database provider not loaded for context "${key}" (${provider})`);
+    return entry;
+  }
+
+  /**
+   * Returns the raw DB connection object for a context/provider.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {object} Provider connection object.
+   */
+  getConnection(context = { host: '', path: '' }, provider = 'mongoose') {
+    return this.getProvider(context, provider).connection;
+  }
+
+  /**
+   * Resolves a loaded model by name for a given context/provider.
+   * @param {string} modelName - API/model identifier.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {object} Loaded model instance.
+   * @throws {Error} When the model is not loaded for the context.
+   */
+  getModel(modelName, context = { host: '', path: '' }, provider = 'mongoose') {
+    const normalizedModelName = getCapVariableName(modelName);
+    const model = this.getProvider(context, provider).models?.[normalizedModelName];
+
+    if (!model) {
+      throw new Error(`Model not loaded for context "${resolveHostKeyContext(context)}": ${normalizedModelName}`);
+    }
+
+    return model;
+  }
+
+  /**
+   * Builds a minimal dispatcher bound to a specific context/provider.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {{getConnection: () => object, getModel: (modelName: string) => object}} Bound accessor helpers.
+   */
+  getDispatcher(context = { host: '', path: '' }, provider = 'mongoose') {
+    return {
+      getConnection: () => this.getConnection(context, provider),
+      getModel: (modelName) => this.getModel(modelName, context, provider),
+    };
+  }
+
+  /**
+   * Builds a stable signature used to detect provider configuration changes.
+   * @param {object} [db={}] - Database configuration object.
+   * @returns {string} Stringified signature for change detection.
+   */
+  buildDbSignature(db = {}) {
+    return JSON.stringify({
+      authSource: db.authSource || '',
+      host: db.host || '',
+      name: db.name || '',
+      provider: db.provider || '',
+      replicaSet: db.replicaSet || '',
+    });
+  }
+
   /**
    * Loads and initializes a database provider based on the configuration.
    * If the connection is already loaded for the given host/path, it returns the existing instance.
@@ -51,18 +126,27 @@ class DataBaseProviderService {
   async load(options = { apis: [], host: '', path: '', db: {} }) {
     try {
       const { apis, host, path, db } = options;
-      const key = `${host}${path}`;
+      const key = resolveHostKeyContext({ host, path });
+      const dbSignature = this.buildDbSignature(db);
 
       if (!this.#instance[key]) this.#instance[key] = {};
+      if (!db) return undefined;
 
-      if (!db || this.#instance[key][db.provider]) return this.#instance[key][db.provider];
+      const currentProvider = this.#instance[key][db.provider];
+      if (currentProvider && currentProvider.dbSignature === dbSignature) return currentProvider;
+
+      if (currentProvider && currentProvider.close) {
+        await currentProvider.close();
+        delete this.#instance[key][db.provider];
+      }
 
       // logger.info(`Load ${db.provider} provider`, key);
       switch (db.provider) {
         case 'mongoose':
           {
-            const conn = await MongooseDB.connect(db.host, db.name);
+            const conn = await MongooseDB.connect(db);
             this.#instance[key][db.provider] = {
+              dbSignature,
               models: await MongooseDB.loadModels({ conn, apis }),
               connection: conn,
               close: async () => {
@@ -88,12 +172,12 @@ class DataBaseProviderService {
         path: options.path,
         db: options.db
           ? {
-              provider: options.db.provider,
-              name: options.db.name ? '***' : undefined,
-              host: options.db.host ? '***' : undefined,
-              user: options.db.user ? '***' : undefined,
-              password: options.db.password ? '***' : undefined,
-            }
+            provider: options.db.provider,
+            name: options.db.name ? '***' : undefined,
+            host: options.db.host ? '***' : undefined,
+            user: options.db.user ? '***' : undefined,
+            password: options.db.password ? '***' : undefined,
+          }
           : {},
       };
       logger.error(error.message, { safeOptions });

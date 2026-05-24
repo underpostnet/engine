@@ -10,6 +10,7 @@ import { CoreWsConnectionHandler } from './core.ws.connection.js';
 import { CoreWsChatChannel } from './channels/core.ws.chat.js';
 import { CoreWsMailerChannel } from './channels/core.ws.mailer.js';
 import { CoreWsStreamChannel } from './channels/core.ws.stream.js';
+import { resolveHostKeyContext } from '../../server/conf.js';
 
 /**
  * @class CoreWsServer
@@ -27,7 +28,7 @@ class CoreWsServer {
    */
   static create(httpServer, options) {
     const { host, path } = options;
-    const wsManagementId = `${host}${path}`;
+    const wsManagementId = resolveHostKeyContext({ host, path });
 
     CoreWsChatChannel.init(wsManagementId);
     CoreWsMailerChannel.init(wsManagementId);

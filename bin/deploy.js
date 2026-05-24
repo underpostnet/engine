@@ -443,10 +443,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           shellExec(`sudo kubectl delete secret ${secretSelector} -n ${namespace} --ignore-not-found`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
-              ` --from-literal=POSTGRES_DB=postgresdb` +
-              ` --from-literal=POSTGRES_USER=admin` +
-              ` --from-file=POSTGRES_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
-              ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+            ` --from-literal=POSTGRES_DB=postgresdb` +
+            ` --from-literal=POSTGRES_USER=admin` +
+            ` --from-file=POSTGRES_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
+            ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );
         }
         {
@@ -454,10 +454,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           shellExec(`sudo kubectl delete secret ${secretSelector} -n ${namespace} --ignore-not-found`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
-              ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
-              ` --from-literal=FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}` +
-              ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
-              ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+            ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
+            ` --from-literal=FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}` +
+            ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
+            ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );
         }
       }
@@ -577,8 +577,7 @@ nvidia/gpu-operator \
       shellExec(`sudo docker pull ${image}`);
       if (!process.argv.includes('kubeadm'))
         shellExec(
-          `sudo ${
-            process.argv.includes('kubeadm') ? `ctr -n k8s.io images import` : `kind load docker-image`
+          `sudo ${process.argv.includes('kubeadm') ? `ctr -n k8s.io images import` : `kind load docker-image`
           } ${image}`,
         );
       const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'default';
@@ -627,11 +626,11 @@ nvidia/gpu-operator \
           }
           env[key] =
             `${key}`.toUpperCase().match('API') ||
-            `${key}`.toUpperCase().match('KEY') ||
-            `${key}`.toUpperCase().match('SECRET') ||
-            `${key}`.toUpperCase().match('TOKEN') ||
-            `${key}`.toUpperCase().match('PASSWORD') ||
-            `${key}`.toUpperCase().match('MAC')
+              `${key}`.toUpperCase().match('KEY') ||
+              `${key}`.toUpperCase().match('SECRET') ||
+              `${key}`.toUpperCase().match('TOKEN') ||
+              `${key}`.toUpperCase().match('PASSWORD') ||
+              `${key}`.toUpperCase().match('MAC')
               ? 'changethis'
               : isNaN(parseFloat(privateEnv[key]))
                 ? `${privateEnv[key]}`.match(`@`)
@@ -1394,10 +1393,10 @@ nvidia/gpu-operator \
       const deployIds = deployIdArg
         ? [deployIdArg]
         : fs
-            .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
-            .split(',')
-            .map((d) => d.trim())
-            .filter(Boolean);
+          .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean);
 
       const addComponentToClientConf = ({ filePath, label, targetClientId, targetSubmoduleId }) => {
         if (!fs.existsSync(filePath)) return { added: 0, checked: 0, hasComponentFile: false };
