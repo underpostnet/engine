@@ -24,52 +24,6 @@ const logger = loggerFactory(import.meta);
  */
 class UnderpostCluster {
   static API = {
-    /**
-     * @method cleanKindMongoHostPaths
-     * @description Best-effort cleanup of MongoDB hostPath directories inside Kind node containers.
-     * This prevents stale replica/auth state when hostPath data lives in node-local container filesystems.
-     * @param {object} [options]
-     * @param {string} [options.basePath='/data/mongodb'] - Node-internal base path for MongoDB data.
-     * @param {number} [options.replicaCount=3] - Number of replica ordinal directories (v0..vN-1).
-     * @memberof UnderpostCluster
-     */
-    cleanKindMongoHostPaths(options = { basePath: '/data/mongodb', replicaCount: 3 }) {
-      const basePath = options.basePath || '/data/mongodb';
-      const replicaCount = Math.max(Number(options.replicaCount) || 3, 1);
-      const nodesRaw = shellExec('kind get nodes', {
-        stdout: true,
-        silent: true,
-        silentOnError: true,
-      });
-      const nodes = nodesRaw
-        .split('\n')
-        .map((node) => node.trim())
-        .filter((node) => !!node);
-
-      if (nodes.length === 0) {
-        logger.info('No Kind nodes detected for node-local MongoDB hostPath cleanup.');
-        return;
-      }
-
-      for (const node of nodes) {
-        logger.info(
-          `Cleaning Kind node-local MongoDB paths '${basePath}/v0..v${replicaCount - 1}' on node '${node}'...`,
-        );
-        const prepareReplicaDirsCmd = Array.from(
-          { length: replicaCount },
-          (_, index) => `mkdir -p ${basePath}/v${index}; rm -rf ${basePath}/v${index}/*;`,
-        ).join(' ');
-        const verifyReplicaDirsCmd = Array.from(
-          { length: replicaCount },
-          (_, index) => `test -d ${basePath}/v${index};`,
-        ).join(' ');
-        shellExec(
-          `sudo docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`,
-          { silentOnError: true },
-        );
-        shellExec(`sudo docker exec ${node} sh -lc '${verifyReplicaDirsCmd}'`);
-      }
-    },
 
     /**
      * @method init
@@ -265,9 +219,30 @@ class UnderpostCluster {
           for (let index = 0; index < devReplicaCount; index++) {
             shellExec(`sudo mkdir -p /data/mongodb/v${index}`);
           }
-          shellExec(
-            `cd ${underpostRoot}/manifests && kind create cluster --config kind-config-dev.yaml`,
-          );
+          const kindCreateCmd = `cd ${underpostRoot}/manifests && kind create cluster --config kind-config-dev.yaml`;
+          try {
+            shellExec(kindCreateCmd);
+          } catch (error) {
+            const kindCreateErrText = `${error?.message || ''}\n${error?.stderr || ''}`;
+            if (kindCreateErrText.includes('all predefined address pools have been fully subnetted')) {
+              logger.warn('Docker address pool exhausted while creating Kind cluster. Running cleanup and retrying once...');
+              Underpost.cluster.recoverKindDockerNetworks();
+              try {
+                shellExec(kindCreateCmd);
+              } catch (retryError) {
+                const retryErrText = `${retryError?.message || ''}\n${retryError?.stderr || ''}`;
+                if (retryErrText.includes('all predefined address pools have been fully subnetted')) {
+                  logger.warn('Kind retry still failed from pool exhaustion. Applying Docker daemon address-pool config and retrying once more...');
+                  Underpost.cluster.ensureDockerDefaultAddressPools();
+                  shellExec(kindCreateCmd);
+                } else {
+                  throw retryError;
+                }
+              }
+            } else {
+              throw error;
+            }
+          }
           Underpost.cluster.chown('kind'); // Pass 'kind' to chown
         }
         Underpost.cluster.natSetup({ underpostRoot });
@@ -892,6 +867,95 @@ EOF`);
 
       console.log('Uninstall process completed.');
     },
+
+    /**
+    * @method cleanKindMongoHostPaths
+    * @description Best-effort cleanup of MongoDB hostPath directories inside Kind node containers.
+    * This prevents stale replica/auth state when hostPath data lives in node-local container filesystems.
+    * @param {object} [options]
+    * @param {string} [options.basePath='/data/mongodb'] - Node-internal base path for MongoDB data.
+    * @param {number} [options.replicaCount=3] - Number of replica ordinal directories (v0..vN-1).
+    * @memberof UnderpostCluster
+    */
+    cleanKindMongoHostPaths(options = { basePath: '/data/mongodb', replicaCount: 3 }) {
+      const basePath = options.basePath || '/data/mongodb';
+      const replicaCount = Math.max(Number(options.replicaCount) || 3, 1);
+      const nodesRaw = shellExec('kind get nodes', {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+      });
+      const nodes = nodesRaw
+        .split('\n')
+        .map((node) => node.trim())
+        .filter((node) => !!node);
+
+      if (nodes.length === 0) {
+        logger.info('No Kind nodes detected for node-local MongoDB hostPath cleanup.');
+        return;
+      }
+
+      for (const node of nodes) {
+        logger.info(
+          `Cleaning Kind node-local MongoDB paths '${basePath}/v0..v${replicaCount - 1}' on node '${node}'...`,
+        );
+        const prepareReplicaDirsCmd = Array.from(
+          { length: replicaCount },
+          (_, index) => `mkdir -p ${basePath}/v${index}; rm -rf ${basePath}/v${index}/*;`,
+        ).join(' ');
+        const verifyReplicaDirsCmd = Array.from(
+          { length: replicaCount },
+          (_, index) => `test -d ${basePath}/v${index};`,
+        ).join(' ');
+        shellExec(
+          `sudo docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`,
+          { silentOnError: true },
+        );
+        shellExec(`sudo docker exec ${node} sh -lc '${verifyReplicaDirsCmd}'`);
+      }
+    },
+
+    /**
+     * @method recoverKindDockerNetworks
+     * @description Best-effort cleanup of stale Kind Docker resources when Docker bridge
+     * address pools are exhausted and new networks cannot be allocated.
+     * @memberof UnderpostCluster
+     */
+    recoverKindDockerNetworks() {
+      logger.warn('Attempting Docker network recovery for Kind (address pool exhaustion detected)...');
+      shellExec(`sudo docker ps -aq --filter label=io.x-k8s.kind.cluster | xargs -r sudo docker rm -f`, {
+        silentOnError: true,
+      });
+      shellExec(`sudo docker network ls -q --filter label=io.x-k8s.kind.cluster | xargs -r sudo docker network rm`, {
+        silentOnError: true,
+      });
+      shellExec(`sudo docker network rm kind`, { silentOnError: true });
+      shellExec(`sudo docker network prune -f`, { silentOnError: true });
+    },
+
+    /**
+     * @method ensureDockerDefaultAddressPools
+     * @description Writes a sane Docker default-address-pools config to reduce
+     * Kind network allocation failures on hosts with exhausted predefined pools.
+     * @memberof UnderpostCluster
+     */
+    ensureDockerDefaultAddressPools() {
+      logger.warn('Applying Docker default-address-pools workaround for Kind network creation...');
+      shellExec(`cat <<'EOF' | sudo tee /etc/docker/daemon.json
+{
+  "default-address-pools": [
+    {"base": "172.17.0.0/16", "size": 24},
+    {"base": "172.18.0.0/16", "size": 24},
+    {"base": "172.19.0.0/16", "size": 24},
+    {"base": "172.20.0.0/14", "size": 24},
+    {"base": "172.24.0.0/14", "size": 24}
+  ]
+}
+EOF`);
+      shellExec('sudo systemctl restart docker');
+      shellExec('sudo docker network prune -f', { silentOnError: true });
+    },
+
   };
 }
 export default UnderpostCluster;

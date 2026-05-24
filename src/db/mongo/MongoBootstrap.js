@@ -120,14 +120,23 @@ class MongoBootstrap {
             `};`,
 
             // Authenticate and apply desired replica config
-            `const reconfigure = () => {`,
-            `  if (rootUser && rootPassword) {`,
-            `    const ok = db.getSiblingDB("admin").auth(rootUser, rootPassword);`,
-            `    if (ok !== 1 && ok !== true) {`,
-            `      print("SUCCESS_USER_BOOTSTRAPPED_NO_RECONFIG");`,
-            `      return false;`,
-            `    }`,
+            `const ensureAdminAuth = () => {`,
+            `  if (!rootUser || !rootPassword) return true;`,
+            `  try {`,
+            `    const status = db.runCommand({ connectionStatus: 1 });`,
+            `    const users = status && status.authInfo && status.authInfo.authenticatedUsers ? status.authInfo.authenticatedUsers : [];`,
+            `    if (users.length > 0) return true;`,
+            `  } catch (e) {}`,
+            `  const ok = db.getSiblingDB("admin").auth(rootUser, rootPassword);`,
+            `  if (ok !== 1 && ok !== true) {`,
+            `    print("SUCCESS_USER_BOOTSTRAPPED_NO_RECONFIG");`,
+            `    return false;`,
             `  }`,
+            `  return true;`,
+            `};`,
+
+            `const reconfigure = () => {`,
+            `  if (!ensureAdminAuth()) return false;`,
             `  const cur = rs.conf();`,
             `  const curHosts = cur.members.map(m => m.host).sort().join(",");`,
             `  const nextHosts = desiredConfig.members.map(m => m.host).sort().join(",");`,
@@ -168,6 +177,7 @@ class MongoBootstrap {
             `waitPrimary();`,
             `ensureRootUser();`,
             `reconfigure();`,
+            `quit(0);`,
         ].join('\n');
     }
 
@@ -381,6 +391,7 @@ class MongoBootstrap {
             rootUser: mongoRootUsername,
             rootPassword: mongoRootPassword,
         });
+        const inlineInitScript = initScript.replace(/\r?\n/g, ' ');
 
         // Execute init with retry
         const execMongoCmd = (auth = false) => {
@@ -390,13 +401,13 @@ class MongoBootstrap {
                     `sudo kubectl exec -i ${pod0} -n ${namespace} -- bash -lc ` +
                     `'mongosh --quiet --host localhost --authenticationDatabase admin ` +
                     `-u ${JSON.stringify(mongoRootUsername)} -p ${JSON.stringify(mongoRootPassword)} ` +
-                    `--eval ${JSON.stringify(initScript)}'`,
+                    `--eval ${JSON.stringify(inlineInitScript)}'`,
                     { silentOnError: true },
                 );
             }
             return shellExec(
                 `sudo kubectl exec -i ${pod0} -n ${namespace} -- bash -lc ` +
-                `'mongosh --quiet --host localhost --eval ${JSON.stringify(initScript)}'`,
+                `'mongosh --quiet --host localhost --eval ${JSON.stringify(inlineInitScript)}'`,
                 { silentOnError: true },
             );
         };
