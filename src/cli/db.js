@@ -12,6 +12,7 @@ import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import { DataBaseProviderService } from '../db/DataBaseProvider.js';
 import { loadReplicas, pathPortAssignmentFactory, loadCronDeployEnv } from '../server/conf.js';
+import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 import Underpost from '../index.js';
 import { timer } from '../client/components/core/CommonJs.js';
 const logger = loggerFactory(import.meta);
@@ -492,86 +493,7 @@ class UnderpostDB {
       console.log('='.repeat(70) + '\n');
     },
 
-    /**
-     * Gets MongoDB primary pod name from replica set status.
-     * @method getMongoPrimaryPodName
-     * @memberof UnderpostDB
-     * @param {Object} [options={}] - Options for getting primary pod.
-     * @param {string} [options.namespace='default'] - Kubernetes namespace.
-     * @param {string} [options.podName='mongodb-0'] - Initial pod name to query replica set status.
-     * @param {string} [options.username] - Optional MongoDB admin username for authenticated status query.
-     * @param {string} [options.password] - Optional MongoDB admin password for authenticated status query.
-     * @param {string} [options.authDatabase='admin'] - Optional auth database for authenticated status query.
-     * @return {string|null} Primary pod name or null if not found.
-     */
-    getMongoPrimaryPodName(options = { namespace: 'default', podName: 'mongodb-0' }) {
-      const { namespace = 'default', podName = 'mongodb-0' } = options;
 
-      try {
-        logger.info('Checking for MongoDB primary pod', { namespace, checkingPod: podName });
-
-        const readTrimmedFile = (filePath) => {
-          try {
-            if (fs.existsSync(filePath)) {
-              return fs.readFileSync(filePath, 'utf8').trim();
-            }
-          } catch (readError) {
-            logger.warn('Unable to read MongoDB credential file for primary pod detection', {
-              filePath,
-              error: readError.message,
-            });
-          }
-          return '';
-        };
-
-        const authDatabase = options.authDatabase || process.env.MONGODB_AUTH_DB || 'admin';
-        const username =
-          options.username ||
-          process.env.MONGODB_USERNAME ||
-          process.env.DB_USER ||
-          readTrimmedFile('/home/dd/engine/engine-private/mongodb-username') ||
-          readTrimmedFile('./engine-private/mongodb-username');
-        const password =
-          options.password ||
-          process.env.MONGODB_PASSWORD ||
-          process.env.DB_PASSWORD ||
-          readTrimmedFile('/home/dd/engine/engine-private/mongodb-password') ||
-          readTrimmedFile('./engine-private/mongodb-password');
-
-        const evalExpr = 'rs.status().members.filter(m => m.stateStr=="PRIMARY").map(m=>m.name)';
-        const noAuthCommand = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --eval '${evalExpr}'`;
-        let output = shellExec(noAuthCommand, { stdout: true, silent: true, silentOnError: true });
-
-        if ((!output || output.trim() === '') && username && password) {
-          const authCommand = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet --authenticationDatabase ${JSON.stringify(
-            authDatabase,
-          )} -u ${JSON.stringify(username)} -p ${JSON.stringify(password)} --eval '${evalExpr}'`;
-          output = shellExec(authCommand, { stdout: true, silent: true, silentOnError: true });
-        }
-
-        if (!output || output.trim() === '') {
-          logger.warn('No primary pod found in replica set');
-          return null;
-        }
-
-        // Parse the output to get the primary pod name
-        // Output format: [ 'mongodb-0:27017' ] or [ 'mongodb-1.mongodb-service:27017' ] or similar
-        const match = output.match(/['"]([^'"]+)['"]/);
-        if (match && match[1]) {
-          let primaryName = match[1].split(':')[0]; // Extract pod name without port
-          // Remove service suffix if present (e.g., "mongodb-1.mongodb-service" -> "mongodb-1")
-          primaryName = primaryName.split('.')[0];
-          logger.info('Found MongoDB primary pod', { primaryPod: primaryName });
-          return primaryName;
-        }
-
-        logger.warn('Could not parse primary pod from replica set status', { output });
-        return null;
-      } catch (error) {
-        logger.error('Failed to get MongoDB primary pod', { error: error.message });
-        return null;
-      }
-    },
 
     /**
      * Main callback: Initiates database backup workflow.
@@ -682,7 +604,7 @@ class UnderpostDB {
         });
 
         if (options.primaryPodEnsure) {
-          const primaryPodName = Underpost.db.getMongoPrimaryPodName({
+          const primaryPodName = MongoBootstrap.getPrimaryPodName({
             namespace,
             podName: options.primaryPodEnsure,
             username: process.env.MONGODB_USERNAME || process.env.DB_USER || '',
@@ -875,7 +797,7 @@ class UnderpostDB {
                   podsToProcess = [];
                 } else {
                   const firstPod = targetPods[0].NAME;
-                  const primaryPodName = Underpost.db.getMongoPrimaryPodName({
+                  const primaryPodName = MongoBootstrap.getPrimaryPodName({
                     namespace,
                     podName: firstPod,
                     username: user,

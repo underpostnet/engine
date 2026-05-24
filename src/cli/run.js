@@ -24,6 +24,7 @@ import { range, setPad, timer } from '../client/components/core/CommonJs.js';
 import os from 'os';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
+import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 
 const waitForPort = (port, host = '127.0.0.1', { maxAttempts = 30, interval = 2000 } = {}) =>
   new Promise((resolve, reject) => {
@@ -225,7 +226,7 @@ class UnderpostRun {
         // Detect MongoDB primary pod using method
         let primaryMongoHost = 'mongodb-0.mongodb-service';
         try {
-          const primaryPodName = Underpost.db.getMongoPrimaryPodName({
+          const primaryPodName = MongoBootstrap.getPrimaryPodName({
             namespace: options.namespace,
             podName: 'mongodb-0',
           });
