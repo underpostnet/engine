@@ -131,12 +131,10 @@ class UnderpostIPFS {
       // Apply UDP buffer sysctl on every Kind node so QUIC (used by IPFS) can reach the
       // recommended 7.5 MB buffer size. Kind nodes are containers and do NOT inherit the
       // host sysctl values, so this must be set via docker exec on each node directly.
-      if (!options.kubeadm && !options.k3s) {
-        logger.info('Applying UDP buffer sysctl on Kind nodes');
-        shellExec(
-          `for node in $(kind get nodes); do docker exec $node sysctl -w net.core.rmem_max=7500000 net.core.wmem_max=7500000; done`,
-        );
-      }
+      shellExec(
+        `sudo sysctl -w net.core.rmem_max=7500000
+sudo sysctl -w net.core.wmem_max=7500000`,
+      );
 
       shellExec(`kubectl apply -f ${underpostRoot}/manifests/ipfs/storage-class.yaml`);
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/ipfs -n ${options.namespace}`);
