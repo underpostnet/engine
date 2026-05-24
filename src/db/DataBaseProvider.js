@@ -24,13 +24,13 @@ class DataBaseProviderService {
    * @type {object.<string, object>}
    * @method
    */
-  #instance = {};
+  static #instance = {};
 
   /**
    * Retrieves the internal instance storage for direct access (used for backward compatibility).
    * @returns {object.<string, object>} The internal connection instance map.
    */
-  get instance() {
+  static get instance() {
     return this.#instance;
   }
 

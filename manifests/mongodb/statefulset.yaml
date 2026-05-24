@@ -95,7 +95,7 @@ spec:
               command:
                 - sh
                 - -lc
-                - mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval 'db.adminCommand({ ping: 1 })'
+                - 'mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval ''db.adminCommand({ ping: 1 })'''
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
@@ -104,7 +104,7 @@ spec:
               command:
                 - sh
                 - -lc
-                - mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval 'db.adminCommand({ ping: 1 })'
+                - 'mongosh --quiet --host localhost --authenticationDatabase admin -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --eval ''db.adminCommand({ ping: 1 })'''
             initialDelaySeconds: 30
             periodSeconds: 20
             timeoutSeconds: 5
