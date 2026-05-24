@@ -13,7 +13,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
@@ -46,11 +46,11 @@ const proto = grpc.loadPackageDefinition(packageDefinition).cyberia;
 // ═══════════════════════════════════════════════════════════════════
 
 function getModels(dbKey) {
-  const bucket = DataBaseProvider.instance[dbKey];
-  if (!bucket || !bucket.mongoose || !bucket.mongoose.models) {
-    throw new Error(`DataBaseProvider not loaded for key "${dbKey}"`);
+  const bucket = DataBaseProviderService.getProvider(dbKey, 'mongoose');
+  if (!bucket || !bucket.models) {
+    throw new Error(`DataBaseProviderService not loaded for key "${dbKey}"`);
   }
-  return bucket.mongoose.models;
+  return bucket.models;
 }
 
 function countSharedItemIds(source = [], target = []) {
@@ -566,8 +566,8 @@ class GrpcServer {
 
   /**
    * @param {Object} opts
-   * @param {string} opts.host  - DataBaseProvider host key
-   * @param {string} opts.path  - DataBaseProvider path key
+   * @param {string} opts.host  - DataBaseProviderService host key
+   * @param {string} opts.path  - DataBaseProviderService path key
    * @param {number} [opts.port=50051]
    */
   static async start({ host, path: dbPath, port = 50051 } = {}) {

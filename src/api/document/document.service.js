@@ -8,7 +8,7 @@
  */
 
 import { loggerFactory } from '../../server/logger.js';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
 import { uniqueArray } from '../../client/components/core/CommonJs.js';
 import { getBearerToken, verifyJWT } from '../../server/auth.js';
@@ -36,7 +36,7 @@ class DocumentService {
    */
   static post = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    const Document = DataBaseProviderService.getModel("Document", options);
 
     switch (req.params.id) {
       default:
@@ -67,11 +67,11 @@ class DocumentService {
    */
   static get = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    const Document = DataBaseProviderService.getModel("Document", options);
     /** @type {import('../user/user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+    const User = DataBaseProviderService.getModel("User", options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     // High-query endpoint for typeahead search
     //
@@ -490,9 +490,9 @@ class DocumentService {
    */
   static delete = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    const Document = DataBaseProviderService.getModel("Document", options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     switch (req.params.id) {
       default: {
@@ -527,9 +527,9 @@ class DocumentService {
    */
   static put = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    const Document = DataBaseProviderService.getModel("Document", options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     switch (req.params.id) {
       default: {
@@ -580,7 +580,7 @@ class DocumentService {
    */
   static patch = async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    const Document = DataBaseProviderService.getModel("Document", options);
 
     if (req.path.includes('/toggle-public')) {
       const document = await Document.findById(req.params.id);

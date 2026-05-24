@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -7,12 +7,12 @@ const logger = loggerFactory(import.meta);
 class CyberiaQuestProgressService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-quest-progress.model.js').CyberiaQuestProgressModel} */
-    const CyberiaQuestProgress = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuestProgress;
+    const CyberiaQuestProgress = DataBaseProviderService.getModel("CyberiaQuestProgress", options);
     return await new CyberiaQuestProgress(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-quest-progress.model.js').CyberiaQuestProgressModel} */
-    const CyberiaQuestProgress = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuestProgress;
+    const CyberiaQuestProgress = DataBaseProviderService.getModel("CyberiaQuestProgress", options);
     if (req.params.id) return await CyberiaQuestProgress.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -28,12 +28,12 @@ class CyberiaQuestProgressService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-quest-progress.model.js').CyberiaQuestProgressModel} */
-    const CyberiaQuestProgress = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuestProgress;
+    const CyberiaQuestProgress = DataBaseProviderService.getModel("CyberiaQuestProgress", options);
     return await CyberiaQuestProgress.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-quest-progress.model.js').CyberiaQuestProgressModel} */
-    const CyberiaQuestProgress = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuestProgress;
+    const CyberiaQuestProgress = DataBaseProviderService.getModel("CyberiaQuestProgress", options);
     if (req.params.id) return await CyberiaQuestProgress.findByIdAndDelete(req.params.id);
     else return await CyberiaQuestProgress.deleteMany();
   };

@@ -10,7 +10,7 @@
  * @namespace CyberiaObjectLayerService
  */
 
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
 import { FileFactory } from '../file/file.service.js';
@@ -149,9 +149,9 @@ class ObjectLayerService {
       fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
       // Build object layer data from the asset directory
-      const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+      const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
       const ObjectLayerRenderFrames =
-        DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+        DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
 
       const { objectLayerRenderFramesData, objectLayerData } =
         await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
@@ -183,9 +183,9 @@ class ObjectLayerService {
     }
 
     // create object layer from body – cut-over consistency: stage all CIDs before writing to DB
-    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
     const ObjectLayerRenderFrames =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
 
     const bodyData = { ...req.body };
     if (!bodyData.data) bodyData.data = {};
@@ -270,7 +270,7 @@ class ObjectLayerService {
    */
   static get = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
 
     // GET /search-item-ids?q=<partial> - Fast partial match search on data.item.id
     if (req.path.startsWith('/search-item-ids')) {
@@ -360,8 +360,8 @@ class ObjectLayerService {
       if (objectLayer.atlasSpriteSheetId) {
         try {
           const AtlasSpriteSheet =
-            DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.AtlasSpriteSheet;
-          const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+            DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+          const File = DataBaseProviderService.getModel("File", options);
 
           const atlasDoc = await AtlasSpriteSheet.findById(objectLayer.atlasSpriteSheetId);
 
@@ -451,7 +451,7 @@ class ObjectLayerService {
    */
   static generateWebp = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
 
     // GET /generate-webp/:itemType/:itemId/:directionCode - Generate webp animation from PNG frames
     const itemType = req.params.itemType;
@@ -589,7 +589,7 @@ class ObjectLayerService {
    */
   static put = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
 
     // PUT /:id/frame-image/:itemType/:itemId/:directionCode - Update frame images for specific direction
     if (req.path.includes('/frame-image/')) {
@@ -689,7 +689,7 @@ class ObjectLayerService {
       fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
       const ObjectLayerRenderFrames =
-        DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+        DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
 
       // Build object layer data from the asset directory
       const { objectLayerRenderFramesData, objectLayerData } =
@@ -806,9 +806,9 @@ class ObjectLayerService {
    */
   static delete = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
     const ObjectLayerRenderFrames =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
 
     if (req.params.id) {
       // Load the full object layer so we can access all references

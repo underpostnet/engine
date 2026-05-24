@@ -42,7 +42,7 @@ class DataBaseProviderService {
    * @returns {{models: object, connection: object, close: Function, dbSignature?: string}} Provider bucket.
    * @throws {Error} When the provider is not loaded for the context.
    */
-  getProvider(context = { host: '', path: '' }, provider = 'mongoose') {
+  static getProvider(context = { host: '', path: '' }, provider = 'mongoose') {
     const key = resolveHostKeyContext(context);
     const entry = this.#instance[key]?.[provider];
 
@@ -56,7 +56,7 @@ class DataBaseProviderService {
    * @param {string} [provider='mongoose'] - Provider name.
    * @returns {object} Provider connection object.
    */
-  getConnection(context = { host: '', path: '' }, provider = 'mongoose') {
+  static getConnection(context = { host: '', path: '' }, provider = 'mongoose') {
     return this.getProvider(context, provider).connection;
   }
 
@@ -68,9 +68,28 @@ class DataBaseProviderService {
    * @returns {object} Loaded model instance.
    * @throws {Error} When the model is not loaded for the context.
    */
-  getModel(modelName, context = { host: '', path: '' }, provider = 'mongoose') {
+  static getModel(modelName, context = { host: '', path: '' }, provider = 'mongoose') {
+    const models = this.getProvider(context, provider).models || {};
     const normalizedModelName = getCapVariableName(modelName);
-    const model = this.getProvider(context, provider).models?.[normalizedModelName];
+
+    // First try direct key (supports callers passing exact model names).
+    let model = models?.[modelName];
+    if (!model) {
+      model = models?.[normalizedModelName];
+    }
+
+    if (!model) {
+      // Final fallback: case-insensitive comparison without separators.
+      const target = String(modelName || '')
+        .replaceAll('-', '')
+        .replaceAll('_', '')
+        .replaceAll(' ', '')
+        .toLowerCase();
+      const resolvedModelName = Object.keys(models).find(
+        (key) => key.replaceAll('_', '').replaceAll(' ', '').toLowerCase() === target,
+      );
+      if (resolvedModelName) model = models[resolvedModelName];
+    }
 
     if (!model) {
       throw new Error(`Model not loaded for context "${resolveHostKeyContext(context)}": ${normalizedModelName}`);
@@ -85,7 +104,7 @@ class DataBaseProviderService {
    * @param {string} [provider='mongoose'] - Provider name.
    * @returns {{getConnection: () => object, getModel: (modelName: string) => object}} Bound accessor helpers.
    */
-  getDispatcher(context = { host: '', path: '' }, provider = 'mongoose') {
+  static getDispatcher(context = { host: '', path: '' }, provider = 'mongoose') {
     return {
       getConnection: () => this.getConnection(context, provider),
       getModel: (modelName) => this.getModel(modelName, context, provider),
@@ -97,7 +116,7 @@ class DataBaseProviderService {
    * @param {object} [db={}] - Database configuration object.
    * @returns {string} Stringified signature for change detection.
    */
-  buildDbSignature(db = {}) {
+  static buildDbSignature(db = {}) {
     return JSON.stringify({
       authSource: db.authSource || '',
       host: db.host || '',
@@ -123,11 +142,11 @@ class DataBaseProviderService {
    * @returns {Promise<object|undefined>} A promise that resolves to the initialized provider object
    * or `undefined` on error or if the provider is already loaded.
    */
-  async load(options = { apis: [], host: '', path: '', db: {} }) {
+  static async load(options = { apis: [], host: '', path: '', db: {} }) {
     try {
       const { apis, host, path, db } = options;
       const key = resolveHostKeyContext({ host, path });
-      const dbSignature = this.buildDbSignature(db);
+      const dbSignature = DataBaseProviderService.buildDbSignature(db);
 
       if (!this.#instance[key]) this.#instance[key] = {};
       if (!db) return undefined;
@@ -186,12 +205,9 @@ class DataBaseProviderService {
   }
 }
 
-/**
- * Singleton instance of the DataBaseProviderService class for backward compatibility.
- * @alias DataBaseProvider
- * @memberof DataBaseProviderService
- * @type {DataBaseProviderService}
- */
-const DataBaseProvider = new DataBaseProviderService();
 
-export { DataBaseProvider, DataBaseProviderService as DataBaseProviderClass };
+export {
+  DataBaseProviderService as DataBaseProviderClass,
+  DataBaseProviderService as default,
+  DataBaseProviderService
+};

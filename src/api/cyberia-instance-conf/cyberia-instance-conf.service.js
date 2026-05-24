@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -8,13 +8,13 @@ class CyberiaInstanceConfService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstanceConf;
+      DataBaseProviderService.getModel("CyberiaInstanceConf", options);
     return await new CyberiaInstanceConf(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstanceConf;
+      DataBaseProviderService.getModel("CyberiaInstanceConf", options);
     if (req.params.id) return await CyberiaInstanceConf.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -31,13 +31,13 @@ class CyberiaInstanceConfService {
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstanceConf;
+      DataBaseProviderService.getModel("CyberiaInstanceConf", options);
     return await CyberiaInstanceConf.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstanceConf;
+      DataBaseProviderService.getModel("CyberiaInstanceConf", options);
     if (req.params.id) return await CyberiaInstanceConf.findByIdAndDelete(req.params.id);
     else return await CyberiaInstanceConf.deleteMany();
   };

@@ -24,7 +24,7 @@ import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsEmitter } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { timer } from '../../client/components/core/CommonJs.js';
@@ -55,9 +55,9 @@ class UserService {
    */
   static post = async (req, res, options) => {
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.getModel('file', options);
+    const File = DataBaseProviderService.getModel('File', options);
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.getModel('user', options);
+    const User = DataBaseProviderService.getModel('User', options);
 
     if (req.params.id === 'recover-verify-email') {
       const user = await User.findOne({
@@ -275,9 +275,9 @@ class UserService {
    */
   static get = async (req, res, options) => {
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.getModel('file', options);
+    const File = DataBaseProviderService.getModel('File', options);
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.getModel('user', options);
+    const User = DataBaseProviderService.getModel('User', options);
 
     if (req.path.startsWith('/u/')) {
       // First lookup user by username
@@ -440,7 +440,7 @@ class UserService {
    */
   static delete = async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.getModel('user', options);
+    const User = DataBaseProviderService.getModel('User', options);
 
     if (req.params.id === 'logout') {
       const result = await logoutSession(User, req, res);
@@ -486,9 +486,9 @@ class UserService {
    */
   static put = async (req, res, options) => {
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.getModel('file', options);
+    const File = DataBaseProviderService.getModel('File', options);
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.getModel('user', options);
+    const User = DataBaseProviderService.getModel('User', options);
 
     // req.path | req.baseUrl
 

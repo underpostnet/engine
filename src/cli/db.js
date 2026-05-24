@@ -10,7 +10,7 @@ import { mergeFile, splitFileFactory, loadConfServerJson, resolveConfSecrets } f
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../db/DataBaseProvider.js';
 import { loadReplicas, pathPortAssignmentFactory, loadCronDeployEnv } from '../server/conf.js';
 import Underpost from '../index.js';
 import { timer } from '../client/components/core/CommonJs.js';
@@ -268,9 +268,8 @@ class UnderpostDB {
         }
 
         // Restore database
-        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${
-          preserveUUID ? ' --preserveUUID' : ''
-        }`;
+        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''
+          }`;
         Underpost.kubectl.exec({ podName, namespace, command: restoreCmd });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
@@ -1044,7 +1043,7 @@ class UnderpostDB {
         const retryDelay = 3000;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            await DataBaseProvider.load({ apis: ['instance', 'cron'], host, path, db });
+            await DataBaseProviderService.load({ apis: ['instance', 'cron'], host, path, db });
             break;
           } catch (err) {
             if (attempt === maxRetries) {
@@ -1058,7 +1057,7 @@ class UnderpostDB {
 
         try {
           /** @type {import('../api/instance/instance.model.js').InstanceModel} */
-          const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
+          const Instance = DataBaseProviderService.getModel('instance', { host, path });
 
           await Instance.deleteMany();
           logger.info('Cleared existing instance metadata');
@@ -1159,10 +1158,10 @@ class UnderpostDB {
 
           const confCron = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
 
-          await DataBaseProvider.load({ apis: ['cron'], host, path, db });
+          await DataBaseProviderService.load({ apis: ['cron'], host, path, db });
 
           /** @type {import('../api/cron/cron.model.js').CronModel} */
-          const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
+          const Cron = DataBaseProviderService.getModel('cron', { host, path });
 
           await Cron.deleteMany();
           logger.info('Cleared existing cron metadata');
@@ -1181,7 +1180,7 @@ class UnderpostDB {
           logger.error('Failed to create cron metadata', { error: error.message });
         }
 
-        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
         logger.info('Cluster metadata creation completed');
       } catch (error) {
         logger.error('Cluster metadata creation failed', { error: error.message });
@@ -1274,7 +1273,7 @@ class UnderpostDB {
                 let dbProvider;
                 for (let attempt = 1; attempt <= 3; attempt++) {
                   try {
-                    dbProvider = await DataBaseProvider.load({ apis, host, path, db });
+                    dbProvider = await DataBaseProviderService.load({ apis, host, path, db });
                     break;
                   } catch (err) {
                     if (attempt === 3) throw err;

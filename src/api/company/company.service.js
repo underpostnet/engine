@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { FileCleanup } from '../file/file.service.js';
 
@@ -7,20 +7,20 @@ const logger = loggerFactory(import.meta);
 class CompanyService {
   static post = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
-    const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
+    const Company = DataBaseProviderService.getModel("Company", options);
     return await new Company(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
-    const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
+    const Company = DataBaseProviderService.getModel("Company", options);
     if (req.params.id) return await Company.findById(req.params.id);
     return await Company.find();
   };
   static put = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
-    const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
+    const Company = DataBaseProviderService.getModel("Company", options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     const company = await Company.findById(req.params.id);
     if (!company) throw new Error('Company not found');
@@ -37,9 +37,9 @@ class CompanyService {
   };
   static delete = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
-    const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
+    const Company = DataBaseProviderService.getModel("Company", options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     if (req.params.id) {
       const company = await Company.findById(req.params.id);

@@ -1,5 +1,5 @@
 import { strToDateUTC } from '../../client/components/core/CommonJs.js';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -7,7 +7,7 @@ const logger = loggerFactory(import.meta);
 class EventSchedulerService {
   static post = async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
+    const EventScheduler = DataBaseProviderService.getModel("EventScheduler", options);
 
     if (req.body.startTime || req.body.endTime) {
       delete req.body.start;
@@ -21,7 +21,7 @@ class EventSchedulerService {
   };
   static get = async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
+    const EventScheduler = DataBaseProviderService.getModel("EventScheduler", options);
     if (req.path.startsWith('/creatorUser')) {
       return await EventScheduler.find({ creatorUserId: req.params.id ? req.params.id : req.auth.user._id });
     }
@@ -30,7 +30,7 @@ class EventSchedulerService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
+    const EventScheduler = DataBaseProviderService.getModel("EventScheduler", options);
 
     if (req.body.startTime || req.body.endTime) {
       delete req.body.start;
@@ -45,7 +45,7 @@ class EventSchedulerService {
   };
   static delete = async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
+    const EventScheduler = DataBaseProviderService.getModel("EventScheduler", options);
     if (req.params.id) return await EventScheduler.findByIdAndDelete(req.params.id);
     else return await EventScheduler.deleteMany();
   };

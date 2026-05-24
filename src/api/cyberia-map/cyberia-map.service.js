@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -7,13 +7,13 @@ const logger = loggerFactory(import.meta);
 class CyberiaMapService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
-    const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
+    const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
     if (req.auth && req.auth.user) req.body.creator = req.auth.user._id;
     return await new CyberiaMap(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
-    const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
+    const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
 
     // GET /search-codes?q=<partial> - Fast partial match search on code
@@ -43,27 +43,27 @@ class CyberiaMapService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
-    const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
+    const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
     const map = await CyberiaMap.findById(req.params.id);
     if (!map) throw new Error('map not found');
     if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
     if (req.body.thumbnail && map.thumbnail && String(req.body.thumbnail) !== String(map.thumbnail)) {
-      const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+      const File = DataBaseProviderService.getModel("File", options);
       await File.findByIdAndDelete(map.thumbnail);
     }
     return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
-    const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
+    const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
     if (req.params.id) {
       const map = await CyberiaMap.findById(req.params.id);
       if (!map) throw new Error('map not found');
       if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
         throw new Error('insufficient permission');
       if (map.thumbnail) {
-        const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+        const File = DataBaseProviderService.getModel("File", options);
         await File.findByIdAndDelete(map.thumbnail);
       }
       return await CyberiaMap.findByIdAndDelete(req.params.id);

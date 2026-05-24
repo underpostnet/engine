@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { loggerFactory } from '../../server/logger.js';
 import { UserController } from './user.controller.js';
 import express from 'express';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -18,28 +18,25 @@ class UserRouter {
     // Admin user seed — fire-and-forget async on first router mount.
     (async () => {
       try {
-        const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
-        let adminUser;
-        if (models.User) {
-          adminUser = await models.User.findOne({ role: 'admin' });
-          if (!adminUser) {
-            const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
-            const hashedPassword = await hashPassword(defaultPassword);
+        const User = DataBaseProviderService.getModel('user', options);
+        const adminUser = await User.findOne({ role: 'admin' });
+        if (!adminUser) {
+          const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
+          const hashedPassword = await hashPassword(defaultPassword);
 
-            const result = await models.User.create({
-              username: 'admin',
-              email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@' + options.host,
-              password: hashedPassword,
-              role: 'admin',
-              emailConfirmed: true,
-              publicKey: [],
-            });
-            logger.warn('Default admin user created. Please change the default password immediately!', {
-              username: result._doc.username,
-              email: result._doc.email,
-              role: result._doc.role,
-            });
-          }
+          const result = await User.create({
+            username: 'admin',
+            email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@' + options.host,
+            password: hashedPassword,
+            role: 'admin',
+            emailConfirmed: true,
+            publicKey: [],
+          });
+          logger.warn('Default admin user created. Please change the default password immediately!', {
+            username: result._doc.username,
+            email: result._doc.email,
+            role: result._doc.role,
+          });
         }
       } catch (error) {
         logger.error('Error checking/creating admin user', { error: error.message });

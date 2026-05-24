@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -7,12 +7,12 @@ const logger = loggerFactory(import.meta);
 class DefaultService {
   static post = async (req, res, options) => {
     /** @type {import('./default.model.js').DefaultModel} */
-    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Default;
+    const Default = DataBaseProviderService.getModel("Default", options);
     return await new Default(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./default.model.js').DefaultModel} */
-    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Default;
+    const Default = DataBaseProviderService.getModel("Default", options);
     if (req.params.id) return await Default.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -28,12 +28,12 @@ class DefaultService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./default.model.js').DefaultModel} */
-    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Default;
+    const Default = DataBaseProviderService.getModel("Default", options);
     return await Default.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./default.model.js').DefaultModel} */
-    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Default;
+    const Default = DataBaseProviderService.getModel("Default", options);
     if (req.params.id) return await Default.findByIdAndDelete(req.params.id);
     else return await Default.deleteMany();
   };

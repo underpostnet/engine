@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -8,13 +8,13 @@ class CyberiaGlobalMapCodeRegistryService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
     const CyberiaGlobalMapCodeRegistry =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+      DataBaseProviderService.getModel("CyberiaGlobalMapCodeRegistry", options);
     return await new CyberiaGlobalMapCodeRegistry(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
     const CyberiaGlobalMapCodeRegistry =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+      DataBaseProviderService.getModel("CyberiaGlobalMapCodeRegistry", options);
     if (req.params.id) return await CyberiaGlobalMapCodeRegistry.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -31,13 +31,13 @@ class CyberiaGlobalMapCodeRegistryService {
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
     const CyberiaGlobalMapCodeRegistry =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+      DataBaseProviderService.getModel("CyberiaGlobalMapCodeRegistry", options);
     return await CyberiaGlobalMapCodeRegistry.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
     const CyberiaGlobalMapCodeRegistry =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+      DataBaseProviderService.getModel("CyberiaGlobalMapCodeRegistry", options);
     if (req.params.id) return await CyberiaGlobalMapCodeRegistry.findByIdAndDelete(req.params.id);
     else return await CyberiaGlobalMapCodeRegistry.deleteMany();
   };

@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -7,12 +7,12 @@ const logger = loggerFactory(import.meta);
 class CyberiaDialogueService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
-    const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
+    const CyberiaDialogue = DataBaseProviderService.getModel("CyberiaDialogue", options);
     return await new CyberiaDialogue(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
-    const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
+    const CyberiaDialogue = DataBaseProviderService.getModel("CyberiaDialogue", options);
     if (req.params.id) return await CyberiaDialogue.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -28,18 +28,18 @@ class CyberiaDialogueService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
-    const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
+    const CyberiaDialogue = DataBaseProviderService.getModel("CyberiaDialogue", options);
     return await CyberiaDialogue.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
-    const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
+    const CyberiaDialogue = DataBaseProviderService.getModel("CyberiaDialogue", options);
     if (req.params.id) return await CyberiaDialogue.findByIdAndDelete(req.params.id);
     else return await CyberiaDialogue.deleteMany();
   };
   static getByCode = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
-    const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
+    const CyberiaDialogue = DataBaseProviderService.getModel("CyberiaDialogue", options);
     const { code } = req.params;
     if (!code) throw new Error('code parameter is required');
     const data = await CyberiaDialogue.find({ code }).sort({ order: 1 }).lean();

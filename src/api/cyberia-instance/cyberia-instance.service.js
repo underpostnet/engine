@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
@@ -9,9 +9,9 @@ const logger = loggerFactory(import.meta);
 class CyberiaInstanceService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
+    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
     const CyberiaInstanceConf =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstanceConf;
+      DataBaseProviderService.getModel("CyberiaInstanceConf", options);
     if (req.auth && req.auth.user) req.body.creator = req.auth.user._id;
     const instance = await new CyberiaInstance(req.body).save();
 
@@ -37,7 +37,7 @@ class CyberiaInstanceService {
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
+    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
     if (req.params.id) return await CyberiaInstance.findById(req.params.id).populate(populateCreator);
 
@@ -54,13 +54,13 @@ class CyberiaInstanceService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
+    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
     const instance = await CyberiaInstance.findById(req.params.id);
     if (!instance) throw new Error('instance not found');
     if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
     if (req.body.thumbnail && instance.thumbnail && String(req.body.thumbnail) !== String(instance.thumbnail)) {
-      const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+      const File = DataBaseProviderService.getModel("File", options);
       await File.findByIdAndDelete(instance.thumbnail);
     }
     return await CyberiaInstance.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
@@ -80,8 +80,8 @@ class CyberiaInstanceService {
    *   ?persist=true  — save generated portals to DB
    */
   static portalConnect = async (req, res, options) => {
-    const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
-    const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
+    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
+    const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
 
     const instance = await CyberiaInstance.findById(req.params.id).lean();
     if (!instance) throw new Error('instance not found');
@@ -116,14 +116,14 @@ class CyberiaInstanceService {
 
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
+    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
     if (req.params.id) {
       const instance = await CyberiaInstance.findById(req.params.id);
       if (!instance) throw new Error('instance not found');
       if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
         throw new Error('insufficient permission');
       if (instance.thumbnail) {
-        const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+        const File = DataBaseProviderService.getModel("File", options);
         await File.findByIdAndDelete(instance.thumbnail);
       }
       return await CyberiaInstance.findByIdAndDelete(req.params.id);

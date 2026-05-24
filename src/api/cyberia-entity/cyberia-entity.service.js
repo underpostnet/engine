@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -7,12 +7,12 @@ const logger = loggerFactory(import.meta);
 class CyberiaEntityService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
-    const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
+    const CyberiaEntity = DataBaseProviderService.getModel("CyberiaEntity", options);
     return await new CyberiaEntity(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
-    const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
+    const CyberiaEntity = DataBaseProviderService.getModel("CyberiaEntity", options);
     if (req.params.id) return await CyberiaEntity.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -28,12 +28,12 @@ class CyberiaEntityService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
-    const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
+    const CyberiaEntity = DataBaseProviderService.getModel("CyberiaEntity", options);
     return await CyberiaEntity.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
-    const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
+    const CyberiaEntity = DataBaseProviderService.getModel("CyberiaEntity", options);
     if (req.params.id) return await CyberiaEntity.findByIdAndDelete(req.params.id);
     else return await CyberiaEntity.deleteMany();
   };

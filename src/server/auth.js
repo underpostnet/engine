@@ -20,7 +20,7 @@ import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../db/DataBaseProvider.js';
 import { isDevProxyContext } from './conf.js';
 
 const logger = loggerFactory(import.meta);
@@ -229,7 +229,7 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
 
       // Non-guest verify session exists
       if (payload.jwtid && payload.role !== 'guest') {
-        const User = DataBaseProvider.instance[`${payload.host}${payload.path}`].mongoose.models.User;
+        const User = DataBaseProviderService.getModel('user', { host: payload.host, path: payload.path });
         const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.jwtid }).lean();
 
         if (!user) {

@@ -15,7 +15,7 @@ import { createServer } from 'http';
 import { loggerFactory, loggerMiddleware } from '../../server/logger.js';
 import { getCapVariableName, newInstance } from '../../client/components/core/CommonJs.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { createPeerServer } from '../../server/peer.js';
 import { createValkeyConnection } from '../../server/valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
@@ -192,7 +192,7 @@ class ExpressService {
       }
 
       // Database and Valkey connections
-      if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
+      if (db && apis) await DataBaseProviderService.load({ apis, host, path, db });
 
       if (valkey) await createValkeyConnection({ host, path }, valkey);
 

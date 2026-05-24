@@ -20,7 +20,7 @@ import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/server/besu-genesis-generator.js';
-import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
 import { loadConfServerJson } from '../src/server/conf.js';
 import {
   ObjectLayerEngine,
@@ -72,14 +72,14 @@ async function connectDbForChain({ envPath, mongoHost }) {
 
   db.host = mongoHost ? mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-  await DataBaseProvider.load({
+  await DataBaseProviderService.load({
     apis: ['object-layer'],
     host,
     path,
     db,
   });
 
-  const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
+  const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
   return { ObjectLayer, host, path };
 }
 
@@ -213,7 +213,7 @@ try {
           db,
         });
 
-        await DataBaseProvider.load({
+        await DataBaseProviderService.load({
           apis: ['object-layer', 'object-layer-render-frames', 'atlas-sprite-sheet', 'file', 'ipfs'],
           host,
           path,
@@ -221,16 +221,16 @@ try {
         });
 
         /** @type {import('mongoose').Model} */
-        const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
+        const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
         /** @type {import('mongoose').Model} */
         const ObjectLayerRenderFrames =
-          DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayerRenderFrames;
+          DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
         /** @type {import('mongoose').Model} */
-        const AtlasSpriteSheet = DataBaseProvider.instance[`${host}${path}`].mongoose.models.AtlasSpriteSheet;
+        const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
         /** @type {import('mongoose').Model} */
-        const File = DataBaseProvider.instance[`${host}${path}`].mongoose.models.File;
+        const File = DataBaseProviderService.getModel('file', { host, path });
         /** @type {import('mongoose').Model} */
-        const Ipfs = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Ipfs;
+        const Ipfs = DataBaseProviderService.getModel('ipfs', { host, path });
 
         if (options.drop) {
           // Parse comma-separated item IDs for targeted drop; if none provided, drop everything
@@ -1693,7 +1693,7 @@ try {
           }
         }
 
-        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
       },
     )
     .description('Object layer management');
@@ -1748,7 +1748,7 @@ try {
 
       logger.info('instance env', { env: options.envPath, deployId, host, path, db });
 
-      await DataBaseProvider.load({
+      await DataBaseProviderService.load({
         apis: [
           'cyberia-instance',
           'cyberia-instance-conf',
@@ -1766,16 +1766,15 @@ try {
         db,
       });
 
-      const dbModels = DataBaseProvider.instance[`${host}${path}`].mongoose.models;
-      const CyberiaInstance = dbModels.CyberiaInstance;
-      const CyberiaInstanceConf = dbModels.CyberiaInstanceConf;
-      const CyberiaDialogue = dbModels.CyberiaDialogue;
-      const CyberiaMap = dbModels.CyberiaMap;
-      const ObjectLayer = dbModels.ObjectLayer;
-      const ObjectLayerRenderFrames = dbModels.ObjectLayerRenderFrames;
-      const AtlasSpriteSheet = dbModels.AtlasSpriteSheet;
-      const File = dbModels.File;
-      const Ipfs = dbModels.Ipfs;
+      const CyberiaInstance = DataBaseProviderService.getModel('cyberia-instance', { host, path });
+      const CyberiaInstanceConf = DataBaseProviderService.getModel('cyberia-instance-conf', { host, path });
+      const CyberiaDialogue = DataBaseProviderService.getModel('cyberia-dialogue', { host, path });
+      const CyberiaMap = DataBaseProviderService.getModel('cyberia-map', { host, path });
+      const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
+      const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
+      const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
+      const File = DataBaseProviderService.getModel('file', { host, path });
+      const Ipfs = DataBaseProviderService.getModel('ipfs', { host, path });
 
       const toBuffer = (value) => {
         if (!value) return null;
@@ -1910,7 +1909,7 @@ try {
         const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
         if (!instance) {
           logger.error(`CyberiaInstance with code "${instanceCode}" not found`);
-          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           process.exit(1);
         }
 
@@ -1977,7 +1976,7 @@ try {
             backupDir,
             exportedFiles: ['cyberia-instance.json', 'cyberia-instance-conf.json'],
           });
-          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           return;
         }
 
@@ -2292,7 +2291,7 @@ try {
             for (const failure of ipfsPayloadFailures) {
               logger.error('Canonical IPFS payload export failed', failure);
             }
-            await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+            await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
             process.exit(1);
           }
 
@@ -2371,7 +2370,7 @@ try {
 
         if (!fs.existsSync(backupDir)) {
           logger.error(`Backup directory not found: ${backupDir}`);
-          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           process.exit(1);
         }
 
@@ -2593,7 +2592,7 @@ try {
             backupDir,
             importedFiles: ['cyberia-instance.json', 'cyberia-instance-conf.json'],
           });
-          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           return;
         }
 
@@ -3210,7 +3209,7 @@ try {
         logger.error('Specify --export, --import, or --drop flag');
       }
 
-      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
 
   // ── client-hints: presentation hints management ──────────────────────────
@@ -3242,9 +3241,9 @@ try {
         const { db } = confServer[host][path];
         db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-        await DataBaseProvider.load({ apis: ['cyberia-client-hints'], host, path, db });
+        await DataBaseProviderService.load({ apis: ['cyberia-client-hints'], host, path, db });
         const CyberiaClientHints =
-          DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaClientHints;
+          DataBaseProviderService.getModel('cyberia-client-hints', { host, path });
 
         if (!instanceCode && !options.seedDefaults) {
           logger.error('instance-code required for client-hints operations (omit only with --seed-defaults on all)');
@@ -3289,7 +3288,7 @@ try {
           logger.info(`client-hints --export: wrote ${outPath}`);
         }
 
-        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
       } catch (err) {
         logger.error('client-hints command error:', err);
         process.exit(1);
@@ -3493,7 +3492,7 @@ try {
           logger.info(`  SHA-256: ${resolved.sha256}`);
 
           // Close the DB connection after resolving
-          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
         } catch (dbErr) {
           logger.error(`Failed to resolve canonical CID from database: ${dbErr.message}`);
           process.exit(1);
@@ -4060,7 +4059,7 @@ try {
         }
 
         try {
-          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
         } catch (_) {
           /* ignore close errors */
         }
@@ -4176,10 +4175,10 @@ try {
 
       logger.info('seed-skill-config', { instanceCode, deployId, host, path, db });
 
-      await DataBaseProvider.load({ apis: ['cyberia-instance', 'cyberia-instance-conf'], host, path, db });
+      await DataBaseProviderService.load({ apis: ['cyberia-instance', 'cyberia-instance-conf'], host, path, db });
 
-      const CyberiaInstance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaInstance;
-      const CyberiaInstanceConf = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaInstanceConf;
+      const CyberiaInstance = DataBaseProviderService.getModel('cyberia-instance', { host, path });
+      const CyberiaInstanceConf = DataBaseProviderService.getModel('cyberia-instance-conf', { host, path });
 
       const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
 
@@ -4207,7 +4206,7 @@ try {
         DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
       );
 
-      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
 
   runner
@@ -4245,9 +4244,9 @@ try {
 
       logger.info('seed-dialogues', { deployId, host, path, db });
 
-      await DataBaseProvider.load({ apis: ['cyberia-dialogue'], host, path, db });
+      await DataBaseProviderService.load({ apis: ['cyberia-dialogue'], host, path, db });
 
-      const CyberiaDialogue = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaDialogue;
+      const CyberiaDialogue = DataBaseProviderService.getModel('cyberia-dialogue', { host, path });
 
       // Upsert each dialogue record keyed by (code, order) — idempotent.
       let upserted = 0;
@@ -4262,7 +4261,7 @@ try {
 
       logger.info(`seed-dialogues: ${upserted} dialogue records upserted`);
 
-      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
 
   runner
@@ -4331,7 +4330,7 @@ try {
     .option('--dev', 'Build dev-variant manifests (kind cluster, Dockerfile.dev). Default builds prod (kubeadm, Dockerfile).')
     .description(
       'Build k8s resource manifests for the Cyberia mmo-server + mmo-client instances. ' +
-        'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
+      'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
     )
     .action((options) => {
       const isDev = !!options.dev;

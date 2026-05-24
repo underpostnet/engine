@@ -21,8 +21,9 @@
  * client's compile-time layout.
  */
 
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { resolveHostKeyContext } from '../../server/conf.js';
 import {
   buildClientHints,
   CYBERIA_CLIENT_HINTS_DEFAULTS,
@@ -71,8 +72,8 @@ export function clientHintsInvalidate(code) {
  *
  * @param {string} code
  * @param {Object} options  Engine routing context.
- * @param {string} [options.host='default'] DataBaseProvider host key.
- * @param {string} [options.path='/']       DataBaseProvider path key.
+ * @param {string} [options.host='default'] DataBaseProviderService host key.
+ * @param {string} [options.path='/']       DataBaseProviderService path key.
  * @returns {Promise<{data: object, source: 'cache'|'presentation-hints'|'instance-conf'|'defaults'}>}
  */
 export async function resolveClientHints(code, options = {}) {
@@ -85,15 +86,28 @@ export async function resolveClientHints(code, options = {}) {
 
   const host = options.host || 'default';
   const path = options.path || '/';
-  const dbInstance = DataBaseProvider.instance?.[`${host}${path}`];
-  const models = dbInstance?.mongoose?.models ?? null;
-  if (!models) {
-    logger.warn('client-hints: mongoose models not available for', `${host}${path}`, '— returning defaults');
+  const context = { host, path };
+  const id = resolveHostKeyContext(context);
+
+  let HintsModel = null;
+  let ConfModel = null;
+  try {
+    HintsModel = DataBaseProviderService.getModel('CyberiaClientHints', context);
+  } catch {
+    // model may not be mounted on this context
+  }
+  try {
+    ConfModel = DataBaseProviderService.getModel('CyberiaInstanceConf', context);
+  } catch {
+    // model may not be mounted on this context
+  }
+
+  if (!HintsModel && !ConfModel) {
+    logger.warn('client-hints: mongoose models not available for', id, '— returning defaults');
     return { data: CYBERIA_CLIENT_HINTS_DEFAULTS, source: 'defaults' };
   }
 
   // 1. Preferred — CyberiaClientHints collection (src/api/cyberia-client-hints/cyberia-client-hints.model.js).
-  const HintsModel = models.CyberiaClientHints;
   if (HintsModel && code) {
     const hint = await HintsModel.findOne({ code }).lean().catch(() => null);
     if (hint) {
@@ -106,7 +120,6 @@ export async function resolveClientHints(code, options = {}) {
   // 2. Compatibility read — for instances seeded before CyberiaClientHints
   //    existed, look up the same code in CyberiaInstanceConf and read its
   //    presentation-shaped fields directly.
-  const ConfModel = models.CyberiaInstanceConf;
   if (ConfModel && code) {
     const fromConf =
       (await ConfModel.findOne({ code }).lean().catch(() => null)) ||

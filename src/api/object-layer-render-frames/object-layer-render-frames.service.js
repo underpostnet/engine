@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 
@@ -8,13 +8,13 @@ class ObjectLayerRenderFramesService {
   static post = async (req, res, options) => {
     /** @type {import('./object-layer-render-frames.model.js').ObjectLayerRenderFramesModel} */
     const ObjectLayerRenderFrames =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
     return await new ObjectLayerRenderFrames(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./object-layer-render-frames.model.js').ObjectLayerRenderFramesModel} */
     const ObjectLayerRenderFrames =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
     if (req.params.id) return await ObjectLayerRenderFrames.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -31,13 +31,13 @@ class ObjectLayerRenderFramesService {
   static put = async (req, res, options) => {
     /** @type {import('./object-layer-render-frames.model.js').ObjectLayerRenderFramesModel} */
     const ObjectLayerRenderFrames =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
     return await ObjectLayerRenderFrames.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./object-layer-render-frames.model.js').ObjectLayerRenderFramesModel} */
     const ObjectLayerRenderFrames =
-      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
     if (req.params.id) return await ObjectLayerRenderFrames.findByIdAndDelete(req.params.id);
     else return await ObjectLayerRenderFrames.deleteMany();
   };

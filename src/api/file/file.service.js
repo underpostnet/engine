@@ -6,7 +6,7 @@
  * @namespace FileServiceServer
  */
 
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { getBearerToken, jwtVerify } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import crypto from 'crypto';
@@ -345,7 +345,7 @@ class FileService {
     }
 
     /** @type {import('./file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     const uploadedFiles = await FileFactory.upload(req, File);
     return FileServiceDto.toMetadataArray(uploadedFiles);
@@ -367,11 +367,11 @@ class FileService {
    */
   static get = async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
     /** @type {import('../document/document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    const Document = DataBaseProviderService.getModel("Document", options);
     /** @type {import('../user/user.model.js').User} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+    const User = DataBaseProviderService.getModel("User", options);
 
     const isFileAuthorized = async (fileId) => {
       try {
@@ -482,7 +482,7 @@ class FileService {
    */
   static delete = async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    const File = DataBaseProviderService.getModel("File", options);
 
     const result = await File.findByIdAndDelete(req.params.id);
 

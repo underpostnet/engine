@@ -1,4 +1,4 @@
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import { InstanceDto } from './instance.model.js';
@@ -8,15 +8,15 @@ const logger = loggerFactory(import.meta);
 class InstanceService {
   static post = async (req, res, options) => {
     /** @type {import('./instance.model.js').InstanceModel} */
-    const Instance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Instance;
+    const Instance = DataBaseProviderService.getModel("Instance", options);
     return await new Instance(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./instance.model.js').InstanceModel} */
-    const Instance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Instance;
+    const Instance = DataBaseProviderService.getModel("Instance", options);
 
     /** @type {import('../user/user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+    const User = DataBaseProviderService.getModel("User", options);
 
     const user = await User.findOne({
       _id: req.auth.user._id,
@@ -61,12 +61,12 @@ class InstanceService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./instance.model.js').InstanceModel} */
-    const Instance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Instance;
+    const Instance = DataBaseProviderService.getModel("Instance", options);
     return await Instance.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./instance.model.js').InstanceModel} */
-    const Instance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Instance;
+    const Instance = DataBaseProviderService.getModel("Instance", options);
     if (req.params.id) return await Instance.findByIdAndDelete(req.params.id);
     else return await Instance.deleteMany();
   };
