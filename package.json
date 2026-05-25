@@ -78,7 +78,7 @@
     "favicons": "^7.2.0",
     "fs-extra": "^11.3.5",
     "fullcalendar": "^6.1.15",
-    "helmet": "^8.1.0",
+    "helmet": "^8.2.0",
     "html-minifier-terser": "^7.2.0",
     "http-proxy-middleware": "^4.0.0",
     "ignore-walk": "^9.0.0",
