@@ -2208,15 +2208,21 @@ EOF`);
      * @memberof UnderpostRun
      */
     kill: (path = '', options = DEFAULT_OPTION) => {
-      if (options.pid) return shellExec(`sudo kill -9 ${options.pid}`);
+      if (options.pid) return shellExec(`sudo kill -9 ${options.pid}`, {
+        silentOnError: true
+      });
       for (const _path of path.split(',')) {
         if (_path.split('+')[1]) {
           let [port, sumPortOffSet] = _path.split('+');
           port = parseInt(port);
           sumPortOffSet = parseInt(sumPortOffSet);
           for (const sumPort of range(0, sumPortOffSet))
-            shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`);
-        } else shellExec(`sudo kill -9 $(lsof -t -i:${_path})`);
+            shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`, {
+              silentOnError: true
+            });
+        } else shellExec(`sudo kill -9 $(lsof -t -i:${_path})`, {
+          silentOnError: true
+        });
       }
     },
     /**

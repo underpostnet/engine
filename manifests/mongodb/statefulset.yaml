@@ -55,40 +55,7 @@ spec:
             - '--keyFile'
             - '/opt/mongodb/mongodb-keyfile'
             - '--bind_ip_all'
-          # command: ['sh', '-c']
-          # args:
-          #   - |
-          #     mongod --replSet rs0 --bind_ip_all &
-          #     sleep 1000
-          #     if mongosh --host mongodb-0.mongodb-service:27017 --eval "rs.status()" | grep -q "not yet initialized"; then
-          #       mongosh --host mongodb-0.mongodb-service:27017 <<EOF
-          #       use admin;
-          #       rs.initiate({
-          #         _id: "rs0",
-          #         members: [
-          #           { _id: 0, host: "mongodb-0.mongodb-service:27017", priority: 1 },
-          #           { _id: 1, host: "mongodb-1.mongodb-service:27017", priority: 1 }
-          #         ]
-          #       });
-          #       db.getSiblingDB("admin").createUser({
-          #         user: process.env.MONGO_INITDB_ROOT_USERNAME,
-          #         pwd: process.env.MONGO_INITDB_ROOT_PASSWORD,
-          #         roles: [{ role: "userAdminAnyDatabase", db: "admin" }]
-          #       });
-          #       use default;
-          #       db.createUser(
-          #         {
-          #           user: process.env.MONGO_INITDB_ROOT_USERNAME,
-          #           pwd: process.env.MONGO_INITDB_ROOT_PASSWORD,
-          #           roles: [
-          #             { role: "read", db: "test" },
-          #             { role: "readWrite", db: "default" }
-          #           ]
-          #         }
-          #       );
-          #       EOF
-          #     fi
-          #     wait
+
           ports:
             - containerPort: 27017
           volumeMounts:
@@ -96,12 +63,6 @@ spec:
               mountPath: /opt/mongodb
             - name: mongodb-storage
               mountPath: /data/db
-            # - name: mongodb-configuration-file
-            #   mountPath: /etc/mongod.conf
-            #   subPath: mongod.conf
-            #   readOnly: true
-            # - name: mongodb-config
-            #   mountPath: /config
           env:
             - name: MONGO_REPLICA_SET_NAME
               value: rs0
@@ -141,12 +102,6 @@ spec:
             defaultMode: 0400
         - name: isolated-runtime-keyfile-volume
           emptyDir: {}
-        # - name: mongodb-configuration-file
-        #   configMap:
-        #     name: mongodb-config-file
-        # - name: mongodb-config
-        #   configMap:
-        #     name: mongodb-config
   volumeClaimTemplates:
     - metadata:
         name: mongodb-storage

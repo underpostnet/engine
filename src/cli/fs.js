@@ -154,7 +154,9 @@ class UnderpostFileStorage {
         // For bundle pulls into ./build the git step is unwanted and would error on a non-repo path.
         if (options.git === true) {
           Underpost.repo.initLocalRepo({ path });
-          shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`);
+          shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`, {
+            silentOnError: true
+          });
         }
       } else {
         const files =

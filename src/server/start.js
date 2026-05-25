@@ -52,7 +52,7 @@ class UnderpostStartUp {
      * @param {Function} logic - The logic to execute when the server is listening.
      * @returns {Object} An object with a listen method.
      */
-    listenServerFactory: (logic = async () => {}) => {
+    listenServerFactory: (logic = async () => { }) => {
       return {
         listen: async (...args) => {
           const msDelta = 1000;
@@ -198,20 +198,28 @@ class UnderpostStartUp {
      */
     async run(deployId = 'dd-default', env = 'development', options = {}) {
       const runCmd = env === 'production' ? 'run prod:container' : 'run dev:container';
+      const makeDeployCallback = (cmd) => (code, out, msg) => {
+        if (code !== 0) {
+          logger.error(`Deployment process exited with code ${code}`, { cmd, msg });
+          Underpost.env.set('container-status', 'error');
+        }
+      };
       if (fs.existsSync(`./engine-private/replica`)) {
         const replicas = await fs.readdir(`./engine-private/replica`);
         for (const replica of replicas) {
           if (!replica.match(deployId)) continue;
           shellExec(`node bin env ${replica} ${env}`);
-          shellExec(`npm ${runCmd} ${replica}`, { async: true });
+          const replicaCmd = `npm ${runCmd} ${replica}`;
+          shellExec(replicaCmd, { async: true, callback: makeDeployCallback(replicaCmd) });
           await awaitDeployMonitor(true);
         }
       }
       shellExec(`node bin env ${deployId} ${env}`);
-      shellExec(`npm ${runCmd} ${deployId}`, { async: true });
+      const deployCmd = `npm ${runCmd} ${deployId}`;
+      shellExec(deployCmd, { async: true, callback: makeDeployCallback(deployCmd) });
       await awaitDeployMonitor(true);
       if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
-      Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
+      if (Underpost.env.get('container-status') !== 'error') Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
     },
   };
 }

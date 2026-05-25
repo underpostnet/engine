@@ -64,9 +64,9 @@ if (process.argv.includes('conf')) {
     }
     shellExec(
       `cd ../${privateRepoName}` +
-        ` && git add .` +
-        ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
-        ` && underpost push . ${privateGitUri}`,
+      ` && git add .` +
+      ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
+      ` && underpost push . ${privateGitUri}`,
       {
         silent: true,
       },
@@ -202,6 +202,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/runtime/cyberia-client',
         '/.github/workflows/hardhat.ci.yml',
         '/src/client/public/cyberia-docs',
+        '/src/api/cyberia-server-defaults'
       ])
         fs.copySync(`.${path}`, `${basePath}${path}`);
 

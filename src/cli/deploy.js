@@ -1210,16 +1210,6 @@ ${renderHosts}`,
         }
       };
 
-      const getPodMessage = (pod) => {
-        try {
-          const parsed = pod.out ? JSON.parse(pod.out) : null;
-          const cond = parsed?.condition;
-          if (cond?.reason || cond?.message) {
-            return [cond.reason, cond.message].filter(Boolean).join(' — ');
-          }
-        } catch (_) { }
-        return containerStatusDefault;
-      };
 
       for (let i = 0; i < maxIterations; i++) {
         const result = await Underpost.deploy.checkDeploymentReadyStatus(
@@ -1245,16 +1235,14 @@ ${renderHosts}`,
         // Print snapshot for every pod
         for (const pod of allPods) {
           const status = podStatusCache.get(pod.NAME) || containerStatusDefault;
-          const k8sStatus = result.readyPods.some((p) => p.NAME === pod.NAME)
-            ? 'ok'
-            : getPodMessage(pod);
+          const podStatus = pod.STATUS || 'Unknown';
 
           console.log(
             'Target pod:',
             pod.NAME[pod.NAME.includes('green') ? 'bgGreen' : 'bgBlue'].bold.black,
-            '| Status:',
-            k8sStatus.bold.magenta,
-            '| container-status:',
+            '| Pod status:',
+            podStatus.bold.yellow,
+            '| Runtime status:',
             status.bold.cyan,
           );
         }

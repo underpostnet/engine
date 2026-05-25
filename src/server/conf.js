@@ -1295,7 +1295,7 @@ const validateTemplatePath = (absolutePath = '') => {
 const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
   if (init) Underpost.env.set('await-deploy', new Date().toISOString());
   await timer(deltaMs);
-  if (Underpost.env.isInsideContainer() && Underpost.env.get('container-status') === 'error') throw new Error('Container status error');
+  if (Underpost.env.get('container-status') === 'error') throw new Error('Container status error');
   if (Underpost.env.get('await-deploy')) return await awaitDeployMonitor();
 };
 
