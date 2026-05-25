@@ -319,6 +319,10 @@ class Auth {
       // Close any open login/signup modals
       if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
       if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
+      if (!s(`.main-body-btn-ui-open`).classList.contains('hide'))
+        s(`.main-body-btn-ui-open`).click();
+      if (!s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide'))
+        s(`.main-body-btn-ui-bar-custom-open`).click();
     });
   }
 

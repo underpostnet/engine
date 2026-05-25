@@ -266,7 +266,9 @@ class FileCleanup {
       const newFileId = newData[field];
 
       // If field has old file and new data changes or removes it
-      if (oldFileId && newFileId !== undefined && String(oldFileId) !== String(newFileId)) {
+      // newFileId === null means client explicitly wants to remove the file
+      // newFileId === undefined means field was not included in request (no change)
+      if (oldFileId && newFileId !== undefined && (newFileId === null || String(oldFileId) !== String(newFileId))) {
         try {
           const file = await File.findOne({ _id: oldFileId });
           if (file) {

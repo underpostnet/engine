@@ -73,7 +73,7 @@ class PanelForm {
       parentIdModal: undefined,
       route: 'home',
       htmlFormHeader: async () => '',
-      firsUpdateEvent: async () => {},
+      firsUpdateEvent: async () => { },
       share: {
         copyLink: false,
         copySourceMd: false,
@@ -196,12 +196,12 @@ class PanelForm {
               <img
                 class="abs center"
                 style="${renderCssAttr({
-                  style: {
-                    width: '100px',
-                    height: '100px',
-                    opacity: 0.2,
-                  },
-                })}"
+              style: {
+                width: '100px',
+                height: '100px',
+                opacity: 0.2,
+              },
+            })}"
                 src="${defaultUrlImage}"
               />
             `,
@@ -332,16 +332,10 @@ class PanelForm {
             }, 50);
           },
           initEdit: async function ({ data }) {
-            // Clear file input when entering edit mode
-            const fileFormData = formData.find((f) => f.inputType === 'file');
-            if (fileFormData && s(`.${fileFormData.id}`)) {
-              s(`.${fileFormData.id}`).value = '';
-              s(`.${fileFormData.id}`).inputFiles = null;
-              htmls(
-                `.file-name-render-${fileFormData.id}`,
-                `<div class="abs center"><i style="font-size: 25px" class="fa-solid fa-cloud"></i></div>`,
-              );
-            }
+            // Do NOT clear the file input here - the file should remain as-is when entering edit mode.
+            // If user wants to remove the file, they use the "clean file" button.
+            // If user wants to replace the file, they select a new file.
+            // Unconditionally clearing the file here would cause the server to receive fileId: null on save.
             setTimeout(() => {
               s(`.modal-${options.route}`).scrollTo({ top: 0, behavior: 'smooth' });
             }, 50);
@@ -388,15 +382,15 @@ class PanelForm {
             // It will be filtered from the tags array to keep visibility control separate from content tags
             const tags = data.tags
               ? uniqueArray(
-                  data.tags
-                    .replaceAll('/', ',')
-                    .replaceAll('-', ',')
-                    .replaceAll(' ', ',')
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter((t) => t)
-                    .concat(prefixTags),
-                )
+                data.tags
+                  .replaceAll('/', ',')
+                  .replaceAll('-', ',')
+                  .replaceAll(' ', ',')
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter((t) => t)
+                  .concat(prefixTags),
+              )
               : prefixTags;
             let originObj, originFileObj, indexOriginObj;
             if (editId) {
@@ -434,7 +428,17 @@ class PanelForm {
             for (const file of inputFiles) {
               indexFormDoc++;
               let fileId = undefined; // Reset for each iteration - only set if user uploaded a file
+              // Track whether the file input was explicitly cleared (null) vs never had a file (undefined)
+              // In edit mode, null means user cleared the file - we need to tell server to remove it
+              const isFileCleared = data.fileId === null && editId;
               await (async () => {
+                // When file is null and not the first iteration or not in edit mode, skip upload
+                if (!file && !isFileCleared) return;
+                // When user cleared file in edit mode, set fileId=null so server removes the reference
+                if (isFileCleared) {
+                  fileId = null;
+                  return;
+                }
                 const body = new FormData();
                 // Only append md file if it was created (has content)
                 if (md) body.append('md', md);
@@ -485,8 +489,8 @@ class PanelForm {
                 message: documentMessage,
                 data: documentData,
               } = originObj && indexFormDoc === 0
-                ? await DocumentService.put({ id: originObj._id, body })
-                : await DocumentService.post({
+                  ? await DocumentService.put({ id: originObj._id, body })
+                  : await DocumentService.post({
                     body,
                   });
               const newDoc = {
@@ -514,12 +518,12 @@ class PanelForm {
                 fileId: {
                   fileBlob: file
                     ? {
-                        data: {
-                          data: await getDataFromInputFile(file),
-                        },
-                        mimetype: file.type,
-                        name: file.name,
-                      }
+                      data: {
+                        data: await getDataFromInputFile(file),
+                      },
+                      mimetype: file.type,
+                      name: file.name,
+                    }
                     : undefined,
                   filePlain: undefined,
                 },
@@ -738,36 +742,36 @@ class PanelForm {
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({
-                style: {
-                  width: '80%',
-                  height: '30px',
-                  top: '-13px',
-                  left: '10px',
-                },
-              })}"
+            style: {
+              width: '80%',
+              height: '30px',
+              top: '-13px',
+              left: '10px',
+            },
+          })}"
             ></div>
           </div>`,
           createdAt: html`<div class="fl">
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({
-                style: {
-                  width: '50%',
-                  height: '30px',
-                  left: '-5px',
-                },
-              })}"
+            style: {
+              width: '50%',
+              height: '30px',
+              left: '-5px',
+            },
+          })}"
             ></div>
           </div>`,
           mdFileId: html`<div class="fl section-mp">
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({
-                style: {
-                  width: '80%',
-                  height: '30px',
-                },
-              })}"
+            style: {
+              width: '80%',
+              height: '30px',
+            },
+          })}"
             ></div>
           </div>`.repeat(random(2, 4)),
           ssr: true,
