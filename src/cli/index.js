@@ -242,6 +242,7 @@ program
   .command('cluster')
   .argument('[pod-name]', 'Optional: Filters information by a specific pod name.')
   .option('--reset', `Deletes all clusters and prunes all related data and caches.`)
+  .option('--reset-mongodb', `Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node.`)
   .option('--mariadb', 'Initializes the cluster with a MariaDB statefulset.')
   .option('--mysql', 'Initializes the cluster with a MySQL statefulset.')
   .option('--mongodb', 'Initializes the cluster with a MongoDB statefulset.')

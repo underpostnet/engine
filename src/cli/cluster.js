@@ -44,6 +44,7 @@ class UnderpostCluster {
      * @param {boolean} [options.certManager=false] - Deploy Cert-Manager for certificate management.
      * @param {boolean} [options.listPods=false] - List Kubernetes pods.
      * @param {boolean} [options.reset=false] - Perform a comprehensive reset of Kubernetes and container environments.
+     * @param {boolean} [options.resetMongodb=false] - Perform a targeted reset of MongoDB components without restarting the entire cluster.
      * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
      * @param {string} [options.nsUse=''] - Set the current kubectl namespace (creates namespace if it doesn't exist).
      * @param {string} [options.namespace='default'] - Kubernetes namespace for cluster operations.
@@ -81,6 +82,7 @@ class UnderpostCluster {
         certManager: false,
         listPods: false,
         reset: false,
+        resetMongodb: false,
         dev: false,
         nsUse: '',
         namespace: 'default',
@@ -146,6 +148,16 @@ class UnderpostCluster {
           underpostRoot,
           removeVolumeHostPaths: options.removeVolumeHostPaths,
           clusterType,
+        });
+      }
+
+      // Targeted MongoDB-only reset (does not restart the whole node)
+      if (options.resetMongodb) {
+        const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
+        return await MongoBootstrap.reset({
+          namespace: options.namespace,
+          clusterType,
+          underpostRoot,
         });
       }
 

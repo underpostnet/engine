@@ -454,6 +454,81 @@ class MongoBootstrap {
     }
 
     /**
+     * Performs a targeted, hard cleanup of only MongoDB-related Kubernetes resources
+     * and artifacts (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches, YAML manifests, and
+     * hostPath data) without restarting the whole node or touching unrelated cluster resources.
+     * @param {object} [options] - Configuration options for the MongoDB reset.
+     * @param {string} [options.namespace='default'] - Kubernetes namespace.
+     * @param {string} [options.clusterType='kind'] - The type of cluster: 'kind', 'kubeadm', or 'k3s'.
+     * @param {string} [options.underpostRoot] - The root path of the underpost project (manifests location).
+     * @memberof MongoBootstrap
+     */
+    static async reset(options = { namespace: 'default', clusterType: 'kind', underpostRoot: '.' }) {
+        const { namespace = 'default', clusterType = 'kind', underpostRoot } = options;
+        const isKind = clusterType === 'kind' || !clusterType;
+        logger.info(`Starting MongoDB-only reset in namespace '${namespace}' (cluster type: ${clusterType})...`);
+
+        try {
+            // Phase 1: Delete MongoDB StatefulSet and Deployment (both current and legacy mongodb-4.4)
+            logger.info('Phase 1/6: Deleting MongoDB workloads...');
+            shellExec(`kubectl delete statefulset mongodb -n ${namespace} --ignore-not-found --wait=false`);
+            shellExec(`kubectl delete deployment mongodb-deployment -n ${namespace} --ignore-not-found --wait=false`);
+            // Delete mongo-express if present
+            shellExec(`kubectl delete deployment mongo-express -n ${namespace} --ignore-not-found --wait=false`);
+            shellExec(`kubectl delete service mongo-express-service -n ${namespace} --ignore-not-found`);
+
+            // Phase 2: Delete MongoDB headless service (will be recreated on redeploy)
+            logger.info('Phase 2/6: Deleting MongoDB Services and ConfigMaps...');
+            shellExec(`kubectl delete service mongodb-service -n ${namespace} --ignore-not-found`);
+
+            // Phase 3: Delete MongoDB Secrets
+            logger.info('Phase 3/6: Deleting MongoDB Secrets...');
+            shellExec(`kubectl delete secret mongodb-secret -n ${namespace} --ignore-not-found`);
+            shellExec(`kubectl delete secret mongodb-keyfile -n ${namespace} --ignore-not-found`);
+
+            // Phase 4: Delete MongoDB PVCs and PVs (both current and legacy mongodb-4.4)
+            logger.info('Phase 4/6: Deleting MongoDB PersistentVolumeClaims and PersistentVolumes...');
+            // Delete PVCs from volumeClaimTemplates
+            for (let i = 0; i < 10; i++) {
+                shellExec(`kubectl delete pvc mongodb-storage-mongodb-${i} -n ${namespace} --ignore-not-found`);
+            }
+            shellExec(`kubectl delete pvc mongodb-pvc -n ${namespace} --ignore-not-found`);
+            shellExec(`kubectl delete pv mongodb-pv-0 --ignore-not-found`);
+            shellExec(`kubectl delete pv mongodb-pv-1 --ignore-not-found`);
+            shellExec(`kubectl delete pv mongodb-pv-2 --ignore-not-found`);
+            shellExec(`kubectl delete pv mongodb-pv --ignore-not-found`);
+            // Also catch any remaining PVs with the app=mongodb label
+            shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
+
+            // Delete MongoDB StorageClass
+            shellExec(`kubectl delete storageclass mongodb-storage-class --ignore-not-found`);
+
+            // Phase 5: Clean up hostPath data on host and inside Kind node containers
+            logger.info('Phase 5/6: Cleaning up MongoDB hostPath data...');
+            // Host-level cleanup
+            shellExec(`sudo rm -rf /data/mongodb`);
+            shellExec(`sudo mkdir -p /data/mongodb`);
+            for (let i = 0; i < 3; i++) {
+                shellExec(`sudo mkdir -p /data/mongodb/v${i}`);
+            }
+
+            // Kind node-internal cleanup
+            if (isKind) {
+                MongoBootstrap.cleanKindMongoHostPaths(3);
+            }
+
+            // Phase 6: Wait for pod deletion to complete
+            logger.info('Phase 6/6: Waiting for MongoDB pods to terminate...');
+            shellExec(`kubectl wait --for=delete pod -l app=mongodb -n ${namespace} --timeout=120s`, { silentOnError: true });
+
+            logger.info('MongoDB reset completed successfully. Ready for fresh MongoDB deployment.');
+        } catch (error) {
+            logger.error(`Error during MongoDB reset: ${error.message}`);
+            console.error(error);
+        }
+    }
+
+    /**
      * Gets the primary MongoDB pod name from replica set status.
      * @param {object} [options] - Query options.
      * @param {string} [options.namespace='default'] - Kubernetes namespace.
