@@ -822,7 +822,7 @@ nvidia/gpu-operator \
 
       // Delete merged local and remote branches
       for (const { branch, isAlreadyMerged } of mergedBranches) {
-        shellExec(`git branch -D ${branch}`, { silent: true });
+        shellExec(`git branch -D ${branch}`, { silent: true, silentOnError: true });
         // logger.info(`Deleting remote branch: ${branch}${isAlreadyMerged ? ' (already merged)' : ''}`);
         // shellExec(`git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}.git --delete ${branch}`, {
         //   disableLog: true,
