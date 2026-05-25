@@ -4343,6 +4343,22 @@ try {
       logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
     });
 
+  runner.command('build-server-dashboard')
+    .option('--dev', 'Build a development variant of the dashboard with dev-specific env vars (e.g. localhost API endpoints).')
+    .description(
+      'Build a static HTML dashboard for cyberia-server metrics and operational status. '
+    )
+    .action((options) => {
+      shellExec(`node bin static --page ./src/client/ssr/views/CyberiaServerMetrics.js` +
+        ` --output-path ./cyberia-server/public/index.html` +
+        ` --title 'Cyberia Server Metrics'` +
+        ` --favicon /favicon.ico` +
+        ` --description 'Operational dashboard for the cyberia-server MMO runtime.'` +
+        ` --lang en` +
+        ` --env ${options.dev ? 'development' : 'production'}`
+      );
+    })
+
   // Passthrough check: if the user invoked a command that is OWNED by the
   // underpost CLI (not the cyberia overlay), throw the sentinel error so
   // the catch block below can re-run argv through underpost. The match is
