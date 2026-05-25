@@ -57,6 +57,12 @@ WORKDIR /home/dd/engine/cyberia-server
 
 COPY --from=builder /build/server ./server
 
+# Static SSR dashboard — required by the Go server's findPublicDir() at boot.
+# See the production Dockerfile in this directory for the full rationale.
+# The same `node bin/cyberia run-workflow build-server-dashboard --dev`
+# command is executed by the CI workflow before docker build.
+COPY cyberia-server/public/ ./public/
+
 EXPOSE 8081
 
 ENTRYPOINT ["/home/dd/engine/cyberia-server/server"]

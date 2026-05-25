@@ -43,6 +43,14 @@ WORKDIR /home/dd/engine/cyberia-server
 
 COPY --from=builder /build/server ./server
 
+# Static SSR dashboard rendered by `node bin/cyberia run-workflow
+# build-server-dashboard` from engine's CyberiaServerMetrics.js view. The
+# Go server's findPublicDir() hard-requires public/index.html at boot and
+# log.Fatalf's without it. CI builds the dashboard into
+# cyberia-server/public/ before the docker build picks it up here; local
+# devs run the same command from the engine repo root.
+COPY cyberia-server/public/ ./public/
+
 EXPOSE 8081
 
 # Default entrypoint when the image is run directly (not via K8S cmd).
