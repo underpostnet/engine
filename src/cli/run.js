@@ -98,6 +98,7 @@ const logger = loggerFactory(import.meta);
  * @property {string} deployId - The deployment ID.
  * @property {string} instanceId - The instance ID.
  * @property {string} user - The user to run as.
+ * @property {string} group - The group to use.
  * @property {string} pid - The process ID.
  * @property {boolean} disablePrivateConfUpdate - Whether to disable private configuration updates.
  * @property {string} monitorStatus - The monitor status option.
@@ -166,6 +167,7 @@ const DEFAULT_OPTION = {
   deployId: '',
   instanceId: '',
   user: '',
+  group: '',
   pid: '',
   disablePrivateConfUpdate: false,
   monitorStatus: '',
@@ -2615,6 +2617,60 @@ EOF`;
           shellExec(`sudo mv ${extractedDir} ${publicDestPath}`);
         }
       }
+    },
+
+    /**
+     * @method setup-shared-dir
+     * @description Run once for initial shared-directory setup. Creates the group, adds the user,
+     * creates the directory, sets ownership, applies the SGID bit, and configures default ACLs so
+     * all future files inside the directory automatically inherit group write permissions.
+     * Use `reload-shared-dir` for subsequent permission repairs without recreating the group.
+     * @param {string} path - Target directory to set up (defaults to `/home/dd/engine`).
+     *   Customise via the `path` argument or leave empty to use the default.
+     * @param {Object} options - The default underpost runner options for customizing workflow.
+     *   Key fields: `options.user` (default `'admin'`), `options.group` (default `'engine-dev'`).
+     * @memberof UnderpostRun
+     */
+    'setup-shared-dir': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
+      const dir = path || '/home/dd/engine';
+      const user = options.user || 'admin';
+      const group = options.group || 'engine-dev';
+
+      logger.info(`[setup-shared-dir] dir=${dir} user=${user} group=${group}`);
+
+      shellExec(`sudo groupadd ${group} 2>/dev/null || true`);
+      shellExec(`sudo usermod -aG ${group} ${user}`);
+      shellExec(`sudo mkdir -p ${dir}`);
+      shellExec(`sudo chown -R ${user}:${group} ${dir}`);
+      shellExec(`sudo chmod -R 2775 ${dir}`);
+      shellExec(`sudo setfacl -d -m g:${group}:rwx ${dir}`);
+      shellExec(`sudo setfacl -m g:${group}:rwx ${dir}`);
+
+      logger.info(`[setup-shared-dir] Shared directory setup complete: ${dir}`);
+    },
+
+    /**
+     * @method reload-shared-dir
+     * @description Re-applies recursive permissions and ACLs to repair permission drift on an
+     * already-configured shared directory. Does **not** recreate the group, add users, or modify
+     * ownership. Use this after VS Code permission errors or when existing files lose group write
+     * access due to tool or process interference.
+     * @param {string} path - Target directory to repair (defaults to `/home/dd/engine`).
+     *   Customise via the `path` argument or leave empty to use the default.
+     * @param {Object} options - The default underpost runner options for customizing workflow.
+     *   Key fields: `options.group` (default `'engine-dev'`).
+     * @memberof UnderpostRun
+     */
+    'reload-shared-dir': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
+      const dir = path || '/home/dd/engine';
+      const group = options.group || 'engine-dev';
+
+      logger.info(`[reload-shared-dir] dir=${dir} group=${group}`);
+
+      shellExec(`sudo chmod -R 2775 ${dir}`);
+      shellExec(`sudo setfacl -R -m g:${group}:rwx ${dir}`);
+
+      logger.info(`[reload-shared-dir] Shared directory permissions reloaded: ${dir}`);
     },
   };
 
