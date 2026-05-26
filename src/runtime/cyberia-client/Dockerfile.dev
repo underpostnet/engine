@@ -48,7 +48,9 @@ RUN ./emsdk install ${EMSDK_VERSION} && \
     ./emsdk activate ${EMSDK_VERSION}
 
 WORKDIR /cyberia-client
-COPY cyberia-client/ .
+# Build context is the cyberia-client project repo root (see the
+# production Dockerfile in this directory for the rationale).
+COPY . .
 
 # Dev build: BUILD_MODE=DEBUG keeps symbols, asserts, source maps.
 RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/

@@ -419,7 +419,8 @@ class UnderpostRun {
       }).trim();
 
       shellExec(
-        `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME
+        `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${
+          process.env.GITHUB_USERNAME
         }/engine-private`,
       );
       shellCd('/home/dd/engine');
@@ -505,14 +506,16 @@ class UnderpostRun {
     },
     /**
      * @method docker-image
-     * @description Dispatches the Docker image CI workflow (`docker-image.ci.yml`) for the `engine` repository via `workflow_dispatch`.
-     * @param {string} path - The input value, identifier, or path for the operation.
+     * @description Dispatches the Docker image CI workflow (`docker-image[.<runtime>].ci.yml`) via `workflow_dispatch`.
+     * Repository resolution is delegated to `Underpost.repo.resolveInstanceRepo(path)`.
+     * @param {string} path - Optional runtime / workflow suffix (e.g. `cyberia-server`, `cyberia-client`).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'docker-image': (path, options = DEFAULT_OPTION) => {
+      const repo = Underpost.repo.resolveInstanceRepo(path);
       Underpost.repo.dispatchWorkflow({
-        repo: `${process.env.GITHUB_USERNAME}/engine`,
+        repo,
         workflowFile: `docker-image${path ? `.${path}` : ''}.ci.yml`,
         ref: 'master',
         inputs: {},
@@ -704,8 +707,10 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
 
       shellExec(
-        `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${image ? ` --image ${image}` : ''
-        }${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''
+        `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+          image ? ` --image ${image}` : ''
+        }${versions ? ` --versions ${versions}` : ''}${
+          options.namespace ? ` --namespace ${options.namespace}` : ''
         }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag} ${deployId} ${env}`,
       );
 
@@ -715,7 +720,8 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           `${baseCommand} db ${deployId} ${clusterFlag}${baseClusterCommand} --repo-backup --primary-pod --git --force-clone --preserveUUID ${options.namespace ? ` --ns ${options.namespace}` : ''}`,
         );
         shellExec(
-          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''
+          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
+            options.namespace ? ` --namespace ${options.namespace}` : ''
           }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}`,
         );
         if (!targetTraffic)
@@ -742,8 +748,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
       if (!path.match('current')) currentTraffic === 'blue' ? (currentTraffic = 'green') : (currentTraffic = 'blue');
       const [_deployId] = path.split(',');
-      const deploymentId = `${_deployId ? _deployId : options.deployId}${options.instanceId ? `-${options.instanceId}` : ''
-        }-${env}-${currentTraffic}`;
+      const deploymentId = `${_deployId ? _deployId : options.deployId}${
+        options.instanceId ? `-${options.instanceId}` : ''
+      }-${env}-${currentTraffic}`;
 
       shellExec(`kubectl delete deployment ${deploymentId} -n ${options.namespace}`);
       shellExec(`kubectl delete svc ${deploymentId}-service -n ${options.namespace}`);
@@ -1104,23 +1111,23 @@ EOF
 
         let deploymentYaml = `---
 ${Underpost.deploy
-            .deploymentYamlPartsFactory({
-              deployId: _deployId,
-              env,
-              suffix: targetTraffic,
-              resources: Underpost.deploy.resourcesFactory(options),
-              replicas,
-              image: _image,
-              namespace: options.namespace,
-              volumes: _volumes,
-              cmd: resolvedCmd,
-              lifecycle: lifecycleForManifest,
-              readinessProbe: pickEnv(_readinessProbe),
-              livenessProbe: pickEnv(_livenessProbe),
-              containerPort: _toPort,
-              imagePullPolicy: instanceImagePullPolicy,
-            })
-            .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
+  .deploymentYamlPartsFactory({
+    deployId: _deployId,
+    env,
+    suffix: targetTraffic,
+    resources: Underpost.deploy.resourcesFactory(options),
+    replicas,
+    image: _image,
+    namespace: options.namespace,
+    volumes: _volumes,
+    cmd: resolvedCmd,
+    lifecycle: lifecycleForManifest,
+    readinessProbe: pickEnv(_readinessProbe),
+    livenessProbe: pickEnv(_livenessProbe),
+    containerPort: _toPort,
+    imagePullPolicy: instanceImagePullPolicy,
+  })
+  .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
 `;
         // console.log(deploymentYaml);
         shellExec(
@@ -1144,9 +1151,9 @@ EOF
         }
         shellExec(
           `${baseCommand} run${baseClusterCommand} --namespace ${options.namespace}` +
-          `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
-          `${options.tls ? ` --tls` : ''}` +
-          ` instance-promote '${path}'`,
+            `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
+            `${options.tls ? ` --tls` : ''}` +
+            ` instance-promote '${path}'`,
         );
       }
       if (options.etcHosts) {
@@ -1234,9 +1241,7 @@ EOF
         }
         fs.copyFileSync(dockerfileSourcePath, dockerfileManifestPath);
       } else {
-        logger.warn(
-          `[instance-build-manifest] Dockerfile not found; tried: ${dockerfileCandidates.join(', ')}`,
-        );
+        logger.warn(`[instance-build-manifest] Dockerfile not found; tried: ${dockerfileCandidates.join(', ')}`);
       }
 
       const _deployId = `${deployId}-${_id}`;
@@ -1388,10 +1393,9 @@ EOF`);
       // crictl is in the kubernetes repo but excluded by default — install it explicitly
       shellExec(`sudo yum install -y cri-tools --disableexcludes=kubernetes`);
       // Ensure CRI-O uses systemd cgroup driver (matches kubelet default)
-      shellExec(
-        `sudo sed -i 's/^#\?cgroup_manager =.*/cgroup_manager = "systemd"/' /etc/crio/crio.conf`,
-        { silentOnError: true },
-      );
+      shellExec(`sudo sed -i 's/^#\?cgroup_manager =.*/cgroup_manager = "systemd"/' /etc/crio/crio.conf`, {
+        silentOnError: true,
+      });
       shellExec(`sudo systemctl enable --now crio`);
       logger.info('CRI-O installed and started.');
       // Write crictl config so all crictl calls default to the CRI-O socket
@@ -1416,8 +1420,8 @@ EOF`);
       const currentImage = options.imageName
         ? options.imageName
         : Underpost.deploy
-          .getCurrentLoadedImages(options.nodeName ? options.nodeName : 'kind-worker', false)
-          .find((o) => o.IMAGE.match('underpost'));
+            .getCurrentLoadedImages(options.nodeName ? options.nodeName : 'kind-worker', false)
+            .find((o) => o.IMAGE.match('underpost'));
       const podName = options.podName || `underpost-dev-container`;
       const volumeHostPath = options.claimName || '/home/dd';
       const claimName = options.claimName || `pvc-dd`;
@@ -1450,7 +1454,7 @@ EOF`);
         volumeMountPath: volumeHostPath,
         ...(options.dev ? { volumeHostPath } : { claimName }),
         on: {
-          init: async () => { },
+          init: async () => {},
         },
         args: [daemonProcess(path ? path : `cd /home/dd/engine && npm install && npm run test`)],
       };
@@ -1518,14 +1522,14 @@ EOF`);
       }
       shellExec(
         `git config --global credential.helper "" && ` +
-        `git config credential.helper "" && ` +
-        `git config --global user.name '${username}' && ` +
-        `git config --global user.email '${email}' && ` +
-        `git config --global credential.interactive always && ` +
-        `git config user.name '${username}' && ` +
-        `git config user.email '${email}' && ` +
-        `git config credential.interactive always &&` +
-        `git config pull.rebase false`,
+          `git config credential.helper "" && ` +
+          `git config --global user.name '${username}' && ` +
+          `git config --global user.email '${email}' && ` +
+          `git config --global credential.interactive always && ` +
+          `git config user.name '${username}' && ` +
+          `git config user.email '${email}' && ` +
+          `git config credential.interactive always &&` +
+          `git config pull.rebase false`,
         {
           disableLog: true,
           silent: true,
@@ -1638,11 +1642,12 @@ EOF`);
         path && path.trim() && path.split(',')
           ? path.split(',')
           : [
-            'express',
-            fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+'),
-          ];
+              'express',
+              fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+'),
+            ];
       shellExec(
-        `${baseCommand} image${baseClusterCommand} --build ${runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
+        `${baseCommand} image${baseClusterCommand} --build ${
+          runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
         } --${clusterType}`,
       );
       if (!deployList) {
@@ -1671,7 +1676,8 @@ EOF`);
       }
       for (const deployId of deployList) {
         shellExec(
-          `${baseCommand} deploy ${deployId} ${env} --${clusterType}${env === 'production' ? ' --cert' : ''}${env === 'development' ? ' --etc-hosts' : ''
+          `${baseCommand} deploy ${deployId} ${env} --${clusterType}${env === 'production' ? ' --cert' : ''}${
+            env === 'development' ? ' --etc-hosts' : ''
           }${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
         );
       }
@@ -1790,8 +1796,9 @@ EOF`);
       dotenv.config({ path: `./engine-private/conf/${deployId}/.env.development`, override: true });
       shellExec(`node bin run dev-cluster --expose --namespace ${options.namespace}`, { async: true });
       {
-        const cmd = `npm run dev:api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort} proxy${options.tls ? ' tls' : ''
-          }`;
+        const cmd = `npm run dev:api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort} proxy${
+          options.tls ? ' tls' : ''
+        }`;
         shellExec(cmd, { async: true });
       }
       await awaitDeployMonitor(true);
@@ -1886,12 +1893,15 @@ EOF`);
         if (!node) node = os.hostname();
         const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
         shellExec(
-          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
-          } --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${image ? ` --image ${image}` : ''
+          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${
+            options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
+          } --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+            image ? ` --image ${image}` : ''
           }${versions ? ` --versions ${versions}` : ''}${timeoutFlags} dd ${env}`,
         );
         shellExec(
-          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
+          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${
+            options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
           } --disable-update-deployment ${deployId} ${env} --versions ${versions}`,
         );
       } else logger.error(`Service pod ${podToMonitor} failed to start in time.`);
@@ -1929,7 +1939,8 @@ EOF`);
       let [operator, arg0, arg1] = path.split(',');
       if (operator == 'copy') {
         shellExec(
-          `kitty @ get-text ${arg0 === 'all' ? '--match all' : '--self'} --extent all${arg1 === 'ansi' ? ' --ansi yes' : ''
+          `kitty @ get-text ${arg0 === 'all' ? '--match all' : '--self'} --extent all${
+            arg1 === 'ansi' ? ' --ansi yes' : ''
           } | kitty +kitten clipboard`,
         );
         return;
@@ -2068,11 +2079,11 @@ EOF`);
       const cmd = options.cmd
         ? options.cmd
         : [
-          `npm install -g npm@11.2.0`,
-          `npm install -g underpost`,
-          `${baseCommand} secret underpost --create-from-env`,
-          `${baseCommand} start --build --run ${deployId} ${env}`,
-        ];
+            `npm install -g npm@11.2.0`,
+            `npm install -g underpost`,
+            `${baseCommand} secret underpost --create-from-env`,
+            `${baseCommand} start --build --run ${deployId} ${env}`,
+          ];
       shellExec(`node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none dd-test --cmd "${cmd}"`);
     },
 
@@ -2232,9 +2243,10 @@ EOF`);
      * @memberof UnderpostRun
      */
     kill: (path = '', options = DEFAULT_OPTION) => {
-      if (options.pid) return shellExec(`sudo kill -9 ${options.pid}`, {
-        silentOnError: true
-      });
+      if (options.pid)
+        return shellExec(`sudo kill -9 ${options.pid}`, {
+          silentOnError: true,
+        });
       for (const _path of path.split(',')) {
         if (_path.split('+')[1]) {
           let [port, sumPortOffSet] = _path.split('+');
@@ -2242,11 +2254,12 @@ EOF`);
           sumPortOffSet = parseInt(sumPortOffSet);
           for (const sumPort of range(0, sumPortOffSet))
             shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`, {
-              silentOnError: true
+              silentOnError: true,
             });
-        } else shellExec(`sudo kill -9 $(lsof -t -i:${_path})`, {
-          silentOnError: true
-        });
+        } else
+          shellExec(`sudo kill -9 $(lsof -t -i:${_path})`, {
+            silentOnError: true,
+          });
       }
     },
     /**
@@ -2369,32 +2382,32 @@ EOF`);
         ? Array.isArray(options.hostAliases)
           ? options.hostAliases
           : options.hostAliases
-            .split(';')
-            .filter((entry) => entry.trim())
-            .map((entry) => {
-              const [ip, hostnamesStr] = entry.split('=');
-              const hostnames = hostnamesStr ? hostnamesStr.split(',').map((h) => h.trim()) : [];
-              return { ip: ip.trim(), hostnames };
-            })
+              .split(';')
+              .filter((entry) => entry.trim())
+              .map((entry) => {
+                const [ip, hostnamesStr] = entry.split('=');
+                const hostnames = hostnamesStr ? hostnamesStr.split(',').map((h) => h.trim()) : [];
+                return { ip: ip.trim(), hostnames };
+              })
         : [];
       const hostAliasesYaml =
         hostAliases.length > 0
           ? `  hostAliases:\n${hostAliases
-            .map(
-              (alias) =>
-                `  - ip: "${alias.ip}"\n    hostnames:\n${alias.hostnames.map((h) => `    - "${h}"`).join('\n')}`,
-            )
-            .join('\n')}`
+              .map(
+                (alias) =>
+                  `  - ip: "${alias.ip}"\n    hostnames:\n${alias.hostnames.map((h) => `    - "${h}"`).join('\n')}`,
+              )
+              .join('\n')}`
           : '';
       const labels = options.labels
         ? options.labels
-          .split(',')
-          .map((keyValue) => {
-            const [key, value] = keyValue.split('=');
-            return `    ${key}: ${value}
+            .split(',')
+            .map((keyValue) => {
+              const [key, value] = keyValue.split('=');
+              return `    ${key}: ${value}
 `;
-          })
-          .join('')
+            })
+            .join('')
         : `    app: ${podName}`;
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
       const volumeType =
@@ -2424,28 +2437,31 @@ ${hostAliasesYaml}
       tty: ${tty}
       stdin: ${stdin}
       command: ${JSON.stringify(options.cmd ? options.cmd : ['/bin/bash', '-c'])}
-${args.length > 0
-          ? `      args:
+${
+  args.length > 0
+    ? `      args:
         - |
 ${args.map((arg) => `          ${arg}`).join('\n')}`
-          : ''
-        }
-${`${gpuEnable
-          ? `      resources:
+    : ''
+}
+${`${
+  gpuEnable
+    ? `      resources:
         limits:
           nvidia.com/gpu: '1'
 `
-          : ''
-        }      env:
+    : ''
+}      env:
 ${Object.keys(envs)
-          .map((key) => ({ key, value: typeof envs[key] === 'number' ? envs[key] : `"${envs[key]}"` }))
-          .concat(gpuEnable ? [{ key: 'NVIDIA_VISIBLE_DEVICES', value: 'all' }] : [])
-          .map((env) => `        - name: ${env.key}\n          value: ${env.value}`)
-          .join('\n')}`}
-${enableVolumeMount
-          ? Underpost.deploy.volumeFactory([{ volumeMountPath, volumeName, volumeHostPath, volumeType, claimName }]).render
-          : ''
-        }
+  .map((key) => ({ key, value: typeof envs[key] === 'number' ? envs[key] : `"${envs[key]}"` }))
+  .concat(gpuEnable ? [{ key: 'NVIDIA_VISIBLE_DEVICES', value: 'all' }] : [])
+  .map((env) => `        - name: ${env.key}\n          value: ${env.value}`)
+  .join('\n')}`}
+${
+  enableVolumeMount
+    ? Underpost.deploy.volumeFactory([{ volumeMountPath, volumeName, volumeHostPath, volumeType, claimName }]).render
+    : ''
+}
 EOF`;
       shellExec(`kubectl delete pod ${podName} -n ${namespace} --ignore-not-found`);
       console.log(cmd);
@@ -2527,9 +2543,9 @@ EOF`;
       const confServer = fs.existsSync(confServerPath) ? loadConfServerJson(confServerPath) : {};
       const hostsArg = path
         ? path
-          .split(',')
-          .map((h) => h.trim())
-          .filter(Boolean)
+            .split(',')
+            .map((h) => h.trim())
+            .filter(Boolean)
         : Object.keys(confServer);
 
       if (hostsArg.length === 0) {

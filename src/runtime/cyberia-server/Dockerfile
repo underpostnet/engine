@@ -11,11 +11,14 @@ RUN dnf -y update && \
 
 WORKDIR /build
 
-# Cache dependency downloads independently of source changes
-COPY cyberia-server/go.mod cyberia-server/go.sum ./
+# Build context is the cyberia-server project repo root (the workflow
+# in .github/workflows/docker-image.cyberia-server.ci.yml sets
+# context: . from the cyberia-server checkout). The legacy
+# engine-context layout (COPY cyberia-server/ .) is no longer used.
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cyberia-server/ ./
+COPY . ./
 RUN chmod +x build.sh && ./build.sh
 
 # --- Runtime Image
@@ -44,12 +47,12 @@ WORKDIR /home/dd/engine/cyberia-server
 COPY --from=builder /build/server ./server
 
 # Static SSR dashboard rendered by `node bin/cyberia run-workflow
-# build-server-dashboard` from engine's CyberiaServerMetrics.js view. The
-# Go server's findPublicDir() hard-requires public/index.html at boot and
-# log.Fatalf's without it. CI builds the dashboard into
-# cyberia-server/public/ before the docker build picks it up here; local
-# devs run the same command from the engine repo root.
-COPY cyberia-server/public/ ./public/
+# build-server-dashboard --output-path <project-root>/public/index.html`
+# from inside the engine repo checkout. The Go server's findPublicDir()
+# hard-requires public/index.html at boot and log.Fatalf's without it.
+# CI writes the dashboard into ./public/ at the cyberia-server repo root
+# before docker build picks it up here.
+COPY public/ ./public/
 
 EXPOSE 8081
 

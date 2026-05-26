@@ -30,10 +30,12 @@ RUN dnf -y update && \
 
 WORKDIR /build
 
-COPY cyberia-server/go.mod cyberia-server/go.sum ./
+# Build context is the cyberia-server project repo root (see the
+# production Dockerfile in this directory for the rationale).
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cyberia-server/ ./
+COPY . ./
 # Dev build: keep source paths, disable inlining + optimisations.
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
       go build -gcflags="all=-N -l" -o server ./cmd/cyberia-server/ && \
@@ -59,9 +61,10 @@ COPY --from=builder /build/server ./server
 
 # Static SSR dashboard — required by the Go server's findPublicDir() at boot.
 # See the production Dockerfile in this directory for the full rationale.
-# The same `node bin/cyberia run-workflow build-server-dashboard --dev`
-# command is executed by the CI workflow before docker build.
-COPY cyberia-server/public/ ./public/
+# The same `node bin/cyberia run-workflow build-server-dashboard --dev
+# --output-path <project-root>/public/index.html` command is executed by
+# the CI workflow before docker build.
+COPY public/ ./public/
 
 EXPOSE 8081
 

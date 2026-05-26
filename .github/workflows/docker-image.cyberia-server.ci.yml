@@ -1,5 +1,18 @@
 name: CI | Docker Image cyberia-server
 
+# This workflow is the source-of-truth template that lives in the
+# engine repo. `node bin run instance-build-manifest dd-cyberia,mmo-server,./cyberia-server`
+# copies it into ./cyberia-server/.github/workflows/ so it ships in
+# underpostnet/cyberia-server and can be dispatched by
+# `node bin run docker-image cyberia-server` (which resolves the target
+# repo from conf.instances.json `metadata.repository`).
+#
+# Inverted layout vs. the legacy engine-context flow: the project repo
+# is the primary checkout, the engine repo is checked out into ./engine/
+# only for the SSR-dashboard build step. The Dockerfile referenced is
+# the one at the project repo root (synced from src/runtime/cyberia-server/
+# in the engine repo by `instance-build-manifest`).
+
 on:
   workflow_dispatch:
 jobs:
@@ -10,37 +23,39 @@ jobs:
       packages: write
 
     steps:
+      # Primary checkout: the cyberia-server repo (the repo this workflow
+      # was dispatched on). Lands at the workspace root.
       - uses: actions/checkout@v6
 
-      # Pull the cyberia-server runtime sources into ./cyberia-server.
-      # The image is then built from the engine repo as the docker context,
-      # so the Dockerfile can reach into both engine/src/runtime/cyberia-server
-      # and cyberia-server/* in a single COPY surface.
-      - name: Checkout cyberia-server
+      # Secondary checkout: the engine repo, into ./engine/. We need it
+      # for the underpost CLI sources that render the SSR dashboard into
+      # ./public/ before the docker build. The Go server hard-requires
+      # public/index.html on boot (cmd/cyberia-server/main.go calls
+      # log.Fatalf when findPublicDir returns empty).
+      - name: Checkout engine
         uses: actions/checkout@v6
         with:
-          repository: underpostnet/cyberia-server
-          path: cyberia-server
+          repository: underpostnet/engine
+          path: engine
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24.x'
 
-      # The SSR dashboard for /metrics and operator status lives in
-      # src/client/ssr/views/CyberiaServerMetrics.js inside the engine repo
-      # and is rendered by the engine-cyberia CLI (`node bin/cyberia
-      # run-workflow build-server-dashboard`). The Go server hard-requires
-      # ./public/index.html on boot (cmd/cyberia-server/main.go calls
-      # log.Fatalf when findPublicDir returns empty), so we must run this
-      # step before the docker build picks up cyberia-server/public/.
       - name: Install engine dependencies
+        working-directory: engine
         run: npm ci --ignore-scripts
 
+      # Render the SSR dashboard from inside the engine checkout but
+      # write the output back to ../public/ (the cyberia-server repo
+      # root). The --output-path flag overrides the default
+      # ./cyberia-server/public/index.html target.
       - name: Build cyberia-server SSR dashboard
+        working-directory: engine
         run: |
           node bin/deploy cyberia
-          node bin/cyberia run-workflow build-server-dashboard
+          node bin/cyberia run-workflow build-server-dashboard --output-path ../public/index.html
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -64,8 +79,12 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v7
         with:
+          # Build context is the project repo root. The Dockerfile here
+          # is a project-root variant (COPY . . rather than
+          # COPY cyberia-server/ .) synced from src/runtime/cyberia-server/
+          # in the engine repo by `instance-build-manifest`.
           context: .
-          file: ./src/runtime/cyberia-server/Dockerfile
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

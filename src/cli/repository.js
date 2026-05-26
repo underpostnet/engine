@@ -51,7 +51,8 @@ class UnderpostRepository {
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
       shellExec(
-        `git clone ${options?.bare === true ? ` --bare ` : ''}https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
+        `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
+          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
         }github.com/${gitUri}${gExtension}`,
         {
           disableLog: true,
@@ -73,7 +74,8 @@ class UnderpostRepository {
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
-        `cd ${repoPath} && git pull https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
+        `cd ${repoPath} && git pull https://${
+          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
         }github.com/${gitUri}${gExtension}`,
         {
           disableLog: true,
@@ -156,10 +158,10 @@ class UnderpostRepository {
         const branch =
           options.p === true
             ? shellExec(`cd ${repoPath} && git branch --show-current`, {
-              stdout: true,
-              silent: true,
-              disableLog: true,
-            }).trim()
+                stdout: true,
+                silent: true,
+                disableLog: true,
+              }).trim()
             : options.p;
         console.log(
           shellExec(`cd ${repoPath} && git --no-pager reflog show refs/heads/${branch}`, {
@@ -388,8 +390,9 @@ class UnderpostRepository {
         return;
       }
       if (options.info) return logger.info('', commitData);
-      const _message = `${commitType}${subModule ? `(${subModule})` : ''}: ${commitData[commitType].emoji
-        } ${message ? message : commitData[commitType].description}`;
+      const _message = `${commitType}${subModule ? `(${subModule})` : ''}: ${
+        commitData[commitType].emoji
+      } ${message ? message : commitData[commitType].description}`;
       if (options.copy) return pbcopy(_message);
       shellExec(
         `cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}${options.edit ? `--amend  --no-edit ` : `-m "${_message}"`}`,
@@ -426,7 +429,8 @@ class UnderpostRepository {
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
-        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${options?.f === true ? ' --force' : ''
+        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${
+          options?.f === true ? ' --force' : ''
         }`,
         {
           disableLog: true,
@@ -1261,10 +1265,10 @@ Prevent build private config repo.`,
         const payloadJson = JSON.stringify(payload).replace(/'/g, "'\\''");
         shellExec(
           `curl -s -f -X POST ` +
-          `-H "Accept: application/vnd.github.v3+json" ` +
-          `-H "Authorization: token ${token}" ` +
-          `"https://api.github.com/repos/${repo}/actions/workflows/${workflowFile}/dispatches" ` +
-          `-d '${payloadJson}'`,
+            `-H "Accept: application/vnd.github.v3+json" ` +
+            `-H "Authorization: token ${token}" ` +
+            `"https://api.github.com/repos/${repo}/actions/workflows/${workflowFile}/dispatches" ` +
+            `-d '${payloadJson}'`,
         );
       }
       logger.info('Dispatched workflow', `${repo} -> ${workflowFile}`, inputs.job ? `(job: ${inputs.job})` : '');
@@ -1608,6 +1612,52 @@ Prevent build private config repo.`,
         fs.removeSync('/home/dd/engine-private');
         logger.info('engine-private in /home/dd removed');
       }
+    },
+
+    /**
+     * Resolves the GitHub repository for a given instance runtime by scanning
+     * every `conf.instances.json` listed in `./engine-private/deploy/dd.router`.
+     *
+     * Resolution order:
+     *  1. If `runtime` is falsy, returns `${GITHUB_USERNAME}/engine`.
+     *  2. Iterates each deploy ID found in `dd.router` and looks for an instance
+     *     whose `runtime` field matches the supplied value.
+     *  3. When a match is found, returns `instance.metadata.repository`.
+     *  4. Falls back to `${GITHUB_USERNAME}/engine` when no match is found.
+     *
+     * @param {string} [runtime=''] - The runtime identifier to look up (e.g. `'cyberia-server'`, `'cyberia-client'`).
+     * @returns {string} The resolved `owner/repo` string.
+     * @memberof UnderpostRepository
+     */
+    resolveInstanceRepo(runtime = '') {
+      const fallback = `${process.env.GITHUB_USERNAME}/engine`;
+      if (!runtime) return fallback;
+      const ddRouter = './engine-private/deploy/dd.router';
+      const deployIds = fs.existsSync(ddRouter)
+        ? fs
+            .readFileSync(ddRouter, 'utf8')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+      for (const deployId of deployIds) {
+        const confPath = `./engine-private/conf/${deployId}/conf.instances.json`;
+        if (!fs.existsSync(confPath)) continue;
+        try {
+          const instances = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+          const match = instances.find((i) => i && i.runtime === runtime);
+          if (match && match.metadata && match.metadata.repository) {
+            logger.info(`[resolveInstanceRepo] resolved from ${confPath}`, {
+              runtime,
+              repo: match.metadata.repository,
+            });
+            return match.metadata.repository;
+          }
+        } catch (err) {
+          logger.warn(`[resolveInstanceRepo] failed to parse ${confPath}: ${err.message}`);
+        }
+      }
+      return fallback;
     },
   };
 }

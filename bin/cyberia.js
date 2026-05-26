@@ -4345,12 +4345,19 @@ try {
 
   runner.command('build-server-dashboard')
     .option('--dev', 'Build a development variant of the dashboard with dev-specific env vars (e.g. localhost API endpoints).')
+    .option(
+      '--output-path <path>',
+      'Override output path for the rendered HTML (default: ./cyberia-server/public/index.html). ' +
+      'Used by CI when this command is invoked from inside an engine checkout that lives ' +
+      'alongside (not inside) the cyberia-server repo — pass e.g. ../public/index.html.',
+    )
     .description(
       'Build a static HTML dashboard for cyberia-server metrics and operational status. '
     )
     .action((options) => {
+      const outputPath = options.outputPath || './cyberia-server/public/index.html';
       shellExec(`node bin static --page ./src/client/ssr/views/CyberiaServerMetrics.js` +
-        ` --output-path ./cyberia-server/public/index.html` +
+        ` --output-path ${outputPath}` +
         ` --title 'Cyberia Server Metrics'` +
         ` --favicon /favicon.ico` +
         ` --description 'Operational dashboard for the cyberia-server MMO runtime.'` +

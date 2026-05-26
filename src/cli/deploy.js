@@ -1182,7 +1182,22 @@ ${renderHosts}`,
       (!options.certHosts || options.certHosts.split(',').includes(host)),
     /**
      * Monitors the ready status of a deployment.
-     * Waits until ALL pods are K8s-ready AND ALL pods have container-status = ready-deployment.
+     *
+     * Ready signal:
+     *   The orchestrator gate is the Kubernetes pod Ready condition. When the
+     *   container's `readinessProbe` succeeds, kubelet flips
+     *   `status.conditions[Ready]` to True and `checkDeploymentReadyStatus`
+     *   returns the pod in `readyPods`. This is the only required signal — see
+     *   `src/client/public/nexodev/docs/references/Deploy custom instance to K8S.md`.
+     *
+     * Container-status:
+     *   `underpost config get container-status` is still read from each pod for
+     *   the display column and for early-abort on `error`, but it is no longer
+     *   required to equal `<deploy>-running-deployment` to finish the monitor.
+     *   Older implementations gated on it; that produced false timeouts for
+     *   runtimes (e.g. cyberia-server's Go binary, cyberia-client's server.py)
+     *   whose startup sequence didn't reliably overwrite the
+     *   `initializing-deployment` stamp set by the postStart lifecycle hook.
      *
      * @param {string} deployId - Deployment ID for which the ready status is being monitored.
      * @param {string} env - Environment for which the ready status is being monitored.
@@ -1227,7 +1242,7 @@ ${renderHosts}`,
 
         const allPods = [...result.readyPods, ...result.notReadyPods];
 
-        // Update cache with latest status for each pod
+        // Update cache with latest status for each pod (informational + error gate)
         for (const pod of allPods) {
           if (!pod?.NAME) continue;
           const status = readContainerStatus(pod.NAME);
@@ -1236,15 +1251,15 @@ ${renderHosts}`,
           podStatusCache.set(pod.NAME, status);
         }
 
-        const allPodsK8sReady = result.notReadyPods.length === 0;
-        const allPodsHaveExpectedStatus =
-          allPods.length > 0 &&
-          allPods.every((pod) => podStatusCache.get(pod.NAME) === expectedContainerStatus);
+        const allPodsK8sReady = allPods.length > 0 && result.notReadyPods.length === 0;
 
-        // Print snapshot for every pod
+        // Print snapshot for every pod — annotate when container-status hasn't caught
+        // up to the K8S Ready condition (informational only; no longer gates exit).
         for (const pod of allPods) {
           const status = podStatusCache.get(pod.NAME) || containerStatusDefault;
           const podStatus = pod.STATUS || 'Unknown';
+          const statusMatchesExpected = status === expectedContainerStatus;
+          const statusDisplay = statusMatchesExpected ? status : `${status} (advisory)`;
 
           console.log(
             'Target pod:',
@@ -1252,13 +1267,15 @@ ${renderHosts}`,
             '| Pod status:',
             podStatus.bold.yellow,
             '| Runtime status:',
-            status.bold.cyan,
+            statusDisplay.bold.cyan,
           );
         }
 
-        // Only finish when ALL pods are K8S-ready AND have expected container-status
-        if (allPodsK8sReady && allPodsHaveExpectedStatus) {
-          logger.info(`${tag} | All pods ready-deployment`);
+        // Finish as soon as every pod is K8S-Ready. The readinessProbe (TCP
+        // socket on the listening port) is the source of truth — a runtime
+        // that can't bind never reaches Ready and the monitor will time out.
+        if (allPodsK8sReady) {
+          logger.info(`${tag} | All pods Ready (K8S readinessProbe satisfied)`);
           return result;
         }
 

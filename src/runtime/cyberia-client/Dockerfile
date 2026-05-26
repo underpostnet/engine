@@ -53,7 +53,11 @@ RUN ./emsdk install ${EMSDK_VERSION} && \
     ./emsdk activate ${EMSDK_VERSION}
 
 WORKDIR /cyberia-client
-COPY cyberia-client/ .
+# Build context is the cyberia-client project repo root (the workflow
+# in .github/workflows/docker-image.cyberia-client.ci.yml sets
+# context: . from the cyberia-client checkout). The legacy
+# engine-context layout (COPY cyberia-client/ .) is no longer used.
+COPY . .
 
 RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 
