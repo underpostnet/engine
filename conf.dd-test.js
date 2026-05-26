@@ -221,7 +221,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'default' },
+        db: {
+          provider: 'mongoose',
+          host: 'env:DB_HOST',
+          name: 'env:DB_NAME',
+          replicaSet: 'env:DB_REPLICA_SET:rs0',
+          authSource: 'env:DB_AUTH_SOURCE:admin',
+          user: 'env:DB_USER:',
+          password: 'env:DB_PASSWORD:',
+        },
         mailer: {
           sender: { email: 'noreply@nexodev.org', name: 'Nexodev' },
           transport: {
@@ -243,7 +251,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'default' },
+        db: {
+          provider: 'mongoose',
+          host: 'env:DB_HOST',
+          name: 'env:DB_NAME',
+          replicaSet: 'env:DB_REPLICA_SET:rs0',
+          authSource: 'env:DB_AUTH_SOURCE:admin',
+          user: 'env:DB_USER:',
+          password: 'env:DB_PASSWORD:',
+        },
         mailer: {
           sender: { email: 'noreply@nexodev.org', name: 'Nexodev' },
           transport: {
@@ -267,7 +283,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'default' },
+        db: {
+          provider: 'mongoose',
+          host: 'env:DB_HOST',
+          name: 'env:DB_NAME',
+          replicaSet: 'env:DB_REPLICA_SET:rs0',
+          authSource: 'env:DB_AUTH_SOURCE:admin',
+          user: 'env:DB_USER:',
+          password: 'env:DB_PASSWORD:',
+        },
         mailer: {
           sender: { email: 'noreply@nexodev.org', name: 'Nexodev' },
           transport: {

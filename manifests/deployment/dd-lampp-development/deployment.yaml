@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-blue
-          image: underpost/underpost-engine:v3.2.9
+          image: underpost/underpost-engine:v3.2.10
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -32,6 +32,7 @@ spec:
             - >
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-lampp development
+
 
 
 ---
@@ -102,7 +103,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-green
-          image: underpost/underpost-engine:v3.2.9
+          image: underpost/underpost-engine:v3.2.10
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -114,6 +115,7 @@ spec:
             - >
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-lampp development
+
 
 
 ---

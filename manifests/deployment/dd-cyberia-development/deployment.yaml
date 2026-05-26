@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: underpost/underpost-engine:v3.2.9
+          image: underpost/underpost-engine:v3.2.10
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -32,6 +32,7 @@ spec:
             - >
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-cyberia development
+
 
     
           volumeMounts:
@@ -192,7 +193,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: underpost/underpost-engine:v3.2.9
+          image: underpost/underpost-engine:v3.2.10
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -204,6 +205,7 @@ spec:
             - >
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-cyberia development
+
 
     
           volumeMounts:

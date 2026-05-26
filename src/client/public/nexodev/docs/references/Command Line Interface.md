@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.2.9
+## underpost ci/cd cli v3.2.10
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -412,6 +412,10 @@ Arguments:
 Options:
   --reset                              Deletes all clusters and prunes all
                                        related data and caches.
+  --reset-mongodb                      Performs a hard cleanup of only
+                                       MongoDB-related resources (StatefulSet,
+                                       PVCs/PVs, Secrets, ConfigMaps, caches)
+                                       without restarting the whole node.
   --mariadb                            Initializes the cluster with a MariaDB
                                        statefulset.
   --mysql                              Initializes the cluster with a MySQL
@@ -565,6 +569,11 @@ Options:
                                       bundle from Cloudinary inside the
                                       container. Use together with
                                       --skip-full-build.
+  --image-pull-policy <policy>        Override container imagePullPolicy in the
+                                      generated deployment manifest (Always,
+                                      IfNotPresent, Never). Defaults to Never
+                                      for localhost/ images and IfNotPresent
+                                      otherwise.
   -h, --help                          display help for command
  
 ```
@@ -903,7 +912,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,setup-shared-dir,reload-shared-dir.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -987,7 +996,9 @@ Manages LXD virtual machines as K3s nodes (control plane or workers).
 Options:
   --init                           Initializes LXD on the current machine via
                                    preseed.
-  --reset                          Removes the LXD snap and purges all data.
+  --reset                          SAFE complete reset: cleans all VMs (proxy
+                                   devices first), profiles, networks, then
+                                   removes LXD snap.
   --install                        Installs the LXD snap.
   --dev                            Use local paths instead of the global npm
                                    installation.
@@ -1001,7 +1012,9 @@ Options:
                                    node.
   --create-vm <vm-name>            Copy the LXC launch command for a new K3s VM
                                    to the clipboard.
-  --delete-vm <vm-name>            Stop and delete the specified VM.
+  --delete-vm <vm-name>            SAFELY stop and delete VM (removes proxy
+                                   devices first, then stops, then deletes).
+                                   Safe to re-run.
   --init-vm <vm-name>              Run k3s-node-setup.sh on the specified VM
                                    (use with --control or --worker).
   --info-vm <vm-name>              Display full configuration and status for the
@@ -1018,9 +1031,8 @@ Options:
                                    "k3s-control:80,443").
   --delete-expose <vm-name:ports>  Remove proxied ports from a VM (e.g.,
                                    "k3s-control:80,443").
-  --workflow-id <workflow-id>      Workflow ID to execute via runWorkflow.
-  --vm-id <vm-name>                Target VM name for workflow execution.
-  --deploy-id <deploy-id>          Deployment ID context for workflow execution.
+  --bootstrap-engine <vm-name>     Replicate /home/dd/engine source into the VM
+                                   after init completes.
   --namespace <namespace>          Kubernetes namespace context (defaults to
                                    "default").
   -h, --help                       display help for command
@@ -1112,6 +1124,9 @@ Options:
   --pwa-build            Runs the pwa-microservices-template update flow: always
                          re-clones, syncs engine sources, installs, builds, and
                          pushes.
+  --dry-run              For --build: previews version-bump changes (per-file
+                         substitution counts) without writing files or running
+                         downstream commands.
   -h, --help             display help for command
  
 ```
