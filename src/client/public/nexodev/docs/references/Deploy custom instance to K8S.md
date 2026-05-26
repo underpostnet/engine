@@ -72,6 +72,9 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 | `fromDebugPort` | number         | Container port to expose in development/`--dev` mode (optional, falls back to `fromPort`)                                                            |
 | `toDebugPort`   | number         | Target port mapping in development/`--dev` mode (optional, falls back to `toPort`)                                                                   |
 | `cmd`           | object         | `{development: string[], production: string[]}` — array of shell commands joined by the runner. Supports the `{{grpc-service-dns}}` template.        |
+| `lifecycle`     | object         | K8S `lifecycle` hooks (`postStart`, `preStop`) plus the per-instance `imagePullPolicy` extension (see [imagePullPolicy](#imagepullpolicy--per-instance-override-extension)). May be env-scoped (`{development, production}`) or shared. |
+| `readinessProbe`| object         | K8S `readinessProbe` — see [Lifecycle, readiness, and liveness](#lifecycle-readiness-and-liveness--moving-status-hooks-out-of-cmd). May be env-scoped. |
+| `livenessProbe` | object         | K8S `livenessProbe`. May be env-scoped.                                                                                                              |
 | `volumes`       | array          | Volume mount configurations                                                                                                                          |
 | `metadata`      | object         | Additional metadata                                                                                                                                  |
 
@@ -157,6 +160,53 @@ Status transitions explained:
 K8S marks the pod **Ready** only when `readinessProbe` succeeds (TCP socket on the listening port). A runtime that crashes on startup exits non-zero, kubelet surfaces a CrashLoopBackOff, and the pod's Ready condition stays False — the orchestrator gate never opens.
 
 Each block (`lifecycle`, `readinessProbe`, `livenessProbe`) may be either a single object (shared across envs) or `{ development: {...}, production: {...} }` for env-scoped values — useful when dev runs on a different port than prod.
+
+### `imagePullPolicy` — per-instance override (extension)
+
+The `instance` and `instance-build-manifest` runners recognise a non-standard `imagePullPolicy` key placed **inside the env-scoped `lifecycle` block**, alongside `postStart`/`preStop`. The runner extracts it onto the container spec (where K8S expects it) and strips it from the lifecycle hash before rendering the manifest, so the generated `deployment.yaml` is valid K8S regardless of how the conf is shaped.
+
+```jsonc
+{
+  "id": "mmo-server",
+  "image": "underpost/cyberia-server:v3.2.9",
+  "lifecycle": {
+    "development": {
+      "imagePullPolicy": "Always",
+      "postStart": { "exec": { "command": ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] } },
+      "preStop":   { "exec": { "command": ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] } }
+    },
+    "production": {
+      "imagePullPolicy": "Always",
+      "postStart": { "exec": { "command": ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] } },
+      "preStop":   { "exec": { "command": ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] } }
+    }
+  }
+}
+```
+
+This compiles to the following container snippet in the rendered manifest:
+
+```yaml
+- name: dd-cyberia-mmo-server-production-blue
+  image: underpost/cyberia-server:v3.2.9
+  imagePullPolicy: Always
+  …
+  lifecycle:
+    postStart: { exec: { command: ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] } }
+    preStop:   { exec: { command: ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] } }
+```
+
+Resolution rules:
+
+| Source                                                  | Wins                                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--image-pull-policy <policy>` CLI flag on `run instance` | Highest — overrides the conf value.                                                                                                           |
+| `lifecycle.<env>.imagePullPolicy` in `conf.instances.json` | Used when the CLI flag is omitted.                                                                                                            |
+| _(none)_                                                | Falls back to `Never` for `localhost/…` images and `IfNotPresent` for every other image — preserving the existing default.                    |
+
+Use `Always` when the image tag is mutable (e.g. `:latest` or a moving CI tag) so kubelet re-pulls on every pod rollout. Use `IfNotPresent` for immutable, version-pinned tags (recommended default for production). Use `Never` for images already side-loaded into the node (`kind load docker-image …` or `crictl load`).
+
+> The `imagePullPolicy` key is **only** recognised inside the lifecycle block by the instance runners — it is not part of the K8S `lifecycle` schema, and putting it anywhere else in the instance config has no effect. The same `--image-pull-policy` flag is accepted by `node bin run sync` and `node bin deploy --build-manifest` for non-instance deploys (see [Main cluster lifecycle commands → Sync](./Main%20cluster%20lifecycle%20commands.md#sync)).
 
 ## Core Commands
 
@@ -624,6 +674,8 @@ The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`.
 - **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. No env file or gRPC wiring — the client is presentation-only and talks to the cyberia-server WebSocket / engine REST endpoints at runtime.
 
 Both Dockerfiles install `underpost@${UNDERPOST_VERSION}` at build time (`ARG UNDERPOST_VERSION=3.2.9`), so the `cmd` entries can call `underpost config set container-status …` without paying an `npm install -g` cost on every pod boot. The two CI workflows that publish these images forward `UNDERPOST_VERSION` as a build-arg to keep the in-image CLI aligned with the image tag.
+
+Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet re-pulls the published image on every rollout — the CI tags (`v3.2.9`, `v3.2.10`, …) move forward only through coordinated bumps, but the registry image itself can be republished under the same tag during incident response, and `Always` ensures the cluster picks that up. See [imagePullPolicy — per-instance override](#imagepullpolicy--per-instance-override-extension).
 
 ## Best Practices
 

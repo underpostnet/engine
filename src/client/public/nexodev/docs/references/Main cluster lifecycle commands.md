@@ -520,21 +520,23 @@ node bin run sync dd-core --kubeadm
 node bin run sync dd --dev --kind --create-job-now
 node bin run sync dd-my-app --dev --kind --deploy-id-cron-jobs dd-cron
 node bin run sync dd-my-app --k3s --namespace production
+node bin run sync dd-core --kubeadm --image-pull-policy Always
 ```
 
 Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/deploy/dd.router`.
 
-| Option                              | Description                                                    |
-| ----------------------------------- | -------------------------------------------------------------- |
-| `--dev`                             | Development mode (uses Kind cluster and `--etc-hosts`)         |
-| `--kind` / `--kubeadm` / `--k3s`    | Cluster type                                                   |
-| `--namespace <name>`                | Kubernetes namespace (default: `default`)                      |
-| `--replicas <n>`                    | Number of replicas                                             |
-| `--deploy-id-cron-jobs <deploy-id>` | Deploy ID for cron job synchronization (set to `none` to skip) |
-| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution                      |
-| `--create-job-now`                  | Create immediate Job from each CronJob after applying          |
-| `--timezone <tz>`                   | Set timezone for the deployment                                |
-| `--disable-private-conf-update`     | Prevent private configuration updates during execution         |
+| Option                              | Description                                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--dev`                             | Development mode (uses Kind cluster and `--etc-hosts`)                                                                                                       |
+| `--kind` / `--kubeadm` / `--k3s`    | Cluster type                                                                                                                                                 |
+| `--namespace <name>`                | Kubernetes namespace (default: `default`)                                                                                                                    |
+| `--replicas <n>`                    | Number of replicas                                                                                                                                           |
+| `--deploy-id-cron-jobs <deploy-id>` | Deploy ID for cron job synchronization (set to `none` to skip)                                                                                               |
+| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution                                                                                                                    |
+| `--create-job-now`                  | Create immediate Job from each CronJob after applying                                                                                                        |
+| `--timezone <tz>`                   | Set timezone for the deployment                                                                                                                              |
+| `--disable-private-conf-update`     | Prevent private configuration updates during execution                                                                                                       |
+| `--image-pull-policy <policy>`      | Override container `imagePullPolicy` in the generated `deployment.yaml` (`Always`, `IfNotPresent`, `Never`). Defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise. Forwarded to `deploy --build-manifest` and the subsequent `switchTraffic` rebuild. |
 
 ---
 

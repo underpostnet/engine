@@ -639,6 +639,11 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
     /**
      * @method sync
      * @description Cleans up, and then runs a deployment synchronization command (`underpost deploy --kubeadm --build-manifest --sync...`) using parameters parsed from `path` (deployId, replicas, versions, image, node).
+     *
+     * Forwards `--image-pull-policy <policy>` to the underlying `deploy --build-manifest` invocation when `options.imagePullPolicy` is set,
+     * which then plumbs through `buildManifest` and `deploymentYamlPartsFactory` to override the container `imagePullPolicy` in the generated
+     * `deployment.yaml`. Useful when you want to force `Always` so the kubelet re-pulls a mutable tag on every rollout. Example:
+     *   `node bin run sync dd-core --kubeadm --image-pull-policy Always`
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing deploy parameters).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -696,11 +701,12 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
       const skipFullBuildFlag = options.skipFullBuild ? ' --skip-full-build' : '';
       const pullBundleFlag = options.pullBundle ? ' --pull-bundle' : '';
+      const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
 
       shellExec(
         `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag} ${deployId} ${env}`,
+        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag} ${deployId} ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -710,7 +716,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         );
         shellExec(
           `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''
-          }${timeoutFlags}${gitCleanFlag}`,
+          }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}`,
         );
         if (!targetTraffic)
           targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
@@ -1087,6 +1093,15 @@ EOF
         //   { development: {...}, production: {...} }   // env-specific
         const pickEnv = (v) => (v && (v.development || v.production) ? v[env] : v);
 
+        // Convention: an instance config may place `imagePullPolicy` inside
+        // the env-scoped lifecycle block (alongside postStart/preStop).
+        // Extract it onto the container spec (where K8S expects it) and
+        // strip it from the lifecycle hash so the rendered YAML stays valid.
+        // CLI override (`--image-pull-policy`) wins over the conf value.
+        const { lifecycle: lifecycleForManifest, imagePullPolicy: lifecycleImagePullPolicy } =
+          Underpost.deploy.extractInstanceImagePullPolicy(pickEnv(_lifecycle));
+        const instanceImagePullPolicy = options.imagePullPolicy || lifecycleImagePullPolicy;
+
         let deploymentYaml = `---
 ${Underpost.deploy
             .deploymentYamlPartsFactory({
@@ -1099,10 +1114,11 @@ ${Underpost.deploy
               namespace: options.namespace,
               volumes: _volumes,
               cmd: resolvedCmd,
-              lifecycle: pickEnv(_lifecycle),
+              lifecycle: lifecycleForManifest,
               readinessProbe: pickEnv(_readinessProbe),
               livenessProbe: pickEnv(_livenessProbe),
               containerPort: _toPort,
+              imagePullPolicy: instanceImagePullPolicy,
             })
             .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
 `;
@@ -1269,6 +1285,13 @@ EOF
       // a single object (shared across envs) or `{ development, production }`.
       const pickEnv = (v) => (v && (v.development || v.production) ? v[env] : v);
 
+      // Convention: an instance config may place `imagePullPolicy` inside
+      // the env-scoped lifecycle block (alongside postStart/preStop).
+      // Extract it onto the container spec and strip it from the lifecycle hash.
+      const { lifecycle: lifecycleForManifest, imagePullPolicy: lifecycleImagePullPolicy } =
+        Underpost.deploy.extractInstanceImagePullPolicy(pickEnv(_lifecycle));
+      const instanceImagePullPolicy = options.imagePullPolicy || lifecycleImagePullPolicy;
+
       const deploymentYaml =
         `---\n` +
         Underpost.deploy
@@ -1282,10 +1305,11 @@ EOF
             namespace: options.namespace,
             volumes: _volumes,
             cmd: resolvedCmd,
-            lifecycle: pickEnv(_lifecycle),
+            lifecycle: lifecycleForManifest,
             readinessProbe: pickEnv(_readinessProbe),
             livenessProbe: pickEnv(_livenessProbe),
             containerPort: _toPort,
+            imagePullPolicy: instanceImagePullPolicy,
           })
           .replace('{{ports}}', buildKindPorts(_fromPort, _toPort));
 

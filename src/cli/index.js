@@ -347,6 +347,10 @@ program
     '--pull-bundle',
     'Explicitly pull the pre-built client bundle from Cloudinary inside the container. Use together with --skip-full-build.',
   )
+  .option(
+    '--image-pull-policy <policy>',
+    'Override container imagePullPolicy in the generated deployment manifest (Always, IfNotPresent, Never). Defaults to Never for localhost/ images and IfNotPresent otherwise.',
+  )
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 

@@ -122,6 +122,7 @@ class UnderpostDeploy {
      * @param {Array<string>} cmd - Command to run in the deployment container.
      * @param {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment.
      * @param {boolean} pullBundle - Whether to pull the pre-built client bundle from Cloudinary before starting. Use together with skipFullBuild to skip the local build entirely.
+     * @param {string} [imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`). When omitted, defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
@@ -137,6 +138,7 @@ class UnderpostDeploy {
       cmd,
       skipFullBuild,
       pullBundle,
+      imagePullPolicy,
       // K8S lifecycle + probe wiring. Pass-through structures shaped like the
       // upstream Kubernetes API, spliced verbatim into the container spec.
       //   lifecycle:        { postStart: { exec: { command: [...] } }, preStop: { exec: { command: [...] } } }
@@ -193,7 +195,7 @@ spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
           image: ${containerImage}
-          imagePullPolicy: ${containerImage.startsWith('localhost/') ? 'Never' : 'IfNotPresent'}
+          imagePullPolicy: ${imagePullPolicy ? imagePullPolicy : containerImage.startsWith('localhost/') ? 'Never' : 'IfNotPresent'}
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -281,6 +283,7 @@ spec:
      * @param {string} [options.traffic] - Traffic status for the deployment.
      * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; forwarded to deploymentYamlPartsFactory to generate a pull-bundle startup command.
      * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; forwarded to deploymentYamlPartsFactory. Use together with skipFullBuild.
+     * @param {string} [options.imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`); forwarded to deploymentYamlPartsFactory. When omitted, the builder defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
      * @returns {Promise<void>} - Promise that resolves when the manifest is built.
      * @memberof UnderpostDeploy
      */
@@ -319,6 +322,7 @@ ${Underpost.deploy
                 cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
                 skipFullBuild: options.skipFullBuild,
                 pullBundle: options.pullBundle,
+                imagePullPolicy: options.imagePullPolicy,
               })
               .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
@@ -623,6 +627,7 @@ spec:
      * @param {boolean} [options.gitClean] - Whether to run git clean on volume mount paths before copying.
      * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; passed through to buildManifest/deploymentYamlPartsFactory.
      * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; passed through to buildManifest/deploymentYamlPartsFactory. Use together with skipFullBuild.
+     * @param {string} [options.imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`); passed through to buildManifest/deploymentYamlPartsFactory. When omitted, the builder defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
@@ -664,6 +669,7 @@ spec:
         kubeadm: false,
         kind: false,
         gitClean: false,
+        imagePullPolicy: '',
       },
     ) {
       const namespace = options.namespace ? options.namespace : 'default';
@@ -906,6 +912,7 @@ EOF`);
      * @param {string} options.timeoutIdle - Timeout idle setting for the deployment.
      * @param {string} options.retryCount - Retry count setting for the deployment.
      * @param {string} options.retryPerTryTimeout - Retry per-try timeout setting for the deployment.
+     * @param {string} [options.imagePullPolicy] - Container imagePullPolicy override; forwarded to the manifest rebuild triggered here.
      * @memberof UnderpostDeploy
      */
     switchTraffic(
@@ -919,12 +926,14 @@ EOF`);
         timeoutIdle: '',
         retryCount: '',
         retryPerTryTimeout: '',
+        imagePullPolicy: '',
       },
     ) {
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
+      const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
 
       shellExec(
-        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${timeoutFlags} ${deployId} ${env}`,
+        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${timeoutFlags}${imagePullPolicyFlag} ${deployId} ${env}`,
       );
 
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
@@ -1421,6 +1430,34 @@ ${renderHosts}`,
           };
       }
       return undefined;
+    },
+
+    /**
+     * Extracts a non-standard `imagePullPolicy` key from an env-resolved
+     * instance lifecycle block (the convention used in `conf.instances.json`,
+     * where `imagePullPolicy` sits alongside `postStart`/`preStop` for
+     * per-instance ergonomics) and returns a clean lifecycle hash that is
+     * safe to splice into the K8S container spec.
+     *
+     * Returns `{ lifecycle, imagePullPolicy }`:
+     *   - `lifecycle` — the input minus `imagePullPolicy`, or `undefined` when
+     *     the resulting block is empty.
+     *   - `imagePullPolicy` — the extracted value, or `undefined` if absent.
+     *
+     * @param {object|undefined} lifecycle - Env-resolved lifecycle block
+     *   (already passed through pickEnv). May be `undefined`.
+     * @returns {{ lifecycle: (object|undefined), imagePullPolicy: (string|undefined) }}
+     * @memberof UnderpostDeploy
+     */
+    extractInstanceImagePullPolicy(lifecycle) {
+      if (!lifecycle || typeof lifecycle !== 'object' || !('imagePullPolicy' in lifecycle)) {
+        return { lifecycle, imagePullPolicy: undefined };
+      }
+      const { imagePullPolicy, ...rest } = lifecycle;
+      return {
+        lifecycle: Object.keys(rest).length > 0 ? rest : undefined,
+        imagePullPolicy,
+      };
     },
 
     /**
