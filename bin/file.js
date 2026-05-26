@@ -139,9 +139,6 @@ try {
         const templatePackageJson = JSON.parse(fs.readFileSync('../pwa-microservices-template/package.json', 'utf8'));
 
         const name = templatePackageJson.name;
-        const description = templatePackageJson.description;
-        const dev = templatePackageJson.scripts.dev;
-        const build = templatePackageJson.scripts.build;
 
         templatePackageJson.dependencies = originPackageJson.dependencies;
         templatePackageJson.devDependencies = originPackageJson.devDependencies;
@@ -149,11 +146,27 @@ try {
         templatePackageJson.scripts = originPackageJson.scripts;
         templatePackageJson.overrides = originPackageJson.overrides;
         templatePackageJson.name = name;
-        templatePackageJson.description = description;
-        // templatePackageJson.scripts.dev = dev;
-        // templatePackageJson.scripts.build = build;
+        templatePackageJson.description =
+          'Underpost Platform — end-to-end CI/CD and application-delivery toolchain CLI. Covers bare metal, Kubernetes, K3s, kubeadm, LXD, container/image orchestration, secrets, databases, cron jobs, monitoring, SSH, runners, PWA + Workbox delivery, and release orchestration. Extensible via downstream CLIs.';
         templatePackageJson.keywords = uniqueArray(
-          ['pwa', 'microservices', 'template', 'builder'].concat(templatePackageJson.keywords),
+          [
+            'underpost',
+            'underpost-platform',
+            'cli',
+            'toolchain',
+            'ci-cd',
+            'devops',
+            'kubernetes',
+            'k3s',
+            'kubeadm',
+            'lxd',
+            'bare-metal',
+            'container-orchestration',
+            'image-management',
+            'pwa',
+            'workbox',
+            'microservices',
+          ].concat(templatePackageJson.keywords || []),
         );
         delete templatePackageJson.scripts['update:template'];
         fs.writeFileSync(

@@ -167,13 +167,24 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       packageJson.bin.cyberia = 'bin/index.js';
       packageJson.keywords = [
         'cyberia',
+        'cyberia-cli',
+        'sidecar',
+        'data-layer',
+        'engine-cyberia',
         'object-layer',
-        'game-engine',
-        'assets-management',
-        'web3',
         'atlas-sprite-sheet',
+        'ipfs',
+        'erc-1155',
+        'object-layer-token',
+        'hardhat',
+        'hyperledger-besu',
+        'blockchain',
+        'web3',
+        'underpost-platform',
+        'mmo-extension',
       ];
-      packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
+      packageJson.description =
+        'Cyberia CLI — toolchain for the Cyberia MMO data layer, content pipeline, persistence, gRPC services, and ERC-1155 lifecycle on Hyperledger Besu.';
       const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
       packageJson.dependencies = {
         ...originPackageJson.dependencies,
