@@ -6,12 +6,6 @@ name: CI | Docker Image cyberia-server
 # underpostnet/cyberia-server and can be dispatched by
 # `node bin run docker-image cyberia-server` (which resolves the target
 # repo from conf.instances.json `metadata.repository`).
-#
-# Inverted layout vs. the legacy engine-context flow: the project repo
-# is the primary checkout, the engine repo is checked out into ./engine/
-# only for the SSR-dashboard build step. The Dockerfile referenced is
-# the one at the project repo root (synced from src/runtime/cyberia-server/
-# in the engine repo by `instance-build-manifest`).
 
 on:
   workflow_dispatch:

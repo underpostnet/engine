@@ -6,12 +6,6 @@ name: CI | Docker Image cyberia-client
 # underpostnet/cyberia-client and can be dispatched by
 # `node bin run docker-image cyberia-client` (which resolves the target
 # repo from conf.instances.json `metadata.repository`).
-#
-# Inverted layout: the cyberia-client repo is the primary checkout and
-# the Dockerfile referenced is the project-root variant synced from
-# src/runtime/cyberia-client/ by `instance-build-manifest`. The engine
-# repo is not required at build time for the client (no SSR step), so
-# we skip checking it out.
 
 on:
   workflow_dispatch:

@@ -59,7 +59,12 @@ WORKDIR /cyberia-client
 # engine-context layout (COPY cyberia-client/ .) is no longer used.
 COPY . .
 
-RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
+# `make clean` first so stale bin/ or build/ artefacts copied in from a
+# developer's local checkout (or a previous Docker layer cache hit)
+# can't shadow a fresh BUILD_MODE rebuild — e.g. mixing a DEBUG-mode
+# index.wasm with a RELEASE-mode index.js once produced the
+# "corrupted heap memory area" panic that masked the real Closure bug.
+RUN make -f Web.mk clean && make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 
 # --- Runtime Image
 FROM rockylinux/rockylinux:9 AS runtime
