@@ -170,22 +170,22 @@ const NexodevTemplate = async () => {
         <h2 style="opacity: 0; animation: fadeInUp 0.6s ease-out 1s forwards;">Our Core Services</h2>
         <div class="feature-grid">
           ${['ERP Development', 'CRM Solutions', 'Cloud DevOps']
-            .map(
-              (title, index) => html`
+      .map(
+        (title, index) => html`
                 <div class="feature-card" style="--index: ${index + 1};">
-                  <div class="feature-icon">${['📊 ', '👥', '☁️'][index]}</div>
+                  <div class="feature-icon">${['<i class="fas fa-chart-bar"></i>', '<i class="fas fa-users"></i>', '<i class="fas fa-cloud"></i>'][index]}</div>
                   <h3>${title}</h3>
                   <p>
                     ${[
-                      'Custom enterprise resource planning systems tailored to your business needs and workflows.',
-                      'Comprehensive customer relationship management solutions to enhance engagement and sales.',
-                      'End-to-end cloud infrastructure and DevOps services for seamless deployment and scaling.',
-                    ][index]}
+            'Custom enterprise resource planning systems tailored to your business needs and workflows.',
+            'Comprehensive customer relationship management solutions to enhance engagement and sales.',
+            'End-to-end cloud infrastructure and DevOps services for seamless deployment and scaling.',
+          ][index]}
                   </p>
                 </div>
               `,
-            )
-            .join('')}
+      )
+      .join('')}
         </div>
       </section>
 
