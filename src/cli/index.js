@@ -827,6 +827,10 @@ program
     '--pwa-build',
     'Runs the pwa-microservices-template update flow: always re-clones, syncs engine sources, installs, builds, and pushes.',
   )
+  .option(
+    '--dry-run',
+    'For --build: previews version-bump changes (per-file substitution counts) without writing files or running downstream commands.',
+  )
   .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
   .action(async (version, options) => {
     if (options.build) return Underpost.release.build(version, options);

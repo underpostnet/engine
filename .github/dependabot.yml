@@ -68,6 +68,7 @@ updates:
           - 'swagger-ui-express'
           - 'typedoc'
           - 'typescript'
+          - 'bumpp'
       testing:
         patterns:
           - 'mocha'
