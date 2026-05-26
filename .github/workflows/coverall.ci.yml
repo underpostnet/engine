@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     name: Coverall Test
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -41,6 +42,7 @@ jobs:
 
   finish:
     needs: test
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
