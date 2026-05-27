@@ -10,6 +10,7 @@ import {
   awaitDeployMonitor,
   buildKindPorts,
   Config,
+  cronDeployIdResolve,
   getNpmRootPath,
   isDeployRunnerContext,
   loadConfServerJson,
@@ -2308,9 +2309,10 @@ EOF`);
      * @memberof UnderpostRun
      */
     secret: (path, options = DEFAULT_OPTION) => {
-      const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
-      const command = `${options.dev ? 'node bin' : 'underpost'} secret underpost --create-from-file ${secretPath}`;
-      shellExec(command);
+      const cronDeployId = cronDeployIdResolve() || 'dd-cron';
+      Underpost.secret.underpost.createFromEnvFile(
+        `/home/dd/engine/engine-private/conf/${cronDeployId}/.env.${options.dev ? 'development' : 'production'}`,
+      );
     },
     /**
      * @method underpost-config
@@ -2728,7 +2730,7 @@ EOF`;
         if (options.replicas === '' || options.replicas === null || options.replicas === undefined)
           options.replicas = 1;
         options.npmRoot = npmRoot;
-        logger.info('callback', { path, options });
+        logger.info(`Executing runner: ${runner} namespace: ${options.namespace}`);
         if (!Underpost.run.RUNNERS.includes(runner)) throw new Error(`Runner not found: ${runner}`);
         const result = await Underpost.run.CALL(runner, path, options);
         return result;

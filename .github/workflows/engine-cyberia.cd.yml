@@ -50,6 +50,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-cyberia"
   sync-and-deploy:
     if: >-
@@ -84,6 +85,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run clean src/client/public/cyberia"
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/cyberia --git --pull --recursive --deploy-id dd-cyberia"
             sudo -n -- /bin/bash -lc "node bin run clean src/client/public/underpost"
@@ -123,6 +125,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --sync --build-manifest --timeout-response 300000ms --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy --git-clean"
             sudo -n -- /bin/bash -lc "node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"

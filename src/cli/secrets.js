@@ -26,17 +26,26 @@ class UnderpostSecret {
      * @memberof UnderpostSecret
      */
     underpost: {
-      createFromEnvFile(envPath) {
+      /**
+       * @method createFromEnvFile
+       * @description Reads application secrets from a .env file and writes them to the underpost .env file. Used for local development and testing.
+       * @param {string} envPath - The path to the .env file to read secrets from. Defaults to './.env'.
+       * @memberof UnderpostSecret
+       */
+      createFromEnvFile(envPath = './.env') {
         Underpost.env.clean();
         const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
         for (const key of Object.keys(envObj)) {
           Underpost.env.set(key, envObj[key]);
         }
       },
-      /** Reads application secrets from process.env (injected via envFrom: secretRef)
+      /**
+       * @method createFromContainerEnv
+       * @description Reads application secrets from process.env (injected via envFrom: secretRef)
        *  and writes them to the underpost .env file, filtering out known system and
        *  Kubernetes-injected environment variables. Replaces the fragile shell-based
        *  `printenv | grep -vE` pattern with a maintainable Node.js blocklist.
+       * @memberof UnderpostSecret
        */
       createFromContainerEnv() {
         Underpost.env.clean();

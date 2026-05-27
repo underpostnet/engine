@@ -50,6 +50,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-core"
   sync-and-deploy:
     if: >-
@@ -85,6 +86,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-core"
   init:
     if: >-
@@ -119,6 +121,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --sync --build-manifest --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --cert --disable-update-proxy"
             sudo -n -- /bin/bash -lc "node bin monitor dd-core production --ready-deployment --promote --versions green --replicas 1"
