@@ -2735,7 +2735,7 @@ EOF`;
       } catch (error) {
         console.log(error);
         logger.error(error);
-        return null;
+        process.exit(1);
       }
     },
   };
