@@ -201,12 +201,9 @@ const DefaultConf = /**/ {
         proxy: [80, 443],
         db: {
           provider: 'env:DB_PROVIDER:mongoose',
-          host: 'env:DB_HOST:mongodb://127.0.0.1:27017',
+          host: 'env:DB_HOST:mongodb://mongodb-0.mongodb-service:27017',
           name: 'env:DB_NAME:default',
           replicaSet: 'env:DB_REPLICA_SET:rs0',
-          authSource: 'env:DB_AUTH_SOURCE:admin',
-          user: 'env:DB_USER:',
-          password: 'env:DB_PASSWORD:',
         },
         mailer: {
           sender: {

@@ -349,8 +349,12 @@ EOF
         const successInstance = await Underpost.test.statusMonitor(podName);
 
         if (successInstance) {
-          const initEval = options.mongoDbHost
-            ? `rs.initiate(${JSON.stringify({ _id: 'rs0', members: [{ _id: 0, host: `${options.mongoDbHost}:27017` }] })})`
+          // When --dev (port-forward mode), default to mongodb-0.mongodb-service:27017
+          // so the RS member hostname resolves via /etc/hosts → 127.0.0.1 through the port-forward.
+          // rs.initiate() without args uses the pod's internal K8s hostname which is unreachable outside.
+          const rsHost = options.mongoDbHost || (options.dev ? '127.0.0.1' : 'mongodb-0.mongodb-service');
+          const initEval = rsHost
+            ? `rs.initiate(${JSON.stringify({ _id: 'rs0', members: [{ _id: 0, host: `${rsHost}:27017` }] })})`
             : `rs.initiate()`;
 
           shellExec(

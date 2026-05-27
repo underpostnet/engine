@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { getCapVariableName } from '../../client/components/core/CommonJs.js';
+import { loggerFactory } from '../../server/logger.js';
 
 /**
  * Module for connecting to and loading models for a MongoDB database using Mongoose.
@@ -7,13 +8,13 @@ import { getCapVariableName } from '../../client/components/core/CommonJs.js';
  * @namespace MongooseDBService
  */
 
+const logger = loggerFactory(import.meta);
+
 const MONGODB_SERVICE_NAME = 'mongodb-service';
 const MONGODB_STATEFULSET_NAME = 'mongodb';
 const MONGODB_DEFAULT_AUTH_SOURCE = 'admin';
 const MONGODB_DEFAULT_REPLICA_SET = 'rs0';
 const MONGODB_DEFAULT_REPLICA_COUNT = 3;
-
-
 
 /**
  * Resolves MongoDB replica hosts from explicit input or StatefulSet defaults.
@@ -70,9 +71,7 @@ class MongooseDBService {
    */
   normalizeConfig(configOrHost, name) {
     const config =
-      typeof configOrHost === 'object' && configOrHost !== null
-        ? { ...configOrHost }
-        : { host: configOrHost, name };
+      typeof configOrHost === 'object' && configOrHost !== null ? { ...configOrHost } : { host: configOrHost, name };
 
     const rawHosts = config.host || process.env.DB_HOST;
     const hosts = this.normalizeHosts(rawHosts);
@@ -89,8 +88,7 @@ class MongooseDBService {
     const password = config.password || process.env.DB_PASSWORD || '';
     const replicaSet =
       config.replicaSet || process.env.DB_REPLICA_SET || (hosts.length > 1 ? MONGODB_DEFAULT_REPLICA_SET : '');
-    const authSource =
-      config.authSource || process.env.DB_AUTH_SOURCE || (user ? MONGODB_DEFAULT_AUTH_SOURCE : '');
+    const authSource = config.authSource || process.env.DB_AUTH_SOURCE || (user ? MONGODB_DEFAULT_AUTH_SOURCE : '');
 
     return {
       authSource,
@@ -110,9 +108,10 @@ class MongooseDBService {
    */
   buildUri(configOrHost, name) {
     const config = this.normalizeConfig(configOrHost, name);
-    const credentials = config.user && config.password
-      ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@`
-      : '';
+    const credentials =
+      config.user && config.password
+        ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@`
+        : '';
     const query = new URLSearchParams();
 
     if (config.replicaSet) query.set('replicaSet', config.replicaSet);
@@ -138,6 +137,7 @@ class MongooseDBService {
    */
   async connect(configOrHost, name) {
     const uri = this.buildUri(configOrHost, name);
+    console.log('MongooseDBService.connect: connecting to', uri);
     return await mongoose
       .createConnection(uri, {
         autoIndex: process.env.NODE_ENV !== 'production',
@@ -190,5 +190,5 @@ export {
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,
   MONGODB_STATEFULSET_NAME,
-  resolveMongoReplicaHosts
+  resolveMongoReplicaHosts,
 };

@@ -221,31 +221,32 @@ class MongoBootstrap {
   }
 
   /**
-   * Fixes a stale /data/mongodb bind mount inside each Kind node by using nsenter
-   * to overmount the host's current directory into the node's mount namespace.
+   * Cleans MongoDB data subdirectories inside each Kind node via docker exec.
    *
-   * This is needed when /data/mongodb was deleted and recreated on the host (new inode)
-   * while the Kind container's bind mount still references the old deleted inode.
+   * nsenter-based remounting is unreliable here: inside the Kind node's mount namespace
+   * /proc/1 refers to the Kind node's own PID 1 (not the host init), so any bind-mount
+   * source built from /proc/1/root is circular and still resolves through the stale bind.
+   *
+   * Using docker exec is correct: it operates through the same namespace view that kubelet
+   * uses when binding hostPath PVs into pods, so cleaning here guarantees the pod sees
+   * an empty /data/db regardless of bind-mount staleness.
    *
    * @param {string[]} kindNodes - List of Kind node container names.
-   * @param {string} [basePath='/data/mongodb'] - The bind-mount path to repair.
+   * @param {string} [basePath='/data/mongodb'] - The base path containing v0/v1/v2 subdirs.
    */
   static remountKindMongoVolume(kindNodes, basePath = '/data/mongodb') {
     for (const node of kindNodes) {
-      logger.info(`Re-binding ${basePath} inside Kind node '${node}'...`);
-      const pid = shellExec(`sudo docker inspect --format '{{.State.Pid}}' ${node}`, {
-        stdout: true,
-        silent: true,
-        silentOnError: true,
-      }).trim();
-      if (!pid || pid === '0') {
-        logger.warn(`Could not get PID for Kind node '${node}', skipping remount`);
-        continue;
+      logger.info(`Cleaning MongoDB data dirs inside Kind node '${node}'...`);
+      for (let i = 0; i < 3; i++) {
+        const dir = `${basePath}/v${i}`;
+        // Ensure directory exists, wipe all contents (including hidden files), set open permissions
+        // so the pod's initContainer chown can run without issues.
+        shellExec(
+          `sudo docker exec ${node} sh -c 'mkdir -p ${dir} && find ${dir} -mindepth 1 -delete && chmod 755 ${dir}'`,
+          { silentOnError: true },
+        );
+        logger.info(`Cleaned ${dir} in Kind node '${node}'`);
       }
-      // Unmount the old/stale bind (ignore errors — might already be gone)
-      shellExec(`sudo nsenter --mount=/proc/${pid}/ns/mnt -- umount ${basePath}`, { silentOnError: true });
-      // Bind-mount the host's current basePath into the container's mount namespace
-      shellExec(`sudo nsenter --mount=/proc/${pid}/ns/mnt -- mount --bind ${basePath} ${basePath}`);
     }
   }
 

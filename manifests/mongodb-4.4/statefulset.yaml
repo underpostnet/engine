@@ -17,6 +17,21 @@ spec:
       subdomain: mongodb-service
       securityContext:
         fsGroup: 999
+      initContainers:
+        - name: data-dir-permissions
+          image: docker.io/library/mongo:4.4
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 999:999 /data/db
+              rm -f /data/db/mongod.lock
+          volumeMounts:
+            - name: mongodb-storage
+              mountPath: /data/db
       containers:
         - name: mongodb
           image: docker.io/library/mongo:4.4

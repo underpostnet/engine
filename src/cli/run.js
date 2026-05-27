@@ -218,7 +218,7 @@ class UnderpostRun {
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
 
         shellExec(
-          `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${mongoHosts.join(
+          `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb4 --mongo-db-host ${mongoHosts.join(
             ',',
           )} --pull-image`,
         );
@@ -2710,7 +2710,7 @@ EOF`;
         if (options.replicas === '' || options.replicas === null || options.replicas === undefined)
           options.replicas = 1;
         options.npmRoot = npmRoot;
-        logger.info(`Executing runner: ${runner} namespace: ${options.namespace}`);
+        logger.info(`Executing runner`, { runner, namespace: options.namespace });
         if (!Underpost.run.RUNNERS.includes(runner)) throw new Error(`Runner not found: ${runner}`);
         const result = await Underpost.run.CALL(runner, path, options);
         return result;
