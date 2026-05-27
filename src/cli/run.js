@@ -2626,7 +2626,7 @@ EOF`;
     },
 
     /**
-     * @method setup-shared-dir
+     * @method shared-dir
      * @description Run once for initial shared-directory setup. Creates the group, adds the user,
      * creates the directory, sets ownership, applies the SGID bit, and configures default ACLs so
      * all future files inside the directory automatically inherit group write permissions.
@@ -2637,7 +2637,7 @@ EOF`;
      *   Key fields: `options.user` (default `'admin'`), `options.group` (default `'engine-dev'`).
      * @memberof UnderpostRun
      */
-    'setup-shared-dir': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
+    'shared-dir': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
       const dir = path || '/home/dd/engine';
       const user = options.user || 'admin';
       const group = options.group || 'engine-dev';
@@ -2653,30 +2653,6 @@ EOF`;
       shellExec(`sudo setfacl -m g:${group}:rwx ${dir}`);
 
       logger.info(`[setup-shared-dir] Shared directory setup complete: ${dir}`);
-    },
-
-    /**
-     * @method reload-shared-dir
-     * @description Re-applies recursive permissions and ACLs to repair permission drift on an
-     * already-configured shared directory. Does **not** recreate the group, add users, or modify
-     * ownership. Use this after VS Code permission errors or when existing files lose group write
-     * access due to tool or process interference.
-     * @param {string} path - Target directory to repair (defaults to `/home/dd/engine`).
-     *   Customise via the `path` argument or leave empty to use the default.
-     * @param {Object} options - The default underpost runner options for customizing workflow.
-     *   Key fields: `options.group` (default `'engine-dev'`).
-     * @memberof UnderpostRun
-     */
-    'reload-shared-dir': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
-      const dir = path || '/home/dd/engine';
-      const group = options.group || 'engine-dev';
-
-      logger.info(`[reload-shared-dir] dir=${dir} group=${group}`);
-
-      shellExec(`sudo chmod -R 2775 ${dir}`);
-      shellExec(`sudo setfacl -R -m g:${group}:rwx ${dir}`);
-
-      logger.info(`[reload-shared-dir] Shared directory permissions reloaded: ${dir}`);
     },
   };
 
