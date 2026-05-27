@@ -765,6 +765,10 @@ EOF`);
         if (options.expose === true) {
           const kindType = options.kindType ? options.kindType : 'svc';
           const svc = Underpost.kubectl.get(deployId, kindType)[0];
+          if (!svc) {
+            logger.error(`No ${kindType} found matching '${deployId}', skipping expose`);
+            continue;
+          }
           const port = options.exposePort
             ? parseInt(options.exposePort)
             : options.port

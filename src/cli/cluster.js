@@ -24,7 +24,6 @@ const logger = loggerFactory(import.meta);
  */
 class UnderpostCluster {
   static API = {
-
     /**
      * @method init
      * @description Initializes and configures the Kubernetes cluster based on provided options.
@@ -237,14 +236,18 @@ class UnderpostCluster {
           } catch (error) {
             const kindCreateErrText = `${error?.message || ''}\n${error?.stderr || ''}`;
             if (kindCreateErrText.includes('all predefined address pools have been fully subnetted')) {
-              logger.warn('Docker address pool exhausted while creating Kind cluster. Running cleanup and retrying once...');
+              logger.warn(
+                'Docker address pool exhausted while creating Kind cluster. Running cleanup and retrying once...',
+              );
               Underpost.cluster.recoverKindDockerNetworks();
               try {
                 shellExec(kindCreateCmd);
               } catch (retryError) {
                 const retryErrText = `${retryError?.message || ''}\n${retryError?.stderr || ''}`;
                 if (retryErrText.includes('all predefined address pools have been fully subnetted')) {
-                  logger.warn('Kind retry still failed from pool exhaustion. Applying Docker daemon address-pool config and retrying once more...');
+                  logger.warn(
+                    'Kind retry still failed from pool exhaustion. Applying Docker daemon address-pool config and retrying once more...',
+                  );
                   Underpost.cluster.ensureDockerDefaultAddressPools();
                   shellExec(kindCreateCmd);
                 } else {
@@ -337,24 +340,22 @@ EOF
       }
       if (options.mongodb4) {
         if (options.pullImage) Underpost.cluster.pullImage('mongo:4.4', options);
+        shellExec(`kubectl delete statefulset mongodb -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4 -n ${options.namespace}`);
 
-        const deploymentName = 'mongodb-deployment';
+        const statefulSetName = 'mongodb';
+        const podName = 'mongodb-0';
 
-        const successInstance = await Underpost.test.statusMonitor(deploymentName);
+        const successInstance = await Underpost.test.statusMonitor(podName);
 
         if (successInstance) {
-          if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-service';
-          const mongoConfig = {
-            _id: 'rs0',
-            members: [{ _id: 0, host: `${options.mongoDbHost}:27017` }],
-          };
-
-          const [pod] = Underpost.kubectl.get(deploymentName);
+          const initEval = options.mongoDbHost
+            ? `rs.initiate(${JSON.stringify({ _id: 'rs0', members: [{ _id: 0, host: `${options.mongoDbHost}:27017` }] })})`
+            : `rs.initiate()`;
 
           shellExec(
-            `sudo kubectl exec -i ${pod.NAME} -- mongo --quiet \
-        --eval 'rs.initiate(${JSON.stringify(mongoConfig)})'`,
+            `sudo kubectl exec -i ${podName} -n ${options.namespace} -- mongo --quiet \
+        --eval '${initEval}'`,
           );
         }
       } else if (options.mongodb) {
@@ -480,7 +481,6 @@ EOF
       shellExec(`sudo sysctl -w fs.inotify.max_user_watches=2099999999`);
       shellExec(`sudo sysctl -w fs.inotify.max_user_instances=2099999999`);
       shellExec(`sudo sysctl -w fs.inotify.max_queued_events=2099999999`);
-
     },
 
     /**
@@ -881,14 +881,14 @@ EOF`);
     },
 
     /**
-    * @method cleanKindMongoHostPaths
-    * @description Best-effort cleanup of MongoDB hostPath directories inside Kind node containers.
-    * This prevents stale replica/auth state when hostPath data lives in node-local container filesystems.
-    * @param {object} [options]
-    * @param {string} [options.basePath='/data/mongodb'] - Node-internal base path for MongoDB data.
-    * @param {number} [options.replicaCount=3] - Number of replica ordinal directories (v0..vN-1).
-    * @memberof UnderpostCluster
-    */
+     * @method cleanKindMongoHostPaths
+     * @description Best-effort cleanup of MongoDB hostPath directories inside Kind node containers.
+     * This prevents stale replica/auth state when hostPath data lives in node-local container filesystems.
+     * @param {object} [options]
+     * @param {string} [options.basePath='/data/mongodb'] - Node-internal base path for MongoDB data.
+     * @param {number} [options.replicaCount=3] - Number of replica ordinal directories (v0..vN-1).
+     * @memberof UnderpostCluster
+     */
     cleanKindMongoHostPaths(options = { basePath: '/data/mongodb', replicaCount: 3 }) {
       const basePath = options.basePath || '/data/mongodb';
       const replicaCount = Math.max(Number(options.replicaCount) || 3, 1);
@@ -919,10 +919,9 @@ EOF`);
           { length: replicaCount },
           (_, index) => `test -d ${basePath}/v${index};`,
         ).join(' ');
-        shellExec(
-          `sudo docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`,
-          { silentOnError: true },
-        );
+        shellExec(`sudo docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`, {
+          silentOnError: true,
+        });
         shellExec(`sudo docker exec ${node} sh -lc '${verifyReplicaDirsCmd}'`);
       }
     },
@@ -967,7 +966,6 @@ EOF`);
       shellExec('sudo systemctl restart docker');
       shellExec('sudo docker network prune -f', { silentOnError: true });
     },
-
   };
 }
 export default UnderpostCluster;

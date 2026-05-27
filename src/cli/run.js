@@ -229,12 +229,16 @@ class UnderpostRun {
         // Detect MongoDB primary pod using method
         let primaryMongoHost = 'mongodb-0.mongodb-service';
         try {
-          const primaryPodName = MongoBootstrap.getPrimaryPodName({
-            namespace: options.namespace,
-            podName: 'mongodb-0',
-          });
-          // shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config mongo`, { async: true });
-          shellExec(`kubectl port-forward -n ${options.namespace} pod/${primaryPodName} 27017:27017`, { async: true });
+          const primaryPodName =
+            MongoBootstrap.getPrimaryPodName({
+              namespace: options.namespace,
+              podName: 'mongodb-0',
+              disableAuth: options.dev,
+            }) || 'mongodb-0';
+          shellExec(
+            `${baseCommand} deploy --expose --namespace ${options.namespace} --disable-update-underpost-config mongo`,
+            { async: true },
+          );
           shellExec(
             `${baseCommand} deploy --expose --namespace ${options.namespace} --disable-update-underpost-config valkey`,
             { async: true },

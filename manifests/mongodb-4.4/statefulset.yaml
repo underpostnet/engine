@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb # Specifies the name of the statefulset
+spec:
+  serviceName: 'mongodb-service' # Specifies the service to use
+  podManagementPolicy: OrderedReady # or Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      subdomain: mongodb-service
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: mongodb
+          image: docker.io/library/mongo:4.4
+          command:
+            - mongod
+          args:
+            - '--replSet'
+            - 'rs0'
+            - '--bind_ip_all'
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongodb-storage
+              mountPath: /data/db
+          env:
+            - name: MONGO_REPLICA_SET_NAME
+              value: rs0
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: '100m'
+              memory: '256Mi'
+            limits:
+              cpu: '500m'
+              memory: '512Mi'
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-storage
+      spec:
+        accessModes: ['ReadWriteOnce']
+        storageClassName: mongodb-storage-class
+        resources:
+          requests:
+            storage: 5Gi
