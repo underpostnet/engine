@@ -221,6 +221,35 @@ class MongoBootstrap {
   }
 
   /**
+   * Fixes a stale /data/mongodb bind mount inside each Kind node by using nsenter
+   * to overmount the host's current directory into the node's mount namespace.
+   *
+   * This is needed when /data/mongodb was deleted and recreated on the host (new inode)
+   * while the Kind container's bind mount still references the old deleted inode.
+   *
+   * @param {string[]} kindNodes - List of Kind node container names.
+   * @param {string} [basePath='/data/mongodb'] - The bind-mount path to repair.
+   */
+  static remountKindMongoVolume(kindNodes, basePath = '/data/mongodb') {
+    for (const node of kindNodes) {
+      logger.info(`Re-binding ${basePath} inside Kind node '${node}'...`);
+      const pid = shellExec(`sudo docker inspect --format '{{.State.Pid}}' ${node}`, {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+      }).trim();
+      if (!pid || pid === '0') {
+        logger.warn(`Could not get PID for Kind node '${node}', skipping remount`);
+        continue;
+      }
+      // Unmount the old/stale bind (ignore errors — might already be gone)
+      shellExec(`sudo nsenter --mount=/proc/${pid}/ns/mnt -- umount ${basePath}`, { silentOnError: true });
+      // Bind-mount the host's current basePath into the container's mount namespace
+      shellExec(`sudo nsenter --mount=/proc/${pid}/ns/mnt -- mount --bind ${basePath} ${basePath}`);
+    }
+  }
+
+  /**
    * Reads MongoDB root credentials from engine-private.
    * @param {string} enginePrivateRoot - Path to the engine-private directory.
    * @returns {{ username: string, password: string }}
@@ -307,9 +336,10 @@ class MongoBootstrap {
 
     // Kind-specific mount checks
     const isKind = clusterType === 'kind' || !clusterType;
+    let kindNodes = [];
     if (isKind) {
       const kindNodesRaw = shellExec('kind get nodes', { stdout: true, silent: true, silentOnError: true });
-      const kindNodes = kindNodesRaw
+      kindNodes = kindNodesRaw
         .split('\n')
         .map((n) => n.trim())
         .filter(Boolean);
@@ -364,11 +394,13 @@ class MongoBootstrap {
       shellExec(`kubectl delete pv mongodb-pv --ignore-not-found`);
 
       if (isKind) {
-        shellExec('sudo mkdir -p /data/mongodb && sudo rm -rf /data/mongodb/*');
+        shellExec('sudo mkdir -p /data/mongodb');
         for (let i = 0; i < effectiveReplicaCount; i++) {
+          shellExec(`sudo rm -rf /data/mongodb/v${i}`);
           shellExec(`sudo mkdir -p /data/mongodb/v${i}`);
         }
-        MongoBootstrap.cleanKindMongoHostPaths(effectiveReplicaCount);
+        // Fix any stale bind mounts caused by prior deletion of /data/mongodb on the host
+        MongoBootstrap.remountKindMongoVolume(kindNodes);
       }
     }
 
@@ -511,22 +543,31 @@ class MongoBootstrap {
       shellExec(`kubectl delete pv mongodb-pv --ignore-not-found`);
       // Also catch any remaining PVs with the app=mongodb label
       shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
+      // Wait for PVs to be fully deleted to avoid "object modified" conflict on re-apply
+      shellExec(`kubectl wait --for=delete pv mongodb-pv-0 mongodb-pv-1 mongodb-pv-2 mongodb-pv --timeout=60s`, {
+        silentOnError: true,
+      });
 
       // Delete MongoDB StorageClass
       shellExec(`kubectl delete storageclass mongodb-storage-class --ignore-not-found`);
 
-      // Phase 5: Clean up hostPath data on host and inside Kind node containers
+      // Phase 5: Clean up hostPath data
+      // IMPORTANT: Do NOT remove /data/mongodb itself — it is bind-mounted into Kind node
+      // containers by inode. Removing it makes the bind mount stale; only clear subdirs.
       logger.info('Phase 5/6: Cleaning up MongoDB hostPath data...');
-      // Host-level cleanup
-      shellExec(`sudo rm -rf /data/mongodb`);
       shellExec(`sudo mkdir -p /data/mongodb`);
       for (let i = 0; i < 3; i++) {
+        shellExec(`sudo rm -rf /data/mongodb/v${i}`);
         shellExec(`sudo mkdir -p /data/mongodb/v${i}`);
       }
-
-      // Kind node-internal cleanup
+      // For Kind: repair any stale bind mounts via nsenter (overmounts with current host inode)
       if (isKind) {
-        MongoBootstrap.cleanKindMongoHostPaths(3);
+        const nodesRaw = shellExec('kind get nodes', { stdout: true, silent: true, silentOnError: true });
+        const kindResetNodes = nodesRaw
+          .split('\n')
+          .map((n) => n.trim())
+          .filter(Boolean);
+        MongoBootstrap.remountKindMongoVolume(kindResetNodes);
       }
 
       // Phase 6: Wait for pod deletion to complete
