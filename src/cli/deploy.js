@@ -78,7 +78,8 @@ class UnderpostDeploy {
       return `
     - conditions:
         - prefix: ${path}
-      ${pathRewritePolicy
+      ${
+        pathRewritePolicy
           ? `pathRewritePolicy:
           replacePrefix:
           ${pathRewritePolicy.map(
@@ -88,26 +89,30 @@ class UnderpostDeploy {
           ).join(`
 `)}`
           : ''
-        }${timeoutPolicy
-          ? `\n      timeoutPolicy:\n${timeoutPolicy.response ? `        response: ${timeoutPolicy.response}\n` : ''}${timeoutPolicy.idle ? `        idle: ${timeoutPolicy.idle}\n` : ''
-          }`
+      }${
+        timeoutPolicy
+          ? `\n      timeoutPolicy:\n${timeoutPolicy.response ? `        response: ${timeoutPolicy.response}\n` : ''}${
+              timeoutPolicy.idle ? `        idle: ${timeoutPolicy.idle}\n` : ''
+            }`
           : ''
-        }${retryPolicy
-          ? `\n      retryPolicy:\n${retryPolicy.count !== undefined ? `        count: ${retryPolicy.count}\n` : ''}${retryPolicy.perTryTimeout ? `        perTryTimeout: ${retryPolicy.perTryTimeout}\n` : ''
-          }`
+      }${
+        retryPolicy
+          ? `\n      retryPolicy:\n${retryPolicy.count !== undefined ? `        count: ${retryPolicy.count}\n` : ''}${
+              retryPolicy.perTryTimeout ? `        perTryTimeout: ${retryPolicy.perTryTimeout}\n` : ''
+            }`
           : ''
-        }
+      }
       enableWebsockets: true
       services:
     ${deploymentVersions
-          .map(
-            (version, i) =>
-              `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
+      .map(
+        (version, i) =>
+          `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
           port: ${port}
           weight: ${i === 0 ? 100 : 0}
     `,
-          )
-          .join('')}`;
+      )
+      .join('')}`;
     },
     /**
      * Creates a YAML deployment configuration for a deployment.
@@ -154,17 +159,17 @@ class UnderpostDeploy {
         cmd =
           pullBundle || skipFullBuild
             ? [
-              // When pullBundle (or skipFullBuild) is set the container pulls the pre-built client
-              // bundle from Cloudinary (push-bundle must have been run on the dev machine beforehand).
-              `underpost secret underpost --create-from-env`,
-              `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
-            ]
+                // When pullBundle (or skipFullBuild) is set the container pulls the pre-built client
+                // bundle from Cloudinary (push-bundle must have been run on the dev machine beforehand).
+                `underpost secret underpost --create-from-env`,
+                `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
+              ]
             : [
-              // `npm install -g npm@11.2.0`,
-              // `npm install -g underpost`,
-              `underpost secret underpost --create-from-env`,
-              `underpost start --build --run ${deployId} ${env}`,
-            ];
+                // `npm install -g npm@11.2.0`,
+                // `npm install -g underpost`,
+                `underpost secret underpost --create-from-env`,
+                `underpost start --build --run ${deployId} ${env}`,
+              ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes) volumes = [];
       const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
@@ -199,12 +204,14 @@ spec:
           envFrom:
             - secretRef:
                 name: underpost-config
-${containerPort
-          ? `          ports:
+${
+  containerPort
+    ? `          ports:
             - containerPort: ${containerPort}
 `
-          : ''
-        }${resources
+    : ''
+}${
+        resources
           ? `          resources:
             requests:
               memory: "${resources.requests.memory}"
@@ -213,46 +220,50 @@ ${containerPort
               memory: "${resources.limits.memory}"
               cpu: "${resources.limits.cpu}"`
           : ''
-        }
+      }
           command:
             - /bin/sh
             - -c
             - >
               ${cmd.join(' &&\n              ')}
-${readinessProbe
-          ? `          readinessProbe:
+${
+  readinessProbe
+    ? `          readinessProbe:
 ${JSON.stringify(readinessProbe, null, 2)
-            .split('\n')
-            .map((l) => '            ' + l)
-            .join('\n')}
+  .split('\n')
+  .map((l) => '            ' + l)
+  .join('\n')}
 `
-          : ''
-        }${livenessProbe
+    : ''
+}${
+        livenessProbe
           ? `          livenessProbe:
 ${JSON.stringify(livenessProbe, null, 2)
-            .split('\n')
-            .map((l) => '            ' + l)
-            .join('\n')}
+  .split('\n')
+  .map((l) => '            ' + l)
+  .join('\n')}
 `
           : ''
-        }${lifecycle
+      }${
+        lifecycle
           ? `          lifecycle:
 ${JSON.stringify(lifecycle, null, 2)
-            .split('\n')
-            .map((l) => '            ' + l)
-            .join('\n')}
+  .split('\n')
+  .map((l) => '            ' + l)
+  .join('\n')}
 `
           : ''
-        }
+      }
 
-${volumes.length > 0
-          ? Underpost.deploy
-            .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
-            .render.split(`\n`)
-            .map((l) => '    ' + l)
-            .join(`\n`)
-          : ''
-        }
+${
+  volumes.length > 0
+    ? Underpost.deploy
+        .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
+        .render.split(`\n`)
+        .map((l) => '    ' + l)
+        .join(`\n`)
+    : ''
+}
 ---
 apiVersion: v1
 kind: Service
@@ -312,19 +323,19 @@ spec:
         for (const deploymentVersion of deploymentVersions) {
           deploymentYamlParts += `---
 ${Underpost.deploy
-              .deploymentYamlPartsFactory({
-                deployId,
-                env,
-                suffix: deploymentVersion,
-                replicas,
-                image,
-                namespace: options.namespace,
-                cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
-                skipFullBuild: options.skipFullBuild,
-                pullBundle: options.pullBundle,
-                imagePullPolicy: options.imagePullPolicy,
-              })
-              .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
+  .deploymentYamlPartsFactory({
+    deployId,
+    env,
+    suffix: deploymentVersion,
+    replicas,
+    image,
+    namespace: options.namespace,
+    cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
+    skipFullBuild: options.skipFullBuild,
+    pullBundle: options.pullBundle,
+    imagePullPolicy: options.imagePullPolicy,
+  })
+  .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
@@ -376,20 +387,20 @@ ${Underpost.deploy
           let proxyRoutes = '';
           const globalTimeoutPolicy =
             (options.timeoutResponse && options.timeoutResponse !== '') ||
-              (options.timeoutIdle && options.timeoutIdle !== '')
+            (options.timeoutIdle && options.timeoutIdle !== '')
               ? {
-                response: options.timeoutResponse,
-                idle: options.timeoutIdle,
-              }
+                  response: options.timeoutResponse,
+                  idle: options.timeoutIdle,
+                }
               : undefined;
           const globalRetryPolicy =
             options.retryCount ||
-              options.retryCount === 0 ||
-              (options.retryPerTryTimeout && options.retryPerTryTimeout !== '')
+            options.retryCount === 0 ||
+            (options.retryPerTryTimeout && options.retryPerTryTimeout !== '')
               ? {
-                count: options.retryCount,
-                perTryTimeout: options.retryPerTryTimeout,
-              }
+                  count: options.retryCount,
+                  perTryTimeout: options.retryPerTryTimeout,
+                }
               : undefined;
           if (!options.disableDeploymentProxy)
             for (const conditionObj of pathPortAssignment) {
@@ -577,12 +588,13 @@ metadata:
   namespace: ${options.namespace}
 spec:
   virtualhost:
-    fqdn: ${host}${env === 'development'
-          ? ''
-          : `
+    fqdn: ${host}${
+      env === 'development'
+        ? ''
+        : `
     tls:
       secretName: ${host}`
-        }
+    }
   routes:`;
     },
 
@@ -1002,10 +1014,10 @@ EOF`);
       shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
       shellExec(`kubectl apply -f - -n ${namespace} <<EOF
 ${Underpost.deploy.persistentVolumeFactory({
-        hostPath: rootVolumeHostPath,
-        pvcId,
-        namespace,
-      })}
+  hostPath: rootVolumeHostPath,
+  pvcId,
+  namespace,
+})}
 EOF
 `);
     },
@@ -1064,22 +1076,23 @@ ${secret ? `          readOnly: true\n` : ''}`;
 
         _volumes += `
     - name: ${volumeName}
- ${emptyDir
-            ? `     emptyDir: {}`
-            : secret
-              ? `     secret:
+ ${
+   emptyDir
+     ? `     emptyDir: {}`
+     : secret
+       ? `     secret:
         secretName: ${secret}`
-              : configMap
-                ? `     configMap:
+       : configMap
+         ? `     configMap:
         name: ${configMap}`
-                : claimName
-                  ? `     persistentVolumeClaim:
+         : claimName
+           ? `     persistentVolumeClaim:
         claimName: ${claimName}`
-                  : `     hostPath:
+           : `     hostPath:
         path: ${volumeHostPath}
         type: ${volumeType}
 `
-          }
+ }
 
   `;
       });
@@ -1160,7 +1173,7 @@ spec:
         fs.writeFileSync(
           `/etc/hosts`,
           fs.readFileSync(`/etc/hosts`, 'utf8') +
-          `
+            `
 ${renderHosts}`,
           'utf8',
         );
@@ -1191,13 +1204,13 @@ ${renderHosts}`,
      *   `src/client/public/nexodev/docs/references/Deploy custom instance to K8S.md`.
      *
      * Container-status:
-     *   `underpost config get container-status` is still read from each pod for
-     *   the display column and for early-abort on `error`, but it is no longer
-     *   required to equal `<deploy>-running-deployment` to finish the monitor.
-     *   Older implementations gated on it; that produced false timeouts for
-     *   runtimes (e.g. cyberia-server's Go binary, cyberia-client's server.py)
-     *   whose startup sequence didn't reliably overwrite the
-     *   `initializing-deployment` stamp set by the postStart lifecycle hook.
+     *   `underpost config get container-status` is read from each pod for both
+     *   the display column and as a second ready gate alongside the K8S Ready
+     *   condition. Both must be satisfied before the monitor exits:
+     *     1. K8S readinessProbe (TCP socket) — ensures the port is bound.
+     *     2. container-status == `<deploy>-<env>-running-deployment` — ensures
+     *        the application has completed its own startup sequence.
+     *   Early-abort on `error` container-status remains in effect.
      *
      * @param {string} deployId - Deployment ID for which the ready status is being monitored.
      * @param {string} env - Environment for which the ready status is being monitored.
@@ -1234,10 +1247,13 @@ ${renderHosts}`,
         }
       };
 
-
       for (let i = 0; i < maxIterations; i++) {
         const result = await Underpost.deploy.checkDeploymentReadyStatus(
-          deployId, env, targetTraffic, ignorePods, namespace,
+          deployId,
+          env,
+          targetTraffic,
+          ignorePods,
+          namespace,
         );
 
         const allPods = [...result.readyPods, ...result.notReadyPods];
@@ -1246,20 +1262,22 @@ ${renderHosts}`,
         for (const pod of allPods) {
           if (!pod?.NAME) continue;
           const status = readContainerStatus(pod.NAME);
-          if (status === 'error')
-            throw new Error(`Pod ${pod.NAME} has error status`);
+          if (status === 'error') throw new Error(`Pod ${pod.NAME} has error status`);
           podStatusCache.set(pod.NAME, status);
         }
 
         const allPodsK8sReady = allPods.length > 0 && result.notReadyPods.length === 0;
 
+        const allPodsStatusReady =
+          allPods.length > 0 && allPods.every((pod) => podStatusCache.get(pod.NAME) === expectedContainerStatus);
+
         // Print snapshot for every pod — annotate when container-status hasn't caught
-        // up to the K8S Ready condition (informational only; no longer gates exit).
+        // up to the K8S Ready condition yet.
         for (const pod of allPods) {
           const status = podStatusCache.get(pod.NAME) || containerStatusDefault;
           const podStatus = pod.STATUS || 'Unknown';
           const statusMatchesExpected = status === expectedContainerStatus;
-          const statusDisplay = statusMatchesExpected ? status : `${status} (advisory)`;
+          const statusDisplay = statusMatchesExpected ? status : `${status} (pending)`;
 
           console.log(
             'Target pod:',
@@ -1271,10 +1289,11 @@ ${renderHosts}`,
           );
         }
 
-        // Finish as soon as every pod is K8S-Ready. The readinessProbe (TCP
-        // socket on the listening port) is the source of truth — a runtime
-        // that can't bind never reaches Ready and the monitor will time out.
-        if (allPodsK8sReady) {
+        // Both K8S readinessProbe AND container-status must be satisfied before
+        // declaring the deployment ready. The TCP probe ensures the port is bound;
+        // container-status == running-deployment ensures the application has
+        // completed its own startup sequence so traffic is not switched prematurely.
+        if (allPodsK8sReady && allPodsStatusReady) {
           logger.info(`${tag} | All pods Ready (K8S readinessProbe satisfied)`);
           return result;
         }
