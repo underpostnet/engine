@@ -538,6 +538,7 @@ class UnderpostRun {
      */
     clean: (path = '', options = DEFAULT_OPTION) => {
       Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine/engine-private'] });
+      if (options.dev) shellExec(`node bin run shared-dir`);
     },
     /**
      * @method pull
