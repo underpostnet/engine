@@ -33,7 +33,7 @@ class UnderpostCluster {
      * @param {object} [options] - Configuration options for cluster initialization.
      * @param {boolean} [options.mongodb=false] - Deploy MongoDB.
      * @param {boolean} [options.mongodb4=false] - Deploy MongoDB 4.4.
-     * @param {String} [options.mongoDbHost=''] - Set custom mongo db host
+     * @param {string} [options.serviceHost=''] - Set a custom host/IP for exposed MongoDB and Valkey clients.
      * @param {boolean} [options.mariadb=false] - Deploy MariaDB.
      * @param {boolean} [options.mysql=false] - Deploy MySQL.
      * @param {boolean} [options.postgresql=false] - Deploy PostgreSQL.
@@ -64,6 +64,12 @@ class UnderpostCluster {
      * @param {boolean} [options.removeVolumeHostPaths=false] - Remove data from host paths used by Persistent Volumes.
      * @param {string} [options.hosts] - Set custom hosts entries.
      * @param {string} [options.replicas] - Set the number of replicas for certain deployments.
+     * @param {boolean} [options.nodePort=false] - Expose enabled ready services (e.g. MongoDB 4.4, Valkey)
+     *   to the host/public network via their NodePort Service manifest. The node port value lives directly
+     *   in each manifest (mongodb-4.4/mongodb-nodeport.yaml, valkey/valkey-nodeport.yaml).
+     * @param {string} [options.nodeSelector=''] - Pin the just-deployed StatefulSet (MongoDB 4.4 / Valkey)
+     *   to a specific Kubernetes node by name (e.g. 'localhost.localdomain'). Applied via a
+     *   `kubernetes.io/hostname` nodeSelector patch once the workload reports Ready.
      * @memberof UnderpostCluster
      */
     async init(
@@ -71,7 +77,7 @@ class UnderpostCluster {
       options = {
         mongodb: false,
         mongodb4: false,
-        mongoDbHost: '',
+        serviceHost: '',
         mariadb: false,
         mysql: false,
         postgresql: false,
@@ -102,18 +108,22 @@ class UnderpostCluster {
         removeVolumeHostPaths: false,
         hosts: '',
         replicas: '',
+        nodePort: false,
+        nodeSelector: '',
       },
     ) {
       if (options.initHost) return Underpost.cluster.initHost();
 
       if (options.uninstallHost) return Underpost.cluster.uninstallHost();
 
-      if (options.config) return Underpost.cluster.config();
+      if (options.config) return options.k3s ? Underpost.cluster.configMinimalK3s() : Underpost.cluster.config();
 
-      if (options.chown) return Underpost.cluster.chown();
+      if (options.chown) return Underpost.cluster.chown(options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind');
 
       const npmRoot = getNpmRootPath();
       const underpostRoot = options.dev ? '.' : `${npmRoot}/underpost`;
+      const serviceHostInput = `${options.serviceHost || ''}`.trim();
+      const serviceHost = Underpost.cluster.resolveServiceHost(options);
 
       if (options.listPods) return console.table(Underpost.kubectl.get(podName ?? undefined));
       // Set default namespace if not specified
@@ -140,13 +150,18 @@ class UnderpostCluster {
         return;
       }
 
-      // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
+      // Route reset to the per-type method. Each only touches what its runtime owns.
       if (options.reset) {
-        const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
-        return await Underpost.cluster.safeReset({
+        if (options.k3s)
+          return await Underpost.cluster.safeResetK3s({ underpostRoot, resetMode: options.resetMode || 'full' });
+        if (options.kubeadm)
+          return await Underpost.cluster.safeResetKubeadm({
+            underpostRoot,
+            removeVolumeHostPaths: options.removeVolumeHostPaths,
+          });
+        return await Underpost.cluster.safeResetKind({
           underpostRoot,
           removeVolumeHostPaths: options.removeVolumeHostPaths,
-          clusterType,
         });
       }
 
@@ -160,20 +175,32 @@ class UnderpostCluster {
         });
       }
 
-      // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
-      const alreadyKubeadmCluster = Underpost.kubectl.get('calico-kube-controllers')[0];
-      const alreadyKindCluster = Underpost.kubectl.get('kube-apiserver-kind-control-plane')[0];
-      // K3s pods often contain 'svclb-traefik' in the kube-system namespace
-      const alreadyK3sCluster = Underpost.kubectl.get('svclb-traefik')[0];
+      // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized by
+      // inspecting nodes rather than probing add-on pods. See detectClusterRuntime.
+      const runtime = Underpost.cluster.detectClusterRuntime();
+      const alreadyCluster = runtime.type !== null;
+      if (alreadyCluster) {
+        logger.info(
+          `Detected existing ${runtime.type} cluster (${runtime.ready ? 'Ready' : 'NotReady'}); skipping initialization.`,
+        );
+      }
 
       // --- Kubeadm/Kind/K3s Cluster Initialization ---
-      if (!alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
-        Underpost.cluster.config();
+      // Host config is applied per cluster type (not shared) so the K3s path can
+      // stay minimal and avoid the Docker/containerd/kubelet setup it does not need.
+      if (!alreadyCluster) {
         if (options.k3s) {
+          // K3s is self-contained (bundles containerd, kubelet, CNI, CoreDNS).
+          // Apply ONLY minimal host config — see configMinimalK3s.
+          Underpost.cluster.configMinimalK3s();
           logger.info('Initializing K3s control plane...');
           // Install K3s
           logger.info('Installing K3s...');
-          shellExec(`curl -sfL https://get.k3s.io | sh -`);
+          // Disable the bundled traefik ingress and servicelb (Klipper) load
+          // balancer. The platform exposes services explicitly via Project
+          // Contour / Envoy and NodePort services (see --node-port); leaving the
+          // K3s built-ins enabled would bind the same host ports and conflict.
+          shellExec(`curl -sfL https://get.k3s.io | sh -s - --disable=traefik --disable=servicelb`);
           logger.info('K3s installation completed.');
 
           Underpost.cluster.chown('k3s');
@@ -181,7 +208,11 @@ class UnderpostCluster {
           logger.info('Waiting for K3s to be ready...');
           shellExec(`sudo systemctl is-active --wait k3s || sudo systemctl wait --for=active k3s.service`);
           logger.info('K3s service is active.');
+          // K3s manages its own CNI (flannel) and iptables rules. nat-iptables.sh
+          // is neither needed nor desirable for a single K3s node in a VM.
         } else if (options.kubeadm) {
+          Underpost.cluster.config();
+          Underpost.cluster.natSetup({ underpostRoot });
           logger.info('Initializing Kubeadm control plane...');
           // Set default values if not provided
           const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
@@ -217,12 +248,14 @@ class UnderpostCluster {
           // Untaint control plane node to allow scheduling pods
           const nodeName = os.hostname();
           shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
-          // Install local-path-provisioner for dynamic PVCs (optional but recommended)
+          // Install local-path-provisioner for dynamic PVCs
           logger.info('Installing local-path-provisioner...');
           shellExec(
             `kubectl apply -f https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml`,
           );
         } else {
+          Underpost.cluster.config();
+          Underpost.cluster.natSetup({ underpostRoot });
           // Kind cluster initialization (default for development)
           logger.info('Initializing Kind cluster...');
           const devReplicaCount = Math.max(Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT, 3);
@@ -260,7 +293,6 @@ class UnderpostCluster {
           }
           Underpost.cluster.chown('kind'); // Pass 'kind' to chown
         }
-        Underpost.cluster.natSetup({ underpostRoot });
       }
 
       // --- Optional Component Deployments (Databases, Ingress, Cert-Manager) ---
@@ -307,7 +339,23 @@ EOF
         if (options.pullImage) Underpost.cluster.pullImage('valkey/valkey:latest', options);
         shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
-        await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
+        const valkeyReady = await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
+        // Expose valkey to the host/public network only once the pod is ready.
+        // The node port (32079) is set directly in the manifest.
+        if (valkeyReady && options.nodePort)
+          shellExec(`kubectl apply -f ${underpostRoot}/manifests/valkey/valkey-nodeport.yaml -n ${options.namespace}`);
+        if (valkeyReady && options.nodeSelector)
+          Underpost.cluster.pinToNode({
+            name: 'valkey-service',
+            namespace: options.namespace,
+            node: options.nodeSelector,
+          });
+        if (valkeyReady && serviceHost)
+          Underpost.cluster.syncServiceConnectionEnv({
+            serviceHost,
+            valkey: true,
+            options,
+          });
       }
       if (options.ipfs) {
         await Underpost.ipfs.deploy(options, underpostRoot);
@@ -349,30 +397,66 @@ EOF
         const successInstance = await Underpost.test.statusMonitor(podName);
 
         if (successInstance) {
-          // When --dev (port-forward mode), default to mongodb-0.mongodb-service:27017
-          // so the RS member hostname resolves via /etc/hosts → 127.0.0.1 through the port-forward.
-          // rs.initiate() without args uses the pod's internal K8s hostname which is unreachable outside.
-          const rsHost = options.mongoDbHost || (options.dev ? '127.0.0.1' : 'mongodb-0.mongodb-service');
-          const initEval = rsHost
-            ? `rs.initiate(${JSON.stringify({ _id: 'rs0', members: [{ _id: 0, host: `${rsHost}:27017` }] })})`
-            : `rs.initiate()`;
+          // mongod only accepts a member host it can recognize as itself (the isSelf check):
+          // it must match a local interface IP or be reachable back at that address. A pod-external
+          // LAN IP / NodePort address is neither bound in the pod netns nor routable back from it,
+          // so reconfiguring to it fails with NodeNotFound ("...maps to this node") even under
+          // force. Bootstrap on localhost; only advertise a non-localhost host when the node can
+          // self-verify it, and tolerate the failure otherwise so bootstrap stays idempotent.
+          // Clients reaching the set through an external IP/NodePort must use directConnection=true,
+          // which ignores the advertised member host (see MongooseDB.buildUri).
+          const rsHost = serviceHostInput || (options.dev ? '127.0.0.1' : 'mongodb-0.mongodb-service');
+          const memberHost = `${rsHost}:27017`;
+          const initEval = [
+            `try { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] }); }`,
+            `catch (e) { if (!String(e).includes("already initialized") && !String(e).includes("AlreadyInitialized")) throw e; }`,
+            `for (var i = 0; i < 30; i++) { if (db.isMaster().ismaster) break; sleep(1000); }`,
+            memberHost === 'localhost:27017'
+              ? ``
+              : `try { var c = rs.conf(); c.members[0].host = "${memberHost}"; rs.reconfig(c, { force: true }); print("RS_HOST_SET ${memberHost}"); } catch (e) { if (String(e).includes("NodeNotFound") || String(e).includes("maps to this node")) { print("RS_HOST_SKIPPED ${memberHost} (not self-reachable from pod; clients must use directConnection=true)"); } else { throw e; } }`,
+          ]
+            .filter(Boolean)
+            .join(' ');
 
-          shellExec(
-            `sudo kubectl exec -i ${podName} -n ${options.namespace} -- mongo --quiet \
-        --eval '${initEval}'`,
-          );
+          shellExec(`sudo kubectl exec -i ${podName} -n ${options.namespace} -- mongo --quiet --eval '${initEval}'`);
+
+          // Only expose mongos to the host/public network once the instance is
+          // confirmed ready and the replica set is initiated. The node port (32017)
+          // is set directly in the manifest.
+          if (options.nodePort)
+            shellExec(
+              `kubectl apply -f ${underpostRoot}/manifests/mongodb-4.4/mongodb-nodeport.yaml -n ${options.namespace}`,
+            );
+          if (options.nodeSelector)
+            Underpost.cluster.pinToNode({
+              name: statefulSetName,
+              namespace: options.namespace,
+              node: options.nodeSelector,
+            });
+          if (serviceHost)
+            Underpost.cluster.syncServiceConnectionEnv({
+              serviceHost,
+              mongodb: true,
+              options,
+            });
         }
       } else if (options.mongodb) {
         const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
         await MongoBootstrap.initReplicaSet({
           namespace: options.namespace,
           replicaCount: Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT,
-          mongoDbHost: options.mongoDbHost || '',
+          hostList: serviceHostInput,
           pullImage: options.pullImage,
           reset: options.reset,
           clusterType,
           underpostRoot,
         });
+        if (serviceHost)
+          Underpost.cluster.syncServiceConnectionEnv({
+            serviceHost,
+            mongodb: true,
+            options,
+          });
       }
 
       if (options.contour) {
@@ -408,6 +492,132 @@ EOF
     },
 
     /**
+     * @method detectClusterRuntime
+     * @description Detects an already-initialized cluster by inspecting Kubernetes
+     * nodes, and classifies its runtime. Nodes are authoritative and stable, unlike
+     * add-on pods: the previous check keyed off pod names (`calico-kube-controllers`,
+     * `kube-apiserver-kind-control-plane`, `svclb-traefik`), whose presence and
+     * readiness are timing- and config-dependent. Disabling servicelb removes the
+     * `svclb-traefik` pods entirely, and CNI/controller pods report NotReady for a
+     * window right after init — both of which made re-runs misdetect the cluster
+     * state. Classification relies on stable node attributes:
+     *   - k3s: the node VERSION carries a `+k3s` build suffix (e.g. v1.30.5+k3s1).
+     *   - kind: kind names every node `<cluster>-control-plane` / `<cluster>-worker`.
+     *   - kubeadm: a real control-plane node that is neither of the above.
+     * @returns {{ type: ('k3s'|'kubeadm'|'kind'|null), ready: boolean, nodes: Array<object> }}
+     *   `type` is the detected runtime (null when no cluster exists); `ready` is true
+     *   when at least one node reports STATUS=Ready.
+     * @memberof UnderpostCluster
+     */
+    detectClusterRuntime() {
+      const nodes = Underpost.kubectl.get('', 'nodes');
+      if (!nodes.length) return { type: null, ready: false, nodes: [] };
+
+      // STATUS can be a comma-joined list (e.g. "Ready,SchedulingDisabled").
+      const ready = nodes.some((n) => `${n.STATUS || ''}`.split(',').includes('Ready'));
+
+      let type;
+      if (nodes.some((n) => `${n.VERSION || ''}`.includes('+k3s'))) type = 'k3s';
+      else if (nodes.some((n) => `${n.NAME || ''}`.includes('-control-plane') || `${n.NAME || ''}`.includes('kind')))
+        type = 'kind';
+      else type = 'kubeadm';
+
+      return { type, ready, nodes };
+    },
+
+    /**
+     * @method pinToNode
+     * @description Pins a workload to a specific Kubernetes node by patching its
+     * pod template with a `kubernetes.io/hostname` nodeSelector. General-purpose;
+     * currently used to place the MongoDB 4.4 / Valkey StatefulSets on a chosen
+     * node (`--node-selector`). The patch triggers a rolling reschedule onto the
+     * target node.
+     * @param {object} params
+     * @param {string} [params.kind='statefulset'] - Workload kind to patch.
+     * @param {string} params.name - Workload name.
+     * @param {string} params.namespace - Target namespace.
+     * @param {string} params.node - Target node name (matches `kubernetes.io/hostname`).
+     * @memberof UnderpostCluster
+     */
+    pinToNode({ kind = 'statefulset', name, namespace, node }) {
+      logger.info(`Pinning ${kind}/${name} to node '${node}' (namespace: ${namespace}).`);
+      const patch = JSON.stringify({
+        spec: { template: { spec: { nodeSelector: { 'kubernetes.io/hostname': node } } } },
+      });
+      shellExec(`kubectl patch ${kind} ${name} -n ${namespace} --type merge -p '${patch}'`);
+    },
+
+    /**
+     * @method resolveServiceHost
+     * @description Resolves a shared single-host override used by exposed service clients.
+     * @param {object} [options={}] - Cluster options.
+     * @returns {string} A single host override, or an empty string when unset / not reusable.
+     * @memberof UnderpostCluster
+     */
+    resolveServiceHost(options = {}) {
+      const candidate = `${options.serviceHost || ''}`.trim();
+      return candidate && !candidate.includes(',') ? candidate : '';
+    },
+
+    /**
+     * @method upsertEnvVar
+     * @description Replaces or appends one env var assignment in raw env file text.
+     * @param {string} envText - Existing env file contents.
+     * @param {string} key - Env var name.
+     * @param {string} value - Env var value.
+     * @returns {string} Updated env file contents.
+     * @memberof UnderpostCluster
+     */
+    upsertEnvVar(envText, key, value) {
+      const nextEntry = `${key}=${value}`;
+      const envKeyPattern = new RegExp(`^${key}=.*$`, 'm');
+      if (envKeyPattern.test(envText)) return envText.replace(envKeyPattern, nextEntry);
+
+      const trimmedEnvText = envText.replace(/\s*$/, '');
+      return `${trimmedEnvText}${trimmedEnvText ? '\n' : ''}${nextEntry}\n`;
+    },
+
+    /**
+     * @method syncServiceConnectionEnv
+     * @description Persists exposed service connection hosts to the active deploy env files.
+     * Currently applies only to MongoDB (`DB_HOST`) and Valkey (`VALKEY_HOST`).
+     * @param {object} params
+     * @param {string} params.serviceHost - Shared exposed host/IP.
+     * @param {boolean} [params.mongodb=false] - Update MongoDB runtime host.
+     * @param {boolean} [params.valkey=false] - Update Valkey runtime host.
+     * @param {object} [params.options={}] - Cluster options used to infer the active env.
+     * @memberof UnderpostCluster
+     */
+    syncServiceConnectionEnv({ serviceHost, mongodb = false, valkey = false, options = {} }) {
+      if (!serviceHost) return;
+
+      const updates = {};
+      if (mongodb) updates.DB_HOST = `mongodb://${serviceHost}:27017`;
+      if (valkey) updates.VALKEY_HOST = serviceHost;
+      if (Object.keys(updates).length === 0) return;
+
+      const deployId = process.env.DEPLOY_ID || process.env.DEFAULT_DEPLOY_ID || 'dd-default';
+      const envName = process.env.NODE_ENV || (options.dev ? 'development' : 'production');
+      const envPaths = [`./engine-private/conf/${deployId}/.env.${envName}`, `./.env.${envName}`, `./.env`].filter(
+        (envPath, index, paths) => fs.existsSync(envPath) && paths.indexOf(envPath) === index,
+      );
+
+      if (envPaths.length === 0) {
+        logger.warn(`No env files found to persist service host override for deploy '${deployId}' (${envName}).`);
+        return;
+      }
+
+      for (const envPath of envPaths) {
+        let envText = fs.readFileSync(envPath, 'utf8');
+        for (const [key, value] of Object.entries(updates))
+          envText = Underpost.cluster.upsertEnvVar(envText, key, value);
+        fs.writeFileSync(envPath, envText, 'utf8');
+      }
+
+      logger.info(`Persisted service host override for ${Object.keys(updates).join(', ')} to ${envPaths.join(', ')}`);
+    },
+
+    /**
      * @method pullImage
      * @description Pulls a container image using the appropriate runtime based on the cluster type.
      * - For Kind clusters: pulls via Docker and loads the image into the Kind cluster.
@@ -427,7 +637,13 @@ EOF
           `for node in $(kind get nodes); do cat ${tarPath} | docker exec -i $node ctr --namespace=k8s.io images import -; done`,
         );
         shellExec(`rm -f ${tarPath}`);
-      } else if (options.kubeadm || options.k3s) {
+      } else if (options.k3s) {
+        // K3s uses its own embedded containerd socket, not the host-level one
+        // used by kubeadm/containerd installations.
+        shellExec(
+          `sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint unix:///run/k3s/containerd/containerd.sock pull ${image}`,
+        );
+      } else if (options.kubeadm) {
         // Kubeadm / K3s: use crictl to pull directly into the active CRI runtime.
         // crictl is not in sudo's secure_path; pass full PATH through env.
         // Point crictl at CRI-O when the socket exists, otherwise fall back to containerd.
@@ -456,8 +672,12 @@ EOF
       const { underpostRoot } = options;
       console.log('Applying host configuration: SELinux, Docker, Containerd, and Sysctl settings.');
       // Disable SELinux (permissive mode)
-      shellExec(`sudo setenforce 0`);
-      shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
+      shellExec(`sudo setenforce 0`, {
+        silentOnError: true,
+      });
+      shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`, {
+        silentOnError: true,
+      });
 
       // Enable and start Docker and Kubelet services
       shellExec(`sudo systemctl enable --now docker`); // Docker might not be needed for K3s
@@ -488,39 +708,82 @@ EOF
     },
 
     /**
+     * @method configMinimalK3s
+     * @description Minimal host configuration for a K3s node. K3s is fully
+     * self-contained — it ships its own containerd, kubelet, CNI (flannel),
+     * CoreDNS and traefik. It therefore needs NONE of the Docker /
+     * standalone-containerd / standalone-kubelet setup that `config()` applies
+     * for kind and kubeadm. In a fresh LXD VM those packages do not exist, so
+     * `config()` there is both redundant and a source of errors.
+     *
+     * This applies only what K3s genuinely requires, and every step is guarded
+     * so it is a no-op when the relevant tooling is absent (e.g. minimal images
+     * without SELinux userspace):
+     *   - SELinux → permissive (only if SELinux tooling is present).
+     *   - swap off (Kubernetes best practice).
+     *   - br_netfilter + bridge/forward sysctls (pod networking).
+     *   - inotify limits.
+     * @memberof UnderpostCluster
+     */
+    configMinimalK3s() {
+      console.log('Applying minimal K3s host configuration (firewalld, SELinux, swap, sysctl).');
+
+      // Disable firewalld. K3s manages its own iptables rules; firewalld
+      // closes 6443/tcp (supervisor + API) and 8472/udp (flannel VXLAN) by
+      // default on RHEL/Rocky, which makes k3s-agent hang on `systemctl start`
+      // forever (the upstream unit ships TimeoutStartSec=0).
+      shellExec(`if systemctl is-active --quiet firewalld; then sudo systemctl disable --now firewalld; fi`);
+
+      // SELinux → permissive, but only when the tooling exists. Rocky has it;
+      // minimal LXD images may not. K3s also installs k3s-selinux for enforcing
+      // mode, so this is a best-effort dev convenience, not a hard requirement.
+      shellExec(`if command -v setenforce >/dev/null 2>&1; then sudo setenforce 0; fi`, {
+        silentOnError: true,
+      });
+      shellExec(
+        `if [ -f /etc/selinux/config ]; then sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config; fi`,
+        { silentOnError: true },
+      );
+
+      // Disable swap. `swapoff -a` is a no-op without swap; the sed only edits
+      // fstab when a swap line is present.
+      shellExec(`sudo swapoff -a`);
+      shellExec(`sudo sed -i '/swap/d' /etc/fstab`);
+
+      // Pod networking: ensure br_netfilter is loaded and the bridge/forward
+      // sysctls are set. K3s + flannel depend on these.
+      shellExec(
+        `if command -v lsmod >/dev/null 2>&1 && command -v modprobe >/dev/null 2>&1; then if ! lsmod | grep -q '^br_netfilter'; then sudo modprobe br_netfilter || true; fi; fi`,
+      );
+      shellExec(
+        `echo 'net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
+      );
+      shellExec(`sudo sysctl --system`);
+
+      // inotify limits — many pods/watchers. Conservative, sane values.
+      shellExec(`sudo sysctl -w fs.inotify.max_user_instances=1024`);
+      shellExec(`sudo sysctl -w fs.inotify.max_user_watches=1048576`);
+    },
+
+    /**
      * @method natSetup
      * @description Configures NAT and iptables settings for Kubernetes networking.
      * This method enables necessary sysctl settings for bridge networking and applies iptables rules
      * required for Kubernetes cluster communication. It is designed to work with kubeadm and k3s clusters, ensuring that
      * traffic through Linux bridges is processed by iptables, which is crucial for CNI plugins to function correctly.
      * The method also applies NAT iptables rules and configures firewalld for Kubernetes, which is required for multi-machine kubeadm inter-node communication.
-     * Note: This method should be called after the cluster is initialized and before deploying any workloads that require network communication.
+     * Note: This method must be called before kubeadm init / kind create so that br_netfilter is loaded and kernel networking is ready when the control plane starts.
      * @param {object} [options] - Configuration options for NAT setup.
      * @param {string} [options.underpostRoot] - The root path of the underpost project, used to locate the nat-iptables.sh script.
      * @memberof UnderpostCluster
      */
     natSetup(options = { underpostRoot: '.' }) {
       const { underpostRoot } = options;
-      // Enable bridge-nf-call-iptables for Kubernetes networking
-      // This ensures traffic through Linux bridges is processed by iptables (crucial for CNI)
-      for (const iptableConfPath of [
-        `/etc/sysctl.d/k8s.conf`,
-        `/etc/sysctl.d/99-k8s-ipforward.conf`,
-        `/etc/sysctl.d/99-k8s.conf`,
-      ])
-        shellExec(
-          `echo 'net.bridge.bridge-nf-call-iptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-arptables = 1
-net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
-          { silent: true },
-        );
-      // shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
-      // Apply NAT iptables rules and configure firewalld for Kubernetes.
-      // nat-iptables.sh enables firewalld and opens all required ports; do NOT stop it
-      // afterwards — keeping firewalld running with these rules is required for
-      // multi-machine kubeadm inter-node communication.
-      shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
+      // Loads br_netfilter, applies bridge/forward sysctls, opens firewall ports, enables masquerade.
+      // Must run before kubeadm init / kind create so kernel networking is ready.
+      shellExec(`${underpostRoot}/scripts/nat-iptables.sh`);
     },
 
     /**
@@ -557,169 +820,231 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       console.log('kubectl config set up successfully.');
     },
 
+    // Shared reset helpers (internal — used by safeResetKind / safeResetKubeadm).
+
     /**
-     * @method safeReset
-     * @description Performs a complete reset of the Kubernetes cluster and its container environments.
-     * This version focuses on correcting persistent permission errors (such as 'permission denied'
-     * in coredns) by restoring SELinux security contexts and safely cleaning up cluster artifacts.
-     * Only the uninstall/delete commands specific to the given clusterType are executed; all other
-     * cleanup steps (log truncation, filesystem, network) are always run as generic k8s resets.
-     * @param {object} [options] - Configuration options for the reset.
-     * @param {string} [options.underpostRoot] - The root path of the underpost project.
-     * @param {boolean} [options.removeVolumeHostPaths=false] - Whether to remove data from host paths used by Persistent Volumes.
-     * @param {string} [options.clusterType='kind'] - The type of cluster to reset: 'kind', 'kubeadm', or 'k3s'.
+     * @method _truncateLargeLogs
+     * @description Removes files >1 GiB under /var/log. Best-effort.
+     * @private
+     */
+    _truncateLargeLogs() {
+      try {
+        const cleanPath = `/var/log/`;
+        const largeLogsFiles = shellExec(
+          `sudo du -sh ${cleanPath}* | awk '{if ($1 ~ /G$/ && ($1+0) > 1) print}' | sort -rh`,
+          { stdout: true },
+        );
+        for (const pathLog of largeLogsFiles
+          .split('\n')
+          .map((p) => p.split(cleanPath)[1])
+          .filter((p) => p)) {
+          shellExec(`sudo rm -rf ${cleanPath}${pathLog}`);
+        }
+      } catch (err) {
+        logger.warn(`  -> Skipped log truncation: ${err.message}`);
+      }
+    },
+
+    /**
+     * @method _cleanHostPathPvs
+     * @description Wipes contents of every hostPath PV. Destroys live data —
+     * only call when `--remove-volume-host-paths` is set.
+     * @private
+     */
+    _cleanHostPathPvs() {
+      try {
+        const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, {
+          stdout: true,
+          silent: true,
+        });
+        const pvList = JSON.parse(pvListJson);
+        if (!pvList.items || pvList.items.length === 0) {
+          logger.info('  -> No PersistentVolumes with hostPath found.');
+          return;
+        }
+        for (const pv of pvList.items) {
+          if (pv.spec.hostPath && pv.spec.hostPath.path) {
+            const hostPath = pv.spec.hostPath.path;
+            logger.info(`  -> Removing PV '${pv.metadata.name}' hostPath: ${hostPath}`);
+            shellExec(`sudo rm -rf ${hostPath}/*`);
+          }
+        }
+      } catch (error) {
+        logger.error(`  -> Failed cleaning hostPath PVs: ${error.message}`);
+      }
+    },
+
+    /**
+     * @method _lazyUmountKubeletMounts
+     * @description Lazy-unmounts every mount under /var/lib/kubelet so a
+     * subsequent `rm -rf` does not hit 'Device or resource busy'. Best-effort.
+     * @private
+     */
+    _lazyUmountKubeletMounts() {
+      shellExec(
+        `sudo sh -c 'findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l'`,
+        { silentOnError: true },
+      );
+    },
+
+    // Per-type reset methods. Each only touches what its own runtime owns.
+
+    /**
+     * @method safeResetKind
+     * @description Kind (Kubernetes in Docker) reset — Docker-scoped only.
+     * Does not touch host kubelet / containerd / iptables / SELinux.
+     * @param {object} [options]
+     * @param {string} [options.underpostRoot='.']
+     * @param {boolean} [options.removeVolumeHostPaths=false]
      * @memberof UnderpostCluster
      */
-    async safeReset(options = { underpostRoot: '.', removeVolumeHostPaths: false, clusterType: 'kind' }) {
-      logger.info('Starting a safe and comprehensive reset of Kubernetes and container environments...');
+    async safeResetKind(options = { underpostRoot: '.', removeVolumeHostPaths: false }) {
+      logger.info('=== KIND SAFE RESET (development) ===');
 
-      try {
-        // Phase 0: Truncate large logs under /var/log to free up immediate space
-        logger.info('Phase 0/7: Truncating large log files under /var/log...');
-        try {
-          const cleanPath = `/var/log/`;
-          const largeLogsFiles = shellExec(
-            `sudo du -sh ${cleanPath}* | awk '{if ($1 ~ /G$/ && ($1+0) > 1) print}' | sort -rh`,
-            {
-              stdout: true,
-            },
-          );
-          for (const pathLog of largeLogsFiles
-            .split(`\n`)
-            .map((p) => p.split(cleanPath)[1])
-            .filter((p) => p)) {
-            shellExec(`sudo rm -rf ${cleanPath}${pathLog}`);
-          }
-        } catch (err) {
-          logger.warn(`  -> Error truncating log files: ${err.message}. Continuing with reset.`);
-        }
+      logger.info('Phase 1/5: Cleaning Kind node-local MongoDB hostPath directories...');
+      Underpost.cluster.cleanKindMongoHostPaths({ basePath: '/data/mongodb', replicaCount: 3 });
 
-        // Phase 1: Clean up Persistent Volumes with hostPath
-        // This targets data created by Kubernetes Persistent Volumes that use hostPath.
-        logger.info('Phase 1/7: Cleaning Kubernetes hostPath volumes...');
-        if ((options.clusterType || 'kind') === 'kind') {
-          logger.info('  -> Kind detected: cleaning node-local MongoDB hostPath directories...');
-          Underpost.cluster.cleanKindMongoHostPaths({ basePath: '/data/mongodb', replicaCount: 3 });
-        }
-        if (options.removeVolumeHostPaths)
-          try {
-            const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, {
-              stdout: true,
-              silent: true,
-            });
-            const pvList = JSON.parse(pvListJson);
+      logger.info('Phase 2/5: PersistentVolume hostPath cleanup...');
+      if (options.removeVolumeHostPaths) Underpost.cluster._cleanHostPathPvs();
+      else logger.info('  -> Skipping (pass --remove-volume-host-paths to enable).');
 
-            if (pvList.items && pvList.items.length > 0) {
-              for (const pv of pvList.items) {
-                // Check if the PV uses hostPath and delete its contents
-                if (pv.spec.hostPath && pv.spec.hostPath.path) {
-                  const hostPath = pv.spec.hostPath.path;
-                  logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
-                  shellExec(`sudo rm -rf ${hostPath}/*`);
-                }
-              }
-            } else {
-              logger.info('No Persistent Volumes found with hostPath to clean up.');
-            }
-          } catch (error) {
-            logger.error('Failed to clean up Persistent Volumes:', error);
-          }
-        else logger.info('  -> Skipping hostPath volume cleanup as per configuration.');
-        // Phase 2: Restore SELinux and stop services
-        // This is critical for fixing the 'permission denied' error you experienced.
-        // Enable SELinux permissive mode and restore file contexts.
-        logger.info('Phase 2/7: Stopping services and fixing SELinux...');
-        logger.info('  -> Ensuring SELinux is in permissive mode...');
-        shellExec(`sudo setenforce 0`);
-        shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
-        logger.info('  -> Restoring SELinux contexts for container data directories...');
-        // The 'restorecon' command corrects file system security contexts.
-        shellExec(`sudo restorecon -Rv /var/lib/containerd`);
-        shellExec(`sudo restorecon -Rv /var/lib/kubelet`);
-
-        logger.info('  -> Stopping kubelet, docker, and podman services...');
-        shellExec('sudo systemctl stop kubelet');
-        shellExec('sudo systemctl stop docker');
-        shellExec('sudo systemctl stop podman');
-        // Lazy-unmount all kubelet pod mounts to avoid 'Device or resource busy' on rm.
-        shellExec(
-          `sudo sh -c 'findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l'`,
-          { silentOnError: true },
-        );
-
-        // Phase 3: Execute official uninstallation commands (type-specific)
-        const clusterType = options.clusterType || 'kind';
-        logger.info(
-          `Phase 3/7: Executing official reset/uninstallation commands for cluster type: '${clusterType}'...`,
-        );
-        if (clusterType === 'kubeadm') {
-          // Kill control plane processes that hold ports (6443, 10257, 10259, 2379, 2380)
-          // so the next `kubeadm init` does not fail with [ERROR Port-xxxx].
-          logger.info('  -> Stopping and killing control plane containers and processes...');
-          shellExec('sudo crictl rm -a -f', { silentOnError: true });
-          shellExec('sudo crictl rmp -a -f', { silentOnError: true });
-          shellExec('sudo systemctl stop etcd', { silentOnError: true });
-          for (const port of [6443, 10259, 10257, 2379, 2380])
-            shellExec(`sudo fuser -k ${port}/tcp`, { silentOnError: true });
-          logger.info('  -> Executing kubeadm reset...');
-          shellExec('sudo kubeadm reset --force');
-        } else if (clusterType === 'k3s') {
-          logger.info('  -> Executing K3s uninstallation script if it exists...');
-          shellExec('sudo /usr/local/bin/k3s-uninstall.sh');
-        } else {
-          // Default: kind
-          logger.info('  -> Deleting Kind clusters...');
-          shellExec(`clusters=$(kind get clusters)
+      logger.info('Phase 3/5: Deleting all Kind clusters...');
+      shellExec(`clusters=$(kind get clusters)
 if [ -n "$clusters" ]; then
   for c in $clusters; do
     echo "Deleting cluster: $c"
     kind delete cluster --name "$c"
   done
 fi`);
-        }
 
-        // Phase 4: File system cleanup
-        logger.info('Phase 4/7: Cleaning up remaining file system artifacts...');
-        // Remove any leftover configurations and data.
-        shellExec('sudo rm -rf /etc/kubernetes/*');
-        shellExec('sudo rm -rf /etc/cni/net.d/*');
-        // Second-pass lazy umount before rm to clear any remaining busy mounts.
-        shellExec(
-          `sudo sh -c 'findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l'`,
-          { silentOnError: true },
-        );
-        shellExec('sudo rm -rf /var/lib/kubelet/*');
-        shellExec('sudo rm -rf /var/lib/etcd');
-        shellExec('sudo rm -rf /var/lib/cni/*');
-        shellExec('sudo rm -rf /var/lib/docker/*');
-        shellExec('sudo rm -rf /var/lib/containerd/*');
-        shellExec('sudo rm -rf /var/lib/containers/storage/*');
-        // Clean up the current user's kubeconfig.
-        shellExec('rm -rf $HOME/.kube');
+      logger.info('Phase 4/5: Cleaning kubeconfig and Kind Docker networks...');
+      shellExec(`rm -rf "$HOME/.kube"`);
+      Underpost.cluster.recoverKindDockerNetworks();
 
-        // Phase 5: Host network cleanup
-        logger.info('Phase 5/7: Cleaning up host network configurations...');
-        // Remove iptables rules and CNI network interfaces.
-        shellExec('sudo iptables -F');
-        shellExec('sudo iptables -t nat -F');
-        shellExec('sudo ip link del cni0', { silentOnError: true });
-        shellExec('sudo ip link del flannel.1', { silentOnError: true });
-        shellExec('sudo ip link del vxlan.calico', { silentOnError: true });
-        shellExec('sudo ip link del tunl0', { silentOnError: true });
+      logger.info('Phase 5/5: Re-applying host configuration (Docker, containerd, sysctl).');
+      Underpost.cluster.config();
 
-        logger.info('Phase 6/7: Clean up images');
-        shellExec('sudo podman rmi --all --force', { silentOnError: true });
-        shellExec('sudo crictl rmi --prune', { silentOnError: true });
+      logger.info('=== KIND SAFE RESET COMPLETE ===');
+    },
 
-        // Phase 6: Reload daemon and finalize
-        logger.info('Phase 7/7: Reloading the system daemon and finalizing...');
-        // shellExec('sudo systemctl daemon-reload');
-        Underpost.cluster.config();
-        logger.info('Safe and complete reset finished. The system is ready for a new cluster initialization.');
-      } catch (error) {
-        logger.error(`Error during reset: ${error.message}`);
-        console.error(error);
+    /**
+     * @method safeResetKubeadm
+     * @description Kubeadm reset on the host: stop kubelet + runtime, kill
+     * control-plane ports (6443 / 2379 / 2380 / 10257 / 10259), run
+     * `kubeadm reset --force`, wipe kubeadm-managed FS + network state.
+     * Does not touch K3s or Kind state.
+     * @param {object} [options]
+     * @param {string} [options.underpostRoot='.']
+     * @param {boolean} [options.removeVolumeHostPaths=false]
+     * @memberof UnderpostCluster
+     */
+    async safeResetKubeadm(options = { underpostRoot: '.', removeVolumeHostPaths: false }) {
+      logger.info('=== KUBEADM SAFE RESET ===');
+
+      logger.info('Phase 0/7: Truncating large /var/log files...');
+      Underpost.cluster._truncateLargeLogs();
+
+      logger.info('Phase 1/7: PersistentVolume hostPath cleanup...');
+      if (options.removeVolumeHostPaths) Underpost.cluster._cleanHostPathPvs();
+      else logger.info('  -> Skipping (pass --remove-volume-host-paths to enable).');
+
+      logger.info('Phase 2/7: SELinux permissive + restore contexts (when present)...');
+      shellExec(`if command -v setenforce >/dev/null 2>&1; then sudo setenforce 0; fi`);
+      shellExec(
+        `if [ -f /etc/selinux/config ]; then sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config; fi`,
+      );
+      shellExec(
+        `if command -v restorecon >/dev/null 2>&1 && [ -d /var/lib/kubelet ]; then sudo restorecon -Rv /var/lib/kubelet; fi`,
+      );
+      shellExec(
+        `if command -v restorecon >/dev/null 2>&1 && [ -d /var/lib/containerd ]; then sudo restorecon -Rv /var/lib/containerd; fi`,
+      );
+
+      logger.info('Phase 3/7: Stopping host kubelet and container runtimes (kubeadm-scope only)...');
+      shellExec(`if systemctl is-active --quiet kubelet; then sudo systemctl stop kubelet; fi`);
+      shellExec(`if systemctl is-active --quiet docker; then sudo systemctl stop docker; fi`);
+      shellExec(`if systemctl is-active --quiet crio; then sudo systemctl stop crio; fi`);
+      Underpost.cluster._lazyUmountKubeletMounts();
+
+      logger.info('Phase 4/7: Killing control-plane processes and running kubeadm reset...');
+      shellExec(`if command -v crictl >/dev/null 2>&1; then sudo crictl rm -a -f; fi`, { silentOnError: true });
+      // Remove CNI config before stopping sandboxes so Calico's CNI delete hook is
+      // not invoked (the API server is already down and the hook would fail).
+      shellExec(`sudo rm -rf /etc/cni/net.d/*`);
+      shellExec(`if command -v crictl >/dev/null 2>&1; then sudo crictl rmp -a -f; fi`, { silentOnError: true });
+      shellExec(`if systemctl is-active --quiet etcd; then sudo systemctl stop etcd; fi`);
+      for (const port of [6443, 10259, 10257, 2379, 2380]) {
+        shellExec(`if sudo fuser ${port}/tcp >/dev/null 2>&1; then sudo fuser -k ${port}/tcp; fi`);
       }
+      shellExec(`if command -v kubeadm >/dev/null 2>&1; then sudo kubeadm reset --force; fi`);
+
+      logger.info('Phase 5/7: Filesystem cleanup (kubeadm-managed paths only)...');
+      shellExec(`sudo rm -rf /etc/kubernetes/*`);
+      Underpost.cluster._lazyUmountKubeletMounts();
+      shellExec(`sudo rm -rf /var/lib/kubelet/*`);
+      shellExec(`sudo rm -rf /var/lib/etcd`);
+      shellExec(`sudo rm -rf /var/lib/cni/*`);
+      shellExec(`sudo rm -rf /var/lib/containerd/*`);
+      shellExec(`rm -rf "$HOME/.kube"`);
+
+      logger.info('Phase 6/7: Network cleanup (Calico interfaces + host iptables)...');
+      shellExec(`if ip link show cni0 >/dev/null 2>&1; then sudo ip link del cni0; fi`);
+      shellExec(`if ip link show vxlan.calico >/dev/null 2>&1; then sudo ip link del vxlan.calico; fi`);
+      shellExec(`if ip link show tunl0 >/dev/null 2>&1; then sudo ip link del tunl0; fi`);
+      shellExec(`sudo iptables -F`);
+      shellExec(`sudo iptables -t nat -F`);
+      shellExec(`if command -v crictl >/dev/null 2>&1; then sudo crictl rmi --prune; fi`);
+
+      logger.info('Phase 7/7: Re-applying host configuration (Docker, containerd, sysctl).');
+      Underpost.cluster.config();
+
+      logger.info('=== KUBEADM SAFE RESET COMPLETE ===');
+    },
+
+    /**
+     * @method safeResetK3s
+     * @description Centralized K3s teardown. Runs the same way on a physical
+     * host (`node bin cluster --dev --reset --k3s`) or inside an LXD VM via
+     * `lxc exec` (driven by `_resetK3sInVm` in src/cli/lxd.js).
+     * @param {object} [options]
+     * @param {string} [options.underpostRoot='.']
+     * @param {'drain'|'full'} [options.resetMode='full'] - `drain` stops
+     *   services + runs `k3s-killall.sh` (K3s persists, returns on next boot).
+     *   `full` also runs `k3s-uninstall.sh` and cleans residual state.
+     * @memberof UnderpostCluster
+     */
+    async safeResetK3s(options = { underpostRoot: '.', resetMode: 'full' }) {
+      const resetMode = options.resetMode === 'drain' ? 'drain' : 'full';
+      logger.info(`=== K3s SAFE RESET (resetMode=${resetMode}) ===`);
+
+      logger.info('Phase 1/5: Stopping K3s systemd units...');
+      shellExec(`if systemctl list-unit-files | grep -q '^k3s\\.service'; then sudo systemctl stop k3s; fi`);
+      shellExec(
+        `if systemctl list-unit-files | grep -q '^k3s-agent\\.service'; then sudo systemctl stop k3s-agent; fi`,
+      );
+
+      logger.info('Phase 2/5: Running k3s-killall.sh (unmount pod overlays, tear down CNI)...');
+      shellExec(`if [ -x /usr/local/bin/k3s-killall.sh ]; then sudo /usr/local/bin/k3s-killall.sh; fi`);
+
+      if (resetMode === 'drain') {
+        logger.info('=== K3s DRAIN COMPLETE (K3s remains installed; will start on next boot) ===');
+        return;
+      }
+
+      logger.info('Phase 3/5: Running k3s-uninstall.sh...');
+      shellExec(`if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; fi`);
+      shellExec(`if [ -x /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo /usr/local/bin/k3s-agent-uninstall.sh; fi`);
+
+      logger.info('Phase 4/5: Removing residual K3s state...');
+      shellExec(`rm -rf "$HOME/.kube"`);
+      shellExec(`if [ -d /etc/rancher/k3s ]; then sudo rm -rf /etc/rancher/k3s; fi`);
+      shellExec(`if ip link show flannel.1 >/dev/null 2>&1; then sudo ip link del flannel.1; fi`);
+      shellExec(`if ip link show cni0 >/dev/null 2>&1; then sudo ip link del cni0; fi`);
+
+      logger.info('Phase 5/5: Re-applying minimal K3s host config.');
+      Underpost.cluster.configMinimalK3s();
+
+      logger.info('=== K3s SAFE RESET COMPLETE (full) ===');
     },
 
     /**

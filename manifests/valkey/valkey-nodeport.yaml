@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-nodeport
+  labels:
+    app: valkey-service
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  selector:
+    app: valkey-service
+  ports:
+    - name: valkey
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+      nodePort: 32079

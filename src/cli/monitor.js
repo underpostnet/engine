@@ -4,7 +4,13 @@
  * @namespace UnderpostMonitor
  */
 
-import { loadReplicas, pathPortAssignmentFactory, loadConfServerJson, loadCronDeployEnv } from '../server/conf.js';
+import {
+  loadReplicas,
+  pathPortAssignmentFactory,
+  loadConfServerJson,
+  loadCronDeployEnv,
+  etcHostFactory,
+} from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import axios from 'axios';
 import fs from 'fs-extra';
@@ -144,7 +150,7 @@ class UnderpostMonitor {
             if (path.match('peer') || path.match('socket')) continue;
             const urlTest = `http${env === 'development' ? '' : 's'}://${host}${path}`;
             if (env === 'development') {
-              const { renderHosts } = Underpost.deploy.etcHostFactory([host]);
+              const { renderHosts } = etcHostFactory([host]);
               logger.info('renderHosts', renderHosts);
             }
             await axios.get(urlTest, { timeout: 10000 }).catch((error) => {
@@ -200,7 +206,7 @@ class UnderpostMonitor {
       let monitorPodName;
       const monitorCallBack = (resolve, reject) => {
         if (env === 'development') {
-          const { renderHosts } = Underpost.deploy.etcHostFactory([]);
+          const { renderHosts } = etcHostFactory([]);
           logger.info('renderHosts', renderHosts);
         }
         const envMsTimeout = Underpost.env.get(`${deployId}-${env}-monitor-ms`);

@@ -616,13 +616,11 @@ spec:
      * @param {string} options.traffic - Traffic status for the deployment.
      * @param {string} options.replicas - Number of replicas for the deployment.
      * @param {string} options.node - Node name for resource allocation.
-     * @param {boolean} options.restoreHosts - Whether to restore the hosts file.
      * @param {boolean} options.disableUpdateDeployment - Whether to disable deployment updates.
      * @param {boolean} options.disableUpdateProxy - Whether to disable proxy updates.
      * @param {boolean} options.disableDeploymentProxy - Whether to disable deployment proxy.
      * @param {boolean} options.disableUpdateVolume - Whether to disable volume updates.
      * @param {boolean} options.status - Whether to display deployment status.
-     * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
      * @param {string} [options.namespace] - Kubernetes namespace for the deployment.
      * @param {string} [options.timeoutResponse] - Timeout response setting for the deployment.
@@ -660,13 +658,11 @@ spec:
         traffic: '',
         replicas: '',
         node: '',
-        restoreHosts: false,
         disableUpdateDeployment: false,
         disableUpdateProxy: false,
         disableDeploymentProxy: false,
         disableUpdateVolume: false,
         status: false,
-        etcHosts: false,
         disableUpdateUnderpostConfig: false,
         namespace: '',
         timeoutResponse: '',
@@ -750,14 +746,6 @@ EOF`);
         return;
       }
       if (!options.disableUpdateUnderpostConfig) Underpost.deploy.configMap(env);
-      let renderHosts = '';
-      let etcHosts = [];
-      if (options.restoreHosts === true) {
-        const factoryResult = Underpost.deploy.etcHostFactory(etcHosts);
-        renderHosts = factoryResult.renderHosts;
-        logger.info(renderHosts);
-        return;
-      }
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -818,7 +806,6 @@ EOF`);
             if (Underpost.deploy.isValidTLSContext({ host, env, options }))
               shellExec(`sudo kubectl delete Certificate ${host} -n ${namespace} --ignore-not-found`);
           }
-          if (!options.remove) etcHosts.push(host);
         }
 
         const manifestsPath =
@@ -839,15 +826,6 @@ EOF`);
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml -n ${namespace}`);
         }
       }
-      if (options.etcHosts === true) {
-        const factoryResult = Underpost.deploy.etcHostFactory(etcHosts);
-        renderHosts = factoryResult.renderHosts;
-      }
-      if (renderHosts)
-        logger.info(
-          `
-` + renderHosts,
-        );
     },
     /**
      * Checks the status of a deployment.
@@ -1148,42 +1126,6 @@ spec:
       storage: 5Gi`;
     },
 
-    /**
-     * Creates a hosts file for a deployment.
-     * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
-     * @param {object} options - Options for the hosts file creation.
-     * @param {boolean} options.append - Whether to append to the existing hosts file.
-     * @returns {object} - Object containing the rendered hosts file.
-     * @memberof UnderpostDeploy
-     */
-    etcHostFactory(hosts = [], options = { append: false }) {
-      hosts = hosts.map((host) => {
-        try {
-          if (!host.startsWith('http')) host = `http://${host}`;
-          const hostname = new URL(host).hostname;
-          logger.info('Hostname extract valid', { host, hostname });
-          return hostname;
-        } catch (e) {
-          logger.warn('No hostname extract valid', host);
-          return host;
-        }
-      });
-      const renderHosts = `127.0.0.1         ${hosts.join(
-        ' ',
-      )} localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
-
-      if (options && options.append && fs.existsSync(`/etc/hosts`)) {
-        fs.writeFileSync(
-          `/etc/hosts`,
-          fs.readFileSync(`/etc/hosts`, 'utf8') +
-            `
-${renderHosts}`,
-          'utf8',
-        );
-      } else fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
-      return { renderHosts };
-    },
     /**
      * Checks if a TLS context is valid.
      * @param {object} options - Options for the check.

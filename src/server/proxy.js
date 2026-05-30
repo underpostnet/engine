@@ -9,7 +9,14 @@
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { buildPortProxyRouter, buildProxyRouter, getTlsHosts, isDevProxyContext, isTlsDevProxy } from './conf.js';
+import {
+  buildPortProxyRouter,
+  buildProxyRouter,
+  etcHostFactory,
+  getTlsHosts,
+  isDevProxyContext,
+  isTlsDevProxy,
+} from './conf.js';
 
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
@@ -114,7 +121,7 @@ class ProxyService {
       logger.info('Proxy running', { port, router: options.router });
       if (process.env.NODE_ENV === 'development')
         logger.info(
-          Underpost.deploy.etcHostFactory(Object.keys(options.router), {
+          etcHostFactory(Object.keys(options.router), {
             append: true,
           }).renderHosts,
         );

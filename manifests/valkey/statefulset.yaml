@@ -19,7 +19,7 @@ spec:
           image: docker.io/valkey/valkey:latest
           imagePullPolicy: IfNotPresent
           command: ['valkey-server']
-          args: ['--port', '6379']
+          args: ['--port', '6379', '--bind', '0.0.0.0', '--protected-mode', 'no']
           ports:
             - containerPort: 6379
           startupProbe:

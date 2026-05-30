@@ -25,7 +25,7 @@ const logger = loggerFactory(import.meta);
  * @typedef {Object} MongoBootstrapOptions
  * @property {string} [namespace='default'] - Kubernetes namespace.
  * @property {number} [replicaCount=3] - Number of replica set members.
- * @property {string} [mongoDbHost=''] - Explicit host list override (comma-separated or empty for StatefulSet defaults).
+ * @property {string} [hostList=''] - Explicit host list override (comma-separated or empty for StatefulSet defaults).
  * @property {boolean} [pullImage=false] - Whether to pull the mongo image before deploy.
  * @property {boolean} [reset=false] - Whether to clean all persistent data before init.
  * @property {string} [clusterType='kind'] - One of 'kind', 'kubeadm', 'k3s'.
@@ -318,7 +318,7 @@ class MongoBootstrap {
     const {
       namespace = 'default',
       replicaCount = MONGODB_DEFAULT_REPLICA_COUNT,
-      mongoDbHost = '',
+      hostList = '',
       pullImage = false,
       reset = false,
       clusterType = 'kind',
@@ -330,10 +330,10 @@ class MongoBootstrap {
     const mongoRootUsername = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-username`);
     const mongoRootPassword = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-password`);
     const mongoReplicaHosts = resolveMongoReplicaHosts({
-      hostList: mongoDbHost,
+      hostList,
       replicaCount: effectiveReplicaCount,
     });
-    const useExplicitHosts = !!mongoDbHost.trim();
+    const useExplicitHosts = !!hostList.trim();
 
     // Kind-specific mount checks
     const isKind = clusterType === 'kind' || !clusterType;
@@ -518,9 +518,6 @@ class MongoBootstrap {
       logger.info('Phase 1/6: Deleting MongoDB workloads...');
       shellExec(`kubectl delete statefulset mongodb -n ${namespace} --ignore-not-found --wait=false`);
       shellExec(`kubectl delete deployment mongodb-deployment -n ${namespace} --ignore-not-found --wait=false`);
-      // Delete mongo-express if present
-      shellExec(`kubectl delete deployment mongo-express -n ${namespace} --ignore-not-found --wait=false`);
-      shellExec(`kubectl delete service mongo-express-service -n ${namespace} --ignore-not-found`);
 
       // Phase 2: Delete MongoDB headless service (will be recreated on redeploy)
       logger.info('Phase 2/6: Deleting MongoDB Services and ConfigMaps...');

@@ -67,7 +67,7 @@ class MongooseDBService {
    * Normalizes connection config from object or legacy host/name signature.
    * @param {object|string} configOrHost - Connection config object or host string.
    * @param {string} [name] - Legacy DB name when using host string input.
-   * @returns {{authSource: string, dbName: string, hosts: Array<string>, password: string, replicaSet: string, user: string}} Normalized config.
+   * @returns {{authSource: string, dbName: string, directConnection: boolean, hosts: Array<string>, password: string, replicaSet: string, user: string}} Normalized config.
    */
   normalizeConfig(configOrHost, name) {
     const config =
@@ -86,13 +86,16 @@ class MongooseDBService {
 
     const user = config.user || process.env.DB_USER || '';
     const password = config.password || process.env.DB_PASSWORD || '';
-    const replicaSet =
-      config.replicaSet || process.env.DB_REPLICA_SET || (hosts.length > 1 ? MONGODB_DEFAULT_REPLICA_SET : '');
+    const directConnection = hosts.length === 1;
+    const replicaSet = directConnection
+      ? ''
+      : config.replicaSet || process.env.DB_REPLICA_SET || MONGODB_DEFAULT_REPLICA_SET;
     const authSource = config.authSource || process.env.DB_AUTH_SOURCE || (user ? MONGODB_DEFAULT_AUTH_SOURCE : '');
 
     return {
       authSource,
       dbName,
+      directConnection,
       hosts,
       password,
       replicaSet,
@@ -114,7 +117,8 @@ class MongooseDBService {
         : '';
     const query = new URLSearchParams();
 
-    if (config.replicaSet) query.set('replicaSet', config.replicaSet);
+    if (config.directConnection) query.set('directConnection', 'true');
+    else if (config.replicaSet) query.set('replicaSet', config.replicaSet);
     if (config.authSource) query.set('authSource', config.authSource);
 
     return `mongodb://${credentials}${config.hosts.join(',')}/${config.dbName}${query.size ? `?${query.toString()}` : ''}`;
