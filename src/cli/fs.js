@@ -127,7 +127,11 @@ class UnderpostFileStorage {
         if (options.git === true) {
           const gitPath = hasPathFilter ? basePath : '.';
           shellExec(`cd ${gitPath} && git add .`);
-          shellExec(`underpost cmt ${gitPath} feat`);
+          shellExec(`underpost cmt ${gitPath} feat`, {
+            silentOnError: true,
+            silent: true,
+            disableLog: true,
+          });
         }
 
         return;
@@ -155,7 +159,7 @@ class UnderpostFileStorage {
         if (options.git === true) {
           Underpost.repo.initLocalRepo({ path });
           shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`, {
-            silentOnError: true
+            silentOnError: true,
           });
         }
       } else {
@@ -175,7 +179,11 @@ class UnderpostFileStorage {
       Underpost.fs.writeStorageConf(storage, storageConf);
       if (options.git === true) {
         shellExec(`cd ${path} && git add .`);
-        shellExec(`underpost cmt ${path} feat`);
+        shellExec(`underpost cmt ${path} feat`, {
+          silentOnError: true,
+          silent: true,
+          disableLog: true,
+        });
       }
     },
     /**

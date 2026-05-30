@@ -1049,9 +1049,9 @@ Prevent build private config repo.`,
      */
     clean(options = { paths: [''] }) {
       for (const path of options.paths) {
-        shellExec(`cd ${path} && git reset`, { silent: true });
-        shellExec(`cd ${path} && git checkout .`, { silent: true });
-        shellExec(`cd ${path} && git clean -f -d`, { silent: true });
+        shellExec(`cd ${path} && git reset`, { silentOnError: true, silent: true, disableLog: true });
+        shellExec(`cd ${path} && git checkout .`, { silentOnError: true, silent: true, disableLog: true });
+        shellExec(`cd ${path} && git clean -f -d`, { silentOnError: true, silent: true, disableLog: true });
       }
     },
 
