@@ -74,6 +74,17 @@ fi
 # Define the full path to the compiled binary
 COMPILED_SRC_PATH="$IPXE_SRC_DIR/src/$BUILD_TARGET"
 
+# The embedded script is baked into the binary at compile time. Track its
+# content in a sidecar marker so a changed (or removed) embed forces a rebuild;
+# otherwise a cached binary would silently carry a stale embedded script.
+EMBED_MARKER="$COMPILED_SRC_PATH.embed"
+
+if [ -n "$EMBED_SCRIPT" ] && [ -f "$EMBED_SCRIPT" ]; then
+    EMBED_SIGNATURE=$(sha256sum "$EMBED_SCRIPT" | awk '{print $1}')
+else
+    EMBED_SIGNATURE="none"
+fi
+
 # Decide whether to build
 DO_BUILD=false
 
@@ -82,8 +93,11 @@ if [ "$REBUILD" = true ]; then
 elif [ ! -f "$COMPILED_SRC_PATH" ]; then
     echo "Binary not found at $COMPILED_SRC_PATH. Initiating build..."
     DO_BUILD=true
+elif [ "$(cat "$EMBED_MARKER" 2>/dev/null)" != "$EMBED_SIGNATURE" ]; then
+    echo "Embedded script changed (binary has stale embed). Rebuilding..."
+    DO_BUILD=true
 else
-    echo "Binary found at $COMPILED_SRC_PATH. Skipping build."
+    echo "Binary found at $COMPILED_SRC_PATH with matching embedded script. Skipping build."
 fi
 
 if [ "$DO_BUILD" = true ]; then
@@ -163,6 +177,9 @@ if [ "$DO_BUILD" = true ]; then
         fi
         exit 1
     fi
+
+    # Record the embedded-script signature baked into this binary.
+    echo "$EMBED_SIGNATURE" > "$EMBED_MARKER"
 fi
 
 # --- 5. Deploy Binary ---
