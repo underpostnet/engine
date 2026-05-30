@@ -27,6 +27,11 @@ const logger = loggerFactory(import.meta);
  * and system provisioning for different architectures.
  */
 class UnderpostBaremetal {
+  // NFSv3 RPC ports. Single source of truth shared by the firewall/export setup
+  // (rebuildNfsServer) and the kernel `nfsroot=` mount options so the client mount and the
+  // opened firewall ports always agree.
+  static NFS_V3_PORTS = { mountd: 20048, statd: 32765, statdOutgoing: 32765, lockd: 32803 };
+
   static API = {
     /**
      * @method callback
@@ -498,10 +503,13 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle control server installation.
       if (options.controlServerInstall === true) {
-        // Ensure scripts are executable and then run them.
+        // Ensure the MAAS setup script is executable and then run it.
         shellExec(`chmod +x ${underpostRoot}/scripts/maas-setup.sh`);
-        shellExec(`chmod +x ${underpostRoot}/scripts/nat-iptables.sh`);
+        if (!fs.existsSync(`${process.env.HOME}/.ssh/id_rsa.pub`)) shellExec(`node bin ssh --generate`);
         shellExec(`${underpostRoot}/scripts/maas-setup.sh`);
+        // Install GRUB modules into the NFS root filesystem to
+        // ensure the necessary files are present for bootloader installation later.
+        Underpost.baremetal.installGrubModules();
         return;
       }
 
@@ -917,9 +925,6 @@ rm -rf ${artifacts.join(' ')}`);
           isoUrl: workflowsConfig[workflowId].isoUrl,
         });
 
-      // Set up iptables rules for NAT and port forwarding to enable network connectivity for the baremetal machines.
-      shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
-
       // Start HTTP bootstrap server if commissioning or if ISO URL is used (for ISO-based workflows).
       if (options.bootstrapHttpServerRun || options.commission) {
         Underpost.baremetal.httpBootstrapServerRunnerFactory({
@@ -933,7 +938,7 @@ rm -rf ${artifacts.join(' ')}`);
         });
       }
 
-      // Rebuild NFS server configuration.
+      // Rebuild NFS exports and the matching MAAS/firewalld host configuration.
       if (
         (options.nfsBuildServer === true || options.commission === true) &&
         (workflowsConfig[workflowId].type === 'iso-nfs' ||
@@ -943,6 +948,7 @@ rm -rf ${artifacts.join(' ')}`);
         Underpost.baremetal.rebuildNfsServer({
           nfsHostPath,
           nfsReset: options.nfsReset,
+          underpostRoot,
         });
 
       // Handle commissioning tasks
@@ -1399,7 +1405,9 @@ rm -rf ${artifacts.join(' ')}`);
       shellExec(`mkdir -p ${mountPoint}`);
 
       // Ensure mount point is not already mounted
-      shellExec(`sudo umount ${mountPoint} 2>/dev/null`);
+      shellExec(`sudo umount ${mountPoint}`, {
+        silentOnError: true, // Ignore errors if not mounted
+      });
 
       try {
         // Mount the ISO
@@ -2342,34 +2350,56 @@ fi
       // Determine OS family from osIdLike
       const { isDebianBased, isRhelBased } = Underpost.baremetal.getFamilyBaseOs(options.osIdLike);
 
-      const ipParam =
-        `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}` +
-        `:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`;
+      // Static config (`none`/`off`) pins the full address tuple; any autoconfiguration mode
+      // (`dhcp`, `auto6`, `on`, ...) must NOT carry a static client IP, or the kernel tries to use
+      // both and networking fails in the initramfs. For autoconf we only keep hostname + device.
+      const ifaceName = networkInterfaceName ? networkInterfaceName : 'eth0';
+      const isStaticIp = ipConfig === 'none' || ipConfig === 'off';
+      const ipParam = isStaticIp
+        ? `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${ifaceName}:${ipConfig}:${dnsServer}`
+        : `ip=::::${hostname}:${ifaceName}:${ipConfig}`;
 
-      const nfsOptions = `${
-        type === 'chroot-debootstrap' || type === 'chroot-container'
-          ? [
-              'tcp',
-              'nfsvers=3',
-              'nolock',
-              // 'protocol=tcp',
-              // 'hard=true',
-              'port=2049',
-              // 'sec=none',
-              'hard',
-              'intr',
-              'rsize=32768',
-              'wsize=32768',
-              'acregmin=0',
-              'acregmax=0',
-              'acdirmin=0',
-              'acdirmax=0',
-              'noac',
-              // 'nodev',
-              // 'nosuid',
-            ]
-          : []
-      }`;
+      const { mountd: nfsMountdPort } = UnderpostBaremetal.NFS_V3_PORTS;
+
+      // NFS root mount options. The host is configured for fixed-port NFSv3 (see rebuildNfsServer /
+      // maas-nat-firewalld.sh), so the client mount must pin `nfsvers=3` — otherwise the initramfs
+      // negotiates NFSv4 (port 2049 only) and the mount stalls/panics, dropping to (initramfs).
+      let nfsMountOptions = [];
+      if (type === 'chroot-debootstrap' || type === 'chroot-container') {
+        nfsMountOptions = [
+          'tcp',
+          'nfsvers=3',
+          'nolock',
+          'port=2049',
+          'hard',
+          'intr',
+          'rsize=32768',
+          'wsize=32768',
+          'acregmin=0',
+          'acregmax=0',
+          'acdirmin=0',
+          'acdirmax=0',
+          'noac',
+        ];
+      } else if (type === 'iso-nfs' && isDebianBased) {
+        // casper netboot live medium: pin NFSv3 over TCP and the fixed mountd port so the mount
+        // does not depend on NFSv4 or on dynamic rpcbind lookups. Keep attribute caching enabled
+        // (no `noac`) since the squashfs layers are large, read-mostly files.
+        nfsMountOptions = [
+          'nfsvers=3',
+          'tcp',
+          'nolock',
+          'port=2049',
+          'mountvers=3',
+          'mountproto=tcp',
+          `mountport=${nfsMountdPort}`,
+          'hard',
+          'intr',
+          'rsize=32768',
+          'wsize=32768',
+        ];
+      }
+      const nfsOptions = nfsMountOptions.join(',');
 
       const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${
         nfsOptions ? `,${nfsOptions}` : ''
@@ -2448,7 +2478,11 @@ fi
         cmd = [ipParam, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
         // 'iso-nfs' — Debian/Ubuntu NFS root boot: kernel/initrd from ISO, root filesystem served via NFS.
-        cmd = [ipParam, `netboot=nfs`, nfsRootParam, ...kernelParams, ...performanceParams];
+        // The Ubuntu live-server initrd is casper-based: `boot=casper` is what drives the initrd to bring
+        // up networking from `ip=`, mount `nfsroot` and locate the squashfs. Without it the generic
+        // initramfs has no root to mount and drops to the BusyBox `(initramfs)` shell.
+        const netBootParams = isDebianBased ? [`boot=casper`, `netboot=nfs`] : [`netboot=nfs`];
+        cmd = [ipParam, ...netBootParams, nfsRootParam, ...kernelParams, ...performanceParams];
       }
 
       // Add RHEL/Rocky/Fedora based images specific parameters
@@ -2762,6 +2796,19 @@ fi
     },
 
     /**
+     * @method installGrubModules
+     * @description Installs the necessary GRUB modules for both ARM64 and AMD64 architectures.
+     * This ensures that the GRUB bootloader can properly load the kernel and initrd images
+     * during the network boot process, regardless of the target architecture.
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    installGrubModules() {
+      if (!fs.existsSync('/usr/lib/grub/x86_64-efi')) shellExec(`sudo dnf install -y grub2-efi-x64-modules`);
+      if (!fs.existsSync('/usr/lib/grub/arm64-efi')) shellExec(`sudo dnf install -y grub2-efi-aa64-modules`);
+    },
+
+    /**
      * @method crossArchBinFactory
      * @description Copies the appropriate QEMU static binary into the NFS root filesystem
      * for cross-architecture execution within a chroot environment.
@@ -2786,9 +2833,6 @@ fi
           logger.warn(`Unsupported bootstrap architecture: ${bootstrapArch}`);
           break;
       }
-      // Install GRUB EFI modules for both architectures to ensure compatibility.
-      shellExec(`sudo dnf install -y grub2-efi-aa64-modules`);
-      shellExec(`sudo dnf install -y grub2-efi-x64-modules`);
     },
 
     /**
@@ -2904,9 +2948,10 @@ EOF`);
               stdout: true,
               silentOnError: true,
             });
-            const isPathMounted = typeof mountpointOut === 'string' && mountpointOut.length > 0
-              ? !mountpointOut.match('not a mountpoint') && !mountpointOut.match('No such file')
-              : false;
+            const isPathMounted =
+              typeof mountpointOut === 'string' && mountpointOut.length > 0
+                ? !mountpointOut.match('not a mountpoint') && !mountpointOut.match('No such file')
+                : false;
 
             if (isPathMounted) {
               logger.warn('Nfs path already mounted', mountPath);
@@ -2966,54 +3011,48 @@ EOF`);
 
     /**
      * @method rebuildNfsServer
-     * @description Configures and restarts the NFS server to export the specified path.
-     * This is crucial for allowing baremetal machines to boot via NFS.
+     * @description Configures NFS exports and aligns host firewall/NFS daemon ports for MAAS workflows.
      * @param {object} params - The parameters for the function.
      * @param {string} params.nfsHostPath - The path to the NFS server export.
      * @memberof UnderpostBaremetal
      * @param {string} [params.subnet='192.168.1.0/24'] - The subnet allowed to access the NFS export.
      * @param {boolean} [params.nfsReset=false] - Flag to completely reset the NFS server (restart service).
+     * @param {string} [params.underpostRoot] - Repository root used to locate helper scripts.
      * @returns {void}
      */
-    rebuildNfsServer({ nfsHostPath, subnet, nfsReset }) {
+    rebuildNfsServer({ nfsHostPath, subnet, nfsReset, underpostRoot }) {
       if (!subnet) subnet = '192.168.1.0/24'; // Default subnet if not provided.
+      if (!underpostRoot) {
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
+        underpostRoot = path.resolve(__dirname, '../..');
+      }
+
+      const maasNatFirewalldPath = path.resolve(underpostRoot, 'scripts/maas-nat-firewalld.sh');
+      const nfsPorts = UnderpostBaremetal.NFS_V3_PORTS;
+      const exportOptions = ['rw', 'sync', 'no_root_squash', 'no_subtree_check', 'insecure'].join(',');
+
+      if (!fs.existsSync(maasNatFirewalldPath)) {
+        throw new Error(`MAAS firewalld helper not found: ${maasNatFirewalldPath}`);
+      }
+
       // Write the NFS exports configuration to /etc/exports.
-      fs.writeFileSync(
-        `/etc/exports`,
-        `${nfsHostPath} ${subnet}(${[
-          'rw', // Read-write access.
-          // 'all_squash', // Squash all client UIDs/GIDs to anonymous.
-          'sync', // Synchronous writes.
-          'no_root_squash', // Do not squash root user.
-          'no_subtree_check', // Disable subtree checking.
-          'insecure', // Allow connections from non-privileged ports.
-        ]})`,
-        'utf8',
+      if (!fs.existsSync(nfsHostPath)) fs.mkdirSync(nfsHostPath, { recursive: true });
+      fs.writeFileSync(`/etc/exports`, `${nfsHostPath} ${subnet}(${exportOptions})`, 'utf8');
+
+      logger.info('Configuring MAAS firewalld and fixed NFSv3 ports...');
+      shellExec(
+        [
+          `MAAS_LAN_CIDR=${subnet}`,
+          `NFS_MODE=v3`,
+          `CONFIGURE_NFS_V3_PORTS=true`,
+          `NFS_MOUNTD_PORT=${nfsPorts.mountd}`,
+          `NFS_STATD_PORT=${nfsPorts.statd}`,
+          `NFS_STATD_OUTGOING_PORT=${nfsPorts.statdOutgoing}`,
+          `NFS_LOCKD_PORT=${nfsPorts.lockd}`,
+          `NFS_LOCKD_UDP_PORT=${nfsPorts.lockd}`,
+          `bash "${maasNatFirewalldPath}"`,
+        ].join(' '),
       );
-
-      logger.info('Writing NFS server configuration to /etc/nfs.conf...');
-      // Write NFS daemon configuration, including port settings.
-      fs.writeFileSync(
-        `/etc/nfs.conf`,
-        `[mountd]
-port = 20048
-
-[statd]
-port = 32765
-outgoing-port = 32765
-
-[nfsd]
-# Enable RDMA support if desired and hardware supports it.
-rdma=y
-rdma-port=20049
-
-[lockd]
-port = 32766
-udp-port = 32766
-`,
-        'utf8',
-      );
-      logger.info('NFS configuration written.');
 
       logger.info('Reloading NFS exports...');
       shellExec(`sudo exportfs -rav`);
@@ -3022,12 +3061,18 @@ udp-port = 32766
       logger.info('Displaying active NFS exports');
       shellExec(`sudo exportfs -s`);
 
-      // Restart the nfs-server service to apply all configuration changes,
-      // including port settings from /etc/nfs.conf and export changes.
       if (nfsReset) {
-        logger.info('Restarting nfs-server service...');
-        shellExec(`sudo systemctl restart nfs-server`);
-        logger.info('NFS server restarted.');
+        logger.info('Restarting NFS server service...');
+        let restarted = false;
+        for (const unit of ['nfs-server', 'nfs-kernel-server']) {
+          const result = shellExec(`sudo systemctl restart ${unit}`, { silentOnError: true });
+          if (result.code === 0) {
+            restarted = true;
+            logger.info(`NFS server restarted via ${unit}.`);
+            break;
+          }
+        }
+        if (!restarted) logger.warn('Unable to restart nfs-server or nfs-kernel-server after export reload.');
       }
     },
 
