@@ -1,13 +1,22 @@
 config:
-  limits.cpu: "2"
+  limits.cpu: '2'
   limits.memory: 4GB
-description: vm nat network
+  # Host-safety hardening:
+  #   boot.autostart=false  → the LXD daemon will NOT start any VM created with
+  #     this profile when the host boots. The user explicitly brings VMs up
+  #     after the host is verified healthy. Prevents a broken VM from blocking
+  #     boot via snap.lxd.daemon.
+  #   boot.host_shutdown_timeout=60 → bound the time the daemon waits for this
+  #     VM to stop when the host is going down. Prevents an unresponsive VM
+  #     from holding the host in an indefinite shutdown.
+  boot.autostart: 'false'
+  boot.host_shutdown_timeout: '60'
+description: vm nat network (host-safe defaults)
 devices:
   eth0:
     name: eth0
     network: lxdbr0
     type: nic
-    ipv4.address: 10.250.250.100
   root:
     path: /
     pool: local # lxc storage list

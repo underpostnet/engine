@@ -242,16 +242,27 @@ program
   .command('cluster')
   .argument('[pod-name]', 'Optional: Filters information by a specific pod name.')
   .option('--reset', `Deletes all clusters and prunes all related data and caches.`)
-  .option('--reset-mongodb', `Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node.`)
+  .option(
+    '--reset-mongodb',
+    `Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node.`,
+  )
   .option('--mariadb', 'Initializes the cluster with a MariaDB statefulset.')
   .option('--mysql', 'Initializes the cluster with a MySQL statefulset.')
   .option('--mongodb', 'Initializes the cluster with a MongoDB statefulset.')
-  .option('--mongo-db-host <host>', 'Set custom mongo db host')
+  .option('--service-host <host>', 'Set custom host/IP for exposed MongoDB and Valkey clients.')
   .option('--postgresql', 'Initializes the cluster with a PostgreSQL statefulset.')
   .option('--mongodb4', 'Initializes the cluster with a MongoDB 4.4 service.')
   .option('--valkey', 'Initializes the cluster with a Valkey service.')
   .option('--ipfs', 'Initializes the cluster with an ipfs-cluster statefulset.')
   .option('--contour', 'Initializes the cluster with Project Contour base HTTPProxy and Envoy.')
+  .option(
+    '--node-port',
+    'Exposes enabled ready services (e.g. MongoDB 4.4, Valkey) to the host/public network via their NodePort Service manifest.',
+  )
+  .option(
+    '--node-selector <k8s-node-name>',
+    'Pins the just-deployed StatefulSet (MongoDB 4.4 / Valkey) to the given Kubernetes node once it is ready (via a kubernetes.io/hostname nodeSelector).',
+  )
   .option('--cert-manager', "Initializes the cluster with a Let's Encrypt production ClusterIssuer.")
   .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
   .option(
@@ -282,6 +293,10 @@ program
   .option('--k3s', 'Initializes the cluster using K3s (Lightweight Kubernetes).')
   .option('--hosts <hosts>', 'A comma-separated list of cluster hostnames or IP addresses.')
   .option('--remove-volume-host-paths', 'Removes specified volume host paths after execution.')
+  .option(
+    '--reset-mode <mode>',
+    'Reset mode for --reset --k3s: "drain" (stop services, keep K3s installed) or "full" (uninstall + cleanup). Default: "full".',
+  )
   .option('--namespace <namespace>', 'Kubernetes namespace for cluster operations (defaults to "default").')
   .option('--replicas <replicas>', 'Sets a custom number of replicas for statefulset deployments.')
   .action(Underpost.cluster.init)
@@ -328,8 +343,6 @@ program
   .option('--k3s', 'Enables the k3s context for deployment operations.')
   .option('--kind', 'Enables the kind context for deployment operations.')
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
-  .option('--etc-hosts', 'Enables the etc-hosts context for deployment operations.')
-  .option('--restore-hosts', 'Restores default `/etc/hosts` entries.')
   .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
   .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
   .option('--kind-type <kind-type>', 'Specifies the Kind cluster type for deployment operations.')
@@ -675,8 +688,8 @@ program
   .option(
     '--host-aliases <host-aliases>',
     'Adds entries to the Pod /etc/hosts via hostAliases. ' +
-    'Format: semicolon-separated entries of "ip=hostname1,hostname2" ' +
-    '(e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").',
+      'Format: semicolon-separated entries of "ip=hostname1,hostname2" ' +
+      '(e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").',
   )
   .option('--copy', 'Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).')
   .option(
@@ -692,8 +705,27 @@ program
 
 program
   .command('lxd')
+  .argument(
+    '[vm-id]',
+    'VM identifier shared by current-VM flags like --vm-create, --vm-delete, --vm-init, --vm-info, and --vm-test.',
+  )
   .option('--init', 'Initializes LXD on the current machine via preseed.')
-  .option('--reset', 'SAFE complete reset: cleans all VMs (proxy devices first), profiles, networks, then removes LXD snap.')
+  .option(
+    '--reset',
+    'Host-safe reset: removes proxy devices, stops/deletes VMs, drops admin-profile and lxdbr0. Does NOT touch the LXD snap or storage pools.',
+  )
+  .option(
+    '--purge',
+    'DESTRUCTIVE: gracefully shuts down the LXD daemon (60s timeout), then removes the LXD snap. Combine with --reset to wipe per-VM state first. Safe replacement for the prior aggressive teardown.',
+  )
+  .option(
+    '--shutdown',
+    'Pre-host-reboot procedure: gracefully stops every VM and the LXD daemon. Run BEFORE any reboot/poweroff to keep the host bootable.',
+  )
+  .option(
+    '--restore',
+    'Symmetric to --shutdown: starts the LXD daemon, waits for it to be responsive, then starts every VM. VMs created via admin-profile have boot.autostart=false, so this is the explicit "bring the lab back up" command.',
+  )
   .option('--install', 'Installs the LXD snap.')
   .option('--dev', 'Use local paths instead of the global npm installation.')
   .option('--create-virtual-network', 'Creates the lxdbr0 bridge network.')
@@ -701,23 +733,40 @@ program
   .option('--create-admin-profile', 'Creates the admin-profile for VM management.')
   .option('--control', 'Initialize the target VM as a K3s control plane node.')
   .option('--worker', 'Initialize the target VM as a K3s worker node.')
-  .option('--create-vm <vm-name>', 'Copy the LXC launch command for a new K3s VM to the clipboard.')
-  .option('--delete-vm <vm-name>', 'SAFELY stop and delete VM (removes proxy devices first, then stops, then deletes). Safe to re-run.')
-  .option('--init-vm <vm-name>', 'Run k3s-node-setup.sh on the specified VM (use with --control or --worker).')
-  .option('--info-vm <vm-name>', 'Display full configuration and status for the specified VM.')
-  .option('--test <vm-name>', 'Run connectivity and health checks on the specified VM.')
-  .option('--root-size <gb-size>', 'Root disk size in GiB for --create-vm (default: 32).')
+  .option('--vm-create', 'Copy the LXC launch command for the command argument [vm-id] to the clipboard.')
+  .option(
+    '--vm-delete',
+    'SAFELY stop and delete the command argument [vm-id] (removes proxy devices first, then stops, then deletes). Safe to re-run.',
+  )
+  .option(
+    '--vm-init',
+    'Bring the command argument [vm-id] up as a K3s node end-to-end: OS base setup, mirror /home/dd/engine into the VM, then K3s role install via the local engine (use with --control or --worker).',
+  )
+  .option('--vm-info', 'Display full configuration and status for the command argument [vm-id].')
+  .option('--vm-test', 'Run connectivity and health checks on the command argument [vm-id].')
+  .option(
+    '--vm-sync-engine',
+    'Re-copy the host engine source into the command argument [vm-id], overriding whatever is currently there (equivalent to the engine-bootstrap step of --vm-init in isolation).',
+  )
+  .option('--root-size <gb-size>', 'Root disk size in GiB for --vm-create (default: 32).')
   .option(
     '--join-node <nodes>',
     'Join a K3s worker to a control plane. Standalone format: "workerName,controlName". ' +
-    'When used with --init-vm --worker, provide just the control node name for auto-join.',
+      'When used with --vm-init --worker, provide just the control node name for auto-join.',
   )
   .option('--expose <vm-name:ports>', 'Proxy host ports to a VM (e.g., "k3s-control:80,443").')
+  .option(
+    '--node-port <port>',
+    'Customizes the VM-side (connect) port for --expose, so the host listens on the given port but proxies to this NodePort inside the VM (e.g. expose host 27017 -> VM NodePort 32017).',
+  )
   .option('--delete-expose <vm-name:ports>', 'Remove proxied ports from a VM (e.g., "k3s-control:80,443").')
-  .option('--bootstrap-engine <vm-name>', 'Replicate /home/dd/engine source into the VM after init completes.')
+  .option(
+    '--copy',
+    'For two-phase flows that surface a command for the user to execute (e.g. --create-admin-profile phase 1), copy the command to the clipboard instead of printing it to the terminal.',
+  )
   .option('--namespace <namespace>', 'Kubernetes namespace context (defaults to "default").')
   .description('Manages LXD virtual machines as K3s nodes (control plane or workers).')
-  .action(Underpost.lxd.callback);
+  .action((vmId, options) => Underpost.lxd.callback(vmId, options));
 
 program
   .command('baremetal [workflow-id]')
@@ -817,7 +866,7 @@ program
   .option(
     '--ci-push <deploy-id>',
     'Local equivalent of engine-*.ci.yml: builds dd-{deploy-id} and pushes to the engine-{deploy-id} repository. ' +
-    'Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia".',
+      'Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia".',
   )
   .option(
     '--message <message>',
