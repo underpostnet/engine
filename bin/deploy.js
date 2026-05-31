@@ -1529,7 +1529,12 @@ nvidia/gpu-operator \
       break;
     }
 
-    case 'vm-cluster-env': {
+    case 'k3s-template-env': {
+      if (fs.existsSync('./engine-private/conf/dd-default')) {
+        console.log('Cleaning up existing dd-default config for VM template environment setup');
+        fs.removeSync('./engine-private/conf/dd-default');
+      }
+      shellExec(`node bin env clean`);
       shellExec(`sed -i "s/127.0.0.1/$(underpost ip --dhcp)/g" .env.example`);
       break;
     }
