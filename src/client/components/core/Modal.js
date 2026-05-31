@@ -1032,7 +1032,8 @@ class Modal {
                 searchBoxHistoryOpen();
                 searchBoxCallBack(formDataInfoNode[0]);
                 const inputEl = s(`.${inputSearchBoxId}`);
-                if (inputEl && inputEl.focus) inputEl.focus();
+                if (inputEl && inputEl.focus && !SearchBox.Data.skipFocus) inputEl.focus();
+                SearchBox.Data.skipFocus = false;
               });
 
               const timePressDelay = 100;
