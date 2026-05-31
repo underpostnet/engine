@@ -36,6 +36,7 @@ import { Worker } from './Worker.js';
 import { Scroll } from './Scroll.js';
 import { windowGetH, windowGetW } from './windowGetDimensions.js';
 import { SearchBox } from './SearchBox.js';
+import { createModalEvents } from './ClientEvents.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -93,6 +94,11 @@ const logger = loggerFactory(import.meta, { trace: true });
 /**
  * @typedef {object} ModalDataEntry
  * @property {ModalRenderOptions} options - Original render options.
+ * @property {import('./EventBus.js').EventBus} events - Per-modal event bus backing the listener channels below.
+ *
+ * The `onX` channels are EventBus-backed proxies that preserve the historical
+ * `{ [key]: listener }` map API: assign to register, read+call to invoke a single
+ * listener, `delete` to remove, and `Object.keys` to enumerate registered keys.
  * @property {Object.<string, Function>} onCloseListener - Close event listeners keyed by id.
  * @property {Object.<string, Function>} onMenuListener - Menu button event listeners.
  * @property {Object.<string, Function>} onCollapseMenuListener - Collapse menu listeners.
@@ -122,6 +128,69 @@ const logger = loggerFactory(import.meta, { trace: true });
 class Modal {
   /** @type {Object.<string, ModalDataEntry>} */
   static Data = {};
+
+  /**
+   * Bottom offset of the slide-menu area for the given options.
+   * @param {ModalRenderOptions} options
+   * @param {number} [heightDefaultBottomBar=0]
+   * @returns {number}
+   */
+  static getModalTop(options, heightDefaultBottomBar = 0) {
+    return windowGetH() - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
+  }
+
+  /**
+   * Available modal height, accounting for the top/bottom bars when the UI is expanded.
+   * @param {ModalRenderOptions} options
+   * @param {number} [heightDefaultTopBar=50]
+   * @param {number} [heightDefaultBottomBar=0]
+   * @returns {number}
+   */
+  static getModalHeight(options, heightDefaultTopBar = 50, heightDefaultBottomBar = 0) {
+    const barsVisible = s(`.main-body-btn-ui-close`) && !s(`.main-body-btn-ui-close`).classList.contains('hide');
+    return (
+      windowGetH() -
+      (barsVisible
+        ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) +
+          (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+        : 0)
+    );
+  }
+
+  /**
+   * Left CSS value for a slide menu in its open/closed state.
+   * @param {ModalRenderOptions} options
+   * @param {{ originSlideMenuWidth: number, collapseSlideMenuWidth: number }} widths
+   * @param {{ open: boolean }} [ops={ open: false }]
+   * @returns {string}
+   */
+  static getModalMenuLeftStyle(options, { originSlideMenuWidth, collapseSlideMenuWidth }, ops = { open: false }) {
+    return `${
+      options.mode === 'slide-menu-right'
+        ? `${
+            windowGetW() +
+            (ops?.open
+              ? -1 * originSlideMenuWidth +
+                (options.mode === 'slide-menu-right' && s(`.btn-icon-menu-mode-right`).classList.contains('hide')
+                  ? originSlideMenuWidth - collapseSlideMenuWidth
+                  : 0)
+              : originSlideMenuWidth)
+          }px`
+        : `-${ops?.open ? '0px' : originSlideMenuWidth}px`
+    }`;
+  }
+
+  /**
+   * Viewport-centered top/left CSS values for a modal of the given size.
+   * @param {{ width: number, height: number }} param0
+   * @returns {{ top: string, left: string }}
+   */
+  static getModalCenter({ width, height }) {
+    return {
+      top: `${windowGetH() / 2 - height / 2}px`,
+      left: `${windowGetW() / 2 - width / 2}px`,
+    };
+  }
 
   /**
    * Create or reload a modal. When the modal already exists in the DOM the
@@ -175,52 +244,21 @@ class Modal {
     const heightDefaultTopBar = 50;
     const heightDefaultBottomBar = 0;
     const idModal = options.id ? options.id : getId(this.Data, 'modal-');
+    const { bus: eventBus, channels: eventChannels } = createModalEvents();
     this.Data[idModal] = {
       options,
-      onCloseListener: {},
-      onMenuListener: {},
-      onCollapseMenuListener: {},
-      onExtendMenuListener: {},
-      onDragEndListener: {},
-      onObserverListener: {},
-      onClickListener: {},
-      onExpandUiListener: {},
-      onBarUiOpen: {},
-      onBarUiClose: {},
-      onReloadModalListener: {},
-      onHome: {},
+      events: eventBus,
+      ...eventChannels,
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
-      getTop: () => {
-        const result = windowGetH() - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
-        return result;
-      },
-      getHeight: () => {
-        return (
-          windowGetH() -
-          (s(`.main-body-btn-ui-close`) && !s(`.main-body-btn-ui-close`).classList.contains('hide')
-            ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) +
-              (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-            : 0)
-        );
-      },
+      getTop: () => Modal.getModalTop(options, heightDefaultBottomBar),
+      getHeight: () => Modal.getModalHeight(options, heightDefaultTopBar, heightDefaultBottomBar),
       getMenuLeftStyle: (ops = { open: false }) =>
-        `${
-          options.mode === 'slide-menu-right'
-            ? `${
-                windowGetW() +
-                (ops?.open
-                  ? -1 * originSlideMenuWidth +
-                    (options.mode === 'slide-menu-right' && s(`.btn-icon-menu-mode-right`).classList.contains('hide')
-                      ? originSlideMenuWidth - collapseSlideMenuWidth
-                      : 0)
-                  : originSlideMenuWidth)
-              }px`
-            : `-${ops?.open ? '0px' : originSlideMenuWidth}px`
-        }`,
+        Modal.getModalMenuLeftStyle(options, { originSlideMenuWidth, collapseSlideMenuWidth }, ops),
       center: () => {
-        top = `${windowGetH() / 2 - height / 2}px`;
-        left = `${windowGetW() / 2 - width / 2}px`;
+        const { top: centeredTop, left: centeredLeft } = Modal.getModalCenter({ width, height });
+        top = centeredTop;
+        left = centeredLeft;
       },
       ...this.Data[idModal],
     };
@@ -1029,11 +1067,14 @@ class Modal {
                 hoverFocusCtl.checkDismiss();
               };
               EventsUI.onClick(`.top-bar-search-box-container`, () => {
+                if (SearchBox.Data.skipOpen) {
+                  SearchBox.Data.skipOpen = false;
+                  return;
+                }
                 searchBoxHistoryOpen();
                 searchBoxCallBack(formDataInfoNode[0]);
                 const inputEl = s(`.${inputSearchBoxId}`);
-                if (inputEl && inputEl.focus && !SearchBox.Data.skipFocus) inputEl.focus();
-                SearchBox.Data.skipFocus = false;
+                if (inputEl && inputEl.focus) inputEl.focus();
               });
 
               const timePressDelay = 100;
@@ -2139,7 +2180,6 @@ class Modal {
     dragInstance = setDragInstance();
     if (options && options.maximize) s(`.btn-maximize-${idModal}`).click();
     if (options.observer) {
-      this.Data[idModal].onObserverListener = {};
       this.Data[idModal].observerCallBack = () => {
         // logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
         if (this.Data[idModal] && this.Data[idModal].onObserverListener)

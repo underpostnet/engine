@@ -69,6 +69,10 @@ class EventBus {
     return this.listeners.has(key);
   }
 
+  keysOf(type) {
+    return [...(this.typeKeys.get(type) ?? [])];
+  }
+
   async emit(type, detail) {
     if (!(this.typeKeys.get(type)?.size > 0)) return;
 
