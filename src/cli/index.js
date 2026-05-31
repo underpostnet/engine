@@ -700,6 +700,7 @@ program
     '--pull-bundle',
     'Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build.',
   )
+  .option('--remove', 'Remove/teardown resources')
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
 
@@ -765,6 +766,14 @@ program
     'For two-phase flows that surface a command for the user to execute (e.g. --create-admin-profile phase 1), copy the command to the clipboard instead of printing it to the terminal.',
   )
   .option('--namespace <namespace>', 'Kubernetes namespace context (defaults to "default").')
+  .option(
+    '--maas-project <project>',
+    'LXD project managed by MAAS (e.g. "k3s-cluster"). When set, all lxc commands target this project so MAAS enumerates the VMs in its machines UI.',
+  )
+  .option(
+    '--move-to-project',
+    'Stop the [vm-id] VM in the default project, move it to --maas-project, then start it so MAAS picks it up. Requires --maas-project.',
+  )
   .description('Manages LXD virtual machines as K3s nodes (control plane or workers).')
   .action((vmId, options) => Underpost.lxd.callback(vmId, options));
 

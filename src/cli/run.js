@@ -118,6 +118,7 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} copy - Whether to copy the command to the clipboard instead of executing it.
  * @property {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment (supported by: sync, template-deploy).
  * @property {boolean} pullBundle - Whether to pull the bundle before running. Use together with --skip-full-build to skip the local build entirely (supported by: sync, template-deploy).
+ * @property {boolean} remove - Whether to remove/teardown resources instead of creating them (e.g. delete-expose for k3s proxy devices in dev-cluster).
  * @memberof UnderpostRun
  */
 const DEFAULT_OPTION = {
@@ -185,6 +186,7 @@ const DEFAULT_OPTION = {
   copy: false,
   skipFullBuild: false,
   pullBundle: false,
+  remove: false,
 };
 
 /**
@@ -214,6 +216,7 @@ class UnderpostRun {
     'dev-cluster': (path, options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const mongoHosts = ['mongodb-0.mongodb-service'];
+      let primaryMongoHost = 'mongodb-0.mongodb-service';
       if (!options.expose) {
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
@@ -225,10 +228,16 @@ class UnderpostRun {
         );
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
       }
-
-      {
-        // Detect MongoDB primary pod using method
-        let primaryMongoHost = 'mongodb-0.mongodb-service';
+      if (options.k3s) {
+        if (options.remove) {
+          shellExec(`${baseCommand} lxd --delete-expose k3s-control:27017`);
+          shellExec(`${baseCommand} lxd --delete-expose k3s-control:6379`);
+        } else {
+          shellExec(`${baseCommand} lxd --expose k3s-control:27017 --node-port 32017`);
+          shellExec(`${baseCommand} lxd --expose k3s-control:6379 --node-port 32079`);
+        }
+        shellExec(`lxc config device show k3s-control`);
+      } else {
         try {
           const primaryPodName =
             MongoBootstrap.getPrimaryPodName({
@@ -250,10 +259,9 @@ class UnderpostRun {
             default: primaryMongoHost,
           });
         }
-
-        const hostListenResult = etcHostFactory([primaryMongoHost]);
-        logger.info(hostListenResult.renderHosts);
       }
+      const hostListenResult = etcHostFactory([primaryMongoHost]);
+      logger.info(hostListenResult.renderHosts);
     },
 
     /**
@@ -538,7 +546,7 @@ class UnderpostRun {
      */
     clean: (path = '', options = DEFAULT_OPTION) => {
       Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine/engine-private'] });
-      if (options.dev) shellExec(`node bin run shared-dir`);
+      if (options.dev) shellExec(`node bin run shared-dir ${path ? path : '/home/dd/engine'}`);
     },
     /**
      * @method pull
@@ -2262,11 +2270,14 @@ EOF`);
           port = parseInt(port);
           sumPortOffSet = parseInt(sumPortOffSet);
           for (const sumPort of range(0, sumPortOffSet))
-            shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`, {
-              silentOnError: true,
-            });
+            shellExec(
+              `PIDS=$(lsof -t -i:${parseInt(port) + parseInt(sumPort)}); [ -n "$PIDS" ] && sudo kill -9 $PIDS || true`,
+              {
+                silentOnError: true,
+              },
+            );
         } else
-          shellExec(`sudo kill -9 $(lsof -t -i:${_path})`, {
+          shellExec(`PIDS=$(lsof -t -i:${_path}); [ -n "$PIDS" ] && sudo kill -9 $PIDS || true`, {
             silentOnError: true,
           });
       }
@@ -2625,6 +2636,27 @@ EOF`;
           shellExec(`sudo mv ${extractedDir} ${publicDestPath}`);
         }
       }
+    },
+
+    /**
+     * @method monitor-ui
+     * @description Installs and enables the Cockpit KVM Dashboard (cockpit, cockpit-machines, libvirt)
+     * and opens the cockpit firewall service. With `--remove`, closes the firewall service instead.
+     * @param {string} path - Unused.
+     * @param {Object} options - The default underpost runner options for customizing workflow.
+     *   `options.remove` — when true, removes the cockpit firewall rule instead of adding it.
+     * @memberof UnderpostRun
+     */
+    'monitor-ui': (path, options = DEFAULT_OPTION) => {
+      if (options.remove) {
+        shellExec(`sudo firewall-cmd --zone=public --remove-service=cockpit --permanent`);
+        shellExec(`sudo firewall-cmd --reload`);
+        return;
+      }
+      shellExec(`sudo dnf install -y cockpit cockpit-machines libvirt`);
+      shellExec(`sudo systemctl enable --now cockpit.socket libvirtd`);
+      shellExec(`sudo firewall-cmd --permanent --add-service=cockpit`);
+      shellExec(`sudo firewall-cmd --reload`);
     },
 
     /**
