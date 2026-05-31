@@ -16,7 +16,7 @@
 
 <div align="center">
 
-[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![](https://data.jsdelivr.com/v1/package/npm/underpost/badge)](https://www.jsdelivr.com/package/npm/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.2.10)](https://socket.dev/npm/package/underpost/overview/3.2.10) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
+[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![](https://data.jsdelivr.com/v1/package/npm/underpost/badge)](https://www.jsdelivr.com/package/npm/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.2.11)](https://socket.dev/npm/package/underpost/overview/3.2.11) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
 
 </div>
 
@@ -90,7 +90,7 @@ npm run dev
 <a target="_top" href="https://www.nexodev.org/docs?cid=src">See Docs.</a>
 
 <!-- cli-index-start -->
-## underpost ci/cd cli v3.2.10
+## underpost ci/cd cli v3.2.11
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -124,7 +124,7 @@ Commands:
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
   ssh [options]                                              Manages SSH credentials and sessions for remote access to cluster nodes or services.
   run [options] <runner-id> [path]                           Runs specified scripts using various runners.
-  lxd [options]                                              Manages LXD virtual machines as K3s nodes (control plane or workers).
+  lxd [options] [vm-id]                                      Manages LXD virtual machines as K3s nodes (control plane or workers).
   baremetal [options] [workflow-id]                          Manages baremetal server operations, including installation, database setup, commissioning, and user management.
   release [options] [version]                                Release orchestrator for building new versions and deploying releases of the Underpost CLI.
   help [command]                                             display help for command

@@ -1,6 +1,79 @@
 # Changelog
 
-## 2026-05-26
+## 2026-05-31
+
+### deploy
+
+- Fix deployment error handling: ensure global secret cleanup only occurs if container status is not 'error' ([83ef9d8cf](https://github.com/underpostnet/engine/commit/83ef9d8cf893c8fe8c07d445b324dd864d9ad842))
+- Add Underpost integration for container status error handling in database and Valkey services ([3bbcdcf49](https://github.com/underpostnet/engine/commit/3bbcdcf49ac6445c6ea5b37d84a5ebc69102a34e))
+
+### bin-build
+
+- Prevent OnError workflow break on empty commit ([494fc93ab](https://github.com/underpostnet/engine/commit/494fc93ab9980d972e66096af5371f5a11173fb4))
+
+### cli-run
+
+- Add k3s-template-env case logic: clean up existing dd-default config and update .env.example ([90a910630](https://github.com/underpostnet/engine/commit/90a910630072fbe3143d87a9aa5a3e479a3ba6e8))
+- Add 'remove' option for resource teardown and improve MongoDB handling ([11c09deb6](https://github.com/underpostnet/engine/commit/11c09deb605138e344cbd30dad3ba446ec950345))
+- Enhance clean method: execute shared-dir script in development mode ([317806d8f](https://github.com/underpostnet/engine/commit/317806d8f9681cb768bd7a1cad87f0c86781fd23))
+- Rename setup-shared-dir method to shared-dir and remove reload-shared-dir method for clarity and simplification ([7985353cb](https://github.com/underpostnet/engine/commit/7985353cb46e5e01e0657c9abb419ddcc6691697))
+- Add exit process on error instead of returning null ([567008c3d](https://github.com/underpostnet/engine/commit/567008c3df4d53ebdab442b44726b323801ec5d3))
+
+### client-core
+
+- Add modal event handling: introduce ModalEventType, ModalListenerChannels, and createModalEvents for improved modal interactions ([d31bf3b01](https://github.com/underpostnet/engine/commit/d31bf3b0171d94f3c0d2496b19bb7001192dc1ac))
+- Fix focus handling in Auth and Modal components: prevent focus on search box when skipFocus is true ([95a42637c](https://github.com/underpostnet/engine/commit/95a42637c6bf7d3f3dd4643663f487321097c218))
+
+### bin-deploy
+
+- Add vm-cluster-env case logic ([d55b6120d](https://github.com/underpostnet/engine/commit/d55b6120d18485865a22745083743091177806b6))
+
+### release
+
+- Refactor release build process: replace file.js with build.template.js, update package.json script, and enhance repository methods for GitHub directory fetching ([05c0e1d85](https://github.com/underpostnet/engine/commit/05c0e1d85bb777b4bc071d4312ed8e6ae6dece51))
+
+### baremetal
+
+- Refactor NFS configuration: update NFSv3 ports and streamline NFS root mount options ([217c736ea](https://github.com/underpostnet/engine/commit/217c736eac25cf68d11b4f9991fc79f0e28a2639))
+- Enhance iPXE build process: track embedded script changes to ensure rebuilds when necessary ([4d9d572bf](https://github.com/underpostnet/engine/commit/4d9d572bfcfff40d0977249e96b34a474cfe582c))
+- Refactor NFS configuration and enhance GRUB module installation for baremetal provisioning ([c94dd434b](https://github.com/underpostnet/engine/commit/c94dd434bbe8792d7694744b7eb57a88256a3415))
+
+### lxd
+
+- Enhance LXD management: add support for MAAS project handling and improve command execution consistency ([0910817c5](https://github.com/underpostnet/engine/commit/0910817c55a4971860d7b363455efd1d1c13d830))
+- Refactor: reorganize LXD Management documentation for clarity and safety ([5cc554cfe](https://github.com/underpostnet/engine/commit/5cc554cfe308f28ee94c7ee3cb141ec6dd156368))
+
+### cluster
+
+- Refactor deployment and monitoring to centralize /etc/hosts management ([a10ad7da6](https://github.com/underpostnet/engine/commit/a10ad7da651085a45c0301489ccb19c92abd2ee7))
+- Add MongoDB manifests including headless service, stateful set, and storage class ([8fd1d8172](https://github.com/underpostnet/engine/commit/8fd1d817250cbebbe2812be9f382d0fc526800ee))
+
+### repository
+
+- Enhance git command execution in file storage and repository modules for improved error handling and logging ([bb008852d](https://github.com/underpostnet/engine/commit/bb008852d9b6b3c9604815a2b0e1d43aba57cc16))
+
+### engine
+
+- Update VSCode configuration: add bash-beautify extension and enhance settings for shellscript and json ([e0e3c5249](https://github.com/underpostnet/engine/commit/e0e3c524923dfcc1c73da2063a4fe7a90ed805d7))
+
+### db
+
+- Refactor MongoDB data directory cleanup logic in Kind nodes to use docker exec for reliability ([87d66f223](https://github.com/underpostnet/engine/commit/87d66f223093695b92f51ce42186e09c06109a45))
+- Refactor MongoDB cleanup logic to avoid stale bind mounts and ensure proper directory structure ([c07098e8c](https://github.com/underpostnet/engine/commit/c07098e8ce9762e3116d8705c1b7206d7ec0df6c))
+
+### cli-secrets
+
+- Add secret management command to deployment workflows ([796fddb46](https://github.com/underpostnet/engine/commit/796fddb46c3c43399de4264ed940f453fd2056e3))
+
+### cli-deploy
+
+- Fix ready monitor method to wait container runtime complete setup ([c89231a06](https://github.com/underpostnet/engine/commit/c89231a06aa5e1ce6decd6550ea5a7f9cf90dd45))
+
+### github-actions
+
+- Prevent dependabot gitleaks run ([16c2a0c1d](https://github.com/underpostnet/engine/commit/16c2a0c1d60ec8d5389288464af60b4a0fcea72d))
+
+## New release v:3.2.10 (2026-05-26)
 
 ### cli-run
 

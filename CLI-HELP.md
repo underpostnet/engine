@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.2.10
+## underpost ci/cd cli v3.2.11
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -32,7 +32,7 @@ Commands:
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
   ssh [options]                                              Manages SSH credentials and sessions for remote access to cluster nodes or services.
   run [options] <runner-id> [path]                           Runs specified scripts using various runners.
-  lxd [options]                                              Manages LXD virtual machines as K3s nodes (control plane or workers).
+  lxd [options] [vm-id]                                      Manages LXD virtual machines as K3s nodes (control plane or workers).
   baremetal [options] [workflow-id]                          Manages baremetal server operations, including installation, database setup, commissioning, and user management.
   release [options] [version]                                Release orchestrator for building new versions and deploying releases of the Underpost CLI.
   help [command]                                             display help for command
@@ -422,7 +422,8 @@ Options:
                                        statefulset.
   --mongodb                            Initializes the cluster with a MongoDB
                                        statefulset.
-  --mongo-db-host <host>               Set custom mongo db host
+  --service-host <host>                Set custom host/IP for exposed MongoDB
+                                       and Valkey clients.
   --postgresql                         Initializes the cluster with a PostgreSQL
                                        statefulset.
   --mongodb4                           Initializes the cluster with a MongoDB
@@ -433,6 +434,14 @@ Options:
                                        ipfs-cluster statefulset.
   --contour                            Initializes the cluster with Project
                                        Contour base HTTPProxy and Envoy.
+  --node-port                          Exposes enabled ready services (e.g.
+                                       MongoDB 4.4, Valkey) to the host/public
+                                       network via their NodePort Service
+                                       manifest.
+  --node-selector <k8s-node-name>      Pins the just-deployed StatefulSet
+                                       (MongoDB 4.4 / Valkey) to the given
+                                       Kubernetes node once it is ready (via a
+                                       kubernetes.io/hostname nodeSelector).
   --cert-manager                       Initializes the cluster with a Let's
                                        Encrypt production ClusterIssuer.
   --dedicated-gpu                      Initializes the cluster with dedicated
@@ -475,6 +484,10 @@ Options:
                                        hostnames or IP addresses.
   --remove-volume-host-paths           Removes specified volume host paths after
                                        execution.
+  --reset-mode <mode>                  Reset mode for --reset --k3s: "drain"
+                                       (stop services, keep K3s installed) or
+                                       "full" (uninstall + cleanup). Default:
+                                       "full".
   --namespace <namespace>              Kubernetes namespace for cluster
                                        operations (defaults to "default").
   --replicas <replicas>                Sets a custom number of replicas for
@@ -546,9 +559,6 @@ Options:
                                       operations.
   --git-clean                         Runs git clean on volume mount paths
                                       before copying.
-  --etc-hosts                         Enables the etc-hosts context for
-                                      deployment operations.
-  --restore-hosts                     Restores default `/etc/hosts` entries.
   --disable-update-underpost-config   Disables updates to Underpost
                                       configuration during deployment.
   --namespace <namespace>             Kubernetes namespace for deployment
@@ -912,7 +922,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,setup-shared-dir,reload-shared-dir.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,monitor-ui,shared-dir.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -982,6 +992,7 @@ Options:
   --copy                                          Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).
   --skip-full-build                               Skip client bundle rebuild; triggers pull-bundle in container startup (supported by: sync, template-deploy).
   --pull-bundle                                   Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build.
+  --remove                                        Remove/teardown resources
   -h, --help                                      display help for command
  
 ```
@@ -989,16 +1000,36 @@ Options:
 
 ### `lxd` :
 ```
- Usage: underpost lxd [options]
+ Usage: underpost lxd [options] [vm-id]
 
 Manages LXD virtual machines as K3s nodes (control plane or workers).
+
+Arguments:
+  vm-id                            VM identifier shared by current-VM flags like
+                                   --vm-create, --vm-delete, --vm-init,
+                                   --vm-info, and --vm-test.
 
 Options:
   --init                           Initializes LXD on the current machine via
                                    preseed.
-  --reset                          SAFE complete reset: cleans all VMs (proxy
-                                   devices first), profiles, networks, then
-                                   removes LXD snap.
+  --reset                          Host-safe reset: removes proxy devices,
+                                   stops/deletes VMs, drops admin-profile and
+                                   lxdbr0. Does NOT touch the LXD snap or
+                                   storage pools.
+  --purge                          DESTRUCTIVE: gracefully shuts down the LXD
+                                   daemon (60s timeout), then removes the LXD
+                                   snap. Combine with --reset to wipe per-VM
+                                   state first. Safe replacement for the prior
+                                   aggressive teardown.
+  --shutdown                       Pre-host-reboot procedure: gracefully stops
+                                   every VM and the LXD daemon. Run BEFORE any
+                                   reboot/poweroff to keep the host bootable.
+  --restore                        Symmetric to --shutdown: starts the LXD
+                                   daemon, waits for it to be responsive, then
+                                   starts every VM. VMs created via
+                                   admin-profile have boot.autostart=false, so
+                                   this is the explicit "bring the lab back up"
+                                   command.
   --install                        Installs the LXD snap.
   --dev                            Use local paths instead of the global npm
                                    installation.
@@ -1010,31 +1041,54 @@ Options:
                                    plane node.
   --worker                         Initialize the target VM as a K3s worker
                                    node.
-  --create-vm <vm-name>            Copy the LXC launch command for a new K3s VM
-                                   to the clipboard.
-  --delete-vm <vm-name>            SAFELY stop and delete VM (removes proxy
-                                   devices first, then stops, then deletes).
-                                   Safe to re-run.
-  --init-vm <vm-name>              Run k3s-node-setup.sh on the specified VM
-                                   (use with --control or --worker).
-  --info-vm <vm-name>              Display full configuration and status for the
-                                   specified VM.
-  --test <vm-name>                 Run connectivity and health checks on the
-                                   specified VM.
-  --root-size <gb-size>            Root disk size in GiB for --create-vm
+  --vm-create                      Copy the LXC launch command for the command
+                                   argument [vm-id] to the clipboard.
+  --vm-delete                      SAFELY stop and delete the command argument
+                                   [vm-id] (removes proxy devices first, then
+                                   stops, then deletes). Safe to re-run.
+  --vm-init                        Bring the command argument [vm-id] up as a
+                                   K3s node end-to-end: OS base setup, mirror
+                                   /home/dd/engine into the VM, then K3s role
+                                   install via the local engine (use with
+                                   --control or --worker).
+  --vm-info                        Display full configuration and status for the
+                                   command argument [vm-id].
+  --vm-test                        Run connectivity and health checks on the
+                                   command argument [vm-id].
+  --vm-sync-engine                 Re-copy the host engine source into the
+                                   command argument [vm-id], overriding whatever
+                                   is currently there (equivalent to the
+                                   engine-bootstrap step of --vm-init in
+                                   isolation).
+  --root-size <gb-size>            Root disk size in GiB for --vm-create
                                    (default: 32).
   --join-node <nodes>              Join a K3s worker to a control plane.
                                    Standalone format: "workerName,controlName".
-                                   When used with --init-vm --worker, provide
+                                   When used with --vm-init --worker, provide
                                    just the control node name for auto-join.
   --expose <vm-name:ports>         Proxy host ports to a VM (e.g.,
                                    "k3s-control:80,443").
+  --node-port <port>               Customizes the VM-side (connect) port for
+                                   --expose, so the host listens on the given
+                                   port but proxies to this NodePort inside the
+                                   VM (e.g. expose host 27017 -> VM NodePort
+                                   32017).
   --delete-expose <vm-name:ports>  Remove proxied ports from a VM (e.g.,
                                    "k3s-control:80,443").
-  --bootstrap-engine <vm-name>     Replicate /home/dd/engine source into the VM
-                                   after init completes.
+  --copy                           For two-phase flows that surface a command
+                                   for the user to execute (e.g.
+                                   --create-admin-profile phase 1), copy the
+                                   command to the clipboard instead of printing
+                                   it to the terminal.
   --namespace <namespace>          Kubernetes namespace context (defaults to
                                    "default").
+  --maas-project <project>         LXD project managed by MAAS (e.g.
+                                   "k3s-cluster"). When set, all lxc commands
+                                   target this project so MAAS enumerates the
+                                   VMs in its machines UI.
+  --move-to-project                Stop the [vm-id] VM in the default project,
+                                   move it to --maas-project, then start it so
+                                   MAAS picks it up. Requires --maas-project.
   -h, --help                       display help for command
  
 ```

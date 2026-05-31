@@ -86,7 +86,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --timeout-response 300000ms --deploy-id-cron-jobs none 'dd-lampp,1,,underpost/wp:v3.2.10'"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --timeout-response 300000ms --deploy-id-cron-jobs none 'dd-lampp,1,,underpost/wp:v3.2.11'"
   init:
     if: >-
       github.repository == 'underpostnet/engine'
@@ -121,6 +121,6 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --kubeadm --sync --build-manifest --image 'underpost/wp:v3.2.10' --versions green --replicas 1"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --kubeadm --sync --build-manifest --image 'underpost/wp:v3.2.11' --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --cert --kubeadm --disable-update-proxy"
             sudo -n -- /bin/bash -lc "node bin monitor dd-lampp production --ready-deployment --promote --versions green --replicas 1"
