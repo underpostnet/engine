@@ -4,7 +4,7 @@
 
 > **Status:** Alpha (sinks disabled by default; all values reset on reconnect).
 > **On-chain bridge:** CKY ERC-1155 token (ID 0) on Hyperledger Besu.
-> See [WHITE-PAPER.md](WHITE-PAPER.md) §7 for the bridge protocol.
+> The bridge protocol stays aligned with the project's CKY tokenomics model.
 
 ---
 

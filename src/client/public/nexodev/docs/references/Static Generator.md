@@ -52,7 +52,7 @@ When `--output-path` is provided, the server serves the directory containing the
 
 ## Config File Reference
 
-See [`static-config-example.json`](./static-config-example.json) for a complete working example.
+See `static-config-example.json` for a complete working example.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -136,7 +136,7 @@ underpost static --page <path>                  # SSR component path
 
 ## SSR Component
 
-The page content is defined in an SSR component file. See [`ssr-components/CustomPage.js`](./ssr-components/CustomPage.js) for an example.
+The page content is defined in an SSR component file. See `ssr-components/CustomPage.js` for an example.
 
 A component exports an `SrrComponent` function that returns an HTML template literal:
 

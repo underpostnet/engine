@@ -10,9 +10,9 @@
 
 **Path:** `cyberia-server/` · **Language:** Go · **Role:** authoritative simulation runtime for Cyberia
 
-`cyberia-server` is the authoritative simulation runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It owns world state, advances a fixed-rate tick, drains typed input commands from connected clients, and dispatches AOI-filtered snapshots on a separately-paced replication tick.
+`cyberia-server` is the authoritative simulation runtime for the Cyberia MMO extension on Underpost Platform. It owns world state, advances a fixed-rate tick, drains typed input commands from connected clients, and dispatches AOI-filtered snapshots on a separately-paced replication tick.
 
-It is **not** the content authority. World content is loaded from [engine-cyberia](UNDERPOST-PLATFORM.md) over gRPC. It is **not** the render-policy authority. Presentation is owned by [cyberia-client](CYBERIA-CLIENT.md).
+It is **not** the content authority. World content is loaded from `engine-cyberia` over gRPC. It is **not** the render-policy authority. Presentation is owned by `cyberia-client`.
 
 ---
 
@@ -31,7 +31,6 @@ gRPC + REST                     tick + AOI + snapshots         render + predicti
 
 - Each service is supervised independently and owns its own monitor and reconnector.
 - `cyberia-server` loads world configuration from `engine-cyberia` and does not fabricate a world.
-- Dependency is handled by supervision and reconnect loops, not by documenting the runtime as a strict one-shot startup chain.
 - If any one of the three services is unhealthy, the game moves to standby until all three recover.
 
 The server speaks two protocols:
@@ -170,7 +169,7 @@ World configuration is loaded once at boot from engine-cyberia via gRPC `GetFull
 | `equipmentRules`                                                     | item activation constraints (one-per-type, requireSkin, activeItemTypes)          |
 | `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
 
-World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. See [Presentation metadata ownership](#presentation-metadata-ownership).
+World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. Presentation metadata ownership is described in the next section.
 
 Hot reload of ObjectLayers is supported via periodic `GetObjectLayerManifest` calls; world topology and gameplay rules are reloaded only on server restart.
 
@@ -187,7 +186,7 @@ Hot reload of ObjectLayers is supported via periodic `GetObjectLayerManifest` ca
 - screen-factor overrides
 - interpolation window
 
-These live in [cyberia-client](CYBERIA-CLIENT.md)'s compile-time defaults. Per-instance presentation overrides are served by engine-cyberia at `GET /api/cyberia-client-hints/:instanceCode` and consumed directly by the client. The Go process never calls that endpoint.
+These live in the client runtime's compile-time defaults. Per-instance presentation overrides are served by engine-cyberia at `GET /api/cyberia-client-hints/:instanceCode` and consumed directly by the client. The Go process never calls that endpoint.
 
 ### `sim_palette.go`
 

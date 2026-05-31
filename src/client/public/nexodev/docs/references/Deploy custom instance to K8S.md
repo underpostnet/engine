@@ -206,7 +206,7 @@ Resolution rules:
 
 Use `Always` when the image tag is mutable (e.g. `:latest` or a moving CI tag) so kubelet re-pulls on every pod rollout. Use `IfNotPresent` for immutable, version-pinned tags (recommended default for production). Use `Never` for images already side-loaded into the node (`kind load docker-image …` or `crictl load`).
 
-> The `imagePullPolicy` key is **only** recognised inside the lifecycle block by the instance runners — it is not part of the K8S `lifecycle` schema, and putting it anywhere else in the instance config has no effect. The same `--image-pull-policy` flag is accepted by `node bin run sync` and `node bin deploy --build-manifest` for non-instance deploys (see [Main cluster lifecycle commands → Sync](./Main%20cluster%20lifecycle%20commands.md#sync)).
+> The `imagePullPolicy` key is **only** recognised inside the lifecycle block by the instance runners — it is not part of the K8S `lifecycle` schema, and putting it anywhere else in the instance config has no effect. The same `--image-pull-policy` flag is accepted by `node bin run sync` and `node bin deploy --build-manifest` for non-instance deploys (see Main cluster lifecycle commands → Sync).
 
 ## Core Commands
 
@@ -693,8 +693,8 @@ Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet r
 <!--
 ## See Also
 
-- [Cluster Management](./cluster-management.md)
-- [Deploy Command Reference](./deploy-reference.md)
-- [Volume Management](./volume-management.md)
-- [SSL/TLS Configuration](./tls-configuration.md)
+- Cluster Management
+- Deploy Command Reference
+- Volume Management
+- SSL/TLS Configuration
 -->

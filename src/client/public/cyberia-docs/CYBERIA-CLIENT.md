@@ -10,9 +10,9 @@
 
 **Path:** `cyberia-client/` · **Language:** C11/GNU11 → WebAssembly (Emscripten) · **Role:** presentation runtime for Cyberia
 
-`cyberia-client` is the rendering and interactive runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It captures input, predicts the local player, reconciles against authoritative snapshots, interpolates remote entities, and renders the world. It owns the render policy locally.
+`cyberia-client` is the rendering and interactive runtime for the Cyberia MMO extension on Underpost Platform. It captures input, predicts the local player, reconciles against authoritative snapshots, interpolates remote entities, and renders the world. It owns the render policy locally.
 
-It is **not** a world-simulation authority. The authoritative simulation runs on [cyberia-server](CYBERIA-SERVER.md). Persistent content and asset metadata come from [engine-cyberia](UNDERPOST-PLATFORM.md) via REST.
+It is **not** a world-simulation authority. The authoritative simulation runs on `cyberia-server`. Persistent content and asset metadata come from `engine-cyberia` via REST.
 
 ---
 
@@ -32,7 +32,6 @@ content authority       simulation authority    presentation runtime
 
 - Each service owns its own monitor and reconnector.
 - The client reconnects to `cyberia-server` over WebSocket and fetches content from `engine-cyberia` over REST.
-- Dependency is real, but operationally it is handled by reconnectors and health checks rather than by treating the runtime as a strict startup chain.
 - If any of the three services is unhealthy, the game moves to standby until all three recover.
 
 The client speaks two transports:
@@ -246,7 +245,7 @@ make -f Web.mk clean && make -f Web.mk web BUILD_MODE=RELEASE
 make -f Web.mk serve-development
 ```
 
-The build is part of the Underpost Platform [static + PWA pipeline](UNDERPOST-PLATFORM.md#what-underpost-platform-covers); production deploys go through `underpost client` and `underpost deploy`.
+The build is part of the Underpost Platform static + PWA pipeline; production deploys go through `underpost client` and `underpost deploy`.
 
 ### Output
 
@@ -290,12 +289,3 @@ For local development, point `WS_URL` and `API_BASE_URL` at `localhost` before r
 - Cached ObjectLayer metadata (session warm-up cache).
 
 No game state is persisted client-side; the authoritative server is the source of truth.
-
----
-
-## Cross-references
-
-- [Underpost Platform](UNDERPOST-PLATFORM.md) — umbrella product, static + PWA + Workbox + Cloudinary delivery.
-- [Architecture](ARCHITECTURE.md) — three-process model, canonical vocabulary.
-- [Cyberia Server](CYBERIA-SERVER.md) — authoritative simulation runtime.
-- [Cyberia CLI](CYBERIA-CLI.md) — Cyberia-specific CLI extensions to Underpost CLI.

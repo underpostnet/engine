@@ -1,16 +1,15 @@
 # Getting started
 
-Start with the smallest possible map of the project:
+Start with the smallest possible mental model of the project:
 
-1. Toolchain and base infrastructure: [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md)
-2. PWA workflow: [PWA and SSR Views](PWA and SSR Views.md)
-3. Cyberia MMO extension: [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md)
+1. Underpost Platform owns the toolchain, deploy surface, and operational infrastructure.
+2. The PWA layer owns SSR views, fallback shells, and service-worker generation.
+3. Cyberia adds a three-service MMO runtime on top: `engine-cyberia`, `cyberia-server`, and `cyberia-client`.
 
-If you are working directly on the MMO stack, continue with:
+If you are working directly on the MMO stack, keep the command split clear:
 
-4. [CYBERIA-CLI.md](../../cyberia-docs/CYBERIA-CLI.md)
-5. [CYBERIA-SERVER.md](../../cyberia-docs/CYBERIA-SERVER.md)
-6. [CYBERIA-CLIENT.md](../../cyberia-docs/CYBERIA-CLIENT.md)
+- use `underpost` for platform, build, deploy, and operations
+- use `cyberia` for content, instance, chain, and presentation-hint workflows
 
 ---
 
@@ -23,13 +22,16 @@ If you are working directly on the MMO stack, continue with:
 
 The base local app runs on `http://localhost:4001` after bootstrap.
 
+Split local development is also available through `npm run dev:api ...` and `npm run dev:client ...`
+when you want the API and client in separate processes.
+
 ---
 
 ## What belongs where
 
 - Use `underpost` for platform, infrastructure, build, deploy, and operational workflows.
 - Use `cyberia` for Cyberia-specific content and MMO workflows.
-- Use the Cyberia architecture docs for service boundaries and runtime behavior.
+- Keep service ownership strict: `engine-cyberia` for content/data, `cyberia-server` for authoritative simulation, `cyberia-client` for presentation.
 
 ---
 
@@ -38,12 +40,3 @@ The base local app runs on `http://localhost:4001` after bootstrap.
 - `engine-private/` is private. Treat it as an external/private dependency and never assume its contents exist locally.
 - Generated assets and build output are outputs only; do not hand-edit them.
 - Host-level changes must be explicit, idempotent, reversible, and safe to rerun.
-
----
-
-## Read for depth
-
-- [Command Line Interface](Command Line Interface.md)
-- [PWA and SSR Views](PWA and SSR Views.md)
-- [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md)
-- [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md)

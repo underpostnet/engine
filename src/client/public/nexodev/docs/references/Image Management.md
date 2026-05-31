@@ -662,4 +662,4 @@ The Underpost Image CLI provides a unified interface for managing Docker/Podman 
 - **List and manage** images across clusters
 - **Save images** as tar archives for backup and distribution
 
-For deployment workflows and Kubernetes integration, refer to the [Deploy to K8S Guide](./Deploy%20to%20K8S.md).
+For deployment workflows and Kubernetes integration, refer to the Deploy to K8S Guide.

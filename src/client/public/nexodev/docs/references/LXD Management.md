@@ -86,7 +86,7 @@ underpost lxd --restore
 
 ### Admin profile hardening
 
-[`manifests/lxd/lxd-admin-profile.yaml`](../../../../../manifests/lxd/lxd-admin-profile.yaml) enforces two host-safety defaults on every VM created with this profile:
+`manifests/lxd/lxd-admin-profile.yaml` enforces two host-safety defaults on every VM created with this profile:
 
 | Key                          | Value   | Why                                                                                                                                                                                                                 |
 | ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -105,10 +105,10 @@ The profile attaches each VM to the managed `lxdbr0` bridge as `eth0`, but it do
 
 ### Centralized K3s teardown on every destructive op
 
-There is exactly **one** K3s teardown implementation in the repo: `safeResetK3s` in [`src/cli/cluster.js`](../../../../../src/cli/cluster.js). It runs in two contexts:
+There is exactly **one** K3s teardown implementation in the repo: `safeResetK3s` in `src/cli/cluster.js`. It runs in two contexts:
 
 - **Physical host / bare-metal**: invoked directly as `node bin cluster --dev --reset --k3s [--reset-mode=…]`.
-- **Inside an LXD VM**: invoked via `lxc exec <vm> -- bash -lc 'cd /home/dd/engine && node bin cluster --dev --reset --k3s --reset-mode=…'`, driven by `_resetK3sInVm` in [`src/cli/lxd.js`](../../../../../src/cli/lxd.js).
+- **Inside an LXD VM**: invoked via `lxc exec <vm> -- bash -lc 'cd /home/dd/engine && node bin cluster --dev --reset --k3s --reset-mode=…'`, driven by `_resetK3sInVm` in `src/cli/lxd.js`.
 
 LXD's destructive ops never reimplement K3s teardown — they probe each VM for K3s + engine, then delegate to the centralized method via `lxc exec`. One implementation to keep correct, two ways to invoke it.
 
@@ -255,7 +255,7 @@ underpost lxd --create-admin-profile --copy
 `lxc profile create` can hang in some snap/AppArmor configurations when invoked from a non-interactive child process. To sidestep that class of failure entirely:
 
 - **Phase 1** (profile absent): the CLI prints `lxc profile create admin-profile` to your terminal so you can read and run it directly. Pass `--copy` to put it on the clipboard instead.
-- **Phase 2** (profile present): the CLI loads [`manifests/lxd/lxd-admin-profile.yaml`](../../../../../manifests/lxd/lxd-admin-profile.yaml) into the existing profile, which is where the host-safety hardening lives.
+- **Phase 2** (profile present): the CLI loads `manifests/lxd/lxd-admin-profile.yaml` into the existing profile, which is where the host-safety hardening lives.
 
 ---
 
@@ -314,10 +314,10 @@ Runs connectivity and health checks on the specified VM.
 
 `--vm-init` is the single end-to-end entry point. It runs the following inside the VM identified by the `[vm-id]` command argument, in order:
 
-1. [`scripts/lxd-vm-setup.sh`](../../../../../scripts/lxd-vm-setup.sh) — OS base setup (NIC + DHCP with static fallback, DNS, root resize, `tar`/`jq`/`curl`/`epel`, `br_netfilter`). Fails closed if outbound connectivity is unreachable.
+1. `scripts/lxd-vm-setup.sh` — OS base setup (NIC + DHCP with static fallback, DNS, root resize, `tar`/`jq`/`curl`/`epel`, `br_netfilter`). Fails closed if outbound connectivity is unreachable.
    The Rocky bootstrap uses a MAC-based DHCP client ID so LXD managed bridge leases behave correctly, and only falls back to a manual IPv4 config if DHCP still does not settle.
 2. Engine bootstrap — mirrors the host `/home/dd/engine` (and `engine-private/` if present) into the VM at `/home/dd/engine`. Respects `.gitignore`.
-3. [`scripts/k3s-node-setup.sh`](../../../../../scripts/k3s-node-setup.sh) — installs Node.js via nvm and drives the K3s install **only** through `node bin ...` from the mirrored engine root. No global `underpost` is installed.
+3. `scripts/k3s-node-setup.sh` — installs Node.js via nvm and drives the K3s install **only** through `node bin ...` from the mirrored engine root. No global `underpost` is installed.
 
 ### Control Plane Node
 

@@ -2,7 +2,7 @@
 
 This document covers the PWA workflow only: how SSR views are declared, how fallback shells are generated, and how the service worker behaves at runtime.
 
-For platform scope, see [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md). For the Cyberia MMO runtime, see [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md).
+Keep this page scoped to authored PWA inputs and generated PWA outputs.
 
 ---
 
@@ -17,6 +17,12 @@ Everything else is generated from those inputs during the client build.
 
 Do not hand-edit generated `index.html` files, `sw.js`, or precache output.
 
+```text
+conf.dd-*.js / conf.ssr.json    +    src/client/sw/core.sw.js
+			   │
+			   └──── underpost client / build ────▶ generated HTML shells + sw.js + precache list
+```
+
 ---
 
 ## Build flow
@@ -27,6 +33,8 @@ Do not hand-edit generated `index.html` files, `sw.js`, or precache output.
 4. Emit static pages plus a generated service worker payload for that deploy.
 
 The important rule is that view configuration drives both server-rendered output and offline behavior. There should be one source of truth for routes, titles, fallback shells, host/path resolution, and precache targets.
+
+The normal entrypoint is `underpost client`; repo-local wrappers may call the same pipeline, but the authored inputs do not change.
 
 ---
 
@@ -86,12 +94,3 @@ The Cyberia client is delivered through this PWA pipeline, but PWA readiness is 
 - Do not duplicate path normalization or env resolution logic across build steps.
 - Treat generated PWA artifacts as outputs only.
 - Keep any host-level orchestration change idempotent, reversible, and safe to rerun.
-
----
-
-## Related docs
-
-- [Getting started](Getting started.md)
-- [Command Line Interface](Command Line Interface.md)
-- [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md)
-- [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md)

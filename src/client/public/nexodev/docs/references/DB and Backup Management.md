@@ -579,4 +579,4 @@ This ensures that **no plaintext secret ever appears** in source-controlled JS f
 - `underpost metadata --import`: Import cluster metadata
 - `kubectl get pods -n <namespace>`: List available pods
 
-For more information, refer to the [CLI Reference Guide](./CLI%20Reference%20Guide.md).
+For more information, refer to the CLI Reference Guide.

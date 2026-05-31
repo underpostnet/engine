@@ -7,12 +7,6 @@ Cyberia is the MMO extension that runs on top of Underpost Platform. Keep the mo
 - `cyberia-server` is the authoritative simulation.
 - `cyberia-client` is the presentation runtime.
 
-Read this area in this order:
-
-1. [Underpost Platform](UNDERPOST-PLATFORM.md)
-2. [PWA and SSR Views](../nexodev/docs/references/PWA and SSR Views.md)
-3. [CYBERIA-SERVER.md](CYBERIA-SERVER.md), [CYBERIA-CLIENT.md](CYBERIA-CLIENT.md), [CYBERIA-CLI.md](CYBERIA-CLI.md)
-
 ---
 
 ## System map
@@ -32,21 +26,6 @@ cyberia-server (Go)
 cyberia-client (C/WASM)
   -> rendering, input, prediction, presentation
 ```
-
----
-
-## Runtime model
-
-Do not describe the system as a one-shot sequential chain.
-
-The real operating model is:
-
-- The ecosystem is fully operational only when all three Cyberia services are running in parallel and healthy.
-- Each service has its own monitor and reconnector.
-- The game is playable only when `engine-cyberia`, `cyberia-server`, and `cyberia-client` are operational at the same time.
-- If any one of the three fails, the game goes to standby until all three are healthy again.
-
-Dependency still matters, but it is handled by supervision and reconnect loops instead of a documentation model built around strict manual startup order.
 
 ---
 
@@ -90,7 +69,6 @@ There is one source of truth per concern:
 - Reuse existing helpers and conventions instead of creating parallel implementations.
 - Do not duplicate parsing, env resolution, or path normalization logic across modules.
 - Treat generated artifacts as outputs only; never hand-edit them.
-- `engine-private/` is a private external dependency. Reference it as private input only; never assume its contents exist locally.
 
 ---
 
@@ -103,12 +81,3 @@ There is one source of truth per concern:
 | `standby`  | gameplay is paused because the full three-service set is not healthy |
 
 This is the model to document, operate, and monitor against.
-
----
-
-## Related docs
-
-- [UNDERPOST-PLATFORM.md](UNDERPOST-PLATFORM.md)
-- [CYBERIA-SERVER.md](CYBERIA-SERVER.md)
-- [CYBERIA-CLIENT.md](CYBERIA-CLIENT.md)
-- [CYBERIA-CLI.md](CYBERIA-CLI.md)

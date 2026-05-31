@@ -204,7 +204,8 @@ npm run dev:proxy
 | `prod:container` | Starts the server in production mode inside a container (`NODE_ENV=production node src/server`) |
 | `dev:proxy`      | Starts an Express proxy server for development (`NODE_ENV=development node src/proxy proxy`)    |
 
-See also: [Running Separate Client and API Servers for Development](Running%20Separate%20Client%20and%20API%20Servers%20for%20Development.md) for the `dev:api` and `dev:client` scripts.
+For split local development, `npm run dev:api` and `npm run dev:client` start the API and client as
+separate processes.
 
 ---
 
@@ -525,17 +526,17 @@ node bin run sync dd-core --kubeadm --image-pull-policy Always
 
 Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/deploy/dd.router`.
 
-| Option                              | Description                                                                                                                                                  |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--dev`                             | Development mode (uses Kind cluster and `--etc-hosts`)                                                                                                       |
-| `--kind` / `--kubeadm` / `--k3s`    | Cluster type                                                                                                                                                 |
-| `--namespace <name>`                | Kubernetes namespace (default: `default`)                                                                                                                    |
-| `--replicas <n>`                    | Number of replicas                                                                                                                                           |
-| `--deploy-id-cron-jobs <deploy-id>` | Deploy ID for cron job synchronization (set to `none` to skip)                                                                                               |
-| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution                                                                                                                    |
-| `--create-job-now`                  | Create immediate Job from each CronJob after applying                                                                                                        |
-| `--timezone <tz>`                   | Set timezone for the deployment                                                                                                                              |
-| `--disable-private-conf-update`     | Prevent private configuration updates during execution                                                                                                       |
+| Option                              | Description                                                                                                                                                                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dev`                             | Development mode (uses Kind cluster and `--etc-hosts`)                                                                                                                                                                                                                    |
+| `--kind` / `--kubeadm` / `--k3s`    | Cluster type                                                                                                                                                                                                                                                              |
+| `--namespace <name>`                | Kubernetes namespace (default: `default`)                                                                                                                                                                                                                                 |
+| `--replicas <n>`                    | Number of replicas                                                                                                                                                                                                                                                        |
+| `--deploy-id-cron-jobs <deploy-id>` | Deploy ID for cron job synchronization (set to `none` to skip)                                                                                                                                                                                                            |
+| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution                                                                                                                                                                                                                                 |
+| `--create-job-now`                  | Create immediate Job from each CronJob after applying                                                                                                                                                                                                                     |
+| `--timezone <tz>`                   | Set timezone for the deployment                                                                                                                                                                                                                                           |
+| `--disable-private-conf-update`     | Prevent private configuration updates during execution                                                                                                                                                                                                                    |
 | `--image-pull-policy <policy>`      | Override container `imagePullPolicy` in the generated `deployment.yaml` (`Always`, `IfNotPresent`, `Never`). Defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise. Forwarded to `deploy --build-manifest` and the subsequent `switchTraffic` rebuild. |
 
 ---
@@ -621,18 +622,18 @@ When an instance config (`conf.instances.json`) declares `runtime: "<name>"`, `n
 
 `Dockerfile.dev` is a full Dockerfile — not an overlay. Each runtime owns the contract between its dev image and its prod image (debug build flags, extra tooling, default ports, etc.). The Cyberia stack ships two reference variants:
 
-| Runtime          | Dev variant tweaks                                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `cyberia-server` | Go build with `-gcflags="all=-N -l"` (debugger-friendly), runtime image keeps `procps-ng`, `strace`, `lsof`, `vim-minimal` |
+| Runtime          | Dev variant tweaks                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `cyberia-server` | Go build with `-gcflags="all=-N -l"` (debugger-friendly), runtime image keeps `procps-ng`, `strace`, `lsof`, `vim-minimal`      |
 | `cyberia-client` | Emscripten WASM build with `BUILD_MODE=DEBUG` (DWARF symbols, asserts), default `CYBERIA_PORT=8082`, `CYBERIA_MODE=development` |
 
-See [Deploy custom instance to K8S](./Deploy%20custom%20instance%20to%20K8S.md#runtime-field-and-dockerfile-resolution) for the full contract.
+See Deploy custom instance to K8S for the full contract.
 
 ---
 
 ## Process execution model (`shellExec` / `shellCd`)
 
-The CLI executes shell commands through [`src/server/process.js`](../../../../server/process.js). The module ships a backward-compatible, hardened wrapper around `shelljs.exec` plus a process-wide signal-forwarding controller. Code paths that need deterministic CI behavior should opt into the strict modes.
+The CLI executes shell commands through `src/server/process.js`. The module ships a backward-compatible, hardened wrapper around `shelljs.exec` plus a process-wide signal-forwarding controller. Code paths that need deterministic CI behavior should opt into the strict modes.
 
 ### `shellExec(cmd, options)`
 
@@ -660,15 +661,15 @@ if (packerCheck.code !== 0) {
 }
 ```
 
-| Option              | Type      | Behaviour                                                                                |
-| ------------------- | --------- | ---------------------------------------------------------------------------------------- |
-| `silent`            | boolean   | Suppress child stdout/stderr to the parent terminal.                                     |
-| `async`             | boolean   | Run asynchronously. Use with a `callback`.                                               |
-| `stdout`            | boolean   | Return the captured stdout string instead of the `ShellString` result object.            |
-| `disableLog`        | boolean   | Skip the `[process] cmd …` info log line.                                                |
-| `callback`          | function  | Async callback `(code, stdout, stderr) => void` when `async: true`. Bypasses fail-fast — the callback owns its own error handling. |
-| **`silentOnError`** | boolean   | Opt OUT of the fail-fast default. Non-zero exit returns the `ShellString` instead of throwing. Use for existence checks (`test`, `which`, `kubectl get` when missing is a valid state). |
-| **`cwd`**           | string    | Run the command in this directory. Snapshot + restore — does NOT leak into the process.  |
+| Option              | Type     | Behaviour                                                                                                                                                                               |
+| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `silent`            | boolean  | Suppress child stdout/stderr to the parent terminal.                                                                                                                                    |
+| `async`             | boolean  | Run asynchronously. Use with a `callback`.                                                                                                                                              |
+| `stdout`            | boolean  | Return the captured stdout string instead of the `ShellString` result object.                                                                                                           |
+| `disableLog`        | boolean  | Skip the `[process] cmd …` info log line.                                                                                                                                               |
+| `callback`          | function | Async callback `(code, stdout, stderr) => void` when `async: true`. Bypasses fail-fast — the callback owns its own error handling.                                                      |
+| **`silentOnError`** | boolean  | Opt OUT of the fail-fast default. Non-zero exit returns the `ShellString` instead of throwing. Use for existence checks (`test`, `which`, `kubectl get` when missing is a valid state). |
+| **`cwd`**           | string   | Run the command in this directory. Snapshot + restore — does NOT leak into the process.                                                                                                 |
 
 ### `ShellExecError`
 
@@ -702,13 +703,13 @@ Runtime processes own their own lifecycle. **No process orchestrated by `underpo
 
 ### Lifecycle event model
 
-| Event                 | Where it happens                                           | What observes it                                                                                          |
-| --------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **start**             | Container starts                                           | `lifecycle.postStart.exec` (K8S native) — stamps `…-initializing-deployment`                              |
-| **runtime ready**     | Listening socket binds inside the runtime process          | `readinessProbe` (TCP socket) in the deployment YAML — K8S marks pod `Ready: True`                        |
-| **runtime crash**    | Runtime exits non-zero or panics                            | K8S CrashLoopBackOff. The pod's Ready condition stays `False`; the orchestrator never marks it running.   |
-| **terminate**         | K8S sends SIGTERM (scale-down, rolling update, evict)      | `lifecycle.preStop.exec` (K8S native) — stamps `…-stopping-deployment`                                    |
-| **orchestrator gate** | `Underpost.deploy.checkDeploymentReadyStatus`              | Reads `status.conditions[type=Ready].status == "True"` via `kubectl get pod -o json`                      |
+| Event                 | Where it happens                                      | What observes it                                                                                        |
+| --------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **start**             | Container starts                                      | `lifecycle.postStart.exec` (K8S native) — stamps `…-initializing-deployment`                            |
+| **runtime ready**     | Listening socket binds inside the runtime process     | `readinessProbe` (TCP socket) in the deployment YAML — K8S marks pod `Ready: True`                      |
+| **runtime crash**     | Runtime exits non-zero or panics                      | K8S CrashLoopBackOff. The pod's Ready condition stays `False`; the orchestrator never marks it running. |
+| **terminate**         | K8S sends SIGTERM (scale-down, rolling update, evict) | `lifecycle.preStop.exec` (K8S native) — stamps `…-stopping-deployment`                                  |
+| **orchestrator gate** | `Underpost.deploy.checkDeploymentReadyStatus`         | Reads `status.conditions[type=Ready].status == "True"` via `kubectl get pod -o json`                    |
 
 The result:
 
