@@ -64,9 +64,9 @@ if (process.argv.includes('conf')) {
     }
     shellExec(
       `cd ../${privateRepoName}` +
-      ` && git add .` +
-      ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
-      ` && underpost push . ${privateGitUri}`,
+        ` && git add .` +
+        ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
+        ` && underpost push . ${privateGitUri}`,
       {
         silent: true,
       },
@@ -163,11 +163,13 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         `./.github/workflows/publish.cyberia.ci.yml`,
         `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
       );
-      delete packageJson.bin.underpost;
+      if (packageJson.bin) delete packageJson.bin.underpost;
+      if (!packageJson.bin) packageJson.bin = {};
       packageJson.bin.cyberia = 'bin/index.js';
       packageJson.keywords = [
         'cyberia',
         'cyberia-cli',
+        'engine-cyberia',
         'sidecar',
         'data-layer',
         'engine-cyberia',
@@ -181,7 +183,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         'blockchain',
         'web3',
         'underpost-platform',
-        'mmo-extension',
+        'mmorpg',
       ];
       packageJson.description =
         'Cyberia CLI — toolchain for the Cyberia MMO data layer, content pipeline, persistence, gRPC services, and ERC-1155 lifecycle on Hyperledger Besu.';
@@ -213,7 +215,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/runtime/cyberia-client',
         '/.github/workflows/hardhat.ci.yml',
         '/src/client/public/cyberia-docs',
-        '/src/api/cyberia-server-defaults'
+        '/src/api/cyberia-server-defaults',
       ])
         fs.copySync(`.${path}`, `${basePath}${path}`);
 

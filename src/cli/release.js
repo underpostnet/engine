@@ -13,6 +13,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
+import { Dns } from '../server/dns.js';
 import { loggerFactory } from '../server/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
@@ -76,10 +77,7 @@ const buildVersionBumpTargets = () => [
   {
     dir: 'src/client/public/cyberia-docs',
     match: /\.md$/,
-    patterns: [
-      /(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g,
-      /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
-    ],
+    patterns: [/(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g, /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g],
     recursive: true,
   },
   {
@@ -99,10 +97,7 @@ const buildVersionBumpTargets = () => [
   {
     dir: 'manifests/deployment',
     match: /deployment\.yaml$/,
-    patterns: [
-      /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
-      /(engine\.version: )\d+\.\d+\.\d+/g,
-    ],
+    patterns: [/(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g, /(engine\.version: )\d+\.\d+\.\d+/g],
     recursive: true,
   },
   {
@@ -240,13 +235,72 @@ const printBumpReport = (report, { dryRun }) => {
  * (e.g. overwriting package.json). Skips VSCode internals and the current process.
  */
 function killDevServers() {
-  // shellExec(
-  //   `kill -9 $(pgrep -f 'nodemon|node.*src/server|node.*dev' | grep -v '^${process.pid}$') 2>/dev/null || true`,
-  // );
-  shellExec(`node bin run kill 4001`);
-  shellExec(`node bin run kill 4002`);
-  shellExec(`node bin run kill 4003`);
-  shellExec(`node bin run kill 3000`);
+  for (const port of [4001, 4002, 4003, 3000]) shellExec(`node bin run kill ${port}`);
+}
+
+const TEMPLATE_PATH = '../pwa-microservices-template';
+
+/**
+ * Runs a command in an ISOLATED environment. `release build` loads the engine's
+ * `dd-cron/.env.production` (DEPLOY_ID=dd-cron, DB creds, secrets, …) into its own `process.env`,
+ * which `shellExec` children would otherwise inherit — and the template's `dotenv.config()` runs
+ * without override, so it could never reclaim those keys. `env -i` starts the child with an empty
+ * environment; only PATH/HOME-class essentials are re-added so node/npm/git still resolve. The
+ * template then reads only its own `.env`, resolving `dd-default` exactly like a fresh clone.
+ */
+const ISOLATED_ENV = 'env -i HOME="$HOME" PATH="$PATH" USER="$USER" LOGNAME="$LOGNAME" TERM="$TERM" LANG="$LANG"';
+
+/**
+ * Builds the pwa-microservices-template from scratch and smoke-tests its default workflow.
+ *
+ * 1. Cleans the engine, pulls latest, and rebuilds the template via `bin/build.template`.
+ * 2. Derives `.env` + `.env.example` from the template `.env.example` (DHCP host IP + file
+ *    logs), both written from the same `dd-default` content so the default startup workflow
+ *    bootstraps `engine-private` from scratch out of them. `.env` is rewritten because it is
+ *    gitignored (git clean never removes it) and may otherwise hold a stale `dd-cron`.
+ * 3. Installs deps, then builds + runs the template `dev` server in an ISOLATED env
+ *    (see `ISOLATED_ENV`) so it resolves `dd-default` like a fresh clone, and asserts the
+ *    startup log is error-free.
+ *
+ * @returns {boolean} true when the template started cleanly, false otherwise.
+ */
+async function buildAndTestTemplate() {
+  killDevServers();
+  Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
+  shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
+  shellExec(`npm run update:template`);
+  shellExec(`node bin run shared-dir ${TEMPLATE_PATH}`);
+
+  const dhcpHostIp = Dns.getLocalIPv4Address();
+  logger.info(`DHCP host IP for template test: ${dhcpHostIp}`);
+  let envContent = fs.readFileSync(`${TEMPLATE_PATH}/.env.example`, 'utf8');
+  if (dhcpHostIp) envContent = envContent.replace(/127\.0\.0\.1/g, dhcpHostIp);
+  envContent = envContent.replace(/^ENABLE_FILE_LOGS=.*/m, 'ENABLE_FILE_LOGS=true');
+  // fs.writeFileSync(`${TEMPLATE_PATH}/.env`, envContent, 'utf8');
+  fs.writeFileSync(`${TEMPLATE_PATH}/.env.example`, envContent, 'utf8');
+  shellExec(`cd ${TEMPLATE_PATH} && npm install`);
+  shellExec(`cd ${TEMPLATE_PATH} && node bin env clean`);
+  // Build + run in an isolated env so the template resolves dd-default from its own .env and
+  // never inherits the engine's dd-cron deploy selection. See ISOLATED_ENV above.
+  //
+  // ENABLE_FILE_LOGS must be passed inline: src/server.js builds start.js's logger at import
+  // time, before Config.build() loads the template .env, so the var has to be present in the
+  // process env from the start for logs/start.js/all.log (the success probe below) to be written.
+  shellExec(`cd ${TEMPLATE_PATH} && ${ISOLATED_ENV} npm run build`);
+  shellExec(`cd ${TEMPLATE_PATH} && ${ISOLATED_ENV} ENABLE_FILE_LOGS=true timeout 5s npm run dev`, { async: true });
+  await timer(5500);
+
+  const templateLogPath = `${TEMPLATE_PATH}/logs/start.js/all.log`;
+  const runnerResult = fs.existsSync(templateLogPath) ? fs.readFileSync(templateLogPath, 'utf8') : '';
+  logger.info('Test template runner result');
+  killDevServers();
+  shellCd(`/home/dd/engine`);
+  Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
+  if (!runnerResult || runnerResult.toLowerCase().match('error')) {
+    logger.error('Test template runner result failed');
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -298,26 +352,8 @@ class UnderpostRelease {
       logger.info(`Release build — bumping ${version} → ${newVersion}${dryRun ? ' (dry-run)' : ''}`);
 
       if (!dryRun) {
-        killDevServers();
-        Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
-        shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
-        shellExec(`npm run update:template`);
-        shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
-        console.log(fs.existsSync(`../pwa-microservices-template/engine-private/conf/dd-default`));
-        shellExec(`cd ../pwa-microservices-template && ENABLE_FILE_LOGS=true timeout 5s npm run dev`, {
-          async: true,
-        });
-        await timer(5500);
-        const templateRunnerResult = fs.readFileSync(`../pwa-microservices-template/logs/start.js/all.log`, 'utf8');
-        logger.info('Test template runner result');
-        console.log(templateRunnerResult);
-        if (!templateRunnerResult || templateRunnerResult.toLowerCase().match('error')) {
-          logger.error('Test template runner result failed');
-          return;
-        }
-        killDevServers();
-        shellCd(`/home/dd/engine`);
-        Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
+        const templateOk = await buildAndTestTemplate();
+        if (!templateOk) return;
       }
 
       // ── Canonical version files: delegate to bumpp (package.json, package-lock.json,
@@ -424,7 +460,7 @@ class UnderpostRelease {
      * Runs the pwa-microservices-template update and push flow locally.
      *
      * Always removes and re-clones pwa-microservices-template, then:
-     * 1. Runs update:template (node bin/file update-template) to sync engine sources.
+     * 1. Runs update:template (node bin/build.template) to sync engine sources.
      * 2. Installs dependencies and builds the template.
      * 3. Commits and pushes to the pwa-microservices-template remote repository.
      *

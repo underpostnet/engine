@@ -1105,7 +1105,7 @@ Prevent build private config repo.`,
 
       try {
         // Fetch directory contents recursively
-        const copiedFiles = await this._fetchAndCopyGitHubDirectory({
+        const copiedFiles = await this.fetchAndCopyGitHubDirectory({
           apiUrl,
           targetPath,
           basePath: directoryPath,
@@ -1141,7 +1141,7 @@ Prevent build private config repo.`,
      * @returns {Promise<array>} Array of copied file paths.
      * @memberof UnderpostRepository
      */
-    async _fetchAndCopyGitHubDirectory(options) {
+    async fetchAndCopyGitHubDirectory(options) {
       const { apiUrl, targetPath, basePath, branch } = options;
       const copiedFiles = [];
 
@@ -1176,14 +1176,12 @@ Prevent build private config repo.`,
 
       logger.info(`Found ${contents.length} items in directory: ${basePath}`);
 
-      // Process each item in the directory
       for (const item of contents) {
         const itemTargetPath = `${targetPath}/${item.name}`;
 
         if (item.type === 'file') {
           logger.info(`Downloading file: ${item.path}`);
 
-          // Download file content
           const fileResponse = await fetch(item.download_url);
           if (!fileResponse.ok) {
             logger.error(`Failed to download: ${item.download_url}`);
@@ -1193,16 +1191,14 @@ Prevent build private config repo.`,
           const fileContent = await fileResponse.text();
           fs.writeFileSync(itemTargetPath, fileContent);
 
-          logger.info(`✓ Saved: ${itemTargetPath}`);
+          logger.info(`Saved: ${itemTargetPath}`);
           copiedFiles.push(itemTargetPath);
         } else if (item.type === 'dir') {
-          logger.info(`📁 Processing directory: ${item.path}`);
+          logger.info(`Processing directory: ${item.path}`);
 
-          // Create subdirectory
           fs.mkdirSync(itemTargetPath, { recursive: true });
 
-          // Recursively process subdirectory
-          const subFiles = await this._fetchAndCopyGitHubDirectory({
+          const subFiles = await this.fetchAndCopyGitHubDirectory({
             apiUrl: item.url,
             targetPath: itemTargetPath,
             basePath: item.path,
@@ -1210,7 +1206,7 @@ Prevent build private config repo.`,
           });
 
           copiedFiles.push(...subFiles);
-          logger.info(`✓ Completed directory: ${item.path} (${subFiles.length} files)`);
+          logger.info(`Completed directory: ${item.path} (${subFiles.length} files)`);
         } else {
           logger.warn(`Skipping unknown item type '${item.type}': ${item.path}`);
         }
