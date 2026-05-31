@@ -2,6 +2,24 @@
 
 ## 2026-05-31
 
+### docs
+
+- Refactor Underpost Platform documentation for clarity and structure ([e554d3d69](https://github.com/underpostnet/engine/commit/e554d3d6947d35f31b28319de024120c16cc2210))
+
+### engine-cyberia
+
+- Refactor README and CLI command descriptions for clarity and consistency ([b322c77f1](https://github.com/underpostnet/engine/commit/b322c77f14347c3b9d94236c5d522a4decb6e5ee))
+
+### server-conf
+
+- Refactor awaitDeployMonitor parameters inverse arg functionality and fianl deployment event handle ([c34661ad0](https://github.com/underpostnet/engine/commit/c34661ad039cafe55a3858c006ba9c54bad4a001))
+
+### server-start
+
+- Remove error throw on unexpected deployment exit for improved error handling ([e6554e09c](https://github.com/underpostnet/engine/commit/e6554e09cc7274ed137a9860a751b0706a961284))
+
+## New release v:3.2.11 (2026-05-31)
+
 ### deploy
 
 - Fix deployment error handling: ensure global secret cleanup only occurs if container status is not 'error' ([83ef9d8cf](https://github.com/underpostnet/engine/commit/83ef9d8cf893c8fe8c07d445b324dd864d9ad842))

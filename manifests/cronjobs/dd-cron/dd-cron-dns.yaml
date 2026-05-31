@@ -23,7 +23,7 @@ spec:
         spec:
           containers:
             - name: dd-cron-dns
-              image: underpost/underpost-engine:v3.2.11
+              image: underpost/underpost-engine:v3.2.12
               command:
                 - /bin/sh
                 - -c
