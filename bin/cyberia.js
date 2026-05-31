@@ -223,8 +223,7 @@ try {
         /** @type {import('mongoose').Model} */
         const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
         /** @type {import('mongoose').Model} */
-        const ObjectLayerRenderFrames =
-          DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
+        const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
         /** @type {import('mongoose').Model} */
         const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
         /** @type {import('mongoose').Model} */
@@ -236,9 +235,9 @@ try {
           // Parse comma-separated item IDs for targeted drop; if none provided, drop everything
           const dropItemIds = itemId
             ? itemId
-              .split(',')
-              .map((id) => id.trim())
-              .filter(Boolean)
+                .split(',')
+                .map((id) => id.trim())
+                .filter(Boolean)
             : null;
           const isTargetedDrop = dropItemIds && dropItemIds.length > 0;
 
@@ -1238,7 +1237,8 @@ try {
 
           if (frameIndexNum >= frames.length) {
             logger.error(
-              `Frame index ${frameIndexNum} out of range. Available frames: 0-${frames.length - 1
+              `Frame index ${frameIndexNum} out of range. Available frames: 0-${
+                frames.length - 1
               } for direction ${objectLayerFrameDirection}`,
             );
             process.exit(1);
@@ -2306,12 +2306,12 @@ try {
           const relatedIpfsDocs =
             relatedPinPaths.length > 0 || relatedPinCids.length > 0
               ? await Ipfs.find({
-                $or: [
-                  ...(relatedPinPaths.length ? [{ mfsPath: { $in: relatedPinPaths } }] : []),
-                  ...(relatedPinPaths.length ? [{ mfsPaths: { $in: relatedPinPaths } }] : []),
-                  ...(relatedPinCids.length ? [{ cid: { $in: relatedPinCids } }] : []),
-                ],
-              }).lean()
+                  $or: [
+                    ...(relatedPinPaths.length ? [{ mfsPath: { $in: relatedPinPaths } }] : []),
+                    ...(relatedPinPaths.length ? [{ mfsPaths: { $in: relatedPinPaths } }] : []),
+                    ...(relatedPinCids.length ? [{ cid: { $in: relatedPinCids } }] : []),
+                  ],
+                }).lean()
               : [];
 
           let ipfsCollectionMatchCount = 0;
@@ -2913,9 +2913,9 @@ try {
 
             const importedItemIds = fs.existsSync(olDir)
               ? fs
-                .readdirSync(olDir)
-                .filter((f) => f.endsWith('.json'))
-                .map((f) => nodePath.basename(f, '.json'))
+                  .readdirSync(olDir)
+                  .filter((f) => f.endsWith('.json'))
+                  .map((f) => nodePath.basename(f, '.json'))
               : [];
             const importedObjectLayers = importedItemIds.length
               ? await ObjectLayer.find({ 'data.item.id': { $in: importedItemIds } }).lean()
@@ -3225,12 +3225,12 @@ try {
     .description('Manage per-instance client presentation hints (palette, camera, status icons, interpolation)')
     .action(async (instanceCode, options = {}) => {
       try {
-        const envPath = options.envPath || `./engine-private/conf/dd-cyberia/.env.${options.dev ? 'development' : 'production'}`;
+        const envPath =
+          options.envPath || `./engine-private/conf/dd-cyberia/.env.${options.dev ? 'development' : 'production'}`;
         if (fs.existsSync(envPath)) dotenv.config({ path: envPath, override: true });
 
-        const { CYBERIA_CLIENT_HINTS_DEFAULTS, buildClientHints } = await import(
-          '../src/client/components/cyberia/SharedDefaultsCyberia.js'
-        );
+        const { CYBERIA_CLIENT_HINTS_DEFAULTS, buildClientHints } =
+          await import('../src/client/components/cyberia/SharedDefaultsCyberia.js');
 
         const deployId = process.env.DEFAULT_DEPLOY_ID;
         const host = process.env.DEFAULT_DEPLOY_HOST;
@@ -3242,8 +3242,7 @@ try {
         db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
         await DataBaseProviderService.load({ apis: ['cyberia-client-hints'], host, path, db });
-        const CyberiaClientHints =
-          DataBaseProviderService.getModel('cyberia-client-hints', { host, path });
+        const CyberiaClientHints = DataBaseProviderService.getModel('cyberia-client-hints', { host, path });
 
         if (!instanceCode && !options.seedDefaults) {
           logger.error('instance-code required for client-hints operations (omit only with --seed-defaults on all)');
@@ -3251,14 +3250,20 @@ try {
         }
 
         if (options.drop) {
-          if (!instanceCode) { logger.error('instance-code required for --drop'); process.exit(1); }
+          if (!instanceCode) {
+            logger.error('instance-code required for --drop');
+            process.exit(1);
+          }
           const result = await CyberiaClientHints.deleteOne({ code: instanceCode });
           logger.info(`client-hints --drop: removed ${result.deletedCount} document(s) for code="${instanceCode}"`);
         }
 
         if (options.seedDefaults) {
           const codes = instanceCode ? [instanceCode] : [];
-          if (codes.length === 0) { logger.error('instance-code required for --seed-defaults'); process.exit(1); }
+          if (codes.length === 0) {
+            logger.error('instance-code required for --seed-defaults');
+            process.exit(1);
+          }
           for (const code of codes) {
             await CyberiaClientHints.findOneAndUpdate(
               { code },
@@ -3274,17 +3279,28 @@ try {
           if (!fs.existsSync(filePath)) throw new Error(`Import file not found: ${filePath}`);
           const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
           const code = data.code || instanceCode;
-          if (!code) { logger.error('instance-code required (from file.code or CLI argument)'); process.exit(1); }
+          if (!code) {
+            logger.error('instance-code required (from file.code or CLI argument)');
+            process.exit(1);
+          }
           await CyberiaClientHints.findOneAndUpdate({ code }, { $set: { code, ...data } }, { upsert: true, new: true });
           logger.info(`client-hints --import: upserted code="${code}" from ${filePath}`);
         }
 
         if (options.export) {
-          if (!instanceCode) { logger.error('instance-code required for --export'); process.exit(1); }
+          if (!instanceCode) {
+            logger.error('instance-code required for --export');
+            process.exit(1);
+          }
           const doc = await CyberiaClientHints.findOne({ code: instanceCode }).lean();
-          if (!doc) { logger.warn(`No client-hints document found for code="${instanceCode}", exporting defaults`); }
+          if (!doc) {
+            logger.warn(`No client-hints document found for code="${instanceCode}", exporting defaults`);
+          }
           const outPath = typeof options.export === 'string' ? options.export : `./client-hints-${instanceCode}.json`;
-          fs.writeFileSync(outPath, JSON.stringify(doc || { code: instanceCode, ...CYBERIA_CLIENT_HINTS_DEFAULTS }, null, 2));
+          fs.writeFileSync(
+            outPath,
+            JSON.stringify(doc || { code: instanceCode, ...CYBERIA_CLIENT_HINTS_DEFAULTS }, null, 2),
+          );
           logger.info(`client-hints --export: wrote ${outPath}`);
         }
 
@@ -3302,9 +3318,9 @@ try {
     .command('deploy')
     .description(
       'Deploy Besu IBFT2 network to kubeadm Kubernetes cluster.\n' +
-      'Dynamically generates fresh validator keys, genesis, extraData, enode URLs,\n' +
-      'and all K8s manifests in manifests/besu/ before applying via kustomize.\n' +
-      'Each invocation creates a unique chain identity (new keys, new extraData).',
+        'Dynamically generates fresh validator keys, genesis, extraData, enode URLs,\n' +
+        'and all K8s manifests in manifests/besu/ before applying via kustomize.\n' +
+        'Each invocation creates a unique chain identity (new keys, new extraData).',
     )
     .option('--pull-image', 'Pull Besu container images into containerd before deployment')
     .option('--validators <count>', 'Number of IBFT2 validators (default: 4)', '4')
@@ -3363,8 +3379,8 @@ try {
     .command('generate-manifests')
     .description(
       'Generate fresh Besu IBFT2 K8s manifests without deploying.\n' +
-      'Creates new validator keys, genesis, extraData, and all manifest files\n' +
-      'in manifests/besu/. Use "cyberia chain deploy --skip-generate" to apply them later.',
+        'Creates new validator keys, genesis, extraData, and all manifest files\n' +
+        'in manifests/besu/. Use "cyberia chain deploy --skip-generate" to apply them later.',
     )
     .option('--validators <count>', 'Number of IBFT2 validators (default: 4)', '4')
     .option('--chain-id <chainId>', 'Chain ID for the network (default: 777771)', '777771')
@@ -3442,8 +3458,8 @@ try {
     .command('register')
     .description(
       'Register an Object Layer item on-chain via the deployed ObjectLayerToken contract.\n' +
-      'When --from-db is set the canonical CID is resolved from MongoDB (fast-json-stable-stringify of objectLayer.data).\n' +
-      'This guarantees the on-chain metadataCid always matches the content-addressed IPFS payload.',
+        'When --from-db is set the canonical CID is resolved from MongoDB (fast-json-stable-stringify of objectLayer.data).\n' +
+        'This guarantees the on-chain metadataCid always matches the content-addressed IPFS payload.',
     )
     .requiredOption('--item-id <itemId>', 'Human-readable item identifier (e.g. "hatchet")')
     .option('--metadata-cid <cid>', 'IPFS metadata CID for the item (ignored when --from-db is set)', '')
@@ -3500,7 +3516,7 @@ try {
       } else if (!canonicalCid) {
         logger.warn(
           'No --metadata-cid provided and --from-db not set. The on-chain metadataCid will be empty.\n' +
-          'Consider using --from-db to automatically resolve the canonical CID from the database.',
+            'Consider using --from-db to automatically resolve the canonical CID from the database.',
         );
       }
 
@@ -3614,8 +3630,9 @@ try {
             deployerBalance: ethers.formatEther(balance) + ' ETH'
           }, null, 2));
 
-          ${fs.existsSync(artifactPath)
-          ? `
+          ${
+            fs.existsSync(artifactPath)
+              ? `
           const deployment = JSON.parse(readFileSync('${nodePath.resolve(artifactPath)}', 'utf8'));
           try {
             const token = await ethers.getContractAt('ObjectLayerToken', deployment.address);
@@ -3631,8 +3648,8 @@ try {
             console.log('Contract not accessible:', e.message);
           }
           `
-          : `console.log('No deployment artifact found for network ${options.network}.');`
-        }
+              : `console.log('No deployment artifact found for network ${options.network}.');`
+          }
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
@@ -3768,7 +3785,7 @@ try {
     .command('set-coinbase')
     .description(
       'Set the coinbase deployer private key used by hardhat.config.js for Besu network deployments.\n' +
-      'Accepts either a raw hex private key via --private-key, or a .key.json file generated by "cyberia chain key-gen --save" via --from-file.',
+        'Accepts either a raw hex private key via --private-key, or a .key.json file generated by "cyberia chain key-gen --save" via --from-file.',
     )
     .option('--private-key <hex>', 'Raw hex private key (with or without 0x prefix)')
     .option(
@@ -3993,8 +4010,8 @@ try {
     .command('batch-register')
     .description(
       'Batch-register multiple Object Layer items on-chain in a single transaction.\n' +
-      'When --from-db is set, the canonical CID for every item is resolved from MongoDB\n' +
-      '(fast-json-stable-stringify of objectLayer.data), overriding any "cid" values in the JSON input.',
+        'When --from-db is set, the canonical CID for every item is resolved from MongoDB\n' +
+        '(fast-json-stable-stringify of objectLayer.data), overriding any "cid" values in the JSON input.',
     )
     .requiredOption('--items <json>', 'JSON array of items: [{"itemId":"wood","cid":"bafk...","supply":500000}, ...]')
     .option('--from-db', 'Resolve canonical CIDs from the ObjectLayer MongoDB documents (recommended)')
@@ -4185,7 +4202,7 @@ try {
       if (!instance) {
         logger.info(
           `CyberiaInstance "${instanceCode}" not found — seeding skillConfig into conf using fallback defaults. ` +
-          `To link to a live instance, create or import it with: node bin/cyberia instance ${instanceCode} --import`,
+            `To link to a live instance, create or import it with: node bin/cyberia instance ${instanceCode} --import`,
         );
       }
 
@@ -4327,10 +4344,13 @@ try {
 
   runner
     .command('build-manifest')
-    .option('--dev', 'Build dev-variant manifests (kind cluster, Dockerfile.dev). Default builds prod (kubeadm, Dockerfile).')
+    .option(
+      '--dev',
+      'Build dev-variant manifests (kind cluster, Dockerfile.dev). Default builds prod (kubeadm, Dockerfile).',
+    )
     .description(
       'Build k8s resource manifests for the Cyberia mmo-server + mmo-client instances. ' +
-      'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
+        'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
     )
     .action((options) => {
       const isDev = !!options.dev;
@@ -4340,31 +4360,38 @@ try {
       // the CLI non-zero — observable by GitHub Actions.
       shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
       shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+      // Copy canonical doc sources into the generated project READMEs.
+      // Edit the canonical sources; never hand-edit these generated outputs.
+      fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
+      fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md');
       logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
     });
 
-  runner.command('build-server-dashboard')
-    .option('--dev', 'Build a development variant of the dashboard with dev-specific env vars (e.g. localhost API endpoints).')
+  runner
+    .command('build-server-dashboard')
+    .option(
+      '--dev',
+      'Build a development variant of the dashboard with dev-specific env vars (e.g. localhost API endpoints).',
+    )
     .option(
       '--output-path <path>',
       'Override output path for the rendered HTML (default: ./cyberia-server/public/index.html). ' +
-      'Used by CI when this command is invoked from inside an engine checkout that lives ' +
-      'alongside (not inside) the cyberia-server repo — pass e.g. ../public/index.html.',
+        'Used by CI when this command is invoked from inside an engine checkout that lives ' +
+        'alongside (not inside) the cyberia-server repo — pass e.g. ../public/index.html.',
     )
-    .description(
-      'Build a static HTML dashboard for cyberia-server metrics and operational status. '
-    )
+    .description('Build a static HTML dashboard for cyberia-server metrics and operational status. ')
     .action((options) => {
       const outputPath = options.outputPath || './cyberia-server/public/index.html';
-      shellExec(`node bin static --page ./src/client/ssr/views/CyberiaServerMetrics.js` +
-        ` --output-path ${outputPath}` +
-        ` --title 'Cyberia Server Metrics'` +
-        ` --favicon /favicon.ico` +
-        ` --description 'Operational dashboard for the cyberia-server MMO runtime.'` +
-        ` --lang en` +
-        ` --env ${options.dev ? 'development' : 'production'}`
+      shellExec(
+        `node bin static --page ./src/client/ssr/views/CyberiaServerMetrics.js` +
+          ` --output-path ${outputPath}` +
+          ` --title 'Cyberia Server Metrics'` +
+          ` --favicon /favicon.ico` +
+          ` --description 'Operational dashboard for the cyberia-server MMO runtime.'` +
+          ` --lang en` +
+          ` --env ${options.dev ? 'development' : 'production'}`,
       );
-    })
+    });
 
   // Passthrough check: if the user invoked a command that is OWNED by the
   // underpost CLI (not the cyberia overlay), throw the sentinel error so
