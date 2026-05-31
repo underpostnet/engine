@@ -20,7 +20,8 @@ EXPOSE_MAAS_API_PUBLIC="${EXPOSE_MAAS_API_PUBLIC:-true}"
 # Fixed NFSv3 ports (only used when CONFIGURE_NFS_V3_PORTS=true)
 NFS_MOUNTD_PORT="${NFS_MOUNTD_PORT:-20048}"
 NFS_STATD_PORT="${NFS_STATD_PORT:-32765}"
-NFS_STATD_OUTGOING_PORT="${NFS_STATD_OUTGOING_PORT:-${NFS_STATD_PORT}}"
+# Outgoing port must differ from the listen port; rpc.statd exits 255 if they match.
+NFS_STATD_OUTGOING_PORT="${NFS_STATD_OUTGOING_PORT:-32766}"
 NFS_LOCKD_PORT="${NFS_LOCKD_PORT:-32803}"
 NFS_LOCKD_UDP_PORT="${NFS_LOCKD_UDP_PORT:-${NFS_LOCKD_PORT}}"
 NFS_CONF_DROPIN="/etc/nfs.conf.d/99-maas-nfs-v3-ports.conf"
@@ -42,7 +43,7 @@ ensure_nfs_server_running() {
         sudo systemctl enable --now rpcbind 2>/dev/null || true
         sudo systemctl enable --now rpc-statd 2>/dev/null || true
     fi
-
+    
     local unit=""
     for candidate in nfs-server nfs-kernel-server; do
         if systemctl cat "${candidate}.service" >/dev/null 2>&1; then
@@ -54,7 +55,7 @@ ensure_nfs_server_running() {
         echo "[ERROR] No NFS server unit found (nfs-server/nfs-kernel-server). Install nfs-utils or nfs-kernel-server." >&2
         return 1
     fi
-
+    
     echo "[INFO] Enabling and (re)starting ${unit} to apply exports and fixed ports..."
     sudo systemctl enable "${unit}" 2>/dev/null || true
     sudo systemctl restart "${unit}"
@@ -115,12 +116,14 @@ outgoing-port=${NFS_STATD_OUTGOING_PORT}
 port=${NFS_LOCKD_PORT}
 udp-port=${NFS_LOCKD_UDP_PORT}
 EOF
-
+    
     sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-service=rpc-bind
     sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-port=2049/tcp
     for proto in tcp udp; do
         sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-port="${NFS_MOUNTD_PORT}/${proto}"
         sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-port="${NFS_STATD_PORT}/${proto}"
+        # Outgoing port is the fixed source for SM_NOTIFY; peers need to reach it.
+        sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-port="${NFS_STATD_OUTGOING_PORT}/${proto}"
     done
     sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-port="${NFS_LOCKD_PORT}/tcp"
     sudo firewall-cmd --permanent --zone="${TRUSTED_ZONE}" --add-port="${NFS_LOCKD_UDP_PORT}/udp"

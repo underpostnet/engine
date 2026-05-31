@@ -30,7 +30,9 @@ class UnderpostBaremetal {
   // NFSv3 RPC ports. Single source of truth shared by the firewall/export setup
   // (rebuildNfsServer) and the kernel `nfsroot=` mount options so the client mount and the
   // opened firewall ports always agree.
-  static NFS_V3_PORTS = { mountd: 20048, statd: 32765, statdOutgoing: 32765, lockd: 32803 };
+  // rpc.statd rejects identical listen and outgoing ports (exit 255 "Listening and outgoing ports cannot be the same!").
+  // statd=32765 (listen), statdOutgoing=32766 (SM_NOTIFY source port) is the standard split.
+  static NFS_V3_PORTS = { mountd: 20048, statd: 32765, statdOutgoing: 32766, lockd: 32803 };
 
   static API = {
     /**
@@ -609,7 +611,7 @@ rm -rf ${artifacts.join(' ')}`);
         }
 
         // Create a podman container to extract QEMU static binaries.
-        shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
+        shellExec(`sudo podman create --name extract docker.io/multiarch/qemu-user-static`);
         shellExec(`podman ps -a`); // List all podman containers for verification.
 
         // If cross-architecture, copy the QEMU static binary into the chroot.
@@ -2350,20 +2352,12 @@ fi
       // Determine OS family from osIdLike
       const { isDebianBased, isRhelBased } = Underpost.baremetal.getFamilyBaseOs(options.osIdLike);
 
-      // Static config (`none`/`off`) pins the full address tuple; any autoconfiguration mode
-      // (`dhcp`, `auto6`, `on`, ...) must NOT carry a static client IP, or the kernel tries to use
-      // both and networking fails in the initramfs. For autoconf we only keep hostname + device.
       const ifaceName = networkInterfaceName ? networkInterfaceName : 'eth0';
       const isStaticIp = ipConfig === 'none' || ipConfig === 'off';
       const ipParam = isStaticIp
         ? `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${ifaceName}:${ipConfig}:${dnsServer}`
         : `ip=::::${hostname}:${ifaceName}:${ipConfig}`;
 
-      const { mountd: nfsMountdPort } = UnderpostBaremetal.NFS_V3_PORTS;
-
-      // NFS root mount options. The host is configured for fixed-port NFSv3 (see rebuildNfsServer /
-      // maas-nat-firewalld.sh), so the client mount must pin `nfsvers=3` — otherwise the initramfs
-      // negotiates NFSv4 (port 2049 only) and the mount stalls/panics, dropping to (initramfs).
       let nfsMountOptions = [];
       if (type === 'chroot-debootstrap' || type === 'chroot-container') {
         nfsMountOptions = [
@@ -2382,29 +2376,12 @@ fi
           'noac',
         ];
       } else if (type === 'iso-nfs' && isDebianBased) {
-        // casper netboot live medium: pin NFSv3 over TCP and the fixed mountd port so the mount
-        // does not depend on NFSv4 or on dynamic rpcbind lookups. Keep attribute caching enabled
-        // (no `noac`) since the squashfs layers are large, read-mostly files.
-        nfsMountOptions = [
-          'nfsvers=3',
-          'tcp',
-          'nolock',
-          'port=2049',
-          'mountvers=3',
-          'mountproto=tcp',
-          `mountport=${nfsMountdPort}`,
-          'hard',
-          'intr',
-          'rsize=32768',
-          'wsize=32768',
-        ];
+        nfsMountOptions = ['nolock', 'nfsvers=3', 'tcp', 'hard', 'port=2049', 'rsize=32768', 'wsize=32768'];
       }
       const nfsOptions = nfsMountOptions.join(',');
-
-      const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${
-        nfsOptions ? `,${nfsOptions}` : ''
-      }`;
-
+      const nfsServerPath = `${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}`;
+      const nfsRootParam = `nfsroot=${nfsServerPath}${nfsOptions ? `,${nfsOptions}` : ''}`;
+      const casperNfsParams = [`nfsroot=${nfsServerPath}`, ...(nfsOptions ? [`nfsopts=${nfsOptions}`] : [])];
       const permissionsParams = [
         `rw`,
         // `ro`
@@ -2477,12 +2454,12 @@ fi
         let qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`];
         cmd = [ipParam, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
-        // 'iso-nfs' — Debian/Ubuntu NFS root boot: kernel/initrd from ISO, root filesystem served via NFS.
-        // The Ubuntu live-server initrd is casper-based: `boot=casper` is what drives the initrd to bring
-        // up networking from `ip=`, mount `nfsroot` and locate the squashfs. Without it the generic
-        // initramfs has no root to mount and drops to the BusyBox `(initramfs)` shell.
-        const netBootParams = isDebianBased ? [`boot=casper`, `netboot=nfs`] : [`netboot=nfs`];
-        cmd = [ipParam, ...netBootParams, nfsRootParam, ...kernelParams, ...performanceParams];
+        // 'iso-nfs' — kernel/initrd from ISO, root filesystem served via NFS.
+        if (isDebianBased) {
+          cmd = [ipParam, `boot=casper`, `netboot=nfs`, ...casperNfsParams, ...kernelParams];
+        } else {
+          cmd = [ipParam, `netboot=nfs`, nfsRootParam, ...kernelParams, ...performanceParams];
+        }
       }
 
       // Add RHEL/Rocky/Fedora based images specific parameters
@@ -2492,7 +2469,7 @@ fi
       }
       // Add Debian/Ubuntu based images specific parameters
       else if (isDebianBased) {
-        cmd = cmd.concat([`initrd=initrd.img`, `init=/sbin/init`]);
+        if (type !== 'iso-nfs') cmd = cmd.concat([`initrd=initrd.img`, `init=/sbin/init`]);
         if (options.dev) cmd = cmd.concat([`debug`, `ignore_loglevel`]);
       }
 
@@ -2738,7 +2715,7 @@ fi
       shellExec(`sudo podman run --rm --privileged docker.io/multiarch/qemu-user-static:latest --reset -p yes`);
       // Mount binfmt_misc filesystem.
       shellExec(`sudo modprobe binfmt_misc`);
-      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
+      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`, { silentOnError: true });
     },
 
     /**
