@@ -1819,7 +1819,7 @@ EOF`);
         }`;
         shellExec(cmd, { async: true });
       }
-      await awaitDeployMonitor(true);
+      await awaitDeployMonitor();
       {
         const cmd = `npm run dev:client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`;
 
@@ -1827,7 +1827,7 @@ EOF`);
           async: true,
         });
       }
-      await awaitDeployMonitor(true);
+      await awaitDeployMonitor();
       shellExec(
         `NODE_ENV=development node src/proxy proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`,
       );

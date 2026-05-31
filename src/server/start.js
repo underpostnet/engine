@@ -211,7 +211,7 @@ class UnderpostStartUp {
           shellExec(`node bin env ${replica} ${env}`);
           const replicaCmd = `npm ${runCmd} ${replica}`;
           shellExec(replicaCmd, { async: true, callback: makeDeployCallback(replicaCmd) });
-          await awaitDeployMonitor(true);
+          await awaitDeployMonitor();
         }
       }
       shellExec(`node bin env ${deployId} ${env}`);
