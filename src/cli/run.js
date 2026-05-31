@@ -1546,7 +1546,8 @@ EOF`);
           `git config user.name '${username}' && ` +
           `git config user.email '${email}' && ` +
           `git config credential.interactive always &&` +
-          `git config pull.rebase false`,
+          `git config pull.rebase false && ` +
+          `git config core.filemode false`,
         {
           disableLog: true,
           silent: true,

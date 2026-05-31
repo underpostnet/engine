@@ -1378,7 +1378,7 @@ Prevent build private config repo.`,
       }
       shellExec(`cd "${repoPath}" && git config user.name '${gitUsername}'`);
       shellExec(`cd "${repoPath}" && git config user.email '${gitEmail}'`);
-
+      shellExec(`cd "${repoPath}" && git config core.filemode false`);
       if (origin) {
         const currentRemote = shellExec(`cd "${repoPath}" && git remote get-url origin`, {
           stdout: true,
