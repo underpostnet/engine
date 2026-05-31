@@ -60,8 +60,6 @@ const ModalEventType = {
   home: 'modal:home',
 };
 
-// Legacy listener-map property name -> event type. Each Modal instance exposes
-// these names so existing consumers keep using `Modal.Data[id].onXListener[key]`.
 const ModalListenerChannels = {
   onCloseListener: ModalEventType.close,
   onMenuListener: ModalEventType.menu,
@@ -77,10 +75,6 @@ const ModalListenerChannels = {
   onHome: ModalEventType.home,
 };
 
-// Adapter exposing an EventBus type as a plain `{ [key]: listener }` map.
-// Reading a key returns a callable that emits to that single listener; assigning
-// registers it; deleting removes it; enumeration lists registered keys. This
-// keeps the historical object-map ergonomics while the bus owns dispatch.
 const createModalEventChannel = (bus, type) => {
   const busKey = (key) => `${type}::${key}`;
   return new Proxy(
