@@ -218,9 +218,10 @@ class UnderpostStartUp {
       const deployCmd = `npm ${runCmd} ${deployId}`;
       shellExec(deployCmd, { async: true, callback: makeDeployCallback(deployCmd) });
       await awaitDeployMonitor(true);
-      if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
-      if (Underpost.env.get('container-status') !== 'error')
+      if (Underpost.env.get('container-status') !== 'error') {
+        if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
         Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
+      }
       Underpost.env.set('container-status', 'error');
       throw new Error('Deployment process exited unexpectedly');
     },
