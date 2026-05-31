@@ -69,6 +69,7 @@ if (process.argv.includes('conf')) {
         ` && underpost push . ${privateGitUri}`,
       {
         silent: true,
+        silentOnError: true,
       },
     );
   }
