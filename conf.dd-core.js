@@ -928,6 +928,7 @@ const DefaultConf = /**/ {
           references: [
             './src/client/public/nexodev/docs/references/Getting started.md',
             './src/client/public/nexodev/docs/references/Command Line Interface.md',
+            './src/client/public/nexodev/docs/references/PWA and SSR Views.md',
             './src/client/public/nexodev/docs/references/Baremetal Management.md',
             './src/client/public/nexodev/docs/references/Cron Jobs Management.md',
             './src/client/public/nexodev/docs/references/DB and Backup Management.md',
@@ -940,7 +941,6 @@ const DefaultConf = /**/ {
             './src/client/public/nexodev/docs/references/Running Separate Client and API Servers for Development.md',
             './src/client/public/nexodev/docs/references/SSH Management.md',
             './src/client/public/nexodev/docs/references/Static Generator.md',
-            './src/client/public/nexodev/docs/references/PWA and SSR Views.md',
           ],
         },
         proxy: [80, 443],

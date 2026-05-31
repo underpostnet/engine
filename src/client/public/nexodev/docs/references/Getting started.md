@@ -1,48 +1,49 @@
-### 1.0 Getting started
+# Getting started
 
-**1.1** Install node version manager <a target='_top' href='https://github.com/nvm-sh/nvm'>nvm</a>:
+Start with the smallest possible map of the project:
 
-```bash
-curl -o- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
-```
+1. Toolchain and base infrastructure: [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md)
+2. PWA workflow: [PWA and SSR Views](PWA and SSR Views.md)
+3. Cyberia MMO extension: [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md)
 
-```bash
-wget -qO- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
-```
+If you are working directly on the MMO stack, continue with:
 
-**1.2** In your terminal profile file (`~/.bash_profile`, `~/.zshrc`, `~/.profile`, or `~/.bashrc`) set:
+4. [CYBERIA-CLI.md](../../cyberia-docs/CYBERIA-CLI.md)
+5. [CYBERIA-SERVER.md](../../cyberia-docs/CYBERIA-SERVER.md)
+6. [CYBERIA-CLIENT.md](../../cyberia-docs/CYBERIA-CLIENT.md)
 
-```bash
-export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-```
+---
 
-**1.3** Install node v24.10.0:
+## Minimal local setup
 
-```bash
-nvm install 24.15.0
-```
+1. Install `nvm`.
+2. Install and use Node `24.15.0`.
+3. Install `underpost` globally.
+4. Create a project with `underpost new app-name`.
 
-**1.4** Set node version:
+The base local app runs on `http://localhost:4001` after bootstrap.
 
-```bash
-nvm use 24.15.0
-```
+---
 
-**1.5** Install underpost environment:
+## What belongs where
 
-```bash
-npm install -g underpost
-```
+- Use `underpost` for platform, infrastructure, build, deploy, and operational workflows.
+- Use `cyberia` for Cyberia-specific content and MMO workflows.
+- Use the Cyberia architecture docs for service boundaries and runtime behavior.
 
-**1.6** Create new app:
+---
 
-```bash
-underpost new app-name
-```
+## Important constraints
 
-After installation, the server will run on <a target='_top' href='http://localhost:4001'>localhost:4001</a>
+- `engine-private/` is private. Treat it as an external/private dependency and never assume its contents exist locally.
+- Generated assets and build output are outputs only; do not hand-edit them.
+- Host-level changes must be explicit, idempotent, reversible, and safe to rerun.
 
-**1.7** Install vscode: <a target='_top' href='https://code.visualstudio.com/download'>https://code.visualstudio.com/download</a> win/linux
+---
 
-**1.8** Open VS Code in the project's root directory and edit the `Hello World!` string located in `src/client/Default.index.js`. The change will be reflected on the app's homepage.
+## Read for depth
+
+- [Command Line Interface](Command Line Interface.md)
+- [PWA and SSR Views](PWA and SSR Views.md)
+- [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md)
+- [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md)

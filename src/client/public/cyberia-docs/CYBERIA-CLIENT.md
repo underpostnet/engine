@@ -1,66 +1,46 @@
-# cyberia-client
+<p align="center">
+  <img src="https://www.cyberiaonline.com/assets/splash/apple-touch-icon-precomposed.png" alt="CYBERIA online"/>
+</p>
+
+<div align="center">
+
+<h1>cyberia client</h1>
+
+</div>
 
 **Path:** `cyberia-client/` · **Language:** C11/GNU11 → WebAssembly (Emscripten) · **Role:** presentation runtime for Cyberia
 
-`cyberia-client` is the rendering and interactive runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It captures input, predicts the local player, reconciles against authoritative snapshots, interpolates remote entities, and renders the world. It owns the entire render policy locally and runs with no required input from the authoritative server beyond the per-tick snapshot stream.
+`cyberia-client` is the rendering and interactive runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It captures input, predicts the local player, reconciles against authoritative snapshots, interpolates remote entities, and renders the world. It owns the render policy locally.
 
-It is **not** a world-simulation authority. The authoritative simulation runs on [cyberia-server](CYBERIA-SERVER.md). Persistent content (maps, atlases, object layers) comes from [engine-cyberia](UNDERPOST-PLATFORM.md#engine-cyberia-nodejs--content-authority) via REST.
+It is **not** a world-simulation authority. The authoritative simulation runs on [cyberia-server](CYBERIA-SERVER.md). Persistent content and asset metadata come from [engine-cyberia](UNDERPOST-PLATFORM.md) via REST.
 
 ---
 
-## Process model
+## Operating model
 
-```
+Three independent processes, non-overlapping roles. The ecosystem is playable only when all three are running and healthy at the same time.
+
+```text
 engine-cyberia          cyberia-server          cyberia-client
-─────────────           ──────────────          ──────────────
 content authority       simulation authority    presentation runtime
-
-      ▲                       │
-      │ REST                  │ WebSocket binary
-      │ atlases               │ snapshots (server → client)
-      │ asset metadata        │ input commands (client → server)
-      │ optional              ▼
-      │ client hints      ┌──────────────────────────────────────┐
-      └───────────────────┤  Browser tab                         │
-                          │  ┌────────────────────────────────┐ │
-                          │  │  cyberia-client (WASM)         │ │
-                          │  │  ──────────────────────────    │ │
-                          │  │  Raylib (OpenGL ES2)           │ │
-                          │  │  prediction · reconciliation   │ │
-                          │  │  interpolation · render        │ │
-                          │  │  presentation_runtime          │ │
-                          │  │  (palette/icons/camera fetched │ │
-                          │  │   from cyberia-client-hints)   │ │
-                          │  └────────────────────────────────┘ │
-                          └──────────────────────────────────────┘
+  ^ REST                  | WebSocket binary
+  | atlases, asset        | snapshots  (server -> client)
+  | metadata, optional    | input cmds (client -> server)
+  | client hints          v
+  `---------------- Browser tab: prediction, reconciliation, interpolation, render
 ```
+
+- Each service owns its own monitor and reconnector.
+- The client reconnects to `cyberia-server` over WebSocket and fetches content from `engine-cyberia` over REST.
+- Dependency is real, but operationally it is handled by reconnectors and health checks rather than by treating the runtime as a strict startup chain.
+- If any of the three services is unhealthy, the game moves to standby until all three recover.
 
 The client speaks two transports:
 
-- **WebSocket binary** to `cyberia-server` for snapshots and input commands.
-- **REST** to engine-cyberia for atlas frames, asset blobs, and optional client-hints overrides.
+- **WebSocket binary** to `cyberia-server` for snapshots and input commands
+- **REST** to `engine-cyberia` for atlas frames, asset blobs, and optional client-hints overrides
 
-Asset distribution flows through Underpost Platform's [static + PWA pipeline](UNDERPOST-PLATFORM.md#what-underpost-platform-covers); large media may be delivered via the Cloudinary-backed static asset flow where applicable.
-
----
-
-## Startup order
-
-The client is the last process in the sequential startup order. It cannot do useful work until both [the content backend](UNDERPOST-PLATFORM.md#engine-cyberia-nodejs--content-authority) and [the authoritative server](CYBERIA-SERVER.md) are accepting requests.
-
-```
-1. Persistent backend                (engine-cyberia + DB + asset backend)
-2. cyberia-server                    (authoritative simulation, WS open)
-3. cyberia-client                    ← this process
-   ├─ initWindow, render init
-   ├─ load tiny inline bootstrap (neutral grey only)
-   ├─ (optional) GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE
-   ├─ initialize prediction
-   ├─ open WebSocket to cyberia-server
-   └─ enter render loop
-```
-
-Underpost Platform deploy orchestration enforces this ordering. The client never runs in parallel with the server.
+Asset distribution flows through Underpost Platform's static and PWA pipeline.
 
 ---
 
@@ -110,16 +90,16 @@ src/
   js/services.{js,c,h}              REST fetch bridge (atlas, ui-icons, client-hints)
 ```
 
-| Owner                          | Owns                                                                   | Reads                       | Writes                                             |
-| ------------------------------ | ---------------------------------------------------------------------- | --------------------------- | -------------------------------------------------- |
-| `domain/presentation_runtime`  | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
-| `input/input_command`          | typed InputCommand factory                                             | session for tick + sequence | —                                                  |
-| `prediction/`                  | predicted self position, input replay buffer                           | snapshot self + session ack | predicted self                                     |
-| `interpolation/`               | remote entity `interp_pos`                                             | snapshot history            | remote `interp_pos` only                           |
-| `network/session`              | last server tick, last acked sequence                                  | snapshot header             | session singletons                                 |
-| `binary_aoi_decoder`           | wire parser                                                            | binary frames               | `game_state` + session + prediction (via callback) |
-| `game_state`                   | gameplay world mirror                                                  | —                           | —                                                  |
-| `render/`, `ui/`               | rendering                                                              | view models                 | screen                                             |
+| Owner                         | Owns                                                                                                                                                              | Reads                                          | Writes                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `domain/presentation_runtime` | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
+| `input/input_command`         | typed InputCommand factory                                                                                                                                        | session for tick + sequence                    | —                                                                                               |
+| `prediction/`                 | predicted self position, input replay buffer                                                                                                                      | snapshot self + session ack                    | predicted self                                                                                  |
+| `interpolation/`              | remote entity `interp_pos`                                                                                                                                        | snapshot history                               | remote `interp_pos` only                                                                        |
+| `network/session`             | last server tick, last acked sequence                                                                                                                             | snapshot header                                | session singletons                                                                              |
+| `binary_aoi_decoder`          | wire parser                                                                                                                                                       | binary frames                                  | `game_state` + session + prediction (via callback)                                              |
+| `game_state`                  | gameplay world mirror                                                                                                                                             | —                                              | —                                                                                               |
+| `render/`, `ui/`              | rendering                                                                                                                                                         | view models                                    | screen                                                                                          |
 
 `game_state` holds only the gameplay subset of world state (entities, positions, life, AOI, equipment, frozen flag, coins). It does not carry palette state, status-icon visuals, or any other presentation field.
 
@@ -284,18 +264,18 @@ bin/
 
 `src/config.h`:
 
-| Constant                    | Default                             | Description                                        |
-| --------------------------- | ----------------------------------- | -------------------------------------------------- |
-| `WS_URL`                    | `wss://server.cyberiaonline.com/ws` | WebSocket endpoint of cyberia-server               |
-| `API_BASE_URL`              | `https://www.cyberiaonline.com`     | engine-cyberia REST base URL                       |
+| Constant                    | Default                             | Description                                                                                                      |
+| --------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `WS_URL`                    | `wss://server.cyberiaonline.com/ws` | WebSocket endpoint of cyberia-server                                                                             |
+| `API_BASE_URL`              | `https://www.cyberiaonline.com`     | engine-cyberia REST base URL                                                                                     |
 | `CYBERIA_CLIENT_HINTS_CODE` | `cyberia-main`                      | Lookup key for the optional client-hints fetch (presentation override key — never an instance/server identifier) |
-| `HTTP_TIMEOUT_SECONDS`      | `10`                                | HTTP request timeout                               |
-| `MAX_TEXTURE_CACHE_SIZE`    | `512`                               | Atlas texture LRU cap                              |
-| `MAX_LAYER_CACHE_SIZE`      | `256`                               | ObjectLayer metadata LRU cap                       |
-| `MAX_ATLAS_CACHE_SIZE`      | `256`                               | Atlas metadata LRU cap                             |
-| `DEFAULT_FRAME_DURATION_MS` | `100`                               | Default animation frame duration                   |
-| `ENABLE_DEV_UI`             | `false`                             | Force dev overlay regardless of presentation hints |
-| `APP_VERSION`               | `"1.0.0"`                           | Application version string                         |
+| `HTTP_TIMEOUT_SECONDS`      | `10`                                | HTTP request timeout                                                                                             |
+| `MAX_TEXTURE_CACHE_SIZE`    | `512`                               | Atlas texture LRU cap                                                                                            |
+| `MAX_LAYER_CACHE_SIZE`      | `256`                               | ObjectLayer metadata LRU cap                                                                                     |
+| `MAX_ATLAS_CACHE_SIZE`      | `256`                               | Atlas metadata LRU cap                                                                                           |
+| `DEFAULT_FRAME_DURATION_MS` | `100`                               | Default animation frame duration                                                                                 |
+| `ENABLE_DEV_UI`             | `false`                             | Force dev overlay regardless of presentation hints                                                               |
+| `APP_VERSION`               | `"1.0.0"`                           | Application version string                                                                                       |
 
 For local development, point `WS_URL` and `API_BASE_URL` at `localhost` before rebuilding.
 

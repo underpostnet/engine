@@ -1,102 +1,97 @@
 # PWA and SSR Views
 
-How per-deploy SSR views are declared and how they drive the PWA offline lifecycle.
+This document covers the PWA workflow only: how SSR views are declared, how fallback shells are generated, and how the service worker behaves at runtime.
 
-## SSR config shape
+For platform scope, see [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md). For the Cyberia MMO runtime, see [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md).
 
-Each deploy's `conf.ssr.json` (or the public `ssr` block in `conf.dd-<conf-id>.js`) declares an app-shell entry per client. A typical entry:
+---
 
-```js
-ssr: {
-  Default: {
-    head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
-    body: ['CacheControl', 'DefaultSplashScreen', '404', '500', 'SwaggerDarkMode'],
-    mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
-    views: [
-      {
-        path: '/offline',
-        title: 'No Network Connection',
-        client: 'NoNetworkConnection',
-        head: [],
-        body: [],
-        offlineDefault: true,
-      },
-      {
-        path: '/maintenance',
-        title: 'Server Maintenance',
-        client: 'Maintenance',
-        head: [],
-        body: [],
-        maintenanceDefault: true,
-      },
-      { path: '/test', title: 'Test', client: 'Test', head: [], body: [] },
-    ],
-  },
-}
-```
+## Source of truth
 
-### Field reference
+The PWA pipeline has two inputs:
 
-| Field    | Type     | Notes                                                                                                                                                                  |
-| -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `head`   | `string[]` | SSR component basenames under `src/client/ssr/head/<Name>.js`, injected into `<head>` in order. Always evaluated.                                                       |
-| `body`   | `string[]` | SSR component basenames under `src/client/ssr/body/<Name>.js`, injected at the end of `<body>` in order.                                                                |
-| `mailer` | `object`  | Maps a logical mail template name to a component basename under `src/client/ssr/mailer/`.                                                                              |
-| `views`  | `object[]` | All SSR-rendered views for this app — pages **and** fallback shells. See below.                                                                                         |
+- the deploy `ssr` configuration in `conf.dd-*.js` or `conf.ssr.json`
+- the service worker source in `src/client/sw/core.sw.js`
 
-### `views[]` entry
+Everything else is generated from those inputs during the client build.
 
-| Field                | Type      | Notes                                                                                                                                                |
-| -------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `path`               | `string`  | URL path (proxy-relative). Built as `${rootClientPath}${path}/index.html`.                                                                            |
-| `title`              | `string`  | `<title>` text.                                                                                                                                       |
-| `client`             | `string`  | SSR component basename under [`src/client/ssr/views/<client>.js`](../../../../client/ssr/views/). Single directory — no `offline/` vs `pages/` split. |
-| `head`, `body`       | `string[]` | Per-view head/body overrides. Empty array = inherit the app-level lists.                                                                              |
-| `offlineDefault`     | `boolean` | Marks this view as the **offline fallback**. The SW precaches it on install and serves it when `navigator.onLine === false`.                          |
-| `maintenanceDefault` | `boolean` | Marks this view as the **maintenance fallback**. Precached and served when the origin returns 5xx or is otherwise unreachable.                        |
+Do not hand-edit generated `index.html` files, `sw.js`, or precache output.
 
-Views with neither flag are SSR-rendered and reachable by URL, but **not** precached. Lazy runtime caching still applies via the SW's navigation strategy.
+---
 
-## Service worker lifecycle
+## Build flow
 
-The SW source lives at [`src/client/sw/core.sw.js`](../../../../client/sw/core.sw.js). The client build (`src/server/client-build.js`) bundles it via esbuild and prepends a `self.renderPayload` prelude with values resolved from the `views` array:
+1. Define SSR views for a deploy.
+2. Mark the offline and maintenance fallback views.
+3. Build the client.
+4. Emit static pages plus a generated service worker payload for that deploy.
 
-| Payload field           | Source                                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `PRE_CACHED_RESOURCES`  | `index.html` URLs for every view with `offlineDefault` or `maintenanceDefault` set.                          |
-| `PROXY_PATH`            | The instance's mount path (`/`, `/foo`, …).                                                                  |
-| `CACHE_PREFIX`          | `engine-core-<scope>` where scope is `root` or the path with `/` → `_`.                                      |
-| `OFFLINE_URL`           | Fully-resolved `index.html` URL of the view flagged `offlineDefault`.                                        |
-| `MAINTENANCE_URL`       | Fully-resolved `index.html` URL of the view flagged `maintenanceDefault`.                                    |
+The important rule is that view configuration drives both server-rendered output and offline behavior. There should be one source of truth for routes, titles, fallback shells, host/path resolution, and precache targets.
 
-### Runtime strategies
+---
 
-| Request                                      | Strategy                | Cache                             |
-| -------------------------------------------- | ----------------------- | --------------------------------- |
-| Same-origin static assets (script/style/image/font) | `StaleWhileRevalidate`  | `<prefix>-assets`, 30-day TTL     |
-| `GET /api/*`                                 | `NetworkFirst` (5 s)    | `<prefix>-api-get`, 5-minute TTL  |
-| `!GET /api/*`                                | `NetworkOnly` + BG sync | replayed via `api-mutation-queue` |
-| Navigation                                   | `NetworkFirst` (4 s)    | `<prefix>-pages`, 12-hour TTL     |
+## View model
 
-### Fallback selection
+Each deploy defines a view list with:
 
-When a navigation request fails:
+- route path
+- title
+- SSR client component
+- optional per-view head/body overrides
+- `offlineDefault`
+- `maintenanceDefault`
 
-- `navigator.onLine === false` → serve `OFFLINE_URL`
-- otherwise (server 5xx, DNS, TLS, timeout) → serve `MAINTENANCE_URL`
+Only fallback-marked views are guaranteed to be precached. Normal views are built and routable, but they are not the fallback contract.
 
-Falls through to the other if the primary is missing from cache, then `Response.error()`.
+---
 
-## Adding a new SSR view
+## Service worker behavior
 
-1. Create `src/client/ssr/views/<MyView>.js` exporting an `SrrComponent` function (see [`Test.js`](../../../../client/ssr/views/Test.js) for the minimum shape).
-2. Append an entry to the relevant `ssr.<App>.views` array in your `conf.ssr.json` / `conf.dd-<conf-id>.js`.
-3. Run `npm run build` (or `npm run dev`) — the build emits `<root>/<path>/index.html` for the new view.
+At build time, the service worker receives:
 
-To make the new view a fallback target, set `offlineDefault: true` or `maintenanceDefault: true`. Only one view per app should carry each flag — if multiple are set, the last one in `views[]` wins.
+- the deploy proxy path
+- the cache namespace
+- the offline fallback URL
+- the maintenance fallback URL
+- the precache list derived from the SSR view set
 
-## Updating the service worker
+At runtime, the default behavior is:
 
-`core.sw.js` is bundled inline by esbuild and shipped as `sw.js` per host instance. After editing it, rebuild the client; the SW takes effect on the next page load (with `skipWaiting + clientsClaim`).
+- static assets: stale-while-revalidate
+- API `GET`: network-first with short cache fallback
+- API mutations: network-only with background replay
+- navigation: network-first with fallback shells
 
-For manual cache invalidation during development, the Settings panel exposes a **clean-cache** action that calls `Worker.resetAndRestart()` — unregistering the SW, dropping all caches, clearing local/session storage, and re-registering.
+Fallback selection is simple:
+
+- offline network state uses the offline fallback
+- origin failure or server failure uses the maintenance fallback
+
+---
+
+## Cyberia note
+
+The Cyberia client is delivered through this PWA pipeline, but PWA readiness is not the same as MMO readiness.
+
+- A built client can load while the game is still unavailable.
+- Cyberia gameplay is ready only when `engine-cyberia`, `cyberia-server`, and `cyberia-client` are healthy at the same time.
+- If one of those services fails, the game should move to standby until all three recover.
+
+---
+
+## Operational rules
+
+- Prefer one source of truth for deploy IDs, route declarations, runtime selection, and generated artifacts.
+- Reuse the existing SSR and service-worker helpers instead of introducing parallel pipelines.
+- Do not duplicate path normalization or env resolution logic across build steps.
+- Treat generated PWA artifacts as outputs only.
+- Keep any host-level orchestration change idempotent, reversible, and safe to rerun.
+
+---
+
+## Related docs
+
+- [Getting started](Getting started.md)
+- [Command Line Interface](Command Line Interface.md)
+- [UNDERPOST-PLATFORM.md](../../cyberia-docs/UNDERPOST-PLATFORM.md)
+- [ARCHITECTURE.md](../../cyberia-docs/ARCHITECTURE.md)

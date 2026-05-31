@@ -1,62 +1,45 @@
-# cyberia-server
+<p align="center">
+  <img src="https://www.cyberiaonline.com/assets/splash/apple-touch-icon-precomposed.png" alt="CYBERIA online"/>
+</p>
+
+<div align="center">
+
+<h1>cyberia server</h1>
+
+</div>
 
 **Path:** `cyberia-server/` · **Language:** Go · **Role:** authoritative simulation runtime for Cyberia
 
 `cyberia-server` is the authoritative simulation runtime for the Cyberia MMO extension on [Underpost Platform](UNDERPOST-PLATFORM.md). It owns world state, advances a fixed-rate tick, drains typed input commands from connected clients, and dispatches AOI-filtered snapshots on a separately-paced replication tick.
 
-It is **not** a content authority and it is **not** a render-policy authority. World content is loaded once at boot from [engine-cyberia](UNDERPOST-PLATFORM.md#engine-cyberia-nodejs--content-authority) over gRPC. Presentation is owned by [cyberia-client](CYBERIA-CLIENT.md).
+It is **not** the content authority. World content is loaded from [engine-cyberia](UNDERPOST-PLATFORM.md) over gRPC. It is **not** the render-policy authority. Presentation is owned by [cyberia-client](CYBERIA-CLIENT.md).
 
 ---
 
-## Process model
+## Operating model
 
-```
-engine-cyberia (Node.js)                cyberia-server (Go)              cyberia-client (C/WASM)
-─────────────────────────               ──────────────────               ───────────────────────
-content authority                       authoritative simulation         presentation runtime
-persisted maps + rules                  tick + AOI + snapshots           render + prediction
+Three independent processes, non-overlapping roles. The ecosystem is playable only when all three are running and healthy at the same time.
 
-      │  gRPC  GetFullInstance               │  WebSocket binary
-      │────────────────────────────────────► │  AOI snapshots + init
-      │  (world configuration:               │  ▲
-      │   AOI radius, economy,               │  │ typed input commands
-      │   skill, equipment,                  │  │
-      │   entity gameplay defaults)          │  │
-      │                                      │  │
-      ▼                                      ▼  ▼
-   (boot only)                            tick loop + replication
+```text
+engine-cyberia (Node.js)        cyberia-server (Go)            cyberia-client (C/WASM)
+content authority               authoritative simulation       presentation runtime
+gRPC + REST                     tick + AOI + snapshots         render + prediction
+
+   └── gRPC GetFullInstance ──►   └── WebSocket binary ──►
+         world config                  snapshots -> / input <-
 ```
+
+- Each service is supervised independently and owns its own monitor and reconnector.
+- `cyberia-server` loads world configuration from `engine-cyberia` and does not fabricate a world.
+- Dependency is handled by supervision and reconnect loops, not by documenting the runtime as a strict one-shot startup chain.
+- If any one of the three services is unhealthy, the game moves to standby until all three recover.
 
 The server speaks two protocols:
 
-- **gRPC, inbound, at boot:** consumes world configuration from engine-cyberia.
-- **WebSocket binary, ongoing:** delivers snapshots to clients, accepts typed input commands.
+- **gRPC inbound** to consume world configuration from `engine-cyberia`
+- **WebSocket binary** to deliver snapshots and accept typed input commands
 
-There is no per-tick traffic between the server and engine-cyberia.
-
----
-
-## Startup order
-
-Startup is sequential. `cyberia-server` cannot start before its content backend, and exits on gRPC dial failure rather than fabricate a world.
-
-```
-1. Persistent backend / sidecar data layer
-   ├─ databases (MongoDB; optional MariaDB)
-   ├─ engine-cyberia (gRPC :50051, REST :4005)
-   └─ static asset backend (Cloudinary + IPFS where applicable)
-
-2. cyberia-server
-   ├─ dials engine-cyberia gRPC
-   ├─ loads world configuration via GetFullInstance(instanceCode)
-   ├─ initializes simulation tick + AOI replication tick
-   └─ opens WebSocket + REST health/metrics on :8081
-
-3. cyberia-client
-   └─ connects to cyberia-server via WebSocket
-```
-
-Underpost Platform deploy orchestration enforces this ordering. Do not describe or invoke the three layers in parallel.
+There is no per-tick traffic between `cyberia-server` and `engine-cyberia`, and no presentation authority in the Go runtime.
 
 ---
 
@@ -271,14 +254,14 @@ All content data (ObjectLayer metadata, asset blobs, optional client hints) is s
 
 ## Environment
 
-| Variable                          | Default           | Description                                                                       |
-| --------------------------------- | ----------------- | --------------------------------------------------------------------------------- |
-| `ENGINE_GRPC_ADDRESS`             | `localhost:50051` | engine-cyberia gRPC address (**required**)                                        |
-| `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                                                  |
-| `ENGINE_API_BASE_URL`             | _(empty)_         | engine-cyberia REST base URL; forwarded to clients                                |
-| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval                                           |
-| `SERVER_PORT`                     | `8081`            | WebSocket + HTTP listen port                                                      |
-| `STATIC_DIR`                      | `./public`        | Directory for static WASM client files                                            |
+| Variable                          | Default           | Description                                        |
+| --------------------------------- | ----------------- | -------------------------------------------------- |
+| `ENGINE_GRPC_ADDRESS`             | `localhost:50051` | engine-cyberia gRPC address (**required**)         |
+| `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                   |
+| `ENGINE_API_BASE_URL`             | _(empty)_         | engine-cyberia REST base URL; forwarded to clients |
+| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval            |
+| `SERVER_PORT`                     | `8081`            | WebSocket + HTTP listen port                       |
+| `STATIC_DIR`                      | `./public`        | Directory for static WASM client files             |
 
 ---
 
