@@ -1,5 +1,5 @@
 import { createPool } from 'mariadb';
-
+import Underpost from '../../index.js';
 import { loggerFactory } from '../../server/logger.js';
 
 /**
@@ -51,6 +51,7 @@ class MariaDBService {
       console.log(result);
     } catch (error) {
       logger.error('MariaDB query failed', { error: error.message });
+      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
     } finally {
       if (conn) conn.release(); // release to pool
       await pool.end();

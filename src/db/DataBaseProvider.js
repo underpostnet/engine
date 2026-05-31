@@ -2,6 +2,7 @@ import { MongooseDB } from './mongo/MongooseDB.js';
 import { loggerFactory } from '../server/logger.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import { resolveHostKeyContext } from '../server/conf.js';
+import Underpost from '../index.js';
 
 /**
  * Module for managing and loading various database connections (e.g., Mongoose, MariaDB).
@@ -33,7 +34,6 @@ class DataBaseProviderService {
   static get instance() {
     return this.#instance;
   }
-
 
   /**
    * Retrieves a loaded provider bucket for a context.
@@ -191,23 +191,23 @@ class DataBaseProviderService {
         path: options.path,
         db: options.db
           ? {
-            provider: options.db.provider,
-            name: options.db.name ? '***' : undefined,
-            host: options.db.host ? '***' : undefined,
-            user: options.db.user ? '***' : undefined,
-            password: options.db.password ? '***' : undefined,
-          }
+              provider: options.db.provider,
+              name: options.db.name ? '***' : undefined,
+              host: options.db.host ? '***' : undefined,
+              user: options.db.user ? '***' : undefined,
+              password: options.db.password ? '***' : undefined,
+            }
           : {},
       };
       logger.error(error.message, { safeOptions });
+      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
       return undefined;
     }
   }
 }
 
-
 export {
   DataBaseProviderService as DataBaseProviderClass,
   DataBaseProviderService as default,
-  DataBaseProviderService
+  DataBaseProviderService,
 };

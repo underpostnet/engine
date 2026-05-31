@@ -14,6 +14,7 @@
  */
 import Valkey from 'iovalkey';
 import { loggerFactory } from './logger.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -70,6 +71,7 @@ const createValkeyConnection = async (instance = {}, connectionOptions = {}) => 
   client.on('error', (err) => {
     ValkeyStatus[key] = 'error';
     logger.error('Valkey error', { err: err?.message, instance });
+    if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
   });
   client.on('reconnecting', () => {
     ValkeyStatus[key] = 'reconnecting';

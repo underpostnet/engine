@@ -52,7 +52,7 @@ class UnderpostStartUp {
      * @param {Function} logic - The logic to execute when the server is listening.
      * @returns {Object} An object with a listen method.
      */
-    listenServerFactory: (logic = async () => { }) => {
+    listenServerFactory: (logic = async () => {}) => {
       return {
         listen: async (...args) => {
           const msDelta = 1000;
@@ -219,7 +219,10 @@ class UnderpostStartUp {
       shellExec(deployCmd, { async: true, callback: makeDeployCallback(deployCmd) });
       await awaitDeployMonitor(true);
       if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
-      if (Underpost.env.get('container-status') !== 'error') Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
+      if (Underpost.env.get('container-status') !== 'error')
+        Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
+      Underpost.env.set('container-status', 'error');
+      throw new Error('Deployment process exited unexpectedly');
     },
   };
 }
