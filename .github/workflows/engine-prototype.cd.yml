@@ -1,0 +1,127 @@
+name: CD | Engine prototype | remote ssh
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (deploy, sync-and-deploy, init)'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - sync-and-deploy
+          - init
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'underpostnet/engine'
+      && (
+        startsWith(github.event.head_commit.message, 'cd(ssh-engine-prototype)')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'deploy')
+      )
+    name: Remote SSH deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          # Remote host (secret)
+          host: ${{ secrets.SSH_HOST }}
+          # Remote user (secret)
+          username: ${{ secrets.SSH_USERNAME }}
+          # Private key (secret) — the PEM contents (not a path)
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # Remote port (optional)
+          port: ${{ secrets.SSH_PORT }}
+          # Optional: increase timeout for long-running commands
+          command_timeout: 60m
+          # Optional: if your private key has a passphrase, add:
+          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          # Commands to run on the remote VM
+          script: |
+            set -e
+            set -o pipefail
+            echo "Starting remote deploy"
+            cd /home/dd/engine
+            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin run deploy dd-prototype"
+  sync-and-deploy:
+    if: >-
+      github.repository == 'underpostnet/engine'
+      && (
+        startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-prototype)')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'sync-and-deploy')
+      )
+    name: Remote SSH sync and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          # Remote host (secret)
+          host: ${{ secrets.SSH_HOST }}
+          # Remote user (secret)
+          username: ${{ secrets.SSH_USERNAME }}
+          # Private key (secret) — the PEM contents (not a path)
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # Remote port (optional)
+          port: ${{ secrets.SSH_PORT }}
+          # Optional: increase timeout for long-running commands
+          command_timeout: 60m
+          # Optional: if your private key has a passphrase, add:
+          # passphrase: ${{ secrets.SSH_PASSWORD }}
+          # Commands to run on the remote VM
+          # TODO: optimize process and logs: node bin run metadata dd-prototype
+          script: |
+            set -e
+            set -o pipefail
+            echo "Starting remote sync and deploy"
+            cd /home/dd/engine
+            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-prototype"
+  init:
+    if: >-
+      github.repository == 'underpostnet/engine'
+      && (
+        startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-prototype)')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'init')
+      )
+    name: Remote SSH init deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          # Remote host (secret)
+          host: ${{ secrets.SSH_HOST }}
+          # Remote user (secret)
+          username: ${{ secrets.SSH_USERNAME }}
+          # Private key (secret) — the PEM contents (not a path)
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # Remote port (optional)
+          port: ${{ secrets.SSH_PORT }}
+          # Optional: increase timeout for long-running commands
+          command_timeout: 60m
+          # Optional: if your private key has a passphrase, add:
+          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          # Commands to run on the remote VM
+          script: |
+            set -e
+            set -o pipefail
+            echo "Starting init deploy"
+            cd /home/dd/engine
+            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-prototype production --kubeadm --sync --build-manifest --versions green --replicas 1"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-prototype production --kubeadm --cert --disable-update-proxy"
+            sudo -n -- /bin/bash -lc "node bin monitor dd-prototype production --ready-deployment --promote --versions green --replicas 1"

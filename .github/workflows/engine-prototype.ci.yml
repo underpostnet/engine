@@ -1,0 +1,103 @@
+name: CI | Engine prototype | github repository
+on:
+  workflow_dispatch:
+    inputs:
+      sync:
+        description: 'Trigger sync-and-deploy CD after build'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      message:
+        description: 'Commit message for the build'
+        required: false
+        default: ''
+      deploy_type:
+        description: 'CD job type to dispatch (sync-and-deploy or init)'
+        required: false
+        default: 'sync-and-deploy'
+        type: choice
+        options:
+          - sync-and-deploy
+          - init
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+jobs:
+  pwa-microservices-template:
+    name: Update github repo package Jobs
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/rockylinux/rockylinux:9
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install required packages
+        run: |
+          dnf install -y sudo tar gzip bzip2 git
+          dnf install -y curl --allowerasing
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
+          dnf install nodejs -y
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Set git global credentials
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'development@underpost.net'
+
+      - name: Build repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+        run: |
+          cd .. && node engine/bin clone underpostnet/pwa-microservices-template
+          if [ -n "${{ github.event.inputs.message }}" ]; then
+            LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
+          else
+            FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
+            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //')
+          fi
+          SHOULD_CD="${{ github.event.inputs.sync }}"
+          DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
+          if [ -z "$LAST_COMMIT_MESSAGE" ]; then
+            LAST_COMMIT_MESSAGE="Update engine prototype repository"
+          fi
+          echo "[INFO] Captured commit message: $LAST_COMMIT_MESSAGE"
+          echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
+          node engine/bin clone --bare underpostnet/engine-prototype
+          cd engine
+          node bin/build dd-prototype development
+          cd ../pwa-microservices-template
+          rm -rf ./.git
+          mv ../engine-prototype.git ./.git
+          git init
+          git config user.name 'underpostnet'
+          git config user.email 'development@underpost.net'
+          git add .
+          git commit -m "$LAST_COMMIT_MESSAGE"
+          node ../engine/bin push . underpostnet/engine-prototype
+          if [ "$SHOULD_CD" = "true" ]; then
+            if [ -z "$DEPLOY_TYPE" ]; then
+              DEPLOY_TYPE="sync-and-deploy"
+            fi
+            echo "[INFO] Dispatching engine-prototype CD ${DEPLOY_TYPE}"
+            curl -s -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
+              "https://api.github.com/repos/underpostnet/engine/actions/workflows/engine-prototype.cd.yml/dispatches" \
+              -d "{\"ref\":\"master\",\"inputs\":{\"job\":\"${DEPLOY_TYPE}\"}}"
+          else
+            echo "[INFO] Deployment skipped"
+          fi
