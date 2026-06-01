@@ -23,6 +23,7 @@ const TEMPLATE_DELETE_PATHS = [
   './manifests/deployment/dd-cyberia-development',
   './manifests/deployment/dd-core-development',
   './manifests/deployment/dd-template-development',
+  './manifests/deployment/dd-prototype-development',
   './src/server/object-layer.js',
   './src/server/atlas-sprite-sheet-generator.js',
   './src/server/shape-generator.js',

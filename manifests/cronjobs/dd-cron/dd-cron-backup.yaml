@@ -30,7 +30,7 @@ spec:
                 - >
                   cd /home/dd/engine &&
                   node bin env dd-cron production &&
-                  node bin cron dd-lampp,dd-cyberia,dd-core,dd-test backup --git --kubeadm 
+                  node bin cron dd-lampp,dd-cyberia,dd-core,dd-prototype,dd-test backup --git --kubeadm 
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume

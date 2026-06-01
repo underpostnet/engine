@@ -1,0 +1,274 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-prototype-development-blue
+  namespace: default
+  labels:
+    app: dd-prototype-development-blue
+    deploy-id: dd-prototype-development
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dd-prototype-development-blue
+  template:
+    metadata:
+      labels:
+        app: dd-prototype-development-blue
+        deploy-id: dd-prototype-development
+    spec:
+      containers:
+        - name: dd-prototype-development-blue
+          image: underpost/underpost-engine:v3.2.12
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: underpost-config
+
+          command:
+            - /bin/sh
+            - -c
+            - >
+              underpost secret underpost --create-from-env &&
+              underpost start --build --run dd-prototype development
+
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-prototype-development-blue-service
+  namespace: default
+spec:
+  selector:
+    app: dd-prototype-development-blue
+  ports:
+    - name: 'tcp-4023'
+      protocol: TCP
+      port: 4023
+      targetPort: 4023
+    - name: 'udp-4023'
+      protocol: UDP
+      port: 4023
+      targetPort: 4023
+
+    - name: 'tcp-4024'
+      protocol: TCP
+      port: 4024
+      targetPort: 4024
+    - name: 'udp-4024'
+      protocol: UDP
+      port: 4024
+      targetPort: 4024
+
+    - name: 'tcp-4025'
+      protocol: TCP
+      port: 4025
+      targetPort: 4025
+    - name: 'udp-4025'
+      protocol: UDP
+      port: 4025
+      targetPort: 4025
+
+    - name: 'tcp-4026'
+      protocol: TCP
+      port: 4026
+      targetPort: 4026
+    - name: 'udp-4026'
+      protocol: UDP
+      port: 4026
+      targetPort: 4026
+
+    - name: 'tcp-4027'
+      protocol: TCP
+      port: 4027
+      targetPort: 4027
+    - name: 'udp-4027'
+      protocol: UDP
+      port: 4027
+      targetPort: 4027
+
+    - name: 'tcp-4028'
+      protocol: TCP
+      port: 4028
+      targetPort: 4028
+    - name: 'udp-4028'
+      protocol: UDP
+      port: 4028
+      targetPort: 4028
+
+    - name: 'tcp-4029'
+      protocol: TCP
+      port: 4029
+      targetPort: 4029
+    - name: 'udp-4029'
+      protocol: UDP
+      port: 4029
+      targetPort: 4029
+
+    - name: 'tcp-4030'
+      protocol: TCP
+      port: 4030
+      targetPort: 4030
+    - name: 'udp-4030'
+      protocol: UDP
+      port: 4030
+      targetPort: 4030
+
+    - name: 'tcp-4031'
+      protocol: TCP
+      port: 4031
+      targetPort: 4031
+    - name: 'udp-4031'
+      protocol: UDP
+      port: 4031
+      targetPort: 4031
+
+    - name: 'tcp-4032'
+      protocol: TCP
+      port: 4032
+      targetPort: 4032
+    - name: 'udp-4032'
+      protocol: UDP
+      port: 4032
+      targetPort: 4032
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-prototype-development-green
+  namespace: default
+  labels:
+    app: dd-prototype-development-green
+    deploy-id: dd-prototype-development
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dd-prototype-development-green
+  template:
+    metadata:
+      labels:
+        app: dd-prototype-development-green
+        deploy-id: dd-prototype-development
+    spec:
+      containers:
+        - name: dd-prototype-development-green
+          image: underpost/underpost-engine:v3.2.12
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: underpost-config
+
+          command:
+            - /bin/sh
+            - -c
+            - >
+              underpost secret underpost --create-from-env &&
+              underpost start --build --run dd-prototype development
+
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-prototype-development-green-service
+  namespace: default
+spec:
+  selector:
+    app: dd-prototype-development-green
+  ports:
+    - name: 'tcp-4023'
+      protocol: TCP
+      port: 4023
+      targetPort: 4023
+    - name: 'udp-4023'
+      protocol: UDP
+      port: 4023
+      targetPort: 4023
+
+    - name: 'tcp-4024'
+      protocol: TCP
+      port: 4024
+      targetPort: 4024
+    - name: 'udp-4024'
+      protocol: UDP
+      port: 4024
+      targetPort: 4024
+
+    - name: 'tcp-4025'
+      protocol: TCP
+      port: 4025
+      targetPort: 4025
+    - name: 'udp-4025'
+      protocol: UDP
+      port: 4025
+      targetPort: 4025
+
+    - name: 'tcp-4026'
+      protocol: TCP
+      port: 4026
+      targetPort: 4026
+    - name: 'udp-4026'
+      protocol: UDP
+      port: 4026
+      targetPort: 4026
+
+    - name: 'tcp-4027'
+      protocol: TCP
+      port: 4027
+      targetPort: 4027
+    - name: 'udp-4027'
+      protocol: UDP
+      port: 4027
+      targetPort: 4027
+
+    - name: 'tcp-4028'
+      protocol: TCP
+      port: 4028
+      targetPort: 4028
+    - name: 'udp-4028'
+      protocol: UDP
+      port: 4028
+      targetPort: 4028
+
+    - name: 'tcp-4029'
+      protocol: TCP
+      port: 4029
+      targetPort: 4029
+    - name: 'udp-4029'
+      protocol: UDP
+      port: 4029
+      targetPort: 4029
+
+    - name: 'tcp-4030'
+      protocol: TCP
+      port: 4030
+      targetPort: 4030
+    - name: 'udp-4030'
+      protocol: UDP
+      port: 4030
+      targetPort: 4030
+
+    - name: 'tcp-4031'
+      protocol: TCP
+      port: 4031
+      targetPort: 4031
+    - name: 'udp-4031'
+      protocol: UDP
+      port: 4031
+      targetPort: 4031
+
+    - name: 'tcp-4032'
+      protocol: TCP
+      port: 4032
+      targetPort: 4032
+    - name: 'udp-4032'
+      protocol: UDP
+      port: 4032
+      targetPort: 4032
+  type: LoadBalancer
