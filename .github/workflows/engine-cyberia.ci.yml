@@ -87,7 +87,7 @@ jobs:
           mv ../engine/engine-private ./engine-private
           npm install
           node bin new --default-conf --deploy-id dd-cyberia
-          mv ./conf.cyberia.js ./conf.js
+          mv ./conf.dd-cyberia.js ./conf.js
           rm -rf ./engine-private
           git init
           git config user.name 'underpostnet'

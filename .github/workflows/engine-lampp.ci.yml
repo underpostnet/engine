@@ -87,7 +87,7 @@ jobs:
           mv ../engine/engine-private ./engine-private
           npm install
           node bin new --default-conf --deploy-id dd-lampp
-          mv ./conf.lampp.js ./conf.js
+          mv ./conf.dd-lampp.js ./conf.js
           rm -rf ./engine-private
           git init
           git config user.name 'underpostnet'
