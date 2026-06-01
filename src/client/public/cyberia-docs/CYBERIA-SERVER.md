@@ -12,7 +12,7 @@
 
 `cyberia-server` is the authoritative simulation runtime for the Cyberia MMO extension on Underpost Platform. It owns world state, advances a fixed-rate tick, drains typed input commands from connected clients, and dispatches AOI-filtered snapshots on a separately-paced replication tick.
 
-It is **not** the content authority. World content is loaded from `engine-cyberia` over gRPC. It is **not** the render-policy authority. Presentation is owned by `cyberia-client`.
+It is **not** the content authority. World content is loaded once at boot from `engine-cyberia` over gRPC. It is **not** the render-policy authority. Presentation is owned by `cyberia-client`.
 
 ---
 
@@ -20,23 +20,32 @@ It is **not** the content authority. World content is loaded from `engine-cyberi
 
 Three independent processes, non-overlapping roles. The ecosystem is playable only when all three are running and healthy at the same time.
 
-```text
-engine-cyberia (Node.js)        cyberia-server (Go)            cyberia-client (C/WASM)
-content authority               authoritative simulation       presentation runtime
-gRPC + REST                     tick + AOI + snapshots         render + prediction
+```
+engine-cyberia (Node.js)                cyberia-server (Go)              cyberia-client (C/WASM)
+─────────────────────────               ──────────────────               ──────────────────────
+content authority                       authoritative simulation         presentation runtime
+persisted maps + rules                  tick + AOI + snapshots           render + prediction
 
-   └── gRPC GetFullInstance ──►   └── WebSocket binary ──►
-         world config                  snapshots -> / input <-
+      │  gRPC  GetFullInstance               │  WebSocket binary
+      │────────────────────────────────────► │  AOI snapshots + init
+      │  (world configuration:               │  ▲
+      │   AOI radius, economy,               │  │ typed input commands
+      │   skill, equipment,                  │  │
+      │   entity gameplay defaults)          │  │
+      │                                      │  │
+      ▼                                      ▼  ▼
+   (boot + hot reload)                   tick loop + replication
 ```
 
 - Each service is supervised independently and owns its own monitor and reconnector.
-- `cyberia-server` loads world configuration from `engine-cyberia` and does not fabricate a world.
+- `cyberia-server` dials `engine-cyberia` gRPC at boot and exits on dial failure rather than fabricate a world.
+- On reconnect, world configuration is reloaded via `GetFullInstance(instanceCode)`.
 - If any one of the three services is unhealthy, the game moves to standby until all three recover.
 
 The server speaks two protocols:
 
-- **gRPC inbound** to consume world configuration from `engine-cyberia`
-- **WebSocket binary** to deliver snapshots and accept typed input commands
+- **gRPC, inbound, at boot and hot reload:** consumes world configuration from `engine-cyberia`.
+- **WebSocket binary, ongoing:** delivers AOI snapshots to clients, accepts typed input commands.
 
 There is no per-tick traffic between `cyberia-server` and `engine-cyberia`, and no presentation authority in the Go runtime.
 
