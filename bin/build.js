@@ -248,8 +248,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       `${basePath}/manifests/deployment/${confName}-development`,
     );
 
-  // Copy conf.<deploy-id>.js to conf.js for the respective deployment
-  fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/proxy.yaml`, `${basePath}/proxy.yaml`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/deployment.yaml`, `${basePath}/deployment.yaml`);
   const pvPvcPath = `./manifests/deployment/${confName}-development/pv-pvc.yaml`;
@@ -258,6 +256,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
   }
-  fs.copyFileSync(`.gitignore`, `${basePath}/.gitignore`);
-  shellExec(`cd ${basePath} && npm install --ignore-scripts`);
+  fs.copyFileSync(
+    fs.readFileSync(`.gitignore`, 'utf8').split('# Ignore ERP / CRM custom prototypes src')[0],
+    `${basePath}/.gitignore`,
+  );
 }

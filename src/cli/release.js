@@ -392,7 +392,7 @@ class UnderpostRelease {
       shellExec(`node bin/build dd`);
       shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
       shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
-      shellExec(`node bin/deploy build-default-confs`);
+      shellExec(`node bin new --default-conf --conf-workflow-id template`);
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));

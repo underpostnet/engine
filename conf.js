@@ -95,16 +95,8 @@ const DefaultConf = /**/ {
         { path: '/default-management', client: 'Default', ssr: 'Default' },
         { client: 'Default', ssr: 'Default', path: '/404', title: '404 Not Found' },
         { client: 'Default', ssr: 'Default', path: '/500', title: '500 Server Error' },
-        {
-          path: '/blog',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/chat',
-          client: 'Default',
-          ssr: 'Default',
-        },
+        { path: '/blog', client: 'Default', ssr: 'Default' },
+        { path: '/chat', client: 'Default', ssr: 'Default' },
       ],
       dists: [
         {
@@ -121,10 +113,7 @@ const DefaultConf = /**/ {
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
         },
         { folder: './node_modules/validator', public_folder: '/dist/validator' },
-        {
-          folder: './node_modules/easymde/dist',
-          public_folder: '/dist/easymde',
-        },
+        { folder: './node_modules/easymde/dist', public_folder: '/dist/easymde' },
         {
           folder: './node_modules/marked/lib',
           public_folder: '/dist/marked',
@@ -157,7 +146,6 @@ const DefaultConf = /**/ {
           import_name: 'dexie',
           import_name_build: '/dist/dexie/dexie.mjs',
         },
-
         { folder: './node_modules/peerjs/dist', public_folder: '/dist/peerjs' },
       ],
       services: ['default', 'core', 'user', 'test', 'file', 'document'],
@@ -201,40 +189,26 @@ const DefaultConf = /**/ {
         proxy: [80, 443],
         db: {
           provider: 'env:DB_PROVIDER:mongoose',
-          host: 'env:DB_HOST:mongodb://mongodb-0.mongodb-service:27017',
+          host: 'env:DB_HOST:mongodb://127.0.0.1:27017',
           name: 'env:DB_NAME:default',
           replicaSet: 'env:DB_REPLICA_SET:rs0',
+          authSource: 'env:DB_AUTH_SOURCE:admin',
+          user: 'env:DB_USER:',
+          password: 'env:DB_PASSWORD:',
         },
         mailer: {
-          sender: {
-            email: 'env:MAILER_SENDER_EMAIL:noreply@default.net',
-            name: 'env:MAILER_SENDER_NAME:Default',
-          },
+          sender: { email: 'env:MAILER_SENDER_EMAIL:noreply@default.net', name: 'env:MAILER_SENDER_NAME:Default' },
           transport: {
             host: 'env:SMTP_HOST:smtp.default.com',
             port: 'env:SMTP_PORT:int:465',
             secure: 'env:SMTP_SECURE:bool:true',
-            auth: {
-              user: 'env:SMTP_AUTH_USER:',
-              pass: 'env:SMTP_AUTH_PASS:',
-            },
+            auth: { user: 'env:SMTP_AUTH_USER:', pass: 'env:SMTP_AUTH_PASS:' },
           },
         },
-        valkey: {
-          port: 'env:VALKEY_PORT:int:6379',
-          host: 'env:VALKEY_HOST:127.0.0.1',
-        },
+        valkey: { port: 'env:VALKEY_PORT:int:6379', host: 'env:VALKEY_HOST:127.0.0.1' },
       },
     },
-    'www.default.net': {
-      '/': {
-        client: null,
-        runtime: 'nodejs',
-        apis: [],
-        origins: [],
-        proxy: [80, 443],
-      },
-    },
+    'www.default.net': { '/': { client: null, runtime: 'nodejs', apis: [], origins: [], proxy: [80, 443] } },
   },
   cron: {
     records: {
