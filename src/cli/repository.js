@@ -1653,6 +1653,48 @@ Prevent build private config repo.`,
       }
       return fallback;
     },
+
+    /**
+     * Performs a shallow sparse Git checkout of a single subdirectory from any
+     * GitHub repository into a local target directory.
+     *
+     * Uses `--depth 1 --no-checkout` + `git sparse-checkout` so only the
+     * requested path is fetched — no full clone of the remote repo.
+     * Skips the clone entirely when `<targetDir>/<subPath>` already exists on
+     * disk (idempotent).
+     *
+     * Requires `GITHUB_TOKEN` to be set in the environment for authenticated
+     * access to private repositories.
+     *
+     * @param {string} subPath - The subdirectory path within the remote repo to
+     *   check out (e.g. `'conf/dd-prototype'`, `'src/api/payments'`).
+     * @param {object} [options]
+     * @param {string} [options.repoOwner='underpostnet'] - GitHub organisation or
+     *   user that owns the repository.
+     * @param {string} [options.repoName='engine-private'] - Name of the
+     *   repository on GitHub.
+     * @param {string} [options.targetDir='./engine-private'] - Local directory
+     *   where the repo will be cloned.
+     * @returns {boolean} `true` when the checkout was performed, `false` when it
+     *   was skipped because the target path already existed.
+     * @memberof UnderpostRepository
+     */
+    sparseCheckoutDirectory(
+      subPath,
+      options = { repoOwner: 'underpostnet', repoName: 'engine-private', targetDir: './engine-private' },
+    ) {
+      const { repoOwner = 'underpostnet', repoName = 'engine-private', targetDir = './engine-private' } = options;
+      const localPath = `${targetDir}/${subPath}`;
+      if (fs.existsSync(localPath)) {
+        logger.info('[sparseCheckoutDirectory] path already present, skipping', localPath);
+        return false;
+      }
+      const authUrl = `https://${process.env.GITHUB_TOKEN}@github.com/${repoOwner}/${repoName}.git`;
+      shellExec(`git clone --depth 1 --no-checkout ${authUrl} ${targetDir}`, { disableLog: true });
+      shellExec(`cd ${targetDir} && git sparse-checkout set ${subPath} && git checkout`, { disableLog: true });
+      logger.info('[sparseCheckoutDirectory] sparse checkout complete', localPath);
+      return true;
+    },
   };
 }
 

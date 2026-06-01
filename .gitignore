@@ -48,11 +48,13 @@ packer/images/*/*.iso
 gitleaks-report.json
 
 # Ignore ERP / CRM custom prototypes src
-/src/api/healthcare-appointment
-/src/client/components/bymyelectrics
-/src/client/components/cecinasmarcelina
-/src/client/components/healthcare
+/src/api/**/*healthcare*
 /src/client/public/bymyelectrics
 /src/client/public/cecinasmarcelina
 /src/client/public/healthcare
-/src/client/services/healthcare-appointment
+/src/client/**/*Bymyelectrics*
+/src/client/**/*Cecinasmarcelina*
+/src/client/**/*Healthcare*
+/src/client/**/*bymelectrics*
+/src/client/**/*cecinasmarcelina*
+/src/client/**/*healthcare*

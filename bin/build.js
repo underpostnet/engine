@@ -4,6 +4,7 @@ import { shellExec } from '../src/server/process.js';
 import dotenv from 'dotenv';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import { getPathsSSR } from '../src/server/conf.js';
+import UnderpostRepository from '../src/cli/repository.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
 if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: true });
@@ -81,6 +82,32 @@ if (confName === 'dd') {
     shellExec(`node bin/build ${_confName}`);
   }
   process.exit(0);
+}
+
+switch (confName) {
+  case 'dd-prototype':
+    UnderpostRepository.API.sparseCheckoutDirectory('conf/dd-prototype');
+    fs.mkdirSync('src/api', { recursive: true });
+    fs.mkdirSync('src/client/components', { recursive: true });
+    fs.mkdirSync('src/client/public', { recursive: true });
+    fs.mkdirSync('src/client/services', { recursive: true });
+    for (const [src, dest] of [
+      ['../engine-prototype/src/api/healthcare-appointment', 'src/api/healthcare-appointment'],
+      ['../engine-prototype/src/client/components/bymyelectrics', 'src/client/components/bymyelectrics'],
+      ['../engine-prototype/src/client/components/cecinasmarcelina', 'src/client/components/cecinasmarcelina'],
+      ['../engine-prototype/src/client/components/healthcare', 'src/client/components/healthcare'],
+      ['../engine-prototype/src/client/public/bymyelectrics', 'src/client/public/bymyelectrics'],
+      ['../engine-prototype/src/client/public/cecinasmarcelina', 'src/client/public/cecinasmarcelina'],
+      ['../engine-prototype/src/client/public/healthcare', 'src/client/public/healthcare'],
+      ['../engine-prototype/src/client/services/healthcare-appointment', 'src/client/services/healthcare-appointment'],
+      ['../engine-prototype/src/client/Bymyelectrics.index.js', 'src/client/Bymyelectrics.index.js'],
+      ['../engine-prototype/src/client/Cecinasmarcelina.index.js', 'src/client/Cecinasmarcelina.index.js'],
+      ['../engine-prototype/src/client/Healthcare.index.js', 'src/client/Healthcare.index.js'],
+    ])
+      if (fs.existsSync(src)) fs.moveSync(src, dest, { overwrite: true });
+    break;
+  default:
+    break;
 }
 
 const confDir = `./engine-private/conf/${confName}`;
