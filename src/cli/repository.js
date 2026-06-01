@@ -556,7 +556,7 @@ class UnderpostRepository {
             // Handle sync-conf operation
             if (options.syncConf) {
               logger.info(`Syncing configuration for deploy ID: ${deployId}`);
-              shellExec(`node bin/build ${deployId} conf`);
+              shellExec(`node bin/build ${deployId} --conf`);
               logger.info('Configuration synced successfully');
               return resolve(true);
             }
@@ -937,7 +937,7 @@ Prevent build private config repo.`,
           deployVersion: packageJsonDeploy.version,
         };
       }
-      shellExec(`node bin/build ${deployId} conf`);
+      shellExec(`node bin/build ${deployId} --conf`);
       return {
         validVersion: true,
         engineVersion: packageJsonEngine.version,

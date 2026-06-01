@@ -1748,6 +1748,89 @@ ${renderHosts}`,
   return { renderHosts };
 };
 
+/**
+ * Extra payload directories copied verbatim into a deploy id's private repo, beyond the
+ * standard `conf`, `replica`, and `itc-scripts` sync. Keyed by deploy id; deploy ids absent
+ * from this map carry no extra payload.
+ *
+ * @constant {Object<string, string[]>}
+ * @memberof ServerConfBuilder
+ */
+const PRIVATE_CONF_EXTRA_PATHS = {
+  'dd-cyberia': ['cyberia-instances/FOREST'],
+};
+
+/**
+ * Resolves the concrete deploy ids a build or conf-sync run should iterate over.
+ *
+ * The meta deploy id `dd` fans out to the comma separated ids declared in
+ * `engine-private/deploy/dd.router`; any other value is parsed as a comma separated list.
+ * Entries are trimmed and empties dropped.
+ *
+ * @method resolveDeployList
+ * @param {string} deployId - A deploy id, a comma separated list, or the `dd` meta id.
+ * @returns {string[]} Ordered list of concrete deploy ids.
+ * @memberof ServerConfBuilder
+ */
+const resolveDeployList = (deployId) =>
+  (deployId === 'dd' ? fs.readFileSync('./engine-private/deploy/dd.router', 'utf8') : deployId)
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+/**
+ * Syncs a single deploy id's private configuration into its dedicated
+ * `engine-<suffix>-private` repository and pushes the result.
+ *
+ * Idempotent and safe to rerun: the private repo is cloned when missing or reset to a clean
+ * checkout when present, then the deploy id's `conf` folder, matching `replica` and
+ * `itc-scripts` entries, and any deploy-specific {@link PRIVATE_CONF_EXTRA_PATHS} payloads are
+ * mirrored. The commit/push step is a no-op when nothing changed (`silentOnError`).
+ *
+ * @method syncPrivateConf
+ * @param {string} deployId - A concrete deploy id (e.g. `dd-cyberia`), not the `dd` meta id.
+ * @returns {void}
+ * @memberof ServerConfBuilder
+ */
+const syncPrivateConf = (deployId) => {
+  const suffix = deployId.split('dd-')[1];
+  const privateRepoName = `engine-${suffix}-private`;
+  const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
+  const privateRepoPath = `../${privateRepoName}`;
+
+  if (!fs.existsSync(privateRepoPath)) {
+    shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
+  } else {
+    shellExec(`cd ${privateRepoPath} && git checkout . && git clean -f -d && underpost pull . ${privateGitUri}`, {
+      silent: true,
+    });
+  }
+
+  const confDest = `${privateRepoPath}/conf/${deployId}`;
+  fs.removeSync(confDest);
+  fs.mkdirSync(confDest, { recursive: true });
+  fs.copySync(`./engine-private/conf/${deployId}`, confDest);
+
+  fs.removeSync(`${privateRepoPath}/replica`);
+  for (const payloadDir of ['replica', 'itc-scripts']) {
+    const srcDir = `./engine-private/${payloadDir}`;
+    if (!fs.existsSync(srcDir)) continue;
+    for (const entry of fs.readdirSync(srcDir))
+      if (entry.match(deployId)) fs.copySync(`${srcDir}/${entry}`, `${privateRepoPath}/${payloadDir}/${entry}`);
+  }
+
+  for (const extraPath of PRIVATE_CONF_EXTRA_PATHS[deployId] ?? [])
+    fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
+
+  shellExec(
+    `cd ${privateRepoPath}` +
+      ` && git add .` +
+      ` && underpost cmt . ci engine-core-conf 'Update ${deployId} conf'` +
+      ` && underpost push . ${privateGitUri}`,
+    { silent: true, silentOnError: true },
+  );
+};
+
 export {
   Config,
   loadConf,
@@ -1795,4 +1878,7 @@ export {
   loadCronDeployEnv,
   cronDeployIdResolve,
   etcHostFactory,
+  resolveDeployList,
+  syncPrivateConf,
+  PRIVATE_CONF_EXTRA_PATHS,
 };

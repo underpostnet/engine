@@ -126,6 +126,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin/build dd-cyberia --conf"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --sync --build-manifest --timeout-response 300000ms --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy --git-clean"
             sudo -n -- /bin/bash -lc "node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"

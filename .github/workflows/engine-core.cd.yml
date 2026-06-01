@@ -122,6 +122,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin/build dd-core --conf"
             sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --sync --build-manifest --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --cert --disable-update-proxy"
             sudo -n -- /bin/bash -lc "node bin monitor dd-core production --ready-deployment --promote --versions green --replicas 1"

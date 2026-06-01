@@ -121,6 +121,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin/build dd-test --conf"
             sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --sync --build-manifest --image 'underpost/wp:v3.2.12' --timeout-response 300000ms --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --disable-update-proxy --cert"
             sudo -n -- /bin/bash -lc "node bin monitor dd-test production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"

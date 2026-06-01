@@ -520,7 +520,7 @@ class UnderpostRelease {
       shellExec(
         `node bin secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
       );
-      shellExec(`node bin/build dd conf`);
+      shellExec(`node bin/build dd --conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${version}'`);
       shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
