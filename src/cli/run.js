@@ -422,6 +422,7 @@ class UnderpostRun {
         return;
       }
       shellExec(`${baseCommand} run pull`);
+      shellExec(`${baseCommand} run shared-dir`);
 
       // Capture last N commit messages for propagation.
       // When --from-n-commit is not set, auto-detect unpushed commit count (same as --unpush flag).
@@ -502,6 +503,7 @@ class UnderpostRun {
         return;
       }
       shellExec(`${baseCommand} run pull`);
+      shellExec(`${baseCommand} run shared-dir`);
 
       // Capture last N commit messages from the engine repo.
       // When --from-n-commit is not set, auto-detect unpushed commit count (same as --unpush flag).
