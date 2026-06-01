@@ -91,8 +91,12 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          node ../engine/bin cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
-          node ../engine/bin push . underpostnet/pwa-microservices-template
+          if git diff --cached --quiet; then
+            echo "[INFO] No template changes to publish; skipping commit and push."
+          else
+            node ../engine/bin cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
+            node ../engine/bin push . underpostnet/pwa-microservices-template
+          fi
 
       - name: Dispatch all engine CIs
         run: |

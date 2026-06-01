@@ -93,8 +93,12 @@ jobs:
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'
           git add .
-          git commit -m "$LAST_COMMIT_MESSAGE"
-          node ../engine/bin push . underpostnet/engine-test
+          if git diff --cached --quiet; then
+            echo "[INFO] No changes to publish; skipping commit and push."
+          else
+            git commit -m "$LAST_COMMIT_MESSAGE"
+            node ../engine/bin push . underpostnet/engine-test
+          fi
           if [ "$SHOULD_CD" = "true" ]; then
             if [ -z "$DEPLOY_TYPE" ]; then
               DEPLOY_TYPE="sync-and-deploy"
