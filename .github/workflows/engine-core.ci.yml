@@ -78,10 +78,16 @@ jobs:
           echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
           node engine/bin clone --bare underpostnet/engine-core
           cd engine
+          git clone --depth 1 --no-checkout https://$GITHUB_TOKEN@github.com/underpostnet/engine-private.git ./engine-private
+          cd ./engine-private && git sparse-checkout set conf/dd-core && git checkout && cd ..
           node bin/build dd-core development
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-core.git ./.git
+          mv ../engine/engine-private ./engine-private
+          node bin new --default-conf --deploy-id dd-core
+          mv ./conf.core.js ./conf.js
+          rm -rf ./engine-private
           git init
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'

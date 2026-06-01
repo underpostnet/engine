@@ -78,10 +78,16 @@ jobs:
           echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
           node engine/bin clone --bare underpostnet/engine-lampp
           cd engine
+          git clone --depth 1 --no-checkout https://$GITHUB_TOKEN@github.com/underpostnet/engine-private.git ./engine-private
+          cd ./engine-private && git sparse-checkout set conf/dd-lampp && git checkout && cd ..
           node bin/build dd-lampp development
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-lampp.git ./.git
+          mv ../engine/engine-private ./engine-private
+          node bin new --default-conf --deploy-id dd-lampp
+          mv ./conf.lampp.js ./conf.js
+          rm -rf ./engine-private
           git init
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'

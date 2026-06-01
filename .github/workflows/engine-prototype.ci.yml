@@ -76,12 +76,30 @@ jobs:
           fi
           echo "[INFO] Captured commit message: $LAST_COMMIT_MESSAGE"
           echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
-          node engine/bin clone --bare underpostnet/engine-prototype
+          node engine/bin clone underpostnet/engine-prototype
           cd engine
+          git clone --depth 1 --no-checkout https://$GITHUB_TOKEN@github.com/underpostnet/engine-private.git ./engine-private
+          cd ./engine-private && git sparse-checkout set conf/dd-prototype && git checkout && cd ..
+          mkdir -p src/api src/client/components src/client/public src/client/services
+          mv ../engine-prototype/src/api/healthcare-appointment src/api/
+          mv ../engine-prototype/src/client/components/bymyelectrics src/client/components/
+          mv ../engine-prototype/src/client/components/cecinasmarcelina src/client/components/
+          mv ../engine-prototype/src/client/components/healthcare src/client/components/
+          mv ../engine-prototype/src/client/public/bymyelectrics src/client/public/
+          mv ../engine-prototype/src/client/public/cecinasmarcelina src/client/public/
+          mv ../engine-prototype/src/client/public/healthcare src/client/public/
+          mv ../engine-prototype/src/client/services/healthcare-appointment src/client/services/
+          mv ../engine-prototype/src/client/Bymyelectrics.index.js src/client/
+          mv ../engine-prototype/src/client/Cecinasmarcelina.index.js src/client/
+          mv ../engine-prototype/src/client/Healthcare.index.js src/client/
           node bin/build dd-prototype development
           cd ../pwa-microservices-template
           rm -rf ./.git
-          mv ../engine-prototype.git ./.git
+          mv ../engine-prototype/.git ./.git
+          mv ../engine/engine-private ./engine-private
+          node bin new --default-conf --deploy-id dd-prototype
+          mv ./conf.prototype.js ./conf.js
+          rm -rf ./engine-private
           git init
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'

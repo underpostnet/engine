@@ -83,7 +83,12 @@ if (confName === 'dd') {
   process.exit(0);
 }
 
-const { DefaultConf } = await import(`../conf.${confName}.js`);
+const confDir = `./engine-private/conf/${confName}`;
+const DefaultConf = {
+  server: JSON.parse(fs.readFileSync(`${confDir}/conf.server.json`, 'utf8')),
+  client: JSON.parse(fs.readFileSync(`${confDir}/conf.client.json`, 'utf8')),
+  ssr: JSON.parse(fs.readFileSync(`${confDir}/conf.ssr.json`, 'utf8')),
+};
 
 {
   for (const host of Object.keys(DefaultConf.server)) {
@@ -256,8 +261,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
   }
-  fs.copyFileSync(
-    fs.readFileSync(`.gitignore`, 'utf8').split('# Ignore ERP / CRM custom prototypes src')[0],
+  fs.writeFileSync(
     `${basePath}/.gitignore`,
+    fs.readFileSync(`.gitignore`, 'utf8').split('# Ignore ERP / CRM custom prototypes src')[0],
   );
 }
