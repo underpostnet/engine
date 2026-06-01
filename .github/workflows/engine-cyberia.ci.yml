@@ -85,6 +85,7 @@ jobs:
           rm -rf ./.git
           mv ../engine-cyberia.git ./.git
           mv ../engine/engine-private ./engine-private
+          npm install
           node bin new --default-conf --deploy-id dd-cyberia
           mv ./conf.cyberia.js ./conf.js
           rm -rf ./engine-private

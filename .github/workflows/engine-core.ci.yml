@@ -85,6 +85,7 @@ jobs:
           rm -rf ./.git
           mv ../engine-core.git ./.git
           mv ../engine/engine-private ./engine-private
+          npm install
           node bin new --default-conf --deploy-id dd-core
           mv ./conf.core.js ./conf.js
           rm -rf ./engine-private

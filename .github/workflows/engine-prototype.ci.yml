@@ -83,6 +83,7 @@ jobs:
           rm -rf ./.git
           mv ../engine-prototype/.git ./.git
           mv ../engine/engine-private ./engine-private
+          npm install
           node bin new --default-conf --deploy-id dd-prototype
           mv ./conf.prototype.js ./conf.js
           rm -rf ./engine-private
