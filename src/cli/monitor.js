@@ -367,8 +367,8 @@ class UnderpostMonitor {
 
       logger.info('Deployment init', { deployId, env, targetTraffic, namespace });
 
-      // Per-pod cache of last-known container-status (persists across retries)
       const podStatusCache = new Map();
+      const advancedPods = new Set();
 
       const readContainerStatus = (podName) => {
         try {
@@ -395,13 +395,20 @@ class UnderpostMonitor {
 
         const allPods = [...result.readyPods, ...result.notReadyPods];
 
-        // Failure gate: a failing runtime keeps its pod alive with
-        // container-status=error (see src/server/start.js), so this exec-read is
-        // the authoritative signal — abort and fail the CD runner.
         for (const pod of allPods) {
           if (!pod?.NAME) continue;
+          const podStatus = (pod.STATUS || '').toLowerCase().trim();
+          if (
+            ['error', 'crashloopbackoff', 'oomkilled', 'imagepullbackoff', 'errimagepull'].find((s) =>
+              podStatus.match(s),
+            )
+          )
+            throw new Error(`Pod ${pod.NAME} has error pod status: ${pod.STATUS}`);
           const status = readContainerStatus(pod.NAME);
-          if (status === 'error') throw new Error(`Pod ${pod.NAME} has error status`);
+          if (status === 'error') throw new Error(`Pod ${pod.NAME} has error container-status`);
+          if (advancedPods.has(pod.NAME) && status === containerStatusDefault)
+            throw new Error(`Pod ${pod.NAME} container-status regressed to default — pod likely restarted`);
+          if (status !== containerStatusDefault) advancedPods.add(pod.NAME);
           podStatusCache.set(pod.NAME, status);
         }
 
