@@ -852,6 +852,7 @@ class UnderpostRepository {
               }
             }
             await buildClient({
+              deployId: resolvedDeployId,
               buildZip: options.buildZip || false,
               split: options.split || '',
               fullBuild: options.liteBuild ? false : true,
@@ -862,7 +863,12 @@ class UnderpostRepository {
                 logger.warn('Skip replica client build: replica folder not found', { replicaDeployId });
                 continue;
               }
-              await Underpost.repo.client(replicaDeployId);
+              await Underpost.repo.client(replicaDeployId, '', '', '', {
+                buildZip: options.buildZip || false,
+                split: options.split || '',
+                liteBuild: options.liteBuild || false,
+                iconsBuild: options.iconsBuild || false,
+              });
             }
 
             return resolve(true);

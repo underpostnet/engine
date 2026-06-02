@@ -86,7 +86,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-test,1,,underpost/wp:v3.2.12"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production' dd-test,1,,underpost/wp:v3.2.12"
   init:
     if: >-
       github.repository == 'underpostnet/engine'

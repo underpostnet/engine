@@ -15,6 +15,7 @@ import {
   getNpmRootPath,
   isDeployRunnerContext,
   loadConfServerJson,
+  loadReplicas,
   writeEnv,
 } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
@@ -2504,7 +2505,8 @@ EOF`;
     /**
      * @method push-bundle
      * @description Builds the client zip for the specified deployment, splits it into parts, and uploads to file storage.
-     *   Steps: set env, build+split zip, switch to cron env, upload parts to storage.
+     *   Steps: set env, build+split zip, upload only the zip parts belonging to the deploy-id's hosts (from conf.server.json).
+     *   Only files matching `<host>-<route>.zip.part*` or `<host>-<route>.zip` for each non-skipped route are uploaded.
      * @param {string} path - Optional `fsPath.splitOption` string.
      *   Examples: `build` (default split 8), `build.16` (split 16 MB), `build.none-split` (no split flag).
      * @param {Object} options - The default underpost runner options for customizing workflow.
@@ -2513,7 +2515,7 @@ EOF`;
      * @memberof UnderpostRun
      */
     'push-bundle': (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
       const env = options.dev ? 'development' : 'production';
       const deployId = options.deployId || 'dd-default';
       const pathParts = (path || '').split('.');
@@ -2537,11 +2539,54 @@ EOF`;
         }
       }
 
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      const confServer = fs.existsSync(confServerPath)
+        ? loadReplicas(deployId, loadConfServerJson(confServerPath))
+        : {};
+      const storageFilePath = `engine-private/conf/${deployId}/storage.bundle.json`;
+
       shellExec(`${baseCommand} env ${deployId} ${env}`);
       shellExec(`${baseCommand} client ${deployId} --build-zip${splitFlag ? ` ${splitFlag}` : ''}`);
-      shellExec(
-        `${baseCommand} fs ${fsPath} --recursive --deploy-id ${deployId} --storage-file-path engine-private/conf/${deployId}/storage.bundle.json --force`,
-      );
+
+      const pushBundleFiles = (host, routePath) => {
+        const buildId = `${host}-${routePath.replaceAll('/', '')}`;
+        const buildDir = `./${fsPath}`;
+        if (!fs.existsSync(buildDir)) return;
+        const partFiles = fs
+          .readdirSync(buildDir)
+          .filter(
+            (name) =>
+              name.startsWith(`${buildId}.zip.part`) ||
+              name.startsWith(`${buildId}.zip-part`) ||
+              name === `${buildId}.zip`,
+          )
+          .map((name) => `${fsPath}/${name}`);
+        if (partFiles.length === 0) {
+          logger.warn(`push-bundle: no bundle files found for '${host}${routePath}'`, { buildId });
+          return;
+        }
+        for (const partFile of partFiles) {
+          shellExec(
+            `${baseCommand} fs ${partFile} --deploy-id ${deployId} --storage-file-path ${storageFilePath} --force`,
+          );
+        }
+      };
+
+      for (const host of Object.keys(confServer)) {
+        for (const routePath of Object.keys(confServer[host])) {
+          const routeConf = confServer[host][routePath] || {};
+          if (routeConf.redirect || routeConf.disabledRebuild) continue;
+          if (routeConf.singleReplica) {
+            if (routeConf.replicas) {
+              for (const replica of routeConf.replicas) {
+                pushBundleFiles(host, replica);
+              }
+            }
+            continue;
+          }
+          pushBundleFiles(host, routePath);
+        }
+      }
     },
 
     /**
@@ -2558,11 +2603,13 @@ EOF`;
      * @memberof UnderpostRun
      */
     'pull-bundle': (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
       const env = options.dev ? 'development' : 'production';
       const deployId = options.deployId || 'dd-default';
       const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-      const confServer = fs.existsSync(confServerPath) ? loadConfServerJson(confServerPath) : {};
+      const confServer = fs.existsSync(confServerPath)
+        ? loadReplicas(deployId, loadConfServerJson(confServerPath))
+        : {};
       const hostsArg = path
         ? path
             .split(',')
@@ -2581,60 +2628,59 @@ EOF`;
         `${baseCommand} fs build --recursive --deploy-id ${deployId} --storage-file-path engine-private/conf/${deployId}/storage.bundle.json --pull --omit-unzip`,
       );
 
+      const pullBundleRoute = (host, routePath) => {
+        const buildId = `${host}-${routePath.replaceAll('/', '')}`;
+        const zipPath = `build/${buildId}.zip`;
+        const buildDir = './build';
+        const hasZip = fs.existsSync(zipPath);
+        const hasParts =
+          fs.existsSync(buildDir) &&
+          fs
+            .readdirSync(buildDir)
+            .some((name) => name.startsWith(`${buildId}.zip.part`) || name.startsWith(`${buildId}.zip-part`));
+
+        if (!hasZip && !hasParts) {
+          logger.warn(`Bundle not found for '${host}${routePath}'. Skipping.`, { zipPath, deployId });
+          return;
+        }
+
+        if (hasParts) shellExec(`${baseCommand} client --merge-zip ${zipPath}`);
+        shellExec(`${baseCommand} client --unzip ${zipPath}`);
+        shellExec(`sudo rm -rf ${zipPath}`);
+
+        if (fs.existsSync(buildDir)) {
+          fs.readdirSync(buildDir)
+            .filter((name) => name.startsWith(`${buildId}.zip.part`) || name.startsWith(`${buildId}.zip-part`))
+            .forEach((partFile) => shellExec(`sudo rm -rf ${buildDir}/${partFile}`));
+        }
+
+        const extractedDir = `build/${buildId.replace(/-$/, '')}`;
+        if (!fs.existsSync(extractedDir)) {
+          logger.warn(`Extracted build dir not found: ${extractedDir}. Skipping move for '${host}${routePath}'.`);
+          return;
+        }
+
+        const publicDestPath = routePath === '/' ? `public/${host}` : `public/${host}${routePath}`;
+        if (fs.existsSync(publicDestPath)) shellExec(`sudo rm -rf ${publicDestPath}`);
+        if (routePath !== '/') shellExec(`sudo mkdir -p public/${host}`);
+        fs.copySync(`${extractedDir}`, `${publicDestPath}`);
+      };
+
       for (const host of hostsArg) {
-        // Gather all routes for this host; fall back to root '/' when host is not in confServer
-        // (e.g. when hosts were provided explicitly via the path argument).
         const routePaths = confServer[host] ? Object.keys(confServer[host]) : ['/'];
 
         for (const routePath of routePaths) {
           const routeConf = confServer[host] ? confServer[host][routePath] || {} : {};
-          // Skip routes that are not built by buildClient (mirrors buildClient skip conditions)
-          if (routeConf.singleReplica || routeConf.redirect || routeConf.disabledRebuild) continue;
-
-          // buildClient names the zip as "<host>-<path-no-slashes>.zip"
-          // e.g. host="underpost.net", path="/" → buildId="underpost.net-", zip="build/underpost.net-.zip"
-          // e.g. host="app.net", path="/admin" → buildId="app.net-admin", zip="build/app.net-admin.zip"
-          const buildId = `${host}-${routePath.replaceAll('/', '')}`;
-          const zipPath = `build/${buildId}.zip`;
-          const buildDir = './build';
-          const hasZip = fs.existsSync(zipPath);
-          const hasParts =
-            fs.existsSync(buildDir) &&
-            fs
-              .readdirSync(buildDir)
-              .some((name) => name.startsWith(`${buildId}.zip.part`) || name.startsWith(`${buildId}.zip-part`));
-
-          if (!hasZip && !hasParts) {
-            logger.warn(`Bundle not found for '${host}${routePath}'. Skipping.`, { zipPath, deployId });
+          if (routeConf.redirect || routeConf.disabledRebuild) continue;
+          if (routeConf.singleReplica) {
+            if (routeConf.replicas) {
+              for (const replica of routeConf.replicas) {
+                pullBundleRoute(host, replica);
+              }
+            }
             continue;
           }
-
-          if (hasParts) shellExec(`${baseCommand} client --merge-zip ${zipPath}`);
-          shellExec(`${baseCommand} client --unzip ${zipPath}`);
-          shellExec(`sudo rm -rf ${zipPath}`);
-
-          // Clean up downloaded part wrapper zips left by --omit-unzip pull
-          if (fs.existsSync(buildDir)) {
-            fs.readdirSync(buildDir)
-              .filter((name) => name.startsWith(`${buildId}.zip.part`) || name.startsWith(`${buildId}.zip-part`))
-              .forEach((partFile) => shellExec(`sudo rm -rf ${buildDir}/${partFile}`));
-          }
-
-          // unzipClientBuild extracts to buildId with trailing '-' stripped
-          // e.g. "build/underpost.net-" → "build/underpost.net"
-          // e.g. "build/app.net-admin" → "build/app.net-admin" (no trailing dash, no change)
-          const extractedDir = `build/${buildId.replace(/-$/, '')}`;
-          if (!fs.existsSync(extractedDir)) {
-            logger.warn(`Extracted build dir not found: ${extractedDir}. Skipping move for '${host}${routePath}'.`);
-            continue;
-          }
-
-          // Destination mirrors the public directory layout used by the server
-          const publicDestPath = routePath === '/' ? `public/${host}` : `public/${host}${routePath}`;
-          if (fs.existsSync(publicDestPath)) shellExec(`sudo rm -rf ${publicDestPath}`);
-          // Ensure parent directory exists for sub-paths
-          if (routePath !== '/') shellExec(`sudo mkdir -p public/${host}`);
-          shellExec(`sudo mv ${extractedDir} ${publicDestPath}`);
+          pullBundleRoute(host, routePath);
         }
       }
     },
