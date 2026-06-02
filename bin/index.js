@@ -6,7 +6,7 @@ import { loggerFactory } from '../src/server/logger.js';
 const logger = loggerFactory(import.meta);
 
 try {
-  program.parse();
+  await program.parseAsync();
 } catch (error) {
   logger.error(error);
   process.exit(1);

@@ -1297,15 +1297,17 @@ const validateTemplatePath = (absolutePath = '') => {
  * @description Waits for the deploy monitor.
  * @param {boolean} [isFinal=false] - If true, logs when the final (non-replica) deployment completes.
  * @param {number} [deltaMs=1000] - The delta ms.
- * @returns {Promise<void>} - The await deploy monitor.
+ * @param {boolean} [callback=false] - The callback.
+ * @returns {Promise<boolean>} - `false` if `container-status=error` was detected, `true` on clean completion.
  * @memberof ServerConfBuilder
  */
-const awaitDeployMonitor = async (isFinal = false, deltaMs = 1000) => {
-  Underpost.env.set('await-deploy', new Date().toISOString());
+const awaitDeployMonitor = async (isFinal = false, deltaMs = 1000, callback = false) => {
+  if (!callback) Underpost.env.set('await-deploy', new Date().toISOString());
   if (isFinal) logger.info('Final deployment running (no replica)');
   await timer(deltaMs);
-  if (Underpost.env.get('container-status') === 'error') throw new Error('Container status error');
-  if (Underpost.env.get('await-deploy')) return await awaitDeployMonitor(isFinal, deltaMs);
+  if (Underpost.env.get('container-status') === 'error') return false;
+  if (Underpost.env.get('await-deploy')) return await awaitDeployMonitor(false, deltaMs, true);
+  return true;
 };
 
 /**

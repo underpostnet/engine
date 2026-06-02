@@ -211,14 +211,18 @@ class UnderpostStartUp {
           shellExec(`node bin env ${replica} ${env}`);
           const replicaCmd = `npm ${runCmd} ${replica}`;
           shellExec(replicaCmd, { async: true, callback: makeDeployCallback(replicaCmd) });
-          await awaitDeployMonitor();
+          const result = await awaitDeployMonitor();
+          if (result !== true) {
+            Underpost.env.set('container-status', 'error');
+            return;
+          }
         }
       }
       shellExec(`node bin env ${deployId} ${env}`);
       const deployCmd = `npm ${runCmd} ${deployId}`;
       shellExec(deployCmd, { async: true, callback: makeDeployCallback(deployCmd) });
-      await awaitDeployMonitor(true);
-      if (Underpost.env.get('container-status') !== 'error') {
+      const result = await awaitDeployMonitor(true);
+      if (result === true) {
         if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
         Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
       } else {

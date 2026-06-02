@@ -12,6 +12,7 @@ import {
   etcHostFactory,
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
+import { timer } from '../client/components/core/CommonJs.js';
 import axios from 'axios';
 import fs from 'fs-extra';
 import { shellExec } from '../server/process.js';
@@ -93,13 +94,13 @@ class UnderpostMonitor {
       }
 
       if (options.readyDeployment) {
-        for (const version of options.versions.split(',')) {
-          (async () => {
-            await Underpost.deploy.monitorReadyRunner(deployId, env, version, [], options.namespace, 'underpost');
+        await Promise.all(
+          options.versions.split(',').map(async (version) => {
+            await Underpost.monitor.monitorReadyRunner(deployId, env, version, [], options.namespace);
             if (options.promote)
               Underpost.deploy.switchTraffic(deployId, env, version, options.replicas, options.namespace, options);
-          })();
-        }
+          }),
+        );
         return;
       }
 
@@ -227,7 +228,7 @@ class UnderpostMonitor {
                     monitorPodName = undefined;
                   }
                   const checkDeploymentReadyStatus = async () => {
-                    const { ready, notReadyPods, readyPods } = await Underpost.deploy.checkDeploymentReadyStatus(
+                    const { ready, notReadyPods, readyPods } = await Underpost.monitor.checkDeploymentReadyStatus(
                       deployId,
                       env,
                       traffic,
@@ -271,6 +272,182 @@ class UnderpostMonitor {
         );
       };
       return new Promise((...args) => monitorCallBack(...args));
+    },
+    /**
+     * Checks the status of a deployment.
+     * @param {string} deployId - Deployment ID for which the status is being checked.
+     * @param {string} env - Environment for which the status is being checked.
+     * @param {string} traffic - Current traffic status for the deployment.
+     * @param {Array<string>} ignoresNames - List of pod names to ignore.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
+     * @returns {object} - Object containing the status of the deployment.
+     * @memberof UnderpostMonitor
+     */
+    async checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
+      const pods = Underpost.kubectl.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
+      const readyPods = [];
+      const notReadyPods = [];
+
+      // Readiness signal: the pod's Kubernetes `Ready` condition driven by the
+      // container's readinessProbe (TCP socket, HTTP get, or exec). Set by kubelet
+      // when the probe passes. A failed or crashing runtime never becomes Ready —
+      // kubelet surfaces CrashLoopBackOff and this gate stays closed.
+      for (const pod of pods) {
+        const { NAME } = pod;
+        if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
+
+        let podJson = null;
+        try {
+          // Pod may not exist yet (between deployment apply and pod
+          // scheduling). silentOnError lets the monitor loop continue
+          // instead of aborting on the transient NotFound exit.
+          const raw = shellExec(`sudo kubectl get pod ${NAME} -n ${namespace} -o json`, {
+            silent: true,
+            disableLog: true,
+            stdout: true,
+            silentOnError: true,
+          });
+          podJson = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+          podJson = null;
+        }
+        const conditions = podJson?.status?.conditions || [];
+        const readyCondition = conditions.find((c) => c.type === 'Ready');
+        const k8sReady = readyCondition?.status === 'True';
+
+        pod.out = JSON.stringify({ k8sReady, condition: readyCondition ?? null });
+
+        if (k8sReady) readyPods.push(pod);
+        else notReadyPods.push(pod);
+      }
+      const consideredCount = readyPods.length + notReadyPods.length;
+      return {
+        ready: consideredCount > 0 && notReadyPods.length === 0,
+        notReadyPods,
+        readyPods,
+      };
+    },
+    /**
+     * Monitors the ready status of a deployment.
+     *
+     * Ready signal:
+     *   The orchestrator gate is the Kubernetes pod Ready condition. When the
+     *   container's `readinessProbe` succeeds, kubelet flips
+     *   `status.conditions[Ready]` to True and `checkDeploymentReadyStatus`
+     *   returns the pod in `readyPods`. This is the only required signal — see
+     *   `src/client/public/nexodev/docs/references/Deploy custom instance to K8S.md`.
+     *
+     * Container-status:
+     *   `underpost config get container-status` is read from each pod for both
+     *   the display column and as a second ready gate alongside the K8S Ready
+     *   condition. Both must be satisfied before the monitor exits:
+     *     1. K8S readinessProbe (TCP socket) — ensures the port is bound.
+     *     2. container-status == `<deploy>-<env>-running-deployment` — ensures
+     *        the application has completed its own startup sequence.
+     *   Early-abort on `error` container-status remains in effect: a failing
+     *   runtime keeps its pod alive (not Ready) with `container-status=error`,
+     *   so this `exec`-read surfaces the failure and the monitor aborts —
+     *   failing the CD runner instead of waiting out the full timeout.
+     *
+     * @param {string} deployId - Deployment ID for which the ready status is being monitored.
+     * @param {string} env - Environment for which the ready status is being monitored.
+     * @param {string} targetTraffic - Target traffic status for the deployment.
+     * @param {Array<string>} ignorePods - List of pod names to ignore.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
+     * @returns {object} - Object containing the ready status of the deployment.
+     * @memberof UnderpostMonitor
+     */
+    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default') {
+      const delayMs = 1000;
+      const maxIterations = 3000;
+      const deploymentId = `${deployId}-${env}-${targetTraffic}`;
+      const expectedContainerStatus = `${deployId}-${env}-running-deployment`;
+      const tag = `[${deploymentId}]`;
+      const containerStatusDefault = 'waiting for status';
+
+      logger.info('Deployment init', { deployId, env, targetTraffic, namespace });
+
+      // Per-pod cache of last-known container-status (persists across retries)
+      const podStatusCache = new Map();
+
+      const readContainerStatus = (podName) => {
+        try {
+          const raw = shellExec(
+            `sudo kubectl exec ${podName} -n ${namespace} -- sh -c 'underpost config get container-status --plain'`,
+            { silent: true, disableLog: true, stdout: true, silentOnError: true },
+          );
+          const val = raw ? raw.toString().trim() : '';
+          return val && val !== 'undefined' ? val : containerStatusDefault;
+        } catch (_) {
+          // exec failed (e.g. pod not yet running) — preserve last known value
+          return podStatusCache.get(podName) || containerStatusDefault;
+        }
+      };
+
+      for (let i = 0; i < maxIterations; i++) {
+        const result = await Underpost.monitor.checkDeploymentReadyStatus(
+          deployId,
+          env,
+          targetTraffic,
+          ignorePods,
+          namespace,
+        );
+
+        const allPods = [...result.readyPods, ...result.notReadyPods];
+
+        // Failure gate: a failing runtime keeps its pod alive with
+        // container-status=error (see src/server/start.js), so this exec-read is
+        // the authoritative signal — abort and fail the CD runner.
+        for (const pod of allPods) {
+          if (!pod?.NAME) continue;
+          const status = readContainerStatus(pod.NAME);
+          if (status === 'error') throw new Error(`Pod ${pod.NAME} has error status`);
+          podStatusCache.set(pod.NAME, status);
+        }
+
+        const allPodsK8sReady = allPods.length > 0 && result.notReadyPods.length === 0;
+
+        const allPodsStatusReady =
+          allPods.length > 0 && allPods.every((pod) => podStatusCache.get(pod.NAME) === expectedContainerStatus);
+
+        // Print snapshot for every pod — annotate when container-status hasn't caught
+        // up to the K8S Ready condition yet.
+        for (const pod of allPods) {
+          const status = podStatusCache.get(pod.NAME) || containerStatusDefault;
+          const podStatus = pod.STATUS || 'Unknown';
+          const statusMatchesExpected = status === expectedContainerStatus;
+          const statusDisplay = statusMatchesExpected ? status : `${status} (pending)`;
+
+          console.log(
+            'Target pod:',
+            pod.NAME[pod.NAME.includes('green') ? 'bgGreen' : 'bgBlue'].bold.black,
+            '| Pod status:',
+            podStatus.bold.yellow,
+            '| Runtime status:',
+            statusDisplay.bold.cyan,
+          );
+        }
+
+        // Both K8S readinessProbe AND container-status must be satisfied before
+        // declaring the deployment ready. The TCP probe ensures the port is bound;
+        // container-status == running-deployment ensures the application has
+        // completed its own startup sequence so traffic is not switched prematurely.
+        if (allPodsK8sReady && allPodsStatusReady) {
+          logger.info(`${tag} | All pods Ready (K8S readinessProbe satisfied)`);
+          return result;
+        }
+
+        await timer(delayMs);
+
+        if ((i + 1) % 10 === 0) {
+          logger.info(`${tag} | In progress... iteration ${i + 1}`);
+        }
+      }
+
+      logger.error(`${tag} | Deployment timeout after ${maxIterations} iterations`);
+      throw new Error(
+        `monitorReadyRunner timeout: ${deploymentId} did not become Ready within ${maxIterations}*${delayMs}ms`,
+      );
     },
   };
 }

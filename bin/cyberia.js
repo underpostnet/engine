@@ -4407,7 +4407,7 @@ try {
     throw new Error('Trigger underpost passthrough');
   }
 
-  program.parse();
+  await program.parseAsync();
 } catch (error) {
   // ONLY reroute on the explicit passthrough sentinel. Any other thrown
   // error (subprocess non-zero from shellExec's fail-fast default, CLI
@@ -4420,7 +4420,7 @@ try {
     process.argv = process.argv.filter((c) => c !== 'underpost');
     logger.warn('Rerouting to underpost cli...');
     try {
-      underpostProgram.parse();
+      await underpostProgram.parseAsync();
     } catch (err) {
       logger.error(err);
       process.exit(1);

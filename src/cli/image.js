@@ -123,6 +123,63 @@ class UnderpostImage {
       else if (k3s === true) shellExec(`sudo k3s ctr images import ${tarFile}`);
     },
     /**
+     * @method getCurrentLoaded
+     * @description Retrieves the currently loaded images in the Kubernetes cluster.
+     * @param {string} [node='kind-worker'] - Node name to check for loaded images.
+     * @param {object} options - Options for the image retrieval.
+     * @param {boolean} options.spec - Whether to retrieve images from the pod specifications.
+     * @param {string} options.namespace - Kubernetes namespace to filter pods.
+     * @returns {Array<object>} - Array of objects containing pod names and their corresponding images.
+     * @memberof UnderpostImage
+     */
+    getCurrentLoaded(node = 'kind-worker', options = { spec: false, namespace: '' }) {
+      if (options.spec) {
+        const raw = shellExec(
+          `kubectl get pods ${options.namespace ? `--namespace ${options.namespace}` : `--all-namespaces`} -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+          {
+            stdout: true,
+            silent: true,
+          },
+        );
+        return raw
+          .split(`\n`)
+          .map((lines) => ({
+            pod: lines.split('\t')[0].replaceAll(':', '').trim(),
+            image: lines.split('\t')[1] ? lines.split('\t')[1].replaceAll(',', '').trim() : null,
+          }))
+          .filter((o) => o.image);
+      }
+      const raw = shellExec(node === 'kind-worker' ? `docker exec -i ${node} crictl images` : `crictl images`, {
+        stdout: true,
+        silent: true,
+      });
+
+      const heads = raw
+        .split(`\n`)[0]
+        .split(' ')
+        .filter((_r) => _r.trim());
+
+      const pods = raw
+        .split(`\n`)
+        .filter((r) => !r.match('IMAGE'))
+        .map((r) => r.split(' ').filter((_r) => _r.trim()));
+
+      const result = [];
+
+      for (const row of pods) {
+        if (row.length === 0) continue;
+        const pod = {};
+        let index = -1;
+        for (const head of heads) {
+          if (head in pod) continue;
+          index++;
+          pod[head] = row[index];
+        }
+        result.push(pod);
+      }
+      return result;
+    },
+    /**
      * @method list
      * @description Lists currently loaded Docker images in the specified Kubernetes cluster node.
      * @param {object} options - Options for listing loaded images.
@@ -139,10 +196,7 @@ class UnderpostImage {
     list(options = { nodeName: '', namespace: '', spec: false, log: false, k3s: false, kubeadm: false, kind: false }) {
       if ((options.kubeadm === true || options.k3s === true) && !options.nodeName)
         options.nodeName = shellExec('echo $HOSTNAME', { stdout: true, silent: true }).trim();
-      const list = Underpost.deploy.getCurrentLoadedImages(
-        options.nodeName ? options.nodeName : 'kind-worker',
-        options,
-      );
+      const list = Underpost.image.getCurrentLoaded(options.nodeName ? options.nodeName : 'kind-worker', options);
       if (options.log) console.table(list);
       return list;
     },

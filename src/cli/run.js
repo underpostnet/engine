@@ -715,6 +715,11 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = versions ? versions : targetTraffic;
 
+      const ignorePods =
+        isDeployRunnerContext(path, options) && targetTraffic
+          ? Underpost.kubectl.get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace).map((p) => p.NAME)
+          : [];
+
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
       const cmdString = options.cmd
         ? ' --cmd ' + (options.cmd.find((c) => c.match('"')) ? '"' + options.cmd + '"' : "'" + options.cmd + "'")
@@ -745,7 +750,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         );
         if (!targetTraffic)
           targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
-        await Underpost.deploy.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace, 'underpost');
+        await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
         Underpost.deploy.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
       } else
         logger.info('current traffic', Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }));
@@ -1156,7 +1161,7 @@ EOF
 `,
           { disableLog: true },
         );
-        const { ready, readyPods } = await Underpost.deploy.monitorReadyRunner(
+        const { ready, readyPods } = await Underpost.monitor.monitorReadyRunner(
           _deployId,
           env,
           targetTraffic,
@@ -1438,8 +1443,8 @@ EOF`);
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const currentImage = options.imageName
         ? options.imageName
-        : Underpost.deploy
-            .getCurrentLoadedImages(options.nodeName ? options.nodeName : 'kind-worker', false)
+        : Underpost.image
+            .getCurrentLoaded(options.nodeName ? options.nodeName : 'kind-worker', false)
             .find((o) => o.IMAGE.match('underpost'));
       const podName = options.podName || `underpost-dev-container`;
       const volumeHostPath = options.claimName || '/home/dd';
@@ -1716,20 +1721,13 @@ EOF`);
       const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = options.dev ? 'development' : 'production';
-      const ignorePods = Underpost.deploy
+      const ignorePods = Underpost.kubectl
         .get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace)
         .map((p) => p.NAME);
 
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${options.namespace}`);
 
-      await Underpost.deploy.monitorReadyRunner(
-        deployId,
-        env,
-        targetTraffic,
-        ignorePods,
-        options.namespace,
-        'underpost',
-      );
+      await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
 
       Underpost.deploy.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace, options);
     },
@@ -1821,7 +1819,7 @@ EOF`);
         }`;
         shellExec(cmd, { async: true });
       }
-      await awaitDeployMonitor();
+      if ((await awaitDeployMonitor()) !== true) return;
       {
         const cmd = `npm run dev:client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`;
 
@@ -1829,7 +1827,7 @@ EOF`);
           async: true,
         });
       }
-      await awaitDeployMonitor();
+      if ((await awaitDeployMonitor()) !== true) return;
       shellExec(
         `NODE_ENV=development node src/proxy proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`,
       );

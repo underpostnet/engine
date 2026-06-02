@@ -709,7 +709,7 @@ Runtime processes own their own lifecycle. **No process orchestrated by `underpo
 | **runtime ready**     | Listening socket binds inside the runtime process     | `readinessProbe` (TCP socket) in the deployment YAML — K8S marks pod `Ready: True`                      |
 | **runtime crash**     | Runtime exits non-zero or panics                      | K8S CrashLoopBackOff. The pod's Ready condition stays `False`; the orchestrator never marks it running. |
 | **terminate**         | K8S sends SIGTERM (scale-down, rolling update, evict) | `lifecycle.preStop.exec` (K8S native) — stamps `…-stopping-deployment`                                  |
-| **orchestrator gate** | `Underpost.deploy.checkDeploymentReadyStatus`         | Reads `status.conditions[type=Ready].status == "True"` via `kubectl get pod -o json`                    |
+| **orchestrator gate** | `Underpost.monitor.checkDeploymentReadyStatus`        | Reads `status.conditions[type=Ready].status == "True"` via `kubectl get pod -o json`                    |
 
 The result:
 
