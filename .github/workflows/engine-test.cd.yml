@@ -86,7 +86,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production' dd-test,1,,underpost/wp:v3.2.12"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production' dd-test,1,,underpost/wp:v3.2.14"
   init:
     if: >-
       github.repository == 'underpostnet/engine'
@@ -122,6 +122,6 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin/build dd-test --conf"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --sync --build-manifest --image 'underpost/wp:v3.2.12' --timeout-response 300000ms --versions green --replicas 1"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --sync --build-manifest --image 'underpost/wp:v3.2.14' --timeout-response 300000ms --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --disable-update-proxy --cert"
             sudo -n -- /bin/bash -lc "node bin monitor dd-test production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"

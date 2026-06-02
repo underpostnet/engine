@@ -1,6 +1,63 @@
 # Changelog
 
-## 2026-05-31
+## 2026-06-02
+
+### runtime-wp
+
+- Enhance Dockerfile: Add retry logic for XAMPP installation to handle flaky SourceForge transfers ([d76f7ec69](https://github.com/underpostnet/engine/commit/d76f7ec6959f6ef049d9ef46475e95b7045855a6))
+
+### cli-run
+
+- Bundle runner: Enhance client build process by adding options for zip building and replica handling; improve bundle upload logic for deployment ([ee79ccfea](https://github.com/underpostnet/engine/commit/ee79ccfeaf870c0f772027c0a103634774ac1d10))
+- Add shared-dir command execution to UnderpostRun class ([a5d6a3a09](https://github.com/underpostnet/engine/commit/a5d6a3a09ab8ba439a2a21467a9e290a4f4ed59b))
+
+### monitor
+
+- Enhance pod status monitoring by adding advanced error checks and tracking for container status regressions ([de54ee20c](https://github.com/underpostnet/engine/commit/de54ee20c1cb76b53898c9785aefe4d2f972e84c))
+- Refactor deployment monitoring and image management; add tests for deployment failure detection ([819d17f30](https://github.com/underpostnet/engine/commit/819d17f306f1d62e0663023fbd667ecf26f8df61))
+
+### github-actions
+
+- Add GITHUB_USERNAME environment variable to CI workflows for better repository management ([2f47aaaa1](https://github.com/underpostnet/engine/commit/2f47aaaa14e08a30904ae2cc8187b8fabb74a906))
+- Update CI workflows to use environment-specific configuration files for engine core, cyberia, lampp, prototype, and test ([5c94eedf5](https://github.com/underpostnet/engine/commit/5c94eedf59ddd0a575288f028dbe8588c2931766))
+- Add conditional checks to skip commit and push if no changes are detected in CI workflows ([033afed27](https://github.com/underpostnet/engine/commit/033afed27cd0fe9e12d614fb15ef00e056140aa9))
+- Add npm install step to CI workflows for engine core, cyberia, lampp, prototype, and test ([25457022f](https://github.com/underpostnet/engine/commit/25457022f22b3b7e53c1a156cb2a0a7d35c7cd83))
+- Add sparse checkout and configuration updates for engine prototype workflows ([787cbac2b](https://github.com/underpostnet/engine/commit/787cbac2b3694c050335f69656cca4e77d2d62bd))
+- Add prototype ci cd workflows ([147f9c90e](https://github.com/underpostnet/engine/commit/147f9c90e00d36a2f44453432849d5b15200c7f5))
+
+### docs
+
+- Refactor CLI documentation generation in buildCliDoc ([fd2ef99ba](https://github.com/underpostnet/engine/commit/fd2ef99bac6204bfc3f8188c9e3b9cfb1707f7b9))
+- Update architecture and server documentation ([a3eefadd1](https://github.com/underpostnet/engine/commit/a3eefadd1a26c2c2e1fbed6a6c24fae2bfa21ccf))
+- Refactor documentation for Cyberia and Underpost Platform ([36c8234df](https://github.com/underpostnet/engine/commit/36c8234df258f2af819d21db3da88019f195d354))
+
+### bin-build
+
+- Enhance build process by adding source repo validation and restoration; implement pullSourceRepo method for managing public source repositories ([7cf35bcd8](https://github.com/underpostnet/engine/commit/7cf35bcd889f5a690f75df03fc0a082ee15f2c87))
+- Enhance build process by adding template rebuild option and refactoring build template logic; streamline deployment template assembly ([eb28b47f3](https://github.com/underpostnet/engine/commit/eb28b47f3d7b53b3f3209b5db763db6cd7abe419))
+- Refactor build main entry logic related to CI workflows and build process for engine components ([d1aba687a](https://github.com/underpostnet/engine/commit/d1aba687a3b0b3b65ebd5ddaf6a32e14c591150b))
+
+### catalog
+
+- Refactor build process and introduce dynamic product catalogs for Cyberia and Prototype; enhance deployment template assembly and configuration syncing ([65dc9cc6b](https://github.com/underpostnet/engine/commit/65dc9cc6bdc39bf9482d26fec74730ff5a942ecd))
+
+### engine-prototype
+
+- Add deployment and proxy configurations for dd-prototype-development ([40549234c](https://github.com/underpostnet/engine/commit/40549234c9bae7b3bc62573d1df1104df6bce776))
+
+### repository
+
+- Refactor CI workflow and enhance repository management with sparse checkout functionality ([27485162d](https://github.com/underpostnet/engine/commit/27485162d728f4c4d1147b0141c3ebe278097043))
+
+### engine
+
+- Remove update defualt conf.js per deploy-id workflow ([746285d10](https://github.com/underpostnet/engine/commit/746285d10debbd30ed652275dad605a3210b7fd4))
+
+### engine-core
+
+- Remove no core src ([1a90ce0d7](https://github.com/underpostnet/engine/commit/1a90ce0d7742a88c794ed2d37392632cbf12e11c))
+
+## New release v:3.2.12 (2026-05-31)
 
 ### docs
 

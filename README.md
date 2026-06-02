@@ -16,7 +16,7 @@
 
 <div align="center">
 
-[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![](https://data.jsdelivr.com/v1/package/npm/underpost/badge)](https://www.jsdelivr.com/package/npm/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.2.12)](https://socket.dev/npm/package/underpost/overview/3.2.12) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
+[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![](https://data.jsdelivr.com/v1/package/npm/underpost/badge)](https://www.jsdelivr.com/package/npm/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.2.14)](https://socket.dev/npm/package/underpost/overview/3.2.14) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
 
 </div>
 
@@ -88,7 +88,7 @@ npm run dev
 <!-- cli-index-start -->
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.12
+> underpost ci/cd cli v3.2.14
 
 **Usage:** `underpost [options] [command]`
 

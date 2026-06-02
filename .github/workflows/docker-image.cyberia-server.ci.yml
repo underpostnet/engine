@@ -66,7 +66,7 @@ jobs:
         with:
           images: underpost/cyberia-server
           tags: |
-            type=raw,value=v3.2.12
+            type=raw,value=v3.2.14
             type=ref,event=branch
             type=sha,prefix=sha-
 
@@ -85,4 +85,4 @@ jobs:
           # Keep the underpost CLI installed in the image aligned with the
           # image tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
           build-args: |
-            UNDERPOST_VERSION=3.2.12
+            UNDERPOST_VERSION=3.2.14
