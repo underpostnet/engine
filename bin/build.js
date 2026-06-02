@@ -5,7 +5,13 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../src/server/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
-import { getPathsSSR, resolveDeployList, syncPrivateConf, syncDeployIdSources, buildTemplate } from '../src/server/conf.js';
+import {
+  getPathsSSR,
+  resolveDeployList,
+  syncPrivateConf,
+  syncDeployIdSources,
+  buildTemplate,
+} from '../src/server/conf.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
 import UnderpostRepository from '../src/cli/repository.js';
 
@@ -26,7 +32,10 @@ const buildDeployTemplate = async (confName) => {
   const repoName = `engine-${confName.split('dd-')[1]}`;
   const catalog = await loadDeployCatalog(confName);
 
-  if (catalog.sourceMoves.length) UnderpostRepository.API.sparseCheckoutDirectory(`conf/${confName}`);
+  if (catalog.sourceMoves.length) {
+    UnderpostRepository.API.sparseCheckoutDirectory(`conf/${confName}`);
+    if (catalog.sourceMoves.some(([src]) => !fs.existsSync(src))) UnderpostRepository.API.pullSourceRepo(repoName);
+  }
   syncDeployIdSources(catalog.sourceMoves);
 
   const confDir = `./engine-private/conf/${confName}`;

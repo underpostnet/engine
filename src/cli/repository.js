@@ -1695,6 +1695,35 @@ Prevent build private config repo.`,
       logger.info('[sparseCheckoutDirectory] sparse checkout complete', localPath);
       return true;
     },
+
+    /**
+     * Ensures a deploy's public source repo (e.g. `engine-prototype`) is present
+     * next to the engine and reset to a pristine HEAD, so catalog `sourceMoves`
+     * can (re)pull custom sources even after a previous build moved them out of
+     * the source tree.
+     *
+     * Clones `../<repoName>` when missing; otherwise restores a clean checkout
+     * (`git checkout .` brings back any moved-out tracked files) and pulls latest.
+     * Mirrors the sibling-repo handling used by `syncPrivateConf`.
+     *
+     * @param {string} repoName - Public source repo name (e.g. `engine-prototype`).
+     * @returns {boolean} `true` when the repo is available on disk.
+     * @memberof UnderpostRepository
+     */
+    pullSourceRepo(repoName) {
+      const username = process.env.GITHUB_USERNAME;
+      if (!username || !repoName) return false;
+      const repoPath = `../${repoName}`;
+      const gitUri = `${username}/${repoName}`;
+      if (!fs.existsSync(repoPath)) {
+        shellExec(`cd .. && underpost clone ${gitUri}`, { silent: true });
+      } else {
+        shellExec(`cd ${repoPath} && git checkout . && git clean -f -d && underpost pull . ${gitUri}`, {
+          silent: true,
+        });
+      }
+      return fs.existsSync(repoPath);
+    },
   };
 }
 
