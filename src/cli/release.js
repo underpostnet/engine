@@ -268,7 +268,7 @@ async function buildAndTestTemplate() {
   killDevServers();
   Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
   shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
-  shellExec(`npm run update:template`);
+  shellExec(`npm run build:template`);
   shellExec(`node bin run shared-dir ${TEMPLATE_PATH}`);
 
   const dhcpHostIp = Dns.getLocalIPv4Address();
@@ -460,7 +460,7 @@ class UnderpostRelease {
      * Runs the pwa-microservices-template update and push flow locally.
      *
      * Always removes and re-clones pwa-microservices-template, then:
-     * 1. Runs update:template (node bin/build.template) to sync engine sources.
+     * 1. Runs build:template (node bin/build.template) to sync engine sources.
      * 2. Installs dependencies and builds the template.
      * 3. Commits and pushes to the pwa-microservices-template remote repository.
      *
@@ -488,7 +488,7 @@ class UnderpostRelease {
       shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
       shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
       shellCd('/home/dd/engine');
-      shellExec(`npm run update:template`);
+      shellExec(`npm run build:template`);
       shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`git add .`);

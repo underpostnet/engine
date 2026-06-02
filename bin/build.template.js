@@ -1,10 +1,12 @@
 import fs from 'fs-extra';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { getDirname, newInstance, uniqueArray } from '../src/client/components/core/CommonJs.js';
+import { getDirname, newInstance } from '../src/client/components/core/CommonJs.js';
 import { shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
 import { validateTemplatePath } from '../src/server/conf.js';
+import { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } from '../src/server/catalog-underpost.js';
+import { loadProductCatalogs } from '../src/server/catalog.js';
 import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
@@ -15,68 +17,6 @@ if (fs.existsSync('./engine-private/conf/dd-cron/.env.production'))
     override: true,
   });
 else dotenv.config();
-
-// Engine-only paths stripped from the template after the source sync.
-const TEMPLATE_DELETE_PATHS = [
-  './.github',
-  './manifests/deployment/dd-lampp-development',
-  './manifests/deployment/dd-cyberia-development',
-  './manifests/deployment/dd-core-development',
-  './manifests/deployment/dd-template-development',
-  './manifests/deployment/dd-prototype-development',
-  './src/server/object-layer.js',
-  './src/server/atlas-sprite-sheet-generator.js',
-  './src/server/shape-generator.js',
-  './src/server/semantic-layer-generator.js',
-  './src/server/semantic-layer-generator-floor.js',
-  './src/server/semantic-layer-generator-skin.js',
-  './src/server/semantic-layer-generator-resource.js',
-  './src/server/besu-genesis-generator.js',
-  './src/grpc/cyberia',
-  './src/runtime/cyberia-server',
-  './src/runtime/cyberia-client',
-  './test/shape-generator.test.js',
-  './src/client/public/cyberia-docs',
-  'bin/cyberia.js',
-  './hardhat',
-];
-
-// Workflow + service files re-added to the template after the engine-only strip above.
-const TEMPLATE_RESTORE_PATHS = [
-  `./.github/workflows/pwa-microservices-template-page.cd.yml`,
-  `./.github/workflows/pwa-microservices-template-test.ci.yml`,
-  `./.github/workflows/npmpkg.ci.yml`,
-  `./.github/workflows/ghpkg.ci.yml`,
-  `./.github/workflows/gitlab.ci.yml`,
-  `./.github/workflows/publish.ci.yml`,
-  `./.github/workflows/release.cd.yml`,
-  `./src/client/services/user/guest.service.js`,
-  './src/api/user/guest.service.js',
-  './src/ws/IoInterface.js',
-  './src/ws/IoServer.js',
-];
-
-const TEMPLATE_KEYWORDS = [
-  'underpost',
-  'underpost-platform',
-  'cli',
-  'toolchain',
-  'ci-cd',
-  'devops',
-  'kubernetes',
-  'k3s',
-  'kubeadm',
-  'lxd',
-  'bare-metal',
-  'container-orchestration',
-  'image-management',
-  'pwa',
-  'workbox',
-  'microservices',
-];
-
-const TEMPLATE_DESCRIPTION =
-  'Underpost Platform — end-to-end CI/CD and application-delivery toolchain CLI. Covers bare metal, Kubernetes, K3s, kubeadm, LXD, container/image orchestration, secrets, databases, cron jobs, monitoring, SSH, runners, PWA + Workbox delivery, and release orchestration. Extensible via downstream CLIs.';
 
 /**
  * Builds the pwa-microservices-template from scratch out of the current engine source tree.
@@ -138,13 +78,27 @@ try {
   // Preserve the template's own README + package.json identity before merging engine metadata.
   for (const checkoutPath of ['README.md', 'package.json']) shellExec(`cd ${toPath} && git checkout ${checkoutPath}`);
 
-  for (const deletePath of TEMPLATE_DELETE_PATHS) {
+  // Base strips plus each product catalog's `stripPaths`, aggregated dynamically so the
+  // template build stays decoupled from (and survives the removal of) product modules.
+  const productStripPaths = (await loadProductCatalogs()).flatMap((c) => c.stripPaths);
+  for (const deletePath of productStripPaths) {
     const target = `${toPath}/${deletePath}`;
     if (fs.existsSync(target)) fs.removeSync(target);
   }
+  shellExec(`rm -rf ${toPath}/.github`);
+  shellExec(`rm -rf ${toPath}/manifests/deployment/dd-*`);
+  shellExec(`rm -rf ${toPath}/src/server/catalog-*`);
 
   fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
-  for (const restorePath of TEMPLATE_RESTORE_PATHS) fs.copyFileSync(restorePath, `${toPath}/${restorePath}`);
+  for (const restorePath of TEMPLATE_RESTORE_PATHS) {
+    const src = restorePath;
+    const dest = `${toPath}/${restorePath}`;
+    if (fs.statSync(src).isDirectory()) {
+      fs.copySync(src, dest, { overwrite: true });
+    } else {
+      fs.copyFileSync(src, dest);
+    }
+  }
 
   // ── package.json: take engine deps/scripts/version, keep template identity. ──
   const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
@@ -158,8 +112,8 @@ try {
   templatePackageJson.overrides = originPackageJson.overrides;
   templatePackageJson.name = templateName;
   templatePackageJson.description = TEMPLATE_DESCRIPTION;
-  templatePackageJson.keywords = uniqueArray(TEMPLATE_KEYWORDS.concat(templatePackageJson.keywords || []));
-  delete templatePackageJson.scripts['update:template'];
+  templatePackageJson.keywords = TEMPLATE_KEYWORDS;
+  delete templatePackageJson.scripts['build:template'];
   fs.writeFileSync(`${toPath}/package.json`, JSON.stringify(templatePackageJson, null, 4), 'utf8');
 
   // ── package-lock.json: mirror engine packages, keep template name/version on the root entry. ──

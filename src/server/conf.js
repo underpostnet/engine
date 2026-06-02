@@ -1751,18 +1751,6 @@ ${renderHosts}`,
 };
 
 /**
- * Extra payload directories copied verbatim into a deploy id's private repo, beyond the
- * standard `conf`, `replica`, and `itc-scripts` sync. Keyed by deploy id; deploy ids absent
- * from this map carry no extra payload.
- *
- * @constant {Object<string, string[]>}
- * @memberof ServerConfBuilder
- */
-const PRIVATE_CONF_EXTRA_PATHS = {
-  'dd-cyberia': ['cyberia-instances/FOREST'],
-};
-
-/**
  * Resolves the concrete deploy ids a build or conf-sync run should iterate over.
  *
  * The meta deploy id `dd` fans out to the comma separated ids declared in
@@ -1786,15 +1774,17 @@ const resolveDeployList = (deployId) =>
  *
  * Idempotent and safe to rerun: the private repo is cloned when missing or reset to a clean
  * checkout when present, then the deploy id's `conf` folder, matching `replica` and
- * `itc-scripts` entries, and any deploy-specific {@link PRIVATE_CONF_EXTRA_PATHS} payloads are
- * mirrored. The commit/push step is a no-op when nothing changed (`silentOnError`).
+ * `itc-scripts` entries, and any caller-supplied `extraPaths` payloads are mirrored. The
+ * commit/push step is a no-op when nothing changed (`silentOnError`).
  *
  * @method syncPrivateConf
  * @param {string} deployId - A concrete deploy id (e.g. `dd-cyberia`), not the `dd` meta id.
+ * @param {string[]} [extraPaths=[]] - Extra `./engine-private` payload paths to mirror (from the
+ *   deploy's product catalog), kept out of this module so it stays product-agnostic.
  * @returns {void}
  * @memberof ServerConfBuilder
  */
-const syncPrivateConf = (deployId) => {
+const syncPrivateConf = (deployId, extraPaths = []) => {
   const suffix = deployId.split('dd-')[1];
   const privateRepoName = `engine-${suffix}-private`;
   const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
@@ -1821,7 +1811,7 @@ const syncPrivateConf = (deployId) => {
       if (entry.match(deployId)) fs.copySync(`${srcDir}/${entry}`, `${privateRepoPath}/${payloadDir}/${entry}`);
   }
 
-  for (const extraPath of PRIVATE_CONF_EXTRA_PATHS[deployId] ?? [])
+  for (const extraPath of extraPaths)
     fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
 
   shellExec(
@@ -1831,6 +1821,26 @@ const syncPrivateConf = (deployId) => {
       ` && underpost push . ${privateGitUri}`,
     { silent: true, silentOnError: true },
   );
+};
+
+/**
+ * Moves a deploy's public template sources into the engine working tree ahead of
+ * the build copy step. Idempotent and safe to rerun: each move is guarded by
+ * `existsSync`, so already-moved or absent sources are skipped rather than throwing.
+ * The `[src, dest]` pairs come from the deploy's product catalog (passed in), so
+ * this module stays product-agnostic.
+ *
+ * @method syncDeployIdSources
+ * @param {Array<[string, string]>} [sourceMoves=[]] - Public `[src, dest]` move pairs.
+ * @returns {boolean} `true` when any sources were declared, else `false`.
+ * @memberof ServerConfBuilder
+ */
+const syncDeployIdSources = (sourceMoves = []) => {
+  if (!sourceMoves.length) return false;
+  for (const dir of ['src/api', 'src/client/components', 'src/client/public', 'src/client/services'])
+    fs.mkdirSync(dir, { recursive: true });
+  for (const [src, dest] of sourceMoves) if (fs.existsSync(src)) fs.moveSync(src, dest, { overwrite: true });
+  return true;
 };
 
 export {
@@ -1882,5 +1892,5 @@ export {
   etcHostFactory,
   resolveDeployList,
   syncPrivateConf,
-  PRIVATE_CONF_EXTRA_PATHS,
+  syncDeployIdSources,
 };

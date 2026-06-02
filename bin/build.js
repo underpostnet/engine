@@ -1,9 +1,12 @@
+#! /usr/bin/env node
+
+import { Command } from 'commander';
 import fs from 'fs-extra';
-import { loggerFactory } from '../src/server/logger.js';
-import { shellExec } from '../src/server/process.js';
 import dotenv from 'dotenv';
+import { loggerFactory } from '../src/server/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
-import { getPathsSSR } from '../src/server/conf.js';
+import { getPathsSSR, resolveDeployList, syncPrivateConf, syncDeployIdSources } from '../src/server/conf.js';
+import { loadDeployCatalog } from '../src/server/catalog.js';
 import UnderpostRepository from '../src/cli/repository.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
@@ -11,127 +14,42 @@ if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: t
 
 const logger = loggerFactory(import.meta);
 
-const confName = process.argv[2];
 const basePath = '../pwa-microservices-template';
-const repoName = `engine-${confName.split('dd-')[1]}`;
-const deployList = (confName === 'dd' ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8') : confName).split(
-  ',',
-);
 
-logger.info('Build repository', {
-  confName,
-  repoName,
-  basePath,
-  deployList,
-});
+/**
+ * Assembles a single deploy id's public template under {@link basePath}: pulls in
+ * its deploy-id-specific public sources, then mirrors the APIs, client components,
+ * SSR assets, manifests, and packaging declared by its conf into the template repo.
+ * @param {string} confName - A concrete deploy id (e.g. `dd-prototype`).
+ */
+const buildDeployTemplate = async (confName) => {
+  const repoName = `engine-${confName.split('dd-')[1]}`;
+  const catalog = await loadDeployCatalog(confName);
 
-if (process.argv.includes('conf')) {
-  for (const _confName of deployList) {
-    const _repoName = `engine-${_confName.split('dd-')[1]}`;
-    const privateRepoName = `${_repoName}-private`;
-    const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
+  if (catalog.sourceMoves.length) UnderpostRepository.API.sparseCheckoutDirectory(`conf/${confName}`);
+  syncDeployIdSources(catalog.sourceMoves);
 
-    if (!fs.existsSync(`../${privateRepoName}`)) {
-      shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
-    } else {
-      shellExec(`cd ../${privateRepoName} && git checkout . && git clean -f -d && underpost pull . ${privateGitUri}`, {
-        silent: true,
-      });
-    }
-    const toPath = `../${privateRepoName}/conf/${_confName}`;
-    fs.removeSync(toPath);
-    fs.mkdirSync(toPath, { recursive: true });
-    fs.copySync(`./engine-private/conf/${_confName}`, toPath);
-    fs.removeSync(`../${privateRepoName}/replica`);
-    if (fs.existsSync(`./engine-private/replica`)) {
-      const replicas = await fs.readdir(`./engine-private/replica`);
-      for (const replica of replicas)
-        if (replica.match(_confName))
-          fs.copySync(`./engine-private/replica/${replica}`, `../${privateRepoName}/replica/${replica}`);
-    }
+  const confDir = `./engine-private/conf/${confName}`;
+  const DefaultConf = {
+    server: JSON.parse(fs.readFileSync(`${confDir}/conf.server.json`, 'utf8')),
+    client: JSON.parse(fs.readFileSync(`${confDir}/conf.client.json`, 'utf8')),
+    ssr: JSON.parse(fs.readFileSync(`${confDir}/conf.ssr.json`, 'utf8')),
+  };
 
-    if (fs.existsSync(`./engine-private/itc-scripts`)) {
-      const itcScripts = await fs.readdir(`./engine-private/itc-scripts`);
-      for (const itcScript of itcScripts)
-        if (itcScript.match(_confName))
-          fs.copySync(`./engine-private/itc-scripts/${itcScript}`, `../${privateRepoName}/itc-scripts/${itcScript}`);
-    }
-    switch (_confName) {
-      case 'dd-cyberia':
-        fs.copySync(`./engine-private/cyberia-instances/FOREST`, `../${privateRepoName}/cyberia-instances/FOREST`);
-        break;
-      default:
-        break;
-    }
-    shellExec(
-      `cd ../${privateRepoName}` +
-        ` && git add .` +
-        ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
-        ` && underpost push . ${privateGitUri}`,
-      {
-        silent: true,
-        silentOnError: true,
-      },
-    );
-  }
-  process.exit(0);
-}
-
-if (confName === 'dd') {
-  for (const _confName of deployList) {
-    shellExec(`node bin/build ${_confName}`);
-  }
-  process.exit(0);
-}
-
-switch (confName) {
-  case 'dd-prototype':
-    UnderpostRepository.API.sparseCheckoutDirectory('conf/dd-prototype');
-    fs.mkdirSync('src/api', { recursive: true });
-    fs.mkdirSync('src/client/components', { recursive: true });
-    fs.mkdirSync('src/client/public', { recursive: true });
-    fs.mkdirSync('src/client/services', { recursive: true });
-    for (const [src, dest] of [
-      ['../engine-prototype/src/api/healthcare-appointment', 'src/api/healthcare-appointment'],
-      ['../engine-prototype/src/client/components/bymyelectrics', 'src/client/components/bymyelectrics'],
-      ['../engine-prototype/src/client/components/cecinasmarcelina', 'src/client/components/cecinasmarcelina'],
-      ['../engine-prototype/src/client/components/healthcare', 'src/client/components/healthcare'],
-      ['../engine-prototype/src/client/public/bymyelectrics', 'src/client/public/bymyelectrics'],
-      ['../engine-prototype/src/client/public/cecinasmarcelina', 'src/client/public/cecinasmarcelina'],
-      ['../engine-prototype/src/client/public/healthcare', 'src/client/public/healthcare'],
-      ['../engine-prototype/src/client/services/healthcare-appointment', 'src/client/services/healthcare-appointment'],
-      ['../engine-prototype/src/client/Bymyelectrics.index.js', 'src/client/Bymyelectrics.index.js'],
-      ['../engine-prototype/src/client/Cecinasmarcelina.index.js', 'src/client/Cecinasmarcelina.index.js'],
-      ['../engine-prototype/src/client/Healthcare.index.js', 'src/client/Healthcare.index.js'],
-    ])
-      if (fs.existsSync(src)) fs.moveSync(src, dest, { overwrite: true });
-    break;
-  default:
-    break;
-}
-
-const confDir = `./engine-private/conf/${confName}`;
-const DefaultConf = {
-  server: JSON.parse(fs.readFileSync(`${confDir}/conf.server.json`, 'utf8')),
-  client: JSON.parse(fs.readFileSync(`${confDir}/conf.client.json`, 'utf8')),
-  ssr: JSON.parse(fs.readFileSync(`${confDir}/conf.ssr.json`, 'utf8')),
-};
-
-{
   for (const host of Object.keys(DefaultConf.server)) {
     for (const path of Object.keys(DefaultConf.server[host])) {
       const { apis, ws } = DefaultConf.server[host][path];
       if (apis)
         for (const api of apis) {
-          {
-            const originPath = `./src/api/${api}`;
-            logger.info(`Build`, originPath);
-            fs.copySync(originPath, `${basePath}/src/api/${api}`);
+          const apiSrc = `./src/api/${api}`;
+          if (fs.existsSync(apiSrc)) {
+            logger.info(`Build`, apiSrc);
+            fs.copySync(apiSrc, `${basePath}/src/api/${api}`);
           }
-          {
-            const originPath = `./src/client/services/${api}`;
-            logger.info(`Build`, originPath);
-            fs.copySync(originPath, `${basePath}/src/client/services/${api}`);
+          const serviceSrc = `./src/client/services/${api}`;
+          if (fs.existsSync(serviceSrc)) {
+            logger.info(`Build`, serviceSrc);
+            fs.copySync(serviceSrc, `${basePath}/src/client/services/${api}`);
           }
         }
 
@@ -140,9 +58,7 @@ const DefaultConf = {
       }
     }
   }
-}
 
-{
   for (const client of Object.keys(DefaultConf.client)) {
     const capName = getCapVariableName(client);
     for (const component of Object.keys(DefaultConf.client[client].components)) {
@@ -167,9 +83,7 @@ const DefaultConf = {
       }
     }
   }
-}
 
-{
   for (const client of Object.keys(DefaultConf.ssr)) {
     const ssrPaths = getPathsSSR(DefaultConf.ssr[client]);
     for (const originPath of ssrPaths) {
@@ -181,16 +95,14 @@ const DefaultConf = {
   }
 
   if (!fs.existsSync(`${basePath}/.github/workflows`))
-    fs.mkdirSync(`${basePath}/.github/workflows`, {
-      recursive: true,
-    });
+    fs.mkdirSync(`${basePath}/.github/workflows`, { recursive: true });
 
   const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
   packageJson.name = repoName.replace('engine-', '');
 
   switch (confName) {
-    case 'dd-cyberia':
+    case 'dd-cyberia': {
       fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
       fs.copyFileSync(
         `./.github/workflows/publish.cyberia.ci.yml`,
@@ -199,27 +111,8 @@ const DefaultConf = {
       if (packageJson.bin) delete packageJson.bin.underpost;
       if (!packageJson.bin) packageJson.bin = {};
       packageJson.bin.cyberia = 'bin/index.js';
-      packageJson.keywords = [
-        'cyberia',
-        'cyberia-cli',
-        'engine-cyberia',
-        'sidecar',
-        'data-layer',
-        'engine-cyberia',
-        'object-layer',
-        'atlas-sprite-sheet',
-        'ipfs',
-        'erc-1155',
-        'object-layer-token',
-        'hardhat',
-        'hyperledger-besu',
-        'blockchain',
-        'web3',
-        'underpost-platform',
-        'mmorpg',
-      ];
-      packageJson.description =
-        'Cyberia CLI — toolchain for the Cyberia MMO data layer, content pipeline, persistence, gRPC services, and ERC-1155 lifecycle on Hyperledger Besu.';
+      packageJson.keywords = catalog.keywords;
+      packageJson.description = catalog.description;
       const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
       packageJson.dependencies = {
         ...originPackageJson.dependencies,
@@ -233,26 +126,9 @@ const DefaultConf = {
         'utf8',
       );
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
-      for (const path of [
-        '/src/grpc/cyberia',
-        '/src/client/ssr/views/CyberiaServerMetrics.js',
-        '/src/server/object-layer.js',
-        '/src/server/atlas-sprite-sheet-generator.js',
-        '/src/server/shape-generator.js',
-        '/src/server/semantic-layer-generator.js',
-        '/src/server/semantic-layer-generator-floor.js',
-        '/src/server/semantic-layer-generator-skin.js',
-        '/src/server/semantic-layer-generator-resource.js',
-        '/test/shape-generator.test.js',
-        '/src/server/besu-genesis-generator.js',
-        '/src/runtime/cyberia-server',
-        '/src/runtime/cyberia-client',
-        '/.github/workflows/hardhat.ci.yml',
-        '/src/client/public/cyberia-docs',
-        '/src/api/cyberia-server-defaults',
-      ])
-        fs.copySync(`.${path}`, `${basePath}${path}`);
-
+      for (const path of catalog.templatePaths) fs.copySync(`.${path}`, `${basePath}${path}`);
+      break;
+    }
     default:
       break;
   }
@@ -292,4 +168,29 @@ const DefaultConf = {
     `${basePath}/.gitignore`,
     fs.readFileSync(`.gitignore`, 'utf8').split('# Ignore ERP / CRM custom prototypes src')[0],
   );
-}
+};
+
+const program = new Command();
+
+program
+  .name('build')
+  .description('Assemble deploy id public templates and sync their private configuration repos.')
+  .argument('<conf-name>', 'Deploy id, comma-separated list, or the "dd" meta id (fans out via dd.router).')
+  .argument('[env]', 'Environment label (informational; kept for CI invocation compatibility).')
+  .option('--conf', 'Sync each deploy id private configuration repo and exit (no template assembly).')
+  .action(async (confName, env, options) => {
+    const deployList = resolveDeployList(confName);
+    logger.info('Build repository', { confName, basePath, deployList, conf: !!options.conf });
+
+    if (options.conf) {
+      for (const deployId of deployList) {
+        const { privateConfPaths } = await loadDeployCatalog(deployId);
+        syncPrivateConf(deployId, privateConfPaths);
+      }
+      return;
+    }
+
+    for (const deployId of deployList) await buildDeployTemplate(deployId);
+  });
+
+await program.parseAsync();
