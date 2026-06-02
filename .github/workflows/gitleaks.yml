@@ -17,6 +17,7 @@ jobs:
       - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
           # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}
           # examples of how to use optional configs:
           # GITLEAKS_CONFIG: "configs/simple-config.toml"
