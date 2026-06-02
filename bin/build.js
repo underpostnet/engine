@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../src/server/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
-import { getPathsSSR, resolveDeployList, syncPrivateConf, syncDeployIdSources } from '../src/server/conf.js';
+import { getPathsSSR, resolveDeployList, syncPrivateConf, syncDeployIdSources, buildTemplate } from '../src/server/conf.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
 import UnderpostRepository from '../src/cli/repository.js';
 
@@ -178,6 +178,10 @@ program
   .argument('<conf-name>', 'Deploy id, comma-separated list, or the "dd" meta id (fans out via dd.router).')
   .argument('[env]', 'Environment label (informational; kept for CI invocation compatibility).')
   .option('--conf', 'Sync each deploy id private configuration repo and exit (no template assembly).')
+  .option(
+    '--no-template-rebuild',
+    'Skip the from-scratch base template reconstruction before assembly (assemble onto the existing template).',
+  )
   .action(async (confName, env, options) => {
     const deployList = resolveDeployList(confName);
     logger.info('Build repository', { confName, basePath, deployList, conf: !!options.conf });
@@ -189,6 +193,10 @@ program
       }
       return;
     }
+
+    // Reconstruct the base template from 0 before assembly so no src from a previous
+    // build run leaks into this one. Opt out with --no-template-rebuild.
+    if (options.templateRebuild) await buildTemplate({ toPath: basePath });
 
     for (const deployId of deployList) await buildDeployTemplate(deployId);
   });

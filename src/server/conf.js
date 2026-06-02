@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import {
   capFirst,
   getCapVariableName,
+  getDirname,
   newInstance,
   orderAbc,
   orderArrayFromAttrInt,
@@ -1843,6 +1844,128 @@ const syncDeployIdSources = (sourceMoves = []) => {
   return true;
 };
 
+/**
+ * Rebuilds the standalone `pwa-microservices-template` from scratch out of the current
+ * engine source tree.
+ *
+ * Clones the template repo next to the engine when missing, otherwise resets it to a clean
+ * pristine checkout, then syncs every engine-tracked file the template is allowed to carry
+ * ({@link validateTemplatePath}), strips engine-only + product modules, restores the template's
+ * own CI workflows + guest services, and rewrites `package.json` / `package-lock.json` / `README`
+ * so the result is a standalone, installable project. Throws on failure; callers own exit codes.
+ *
+ * Product catalogs are read dynamically ({@link module:src/server/catalog} `loadProductCatalogs`),
+ * so this stays decoupled from — and survives removal of — any product module.
+ *
+ * @method buildTemplate
+ * @param {object} [options]
+ * @param {string} [options.srcPath='./'] - Engine source root to sync from.
+ * @param {string} [options.toPath='../pwa-microservices-template'] - Template output path.
+ * @returns {Promise<void>}
+ * @memberof ServerConfBuilder
+ */
+const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-template' } = {}) => {
+  const walk = (await import('ignore-walk')).default;
+  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } = await import('./catalog-underpost.js');
+  const { loadProductCatalogs } = await import('./catalog.js');
+  const githubUsername = process.env.GITHUB_USERNAME;
+
+  logger.info('Build template', { srcPath, toPath });
+
+  const sourceFiles = (
+    await new Promise((resolve) =>
+      walk(
+        { path: srcPath, ignoreFiles: [`.gitignore`], includeEmpty: false, follow: false },
+        (...args) => resolve(args[1]),
+      ),
+    )
+  ).filter((p) => !p.startsWith('.git'));
+
+  // Clone the template from 0 if missing; otherwise reset it to a clean pristine checkout.
+  if (!fs.existsSync(toPath)) {
+    shellExec(`cd .. && node engine/bin clone ${githubUsername}/pwa-microservices-template`);
+  } else {
+    shellExec(`cd ${toPath} && git reset && git checkout . && git clean -f -d`);
+    shellExec(`node bin pull ${toPath} ${githubUsername}/pwa-microservices-template`);
+    shellExec(`sudo rm -rf ${toPath}/engine-private`);
+    shellExec(`sudo rm -rf ${toPath}/logs`);
+  }
+  shellExec(`cd ${toPath} && git config core.filemode false`);
+
+  for (const copyPath of sourceFiles) {
+    if (copyPath === 'NaN') continue;
+    const absolutePath = `${srcPath}/${copyPath}`;
+    if (!validateTemplatePath(absolutePath)) continue;
+
+    const folder = getDirname(`${toPath}/${copyPath}`);
+    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
+    logger.info('build', `${toPath}/${copyPath}`);
+    fs.copyFileSync(absolutePath, `${toPath}/${copyPath}`);
+  }
+
+  fs.copySync(`./.vscode`, `${toPath}/.vscode`);
+  fs.copySync(`./src/client/public/default`, `${toPath}/src/client/public/default`);
+
+  // Preserve the template's own README + package.json identity before merging engine metadata.
+  for (const checkoutPath of ['README.md', 'package.json']) shellExec(`cd ${toPath} && git checkout ${checkoutPath}`);
+
+  // Strip each product catalog's `stripPaths` (aggregated dynamically) plus the engine-only
+  // workflows, deploy manifests, and product catalog modules.
+  const productStripPaths = (await loadProductCatalogs()).flatMap((c) => c.stripPaths);
+  for (const deletePath of productStripPaths) {
+    const target = `${toPath}/${deletePath}`;
+    if (fs.existsSync(target)) fs.removeSync(target);
+  }
+  shellExec(`rm -rf ${toPath}/.github`);
+  shellExec(`rm -rf ${toPath}/manifests/deployment/dd-*`);
+  shellExec(`rm -rf ${toPath}/src/server/catalog-*`);
+
+  fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
+  for (const restorePath of TEMPLATE_RESTORE_PATHS) {
+    const dest = `${toPath}/${restorePath}`;
+    if (fs.statSync(restorePath).isDirectory()) fs.copySync(restorePath, dest, { overwrite: true });
+    else fs.copyFileSync(restorePath, dest);
+  }
+
+  // ── package.json: take engine deps/scripts/version, keep template identity. ──
+  const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+  const templatePackageJson = JSON.parse(fs.readFileSync(`${toPath}/package.json`, 'utf8'));
+  const templateName = templatePackageJson.name;
+
+  templatePackageJson.dependencies = originPackageJson.dependencies;
+  templatePackageJson.devDependencies = originPackageJson.devDependencies;
+  templatePackageJson.version = originPackageJson.version;
+  templatePackageJson.scripts = originPackageJson.scripts;
+  templatePackageJson.overrides = originPackageJson.overrides;
+  templatePackageJson.name = templateName;
+  templatePackageJson.description = TEMPLATE_DESCRIPTION;
+  templatePackageJson.keywords = TEMPLATE_KEYWORDS;
+  delete templatePackageJson.scripts['build:template'];
+  fs.writeFileSync(`${toPath}/package.json`, JSON.stringify(templatePackageJson, null, 4), 'utf8');
+
+  // ── package-lock.json: mirror engine packages, keep template name/version on the root entry. ──
+  const originPackageLockJson = JSON.parse(fs.readFileSync('./package-lock.json', 'utf8'));
+  const templatePackageLockJson = JSON.parse(fs.readFileSync(`${toPath}/package-lock.json`, 'utf8'));
+  const originBasePackageLock = newInstance(templatePackageLockJson.packages['']);
+  templatePackageLockJson.name = templateName;
+  templatePackageLockJson.version = originPackageLockJson.version;
+  templatePackageLockJson.packages = originPackageLockJson.packages;
+  templatePackageLockJson.packages[''].name = templateName;
+  templatePackageLockJson.packages[''].version = originPackageLockJson.version;
+  templatePackageLockJson.packages[''].hasInstallScript = originBasePackageLock.hasInstallScript;
+  templatePackageLockJson.packages[''].license = originBasePackageLock.license;
+  fs.writeFileSync(`${toPath}/package-lock.json`, JSON.stringify(templatePackageLockJson, null, 4), 'utf8');
+
+  fs.writeFileSync(
+    `${toPath}/README.md`,
+    fs
+      .readFileSync('./README.md', 'utf8')
+      .replace('<!-- template-title -->', '#### Base template for pwa/api-rest projects.'),
+    'utf8',
+  );
+};
+
 export {
   Config,
   loadConf,
@@ -1893,4 +2016,5 @@ export {
   resolveDeployList,
   syncPrivateConf,
   syncDeployIdSources,
+  buildTemplate,
 };
