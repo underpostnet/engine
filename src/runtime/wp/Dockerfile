@@ -3,7 +3,7 @@ FROM rockylinux:9
 # System packages 
 RUN dnf -y update && \
     dnf -y install epel-release && \
-    dnf -y install --allowerasing \
+    dnf -y install --allowerasing --nobest \
     bzip2 \
     sudo \
     curl \
@@ -20,8 +20,8 @@ RUN dnf -y update && \
     perl && \
     dnf clean all
 
-# Download and install XAMPP (PHP 8.2)
-RUN curl -L -o /tmp/xampp-linux-installer.run "https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/8.2.12/xampp-linux-x64-8.2.12-0-installer.run" && \
+# Download and install XAMPP (PHP 8.2) with retry logic for flaky SourceForge transfers
+RUN curl -L --retry 5 --retry-delay 10 --retry-max-time 180 -o /tmp/xampp-linux-installer.run "https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/8.2.12/xampp-linux-x64-8.2.12-0-installer.run" && \
     chmod +x /tmp/xampp-linux-installer.run && \
     bash -c "/tmp/xampp-linux-installer.run --mode unattended" && \
     ln -sf /opt/lampp/lampp /usr/bin/lampp
