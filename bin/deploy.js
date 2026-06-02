@@ -283,7 +283,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     }
 
     case 'cli-docs': {
-      buildCliDoc(program, process.argv[3], process.argv[4]);
+      const version = Underpost.version;
+      const newVersion =
+        process.argv[4] && !process.argv[4].startsWith('v') ? `v${process.argv[4]}` : process.argv[4] || version;
+      buildCliDoc(program, process.argv[3] || version, newVersion);
       break;
     }
 

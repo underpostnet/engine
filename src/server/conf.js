@@ -1424,65 +1424,130 @@ const writeEnv = (envPath, envObj) =>
 
 /**
  * @method buildCliDoc
- * @description Builds the CLI documentation.
- * @param {object} program - The program.
- * @param {string} oldVersion - The old version.
- * @param {string} newVersion - The new version.
+ * @description Scrapes `node bin help` (and `node bin help <command>` for every
+ * registered command) and renders a structured Markdown reference: a command
+ * index with anchor links, plus a per-command section with its description,
+ * usage, and Arguments/Options rendered as tables. Writes
+ * `CLI-HELP.md` + the served reference doc, and refreshes the README CLI index.
+ * @param {object} program - The commander program.
+ * @param {string} oldVersion - The old version string to replace.
+ * @param {string} newVersion - The new version string.
  * @memberof ServerConfBuilder
  */
 const buildCliDoc = (program, oldVersion, newVersion) => {
-  let md = shellExec(`node bin help`, { silent: true, stdout: true }).split('Options:');
-  const baseOptions =
-    `## ${md[0].split(`\n`)[2]}
+  const help = (args = '') => shellExec(`node bin help${args ? ` ${args}` : ''}`, { silent: true, stdout: true });
+  // Escape table-breaking pipes and collapse wrapped whitespace for a Markdown cell.
+  const cell = (s) => String(s).replace(/\s+/g, ' ').replaceAll('|', '\\|').trim();
+  const anchor = (name) => `underpost-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
 
-### Usage: ` +
-    '`' +
-    md[0].split(`\n`)[0].split('Usage: ')[1] +
-    '`' +
-    `
-  ` +
-    '```\n Options:' +
-    md[1] +
-    ' \n```';
-  md =
-    baseOptions +
-    `
+  // Parse a commander help block into { usage, description, sections: { Options, Arguments, Commands } }.
+  const parseHelp = (text) => {
+    const lines = text.split('\n');
+    const usageMatch = lines[0].match(/^Usage:\s*(.*)$/);
+    const usage = usageMatch ? usageMatch[1].trim() : '';
+    const sections = {};
+    const descLines = [];
+    let current = null;
+    let buf = [];
+    const flush = () => {
+      if (current) sections[current] = buf.join('\n');
+      buf = [];
+    };
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      const head = line.match(/^([A-Za-z][\w ]*):\s*$/); // top-level "Options:", "Arguments:", "Commands:"
+      if (head) {
+        flush();
+        current = head[1].trim();
+      } else if (current !== null) {
+        buf.push(line);
+      } else {
+        descLines.push(line);
+      }
+    }
+    flush();
+    return { usage, description: descLines.join('\n').trim(), sections };
+  };
 
-## Commands:
-    `;
-  program.commands.map((o) => {
-    md +=
-      `
+  // Parse a columnar "  <term>   <description>" section (descriptions may wrap onto
+  // indented continuation lines) into [{ term, desc }].
+  const parseEntries = (text = '') => {
+    const entries = [];
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      const leading = line.length - line.trimStart().length;
+      if (leading <= 2) {
+        const rest = line.trim();
+        const gap = rest.search(/\s{2,}/);
+        entries.push(gap === -1 ? { term: rest, desc: '' } : { term: rest.slice(0, gap), desc: rest.slice(gap) });
+      } else if (entries.length) {
+        entries[entries.length - 1].desc += ` ${line.trim()}`;
+      }
+    }
+    return entries;
+  };
 
-` +
-      '### `' +
-      o._name +
-      '` :' +
-      `
-` +
-      '```\n ' +
-      shellExec(`node bin help ${o._name}`, { silent: true, stdout: true }) +
-      ' \n```' +
-      `
-  `;
-  });
-  md = md.replaceAll(oldVersion, newVersion);
+  const table = (head, entries) =>
+    !entries.length
+      ? ''
+      : `| ${head[0]} | ${head[1]} |\n| --- | --- |\n` +
+        entries.map(({ term, desc }) => `| \`${cell(term)}\` | ${cell(desc)} |`).join('\n') +
+        '\n';
+
+  const detailSection = (sections, name, head) => {
+    const t = table(head, parseEntries(sections[name]));
+    return t ? `\n#### ${name}\n\n${t}` : '';
+  };
+
+  // ── Top-level index ──
+  const root = parseHelp(help());
+  const commandEntries = parseEntries(root.sections['Commands']).filter((e) => e.term.split(' ')[0] !== 'help');
+
+  const index =
+    `## Underpost CLI\n\n` +
+    (root.description ? `> ${root.description.replace(/\s+/g, ' ')}\n\n` : '') +
+    `**Usage:** \`${root.usage}\`\n\n` +
+    `### Global options\n\n${table(['Option', 'Description'], parseEntries(root.sections['Options']))}\n` +
+    `### Commands\n\n| Command | Description |\n| --- | --- |\n` +
+    commandEntries
+      .map((e) => {
+        const name = e.term.split(' ')[0];
+        return `| [\`${name}\`](#${anchor(name)}) | ${cell(e.desc)} |`;
+      })
+      .join('\n') +
+    '\n';
+
+  // ── Per-command detail ──
+  let details = `\n## Command reference\n`;
+  for (const cmd of program.commands) {
+    const name = cmd._name;
+    if (name === 'help') continue;
+    const cmdHelp = parseHelp(help(name));
+    details +=
+      `\n### \`underpost ${name}\`\n\n` +
+      (cmdHelp.description ? `${cmdHelp.description.replace(/\s+/g, ' ')}\n\n` : '') +
+      `**Usage:** \`${cmdHelp.usage}\`\n` +
+      detailSection(cmdHelp.sections, 'Arguments', ['Argument', 'Description']) +
+      detailSection(cmdHelp.sections, 'Options', ['Option', 'Description']);
+  }
+
+  const md = `${index}${details}`.replaceAll(oldVersion, newVersion);
   fs.writeFileSync(`./src/client/public/nexodev/docs/references/Command Line Interface.md`, md, 'utf8');
   fs.writeFileSync(`./CLI-HELP.md`, md, 'utf8');
 
-  // Update README.md: replace version and CLI index section between comment tags
-  let readme = fs.readFileSync(`./README.md`, 'utf8');
-  readme = readme.replaceAll(oldVersion, newVersion);
+  // Update README.md: bump version and refresh the CLI index between the comment tags.
+  let readme = fs.readFileSync(`./README.md`, 'utf8').replaceAll(oldVersion, newVersion);
   const cliStartTag = '<!-- cli-index-start -->';
   const cliEndTag = '<!-- cli-index-end -->';
   const startIdx = readme.indexOf(cliStartTag);
   const endIdx = readme.indexOf(cliEndTag);
   if (startIdx !== -1 && endIdx !== -1) {
+    const readmeIndex = index.replace(/\(#(underpost-[a-z0-9-]+)\)/g, '(CLI-HELP.md#$1)');
     readme =
       readme.substring(0, startIdx) +
       cliStartTag +
       '\n' +
-      baseOptions +
+      readmeIndex.replaceAll(oldVersion, newVersion) +
       '\n' +
       cliEndTag +
       readme.substring(endIdx + cliEndTag.length);
@@ -1812,8 +1877,7 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
       if (entry.match(deployId)) fs.copySync(`${srcDir}/${entry}`, `${privateRepoPath}/${payloadDir}/${entry}`);
   }
 
-  for (const extraPath of extraPaths)
-    fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
+  for (const extraPath of extraPaths) fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
 
   shellExec(
     `cd ${privateRepoPath}` +
@@ -1874,9 +1938,8 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
 
   const sourceFiles = (
     await new Promise((resolve) =>
-      walk(
-        { path: srcPath, ignoreFiles: [`.gitignore`], includeEmpty: false, follow: false },
-        (...args) => resolve(args[1]),
+      walk({ path: srcPath, ignoreFiles: [`.gitignore`], includeEmpty: false, follow: false }, (...args) =>
+        resolve(args[1]),
       ),
     )
   ).filter((p) => !p.startsWith('.git'));
