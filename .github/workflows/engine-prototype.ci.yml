@@ -61,6 +61,7 @@ jobs:
       - name: Build repository
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
         run: |
           cd .. && node engine/bin clone underpostnet/pwa-microservices-template
           if [ -n "${{ github.event.inputs.message }}" ]; then
