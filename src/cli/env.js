@@ -95,10 +95,7 @@ class UnderpostRootEnv {
     get(key, value, options = { plain: false, disableLog: false, copy: false }) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
-      if (!fs.existsSync(envPath) || !fs.statSync(envPath).isFile()) {
-        logger.warn(`Empty environment variables`);
-        return undefined;
-      }
+      if (!fs.existsSync(envPath) || !fs.statSync(envPath).isFile()) return undefined;
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
       if (!options.disableLog)
         options?.plain === true ? console.log(env[key]) : logger.info(`${key}(${typeof env[key]})`, env[key]);
