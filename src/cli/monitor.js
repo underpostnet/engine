@@ -408,7 +408,8 @@ class UnderpostMonitor {
           if (status === 'error') throw new Error(`Pod ${pod.NAME} has error container-status`);
           if (advancedPods.has(pod.NAME) && status === containerStatusDefault)
             throw new Error(`Pod ${pod.NAME} container-status regressed to default — pod likely restarted`);
-          if (status !== containerStatusDefault) advancedPods.add(pod.NAME);
+          if (status && status !== containerStatusDefault && !status.toLowerCase().match('empty'))
+            advancedPods.add(pod.NAME);
           podStatusCache.set(pod.NAME, status);
         }
 
