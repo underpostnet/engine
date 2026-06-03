@@ -377,7 +377,7 @@ class UnderpostMonitor {
             { silent: true, disableLog: true, stdout: true, silentOnError: true },
           );
           const val = raw ? raw.toString().trim() : '';
-          return val && val !== 'undefined' ? val : containerStatusDefault;
+          return val && val !== 'undefined' && !val.toLowerCase().match('empty') ? val : containerStatusDefault;
         } catch (_) {
           // exec failed (e.g. pod not yet running) — preserve last known value
           return podStatusCache.get(podName) || containerStatusDefault;
@@ -408,8 +408,7 @@ class UnderpostMonitor {
           if (status === 'error') throw new Error(`Pod ${pod.NAME} has error container-status`);
           if (advancedPods.has(pod.NAME) && status === containerStatusDefault)
             throw new Error(`Pod ${pod.NAME} container-status regressed to default — pod likely restarted`);
-          if (status && status !== containerStatusDefault && !status.toLowerCase().match('empty'))
-            advancedPods.add(pod.NAME);
+          if (status !== containerStatusDefault) advancedPods.add(pod.NAME);
           podStatusCache.set(pod.NAME, status);
         }
 
