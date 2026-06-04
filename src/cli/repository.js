@@ -1380,8 +1380,9 @@ Prevent build private config repo.`,
       const gitEmail = process.env.GITHUB_EMAIL || `development@underpost.net`;
 
       if (!fs.existsSync(`${repoPath}/.git`)) {
-        shellExec(`cd "${repoPath}" && git init`);
+        shellExec(`mkdir -p "${repoPath}" && git init "${repoPath}"`);
       }
+
       shellExec(`cd "${repoPath}" && git config user.name '${gitUsername}'`);
       shellExec(`cd "${repoPath}" && git config user.email '${gitEmail}'`);
       shellExec(`cd "${repoPath}" && git config core.filemode false`);
