@@ -4131,6 +4131,10 @@ try {
   runner
     .command('import-default-items')
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
+    .option(
+      '--mongo-host <mongo-host>',
+      'Mongo host override (forwarded to ol, seed-skill-config, seed-dialogues, client-hints)',
+    )
     .description('Import default Object Layer items, skill config, dialogues, and client-hints into MongoDB')
     .action(async (options) => {
       // Pre-flight: every item id referenced by the fallback world must
@@ -4148,11 +4152,12 @@ try {
       }
 
       const devFlag = options.dev ? ' --dev' : '';
+      const mongoHostFlag = options.mongoHost ? ` --mongo-host ${options.mongoHost}` : '';
       const instanceCode = process.env.INSTANCE_CODE || 'cyberia-main';
-      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}`);
-      shellExec(`node bin/cyberia run-workflow seed-skill-config${devFlag}`);
-      shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}`);
-      shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}`);
+      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-skill-config${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}${mongoHostFlag}`);
     });
 
   runner

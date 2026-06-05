@@ -86,7 +86,8 @@ class MongooseDBService {
 
     const user = config.user || process.env.DB_USER || '';
     const password = config.password || process.env.DB_PASSWORD || '';
-    const directConnection = hosts.length === 1;
+    const hasExplicitReplicaSet = !!(config.replicaSet || process.env.DB_REPLICA_SET);
+    const directConnection = hosts.length === 1 && !hasExplicitReplicaSet;
     const replicaSet = directConnection
       ? ''
       : config.replicaSet || process.env.DB_REPLICA_SET || MONGODB_DEFAULT_REPLICA_SET;
