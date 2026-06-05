@@ -8,7 +8,7 @@
 
 The Action System defines how NPC entities interact with players. An **Action** is a spatial, typed payload attached to a map entity that the player activates by tapping the NPC. Actions drive dialogue, shops, crafting, storage, and quest grant events.
 
-> **Implementation status — Pre-alpha:** The CyberiaAction and CyberiaDialogue MongoDB schemas and Engine REST API (`src/api/cyberia-action`, `src/api/cyberia-dialogue`) are defined. Go server integration (NPC tap routing to action handlers, shop/craft transaction processing, quest grant on dialogue completion) is planned for the **Alpha milestone**. The `freeze_start`/`freeze_end` WS messages for modal protection are implemented in the Go server today.
+> **Implementation status — Alpha (talk / quest-talk):** The CyberiaAction and CyberiaDialogue MongoDB schemas and Engine REST API (`src/api/cyberia-action`, `src/api/cyberia-dialogue`) are defined. The `talk` and `quest-talk` paths are wired end-to-end: the Go server binds actions to entities at instance init, validates dialogue completion, grants quests, and advances `talk` objectives (see **Dialogue Interaction Protocol** below). Shop / craft / storage transaction processing remains planned for a later Alpha increment. The `freeze_start`/`freeze_end` WS messages for modal protection are implemented; dialogue freeze now rides on the `dlg_*` frames.
 
 ---
 
@@ -151,6 +151,60 @@ sequenceDiagram
     G-->>P: FCT: ItemLoss per ingredient + ItemGain per output
     G-->>P: ThawPlayer
 ```
+
+---
+
+## Dialogue Interaction Protocol (talk / quest-talk)
+
+Tapping an interaction bubble opens the Raylib-native **`modal_interact`** modal
+first — the general-purpose entry point. Its `[Talk]` tab (shown only when the
+entity has dialogue) opens `modal_dialogue`; its `[Chat / Profile]` tab opens the
+JS overlay with no freeze.
+
+The client is identical for `talk` and `quest-talk`; the **server** branches after
+`dlg_complete`. The client never declares the action type, quest code, or quest
+dialogue codes — the server resolves the bound action from its own
+`entityId → CyberiaAction` cache (bound at instance init).
+
+### Wire messages
+
+| Direction | Message        | When                                  | Payload                              |
+| --------- | -------------- | ------------------------------------- | ------------------------------------ |
+| C → S     | `dlg_start`    | `modal_dialogue` opens                | `{ entityId, itemId }`               |
+| C → S     | `dlg_complete` | player reads all lines, closes        | `{ entityId, itemId, dialogCode }`   |
+| C → S     | `dlg_cancel`   | player dismisses early (✕ / outside)  | `{ entityId, itemId }`               |
+| S → C     | `dlg_ack`      | after `dlg_complete` is processed     | `{ questGranted, objectivesDone, quests[] }` |
+
+Binary uplink opcodes: `dlg_start` `0x17`, `dlg_complete` `0x18`, `dlg_cancel`
+`0x19` (JSON aliases of the same names are also accepted).
+
+`dlg_ack` is notify-only — it carries the affected quest snapshot entries the
+client upserts into its local `quest_store` (Quest Journal); it never gates
+simulation state.
+
+### Server `dlg_complete` handling
+
+1. Validate `player.activeDialogueEntityID == msg.entityId`; drop otherwise.
+2. Clear the dialogue context and thaw the player (modal protection off).
+3. Resolve the action from `actionCache[entityId]`. `talk` → ack only.
+4. `quest-talk`: on first contact grant `grantQuestCode`; then for every active
+   quest whose **current step** has a `{ type: 'talk', itemId == provideItemId }`
+   objective, increment it — **only** when `msg.dialogCode` is in the action's
+   `questDialogueCodes`. On quest completion, deliver rewards (FCT) and unlock
+   successors.
+
+> **Dialogue-code contract.** The C client fetches dialogue groups at
+> `/api/cyberia-dialogue/code/default-<itemId>`, so the code it reports on
+> `dlg_complete` is `default-<provideItemId>`. For a `quest-talk` objective to
+> advance, the action's `questDialogueCodes` must contain that code.
+
+### Freeze semantics
+
+| Event                              | Player state              |
+| ---------------------------------- | ------------------------- |
+| `modal_interact` open              | Active (no freeze)        |
+| `dlg_start` sent                   | Frozen — immune to damage |
+| `dlg_complete` / `dlg_cancel` sent | Unfrozen                  |
 
 ---
 

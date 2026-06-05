@@ -10,7 +10,7 @@ The Quest System is a **chain/tree-structured progression framework** linking NP
 
 Quests are defined server-side as MongoDB documents and delivered to the client through the Engine REST API. Progress is tracked per-player in `CyberiaQuestProgress` documents.
 
-> **Implementation status — Pre-alpha:** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. Go server integration (quest tracking, objective evaluation, reward delivery via FCT) is planned for the **Alpha milestone**. For pre-alpha, quest progress is ephemeral: it lives in the client session only and resets on page reload.
+> **Implementation status — Alpha (talk objectives):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and now evaluates `talk` objectives, grants quests, advances steps, and delivers rewards via FCT on completion (driven by `dlg_complete` — see ACTION-SYSTEM.md). `collect` and `kill` objective evaluation remains planned for a later Alpha increment. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** (see below).
 
 ---
 
@@ -165,6 +165,28 @@ On quest completion, the Engine grants each `rewards[].{itemId, quantity}` to th
 2. Within a step, all objectives must be satisfied (any order).
 3. Quests do not fail — they remain `active` until completed or explicitly abandoned.
 4. The `required` count is **denormalized** from the quest definition into each `objectiveProgress` record at quest grant time, enabling O(1) progress checks without re-fetching the quest definition.
+
+---
+
+## Quest Journal (client)
+
+The C client keeps a local `quest_store` (in `cyberia-client/src/ui/quest_store.c`)
+populated from two server sources — **no extra REST calls**:
+
+- `init_data.quests[]` — the player's active/completed snapshot on connect.
+- `dlg_ack.quests[]` — live upserts as quests are granted or completed.
+
+The **Quest Journal** modal (`ui/quest_journal.c`) renders this store on the
+right side below the map info modal: a three-section tree (Active / Completed /
+Failed), each section independently collapsible via the shared `ui_toggle`
+component, each with its own 10-per-page pagination cursor. The interaction
+bubble column on the left is collapsible by the same toggle pattern. Both panels
+default collapsed on screens narrower than 600 px. Collapse state is not
+persisted across sessions.
+
+Each server quest snapshot entry carries `{ code, title, description, status,
+activeStep, objectivesText }` so the journal can render rows and inline detail
+without re-fetching the quest definition.
 
 ---
 

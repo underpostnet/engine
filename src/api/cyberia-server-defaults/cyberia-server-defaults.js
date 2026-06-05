@@ -117,6 +117,8 @@ export const DefaultCyberiaDialogues = [
   { code: 'quest-talk-wason', order: 2, speaker: 'Wason', text: 'And one more thing: the SCP-2040 anomalies are overrunning my trade routes. Deal with two of them.', mood: 'sad' },
   { code: 'quest-talk-alex', order: 0, speaker: 'Alex', text: "Wason sent you? Good. The portal anomalies are getting worse. I've logged what I can.", mood: 'neutral' },
   { code: 'quest-talk-alex', order: 1, speaker: 'Alex', text: 'Tell Wason: the source is somewhere in the deeper nodes. The registry does not lie.', mood: 'neutral' },
+  { code: 'talk-lain', order: 0, speaker: 'Lain', text: 'Present day... present time. You are here, so you are real.', mood: 'neutral' },
+  { code: 'talk-lain', order: 1, speaker: 'Lain', text: 'There is nothing I can grant you. Only the wired remembers.', mood: 'neutral' },
 ];
 
 /**
@@ -143,6 +145,11 @@ export const DefaultCyberiaActions = [
     code: 'wason-bounty-brief', type: 'quest-talk', label: 'Bounty Brief',
     provideItemId: 'wason', grantQuestCode: '',
     dialogCode: 'quest-talk-wason', questDialogueCodes: ['quest-talk-wason'],
+  },
+  {
+    code: 'lain-talk', type: 'talk', label: 'Talk',
+    provideItemId: 'lain', grantQuestCode: '',
+    dialogCode: 'talk-lain', questDialogueCodes: ['talk-lain'],
   },
 ];
 

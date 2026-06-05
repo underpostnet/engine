@@ -109,7 +109,7 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
 export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
 
 /** Action categories accepted by the cyberia-action engine. */
-export const CYBERIA_ACTION_TYPES = Object.freeze(['craft', 'shop', 'storage', 'quest-talk']);
+export const CYBERIA_ACTION_TYPES = Object.freeze(['craft', 'shop', 'storage', 'talk', 'quest-talk']);
 
 /**
  * Canonical (itemId → itemType) registry shipped with the engine. Used
