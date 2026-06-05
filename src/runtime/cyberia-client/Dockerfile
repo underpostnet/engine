@@ -1,9 +1,9 @@
 # BUILD_MODE: RELEASE | DEBUG
 ARG BUILD_MODE=RELEASE
 
-# --- Build Image
+# --- Build Image ---
 FROM rockylinux/rockylinux:9 AS builder
-# Re-declare ARG after FROM so it is in scope for RUN
+
 ARG BUILD_MODE=RELEASE
 
 RUN dnf -y update && \
@@ -44,7 +44,6 @@ RUN dnf groupinstall -y "Development Tools" && \
 ENV EMSDK=/opt/emsdk
 ENV PATH="${EMSDK}:${EMSDK}/upstream/emscripten:${PATH}"
 
-# Pin emsdk version for reproducible builds
 ARG EMSDK_VERSION=5.0.6
 WORKDIR /opt
 RUN git clone https://github.com/emscripten-core/emsdk.git ${EMSDK}
@@ -53,28 +52,14 @@ RUN ./emsdk install ${EMSDK_VERSION} && \
     ./emsdk activate ${EMSDK_VERSION}
 
 WORKDIR /cyberia-client
-# Build context is the cyberia-client project repo root (the workflow
-# in .github/workflows/docker-image.cyberia-client.ci.yml sets
-# context: . from the cyberia-client checkout). The legacy
-# engine-context layout (COPY cyberia-client/ .) is no longer used.
+
 COPY . .
 
-# `make clean` first so stale bin/ or build/ artefacts copied in from a
-# developer's local checkout (or a previous Docker layer cache hit)
-# can't shadow a fresh BUILD_MODE rebuild — e.g. mixing a DEBUG-mode
-# index.wasm with a RELEASE-mode index.js once produced the
-# "corrupted heap memory area" panic that masked the real Closure bug.
 RUN make -f Web.mk clean && make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 
-# --- Runtime Image
+# --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
 
-# Runtime needs:
-#   - python3 (serves the built /bin/ static files via server.py)
-#   - nodejs + the underpost CLI globally, for the container-status
-#     lifecycle hooks invoked from conf.instances.json before / after
-#     launching server.py. Installing it at build time avoids the slow
-#     `npm install -g` startup the K8S cmd would otherwise repeat.
 ARG UNDERPOST_VERSION=3.2.9
 RUN dnf -y update && \
     dnf -y install epel-release && \
@@ -95,7 +80,4 @@ ENV CYBERIA_MODE=production
 
 EXPOSE 8081 8082
 
-# Default CMD when the image is run directly (not via K8S cmd).
-# In K8S deploys conf.instances.json supplies its own cmd that wraps
-# container-status hooks + this same server.py invocation.
 CMD ["sh", "-c", "exec python3 server.py ${CYBERIA_PORT} bin ${CYBERIA_MODE}"]

@@ -1,22 +1,8 @@
 # cyberia-client DEV runtime image.
-#
-# Differences vs the production Dockerfile in this same directory:
-#   - Builds the C/WASM bundle with BUILD_MODE=DEBUG (raylib + emcc keep
-#     symbols, asserts, and DWARF info; the bundle is larger but
-#     debuggable in the browser devtools).
-#   - Default CYBERIA_MODE is `development` instead of `production`.
-#   - Default CYBERIA_PORT is `8082` (debug port) instead of `8081`.
-#   - Keeps `vim-minimal`, `lsof`, `strace`, `procps-ng` in the runtime
-#     image so the operator can attach and inspect a misbehaving pod.
-#   - Does NOT clean the npm cache.
-#
-# Selected automatically by `node bin run instance-build-manifest`
-# whenever the `--dev` flag is set; the production Dockerfile in the
-# same directory is used otherwise.
 
 ARG BUILD_MODE=DEBUG
 
-# --- Build Image
+# --- Build Image ---
 FROM rockylinux/rockylinux:9 AS builder
 ARG BUILD_MODE=DEBUG
 
@@ -48,14 +34,13 @@ RUN ./emsdk install ${EMSDK_VERSION} && \
     ./emsdk activate ${EMSDK_VERSION}
 
 WORKDIR /cyberia-client
-# Build context is the cyberia-client project repo root (see the
-# production Dockerfile in this directory for the rationale).
+
 COPY . .
 
 # Dev build: BUILD_MODE=DEBUG keeps symbols, asserts, source maps.
 RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 
-# --- Runtime Image
+# --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
 
 ARG UNDERPOST_VERSION=3.2.9
