@@ -619,7 +619,8 @@ class UnderpostRepository {
             const npmRoot = getNpmRootPath();
             const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
             const destFolder = `./${projectName}`;
-            logger.info('build app', { destFolder });
+            const deployId = projectName.startsWith('dd-') ? projectName : `dd-${projectName}`;
+            logger.info('build app', { destFolder, deployId });
             if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
             fs.mkdirSync(destFolder, { recursive: true });
             if (!options.dev) {
@@ -632,8 +633,9 @@ class UnderpostRepository {
               UnderpostRepository.API.initLocalRepo({ path: destFolder });
               shellExec(`cd ${destFolder} && git add . && git commit -m "Base template implementation"`);
             }
-            shellExec(`cd ${destFolder} && npm run build`);
-            shellExec(`cd ${destFolder} && npm run dev`);
+            shellExec(`cd ${destFolder} && node bin new --deploy-id ${deployId} --default-conf`);
+            shellExec(`cd ${destFolder} && node bin client ${deployId}`);
+            shellExec(`cd ${destFolder} && DEPLOY_ID=${deployId} npm run dev`);
           }
           return resolve(true);
         } catch (error) {
