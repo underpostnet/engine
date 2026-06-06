@@ -32,3 +32,6 @@ fi
 node bin deploy $DEPLOY_ID $ENV $CLUSTER_FLAG --sync --build-manifest --image $IMAGE --timeout-response 300000ms --versions $VERSIONS --replicas 1 --cmd "$DEPLOY_CMD"
 node bin deploy $DEPLOY_ID $ENV $CLUSTER_FLAG --disable-update-proxy $PROXY_FLAG
 node bin monitor $DEPLOY_ID $ENV --ready-deployment --promote --timeout-response 300000ms --versions $VERSIONS --replicas 1
+
+node bin run etc-hosts --deploy-id $DEPLOY_ID
+node bin deploy --expose --local-proxy $DEPLOY_ID $ENV

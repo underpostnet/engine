@@ -361,6 +361,10 @@ program
     '--expose-local-port <port>',
     'Sets a different local port for --expose (e.g. 80) while keeping the remote service port. Useful for /etc/hosts local access without specifying a port in the browser.',
   )
+  .option(
+    '--local-proxy',
+    'Forward all service TCP ports locally and start the Node.js path-routing proxy. Enables full path-based routing (e.g. /wp alongside /) without needing --expose-local-port. Requires --expose.',
+  )
   .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
   .option(
     '--skip-full-build',

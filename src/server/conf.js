@@ -1086,13 +1086,9 @@ const buildPortProxyRouter = (
 
   if (Object.keys(router).length === 0) return router;
 
-  if (options.devProxyContext === true && process.env.NODE_ENV === 'development') {
-    const confDevApiServer = JSON.parse(
-      fs.readFileSync(
-        `./engine-private/conf/${process.argv[3]}/conf.server.dev.${process.argv[4]}-dev-api.json`,
-        'utf8',
-      ),
-    );
+  const devApiConfPath = `./engine-private/conf/${process.argv[3]}/conf.server.dev.${process.argv[4]}-dev-api.json`;
+  if (options.devProxyContext === true && process.env.NODE_ENV === 'development' && fs.existsSync(devApiConfPath)) {
+    const confDevApiServer = JSON.parse(fs.readFileSync(devApiConfPath, 'utf8'));
     let devApiHosts = [];
     let origins = [];
     for (const _host of Object.keys(confDevApiServer))

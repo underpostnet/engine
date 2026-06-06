@@ -735,6 +735,7 @@ spec:
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
      * @param {number} [options.exposePort] - Local:remote port override when --expose is active (overrides auto-detected service port).
      * @param {number} [options.exposeLocalPort] - Local port override for --expose (e.g. 80); remote port is still auto-detected. Enables /etc/hosts access without a port in the URL.
+     * @param {boolean} [options.localProxy] - When true (with --expose), forward all service TCP ports locally and start the Node.js path-routing proxy for full path-based routing.
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
      * @param {boolean} [options.k3s] - Whether to use k3s cluster context.
      * @param {boolean} [options.kubeadm] - Whether to use kubeadm cluster context.
@@ -778,6 +779,7 @@ spec:
         port: 0,
         exposePort: 0,
         exposeLocalPort: 0,
+        localProxy: false,
         cmd: '',
         k3s: false,
         kubeadm: false,
@@ -863,22 +865,49 @@ EOF`);
             logger.error(`No ${kindType} found matching '${deployId}', skipping expose`);
             continue;
           }
-          const remotePort = options.exposePort
-            ? parseInt(options.exposePort)
-            : options.port
-              ? parseInt(options.port)
-              : kindType !== 'svc'
-                ? 80
-                : parseInt(svc[`PORT(S)`].split('/TCP')[0]);
-          const localPort = options.exposeLocalPort ? parseInt(options.exposeLocalPort) : remotePort;
-          logger.info(deployId, {
-            svc,
-            localPort,
-            remotePort,
-          });
-          shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${svc.NAME} ${localPort}:${remotePort}`, {
-            async: true,
-          });
+          if (options.localProxy) {
+            const svcPorts = [
+              ...new Set(
+                svc['PORT(S)']
+                  .split(',')
+                  .filter((p) => p.includes('/TCP'))
+                  .map((p) => parseInt(p.split(':')[0])),
+              ),
+            ];
+            for (const svcPort of svcPorts) {
+              shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${svc.NAME} ${svcPort}:${svcPort}`, {
+                async: true,
+              });
+            }
+            const envFile = `./engine-private/conf/${deployId}/.env.${env}`;
+            let basePort = svcPorts[0] - 1;
+            if (fs.existsSync(envFile)) {
+              const portMatch = fs.readFileSync(envFile, 'utf8').match(/^PORT=(\d+)/m);
+              if (portMatch) basePort = parseInt(portMatch[1]);
+            }
+            logger.info(deployId, { svc, svcPorts, basePort });
+            shellExec(
+              `NODE_ENV=${env} PORT=${basePort} DEV_PROXY_PORT_OFFSET=0 node src/proxy proxy ${deployId} ${env}`,
+              { async: true },
+            );
+          } else {
+            const remotePort = options.exposePort
+              ? parseInt(options.exposePort)
+              : options.port
+                ? parseInt(options.port)
+                : kindType !== 'svc'
+                  ? 80
+                  : parseInt(svc[`PORT(S)`].split('/TCP')[0]);
+            const localPort = options.exposeLocalPort ? parseInt(options.exposeLocalPort) : remotePort;
+            logger.info(deployId, {
+              svc,
+              localPort,
+              remotePort,
+            });
+            shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${svc.NAME} ${localPort}:${remotePort}`, {
+              async: true,
+            });
+          }
           continue;
         }
 
