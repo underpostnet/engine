@@ -9,6 +9,8 @@ USE_CERT=false           # Set to true to use --cert, false to use --disable-upd
 USE_PULL_BUNDLE=true     # Set to true to include --pull-bundle in start command, false to omit it
 VERSIONS=green
 LINK_CMD="cd /home/dd,underpost clone underpostnet/pwa-microservices-template-private,cd /home/dd/pwa-microservices-template-private,npm install,npm link"
+PROXY_FLAG=""
+CLUSTER_FLAG=""
 
 if [ "$USE_PULL_BUNDLE" = true ]; then
     DEPLOY_CMD="$LINK_CMD,underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle $DEPLOY_ID $ENV"
@@ -20,6 +22,6 @@ if [ "$USE_CERT" = true ]; then
     PROXY_FLAG="--cert"
 fi
 
-node bin deploy $DEPLOY_ID $ENV --kubeadm --sync --build-manifest --image $IMAGE --timeout-response 300000ms --versions $VERSIONS --replicas 1 --cmd "$DEPLOY_CMD"
-node bin deploy $DEPLOY_ID $ENV --kubeadm --disable-update-proxy $PROXY_FLAG
+node bin deploy $DEPLOY_ID $ENV $CLUSTER_FLAG --sync --build-manifest --image $IMAGE --timeout-response 300000ms --versions $VERSIONS --replicas 1 --cmd "$DEPLOY_CMD"
+node bin deploy $DEPLOY_ID $ENV $CLUSTER_FLAG --disable-update-proxy $PROXY_FLAG
 node bin monitor $DEPLOY_ID $ENV --ready-deployment --promote --timeout-response 300000ms --versions $VERSIONS --replicas 1

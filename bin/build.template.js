@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../src/server/logger.js';
-import { buildTemplate } from '../src/server/conf.js';
+import { buildTemplate, updatePrivateTemplateRepo } from '../src/server/conf.js';
 
 if (fs.existsSync('./engine-private/conf/dd-cron/.env.production'))
   dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
@@ -19,8 +19,10 @@ program
   .description('Rebuild the standalone pwa-microservices-template from scratch out of the engine source tree.')
   .argument('[src-path]', 'Engine source root to sync from.', './')
   .argument('[to-path]', 'Template output path.', '../pwa-microservices-template')
-  .action(async (srcPath, toPath) => {
+  .option('--update-private', 'Update private template repository', false)
+  .action(async (srcPath, toPath, options) => {
     try {
+      if (options.updatePrivate) return await updatePrivateTemplateRepo();
       await buildTemplate({ srcPath: srcPath.replaceAll(`'`, ''), toPath: toPath.replaceAll(`'`, '') });
     } catch (error) {
       logger.error(error, error.stack);

@@ -2029,6 +2029,23 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
   );
 };
 
+const updatePrivateTemplateRepo = async () => {
+  shellExec(`sudo rm -rf /home/dd/pwa-microservices-template
+cd /home/dd/engine && npm run build:template
+cd /home/dd
+underpost clone --bare underpostnet/pwa-microservices-template-private
+sudo rm -rf ./pwa-microservices-template/.git
+mv ./pwa-microservices-template-private.git ./pwa-microservices-template/.git
+cd ./pwa-microservices-template
+git init
+git config user.name 'underpostnet'
+git config user.email 'development@underpost.net'
+git add .
+git commit -m 'Update template'
+underpost push . underpostnet/pwa-microservices-template-private
+`);
+};
+
 export {
   Config,
   loadConf,
@@ -2080,4 +2097,5 @@ export {
   syncPrivateConf,
   syncDeployIdSources,
   buildTemplate,
+  updatePrivateTemplateRepo,
 };
