@@ -357,6 +357,10 @@ program
     '--expose-port <port>',
     'Sets the local:remote port to expose when --expose is active (overrides auto-detected service port).',
   )
+  .option(
+    '--expose-local-port <port>',
+    'Sets a different local port for --expose (e.g. 80) while keeping the remote service port. Useful for /etc/hosts local access without specifying a port in the browser.',
+  )
   .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
   .option(
     '--skip-full-build',
