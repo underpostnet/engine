@@ -719,6 +719,7 @@ spec:
      * @param {number} [options.port] - Port number for exposing the deployment.
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
      * @param {number} [options.exposePort] - Local:remote port override when --expose is active (overrides auto-detected service port).
+     * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
      * @param {boolean} [options.k3s] - Whether to use k3s cluster context.
      * @param {boolean} [options.kubeadm] - Whether to use kubeadm cluster context.
      * @param {boolean} [options.kind] - Whether to use kind cluster context.
