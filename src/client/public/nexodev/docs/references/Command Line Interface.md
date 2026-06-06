@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.14
+> underpost ci/cd cli v3.2.21
 
 **Usage:** `underpost [options] [command]`
 
@@ -46,7 +46,7 @@
 
 ## Command reference
 
-### `underpost new`
+### underpost new
 
 Initializes a new Underpost project, service, or configuration.
 
@@ -76,7 +76,9 @@ Initializes a new Underpost project, service, or configuration.
 | `--conf-workflow-id <workflow-id>` | Set custom configuration workflow ID for conf generation |
 | `-h, --help` | display help for command |
 
-### `underpost client`
+---
+
+### underpost client
 
 Builds client assets, single replicas, and/or syncs environment ports.
 
@@ -105,7 +107,9 @@ Builds client assets, single replicas, and/or syncs environment ports.
 | `--icons-build` | Build icons |
 | `-h, --help` | display help for command |
 
-### `underpost start`
+---
+
+### underpost start
 
 Initiates application servers, build pipelines, or other defined services based on the deployment ID.
 
@@ -130,7 +134,9 @@ Initiates application servers, build pipelines, or other defined services based 
 | `--pull-bundle` | Downloads the pre-built client bundle from Cloudinary via pull-bundle before starting. Use together with --skip-full-build to skip the local build entirely. |
 | `-h, --help` | display help for command |
 
-### `underpost clone`
+---
+
+### underpost clone
 
 Clones a specified GitHub repository into the current directory.
 
@@ -150,7 +156,9 @@ Clones a specified GitHub repository into the current directory.
 | `--g8` | Uses the g8 repository extension for cloning. |
 | `-h, --help` | display help for command |
 
-### `underpost pull`
+---
+
+### underpost pull
 
 Pulls the latest changes from a specified GitHub repository.
 
@@ -170,7 +178,9 @@ Pulls the latest changes from a specified GitHub repository.
 | `--g8` | Uses the g8 repository extension for pulling. |
 | `-h, --help` | display help for command |
 
-### `underpost cmt`
+---
+
+### underpost cmt
 
 Manages commits to a GitHub repository, supporting various commit types and options.
 
@@ -209,9 +219,12 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `-p [branch]` | Shows the reflog for the specified branch. |
 | `--bc <commit-hash>` | Shows branches that contain the specified commit. |
 | `--is-remote-repo <url-repo>` | Checks whether a remote Git repository URL is reachable. Prints true or false. |
+| `--has-changes` | Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise. |
 | `-h, --help` | display help for command |
 
-### `underpost push`
+---
+
+### underpost push
 
 Pushes committed changes from a local repository to a remote GitHub repository.
 
@@ -232,7 +245,9 @@ Pushes committed changes from a local repository to a remote GitHub repository.
 | `--g8` | Uses the g8 repository extension for pushing. |
 | `-h, --help` | display help for command |
 
-### `underpost env`
+---
+
+### underpost env
 
 Sets environment variables and configurations related to a specific deployment ID.
 
@@ -252,7 +267,9 @@ Sets environment variables and configurations related to a specific deployment I
 | --- | --- |
 | `-h, --help` | display help for command |
 
-### `underpost static`
+---
+
+### underpost static
 
 Manages static build of page, bundles, and documentation with comprehensive customization options.
 
@@ -293,7 +310,9 @@ Manages static build of page, bundles, and documentation with comprehensive cust
 | `--run-sv [port]` | Start a standalone Express static server to preview the static build (default port: 5000). |
 | `-h, --help` | display help for command |
 
-### `underpost config`
+---
+
+### underpost config
 
 Manages Underpost configurations using various operators.
 
@@ -318,7 +337,9 @@ Manages Underpost configurations using various operators.
 | `--copy` | Copies the configuration value to the clipboard (only for get operation). |
 | `-h, --help` | display help for command |
 
-### `underpost root`
+---
+
+### underpost root
 
 Displays the root path of the npm installation.
 
@@ -330,7 +351,9 @@ Displays the root path of the npm installation.
 | --- | --- |
 | `-h, --help` | display help for command |
 
-### `underpost ip`
+---
+
+### underpost ip
 
 Displays the current public machine IP addresses.
 
@@ -361,7 +384,9 @@ Displays the current public machine IP addresses.
 | `--mac` | Prints the MAC address of the main network interface. |
 | `-h, --help` | display help for command |
 
-### `underpost cluster`
+---
+
+### underpost cluster
 
 Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
@@ -413,7 +438,9 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 | `--replicas <replicas>` | Sets a custom number of replicas for statefulset deployments. |
 | `-h, --help` | display help for command |
 
-### `underpost deploy`
+---
+
+### underpost deploy
 
 Manages application deployments, defaulting to deploying development pods.
 
@@ -436,6 +463,7 @@ Manages application deployments, defaulting to deploying development pods.
 | `--expose` | Exposes services matching the provided deployment ID list. |
 | `--cert` | Resets TLS/SSL certificate secrets for deployments. |
 | `--cert-hosts <hosts>` | Resets TLS/SSL certificate secrets for specified hosts. |
+| `--self-signed` | Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. The secret must already exist in the namespace with the same name as the host. Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer. |
 | `--node <node>` | Sets optional node for deployment operations. |
 | `--build-manifest` | Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets. |
 | `--replicas <replicas>` | Sets a custom number of replicas for deployments. |
@@ -447,6 +475,8 @@ Manages application deployments, defaulting to deploying development pods.
 | `--retry-count <count>` | Sets HTTPProxy per-route retry count (e.g., 3). |
 | `--retry-per-try-timeout <duration>` | Sets HTTPProxy retry per-try timeout (e.g., "150ms"). |
 | `--disable-update-deployment` | Disables updates to deployments. |
+| `--disable-runtime-probes` | Omits the internal-status HTTP probes from generated deployment manifests. |
+| `--tcp-probes` | Generates legacy TCP socket probes instead of HTTP internal-status probes (migration). |
 | `--disable-update-proxy` | Disables updates to proxies. |
 | `--disable-deployment-proxy` | Disables proxies of deployments. |
 | `--disable-update-volume` | Disables updates to volume mounts during deployment. |
@@ -460,13 +490,18 @@ Manages application deployments, defaulting to deploying development pods.
 | `--kind-type <kind-type>` | Specifies the Kind cluster type for deployment operations. |
 | `--port <port>` | Sets up port forwarding from local to remote ports. |
 | `--expose-port <port>` | Sets the local:remote port to expose when --expose is active (overrides auto-detected service port). |
+| `--expose-local-port <port>` | Sets a different local port for --expose (e.g. 80) while keeping the remote service port. Useful for /etc/hosts local access without specifying a port in the browser. |
+| `--local-proxy` | Forward all service TCP ports locally and start the Node.js path-routing proxy. Enables full path-based routing (e.g. /wp alongside /) without needing --expose-local-port. Requires --expose. |
 | `--cmd <cmd>` | Custom initialization command for deployment (comma-separated commands). |
 | `--skip-full-build` | Skip client bundle rebuild; container will pull pre-built bundle via pull-bundle instead. |
 | `--pull-bundle` | Explicitly pull the pre-built client bundle from Cloudinary inside the container. Use together with --skip-full-build. |
 | `--image-pull-policy <policy>` | Override container imagePullPolicy in the generated deployment manifest (Always, IfNotPresent, Never). Defaults to Never for localhost/ images and IfNotPresent otherwise. |
+| `--tls` | Enables TLS for the local proxy started by --expose --local-proxy. The proxy will serve HTTPS on port 443 using self-signed certificates resolved from the local SSL store. Use together with --expose and --local-proxy. |
 | `-h, --help` | display help for command |
 
-### `underpost secret`
+---
+
+### underpost secret
 
 Manages secrets for various platforms.
 
@@ -489,7 +524,9 @@ Manages secrets for various platforms.
 | `--list` | Lists all available secrets for the platform. |
 | `-h, --help` | display help for command |
 
-### `underpost image`
+---
+
+### underpost image
 
 Manages Docker images, including building, saving, and loading into Kubernetes clusters.
 
@@ -519,7 +556,9 @@ Manages Docker images, including building, saving, and loading into Kubernetes c
 | `--pull-dockerhub <dockerhub-image>` | Sets a custom Docker Hub image for base image pulls. |
 | `-h, --help` | display help for command |
 
-### `underpost install`
+---
+
+### underpost install
 
 Quickly imports Underpost npm dependencies by copying them.
 
@@ -531,7 +570,9 @@ Quickly imports Underpost npm dependencies by copying them.
 | --- | --- |
 | `-h, --help` | display help for command |
 
-### `underpost db`
+---
+
+### underpost db
 
 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
 
@@ -573,7 +614,9 @@ Manages database operations with support for MariaDB and MongoDB, including impo
 | `--repo-backup` | Backs up repositories (git commit+push) inside deployment pods via kubectl exec. |
 | `-h, --help` | display help for command |
 
-### `underpost metadata`
+---
+
+### underpost metadata
 
 Manages cluster metadata operations, including import and export.
 
@@ -600,7 +643,9 @@ Manages cluster metadata operations, including import and export.
 | `--dev` | Sets the development cli context |
 | `-h, --help` | display help for command |
 
-### `underpost cron`
+---
+
+### underpost cron
 
 Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.
 
@@ -632,7 +677,9 @@ Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manif
 | `--create-job-now` | After applying manifests, immediately create a Job from each CronJob (requires --apply). |
 | `-h, --help` | display help for command |
 
-### `underpost fs`
+---
+
+### underpost fs
 
 Manages file storage, defaulting to file upload operations.
 
@@ -658,7 +705,9 @@ Manages file storage, defaulting to file upload operations.
 | `--storage-file-path <storage-file-path>` | Specifies a custom file storage path. |
 | `-h, --help` | display help for command |
 
-### `underpost test`
+---
+
+### underpost test
 
 Manages and runs tests, defaulting to the current Underpost default test suite.
 
@@ -682,7 +731,9 @@ Manages and runs tests, defaulting to the current Underpost default test suite.
 | `--kind-type <kind-type>` | Optional: Specifies the Kind cluster type for tests. |
 | `-h, --help` | display help for command |
 
-### `underpost monitor`
+---
+
+### underpost monitor
 
 Manages health server monitoring for specified deployments.
 
@@ -716,7 +767,9 @@ Manages health server monitoring for specified deployments.
 | `--promote` | Promotes the deployment after monitoring. |
 | `-h, --help` | display help for command |
 
-### `underpost ssh`
+---
+
+### underpost ssh
 
 Manages SSH credentials and sessions for remote access to cluster nodes or services.
 
@@ -749,7 +802,9 @@ Manages SSH credentials and sessions for remote access to cluster nodes or servi
 | `--copy` | Copies the connection URI to clipboard. |
 | `-h, --help` | display help for command |
 
-### `underpost run`
+---
+
+### underpost run
 
 Runs specified scripts using various runners.
 
@@ -759,7 +814,7 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,monitor-ui,shared-dir. |
+| `runner-id` | The runner ID to run. Options: dev-cluster,etc-hosts,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir. |
 | `path` | The input value, identifier, or path for the operation. |
 
 #### Options
@@ -835,7 +890,9 @@ Runs specified scripts using various runners.
 | `--remove` | Remove/teardown resources |
 | `-h, --help` | display help for command |
 
-### `underpost lxd`
+---
+
+### underpost lxd
 
 Manages LXD virtual machines as K3s nodes (control plane or workers).
 
@@ -880,7 +937,9 @@ Manages LXD virtual machines as K3s nodes (control plane or workers).
 | `--move-to-project` | Stop the [vm-id] VM in the default project, move it to --maas-project, then start it so MAAS picks it up. Requires --maas-project. |
 | `-h, --help` | display help for command |
 
-### `underpost baremetal`
+---
+
+### underpost baremetal
 
 Manages baremetal server operations, including installation, database setup, commissioning, and user management.
 
@@ -938,7 +997,9 @@ Manages baremetal server operations, including installation, database setup, com
 | `--ls` | Lists available boot resources and machines. |
 | `-h, --help` | display help for command |
 
-### `underpost release`
+---
+
+### underpost release
 
 Release orchestrator for building new versions and deploying releases of the Underpost CLI.
 
@@ -960,4 +1021,10 @@ Release orchestrator for building new versions and deploying releases of the Und
 | `--message <message>` | Commit message for --ci-push or --pwa-build (defaults to last commit of the engine repository). |
 | `--pwa-build` | Runs the pwa-microservices-template update flow: always re-clones, syncs engine sources, installs, builds, and pushes. |
 | `--dry-run` | For --build: previews version-bump changes (per-file substitution counts) without writing files or running downstream commands. |
+| `--mongo-host <host>` | For --build: override DB_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82:27017"). |
+| `--mongo-user <user>` | For --build: override DB_USER in the template .env.example for the smoke test. |
+| `--mongo-password <password>` | For --build: override DB_PASSWORD in the template .env.example for the smoke test. |
+| `--valkey-host <host>` | For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82"). |
 | `-h, --help` | display help for command |
+
+---

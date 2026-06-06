@@ -115,7 +115,7 @@ An instance config may declare K8S-native lifecycle hooks and probes. These spli
 {
   "id": "mmo-server",
   "runtime": "cyberia-server",
-  "image": "underpost/cyberia-server:v3.2.14",
+  "image": "underpost/cyberia-server:v3.2.21",
   "fromPort": 8081,
   "toPort": 8081,
   "cmd": {
@@ -168,7 +168,7 @@ The `instance` and `instance-build-manifest` runners recognise a non-standard `i
 ```jsonc
 {
   "id": "mmo-server",
-  "image": "underpost/cyberia-server:v3.2.14",
+  "image": "underpost/cyberia-server:v3.2.21",
   "lifecycle": {
     "development": {
       "imagePullPolicy": "Always",
@@ -188,7 +188,7 @@ This compiles to the following container snippet in the rendered manifest:
 
 ```yaml
 - name: dd-cyberia-mmo-server-production-blue
-  image: underpost/cyberia-server:v3.2.14
+  image: underpost/cyberia-server:v3.2.21
   imagePullPolicy: Always
   …
   lifecycle:
@@ -673,9 +673,9 @@ The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`.
 
 - **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. No env file or gRPC wiring — the client is presentation-only and talks to the cyberia-server WebSocket / engine REST endpoints at runtime.
 
-Both Dockerfiles install `underpost@${UNDERPOST_VERSION}` at build time (`ARG UNDERPOST_VERSION=3.2.14`), so the `cmd` entries can call `underpost config set container-status …` without paying an `npm install -g` cost on every pod boot. The two CI workflows that publish these images forward `UNDERPOST_VERSION` as a build-arg to keep the in-image CLI aligned with the image tag.
+Both Dockerfiles install `underpost@${UNDERPOST_VERSION}` at build time (`ARG UNDERPOST_VERSION=3.2.21`), so the `cmd` entries can call `underpost config set container-status …` without paying an `npm install -g` cost on every pod boot. The two CI workflows that publish these images forward `UNDERPOST_VERSION` as a build-arg to keep the in-image CLI aligned with the image tag.
 
-Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet re-pulls the published image on every rollout — the CI tags (`v3.2.14`, `v3.2.14`, …) move forward only through coordinated bumps, but the registry image itself can be republished under the same tag during incident response, and `Always` ensures the cluster picks that up. See [imagePullPolicy — per-instance override](#imagepullpolicy--per-instance-override-extension).
+Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet re-pulls the published image on every rollout — the CI tags (`v3.2.21`, `v3.2.21`, …) move forward only through coordinated bumps, but the registry image itself can be republished under the same tag during incident response, and `Always` ensures the cluster picks that up. See [imagePullPolicy — per-instance override](#imagepullpolicy--per-instance-override-extension).
 
 ## Best Practices
 

@@ -1,6 +1,62 @@
 # Changelog
 
-## 2026-06-02
+## 2026-06-06
+
+### release
+
+- Add options for MongoDB and Valkey configuration in build process ([7dba2a68a](https://github.com/underpostnet/engine/commit/7dba2a68a01dd0dacdf0e1f430170e80f6ce97d8))
+
+### repository
+
+- Enhance deployment process: Include deploy ID in logging and update build commands ([aedd99415](https://github.com/underpostnet/engine/commit/aedd994157a5688b13c9f063b9e1446807282213))
+- Add --has-changes option to check for staged or unstaged git changes and update template repo logic ([f479994a4](https://github.com/underpostnet/engine/commit/f479994a40ad3815839cd85f8664390074799c55))
+- Ensure repository directory is created before initialization ([5cb66853f](https://github.com/underpostnet/engine/commit/5cb66853f2623e18edaf8f63de95757cc48d389a))
+
+### docs
+
+- Refactor CLI documentation generation: Update command argument and option sections for improved clarity ([fd20febb1](https://github.com/underpostnet/engine/commit/fd20febb125f547b287edd784504185273080a51))
+
+### deploy
+
+- Add support for self-signed TLS certificates and related options in deployment scripts ([d03ddf7b7](https://github.com/underpostnet/engine/commit/d03ddf7b758afb9c55fe7c610011fe9e4828d033))
+- Add localProxy option to enable TCP port forwarding and path-based routing ([6b6c03a4c](https://github.com/underpostnet/engine/commit/6b6c03a4c0a990a9b03c234025b3d68deb48f41a))
+- Add exposeLocalPort option for custom local port configuration in deployment ([60fe88b95](https://github.com/underpostnet/engine/commit/60fe88b95e69c744fb53d900edaf6b918f0824bb))
+- Refactor deployment scripts: Update commands in engine-test workflow and add link-local CLI script ([8506dbca4](https://github.com/underpostnet/engine/commit/8506dbca4280e782cb550206f8bf550f9f6f81af))
+
+### cli-run
+
+- Add build-cluster-deployment-manifests method and update test-monitor script: Implement deployment manifest building for production and development environments. ([be2c5a71e](https://github.com/underpostnet/engine/commit/be2c5a71e553a65e57fd9f21a5ccb5acaf7b7d58))
+- Add etc-hosts method: Modify /etc/hosts file for local service access ([c4e7ba286](https://github.com/underpostnet/engine/commit/c4e7ba286651f002c1f6be09225c092b0596e4b8))
+
+### monitor
+
+- Refactor monitoring and deployment port resolution: Introduce deployStatusPort for consistent internal status port handling and implement findFreePort for ephemeral TCP port allocation. ([735c2c41e](https://github.com/underpostnet/engine/commit/735c2c41e2cfc7c47dd7ce3f0832b80f9c41188f))
+- Add test-monitor script: Implement deployment and monitoring commands for development environment ([a74316ae1](https://github.com/underpostnet/engine/commit/a74316ae140c7917c2923f9f6f63d0ea74859116))
+- Implement reliable two-phase deployment monitoring with internal HTTP status endpoint ([a2b49dcd6](https://github.com/underpostnet/engine/commit/a2b49dcd62ee5056c6d4e5caba0faf867e531269))
+- Improve pod status handling: Exclude 'empty' status from container status checks ([6d18e2872](https://github.com/underpostnet/engine/commit/6d18e28720004eca5dcff8ad61373ac74b46851a))
+- Improve pod status handling: Exclude 'empty' status from advanced pod tracking ([a90400342](https://github.com/underpostnet/engine/commit/a904003428a2a920f56ea409391812a6d3dab794))
+
+### build-template
+
+- Add option to update private template repository ([77cbe276a](https://github.com/underpostnet/engine/commit/77cbe276af8f5a3a85c95ab8ad2044b57ee52326))
+
+### runtime-cyberia
+
+- Refactor Dockerfiles: Standardize comments and clean up unnecessary lines ([6ae4d0bef](https://github.com/underpostnet/engine/commit/6ae4d0bef71eb31fc56eb66be5e52ba3334b5f13))
+
+### engine-cyberia
+
+- Enhance dialogue and quest systems: Add new dialogue entries for Lain, update action types, and revise implementation status in documentation ([67702fa9c](https://github.com/underpostnet/engine/commit/67702fa9c4219fed4742d078f88a52167dd08249))
+
+### cyberia-cli
+
+- Add Mongo host override option to import command for Object Layer items ([b181892b4](https://github.com/underpostnet/engine/commit/b181892b48753f7a40ede0346934f6a8b9fd21dc))
+
+### env
+
+- Simplify environment variable check: Remove redundant logging for empty env path ([b192cdff4](https://github.com/underpostnet/engine/commit/b192cdff40c2053c651210fbf244be34b74b8376))
+
+## New release v:3.2.14 (2026-06-02)
 
 ### runtime-wp
 
