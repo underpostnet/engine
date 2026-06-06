@@ -218,6 +218,10 @@ class UnderpostDeploy {
       livenessProbe,
       startupProbe,
       containerPort,
+      // Explicit, secret-free internal status port injected as an env var so the
+      // in-pod endpoint binds exactly what the probes and the monitor target,
+      // independent of the ambient `PORT` baked into the image/secret.
+      internalStatusPort,
     }) {
       if (!cmd)
         cmd =
@@ -269,6 +273,13 @@ spec:
             - secretRef:
                 name: underpost-config
 ${
+  internalStatusPort
+    ? `          env:
+            - name: UNDERPOST_INTERNAL_PORT
+              value: "${internalStatusPort}"
+`
+    : ''
+}${
   containerPort
     ? `          ports:
             - containerPort: ${containerPort}
@@ -396,8 +407,11 @@ spec:
 
         logger.info('port range', { deployId, fromPort, toPort });
 
-        // The internal status endpoint binds the deployment base port (app
-        // instances start at base + 1, so the base is free inside the pod).
+        // The internal status endpoint binds `fromPort - 1`: app instances bind
+        // the router range starting at `fromPort`, so this slot is always free
+        // inside the pod. It is injected into the pod env (UNDERPOST_INTERNAL_PORT)
+        // and used for both the probes and the monitor's port-forward target so
+        // all three agree regardless of the image's ambient PORT.
         // Opt out with `--disable-runtime-probes` to keep legacy probe-less pods.
         const internalPort = fromPort - 1;
         const probes = options.disableRuntimeProbes
@@ -419,6 +433,7 @@ ${Underpost.deploy
     skipFullBuild: options.skipFullBuild,
     pullBundle: options.pullBundle,
     imagePullPolicy: options.imagePullPolicy,
+    internalStatusPort: options.disableRuntimeProbes ? undefined : internalPort,
     readinessProbe: probes.readinessProbe,
     livenessProbe: probes.livenessProbe,
     startupProbe: probes.startupProbe,

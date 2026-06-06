@@ -20,6 +20,8 @@
  */
 
 import http from 'node:http';
+import fs from 'fs-extra';
+import dotenv from 'dotenv';
 import Underpost from '../index.js';
 import { loggerFactory } from './logger.js';
 
@@ -53,6 +55,34 @@ const resolveInternalStatusPort = () => {
   const raw = process.env.UNDERPOST_INTERNAL_PORT || process.env.PORT;
   const port = parseInt(raw);
   return Number.isNaN(port) ? undefined : port;
+};
+
+/**
+ * Single source of truth for the internal status port of a specific deployment,
+ * used identically by the in-pod server bind (`start.js`) and the CD-side
+ * monitor target (`monitor.js`) so the two can never disagree.
+ *
+ * Resolution order: `UNDERPOST_INTERNAL_PORT` override → the deployment's
+ * `.env.<env>` `PORT` → the ambient `PORT`.
+ *
+ * @memberof RuntimeStatus
+ * @param {string} deployId
+ * @param {string} env
+ * @returns {number|undefined}
+ */
+const deployStatusPort = (deployId, env) => {
+  const override = parseInt(process.env.UNDERPOST_INTERNAL_PORT);
+  if (!Number.isNaN(override)) return override;
+  try {
+    const envPath = `./engine-private/conf/${deployId}/.env.${env}`;
+    if (fs.existsSync(envPath)) {
+      const port = parseInt(dotenv.parse(fs.readFileSync(envPath, 'utf8')).PORT);
+      if (!Number.isNaN(port)) return port;
+    }
+  } catch (_) {
+    /* fall through to ambient resolution */
+  }
+  return resolveInternalStatusPort();
 };
 
 /**
@@ -194,6 +224,7 @@ export {
   INTERNAL_READY_PATH,
   INTERNAL_HEALTH_PATH,
   resolveInternalStatusPort,
+  deployStatusPort,
   containerStatusValue,
   normalizeContainerStatus,
   getRuntimeStatus,

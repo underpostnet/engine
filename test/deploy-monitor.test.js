@@ -153,6 +153,10 @@ try {
         POD_NAME,
         npm_config_prefix: tmpPrefix,
         UNDERPOST_INTERNAL_PORT: String(INTERNAL_PORT),
+        // Pin the tunnel's local port so the no-op fake port-forward + the real
+        // internal server (bound to INTERNAL_PORT in this process) resolve to the
+        // same address the monitor's HTTP GET targets.
+        UNDERPOST_PF_LOCAL_PORT: String(INTERNAL_PORT),
         UNDERPOST_MONITOR_DELAY_MS: '100',
         UNDERPOST_MONITOR_MAX_ITERATIONS: '60',
         UNDERPOST_PF_ATTEMPTS: '3',
@@ -195,6 +199,7 @@ try {
     Underpost.env.set('container-status', RUNNING_STATUS);
     const code = await spawnMonitor({
       UNDERPOST_INTERNAL_PORT: String(CLOSED_PORT),
+      UNDERPOST_PF_LOCAL_PORT: String(CLOSED_PORT),
       UNDERPOST_MONITOR_MAX_ITERATIONS: '3',
     });
     expect(code).to.equal(1);

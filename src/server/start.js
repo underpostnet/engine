@@ -8,7 +8,7 @@ import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
 import { shellCd, shellExec } from './process.js';
-import { RUNTIME_STATUS, setRuntimeStatus, startInternalStatusServer } from './runtime-status.js';
+import { RUNTIME_STATUS, setRuntimeStatus, startInternalStatusServer, deployStatusPort } from './runtime-status.js';
 import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
@@ -149,8 +149,9 @@ class UnderpostStartUp {
       },
     ) {
       // Bring the internal status endpoint up first so Phase-2 readiness is
-      // observable through every lifecycle phase, including build and init.
-      startInternalStatusServer();
+      // observable through every lifecycle phase, including build and init. Bind
+      // the deployment-resolved port so it always matches the monitor's target.
+      startInternalStatusServer(deployStatusPort(deployId, env));
       setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
       if (options.build === true) await Underpost.start.build(deployId, env, options);
       setRuntimeStatus(deployId, env, RUNTIME_STATUS.INIT);

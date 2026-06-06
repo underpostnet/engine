@@ -10,6 +10,7 @@ import {
   loadConfServerJson,
   loadCronDeployEnv,
   etcHostFactory,
+  deployRangePortFactory,
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
@@ -17,11 +18,11 @@ import {
   RUNTIME_STATUS,
   INTERNAL_STATUS_PATH,
   normalizeContainerStatus,
-  resolveInternalStatusPort,
+  deployStatusPort,
 } from '../server/runtime-status.js';
 import axios from 'axios';
-import dotenv from 'dotenv';
 import fs from 'fs-extra';
+import net from 'node:net';
 import { shellExec } from '../server/process.js';
 import Underpost from '../index.js';
 
@@ -335,27 +336,46 @@ class UnderpostMonitor {
       };
     },
     /**
-     * Resolves the deployment's internal status port (Phase-2 transport target).
-     * Mirrors the in-pod resolution: `UNDERPOST_INTERNAL_PORT` override wins,
-     * else the deployment's `.env.<env>` `PORT`, else the ambient `PORT`.
-     * @param {string} deployId
-     * @param {string} env
-     * @returns {number}
+     * Resolves a free ephemeral TCP port on the loopback interface, used as the
+     * local end of the `kubectl port-forward` tunnel so it never collides with
+     * host-local services.
+     * @returns {Promise<number>}
      * @memberof UnderpostMonitor
      */
-    deployInternalPort(deployId, env) {
+    findFreePort() {
+      return new Promise((resolve) => {
+        const srv = net.createServer();
+        srv.once('error', () => resolve(20000 + Math.floor(Math.random() * 20000)));
+        srv.listen(0, '127.0.0.1', () => {
+          const { port } = srv.address();
+          srv.close(() => resolve(port));
+        });
+      });
+    },
+    /**
+     * Resolves the deployment's internal status port (Phase-2 transport target).
+     *
+     * Canonical value is `fromPort - 1` from the deployment router — the exact
+     * port `buildManifest` injects into the pod (UNDERPOST_INTERNAL_PORT) and
+     * uses for the probes — so the tunnel target always matches the in-pod bind.
+     * `UNDERPOST_INTERNAL_PORT` overrides; ambient resolution is the last resort.
+     *
+     * @param {string} deployId
+     * @param {string} env
+     * @returns {Promise<number>}
+     * @memberof UnderpostMonitor
+     */
+    async deployInternalPort(deployId, env) {
       const override = parseInt(process.env.UNDERPOST_INTERNAL_PORT);
       if (!Number.isNaN(override)) return override;
       try {
-        const envPath = `./engine-private/conf/${deployId}/.env.${env}`;
-        if (fs.existsSync(envPath)) {
-          const port = parseInt(dotenv.parse(fs.readFileSync(envPath, 'utf8')).PORT);
-          if (!Number.isNaN(port)) return port;
-        }
+        const router = await Underpost.deploy.routerFactory(deployId, env);
+        const { fromPort } = deployRangePortFactory(router);
+        if (Number.isFinite(fromPort) && fromPort > 0) return fromPort - 1;
       } catch (_) {
         /* fall through to ambient resolution */
       }
-      return resolveInternalStatusPort() ?? 3000;
+      return deployStatusPort(deployId, env) ?? 3000;
     },
     /**
      * Reads Phase-2 runtime readiness from a single pod over HTTP, tunneling
@@ -373,7 +393,12 @@ class UnderpostMonitor {
      * @memberof UnderpostMonitor
      */
     async readRuntimeStatus(podName, namespace, internalPort) {
-      const localPort = internalPort;
+      // The local side of the tunnel MUST be an ephemeral free port: pinning it
+      // to internalPort collides with any host-local service on that number
+      // (e.g. a dev runtime on the same machine as the cluster), which makes
+      // port-forward fail to bind and every read return a false transport error.
+      const override = parseInt(process.env.UNDERPOST_PF_LOCAL_PORT);
+      const localPort = Number.isNaN(override) ? await Underpost.monitor.findFreePort() : override;
       const url = `http://127.0.0.1:${localPort}${INTERNAL_STATUS_PATH}`;
       let portForward;
       try {
@@ -388,15 +413,15 @@ class UnderpostMonitor {
       }
       try {
         let lastError;
-        const attempts = parseInt(process.env.UNDERPOST_PF_ATTEMPTS) || 15;
+        const attempts = parseInt(process.env.UNDERPOST_PF_ATTEMPTS) || 20;
         for (let attempt = 0; attempt < attempts; attempt++) {
           try {
-            const res = await axios.get(url, { timeout: 2000 });
+            const res = await axios.get(url, { timeout: 2500 });
             const raw = res?.data?.status ?? null;
             return { ok: true, status: normalizeContainerStatus(raw) ?? raw, payload: res.data };
           } catch (error) {
             lastError = error;
-            await timer(300);
+            await timer(350);
           }
         }
         return { ok: false, transportError: lastError?.code || lastError?.message || 'transport_failed' };
@@ -441,7 +466,7 @@ class UnderpostMonitor {
       const deploymentId = `${deployId}-${env}-${targetTraffic}`;
       const tag = `[${deploymentId}]`;
       const expectedStatus = RUNTIME_STATUS.RUNNING;
-      const internalPort = Underpost.monitor.deployInternalPort(deployId, env);
+      const internalPort = await Underpost.monitor.deployInternalPort(deployId, env);
       const podErrorStates = ['error', 'crashloopbackoff', 'oomkilled', 'imagepullbackoff', 'errimagepull'];
 
       const emit = (state, status) =>
