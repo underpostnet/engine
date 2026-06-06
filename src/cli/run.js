@@ -2696,6 +2696,18 @@ EOF`;
     },
 
     /**
+     * @method build-cluster-deployment-manifests
+     * @description Builds deployment manifests for both production and development environments using `node bin deploy --build-manifest`, syncing them, and setting replicas to 1 for the `dd` deployment.
+     * @param {string} path - Unused.
+     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @memberof UnderpostRun
+     */
+    'build-cluster-deployment-manifests': (path = '', options = DEFAULT_OPTION) => {
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
+    },
+
+    /**
      * @method monitor-ui
      * @description Installs and enables the Cockpit KVM Dashboard (cockpit, cockpit-machines, libvirt)
      * and opens the cockpit firewall service. With `--remove`, closes the firewall service instead.

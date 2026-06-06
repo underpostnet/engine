@@ -390,8 +390,7 @@ class UnderpostRelease {
       shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`node bin/build dd`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
+      shellExec(`node bin run build-cluster-deployment-manifests`);
       shellExec(`node bin new --default-conf --conf-workflow-id template`);
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       shellExec(`node bin new --deploy-id dd-default`);

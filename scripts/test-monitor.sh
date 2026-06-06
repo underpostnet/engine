@@ -6,16 +6,23 @@ ENV=development
 DEPLOY_ID=dd-test
 IMAGE=underpost/wp:v3.2.14
 USE_CERT=false           # Set to true to use --cert, false to use --disable-update-proxy
-USE_PULL_BUNDLE=true     # Set to true to include --pull-bundle in start command, false to omit it
+USE_PULL_BUNDLE=false     # Set to true to include --pull-bundle in start command, false to omit it
 VERSIONS=green
+
+# Optional to concat in link cmd:
+# underpost secret underpost --create-from-env
+
 LINK_CMD="cd /home/dd,underpost clone underpostnet/pwa-microservices-template-private,cd /home/dd/pwa-microservices-template-private,npm install,npm link"
 PROXY_FLAG=""
 CLUSTER_FLAG=""
 
+node bin run build-cluster-deployment-manifests
+node bin/build.template --update-private
+
 if [ "$USE_PULL_BUNDLE" = true ]; then
-    DEPLOY_CMD="$LINK_CMD,underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle $DEPLOY_ID $ENV"
+    DEPLOY_CMD="$LINK_CMD,underpost start --build --run --pull-bundle $DEPLOY_ID $ENV"
 else
-    DEPLOY_CMD="$LINK_CMD,underpost secret underpost --create-from-env,underpost start --build --run $DEPLOY_ID $ENV"
+    DEPLOY_CMD="$LINK_CMD,underpost start --build --run $DEPLOY_ID $ENV"
 fi
 
 if [ "$USE_CERT" = true ]; then
