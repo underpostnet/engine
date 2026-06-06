@@ -124,6 +124,10 @@ program
     '--is-remote-repo <url-repo>',
     'Checks whether a remote Git repository URL is reachable. Prints true or false.',
   )
+  .option(
+    '--has-changes',
+    'Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise.',
+  )
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

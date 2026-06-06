@@ -2030,20 +2030,29 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
 };
 
 const updatePrivateTemplateRepo = async () => {
-  shellExec(`sudo rm -rf /home/dd/pwa-microservices-template
+  const templatePath = '/home/dd/pwa-microservices-template';
+  shellExec(`sudo rm -rf ${templatePath}
 cd /home/dd/engine && npm run build:template
 cd /home/dd
 underpost clone --bare underpostnet/pwa-microservices-template-private
-sudo rm -rf ./pwa-microservices-template/.git
-mv ./pwa-microservices-template-private.git ./pwa-microservices-template/.git
-cd ./pwa-microservices-template
+sudo rm -rf ${templatePath}/.git
+mv ./pwa-microservices-template-private.git ${templatePath}/.git
+cd ${templatePath}
+npm install --omit=dev --ignore-scripts
 git init
 git config user.name 'underpostnet'
 git config user.email 'development@underpost.net'
-git add .
-git commit -m 'Update template'
-underpost push . underpostnet/pwa-microservices-template-private
-`);
+git add .`);
+  const hasChanges = shellExec(`node bin cmt ${templatePath} --has-changes`, {
+    stdout: true,
+    silent: true,
+    disableLog: true,
+  }).trim();
+  if (hasChanges === '1') {
+    shellExec(
+      `cd ${templatePath} && git commit -m 'Update template' && underpost push . underpostnet/pwa-microservices-template-private`,
+    );
+  }
 };
 
 export {

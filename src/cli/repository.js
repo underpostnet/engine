@@ -133,9 +133,20 @@ class UnderpostRepository {
         p: undefined,
         bc: '',
         isRemoteRepo: '',
+        hasChanges: false,
       },
     ) {
       if (!repoPath) repoPath = '.';
+
+      if (options.hasChanges) {
+        const status = shellExec(`cd ${repoPath} && git status --porcelain`, {
+          stdout: true,
+          silent: true,
+          disableLog: true,
+        }).trim();
+        process.stdout.write(status ? '1' : '');
+        return;
+      }
 
       if (options.isRemoteRepo) {
         const accessible = Underpost.repo.isRemoteRepo(options.isRemoteRepo);
