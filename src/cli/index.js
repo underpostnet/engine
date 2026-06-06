@@ -915,6 +915,19 @@ program
     '--dry-run',
     'For --build: previews version-bump changes (per-file substitution counts) without writing files or running downstream commands.',
   )
+  .option(
+    '--mongo-host <host>',
+    'For --build: override DB_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82:27017").',
+  )
+  .option('--mongo-user <user>', 'For --build: override DB_USER in the template .env.example for the smoke test.')
+  .option(
+    '--mongo-password <password>',
+    'For --build: override DB_PASSWORD in the template .env.example for the smoke test.',
+  )
+  .option(
+    '--valkey-host <host>',
+    'For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82").',
+  )
   .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
   .action(async (version, options) => {
     if (options.build) return Underpost.release.build(version, options);

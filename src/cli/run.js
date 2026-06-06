@@ -2703,8 +2703,8 @@ EOF`;
      * @memberof UnderpostRun
      */
     'build-cluster-deployment-manifests': (path = '', options = DEFAULT_OPTION) => {
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
       shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production --cert`);
     },
 
     /**

@@ -264,18 +264,29 @@ const ISOLATED_ENV = 'env -i HOME="$HOME" PATH="$PATH" USER="$USER" LOGNAME="$LO
  *
  * @returns {boolean} true when the template started cleanly, false otherwise.
  */
-async function buildAndTestTemplate() {
+async function buildAndTestTemplate(opts = {}) {
   killDevServers();
   Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
   shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
+  fs.removeSync(TEMPLATE_PATH);
   shellExec(`npm run build:template`);
   shellExec(`node bin run shared-dir ${TEMPLATE_PATH}`);
+
+  const upsertEnvVar = (content, key, value) => {
+    const re = new RegExp(`^(${key}=).*`, 'm');
+    if (re.test(content)) return content.replace(re, `$1${value}`);
+    return `${content.trimEnd()}\n${key}=${value}\n`;
+  };
 
   const dhcpHostIp = Dns.getLocalIPv4Address();
   logger.info(`DHCP host IP for template test: ${dhcpHostIp}`);
   let envContent = fs.readFileSync(`${TEMPLATE_PATH}/.env.example`, 'utf8');
   if (dhcpHostIp) envContent = envContent.replace(/127\.0\.0\.1/g, dhcpHostIp);
-  envContent = envContent.replace(/^ENABLE_FILE_LOGS=.*/m, 'ENABLE_FILE_LOGS=true');
+  envContent = upsertEnvVar(envContent, 'ENABLE_FILE_LOGS', 'true');
+  if (opts.mongoHost) envContent = upsertEnvVar(envContent, 'DB_HOST', opts.mongoHost);
+  if (opts.mongoUser) envContent = upsertEnvVar(envContent, 'DB_USER', opts.mongoUser);
+  if (opts.mongoPassword) envContent = upsertEnvVar(envContent, 'DB_PASSWORD', opts.mongoPassword);
+  if (opts.valkeyHost) envContent = upsertEnvVar(envContent, 'VALKEY_HOST', opts.valkeyHost);
   // fs.writeFileSync(`${TEMPLATE_PATH}/.env`, envContent, 'utf8');
   fs.writeFileSync(`${TEMPLATE_PATH}/.env.example`, envContent, 'utf8');
   shellExec(`cd ${TEMPLATE_PATH} && npm install`);
@@ -337,7 +348,12 @@ class UnderpostRelease {
      *
      * @method build
      * @param {string} [newVersion] - The new version string to set. Defaults to current version if not provided.
-     * @param {{dryRun?: boolean}} [options] - Commander options. `--dry-run` previews changes.
+     * @param {{dryRun?: boolean, mongoHost?: string, mongoUser?: string, mongoPassword?: string, valkeyHost?: string}} [options] - Commander options.
+     *   `--dry-run` previews changes without writing files.
+     *   `--mongo-host` overrides `DB_HOST` in the template `.env.example` smoke test.
+     *   `--mongo-user` overrides `DB_USER` in the template `.env.example` smoke test.
+     *   `--mongo-password` overrides `DB_PASSWORD` in the template `.env.example` smoke test.
+     *   `--valkey-host` overrides `VALKEY_HOST` in the template `.env.example` smoke test.
      * @memberof UnderpostRelease
      */
     async build(newVersion, options = {}) {
@@ -352,7 +368,7 @@ class UnderpostRelease {
       logger.info(`Release build — bumping ${version} → ${newVersion}${dryRun ? ' (dry-run)' : ''}`);
 
       if (!dryRun) {
-        const templateOk = await buildAndTestTemplate();
+        const templateOk = await buildAndTestTemplate(options);
         if (!templateOk) return;
       }
 
