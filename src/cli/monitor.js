@@ -378,13 +378,58 @@ class UnderpostMonitor {
       return deployStatusPort(deployId, env) ?? 3000;
     },
     /**
-     * Reads Phase-2 runtime readiness from a single pod over HTTP, tunneling
-     * through `kubectl port-forward` to the in-pod internal status endpoint.
+     * Reads Phase-2 runtime status from a single pod using the selected transport.
      *
-     * Transport failures (port-forward down, connection refused, HTTP error)
-     * are reported as `{ ok: false }` and must never be interpreted as success
-     * by callers — they are retried, not promoted. A reachable endpoint returns
-     * `{ ok: true, status }` with the normalized runtime contract value.
+     *   - `http` (default): port-forward to the in-pod `/_internal/status` endpoint
+     *     served by the `underpost start` launcher (dd-* runtime deploys).
+     *   - `exec`: `kubectl exec … underpost config get container-status` reads the
+     *     env-file value stamped by `lifecycle` hooks. Required for custom
+     *     instances (cyberia-server/client) which run a bare binary with no
+     *     internal HTTP server. See `Deploy custom instance to K8S.md`.
+     *
+     * Transport failures are reported as `{ ok: false }` and must never be read
+     * as success — they are retried, not promoted.
+     *
+     * @param {string} podName
+     * @param {string} namespace
+     * @param {number} internalPort
+     * @param {('http'|'exec')} [transport='http']
+     * @returns {Promise<{ok: boolean, status?: (string|null), transportError?: string}>}
+     * @memberof UnderpostMonitor
+     */
+    async readRuntimeStatus(podName, namespace, internalPort, transport = 'http') {
+      return transport === 'exec'
+        ? Underpost.monitor.readRuntimeStatusViaExec(podName, namespace)
+        : Underpost.monitor.readRuntimeStatusViaHttp(podName, namespace, internalPort);
+    },
+    /**
+     * Phase-2 read over `kubectl exec` (env-file transport). Works for any pod
+     * whose image bakes the underpost CLI — notably custom instances that stamp
+     * `container-status` from `lifecycle.postStart`/`preStop` hooks.
+     * @param {string} podName
+     * @param {string} namespace
+     * @returns {{ok: boolean, status?: (string|null), transportError?: string}}
+     * @memberof UnderpostMonitor
+     */
+    readRuntimeStatusViaExec(podName, namespace) {
+      try {
+        const raw = shellExec(
+          `sudo kubectl exec ${podName} -n ${namespace} -- sh -c 'underpost config get container-status --plain'`,
+          { silent: true, disableLog: true, stdout: true, silentOnError: true },
+        );
+        const status = normalizeContainerStatus(raw ? raw.toString().trim() : '');
+        return status === undefined ? { ok: false, transportError: 'empty_status' } : { ok: true, status };
+      } catch (error) {
+        return { ok: false, transportError: error?.code || error?.message || 'exec_failed' };
+      }
+    },
+    /**
+     * Phase-2 read over `kubectl port-forward` + HTTP `/_internal/status`.
+     *
+     * The local side of the tunnel MUST be an ephemeral free port: pinning it to
+     * internalPort collides with any host-local service on that number (e.g. a
+     * dev runtime on the same machine as the cluster), making port-forward fail
+     * to bind and every read return a false transport error.
      *
      * @param {string} podName
      * @param {string} namespace
@@ -392,11 +437,7 @@ class UnderpostMonitor {
      * @returns {Promise<{ok: boolean, status?: (string|null), transportError?: string}>}
      * @memberof UnderpostMonitor
      */
-    async readRuntimeStatus(podName, namespace, internalPort) {
-      // The local side of the tunnel MUST be an ephemeral free port: pinning it
-      // to internalPort collides with any host-local service on that number
-      // (e.g. a dev runtime on the same machine as the cluster), which makes
-      // port-forward fail to bind and every read return a false transport error.
+    async readRuntimeStatusViaHttp(podName, namespace, internalPort) {
       const override = parseInt(process.env.UNDERPOST_PF_LOCAL_PORT);
       const localPort = Number.isNaN(override) ? await Underpost.monitor.findFreePort() : override;
       const url = `http://127.0.0.1:${localPort}${INTERNAL_STATUS_PATH}`;
@@ -440,12 +481,20 @@ class UnderpostMonitor {
      * two-phase state machine.
      *
      *   Phase 1 (Kubernetes): pod `Ready` condition via `checkDeploymentReadyStatus`.
-     *   Phase 2 (Runtime):    `running-deployment` from the in-pod internal
-     *                         status endpoint, read over HTTP (`readRuntimeStatus`).
+     *   Phase 2 (Runtime):    `container-status`, read via the selected transport.
      *
-     * Contract:
-     *   - Success requires BOTH phases; runtime readiness is never declared
-     *     before Kubernetes readiness.
+     * Two deployment shapes are supported via `options`:
+     *   - `runtime` gate (default, dd-* deploys): the `underpost start` launcher
+     *     stamps `running-deployment` and serves `/_internal/status`. Success
+     *     requires K8S Ready AND every pod reporting `running-deployment` (HTTP).
+     *   - `kubernetes` gate (custom instances, e.g. cyberia): the runtime is a
+     *     bare binary; K8S `readinessProbe` (TCP) IS the running signal and
+     *     `container-status` is stamped to `initializing`/`stopping` by lifecycle
+     *     hooks (read via `exec`). Success requires K8S Ready; the status read is
+     *     used only for fast `error` detection and display.
+     *
+     * Contract (both shapes):
+     *   - Runtime readiness is never declared before Kubernetes readiness.
      *   - An explicit runtime `error` (or a fatal pod status) transitions
      *     immediately to `failed` (throw → CD exit 1).
      *   - Transport failures never count as success and never advance state.
@@ -457,16 +506,22 @@ class UnderpostMonitor {
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {Array<string>} ignorePods - List of pod names to ignore.
      * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
+     * @param {object} [options] - Monitoring shape.
+     * @param {('runtime'|'kubernetes')} [options.readyGate='runtime'] - Running-signal owner.
+     * @param {('http'|'exec')} [options.statusTransport='http'] - Phase-2 read transport.
      * @returns {object} - Object containing the ready status of the deployment.
      * @memberof UnderpostMonitor
      */
-    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default') {
+    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default', options = {}) {
       const delayMs = parseInt(process.env.UNDERPOST_MONITOR_DELAY_MS) || 1000;
       const maxIterations = parseInt(process.env.UNDERPOST_MONITOR_MAX_ITERATIONS) || 3000;
       const deploymentId = `${deployId}-${env}-${targetTraffic}`;
       const tag = `[${deploymentId}]`;
       const expectedStatus = RUNTIME_STATUS.RUNNING;
-      const internalPort = await Underpost.monitor.deployInternalPort(deployId, env);
+      const readyGate = options.readyGate === 'kubernetes' ? 'kubernetes' : 'runtime';
+      const statusTransport = options.statusTransport === 'exec' ? 'exec' : 'http';
+      const internalPort =
+        statusTransport === 'http' ? await Underpost.monitor.deployInternalPort(deployId, env) : null;
       const podErrorStates = ['error', 'crashloopbackoff', 'oomkilled', 'imagepullbackoff', 'errimagepull'];
 
       const emit = (state, status) =>
@@ -478,7 +533,15 @@ class UnderpostMonitor {
           timestamp: new Date().toISOString(),
         });
 
-      logger.info('Deployment init', { deployId, env, targetTraffic, namespace, internalPort });
+      logger.info('Deployment init', {
+        deployId,
+        env,
+        targetTraffic,
+        namespace,
+        internalPort,
+        readyGate,
+        statusTransport,
+      });
       emit('pending');
 
       const runtimeStatusCache = new Map();
@@ -513,12 +576,12 @@ class UnderpostMonitor {
         const allPodsK8sReady = result.notReadyPods.length === 0;
         if (allPodsK8sReady) emit('pod_ready');
 
-        // Phase 2: runtime readiness over HTTP. Transport failures neither
-        // advance state nor count as success; explicit `error` is terminal.
+        // Phase 2: runtime status via the selected transport. Transport failures
+        // neither advance state nor count as success; explicit `error` is terminal.
         let allRuntimeRead = true;
         for (const pod of allPods) {
           if (!pod?.NAME) continue;
-          const read = await Underpost.monitor.readRuntimeStatus(pod.NAME, namespace, internalPort);
+          const read = await Underpost.monitor.readRuntimeStatus(pod.NAME, namespace, internalPort, statusTransport);
           if (!read.ok) {
             allRuntimeRead = false;
             emit('runtime_booting', `transport:${read.transportError}`);
@@ -526,6 +589,9 @@ class UnderpostMonitor {
           }
           const status = read.status;
           if (status === RUNTIME_STATUS.ERROR) throw new Error(`Pod ${pod.NAME} reported runtime status=error`);
+          // Regression (advanced → empty/build) means a pod restarted. Under the
+          // kubernetes gate the runtime never advances past `initializing`, so
+          // only treat a drop to empty/build as a regression there.
           if (advancedPods.has(pod.NAME) && (!status || status === RUNTIME_STATUS.BUILD))
             throw new Error(`Pod ${pod.NAME} runtime status regressed (${status ?? 'empty'}) — pod likely restarted`);
           if (status && status !== RUNTIME_STATUS.BUILD) advancedPods.add(pod.NAME);
@@ -533,8 +599,13 @@ class UnderpostMonitor {
           emit('runtime_booting', status);
         }
 
+        // Under the kubernetes gate the readinessProbe is the running signal, so
+        // K8S Ready alone confirms Phase 2; the status read above is kept only
+        // for `error` fast-fail and display.
         const allRuntimeReady =
-          allRuntimeRead && allPods.every((pod) => runtimeStatusCache.get(pod.NAME) === expectedStatus);
+          readyGate === 'kubernetes'
+            ? true
+            : allRuntimeRead && allPods.every((pod) => runtimeStatusCache.get(pod.NAME) === expectedStatus);
 
         for (const pod of allPods) {
           const status = runtimeStatusCache.get(pod.NAME) || 'waiting for status';
@@ -550,11 +621,12 @@ class UnderpostMonitor {
           );
         }
 
-        // Terminal success requires BOTH phases. runtime_ready cannot precede
+        // Terminal success requires both phases. runtime_ready cannot precede
         // Kubernetes readiness.
         if (allPodsK8sReady && allRuntimeReady) {
-          emit('runtime_ready', expectedStatus);
-          logger.info(`${tag} | Deployment ready (K8S Ready + runtime ${expectedStatus})`);
+          const readySignal = readyGate === 'kubernetes' ? 'K8S readinessProbe' : `runtime ${expectedStatus}`;
+          emit('runtime_ready', readyGate === 'kubernetes' ? 'k8s-ready' : expectedStatus);
+          logger.info(`${tag} | Deployment ready (K8S Ready + ${readySignal})`);
           return result;
         }
 

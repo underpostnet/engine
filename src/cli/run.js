@@ -1172,12 +1172,16 @@ EOF
 `,
           { disableLog: true },
         );
+        // Custom instances run a bare binary (no `underpost start` / internal
+        // HTTP endpoint): Kubernetes readiness is the running signal and
+        // container-status is read via exec. See `Deploy custom instance to K8S.md`.
         const { ready, readyPods } = await Underpost.monitor.monitorReadyRunner(
           _deployId,
           env,
           targetTraffic,
           ignorePods,
           options.namespace,
+          { readyGate: 'kubernetes', statusTransport: 'exec' },
         );
 
         if (!ready) {

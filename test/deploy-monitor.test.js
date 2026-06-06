@@ -108,6 +108,10 @@ if [[ "$verb" == "port-forward" ]]; then
   sleep 30
   exit 0
 fi
+if [[ "$verb" == "exec" ]]; then
+  grep -E '^container-status=' "$UNDERPOST_ENV_FILE" 2>/dev/null | tail -n1 | sed -E 's/^container-status=//'
+  exit 0
+fi
 exit 0
 `,
     );
@@ -118,10 +122,13 @@ exit 0
     fs.writeFileSync(
       monitorScriptPath,
       `import Underpost from ${JSON.stringify(pathToFileURL(path.join(repoRoot, 'src/index.js')).href)};
+const options = {};
+if (process.env.MON_READY_GATE) options.readyGate = process.env.MON_READY_GATE;
+if (process.env.MON_TRANSPORT) options.statusTransport = process.env.MON_TRANSPORT;
 try {
   await Underpost.monitor.monitorReadyRunner(${JSON.stringify(DEPLOY_ID)}, ${JSON.stringify(ENV)}, ${JSON.stringify(
     TRAFFIC,
-  )}, [], 'default');
+  )}, [], 'default', options);
   process.exit(0);
 } catch (_) {
   process.exit(1);
@@ -218,6 +225,20 @@ try {
     const monitorExit = spawnMonitor({ FAKE_POD_READY: 'False', UNDERPOST_MONITOR_MAX_ITERATIONS: '120' });
     await new Promise((r) => setTimeout(r, 1500));
     Underpost.env.set('container-status', BUILD_STATUS);
+    expect(await monitorExit).to.equal(1);
+  });
+
+  // Custom instances (cyberia-*) gate on K8s Ready and read status via exec;
+  // their runtime never stamps `running-deployment` (stays `initializing`).
+  it('instance (kubernetes gate + exec): K8s Ready with initializing status → exits 0', async () => {
+    Underpost.env.set('container-status', INIT_STATUS);
+    const code = await spawnMonitor({ FAKE_POD_READY: 'True', MON_READY_GATE: 'kubernetes', MON_TRANSPORT: 'exec' });
+    expect(code).to.equal(0);
+  });
+
+  it('instance (kubernetes gate + exec): container-status=error → exits 1', async () => {
+    const monitorExit = spawnMonitor({ FAKE_POD_READY: 'True', MON_READY_GATE: 'kubernetes', MON_TRANSPORT: 'exec' });
+    Underpost.env.set('container-status', 'error');
     expect(await monitorExit).to.equal(1);
   });
 });

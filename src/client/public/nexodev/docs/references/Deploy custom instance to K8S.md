@@ -159,6 +159,16 @@ Status transitions explained:
 
 K8S marks the pod **Ready** only when `readinessProbe` succeeds (TCP socket on the listening port). A runtime that crashes on startup exits non-zero, kubelet surfaces a CrashLoopBackOff, and the pod's Ready condition stays False — the orchestrator gate never opens.
 
+#### How the monitor observes instances
+
+`underpost run instance` drives `monitorReadyRunner` in **kubernetes-gate + exec-transport** mode (`{ readyGate: 'kubernetes', statusTransport: 'exec' }`), which matches this lifecycle exactly:
+
+- **Running signal = K8s Ready.** Success is declared when every pod's `readinessProbe` passes — the instance runtime never stamps `running-deployment`, so the monitor does not wait for it.
+- **Status read = `kubectl exec … underpost config get container-status`.** Instances have no `/_internal/status` HTTP endpoint (that belongs to `underpost start` runtimes only), so the monitor reads the env-file value the `lifecycle` hooks stamp. It is used for fast `error` fast-fail and for the display column, not as the readiness gate.
+- **Crash detection = pod state.** A crashing binary surfaces as `CrashLoopBackOff`/`Error` and the monitor fails immediately.
+
+By contrast, `underpost start` deploys (the engine itself, `dd-*` with `conf.server.json`) run in the default **runtime-gate + http-transport** mode: they serve `/_internal/status`, their HTTP `readinessProbe` (`/_internal/ready`) gates K8s Ready on `running-deployment`, and `buildManifest` injects `UNDERPOST_INTERNAL_PORT` so the endpoint, the probes, and the monitor's port-forward target all agree.
+
 Each block (`lifecycle`, `readinessProbe`, `livenessProbe`) may be either a single object (shared across envs) or `{ development: {...}, production: {...} }` for env-scoped values — useful when dev runs on a different port than prod.
 
 ### `imagePullPolicy` — per-instance override (extension)
