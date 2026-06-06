@@ -266,6 +266,16 @@ class UnderpostRun {
     },
 
     /**
+     * @method etc-hosts
+     * @description Modifies the `/etc/hosts` file to add entries for local access to services,
+     * based on the provided path input.
+     * @param {string} path - The input value, identifier, or path for the operation (used to specify the entries to add to /etc/hosts).
+     */
+    'etc-hosts': (path = '', options = DEFAULT_OPTION) => {
+      etcHostFactory(path.split(','));
+    },
+
+    /**
      * @method ipfs-expose
      * @description Exposes IPFS Cluster services on specified ports for local access.
      * @type {Function}
