@@ -319,6 +319,12 @@ program
   .option('--expose', 'Exposes services matching the provided deployment ID list.')
   .option('--cert', 'Resets TLS/SSL certificate secrets for deployments.')
   .option('--cert-hosts <hosts>', 'Resets TLS/SSL certificate secrets for specified hosts.')
+  .option(
+    '--self-signed',
+    'Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. ' +
+      'The secret must already exist in the namespace with the same name as the host. ' +
+      'Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer.',
+  )
   .option('--node <node>', 'Sets optional node for deployment operations.')
   .option(
     '--build-manifest',
@@ -377,6 +383,12 @@ program
   .option(
     '--image-pull-policy <policy>',
     'Override container imagePullPolicy in the generated deployment manifest (Always, IfNotPresent, Never). Defaults to Never for localhost/ images and IfNotPresent otherwise.',
+  )
+  .option(
+    '--tls',
+    'Enables TLS for the local proxy started by --expose --local-proxy. ' +
+      'The proxy will serve HTTPS on port 443 using self-signed certificates resolved from the local SSL store. ' +
+      'Use together with --expose and --local-proxy.',
   )
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
