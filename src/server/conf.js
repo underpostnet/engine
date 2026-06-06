@@ -1520,11 +1520,12 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
     if (name === 'help') continue;
     const cmdHelp = parseHelp(help(name));
     details +=
-      `\n### \`underpost ${name}\`\n\n` +
+      `\n### underpost ${name}\n\n` +
       (cmdHelp.description ? `${cmdHelp.description.replace(/\s+/g, ' ')}\n\n` : '') +
       `**Usage:** \`${cmdHelp.usage}\`\n` +
       detailSection(cmdHelp.sections, 'Arguments', ['Argument', 'Description']) +
-      detailSection(cmdHelp.sections, 'Options', ['Option', 'Description']);
+      detailSection(cmdHelp.sections, 'Options', ['Option', 'Description']) +
+      `\n---\n`;
   }
 
   const md = `${index}${details}`.replaceAll(oldVersion, newVersion);
