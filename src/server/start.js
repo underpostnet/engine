@@ -8,6 +8,7 @@ import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
 import { shellCd, shellExec } from './process.js';
+import { RUNTIME_STATUS, setRuntimeStatus, startInternalStatusServer } from './runtime-status.js';
 import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
@@ -147,9 +148,12 @@ class UnderpostStartUp {
         pullBundle: false,
       },
     ) {
-      Underpost.env.set('container-status', `${deployId}-${env}-build-deployment`);
+      // Bring the internal status endpoint up first so Phase-2 readiness is
+      // observable through every lifecycle phase, including build and init.
+      startInternalStatusServer();
+      setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
       if (options.build === true) await Underpost.start.build(deployId, env, options);
-      Underpost.env.set('container-status', `${deployId}-${env}-initializing-deployment`);
+      setRuntimeStatus(deployId, env, RUNTIME_STATUS.INIT);
       if (options.run === true) await Underpost.start.run(deployId, env, options);
     },
     /**
@@ -201,7 +205,7 @@ class UnderpostStartUp {
       const makeDeployCallback = (cmd) => (code, out, msg) => {
         if (code !== 0) {
           logger.error(`Deployment process exited with code ${code}`, { cmd, msg });
-          Underpost.env.set('container-status', 'error');
+          setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
         }
       };
       if (fs.existsSync(`./engine-private/replica`)) {
@@ -213,7 +217,7 @@ class UnderpostStartUp {
           shellExec(replicaCmd, { async: true, callback: makeDeployCallback(replicaCmd) });
           const result = await awaitDeployMonitor();
           if (result !== true) {
-            Underpost.env.set('container-status', 'error');
+            setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
             return;
           }
         }
@@ -224,9 +228,9 @@ class UnderpostStartUp {
       const result = await awaitDeployMonitor(true);
       if (result === true) {
         if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
-        Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
+        setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING);
       } else {
-        Underpost.env.set('container-status', 'error');
+        setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
       }
     },
   };

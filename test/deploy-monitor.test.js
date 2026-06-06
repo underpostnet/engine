@@ -1,28 +1,32 @@
 /**
  * @module deploy-monitor.test
- * @description End-to-end test of the deploy readiness/failure contract between
- * the in-pod runtime (start.js) and the CD-runner monitor
- * (`Underpost.monitor.monitorReadyRunner`), exercised as two real OS processes
- * running in parallel and coordinating through the shared underpost env file.
+ * @description End-to-end test of the two-phase deployment readiness contract
+ * between the in-pod runtime (`start.js` / `runtime-status.js`) and the CD-runner
+ * monitor (`Underpost.monitor.monitorReadyRunner`), exercised as real OS
+ * processes coordinating through the shared underpost env file and a real HTTP
+ * internal status endpoint.
  *
  * Contract under test:
  *
- *   - start.js (in-pod) only writes `container-status`; it never propagates an
- *     exit code. On a failed deploy child it sets `container-status=error`; on a
- *     healthy one it sets `container-status=<deploy>-<env>-running-deployment`.
+ *   - The in-pod runtime publishes only `container-status` (Phase 2) and serves
+ *     it over `GET /_internal/status`. It never propagates an exit code.
  *
- *   - monitorReadyRunner (CD runner) reads that value per pod (via
- *     `kubectl exec … underpost config get container-status`) and is the side
- *     that produces the real process exit: it `throw`s (→ exit 1) on `error`,
- *     and returns (→ exit 0) once the pod is K8S-Ready AND reports
- *     `running-deployment`.
+ *   - monitorReadyRunner (CD runner) confirms BOTH phases before exiting 0:
+ *       Phase 1 — Kubernetes pod `Ready` condition (kubectl get pod -o json).
+ *       Phase 2 — runtime `running-deployment` read over HTTP via
+ *                 `kubectl port-forward` to the internal endpoint.
+ *     It throws (→ exit 1) on explicit runtime `error`, and returns (→ exit 0)
+ *     only once both phases are satisfied.
  *
- * The cluster surface monitorReadyRunner depends on (`sudo`, `kubectl get`,
- * `kubectl exec`) is supplied by tiny fake binaries on the child's PATH: one
- * always-Ready pod whose container-status is read straight from the same env
- * file start.js writes. The env file is redirected under a temp
- * `npm_config_prefix`, so the test needs no cluster, no root, and never touches
- * the machine's global install.
+ * The cluster surface is supplied by fake `sudo`/`kubectl` binaries on PATH:
+ *   - `get pods` / `get pod -o json` report one pod whose Ready condition is
+ *     driven by FAKE_POD_READY.
+ *   - `port-forward` is a no-op sleep; the monitor's HTTP GET reaches a REAL
+ *     internal status server bound in this test process (localPort == port),
+ *     which reads the same env file the runtime writes.
+ *
+ * The env file is redirected under a temp `npm_config_prefix`, so the test
+ * needs no cluster, no root, and never touches the machine's global install.
  *
  * Uses 'chai' for assertions.
  */
@@ -34,6 +38,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Underpost from '../src/index.js';
 import { shellExec } from '../src/server/process.js';
+import { startInternalStatusServer, stopInternalStatusServer } from '../src/server/runtime-status.js';
 
 const node = process.execPath;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -43,9 +48,14 @@ const ENV = 'production';
 const TRAFFIC = 'green';
 const POD_NAME = `${DEPLOY_ID}-${ENV}-${TRAFFIC}-pod`;
 const RUNNING_STATUS = `${DEPLOY_ID}-${ENV}-running-deployment`;
+const INIT_STATUS = `${DEPLOY_ID}-${ENV}-initializing-deployment`;
+const BUILD_STATUS = `${DEPLOY_ID}-${ENV}-build-deployment`;
 
-describe('Deploy monitor — start.js ↔ monitorReadyRunner (e2e, parallel processes)', function () {
-  this.timeout(40000);
+const INTERNAL_PORT = 39517; // internal status endpoint (real server bound here)
+const CLOSED_PORT = 39518; // no server — used to force a transport failure
+
+describe('Deploy monitor — two-phase state machine (e2e, real HTTP transport)', function () {
+  this.timeout(60000);
 
   let prevPrefix;
   let tmpPrefix;
@@ -58,15 +68,16 @@ describe('Deploy monitor — start.js ↔ monitorReadyRunner (e2e, parallel proc
     tmpPrefix = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-e2e-'));
     process.env.npm_config_prefix = tmpPrefix;
 
-    // Materialize the underpost env file and resolve its absolute path (the
-    // fake `kubectl exec` reads container-status straight from it).
     Underpost.env.set('container-status', 'init');
     const npmRoot = shellExec('npm root -g', { stdout: true, silent: true, disableLog: true }).trim();
     envFile = path.join(npmRoot, 'underpost', '.env');
 
-    // Fake cluster surface for monitorReadyRunner: a `sudo` that just drops its
-    // flags and execs, and a `kubectl` that reports one always-Ready pod whose
-    // container-status comes from the shared env file.
+    // Real in-pod internal status server: serves container-status from the same
+    // env file the runtime writes. Bound in this test process; the monitor's
+    // port-forward tunnel (localPort == INTERNAL_PORT) resolves straight to it.
+    process.env.UNDERPOST_INTERNAL_PORT = String(INTERNAL_PORT);
+    startInternalStatusServer(INTERNAL_PORT);
+
     fakeBinDir = path.join(tmpPrefix, 'fakebin');
     fs.ensureDirSync(fakeBinDir);
 
@@ -90,11 +101,11 @@ if [[ "$verb" == "get" && "$kind" == "pods" ]]; then
   exit 0
 fi
 if [[ "$verb" == "get" && "$kind" == "pod" ]]; then
-  printf '{"status":{"conditions":[{"type":"Ready","status":"True"}]}}\\n'
+  printf '{"status":{"conditions":[{"type":"Ready","status":"%s"}]}}\\n' "\${FAKE_POD_READY:-True}"
   exit 0
 fi
-if [[ "$verb" == "exec" ]]; then
-  grep -E '^container-status=' "$UNDERPOST_ENV_FILE" 2>/dev/null | tail -n1 | sed -E 's/^container-status=//'
+if [[ "$verb" == "port-forward" ]]; then
+  sleep 30
   exit 0
 fi
 exit 0
@@ -103,17 +114,14 @@ exit 0
     fs.chmodSync(sudoPath, 0o755);
     fs.chmodSync(kubectlPath, 0o755);
 
-    // Real monitorReadyRunner in its own process: exit 0 when it returns (ready),
-    // exit 1 when it throws (container-status=error). This is the signal `set -e`
-    // turns into a passed/failed GitHub Actions job.
     monitorScriptPath = path.join(tmpPrefix, 'monitor-ready.mjs');
     fs.writeFileSync(
       monitorScriptPath,
       `import Underpost from ${JSON.stringify(pathToFileURL(path.join(repoRoot, 'src/index.js')).href)};
 try {
   await Underpost.monitor.monitorReadyRunner(${JSON.stringify(DEPLOY_ID)}, ${JSON.stringify(ENV)}, ${JSON.stringify(
-        TRAFFIC,
-      )}, [], 'default');
+    TRAFFIC,
+  )}, [], 'default');
   process.exit(0);
 } catch (_) {
   process.exit(1);
@@ -122,26 +130,38 @@ try {
     );
   });
 
-  after(() => {
+  after(async () => {
+    await stopInternalStatusServer();
+    delete process.env.UNDERPOST_INTERNAL_PORT;
     if (prevPrefix === undefined) delete process.env.npm_config_prefix;
     else process.env.npm_config_prefix = prevPrefix;
     fs.removeSync(tmpPrefix);
   });
 
   beforeEach(() => {
-    // Deploy in flight: K8S not-yet-running app phase before start.js reports.
-    Underpost.env.set('container-status', `${DEPLOY_ID}-${ENV}-initializing-deployment`);
+    // Deploy in flight: app not yet reporting running.
+    Underpost.env.set('container-status', INIT_STATUS);
   });
 
-  // Spawns the real monitorReadyRunner process with the fake cluster on PATH and
-  // resolves with its exit code.
-  const spawnMonitor = () =>
+  // Spawns the real monitorReadyRunner with the fake cluster on PATH; resolves
+  // with its exit code. `overrides` inject deterministic timing / target port.
+  const spawnMonitor = (overrides = {}) =>
     new Promise((resolve) => {
-      const prefix =
-        `PATH="${fakeBinDir}:$PATH" ` +
-        `UNDERPOST_ENV_FILE="${envFile}" ` +
-        `POD_NAME="${POD_NAME}" ` +
-        `npm_config_prefix="${tmpPrefix}"`;
+      const envVars = {
+        PATH: `${fakeBinDir}:${process.env.PATH}`,
+        UNDERPOST_ENV_FILE: envFile,
+        POD_NAME,
+        npm_config_prefix: tmpPrefix,
+        UNDERPOST_INTERNAL_PORT: String(INTERNAL_PORT),
+        UNDERPOST_MONITOR_DELAY_MS: '100',
+        UNDERPOST_MONITOR_MAX_ITERATIONS: '60',
+        UNDERPOST_PF_ATTEMPTS: '3',
+        FAKE_POD_READY: 'True',
+        ...overrides,
+      };
+      const prefix = Object.entries(envVars)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(' ');
       shellExec(`${prefix} ${node} ${monitorScriptPath}`, {
         async: true,
         silent: true,
@@ -150,39 +170,49 @@ try {
       });
     });
 
-  // Models start.js: runs the deploy as an async child and, mirroring its
-  // `makeDeployCallback`, writes container-status from the child's exit code.
-  // start.js never propagates the failure — it only sets the flag.
-  const runStartJs = (shouldFail) =>
-    new Promise((resolve) => {
-      const deployCmd = `${node} -e "process.exit(${shouldFail ? 1 : 0})"`;
-      shellExec(deployCmd, {
-        async: true,
-        silent: true,
-        disableLog: true,
-        callback: (code) => {
-          if (code !== 0) Underpost.env.set('container-status', 'error');
-          else Underpost.env.set('container-status', RUNNING_STATUS);
-          resolve(code);
-        },
-      });
-    });
+  it('success: both phases satisfied → monitor exits 0', async () => {
+    Underpost.env.set('container-status', RUNNING_STATUS);
+    const code = await spawnMonitor({ FAKE_POD_READY: 'True' });
+    expect(code).to.equal(0);
+  });
 
-  it('error: start.js sets container-status=error and monitorReadyRunner exits 1', async () => {
-    const monitorExit = spawnMonitor();
-    const deployCode = await runStartJs(true);
-
-    expect(deployCode).to.not.equal(0);
-    expect(Underpost.env.get('container-status', undefined, { disableLog: true })).to.equal('error');
+  it('runtime failure: container-status=error → monitor exits 1', async () => {
+    const monitorExit = spawnMonitor({ FAKE_POD_READY: 'True' });
+    Underpost.env.set('container-status', 'error');
     expect(await monitorExit).to.equal(1);
   });
 
-  it('success: start.js sets running-deployment and monitorReadyRunner exits 0', async () => {
-    const monitorExit = spawnMonitor();
-    const deployCode = await runStartJs(false);
+  it('readiness mismatch: runtime running but pod not Ready → never succeeds (exits 1)', async () => {
+    // Phase 2 satisfied, Phase 1 not: success requires BOTH, so it must time out.
+    Underpost.env.set('container-status', RUNNING_STATUS);
+    const code = await spawnMonitor({ FAKE_POD_READY: 'False', UNDERPOST_MONITOR_MAX_ITERATIONS: '4' });
+    expect(code).to.equal(1);
+  });
 
-    expect(deployCode).to.equal(0);
-    expect(Underpost.env.get('container-status', undefined, { disableLog: true })).to.equal(RUNNING_STATUS);
-    expect(await monitorExit).to.equal(0);
+  it('transport failure: endpoint unreachable is never success (exits 1)', async () => {
+    // Point the monitor at a port with no internal server; the HTTP read always
+    // fails, so runtime readiness is never confirmed and the monitor times out.
+    Underpost.env.set('container-status', RUNNING_STATUS);
+    const code = await spawnMonitor({
+      UNDERPOST_INTERNAL_PORT: String(CLOSED_PORT),
+      UNDERPOST_MONITOR_MAX_ITERATIONS: '3',
+    });
+    expect(code).to.equal(1);
+  });
+
+  it('timeout: runtime stuck initializing → monitor exits 1', async () => {
+    Underpost.env.set('container-status', INIT_STATUS);
+    const code = await spawnMonitor({ FAKE_POD_READY: 'True', UNDERPOST_MONITOR_MAX_ITERATIONS: '4' });
+    expect(code).to.equal(1);
+  });
+
+  it('regression: advanced pod whose runtime status falls back → monitor exits 1', async () => {
+    // Pod advances past build, then its reported status regresses (pod restart);
+    // the monitor must treat this as a failure rather than wait it out.
+    Underpost.env.set('container-status', INIT_STATUS);
+    const monitorExit = spawnMonitor({ FAKE_POD_READY: 'False', UNDERPOST_MONITOR_MAX_ITERATIONS: '120' });
+    await new Promise((r) => setTimeout(r, 1500));
+    Underpost.env.set('container-status', BUILD_STATUS);
+    expect(await monitorExit).to.equal(1);
   });
 });

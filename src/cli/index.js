@@ -332,6 +332,8 @@ program
   .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
   .option('--disable-update-deployment', 'Disables updates to deployments.')
+  .option('--disable-runtime-probes', 'Omits the internal-status HTTP probes from generated deployment manifests.')
+  .option('--tcp-probes', 'Generates legacy TCP socket probes instead of HTTP internal-status probes (migration).')
   .option('--disable-update-proxy', 'Disables updates to proxies.')
   .option('--disable-deployment-proxy', 'Disables proxies of deployments.')
   .option('--disable-update-volume', 'Disables updates to volume mounts during deployment.')

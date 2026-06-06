@@ -18,6 +18,7 @@ import {
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
+import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime-status.js';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import os from 'node:os';
@@ -114,6 +115,64 @@ class UnderpostDeploy {
       .join('')}`;
     },
     /**
+     * Builds Kubernetes probes that gate on the in-pod internal status endpoint.
+     *
+     * HTTP mode (default) aligns Kubernetes pod readiness with actual Underpost
+     * runtime readiness:
+     *   - readinessProbe → GET /_internal/ready  (200 only when running-deployment)
+     *   - livenessProbe  → GET /_internal/health (deadlock / hung-process detection)
+     *   - startupProbe   → GET /_internal/ready  (long window for hot-built/slow boots)
+     *
+     * Migration: pass `useHttp: false` to emit the legacy TCP socket probes
+     * (port-bound only) for deployments not yet serving the internal endpoint.
+     *
+     * @param {object} opts
+     * @param {number} opts.port - In-pod internal status port (deployment base PORT).
+     * @param {boolean} [opts.useHttp=true] - Emit HTTP probes; false → legacy TCP.
+     * @param {boolean} [opts.liveness=true] - Include a livenessProbe.
+     * @param {boolean} [opts.startup=true] - Include a startupProbe.
+     * @returns {{readinessProbe: object, livenessProbe?: object, startupProbe?: object}}
+     * @memberof UnderpostDeploy
+     */
+    runtimeProbesFactory({ port, useHttp = true, liveness = true, startup = true } = {}) {
+      if (!port) return {};
+      if (!useHttp) {
+        const tcp = { tcpSocket: { port }, initialDelaySeconds: 5, periodSeconds: 10, failureThreshold: 6 };
+        const probes = { readinessProbe: tcp };
+        if (liveness) probes.livenessProbe = { ...tcp, initialDelaySeconds: 30 };
+        return probes;
+      }
+      const probes = {
+        readinessProbe: {
+          httpGet: { path: INTERNAL_READY_PATH, port },
+          initialDelaySeconds: 5,
+          periodSeconds: 5,
+          timeoutSeconds: 3,
+          failureThreshold: 3,
+        },
+      };
+      if (liveness)
+        probes.livenessProbe = {
+          httpGet: { path: INTERNAL_HEALTH_PATH, port },
+          initialDelaySeconds: 30,
+          periodSeconds: 15,
+          timeoutSeconds: 3,
+          failureThreshold: 3,
+        };
+      if (startup)
+        // A startupProbe suspends readiness/liveness until it first succeeds, so
+        // its window bounds in-container hot builds and slow boots. 180 × 10s =
+        // 30 min before the pod is considered failed to start.
+        probes.startupProbe = {
+          httpGet: { path: INTERNAL_READY_PATH, port },
+          initialDelaySeconds: 10,
+          periodSeconds: 10,
+          timeoutSeconds: 3,
+          failureThreshold: 180,
+        };
+      return probes;
+    },
+    /**
      * Creates a YAML deployment configuration for a deployment.
      * @param {string} deployId - Deployment ID for which the deployment is being created.
      * @param {string} env - Environment for which the deployment is being created.
@@ -127,6 +186,11 @@ class UnderpostDeploy {
      * @param {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment.
      * @param {boolean} pullBundle - Whether to pull the pre-built client bundle from Cloudinary before starting. Use together with skipFullBuild to skip the local build entirely.
      * @param {string} [imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`). When omitted, defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
+     * @param {object} lifecycle - Kubernetes lifecycle hooks configuration for the deployment container.
+     * @param {object} readinessProbe - Kubernetes readiness probe configuration for the deployment container.
+     * @param {object} livenessProbe - Kubernetes liveness probe configuration for the deployment container.
+     * @param {object} startupProbe - Kubernetes startup probe configuration for the deployment container.
+     * @param {number} containerPort - Container port to expose for the deployment.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
@@ -152,6 +216,7 @@ class UnderpostDeploy {
       lifecycle,
       readinessProbe,
       livenessProbe,
+      startupProbe,
       containerPort,
     }) {
       if (!cmd)
@@ -244,6 +309,15 @@ ${JSON.stringify(livenessProbe, null, 2)
 `
           : ''
       }${
+        startupProbe
+          ? `          startupProbe:
+${JSON.stringify(startupProbe, null, 2)
+  .split('\n')
+  .map((l) => '            ' + l)
+  .join('\n')}
+`
+          : ''
+      }${
         lifecycle
           ? `          lifecycle:
 ${JSON.stringify(lifecycle, null, 2)
@@ -294,6 +368,10 @@ spec:
      * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; forwarded to deploymentYamlPartsFactory to generate a pull-bundle startup command.
      * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; forwarded to deploymentYamlPartsFactory. Use together with skipFullBuild.
      * @param {string} [options.imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`); forwarded to deploymentYamlPartsFactory. When omitted, the builder defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
+     * @param {Object} [options.disableRuntimeProbes] - Whether to disable the runtime probes (readiness/liveness/startup) that gate on the in-pod internal status endpoint. When true, the builder emits no probes and the deployment relies on any legacy probes already present in the conf.server.json build context (or none if not present).
+     * @param {Object} [options.disableRuntimeProbes.readinessProbe] - Whether to disable the runtime readiness probe. When true, no readinessProbe is emitted and Kubernetes pod readiness will not gate on runtime readiness.
+     * @param {Object} [options.disableRuntimeProbes.livenessProbe] - Whether to disable the runtime liveness probe. When true, no livenessProbe is emitted and Kubernetes will not perform deadlock/hung-process detection based on the internal status endpoint.
+     * @param {Object} [options.disableRuntimeProbes.startupProbe] - Whether to disable the runtime startup probe. When true, no startupProbe is emitted and Kubernetes will not gate readiness/liveness on the internal status endpoint for a prolonged window to accommodate hot builds and slow boots.
      * @returns {Promise<void>} - Promise that resolves when the manifest is built.
      * @memberof UnderpostDeploy
      */
@@ -318,6 +396,14 @@ spec:
 
         logger.info('port range', { deployId, fromPort, toPort });
 
+        // The internal status endpoint binds the deployment base port (app
+        // instances start at base + 1, so the base is free inside the pod).
+        // Opt out with `--disable-runtime-probes` to keep legacy probe-less pods.
+        const internalPort = fromPort - 1;
+        const probes = options.disableRuntimeProbes
+          ? {}
+          : Underpost.deploy.runtimeProbesFactory({ port: internalPort, useHttp: !options.tcpProbes });
+
         let deploymentYamlParts = '';
         for (const deploymentVersion of deploymentVersions) {
           deploymentYamlParts += `---
@@ -333,6 +419,9 @@ ${Underpost.deploy
     skipFullBuild: options.skipFullBuild,
     pullBundle: options.pullBundle,
     imagePullPolicy: options.imagePullPolicy,
+    readinessProbe: probes.readinessProbe,
+    livenessProbe: probes.livenessProbe,
+    startupProbe: probes.startupProbe,
   })
   .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;

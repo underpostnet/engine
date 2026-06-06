@@ -13,7 +13,14 @@ import {
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
+import {
+  RUNTIME_STATUS,
+  INTERNAL_STATUS_PATH,
+  normalizeContainerStatus,
+  resolveInternalStatusPort,
+} from '../server/runtime-status.js';
 import axios from 'axios';
+import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import { shellExec } from '../server/process.js';
 import Underpost from '../index.js';
@@ -328,26 +335,97 @@ class UnderpostMonitor {
       };
     },
     /**
-     * Monitors the ready status of a deployment.
+     * Resolves the deployment's internal status port (Phase-2 transport target).
+     * Mirrors the in-pod resolution: `UNDERPOST_INTERNAL_PORT` override wins,
+     * else the deployment's `.env.<env>` `PORT`, else the ambient `PORT`.
+     * @param {string} deployId
+     * @param {string} env
+     * @returns {number}
+     * @memberof UnderpostMonitor
+     */
+    deployInternalPort(deployId, env) {
+      const override = parseInt(process.env.UNDERPOST_INTERNAL_PORT);
+      if (!Number.isNaN(override)) return override;
+      try {
+        const envPath = `./engine-private/conf/${deployId}/.env.${env}`;
+        if (fs.existsSync(envPath)) {
+          const port = parseInt(dotenv.parse(fs.readFileSync(envPath, 'utf8')).PORT);
+          if (!Number.isNaN(port)) return port;
+        }
+      } catch (_) {
+        /* fall through to ambient resolution */
+      }
+      return resolveInternalStatusPort() ?? 3000;
+    },
+    /**
+     * Reads Phase-2 runtime readiness from a single pod over HTTP, tunneling
+     * through `kubectl port-forward` to the in-pod internal status endpoint.
      *
-     * Ready signal:
-     *   The orchestrator gate is the Kubernetes pod Ready condition. When the
-     *   container's `readinessProbe` succeeds, kubelet flips
-     *   `status.conditions[Ready]` to True and `checkDeploymentReadyStatus`
-     *   returns the pod in `readyPods`. This is the only required signal — see
-     *   `src/client/public/nexodev/docs/references/Deploy custom instance to K8S.md`.
+     * Transport failures (port-forward down, connection refused, HTTP error)
+     * are reported as `{ ok: false }` and must never be interpreted as success
+     * by callers — they are retried, not promoted. A reachable endpoint returns
+     * `{ ok: true, status }` with the normalized runtime contract value.
      *
-     * Container-status:
-     *   `underpost config get container-status` is read from each pod for both
-     *   the display column and as a second ready gate alongside the K8S Ready
-     *   condition. Both must be satisfied before the monitor exits:
-     *     1. K8S readinessProbe (TCP socket) — ensures the port is bound.
-     *     2. container-status == `<deploy>-<env>-running-deployment` — ensures
-     *        the application has completed its own startup sequence.
-     *   Early-abort on `error` container-status remains in effect: a failing
-     *   runtime keeps its pod alive (not Ready) with `container-status=error`,
-     *   so this `exec`-read surfaces the failure and the monitor aborts —
-     *   failing the CD runner instead of waiting out the full timeout.
+     * @param {string} podName
+     * @param {string} namespace
+     * @param {number} internalPort
+     * @returns {Promise<{ok: boolean, status?: (string|null), transportError?: string}>}
+     * @memberof UnderpostMonitor
+     */
+    async readRuntimeStatus(podName, namespace, internalPort) {
+      const localPort = internalPort;
+      const url = `http://127.0.0.1:${localPort}${INTERNAL_STATUS_PATH}`;
+      let portForward;
+      try {
+        // `exec` collapses the shell so the tracked child PID is the
+        // sudo/kubectl process, letting the SIGTERM teardown reach the tunnel.
+        portForward = shellExec(
+          `exec sudo kubectl port-forward pod/${podName} ${localPort}:${internalPort} -n ${namespace}`,
+          { async: true, silent: true, disableLog: true, silentOnError: true },
+        );
+      } catch (_) {
+        portForward = undefined;
+      }
+      try {
+        let lastError;
+        const attempts = parseInt(process.env.UNDERPOST_PF_ATTEMPTS) || 15;
+        for (let attempt = 0; attempt < attempts; attempt++) {
+          try {
+            const res = await axios.get(url, { timeout: 2000 });
+            const raw = res?.data?.status ?? null;
+            return { ok: true, status: normalizeContainerStatus(raw) ?? raw, payload: res.data };
+          } catch (error) {
+            lastError = error;
+            await timer(300);
+          }
+        }
+        return { ok: false, transportError: lastError?.code || lastError?.message || 'transport_failed' };
+      } finally {
+        if (portForward && typeof portForward.kill === 'function') {
+          try {
+            portForward.kill('SIGTERM');
+          } catch (_) {
+            /* tunnel already gone */
+          }
+        }
+      }
+    },
+    /**
+     * Monitors a deployment to terminal readiness using a deterministic
+     * two-phase state machine.
+     *
+     *   Phase 1 (Kubernetes): pod `Ready` condition via `checkDeploymentReadyStatus`.
+     *   Phase 2 (Runtime):    `running-deployment` from the in-pod internal
+     *                         status endpoint, read over HTTP (`readRuntimeStatus`).
+     *
+     * Contract:
+     *   - Success requires BOTH phases; runtime readiness is never declared
+     *     before Kubernetes readiness.
+     *   - An explicit runtime `error` (or a fatal pod status) transitions
+     *     immediately to `failed` (throw → CD exit 1).
+     *   - Transport failures never count as success and never advance state.
+     *   - `timeout` is a distinct terminal state from `failed`.
+     *   - Every transition emits a structured, secret-free event.
      *
      * @param {string} deployId - Deployment ID for which the ready status is being monitored.
      * @param {string} env - Environment for which the ready status is being monitored.
@@ -358,31 +436,28 @@ class UnderpostMonitor {
      * @memberof UnderpostMonitor
      */
     async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default') {
-      const delayMs = 1000;
-      const maxIterations = 3000;
+      const delayMs = parseInt(process.env.UNDERPOST_MONITOR_DELAY_MS) || 1000;
+      const maxIterations = parseInt(process.env.UNDERPOST_MONITOR_MAX_ITERATIONS) || 3000;
       const deploymentId = `${deployId}-${env}-${targetTraffic}`;
-      const expectedContainerStatus = `${deployId}-${env}-running-deployment`;
       const tag = `[${deploymentId}]`;
-      const containerStatusDefault = 'waiting for status';
+      const expectedStatus = RUNTIME_STATUS.RUNNING;
+      const internalPort = Underpost.monitor.deployInternalPort(deployId, env);
+      const podErrorStates = ['error', 'crashloopbackoff', 'oomkilled', 'imagepullbackoff', 'errimagepull'];
 
-      logger.info('Deployment init', { deployId, env, targetTraffic, namespace });
+      const emit = (state, status) =>
+        logger.info('deploy-monitor', {
+          deployId: deploymentId,
+          phase: state.startsWith('runtime') ? 'runtime' : 'kubernetes',
+          state,
+          status: status ?? null,
+          timestamp: new Date().toISOString(),
+        });
 
-      const podStatusCache = new Map();
+      logger.info('Deployment init', { deployId, env, targetTraffic, namespace, internalPort });
+      emit('pending');
+
+      const runtimeStatusCache = new Map();
       const advancedPods = new Set();
-
-      const readContainerStatus = (podName) => {
-        try {
-          const raw = shellExec(
-            `sudo kubectl exec ${podName} -n ${namespace} -- sh -c 'underpost config get container-status --plain'`,
-            { silent: true, disableLog: true, stdout: true, silentOnError: true },
-          );
-          const val = raw ? raw.toString().trim() : '';
-          return val && val !== 'undefined' && !val.toLowerCase().match('empty') ? val : containerStatusDefault;
-        } catch (_) {
-          // exec failed (e.g. pod not yet running) — preserve last known value
-          return podStatusCache.get(podName) || containerStatusDefault;
-        }
-      };
 
       for (let i = 0; i < maxIterations; i++) {
         const result = await Underpost.monitor.checkDeploymentReadyStatus(
@@ -392,39 +467,54 @@ class UnderpostMonitor {
           ignorePods,
           namespace,
         );
-
         const allPods = [...result.readyPods, ...result.notReadyPods];
 
+        if (allPods.length === 0) {
+          emit('pending');
+          await timer(delayMs);
+          continue;
+        }
+        emit('pod_scheduled');
+
+        // Phase 1 fatal: a Kubernetes-level pod failure is terminal (failed,
+        // not timeout) — fail the CD runner immediately instead of waiting out
+        // the full window.
         for (const pod of allPods) {
-          if (!pod?.NAME) continue;
           const podStatus = (pod.STATUS || '').toLowerCase().trim();
-          if (
-            ['error', 'crashloopbackoff', 'oomkilled', 'imagepullbackoff', 'errimagepull'].find((s) =>
-              podStatus.match(s),
-            )
-          )
+          if (podErrorStates.find((s) => podStatus.includes(s)))
             throw new Error(`Pod ${pod.NAME} has error pod status: ${pod.STATUS}`);
-          const status = readContainerStatus(pod.NAME);
-          if (status === 'error') throw new Error(`Pod ${pod.NAME} has error container-status`);
-          if (advancedPods.has(pod.NAME) && status === containerStatusDefault)
-            throw new Error(`Pod ${pod.NAME} container-status regressed to default — pod likely restarted`);
-          if (status !== containerStatusDefault) advancedPods.add(pod.NAME);
-          podStatusCache.set(pod.NAME, status);
         }
 
-        const allPodsK8sReady = allPods.length > 0 && result.notReadyPods.length === 0;
+        const allPodsK8sReady = result.notReadyPods.length === 0;
+        if (allPodsK8sReady) emit('pod_ready');
 
-        const allPodsStatusReady =
-          allPods.length > 0 && allPods.every((pod) => podStatusCache.get(pod.NAME) === expectedContainerStatus);
-
-        // Print snapshot for every pod — annotate when container-status hasn't caught
-        // up to the K8S Ready condition yet.
+        // Phase 2: runtime readiness over HTTP. Transport failures neither
+        // advance state nor count as success; explicit `error` is terminal.
+        let allRuntimeRead = true;
         for (const pod of allPods) {
-          const status = podStatusCache.get(pod.NAME) || containerStatusDefault;
-          const podStatus = pod.STATUS || 'Unknown';
-          const statusMatchesExpected = status === expectedContainerStatus;
-          const statusDisplay = statusMatchesExpected ? status : `${status} (pending)`;
+          if (!pod?.NAME) continue;
+          const read = await Underpost.monitor.readRuntimeStatus(pod.NAME, namespace, internalPort);
+          if (!read.ok) {
+            allRuntimeRead = false;
+            emit('runtime_booting', `transport:${read.transportError}`);
+            continue;
+          }
+          const status = read.status;
+          if (status === RUNTIME_STATUS.ERROR) throw new Error(`Pod ${pod.NAME} reported runtime status=error`);
+          if (advancedPods.has(pod.NAME) && (!status || status === RUNTIME_STATUS.BUILD))
+            throw new Error(`Pod ${pod.NAME} runtime status regressed (${status ?? 'empty'}) — pod likely restarted`);
+          if (status && status !== RUNTIME_STATUS.BUILD) advancedPods.add(pod.NAME);
+          runtimeStatusCache.set(pod.NAME, status);
+          emit('runtime_booting', status);
+        }
 
+        const allRuntimeReady =
+          allRuntimeRead && allPods.every((pod) => runtimeStatusCache.get(pod.NAME) === expectedStatus);
+
+        for (const pod of allPods) {
+          const status = runtimeStatusCache.get(pod.NAME) || 'waiting for status';
+          const podStatus = pod.STATUS || 'Unknown';
+          const statusDisplay = status === expectedStatus ? status : `${status} (pending)`;
           console.log(
             'Target pod:',
             pod.NAME[pod.NAME.includes('green') ? 'bgGreen' : 'bgBlue'].bold.black,
@@ -435,22 +525,19 @@ class UnderpostMonitor {
           );
         }
 
-        // Both K8S readinessProbe AND container-status must be satisfied before
-        // declaring the deployment ready. The TCP probe ensures the port is bound;
-        // container-status == running-deployment ensures the application has
-        // completed its own startup sequence so traffic is not switched prematurely.
-        if (allPodsK8sReady && allPodsStatusReady) {
-          logger.info(`${tag} | All pods Ready (K8S readinessProbe satisfied)`);
+        // Terminal success requires BOTH phases. runtime_ready cannot precede
+        // Kubernetes readiness.
+        if (allPodsK8sReady && allRuntimeReady) {
+          emit('runtime_ready', expectedStatus);
+          logger.info(`${tag} | Deployment ready (K8S Ready + runtime ${expectedStatus})`);
           return result;
         }
 
         await timer(delayMs);
-
-        if ((i + 1) % 10 === 0) {
-          logger.info(`${tag} | In progress... iteration ${i + 1}`);
-        }
+        if ((i + 1) % 10 === 0) logger.info(`${tag} | In progress... iteration ${i + 1}`);
       }
 
+      emit('timeout');
       logger.error(`${tag} | Deployment timeout after ${maxIterations} iterations`);
       throw new Error(
         `monitorReadyRunner timeout: ${deploymentId} did not become Ready within ${maxIterations}*${delayMs}ms`,
