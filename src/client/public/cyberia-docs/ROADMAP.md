@@ -1,6 +1,6 @@
 # Cyberia Online — Development Roadmap
 
-**Current version:** 3.2.21 | **Target milestone:** Open Alpha
+**Current version:** 3.2.22 | **Target milestone:** Open Alpha
 
 ---
 

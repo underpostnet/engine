@@ -1,6 +1,43 @@
 # Changelog
 
-## 2026-06-06
+## 2026-06-07
+
+### repository
+
+- Add safe repo config in pullSourceRepo ([4325c1ba7](https://github.com/underpostnet/engine/commit/4325c1ba736b4e2fa64f0570dc5bedb9b33e351f))
+
+### docs
+
+- Restore runtimeConfig docs logic ([819792d1d](https://github.com/underpostnet/engine/commit/819792d1de4e20e490c7bdffca66f794ef810868))
+- Enhance favicon resolution logic in buildJsDocs function to handle missing files ([4b4b6cca2](https://github.com/underpostnet/engine/commit/4b4b6cca2b31f1b41c1e893e58a3bb94b67c4f26))
+- Fix favicon path resolution in buildJsDocs function to handle missing files ([a572ffaf8](https://github.com/underpostnet/engine/commit/a572ffaf88de3e07b0c90fb485f57e9032d4e5bb))
+- Update favicon path in buildJsDocs function to use publicClientId for dynamic resolution ([d839d6a02](https://github.com/underpostnet/engine/commit/d839d6a02b6a49a2aa6923ce5392ff4509c36f43))
+
+### monitor
+
+- Add support for custom image names in deployment scripts ([2d4ddf731](https://github.com/underpostnet/engine/commit/2d4ddf731565e45e90b7e105ce17e6a56862e17f))
+- Enhance transport handling in UnderpostMonitor: Default to exec, add opt-in for http ([eebe7ef03](https://github.com/underpostnet/engine/commit/eebe7ef0318e3bbe2533e31701bba7af9483e73c))
+- Refactor test-monitor script: Enhance deployment modes and flag parsing ([07b65b004](https://github.com/underpostnet/engine/commit/07b65b0040d34883f67ebf6d9fa61872ff4c81f2))
+- Enhance runtime status handling with exec transport and kubernetes gate ([135773938](https://github.com/underpostnet/engine/commit/135773938dcbd4e466e09afea73ccc8994a6509e))
+
+### deploy
+
+- Refactor deployment commands to use dynamic node names and update MongoDB flag in run command ([b6a1dc9c7](https://github.com/underpostnet/engine/commit/b6a1dc9c751a09fd677d9778b252d967a08225cb))
+
+### cli-start
+
+- Add error handling for deployment build/init process in UnderpostStartUp class ([6c7d7e056](https://github.com/underpostnet/engine/commit/6c7d7e0568903f89a0a3a06683b726e4f34fa843))
+- Add support for private test repositories in build and monitor scripts ([23837d02b](https://github.com/underpostnet/engine/commit/23837d02b6a250ecc420e903a095d5be397494bb))
+
+### ipfs
+
+- Refactor IPFS API URL functions to include container check for development environment ([61e3fcd1e](https://github.com/underpostnet/engine/commit/61e3fcd1e08b9ec43dca29a151a4309f2a44f276))
+
+### client-core
+
+- Fix bug Panel component; when the user writes markdown content but uploads missing reload md file ([f91da9780](https://github.com/underpostnet/engine/commit/f91da97807b991bf9c6b8693c9c97bb8365df6f4))
+
+## New release v:3.2.21 (2026-06-06)
 
 ### release
 

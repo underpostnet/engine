@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.21
+> underpost ci/cd cli v3.2.22
 
 **Usage:** `underpost [options] [command]`
 
@@ -132,6 +132,7 @@ Initiates application servers, build pipelines, or other defined services based 
 | `--skip-pull-base` | Skips cloning repositories, uses current workspace code directly. |
 | `--skip-full-build` | Skips the full client bundle build during deployment. |
 | `--pull-bundle` | Downloads the pre-built client bundle from Cloudinary via pull-bundle before starting. Use together with --skip-full-build to skip the local build entirely. |
+| `--private-test-repo` | During --build, clone the private test source repo (engine-test-<id>) instead of the production engine-<id> repo. |
 | `-h, --help` | display help for command |
 
 ---
@@ -888,6 +889,7 @@ Runs specified scripts using various runners.
 | `--skip-full-build` | Skip client bundle rebuild; triggers pull-bundle in container startup (supported by: sync, template-deploy). |
 | `--pull-bundle` | Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build. |
 | `--remove` | Remove/teardown resources |
+| `--test` | Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager). |
 | `-h, --help` | display help for command |
 
 ---
