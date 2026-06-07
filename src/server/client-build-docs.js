@@ -354,7 +354,11 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, do
   // tmp config file is located on disk.
   const srcFavicon = `./src/client/public/${publicClientId}/favicon.ico`;
   const buildFavicon = `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`;
-  const favicon = fs.existsSync(srcFavicon) ? fs.realpathSync(srcFavicon) : buildFavicon;
+  const favicon = fs.existsSync(srcFavicon)
+    ? fs.realpathSync(srcFavicon)
+    : fs.existsSync(buildFavicon)
+      ? fs.realpathSync(buildFavicon)
+      : undefined;
 
   const runtimeConfig = {
     ...baseConfig,
