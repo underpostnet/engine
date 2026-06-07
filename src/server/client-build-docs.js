@@ -352,20 +352,12 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, do
   // Build runtime config in memory — never mutate the base config file
   // tsconfig must be absolute so TypeDoc resolves it regardless of where the
   // tmp config file is located on disk.
-  const srcFavicon = `./src/client/public/${publicClientId}/favicon.ico`;
-  const buildFavicon = `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`;
-  const favicon = fs.existsSync(srcFavicon)
-    ? fs.realpathSync(srcFavicon)
-    : fs.existsSync(buildFavicon)
-      ? fs.realpathSync(buildFavicon)
-      : undefined;
-
   const runtimeConfig = {
     ...baseConfig,
     tsconfig: fs.realpathSync(baseConfig.tsconfig || './tsconfig.docs.json'),
     out: docsDestination,
     name: metadata?.title || baseConfig.name,
-    ...(favicon ? { favicon } : undefined),
+    favicon: `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`,
   };
 
   // Include extra reference documents as TypeDoc document pages
