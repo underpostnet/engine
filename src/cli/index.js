@@ -70,6 +70,10 @@ program
     '--pull-bundle',
     'Downloads the pre-built client bundle from Cloudinary via pull-bundle before starting. Use together with --skip-full-build to skip the local build entirely.',
   )
+  .option(
+    '--private-test-repo',
+    'During --build, clone the private test source repo (engine-test-<id>) instead of the production engine-<id> repo.',
+  )
   .action(Underpost.start.callback)
   .description('Initiates application servers, build pipelines, or other defined services based on the deployment ID.');
 

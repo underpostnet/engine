@@ -11,6 +11,7 @@ import {
   syncPrivateConf,
   syncDeployIdSources,
   buildTemplate,
+  updatePrivateEngineTestRepo,
 } from '../src/server/conf.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
 import UnderpostRepository from '../src/cli/repository.js';
@@ -191,6 +192,11 @@ program
     '--no-template-rebuild',
     'Skip the from-scratch base template reconstruction before assembly (assemble onto the existing template).',
   )
+  .option(
+    '--update-private',
+    'After assembling each deploy id, publish it to its private test source repo (underpostnet/engine-test-<id>) for isolated test deploys.',
+    false,
+  )
   .action(async (confName, env, options) => {
     const deployList = resolveDeployList(confName);
     logger.info('Build repository', { confName, basePath, deployList, conf: !!options.conf });
@@ -207,7 +213,12 @@ program
     // build run leaks into this one. Opt out with --no-template-rebuild.
     if (options.templateRebuild) await buildTemplate({ toPath: basePath });
 
-    for (const deployId of deployList) await buildDeployTemplate(deployId);
+    for (const deployId of deployList) {
+      await buildDeployTemplate(deployId);
+      // Publish the just-assembled tree to the deploy id's private test repo so a
+      // pod started with `--private-test-repo` clones this work-in-progress source.
+      if (options.updatePrivate) await updatePrivateEngineTestRepo(deployId);
+    }
   });
 
 await program.parseAsync();

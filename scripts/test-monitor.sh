@@ -40,6 +40,7 @@ HTTPS_PORT=443                                # local https port for instance TL
 USE_CERT=false                                # runtime: pass --cert to the proxy step
 USE_PULL_BUNDLE=false                         # runtime: include --pull-bundle in the start cmd
 USE_TLS=false                                 # generate self-signed certs + expose over HTTPS
+USE_TEST_REPO=false                           # runtime: publish src to engine-test-<id> + pod clones it (--private-test-repo)
 DO_BUILD_TEMPLATE=true                        # run `node bin/build.template --update-private`
 DO_CLUSTER_MANIFESTS=true                     # run `node bin run build-cluster-deployment-manifests`
 DO_EXPOSE=true                                # expose locally after deploy + monitor
@@ -70,6 +71,8 @@ Toggles (use --x / --no-x):
   --tls | --no-tls              self-signed certs + HTTPS exposure (default: off)
   --cert | --no-cert            runtime proxy --cert (default: off)
   --pull-bundle | --no-pull-bundle   runtime start --pull-bundle (default: off)
+  --test-repo | --no-test-repo  runtime: publish src to engine-test-<id> and have the
+                                pod clone it via --private-test-repo (default: off)
   --expose | --no-expose        local exposure after monitor (default: on)
   --build-template | --no-build-template       sync private template (default: on)
   --cluster-manifests | --no-cluster-manifests  rebuild cluster manifests (default: on)
@@ -82,6 +85,9 @@ Examples:
 
   # Runtime deploy over HTTPS
   scripts/test-monitor.sh --tls
+
+  # Runtime deploy from a work-in-progress test source repo (engine-test-<id>)
+  scripts/test-monitor.sh --test-repo
 
   # Cyberia instances (both), dev on kind, no TLS
   scripts/test-monitor.sh --mode instance --deploy-id dd-cyberia --cluster kind
@@ -114,6 +120,7 @@ while [[ $# -gt 0 ]]; do
     --tls) USE_TLS=true; shift;;                          --no-tls) USE_TLS=false; shift;;
     --cert) USE_CERT=true; shift;;                        --no-cert) USE_CERT=false; shift;;
     --pull-bundle) USE_PULL_BUNDLE=true; shift;;          --no-pull-bundle) USE_PULL_BUNDLE=false; shift;;
+    --test-repo) USE_TEST_REPO=true; shift;;              --no-test-repo) USE_TEST_REPO=false; shift;;
     --expose) DO_EXPOSE=true; shift;;                     --no-expose) DO_EXPOSE=false; shift;;
     --build-template) DO_BUILD_TEMPLATE=true; shift;;     --no-build-template) DO_BUILD_TEMPLATE=false; shift;;
     --cluster-manifests) DO_CLUSTER_MANIFESTS=true; shift;; --no-cluster-manifests) DO_CLUSTER_MANIFESTS=false; shift;;
@@ -135,7 +142,7 @@ DEV_FLAG=""; [ "$ENV" = development ] && DEV_FLAG="--dev"
 INSTANCES_CONF="./engine-private/conf/${DEPLOY_ID}/conf.instances.json"
 SERVER_CONF="./engine-private/conf/${DEPLOY_ID}/conf.server.json"
 
-echo "[test-monitor] mode=$MODE env=$ENV deploy=$DEPLOY_ID cluster=${CLUSTER:-none} tls=$USE_TLS expose=$DO_EXPOSE"
+echo "[test-monitor] mode=$MODE env=$ENV deploy=$DEPLOY_ID cluster=${CLUSTER:-none} tls=$USE_TLS test-repo=$USE_TEST_REPO expose=$DO_EXPOSE"
 
 # ─────────────────────────── shared helpers ───────────────────────────
 
@@ -172,13 +179,16 @@ hosts_from() {
 # ─────────────────────────── runtime mode ───────────────────────────
 run_runtime_mode() {
   local link_cmd="cd /home/dd,underpost clone ${TEMPLATE_REPO},cd /home/dd/${TEMPLATE_REPO##*/},npm install,npm link"
-  local deploy_cmd proxy_flag="" expose_flags=""
+  local deploy_cmd proxy_flag="" expose_flags="" start_flags=""
 
-  if [ "$USE_PULL_BUNDLE" = true ]; then
-    deploy_cmd="${link_cmd},underpost start --build --run --pull-bundle ${DEPLOY_ID} ${ENV}"
-  else
-    deploy_cmd="${link_cmd},underpost start --build --run ${DEPLOY_ID} ${ENV}"
-  fi
+  # Publish the local engine src to underpostnet/engine-test-<id> so the pod
+  # (started with --private-test-repo) clones this work-in-progress source.
+  [ "$USE_TEST_REPO" = true ] && node bin/build "$DEPLOY_ID" --update-private
+
+  [ "$USE_PULL_BUNDLE" = true ] && start_flags="${start_flags} --pull-bundle"
+  [ "$USE_TEST_REPO" = true ] && start_flags="${start_flags} --private-test-repo"
+  deploy_cmd="${link_cmd},underpost start --build --run${start_flags} ${DEPLOY_ID} ${ENV}"
+
   [ "$USE_CERT" = true ] && proxy_flag="--cert"
   [ "$USE_TLS" = true ] && proxy_flag="--self-signed"
 

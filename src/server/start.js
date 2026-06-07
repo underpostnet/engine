@@ -167,6 +167,8 @@ class UnderpostStartUp {
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
      * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle (must be pushed first with push-bundle).
      *   This flag is independent of skipFullBuild: it can be combined with skipFullBuild or used alone.
+     * @param {boolean} options.privateTestRepo - When true, clone `engine-test-<id>` (the private test source repo
+     *   published by `node bin/build <deployId> --update-private`) instead of the production `engine-<id>` repo.
      * @memberof UnderpostStartUp
      */
     async build(
@@ -175,7 +177,11 @@ class UnderpostStartUp {
       options = { underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false, pullBundle: false },
     ) {
       const buildBasePath = `/home/dd`;
-      const repoName = `engine-${deployId.split('-')[1]}`;
+      // `--private-test-repo` clones the isolated test source repo published by
+      // `node bin/build <deployId> --update-private`, instead of the production one.
+      const repoName = options?.privateTestRepo
+        ? `engine-test-${deployId.split('-')[1]}`
+        : `engine-${deployId.split('-')[1]}`;
       if (!options.skipPullBase) {
         shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
         shellExec(`mkdir -p ${buildBasePath}/engine`);

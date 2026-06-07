@@ -1941,15 +1941,9 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
     )
   ).filter((p) => !p.startsWith('.git'));
 
-  // Clone the template from 0 if missing; otherwise reset it to a clean pristine checkout.
-  if (!fs.existsSync(toPath)) {
-    shellExec(`cd .. && node engine/bin clone ${githubUsername}/pwa-microservices-template`);
-  } else {
-    shellExec(`cd ${toPath} && git reset && git checkout . && git clean -f -d`);
-    shellExec(`node bin pull ${toPath} ${githubUsername}/pwa-microservices-template`);
-    shellExec(`sudo rm -rf ${toPath}/engine-private`);
-    shellExec(`sudo rm -rf ${toPath}/logs`);
-  }
+  fs.removeSync(`${githubUsername}/pwa-microservices-template`);
+  shellExec(`cd .. && node engine/bin clone ${githubUsername}/pwa-microservices-template`);
+
   shellExec(`cd ${toPath} && git config core.filemode false`);
 
   for (const copyPath of sourceFiles) {
@@ -2052,6 +2046,59 @@ git add .`);
   }
 };
 
+/**
+ * @method updatePrivateEngineTestRepo
+ * @description Publishes a deploy id's freshly assembled template to its private
+ * **test** source repo `engine-test-<idPart>` (separate from the production
+ * `engine-<idPart>`). A pod started with `underpost start --build --private-test-repo`
+ * clones this repo, so work-in-progress engine source can be tested end to end
+ * without touching the production source. Mirrors {@link updatePrivateTemplateRepo}
+ * but per-deploy-id and against the test repo.
+ *
+ * Assumes the deploy id template has already been assembled at the template path
+ * (run `node bin/build <deployId>` first, or use `node bin/build <deployId> --update-private`).
+ * @param {string} deployId - Concrete deploy id (e.g. `dd-core`).
+ * @returns {Promise<void>}
+ * @memberof ServerConfBuilder
+ */
+const updatePrivateEngineTestRepo = async (deployId) => {
+  const username = process.env.GITHUB_USERNAME || 'underpostnet';
+  const repoName = `engine-test-${deployId.split('-')[1]}`;
+  const templatePath = '/home/dd/pwa-microservices-template';
+  if (!fs.existsSync(templatePath))
+    throw new Error(`updatePrivateEngineTestRepo: assemble the template first (node bin/build ${deployId})`);
+
+  // Detach the assembled working tree from any engine-build git history.
+  shellExec(`sudo rm -rf ${templatePath}/.git`);
+
+  // Adopt the test repo's existing history when present (so the push is a delta);
+  // otherwise publish a fresh history on first push.
+  shellExec(`cd /home/dd && sudo rm -rf ./${repoName}.git && underpost clone --bare ${username}/${repoName}`, {
+    silent: true,
+    disableLog: true,
+    silentOnError: true,
+  });
+  if (fs.existsSync(`/home/dd/${repoName}.git`)) shellExec(`mv /home/dd/${repoName}.git ${templatePath}/.git`);
+
+  // `git init` converts the moved bare repo into a normal work-tree repo (bare
+  // clones have no work tree, so `git add` would fail), and bootstraps a fresh
+  // repo on first publish. Idempotent — mirrors updatePrivateTemplateRepo.
+  shellExec(`cd ${templatePath}
+git init
+git config user.name '${username}'
+git config user.email 'development@underpost.net'
+git add .`);
+
+  const hasChanges = shellExec(`node bin cmt ${templatePath} --has-changes`, {
+    stdout: true,
+    silent: true,
+    disableLog: true,
+  }).trim();
+  if (hasChanges === '1')
+    shellExec(`cd ${templatePath} && git commit -m 'Update ${repoName}' && underpost push . ${username}/${repoName}`);
+  else logger.info('No changes to publish', { repoName });
+};
+
 export {
   Config,
   loadConf,
@@ -2104,4 +2151,5 @@ export {
   syncDeployIdSources,
   buildTemplate,
   updatePrivateTemplateRepo,
+  updatePrivateEngineTestRepo,
 };
