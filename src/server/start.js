@@ -152,10 +152,16 @@ class UnderpostStartUp {
       // observable through every lifecycle phase, including build and init. Bind
       // the deployment-resolved port so it always matches the monitor's target.
       startInternalStatusServer(deployStatusPort(deployId, env));
-      setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
-      if (options.build === true) await Underpost.start.build(deployId, env, options);
-      setRuntimeStatus(deployId, env, RUNTIME_STATUS.INIT);
-      if (options.run === true) await Underpost.start.run(deployId, env, options);
+      try {
+        setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
+        if (options.build === true) await Underpost.start.build(deployId, env, options);
+        setRuntimeStatus(deployId, env, RUNTIME_STATUS.INIT);
+        if (options.run === true) await Underpost.start.run(deployId, env, options);
+      } catch (error) {
+        logger.error('Deployment build/init failed', { deployId, env, message: error?.message });
+        setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
+        if (!Underpost.env.isInsideContainer()) throw error;
+      }
     },
     /**
      * Run itc-scripts and builds client bundle.
