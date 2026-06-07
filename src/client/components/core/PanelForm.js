@@ -73,7 +73,7 @@ class PanelForm {
       parentIdModal: undefined,
       route: 'home',
       htmlFormHeader: async () => '',
-      firsUpdateEvent: async () => { },
+      firsUpdateEvent: async () => {},
       share: {
         copyLink: false,
         copySourceMd: false,
@@ -196,12 +196,12 @@ class PanelForm {
               <img
                 class="abs center"
                 style="${renderCssAttr({
-              style: {
-                width: '100px',
-                height: '100px',
-                opacity: 0.2,
-              },
-            })}"
+                  style: {
+                    width: '100px',
+                    height: '100px',
+                    opacity: 0.2,
+                  },
+                })}"
                 src="${defaultUrlImage}"
               />
             `,
@@ -382,15 +382,15 @@ class PanelForm {
             // It will be filtered from the tags array to keep visibility control separate from content tags
             const tags = data.tags
               ? uniqueArray(
-                data.tags
-                  .replaceAll('/', ',')
-                  .replaceAll('-', ',')
-                  .replaceAll(' ', ',')
-                  .split(',')
-                  .map((t) => t.trim())
-                  .filter((t) => t)
-                  .concat(prefixTags),
-              )
+                  data.tags
+                    .replaceAll('/', ',')
+                    .replaceAll('-', ',')
+                    .replaceAll(' ', ',')
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter((t) => t)
+                    .concat(prefixTags),
+                )
               : prefixTags;
             let originObj, originFileObj, indexOriginObj;
             if (editId) {
@@ -432,8 +432,8 @@ class PanelForm {
               // In edit mode, null means user cleared the file - we need to tell server to remove it
               const isFileCleared = data.fileId === null && editId;
               await (async () => {
-                // When file is null and not the first iteration or not in edit mode, skip upload
-                if (!file && !isFileCleared) return;
+                // When file is null, no markdown content, and not clearing a file, skip upload
+                if (!file && !isFileCleared && !hasMdContent) return;
                 // When user cleared file in edit mode, set fileId=null so server removes the reference
                 if (isFileCleared) {
                   fileId = null;
@@ -489,8 +489,8 @@ class PanelForm {
                 message: documentMessage,
                 data: documentData,
               } = originObj && indexFormDoc === 0
-                  ? await DocumentService.put({ id: originObj._id, body })
-                  : await DocumentService.post({
+                ? await DocumentService.put({ id: originObj._id, body })
+                : await DocumentService.post({
                     body,
                   });
               const newDoc = {
@@ -518,12 +518,12 @@ class PanelForm {
                 fileId: {
                   fileBlob: file
                     ? {
-                      data: {
-                        data: await getDataFromInputFile(file),
-                      },
-                      mimetype: file.type,
-                      name: file.name,
-                    }
+                        data: {
+                          data: await getDataFromInputFile(file),
+                        },
+                        mimetype: file.type,
+                        name: file.name,
+                      }
                     : undefined,
                   filePlain: undefined,
                 },
@@ -742,36 +742,36 @@ class PanelForm {
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({
-            style: {
-              width: '80%',
-              height: '30px',
-              top: '-13px',
-              left: '10px',
-            },
-          })}"
+                style: {
+                  width: '80%',
+                  height: '30px',
+                  top: '-13px',
+                  left: '10px',
+                },
+              })}"
             ></div>
           </div>`,
           createdAt: html`<div class="fl">
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({
-            style: {
-              width: '50%',
-              height: '30px',
-              left: '-5px',
-            },
-          })}"
+                style: {
+                  width: '50%',
+                  height: '30px',
+                  left: '-5px',
+                },
+              })}"
             ></div>
           </div>`,
           mdFileId: html`<div class="fl section-mp">
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({
-            style: {
-              width: '80%',
-              height: '30px',
-            },
-          })}"
+                style: {
+                  width: '80%',
+                  height: '30px',
+                },
+              })}"
             ></div>
           </div>`.repeat(random(2, 4)),
           ssr: true,
