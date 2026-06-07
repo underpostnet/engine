@@ -12,6 +12,7 @@
  */
 import stringify from 'fast-json-stable-stringify';
 import { loggerFactory } from './logger.js';
+import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 const DEFAULT_IPFS_HTTP_TIMEOUT_MS = Number(process.env.IPFS_HTTP_TIMEOUT_MS || 10000);
 const getRequestTimeoutMs = (kind = 'kubo') => {
@@ -46,21 +47,22 @@ const fetchWithTimeout = async (url, options = {}, { kind = 'kubo', label = url 
  * @returns {string}
  */
 const getIpfsApiUrl = () =>
-  process.env.IPFS_API_URL || `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:5001`;
+  process.env.IPFS_API_URL ||
+  `http://${process.env.NODE_ENV === 'development' && !Underpost.env.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:5001`;
 /**
  * Base URL of the IPFS Cluster REST API (port 9094).
  * @returns {string}
  */
 const getClusterApiUrl = () =>
   process.env.IPFS_CLUSTER_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:9094`;
+  `http://${process.env.NODE_ENV === 'development' && !Underpost.env.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:9094`;
 /**
  * Base URL of the IPFS HTTP Gateway (port 8080).
  * @returns {string}
  */
 const getGatewayUrl = () =>
   process.env.IPFS_GATEWAY_URL ||
-  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:8080`;
+  `http://${process.env.NODE_ENV === 'development' && !Underpost.env.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:8080`;
 // ─────────────────────────────────────────────────────────
 //  Core: add content
 // ─────────────────────────────────────────────────────────
