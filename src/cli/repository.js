@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
+import path from 'path';
 import fs from 'fs-extra';
 import {
   getNpmRootPath,
@@ -1738,6 +1739,8 @@ Prevent build private config repo.`,
       if (!fs.existsSync(repoPath)) {
         shellExec(`cd .. && underpost clone ${gitUri}`, { silent: true });
       } else {
+        const repoAbsPath = path.resolve(repoPath);
+        shellExec(`git config --global --add safe.directory '${repoAbsPath}'`);
         shellExec(`cd ${repoPath} && git checkout . && git clean -f -d && underpost pull . ${gitUri}`, {
           silent: true,
         });

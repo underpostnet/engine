@@ -1856,6 +1856,7 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   if (!fs.existsSync(privateRepoPath)) {
     shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
   } else {
+    shellExec(`git config --global --add safe.directory '${dir.resolve(privateRepoPath)}'`);
     shellExec(`cd ${privateRepoPath} && git checkout . && git clean -f -d && underpost pull . ${privateGitUri}`, {
       silent: true,
     });
