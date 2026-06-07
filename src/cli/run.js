@@ -223,7 +223,7 @@ class UnderpostRun {
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
 
         shellExec(
-          `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb4 --service-host ${mongoHosts.join(
+          `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --service-host ${mongoHosts.join(
             ',',
           )} --pull-image`,
         );

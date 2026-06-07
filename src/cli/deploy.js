@@ -1072,15 +1072,12 @@ EOF`);
       if (options.gitClean && volume.volumeMountPath) {
         Underpost.repo.clean({ paths: [volume.volumeMountPath] });
       }
-      if (options.nodeName) {
-        if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
-        fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
-      } else if (clusterContext === 'kind') {
-        shellExec(`docker exec -i kind-worker bash -c "mkdir -p ${rootVolumeHostPath}"`);
-        // shellExec(`docker cp ${volume.volumeMountPath} kind-worker:${rootVolumeHostPath}`);
-        shellExec(`tar -C ${volume.volumeMountPath} -c . | docker cp - kind-worker:${rootVolumeHostPath}`);
+      if (clusterContext === 'kind') {
+        const kindNode = options.nodeName || 'kind-worker';
+        shellExec(`docker exec -i ${kindNode} bash -c "mkdir -p ${rootVolumeHostPath}"`);
+        shellExec(`tar -C ${volume.volumeMountPath} -c . | docker cp - ${kindNode}:${rootVolumeHostPath}`);
         shellExec(
-          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${rootVolumeHostPath}; chmod -R 755 ${rootVolumeHostPath}"`,
+          `docker exec -i ${kindNode} bash -c "chown -R 1000:1000 ${rootVolumeHostPath}; chmod -R 755 ${rootVolumeHostPath}"`,
         );
       } else {
         if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
