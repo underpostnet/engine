@@ -380,12 +380,12 @@ class UnderpostMonitor {
     /**
      * Reads Phase-2 runtime status from a single pod using the selected transport.
      *
-     *   - `http` (default): port-forward to the in-pod `/_internal/status` endpoint
-     *     served by the `underpost start` launcher (dd-* runtime deploys).
-     *   - `exec`: `kubectl exec … underpost config get container-status` reads the
-     *     env-file value stamped by `lifecycle` hooks. Required for custom
-     *     instances (cyberia-server/client) which run a bare binary with no
-     *     internal HTTP server. See `Deploy custom instance to K8S.md`.
+     *   - `exec` (default): `kubectl exec … underpost config get container-status`
+     *     reads the env-file value. Synchronous, no background process — required
+     *     for custom instances (cyberia-server/client) and the safe choice for
+     *     CI/SSH. See `Deploy custom instance to K8S.md`.
+     *   - `http`: port-forward to the in-pod `/_internal/status` endpoint served
+     *     by the `underpost start` launcher (dd-* runtime deploys). Opt-in.
      *
      * Transport failures are reported as `{ ok: false }` and must never be read
      * as success — they are retried, not promoted.
@@ -393,11 +393,11 @@ class UnderpostMonitor {
      * @param {string} podName
      * @param {string} namespace
      * @param {number} internalPort
-     * @param {('http'|'exec')} [transport='http']
+     * @param {('http'|'exec')} [transport='exec']
      * @returns {Promise<{ok: boolean, status?: (string|null), transportError?: string}>}
      * @memberof UnderpostMonitor
      */
-    async readRuntimeStatus(podName, namespace, internalPort, transport = 'http') {
+    async readRuntimeStatus(podName, namespace, internalPort, transport = 'exec') {
       return transport === 'exec'
         ? Underpost.monitor.readRuntimeStatusViaExec(podName, namespace)
         : Underpost.monitor.readRuntimeStatusViaHttp(podName, namespace, internalPort);
@@ -443,10 +443,12 @@ class UnderpostMonitor {
       const url = `http://127.0.0.1:${localPort}${INTERNAL_STATUS_PATH}`;
       let portForward;
       try {
-        // `exec` collapses the shell so the tracked child PID is the
-        // sudo/kubectl process, letting the SIGTERM teardown reach the tunnel.
+        // `exec` makes the tracked child the sudo/kubectl process (so kill
+        // reaches it); stdio is redirected to /dev/null so the tunnel never
+        // inherits — and therefore never holds open — a CI/SSH session's pipes,
+        // which would hang the job after a successful deploy.
         portForward = shellExec(
-          `exec sudo kubectl port-forward pod/${podName} ${localPort}:${internalPort} -n ${namespace}`,
+          `exec sudo kubectl port-forward pod/${podName} ${localPort}:${internalPort} -n ${namespace} </dev/null >/dev/null 2>&1`,
           { async: true, silent: true, disableLog: true, silentOnError: true },
         );
       } catch (_) {
@@ -485,13 +487,19 @@ class UnderpostMonitor {
      *
      * Two deployment shapes are supported via `options`:
      *   - `runtime` gate (default, dd-* deploys): the `underpost start` launcher
-     *     stamps `running-deployment` and serves `/_internal/status`. Success
-     *     requires K8S Ready AND every pod reporting `running-deployment` (HTTP).
+     *     stamps `running-deployment`. Success requires K8S Ready AND every pod
+     *     reporting `running-deployment`.
      *   - `kubernetes` gate (custom instances, e.g. cyberia): the runtime is a
      *     bare binary; K8S `readinessProbe` (TCP) IS the running signal and
      *     `container-status` is stamped to `initializing`/`stopping` by lifecycle
-     *     hooks (read via `exec`). Success requires K8S Ready; the status read is
-     *     used only for fast `error` detection and display.
+     *     hooks. Success requires K8S Ready; the status read is used only for
+     *     fast `error` detection and display.
+     *
+     * Phase-2 transport defaults to `exec` (`kubectl exec`, no background
+     * process). The `http` transport (`kubectl port-forward` → `/_internal/status`)
+     * is opt-in via `options.statusTransport='http'` or
+     * `UNDERPOST_STATUS_TRANSPORT=http`; it must not be used in CI/SSH sessions
+     * where a stray tunnel can hang the job.
      *
      * Contract (both shapes):
      *   - Runtime readiness is never declared before Kubernetes readiness.
@@ -519,7 +527,12 @@ class UnderpostMonitor {
       const tag = `[${deploymentId}]`;
       const expectedStatus = RUNTIME_STATUS.RUNNING;
       const readyGate = options.readyGate === 'kubernetes' ? 'kubernetes' : 'runtime';
-      const statusTransport = options.statusTransport === 'exec' ? 'exec' : 'http';
+      // Default to `exec`: a single synchronous `kubectl exec` read leaves no
+      // background process behind. The `http` transport spawns `kubectl
+      // port-forward` children that, if orphaned, inherit a CI/SSH session's
+      // stdio and hang the job after a successful deploy — opt in explicitly.
+      const statusTransport =
+        (options.statusTransport || process.env.UNDERPOST_STATUS_TRANSPORT) === 'http' ? 'http' : 'exec';
       const internalPort =
         statusTransport === 'http' ? await Underpost.monitor.deployInternalPort(deployId, env) : null;
       const podErrorStates = ['error', 'crashloopbackoff', 'oomkilled', 'imagepullbackoff', 'errimagepull'];

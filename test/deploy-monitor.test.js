@@ -181,9 +181,15 @@ try {
       });
     });
 
-  it('success: both phases satisfied → monitor exits 0', async () => {
+  it('success (default exec transport): both phases satisfied → monitor exits 0', async () => {
     Underpost.env.set('container-status', RUNNING_STATUS);
     const code = await spawnMonitor({ FAKE_POD_READY: 'True' });
+    expect(code).to.equal(0);
+  });
+
+  it('success (opt-in http transport): both phases satisfied → monitor exits 0', async () => {
+    Underpost.env.set('container-status', RUNNING_STATUS);
+    const code = await spawnMonitor({ FAKE_POD_READY: 'True', MON_TRANSPORT: 'http' });
     expect(code).to.equal(0);
   });
 
@@ -200,11 +206,12 @@ try {
     expect(code).to.equal(1);
   });
 
-  it('transport failure: endpoint unreachable is never success (exits 1)', async () => {
-    // Point the monitor at a port with no internal server; the HTTP read always
-    // fails, so runtime readiness is never confirmed and the monitor times out.
+  it('transport failure (http): endpoint unreachable is never success (exits 1)', async () => {
+    // Opt into http and point the monitor at a port with no internal server; the
+    // HTTP read always fails, so runtime readiness is never confirmed → timeout.
     Underpost.env.set('container-status', RUNNING_STATUS);
     const code = await spawnMonitor({
+      MON_TRANSPORT: 'http',
       UNDERPOST_INTERNAL_PORT: String(CLOSED_PORT),
       UNDERPOST_PF_LOCAL_PORT: String(CLOSED_PORT),
       UNDERPOST_MONITOR_MAX_ITERATIONS: '3',
