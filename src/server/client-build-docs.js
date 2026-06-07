@@ -357,7 +357,7 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, do
     tsconfig: fs.realpathSync(baseConfig.tsconfig || './tsconfig.docs.json'),
     out: docsDestination,
     name: metadata?.title || baseConfig.name,
-    favicon: `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`,
+    favicon: `./src/client/public/${publicClientId}/favicon.ico`,
   };
 
   // Include extra reference documents as TypeDoc document pages
