@@ -213,11 +213,7 @@ run_instance_mode() {
   if [ -z "$INSTANCE_IDS" ]; then
     INSTANCE_IDS=$(node -e "console.log(require('$INSTANCES_CONF').map(i=>i.id).join(','))")
   fi
-  local tls_flag=""; [ "$USE_TLS" = true ] && tls_flag="--tls"
-
-  # Create the per-host TLS secrets before the proxy is generated so Contour can
-  # reconcile them as soon as instance-promote writes the HTTPProxy.
-  [ "$USE_TLS" = true ] && setup_tls_secrets $(hosts_from "$INSTANCES_CONF")
+  local tls_flag=""; [ "$USE_TLS" = true ] && tls_flag="--tls --test"
 
   # `run instance` builds/pulls the image, applies the manifest, monitors with the
   # kubernetes gate (TCP readinessProbe) + exec status, then promotes traffic.
@@ -226,7 +222,8 @@ run_instance_mode() {
     [ -n "$id" ] || continue
     echo "[test-monitor] deploying instance ${DEPLOY_ID},${id}"
     node bin run instance "${DEPLOY_ID},${id},${REPLICAS}" \
-      $DEV_FLAG $CLUSTER_FLAG --namespace "$NAMESPACE" --etc-hosts $tls_flag
+      $DEV_FLAG $CLUSTER_FLAG --namespace "$NAMESPACE" --etc-hosts $tls_flag \
+      ${IMAGE:+--image-name "$IMAGE"}
   done
 
   [ "$DO_EXPOSE" = true ] || return 0

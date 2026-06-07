@@ -120,6 +120,7 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment (supported by: sync, template-deploy).
  * @property {boolean} pullBundle - Whether to pull the bundle before running. Use together with --skip-full-build to skip the local build entirely (supported by: sync, template-deploy).
  * @property {boolean} remove - Whether to remove/teardown resources instead of creating them (e.g. delete-expose for k3s proxy devices in dev-cluster).
+ * @property {boolean} test - Whether to enable test/generic-purpose mode (e.g. use self-signed TLS instead of cert-manager).
  * @memberof UnderpostRun
  */
 const DEFAULT_OPTION = {
@@ -188,6 +189,7 @@ const DEFAULT_OPTION = {
   skipFullBuild: false,
   pullBundle: false,
   remove: false,
+  test: false,
 };
 
 /**
@@ -1007,8 +1009,19 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
             // pathRewritePolicy,
           });
         if (options.tls) {
-          shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
-          proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host: _host });
+          if (options.test) {
+            const sslDir = `./engine-private/ssl/${_host}`;
+            const nameSafe = _host.replace(/[^a-zA-Z0-9_.-]/g, '_');
+            fs.mkdirpSync(sslDir);
+            shellExec(`bash ./scripts/ssl.sh "${sslDir}" "${_host}"`);
+            shellExec(`kubectl delete secret ${_host} -n ${options.namespace} --ignore-not-found`);
+            shellExec(
+              `kubectl create secret tls ${_host} --cert="${sslDir}/${nameSafe}.pem" --key="${sslDir}/${nameSafe}-key.pem" -n ${options.namespace}`,
+            );
+          } else {
+            shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
+            proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host: _host });
+          }
         }
         // console.log(proxyYaml);
         shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
@@ -1077,6 +1090,7 @@ EOF
         // Examples images:
         // `underpost/underpost-engine:${Underpost.version}`
         // `localhost/rockylinux9-underpost:${Underpost.version}`
+        if (options.imageName) _image = options.imageName;
         if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
 
         if (_image && !_image.startsWith('localhost'))
@@ -1191,7 +1205,7 @@ EOF
         shellExec(
           `${baseCommand} run${baseClusterCommand} --namespace ${options.namespace}` +
             `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
-            `${options.tls ? ` --tls` : ''}` +
+            `${options.tls ? ` --tls ${options.test ? '--test' : ''}` : ''}` +
             ` instance-promote '${path}'`,
         );
       }
