@@ -95,6 +95,17 @@ class UnderpostFileStorage {
     ) {
       const { storage, storageConf } = Underpost.fs.getStorageConf(options);
 
+      // ── Single-file handling: when path is a file (not a directory), use parent dir
+      //    as the git working directory and process just that one file. ──────────────
+      let isSingleFile = false;
+      let parentDir = path;
+      let singleFileName = '';
+      if (fs.existsSync(path) && !fs.statSync(path).isDirectory()) {
+        isSingleFile = true;
+        parentDir = dir.dirname(path);
+        singleFileName = path.split('/').pop();
+      }
+
       // In recursive remove mode, delete every tracked storage key under the requested path,
       // even when local files/directories are already missing.
       if (options.rm === true) {
@@ -137,10 +148,15 @@ class UnderpostFileStorage {
         return;
       }
 
-      const deleteFiles = options.pull === true ? [] : Underpost.repo.getDeleteFiles(path);
+      // For single files, run getDeleteFiles against the parent directory to avoid
+      // trying to `cd` into a file.
+      const gitContextPath = isSingleFile ? parentDir : path;
+      const deleteFiles = options.pull === true ? [] : Underpost.repo.getDeleteFiles(gitContextPath);
+
+      // When processing a single file, only consider it for deletion
       for (const relativePath of deleteFiles) {
-        const _path = path + '/' + relativePath;
-        if (_path in storage) {
+        const _path = isSingleFile ? (relativePath === singleFileName ? path : null) : path + '/' + relativePath;
+        if (_path && _path in storage) {
           await Underpost.fs.delete(_path);
           delete storage[_path];
         }
@@ -157,17 +173,25 @@ class UnderpostFileStorage {
         // Only run git init/commit when the caller explicitly requests git tracking (--git flag).
         // For bundle pulls into ./build the git step is unwanted and would error on a non-repo path.
         if (options.git === true) {
-          Underpost.repo.initLocalRepo({ path });
-          shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`, {
+          Underpost.repo.initLocalRepo({ path: gitContextPath });
+          shellExec(`cd ${gitContextPath} && git add . && git commit -m "Base pull state"`, {
             silentOnError: true,
           });
         }
       } else {
-        const files =
-          options.git === true ? Underpost.repo.getChangedFiles(path) : await fs.readdir(path, { recursive: true });
+        let files;
+        if (isSingleFile) {
+          // Single file: treat the file itself as the sole item to process
+          files = [singleFileName];
+        } else {
+          files =
+            options.git === true
+              ? Underpost.repo.getChangedFiles(gitContextPath)
+              : await fs.readdir(path, { recursive: true });
+        }
         for (const relativePath of files) {
-          const _path = path + '/' + relativePath;
-          if (fs.statSync(_path).isDirectory()) {
+          const _path = isSingleFile ? path : path + '/' + relativePath;
+          if (fs.existsSync(_path) && fs.statSync(_path).isDirectory()) {
             if (options.pull === true && !fs.existsSync(_path)) fs.mkdirSync(_path, { recursive: true });
             continue;
           } else if (!(_path in storage) || options.force === true) {
@@ -178,8 +202,8 @@ class UnderpostFileStorage {
       }
       Underpost.fs.writeStorageConf(storage, storageConf);
       if (options.git === true) {
-        shellExec(`cd ${path} && git add .`);
-        shellExec(`underpost cmt ${path} feat`, {
+        shellExec(`cd ${gitContextPath} && git add .`);
+        shellExec(`underpost cmt ${gitContextPath} feat`, {
           silentOnError: true,
           silent: true,
           disableLog: true,
