@@ -235,15 +235,21 @@ All requests are CORS-simple GETs (no preflight) and cacheable. None require cre
 ```bash
 cd cyberia-client
 
-# Development build
-make -f Web.mk clean && make -f Web.mk web
+# Development build (defaults: BUILD_MODE=DEBUG, localhost URLs)
+make -f Web.mk clean && make -f Web.mk all
 
-# Release build
-make -f Web.mk clean && make -f Web.mk web BUILD_MODE=RELEASE
+# Release build — pass the production URLs explicitly (see note below)
+make -f Web.mk clean && make -f Web.mk all BUILD_MODE=RELEASE \
+    WS_URL=wss://server.cyberiaonline.com/ws \
+    API_BASE=https://www.cyberiaonline.com
 
-# Build + serve on dev port :8082
-make -f Web.mk serve-development
+# Build + serve locally on dev port :8082 (DEBUG, localhost)
+./dev-server.sh            # or: ./dev-server.sh <port>
 ```
+
+`WS_URL` and `API_BASE` are passed straight through to the compiler — see
+[Compile-time configuration](#compile-time-configuration). When omitted they
+default to `localhost`, so **production build pipelines must pass real URLs**.
 
 The build is part of the Underpost Platform static + PWA pipeline; production deploys go through `underpost client` and `underpost deploy`.
 
@@ -261,22 +267,33 @@ bin/
 
 ## Compile-time configuration
 
-`src/config.h`:
+### Server URLs (build arguments)
 
-| Constant                    | Default                             | Description                                                                                                      |
-| --------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `WS_URL`                    | `wss://server.cyberiaonline.com/ws` | WebSocket endpoint of cyberia-server                                                                             |
-| `API_BASE_URL`              | `https://www.cyberiaonline.com`     | engine-cyberia REST base URL                                                                                     |
-| `CYBERIA_CLIENT_HINTS_CODE` | `cyberia-main`                      | Lookup key for the optional client-hints fetch (presentation override key — never an instance/server identifier) |
-| `HTTP_TIMEOUT_SECONDS`      | `10`                                | HTTP request timeout                                                                                             |
-| `MAX_TEXTURE_CACHE_SIZE`    | `512`                               | Atlas texture LRU cap                                                                                            |
-| `MAX_LAYER_CACHE_SIZE`      | `256`                               | ObjectLayer metadata LRU cap                                                                                     |
-| `MAX_ATLAS_CACHE_SIZE`      | `256`                               | Atlas metadata LRU cap                                                                                           |
-| `DEFAULT_FRAME_DURATION_MS` | `100`                               | Default animation frame duration                                                                                 |
-| `ENABLE_DEV_UI`             | `false`                             | Force dev overlay regardless of presentation hints                                                               |
-| `APP_VERSION`               | `"1.0.0"`                           | Application version string                                                                                       |
+`WS_URL` and `API_BASE` are `make` arguments baked into the WASM as
+`-DWS_URL_OVERRIDE` / `-DAPI_BASE_URL_OVERRIDE`. There is **no** RELEASE/DEBUG URL
+switch — both default to `localhost` regardless of `BUILD_MODE`:
 
-For local development, point `WS_URL` and `API_BASE_URL` at `localhost` before rebuilding.
+| make argument | Default                  | Baked macro             |
+| ------------- | ------------------------ | ----------------------- |
+| `WS_URL`      | `ws://localhost:8081/ws` | `WS_URL_OVERRIDE`       |
+| `API_BASE`    | `http://localhost:4005`  | `API_BASE_URL_OVERRIDE` |
+
+> **Production pipelines must pass the URLs.** `BUILD_MODE=RELEASE` alone still
+> yields `localhost`. Any release build — the Docker image build, CI, manual
+> release — must pass `WS_URL=wss://… API_BASE=https://…` as make arguments
+> (or Docker build-args wired through to `make`), or the client ships pointing
+> at localhost. If unset, `src/config.h` falls back to bare `"ws://"` /
+> `"https://"` stubs.
+
+### Constants (`src/config.h`)
+
+| Constant                    | Default        | Description                                                                                                      |
+| --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `CYBERIA_CLIENT_HINTS_CODE` | `cyberia-main` | Lookup key for the optional client-hints fetch (presentation override key — never an instance/server identifier) |
+| `MAX_TEXTURE_CACHE_SIZE`    | `512`          | Atlas texture LRU cap                                                                                            |
+| `MAX_LAYER_CACHE_SIZE`      | `256`          | ObjectLayer metadata LRU cap                                                                                     |
+| `MAX_ATLAS_CACHE_SIZE`      | `256`          | Atlas metadata LRU cap                                                                                           |
+| `DEFAULT_FRAME_DURATION_MS` | `100`          | Default animation frame duration                                                                                 |
 
 ---
 
