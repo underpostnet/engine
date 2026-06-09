@@ -2202,7 +2202,7 @@ class ObjectLayerEngineModal {
       </div>
 
       <div class="in section-mp section-mp-border">
-        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> instance data</div>
+        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> render data</div>
         ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
 
         <div class="fl">
