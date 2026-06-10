@@ -157,9 +157,11 @@ sequenceDiagram
 ## Dialogue Interaction Protocol (talk / quest-talk)
 
 Tapping an interaction bubble opens the Raylib-native **`modal_interact`** modal
-first — the general-purpose entry point. Its `[Talk]` tab (shown only when the
-entity has dialogue) opens `modal_dialogue`; its `[Chat / Profile]` tab opens the
-JS overlay with no freeze.
+(top half of the screen). It has a tab strip — **stack** (active item slots),
+**stats** (six-stat stack totals), and **action** (mission interface, shown only
+for action-provider entities, ESI 8) — over a fixed bottom bar of right-aligned
+integration buttons (**Chat**, **Integration**) that open the JS overlay. The
+action tab's **Talk / Take mission** opens `modal_dialogue` (bottom half).
 
 The client is identical for `talk` and `quest-talk`; the **server** branches after
 `dlg_complete`. The client never declares the action type, quest code, or quest
@@ -205,6 +207,22 @@ simulation state.
 | `modal_interact` open              | Active (no freeze)        |
 | `dlg_start` sent                   | Frozen — immune to damage |
 | `dlg_complete` / `dlg_cancel` sent | Unfrozen                  |
+
+---
+
+## Fallback World mission instantiation
+
+The default mission system is playable in the procedural **Fallback World**.
+`DefaultCyberiaActions` carry `sourceMapCode` / `sourceCellX` / `sourceCellY`
+(all on `fallback-map-0`), and the world generator's
+`generateActionProviderBots()` places one passive NPC bot per action at those
+exact cells (skin = `provideItemId`, zero spawn/aggro radius). The fallback map
+builder reserves those cells (dropping any overlapping obstacle) so the NPCs
+always stand on walkable ground. The Go server then binds each bot back to its
+action by `sourceMapCode + sourceCellX + sourceCellY` at instance init and keeps
+an **ephemeral** per-session `CyberiaQuestProgress` (no persistence) — matching
+the ROADMAP Road-to-Alpha-Open contract. `scp-2040` kill targets spawn from the
+random bot pool, so the intro quest's talk → collect → kill loop is reachable.
 
 ---
 
