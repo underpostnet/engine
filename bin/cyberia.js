@@ -4157,6 +4157,7 @@ try {
       shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-skill-config${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-actions-quests${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}${mongoHostFlag}`);
     });
 
@@ -4282,6 +4283,62 @@ try {
       }
 
       logger.info(`seed-dialogues: ${upserted} dialogue records upserted`);
+
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    });
+
+  runner
+    .command('seed-actions-quests')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert DefaultCyberiaActions + DefaultCyberiaQuests into Mongo (idempotent)')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-actions-quests', { deployId, host, path, db });
+
+      await DataBaseProviderService.load({ apis: ['cyberia-action', 'cyberia-quest'], host, path, db });
+
+      const CyberiaAction = DataBaseProviderService.getModel('cyberia-action', { host, path });
+      const CyberiaQuest = DataBaseProviderService.getModel('cyberia-quest', { host, path });
+
+      let actions = 0;
+      for (const a of DefaultCyberiaActions) {
+        await CyberiaAction.findOneAndUpdate({ code: a.code }, { $set: a }, { upsert: true });
+        actions++;
+      }
+      let quests = 0;
+      for (const q of DefaultCyberiaQuests) {
+        await CyberiaQuest.findOneAndUpdate({ code: q.code }, { $set: q }, { upsert: true });
+        quests++;
+      }
+
+      logger.info(`seed-actions-quests: ${actions} actions, ${quests} quests upserted`);
 
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
