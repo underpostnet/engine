@@ -28,6 +28,7 @@ import {
   generatePortalEntity,
   generatePortalEntities,
   generateBots,
+  generateActionProviderBots,
   OccupancyGrid,
 } from './cyberia-world-generator.js';
 
@@ -96,6 +97,16 @@ function auditFallbackItemIds() {
 
 // ── Single map generator ─────────────────────────────────────────────────────
 
+/** AABB overlap test for two entities in cell space. */
+function entitiesOverlap(a, b) {
+  return (
+    a.initCellX < b.initCellX + b.dimX &&
+    a.initCellX + a.dimX > b.initCellX &&
+    a.initCellY < b.initCellY + b.dimY &&
+    a.initCellY + a.dimY > b.initCellY
+  );
+}
+
 /**
  * Generate a complete in-memory map with all entity types.
  * Everything except floor tiles is randomized.
@@ -117,26 +128,37 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
   // 1. Floor — deterministic full coverage
   const floors = generateFloorEntities(mapDims, colors);
 
-  // 2. Obstacles — random count, position, dimensions (placed first)
-  const obstacles = generateObstacles(mapDims, colors, { count: opts.obstacleCount });
+  // 2. Action-provider NPCs — fixed cells from DefaultCyberiaActions. Built
+  //    first so their mission cells are guaranteed clear and walkable.
+  const actionProviders = generateActionProviderBots(mapCode, colors);
 
-  // 3. Build occupancy grid from obstacles
+  // 3. Obstacles — random, minus any overlapping an action-provider cell so
+  //    the mission NPCs always stand on walkable ground.
+  const obstacles = generateObstacles(mapDims, colors, { count: opts.obstacleCount }).filter(
+    (o) => !actionProviders.some((ap) => entitiesOverlap(o, ap)),
+  );
+
+  // 4. Build occupancy grid from obstacles, then reserve action-provider cells.
   const grid = new OccupancyGrid(gridSize, gridSize);
   grid.addObstacles(obstacles);
+  for (const ap of actionProviders) grid.block(ap.initCellX, ap.initCellY, ap.dimX, ap.dimY);
 
-  // 4. Portals — placed on walkable cells only, then blocked so bots avoid them
+  // 5. Portals — placed on walkable cells only, then blocked so bots avoid them
   const portalEntities = generatePortalEntities(mapDims, colors, { grid });
 
-  // 5. Bots — placed on walkable cells (avoids obstacles and portals)
+  // 6. Bots — placed on walkable cells (avoids obstacles, portals, NPCs)
   const bots = generateBots(mapDims, colors, { count: opts.botCount, grid });
 
-  // 6. Resources — static exploitable entities placed on walkable cells
+  // 7. Resources — static exploitable entities placed on walkable cells
   const resources = generateResources(mapDims, colors, { count: opts.resourceCount, grid });
 
-  // 7. Foreground — decorative, no collision restriction
+  // 8. Foreground — decorative, no collision restriction
   const foreground = generateForeground(mapDims, colors, { count: opts.foregroundCount });
 
-  const entities = [...floors, ...obstacles, ...portalEntities, ...foreground, ...bots, ...resources];
+  const entities = [
+    ...floors, ...obstacles, ...portalEntities, ...foreground,
+    ...actionProviders, ...bots, ...resources,
+  ];
 
   return {
     code: mapCode,

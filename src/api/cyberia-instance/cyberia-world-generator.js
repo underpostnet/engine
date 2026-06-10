@@ -20,6 +20,7 @@ import {
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
   DefaultCyberiaItems,
+  DefaultCyberiaActions,
   ITEM_TYPES,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
@@ -457,6 +458,65 @@ function generateBots(mapDims, colors, opts = {}) {
 }
 
 /**
+ * Action-provider NPC bots — the fixed-position entities that back the
+ * default mission system. One passive bot is placed per `CyberiaAction`
+ * whose `sourceMapCode` matches `mapCode`, at the action's
+ * (`sourceCellX`, `sourceCellY`). The Go server binds each bot back to its
+ * action by these coordinates, so the positions here are the single source
+ * of truth shared with `DefaultCyberiaActions`.
+ *
+ * The NPC skin is derived from the action's first `default-<skin>` dialogue
+ * code (e.g. `default-wason` → skin `wason`) — there is no separate
+ * provideItemId; the bot's own active skin is what 'talk' objectives match.
+ *
+ * @param {string} mapCode
+ * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
+ * @param {object} [opts]
+ * @param {number} [opts.dim=2]
+ * @param {OccupancyGrid} [opts.grid]   Cells are reserved when provided.
+ * @returns {object[]}  Bot-shaped entities.
+ */
+function actionProviderSkin(action) {
+  const code = (action.questDialogueCodes || []).find((c) => c.startsWith('default-'));
+  return code ? code.slice('default-'.length) : '';
+}
+
+function generateActionProviderBots(mapCode, colors, opts = {}) {
+  const dim = opts.dim ?? 2;
+  const botColor = findColor(colors, 'BOT');
+  const rgba = botColor ? colorToRgba(botColor) : 'rgba(255, 128, 0, 1)';
+
+  const entities = [];
+  for (const action of DefaultCyberiaActions) {
+    if (action.sourceMapCode !== mapCode) continue;
+    if (typeof action.sourceCellX !== 'number' || typeof action.sourceCellY !== 'number') continue;
+    const skin = actionProviderSkin(action);
+    if (!skin) continue;
+    const cellX = action.sourceCellX;
+    const cellY = action.sourceCellY;
+
+    if (opts.grid) opts.grid.block(cellX, cellY, dim, dim);
+
+    // Passive, stationary NPC: no weapon, zero spawn/aggro radius so it
+    // holds its action cell for the Go-server spatial bind.
+    entities.push({
+      entityType: 'bot',
+      initCellX: cellX,
+      initCellY: cellY,
+      dimX: dim,
+      dimY: dim,
+      color: rgba,
+      objectLayerItemIds: [skin],
+      spawnRadius: 0,
+      aggroRange: 0,
+      maxLife: 100,
+      lifeRegen: 0,
+    });
+  }
+  return entities;
+}
+
+/**
  * Generate all procedural fallback entities (obstacles + foreground + resources) for a map.
  *
  * @param {{ gridX: number, gridY: number }} mapDims
@@ -493,6 +553,7 @@ export {
   generatePortalEntity,
   generatePortalEntities,
   generateBots,
+  generateActionProviderBots,
   generateProceduralEntities,
   // Ranges
   OBSTACLE_RANGE,
