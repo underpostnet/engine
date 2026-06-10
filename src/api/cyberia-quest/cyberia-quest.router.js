@@ -13,6 +13,8 @@ class CyberiaQuestRouter {
     const router = express.Router();
     router.post(`/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
     router.post(`/`, async (req, res) => await CyberiaQuestController.post(req, res, options));
+    // Direct lookup by code — C client fetches quest metadata by code.
+    router.get(`/code/:code`, async (req, res) => await CyberiaQuestController.getByCode(req, res, options));
     router.get(`/:id`,
       // options.authMiddleware,
       async (req, res) => await CyberiaQuestController.get(req, res, options),

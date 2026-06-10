@@ -26,6 +26,15 @@ class CyberiaQuestService {
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
   };
+  static getByCode = async (req, res, options) => {
+    /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
+    const CyberiaQuest = DataBaseProviderService.getModel("CyberiaQuest", options);
+    const { code } = req.params;
+    if (!code) throw new Error('code parameter is required');
+    const data = await CyberiaQuest.findOne({ code }).lean();
+    if (!data) throw new Error(`No quest found for code: ${code}`);
+    return data;
+  };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
     const CyberiaQuest = DataBaseProviderService.getModel("CyberiaQuest", options);
