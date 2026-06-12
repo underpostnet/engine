@@ -306,7 +306,7 @@ class ObjectLayerManagement {
       },
       {
         field: 'data.render.cid',
-        headerName: 'instance CID',
+        headerName: 'render CID',
         width: 160,
         cellRenderer: AtlasCidRenderer,
         editable: false,
@@ -315,7 +315,7 @@ class ObjectLayerManagement {
       },
       {
         field: 'data.render.metadataCid',
-        headerName: 'instance Metadata CID',
+        headerName: 'render Metadata CID',
         width: 160,
         cellRenderer: MetadataCidRenderer,
         editable: false,
