@@ -497,8 +497,9 @@ function generateActionProviderBots(mapCode, colors, opts = {}) {
 
     if (opts.grid) opts.grid.block(cellX, cellY, dim, dim);
 
-    // Passive, stationary NPC: no weapon, zero spawn/aggro radius so it
-    // holds its action cell for the Go-server spatial bind.
+    // Passive quest-giver NPC: no aggro, and a small wander radius so it
+    // drifts near its source cell but stays easy to find. The Go server binds
+    // it by its spawn-centre (the initial cell), so the bind survives movement.
     entities.push({
       entityType: 'bot',
       initCellX: cellX,
@@ -507,7 +508,7 @@ function generateActionProviderBots(mapCode, colors, opts = {}) {
       dimY: dim,
       color: rgba,
       objectLayerItemIds: [skin],
-      spawnRadius: 0,
+      spawnRadius: 2,
       aggroRange: 0,
       maxLife: 100,
       lifeRegen: 0,
