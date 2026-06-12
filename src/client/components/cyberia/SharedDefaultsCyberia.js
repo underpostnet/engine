@@ -126,6 +126,7 @@ export const DefaultCyberiaItems = [
   { item: { id: 'tim-knife', type: ITEM_TYPES.weapon } },
   { item: { id: 'hatchet', type: ITEM_TYPES.weapon } },
   { item: { id: 'wason', type: ITEM_TYPES.skin } },
+  { item: { id: 'kishins', type: ITEM_TYPES.skin } },
   { item: { id: 'scp-2040', type: ITEM_TYPES.skin } },
   { item: { id: 'purple', type: ITEM_TYPES.skin } },
   { item: { id: 'punk', type: ITEM_TYPES.skin } },
