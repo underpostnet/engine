@@ -258,14 +258,15 @@ function toInstanceMsg(doc) {
 function toActionMsg(a) {
   return {
     code: a.code || '',
-    type: a.type || '',
     label: a.label || '',
     sourceMapCode: a.sourceMapCode || '',
     sourceCellX: a.sourceCellX || 0,
     sourceCellY: a.sourceCellY || 0,
-    grantQuestCode: a.grantQuestCode || '',
     dialogCode: a.dialogCode || '',
-    questDialogueCodes: a.questDialogueCodes || [],
+    questDialogueCodes: (a.questDialogueCodes || []).map((qd) => ({
+      questCode: qd.questCode || '',
+      dialogCode: qd.dialogCode || '',
+    })),
   };
 }
 
@@ -277,6 +278,9 @@ function toQuestMsg(q) {
     description: q.description || '',
     unlocksQuestCodes: q.unlocksQuestCodes || [],
     prerequisiteCodes: q.prerequisiteCodes || [],
+    sourceMapCode: q.sourceMapCode || '',
+    sourceCellX: q.sourceCellX || 0,
+    sourceCellY: q.sourceCellY || 0,
     steps: (q.steps || []).map((s) => ({
       id: s.id || '',
       description: s.description || '',

@@ -13,6 +13,9 @@ class CyberiaActionRouter {
     const router = express.Router();
     router.post(`/:id`, async (req, res) => await CyberiaActionController.post(req, res, options));
     router.post(`/`, async (req, res) => await CyberiaActionController.post(req, res, options));
+    // Direct lookup by code — the client fetches an NPC's action metadata
+    // (label, dialogue map) by the action code the Go server sends over AOI.
+    router.get(`/code/:code`, async (req, res) => await CyberiaActionController.getByCode(req, res, options));
     router.get(`/:id`,
       // options.authMiddleware,
       async (req, res) => await CyberiaActionController.get(req, res, options),

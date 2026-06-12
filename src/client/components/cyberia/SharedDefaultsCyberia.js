@@ -18,7 +18,7 @@
  *
  *   2. **Shared content vocabulary** — `ITEM_TYPES`, `ENTITY_TYPES`,
  *      `DefaultCyberiaItems` registry + lookups, type-to-item mapping,
- *      quest step / action type enums. The data shape both the
+ *      quest step objective enum. The data shape both the
  *      browser-side editor UI and the engine REST controllers need to
  *      understand; it is **not** simulation state.
  *
@@ -107,9 +107,6 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
 
 /** Quest step objective types accepted by the quest-progress engine. */
 export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
-
-/** Action categories accepted by the cyberia-action engine. */
-export const CYBERIA_ACTION_TYPES = Object.freeze(['craft', 'shop', 'storage', 'talk', 'quest-talk']);
 
 /**
  * Canonical (itemId → itemType) registry shipped with the engine. Used

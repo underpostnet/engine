@@ -477,8 +477,9 @@ function generateBots(mapDims, colors, opts = {}) {
  * @returns {object[]}  Bot-shaped entities.
  */
 function actionProviderSkin(action) {
-  const code = (action.questDialogueCodes || []).find((c) => c.startsWith('default-'));
-  return code ? code.slice('default-'.length) : '';
+  // Skin derives from the action's greeting dialogCode (`default-<skin>`).
+  const code = action.dialogCode || '';
+  return code.startsWith('default-') ? code.slice('default-'.length) : '';
 }
 
 function generateActionProviderBots(mapCode, colors, opts = {}) {
