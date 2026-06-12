@@ -1,6 +1,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
+import { DefaultCyberiaDialogues } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -43,8 +44,13 @@ class CyberiaDialogueService {
     const { code } = req.params;
     if (!code) throw new Error('code parameter is required');
     const data = await CyberiaDialogue.find({ code }).sort({ order: 1 }).lean();
-    if (!data.length) throw new Error(`No dialogue found for code: ${code}`);
-    return data;
+    if (data.length) return data;
+    // Fallback world greetings/quest dialogue come from the canonical defaults
+    // without persisting them; serve those so action NPCs always have lines
+    // (and thus the dlg_complete grant handshake fires).
+    const fallback = DefaultCyberiaDialogues.filter((d) => d.code === code).sort((a, b) => a.order - b.order);
+    if (fallback.length) return fallback;
+    throw new Error(`No dialogue found for code: ${code}`);
   };
 }
 

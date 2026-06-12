@@ -1,6 +1,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
+import { DefaultCyberiaQuests } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -32,8 +33,13 @@ class CyberiaQuestService {
     const { code } = req.params;
     if (!code) throw new Error('code parameter is required');
     const data = await CyberiaQuest.findOne({ code }).lean();
-    if (!data) throw new Error(`No quest found for code: ${code}`);
-    return data;
+    if (data) return data;
+    // Fallback world delivers quests to the Go server via gRPC from the
+    // canonical defaults without persisting them. Serve those same defaults so
+    // the client can resolve metadata even when Mongo has no seeded quest.
+    const fallback = DefaultCyberiaQuests.find((q) => q.code === code);
+    if (fallback) return fallback;
+    throw new Error(`No quest found for code: ${code}`);
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
