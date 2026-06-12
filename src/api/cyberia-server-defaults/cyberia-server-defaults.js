@@ -385,14 +385,14 @@ export const DefaultCyberiaQuests = [
         objectives: [{ type: 'talk', itemId: 'alex', quantity: 1 }],
       },
       {
-        id: 'step-collect-hatchet',
-        description: 'Obtain a hatchet for Wason.',
-        objectives: [{ type: 'collect', itemId: 'hatchet', quantity: 1 }],
+        id: 'step-collect-wood',
+        description: 'Obtain a wood for Wason.',
+        objectives: [{ type: 'collect', itemId: 'wood-drop-1', quantity: 1 }],
       },
       {
-        id: 'step-kill-scp',
-        description: 'Eliminate SCP-2040 anomalies threatening the trade routes.',
-        objectives: [{ type: 'kill', itemId: 'scp-2040', quantity: 2 }],
+        id: 'step-kill-kishins',
+        description: 'Eliminate Kishins anomalies threatening the trade routes.',
+        objectives: [{ type: 'kill', itemId: 'kishins', quantity: 2 }],
       },
     ],
     rewards: [{ itemId: 'coin', quantity: 50 }],
@@ -410,8 +410,8 @@ export const DefaultCyberiaQuests = [
     steps: [
       {
         id: 'step-kill-first',
-        description: 'Eliminate the SCP-2040 threat.',
-        objectives: [{ type: 'kill', itemId: 'scp-2040', quantity: 1 }],
+        description: 'Eliminate the Kishins threat.',
+        objectives: [{ type: 'kill', itemId: 'kishins', quantity: 1 }],
       },
       {
         id: 'step-collect-reward',
