@@ -436,7 +436,8 @@ function generateBots(mapDims, colors, opts = {}) {
       cellY = randInt(0, maxY);
     }
 
-    const skin = BOT_SKIN_POOL[Math.floor(Math.random() * BOT_SKIN_POOL.length)];
+    // const skin = BOT_SKIN_POOL[Math.floor(Math.random() * BOT_SKIN_POOL.length)];
+    const skin = 'kishins';
     const hasWeapon = Math.random() < BOT_WEAPON_CHANCE;
     const itemIds = hasWeapon ? [skin, 'atlas_pistol_mk2'] : [skin];
 
