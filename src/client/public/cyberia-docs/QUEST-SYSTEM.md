@@ -119,7 +119,7 @@ sequenceDiagram
     participant E as Engine (Node.js)
     participant DB as MongoDB
 
-    P->>G: Tap NPC with grantQuestCode
+    P->>G: Tap NPC + Take Quest (quest_accept) — quest bound to the NPC's cell
     G->>E: POST /api/cyberia-quest-progress (grant quest)
     E->>DB: Create CyberiaQuestProgress { status: 'active' }
     E-->>G: Progress document
