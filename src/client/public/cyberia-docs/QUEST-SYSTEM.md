@@ -10,7 +10,7 @@ The Quest System is a **chain/tree-structured progression framework** linking NP
 
 Quests are defined server-side as MongoDB documents and delivered to the client through the Engine REST API. Progress is tracked per-player in `CyberiaQuestProgress` documents.
 
-> **Implementation status — Alpha (talk objectives):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and now evaluates `talk` objectives, grants quests, advances steps, and delivers rewards via FCT on completion (driven by `dlg_complete` — see ACTION-SYSTEM.md). `collect` and `kill` objective evaluation remains planned for a later Alpha increment. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** (see below).
+> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/cyberia-quest/code/:code` (which falls back to the canonical defaults so the procedural fallback world is playable without a seed).
 
 ---
 
@@ -81,9 +81,9 @@ CyberiaQuestProgress {
 
 | `type`    | `itemId` semantics                                             | Completion trigger                                                                                 |
 | --------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `collect` | ObjectLayer item ID that must appear in the player's inventory | Player inventory contains `>= quantity` of `itemId`                                                |
-| `talk`    | `CyberiaAction.provideItemId` of the NPC to interact with      | Player triggers a talk action where `provideItemId === itemId` and all `questDialogueCodes` viewed |
-| `kill`    | Skin item ID of the target entity (e.g. `"wason"`)             | Player kills an entity whose active skin matches `itemId`                                          |
+| `collect` | ObjectLayer item ID that must appear in the player's inventory | Player inventory holds `>= quantity` of `itemId` (coins via the flat balance) — reconciled on every gain |
+| `talk`    | Active **skin** item ID of the NPC to interact with           | Player completes a `dlg_complete` whose NPC active skin `=== itemId` and `dialogCode ∈ questDialogueCodes` |
+| `kill`    | Skin item ID of the target entity (e.g. `"scp-2040"`)         | Player kills an entity whose active skin matches `itemId`                                          |
 
 ---
 
