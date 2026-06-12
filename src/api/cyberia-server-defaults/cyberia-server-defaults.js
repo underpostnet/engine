@@ -19,8 +19,8 @@
  * the entire simulation defaults into the public JS payload.
  *
  * Shared content **vocabulary** (item/entity type enums, the
- * `DefaultCyberiaItems` registry, `ENTITY_TYPE_TO_ITEM_TYPES`, quest /
- * action enums) lives in `SharedDefaultsCyberia.js`. This file
+ * `DefaultCyberiaItems` registry, `ENTITY_TYPE_TO_ITEM_TYPES`, the quest
+ * step objective enum) lives in `SharedDefaultsCyberia.js`. This file
  * re-imports those so the browser editor never needs to reach into
  * server-defaults to learn the schema.
  *
@@ -45,7 +45,6 @@ export {
   ENTITY_TYPES,
   ENTITY_TYPE_TO_ITEM_TYPES,
   QUEST_STEPS_TYPES,
-  CYBERIA_ACTION_TYPES,
   DefaultCyberiaItems,
   getDefaultCyberiaItemById,
   getDefaultCyberiaItemsByItemType,
@@ -305,6 +304,27 @@ export const DefaultCyberiaDialogues = [
     text: 'There is nothing I can grant you. Only the wired remembers.',
     mood: 'neutral',
   },
+  {
+    code: 'quest-talk-wason-errand',
+    order: 0,
+    speaker: 'Wason',
+    text: 'A small thing, friend — the field is littered with loose coin. Gather a few and bring them here.',
+    mood: 'happy',
+  },
+  {
+    code: 'quest-talk-wason-errand',
+    order: 1,
+    speaker: 'Wason',
+    text: 'You have my thanks. A good hatchet for an honest errand.',
+    mood: 'neutral',
+  },
+  {
+    code: 'quest-talk-agent',
+    order: 0,
+    speaker: 'Agent',
+    text: 'Civilian. There is a bounty if you have the stomach for it. Eliminate the threat, collect the drop, report back.',
+    mood: 'neutral',
+  },
 ];
 
 /**
@@ -312,54 +332,52 @@ export const DefaultCyberiaDialogues = [
  * Each entry follows the `CyberiaAction` model schema.
  */
 export const DefaultCyberiaActions = [
-  // The NPC skin is derived from the `default-<skin>` dialogue code (e.g.
-  // default-wason → skin wason); there is no provideItemId. dialogCode is the
-  // greeting shown when the interaction modal opens; questDialogueCodes are
-  // the groups whose completion advances a 'talk' objective. 'talk' objectives
-  // match against the talked-to bot's active skin + the action cell binding.
+  // An action has no `type`: it declares the capabilities available at a cell.
+  // `code` is a generic location slug; `label` is the bot's overhead name (the
+  // client fetches it by code via REST). The NPC skin is derived from
+  // `dialogCode` (default-<skin>). `questDialogueCodes` maps each quest the NPC
+  // handles to the dialogue shown for it (offer + talk-objective validation).
+  // The quests an NPC OFFERS are those whose source cell matches the action's.
   {
-    code: 'wason-quest-intro',
-    type: 'quest-talk',
-    label: 'Quest',
+    code: 'loc-fallback-map-0-12-10',
+    label: 'Wason',
     sourceMapCode: 'fallback-map-0',
     sourceCellX: 12,
     sourceCellY: 10,
-    grantQuestCode: 'fallback-intro-quest',
     dialogCode: 'default-wason',
-    questDialogueCodes: ['default-wason'],
+    questDialogueCodes: [
+      { questCode: 'fallback-intro-quest', dialogCode: 'quest-talk-wason' },
+      { questCode: 'wason-errand', dialogCode: 'quest-talk-wason-errand' },
+      // bounty's report-back talk happens here too (bounty is offered at the agent cell).
+      { questCode: 'bounty-quest-alpha', dialogCode: 'quest-talk-wason' },
+    ],
   },
   {
-    code: 'alex-quest-talk',
-    type: 'quest-talk',
-    label: 'Quest Talk',
+    code: 'loc-fallback-map-0-18-10',
+    label: 'Alex',
     sourceMapCode: 'fallback-map-0',
     sourceCellX: 18,
     sourceCellY: 10,
-    grantQuestCode: '',
     dialogCode: 'default-alex',
-    questDialogueCodes: ['default-alex'],
+    questDialogueCodes: [{ questCode: 'fallback-intro-quest', dialogCode: 'quest-talk-alex' }],
   },
   {
-    code: 'agent-mission-brief',
-    type: 'quest-talk',
-    label: 'Mission Brief',
+    code: 'loc-fallback-map-0-12-16',
+    label: 'Agent',
     sourceMapCode: 'fallback-map-0',
     sourceCellX: 12,
     sourceCellY: 16,
-    grantQuestCode: 'bounty-quest-alpha',
     dialogCode: 'default-agent',
-    questDialogueCodes: ['default-agent'],
+    questDialogueCodes: [{ questCode: 'bounty-quest-alpha', dialogCode: 'quest-talk-agent' }],
   },
   {
-    code: 'lain-talk',
-    type: 'talk',
-    label: 'Talk',
+    code: 'loc-fallback-map-0-15-22',
+    label: 'Lain',
     sourceMapCode: 'fallback-map-0',
     sourceCellX: 15,
     sourceCellY: 22,
-    grantQuestCode: '',
     dialogCode: 'default-lain',
-    questDialogueCodes: ['default-lain'],
+    questDialogueCodes: [],
   },
 ];
 
@@ -396,6 +414,31 @@ export const DefaultCyberiaQuests = [
       },
     ],
     rewards: [{ itemId: 'coin', quantity: 50 }],
+  },
+  {
+    // Parallel initial mission — same source cell as Wason (12,10), no
+    // prerequisites, so the player can accept it alongside the intro quest.
+    code: 'wason-errand',
+    title: "Wason's Errand",
+    description: 'Gather coins from the field and bring them back to Wason.',
+    sourceMapCode: 'fallback-map-0',
+    sourceCellX: 12,
+    sourceCellY: 10,
+    prerequisiteCodes: [],
+    unlocksQuestCodes: [],
+    steps: [
+      {
+        id: 'step-collect-coins',
+        description: 'Collect 5 coins.',
+        objectives: [{ type: 'collect', itemId: 'coin', quantity: 5 }],
+      },
+      {
+        id: 'step-return-wason',
+        description: 'Return to Wason.',
+        objectives: [{ type: 'talk', itemId: 'wason', quantity: 1 }],
+      },
+    ],
+    rewards: [{ itemId: 'hatchet', quantity: 1 }],
   },
   {
     code: 'bounty-quest-alpha',
