@@ -20,6 +20,7 @@ import {
   ENTITY_TYPE_DEFAULTS,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
+  DefaultCyberiaItems,
   // STATUS_ICONS deliberately not imported here — see toInstanceConfig.
   // Server simulation only cares about the numeric u8 IDs (which travel on
   // the AOI wire). Icon stems + border colours live in SharedDefaultsCyberia.
@@ -275,6 +276,7 @@ function toQuestMsg(q) {
     title: q.title || '',
     description: q.description || '',
     unlocksQuestCodes: q.unlocksQuestCodes || [],
+    prerequisiteCodes: q.prerequisiteCodes || [],
     steps: (q.steps || []).map((s) => ({
       id: s.id || '',
       description: s.description || '',
@@ -481,6 +483,13 @@ function buildHandlers(dbKey) {
             for (const ol of d.defaultObjectLayers || []) {
               if (ol.itemId) fallbackItemIds.add(ol.itemId);
             }
+          }
+          // Include every canonical item so the Go server can resolve the type
+          // of anything a player may pick up or equip (quest rewards like
+          // hatchet, alt weapons, etc.) — required for the one-per-type
+          // equipment rule, which silently no-ops when item type is unknown.
+          for (const it of DefaultCyberiaItems || []) {
+            if (it?.item?.id) fallbackItemIds.add(it.item.id);
           }
 
           const fallbackOlDocs = fallbackItemIds.size

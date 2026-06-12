@@ -465,7 +465,12 @@ export const STATUS_ICONS = Object.freeze([
   { id: 5, name: 'dead', description: 'Entity is dead / respawning' },
   { id: 6, name: 'resource', description: 'Resource entity — static, exploitable (wood, minerals, etc.)' },
   { id: 7, name: 'resource-extracted', description: 'Resource entity extracted/depleted (dead state)' },
-  { id: 8, name: 'action-provider', description: 'Bot with available quest-talk/shop/storage/craft actions' },
+  {
+    id: 8,
+    name: 'action-provider',
+    description:
+      'Bot with an actionable quest-talk/shop/storage/craft action visible to players who can interact with it.',
+  },
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
