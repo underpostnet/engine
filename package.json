@@ -82,7 +82,7 @@
     "fullcalendar": "^6.1.15",
     "helmet": "^8.2.0",
     "html-minifier-terser": "^7.2.0",
-    "http-proxy-middleware": "^4.1.0",
+    "http-proxy-middleware": "^4.1.1",
     "ignore-walk": "^9.0.0",
     "iovalkey": "^0.3.3",
     "json-colorizer": "^3.0.1",
