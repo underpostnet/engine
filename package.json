@@ -88,8 +88,8 @@
     "json-colorizer": "^3.0.1",
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.5.3",
-    "mocha": "^11.7.6",
     "marked": "^18.0.5",
+    "mocha": "^11.7.6",
     "mongoose": "^9.7.0",
     "morgan": "^1.11.0",
     "nodemailer": "^9.0.0",
@@ -134,6 +134,7 @@
     "serialize-javascript": ">=7.0.5",
     "router": {
       "path-to-regexp": ">=8.4.0"
-    }
+    },
+    "ws": "^8.20.2"
   }
 }
