@@ -2775,6 +2775,33 @@ EOF`;
 
       logger.info(`[setup-shared-dir] Shared directory setup complete: ${dir}`);
     },
+    /**
+     * @method shared-dir-add-user
+     * @description Add a user to an existing shared directory without changing
+     * file owners. Grants recursive group/ACL access so the user can read and
+     * write throughout the shared workspace while preserving existing ownership.
+     *
+     * @param {string} path - Shared directory (defaults to `/home/dd/engine`).
+     * @param {Object} options - Underpost runner options.
+     *   Key fields:
+     *     - options.user  (default: 'admin')
+     *     - options.group (default: 'engine-dev')
+     *
+     * @memberof UnderpostRun
+     */ 'shared-dir-add-user': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
+      const dir = path || '/home/dd/engine';
+      const user = options.user || 'admin';
+
+      logger.info(`[shared-dir-add-user] dir=${dir} user=${user}`);
+
+      // Give the user direct access without changing owners or group ownership.
+      shellExec(`sudo setfacl -R -m u:${user}:rwx ${dir}`);
+
+      // Make future files/directories inherit the same user ACL.
+      shellExec(`sudo find ${dir} -type d -exec setfacl -d -m u:${user}:rwx {} \\;`);
+
+      logger.info(`[shared-dir-add-user] User '${user}' added to shared directory: ${dir}`);
+    },
   };
 
   static API = {
