@@ -2,6 +2,7 @@ import hre from 'hardhat';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { formatEther } from 'viem';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,17 +21,18 @@ const __dirname = path.dirname(__filename);
  * @module scripts/deployObjectLayerToken
  */
 async function main() {
-  const { ethers } = await hre.network.connect();
-  const [deployer] = await ethers.getSigners();
+  const [deployerClient] = await hre.viem.getWalletClients();
+  const deployerAddress = deployerClient.account.address;
+  const publicClient = await hre.viem.getPublicClient();
 
   console.log('──────────────────────────────────────────────────');
   console.log('Deploying ObjectLayerToken (ERC-1155)');
   console.log('──────────────────────────────────────────────────');
   console.log('  Network :', hre.network.name);
-  console.log('  Deployer:', deployer.address);
+  console.log('  Deployer:', deployerAddress);
 
-  const balance = await ethers.provider.getBalance(deployer.address);
-  console.log('  Balance :', ethers.formatEther(balance), 'ETH');
+  const balance = await publicClient.getBalance({ address: deployerAddress });
+  console.log('  Balance :', formatEther(balance), 'ETH');
   console.log('');
 
   // Base URI for IPFS metadata resolution.
@@ -38,35 +40,33 @@ async function main() {
   // or fall back to: ipfs://<tokenId>.json
   const baseURI = 'ipfs://';
 
-  const ObjectLayerToken = await ethers.getContractFactory('ObjectLayerToken');
-  const token = await ObjectLayerToken.deploy(deployer.address, baseURI);
-
-  await token.waitForDeployment();
-
-  const deployedAddress = await token.getAddress();
+  const token = await hre.viem.deployContract('ObjectLayerToken', [deployerAddress, baseURI]);
+  const deployedAddress = token.address;
 
   console.log('  ObjectLayerToken deployed to:', deployedAddress);
   console.log('');
 
   // ── Verify initial state ──────────────────────────────────────────────
 
-  const cryptokoynId = await token.CRYPTOKOYN();
-  const cryptokoynSupply = await token['totalSupply(uint256)'](cryptokoynId);
-  const deployerCryptokoynBalance = await token.balanceOf(deployer.address, cryptokoynId);
+  const cryptokoynId = await token.read.CRYPTOKOYN();
+  const cryptokoynSupply = await token.read['totalSupply(uint256)']([cryptokoynId]);
+  const deployerCryptokoynBalance = await token.read.balanceOf([deployerAddress, cryptokoynId]);
 
   console.log('  CryptoKoyn (token ID 0):');
-  console.log('    Total supply     :', ethers.formatEther(cryptokoynSupply), 'CKY');
-  console.log('    Deployer balance :', ethers.formatEther(deployerCryptokoynBalance), 'CKY');
+  console.log('    Total supply     :', formatEther(cryptokoynSupply), 'CKY');
+  console.log('    Deployer balance :', formatEther(deployerCryptokoynBalance), 'CKY');
   console.log('');
 
   // ── Output deployment info for integration ────────────────────────────
 
+  const chainId = (await publicClient.getChainId()).toString();
+
   const deploymentInfo = {
     network: hre.network.name,
-    chainId: (await ethers.provider.getNetwork()).chainId.toString(),
+    chainId,
     contract: 'ObjectLayerToken',
     address: deployedAddress,
-    deployer: deployer.address,
+    deployer: deployerAddress,
     baseURI: baseURI,
     cryptokoynTokenId: cryptokoynId.toString(),
     initialCryptokoynSupply: cryptokoynSupply.toString(),

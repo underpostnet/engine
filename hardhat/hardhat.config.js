@@ -6,7 +6,7 @@
 // Compatible with: Hardhat 3.x + Ethers v6 + hardhat-toolbox-mocha-ethers
 
 import { defineConfig } from 'hardhat/config';
-import hardhatToolboxMochaEthers from '@nomicfoundation/hardhat-toolbox-mocha-ethers';
+import hardhatToolboxViem from '@nomicfoundation/hardhat-toolbox-viem';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import path from 'path';
@@ -45,7 +45,7 @@ const coinbaseKey = readPrivateKey('../engine-private/eth-networks/besu/coinbase
 
 /** @type import('hardhat/config').HardhatUserConfig */
 const config = defineConfig({
-  plugins: [hardhatToolboxMochaEthers],
+  plugins: [hardhatToolboxViem],
 
   // ── Solidity ────────────────────────────────────────────────────────────────
   solidity: {
