@@ -31,6 +31,7 @@ import { ObjectLayerManagement } from '../../services/object-layer/object-layer.
 import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
+import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 
 class AppShellCyberiaPortal {
   static Data = {};
@@ -248,6 +249,18 @@ class AppShellCyberiaPortal {
             tabHref: `${getProxyPath()}cyberia-instance-engine`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cyberia-instance-engine')),
+          })}
+          ${await BtnIcon.instance({
+            class: 'in wfa main-btn-menu main-btn-cyberia-action-engine',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+              text: html`<span class="menu-label-text">${Translate.instance('cyberia-action-engine')}</span>`,
+            }),
+            attrs: `data-id="cyberia-action-engine"`,
+            tabHref: `${getProxyPath()}cyberia-action-engine`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cyberia-action-engine')),
           })}
         </div>
       `,
@@ -655,6 +668,26 @@ class AppShellCyberiaPortal {
           text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('cyberia-instance-engine')}</span>`,
         }),
         html: async () => await InstanceEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cyberia-action-engine`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-cyberia-action-engine',
+        route: 'cyberia-action-engine',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('cyberia-action-engine')}</span>`,
+        }),
+        html: async () => await ActionEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
