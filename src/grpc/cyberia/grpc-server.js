@@ -583,14 +583,18 @@ function buildHandlers(dbKey) {
         if (conf.updatedAt) versionParts.push(String(conf.updatedAt));
         const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
-        // Mission content for this instance: actions bound to its maps, plus
-        // every quest they can grant/advance. Delivered with the world so the
-        // Go server never opens a separate REST channel.
+        // Mission content for this instance: actions and quests bound to its
+        // maps (by sourceMapCode). Delivered with the world so the Go server
+        // never opens a separate REST channel, and never receives content from
+        // other instances' maps.
         const actionDocs =
           mapCodes.length && models.CyberiaAction
             ? await models.CyberiaAction.find({ sourceMapCode: { $in: mapCodes } }).lean()
             : [];
-        const questDocs = models.CyberiaQuest ? await models.CyberiaQuest.find({}).lean() : [];
+        const questDocs =
+          mapCodes.length && models.CyberiaQuest
+            ? await models.CyberiaQuest.find({ sourceMapCode: { $in: mapCodes } }).lean()
+            : [];
 
         callback(null, {
           instance: toInstanceMsg(inst),
