@@ -512,7 +512,13 @@ export const STATUS_ICONS = Object.freeze([
     id: 8,
     name: 'action-provider',
     description:
-      'Bot with an actionable quest-talk/shop/storage/craft action visible to players who can interact with it.',
+      'Capability: bot has a usable cyberia-action (shop/storage/craft/talk) for players who can interact with it. Sent as a capability bit, not a presence state.',
+  },
+  {
+    id: 9,
+    name: 'quest-provider',
+    description:
+      'Capability: bot offers or advances a cyberia-quest for the viewing player (acceptable offer or active talk-target). Sent as a capability bit, not a presence state.',
   },
 ]);
 
