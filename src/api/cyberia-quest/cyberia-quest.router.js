@@ -15,7 +15,14 @@ class CyberiaQuestRouter {
     router.post(`/`, async (req, res) => await CyberiaQuestController.post(req, res, options));
     // Direct lookup by code — C client fetches quest metadata by code.
     router.get(`/code/:code`, async (req, res) => await CyberiaQuestController.getByCode(req, res, options));
-    router.get(`/:id`,
+    // Quest offers located by binding cell — C client resolves the Quest tab from
+    // here using the interacted entity's cell, decoupled from CyberiaAction.
+    router.get(
+      `/cell/:mapCode/:cellX/:cellY`,
+      async (req, res) => await CyberiaQuestController.getByCell(req, res, options),
+    );
+    router.get(
+      `/:id`,
       // options.authMiddleware,
       async (req, res) => await CyberiaQuestController.get(req, res, options),
     );

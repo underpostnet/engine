@@ -57,6 +57,29 @@ class CyberiaQuestService {
     if (fallback) return fallback;
     throw new Error(`No quest found for code: ${code}`);
   };
+  // Quest OFFERS are located by the quest's own (sourceMapCode, sourceCellX,
+  // sourceCellY). The client queries this with the interacted entity's binding
+  // cell — no dependency on CyberiaAction. Full docs are returned so the client
+  // populates its quest metadata cache in a single request.
+  static getByCell = async (req, res, options) => {
+    /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
+    const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
+    const { mapCode } = req.params;
+    const cellX = parseInt(req.params.cellX);
+    const cellY = parseInt(req.params.cellY);
+    if (!mapCode || Number.isNaN(cellX) || Number.isNaN(cellY))
+      throw new Error('mapCode, cellX and cellY parameters are required');
+    const docs = await CyberiaQuest.find({ sourceMapCode: mapCode, sourceCellX: cellX, sourceCellY: cellY }).lean();
+    const seen = new Set(docs.map((d) => d.code));
+    // Fallback-world quests are served from the canonical defaults, not Mongo.
+    for (const q of DefaultCyberiaQuests) {
+      if (q.sourceMapCode === mapCode && q.sourceCellX === cellX && q.sourceCellY === cellY && !seen.has(q.code)) {
+        docs.push(q);
+        seen.add(q.code);
+      }
+    }
+    return docs;
+  };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
     const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
