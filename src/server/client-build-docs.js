@@ -396,10 +396,20 @@ const buildCoverage = async ({ docs, docsDestination }) => {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
       if (pkg.scripts && pkg.scripts.coverage) {
         logger.info('generating coverage report', coveragePath);
-        shellExec(`cd ${coveragePath} && npm run coverage`, { silent: true });
+        try {
+          await shellExec(`cd ${coveragePath} && npm run coverage`, { silent: true });
+        } catch (err) {
+          logger.warn('coverage generation failed (non-fatal), skipping:', err.message);
+          return;
+        }
       } else if (pkg.scripts && pkg.scripts.test) {
         logger.info('generating coverage via test', coveragePath);
-        shellExec(`cd ${coveragePath} && npm test`, { silent: true, silentOnError: true });
+        try {
+          await shellExec(`cd ${coveragePath} && npm test`, { silent: true, silentOnError: true });
+        } catch (err) {
+          logger.warn('coverage generation failed (non-fatal), skipping:', err.message);
+          return;
+        }
       }
     }
   }
