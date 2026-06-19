@@ -33,8 +33,6 @@ const CyberiaSagaSchema = new Schema(
   { timestamps: true },
 );
 
-CyberiaSagaSchema.index({ code: 1 });
-
 const CyberiaSagaModel = model('CyberiaSaga', CyberiaSagaSchema);
 
 const ProviderSchema = CyberiaSagaSchema;

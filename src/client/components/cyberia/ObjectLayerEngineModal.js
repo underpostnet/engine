@@ -1427,10 +1427,12 @@ class ObjectLayerEngineModal {
 
                 console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
 
-                // Check if frames exist for any direction mapped to this direction code
-                const { frames } = loadedData.objectLayerRenderFramesId;
+                // Check if frames exist for any direction mapped to this direction code.
+                // Object layers with an empty render (no render-frames doc yet) load
+                // with zero frames so the user can author them from scratch.
+                const frames = loadedData.objectLayerRenderFramesId?.frames;
                 for (const direction of directions) {
-                  if (frames[direction] && frames[direction].length > 0) {
+                  if (frames && frames[direction] && frames[direction].length > 0) {
                     // Track this direction code as having original data
                     if (!ObjectLayerEngineModal.originalDirectionCodes.includes(currentDirectionCode)) {
                       ObjectLayerEngineModal.originalDirectionCodes.push(currentDirectionCode);

@@ -41,12 +41,11 @@ const EMPTY_CATALOG = {
 const loadDeployCatalog = async (deployId) => {
   const suffix = (deployId ?? '').split('dd-')[1];
   if (!suffix) return EMPTY_CATALOG;
-  try {
-    const mod = await import(`./catalog-${suffix}.js`);
+  if (fs.existsSync(`./src/projects/${suffix}/catalog-${suffix}.js`)) {
+    const mod = await import(`../projects/${suffix}/catalog-${suffix}.js`);
     return { ...EMPTY_CATALOG, ...(mod.default ?? {}) };
-  } catch {
-    return EMPTY_CATALOG;
   }
+  return EMPTY_CATALOG;
 };
 
 /**
