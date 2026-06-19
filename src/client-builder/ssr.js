@@ -1,6 +1,6 @@
 /**
  * Module for managing server side rendering
- * @module src/server/ssr.js
+ * @module src/client-builder/ssr.js
  * @namespace ServerSideRendering
  */
 
@@ -10,19 +10,19 @@ import vm from 'node:vm';
 import Underpost from '../index.js';
 
 import { srcFormatted, JSONweb } from './client-formatted.js';
-import { loggerFactory } from './logger.js';
-import { getRootDirectory } from './process.js';
+import { loggerFactory } from '../server/logger.js';
+import { getRootDirectory } from '../server/process.js';
 
 const logger = loggerFactory(import.meta);
 
 /**
  * Creates a server-side rendering component function from a given file path.
  * It reads the component file, formats it, and executes it in a sandboxed Node.js VM context to extract the component.
- * @param {string} [componentPath='./src/client/ssr/Render.js'] - The path to the SSR component file.
+ * @param {string} [componentPath='./src/client/ssr/RootDocument.js'] - The path to the SSR component file.
  * @returns {Promise<Function>} A promise that resolves to the SSR component function.
  * @memberof ServerSideRendering
  */
-const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
+const ssrFactory = async (componentPath = `./src/client/ssr/RootDocument.js`) => {
   const context = { SrrComponent: () => {}, npm_package_version: Underpost.version };
   vm.createContext(context);
   vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);

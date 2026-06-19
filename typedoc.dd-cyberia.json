@@ -8,7 +8,9 @@
     "./src/ws",
     "./src/grpc",
     "./src/mailer",
-    "./src/runtime"
+    "./src/runtime",
+    "./src/client-builder",
+    "./src/projects/cyberia"
   ],
   "entryPointStrategy": "expand",
   "exclude": ["**/node_modules/**", "**/docs/**", "**/client/**", "**/hardhat/**"],

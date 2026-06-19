@@ -10,7 +10,7 @@
  */
 
 import axios from 'axios';
-import { loggerFactory } from './logger.js';
+import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 

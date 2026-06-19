@@ -10,14 +10,14 @@
  * frames) is forced to null / empty / default here. Spatial + graphic synthesis
  * is a separate downstream stage.
  *
- * @module src/cyberia/generate-saga.js
+ * @module src/projects/cyberia/generate-saga.js
  * @namespace CyberiaSagaGenerator
  */
 
 import fs from 'fs-extra';
 import nodePath from 'path';
-import { DeepSeekClient } from '../server/deepseek-client.js';
-import { loggerFactory } from '../server/logger.js';
+import { DeepSeekClient } from './deepseek-client.js';
+import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 

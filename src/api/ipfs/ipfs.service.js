@@ -1,7 +1,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
-import { IpfsClient } from '../../server/ipfs-client.js';
+import { IpfsClient } from '../../projects/cyberia/ipfs-client.js';
 import { IpfsDto } from './ipfs.model.js';
 const logger = loggerFactory(import.meta);
 /**
@@ -17,7 +17,7 @@ const logger = loggerFactory(import.meta);
  * @returns {Promise<import('mongoose').Document>}
  */
 const createPinRecord = async ({ cid, resourceType, mfsPath = '', options }) => {
-  const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+  const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
   const record = await Ipfs.findOneAndUpdate(
     { cid, resourceType },
     { cid, resourceType, mfsPath },
@@ -35,7 +35,7 @@ const createPinRecord = async ({ cid, resourceType, mfsPath = '', options }) => 
  * @returns {Promise<void>}
  */
 const removePinRecordsAndUnpin = async (cid, options) => {
-  const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+  const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
   await Ipfs.deleteMany({ cid });
   logger.info(`Removed IPFS registry entries for CID: ${cid}`);
   try {
@@ -52,11 +52,11 @@ class IpfsService {
   //  Standard CRUD
   // ──────────────────────────────────────────────
   static post = async (req, res, options) => {
-    const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+    const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
     return await new Ipfs(req.body).save();
   };
   static get = async (req, res, options) => {
-    const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+    const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
     if (req.params.id) {
       return await Ipfs.findById(req.params.id).select(IpfsDto.select.get());
     }
@@ -69,11 +69,11 @@ class IpfsService {
     return { data, total, page, totalPages };
   };
   static put = async (req, res, options) => {
-    const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+    const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
     return await Ipfs.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   };
   static delete = async (req, res, options) => {
-    const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+    const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
     if (req.params.id) {
       const record = await Ipfs.findById(req.params.id);
       if (record) {
@@ -107,7 +107,7 @@ class IpfsService {
    *   { total, pinned, unpinned, errors, entries: [{ cid, resourceType, mfsPath, pinned, error? }] }
    */
   static verify = async (req, res, options) => {
-    const Ipfs = DataBaseProviderService.getModel("Ipfs", options);
+    const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
     const records = await Ipfs.find({}).select(IpfsDto.select.get()).lean();
     let pinned = 0;
     let unpinned = 0;

@@ -2,13 +2,13 @@
 
 /**
  * Module for building project documentation (JSDoc, Swagger, Coverage).
- * @module src/server/client-build-docs.js
+ * @module src/client-builder/client-build-docs.js
  * @namespace clientBuildDocs
  */
 
 import fs from 'fs-extra';
-import { shellExec } from './process.js';
-import { loggerFactory } from './logger.js';
+import { shellExec } from '../server/process.js';
+import { loggerFactory } from '../server/logger.js';
 import { JSONweb } from './client-formatted.js';
 import { ssrFactory } from './ssr.js';
 

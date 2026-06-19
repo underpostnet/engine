@@ -1,6 +1,6 @@
 /**
  * Manages the client-side build process, including full builds and incremental builds.
- * @module server/client-build.js
+ * @module src/client-builder/client-build.js
  * @namespace clientBuild
  */
 
@@ -8,18 +8,18 @@
 
 import fs from 'fs-extra';
 import { transformClientJs, JSONweb } from './client-formatted.js';
-import { loggerFactory } from './logger.js';
+import { loggerFactory } from '../server/logger.js';
 import {
   getCapVariableName,
   newInstance,
   orderArrayFromAttrInt,
   uniqueArray,
 } from '../client/components/core/CommonJs.js';
-import { readConfJson } from './conf.js';
+import { readConfJson } from '../server/conf.js';
 import { minify } from 'html-minifier-terser';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
-import { shellExec } from './process.js';
+import { shellExec } from '../server/process.js';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
 import { buildIcons } from './client-icons.js';
@@ -751,8 +751,9 @@ const buildClient = async (
           )
         )
           for (const view of views) {
-            const buildPath = `${rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-              }${view.path === '/' ? view.path : `${view.path}/`}`;
+            const buildPath = `${
+              rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+            }${view.path === '/' ? view.path : `${view.path}/`}`;
 
             if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
@@ -768,8 +769,9 @@ const buildClient = async (
             fs.writeFileSync(`${buildPath}${buildId}.js`, jsSrc, 'utf8');
             const title = metadata.title ? metadata.title : title;
 
-            const canonicalURL = `https://${host}${path}${view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
-              }`;
+            const canonicalURL = `https://${host}${path}${
+              view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
+            }`;
 
             let ssrHeadComponents = ``;
             let ssrBodyComponents = ``;
@@ -903,12 +905,12 @@ const buildClient = async (
               `${buildPath}index.html`,
               minifyBuild
                 ? await minify(htmlSrc, {
-                  minifyCSS: true,
-                  minifyJS: true,
-                  collapseBooleanAttributes: true,
-                  collapseInlineTagWhitespace: true,
-                  collapseWhitespace: true,
-                })
+                    minifyCSS: true,
+                    minifyJS: true,
+                    collapseBooleanAttributes: true,
+                    collapseInlineTagWhitespace: true,
+                    collapseWhitespace: true,
+                  })
                 : htmlSrc,
               'utf8',
             );
@@ -997,8 +999,9 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
             renderApi: { JSONweb },
           });
 
-          const buildPath = `${rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-            }${view.path === '/' ? view.path : `${view.path}/`}`;
+          const buildPath = `${
+            rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+          }${view.path === '/' ? view.path : `${view.path}/`}`;
 
           const indexUrl = buildIndexUrl(view.path);
           if (view.offlineDefault) {
@@ -1018,12 +1021,12 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
             buildHtmlPath,
             minifyBuild
               ? await minify(htmlSrc, {
-                minifyCSS: true,
-                minifyJS: true,
-                collapseBooleanAttributes: true,
-                collapseInlineTagWhitespace: true,
-                collapseWhitespace: true,
-              })
+                  minifyCSS: true,
+                  minifyJS: true,
+                  collapseBooleanAttributes: true,
+                  collapseInlineTagWhitespace: true,
+                  collapseWhitespace: true,
+                })
               : htmlSrc,
             'utf8',
           );

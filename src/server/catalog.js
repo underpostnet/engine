@@ -18,8 +18,6 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
-const catalogDir = path.dirname(fileURLToPath(import.meta.url));
-
 /** Empty product catalog returned for deploy ids without a dedicated module. */
 const EMPTY_CATALOG = {
   sourceMoves: [],
@@ -62,14 +60,10 @@ const loadDeployCatalog = async (deployId) => {
  */
 const loadProductCatalogs = async () => {
   const catalogs = [];
-  for (const file of fs.readdirSync(catalogDir)) {
-    if (!/^catalog-.+\.js$/.test(file) || file === 'catalog-underpost.js') continue;
-    try {
-      const mod = await import(`./${file}`);
-      if (mod.default) catalogs.push({ ...EMPTY_CATALOG, ...mod.default });
-    } catch {
-      /* a malformed/removed product catalog must not break the base build */
-    }
+  for (const file of await fs.readdir('./src/projects')) {
+    if (file === 'underpost') continue;
+    const mod = await import(`../projects/${file}/catalog-${file}.js`);
+    if (mod.default) catalogs.push({ ...EMPTY_CATALOG, ...mod.default });
   }
   return catalogs;
 };

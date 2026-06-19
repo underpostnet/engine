@@ -1,12 +1,12 @@
 /**
  * Module for live building client-side code
- * @module src/server/client-build-live.js
+ * @module src/client-builder/client-build-live.js
  * @namespace clientLiveBuild
  */
 
 import fs from 'fs-extra';
-import { Config, loadConf, readConfJson } from './conf.js';
-import { loggerFactory } from './logger.js';
+import { Config, loadConf, readConfJson } from '../server/conf.js';
+import { loggerFactory } from '../server/logger.js';
 import { buildClient } from './client-build.js';
 
 const logger = loggerFactory(import.meta);

@@ -74,7 +74,7 @@ Views with neither flag are SSR-rendered and reachable by URL, but **not** preca
 
 ## Service worker lifecycle
 
-The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/server/client-build.js`) bundles it via esbuild and prepends a `self.renderPayload` prelude with values resolved from the `views` array:
+The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/client-builder/client-build.js`) bundles it via esbuild and prepends a `self.renderPayload` prelude with values resolved from the `views` array:
 
 | Payload field          | Source                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------------- |

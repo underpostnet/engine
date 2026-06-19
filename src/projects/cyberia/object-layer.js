@@ -1,7 +1,7 @@
 /**
  * Provides utilities and engine logic for processing and managing Cyberia Online's object layer assets (skins, floors, weapons, etc.).
  * Shared logic consumed by both the Cyberia CLI and the REST API service layer.
- * @module src/cyberia/object-layer.js
+ * @module src/projects/cyberia/object-layer.js
  * @namespace CyberiaObjectLayer
  */
 
@@ -15,7 +15,7 @@ import stringify from 'fast-json-stable-stringify';
 
 import { range } from '../../client/components/core/CommonJs.js';
 import { random } from '../../client/components/core/CommonJs.js';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 

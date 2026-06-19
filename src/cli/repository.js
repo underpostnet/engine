@@ -22,7 +22,7 @@ import {
   buildReplicaId,
   writeEnv,
 } from '../server/conf.js';
-import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../server/client-build.js';
+import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../client-builder/client-build.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';
 

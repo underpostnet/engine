@@ -1,4 +1,4 @@
-import { ssrFactory } from '../server/ssr.js';
+import { ssrFactory } from '../client-builder/ssr.js';
 
 /**
  * Module for handling the rendering and styling of HTML emails using SSR components.

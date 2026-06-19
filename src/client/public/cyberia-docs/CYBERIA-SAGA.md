@@ -54,7 +54,7 @@ persistSagaPayload()     ── idempotent upserts into MongoDB
 Source:
 
 - `src/server/deepseek-client.js` — thin OpenAI-compatible JSON-mode client.
-- `src/cyberia/generate-saga.js` — system prompt, normalization, persistence.
+- `src/projects/cyberia/generate-saga.js` — system prompt, normalization, persistence.
 - `bin/cyberia.js` — `generate-saga` CLI command wiring.
 
 ## Usage

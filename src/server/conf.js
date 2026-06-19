@@ -1337,7 +1337,7 @@ const mergeFile = async (parts = [], outputFilePath) => {
  * @memberof ServerConfBuilder
  */
 const getPathsSSR = (conf) => {
-  const paths = ['src/client/ssr/Render.js'];
+  const paths = ['src/client/ssr/RootDocument.js'];
   for (const o of conf.head) paths.push(`src/client/ssr/head/${o}.js`);
   for (const o of conf.body) paths.push(`src/client/ssr/body/${o}.js`);
   for (const o of Object.keys(conf.mailer)) paths.push(`src/client/ssr/mailer/${conf.mailer[o]}.js`);
@@ -1928,7 +1928,8 @@ const syncDeployIdSources = (sourceMoves = []) => {
  */
 const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-template' } = {}) => {
   const walk = (await import('ignore-walk')).default;
-  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } = await import('./catalog-underpost.js');
+  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } =
+    await import('../projects/underpost/catalog-underpost.js');
   const { loadProductCatalogs } = await import('./catalog.js');
   const githubUsername = process.env.GITHUB_USERNAME;
 
@@ -1974,7 +1975,6 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
   }
   shellExec(`rm -rf ${toPath}/.github`);
   shellExec(`rm -rf ${toPath}/manifests/deployment/dd-*`);
-  shellExec(`rm -rf ${toPath}/src/server/catalog-*`);
 
   fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
   for (const restorePath of TEMPLATE_RESTORE_PATHS) {

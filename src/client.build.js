@@ -6,7 +6,7 @@
 import { loggerFactory } from './server/logger.js';
 import { Config } from './server/conf.js';
 import { ProcessController } from './server/process.js';
-import { clientLiveBuild } from './server/client-build-live.js';
+import { clientLiveBuild } from './client-builder/client-build-live.js';
 
 await Config.build();
 

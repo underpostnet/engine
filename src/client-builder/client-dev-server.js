@@ -1,13 +1,13 @@
 /**
  * Module for creating a client-side development server
- * @module src/server/client-dev-server.js
+ * @module src/client-builder/client-dev-server.js
  * @namespace clientDevServer
  */
 import fs from 'fs-extra';
 import nodemon from 'nodemon';
 import dotenv from 'dotenv';
-import { shellExec } from './process.js';
-import { loggerFactory } from './logger.js';
+import { shellExec } from '../server/process.js';
+import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

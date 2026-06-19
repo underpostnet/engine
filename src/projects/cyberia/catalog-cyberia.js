@@ -12,7 +12,7 @@
  *   - `keywords`          — npm keywords for the standalone product CLI package.
  *   - `description`       — npm description for the standalone product CLI package.
  *
- * @module src/server/catalog-cyberia.js
+ * @module src/projects/cyberia/catalog-cyberia.js
  * @namespace CyberiaCatalog
  */
 
@@ -23,7 +23,7 @@ export default {
     '/src/grpc/cyberia',
     '/src/client/ssr/views/CyberiaServerMetrics.js',
     '/test/shape-generator.test.js',
-    '/src/cyberia',
+    '/src/projects/cyberia',
     '/src/runtime/cyberia-server',
     '/src/runtime/cyberia-client',
     '/.github/workflows/hardhat.ci.yml',
@@ -31,7 +31,7 @@ export default {
     '/src/api/cyberia-server-defaults',
   ],
   stripPaths: [
-    './src/cyberia',
+    './src/projects/cyberia',
     './src/grpc/cyberia',
     './src/runtime/cyberia-server',
     './src/runtime/cyberia-client',

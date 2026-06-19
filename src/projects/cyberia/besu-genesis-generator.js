@@ -9,7 +9,7 @@
  * This eliminates hardcoded keys/hashes in manifests/besu/ and ensures every
  * new deployment gets a clean, unique chain identity.
  *
- * @module src/cyberia/besu-genesis-generator.js
+ * @module src/projects/cyberia/besu-genesis-generator.js
  * @namespace BesuGenesisGenerator
  */
 
@@ -17,8 +17,8 @@ import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
 import { keccak256 as ethersKeccak256 } from 'ethers';
-import { loggerFactory } from '../server/logger.js';
-import { shellExec } from '../server/process.js';
+import { loggerFactory } from '../../server/logger.js';
+import { shellExec } from '../../server/process.js';
 
 const logger = loggerFactory(import.meta);
 

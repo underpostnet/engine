@@ -19,8 +19,8 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { createPeerServer } from '../../server/peer.js';
 import { createValkeyConnection } from '../../server/valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
-import { ssrMiddlewareFactory } from '../../server/ssr.js';
-import { buildSwaggerUiOptions } from '../../server/client-build-docs.js';
+import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
+import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js';
 
 import { shellExec } from '../../server/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/conf.js';

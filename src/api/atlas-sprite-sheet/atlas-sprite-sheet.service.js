@@ -1,10 +1,10 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
-import { AtlasSpriteSheetGenerator } from '../../server/atlas-sprite-sheet-generator.js';
+import { AtlasSpriteSheetGenerator } from '../../projects/cyberia/atlas-sprite-sheet-generator.js';
 import { FileFactory } from '../file/file.service.js';
 import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';
-import { IpfsClient } from '../../server/ipfs-client.js';
+import { IpfsClient } from '../../projects/cyberia/ipfs-client.js';
 import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
 
 const logger = loggerFactory(import.meta);
@@ -54,10 +54,9 @@ async function withResolvedAtlasFrameDuration(doc, ObjectLayer) {
 class AtlasSpriteSheetService {
   static blob = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel("File", options);
+    const File = DataBaseProviderService.getModel('File', options);
 
     const itemKey = req.params.itemKey;
     const atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey }).lean();
@@ -70,12 +69,11 @@ class AtlasSpriteSheetService {
   };
   static generate = async (req, res, options, generateOptions = {}) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel("File", options);
+    const File = DataBaseProviderService.getModel('File', options);
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
 
     let objectLayer = req.objectLayer;
 
@@ -195,12 +193,11 @@ class AtlasSpriteSheetService {
   };
   static deleteByObjectLayerId = async (req, res, options) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel("File", options);
+    const File = DataBaseProviderService.getModel('File', options);
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
 
     const objectLayer = await ObjectLayer.findById(req.params.id);
     if (!objectLayer) {
@@ -254,14 +251,12 @@ class AtlasSpriteSheetService {
   };
   static post = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     return await new AtlasSpriteSheet(req.body).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     if (req.params.id)
       return await AtlasSpriteSheet.findById(req.params.id)
         .select(AtlasSpriteSheetDto.select.get())
@@ -287,10 +282,9 @@ class AtlasSpriteSheetService {
   // Client fetches this once per itemKey, caches it, then fetches the PNG blob.
   static getMetadata = async (req, res, options) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
 
     if (req.params.itemKey) {
       const doc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': req.params.itemKey })
@@ -328,16 +322,14 @@ class AtlasSpriteSheetService {
   };
   static put = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     return await AtlasSpriteSheet.findByIdAndUpdate(req.params.id, req.body);
   };
   static delete = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet =
-      DataBaseProviderService.getModel("AtlasSpriteSheet", options);
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel("File", options);
+    const File = DataBaseProviderService.getModel('File', options);
 
     if (req.params.id) {
       const atlasDoc = await AtlasSpriteSheet.findById(req.params.id);

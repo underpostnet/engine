@@ -15,7 +15,7 @@ import fs from 'fs-extra';
 import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { generateBesuManifests, deployBesu, removeBesu } from '../src/cyberia/besu-genesis-generator.js';
+import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
 import { loadConfServerJson } from '../src/server/conf.js';
 import {
@@ -24,13 +24,17 @@ import {
   pngDirectoryIteratorByObjectLayerType,
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
-} from '../src/cyberia/object-layer.js';
-import { AtlasSpriteSheetGenerator } from '../src/cyberia/atlas-sprite-sheet-generator.js';
-import { generateMultiFrame, lookupSemantic, semanticRegistry } from '../src/cyberia/semantic-layer-generator.js';
-import { IpfsClient } from '../src/server/ipfs-client.js';
+} from '../src/projects/cyberia/object-layer.js';
+import { AtlasSpriteSheetGenerator } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
+import {
+  generateMultiFrame,
+  lookupSemantic,
+  semanticRegistry,
+} from '../src/projects/cyberia/semantic-layer-generator.js';
+import { IpfsClient } from '../src/projects/cyberia/ipfs-client.js';
 import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
 import { program as underpostProgram } from '../src/cli/index.js';
-import { generateSaga } from '../src/cyberia/generate-saga.js';
+import { generateSaga } from '../src/projects/cyberia/generate-saga.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
@@ -741,7 +745,7 @@ try {
 
           /**
            * Accumulated object layer data keyed by objectLayerId.
-           * @type {Object<string, import('../src/cyberia/object-layer.js').ObjectLayerData>}
+           * @type {Object<string, import('../src/projects/cyberia/object-layer.js').ObjectLayerData>}
            */
           const objectLayers = {};
 

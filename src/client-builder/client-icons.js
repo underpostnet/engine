@@ -1,10 +1,10 @@
 /**
  * Module for building client-side icons
- * @module src/server/client-icons.js
+ * @module src/client-builder/client-icons.js
  * @namespace clientIcons
  */
 import { favicons } from 'favicons';
-import { loggerFactory } from './logger.js';
+import { loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 

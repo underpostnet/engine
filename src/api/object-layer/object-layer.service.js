@@ -4,7 +4,7 @@
  * including frame image management, metadata processing, and WebP animation generation.
  *
  * Delegates shared object layer creation and update logic to {@link ObjectLayerEngine} in
- * `src/cyberia/object-layer.js` to keep a single source of truth shared with the Cyberia CLI.
+ * `src/projects/cyberia/object-layer.js` to keep a single source of truth shared with the Cyberia CLI.
  *
  * @module src/api/object-layer/object-layer.service.js
  * @namespace CyberiaObjectLayerService
@@ -16,11 +16,11 @@ import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
 import { ObjectLayerDto } from './object-layer.model.js';
-import { ObjectLayerEngine } from '../../cyberia/object-layer.js';
+import { ObjectLayerEngine } from '../../projects/cyberia/object-layer.js';
 import { shellExec } from '../../server/process.js';
 import { DataQuery } from '../../server/data-query.js';
 import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { IpfsClient } from '../../server/ipfs-client.js';
+import { IpfsClient } from '../../projects/cyberia/ipfs-client.js';
 import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
 
 /**

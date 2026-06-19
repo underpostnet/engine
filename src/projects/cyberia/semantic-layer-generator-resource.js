@@ -23,7 +23,7 @@
  * frame pipeline (`down_idle` / `default_idle`) is used — matching the
  * stateless, non-directional nature of world-placed resource pickups.
  *
- * @module src/cyberia/semantic-layer-generator-resource.js
+ * @module src/projects/cyberia/semantic-layer-generator-resource.js
  * @namespace SemanticLayerGeneratorResource
  */
 

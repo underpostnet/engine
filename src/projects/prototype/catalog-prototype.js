@@ -3,7 +3,7 @@
  *
  * A per-deploy product catalog for `dd-prototype` ERP/CRM prototype sources
  * to be moved into the template for the `dd-prototype` PWA microservices template.
- * @module src/server/catalog-prototype.js
+ * @module src/projects/prototype/catalog-prototype.js
  * @namespace PrototypeCatalog
  */
 
@@ -22,8 +22,8 @@ export default {
     ['../engine-prototype/src/client/Healthcare.index.js', 'src/client/Healthcare.index.js'],
   ],
   privateConfPaths: [],
-  templatePaths: [],
-  stripPaths: [],
+  templatePaths: ['/src/projects/prototype'],
+  stripPaths: ['./src/projects/prototype'],
   keywords: [],
   description: '',
 };

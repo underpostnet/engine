@@ -1,7 +1,7 @@
 /**
  * Underpost platform content catalog — the base `pwa-microservices-template`.
  *
- * @module src/server/catalog-underpost.js
+ * @module src/projects/underpost/catalog-underpost.js
  * @namespace UnderpostCatalog
  */
 
@@ -11,7 +11,6 @@
  * @memberof UnderpostCatalog
  */
 const TEMPLATE_RESTORE_PATHS = [
-  `./src/server/catalog-underpost.js`,
   `./.github/workflows/pwa-microservices-template-page.cd.yml`,
   `./.github/workflows/pwa-microservices-template-test.ci.yml`,
   `./.github/workflows/npmpkg.ci.yml`,
