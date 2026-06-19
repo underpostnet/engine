@@ -34,6 +34,7 @@ import { generateMultiFrame, lookupSemantic, semanticRegistry } from '../src/ser
 import { IpfsClient } from '../src/server/ipfs-client.js';
 import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
 import { program as underpostProgram } from '../src/cli/index.js';
+import { generateSaga } from '../src/cli/commands/generate-saga.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
@@ -3308,6 +3309,82 @@ try {
       } catch (err) {
         logger.error('client-hints command error:', err);
         process.exit(1);
+      }
+    });
+
+  // ── generate-saga: Top-Down PCG guided by LLMs (Semantic Reverse-Engineering) ──
+  program
+    .command('generate-saga')
+    .requiredOption('--prompt <theme>', 'High-level natural-language theme seed for the saga ecosystem')
+    .option('--model <model>', 'DeepSeek model id (default: deepseek-chat)')
+    .option('--out <file>', 'Optional path to dump the normalized payload JSON')
+    .option('--dry-run', 'Generate and normalize without writing to the database')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Generate the non-spatial textual layer of a CyberiaSaga ecosystem from a theme via DeepSeek')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      let models = null;
+      let host;
+      let path;
+
+      if (!options.dryRun) {
+        const deployId = process.env.DEFAULT_DEPLOY_ID;
+        host = process.env.DEFAULT_DEPLOY_HOST;
+        path = process.env.DEFAULT_DEPLOY_PATH;
+
+        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+        if (!fs.existsSync(confServerPath)) {
+          logger.error(`Server config not found: ${confServerPath}`);
+          process.exit(1);
+        }
+        const confServer = loadConfServerJson(confServerPath, { resolve: true });
+        const { db } = confServer[host][path];
+
+        db.host = options.mongoHost
+          ? options.mongoHost
+          : options.dev
+            ? db.host
+            : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+        logger.info('generate-saga', { deployId, host, path, db });
+
+        await DataBaseProviderService.load({
+          apis: ['cyberia-saga', 'cyberia-quest', 'cyberia-dialogue', 'cyberia-action'],
+          host,
+          path,
+          db,
+        });
+
+        models = {
+          CyberiaSaga: DataBaseProviderService.getModel('cyberia-saga', { host, path }),
+          CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
+          CyberiaDialogue: DataBaseProviderService.getModel('cyberia-dialogue', { host, path }),
+          CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
+        };
+      }
+
+      try {
+        await generateSaga({
+          prompt: options.prompt,
+          models,
+          model: options.model,
+          dryRun: !!options.dryRun,
+          out: options.out,
+        });
+      } catch (err) {
+        logger.error('generate-saga command error:', err);
+        process.exitCode = 1;
+      } finally {
+        if (models) await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
       }
     });
 
