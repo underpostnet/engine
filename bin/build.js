@@ -140,6 +140,7 @@ const buildDeployTemplate = async (confName) => {
       break;
     }
     default:
+      for (const path of catalog.templatePaths) fs.copySync(`.${path}`, `${basePath}${path}`);
       break;
   }
 
