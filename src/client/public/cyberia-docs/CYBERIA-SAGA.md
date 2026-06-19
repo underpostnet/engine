@@ -38,12 +38,21 @@ for binding quests/actions to cells and producing object-layer renders.
 
 ## Pipeline
 
+The ecosystem is generated in **four bounded, sequential stages** rather than a
+single monolithic request. Each stage emits one layer and feeds canonical
+(slugified) references into the next, so no single model call has to produce the
+whole cross-referenced graph — this keeps each Gemini request small enough to
+complete well within the request timeout.
+
 ```
 theme prompt
    │
    ▼
-DeepSeek (JSON mode, OpenAI-compatible /v1/chat/completions)
-   │  one unified payload
+Google Gemini (Generative Language API /v1beta/models/{model}:generateContent)
+   │   stage 1  foundation  → saga identity + objectLayers (item ids)
+   │   stage 2  quests      → quests           (consume item ids)
+   │   stage 3  dialogues   → dialogues        (consume quest codes)
+   │   stage 4  actions     → actions          (consume quest + dialogue + item codes)
    ▼
 normalizeSagaPayload()   ── enforces text-only boundary, slugifies, resolves refs
    │
@@ -53,30 +62,48 @@ persistSagaPayload()     ── idempotent upserts into MongoDB
 
 Source:
 
-- `src/server/deepseek-client.js` — thin OpenAI-compatible JSON-mode client.
+- `src/projects/cyberia/gemini-client.js` — thin Gemini `generateContent` JSON client.
 - `src/projects/cyberia/generate-saga.js` — system prompt, normalization, persistence.
 - `bin/cyberia.js` — `generate-saga` CLI command wiring.
 
 ## Usage
 
+Generate from a theme (optionally capturing the payload with `--out`):
+
 ```bash
 node bin/cyberia.js generate-saga \
-  --prompt "A rebel hacker base hidden in the sewers of Santiago"
+  --prompt "A rebel hacker base hidden in the sewers of Santiago" \
+  --out ./saga.json
 ```
+
+Import a previously generated payload (no model call):
+
+```bash
+node bin/cyberia.js generate-saga --import ./saga.json
+```
+
+`--import` reads the same JSON shape `--out` writes and loads it through the
+**same** normalize → persist path as generation. Re-running is safe: documents
+are upserted by `code` (dialogues by `code` + `order`), so existing entries are
+overwritten and codes are never duplicated. Exactly one of `--prompt` or
+`--import` is required.
 
 Options:
 
-| Flag                  | Description                                         |
-| --------------------- | --------------------------------------------------- |
-| `--prompt <theme>`    | **Required.** High-level natural-language seed.     |
-| `--model <id>`        | DeepSeek model id (default `deepseek-chat`).        |
-| `--out <file>`        | Dump the normalized payload JSON to a file.         |
-| `--dry-run`           | Generate + normalize only; no database writes.      |
-| `--env-path <path>`   | Env file to load (`DEEPSEEK_API_KEY`, deploy vars). |
-| `--mongo-host <host>` | Mongo host override.                                |
-| `--dev`               | Force the development environment.                  |
+| Flag                       | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
+| `--prompt <theme>`         | High-level natural-language seed (generate mode).    |
+| `--import <file>`          | Load a generated payload file into the DB.           |
+| `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
+| `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |
+| `--thinking-level <level>` | `low` \| `medium` \| `high` (default `high`).        |
+| `--out <file>`             | Dump the normalized payload JSON to a file.          |
+| `--dry-run`                | Normalize only; no database writes.                  |
+| `--env-path <path>`        | Env file to load (`GEMINI_API_KEY`, deploy vars).    |
+| `--mongo-host <host>`      | Mongo host override.                                 |
+| `--dev`                    | Force the development environment.                  |
 
-`DEEPSEEK_API_KEY` must be available in the environment or the `--env-path` file.
+`GEMINI_API_KEY` must be available in the environment or the `--env-path` file.
 
 ## Output schema
 
@@ -118,15 +145,24 @@ normalization slugifies every code/id so they line up:
 
 Documents are written sequentially with idempotent upserts (rerunnable):
 
-| Section   | Model                  | Upsert key       |
-| --------- | ---------------------- | ---------------- |
-| saga      | `CyberiaSagaModel`     | `code`           |
-| quests    | `CyberiaQuestModel`    | `code`           |
-| dialogues | `CyberiaDialogueModel` | `code` + `order` |
-| actions   | `CyberiaActionModel`   | `code`           |
+| Section       | Model                  | Upsert key       |
+| ------------- | ---------------------- | ---------------- |
+| saga          | `CyberiaSagaModel`     | `code`           |
+| quests        | `CyberiaQuestModel`    | `code`           |
+| dialogues     | `CyberiaDialogueModel` | `code` + `order` |
+| actions       | `CyberiaActionModel`   | `code`           |
+| object layers | `ObjectLayerModel`     | `data.item.id`   |
 
-Object-layer items are part of the generated payload and their ids are recorded
-in `saga.itemIds`. Their renders are deliberately `null` — turning a textual
-item definition into a real `ObjectLayer` (atlas, CIDs, ledger) belongs to the
-downstream spatial/economic synthesis stage, not this text-only layer. Use
-`--out` to capture the full payload (including `objectLayers`) for that stage.
+Both `generate` and `import` go through the same persistence path. Object-layer
+items are written as real `ObjectLayer` documents so they are immediately
+editable in `src/client/components/cyberia/ObjectLayerEngineViewer.js`:
+
+- `data.render` is empty (`cid: null`, `metadataCid: null`) and the top-level
+  `cid` is `null` — there is no atlas yet;
+- `data.ledger.type` is `OFF_CHAIN` (no on-chain token minted);
+- `sha256` is computed over `data` with the canonical `computeSha256` helper.
+
+The render and ledger are the **graphic/economic synthesis** stage and are set
+later from the viewer. Re-running generate/import refreshes the textual
+stats/item fields but **preserves any render or ledger already set** — it never
+clobbers a populated render back to `null`. `saga.itemIds` records every item id.

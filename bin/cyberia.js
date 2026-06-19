@@ -34,7 +34,7 @@ import {
 import { IpfsClient } from '../src/projects/cyberia/ipfs-client.js';
 import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
 import { program as underpostProgram } from '../src/cli/index.js';
-import { generateSaga } from '../src/projects/cyberia/generate-saga.js';
+import { generateSaga, importSaga } from '../src/projects/cyberia/generate-saga.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
@@ -3315,15 +3315,23 @@ try {
   // ── generate-saga: Top-Down PCG guided by LLMs (Semantic Reverse-Engineering) ──
   program
     .command('generate-saga')
-    .requiredOption('--prompt <theme>', 'High-level natural-language theme seed for the saga ecosystem')
-    .option('--model <model>', 'DeepSeek model id (default: deepseek-chat)')
+    .option('--prompt <theme>', 'High-level natural-language theme seed for the saga ecosystem')
+    .option('--import <file>', 'Load a previously generated payload file (the shape --out writes) into the database')
+    .option('--model <model>', 'Gemini model id (default: gemma-4-26b-a4b-it)')
+    .option('--timeout <ms>', 'Per-request timeout in ms (default: 300000)', (v) => parseInt(v, 10))
+    .option('--thinking-level <level>', 'Gemini thinking level: low | medium | high (default: high)')
     .option('--out <file>', 'Optional path to dump the normalized payload JSON')
     .option('--dry-run', 'Generate and normalize without writing to the database')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
-    .description('Generate the non-spatial textual layer of a CyberiaSaga ecosystem from a theme via DeepSeek')
+    .description('Generate (via Google Gemini) or import the non-spatial textual layer of a CyberiaSaga ecosystem')
     .action(async (options) => {
+      if (!options.prompt && !options.import) {
+        logger.error('generate-saga requires either --prompt <theme> or --import <file>');
+        process.exit(1);
+      }
+
       if (!options.envPath) options.envPath = `./.env`;
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -3358,7 +3366,7 @@ try {
         logger.info('generate-saga', { deployId, host, path, db });
 
         await DataBaseProviderService.load({
-          apis: ['cyberia-saga', 'cyberia-quest', 'cyberia-dialogue', 'cyberia-action'],
+          apis: ['cyberia-saga', 'cyberia-quest', 'cyberia-dialogue', 'cyberia-action', 'object-layer'],
           host,
           path,
           db,
@@ -3369,17 +3377,29 @@ try {
           CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
           CyberiaDialogue: DataBaseProviderService.getModel('cyberia-dialogue', { host, path }),
           CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
+          ObjectLayer: DataBaseProviderService.getModel('object-layer', { host, path }),
         };
       }
 
       try {
-        await generateSaga({
-          prompt: options.prompt,
-          models,
-          model: options.model,
-          dryRun: !!options.dryRun,
-          out: options.out,
-        });
+        if (options.import) {
+          await importSaga({
+            file: options.import,
+            models,
+            dryRun: !!options.dryRun,
+            out: options.out,
+          });
+        } else {
+          await generateSaga({
+            prompt: options.prompt,
+            models,
+            model: options.model,
+            timeout: options.timeout,
+            thinkingLevel: options.thinkingLevel,
+            dryRun: !!options.dryRun,
+            out: options.out,
+          });
+        }
       } catch (err) {
         logger.error('generate-saga command error:', err);
         process.exitCode = 1;
