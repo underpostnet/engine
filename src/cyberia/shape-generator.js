@@ -1,7 +1,7 @@
 /**
  * Parametric shape generator with procedural noise, seeded RNG, and arc-length resampling.
  * Exports a single pure function `generateShape` that returns ordered contour points.
- * @module src/server/shape-generator.js
+ * @module src/cyberia/shape-generator.js
  * @namespace ShapeGenerator
  */
 

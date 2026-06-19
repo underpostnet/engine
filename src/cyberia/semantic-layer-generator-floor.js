@@ -9,7 +9,7 @@
  * parent module (circular import is safe because the function body is only
  * executed after module initialisation completes).
  *
- * @module src/server/semantic-layer-generator-floor.js
+ * @module src/cyberia/semantic-layer-generator-floor.js
  * @namespace SemanticLayerGeneratorFloor
  */
 

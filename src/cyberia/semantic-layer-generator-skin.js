@@ -24,7 +24,7 @@
  * The canonical side template is direction 06 (right); LEFT is derived by
  * mirroring it so generated frame keys stay aligned with 04 = left and 06 = right.
  *
- * @module src/server/semantic-layer-generator-skin.js
+ * @module src/cyberia/semantic-layer-generator-skin.js
  * @namespace SemanticLayerGeneratorSkin
  */
 import { readFileSync } from 'fs';

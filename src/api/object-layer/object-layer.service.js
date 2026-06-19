@@ -4,7 +4,7 @@
  * including frame image management, metadata processing, and WebP animation generation.
  *
  * Delegates shared object layer creation and update logic to {@link ObjectLayerEngine} in
- * `src/server/object-layer.js` to keep a single source of truth shared with the Cyberia CLI.
+ * `src/cyberia/object-layer.js` to keep a single source of truth shared with the Cyberia CLI.
  *
  * @module src/api/object-layer/object-layer.service.js
  * @namespace CyberiaObjectLayerService
@@ -16,7 +16,7 @@ import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
 import { ObjectLayerDto } from './object-layer.model.js';
-import { ObjectLayerEngine } from '../../server/object-layer.js';
+import { ObjectLayerEngine } from '../../cyberia/object-layer.js';
 import { shellExec } from '../../server/process.js';
 import { DataQuery } from '../../server/data-query.js';
 import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
@@ -149,9 +149,8 @@ class ObjectLayerService {
       fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
       // Build object layer data from the asset directory
-      const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
-      const ObjectLayerRenderFrames =
-        DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
+      const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
+      const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
 
       const { objectLayerRenderFramesData, objectLayerData } =
         await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
@@ -183,9 +182,8 @@ class ObjectLayerService {
     }
 
     // create object layer from body – cut-over consistency: stage all CIDs before writing to DB
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
-    const ObjectLayerRenderFrames =
-      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
+    const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
 
     const bodyData = { ...req.body };
     if (!bodyData.data) bodyData.data = {};
@@ -270,7 +268,7 @@ class ObjectLayerService {
    */
   static get = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
 
     // GET /search-item-ids?q=<partial> - Fast partial match search on data.item.id
     if (req.path.startsWith('/search-item-ids')) {
@@ -359,9 +357,8 @@ class ObjectLayerService {
       // If the atlas or its file is missing, clear the reference so the UI can offer to generate a new atlas.
       if (objectLayer.atlasSpriteSheetId) {
         try {
-          const AtlasSpriteSheet =
-            DataBaseProviderService.getModel("AtlasSpriteSheet", options);
-          const File = DataBaseProviderService.getModel("File", options);
+          const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
+          const File = DataBaseProviderService.getModel('File', options);
 
           const atlasDoc = await AtlasSpriteSheet.findById(objectLayer.atlasSpriteSheetId);
 
@@ -451,7 +448,7 @@ class ObjectLayerService {
    */
   static generateWebp = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
 
     // GET /generate-webp/:itemType/:itemId/:directionCode - Generate webp animation from PNG frames
     const itemType = req.params.itemType;
@@ -589,7 +586,7 @@ class ObjectLayerService {
    */
   static put = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
 
     // PUT /:id/frame-image/:itemType/:itemId/:directionCode - Update frame images for specific direction
     if (req.path.includes('/frame-image/')) {
@@ -688,8 +685,7 @@ class ObjectLayerService {
       fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
       fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
-      const ObjectLayerRenderFrames =
-        DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
+      const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
 
       // Build object layer data from the asset directory
       const { objectLayerRenderFramesData, objectLayerData } =
@@ -806,9 +802,8 @@ class ObjectLayerService {
    */
   static delete = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProviderService.getModel("ObjectLayer", options);
-    const ObjectLayerRenderFrames =
-      DataBaseProviderService.getModel("ObjectLayerRenderFrames", options);
+    const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
+    const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
 
     if (req.params.id) {
       // Load the full object layer so we can access all references

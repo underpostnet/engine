@@ -1,7 +1,7 @@
 /**
  * Atlas Sprite Sheet Generator for Cyberia Online.
  * Consolidates all object layer frames (8 directions, multiple modes) into a single PNG atlas.
- * @module src/server/atlas-sprite-sheet-generator.js
+ * @module src/cyberia/atlas-sprite-sheet-generator.js
  * @namespace CyberiaAtlasSpriteSheetGenerator
  */
 
@@ -9,7 +9,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import sharp from 'sharp';
 import { Jimp, rgbaToInt } from 'jimp';
-import { loggerFactory } from './logger.js';
+import { loggerFactory } from '../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 

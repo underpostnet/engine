@@ -6,7 +6,7 @@
  */
 
 import { expect } from 'chai';
-import { generateShape, registerShape, listShapes, toPixelCoords, renderGrid } from '../src/server/shape-generator.js';
+import { generateShape, registerShape, listShapes, toPixelCoords, renderGrid } from '../src/cyberia/shape-generator.js';
 
 describe('Shape Generator Module Tests', () => {
   // --- Deterministic Seed Tests ---

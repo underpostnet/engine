@@ -12,14 +12,14 @@
  *        • semantic-layer-generator-floor.js — all floor-* descriptors
  *        • semantic-layer-generator-skin.js  — skin-* descriptors
  *
- * @module src/server/semantic-layer-generator.js
+ * @module src/cyberia/semantic-layer-generator.js
  * @namespace SemanticLayerGenerator
  */
 
 import crypto from 'crypto';
 
 import { createRng, seedToInt, createNoise2D, generateShape, listShapes } from './shape-generator.js';
-import { loggerFactory } from './logger.js';
+import { loggerFactory } from '../server/logger.js';
 
 import { registerFloorSemantics } from './semantic-layer-generator-floor.js';
 import { registerSkinSemantics } from './semantic-layer-generator-skin.js';

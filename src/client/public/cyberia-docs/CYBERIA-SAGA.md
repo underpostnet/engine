@@ -12,7 +12,7 @@ Cyberia inverts the pipeline.
 **semantic ontology and narrative backbone first**, from one high-level natural
 language theme. We generate the lightweight, easy-to-align textual layer —
 slugs, titles, descriptions, dialogues, objective requirements, item stats —
-*before* a single coordinate or texture exists. Spatial layout and graphic
+_before_ a single coordinate or texture exists. Spatial layout and graphic
 synthesis become a separate, later stage that fills in a backbone that is
 already internally consistent.
 
@@ -25,12 +25,12 @@ synthesis.
 
 This stage owns **text and logical metadata only**.
 
-| Owned here (textual) | Out of scope (forced to `null` / default) |
-| --- | --- |
-| codes, titles, descriptions | `sourceMapCode`, `sourceCellX`, `sourceCellY` |
-| dialogue text, speakers, mood | `initCellX`, `initCellY`, map grid sizes |
-| quest steps, objectives, rewards | asset CIDs, textures, `render` frames |
-| item stats balance, item types | atlas / sprite-sheet generation |
+| Owned here (textual)             | Out of scope (forced to `null` / default)     |
+| -------------------------------- | --------------------------------------------- |
+| codes, titles, descriptions      | `sourceMapCode`, `sourceCellX`, `sourceCellY` |
+| dialogue text, speakers, mood    | `initCellX`, `initCellY`, map grid sizes      |
+| quest steps, objectives, rewards | asset CIDs, textures, `render` frames         |
+| item stats balance, item types   | atlas / sprite-sheet generation               |
 
 The generator normalizes every spatial and render field to `null` regardless of
 what the model returns. Downstream spatial + graphic synthesis is responsible
@@ -54,7 +54,7 @@ persistSagaPayload()     ── idempotent upserts into MongoDB
 Source:
 
 - `src/server/deepseek-client.js` — thin OpenAI-compatible JSON-mode client.
-- `src/cli/commands/generate-saga.js` — system prompt, normalization, persistence.
+- `src/cyberia/generate-saga.js` — system prompt, normalization, persistence.
 - `bin/cyberia.js` — `generate-saga` CLI command wiring.
 
 ## Usage
@@ -66,15 +66,15 @@ node bin/cyberia.js generate-saga \
 
 Options:
 
-| Flag | Description |
-| --- | --- |
-| `--prompt <theme>` | **Required.** High-level natural-language seed. |
-| `--model <id>` | DeepSeek model id (default `deepseek-chat`). |
-| `--out <file>` | Dump the normalized payload JSON to a file. |
-| `--dry-run` | Generate + normalize only; no database writes. |
-| `--env-path <path>` | Env file to load (`DEEPSEEK_API_KEY`, deploy vars). |
-| `--mongo-host <host>` | Mongo host override. |
-| `--dev` | Force the development environment. |
+| Flag                  | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `--prompt <theme>`    | **Required.** High-level natural-language seed.     |
+| `--model <id>`        | DeepSeek model id (default `deepseek-chat`).        |
+| `--out <file>`        | Dump the normalized payload JSON to a file.         |
+| `--dry-run`           | Generate + normalize only; no database writes.      |
+| `--env-path <path>`   | Env file to load (`DEEPSEEK_API_KEY`, deploy vars). |
+| `--mongo-host <host>` | Mongo host override.                                |
+| `--dev`               | Force the development environment.                  |
 
 `DEEPSEEK_API_KEY` must be available in the environment or the `--env-path` file.
 
@@ -118,12 +118,12 @@ normalization slugifies every code/id so they line up:
 
 Documents are written sequentially with idempotent upserts (rerunnable):
 
-| Section | Model | Upsert key |
-| --- | --- | --- |
-| saga | `CyberiaSagaModel` | `code` |
-| quests | `CyberiaQuestModel` | `code` |
+| Section   | Model                  | Upsert key       |
+| --------- | ---------------------- | ---------------- |
+| saga      | `CyberiaSagaModel`     | `code`           |
+| quests    | `CyberiaQuestModel`    | `code`           |
 | dialogues | `CyberiaDialogueModel` | `code` + `order` |
-| actions | `CyberiaActionModel` | `code` |
+| actions   | `CyberiaActionModel`   | `code`           |
 
 Object-layer items are part of the generated payload and their ids are recorded
 in `saga.itemIds`. Their renders are deliberately `null` — turning a textual

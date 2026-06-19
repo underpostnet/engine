@@ -5,10 +5,6 @@
  * Provides commands for importing, viewing, and managing object layer assets,
  * render frames, and atlas sprite sheets from the command line.
  *
- * Delegates shared object layer creation logic to {@link ObjectLayerEngine} in
- * `src/server/object-layer.js` to keep a single source of truth shared with
- * the REST API service layer.
- *
  * @module bin/cyberia.js
  * @namespace CyberiaCLI
  */
@@ -19,7 +15,7 @@ import fs from 'fs-extra';
 import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { generateBesuManifests, deployBesu, removeBesu } from '../src/server/besu-genesis-generator.js';
+import { generateBesuManifests, deployBesu, removeBesu } from '../src/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
 import { loadConfServerJson } from '../src/server/conf.js';
 import {
@@ -28,13 +24,13 @@ import {
   pngDirectoryIteratorByObjectLayerType,
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
-} from '../src/server/object-layer.js';
-import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-generator.js';
-import { generateMultiFrame, lookupSemantic, semanticRegistry } from '../src/server/semantic-layer-generator.js';
+} from '../src/cyberia/object-layer.js';
+import { AtlasSpriteSheetGenerator } from '../src/cyberia/atlas-sprite-sheet-generator.js';
+import { generateMultiFrame, lookupSemantic, semanticRegistry } from '../src/cyberia/semantic-layer-generator.js';
 import { IpfsClient } from '../src/server/ipfs-client.js';
 import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
 import { program as underpostProgram } from '../src/cli/index.js';
-import { generateSaga } from '../src/cli/commands/generate-saga.js';
+import { generateSaga } from '../src/cyberia/generate-saga.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
@@ -745,7 +741,7 @@ try {
 
           /**
            * Accumulated object layer data keyed by objectLayerId.
-           * @type {Object<string, import('../src/server/object-layer.js').ObjectLayerData>}
+           * @type {Object<string, import('../src/cyberia/object-layer.js').ObjectLayerData>}
            */
           const objectLayers = {};
 
