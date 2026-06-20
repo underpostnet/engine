@@ -3328,6 +3328,16 @@ try {
       '--space-context <context>',
       'Force the auto-theme spatial layer: physical | mixed | hyperspace (default: random ~33% each)',
     )
+    .option(
+      '--tone <tone>',
+      'Force the auto-theme narrative type: adventure | politics | tragic | comedy (default: random ~25% each)',
+    )
+    .option(
+      '--temperature <value>',
+      'Model sampling temperature, valid range 0.0 (deterministic) to 2.0 (most creative); ' +
+        'higher = more creative/divergent (default: 1.3 for theme synthesis)',
+      parseFloat,
+    )
     .option('--out <file>', 'Path to dump the payload JSON (default: ./engine-private/cyberia-sagas/<saga-code>.json)')
     .option('--dry-run', 'Generate and normalize without writing to the database')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
@@ -3402,6 +3412,8 @@ try {
             thinkingLevel: options.thinkingLevel,
             lorePath: options.lorePath,
             spaceContext: options.spaceContext,
+            tone: options.tone,
+            temperature: options.temperature,
             dryRun: !!options.dryRun,
             out: options.out,
           });

@@ -31,7 +31,8 @@ const DEFAULT_SAGA_OUT_DIR = './engine-private/cyberia-sagas';
 
 /**
  * Independent narrative dimensions sampled at random to force theme variety when
- * no `--prompt` is supplied. Generic enough to map onto any corner of the lore.
+ * no `--prompt` is supplied. Kept deliberately small — just the confederation
+ * the saga revolves around. Tone is handled separately (see {@link TONES}).
  * @type {Object<string, string[]>}
  */
 const THEME_DIMENSIONS = {
@@ -42,38 +43,30 @@ const THEME_DIMENSIONS = {
     'the contested Frontier between confederations',
     'an unaligned independent enclave',
   ],
-  conflict: [
-    'espionage and betrayal',
-    'open insurrection',
-    'an economic / resource struggle',
-    'a forbidden discovery',
-    'a smuggling operation',
-    'a territorial dispute',
-    'a political conspiracy',
-    'survival against a hostile environment',
-    'a high-stakes heist',
-    'a relentless manhunt',
-  ],
-  scale: [
-    'a single orbital station district',
-    'a derelict deep-space vessel',
-    'a frontier hyperspace relay outpost',
-    'an underground settlement',
-    'a border checkpoint',
-    'a black-market hub',
-    'a terraforming colony',
-  ],
-  protagonist: [
-    'a rogue hacker cell',
-    'a disgraced fleet officer',
-    'a smuggler crew',
-    'a frontier scavenger',
-    'an undercover agent',
-    'a refugee collective',
-    'a bounty hunter',
-    'a rebel engineer',
-  ],
-  tone: ['noir', 'high-tension thriller', 'gritty survival', 'tragic', 'darkly comedic', 'mysterious', 'revolutionary'],
+};
+
+/**
+ * The four broad, well-defined narrative types. One is chosen uniformly
+ * (≈25% each) unless overridden by `--tone`, and its full description is fed to
+ * the model so the saga commits hard to that register (avoids every saga
+ * collapsing into the same generic "spaceship mission").
+ * @type {Object<string, string>}
+ */
+const TONES = {
+  adventure:
+    'ADVENTURE — a noir, high-risk mission: covert operations, sabotage, infiltration, open warfare and ' +
+    'combat, dangerous experimental technology, rogue AI and mystery. The driving plot is danger and intrigue.',
+  politics:
+    "POLITICS — Cyberia's geopolitics: diplomatic maneuvering, large-scale faction warfare, revolutions, " +
+    'treaties and major power agreements between the confederations. The driving plot is influence, ' +
+    'allegiance and statecraft.',
+  tragic:
+    'TRAGIC — a genuinely heartbreaking, intimate story: emotional and sentimental themes centered on ' +
+    'family, bonds, loss and the death of loved ones inside small personal micro-realities. The driving ' +
+    'plot is grief and what it costs — not spectacle.',
+  comedy:
+    'COMEDY — everyday absurdity, silliness and stupidity on the frontier. Played for humor: low stakes, ' +
+    'ridiculous situations and flawed, funny characters. Take it lightly.',
 };
 
 /**
@@ -123,6 +116,21 @@ function resolveSpaceContext(override) {
 }
 
 /**
+ * Resolve the narrative tone for theme synthesis. An explicit, valid override
+ * wins; otherwise one of the four tones is chosen uniformly at random.
+ * @param {string} [override] - 'adventure' | 'politics' | 'tragic' | 'comedy'.
+ * @returns {string} A valid tone key.
+ */
+function resolveTone(override) {
+  if (override) {
+    const key = String(override).toLowerCase();
+    if (TONES[key]) return key;
+    logger.warn(`Unknown --tone "${override}"; choosing at random. Valid: ${Object.keys(TONES).join(', ')}`);
+  }
+  return pickRandom(Object.keys(TONES));
+}
+
+/**
  * Read the Cyberia base-lore document. Missing file is non-fatal (returns '').
  * @async
  * @param {string} [lorePath]
@@ -137,10 +145,13 @@ async function loadLoreContext(lorePath = DEFAULT_LORE_PATH) {
   return fs.readFile(resolved, 'utf8');
 }
 
+/** Default sampling temperature for theme synthesis (creativity / divergence). */
+const DEFAULT_THEME_TEMPERATURE = 1.3;
+
 /**
- * Invent a distinct, lore-grounded saga theme. Variety is forced by sampling
- * independent narrative dimensions plus a random entropy token and a high
- * sampling temperature, so repeated runs surface very different premises.
+ * Invent a distinct, lore-grounded saga theme. Variety is forced by a random
+ * faction, an explicit narrative tone, an entropy token and a high sampling
+ * temperature, so repeated runs surface very different premises and tones.
  *
  * @async
  * @param {GeminiClient} client
@@ -148,45 +159,50 @@ async function loadLoreContext(lorePath = DEFAULT_LORE_PATH) {
  * @param {Object} [options]
  * @param {string} [options.thinkingLevel]
  * @param {string} [options.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (default random).
- * @returns {Promise<{ theme: string, spaceContext: string }>} The theme seed and chosen context.
+ * @param {string} [options.tone] - Force 'adventure' | 'politics' | 'tragic' | 'comedy' (default random).
+ * @param {number} [options.temperature] - Sampling temperature (default 1.3).
+ * @returns {Promise<{ theme: string, spaceContext: string, tone: string }>} The theme and chosen facets.
  */
-async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext } = {}) {
+async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone, temperature } = {}) {
   const contextKey = resolveSpaceContext(spaceContext);
-  const picks = {
-    faction: pickRandom(THEME_DIMENSIONS.faction),
-    conflict: pickRandom(THEME_DIMENSIONS.conflict),
-    scale: pickRandom(THEME_DIMENSIONS.scale),
-    protagonist: pickRandom(THEME_DIMENSIONS.protagonist),
-    tone: pickRandom(THEME_DIMENSIONS.tone),
-  };
+  const toneKey = resolveTone(tone);
+  const faction = pickRandom(THEME_DIMENSIONS.faction);
   const nonce = crypto.randomBytes(4).toString('hex');
 
   const system = [
     'You are the lore-master of Cyberia. Using the BASE LORE below, invent ONE distinct, specific',
-    'saga premise that lives inside this world. Vary the region, faction, era and tone so the premise',
-    'is novel and unexpected — never a generic or repeated setup.',
+    'saga premise that lives inside this world. Make it novel and unexpected — never a generic or',
+    'repeated setup, and do NOT default to a "spaceship mission".',
     'Return ONLY JSON: { "theme": string } where theme is 1-2 concrete, evocative sentences.',
     '',
     'CRITICAL — the premise MUST be set in this spatial context:',
     SPACE_CONTEXTS[contextKey],
+    '',
+    'CRITICAL — the premise MUST commit fully to this narrative type / tone:',
+    TONES[toneKey],
     '',
     'BASE LORE:',
     lore || '(no lore provided)',
   ].join('\n');
 
   const user = [
-    'Invent a fresh saga premise now. Anchor it with these random creative constraints for novelty:',
-    JSON.stringify(picks),
+    'Invent a fresh saga premise now. Center it on this confederation:',
+    faction,
     `Creative entropy token: ${nonce}.`,
-    'Honor the required spatial context above exactly, and choose an unexpected corner of the lore',
-    'consistent with the constraints.',
+    'Honor the required spatial context and narrative tone above exactly, and choose an unexpected',
+    'corner of the lore consistent with them.',
   ].join('\n');
 
-  logger.info(`Theme spatial context: ${contextKey}`);
-  const res = await client.chatJson({ system, user, thinkingLevel, temperature: 1.3 });
+  logger.info(`Theme spatial context: ${contextKey} | tone: ${toneKey}`);
+  const res = await client.chatJson({
+    system,
+    user,
+    thinkingLevel,
+    temperature: typeof temperature === 'number' ? temperature : DEFAULT_THEME_TEMPERATURE,
+  });
   const theme = String(res.theme || '').trim();
   if (!theme) throw new Error('Theme synthesis returned an empty theme.');
-  return { theme, spaceContext: contextKey };
+  return { theme, spaceContext: contextKey, tone: toneKey };
 }
 
 /**
@@ -659,15 +675,17 @@ async function persistSagaPayload({ payload, models }) {
  * @param {string} theme
  * @param {string} [thinkingLevel]
  * @param {string} [lore] - Base lore text to ground every stage (empty = ungrounded).
+ * @param {number} [temperature] - Sampling temperature applied to every stage (model default if omitted).
  * @returns {Promise<{ saga, maps, quests, dialogues, actions, objectLayers }>}
  */
-async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
+async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', temperature) {
   // Stage 1 — saga identity + object-layer items (the economic foundation).
   logger.info('Stage 1/5: foundation (saga + object layers)');
   const foundation = await client.chatJson({
     system: buildStagePrompt('foundation'),
     user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
+    temperature,
   });
   const saga = foundation.saga || {};
   const objectLayers = asArray(foundation.objectLayers);
@@ -679,6 +697,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
     system: buildStagePrompt('maps'),
     user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
+    temperature,
   });
   const maps = asArray(mapsRes.maps);
   const mapCodes = maps.map((m) => slugify(m.code)).filter(Boolean);
@@ -693,6 +712,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
       lore,
     ),
     thinkingLevel,
+    temperature,
   });
   const quests = asArray(questsRes.quests);
   const questCodes = quests.map((q) => slugify(q.code)).filter(Boolean);
@@ -709,6 +729,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
       lore,
     ),
     thinkingLevel,
+    temperature,
   });
   const dialogues = asArray(dialoguesRes.dialogues);
   const dialogueCodes = [...new Set(dialogues.map((d) => slugify(d.code)).filter(Boolean))];
@@ -719,6 +740,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
     system: buildStagePrompt('actions'),
     user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds, talkTargets }, lore),
     thinkingLevel,
+    temperature,
   });
   const actions = asArray(actionsRes.actions);
 
@@ -743,6 +765,8 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
  * @param {string} [params.thinkingLevel] - Gemini thinking level (default in client).
  * @param {string} [params.lorePath] - Override path to the base-lore document.
  * @param {string} [params.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (auto mode only).
+ * @param {string} [params.tone] - Force 'adventure' | 'politics' | 'tragic' | 'comedy' (auto mode only).
+ * @param {number} [params.temperature] - Sampling temperature applied to every model call.
  * @param {boolean} [params.dryRun=false] - Skip persistence; only generate + return.
  * @param {string} [params.out] - File path to dump the payload (defaults to the saga dir).
  * @returns {Promise<Object>} The normalized payload (with a `summary` when persisted).
@@ -756,6 +780,8 @@ async function generateSaga({
   thinkingLevel,
   lorePath,
   spaceContext,
+  tone,
+  temperature,
   dryRun = false,
   out,
 }) {
@@ -766,13 +792,13 @@ async function generateSaga({
   if (!theme) {
     lore = await loadLoreContext(lorePath);
     logger.info('No --prompt provided; auto-generating a distinct lore-grounded theme...');
-    ({ theme } = await synthesizeTheme(client, lore, { thinkingLevel, spaceContext }));
+    ({ theme } = await synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone, temperature }));
     logger.info(`Auto-generated theme: "${theme}"`);
   } else {
     logger.info(`Generating saga ontology from theme: "${theme}"`);
   }
 
-  const raw = await generateRawEcosystem(client, theme, thinkingLevel, lore);
+  const raw = await generateRawEcosystem(client, theme, thinkingLevel, lore, temperature);
   const payload = normalizeSagaPayload(raw, { theme });
 
   const outPath = out || nodePath.join(DEFAULT_SAGA_OUT_DIR, `${payload.saga.code}.json`);

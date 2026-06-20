@@ -69,9 +69,22 @@ persistSagaPayload()     ── idempotent upserts into MongoDB
   base lore (`src/client/public/cyberia-docs/CYBERIA-LORE.md`, override with
   `--lore-path`). The whole lore document is read and passed to Gemini, and every
   stage is grounded in it so the saga reads as a chapter of the canon. Variety is
-  forced by sampling independent narrative dimensions (faction, conflict, scale,
-  protagonist, tone), a random entropy token, and a high sampling temperature —
-  so repeated runs surface very different sagas across the lore.
+  forced by a random **faction**, an explicit **narrative tone**, a random entropy
+  token, and a configurable sampling **temperature** (`--temperature`, default
+  `1.3`) — so repeated runs surface very different sagas across the lore.
+
+#### Narrative tone
+
+To stop every auto-generated saga collapsing into the same generic "spaceship
+mission", the theme commits hard to one of four broad, well-defined narrative
+types — chosen **uniformly (~25% each)** unless forced with `--tone`:
+
+| Tone        | Register                                                        |
+| ----------- | -------------------------------------------------------------- |
+| `adventure` | noir high-risk missions: covert ops, sabotage, combat, rogue AI, mystery |
+| `politics`  | geopolitics: diplomacy, faction warfare, revolutions, treaties |
+| `tragic`    | heartbreaking, intimate: family, bonds, loss, grief            |
+| `comedy`    | everyday absurdity and silliness, played for humor             |
 
 #### Spatial context (physical vs. hyperspace)
 
@@ -102,13 +115,39 @@ Source:
 
 ## Usage
 
-Auto-generate a distinct, lore-grounded saga (no theme needed):
+### Lore-based auto-generation (no `--prompt`)
+
+With no `--prompt`, the theme is auto-synthesized from the Cyberia base lore.
+Omitting the steering flags lets the generator pick a random faction, tone and
+spatial context each run, so the same command keeps producing different sagas:
 
 ```bash
+# Fully random, lore-grounded saga (faction + tone + spatial context all random)
 node bin/cyberia.js generate-saga
+
+# Force a heartbreaking, character-driven story grounded in physical reality
+node bin/cyberia.js generate-saga --tone tragic --space-context physical
+
+# A political saga set inside hyperspace Instances
+node bin/cyberia.js generate-saga --tone politics --space-context hyperspace
+
+# A light comedy that spans both layers, cranked up for more divergence
+node bin/cyberia.js generate-saga --tone comedy --space-context mixed --temperature 1.7
+
+# A noir adventure, kept tightly on-theme with a low temperature
+node bin/cyberia.js generate-saga --tone adventure --temperature 0.6
+
+# Steer only the spatial layer; let faction + tone stay random
+node bin/cyberia.js generate-saga --space-context physical
+
+# Dry run (no DB writes) and capture the payload to inspect it
+node bin/cyberia.js generate-saga --tone tragic --dry-run --out ./engine-private/cyberia-sagas/preview.json
 ```
 
-Generate from an explicit theme:
+Each run logs the chosen facets, e.g. `Theme spatial context: physical | tone: tragic`,
+then `Auto-generated theme: "..."`.
+
+### Generate from an explicit theme
 
 ```bash
 node bin/cyberia.js generate-saga \
@@ -137,6 +176,8 @@ Options:
 | `--import <file>`          | Load a generated payload file into the DB.           |
 | `--lore-path <path>`       | Override the base-lore doc (auto-generate mode).     |
 | `--space-context <ctx>`    | Force `physical` \| `mixed` \| `hyperspace` (else random). |
+| `--tone <tone>`            | Force `adventure` \| `politics` \| `tragic` \| `comedy` (else random). |
+| `--temperature <value>`    | Sampling temperature for every model call (default `1.3`). |
 | `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
 | `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |
 | `--thinking-level <level>` | `low` \| `medium` \| `high` (default `high`).        |
