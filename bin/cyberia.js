@@ -3315,23 +3315,22 @@ try {
   // ── generate-saga: Top-Down PCG guided by LLMs (Semantic Reverse-Engineering) ──
   program
     .command('generate-saga')
-    .option('--prompt <theme>', 'High-level natural-language theme seed for the saga ecosystem')
+    .option(
+      '--prompt <theme>',
+      'Theme seed for the saga. If omitted, a distinct theme is auto-generated from the Cyberia base lore',
+    )
     .option('--import <file>', 'Load a previously generated payload file (the shape --out writes) into the database')
     .option('--model <model>', 'Gemini model id (default: gemma-4-26b-a4b-it)')
     .option('--timeout <ms>', 'Per-request timeout in ms (default: 300000)', (v) => parseInt(v, 10))
     .option('--thinking-level <level>', 'Gemini thinking level: low | medium | high (default: high)')
-    .option('--out <file>', 'Optional path to dump the normalized payload JSON')
+    .option('--lore-path <path>', 'Override path to the base-lore doc (default: src/client/public/cyberia-docs/CYBERIA-LORE.md)')
+    .option('--out <file>', 'Path to dump the payload JSON (default: ./engine-private/cyberia-sagas/<saga-code>.json)')
     .option('--dry-run', 'Generate and normalize without writing to the database')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
     .description('Generate (via Google Gemini) or import the non-spatial textual layer of a CyberiaSaga ecosystem')
     .action(async (options) => {
-      if (!options.prompt && !options.import) {
-        logger.error('generate-saga requires either --prompt <theme> or --import <file>');
-        process.exit(1);
-      }
-
       if (!options.envPath) options.envPath = `./.env`;
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -3396,6 +3395,7 @@ try {
             model: options.model,
             timeout: options.timeout,
             thinkingLevel: options.thinkingLevel,
+            lorePath: options.lorePath,
             dryRun: !!options.dryRun,
             out: options.out,
           });

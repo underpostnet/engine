@@ -45,7 +45,7 @@ whole cross-referenced graph — this keeps each Gemini request small enough to
 complete well within the request timeout.
 
 ```
-theme prompt
+theme  (from --prompt, OR auto-synthesized from CYBERIA-LORE.md)
    │
    ▼
 Google Gemini (Generative Language API /v1beta/models/{model}:generateContent)
@@ -60,6 +60,18 @@ normalizeSagaPayload()   ── enforces text-only boundary, slugifies, resolves
 persistSagaPayload()     ── idempotent upserts into MongoDB
 ```
 
+### Theme source: prompt vs. lore-grounded auto-generation
+
+- **`--prompt` given** → the theme is used verbatim with no lore grounding
+  (current behavior).
+- **`--prompt` omitted** → a distinct theme is auto-synthesized from the Cyberia
+  base lore (`src/client/public/cyberia-docs/CYBERIA-LORE.md`, override with
+  `--lore-path`). The whole lore document is read and passed to Gemini, and every
+  stage is grounded in it so the saga reads as a chapter of the canon. Variety is
+  forced by sampling independent narrative dimensions (faction, conflict, scale,
+  protagonist, tone), a random entropy token, and a high sampling temperature —
+  so repeated runs surface very different sagas across the lore.
+
 Source:
 
 - `src/projects/cyberia/gemini-client.js` — thin Gemini `generateContent` JSON client.
@@ -68,36 +80,44 @@ Source:
 
 ## Usage
 
-Generate from a theme (optionally capturing the payload with `--out`):
+Auto-generate a distinct, lore-grounded saga (no theme needed):
+
+```bash
+node bin/cyberia.js generate-saga
+```
+
+Generate from an explicit theme:
 
 ```bash
 node bin/cyberia.js generate-saga \
-  --prompt "A rebel hacker base hidden in the sewers of Santiago" \
-  --out ./saga.json
+  --prompt "A rebel hacker base hidden in the sewers of Santiago"
 ```
+
+Either way, when `--out` is omitted the payload is written to
+`./engine-private/cyberia-sagas/<saga-code>.json`.
 
 Import a previously generated payload (no model call):
 
 ```bash
-node bin/cyberia.js generate-saga --import ./saga.json
+node bin/cyberia.js generate-saga --import ./engine-private/cyberia-sagas/<saga-code>.json
 ```
 
 `--import` reads the same JSON shape `--out` writes and loads it through the
 **same** normalize → persist path as generation. Re-running is safe: documents
 are upserted by `code` (dialogues by `code` + `order`), so existing entries are
-overwritten and codes are never duplicated. Exactly one of `--prompt` or
-`--import` is required.
+overwritten and codes are never duplicated.
 
 Options:
 
 | Flag                       | Description                                          |
 | -------------------------- | ---------------------------------------------------- |
-| `--prompt <theme>`         | High-level natural-language seed (generate mode).    |
+| `--prompt <theme>`         | Theme seed. Omit to auto-generate from the lore.     |
 | `--import <file>`          | Load a generated payload file into the DB.           |
+| `--lore-path <path>`       | Override the base-lore doc (auto-generate mode).     |
 | `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
 | `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |
 | `--thinking-level <level>` | `low` \| `medium` \| `high` (default `high`).        |
-| `--out <file>`             | Dump the normalized payload JSON to a file.          |
+| `--out <file>`             | Payload dump path (default `./engine-private/cyberia-sagas/<saga-code>.json`). |
 | `--dry-run`                | Normalize only; no database writes.                  |
 | `--env-path <path>`        | Env file to load (`GEMINI_API_KEY`, deploy vars).    |
 | `--mongo-host <host>`      | Mongo host override.                                 |

@@ -16,11 +16,132 @@
 
 import fs from 'fs-extra';
 import nodePath from 'path';
+import crypto from 'crypto';
 import { GeminiClient } from './gemini-client.js';
 import { computeSha256 } from './object-layer.js';
 import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
+
+/** Canonical Cyberia base-lore document, passed to the model when auto-generating a theme. */
+const DEFAULT_LORE_PATH = 'src/client/public/cyberia-docs/CYBERIA-LORE.md';
+
+/** Default directory for generated saga payload dumps when `--out` is not given. */
+const DEFAULT_SAGA_OUT_DIR = './engine-private/cyberia-sagas';
+
+/**
+ * Independent narrative dimensions sampled at random to force theme variety when
+ * no `--prompt` is supplied. Generic enough to map onto any corner of the lore.
+ * @type {Object<string, string[]>}
+ */
+const THEME_DIMENSIONS = {
+  faction: [
+    'the Zenith Empire (Red)',
+    'the Atlas Confederation (Yellow)',
+    'the Nova Republic (Blue)',
+    'the contested Frontier between confederations',
+    'an unaligned independent enclave',
+  ],
+  conflict: [
+    'espionage and betrayal',
+    'open insurrection',
+    'an economic / resource struggle',
+    'a forbidden discovery',
+    'a smuggling operation',
+    'a territorial dispute',
+    'a political conspiracy',
+    'survival against a hostile environment',
+    'a high-stakes heist',
+    'a relentless manhunt',
+  ],
+  scale: [
+    'a single orbital station district',
+    'a derelict deep-space vessel',
+    'a frontier hyperspace relay outpost',
+    'an underground settlement',
+    'a border checkpoint',
+    'a black-market hub',
+    'a terraforming colony',
+  ],
+  protagonist: [
+    'a rogue hacker cell',
+    'a disgraced fleet officer',
+    'a smuggler crew',
+    'a frontier scavenger',
+    'an undercover agent',
+    'a refugee collective',
+    'a bounty hunter',
+    'a rebel engineer',
+  ],
+  tone: ['noir', 'high-tension thriller', 'gritty survival', 'tragic', 'darkly comedic', 'mysterious', 'revolutionary'],
+};
+
+/**
+ * @param {Array} arr
+ * @returns {*} A uniformly random element.
+ */
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Read the Cyberia base-lore document. Missing file is non-fatal (returns '').
+ * @async
+ * @param {string} [lorePath]
+ * @returns {Promise<string>}
+ */
+async function loadLoreContext(lorePath = DEFAULT_LORE_PATH) {
+  const resolved = nodePath.resolve(lorePath);
+  if (!fs.existsSync(resolved)) {
+    logger.warn(`Lore file not found at ${resolved}; proceeding without base lore context.`);
+    return '';
+  }
+  return fs.readFile(resolved, 'utf8');
+}
+
+/**
+ * Invent a distinct, lore-grounded saga theme. Variety is forced by sampling
+ * independent narrative dimensions plus a random entropy token and a high
+ * sampling temperature, so repeated runs surface very different premises.
+ *
+ * @async
+ * @param {GeminiClient} client
+ * @param {string} lore - Base lore document text.
+ * @param {string} [thinkingLevel]
+ * @returns {Promise<string>} A 1-2 sentence theme seed.
+ */
+async function synthesizeTheme(client, lore, thinkingLevel) {
+  const picks = {
+    faction: pickRandom(THEME_DIMENSIONS.faction),
+    conflict: pickRandom(THEME_DIMENSIONS.conflict),
+    scale: pickRandom(THEME_DIMENSIONS.scale),
+    protagonist: pickRandom(THEME_DIMENSIONS.protagonist),
+    tone: pickRandom(THEME_DIMENSIONS.tone),
+  };
+  const nonce = crypto.randomBytes(4).toString('hex');
+
+  const system = [
+    'You are the lore-master of Cyberia. Using the BASE LORE below, invent ONE distinct, specific',
+    'saga premise that lives inside this world. Vary the region, faction, era and tone so the premise',
+    'is novel and unexpected — never a generic or repeated setup.',
+    'Return ONLY JSON: { "theme": string } where theme is 1-2 concrete, evocative sentences.',
+    '',
+    'BASE LORE:',
+    lore || '(no lore provided)',
+  ].join('\n');
+
+  const user = [
+    'Invent a fresh saga premise now. Anchor it with these random creative constraints for novelty:',
+    JSON.stringify(picks),
+    `Creative entropy token: ${nonce}.`,
+    'Choose an unexpected corner of the lore consistent with the constraints.',
+  ].join('\n');
+
+  const res = await client.chatJson({ system, user, thinkingLevel, temperature: 1.3 });
+  const theme = String(res.theme || '').trim();
+  if (!theme) throw new Error('Theme synthesis returned an empty theme.');
+  return theme;
+}
 
 /**
  * Slugify a free-text string into a stable kebab-case code.
@@ -112,14 +233,17 @@ function buildStagePrompt(stage) {
 }
 
 /**
- * Build the user message for a stage: the theme plus a compact JSON context of
- * the canonical references produced by previous stages.
+ * Build the user message for a stage: optional base lore for grounding, the
+ * theme, and a compact JSON context of canonical references from prior stages.
  * @param {string} theme
  * @param {Object} [context]
+ * @param {string} [lore] - Base lore text to ground the stage (omitted when empty).
  * @returns {string}
  */
-function buildStageUser(theme, context) {
-  const lines = [`Theme seed: ${theme}`];
+function buildStageUser(theme, context, lore) {
+  const lines = [];
+  if (lore) lines.push('BASE LORE CONTEXT (ground the saga in this world):', lore, '');
+  lines.push(`Theme seed: ${theme}`);
   if (context && Object.keys(context).length > 0) {
     lines.push('', 'Use ONLY these canonical references where required:', JSON.stringify(context));
   }
@@ -340,14 +464,15 @@ async function persistSagaPayload({ payload, models }) {
  * @param {GeminiClient} client
  * @param {string} theme
  * @param {string} [thinkingLevel]
+ * @param {string} [lore] - Base lore text to ground every stage (empty = ungrounded).
  * @returns {Promise<{ saga, quests, dialogues, actions, objectLayers }>}
  */
-async function generateRawEcosystem(client, theme, thinkingLevel) {
+async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   // Stage 1 — saga identity + object-layer items (the economic foundation).
   logger.info('Stage 1/4: foundation (saga + object layers)');
   const foundation = await client.chatJson({
     system: buildStagePrompt('foundation'),
-    user: buildStageUser(theme),
+    user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
   });
   const saga = foundation.saga || {};
@@ -358,7 +483,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel) {
   logger.info('Stage 2/4: quests');
   const questsRes = await client.chatJson({
     system: buildStagePrompt('quests'),
-    user: buildStageUser(theme, { itemIds }),
+    user: buildStageUser(theme, { itemIds }, lore),
     thinkingLevel,
   });
   const quests = asArray(questsRes.quests);
@@ -368,9 +493,11 @@ async function generateRawEcosystem(client, theme, thinkingLevel) {
   logger.info('Stage 3/4: dialogues');
   const dialoguesRes = await client.chatJson({
     system: buildStagePrompt('dialogues'),
-    user: buildStageUser(theme, {
-      quests: quests.map((q) => ({ code: slugify(q.code), title: q.title || '' })),
-    }),
+    user: buildStageUser(
+      theme,
+      { quests: quests.map((q) => ({ code: slugify(q.code), title: q.title || '' })) },
+      lore,
+    ),
     thinkingLevel,
   });
   const dialogues = asArray(dialoguesRes.dialogues);
@@ -380,7 +507,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel) {
   logger.info('Stage 4/4: actions');
   const actionsRes = await client.chatJson({
     system: buildStagePrompt('actions'),
-    user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds }),
+    user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds }, lore),
     thinkingLevel,
   });
   const actions = asArray(actionsRes.actions);
@@ -392,27 +519,42 @@ async function generateRawEcosystem(client, theme, thinkingLevel) {
  * Full Top-Down PCG pipeline: prompt → staged Gemini JSON → normalize → persist.
  *
  * @async
+ * When `prompt` is omitted, a distinct theme is auto-synthesized from the Cyberia
+ * base lore (and every stage is grounded in that lore). When `prompt` is given,
+ * it is used as-is with no lore grounding. When `out` is omitted, the payload is
+ * written to `./engine-private/cyberia-sagas/<saga-code>.json`.
+ *
  * @param {Object} params
- * @param {string} params.prompt - High-level natural-language theme seed.
+ * @param {string} [params.prompt] - Theme seed; if omitted, auto-generated from lore.
  * @param {Object} params.models - Loaded Mongoose models (see {@link persistSagaPayload}).
  * @param {string} [params.model] - Gemini model id override.
  * @param {string} [params.apiKey] - Gemini API key override.
  * @param {number} [params.timeout] - Per-request timeout in ms.
  * @param {string} [params.thinkingLevel] - Gemini thinking level (default in client).
+ * @param {string} [params.lorePath] - Override path to the base-lore document.
  * @param {boolean} [params.dryRun=false] - Skip persistence; only generate + return.
- * @param {string} [params.out] - Optional file path to dump the normalized payload JSON.
+ * @param {string} [params.out] - File path to dump the payload (defaults to the saga dir).
  * @returns {Promise<Object>} The normalized payload (with a `summary` when persisted).
  */
-async function generateSaga({ prompt, models, model, apiKey, timeout, thinkingLevel, dryRun = false, out }) {
-  if (!prompt) throw new Error('A --prompt theme is required.');
-
+async function generateSaga({ prompt, models, model, apiKey, timeout, thinkingLevel, lorePath, dryRun = false, out }) {
   const client = new GeminiClient({ apiKey, model, timeout });
-  logger.info(`Generating saga ontology from theme: "${prompt}"`);
 
-  const raw = await generateRawEcosystem(client, prompt, thinkingLevel);
-  const payload = normalizeSagaPayload(raw, { theme: prompt });
+  let theme = prompt;
+  let lore = '';
+  if (!theme) {
+    lore = await loadLoreContext(lorePath);
+    logger.info('No --prompt provided; auto-generating a distinct lore-grounded theme...');
+    theme = await synthesizeTheme(client, lore, thinkingLevel);
+    logger.info(`Auto-generated theme: "${theme}"`);
+  } else {
+    logger.info(`Generating saga ontology from theme: "${theme}"`);
+  }
 
-  return finalizeSaga({ payload, models, out, dryRun });
+  const raw = await generateRawEcosystem(client, theme, thinkingLevel, lore);
+  const payload = normalizeSagaPayload(raw, { theme });
+
+  const outPath = out || nodePath.join(DEFAULT_SAGA_OUT_DIR, `${payload.saga.code}.json`);
+  return finalizeSaga({ payload, models, out: outPath, dryRun });
 }
 
 /**
@@ -492,6 +634,8 @@ export {
   normalizeSagaPayload,
   persistSagaPayload,
   persistObjectLayers,
+  loadLoreContext,
+  synthesizeTheme,
   buildStagePrompt,
   buildStageUser,
   slugify,

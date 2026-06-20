@@ -125,9 +125,10 @@ class GeminiClient {
    * @param {string} params.system - System prompt (defines the output ontology / schema).
    * @param {string} params.user - User prompt (the high-level theme seed).
    * @param {string} [params.thinkingLevel='high'] - Gemini thinking level.
+   * @param {number} [params.temperature] - Sampling temperature (higher = more varied).
    * @returns {Promise<Object>} Parsed JSON object from the model response.
    */
-  async chatJson({ system, user, thinkingLevel = 'high' }) {
+  async chatJson({ system, user, thinkingLevel = 'high', temperature }) {
     const prompt = [
       system,
       '',
@@ -136,11 +137,10 @@ class GeminiClient {
       'Respond with ONLY a single valid JSON object. Do not wrap it in markdown fences and do not add any prose.',
     ].join('\n');
 
-    const text = await this.generateContent({
-      prompt,
-      generationConfig: { thinkingConfig: { thinkingLevel } },
-    });
+    const generationConfig = { thinkingConfig: { thinkingLevel } };
+    if (typeof temperature === 'number') generationConfig.temperature = temperature;
 
+    const text = await this.generateContent({ prompt, generationConfig });
     return parseJsonLoose(text);
   }
 }
