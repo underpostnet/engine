@@ -72,6 +72,27 @@ persistSagaPayload()     ── idempotent upserts into MongoDB
   protagonist, tone), a random entropy token, and a high sampling temperature —
   so repeated runs surface very different sagas across the lore.
 
+#### Spatial context (physical vs. hyperspace)
+
+Cyberia has two equally important layers — the **Physical Layer** (fleets,
+colonies, logistics, force) and the **Hyperspace Layer** (persistent Instances,
+memory-cities, digital ecosystems). Because the lore is titled *The Frontier of
+Hyperspace*, an unconstrained model drifts to hyperspace-only premises. So the
+auto-theme picks a spatial context **explicitly and uniformly (~33.3% each)**:
+
+| Context      | Premise lives in…                                              |
+| ------------ | -------------------------------------------------------------- |
+| `physical`   | the material frontier only — no hyperspace                     |
+| `mixed`      | the porous interplay where events bleed between both layers    |
+| `hyperspace` | inside the Instances only — not the physical frontier          |
+
+Force one with `--space-context <physical\|mixed\|hyperspace>`; an invalid value
+warns and falls back to random. This applies to auto-generation only (with
+`--prompt`, you control the setting yourself).
+
+> Transient `generateContent` failures (timeouts, 5xx, malformed JSON) are
+> retried automatically with backoff (`maxRetries`, default 2) per stage.
+
 Source:
 
 - `src/projects/cyberia/gemini-client.js` — thin Gemini `generateContent` JSON client.
@@ -114,6 +135,7 @@ Options:
 | `--prompt <theme>`         | Theme seed. Omit to auto-generate from the lore.     |
 | `--import <file>`          | Load a generated payload file into the DB.           |
 | `--lore-path <path>`       | Override the base-lore doc (auto-generate mode).     |
+| `--space-context <ctx>`    | Force `physical` \| `mixed` \| `hyperspace` (else random). |
 | `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
 | `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |
 | `--thinking-level <level>` | `low` \| `medium` \| `high` (default `high`).        |

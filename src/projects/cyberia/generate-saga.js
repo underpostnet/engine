@@ -77,11 +77,49 @@ const THEME_DIMENSIONS = {
 };
 
 /**
+ * The two equally important layers of Cyberia (plus their interplay). The base
+ * lore is titled "The Frontier of Hyperspace", which biases an unconstrained
+ * model toward hyperspace-only premises — so the spatial context is chosen
+ * explicitly and uniformly (≈33.3% each) unless overridden by `--space-context`.
+ * @type {Object<string, string>}
+ */
+const SPACE_CONTEXTS = {
+  physical:
+    'PHYSICAL LAYER ONLY — the harsh, resource-driven material reality of fleets, colonies, orbital ' +
+    'fortresses, infrastructure, territory, logistics and direct force. Do NOT involve hyperspace, ' +
+    'Instances, digital realms or memory-cities.',
+  mixed:
+    'MIXED LAYERS — the porous interplay between physical reality and hyperspace, where relics, neural ' +
+    'links, breaches and megastructures let events bleed between the two layers so each reshapes the other.',
+  hyperspace:
+    'HYPERSPACE LAYER ONLY — inside the persistent Instances: living archives, simulated empires, ' +
+    'memory-cities and evolving digital ecosystems where time, geography and identity are fluid. ' +
+    'Keep the premise within hyperspace, not the physical frontier.',
+};
+
+/**
  * @param {Array} arr
  * @returns {*} A uniformly random element.
  */
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Resolve the spatial context for theme synthesis. An explicit, valid override
+ * wins; otherwise one of the three contexts is chosen uniformly at random.
+ * @param {string} [override] - 'physical' | 'mixed' | 'hyperspace'.
+ * @returns {string} A valid context key.
+ */
+function resolveSpaceContext(override) {
+  if (override) {
+    const key = String(override).toLowerCase();
+    if (SPACE_CONTEXTS[key]) return key;
+    logger.warn(
+      `Unknown --space-context "${override}"; choosing at random. Valid: ${Object.keys(SPACE_CONTEXTS).join(', ')}`,
+    );
+  }
+  return pickRandom(Object.keys(SPACE_CONTEXTS));
 }
 
 /**
@@ -107,10 +145,13 @@ async function loadLoreContext(lorePath = DEFAULT_LORE_PATH) {
  * @async
  * @param {GeminiClient} client
  * @param {string} lore - Base lore document text.
- * @param {string} [thinkingLevel]
- * @returns {Promise<string>} A 1-2 sentence theme seed.
+ * @param {Object} [options]
+ * @param {string} [options.thinkingLevel]
+ * @param {string} [options.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (default random).
+ * @returns {Promise<{ theme: string, spaceContext: string }>} The theme seed and chosen context.
  */
-async function synthesizeTheme(client, lore, thinkingLevel) {
+async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext } = {}) {
+  const contextKey = resolveSpaceContext(spaceContext);
   const picks = {
     faction: pickRandom(THEME_DIMENSIONS.faction),
     conflict: pickRandom(THEME_DIMENSIONS.conflict),
@@ -126,6 +167,9 @@ async function synthesizeTheme(client, lore, thinkingLevel) {
     'is novel and unexpected — never a generic or repeated setup.',
     'Return ONLY JSON: { "theme": string } where theme is 1-2 concrete, evocative sentences.',
     '',
+    'CRITICAL — the premise MUST be set in this spatial context:',
+    SPACE_CONTEXTS[contextKey],
+    '',
     'BASE LORE:',
     lore || '(no lore provided)',
   ].join('\n');
@@ -134,13 +178,15 @@ async function synthesizeTheme(client, lore, thinkingLevel) {
     'Invent a fresh saga premise now. Anchor it with these random creative constraints for novelty:',
     JSON.stringify(picks),
     `Creative entropy token: ${nonce}.`,
-    'Choose an unexpected corner of the lore consistent with the constraints.',
+    'Honor the required spatial context above exactly, and choose an unexpected corner of the lore',
+    'consistent with the constraints.',
   ].join('\n');
 
+  logger.info(`Theme spatial context: ${contextKey}`);
   const res = await client.chatJson({ system, user, thinkingLevel, temperature: 1.3 });
   const theme = String(res.theme || '').trim();
   if (!theme) throw new Error('Theme synthesis returned an empty theme.');
-  return theme;
+  return { theme, spaceContext: contextKey };
 }
 
 /**
@@ -532,11 +578,23 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
  * @param {number} [params.timeout] - Per-request timeout in ms.
  * @param {string} [params.thinkingLevel] - Gemini thinking level (default in client).
  * @param {string} [params.lorePath] - Override path to the base-lore document.
+ * @param {string} [params.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (auto mode only).
  * @param {boolean} [params.dryRun=false] - Skip persistence; only generate + return.
  * @param {string} [params.out] - File path to dump the payload (defaults to the saga dir).
  * @returns {Promise<Object>} The normalized payload (with a `summary` when persisted).
  */
-async function generateSaga({ prompt, models, model, apiKey, timeout, thinkingLevel, lorePath, dryRun = false, out }) {
+async function generateSaga({
+  prompt,
+  models,
+  model,
+  apiKey,
+  timeout,
+  thinkingLevel,
+  lorePath,
+  spaceContext,
+  dryRun = false,
+  out,
+}) {
   const client = new GeminiClient({ apiKey, model, timeout });
 
   let theme = prompt;
@@ -544,7 +602,7 @@ async function generateSaga({ prompt, models, model, apiKey, timeout, thinkingLe
   if (!theme) {
     lore = await loadLoreContext(lorePath);
     logger.info('No --prompt provided; auto-generating a distinct lore-grounded theme...');
-    theme = await synthesizeTheme(client, lore, thinkingLevel);
+    ({ theme } = await synthesizeTheme(client, lore, { thinkingLevel, spaceContext }));
     logger.info(`Auto-generated theme: "${theme}"`);
   } else {
     logger.info(`Generating saga ontology from theme: "${theme}"`);

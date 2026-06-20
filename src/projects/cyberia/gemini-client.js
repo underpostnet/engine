@@ -58,12 +58,14 @@ class GeminiClient {
    * @param {string} [options.model] - Model id (default: `gemma-4-26b-a4b-it`).
    * @param {string} [options.baseURL] - Override the model base URL.
    * @param {number} [options.timeout] - Request timeout in ms (default: 300000).
+   * @param {number} [options.maxRetries] - Retry attempts on transient failure (default: 2).
    */
-  constructor({ apiKey, model = GEMINI_DEFAULT_MODEL, baseURL = GEMINI_API_BASE, timeout = 300000 } = {}) {
+  constructor({ apiKey, model = GEMINI_DEFAULT_MODEL, baseURL = GEMINI_API_BASE, timeout = 300000, maxRetries = 2 } = {}) {
     this.apiKey = apiKey || process.env.GEMINI_API_KEY;
     this.model = model;
     this.baseURL = baseURL;
     this.timeout = timeout;
+    this.maxRetries = maxRetries;
     if (!this.apiKey) {
       throw new Error('GEMINI_API_KEY is not set. Export it or add it to your --env-path file.');
     }
@@ -140,8 +142,26 @@ class GeminiClient {
     const generationConfig = { thinkingConfig: { thinkingLevel } };
     if (typeof temperature === 'number') generationConfig.temperature = temperature;
 
-    const text = await this.generateContent({ prompt, generationConfig });
-    return parseJsonLoose(text);
+    // Retry on transient failures (timeouts, 5xx, empty/invalid JSON) which the
+    // generateContent endpoint surfaces intermittently under load.
+    let lastError;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const text = await this.generateContent({ prompt, generationConfig });
+        return parseJsonLoose(text);
+      } catch (error) {
+        lastError = error;
+        if (attempt < this.maxRetries) {
+          const backoffMs = 1000 * (attempt + 1);
+          logger.warn(
+            `Gemini attempt ${attempt + 1}/${this.maxRetries + 1} failed (${error.message}); ` +
+              `retrying in ${backoffMs}ms`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+    throw lastError;
   }
 }
 

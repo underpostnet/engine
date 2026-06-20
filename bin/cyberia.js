@@ -3324,6 +3324,10 @@ try {
     .option('--timeout <ms>', 'Per-request timeout in ms (default: 300000)', (v) => parseInt(v, 10))
     .option('--thinking-level <level>', 'Gemini thinking level: low | medium | high (default: high)')
     .option('--lore-path <path>', 'Override path to the base-lore doc (default: src/client/public/cyberia-docs/CYBERIA-LORE.md)')
+    .option(
+      '--space-context <context>',
+      'Force the auto-theme spatial layer: physical | mixed | hyperspace (default: random ~33% each)',
+    )
     .option('--out <file>', 'Path to dump the payload JSON (default: ./engine-private/cyberia-sagas/<saga-code>.json)')
     .option('--dry-run', 'Generate and normalize without writing to the database')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
@@ -3396,6 +3400,7 @@ try {
             timeout: options.timeout,
             thinkingLevel: options.thinkingLevel,
             lorePath: options.lorePath,
+            spaceContext: options.spaceContext,
             dryRun: !!options.dryRun,
             out: options.out,
           });
