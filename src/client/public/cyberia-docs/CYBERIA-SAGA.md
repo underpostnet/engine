@@ -38,7 +38,7 @@ for binding quests/actions to cells and producing object-layer renders.
 
 ## Pipeline
 
-The ecosystem is generated in **four bounded, sequential stages** rather than a
+The ecosystem is generated in **five bounded, sequential stages** rather than a
 single monolithic request. Each stage emits one layer and feeds canonical
 (slugified) references into the next, so no single model call has to produce the
 whole cross-referenced graph — this keeps each Gemini request small enough to
@@ -50,9 +50,10 @@ theme  (from --prompt, OR auto-synthesized from CYBERIA-LORE.md)
    ▼
 Google Gemini (Generative Language API /v1beta/models/{model}:generateContent)
    │   stage 1  foundation  → saga identity + objectLayers (item ids)
-   │   stage 2  quests      → quests           (consume item ids)
-   │   stage 3  dialogues   → dialogues        (consume quest codes)
-   │   stage 4  actions     → actions          (consume quest + dialogue + item codes)
+   │   stage 2  maps        → maps             (narrative zones / places)
+   │   stage 3  quests      → quests           (consume item ids + map zones)
+   │   stage 4  dialogues   → dialogues        (consume quest codes)
+   │   stage 5  actions     → actions          (consume quest + dialogue + item codes)
    ▼
 normalizeSagaPayload()   ── enforces text-only boundary, slugifies, resolves refs
    │
@@ -149,9 +150,12 @@ Options:
 
 ## Output schema
 
-A single JSON object with five interrelated sections:
+A single JSON object with these interrelated sections:
 
 - **saga** — `code`, `name`, `description`, `mapCodes[]`, `itemIds[]`, `questCodes[]`.
+- **maps[]** — narrative zones the quest chain visits: `code`, `name`,
+  `description` (text only — grid/cells/entities stay at schema defaults). Their
+  codes populate `saga.mapCodes`.
 - **quests[]** — textual objectives, titles, linear `steps[]` with
   `collect | talk | kill` objectives and `rewards[]`. Spatial fields `null`.
 - **dialogues[]** — narrative nodes: `code`, `order`, `speaker`, `text`, `mood`.
@@ -208,6 +212,7 @@ Documents are written sequentially with idempotent upserts (rerunnable):
 | Section       | Model                  | Upsert key       |
 | ------------- | ---------------------- | ---------------- |
 | saga          | `CyberiaSagaModel`     | `code`           |
+| maps          | `CyberiaMapModel`      | `code`           |
 | quests        | `CyberiaQuestModel`    | `code`           |
 | dialogues     | `CyberiaDialogueModel` | `code` + `order` |
 | actions       | `CyberiaActionModel`   | `code`           |

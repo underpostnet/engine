@@ -3369,7 +3369,7 @@ try {
         logger.info('generate-saga', { deployId, host, path, db });
 
         await DataBaseProviderService.load({
-          apis: ['cyberia-saga', 'cyberia-quest', 'cyberia-dialogue', 'cyberia-action', 'object-layer'],
+          apis: ['cyberia-saga', 'cyberia-map', 'cyberia-quest', 'cyberia-dialogue', 'cyberia-action', 'object-layer'],
           host,
           path,
           db,
@@ -3377,6 +3377,7 @@ try {
 
         models = {
           CyberiaSaga: DataBaseProviderService.getModel('cyberia-saga', { host, path }),
+          CyberiaMap: DataBaseProviderService.getModel('cyberia-map', { host, path }),
           CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
           CyberiaDialogue: DataBaseProviderService.getModel('cyberia-dialogue', { host, path }),
           CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),

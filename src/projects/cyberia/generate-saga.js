@@ -241,6 +241,14 @@ const STAGE_PROMPTS = {
     '"skin" items that represent NAMED NPC characters players can speak to (these back "talk" quests).',
   ].join('\n'),
 
+  maps: [
+    'STAGE: maps. Return ONE JSON object: { "maps": [...] }.',
+    'maps[]: { code, name, description }  (TEXT ONLY — no grid, cells, entities, coordinates or assets).',
+    'Maps are the zones / places where the saga unfolds: the distinct locations the quest chain visits',
+    'so the story makes sense (e.g. a hub settlement, a contested site, a hidden base, a final',
+    'confrontation). Produce 3-6 maps; codes are lowercase kebab-case and unique.',
+  ].join('\n'),
+
   quests: [
     'STAGE: quests. Return ONE JSON object: { "quests": [...] }.',
     'quests[]: { code, title, description, prerequisiteCodes:[string], unlocksQuestCodes:[string],',
@@ -429,10 +437,20 @@ function ensureTalkLinkage({ quests, dialogues, actions, objectLayers }) {
  * @param {Object} raw - Parsed Gemini JSON.
  * @param {Object} params
  * @param {string} params.theme - Original prompt seed (used to derive a saga code fallback).
- * @returns {{ saga: Object, quests: Object[], dialogues: Object[], actions: Object[], objectLayers: Object[] }}
+ * @returns {{ saga: Object, maps: Object[], quests: Object[], dialogues: Object[], actions: Object[], objectLayers: Object[] }}
  */
 function normalizeSagaPayload(raw, { theme }) {
   const rawSaga = raw.saga || {};
+
+  // Maps are narrative zones — text only (code, name, description); spatial /
+  // grid / entity fields stay at their schema defaults.
+  const maps = asArray(raw.maps)
+    .map((m) => ({
+      code: slugify(m.code),
+      name: m.name || m.code || '',
+      description: m.description || '',
+    }))
+    .filter((m) => m.code);
 
   const quests = asArray(raw.quests).map((q) => ({
     code: slugify(q.code),
@@ -524,17 +542,18 @@ function normalizeSagaPayload(raw, { theme }) {
 
   const itemIds = objectLayers.map((ol) => ol.item.id).filter(Boolean);
   const questCodes = quests.map((q) => q.code).filter(Boolean);
+  const mapCodes = maps.map((m) => m.code).filter(Boolean);
 
   const saga = {
     code: slugify(rawSaga.code) || slugify(theme) || `cyberia-saga-${Date.now()}`,
     name: rawSaga.name || theme,
     description: rawSaga.description || '',
-    mapCodes: asArray(rawSaga.mapCodes).map(slugify).filter(Boolean),
+    mapCodes: [...new Set([...asArray(rawSaga.mapCodes).map(slugify), ...mapCodes])].filter(Boolean),
     itemIds: [...new Set([...asArray(rawSaga.itemIds).map(slugify), ...itemIds])].filter(Boolean),
     questCodes: [...new Set([...asArray(rawSaga.questCodes).map(slugify), ...questCodes])].filter(Boolean),
   };
 
-  return { saga, quests, dialogues, actions, objectLayers };
+  return { saga, maps, quests, dialogues, actions, objectLayers };
 }
 
 /**
@@ -588,15 +607,22 @@ async function persistObjectLayers({ objectLayers, ObjectLayer }) {
  * @async
  * @param {Object} params
  * @param {Object} params.payload - Output of {@link normalizeSagaPayload}.
- * @param {Object} params.models - { CyberiaSaga, CyberiaQuest, CyberiaDialogue, CyberiaAction, ObjectLayer? }.
- * @returns {Promise<{ saga: number, quests: number, dialogues: number, actions: number, objectLayers: number }>}
+ * @param {Object} params.models - { CyberiaSaga, CyberiaMap?, CyberiaQuest, CyberiaDialogue, CyberiaAction, ObjectLayer? }.
+ * @returns {Promise<{ saga, maps, quests, dialogues, actions, objectLayers: number }>}
  */
 async function persistSagaPayload({ payload, models }) {
-  const { CyberiaSaga, CyberiaQuest, CyberiaDialogue, CyberiaAction, ObjectLayer } = models;
-  const { saga, quests, dialogues, actions, objectLayers } = payload;
+  const { CyberiaSaga, CyberiaMap, CyberiaQuest, CyberiaDialogue, CyberiaAction, ObjectLayer } = models;
+  const { saga, maps, quests, dialogues, actions, objectLayers } = payload;
 
   await CyberiaSaga.findOneAndUpdate({ code: saga.code }, { $set: saga }, { upsert: true });
 
+  let mapCount = 0;
+  if (CyberiaMap) {
+    for (const map of asArray(maps)) {
+      await CyberiaMap.findOneAndUpdate({ code: map.code }, { $set: map }, { upsert: true });
+      mapCount++;
+    }
+  }
   for (const quest of quests) {
     await CyberiaQuest.findOneAndUpdate({ code: quest.code }, { $set: quest }, { upsert: true });
   }
@@ -615,6 +641,7 @@ async function persistSagaPayload({ payload, models }) {
 
   return {
     saga: 1,
+    maps: mapCount,
     quests: quests.length,
     dialogues: dialogues.length,
     actions: actions.length,
@@ -623,7 +650,7 @@ async function persistSagaPayload({ payload, models }) {
 }
 
 /**
- * Generate the raw five-section ecosystem in four bounded, sequential stages.
+ * Generate the raw six-section ecosystem in five bounded, sequential stages.
  * Each stage produces one layer and feeds canonical (slugified) references into
  * the next, so no single model call has to emit the whole cross-referenced graph.
  *
@@ -632,11 +659,11 @@ async function persistSagaPayload({ payload, models }) {
  * @param {string} theme
  * @param {string} [thinkingLevel]
  * @param {string} [lore] - Base lore text to ground every stage (empty = ungrounded).
- * @returns {Promise<{ saga, quests, dialogues, actions, objectLayers }>}
+ * @returns {Promise<{ saga, maps, quests, dialogues, actions, objectLayers }>}
  */
 async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   // Stage 1 — saga identity + object-layer items (the economic foundation).
-  logger.info('Stage 1/4: foundation (saga + object layers)');
+  logger.info('Stage 1/5: foundation (saga + object layers)');
   const foundation = await client.chatJson({
     system: buildStagePrompt('foundation'),
     user: buildStageUser(theme, undefined, lore),
@@ -646,11 +673,25 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   const objectLayers = asArray(foundation.objectLayers);
   const itemIds = objectLayers.map((ol) => slugify(ol.item?.id)).filter(Boolean);
 
-  // Stage 2 — quests referencing the canonical item ids.
-  logger.info('Stage 2/4: quests');
+  // Stage 2 — maps: the narrative zones the quest chain visits.
+  logger.info('Stage 2/5: maps');
+  const mapsRes = await client.chatJson({
+    system: buildStagePrompt('maps'),
+    user: buildStageUser(theme, undefined, lore),
+    thinkingLevel,
+  });
+  const maps = asArray(mapsRes.maps);
+  const mapCodes = maps.map((m) => slugify(m.code)).filter(Boolean);
+
+  // Stage 3 — quests referencing the canonical item ids, grounded in the zones.
+  logger.info('Stage 3/5: quests');
   const questsRes = await client.chatJson({
     system: buildStagePrompt('quests'),
-    user: buildStageUser(theme, { itemIds }, lore),
+    user: buildStageUser(
+      theme,
+      { itemIds, maps: maps.map((m) => ({ code: slugify(m.code), name: m.name || '' })) },
+      lore,
+    ),
     thinkingLevel,
   });
   const quests = asArray(questsRes.quests);
@@ -658,8 +699,8 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   // NPCs that must be talked to (questCode + skin) drive the dialogue + action linkage.
   const talkTargets = collectTalkTargets(quests);
 
-  // Stage 3 — dialogues for each quest (and a talk dialogue per talk target).
-  logger.info('Stage 3/4: dialogues');
+  // Stage 4 — dialogues for each quest (and a talk dialogue per talk target).
+  logger.info('Stage 4/5: dialogues');
   const dialoguesRes = await client.chatJson({
     system: buildStagePrompt('dialogues'),
     user: buildStageUser(
@@ -672,8 +713,8 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   const dialogues = asArray(dialoguesRes.dialogues);
   const dialogueCodes = [...new Set(dialogues.map((d) => slugify(d.code)).filter(Boolean))];
 
-  // Stage 4 — actions binding quests, dialogues, and items together.
-  logger.info('Stage 4/4: actions');
+  // Stage 5 — actions binding quests, dialogues, and items together.
+  logger.info('Stage 5/5: actions');
   const actionsRes = await client.chatJson({
     system: buildStagePrompt('actions'),
     user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds, talkTargets }, lore),
@@ -681,7 +722,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   });
   const actions = asArray(actionsRes.actions);
 
-  return { saga, quests, dialogues, actions, objectLayers };
+  return { saga, maps, quests, dialogues, actions, objectLayers };
 }
 
 /**
@@ -781,7 +822,7 @@ async function importSaga({ file, models, dryRun = false, out }) {
  */
 async function finalizeSaga({ payload, models, out, dryRun = false }) {
   logger.info(
-    `Normalized: saga=${payload.saga.code} quests=${payload.quests.length} ` +
+    `Normalized: saga=${payload.saga.code} maps=${payload.maps.length} quests=${payload.quests.length} ` +
       `dialogues=${payload.dialogues.length} actions=${payload.actions.length} ` +
       `objectLayers=${payload.objectLayers.length}`,
   );
@@ -800,7 +841,7 @@ async function finalizeSaga({ payload, models, out, dryRun = false }) {
 
   const summary = await persistSagaPayload({ payload, models });
   logger.info(
-    `Persisted: ${summary.saga} saga, ${summary.quests} quests, ` +
+    `Persisted: ${summary.saga} saga, ${summary.maps} maps, ${summary.quests} quests, ` +
       `${summary.dialogues} dialogues, ${summary.actions} actions, ${summary.objectLayers} object layers`,
   );
 
