@@ -30,20 +30,19 @@ const DEFAULT_LORE_PATH = 'src/client/public/cyberia-docs/CYBERIA-LORE.md';
 const DEFAULT_SAGA_OUT_DIR = './engine-private/cyberia-sagas';
 
 /**
- * Independent narrative dimensions sampled at random to force theme variety when
- * no `--prompt` is supplied. Kept deliberately small — just the confederation
- * the saga revolves around. Tone is handled separately (see {@link TONES}).
- * @type {Object<string, string[]>}
+ * The confederations / power blocs a saga can revolve around. Unlike {@link TONES}
+ * and {@link SPACE_CONTEXTS}, this dimension is NOT customizable: a unique random
+ * non-empty subset is chosen each run (one, several, or all — never repeated),
+ * giving the saga a distinct alliance/rivalry footprint every time.
+ * @type {string[]}
  */
-const THEME_DIMENSIONS = {
-  faction: [
-    'the Zenith Empire (Red)',
-    'the Atlas Confederation (Yellow)',
-    'the Nova Republic (Blue)',
-    'the contested Frontier between confederations',
-    'an unaligned independent enclave',
-  ],
-};
+const FACTIONS = [
+  'the Zenith Empire (Red)',
+  'the Atlas Confederation (Yellow)',
+  'the Nova Republic (Blue)',
+  'the contested Frontier between confederations',
+  'an unaligned independent enclave',
+];
 
 /**
  * The four broad, well-defined narrative types. One is chosen uniformly
@@ -58,10 +57,10 @@ const TONES = {
     'combat, dangerous experimental technology, rogue AI and mystery. The driving plot is danger and intrigue.',
   politics:
     "POLITICS — Cyberia's geopolitics: diplomatic maneuvering, large-scale faction warfare, revolutions, " +
-    'treaties and major power agreements between the confederations. The driving plot is influence, ' +
-    'allegiance and statecraft.',
+    'treaties and major power agreements between the confederations, The driving plot is influence, ' +
+    'allegiance and statecraft, philosophical and ideological conflicts between entities or factions.',
   tragic:
-    'TRAGIC — a genuinely heartbreaking, intimate story: emotional and sentimental themes centered on ' +
+    'TRAGIC — a genuinely heartbreaking, or intimate story: emotional and sentimental themes centered on ' +
     'family, bonds, loss and the death of loved ones inside small personal micro-realities. The driving ' +
     'plot is grief and what it costs — not spectacle.',
   comedy:
@@ -96,6 +95,22 @@ const SPACE_CONTEXTS = {
  */
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Pick a unique random non-empty subset of `arr` (no repeats). Subset size is
+ * uniform in 1..arr.length, members are chosen via a Fisher-Yates shuffle.
+ * @param {Array} arr
+ * @returns {Array} A new array with 1..arr.length distinct elements.
+ */
+function pickRandomSubset(arr) {
+  const pool = [...arr];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const count = 1 + Math.floor(Math.random() * pool.length);
+  return pool.slice(0, count);
 }
 
 /**
@@ -161,12 +176,12 @@ const DEFAULT_THEME_TEMPERATURE = 1.3;
  * @param {string} [options.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (default random).
  * @param {string} [options.tone] - Force 'adventure' | 'politics' | 'tragic' | 'comedy' (default random).
  * @param {number} [options.temperature] - Sampling temperature (default 1.3).
- * @returns {Promise<{ theme: string, spaceContext: string, tone: string }>} The theme and chosen facets.
+ * @returns {Promise<{ theme: string, spaceContext: string, tone: string, factions: string[] }>} The theme and chosen facets.
  */
 async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone, temperature } = {}) {
   const contextKey = resolveSpaceContext(spaceContext);
   const toneKey = resolveTone(tone);
-  const faction = pickRandom(THEME_DIMENSIONS.faction);
+  const factions = pickRandomSubset(FACTIONS);
   const nonce = crypto.randomBytes(4).toString('hex');
 
   const system = [
@@ -181,19 +196,21 @@ async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone
     'CRITICAL — the premise MUST commit fully to this narrative type / tone:',
     TONES[toneKey],
     '',
+    'CRITICAL — the premise MUST revolve around this confederation set (use all of them):',
+    factions.join(', '),
+    '',
     'BASE LORE:',
     lore || '(no lore provided)',
   ].join('\n');
 
   const user = [
-    'Invent a fresh saga premise now. Center it on this confederation:',
-    faction,
+    'Invent a fresh saga premise now.',
     `Creative entropy token: ${nonce}.`,
-    'Honor the required spatial context and narrative tone above exactly, and choose an unexpected',
-    'corner of the lore consistent with them.',
+    'Honor the required spatial context, narrative tone and confederation set above exactly, and',
+    'choose an unexpected corner of the lore consistent with them.',
   ].join('\n');
 
-  logger.info(`Theme spatial context: ${contextKey} | tone: ${toneKey}`);
+  logger.info(`Theme spatial context: ${contextKey} | tone: ${toneKey} | factions: ${factions.join(', ')}`);
   const res = await client.chatJson({
     system,
     user,
@@ -202,7 +219,7 @@ async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone
   });
   const theme = String(res.theme || '').trim();
   if (!theme) throw new Error('Theme synthesis returned an empty theme.');
-  return { theme, spaceContext: contextKey, tone: toneKey };
+  return { theme, spaceContext: contextKey, tone: toneKey, factions };
 }
 
 /**
@@ -297,7 +314,7 @@ const STAGE_PROMPTS = {
     'A "talk" objective is fulfilled ONLY when the player views the dialogCode that an action maps for',
     'that quest. So for EVERY provided talk target { questCode, skin } you MUST output an action that',
     'represents that NPC: set dialogCode to "default-<skin>" (the NPC greeting) and include a',
-    'questDialogueCodes entry { questCode, dialogCode } whose dialogCode is that quest\'s talk dialogue',
+    "questDialogueCodes entry { questCode, dialogCode } whose dialogCode is that quest's talk dialogue",
     '(prefer "quest-talk-<questCode>"). Without this entry the talk objective can NEVER be completed.',
     'Produce 2-4 actions. Each questDialogueCodes[].questCode MUST be a provided quest code; every',
     'questDialogueCodes[].dialogCode MUST be a provided dialogue code; every shop/craft itemId MUST be',
