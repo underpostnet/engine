@@ -237,7 +237,8 @@ const STAGE_PROMPTS = {
     '  item:{ id, type, description, activable }, render:null }',
     '  item.type is one of: skin, breastplate, weapon, skill, coin, floor, obstacle, portal,',
     '  foreground, resource; every stat is an integer 0..10 balanced to the lore.',
-    'Produce 5-10 object-layer items including at least one "coin" currency item.',
+    'Produce 5-10 object-layer items including at least one "coin" currency item AND at least two',
+    '"skin" items that represent NAMED NPC characters players can speak to (these back "talk" quests).',
   ].join('\n'),
 
   quests: [
@@ -246,8 +247,11 @@ const STAGE_PROMPTS = {
     '  sourceMapCode:null, sourceCellX:null, sourceCellY:null,',
     '  steps:[ { id:string, description:string, objectives:[ { type:"collect"|"talk"|"kill",',
     '    itemId:string, quantity:number } ] } ], rewards:[ { itemId:string, quantity:number } ] }',
+    'Objective itemId semantics: collect -> a collectible item id; kill -> the target enemy SKIN id;',
+    '  talk -> the SKIN id of the NPC the player must speak to.',
     'Produce 3-6 quests forming a small unlock chain (use prerequisiteCodes / unlocksQuestCodes).',
-    'Every objective itemId and reward itemId MUST be one of the provided item ids.',
+    'REQUIRED: at least one quest MUST contain a "talk" objective whose itemId is one of the provided',
+    'NPC skin item ids. Every objective itemId and reward itemId MUST be one of the provided item ids.',
   ].join('\n'),
 
   dialogues: [
@@ -255,6 +259,9 @@ const STAGE_PROMPTS = {
     'dialogues[]: { code, order:number, speaker:string, text:string, mood:string }',
     'Create one dialogue group (a shared code with incrementing order 0,1,2,...) for each provided',
     'quest, plus one or two NPC greeting groups. Make the text reflect each quest theme.',
+    'For EACH provided talk target, also create a dedicated talk dialogue group with code',
+    '"quest-talk-<questCode>" spoken by that NPC — this is the conversation that completes the talk',
+    'objective. Use the speaker name matching the NPC skin.',
   ].join('\n'),
 
   actions: [
@@ -263,9 +270,14 @@ const STAGE_PROMPTS = {
     '  questDialogueCodes:[ { questCode, dialogCode } ], shopItems:[ { itemId, priceItemId, priceQty } ],',
     '  craftRecipes:[ { outputItems:[ { itemId, qty } ], ingredients:[ { itemId, qty } ] } ],',
     '  storageSlots:number }',
-    'Produce 2-4 actions. Each questDialogueCodes[].questCode MUST be a provided quest code;',
-    'dialogCode and questDialogueCodes[].dialogCode MUST be a provided dialogue code; every itemId',
-    '(shop and craft) MUST be a provided item id.',
+    'A "talk" objective is fulfilled ONLY when the player views the dialogCode that an action maps for',
+    'that quest. So for EVERY provided talk target { questCode, skin } you MUST output an action that',
+    'represents that NPC: set dialogCode to "default-<skin>" (the NPC greeting) and include a',
+    'questDialogueCodes entry { questCode, dialogCode } whose dialogCode is that quest\'s talk dialogue',
+    '(prefer "quest-talk-<questCode>"). Without this entry the talk objective can NEVER be completed.',
+    'Produce 2-4 actions. Each questDialogueCodes[].questCode MUST be a provided quest code; every',
+    'questDialogueCodes[].dialogCode MUST be a provided dialogue code; every shop/craft itemId MUST be',
+    'a provided item id.',
   ].join('\n'),
 };
 
@@ -303,6 +315,111 @@ function buildStageUser(theme, context, lore) {
  */
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+/**
+ * Extract the distinct (questCode, skin) targets implied by every `talk`
+ * objective. The objective's itemId is the SKIN id of the NPC to speak to.
+ * Tolerant of raw (un-normalized) or normalized quests.
+ * @param {Object[]} quests
+ * @returns {{ questCode: string, skin: string }[]}
+ */
+function collectTalkTargets(quests) {
+  const seen = new Set();
+  const targets = [];
+  for (const q of asArray(quests)) {
+    const questCode = slugify(q.code);
+    if (!questCode) continue;
+    for (const step of asArray(q.steps)) {
+      for (const o of asArray(step.objectives)) {
+        if (o?.type === 'talk' && o.itemId) {
+          const skin = slugify(o.itemId);
+          const key = `${questCode}::${skin}`;
+          if (skin && !seen.has(key)) {
+            seen.add(key);
+            targets.push({ questCode, skin });
+          }
+        }
+      }
+    }
+  }
+  return targets;
+}
+
+/**
+ * Build a minimal, schema-valid NPC skin object-layer item.
+ * @param {string} id
+ * @returns {Object}
+ */
+function makeSkinItem(id) {
+  return {
+    stats: { effect: 1, resistance: 1, agility: 1, range: 1, intelligence: 1, utility: 1 },
+    item: { id, type: 'skin', description: `NPC ${id}`, activable: false },
+    render: null,
+  };
+}
+
+/**
+ * Guarantee every `talk` objective is fulfillable. A talk objective completes
+ * only when the player views the dialogCode an action maps for that quest, on
+ * the NPC bot whose skin matches the objective's itemId. This repair makes the
+ * data self-consistent even when the model omits a piece: for each talk target
+ * it ensures (1) the NPC skin item exists, (2) a talk dialogue exists, and
+ * (3) the action for `default-<skin>` maps questCode -> that dialogue.
+ *
+ * Mutates the provided arrays in place.
+ * @param {{ quests: Object[], dialogues: Object[], actions: Object[], objectLayers: Object[] }} payload
+ */
+function ensureTalkLinkage({ quests, dialogues, actions, objectLayers }) {
+  const itemIndex = new Map(objectLayers.map((ol) => [ol.item.id, ol]));
+  const dialogueCodes = new Set(dialogues.map((d) => d.code));
+
+  for (const { questCode, skin } of collectTalkTargets(quests)) {
+    // 1. The talk objective's itemId must resolve to a real skin item.
+    const existing = itemIndex.get(skin);
+    if (!existing) {
+      const item = makeSkinItem(skin);
+      objectLayers.push(item);
+      itemIndex.set(skin, item);
+    } else if (existing.item.type !== 'skin') {
+      existing.item.type = 'skin';
+    }
+
+    // 2. The talk dialogue the player must view to complete the objective.
+    const talkDialogCode = slugify(`quest-talk-${questCode}`);
+    if (!dialogueCodes.has(talkDialogCode)) {
+      dialogues.push({ code: talkDialogCode, order: 0, speaker: skin, text: `(${skin} speaks.)`, mood: 'neutral' });
+      dialogueCodes.add(talkDialogCode);
+    }
+
+    // 3. The NPC action (skin = default-<skin>) must map this quest -> a dialogue.
+    const greetCode = `default-${skin}`;
+    let action = actions.find((a) => a.dialogCode === greetCode);
+    if (!action) {
+      action = {
+        code: slugify(`loc-${questCode}-${skin}`),
+        label: skin,
+        dialogCode: greetCode,
+        sourceMapCode: null,
+        sourceCellX: null,
+        sourceCellY: null,
+        questDialogueCodes: [],
+        shopItems: [],
+        craftRecipes: [],
+        storageSlots: 0,
+      };
+      actions.push(action);
+    }
+    if (!action.dialogCode) action.dialogCode = greetCode;
+
+    const entry = action.questDialogueCodes.find((qd) => qd.questCode === questCode);
+    if (entry) {
+      // Keep a model-provided mapping only if its dialogue actually exists.
+      if (!dialogueCodes.has(entry.dialogCode)) entry.dialogCode = talkDialogCode;
+    } else {
+      action.questDialogueCodes.push({ questCode, dialogCode: talkDialogCode });
+    }
+  }
 }
 
 /**
@@ -400,6 +517,10 @@ function normalizeSagaPayload(raw, { theme }) {
       render: null,
     };
   });
+
+  // Guarantee every talk objective has a backing NPC skin, dialogue, and action
+  // mapping (may append skin items / dialogues / actions) before reconciling ids.
+  ensureTalkLinkage({ quests, dialogues, actions, objectLayers });
 
   const itemIds = objectLayers.map((ol) => ol.item.id).filter(Boolean);
   const questCodes = quests.map((q) => q.code).filter(Boolean);
@@ -534,14 +655,16 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   });
   const quests = asArray(questsRes.quests);
   const questCodes = quests.map((q) => slugify(q.code)).filter(Boolean);
+  // NPCs that must be talked to (questCode + skin) drive the dialogue + action linkage.
+  const talkTargets = collectTalkTargets(quests);
 
-  // Stage 3 — dialogues for each quest.
+  // Stage 3 — dialogues for each quest (and a talk dialogue per talk target).
   logger.info('Stage 3/4: dialogues');
   const dialoguesRes = await client.chatJson({
     system: buildStagePrompt('dialogues'),
     user: buildStageUser(
       theme,
-      { quests: quests.map((q) => ({ code: slugify(q.code), title: q.title || '' })) },
+      { quests: quests.map((q) => ({ code: slugify(q.code), title: q.title || '' })), talkTargets },
       lore,
     ),
     thinkingLevel,
@@ -553,7 +676,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '') {
   logger.info('Stage 4/4: actions');
   const actionsRes = await client.chatJson({
     system: buildStagePrompt('actions'),
-    user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds }, lore),
+    user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds, talkTargets }, lore),
     thinkingLevel,
   });
   const actions = asArray(actionsRes.actions);
@@ -690,6 +813,8 @@ export {
   finalizeSaga,
   generateRawEcosystem,
   normalizeSagaPayload,
+  ensureTalkLinkage,
+  collectTalkTargets,
   persistSagaPayload,
   persistObjectLayers,
   loadLoreContext,

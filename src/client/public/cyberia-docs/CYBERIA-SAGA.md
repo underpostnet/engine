@@ -183,6 +183,24 @@ normalization slugifies every code/id so they line up:
 - `saga.questCodes` / `saga.itemIds` are reconciled to include every generated
   quest and item.
 
+### `talk` objectives (guaranteed fulfillable)
+
+A `talk` objective completes **only** when the player views the `dialogCode` an
+action maps for that quest, on the NPC bot whose skin matches the objective's
+`itemId` (the bot skin derives from the action's `default-<skin>` greeting). A
+missing link means the objective can never be completed.
+
+So a talk objective requires four aligned pieces: a `skin` item for the NPC, the
+`talk` objective referencing that skin id, a talk dialogue group, and an action
+with `dialogCode: default-<skin>` plus a `questDialogueCodes` entry
+`{ questCode, dialogCode }`. The prompts ask the model to produce all four (the
+quests/dialogues/actions stages are told the `talkTargets`), and a deterministic
+**repair pass** (`ensureTalkLinkage`) then guarantees it: for every talk
+objective it creates any missing skin item, talk dialogue
+(`quest-talk-<questCode>`), or NPC action mapping, and rewrites a
+`questDialogueCodes` entry that points at a non-existent dialogue. Reruns where
+the model already produced valid links are a no-op.
+
 ## Persistence
 
 Documents are written sequentially with idempotent upserts (rerunnable):
