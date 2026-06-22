@@ -33,7 +33,7 @@ jobs:
       image: quay.io/rockylinux/rockylinux:9
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         # with:
         #   lfs: true
       # - name: Checkout LFS objects
