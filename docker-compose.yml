@@ -1,0 +1,224 @@
+# Production-style Docker Compose stack mirroring the Kubernetes development
+# environment defined under manifests/{mongodb,valkey,deployment/dd-default-development}.
+#
+# Mapping summary (K8s -> Compose):
+#   StatefulSet mongodb (replSet rs0, keyFile auth)   -> mongodb + mongodb-keyfile-init + mongodb-rs-init
+#   StatefulSet valkey-service                         -> valkey-service
+#   Deployment dd-default-development-blue             -> app
+#   HTTPProxy default.net / www.default.net (Contour)  -> proxy (nginx reverse proxy)
+#   Service type LoadBalancer / NodePort               -> published host ports via the proxy
+#   Secret mongodb-secret / mongodb-keyfile            -> .env values + generated keyfile volume
+#   PVC mongodb-storage / volumeClaimTemplates         -> named volumes
+
+name: dd-default-development
+
+services:
+  # --- MongoDB -------------------------------------------------------------
+  # Mirrors manifests/mongodb/statefulset.yaml: replSet rs0, keyFile cluster
+  # auth, --auth, bind to all interfaces. Single-node replica set for local dev.
+  #
+  # Bootstrap follows src/db/mongo/MongoBootstrap.js rather than the image's
+  # MONGO_INITDB_ROOT_USERNAME auto-init (whose temp server + keyFile combination
+  # is unreliable). The generated entrypoint (docker/mongodb/entrypoint.sh)
+  # generates the keyfile, starts mongod, and bootstraps the replica set + root
+  # user over the loopback localhost exception. The healthcheck gates readiness
+  # on an authenticated writable primary.
+  mongodb:
+    image: ${MONGO_IMAGE:-mongo:latest}
+    container_name: dd-mongodb
+    entrypoint: ["bash", "/docker-init/entrypoint.sh"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?set MONGO_INITDB_ROOT_USERNAME in docker/compose.env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?set MONGO_INITDB_ROOT_PASSWORD in docker/compose.env}
+      DB_REPLICA_SET: ${DB_REPLICA_SET:-rs0}
+    volumes:
+      - ./docker/mongodb:/docker-init:ro
+      - mongodb-keyfile:/opt/keyfile
+      - mongodb-data:/data/db
+    networks:
+      - dd-internal
+    expose:
+      - "27017"
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          mongosh --quiet -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD"
+          --authenticationDatabase admin --eval "db.hello().isWritablePrimary" | grep -q true
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  # --- Valkey --------------------------------------------------------------
+  # Mirrors manifests/valkey/statefulset.yaml.
+  valkey-service:
+    image: ${VALKEY_IMAGE:-valkey/valkey:latest}
+    container_name: dd-valkey
+    command: ["valkey-server", "--port", "6379", "--bind", "0.0.0.0", "--protected-mode", "no"]
+    volumes:
+      - valkey-data:/data
+    networks:
+      - dd-internal
+    expose:
+      - "6379"
+    # NodePort equivalent (manifests/valkey/valkey-nodeport.yaml nodePort 32079).
+    ports:
+      - "${VALKEY_NODEPORT:-32079}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "6379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # --- Application ---------------------------------------------------------
+  # Mirrors manifests/deployment/dd-default-development/deployment.yaml
+  # (dd-default-development-blue). Connection targets use Docker service
+  # discovery instead of hardcoded localhost.
+  app:
+    image: ${APP_IMAGE:-underpost/underpost-engine}:${APP_TAG:-v3.2.22}
+    container_name: dd-app
+    # The start command is supplied by the generated override docker/compose.app.yml
+    # (see `underpost docker-compose --generate --deploy-id <id>`), keeping this
+    # file deployment-agnostic.
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_PROVIDER: ${DB_PROVIDER:-mongoose}
+      DB_HOST: ${DB_HOST:-mongodb://mongodb:27017}
+      DB_NAME: ${DB_NAME:-default}
+      DB_REPLICA_SET: ${DB_REPLICA_SET:-rs0}
+      DB_AUTH_SOURCE: ${DB_AUTH_SOURCE:-admin}
+      DB_USER: ${MONGO_INITDB_ROOT_USERNAME:?}
+      DB_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?}
+      VALKEY_HOST: ${VALKEY_HOST:-valkey-service}
+      VALKEY_PORT: ${VALKEY_PORT:-6379}
+    networks:
+      - dd-internal
+    expose:
+      - "4001"
+      - "4002"
+      - "4003"
+      - "4004"
+    # Direct access to the LoadBalancer-equivalent ports (manifest 4001-4004).
+    ports:
+      - "${APP_PORT_4001:-4001}:4001"
+      - "${APP_PORT_4002:-4002}:4002"
+      - "${APP_PORT_4003:-4003}:4003"
+      - "${APP_PORT_4004:-4004}:4004"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/4001' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      valkey-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Reverse proxy / NodePort-equivalent load balancer -------------------
+  # Mirrors manifests/deployment/dd-default-development/proxy.yaml (Contour
+  # HTTPProxy) using nginx with websocket upgrade support.
+  proxy:
+    image: ${PROXY_IMAGE:-nginx:stable-alpine}
+    container_name: dd-proxy
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - dd-internal
+    ports:
+      - "${PROXY_HTTP_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      app:
+        condition: service_started
+    restart: unless-stopped
+
+  # --- Monitoring: Prometheus ----------------------------------------------
+  # Mirrors manifests/prometheus/deployment.yaml. Scrapes the app's /metrics
+  # endpoint (prom-client) over the internal network. Config is generated by
+  # `underpost docker-compose --generate` into docker/prometheus/prometheus.yml.
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:latest}
+    container_name: dd-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - dd-internal
+    expose:
+      - "9090"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      app:
+        condition: service_started
+    restart: unless-stopped
+
+  # --- Monitoring: Grafana -------------------------------------------------
+  # Mirrors manifests/grafana/deployment.yaml. Prometheus datasource is
+  # pre-provisioned (generated) so dashboards work out of the box.
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:latest}
+    container_name: dd-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - dd-internal
+    expose:
+      - "3000"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
+networks:
+  dd-internal:
+    name: dd-internal
+    driver: bridge
+
+volumes:
+  mongodb-data:
+    name: dd-mongodb-data
+  mongodb-keyfile:
+    name: dd-mongodb-keyfile
+  valkey-data:
+    name: dd-valkey-data
+  prometheus-data:
+    name: dd-prometheus-data
+  grafana-data:
+    name: dd-grafana-data

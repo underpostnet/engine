@@ -27,10 +27,18 @@
     "security:secrets:ci": "gitleaks detect --source . --config .gitleaks.toml --redact=1",
     "security:deps": "npm audit",
     "security": "npm run security:secrets:ci && npm run security:deps",
-    "clean": "node bin env clean && node bin run clean"
-  },
-  "bin": {
-    "underpost": "bin/index.js"
+    "clean": "node bin env clean && node bin run clean",
+    "docker:generate": "node bin docker-compose --generate",
+    "docker:up": "node bin docker-compose --up",
+    "docker:up:build": "node bin docker-compose --up --build",
+    "docker:down": "node bin docker-compose --down",
+    "docker:down:volumes": "node bin docker-compose --down --volumes",
+    "docker:restart": "node bin docker-compose --restart",
+    "docker:build": "node bin docker-compose --build",
+    "docker:pull": "node bin docker-compose --pull",
+    "docker:logs": "node bin docker-compose --logs",
+    "docker:status": "node bin docker-compose --status",
+    "docker:shell": "node bin docker-compose --shell"
   },
   "repository": {
     "type": "git",

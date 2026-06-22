@@ -12,6 +12,7 @@
 .env.production
 .env.development
 .env.test
+/docker
 /prometheus_data
 /grafana_data
 /images

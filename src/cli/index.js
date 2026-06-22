@@ -739,6 +739,37 @@ program
   .action(Underpost.run.callback);
 
 program
+  .command('docker-compose')
+  .argument('[target]', 'Optional service name for --logs, --shell, --restart, or --build.')
+  .option('--install', 'Install Docker Engine and the Compose v2 plugin on RHEL/Rocky hosts.')
+  .option(
+    '--reset',
+    'Comprehensive teardown (equivalent to cluster --reset): removes all stack containers, the network, named volumes (destroys data), orphans, and generated artifacts.',
+  )
+  .option('--force', 'Force reinstall (--install), remove volumes (--down), or also drop the env-file (--reset).')
+  .option(
+    '--deploy-id <deploy-id>',
+    "Deployment to run as the app container (default: dd-default). 'dd-default' self-bootstraps a fresh engine; any other id runs the standard 'underpost start' command (mirrors src/cli/deploy.js).",
+  )
+  .option('--env <env>', 'Deployment environment for non-default deploy ids (default: development).')
+  .option('--generate', 'Render dynamic supporting files (nginx router config, env-file, app-command override).')
+  .option('--up', 'Start the full stack detached (regenerates config first).')
+  .option('--down', 'Stop and remove containers (and orphans).')
+  .option('--volumes', 'With --down, also remove named volumes (destroys persisted data).')
+  .option('--restart', 'Restart services (optionally a single [target]).')
+  .option('--build', 'With --up rebuild images; alone, rebuilds images with --no-cache.')
+  .option('--pull', 'Pull upstream images for all services.')
+  .option('--logs', 'Follow logs for all services (optionally a single [target]).')
+  .option('--status', 'Show a formatted status table of services.')
+  .option('--shell', 'Open an interactive shell in [target] (default: app).')
+  .option('--exec <subcommand>', 'General-purpose passthrough docker compose subcommand.')
+  .option('--compose-file <path>', 'Path to the compose file (default: docker-compose.yml).')
+  .option('--env-file <path>', 'Path to the compose env-file (default: docker/compose.env).')
+  .option('--nginx-conf <path>', 'Path to the generated nginx config (default: docker/nginx/default.conf).')
+  .description('General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack).')
+  .action(Underpost.dockerCompose.callback);
+
+program
   .command('lxd')
   .argument(
     '[vm-id]',

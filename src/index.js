@@ -10,6 +10,7 @@ import UnderpostKickStart from './cli/kickstart.js';
 import UnderpostCluster from './cli/cluster.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
+import UnderpostDockerCompose from './cli/docker-compose.js';
 import UnderpostKubectl from './cli/kubectl.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
@@ -145,6 +146,15 @@ class Underpost {
    */
   static get deploy() {
     return UnderpostDeploy.API;
+  }
+  /**
+   * Docker Compose pipeline cli API
+   * @static
+   * @type {UnderpostDockerCompose.API}
+   * @memberof Underpost
+   */
+  static get dockerCompose() {
+    return UnderpostDockerCompose.API;
   }
   /**
    * File Storage cli API
@@ -321,6 +331,7 @@ export {
   UnderpostCluster,
   UnderpostDB,
   UnderpostDeploy,
+  UnderpostDockerCompose,
   UnderpostKubectl,
   UnderpostRootEnv,
   UnderpostFileStorage,
