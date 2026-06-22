@@ -30,18 +30,101 @@ const DEFAULT_LORE_PATH = 'src/client/public/cyberia-docs/CYBERIA-LORE.md';
 const DEFAULT_SAGA_OUT_DIR = './engine-private/cyberia-sagas';
 
 /**
- * The confederations / power blocs a saga can revolve around. Unlike {@link TONES}
- * and {@link SPACE_CONTEXTS}, this dimension is NOT customizable: a unique random
- * non-empty subset is chosen each run (one, several, or all — never repeated),
- * giving the saga a distinct alliance/rivalry footprint every time.
+ * The macro confederations / power blocs, keyed by the value accepted in
+ * `--faction-context`. They are large powers always present in the world. By
+ * default they stay in the BACKGROUND (borders, trade, security, history); only
+ * when `--faction-context` names one or more do they become the saga's DRIVER.
+ * @type {Object<string, string>}
+ */
+const FACTIONS = {
+  zenith: 'the Zenith Empire (Red)',
+  nova: 'the Nova Republic (Blue)',
+  atlas: 'the Atlas Confederation (Yellow)',
+  neutral: 'unaligned independent enclaves / neutral parties',
+};
+
+/**
+ * Grounded, world-first narrative buckets — the PRIMARY lever for thematic
+ * variety. One is chosen at random as each saga's main subject so the output
+ * spreads across lived Cyberia reality (daily life, ecology, salvage, trade,
+ * Instances, anomalies, small communities…) instead of collapsing into
+ * confederation politics every run. Not customizable.
  * @type {string[]}
  */
-const FACTIONS = [
-  'the Zenith Empire (Red)',
-  'the Atlas Confederation (Yellow)',
-  'the Nova Republic (Blue)',
-  'the contested Frontier between confederations',
-  'an unaligned independent enclave',
+const SUBJECTS = [
+  // ==========================================
+  // ORIGINAL DESIGN BASES
+  // ==========================================
+  'the daily life and small routines of ordinary Cyberia inhabitants',
+  'frontier survival in a harsh settlement, colony, or enclave',
+  'the ecology and strange ecosystems of a wildzone, biosphere, or asteroid enclave',
+  'salvage, scavenging and repair among ruins, wrecks, or derelict megastructures',
+  'local trade, barter and a black market that keeps a community alive',
+  'exploration and mapping of an uncharted region, ruin, or unknown Instance',
+  'a mutagen clan — its culture, kinship, the prejudice it faces, and its survival',
+  'a synthetic being seeking identity, work, rights, or belonging',
+  'life inside a persistent hyperspace Instance: memory-cities, living archives, simulated homes',
+  'a strange anomaly, breach, or bleed between the physical and hyperspace layers',
+  'a small community facing a local crisis: failing resources, disease, a feud, a disaster',
+  'the infrastructure and unsung workers who keep a habitat alive (power, water, air, relays)',
+  'relic hunting and the mysteries of recovered pre-Cataclysm technology',
+  'a personal story of family, memory, debt, or belonging on the frontier',
+  'the culture, festival, ritual or everyday faith of a settlement or enclave',
+  'a grounded job — courier, diver, medic, broker — that goes sideways',
+
+  // ==========================================
+  // CYBER WARFARE & ASYMMETRIC SURVIVAL (ATLAS INFLUENCE)
+  // ==========================================
+  'an underground network of signal thieves and veil-runners intercepting restricted data streams',
+  'a regional blackout caused by cyber-saboteurs leaking corporate or military archives',
+  'a memory smuggler transporting a highly unstable, encrypted consciousness across borders',
+  'the asymmetric defense of a frontier hub against an overextended military occupation',
+  'a cell of independent code-smiths fabricating illegal neural link bypasses for local enclaves',
+  'the fallout of a corrupted prediction model that falsely targets an innocent settlement',
+  'an irregular skirmish over a strategic hyper-real crossing hidden in a scrap-zone',
+
+  // ==========================================
+  // DEEP INFRASTRUCTURE & RE-COLONIZATION (ZENITH INFLUENCE)
+  // ==========================================
+  'the brutal tax extraction and martial policing of an unaligned frontier outpost',
+  'an industrial expansion project stripping a fragile ecosystem regardless of local cost',
+  'the logistical nightmare of securing an unstable physical supply corridor under constant raid',
+  'the friction between rigid, purist occupational forces and native hybrid cultures',
+  'a resource crisis in a deep-space refinery where failure compromises an entire planetary ring',
+  'the dangerous reclamation of an abandoned, weaponized bunker from the early colonization waves',
+  'the enforcement of harsh genetic and technological containment protocols in a contamination zone',
+
+  // ==========================================
+  // INSTANCE ANOMALIES & MACHINE LOGIC (NOVA INFLUENCE)
+  // ==========================================
+  'the slow, mechanical shift of an ancient simulation that has begun to mimic physical weather',
+  'a virtual sanctuary where a long-dead historical figure still rules through static and ghost data',
+  'the ethical dilemma of a community whose minds are being indexed by an invisible cognitive grid',
+  'a mapping expedition inside a corrupted dreamland instance before its code structure collapses',
+  'the cold, predictive displacement of human labor by centralized machine optimization protocols',
+  'a frontier village worshiping a malfunctioning surveillance system as a local deity',
+  'the containment of a rogue predictive algorithm that has started staging physical accidents',
+
+  // ==========================================
+  // MUTAGEN, SYNTHETIC & OUTCAST NARRATIVES
+  // ==========================================
+  'a refugee crisis involving displaced Mutagen clans seeking asylum in isolationist sectors',
+  'an awakened Synthetic crew bargaining for salvage rights over their own decommissioned assembly line',
+  'the generation gap inside a Mutagen enclave between old traditionalists and hyper-adapted youth',
+  'a black-market clinic specializing in unstable bio-augmentation and neural radiation therapy',
+  'the integration struggle of a Synthetic legalistically attempting to purchase real-world property',
+  'a prejudice-fueled feud over resource access between a pure-blood habitat and a hybrid settlement',
+
+  // ==========================================
+  // PRE-CATACLYSM & THE BLEED (THE DUAL-LAYER EXPERIENCES)
+  // ==========================================
+  'the haunting replication of a pre-Cataclysm Earth city rotting inside a forgotten Instance',
+  'a physical heist targeting a high-security vault that mirrors a structural maze in hyperspace',
+  'the dangerous extraction of pre-Cataclysm biological archives locked in frozen mineral shafts',
+  'a local economy destabilized by the sudden influx of hyper-advanced, unindexed old technology',
+  'the tragic fallout of a real-world community whose identities were purged from the hyper-spatial grid',
+  'the investigation of an unstable anchor site where physical matter is actively losing form',
+  'a deep-dive expedition following a mythic signal broadcasted from a submerged Pacific ruin',
 ];
 
 /**
@@ -56,9 +139,10 @@ const TONES = {
     'ADVENTURE — a noir, high-risk mission: covert operations, sabotage, infiltration, open warfare and ' +
     'combat, dangerous experimental technology, rogue AI and mystery. The driving plot is danger and intrigue.',
   politics:
-    "POLITICS — Cyberia's geopolitics: diplomatic maneuvering, large-scale faction warfare, revolutions, " +
-    'treaties and major power agreements between the confederations, The driving plot is influence, ' +
-    'allegiance and statecraft, philosophical and ideological conflicts between entities or factions.',
+    'POLITICS — power, influence and ideology at ANY scale: a settlement council, a clan or union dispute, ' +
+    'enclave governance, a local revolution, a treaty or allegiance shift — or, less often, confederation ' +
+    'geopolitics. The driving plot is who holds power and why, and the ideological conflict beneath it. ' +
+    'It works just as well for a small community as for the great powers.',
   tragic:
     'TRAGIC — a genuinely heartbreaking, or intimate story: emotional and sentimental themes centered on ' +
     'family, bonds, loss and the death of loved ones inside small personal micro-realities. The driving ' +
@@ -98,22 +182,6 @@ function pickRandom(arr) {
 }
 
 /**
- * Pick a unique random non-empty subset of `arr` (no repeats). Subset size is
- * uniform in 1..arr.length, members are chosen via a Fisher-Yates shuffle.
- * @param {Array} arr
- * @returns {Array} A new array with 1..arr.length distinct elements.
- */
-function pickRandomSubset(arr) {
-  const pool = [...arr];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  const count = 1 + Math.floor(Math.random() * pool.length);
-  return pool.slice(0, count);
-}
-
-/**
  * Resolve the spatial context for theme synthesis. An explicit, valid override
  * wins; otherwise one of the three contexts is chosen uniformly at random.
  * @param {string} [override] - 'physical' | 'mixed' | 'hyperspace'.
@@ -146,6 +214,29 @@ function resolveTone(override) {
 }
 
 /**
+ * Resolve `--faction-context` into descriptive faction strings. Accepts a
+ * comma-separated list of keys ('zenith' | 'nova' | 'atlas' | 'neutral');
+ * unknown keys are warned and skipped. When unset/empty the saga keeps the
+ * confederations in the background (returns []).
+ * @param {string} [override] - e.g. 'nova,zenith'.
+ * @returns {string[]} Distinct descriptive faction strings (empty = background).
+ */
+function resolveFactionContext(override) {
+  if (!override) return [];
+  const resolved = [];
+  for (const raw of String(override).split(',')) {
+    const key = raw.trim().toLowerCase();
+    if (!key) continue;
+    if (FACTIONS[key]) {
+      if (!resolved.includes(FACTIONS[key])) resolved.push(FACTIONS[key]);
+    } else {
+      logger.warn(`Unknown --faction-context "${key}"; ignoring. Valid: ${Object.keys(FACTIONS).join(', ')}`);
+    }
+  }
+  return resolved;
+}
+
+/**
  * Read the Cyberia base-lore document. Missing file is non-fatal (returns '').
  * @async
  * @param {string} [lorePath]
@@ -164,9 +255,10 @@ async function loadLoreContext(lorePath = DEFAULT_LORE_PATH) {
 const DEFAULT_THEME_TEMPERATURE = 1.3;
 
 /**
- * Invent a distinct, lore-grounded saga theme. Variety is forced by a random
- * faction, an explicit narrative tone, an entropy token and a high sampling
- * temperature, so repeated runs surface very different premises and tones.
+ * Invent a distinct, lore-grounded saga theme. Variety is driven by a random
+ * world-first subject, an explicit narrative tone, an entropy token and a high
+ * sampling temperature. Confederations stay in the background unless named via
+ * `factionContext`, in which case they become the saga's central driver.
  *
  * @async
  * @param {GeminiClient} client
@@ -175,20 +267,40 @@ const DEFAULT_THEME_TEMPERATURE = 1.3;
  * @param {string} [options.thinkingLevel]
  * @param {string} [options.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (default random).
  * @param {string} [options.tone] - Force 'adventure' | 'politics' | 'tragic' | 'comedy' (default random).
+ * @param {string} [options.factionContext] - Comma-separated faction keys to make the DRIVER (default: background).
  * @param {number} [options.temperature] - Sampling temperature (default 1.3).
- * @returns {Promise<{ theme: string, spaceContext: string, tone: string, factions: string[] }>} The theme and chosen facets.
+ * @returns {Promise<{ theme: string, spaceContext: string, tone: string, subject: string, factions: string[] }>} The theme and chosen facets.
  */
-async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone, temperature } = {}) {
+async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone, factionContext, temperature } = {}) {
   const contextKey = resolveSpaceContext(spaceContext);
   const toneKey = resolveTone(tone);
-  const factions = pickRandomSubset(FACTIONS);
+  const subject = pickRandom(SUBJECTS);
+  // Confederations are background unless --faction-context names one or more.
+  const factions = resolveFactionContext(factionContext);
+  const factionDriven = factions.length > 0;
   const nonce = crypto.randomBytes(4).toString('hex');
 
+  const factionGuidance = factionDriven
+    ? [
+        'Faction emphasis — DRIVER: these confederation power(s) are the central pressure behind the saga:',
+        `${factions.join(', ')}.`,
+        'Even so, tell it through specific people, places and the MAIN SUBJECT above — show their reach as',
+        'security, borders, edicts, agents or trade, not as abstract galaxy-spanning politics.',
+      ]
+    : [
+        'Faction emphasis — BACKGROUND ONLY: the confederations (Zenith, Atlas, Nova) are distant, ambient',
+        'powers here — felt through borders, trade influence, a security presence, taxes or old scars. Do',
+        'NOT make confederation politics or warfare the subject; keep the focus local, lived and grounded.',
+      ];
+
   const system = [
-    'You are the lore-master of Cyberia. Using the BASE LORE below, invent ONE distinct, specific',
-    'saga premise that lives inside this world. Make it novel and unexpected — never a generic or',
-    'repeated setup, and do NOT default to a "spaceship mission".',
+    'You are the lore-master of Cyberia. Using the BASE LORE below, invent ONE distinct, specific saga',
+    'premise that lives inside this world. Make it novel and grounded — never a generic or repeated setup,',
+    'and do NOT default to a "spaceship mission" or a war between confederations.',
     'Return ONLY JSON: { "theme": string } where theme is 1-2 concrete, evocative sentences.',
+    '',
+    "CRITICAL — the saga's MAIN SUBJECT (what it is really about) is:",
+    `${subject}.`,
     '',
     'CRITICAL — the premise MUST be set in this spatial context:',
     SPACE_CONTEXTS[contextKey],
@@ -196,21 +308,23 @@ async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone
     'CRITICAL — the premise MUST commit fully to this narrative type / tone:',
     TONES[toneKey],
     '',
-    'CRITICAL — the premise MUST revolve around this confederation set (use all of them):',
-    factions.join(', '),
+    ...factionGuidance,
     '',
     'BASE LORE:',
     lore || '(no lore provided)',
   ].join('\n');
 
   const user = [
-    'Invent a fresh saga premise now.',
+    'Invent a fresh saga premise now, built around the MAIN SUBJECT above.',
     `Creative entropy token: ${nonce}.`,
-    'Honor the required spatial context, narrative tone and confederation set above exactly, and',
-    'choose an unexpected corner of the lore consistent with them.',
+    'Honor the spatial context, narrative tone, subject and faction emphasis exactly, and choose an',
+    'unexpected, lived-in corner of the lore.',
   ].join('\n');
 
-  logger.info(`Theme spatial context: ${contextKey} | tone: ${toneKey} | factions: ${factions.join(', ')}`);
+  logger.info(
+    `Theme: subject="${subject}" | context=${contextKey} | tone=${toneKey} | ` +
+      `factions=${factionDriven ? factions.join(', ') : 'background'}`,
+  );
   const res = await client.chatJson({
     system,
     user,
@@ -219,7 +333,7 @@ async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone
   });
   const theme = String(res.theme || '').trim();
   if (!theme) throw new Error('Theme synthesis returned an empty theme.');
-  return { theme, spaceContext: contextKey, tone: toneKey, factions };
+  return { theme, spaceContext: contextKey, tone: toneKey, subject, factions };
 }
 
 /**
@@ -783,6 +897,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
  * @param {string} [params.lorePath] - Override path to the base-lore document.
  * @param {string} [params.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (auto mode only).
  * @param {string} [params.tone] - Force 'adventure' | 'politics' | 'tragic' | 'comedy' (auto mode only).
+ * @param {string} [params.factionContext] - Comma-separated faction keys to make the DRIVER (auto mode only).
  * @param {number} [params.temperature] - Sampling temperature applied to every model call.
  * @param {boolean} [params.dryRun=false] - Skip persistence; only generate + return.
  * @param {string} [params.out] - File path to dump the payload (defaults to the saga dir).
@@ -798,6 +913,7 @@ async function generateSaga({
   lorePath,
   spaceContext,
   tone,
+  factionContext,
   temperature,
   dryRun = false,
   out,
@@ -809,7 +925,13 @@ async function generateSaga({
   if (!theme) {
     lore = await loadLoreContext(lorePath);
     logger.info('No --prompt provided; auto-generating a distinct lore-grounded theme...');
-    ({ theme } = await synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone, temperature }));
+    ({ theme } = await synthesizeTheme(client, lore, {
+      thinkingLevel,
+      spaceContext,
+      tone,
+      factionContext,
+      temperature,
+    }));
     logger.info(`Auto-generated theme: "${theme}"`);
   } else {
     logger.info(`Generating saga ontology from theme: "${theme}"`);
@@ -903,6 +1025,7 @@ export {
   persistObjectLayers,
   loadLoreContext,
   synthesizeTheme,
+  resolveFactionContext,
   buildStagePrompt,
   buildStageUser,
   slugify,

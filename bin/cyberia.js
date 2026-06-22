@@ -3333,6 +3333,11 @@ try {
       'Force the auto-theme narrative type: adventure | politics | tragic | comedy (default: random ~25% each)',
     )
     .option(
+      '--faction-context <keys>',
+      "Comma-separated factions that DRIVE the auto-theme: zenith | nova | atlas | neutral " +
+        "(e.g. 'nova,zenith'). If unset, confederations stay background, not the main theme",
+    )
+    .option(
       '--temperature <value>',
       'Model sampling temperature, valid range 0.0 (deterministic) to 2.0 (most creative); ' +
         'higher = more creative/divergent (default: 1.3 for theme synthesis)',
@@ -3413,6 +3418,7 @@ try {
             lorePath: options.lorePath,
             spaceContext: options.spaceContext,
             tone: options.tone,
+            factionContext: options.factionContext,
             temperature: options.temperature,
             dryRun: !!options.dryRun,
             out: options.out,

@@ -60,7 +60,13 @@ class GeminiClient {
    * @param {number} [options.timeout] - Request timeout in ms (default: 300000).
    * @param {number} [options.maxRetries] - Retry attempts on transient failure (default: 2).
    */
-  constructor({ apiKey, model = GEMINI_DEFAULT_MODEL, baseURL = GEMINI_API_BASE, timeout = 300000, maxRetries = 2 } = {}) {
+  constructor({
+    apiKey,
+    model = GEMINI_DEFAULT_MODEL,
+    baseURL = GEMINI_API_BASE,
+    timeout = 300000,
+    maxRetries = 2,
+  } = {}) {
     this.apiKey = apiKey || process.env.GEMINI_API_KEY;
     this.model = model;
     this.baseURL = baseURL;
@@ -150,6 +156,7 @@ class GeminiClient {
         const text = await this.generateContent({ prompt, generationConfig });
         return parseJsonLoose(text);
       } catch (error) {
+        console.error(error);
         lastError = error;
         if (attempt < this.maxRetries) {
           const backoffMs = 1000 * (attempt + 1);

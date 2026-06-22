@@ -69,20 +69,54 @@ persistSagaPayload()     ── idempotent upserts into MongoDB
   base lore (`src/client/public/cyberia-docs/CYBERIA-LORE.md`, override with
   `--lore-path`). The whole lore document is read and passed to Gemini, and every
   stage is grounded in it so the saga reads as a chapter of the canon. Variety is
-  forced by a random **faction**, an explicit **narrative tone**, a random entropy
-  token, and a configurable sampling **temperature** (`--temperature`, default
-  `1.3`) — so repeated runs surface very different sagas across the lore.
+  driven by a random world-first **subject**, an explicit **narrative tone**, a
+  **faction role** (background vs. driver), a random entropy token, and a
+  configurable sampling **temperature** (`--temperature`, default `1.3`) — so
+  repeated runs surface very different, grounded Cyberia stories.
+
+#### Subject — the world comes first
+
+The primary diversity lever. Each auto-theme picks one **world-first subject** at
+random so the output spreads across lived Cyberia reality rather than collapsing
+into faction politics: daily life, frontier survival, ecology, salvage, trade,
+exploration, mutagen clans, synthetics, Instance life, anomalies, small-community
+crises, infrastructure, relic hunting, personal/family stories, culture, and
+grounded jobs that go sideways. (Random, not customizable.)
+
+#### Faction role — background by default, driver on request
+
+The confederations are large powers that are **always present but rarely the
+topic**. By default they stay **background only** — borders, trade influence,
+security presence, taxes, historical scars — never the subject.
+
+To make a faction the **central driver** of the saga, name one or more with
+`--faction-context` (comma-separated). Valid keys:
+
+| Key       | Confederation                                  |
+| --------- | ---------------------------------------------- |
+| `zenith`  | the Zenith Empire (Red)                        |
+| `nova`    | the Nova Republic (Blue)                       |
+| `atlas`   | the Atlas Confederation (Yellow)               |
+| `neutral` | unaligned independent enclaves / neutral parties |
+
+```bash
+# Nova + Zenith are the driving pressure of the saga
+node bin/cyberia.js generate-saga --faction-context 'nova,zenith'
+```
+
+Unknown keys warn and are skipped; if none resolve (or the flag is unset) the
+saga falls back to background factions. Even when driven, the saga is still told
+through the subject's people and places, not abstract galaxy-wide politics.
 
 #### Narrative tone
 
-To stop every auto-generated saga collapsing into the same generic "spaceship
-mission", the theme commits hard to one of four broad, well-defined narrative
-types — chosen **uniformly (~25% each)** unless forced with `--tone`:
+The theme commits to one of four broad narrative types — chosen **uniformly
+(~25% each)** unless forced with `--tone`:
 
 | Tone        | Register                                                        |
 | ----------- | -------------------------------------------------------------- |
 | `adventure` | noir high-risk missions: covert ops, sabotage, combat, rogue AI, mystery |
-| `politics`  | geopolitics: diplomacy, faction warfare, revolutions, treaties |
+| `politics`  | power & ideology at any scale — councils, clans, enclaves, revolutions (confederation geopolitics only sometimes) |
 | `tragic`    | heartbreaking, intimate: family, bonds, loss, grief            |
 | `comedy`    | everyday absurdity and silliness, played for humor             |
 
@@ -137,14 +171,18 @@ node bin/cyberia.js generate-saga --tone comedy --space-context mixed --temperat
 # A noir adventure, kept tightly on-theme with a low temperature
 node bin/cyberia.js generate-saga --tone adventure --temperature 0.6
 
-# Steer only the spatial layer; let faction + tone stay random
+# Steer only the spatial layer; let subject + tone stay random
 node bin/cyberia.js generate-saga --space-context physical
+
+# Make Nova + Zenith the driving pressure (factions as the main theme)
+node bin/cyberia.js generate-saga --faction-context 'nova,zenith'
 
 # Dry run (no DB writes) and capture the payload to inspect it
 node bin/cyberia.js generate-saga --tone tragic --dry-run --out ./engine-private/cyberia-sagas/preview.json
 ```
 
-Each run logs the chosen facets, e.g. `Theme spatial context: physical | tone: tragic`,
+Each run logs the chosen facets, e.g.
+`Theme: subject="..." | context=physical | tone=tragic | factions=background`,
 then `Auto-generated theme: "..."`.
 
 ### Generate from an explicit theme
@@ -177,6 +215,7 @@ Options:
 | `--lore-path <path>`       | Override the base-lore doc (auto-generate mode).     |
 | `--space-context <ctx>`    | Force `physical` \| `mixed` \| `hyperspace` (else random). |
 | `--tone <tone>`            | Force `adventure` \| `politics` \| `tragic` \| `comedy` (else random). |
+| `--faction-context <keys>` | Comma-separated `zenith` \| `nova` \| `atlas` \| `neutral` that DRIVE the theme (else background). |
 | `--temperature <value>`    | Sampling temperature for every model call (default `1.3`). |
 | `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
 | `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |
