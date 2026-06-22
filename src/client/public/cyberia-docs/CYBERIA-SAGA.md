@@ -108,6 +108,51 @@ Unknown keys warn and are skipped; if none resolve (or the flag is unset) the
 saga falls back to background factions. Even when driven, the saga is still told
 through the subject's people and places, not abstract galaxy-wide politics.
 
+#### Character culture & naming
+
+To stop the model collapsing into cliché sci-fi names (John, Nova, X-99…) and to
+make Cyberia feel descended from Earth's many diasporas, a **naming &
+character-culture** block is injected into every generation stage that names
+people or places. It uses `CHARACTER_NAMES_POOL` as a **statistical/stylistic
+prior — inspiration only, never a whitelist**: the model is told to invent fresh
+names with similar linguistic/demographic characteristics (evolving, hybridizing,
+or blending them with professions, slang, and technical terms), reusing an exact
+sample only rarely.
+
+Two optional flags steer it; **both default to random** when unset:
+
+- **`--character-context <keys>`** — comma-separated pools to draw inspiration
+  from (unset → a random non-empty subset, so runs vary their cultural mix).
+  Unknown keys warn and are skipped. Valid keys:
+
+  | Key | Flavor |
+  | --- | ------ |
+  | `low_level_synthetics` | serialized / technical utility-frame designations |
+  | `high_fidelity_synthetics` | refined, near-human synthetic names |
+  | `global_latin_diaspora` | Latin / Iberian-descended |
+  | `east_asian_pacific_diaspora` | East-Asian / Pacific-descended |
+  | `middle_eastern_turkish_diaspora` | Middle-Eastern / Turkish-descended |
+  | `sub_saharan_african_diaspora` | Sub-Saharan African-descended |
+  | `classic_western_scifi` | gritty Anglo operators / enforcers |
+  | `mutagen_clans` | organic, mutation-flavored clan names |
+
+- **`--cultural-exposure <mode>`** — how mixed the population is (unset → random):
+
+  | Mode | Effect |
+  | ---- | ------ |
+  | `cosmopolitan` | heavy mixing, hybrid surnames, intermarriage — maximizes variety |
+  | `local` | isolated clans/enclaves, strong local naming traditions, internally consistent |
+
+```bash
+# Latin + East-Asian diaspora names in a highly mixed, cosmopolitan population
+node bin/cyberia.js generate-saga \
+  --character-context 'global_latin_diaspora,east_asian_pacific_diaspora' \
+  --cultural-exposure cosmopolitan
+
+# An isolated mutagen-clan enclave with consistent internal naming
+node bin/cyberia.js generate-saga --character-context 'mutagen_clans' --cultural-exposure local
+```
+
 #### Narrative tone
 
 The theme commits to one of four broad narrative types — chosen **uniformly
@@ -177,6 +222,10 @@ node bin/cyberia.js generate-saga --space-context physical
 # Make Nova + Zenith the driving pressure (factions as the main theme)
 node bin/cyberia.js generate-saga --faction-context 'nova,zenith'
 
+# Steer character names toward specific diasporas and a cosmopolitan, mixed population
+node bin/cyberia.js generate-saga \
+  --character-context 'global_latin_diaspora,sub_saharan_african_diaspora' --cultural-exposure cosmopolitan
+
 # Dry run (no DB writes) and capture the payload to inspect it
 node bin/cyberia.js generate-saga --tone tragic --dry-run --out ./engine-private/cyberia-sagas/preview.json
 ```
@@ -216,6 +265,8 @@ Options:
 | `--space-context <ctx>`    | Force `physical` \| `mixed` \| `hyperspace` (else random). |
 | `--tone <tone>`            | Force `adventure` \| `politics` \| `tragic` \| `comedy` (else random). |
 | `--faction-context <keys>` | Comma-separated `zenith` \| `nova` \| `atlas` \| `neutral` that DRIVE the theme (else background). |
+| `--character-context <keys>` | Comma-separated `CHARACTER_NAMES_POOL` keys for name inspiration (else random subset). |
+| `--cultural-exposure <mode>` | `cosmopolitan` \| `local` naming-diversity mode (else random). |
 | `--temperature <value>`    | Sampling temperature for every model call (default `1.3`). |
 | `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
 | `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |

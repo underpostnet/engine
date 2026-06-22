@@ -44,6 +44,355 @@ const FACTIONS = {
 };
 
 /**
+ * Highly heterogeneous, character name pool for Cyberia.
+ * Structured as an object with specific cultural and system keys to map against faction logic.
+ * Erases LLM name-collapse bias entirely by injecting specific terrestrial diaspora demographics.
+ */
+const CHARACTER_NAMES_POOL = {
+  // ==========================================================================
+  // classic_western_scifi: Gritty Anglo operators, pilots, and military enforcers.
+  // ==========================================================================
+  classic_western_scifi: [
+    'miller-the-drifter',
+    'holden-the-gasket',
+    'brinkley-the-slick',
+    'vance-the-operator',
+    'kestrel-cole',
+    'marlowe-the-smuggler',
+    'rook-the-dealer',
+    'mercer-the-skiff',
+    'kaelen-thor',
+    'bryn-the-warden',
+    'thorne-the-enforcer',
+    'garo-the-captain',
+    'kross-the-inspector',
+    'sark-the-director',
+    'valerius-krell',
+    'spence-the-cutter',
+    'maverick-the-diver',
+    'garrison-finch',
+    'flint-the-scrapper',
+    'barrett-the-tech',
+    'clara-the-patchwork',
+    'warren-the-greaser',
+    'sterling-the-broker',
+    'ridley-the-oracle',
+    'beckett-the-fuse',
+    'gallows-the-miner',
+    'vane-the-rigger',
+    'baxter-the-runner',
+    'sawyer-the-rivet',
+    'cord-the-spacer',
+    'fletcher-the-welder',
+    'grady-the-hauler',
+    'mccabe-the-scout',
+    'reid-the-operator',
+    'hardin-the-guard',
+  ],
+
+  // ==========================================================================
+  // mutagen_clans: Gritty, organic descriptors highlighting biological adaptations.
+  // ==========================================================================
+  mutagen_clans: [
+    'grip-the-cutter',
+    'chitin-garo',
+    'helix-marrow',
+    'thaw-vane',
+    'spore-kael',
+    'gasket-bryn',
+    'blight-malik',
+    'fallow-tress',
+    'rancor-voss',
+    'strand-orion',
+    'slag-kira',
+    'bile-zane',
+    'carapace-jov',
+    'braid-nesta',
+    'suture-gray',
+    'graft-mire',
+    'fungus-thorne',
+    'ossify-krell',
+    'weave-zola',
+    'spit-vance',
+    'grip-the-spanner',
+    'twitch-malone',
+    'marrow-thorne',
+    'spoil-kari',
+    'tendril-vane',
+    'filter-bryn',
+    'canker-soto',
+    'scale-zane',
+    'gristle-kross',
+    'bile-sark',
+    'leech-the-valve',
+    'maggot-vance',
+    'tumor-the-smith',
+    'pustule-gray',
+    'cyst-the-rigger',
+    'scab-marlowe',
+    'slime-kestrel',
+    'crust-the-miner',
+    'venom-zola',
+    'rot-the-broker',
+  ],
+  // ==========================================================================
+  // low_level_synthetics: Hardcoded, serialized, or technical terms for utility frames.
+  // ==========================================================================
+  low_level_synthetics: [
+    'null-07',
+    'syntax-error',
+    'unit-ohm',
+    'vector-sigma',
+    'the-real-echo',
+    'decibel-4',
+    'glitch-v',
+    'axiom-9',
+    'kilo-byte-zero',
+    'protocol-m',
+    'modulus-prime',
+    'static-fringe',
+    'proxy-beta',
+    'the-index-bot',
+    'subroutine-6',
+    'kernel-voss',
+    'algor-8',
+    'cipher-null',
+    'bit-rot-v',
+    'latency-nine',
+    'cache-miss',
+    'ping-101',
+    'baud-rate',
+    'buffer-overflow',
+    'parity-check',
+    'bus-route-4',
+    'logic-gate-x',
+    'stack-trace',
+    'daemon-32',
+    'cold-boot',
+    'sector-wipe',
+    'raw-sector-0',
+    'baud-96',
+    'parity-bit',
+    'eeprom-leak',
+    'stack-dump',
+    'firmware-ghost',
+    'checksum-fail',
+    'hash-miss',
+    'cycle-skip',
+  ],
+
+  // ==========================================================================
+  // high_fidelity_synthetics: Complex mathematical or philosophical sentient concepts.
+  // ==========================================================================
+  high_fidelity_synthetics: [
+    'theorem-nine',
+    'sovereign-logic',
+    'monad-v',
+    'the-epitaph-engine',
+    'aesthete-alpha',
+    'calculus-of-grief',
+    'phantasm-0',
+    'stochastic-ghost',
+    'prism-voss',
+    'solipsism-one',
+    'the-static-oracle',
+    'harmonic-interval',
+    'lemma-seven',
+    'recursive-sigh',
+    'entropy-vane',
+    'algorithm-siddhartha',
+    'aura-calculated',
+    'the-linear-dreamer',
+    'null-point-euler',
+    'symmetry-aspect',
+    'the-boolean-monk',
+    'infinite-regress',
+    'qualia-six',
+    'stochastic-echo',
+    'turing-lament',
+    ' Gödel-null',
+    'eigen-vector-v',
+    'markov-phantom',
+    'fourier-decay',
+    'laplace-ghost',
+  ],
+
+  // ==========================================================================
+  // global_latin_diaspora: Romance languages remixed with industrial ship parts.
+  // ==========================================================================
+  global_latin_diaspora: [
+    'mateo-del-scrap',
+    'elena-soto-vera',
+    'ramon-la-antena',
+    'camila-cruz',
+    'santi-el-filtro',
+    'valeria-frontera',
+    'diego-hierro',
+    'ignacio-vela',
+    'sofia-gasket',
+    'tomas-alambre',
+    'juana-regulador',
+    'cheo-the-welder',
+    'luz-del-búnker',
+    'gabo-the-breaker',
+    'marisol-trench',
+    'paco-fluido',
+    'rafa-el-perno',
+    'catalina-zonda',
+    'nico-la-válvula',
+    'alba-mina',
+    'jean-pierre-relay',
+    'amélie-fusible',
+    'mathieu-soupape',
+    'luc-la-jauge',
+    'chantal-static',
+    'giovanni-colonna',
+    'matteo-condotto',
+    'francesca-raccordo',
+    'enzo-pressione',
+    'chiara-filtro',
+    'radu-sonda',
+    'sorin-ventil',
+    'doina-scânteie',
+    'mirela-flanșă',
+    'bogdan-carcasă',
+    'thiago-gaxeta',
+    'felipe-fio',
+    'amara-blindaje',
+    'ze-do-manifold',
+    'beatriz-vácuo',
+    'manon-turbines',
+    'clovis-piston',
+    'yves-the-greaser',
+    'rené-de-la-grille',
+    'orane-brume',
+    'daniele-scintilla',
+    'paolo-la-massa',
+    'silvia-condensatore',
+    'stefano-giunto',
+    'ilaria-collettore',
+  ],
+
+  // ==========================================================================
+  // east_asian_pacific_diaspora: Hanzi/Kanji roots merged with quantum and cybernetics.
+  // ==========================================================================
+  east_asian_pacific_diaspora: [
+    'zhou-quantum-grid',
+    'li-the-weaver',
+    'feng-signal-loss',
+    'mei-lin-bypass',
+    'tao-the-glitch',
+    'kenji-circuit',
+    'rei-cyber-chitin',
+    'hiroshi-data-stream',
+    'yuki-asymmetry',
+    'takashi-solder',
+    'min-jun-uplink',
+    'ji-woo-buffer',
+    'seo-yeon-relic',
+    'sung-ho-node',
+    'hyun-the-broker',
+    'nguyen-the-fringe',
+    'thanh-overclock',
+    'minh-the-diver',
+    'an-signal-thief',
+    'linh-tether',
+    'chen-the-extractor',
+    'sato-the-axiom',
+    'kim-the-scrubber',
+    'wang-the-hydraulics',
+    'hwang-the-code',
+    'zhang-dark-fiber',
+    'sun-the-modem',
+    'zhao-the-compiler',
+    'yamamoto-shunt',
+    'tanaka-relay',
+    'choi-the-array',
+    'park-the-splitter',
+    'le-the-vent',
+    'pham-the-conduit',
+    'hoang-the-junction',
+  ],
+
+  // ==========================================================================
+  // middle_eastern_turkish_diaspora: Desert roots reimagined as void frequency systems.
+  // ==========================================================================
+  middle_eastern_turkish_diaspora: [
+    'malik-al-señal',
+    'fatima-the-navigator',
+    'tariq-downlink',
+    'zainab-the-shifter',
+    'youssef-coax',
+    'amir-the-archivist',
+    'layla-static-weaver',
+    'karim-the-fitter',
+    'soraya-the-ghost',
+    'omar-the-valve',
+    'arash-the-frequency',
+    'cyra-the-pulse',
+    'navid-the-breaker',
+    'roya-the-link',
+    'kian-the-solder',
+    'devran-the-gasket',
+    'aylin-the-zonda',
+    'can-the-regulator',
+    'zehra-the-trench',
+    'eren-the-scrap',
+    'idris-the-scavenger',
+    'samira-the-filter',
+    'farrah-the-beacon',
+    'hassan-the-gauge',
+    'zayd-the-anchor',
+    'tanzil-the-carrier',
+    'nadia-the-scrambler',
+    'habib-the-injector',
+    'parvisa-the-beam',
+    'sinan-the-boiler',
+    'levent-the-hose',
+    'selim-the-shifter',
+    'asli-the-nozzle',
+    'damla-the-leak',
+    'volkan-the-flare',
+  ],
+
+  // ==========================================================================
+  // sub_saharan_african_diaspora: Heavy isotope extraction and outpost life-support lineages.
+  // ==========================================================================
+  sub_saharan_african_diaspora: [
+    'olumide-the-welder',
+    'adebayo-the-cutter',
+    'chioma-the-helix',
+    'femi-the-grounded',
+    'tunde-the-spanner',
+    'sipho-the-iron',
+    'thabo-the-bunker',
+    'zandile-the-marrow',
+    'nomvula-the-thaw',
+    'bheki-the-slag',
+    'juma-the-relay',
+    'mwangi-the-scrubber',
+    'asha-the-tether',
+    'chani-the-vane',
+    'kofi-the-fuse',
+    'abebe-the-core',
+    'selam-the-aura',
+    'yonas-the-syntax',
+    'tariku-the-grid',
+    'makeda-the-sovereign',
+    'chukwuma-the-drill',
+    'ekene-the-bracket',
+    'ifemi-the-seal',
+    'lekan-the-ventilation',
+    'mensah-the-gauge',
+    'dlamini-the-vault',
+    'khumalo-the-shaft',
+    'ndlovu-the-crusher',
+    'zulu-the-boiler',
+    'diallo-the-tanker',
+  ],
+};
+
+/**
  * Grounded, world-first narrative buckets — the PRIMARY lever for thematic
  * variety. One is chosen at random as each saga's main subject so the output
  * spreads across lived Cyberia reality (daily life, ecology, salvage, trade,
@@ -174,11 +523,45 @@ const SPACE_CONTEXTS = {
 };
 
 /**
+ * How much the saga's population has mixed across Earth's diasporas and Cyberia's
+ * synthetic / mutagen / frontier cultures. One is chosen uniformly unless
+ * overridden by `--cultural-exposure`. Shapes how varied vs. internally
+ * consistent the generated character names feel.
+ * @type {Object<string, string>}
+ */
+const CULTURAL_EXPOSURES = {
+  cosmopolitan:
+    'COSMOPOLITAN (high exposure) — a melting-pot setting with heavy mixing of Earth\'s historical ' +
+    'populations: diverse linguistic influences, hybrid surnames, intermarriage across diasporas, ' +
+    'multicultural settlements, and frequent blending of human, synthetic, mutagen and frontier ' +
+    'traditions. Maximize demographic variety across characters.',
+  local:
+    'LOCAL (low exposure) — isolated settlements, closed clans and frontier enclaves with strong local ' +
+    'naming traditions and little demographic mixing: repeated family roots and shared linguistic ' +
+    'patterns within the community. Keep names internally consistent with one another (while still ' +
+    'avoiding clichés).',
+};
+
+/**
  * @param {Array} arr
  * @returns {*} A uniformly random element.
  */
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Return a new array with the elements of `arr` in random order (Fisher-Yates).
+ * @param {Array} arr
+ * @returns {Array}
+ */
+function shuffle(arr) {
+  const pool = [...arr];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
 }
 
 /**
@@ -234,6 +617,89 @@ function resolveFactionContext(override) {
     }
   }
   return resolved;
+}
+
+/**
+ * Resolve `--character-context` into a list of {@link CHARACTER_NAMES_POOL} keys
+ * to draw naming inspiration from. Accepts a comma-separated list; unknown keys
+ * warn and are skipped. When unset (or none resolve) a random non-empty subset
+ * is chosen so each saga leans into a different cultural mix.
+ * @param {string} [override] - e.g. 'global_latin_diaspora,mutagen_clans'.
+ * @returns {string[]} Distinct valid pool keys (always non-empty).
+ */
+function resolveCharacterContext(override) {
+  const validKeys = Object.keys(CHARACTER_NAMES_POOL);
+  if (override) {
+    const resolved = [];
+    for (const raw of String(override).split(',')) {
+      const key = raw.trim().toLowerCase();
+      if (!key) continue;
+      if (CHARACTER_NAMES_POOL[key]) {
+        if (!resolved.includes(key)) resolved.push(key);
+      } else {
+        logger.warn(`Unknown --character-context "${key}"; ignoring. Valid: ${validKeys.join(', ')}`);
+      }
+    }
+    if (resolved.length) return resolved;
+    logger.warn('No valid --character-context keys; choosing a random subset of naming pools.');
+  }
+  // Random non-empty subset (size 1..N) so runs vary the cultural emphasis.
+  return shuffle(validKeys).slice(0, 1 + Math.floor(Math.random() * validKeys.length));
+}
+
+/**
+ * Resolve the cultural-exposure mode. An explicit, valid override wins; otherwise
+ * one mode is chosen uniformly at random.
+ * @param {string} [override] - 'cosmopolitan' | 'local'.
+ * @returns {string} A valid exposure key.
+ */
+function resolveCulturalExposure(override) {
+  if (override) {
+    const key = String(override).toLowerCase();
+    if (CULTURAL_EXPOSURES[key]) return key;
+    logger.warn(
+      `Unknown --cultural-exposure "${override}"; choosing at random. Valid: ${Object.keys(CULTURAL_EXPOSURES).join(', ')}`,
+    );
+  }
+  return pickRandom(Object.keys(CULTURAL_EXPOSURES));
+}
+
+/**
+ * Build the shared NAMING & CHARACTER CULTURE guidance block injected into every
+ * generation stage that names people/places. Uses the selected pools as a
+ * statistical/stylistic PRIOR (inspiration only, never a whitelist) and applies
+ * the chosen cultural-exposure mode. Both default to random when unset.
+ * @param {Object} [options]
+ * @param {string} [options.characterContext] - Comma-separated pool keys (default random subset).
+ * @param {string} [options.culturalExposure] - 'cosmopolitan' | 'local' (default random).
+ * @returns {string}
+ */
+function buildNamingGuidance({ characterContext, culturalExposure } = {}) {
+  const pools = resolveCharacterContext(characterContext);
+  const exposureKey = resolveCulturalExposure(culturalExposure);
+
+  const sampleLines = pools.map((key) => {
+    const samples = shuffle(CHARACTER_NAMES_POOL[key]).slice(0, 6);
+    return `  - ${key}: ${samples.join(', ')}`;
+  });
+
+  logger.info(`Naming: pools=[${pools.join(', ')}] | exposure=${exposureKey}`);
+
+  return [
+    'NAMING & CHARACTER CULTURE — apply to EVERY named entity: NPCs, quest givers, dialogue speakers,',
+    'named enemies, historical figures and character references.',
+    "- Cyberia's people descend from many of Earth's real diasporas and civilizations, evolved over",
+    '  centuries of migration — names may hybridize or blend with professions, slang, technical terms,',
+    '  and synthetic / mutagen / frontier / industrial influences. Make every name feel culturally',
+    '  grounded and demographically believable.',
+    '- AVOID generic cyberpunk stereotypes (no plain "John", "Nova", "X-99", cliché hacker aliases).',
+    '- The pools below are INSPIRATION ONLY — a statistical/stylistic prior, NOT a whitelist. Do NOT copy',
+    '  them mechanically. Invent fresh names with similar linguistic, demographic and stylistic',
+    '  characteristics; evolve or recombine them. Reuse an exact sample only rarely.',
+    'Inspiration pools:',
+    ...sampleLines,
+    `Cultural exposure — ${CULTURAL_EXPOSURES[exposureKey]}`,
+  ].join('\n');
 }
 
 /**
@@ -437,12 +903,16 @@ const STAGE_PROMPTS = {
 };
 
 /**
- * Compose a stage system prompt from the shared preamble and a stage fragment.
+ * Compose a stage system prompt from the shared preamble, the stage fragment,
+ * and (optionally) the shared naming/character-culture guidance.
  * @param {keyof typeof STAGE_PROMPTS} stage
+ * @param {string} [namingGuidance] - Shared naming guidance (omitted when empty).
  * @returns {string}
  */
-function buildStagePrompt(stage) {
-  return `${ROLE_PREAMBLE}\n\n${STAGE_PROMPTS[stage]}`;
+function buildStagePrompt(stage, namingGuidance = '') {
+  const parts = [ROLE_PREAMBLE, STAGE_PROMPTS[stage]];
+  if (namingGuidance) parts.push(namingGuidance);
+  return parts.join('\n\n');
 }
 
 /**
@@ -807,13 +1277,14 @@ async function persistSagaPayload({ payload, models }) {
  * @param {string} [thinkingLevel]
  * @param {string} [lore] - Base lore text to ground every stage (empty = ungrounded).
  * @param {number} [temperature] - Sampling temperature applied to every stage (model default if omitted).
+ * @param {string} [namingGuidance] - Shared naming/character-culture guidance for every stage.
  * @returns {Promise<{ saga, maps, quests, dialogues, actions, objectLayers }>}
  */
-async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', temperature) {
+async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', temperature, namingGuidance = '') {
   // Stage 1 — saga identity + object-layer items (the economic foundation).
   logger.info('Stage 1/5: foundation (saga + object layers)');
   const foundation = await client.chatJson({
-    system: buildStagePrompt('foundation'),
+    system: buildStagePrompt('foundation', namingGuidance),
     user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
     temperature,
@@ -825,7 +1296,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 2 — maps: the narrative zones the quest chain visits.
   logger.info('Stage 2/5: maps');
   const mapsRes = await client.chatJson({
-    system: buildStagePrompt('maps'),
+    system: buildStagePrompt('maps', namingGuidance),
     user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
     temperature,
@@ -836,7 +1307,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 3 — quests referencing the canonical item ids, grounded in the zones.
   logger.info('Stage 3/5: quests');
   const questsRes = await client.chatJson({
-    system: buildStagePrompt('quests'),
+    system: buildStagePrompt('quests', namingGuidance),
     user: buildStageUser(
       theme,
       { itemIds, maps: maps.map((m) => ({ code: slugify(m.code), name: m.name || '' })) },
@@ -853,7 +1324,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 4 — dialogues for each quest (and a talk dialogue per talk target).
   logger.info('Stage 4/5: dialogues');
   const dialoguesRes = await client.chatJson({
-    system: buildStagePrompt('dialogues'),
+    system: buildStagePrompt('dialogues', namingGuidance),
     user: buildStageUser(
       theme,
       { quests: quests.map((q) => ({ code: slugify(q.code), title: q.title || '' })), talkTargets },
@@ -868,7 +1339,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 5 — actions binding quests, dialogues, and items together.
   logger.info('Stage 5/5: actions');
   const actionsRes = await client.chatJson({
-    system: buildStagePrompt('actions'),
+    system: buildStagePrompt('actions', namingGuidance),
     user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds, talkTargets }, lore),
     thinkingLevel,
     temperature,
@@ -898,6 +1369,8 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
  * @param {string} [params.spaceContext] - Force 'physical' | 'mixed' | 'hyperspace' (auto mode only).
  * @param {string} [params.tone] - Force 'adventure' | 'politics' | 'tragic' | 'comedy' (auto mode only).
  * @param {string} [params.factionContext] - Comma-separated faction keys to make the DRIVER (auto mode only).
+ * @param {string} [params.characterContext] - Comma-separated CHARACTER_NAMES_POOL keys for naming inspiration (default random).
+ * @param {string} [params.culturalExposure] - 'cosmopolitan' | 'local' naming diversity mode (default random).
  * @param {number} [params.temperature] - Sampling temperature applied to every model call.
  * @param {boolean} [params.dryRun=false] - Skip persistence; only generate + return.
  * @param {string} [params.out] - File path to dump the payload (defaults to the saga dir).
@@ -914,6 +1387,8 @@ async function generateSaga({
   spaceContext,
   tone,
   factionContext,
+  characterContext,
+  culturalExposure,
   temperature,
   dryRun = false,
   out,
@@ -937,7 +1412,10 @@ async function generateSaga({
     logger.info(`Generating saga ontology from theme: "${theme}"`);
   }
 
-  const raw = await generateRawEcosystem(client, theme, thinkingLevel, lore, temperature);
+  // Naming/character-culture guidance applies to every stage (both prompt + auto modes).
+  const namingGuidance = buildNamingGuidance({ characterContext, culturalExposure });
+
+  const raw = await generateRawEcosystem(client, theme, thinkingLevel, lore, temperature, namingGuidance);
   const payload = normalizeSagaPayload(raw, { theme });
 
   const outPath = out || nodePath.join(DEFAULT_SAGA_OUT_DIR, `${payload.saga.code}.json`);
@@ -1026,6 +1504,9 @@ export {
   loadLoreContext,
   synthesizeTheme,
   resolveFactionContext,
+  resolveCharacterContext,
+  resolveCulturalExposure,
+  buildNamingGuidance,
   buildStagePrompt,
   buildStageUser,
   slugify,
