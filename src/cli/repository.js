@@ -1483,18 +1483,63 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Runtime-type → in-pod site-root directory resolver.
-     * Maps each known runtime to the filesystem path where its repository lives inside the container.
-     * @param {string} runtime - The runtime identifier (e.g. 'wp').
-     * @param {string} host - The virtual-host name.
-     * @returns {string|null} Absolute path inside the pod, or null if the runtime has no known mapping.
+     * Resolves the in-pod site-root directory where a conf route's repository lives.
+     *
+     * General-purpose resolution, independent of any single runtime:
+     *   1. An explicit `directory` (the conf-declared document root) always wins.
+     *   2. Otherwise the runtime's base directory is used (e.g. `wp` → `/opt/lampp/htdocs/wp/<host>`).
+     *   3. A subdirectory route (e.g. `/wp`) appends `<subDir>` to the resolved root.
+     *
+     * This mirrors {@link WpService.createApp}'s `vhostDir`/`wpDir` layout so backups target the
+     * exact directory provisioning created, including subdirectory installs and custom directories.
+     *
+     * @param {object} opts
+     * @param {string} opts.runtime - The runtime identifier (e.g. 'wp').
+     * @param {string} opts.host - The virtual-host name.
+     * @param {string} [opts.routePath='/'] - The conf route path the repository is mounted under.
+     * @param {string} [opts.directory] - Explicit document root from conf; overrides the runtime base.
+     * @returns {string|null} Absolute path inside the pod, or null when neither a directory nor a
+     *   known runtime base resolves.
      * @memberof UnderpostRepository
      */
-    runtimeSiteRoot(runtime, host) {
-      const runtimePaths = {
+    runtimeSiteRoot({ runtime, host, routePath = '/', directory } = {}) {
+      const runtimeBase = {
         wp: `/opt/lampp/htdocs/wp/${host}`,
       };
-      return runtimePaths[runtime] || null;
+      const vhostDir = directory || runtimeBase[runtime];
+      if (!vhostDir) return null;
+      const subDir = routePath && routePath !== '/' ? routePath.replace(/^\/+/, '').replace(/\/+$/, '') : '';
+      return subDir ? `${vhostDir}/${subDir}` : vhostDir;
+    },
+
+    /**
+     * Probes a running pod for the first candidate directory that is a git repository
+     * (i.e. contains a `.git` entry). Used to locate a site root before backing it up so a
+     * missing/unprovisioned directory is detected up-front instead of producing an opaque
+     * shell `exit 1` from a failed `cd`.
+     *
+     * @param {object}   opts
+     * @param {string}   opts.podName   - Target pod name.
+     * @param {string}   opts.namespace - Kubernetes namespace.
+     * @param {string[]} opts.candidates - Absolute paths to probe, most-specific first.
+     * @returns {string|null} The first candidate that is a git repo, or null if none match.
+     * @memberof UnderpostRepository
+     */
+    podRepoDir({ podName, namespace, candidates }) {
+      const probe = candidates.map((dir) => `if [ -d '${dir}/.git' ]; then echo '${dir}'; exit 0; fi`).join('; ');
+      let out = '';
+      try {
+        out = Underpost.kubectl.exec({ podName, namespace, command: `${probe}; echo ''` }) || '';
+      } catch (err) {
+        logger.warn(`podRepoDir: probe failed in pod ${podName}`, err.message);
+        return null;
+      }
+      return (
+        out
+          .split('\n')
+          .map((line) => line.trim())
+          .find(Boolean) || null
+      );
     },
 
     /**
@@ -1543,9 +1588,25 @@ Prevent build private config repo.`,
           const entry = confServer[host][routePath];
           if (!entry.repository) continue;
 
-          const siteRoot = Underpost.repo.runtimeSiteRoot(entry.runtime, host);
-          if (!siteRoot) {
+          const siteRootArgs = { runtime: entry.runtime, host, directory: entry.directory };
+          const repoRoot = Underpost.repo.runtimeSiteRoot({ ...siteRootArgs, routePath });
+          if (!repoRoot) {
             logger.warn(`backupPodRepositories: no site-root mapping for runtime '${entry.runtime}' (${host})`);
+            continue;
+          }
+
+          // Probe the pod for the actual git repo so an unprovisioned/missing site root is
+          // detected and skipped cleanly instead of failing the in-pod `cd` with exit 1.
+          // Fall back to the vhost dir (root route) to cover conf/path drift.
+          const vhostRoot = Underpost.repo.runtimeSiteRoot({ ...siteRootArgs, routePath: '/' });
+          const candidates = [...new Set([repoRoot, vhostRoot].filter(Boolean))];
+          const siteRoot = Underpost.repo.podRepoDir({ podName, namespace, candidates });
+          if (!siteRoot) {
+            logger.warn(
+              `backupPodRepositories: no git repository found in pod ${podName} for ${host} (checked ${candidates.join(
+                ', ',
+              )}) — site may not be provisioned yet; skipping`,
+            );
             continue;
           }
 
