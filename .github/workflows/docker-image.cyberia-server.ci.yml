@@ -19,7 +19,7 @@ jobs:
     steps:
       # Primary checkout: the cyberia-server repo (the repo this workflow
       # was dispatched on). Lands at the workspace root.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Secondary checkout: the engine repo, into ./engine/. We need it
       # for the underpost CLI sources that render the SSR dashboard into
@@ -27,7 +27,7 @@ jobs:
       # public/index.html on boot (cmd/cyberia-server/main.go calls
       # log.Fatalf when findPublicDir returns empty).
       - name: Checkout engine
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: underpostnet/engine
           path: engine
