@@ -48,15 +48,40 @@ class UnderpostKickStart {
      * @param {string} [options.rootPassword]
      * @param {string} [options.authorizedKeys]
      * @param {string} [options.adminUsername]
+     * @param {string} [options.bootstrapUrl] - Base URL of the bootstrap HTTP server for this host (status POSTs).
+     * @param {string} [options.workflowId] - Workflow identifier reported in status metadata.
+     * @param {string} [options.systemId] - MAAS system id reported in status metadata (if known).
+     * @param {string} [options.targetHostname] - Hostname reported in status metadata.
+     * @param {number} [options.sshPort] - SSH port the ephemeral runtime listens on.
+     * @param {string} [options.installDiskHint] - Optional explicit target disk (e.g. /dev/nvme0n1); empty = auto-detect.
+     * @param {boolean} [options.autoInstall] - When true, the ephemeral runtime self-installs after a fallback timeout if no remote trigger arrives.
      * @memberof UnderpostKickStart
      * @returns {string}
      */
-    kickstartPreVariables: ({ rootPassword = '', authorizedKeys = '', adminUsername = '' }) => {
+    kickstartPreVariables: ({
+      rootPassword = '',
+      authorizedKeys = '',
+      adminUsername = '',
+      bootstrapUrl = '',
+      workflowId = '',
+      systemId = '',
+      targetHostname = '',
+      sshPort = 22,
+      installDiskHint = '',
+      autoInstall = true,
+    }) => {
       const sanitizedKeys = (authorizedKeys || '').trim();
       return [
         `ROOT_PASS='${rootPassword || ''}'`,
         `AUTHORIZED_KEYS='${sanitizedKeys}'`,
         `ADMIN_USER='${adminUsername || process.env.MAAS_ADMIN_USERNAME || 'maas'}'`,
+        `BOOTSTRAP_URL='${bootstrapUrl || ''}'`,
+        `WORKFLOW_ID='${workflowId || ''}'`,
+        `SYSTEM_ID='${systemId || ''}'`,
+        `TARGET_HOSTNAME='${targetHostname || ''}'`,
+        `SSH_PORT='${sshPort || 22}'`,
+        `INSTALL_DISK_HINT='${installDiskHint || ''}'`,
+        `AUTO_INSTALL='${autoInstall ? '1' : '0'}'`,
       ].join('\n');
     },
 
@@ -70,6 +95,13 @@ class UnderpostKickStart {
      * @param {string} [options.timezone='America/New_York']
      * @param {string} [options.rootPassword]
      * @param {string} [options.authorizedKeys]
+     * @param {string} [options.bootstrapUrl]
+     * @param {string} [options.workflowId]
+     * @param {string} [options.systemId]
+     * @param {string} [options.targetHostname]
+     * @param {number} [options.sshPort]
+     * @param {string} [options.installDiskHint]
+     * @param {boolean} [options.autoInstall]
      * @memberof UnderpostKickStart
      * @returns {string}
      */
@@ -79,10 +111,28 @@ class UnderpostKickStart {
       timezone = 'America/New_York',
       rootPassword = process.env.MAAS_ADMIN_PASS,
       authorizedKeys = '',
+      bootstrapUrl = '',
+      workflowId = '',
+      systemId = '',
+      targetHostname = '',
+      sshPort = 22,
+      installDiskHint = '',
+      autoInstall = true,
     }) => {
       const adminUsername = process.env.MAAS_ADMIN_USERNAME || 'maas';
       const header = UnderpostKickStart.API.kickstartHeader({ lang, keyboard, timezone, rootPassword });
-      const variables = UnderpostKickStart.API.kickstartPreVariables({ rootPassword, authorizedKeys, adminUsername });
+      const variables = UnderpostKickStart.API.kickstartPreVariables({
+        rootPassword,
+        authorizedKeys,
+        adminUsername,
+        bootstrapUrl,
+        workflowId,
+        systemId,
+        targetHostname,
+        sshPort,
+        installDiskHint,
+        autoInstall,
+      });
 
       const scriptPath = path.resolve(__dirname, '../../scripts/rocky-kickstart.sh');
       const scriptBody = fs.readFileSync(scriptPath, 'utf8');

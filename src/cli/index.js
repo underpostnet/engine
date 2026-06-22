@@ -888,6 +888,12 @@ program
   .option('--clear-discovered', 'Clears all discovered baremetal machines from the database.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')
   .option(
+    '--install-disk [device]',
+    'Explicit target install disk for Rocky deployment (e.g. /dev/nvme0n1). Omit or leave empty to auto-detect the internal disk.',
+  )
+  .option('--no-auto-install', 'Disables the ephemeral runtime AUTO_INSTALL fallback (controller must trigger install).')
+  .option('--no-remote-install', 'Skips the controller-side remote install orchestration over SSH.')
+  .option(
     '--bootstrap-http-server-run',
     'Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning.',
   )

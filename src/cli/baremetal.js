@@ -34,6 +34,11 @@ class UnderpostBaremetal {
   // statd=32765 (listen), statdOutgoing=32766 (SM_NOTIFY source port) is the standard split.
   static NFS_V3_PORTS = { mountd: 20048, statd: 32765, statdOutgoing: 32766, lockd: 32803 };
 
+  // Lifecycle events POSTed by the ephemeral runtime to the bootstrap HTTP
+  // server, keyed by hostname. Populated by httpBootstrapServerRunnerFactory's
+  // POST handler and consumed by waitForBootstrapStage during orchestration.
+  static bootstrapStatusEvents = new Map();
+
   static API = {
     /**
      * @method callback
@@ -138,6 +143,9 @@ class UnderpostBaremetal {
         nfsUnmount: false,
         nfsSh: false,
         logs: '',
+        installDisk: '',
+        autoInstall: true,
+        remoteInstall: true,
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
@@ -908,12 +916,30 @@ rm -rf ${artifacts.join(' ')}`);
       // Rocky/RHEL Kickstart generation
       let kickstartSrc = '';
       if (Underpost.baremetal.getFamilyBaseOs(workflowsConfig[workflowId].osIdLike).isRhelBased) {
+        const bootstrapPort = Underpost.baremetal.bootstrapHttpServerPortFactory({
+          port: options.bootstrapHttpServerPort,
+          workflowId,
+          workflowsConfig,
+        });
+        // Base URL the ephemeral runtime POSTs lifecycle events to:
+        // http://<controller-ip>:<port>/<hostname>  ->  .../status
+        const bootstrapUrl = `http://${callbackMetaData.runnerHost.ip}:${bootstrapPort}/${hostname}`;
         kickstartSrc = Underpost.kickstart.kickstartFactory({
           lang: 'en_US.UTF-8',
           keyboard: workflowsConfig[workflowId].keyboard?.layout,
           timezone: workflowsConfig[workflowId].chronyc?.timezone,
           rootPassword: process.env.MAAS_ADMIN_PASS,
           authorizedKeys: fs.readFileSync('/home/dd/engine/engine-private/deploy/id_rsa.pub', 'utf8').trim(),
+          bootstrapUrl,
+          workflowId,
+          systemId: machine?.system_id || '',
+          targetHostname: hostname,
+          sshPort: 22,
+          installDiskHint:
+            (typeof options.installDisk === 'string' ? options.installDisk : '') ||
+            workflowsConfig[workflowId].installDisk ||
+            '',
+          autoInstall: options.autoInstall !== false,
         });
       }
 
@@ -975,14 +1001,10 @@ rm -rf ${artifacts.join(' ')}`);
           shellExec(`mkdir -p ${nfsHostPath}/casper`);
         }
 
-        // Clean and create TFTP root path.
+        // Clean and create TFTP root path. The iPXE EFI binary is restored from
+        // cache (or rebuilt) later by the gated build block, so no early copy here.
         shellExec(`sudo rm -rf ${tftpRootPath}`);
         shellExec(`mkdir -p ${tftpRootPath}/pxe`);
-
-        // Restore iPXE build from cache if available and not forcing rebuild
-        if (fs.existsSync(`${ipxeCacheDir}/ipxe.efi`) && !options.ipxeRebuild) {
-          shellExec(`cp ${ipxeCacheDir}/ipxe.efi ${tftpRootPath}/ipxe.efi`);
-        }
 
         // Process firmwares for TFTP.
         for (const firmware of firmwares) {
@@ -1093,14 +1115,32 @@ rm -rf ${artifacts.join(' ')}`);
               embeddedPath: `${tftpRootPath}/boot.ipxe`,
             });
 
-            Underpost.baremetal.ipxeEfiFactory({
-              tftpRootPath,
-              ipxeCacheDir,
-              arch,
-              underpostRoot,
-              embeddedScriptPath: `${tftpRootPath}/boot.ipxe`,
-              forceRebuild: options.ipxeRebuild,
-            });
+            // iPXE EFI binary build policy:
+            //   --ipxe-rebuild        -> always rebuild.
+            //   --ipxe (cache exists) -> reuse the cached binary, no build.
+            //   --ipxe (no cache)     -> warn and build, then cache for reuse.
+            const cachedIpxePath = `${ipxeCacheDir}/ipxe.efi`;
+            const tftpIpxePath = `${tftpRootPath}/ipxe.efi`;
+            if (options.ipxeRebuild || !fs.existsSync(cachedIpxePath)) {
+              if (!options.ipxeRebuild) {
+                logger.warn(
+                  '⚠ No cached iPXE EFI binary found — building now. Later runs reuse the cache; use --ipxe-rebuild to force a rebuild.',
+                );
+              }
+              Underpost.baremetal.ipxeEfiFactory({
+                tftpRootPath,
+                ipxeCacheDir,
+                arch,
+                underpostRoot,
+                embeddedScriptPath: `${tftpRootPath}/boot.ipxe`,
+                forceRebuild: true,
+              });
+            } else {
+              shellExec(`cp ${cachedIpxePath} ${tftpIpxePath}`);
+              logger.info('✓ Using cached iPXE EFI binary (pass --ipxe-rebuild to force a rebuild)', {
+                path: cachedIpxePath,
+              });
+            }
           }
 
           const { grubCfgSrc } = Underpost.baremetal.grubFactory({
@@ -1157,7 +1197,110 @@ rm -rf ${artifacts.join(' ')}`);
         const { discovery, machine: discoveredMachine } =
           await Underpost.baremetal.commissionMonitor(commissionMonitorPayload);
         if (discoveredMachine) machine = discoveredMachine;
+
+        // Rocky/RHEL disk-install orchestration:
+        // Once the ephemeral Kickstart/Anaconda runtime reports key-only SSH
+        // readiness over the bootstrap HTTP POST sink, drive the unattended
+        // install of Rocky onto the detected target disk via a key-only,
+        // non-interactive remote command. The runtime also has an AUTO_INSTALL
+        // fallback, so a missed handshake never blocks installation forever.
+        if (
+          Underpost.baremetal.getFamilyBaseOs(workflowsConfig[workflowId].osIdLike).isRhelBased &&
+          options.remoteInstall !== false
+        ) {
+          await Underpost.baremetal.remoteInstallOrchestrator({
+            hostname,
+            ipAddress,
+            sshPort: 22,
+            keyPath: 'engine-private/deploy/id_rsa',
+          });
+        }
       }
+    },
+
+    /**
+     * @method remoteInstallOrchestrator
+     * @description Waits for the ephemeral runtime's 'ssh-ready' lifecycle event,
+     * then triggers the unattended Rocky install over a key-only SSH batch
+     * command. Returns structured success/failure information. Non-fatal: logs
+     * and returns on failure so the runtime's AUTO_INSTALL fallback can proceed.
+     * @param {object} params
+     * @param {string} params.hostname - Hostname key used by the bootstrap POST sink.
+     * @param {string} params.ipAddress - Fallback IP if the runtime did not report one.
+     * @param {number} [params.sshPort=22] - SSH port of the ephemeral runtime.
+     * @param {string} [params.keyPath] - Private key path for key-only auth.
+     * @returns {Promise<{ok: boolean, host: string, result?: object, reason?: string}>}
+     * @memberof UnderpostBaremetal
+     */
+    async remoteInstallOrchestrator({ hostname, ipAddress, sshPort = 22, keyPath = 'engine-private/deploy/id_rsa' }) {
+      logger.info('Awaiting ephemeral runtime ssh-ready handshake...', { hostname, ipAddress });
+      const readyEvent = await Underpost.baremetal.waitForBootstrapStage({ hostname, stage: 'ssh-ready' });
+
+      const host = readyEvent?.ip && readyEvent.ip !== 'UNKNOWN' ? readyEvent.ip : ipAddress;
+      if (!readyEvent) {
+        logger.warn('No ssh-ready event received; relying on runtime AUTO_INSTALL fallback', { host });
+        return { ok: false, host, reason: 'no ssh-ready event' };
+      }
+      logger.info('SSH-ready event received', { host, metadata: readyEvent });
+
+      // Key-only, non-interactive trigger of the on-host installer. We only DROP
+      // the trigger file here; the persistent %pre lifecycle loop (a child of
+      // Anaconda, not of this sshd session) launches the installer fully
+      // detached. Running the installer directly as an sshd child causes it to
+      // be torn down when the SSH channel closes, before it can even start.
+      const result = await Underpost.ssh.sshExecBatch({
+        host,
+        port: sshPort,
+        user: 'root',
+        keyPath,
+        waitForPortMs: 5 * 60 * 1000,
+        retries: 4,
+        command: ['set -e', 'touch /tmp/.underpost-install-trigger', 'echo "install trigger dropped"'].join('\n'),
+      });
+
+      if (result.ok) {
+        logger.info('✓ Remote install trigger dropped', { host, stdout: result.stdout.trim() });
+      } else {
+        logger.error('Remote install trigger failed; runtime AUTO_INSTALL fallback will cover it', {
+          host,
+          code: result.code,
+          stderr: result.stderr.slice(-400),
+        });
+      }
+
+      // Follow the install lifecycle so the controller reflects real progress.
+      const started = await Underpost.baremetal.waitForBootstrapStage({
+        hostname,
+        stage: 'install-start',
+        timeoutMs: 3 * 60 * 1000,
+      });
+      if (!started) {
+        logger.warn('Installer did not report install-start within 3m; check /tmp/underpost-install.log on the node', {
+          host,
+        });
+        return { ok: false, host, reason: 'no install-start', result };
+      }
+      logger.info('Installer launched on node', { host });
+
+      // Wait for a terminal stage. The node reboots on success, so 'completed'
+      // is the last event we will receive.
+      const terminal = await Underpost.baremetal.waitForBootstrapStage({
+        hostname,
+        stage: 'completed',
+        timeoutMs: 40 * 60 * 1000,
+      });
+      if (terminal) {
+        logger.info('✓ Rocky install completed; node rebooting into deployed OS', { host, event: terminal });
+        return { ok: true, host, result, terminal };
+      }
+
+      const failed = (UnderpostBaremetal.bootstrapStatusEvents.get(hostname) || []).find((e) => e.stage === 'failed');
+      if (failed) {
+        logger.error('✗ Rocky install reported failure', { host, event: failed });
+        return { ok: false, host, reason: 'install failed', result, failed };
+      }
+      logger.warn('Install did not reach a terminal stage within timeout', { host });
+      return { ok: false, host, reason: 'no terminal stage', result };
     },
 
     /**
@@ -2212,6 +2355,38 @@ fi
 
       app.use(loggerMiddleware(import.meta, 'debug', () => false));
 
+      // Lifecycle event sink. The ephemeral Kickstart/Anaconda runtime POSTs
+      // stage transitions (ssh-ready, installing, completed, …) here so the
+      // controller can observe progress without polling the machine itself.
+      // Events are kept in-memory (consumed by the orchestration step) and
+      // mirrored to disk for auditing.
+      app.use(express.json({ limit: '256kb' }));
+      app.post('/:hostname/status', (req, res) => {
+        const reqHostname = req.params.hostname;
+        const event = {
+          ...(req.body && typeof req.body === 'object' ? req.body : {}),
+          receivedAt: new Date().toISOString(),
+          remoteIp: (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString(),
+        };
+        const stage = event.stage || 'unknown';
+
+        const events = UnderpostBaremetal.bootstrapStatusEvents.get(reqHostname) || [];
+        events.push(event);
+        UnderpostBaremetal.bootstrapStatusEvents.set(reqHostname, events);
+
+        try {
+          const statusDir = `${bootstrapHttpServerPath}/${reqHostname}/status`;
+          fs.ensureDirSync(statusDir);
+          fs.writeFileSync(`${statusDir}/${stage}.json`, JSON.stringify(event, null, 2), 'utf8');
+          fs.appendFileSync(`${statusDir}/events.log`, `${JSON.stringify(event)}\n`, 'utf8');
+        } catch (error) {
+          logger.warn('Failed to persist bootstrap status event', { error: error.message });
+        }
+
+        logger.info(`Bootstrap status event [${reqHostname}] stage=${stage}`, event);
+        res.json({ ok: true, stage });
+      });
+
       app.use('/', express.static(bootstrapHttpServerPath));
 
       app.listen(port, () => {
@@ -2479,6 +2654,48 @@ fi
       logger.info('Constructed kernel command line');
       console.log(newInstance(cmdStr).bgRed.bold.black);
       return { cmd: cmdStr };
+    },
+
+    /**
+     * @method waitForBootstrapStage
+     * @description Polls the in-memory bootstrap status events (populated by the
+     * bootstrap HTTP server POST sink) until the target stage is reported by the
+     * ephemeral runtime, or the timeout elapses.
+     * @param {object} params
+     * @param {string} params.hostname - Hostname key the runtime reports under.
+     * @param {string} params.stage - Stage to wait for (e.g. 'ssh-ready').
+     * @param {number} [params.timeoutMs=900000] - Maximum wait time in ms.
+     * @param {number} [params.intervalMs=2000] - Poll interval in ms.
+     * @returns {Promise<object|null>} The matching event, or null on timeout.
+     * @memberof UnderpostBaremetal
+     */
+    async waitForBootstrapStage({ hostname, stage, timeoutMs = 15 * 60 * 1000, intervalMs = 2000 }) {
+      const deadline = Date.now() + timeoutMs;
+      let lastSeenCount = -1;
+      let lastHeartbeat = 0;
+      const heartbeatMs = 15000;
+      while (Date.now() < deadline) {
+        const events = UnderpostBaremetal.bootstrapStatusEvents.get(hostname) || [];
+        const match = events.find((e) => e.stage === stage);
+        if (match) return match;
+
+        const now = Date.now();
+        if (events.length !== lastSeenCount || now - lastHeartbeat >= heartbeatMs) {
+          lastSeenCount = events.length;
+          lastHeartbeat = now;
+          const remainingSec = Math.max(0, Math.round((deadline - now) / 1000));
+          logger.info(`Waiting for stage '${stage}' from ${hostname}`, {
+            stagesSeen: events.map((e) => e.stage),
+            eventCount: events.length,
+            remainingSec,
+          });
+        }
+        await timer(intervalMs);
+      }
+      logger.warn(`Timed out waiting for bootstrap stage '${stage}' from ${hostname}`, {
+        stagesSeen: (UnderpostBaremetal.bootstrapStatusEvents.get(hostname) || []).map((e) => e.stage),
+      });
+      return null;
     },
 
     /**
