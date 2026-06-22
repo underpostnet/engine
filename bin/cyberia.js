@@ -3323,7 +3323,10 @@ try {
     .option('--model <model>', 'Gemini model id (default: gemma-4-26b-a4b-it)')
     .option('--timeout <ms>', 'Per-request timeout in ms (default: 300000)', (v) => parseInt(v, 10))
     .option('--thinking-level <level>', 'Gemini thinking level: low | medium | high (default: high)')
-    .option('--lore-path <path>', 'Override path to the base-lore doc (default: src/client/public/cyberia-docs/CYBERIA-LORE.md)')
+    .option(
+      '--lore-path <path>',
+      'Override path to the base-lore doc (default: src/client/public/cyberia-docs/CYBERIA-LORE.md)',
+    )
     .option(
       '--space-context <context>',
       'Force the auto-theme spatial layer: physical | mixed | hyperspace (default: random ~33% each)',
@@ -3334,7 +3337,7 @@ try {
     )
     .option(
       '--faction-context <keys>',
-      "Comma-separated factions that DRIVE the auto-theme: zenith | nova | atlas | neutral " +
+      'Comma-separated factions that DRIVE the auto-theme: zenith | nova | atlas | neutral ' +
         "(e.g. 'nova,zenith'). If unset, confederations stay background, not the main theme",
     )
     .option(
@@ -3352,7 +3355,7 @@ try {
     .option(
       '--temperature <value>',
       'Model sampling temperature, valid range 0.0 (deterministic) to 2.0 (most creative); ' +
-        'higher = more creative/divergent (default: 1.3 for theme synthesis)',
+        'higher = more creative/divergent (default: 2.0 for theme synthesis)',
       parseFloat,
     )
     .option('--out <file>', 'Path to dump the payload JSON (default: ./engine-private/cyberia-sagas/<saga-code>.json)')

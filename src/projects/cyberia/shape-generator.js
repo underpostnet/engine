@@ -161,7 +161,7 @@ registerShape('thick-parabola', (t, params) => {
   // `a` controls curvature, `rangeX` controls horizontal span, and
   // `thickness` controls band width (vertical gap between outer/inner).
   const a = params.a ?? 0.6;
-  const rangeX = params.rangeX ?? 1.3;
+  const rangeX = params.rangeX ?? 2.0;
   const thickness = params.thickness ?? 0.35;
   if (t <= 0.5) {
     // Outer parabola (forward: left → right)
