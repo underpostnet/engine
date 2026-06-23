@@ -969,8 +969,12 @@ EOF`);
           if (
             Underpost.deploy.isValidTLSContext({ host: Object.keys(confServer)[0], env, options }) &&
             !options.selfSigned
-          )
-            shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml -n ${namespace}`);
+          ) {
+            const secretPath = `./${manifestsPath}/secret.yaml`;
+            if (fs.existsSync(secretPath) && fs.readFileSync(secretPath, 'utf8').trim()) {
+              shellExec(`sudo kubectl apply -f ${secretPath} -n ${namespace}`);
+            } else logger.info('Skipping secret.yaml apply (no objects yet; applied by the --cert step)');
+          }
         }
       }
     },
