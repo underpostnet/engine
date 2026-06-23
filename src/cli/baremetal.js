@@ -1414,7 +1414,7 @@ rm -rf ${artifacts.join(' ')}`);
           command: 'sudo kubeadm token create --print-join-command',
         });
 
-        const joinCommand = (joinResult.stdout || '')
+        let joinCommand = (joinResult.stdout || '')
           .split('\n')
           .map((l) => l.trim())
           .find((l) => l.startsWith('kubeadm join'));
@@ -1425,10 +1425,24 @@ rm -rf ${artifacts.join(' ')}`);
               `or --ssh-key-dir <dir> to use the key/user the control-plane accepts. stderr: ${joinResult.stderr.slice(-300)}`,
           );
         }
-        logger.info('✓ Retrieved kubeadm join command from control-plane', { controlIp });
+        // kubeadm prints the API endpoint as the control-plane's hostname (often
+        // localhost.localdomain), which the worker cannot resolve/route. Rewrite
+        // the endpoint host to the real control-plane IP so the join works.
+        joinCommand = joinCommand.replace(/kubeadm join\s+\S+:(\d+)/, `kubeadm join ${controlIp}:$1`);
+        logger.info('✓ Retrieved kubeadm join command from control-plane', { controlIp, joinCommand });
         scriptArgs = `--worker --join-command="${joinCommand}"`;
       } else {
         scriptArgs = '--control';
+      }
+
+      // Secrets needed on the node to clone the private engine-private repo
+      // (engine-private/conf/.../.env.production for `node bin run secret`).
+      const githubEnv = {
+        GITHUB_TOKEN: Underpost.baremetal.readEngineConfig('GITHUB_TOKEN'),
+        GITHUB_USERNAME: Underpost.baremetal.readEngineConfig('GITHUB_USERNAME'),
+      };
+      if (!githubEnv.GITHUB_TOKEN) {
+        logger.warn('GITHUB_TOKEN not resolved on controller; engine-private clone on the node will be skipped');
       }
 
       logger.info(`Running kubeadm-node-setup.sh (${role}) on ${ipAddress}... (this can take several minutes)`);
@@ -1439,6 +1453,7 @@ rm -rf ${artifacts.join(' ')}`);
         host: ipAddress,
         scriptPath,
         args: scriptArgs,
+        env: githubEnv,
         remotePath: '/tmp/kubeadm-node-setup.sh',
         keyPath,
         retries: 2,
@@ -2562,6 +2577,27 @@ shell
         );
       }
       return { rootPassword, adminUsername, adminPassword, deployUsername, deployPassword, confUser };
+    },
+
+    /**
+     * @method readEngineConfig
+     * @description Reads an engine config/secret value (e.g. GITHUB_TOKEN) on the
+     * controller. Prefers the loaded process env, falling back to
+     * `node bin config get --plain <key>`.
+     * @param {string} key - Config/env key name.
+     * @returns {string} The resolved value, or '' if unset.
+     * @memberof UnderpostBaremetal
+     */
+    readEngineConfig(key) {
+      if (process.env[key]) return process.env[key];
+      const out = shellExec(`node bin config get --plain ${key}`, {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+        disableLog: true,
+      });
+      const value = `${out || ''}`.trim();
+      return value && value !== 'undefined' ? value : '';
     },
 
     /**

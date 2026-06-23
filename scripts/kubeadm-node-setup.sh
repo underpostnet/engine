@@ -34,6 +34,13 @@ INSTALL_CONTOUR="1"
 ENGINE_ROOT="/home/dd/engine"
 ENGINE_REPO="https://github.com/underpostnet/engine.git"
 ENGINE_BRANCH=""
+# Private repo holding secrets (engine-private/conf/.../.env.production) cloned
+# with a GitHub token. GITHUB_TOKEN/GITHUB_USERNAME come from the environment
+# (passed over SSH by the controller) or the --github-* args.
+ENGINE_PRIVATE_REPO="https://github.com/underpostnet/engine-private.git"
+ENGINE_PRIVATE_BRANCH=""
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 CRI_SOCKET="unix:///var/run/crio/crio.sock"
 
 for arg in "$@"; do
@@ -47,6 +54,10 @@ for arg in "$@"; do
         --engine-root=*)                    ENGINE_ROOT="${arg#*=}" ;;
         --engine-repo=*)                    ENGINE_REPO="${arg#*=}" ;;
         --engine-branch=*)                  ENGINE_BRANCH="${arg#*=}" ;;
+        --engine-private-repo=*)            ENGINE_PRIVATE_REPO="${arg#*=}" ;;
+        --engine-private-branch=*)          ENGINE_PRIVATE_BRANCH="${arg#*=}" ;;
+        --github-token=*)                   GITHUB_TOKEN="${arg#*=}" ;;
+        --github-username=*)                GITHUB_USERNAME="${arg#*=}" ;;
         --no-contour)                       INSTALL_CONTOUR="0" ;;
     esac
 done
@@ -108,6 +119,25 @@ if [ ! -d "$ENGINE_ROOT" ] || [ -z "$(ls -A "$ENGINE_ROOT" 2>/dev/null)" ]; then
 fi
 
 cd "$ENGINE_ROOT"
+
+# Clone the private secrets repo (engine-private) using the GitHub token so
+# `node bin run secret` can read engine-private/conf/.../.env.production. The
+# token is masked from logs. Without it, secrets are unavailable.
+if [ ! -d "$ENGINE_ROOT/engine-private" ] || [ -z "$(ls -A "$ENGINE_ROOT/engine-private" 2>/dev/null)" ]; then
+    if [ -n "$GITHUB_TOKEN" ]; then
+        log "Cloning engine-private (secrets) with GitHub token..."
+        PRIV_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_PRIVATE_REPO#https://}"
+        if [ -n "$ENGINE_PRIVATE_BRANCH" ]; then
+            git clone --depth 1 --branch "$ENGINE_PRIVATE_BRANCH" "$PRIV_URL" "$ENGINE_ROOT/engine-private" 2>&1 | sed "s/${GITHUB_TOKEN}/***/g"
+        else
+            git clone --depth 1 "$PRIV_URL" "$ENGINE_ROOT/engine-private" 2>&1 | sed "s/${GITHUB_TOKEN}/***/g"
+        fi
+        # Drop the token from the remote URL so it is not persisted on disk.
+        git -C "$ENGINE_ROOT/engine-private" remote set-url origin "$ENGINE_PRIVATE_REPO" 2>/dev/null || true
+    else
+        log "WARNING: GITHUB_TOKEN not provided; engine-private not cloned — secrets will be unavailable"
+    fi
+fi
 
 # Install JS deps and generate secrets using the local engine entrypoint.
 npm install

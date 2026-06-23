@@ -696,6 +696,7 @@ EOF
      * @param {string} params.host - Target host/IP.
      * @param {string} params.scriptPath - Local path to the script to run.
      * @param {string} [params.args=''] - Arguments appended to the remote invocation.
+     * @param {object} [params.env={}] - Environment variables exported for the remote run (e.g. secrets). Passed inline to the command, never echoed.
      * @param {string} [params.remotePath='/tmp/underpost-remote-script.sh'] - Remote path to write the script.
      * @param {number} [params.port=22] - SSH port.
      * @param {string} [params.user='root'] - SSH user (key-only).
@@ -708,6 +709,7 @@ EOF
       host,
       scriptPath,
       args = '',
+      env = {},
       remotePath = '/tmp/underpost-remote-script.sh',
       port = 22,
       user = 'root',
@@ -717,11 +719,18 @@ EOF
     }) => {
       if (!fs.existsSync(scriptPath)) throw new Error(`sshRunScript: script not found: ${scriptPath}`);
       const b64 = Buffer.from(fs.readFileSync(scriptPath, 'utf8'), 'utf8').toString('base64');
+      // Inline env assignments (single-quote escaped) so secrets are exported for
+      // the remote run without appearing as logged CLI args.
+      const sq = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
+      const envPrefix = Object.entries(env)
+        .filter(([, v]) => v !== undefined && v !== null && `${v}` !== '')
+        .map(([k, v]) => `${k}=${sq(v)}`)
+        .join(' ');
       const command = [
         'set -e',
         `echo '${b64}' | base64 -d > ${remotePath}`,
         `chmod +x ${remotePath}`,
-        `bash ${remotePath} ${args}`,
+        `${envPrefix ? `${envPrefix} ` : ''}bash ${remotePath} ${args}`,
       ].join('\n');
       return Underpost.ssh.sshExecBatch({ host, port, user, keyPath, retries, waitForPortMs, command });
     },
