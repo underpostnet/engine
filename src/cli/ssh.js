@@ -572,6 +572,33 @@ EOF
     },
 
     /**
+     * Waits until a host's SSH port stops accepting connections (e.g. while it
+     * reboots). Used to detect a reboot edge before waiting for the port to come
+     * back up, so callers don't latch onto the pre-reboot (ephemeral) sshd.
+     * @async
+     * @function waitForSshPortClosed
+     * @memberof UnderpostSSH
+     * @param {object} params
+     * @param {string} params.host - Target host/IP.
+     * @param {number} [params.port=22] - SSH port.
+     * @param {number} [params.timeoutMs=180000] - Maximum wait window.
+     * @param {number} [params.intervalMs=3000] - Poll interval.
+     * @returns {Promise<boolean>} True once the port is closed, false on timeout.
+     */
+    waitForSshPortClosed: async ({ host, port = 22, timeoutMs = 3 * 60 * 1000, intervalMs = 3000 }) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        const probe = shellExec(
+          `timeout 5 bash -c '</dev/tcp/${host}/${port}' >/dev/null 2>&1 && echo open || echo closed`,
+          { silent: true, stdout: true, silentOnError: true, disableLog: true },
+        );
+        if (`${probe}`.trim() === 'closed') return true;
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+      return false;
+    },
+
+    /**
      * Orchestrates a non-interactive, key-only SSH session against a freshly
      * provisioned host: waits for the port, attempts key-based auth, runs a
      * remote command batch, and returns a structured result. Used by the

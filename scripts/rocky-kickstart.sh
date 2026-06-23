@@ -475,14 +475,26 @@ INSTALL_DONE="$INSTALL_DONE"
 TARGET_MNT="$TARGET_MNT"
 AUTHORIZED_KEYS='$AUTHORIZED_KEYS'
 ADMIN_USER='$ADMIN_USER'
+DEPLOY_USER='$DEPLOY_USER'
 TARGET_HOSTNAME='$TARGET_HOSTNAME'
-# Passwords are carried base64-encoded so any character survives intact, decoded
-# once here into normal installer variables.
+NET_IP='$NET_IP'
+NET_PREFIX='$NET_PREFIX'
+NET_GATEWAY='$NET_GATEWAY'
+NET_DNS='$NET_DNS'
+TIMEZONE='$TIMEZONE'
+KEYBOARD_LAYOUT='$KEYBOARD_LAYOUT'
+CHRONY_CONF_PATH='$CHRONY_CONF_PATH'
+# Passwords are carried base64-encoded so any character survives intact. Decoding
+# tries base64 then python3 so a minimal environment never yields empty passwords.
+ks_b64d() { printf %s "\$1" | base64 -d 2>/dev/null || printf %s "\$1" | python3 -c 'import sys,base64;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read().strip()))' 2>/dev/null; }
 ROOT_PASS_B64='$ROOT_PASS_B64'
 ADMIN_PASS_B64='$ADMIN_PASS_B64'
-ROOT_PASS="\$(printf %s "\$ROOT_PASS_B64" | base64 -d 2>/dev/null)"
-ADMIN_PASS="\$(printf %s "\$ADMIN_PASS_B64" | base64 -d 2>/dev/null)"
+DEPLOY_PASS_B64='$DEPLOY_PASS_B64'
+ROOT_PASS="\$(ks_b64d "\$ROOT_PASS_B64")"
+ADMIN_PASS="\$(ks_b64d "\$ADMIN_PASS_B64")"
+DEPLOY_PASS="\$(ks_b64d "\$DEPLOY_PASS_B64")"
 [ -z "\$ADMIN_PASS" ] && ADMIN_PASS="\$ROOT_PASS"
+[ -z "\$DEPLOY_PASS" ] && DEPLOY_PASS="\$ROOT_PASS"
 
 ilog() {
     echo "\$(date): [install] \$*" | tee -a "\$KS_LOG"
@@ -612,10 +624,81 @@ echo "\${TARGET_HOSTNAME:-rocky9}" > "\$TARGET_MNT/etc/hostname"
 chroot "\$TARGET_MNT" /bin/bash -s << CHROOTEOF >> "\$KS_LOG" 2>&1
 set +e
 systemctl enable sshd NetworkManager chronyd 2>/dev/null
-# Baseline DHCP networking so the deployed OS comes up reachable.
-nmcli --version >/dev/null 2>&1 || true
 
-# Key-only SSH on the installed system as well.
+# Ensure sshd host keys exist so sshd actually starts on first boot.
+ssh-keygen -A 2>/dev/null || true
+
+# Disable firewalld so the controller can reach sshd on first boot.
+systemctl disable firewalld 2>/dev/null || true
+systemctl mask firewalld 2>/dev/null || true
+
+# Static networking bound to the primary wired NIC by MAC so the deployed OS is
+# reachable at the same IP the commission used (NetworkManager keyfile).
+if [ -n "\${NET_IP}" ]; then
+    PRIMARY_IF=\\\$(ls /sys/class/net | grep -E '^(en|eth)' | head -1)
+    PRIMARY_MAC=\\\$(cat /sys/class/net/\\\$PRIMARY_IF/address 2>/dev/null)
+    mkdir -p /etc/NetworkManager/system-connections
+    NMFILE=/etc/NetworkManager/system-connections/underpost.nmconnection
+    {
+        echo "[connection]"
+        echo "id=underpost"
+        echo "type=ethernet"
+        echo "autoconnect=true"
+        echo "autoconnect-priority=999"
+        echo "[ethernet]"
+        [ -n "\\\$PRIMARY_MAC" ] && echo "mac-address=\\\$PRIMARY_MAC"
+        echo "[ipv4]"
+        echo "method=manual"
+        echo "addresses=\${NET_IP}/\${NET_PREFIX}"
+        echo "gateway=\${NET_GATEWAY}"
+        echo "dns=\${NET_DNS};"
+        echo "[ipv6]"
+        echo "method=ignore"
+    } > "\\\$NMFILE"
+    chmod 600 "\\\$NMFILE"
+fi
+
+# Timezone + NTP (chrony) for the deployed OS. Mirrors the Rocky branch of
+# src/cli/system.js (rocky.timezone): localtime symlink, /etc/timezone, a chrony
+# config with a local + public NTP pool, and chronyd enabled on boot.
+if [ -n "\${TIMEZONE}" ]; then
+    ln -sf /usr/share/zoneinfo/\${TIMEZONE} /etc/localtime
+    echo "\${TIMEZONE}" > /etc/timezone
+    timedatectl set-timezone \${TIMEZONE} 2>/dev/null || true
+    {
+        echo "# Underpost-managed chrony configuration"
+        [ -n "\${NET_GATEWAY}" ] && echo "server \${NET_GATEWAY} iburst prefer"
+        echo "server 0.pool.ntp.org iburst"
+        echo "server 1.pool.ntp.org iburst"
+        echo "server 2.pool.ntp.org iburst"
+        echo "server 3.pool.ntp.org iburst"
+        echo "driftfile /var/lib/chrony/drift"
+        echo "makestep 1.0 3"
+        echo "rtcsync"
+        echo "logdir /var/log/chrony"
+    } > "\${CHRONY_CONF_PATH:-/etc/chrony.conf}"
+    systemctl enable chronyd 2>/dev/null || true
+fi
+
+# Keyboard layout + locale for the deployed OS. Mirrors the Rocky branch of
+# src/cli/system.js (rocky.keyboard): vconsole.conf, locale.conf, X11 keymap.
+if [ -n "\${KEYBOARD_LAYOUT}" ]; then
+    echo "KEYMAP=\${KEYBOARD_LAYOUT}" > /etc/vconsole.conf
+    echo "FONT=latarcyrheb-sun16" >> /etc/vconsole.conf
+    echo "LANG=en_US.UTF-8" > /etc/locale.conf
+    mkdir -p /etc/X11/xorg.conf.d
+    {
+        echo 'Section "InputClass"'
+        echo '    Identifier "system-keyboard"'
+        echo '    MatchIsKeyboard "on"'
+        echo '    Option "XkbLayout" "\${KEYBOARD_LAYOUT}"'
+        echo 'EndSection'
+    } > /etc/X11/xorg.conf.d/00-keyboard.conf
+    localectl set-keymap \${KEYBOARD_LAYOUT} 2>/dev/null || true
+    localectl set-x11-keymap \${KEYBOARD_LAYOUT} 2>/dev/null || true
+fi
+
+# Key-only SSH on the installed system.
 mkdir -p /etc/ssh/sshd_config.d
 cat > /etc/ssh/sshd_config.d/00-underpost.conf <<SSHDEOF
 PermitRootLogin prohibit-password
@@ -623,21 +706,30 @@ PubkeyAuthentication yes
 PasswordAuthentication no
 SSHDEOF
 
-mkdir -p /root/.ssh && chmod 700 /root/.ssh
-cat > /root/.ssh/authorized_keys <<KEYEOF
+# Create the admin login accounts. create_user <name> writes the authorized key,
+# wheel membership and passwordless sudo. Passwords are applied after the chroot.
+create_user() {
+    [ -z "\\\$1" ] && return 0
+    id "\\\$1" >/dev/null 2>&1 || useradd -m -G wheel "\\\$1"
+    usermod -aG wheel "\\\$1" 2>/dev/null || true
+    mkdir -p /home/\\\$1/.ssh && chmod 700 /home/\\\$1/.ssh
+    cat > /home/\\\$1/.ssh/authorized_keys <<KEYEOF
 \${AUTHORIZED_KEYS}
 KEYEOF
+    chmod 600 /home/\\\$1/.ssh/authorized_keys
+    chown -R "\\\$1:\\\$1" /home/\\\$1/.ssh
+    echo "\\\$1 ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/\\\$1
+    chmod 0440 /etc/sudoers.d/\\\$1
+}
+
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+cat > /root/.ssh/authorized_keys <<KEYEOF3
+\${AUTHORIZED_KEYS}
+KEYEOF3
 chmod 600 /root/.ssh/authorized_keys
 
-if ! id "\${ADMIN_USER}" >/dev/null 2>&1; then useradd -m -G wheel "\${ADMIN_USER}"; fi
-mkdir -p /home/\${ADMIN_USER}/.ssh && chmod 700 /home/\${ADMIN_USER}/.ssh
-cat > /home/\${ADMIN_USER}/.ssh/authorized_keys <<KEYEOF2
-\${AUTHORIZED_KEYS}
-KEYEOF2
-chmod 600 /home/\${ADMIN_USER}/.ssh/authorized_keys
-chown -R \${ADMIN_USER}:\${ADMIN_USER} /home/\${ADMIN_USER}/.ssh
-echo "\${ADMIN_USER} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/\${ADMIN_USER}
-chmod 0440 /etc/sudoers.d/\${ADMIN_USER}
+create_user "\${ADMIN_USER}"
+create_user "\${DEPLOY_USER}"
 
 # Build initramfs for the installed kernel.
 KVER=\\\$(ls /lib/modules | head -1)
@@ -646,13 +738,16 @@ CHROOTEOF
 
 # Set console passwords AFTER the chroot heredoc, from decoded installer vars,
 # piped via printf into 'chroot chpasswd'. This keeps arbitrary password
-# characters out of any heredoc so console login works reliably for both root
-# and the resolved admin user. SSH stays key-only.
+# characters out of any heredoc so console login works reliably for root and
+# BOTH admin accounts. SSH stays key-only.
 if [ -n "\$ROOT_PASS" ]; then
     printf 'root:%s\n' "\$ROOT_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "root password set"
 fi
-if [ -n "\$ADMIN_PASS" ]; then
+if [ -n "\$ADMIN_USER" ] && [ -n "\$ADMIN_PASS" ]; then
     printf '%s:%s\n' "\$ADMIN_USER" "\$ADMIN_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "\$ADMIN_USER password set"
+fi
+if [ -n "\$DEPLOY_USER" ] && [ -n "\$DEPLOY_PASS" ]; then
+    printf '%s:%s\n' "\$DEPLOY_USER" "\$DEPLOY_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "\$DEPLOY_USER password set"
 fi
 
 post_status "installing" "\"detail\":\"installing bootloader\",\"disk\":\"\$REAL_DISK\""
@@ -697,8 +792,8 @@ fi
 touch "\$INSTALL_DONE"
 ilog "Install completed on \$REAL_DISK. Rebooting into deployed OS (BootNext set to disk)."
 ilog "If it boots the USB again, remove the USB stick now — the OS is on \$REAL_DISK."
-ilog "Console login: 'root' or '\${ADMIN_USER}' (password \$([ -n "\$ROOT_PASS" ] && echo set || echo NOT-set)). SSH is key-only."
-post_status "completed" "\"detail\":\"install ok, rebooting into disk\",\"disk\":\"\$REAL_DISK\",\"loginUser\":\"\${ADMIN_USER}\",\"passwordSet\":\$([ -n "\$ROOT_PASS" ] && echo true || echo false),\"bootNext\":\"\${NEW_BOOT:-}\""
+ilog "Console login: 'root', '\${ADMIN_USER}'\$([ -n "\$DEPLOY_USER" ] && echo " or '\$DEPLOY_USER'") (password \$([ -n "\$ROOT_PASS" ] && echo set || echo NOT-set)). SSH is key-only at \${NET_IP:-dhcp}."
+post_status "completed" "\"detail\":\"install ok, rebooting into disk\",\"disk\":\"\$REAL_DISK\",\"loginUser\":\"\${ADMIN_USER}\",\"deployUser\":\"\${DEPLOY_USER}\",\"passwordSet\":\$([ -n "\$ROOT_PASS" ] && echo true || echo false),\"staticIp\":\"\${NET_IP}\",\"bootNext\":\"\${NEW_BOOT:-}\""
 rm -f "\$INSTALL_LOCK"
 sync
 sleep 3

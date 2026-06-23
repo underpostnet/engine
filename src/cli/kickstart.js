@@ -43,26 +43,49 @@ class UnderpostKickStart {
 
     /**
      * @method kickstartPreVariables
-     * @description Generates the variable assignments block for the %pre script.
-     * @param {object} options
-     * @param {string} [options.rootPassword]
-     * @param {string} [options.authorizedKeys]
-     * @param {string} [options.adminUsername]
-     * @param {string} [options.bootstrapUrl] - Base URL of the bootstrap HTTP server for this host (status POSTs).
-     * @param {string} [options.workflowId] - Workflow identifier reported in status metadata.
-     * @param {string} [options.systemId] - MAAS system id reported in status metadata (if known).
-     * @param {string} [options.targetHostname] - Hostname reported in status metadata.
-     * @param {number} [options.sshPort] - SSH port the ephemeral runtime listens on.
-     * @param {string} [options.installDiskHint] - Optional explicit target disk (e.g. /dev/nvme0n1); empty = auto-detect.
-     * @param {boolean} [options.autoInstall] - When true, the ephemeral runtime self-installs after a fallback timeout if no remote trigger arrives.
+     * @description Generates the shell variable-assignment block injected at the top of the
+     * kickstart `%pre` script. These variables drive both the ephemeral commissioning runtime
+     * and the unattended disk installer in `scripts/rocky-kickstart.sh`. Passwords are emitted
+     * base64-encoded (`*_B64`) and decoded by an in-script `ks_b64d` helper; all other values
+     * are single-quote escaped so arbitrary content survives the shell/heredoc layers.
+     * @param {object} options - Variable values to bake into the `%pre` block.
+     * @param {string} [options.rootPassword=''] - root console password (base64-encoded).
+     * @param {string} [options.authorizedKeys=''] - SSH public key(s) installed as authorized_keys.
+     * @param {string} [options.adminUsername=''] - Primary (MAAS) admin user (defaults to MAAS_ADMIN_USERNAME).
+     * @param {string} [options.adminPassword=''] - Primary admin console password (defaults to rootPassword).
+     * @param {string} [options.deployUsername=''] - Optional second (deploy) admin user (e.g. admin).
+     * @param {string} [options.deployPassword=''] - Deploy user console password (defaults to rootPassword).
+     * @param {string} [options.netIp=''] - Static IPv4 for the deployed OS; empty = DHCP.
+     * @param {number} [options.netPrefix=24] - IPv4 prefix length for the static address.
+     * @param {string} [options.netGateway=''] - Default gateway for the deployed OS.
+     * @param {string} [options.netDns=''] - DNS server for the deployed OS.
+     * @param {string} [options.timezone=''] - IANA timezone configured in the deployed OS (e.g. America/Santiago).
+     * @param {string} [options.keyboardLayout=''] - Console/X11 keyboard layout for the deployed OS (e.g. es).
+     * @param {string} [options.chronyConfPath='/etc/chrony.conf'] - chrony config path written in the deployed OS.
+     * @param {string} [options.bootstrapUrl=''] - Base URL of the bootstrap HTTP server for this host (status POSTs).
+     * @param {string} [options.workflowId=''] - Workflow identifier reported in status metadata.
+     * @param {string} [options.systemId=''] - MAAS system id reported in status metadata (if known).
+     * @param {string} [options.targetHostname=''] - Hostname reported in status metadata and set on the deployed OS.
+     * @param {number} [options.sshPort=22] - SSH port the ephemeral runtime listens on.
+     * @param {string} [options.installDiskHint=''] - Optional explicit target disk (e.g. /dev/nvme0n1); empty = auto-detect.
+     * @param {boolean} [options.autoInstall=true] - When true, the ephemeral runtime self-installs after a fallback timeout if no remote trigger arrives.
      * @memberof UnderpostKickStart
-     * @returns {string}
+     * @returns {string} Newline-joined bash variable assignments.
      */
     kickstartPreVariables: ({
       rootPassword = '',
       authorizedKeys = '',
       adminUsername = '',
       adminPassword = '',
+      deployUsername = '',
+      deployPassword = '',
+      netIp = '',
+      netPrefix = 24,
+      netGateway = '',
+      netDns = '',
+      timezone = '',
+      keyboardLayout = '',
+      chronyConfPath = '/etc/chrony.conf',
       bootstrapUrl = '',
       workflowId = '',
       systemId = '',
@@ -73,17 +96,29 @@ class UnderpostKickStart {
     }) => {
       const sanitizedKeys = (authorizedKeys || '').trim();
       // Passwords are passed base64-encoded so arbitrary characters (quotes,
-      // spaces, $, etc.) survive every shell/heredoc layer intact, then decoded
-      // once here. base64 output never contains single quotes.
+      // spaces, $, etc.) survive every shell/heredoc layer intact. base64 output
+      // never contains single quotes. Decoding tries `base64` then falls back to
+      // python3 so a minimal Anaconda environment can never yield empty passwords.
       const b64 = (v) => Buffer.from(String(v || ''), 'utf8').toString('base64');
       const sq = (v) => `'${String(v || '').replace(/'/g, "'\\''")}'`;
       return [
+        `ks_b64d() { printf %s "$1" | base64 -d 2>/dev/null || printf %s "$1" | python3 -c 'import sys,base64;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read().strip()))' 2>/dev/null; }`,
         `ROOT_PASS_B64='${b64(rootPassword)}'`,
         `ADMIN_PASS_B64='${b64(adminPassword || rootPassword)}'`,
-        `ROOT_PASS="$(printf %s "$ROOT_PASS_B64" | base64 -d 2>/dev/null)"`,
-        `ADMIN_PASS="$(printf %s "$ADMIN_PASS_B64" | base64 -d 2>/dev/null)"`,
+        `DEPLOY_PASS_B64='${b64(deployPassword)}'`,
+        `ROOT_PASS="$(ks_b64d "$ROOT_PASS_B64")"`,
+        `ADMIN_PASS="$(ks_b64d "$ADMIN_PASS_B64")"`,
+        `DEPLOY_PASS="$(ks_b64d "$DEPLOY_PASS_B64")"`,
         `AUTHORIZED_KEYS=${sq(sanitizedKeys)}`,
         `ADMIN_USER=${sq(adminUsername || process.env.MAAS_ADMIN_USERNAME || 'maas')}`,
+        `DEPLOY_USER=${sq(deployUsername)}`,
+        `NET_IP=${sq(netIp)}`,
+        `NET_PREFIX='${parseInt(netPrefix, 10) || 24}'`,
+        `NET_GATEWAY=${sq(netGateway)}`,
+        `NET_DNS=${sq(netDns)}`,
+        `TIMEZONE=${sq(timezone)}`,
+        `KEYBOARD_LAYOUT=${sq(keyboardLayout)}`,
+        `CHRONY_CONF_PATH=${sq(chronyConfPath || '/etc/chrony.conf')}`,
         `BOOTSTRAP_URL=${sq(bootstrapUrl)}`,
         `WORKFLOW_ID=${sq(workflowId)}`,
         `SYSTEM_ID=${sq(systemId)}`,
@@ -97,32 +132,46 @@ class UnderpostKickStart {
     /**
      * @method kickstartFactory
      * @description Generates a complete kickstart configuration by combining the header,
-     * variable assignments, and the rocky-kickstart.sh script body.
-     * @param {object} options
-     * @param {string} [options.lang='en_US.UTF-8']
-     * @param {string} [options.keyboard='us']
-     * @param {string} [options.timezone='America/New_York']
-     * @param {string} [options.rootPassword]
-     * @param {string} [options.adminUsername] - Admin user created in the installed OS (defaults to MAAS_ADMIN_USERNAME).
-     * @param {string} [options.adminPassword] - Admin user console password (defaults to rootPassword).
-     * @param {string} [options.authorizedKeys]
-     * @param {string} [options.bootstrapUrl]
-     * @param {string} [options.workflowId]
-     * @param {string} [options.systemId]
-     * @param {string} [options.targetHostname]
-     * @param {number} [options.sshPort]
-     * @param {string} [options.installDiskHint]
-     * @param {boolean} [options.autoInstall]
+     * the `%pre` variable-assignment block, and the `scripts/rocky-kickstart.sh` body.
+     * @param {object} options - Kickstart generation options.
+     * @param {string} [options.lang='en_US.UTF-8'] - System language for the ephemeral runtime.
+     * @param {string} [options.keyboard='us'] - Keyboard layout for the ephemeral runtime AND the deployed OS.
+     * @param {string} [options.timezone='America/New_York'] - Timezone for the ephemeral runtime AND the deployed OS.
+     * @param {string} [options.chronyConfPath='/etc/chrony.conf'] - chrony config path written in the deployed OS.
+     * @param {string} [options.rootPassword=process.env.MAAS_ADMIN_PASS] - root console password.
+     * @param {string} [options.adminUsername=''] - Primary (MAAS) admin user created in the deployed OS.
+     * @param {string} [options.adminPassword=''] - Primary admin console password (defaults to rootPassword).
+     * @param {string} [options.deployUsername=''] - Optional second (deploy) admin user (e.g. admin).
+     * @param {string} [options.deployPassword=''] - Deploy user console password (defaults to rootPassword).
+     * @param {string} [options.netIp=''] - Static IPv4 for the deployed OS; empty = DHCP.
+     * @param {number} [options.netPrefix=24] - IPv4 prefix length for the static address.
+     * @param {string} [options.netGateway=''] - Default gateway for the deployed OS.
+     * @param {string} [options.netDns=''] - DNS server for the deployed OS.
+     * @param {string} [options.authorizedKeys=''] - SSH public key(s) installed as authorized_keys.
+     * @param {string} [options.bootstrapUrl=''] - Base URL of the bootstrap HTTP server (status POSTs).
+     * @param {string} [options.workflowId=''] - Workflow identifier reported in status metadata.
+     * @param {string} [options.systemId=''] - MAAS system id reported in status metadata (if known).
+     * @param {string} [options.targetHostname=''] - Hostname reported in status metadata and set on the deployed OS.
+     * @param {number} [options.sshPort=22] - SSH port the ephemeral runtime listens on.
+     * @param {string} [options.installDiskHint=''] - Optional explicit target disk; empty = auto-detect.
+     * @param {boolean} [options.autoInstall=true] - When true, the runtime self-installs after a fallback timeout.
      * @memberof UnderpostKickStart
-     * @returns {string}
+     * @returns {string} The full kickstart (ks.cfg) source.
      */
     kickstartFactory: ({
       lang = 'en_US.UTF-8',
       keyboard = 'us',
       timezone = 'America/New_York',
+      chronyConfPath = '/etc/chrony.conf',
       rootPassword = process.env.MAAS_ADMIN_PASS,
       adminUsername = '',
       adminPassword = '',
+      deployUsername = '',
+      deployPassword = '',
+      netIp = '',
+      netPrefix = 24,
+      netGateway = '',
+      netDns = '',
       authorizedKeys = '',
       bootstrapUrl = '',
       workflowId = '',
@@ -139,6 +188,15 @@ class UnderpostKickStart {
         authorizedKeys,
         adminUsername: resolvedAdminUsername,
         adminPassword,
+        deployUsername,
+        deployPassword,
+        netIp,
+        netPrefix,
+        netGateway,
+        netDns,
+        timezone,
+        keyboardLayout: keyboard,
+        chronyConfPath,
         bootstrapUrl,
         workflowId,
         systemId,

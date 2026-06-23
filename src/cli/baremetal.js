@@ -943,23 +943,35 @@ rm -rf ${artifacts.join(' ')}`);
             `SSH public key not found at ${publicKeyPath}. Set --ssh-key-dir <dir> (expects <dir>/id_rsa.pub) or the workflow "sshKeyDir".`,
           );
         }
-        const { adminUsername, adminPassword, rootPassword } = Underpost.baremetal.resolveInstallCredentials({
-          options,
-          workflowsConfig,
-          workflowId,
+        const { rootPassword, adminUsername, adminPassword, deployUsername, deployPassword } =
+          Underpost.baremetal.resolveInstallCredentials({ options, workflowsConfig, workflowId });
+        const { netIp, netPrefix, netGateway, netDns } = Underpost.baremetal.resolveInstalledNetwork({
+          ipAddress,
+          netmask,
+          dnsServer,
         });
-        logger.info('Resolved installed-OS login', {
+        logger.info('Resolved installed-OS login + network', {
           adminUsername,
           adminPasswordSet: Boolean(adminPassword),
+          deployUsername: deployUsername || '(none)',
           rootPasswordSet: Boolean(rootPassword),
+          staticIp: `${netIp}/${netPrefix}`,
+          gateway: netGateway,
         });
         kickstartSrc = Underpost.kickstart.kickstartFactory({
           lang: 'en_US.UTF-8',
           keyboard: workflowsConfig[workflowId].keyboard?.layout,
           timezone: workflowsConfig[workflowId].chronyc?.timezone,
+          chronyConfPath: workflowsConfig[workflowId].chronyc?.chronyConfPath,
           rootPassword,
           adminUsername,
           adminPassword,
+          deployUsername,
+          deployPassword,
+          netIp,
+          netPrefix,
+          netGateway,
+          netDns,
           authorizedKeys: fs.readFileSync(publicKeyPath, 'utf8').trim(),
           bootstrapUrl,
           workflowId,
@@ -1257,7 +1269,7 @@ rm -rf ${artifacts.join(' ')}`);
           // infraSetup field and provisions the requested infrastructure (e.g.
           // a kubeadm control-plane or worker) over key-only SSH. The resolved
           // user is used when authenticating to an EXISTING control-plane (e.g.
-          // git_super_admin@dd-core); fresh nodes are always reached as root.
+          // admin@dd-core); fresh nodes are always reached as root.
           await Underpost.baremetal.postInstallDispatcher({
             workflowId,
             workflowsConfig,
@@ -1338,6 +1350,7 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {object} params.options - CLI options; options.worker, options.control.
      * @param {string} params.underpostRoot - Engine root for resolving the script.
      * @param {string} [params.keyPath] - Private key path for key-only SSH.
+     * @param {string} [params.controlUser='root'] - SSH login user for an existing control-plane (e.g. admin).
      * @returns {Promise<void>}
      * @memberof UnderpostBaremetal
      */
@@ -1355,16 +1368,21 @@ rm -rf ${artifacts.join(' ')}`);
 
       logger.info(`Kubeadm post-install setup (${role}) on ${hostname} (${ipAddress})`);
 
-      // Wait for the installed OS to finish rebooting and accept key-only SSH.
+      // The node is rebooting from the ephemeral installer into the deployed OS.
+      // First wait for the (ephemeral) SSH port to CLOSE so we don't latch onto
+      // the pre-reboot sshd, then wait for the installed OS sshd to come UP.
+      logger.info('Waiting for node to reboot into the deployed OS (port close → reopen)...', { ipAddress });
+      await Underpost.ssh.waitForSshPortClosed({ host: ipAddress, port: 22, timeoutMs: 4 * 60 * 1000 });
       const reachable = await Underpost.ssh.waitForSshPort({
         host: ipAddress,
         port: 22,
         timeoutMs: installedOsTimeoutMs,
       });
       if (!reachable) {
-        logger.error('Installed OS SSH not reachable; cannot run kubeadm setup', { ipAddress });
+        logger.error('Installed OS SSH not reachable after reboot; cannot run kubeadm setup', { ipAddress });
         return;
       }
+      logger.info('Deployed OS SSH is up', { ipAddress });
 
       let scriptArgs;
       if (role === 'worker') {
@@ -1376,7 +1394,7 @@ rm -rf ${artifacts.join(' ')}`);
         // Retrieve the join command dynamically from the control-plane node over
         // SSH (reuses the same key-only SSH execution path). No manual token paste.
         // The control-plane may be an existing deploy reached as a non-root user
-        // (e.g. git_super_admin@dd-core), selected via --user/--deploy-id.
+        // (e.g. admin@dd-core), selected via --user/--deploy-id.
         logger.info('Retrieving kubeadm join command from control-plane over SSH', {
           controlIp,
           controlUser,
@@ -2490,17 +2508,18 @@ shell
 
     /**
      * @method resolveInstallCredentials
-     * @description Resolves the login credentials baked into the deployed OS.
-     * When `--deploy-id` is used, the admin username is the resolved user and the
-     * password is read from `engine-private/conf/<deployId>/conf.node.json`
-     * (`users[user].password`); otherwise it falls back to MAAS_ADMIN_USERNAME /
-     * MAAS_ADMIN_PASS. The root password is always MAAS_ADMIN_PASS (falling back
-     * to the admin password) so a console login always works.
+     * @description Resolves the login accounts baked into the deployed OS. Always
+     * creates TWO admin accounts so a console login is guaranteed:
+     *   1. the MAAS admin (MAAS_ADMIN_USERNAME / MAAS_ADMIN_PASS) — password login,
+     *   2. the deploy user (`--user`, e.g. admin) — its conf.node.json
+     *      password (or MAAS_ADMIN_PASS), plus the SSH key.
+     * root always gets MAAS_ADMIN_PASS. The deploy user/password come from
+     * `engine-private/conf/<deployId>/conf.node.json` (`users[user]`).
      * @param {object} params
      * @param {object} [params.options={}] - CLI options.
      * @param {object} [params.workflowsConfig={}] - Loaded workflows config.
      * @param {string} [params.workflowId=''] - Active workflow id.
-     * @returns {{ adminUsername: string, adminPassword: string, rootPassword: string, confUser: object }}
+     * @returns {{ rootPassword: string, adminUsername: string, adminPassword: string, deployUsername: string, deployPassword: string, confUser: object }}
      * @memberof UnderpostBaremetal
      */
     resolveInstallCredentials({ options = {}, workflowsConfig = {}, workflowId = '' } = {}) {
@@ -2520,16 +2539,42 @@ shell
         }
       }
 
-      const adminUsername = deployId ? user : process.env.MAAS_ADMIN_USERNAME || 'maas';
-      const adminPassword = confUser.password || process.env.MAAS_ADMIN_PASS || '';
-      const rootPassword = process.env.MAAS_ADMIN_PASS || adminPassword || '';
+      const maasPass = process.env.MAAS_ADMIN_PASS || '';
+      const rootPassword = maasPass;
+      // User 1: the MAAS admin — guaranteed password login on the console.
+      const adminUsername = process.env.MAAS_ADMIN_USERNAME || 'maas';
+      const adminPassword = maasPass;
+      // User 2: the deploy user (only when distinct from root/maas admin).
+      const deployUsername = deployId && user && user !== 'root' && user !== adminUsername ? user : '';
+      const deployPassword = deployUsername ? confUser.password || maasPass : '';
 
-      if (!adminPassword && !rootPassword) {
+      if (!rootPassword) {
         logger.warn(
-          'No install password resolved (empty conf password and MAAS_ADMIN_PASS). Console login will be key-only — set MAAS_ADMIN_PASS or a user password in conf.node.json.',
+          'MAAS_ADMIN_PASS is empty — console password login will not work. Set MAAS_ADMIN_PASS in .env so root/admin have a usable password.',
         );
       }
-      return { adminUsername, adminPassword, rootPassword, confUser };
+      return { rootPassword, adminUsername, adminPassword, deployUsername, deployPassword, confUser };
+    },
+
+    /**
+     * @method resolveInstalledNetwork
+     * @description Resolves the static network config written into the deployed OS
+     * so the controller can reach it at a known IP after reboot. Uses the same IP
+     * the commission flow assigned, a /prefix from the netmask, the subnet's `.1`
+     * as gateway, and the configured DNS.
+     * @param {object} params
+     * @param {string} params.ipAddress - Static IP for the deployed OS.
+     * @param {string} params.netmask - Dotted netmask (e.g. 255.255.255.0).
+     * @param {string} params.dnsServer - DNS server.
+     * @returns {{ netIp: string, netPrefix: number, netGateway: string, netDns: string }}
+     * @memberof UnderpostBaremetal
+     */
+    resolveInstalledNetwork({ ipAddress, netmask, dnsServer }) {
+      const prefix = `${netmask || ''}`
+        .split('.')
+        .reduce((acc, oct) => acc + ((parseInt(oct, 10).toString(2).match(/1/g) || []).length || 0), 0);
+      const netGateway = `${ipAddress || ''}`.replace(/\.\d+$/, '.1');
+      return { netIp: ipAddress || '', netPrefix: prefix || 24, netGateway, netDns: dnsServer || '8.8.8.8' };
     },
 
     /**
