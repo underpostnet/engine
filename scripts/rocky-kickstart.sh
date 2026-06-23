@@ -625,6 +625,13 @@ chroot "\$TARGET_MNT" /bin/bash -s << CHROOTEOF >> "\$KS_LOG" 2>&1
 set +e
 systemctl enable sshd NetworkManager chronyd 2>/dev/null
 
+# SELinux -> permissive in the DEPLOYED OS. Critical: with SELinux enforcing on
+# first boot, files written from this installer chroot (authorized_keys, home
+# dirs) carry the wrong security context, so sshd drops sessions ("Connection
+# reset by peer") and PAM can block console logins. Permissive ignores contexts
+# (no relabel reboot needed) and matches what kubeadm/cluster.js expect.
+sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config 2>/dev/null || true
+
 # Ensure sshd host keys exist so sshd actually starts on first boot.
 ssh-keygen -A 2>/dev/null || true
 
@@ -736,19 +743,31 @@ KVER=\\\$(ls /lib/modules | head -1)
 [ -n "\\\$KVER" ] && dracut -f /boot/initramfs-\\\$KVER.img "\\\$KVER"
 CHROOTEOF
 
-# Set console passwords AFTER the chroot heredoc, from decoded installer vars,
-# piped via printf into 'chroot chpasswd'. This keeps arbitrary password
-# characters out of any heredoc so console login works reliably for root and
-# BOTH admin accounts. SSH stays key-only.
-if [ -n "\$ROOT_PASS" ]; then
-    printf 'root:%s\n' "\$ROOT_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "root password set"
-fi
-if [ -n "\$ADMIN_USER" ] && [ -n "\$ADMIN_PASS" ]; then
-    printf '%s:%s\n' "\$ADMIN_USER" "\$ADMIN_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "\$ADMIN_USER password set"
-fi
-if [ -n "\$DEPLOY_USER" ] && [ -n "\$DEPLOY_PASS" ]; then
-    printf '%s:%s\n' "\$DEPLOY_USER" "\$DEPLOY_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "\$DEPLOY_USER password set"
-fi
+# Set console passwords AFTER the chroot heredoc, from decoded installer vars.
+# Primary path: pipe 'user:password' into 'chroot chpasswd' (keeps password
+# characters out of any heredoc). Fallback: hash with openssl and apply via
+# 'usermod -p' so a chpasswd/PAM quirk in the installroot never leaves an
+# account locked. Verifies the shadow field is a real hash afterwards.
+set_password() {
+    local u="\$1" p="\$2"
+    [ -z "\$u" ] || [ -z "\$p" ] && return 0
+    printf '%s:%s\n' "\$u" "\$p" | chroot "\$TARGET_MNT" chpasswd 2>>"\$KS_LOG"
+    local field
+    field=\$(chroot "\$TARGET_MNT" getent shadow "\$u" 2>/dev/null | cut -d: -f2)
+    case "\$field" in
+        '\$'*) ilog "\$u password set (chpasswd)"; return 0 ;;
+    esac
+    local hash
+    hash=\$(printf %s "\$p" | openssl passwd -6 -stdin 2>/dev/null)
+    if [ -n "\$hash" ]; then
+        chroot "\$TARGET_MNT" usermod -p "\$hash" "\$u" 2>>"\$KS_LOG" && ilog "\$u password set (openssl hash fallback)"
+    else
+        ilog "WARNING: failed to set password for \$u"
+    fi
+}
+set_password root "\$ROOT_PASS"
+set_password "\$ADMIN_USER" "\$ADMIN_PASS"
+set_password "\$DEPLOY_USER" "\$DEPLOY_PASS"
 
 post_status "installing" "\"detail\":\"installing bootloader\",\"disk\":\"\$REAL_DISK\""
 

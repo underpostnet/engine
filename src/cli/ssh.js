@@ -648,6 +648,12 @@ EOF
         `-o StrictHostKeyChecking=no`,
         `-o UserKnownHostsFile=/dev/null`,
         `-o ConnectTimeout=${connectTimeoutSec}`,
+        // Tolerate a freshly-booted node whose network briefly flaps (e.g. while
+        // NetworkManager applies a static profile): retry the TCP connect and
+        // keep the session alive across short stalls.
+        `-o ConnectionAttempts=3`,
+        `-o ServerAliveInterval=10`,
+        `-o ServerAliveCountMax=6`,
         `-p ${port}`,
       ].join(' ');
 

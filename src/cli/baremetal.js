@@ -1382,7 +1382,11 @@ rm -rf ${artifacts.join(' ')}`);
         logger.error('Installed OS SSH not reachable after reboot; cannot run kubeadm setup', { ipAddress });
         return;
       }
-      logger.info('Deployed OS SSH is up', { ipAddress });
+      // The first time the port opens the node is still early in boot and
+      // NetworkManager may re-apply the static profile, resetting in-flight TCP
+      // connections. Let the network settle before driving the long node setup.
+      logger.info('Deployed OS SSH is up; letting the network settle before node setup...', { ipAddress });
+      await timer(30000);
 
       let scriptArgs;
       if (role === 'worker') {
@@ -1427,7 +1431,10 @@ rm -rf ${artifacts.join(' ')}`);
         scriptArgs = '--control';
       }
 
-      logger.info(`Running kubeadm-node-setup.sh (${role}) on ${ipAddress}...`);
+      logger.info(`Running kubeadm-node-setup.sh (${role}) on ${ipAddress}... (this can take several minutes)`);
+      // The node setup is a long, mostly-idempotent install. Keep retries low so
+      // a late failure doesn't re-run the whole thing many times; the script
+      // skips already-completed steps (Node, engine clone) on a re-run.
       const result = await Underpost.ssh.sshRunScript({
         host: ipAddress,
         scriptPath,
@@ -1435,6 +1442,7 @@ rm -rf ${artifacts.join(' ')}`);
         remotePath: '/tmp/kubeadm-node-setup.sh',
         keyPath,
         retries: 2,
+        waitForPortMs: 5 * 60 * 1000,
       });
 
       if (result.ok) {
