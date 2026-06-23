@@ -62,6 +62,7 @@ class UnderpostKickStart {
       rootPassword = '',
       authorizedKeys = '',
       adminUsername = '',
+      adminPassword = '',
       bootstrapUrl = '',
       workflowId = '',
       systemId = '',
@@ -71,16 +72,24 @@ class UnderpostKickStart {
       autoInstall = true,
     }) => {
       const sanitizedKeys = (authorizedKeys || '').trim();
+      // Passwords are passed base64-encoded so arbitrary characters (quotes,
+      // spaces, $, etc.) survive every shell/heredoc layer intact, then decoded
+      // once here. base64 output never contains single quotes.
+      const b64 = (v) => Buffer.from(String(v || ''), 'utf8').toString('base64');
+      const sq = (v) => `'${String(v || '').replace(/'/g, "'\\''")}'`;
       return [
-        `ROOT_PASS='${rootPassword || ''}'`,
-        `AUTHORIZED_KEYS='${sanitizedKeys}'`,
-        `ADMIN_USER='${adminUsername || process.env.MAAS_ADMIN_USERNAME || 'maas'}'`,
-        `BOOTSTRAP_URL='${bootstrapUrl || ''}'`,
-        `WORKFLOW_ID='${workflowId || ''}'`,
-        `SYSTEM_ID='${systemId || ''}'`,
-        `TARGET_HOSTNAME='${targetHostname || ''}'`,
+        `ROOT_PASS_B64='${b64(rootPassword)}'`,
+        `ADMIN_PASS_B64='${b64(adminPassword || rootPassword)}'`,
+        `ROOT_PASS="$(printf %s "$ROOT_PASS_B64" | base64 -d 2>/dev/null)"`,
+        `ADMIN_PASS="$(printf %s "$ADMIN_PASS_B64" | base64 -d 2>/dev/null)"`,
+        `AUTHORIZED_KEYS=${sq(sanitizedKeys)}`,
+        `ADMIN_USER=${sq(adminUsername || process.env.MAAS_ADMIN_USERNAME || 'maas')}`,
+        `BOOTSTRAP_URL=${sq(bootstrapUrl)}`,
+        `WORKFLOW_ID=${sq(workflowId)}`,
+        `SYSTEM_ID=${sq(systemId)}`,
+        `TARGET_HOSTNAME=${sq(targetHostname)}`,
         `SSH_PORT='${sshPort || 22}'`,
-        `INSTALL_DISK_HINT='${installDiskHint || ''}'`,
+        `INSTALL_DISK_HINT=${sq(installDiskHint)}`,
         `AUTO_INSTALL='${autoInstall ? '1' : '0'}'`,
       ].join('\n');
     },
@@ -94,6 +103,8 @@ class UnderpostKickStart {
      * @param {string} [options.keyboard='us']
      * @param {string} [options.timezone='America/New_York']
      * @param {string} [options.rootPassword]
+     * @param {string} [options.adminUsername] - Admin user created in the installed OS (defaults to MAAS_ADMIN_USERNAME).
+     * @param {string} [options.adminPassword] - Admin user console password (defaults to rootPassword).
      * @param {string} [options.authorizedKeys]
      * @param {string} [options.bootstrapUrl]
      * @param {string} [options.workflowId]
@@ -110,6 +121,8 @@ class UnderpostKickStart {
       keyboard = 'us',
       timezone = 'America/New_York',
       rootPassword = process.env.MAAS_ADMIN_PASS,
+      adminUsername = '',
+      adminPassword = '',
       authorizedKeys = '',
       bootstrapUrl = '',
       workflowId = '',
@@ -119,12 +132,13 @@ class UnderpostKickStart {
       installDiskHint = '',
       autoInstall = true,
     }) => {
-      const adminUsername = process.env.MAAS_ADMIN_USERNAME || 'maas';
+      const resolvedAdminUsername = adminUsername || process.env.MAAS_ADMIN_USERNAME || 'maas';
       const header = UnderpostKickStart.API.kickstartHeader({ lang, keyboard, timezone, rootPassword });
       const variables = UnderpostKickStart.API.kickstartPreVariables({
         rootPassword,
         authorizedKeys,
-        adminUsername,
+        adminUsername: resolvedAdminUsername,
+        adminPassword,
         bootstrapUrl,
         workflowId,
         systemId,

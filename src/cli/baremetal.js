@@ -97,6 +97,9 @@ class UnderpostBaremetal {
      * @param {boolean} [options.remoteInstall=true] - Flag to enable remote installation of the OS on the baremetal machine.
      * @param {boolean} [options.worker=false] - Flag to designate the machine as a worker node.
      * @param {string} [options.control=''] - Specifies the control node for the baremetal machine.
+     * @param {string} [options.sshKeyDir=''] - Specifies the directory containing SSH keys for the baremetal machine.
+     * @param {string} [options.deployId=''] - Specifies the deployment ID for SSH key resolution.
+     * @param {string} [options.user=''] - Specifies the SSH user for the baremetal machine.
      * @memberof UnderpostBaremetal
      * @returns {void}
      */
@@ -153,6 +156,9 @@ class UnderpostBaremetal {
         remoteInstall: true,
         worker: false,
         control: '',
+        sshKeyDir: '',
+        user: '',
+        deployId: '',
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
@@ -931,12 +937,30 @@ rm -rf ${artifacts.join(' ')}`);
         // Base URL the ephemeral runtime POSTs lifecycle events to:
         // http://<controller-ip>:<port>/<hostname>  ->  .../status
         const bootstrapUrl = `http://${callbackMetaData.runnerHost.ip}:${bootstrapPort}/${hostname}`;
+        const { publicKeyPath } = Underpost.baremetal.resolveSshKeyPaths({ options, workflowsConfig, workflowId });
+        if (!fs.existsSync(publicKeyPath)) {
+          throw new Error(
+            `SSH public key not found at ${publicKeyPath}. Set --ssh-key-dir <dir> (expects <dir>/id_rsa.pub) or the workflow "sshKeyDir".`,
+          );
+        }
+        const { adminUsername, adminPassword, rootPassword } = Underpost.baremetal.resolveInstallCredentials({
+          options,
+          workflowsConfig,
+          workflowId,
+        });
+        logger.info('Resolved installed-OS login', {
+          adminUsername,
+          adminPasswordSet: Boolean(adminPassword),
+          rootPasswordSet: Boolean(rootPassword),
+        });
         kickstartSrc = Underpost.kickstart.kickstartFactory({
           lang: 'en_US.UTF-8',
           keyboard: workflowsConfig[workflowId].keyboard?.layout,
           timezone: workflowsConfig[workflowId].chronyc?.timezone,
-          rootPassword: process.env.MAAS_ADMIN_PASS,
-          authorizedKeys: fs.readFileSync('/home/dd/engine/engine-private/deploy/id_rsa.pub', 'utf8').trim(),
+          rootPassword,
+          adminUsername,
+          adminPassword,
+          authorizedKeys: fs.readFileSync(publicKeyPath, 'utf8').trim(),
           bootstrapUrl,
           workflowId,
           systemId: machine?.system_id || '',
@@ -1215,17 +1239,25 @@ rm -rf ${artifacts.join(' ')}`);
           Underpost.baremetal.getFamilyBaseOs(workflowsConfig[workflowId].osIdLike).isRhelBased &&
           options.remoteInstall !== false
         ) {
+          const { privateKeyPath, user: resolvedUser } = Underpost.baremetal.resolveSshKeyPaths({
+            options,
+            workflowsConfig,
+            workflowId,
+          });
+
           await Underpost.baremetal.remoteInstallOrchestrator({
             hostname,
             ipAddress,
             sshPort: 22,
-            keyPath: 'engine-private/deploy/id_rsa',
+            keyPath: privateKeyPath,
           });
 
           // After the OS is installed and the node reboots into the deployed
           // disk, run the post-install dispatcher: it reads the workflow's
           // infraSetup field and provisions the requested infrastructure (e.g.
-          // a kubeadm control-plane or worker) over key-only SSH.
+          // a kubeadm control-plane or worker) over key-only SSH. The resolved
+          // user is used when authenticating to an EXISTING control-plane (e.g.
+          // git_super_admin@dd-core); fresh nodes are always reached as root.
           await Underpost.baremetal.postInstallDispatcher({
             workflowId,
             workflowsConfig,
@@ -1233,7 +1265,8 @@ rm -rf ${artifacts.join(' ')}`);
             ipAddress,
             options,
             underpostRoot,
-            keyPath: 'engine-private/deploy/id_rsa',
+            keyPath: privateKeyPath,
+            controlUser: resolvedUser,
           });
         }
       }
@@ -1253,10 +1286,20 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {object} params.options - CLI options (carries --worker / --control).
      * @param {string} params.underpostRoot - Engine root for resolving scripts.
      * @param {string} [params.keyPath] - Private key path for key-only SSH.
+     * @param {string} [params.controlUser='root'] - SSH user for an existing control-plane.
      * @returns {Promise<void>}
      * @memberof UnderpostBaremetal
      */
-    async postInstallDispatcher({ workflowId, workflowsConfig, hostname, ipAddress, options, underpostRoot, keyPath }) {
+    async postInstallDispatcher({
+      workflowId,
+      workflowsConfig,
+      hostname,
+      ipAddress,
+      options,
+      underpostRoot,
+      keyPath,
+      controlUser = 'root',
+    }) {
       const infraSetup = workflowsConfig[workflowId]?.infraSetup;
       if (!infraSetup) {
         logger.info('No infraSetup configured for workflow; skipping post-install setup', { workflowId });
@@ -1266,7 +1309,14 @@ rm -rf ${artifacts.join(' ')}`);
       logger.info('Post-install dispatcher selecting infra setup', { workflowId, infraSetup });
       switch (infraSetup) {
         case 'underpost-kubeadm-contour':
-          await Underpost.baremetal.infraSetupKubeadm({ hostname, ipAddress, options, underpostRoot, keyPath });
+          await Underpost.baremetal.infraSetupKubeadm({
+            hostname,
+            ipAddress,
+            options,
+            underpostRoot,
+            keyPath,
+            controlUser,
+          });
           break;
         default:
           throw new Error(
@@ -1291,7 +1341,14 @@ rm -rf ${artifacts.join(' ')}`);
      * @returns {Promise<void>}
      * @memberof UnderpostBaremetal
      */
-    async infraSetupKubeadm({ hostname, ipAddress, options, underpostRoot, keyPath = 'engine-private/deploy/id_rsa' }) {
+    async infraSetupKubeadm({
+      hostname,
+      ipAddress,
+      options,
+      underpostRoot,
+      keyPath = 'engine-private/deploy/id_rsa',
+      controlUser = 'root',
+    }) {
       const role = options.worker ? 'worker' : 'control';
       const scriptPath = `${underpostRoot}/scripts/kubeadm-node-setup.sh`;
       const installedOsTimeoutMs = 15 * 60 * 1000;
@@ -1318,11 +1375,17 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Retrieve the join command dynamically from the control-plane node over
         // SSH (reuses the same key-only SSH execution path). No manual token paste.
-        logger.info('Retrieving kubeadm join command from control-plane over SSH', { controlIp });
+        // The control-plane may be an existing deploy reached as a non-root user
+        // (e.g. git_super_admin@dd-core), selected via --user/--deploy-id.
+        logger.info('Retrieving kubeadm join command from control-plane over SSH', {
+          controlIp,
+          controlUser,
+          keyPath,
+        });
         const joinResult = await Underpost.ssh.sshExecBatch({
           host: controlIp,
           port: 22,
-          user: 'root',
+          user: controlUser,
           keyPath,
           retries: 4,
           waitForPortMs: 5 * 60 * 1000,
@@ -1335,7 +1398,9 @@ rm -rf ${artifacts.join(' ')}`);
           .find((l) => l.startsWith('kubeadm join'));
         if (!joinResult.ok || !joinCommand) {
           throw new Error(
-            `Failed to retrieve kubeadm join command from control-plane ${controlIp} (code ${joinResult.code}): ${joinResult.stderr.slice(-400)}`,
+            `Failed to retrieve kubeadm join command from control-plane ${controlUser}@${controlIp} using key "${keyPath}" (code ${joinResult.code}). ` +
+              `Ensure that key authorizes ${controlUser}@${controlIp} — pass --deploy-id <id> --user <user> (key from engine-private/conf/<id>/users/<user>) ` +
+              `or --ssh-key-dir <dir> to use the key/user the control-plane accepts. stderr: ${joinResult.stderr.slice(-300)}`,
           );
         }
         logger.info('✓ Retrieved kubeadm join command from control-plane', { controlIp });
@@ -2383,6 +2448,88 @@ shell
      */
     bootstrapHttpServerPortFactory({ port, workflowId, workflowsConfig }) {
       return port || workflowsConfig[workflowId]?.bootstrapHttpServerPort || 8888;
+    },
+
+    /**
+     * @method resolveSshKeyPaths
+     * @description Resolves the SSH key pair and login user for commissioning/
+     * orchestration. The key pair always lives at `<dir>/id_rsa` + `<dir>/id_rsa.pub`.
+     *
+     * Key-dir precedence:
+     *   1. `--ssh-key-dir <dir>` (explicit path)
+     *   2. `--deploy-id <id>` (+ `--user <user>`) → `engine-private/conf/<id>/users/<user>`
+     *      (the same user↔deployId↔key convention `src/cli/ssh.js` writes; no key path needed)
+     *   3. workflow `sshKeyDir`
+     *   4. workflow `deployId` (+ `user`)
+     *   5. default `engine-private/deploy`
+     *
+     * User precedence: `--user` > workflow `user` > `root`. A leading `~` in the
+     * resolved dir is expanded to the user's home.
+     * @param {object} params
+     * @param {object} [params.options={}] - CLI options (sshKeyDir, deployId, user).
+     * @param {object} [params.workflowsConfig={}] - Loaded workflows config.
+     * @param {string} [params.workflowId=''] - Active workflow id.
+     * @returns {{ keyDir: string, privateKeyPath: string, publicKeyPath: string, user: string, deployId: string }}
+     * @memberof UnderpostBaremetal
+     */
+    resolveSshKeyPaths({ options = {}, workflowsConfig = {}, workflowId = '' } = {}) {
+      const wf = workflowsConfig?.[workflowId] || {};
+      const user = options.user || wf.user || 'root';
+      const deployId = options.deployId || wf.deployId || '';
+
+      let dir;
+      if (options.sshKeyDir) dir = options.sshKeyDir;
+      else if (options.deployId) dir = `engine-private/conf/${options.deployId}/users/${user}`;
+      else if (wf.sshKeyDir) dir = wf.sshKeyDir;
+      else if (deployId) dir = `engine-private/conf/${deployId}/users/${user}`;
+      else dir = 'engine-private/deploy';
+
+      if (dir.startsWith('~')) dir = path.join(process.env.HOME || '', dir.slice(1));
+      return { keyDir: dir, privateKeyPath: `${dir}/id_rsa`, publicKeyPath: `${dir}/id_rsa.pub`, user, deployId };
+    },
+
+    /**
+     * @method resolveInstallCredentials
+     * @description Resolves the login credentials baked into the deployed OS.
+     * When `--deploy-id` is used, the admin username is the resolved user and the
+     * password is read from `engine-private/conf/<deployId>/conf.node.json`
+     * (`users[user].password`); otherwise it falls back to MAAS_ADMIN_USERNAME /
+     * MAAS_ADMIN_PASS. The root password is always MAAS_ADMIN_PASS (falling back
+     * to the admin password) so a console login always works.
+     * @param {object} params
+     * @param {object} [params.options={}] - CLI options.
+     * @param {object} [params.workflowsConfig={}] - Loaded workflows config.
+     * @param {string} [params.workflowId=''] - Active workflow id.
+     * @returns {{ adminUsername: string, adminPassword: string, rootPassword: string, confUser: object }}
+     * @memberof UnderpostBaremetal
+     */
+    resolveInstallCredentials({ options = {}, workflowsConfig = {}, workflowId = '' } = {}) {
+      const { user, deployId } = Underpost.baremetal.resolveSshKeyPaths({ options, workflowsConfig, workflowId });
+
+      let confUser = {};
+      if (deployId) {
+        const confPath = `engine-private/conf/${deployId}/conf.node.json`;
+        if (fs.existsSync(confPath)) {
+          try {
+            confUser = JSON.parse(fs.readFileSync(confPath, 'utf8'))?.users?.[user] || {};
+          } catch (error) {
+            logger.warn(`Failed to parse ${confPath}: ${error.message}`);
+          }
+        } else {
+          logger.warn(`conf.node.json not found at ${confPath}; using MAAS_ADMIN_* defaults`);
+        }
+      }
+
+      const adminUsername = deployId ? user : process.env.MAAS_ADMIN_USERNAME || 'maas';
+      const adminPassword = confUser.password || process.env.MAAS_ADMIN_PASS || '';
+      const rootPassword = process.env.MAAS_ADMIN_PASS || adminPassword || '';
+
+      if (!adminPassword && !rootPassword) {
+        logger.warn(
+          'No install password resolved (empty conf password and MAAS_ADMIN_PASS). Console login will be key-only — set MAAS_ADMIN_PASS or a user password in conf.node.json.',
+        );
+      }
+      return { adminUsername, adminPassword, rootPassword, confUser };
     },
 
     /**

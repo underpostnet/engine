@@ -76,11 +76,11 @@ else
     fi
 fi
 
-if [ -n "$ROOT_PASS" ]; then
-    echo "$ADMIN_USER:$ROOT_PASS" | chpasswd 2>/dev/null || \
-    echo "$ROOT_PASS" | passwd --stdin "$ADMIN_USER" 2>/dev/null || {
-        HASH=$(python3 -c "import crypt; print(crypt.crypt('$ROOT_PASS', crypt.mksalt(crypt.METHOD_SHA512)))" 2>/dev/null || \
-        openssl passwd -6 "$ROOT_PASS" 2>/dev/null)
+if [ -n "$ADMIN_PASS" ]; then
+    echo "$ADMIN_USER:$ADMIN_PASS" | chpasswd 2>/dev/null || \
+    echo "$ADMIN_PASS" | passwd --stdin "$ADMIN_USER" 2>/dev/null || {
+        HASH=$(python3 -c "import crypt; print(crypt.crypt('$ADMIN_PASS', crypt.mksalt(crypt.METHOD_SHA512)))" 2>/dev/null || \
+        openssl passwd -6 "$ADMIN_PASS" 2>/dev/null)
         [ -n "$HASH" ] && sed -i "s|^$ADMIN_USER:[^:]*:|$ADMIN_USER:$HASH:|" /etc/shadow 2>/dev/null
     }
 fi
@@ -473,10 +473,16 @@ KS_LOG="$KS_LOG"
 INSTALL_LOCK="$INSTALL_LOCK"
 INSTALL_DONE="$INSTALL_DONE"
 TARGET_MNT="$TARGET_MNT"
-ROOT_PASS='$ROOT_PASS'
 AUTHORIZED_KEYS='$AUTHORIZED_KEYS'
 ADMIN_USER='$ADMIN_USER'
 TARGET_HOSTNAME='$TARGET_HOSTNAME'
+# Passwords are carried base64-encoded so any character survives intact, decoded
+# once here into normal installer variables.
+ROOT_PASS_B64='$ROOT_PASS_B64'
+ADMIN_PASS_B64='$ADMIN_PASS_B64'
+ROOT_PASS="\$(printf %s "\$ROOT_PASS_B64" | base64 -d 2>/dev/null)"
+ADMIN_PASS="\$(printf %s "\$ADMIN_PASS_B64" | base64 -d 2>/dev/null)"
+[ -z "\$ADMIN_PASS" ] && ADMIN_PASS="\$ROOT_PASS"
 
 ilog() {
     echo "\$(date): [install] \$*" | tee -a "\$KS_LOG"
@@ -624,13 +630,6 @@ KEYEOF
 chmod 600 /root/.ssh/authorized_keys
 
 if ! id "\${ADMIN_USER}" >/dev/null 2>&1; then useradd -m -G wheel "\${ADMIN_USER}"; fi
-# Set a known console password for BOTH root and the admin user so physical
-# console login works (SSH stays key-only). Credentials come from the
-# controller's MAAS_ADMIN_PASS / MAAS_ADMIN_USERNAME.
-if [ -n "\${ROOT_PASS}" ]; then
-    echo "root:\${ROOT_PASS}" | chpasswd
-    echo "\${ADMIN_USER}:\${ROOT_PASS}" | chpasswd
-fi
 mkdir -p /home/\${ADMIN_USER}/.ssh && chmod 700 /home/\${ADMIN_USER}/.ssh
 cat > /home/\${ADMIN_USER}/.ssh/authorized_keys <<KEYEOF2
 \${AUTHORIZED_KEYS}
@@ -644,6 +643,17 @@ chmod 0440 /etc/sudoers.d/\${ADMIN_USER}
 KVER=\\\$(ls /lib/modules | head -1)
 [ -n "\\\$KVER" ] && dracut -f /boot/initramfs-\\\$KVER.img "\\\$KVER"
 CHROOTEOF
+
+# Set console passwords AFTER the chroot heredoc, from decoded installer vars,
+# piped via printf into 'chroot chpasswd'. This keeps arbitrary password
+# characters out of any heredoc so console login works reliably for both root
+# and the resolved admin user. SSH stays key-only.
+if [ -n "\$ROOT_PASS" ]; then
+    printf 'root:%s\n' "\$ROOT_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "root password set"
+fi
+if [ -n "\$ADMIN_PASS" ]; then
+    printf '%s:%s\n' "\$ADMIN_USER" "\$ADMIN_PASS" | chroot "\$TARGET_MNT" chpasswd && ilog "\$ADMIN_USER password set"
+fi
 
 post_status "installing" "\"detail\":\"installing bootloader\",\"disk\":\"\$REAL_DISK\""
 
@@ -687,8 +697,8 @@ fi
 touch "\$INSTALL_DONE"
 ilog "Install completed on \$REAL_DISK. Rebooting into deployed OS (BootNext set to disk)."
 ilog "If it boots the USB again, remove the USB stick now — the OS is on \$REAL_DISK."
-ilog "Login: root or \${ADMIN_USER} with the controller's MAAS_ADMIN_PASS. SSH is key-only."
-post_status "completed" "\"detail\":\"install ok, rebooting into disk\",\"disk\":\"\$REAL_DISK\",\"loginUser\":\"\${ADMIN_USER}\",\"bootNext\":\"\${NEW_BOOT:-}\""
+ilog "Console login: 'root' or '\${ADMIN_USER}' (password \$([ -n "\$ROOT_PASS" ] && echo set || echo NOT-set)). SSH is key-only."
+post_status "completed" "\"detail\":\"install ok, rebooting into disk\",\"disk\":\"\$REAL_DISK\",\"loginUser\":\"\${ADMIN_USER}\",\"passwordSet\":\$([ -n "\$ROOT_PASS" ] && echo true || echo false),\"bootNext\":\"\${NEW_BOOT:-}\""
 rm -f "\$INSTALL_LOCK"
 sync
 sleep 3

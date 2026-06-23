@@ -899,6 +899,18 @@ program
   )
   .option('--control <ip>', 'Control-plane IP the worker node joins (used with --worker for kubeadm infra setup).')
   .option(
+    '--ssh-key-dir <dir>',
+    'Directory holding the SSH key pair used for commissioning/orchestration (expects <dir>/id_rsa and <dir>/id_rsa.pub). Overrides the workflow "sshKeyDir"; defaults to engine-private/deploy. Supports a leading ~.',
+  )
+  .option(
+    '--deploy-id <deploy-id>',
+    'Deployment ID whose user key pair is used for SSH (key from engine-private/conf/<deploy-id>/users/<user>/id_rsa). Same user↔deployId↔key convention as the ssh command.',
+  )
+  .option(
+    '--user <user>',
+    'SSH user paired with --deploy-id for key resolution and the login user on an existing control-plane (defaults to root). Mirrors the ssh command --user.',
+  )
+  .option(
     '--bootstrap-http-server-run',
     'Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning.',
   )
