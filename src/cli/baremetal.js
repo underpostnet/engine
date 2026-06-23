@@ -92,6 +92,11 @@ class UnderpostBaremetal {
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
      * @param {boolean} [options.nfsSh=false] - Flag to chroot into the NFS environment for shell access.
      * @param {string} [options.logs=''] - Specifies which logs to display ('dhcp', 'cloud', 'machine', 'cloud-config').
+     * @param {string} [options.installDisk=''] - Specifies the disk to install the OS on (e.g., /dev/sda).
+     * @param {boolean} [options.autoInstall=true] - Flag to enable automatic installation of the OS on the baremetal machine.
+     * @param {boolean} [options.remoteInstall=true] - Flag to enable remote installation of the OS on the baremetal machine.
+     * @param {boolean} [options.worker=false] - Flag to designate the machine as a worker node.
+     * @param {string} [options.control=''] - Specifies the control node for the baremetal machine.
      * @memberof UnderpostBaremetal
      * @returns {void}
      */
@@ -146,6 +151,8 @@ class UnderpostBaremetal {
         installDisk: '',
         autoInstall: true,
         remoteInstall: true,
+        worker: false,
+        control: '',
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
@@ -1214,7 +1221,148 @@ rm -rf ${artifacts.join(' ')}`);
             sshPort: 22,
             keyPath: 'engine-private/deploy/id_rsa',
           });
+
+          // After the OS is installed and the node reboots into the deployed
+          // disk, run the post-install dispatcher: it reads the workflow's
+          // infraSetup field and provisions the requested infrastructure (e.g.
+          // a kubeadm control-plane or worker) over key-only SSH.
+          await Underpost.baremetal.postInstallDispatcher({
+            workflowId,
+            workflowsConfig,
+            hostname,
+            ipAddress,
+            options,
+            underpostRoot,
+            keyPath: 'engine-private/deploy/id_rsa',
+          });
         }
+      }
+    },
+
+    /**
+     * @method postInstallDispatcher
+     * @description Generic first-boot post-install dispatcher. Reads the workflow's
+     * `infraSetup` field and runs the matching infrastructure setup on the freshly
+     * deployed node. Easy to extend: add a new case per supported infraSetup type.
+     * Fails with a clear error if the workflow requests an unsupported type.
+     * @param {object} params
+     * @param {string} params.workflowId - Active workflow id.
+     * @param {object} params.workflowsConfig - Loaded workflows config.
+     * @param {string} params.hostname - Node hostname.
+     * @param {string} params.ipAddress - Node IP (installed OS, key-only SSH).
+     * @param {object} params.options - CLI options (carries --worker / --control).
+     * @param {string} params.underpostRoot - Engine root for resolving scripts.
+     * @param {string} [params.keyPath] - Private key path for key-only SSH.
+     * @returns {Promise<void>}
+     * @memberof UnderpostBaremetal
+     */
+    async postInstallDispatcher({ workflowId, workflowsConfig, hostname, ipAddress, options, underpostRoot, keyPath }) {
+      const infraSetup = workflowsConfig[workflowId]?.infraSetup;
+      if (!infraSetup) {
+        logger.info('No infraSetup configured for workflow; skipping post-install setup', { workflowId });
+        return;
+      }
+
+      logger.info('Post-install dispatcher selecting infra setup', { workflowId, infraSetup });
+      switch (infraSetup) {
+        case 'underpost-kubeadm-contour':
+          await Underpost.baremetal.infraSetupKubeadm({ hostname, ipAddress, options, underpostRoot, keyPath });
+          break;
+        default:
+          throw new Error(
+            `Unsupported infraSetup "${infraSetup}" for workflow "${workflowId}". Supported: underpost-kubeadm-contour`,
+          );
+      }
+    },
+
+    /**
+     * @method infraSetupKubeadm
+     * @description Provisions a kubeadm node on the freshly deployed machine over
+     * key-only SSH. Control mode (default) initializes a new control-plane. Worker
+     * mode (`--worker`) joins an existing cluster: the join token is retrieved
+     * dynamically over SSH from the control-plane node (`--control <ip>`) — never
+     * pasted manually — and passed to the node setup script.
+     * @param {object} params
+     * @param {string} params.hostname - Node hostname (logging).
+     * @param {string} params.ipAddress - Target node IP (installed OS).
+     * @param {object} params.options - CLI options; options.worker, options.control.
+     * @param {string} params.underpostRoot - Engine root for resolving the script.
+     * @param {string} [params.keyPath] - Private key path for key-only SSH.
+     * @returns {Promise<void>}
+     * @memberof UnderpostBaremetal
+     */
+    async infraSetupKubeadm({ hostname, ipAddress, options, underpostRoot, keyPath = 'engine-private/deploy/id_rsa' }) {
+      const role = options.worker ? 'worker' : 'control';
+      const scriptPath = `${underpostRoot}/scripts/kubeadm-node-setup.sh`;
+      const installedOsTimeoutMs = 15 * 60 * 1000;
+
+      logger.info(`Kubeadm post-install setup (${role}) on ${hostname} (${ipAddress})`);
+
+      // Wait for the installed OS to finish rebooting and accept key-only SSH.
+      const reachable = await Underpost.ssh.waitForSshPort({
+        host: ipAddress,
+        port: 22,
+        timeoutMs: installedOsTimeoutMs,
+      });
+      if (!reachable) {
+        logger.error('Installed OS SSH not reachable; cannot run kubeadm setup', { ipAddress });
+        return;
+      }
+
+      let scriptArgs;
+      if (role === 'worker') {
+        const controlIp = options.control;
+        if (!controlIp || typeof controlIp !== 'string') {
+          throw new Error('Worker mode requires the control-plane IP via --control <ip>');
+        }
+
+        // Retrieve the join command dynamically from the control-plane node over
+        // SSH (reuses the same key-only SSH execution path). No manual token paste.
+        logger.info('Retrieving kubeadm join command from control-plane over SSH', { controlIp });
+        const joinResult = await Underpost.ssh.sshExecBatch({
+          host: controlIp,
+          port: 22,
+          user: 'root',
+          keyPath,
+          retries: 4,
+          waitForPortMs: 5 * 60 * 1000,
+          command: 'sudo kubeadm token create --print-join-command',
+        });
+
+        const joinCommand = (joinResult.stdout || '')
+          .split('\n')
+          .map((l) => l.trim())
+          .find((l) => l.startsWith('kubeadm join'));
+        if (!joinResult.ok || !joinCommand) {
+          throw new Error(
+            `Failed to retrieve kubeadm join command from control-plane ${controlIp} (code ${joinResult.code}): ${joinResult.stderr.slice(-400)}`,
+          );
+        }
+        logger.info('✓ Retrieved kubeadm join command from control-plane', { controlIp });
+        scriptArgs = `--worker --join-command="${joinCommand}"`;
+      } else {
+        scriptArgs = '--control';
+      }
+
+      logger.info(`Running kubeadm-node-setup.sh (${role}) on ${ipAddress}...`);
+      const result = await Underpost.ssh.sshRunScript({
+        host: ipAddress,
+        scriptPath,
+        args: scriptArgs,
+        remotePath: '/tmp/kubeadm-node-setup.sh',
+        keyPath,
+        retries: 2,
+      });
+
+      if (result.ok) {
+        logger.info(`✓ Kubeadm ${role} node setup completed on ${hostname}`, {
+          stdout: result.stdout.split('\n').slice(-12).join('\n'),
+        });
+      } else {
+        logger.error(`✗ Kubeadm ${role} node setup failed on ${hostname}`, {
+          code: result.code,
+          stderr: result.stderr.slice(-600),
+        });
       }
     },
 

@@ -174,6 +174,7 @@
     "type": "iso-ram",
     "osIdLike": "rhel centos fedora",
     "architecture": "amd64",
+    "infraSetup": "underpost-kubeadm-contour",
     "isoUrl": "https://download.rockylinux.org/pub/rocky/9/isos/x86_64/Rocky-9-latest-x86_64-boot.iso",
     "tftpPrefix": "envy-rocky9",
     "bootstrapHttpServerPort": 8888,

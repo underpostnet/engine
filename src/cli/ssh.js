@@ -652,6 +652,48 @@ EOF
     },
 
     /**
+     * Transfers a local script to a remote host and runs it over key-only SSH.
+     * The script is base64-encoded so no shell-quoting/escaping is needed, then
+     * decoded, made executable, and executed with the given arguments. Reuses
+     * sshExecBatch for the actual transport, retries, and structured result.
+     * @async
+     * @function sshRunScript
+     * @memberof UnderpostSSH
+     * @param {object} params
+     * @param {string} params.host - Target host/IP.
+     * @param {string} params.scriptPath - Local path to the script to run.
+     * @param {string} [params.args=''] - Arguments appended to the remote invocation.
+     * @param {string} [params.remotePath='/tmp/underpost-remote-script.sh'] - Remote path to write the script.
+     * @param {number} [params.port=22] - SSH port.
+     * @param {string} [params.user='root'] - SSH user (key-only).
+     * @param {string} [params.keyPath] - Private key path (defaults to engine deploy key).
+     * @param {number} [params.retries=3] - Retry attempts.
+     * @param {number} [params.waitForPortMs=0] - When > 0, wait for the port first.
+     * @returns {Promise<{ok: boolean, code: number, stdout: string, stderr: string, attempts: number}>}
+     */
+    sshRunScript: async ({
+      host,
+      scriptPath,
+      args = '',
+      remotePath = '/tmp/underpost-remote-script.sh',
+      port = 22,
+      user = 'root',
+      keyPath = './engine-private/deploy/id_rsa',
+      retries = 3,
+      waitForPortMs = 0,
+    }) => {
+      if (!fs.existsSync(scriptPath)) throw new Error(`sshRunScript: script not found: ${scriptPath}`);
+      const b64 = Buffer.from(fs.readFileSync(scriptPath, 'utf8'), 'utf8').toString('base64');
+      const command = [
+        'set -e',
+        `echo '${b64}' | base64 -d > ${remotePath}`,
+        `chmod +x ${remotePath}`,
+        `bash ${remotePath} ${args}`,
+      ].join('\n');
+      return Underpost.ssh.sshExecBatch({ host, port, user, keyPath, retries, waitForPortMs, command });
+    },
+
+    /**
      * Loads saved SSH credentials from config and sets them in the UnderpostRootEnv API.
      * @async
      * @function setDefautlSshCredentials

@@ -894,6 +894,11 @@ program
   .option('--no-auto-install', 'Disables the ephemeral runtime AUTO_INSTALL fallback (controller must trigger install).')
   .option('--no-remote-install', 'Skips the controller-side remote install orchestration over SSH.')
   .option(
+    '--worker',
+    'Post-install infra role: join the deployed node as a Kubernetes worker (requires --control <ip>). Without this flag the node is set up as a control-plane.',
+  )
+  .option('--control <ip>', 'Control-plane IP the worker node joins (used with --worker for kubeadm infra setup).')
+  .option(
     '--bootstrap-http-server-run',
     'Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning.',
   )
