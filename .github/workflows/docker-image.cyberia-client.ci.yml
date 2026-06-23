@@ -34,7 +34,7 @@ jobs:
         with:
           images: underpost/cyberia-client
           tags: |
-            type=raw,value=v3.2.22
+            type=raw,value=v3.2.28
             type=ref,event=branch
             type=sha,prefix=sha-
 
@@ -56,5 +56,5 @@ jobs:
           # BUILD_MODE defaults to RELEASE inside the Dockerfile; override
           # via workflow_dispatch input if a DEBUG image is ever needed.
           build-args: |
-            UNDERPOST_VERSION=3.2.22
+            UNDERPOST_VERSION=3.2.28
             BUILD_MODE=RELEASE

@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: underpost/underpost-engine:v3.2.22
+          image: underpost/underpost-engine:v3.2.28
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -229,7 +229,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: underpost/underpost-engine:v3.2.22
+          image: underpost/underpost-engine:v3.2.28
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:

@@ -1,6 +1,146 @@
 # Changelog
 
-## 2026-06-07
+## 2026-06-23
+
+### hardhat
+
+- Add chai devDependency in hardhat module ([bf20134d0](https://github.com/underpostnet/engine/commit/bf20134d0a61512b223b868129eed38c0e7583cf))
+- Fix hardhat undici base dependency ([c9ad2a9f0](https://github.com/underpostnet/engine/commit/c9ad2a9f09d893495d3b80be400ca023c96e91cc))
+- Hardhat 3 migration to nomicfoundation hardhat-toolbox-viem ([22c410635](https://github.com/underpostnet/engine/commit/22c4106355f3c7d6654f21179f131f6ed8fd20cc))
+
+### deploy
+
+- Fix verify secrets exists tls deployment in deploy pipeline ([0367676a9](https://github.com/underpostnet/engine/commit/0367676a9a6363e69f772739040bc100dc1c3ceb))
+
+### run-cli
+
+- move-node runner: Add skip the patch + rollout if the resource is already where node goal ([b88cf3c68](https://github.com/underpostnet/engine/commit/b88cf3c6833572e9128d4aa85eccf0c94b055609))
+- Add node-move k8s crd between nodes runner ([4c0259a63](https://github.com/underpostnet/engine/commit/4c0259a63380fea6d5261f55f94ba8daf0d9783f))
+
+### baremetal
+
+- FIx kubeadm join node logic workflow ([72d7994a7](https://github.com/underpostnet/engine/commit/72d7994a7d978841df83854e1032f7fe79a7e185))
+- Add flag --resume-infra-setup to restore ssh kubeadm remote node deployment ([78a41d400](https://github.com/underpostnet/engine/commit/78a41d4008eceb68a33a2445b4aafd4a7b5aa546))
+- Add engine repo customization in control and worker node commission workflows ([2b8c47f52](https://github.com/underpostnet/engine/commit/2b8c47f52b0c4a1eff82bc8b6cf966aa58f0fece))
+- Fix kubeadm join node logic in ssh remote commission workflows ([72f7e2527](https://github.com/underpostnet/engine/commit/72f7e252733be2f95f67afdfd758f471c1a590f6))
+- Fix SELinux config in install chroot in os deployed ([e7d46472e](https://github.com/underpostnet/engine/commit/e7d46472e41d4beb992918a3c5e2274614818609))
+- Add Timezone + keyboard now configured in the deployed OS ([de00c365d](https://github.com/underpostnet/engine/commit/de00c365d0a12d4abef9735f26dd4c56b77d5dc9))
+- Implement user and ssh keys customization --deploy-id and --user flags in commission workflow ([ec0720230](https://github.com/underpostnet/engine/commit/ec07202309371c8e56df0c2dbe63e0283ccb5c8a))
+- Implement worker and control plane automated infra setup post install os deploy ([d5edb41ab](https://github.com/underpostnet/engine/commit/d5edb41ab3855696198daa3ef44abe521768d260))
+- Implement Automate Rocky Linux bare-metal deployment with SSH and disk detection ([2a0cbf5f1](https://github.com/underpostnet/engine/commit/2a0cbf5f1a90ebc1c4bdae0ea5f37fb16f1395c4))
+
+### kickstart
+
+- Fix rocky ephemeral commission ssh server exposure ([b5d3007f6](https://github.com/underpostnet/engine/commit/b5d3007f65e9df0affca1ca21ecdfb6cbbea1724))
+
+### repository
+
+- Enhance routePath candidates logic build ([a3d7fd806](https://github.com/underpostnet/engine/commit/a3d7fd8068e31fbdacc5b9832047f09f720ba30c))
+
+### engine-cyberia
+
+- Shrinks cyberia-client and cyberia-server production Dockerfile ([dd218c847](https://github.com/underpostnet/engine/commit/dd218c847bbc0c2e3662833607731a8bbe6815c9))
+- Remove redundant saga index and fix null-safe frames access ([9947164e6](https://github.com/underpostnet/engine/commit/9947164e681ae7a5407af9227ae600c6a8a1aa84))
+- Migrate saga generation from DeepSeek to Gemini with staged generation ([6322cd197](https://github.com/underpostnet/engine/commit/6322cd19774d94f312f64173cb41ba62d3c5bba3))
+- Move cyberia server related modules to dedicated src/cyberia directory ([648309ece](https://github.com/underpostnet/engine/commit/648309ecee5b07bcf2132188d089c733f0646fb8))
+- Introduce Top-Down PCG (Semantic Reverse-Engineering) modules and cli command ([5664f536c](https://github.com/underpostnet/engine/commit/5664f536c54446116296a465fc1efd63b1dece42))
+- Clean up quotes and update comment in action service ([1668f95e6](https://github.com/underpostnet/engine/commit/1668f95e6fa266faba89dfecafe89b9654fd7b93))
+- Split action-provider and quest-provider status icons ([e3186a37d](https://github.com/underpostnet/engine/commit/e3186a37d962980e34e0c29234bf4dd3388553e2))
+- Add quest-by-cell lookup endpoint ([648eb1437](https://github.com/underpostnet/engine/commit/648eb14374a549f9e789a425533f9313b9292cfb))
+- Implement base client component ActionEngineCyberia with map-driven quest and action management ([cc89512c0](https://github.com/underpostnet/engine/commit/cc89512c098729012d99e5817b29480808044885))
+
+### docker-compose
+
+- Implement base docker-compose engine integration ([3374c7f1a](https://github.com/underpostnet/engine/commit/3374c7f1a4379256db577988d841f414947db0c4))
+
+### cyberia-cli
+
+- Update default generate-saga temperature ([dbc5ce5b8](https://github.com/underpostnet/engine/commit/dbc5ce5b83a8268f342a3be3af8c21d1628578a0))
+- In generate-saga pipeline add 'naming and character culture' customization ([516f0ded7](https://github.com/underpostnet/engine/commit/516f0ded7dde5d1990cde5a8e98b6a16807411db))
+- Refactor generate saga pipeline general theme purpose ([993aac921](https://github.com/underpostnet/engine/commit/993aac921a5ba0a41dee8f53fb508505c900ad1e))
+- Refactor saga pipeline replace THEME_DIMENSIONS to dedicated FACTIONS base theme scope ([1280edfde](https://github.com/underpostnet/engine/commit/1280edfdef885dd0e05afd00dd7dbb418a3d2896))
+- Refactor theme dimension scope in generate-sage pipeline, add --tone and simplify 4 mains and add flag --temperature to customizaction ([cc0a3e245](https://github.com/underpostnet/engine/commit/cc0a3e245a3020246e71149d88ed6f026fdff7e2))
+- Add maps semantic stage in generate-saga pipeline ([5c7bdab03](https://github.com/underpostnet/engine/commit/5c7bdab034a3de473e6197d5ffc5d3c61d71f4ef))
+- Fix quest generation with talk objectives case and related logic ([c4d9e397c](https://github.com/underpostnet/engine/commit/c4d9e397c155d5d7c48e42f387c30263cde5c149))
+- Add --space-context flag customization in generate-saga pipeline ([19d2f7ed6](https://github.com/underpostnet/engine/commit/19d2f7ed6aa8ea41ac72622c384f84a524464a4c))
+- Generate saga command: Add lore-grounded auto-theme generation - Auto-synthesize saga themes from CYBERIA-LORE.md when --prompt is omitted - Add --lore-path option to override the base lore document - Add temperature support to GeminiClient.chatJson for varied output - Default --out to ./engine-private/cyberia-sagas/<saga-code>.json - Remove hard requirement for --prompt or --import - Update docs and help text to reflect auto-generation mode ([5b1a668a7](https://github.com/underpostnet/engine/commit/5b1a668a7c1e2b48652b717934d56ec6e9902d54))
+
+### package
+
+- Fix nodemailer version ([7d27b7f48](https://github.com/underpostnet/engine/commit/7d27b7f4826b656abdd1d2a10c5d5bb478cd90bf))
+- Fix dependency vulnerability ([13991a0fe](https://github.com/underpostnet/engine/commit/13991a0fe4594887da89de16ac502be4ef7112cb))
+
+### cyberia-docs
+
+- Add base Cyberia Lore: The Frontier of Hyperspace ([d389b881f](https://github.com/underpostnet/engine/commit/d389b881ff8dadb9154bb1f7078a515246150031))
+
+### build
+
+- Fix catalog generic deploy-id handling ([413f3fc63](https://github.com/underpostnet/engine/commit/413f3fc63851d678267a5618c6779fffc49cb14e))
+
+### engine
+
+- Refactor introduce new projects module and client-builder modules split from server ([4d14ee552](https://github.com/underpostnet/engine/commit/4d14ee552258cb3c2f70e43291945798b4d95f1a))
+
+### api
+
+- Introduce base cyberia-saga api / model ([2f02f5d6a](https://github.com/underpostnet/engine/commit/2f02f5d6a2ff2258146498bb50ac3e65b51beced))
+- Update canonical action defaults with typed quest dialogues and add Wason errand quest ([5e380abee](https://github.com/underpostnet/engine/commit/5e380abeef4954567717138af5218b506b3da414))
+- Refactor action model: remove type and grantQuestCode, add per-quest dialogue map and getByCode endpoint ([3ce9f4c18](https://github.com/underpostnet/engine/commit/3ce9f4c18ef993da85fe5f9b10b61cf7987e5457))
+- Update quest defaults: replace SCP-2040 references with Kishins ([bf6fa827d](https://github.com/underpostnet/engine/commit/bf6fa827d0fffbe5fcf97756263af50eade0af4b))
+- Add fallback defaults to dialogue and quest services ([ab2894dd4](https://github.com/underpostnet/engine/commit/ab2894dd4f591cc7247d6708a25ea737ea059c56))
+- Refactor CyberiaAction model to cell-based binding and remove provideItemId ([614a2aa60](https://github.com/underpostnet/engine/commit/614a2aa60bfa8e2330722c9c4e9fea4afc3adf3c))
+- Add quest metadata REST endpoint GET /api/cyberia-quest/code/:code ([c6f7cfa94](https://github.com/underpostnet/engine/commit/c6f7cfa94a4b3cc9f398cd63c24082b8c47db642))
+
+### grpc
+
+- Scope quest delivery to instance map codes ([d357c0cce](https://github.com/underpostnet/engine/commit/d357c0cce491078ea00a294f15f1b886fb92c05d))
+- Add prerequisiteCodes and canonical item fallback to instance config ([e34683e23](https://github.com/underpostnet/engine/commit/e34683e2372f48be034435fc2ce25915e5447aad))
+
+### hardhar
+
+- Fix prevent crash build due coverage build: Error HHE905: Couldn't download compiler version list. ([b841b5598](https://github.com/underpostnet/engine/commit/b841b55980cc5a3d19b6413f2ebb72c45b8906fb))
+
+### cli-run
+
+- Add  shared-dir-add-user runner: Add user to an existing shared directory without changing file owners ([b5c7ea7c8](https://github.com/underpostnet/engine/commit/b5c7ea7c83cf85775eaf3fc3071097f2e5e9d59f))
+
+### scripts
+
+- Update scripts/rpmfusion-ffmpeg-setup.sh ([975f7e9f3](https://github.com/underpostnet/engine/commit/975f7e9f30f7f224bcf0faa78a617b7f67fc6c96))
+
+### client-cyberia
+
+- Update default bot skin in fallback world ([a7df2b9f6](https://github.com/underpostnet/engine/commit/a7df2b9f6fd80c62b1aa3fff2ce58d0a3dc18d7a))
+- Fix headerName of metadata cid and render cid in ObjectLayerManagement component ([1d1419001](https://github.com/underpostnet/engine/commit/1d14190017c6b080c502a9478f65a35364c413df))
+- Add Kishins skin item to shared defaults ([acf13ba0e](https://github.com/underpostnet/engine/commit/acf13ba0e2a6acabc7ee1ee233275cdb31311c0d))
+- Fix render section title label in  ObjectLayerEngineModal ([2b9a88bed](https://github.com/underpostnet/engine/commit/2b9a88bed67fe2b205f648050af411a9c1e7588d))
+
+### docs
+
+- Update action and quest system documentation for cell-based binding and explicit quest accept ([fadd9e360](https://github.com/underpostnet/engine/commit/fadd9e3605e686d8487aad1ef28b2668388256c4))
+- Update quest system documentation with kill and collect objective details ([1695e17d9](https://github.com/underpostnet/engine/commit/1695e17d9ec628ed9907859d6dd4ec890f113240))
+- Document mission system: action-provider NPCs and fallback world instantiation ([469094678](https://github.com/underpostnet/engine/commit/469094678a35d4bbd03c79181f78d7720614179c))
+- Update cyberia client docs url env parsing ([77923cfa4](https://github.com/underpostnet/engine/commit/77923cfa4977fd21ed5acbe6e2e5dfdaa70a614d))
+
+### cyberia-instance
+
+- Give action provider NPCs small wander radius ([b56389b5a](https://github.com/underpostnet/engine/commit/b56389b5a63b964ee1c94fcce0d9dafea4c1b2f6))
+- Add action-provider NPC generation and cell reservation to fallback world builder ([985ba010c](https://github.com/underpostnet/engine/commit/985ba010c0ca76dc10bd12fffbc07871c01e0e90))
+
+### grcp
+
+- Deliver actions and quests in InstanceConfig for mission content ([e26466e9a](https://github.com/underpostnet/engine/commit/e26466e9a401ada9a5add5b658243e9cf34879a9))
+
+### cli-cyberia
+
+- Add DefaultCyberiaActions, DefaultCyberiaQuests, and seed-actions-quests CLI command ([cc9f21377](https://github.com/underpostnet/engine/commit/cc9f21377ba77c0e141d153f852dbb9777d74525))
+
+### fs
+
+- Add Single-file handling in upload use case in cloudinary storage ([6061d8bf2](https://github.com/underpostnet/engine/commit/6061d8bf290f00c2c4e46a0206419ba4b1119f2e))
+
+## New release v:3.2.22 (2026-06-07)
 
 ### repository
 

@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.22
+> underpost ci/cd cli v3.2.28
 
 **Usage:** `underpost [options] [command]`
 
@@ -40,6 +40,7 @@
 | [`monitor`](#underpost-monitor) | Manages health server monitoring for specified deployments. |
 | [`ssh`](#underpost-ssh) | Manages SSH credentials and sessions for remote access to cluster nodes or services. |
 | [`run`](#underpost-run) | Runs specified scripts using various runners. |
+| [`docker-compose`](#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
 | [`lxd`](#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
 | [`release`](#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
@@ -815,7 +816,7 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: dev-cluster,etc-hosts,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir. |
+| `runner-id` | The runner ID to run. Options: dev-cluster,etc-hosts,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
 | `path` | The input value, identifier, or path for the operation. |
 
 #### Options
@@ -890,6 +891,45 @@ Runs specified scripts using various runners.
 | `--pull-bundle` | Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build. |
 | `--remove` | Remove/teardown resources |
 | `--test` | Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager). |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost docker-compose
+
+General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack).
+
+**Usage:** `underpost docker-compose [options] [target]`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `target` | Optional service name for --logs, --shell, --restart, or --build. |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--install` | Install Docker Engine and the Compose v2 plugin on RHEL/Rocky hosts. |
+| `--reset` | Comprehensive teardown (equivalent to cluster --reset): removes all stack containers, the network, named volumes (destroys data), orphans, and generated artifacts. |
+| `--force` | Force reinstall (--install), remove volumes (--down), or also drop the env-file (--reset). |
+| `--deploy-id <deploy-id>` | Deployment to run as the app container (default: dd-default). 'dd-default' self-bootstraps a fresh engine; any other id runs the standard 'underpost start' command (mirrors src/cli/deploy.js). |
+| `--env <env>` | Deployment environment for non-default deploy ids (default: development). |
+| `--generate` | Render dynamic supporting files (nginx router config, env-file, app-command override). |
+| `--up` | Start the full stack detached (regenerates config first). |
+| `--down` | Stop and remove containers (and orphans). |
+| `--volumes` | With --down, also remove named volumes (destroys persisted data). |
+| `--restart` | Restart services (optionally a single [target]). |
+| `--build` | With --up rebuild images; alone, rebuilds images with --no-cache. |
+| `--pull` | Pull upstream images for all services. |
+| `--logs` | Follow logs for all services (optionally a single [target]). |
+| `--status` | Show a formatted status table of services. |
+| `--shell` | Open an interactive shell in [target] (default: app). |
+| `--exec <subcommand>` | General-purpose passthrough docker compose subcommand. |
+| `--compose-file <path>` | Path to the compose file (default: docker-compose.yml). |
+| `--env-file <path>` | Path to the compose env-file (default: docker/compose.env). |
+| `--nginx-conf <path>` | Path to the generated nginx config (default: docker/nginx/default.conf). |
 | `-h, --help` | display help for command |
 
 ---
@@ -976,6 +1016,18 @@ Manages baremetal server operations, including installation, database setup, com
 | `--remove-machines <system-ids>` | Removes baremetal machines by comma-separated system IDs, or use "all" |
 | `--clear-discovered` | Clears all discovered baremetal machines from the database. |
 | `--commission` | Init workflow for commissioning a physical machine. |
+| `--install-disk [device]` | Explicit target install disk for Rocky deployment (e.g. /dev/nvme0n1). Omit or leave empty to auto-detect the internal disk. |
+| `--no-auto-install` | Disables the ephemeral runtime AUTO_INSTALL fallback (controller must trigger install). |
+| `--no-remote-install` | Skips the controller-side remote install orchestration over SSH. |
+| `--worker` | Post-install infra role: join the deployed node as a Kubernetes worker (requires --control <ip>). Without this flag the node is set up as a control-plane. |
+| `--control <ip>` | Control-plane IP the worker node joins (used with --worker for kubeadm infra setup). |
+| `--ssh-key-dir <dir>` | Directory holding the SSH key pair used for commissioning/orchestration (expects <dir>/id_rsa and <dir>/id_rsa.pub). Overrides the workflow "sshKeyDir"; defaults to engine-private/deploy. Supports a leading ~. |
+| `--deploy-id <deploy-id>` | Deployment ID whose user key pair is used for SSH (key from engine-private/conf/<deploy-id>/users/<user>/id_rsa). Same user↔deployId↔key convention as the ssh command. |
+| `--user <user>` | SSH user paired with --deploy-id for key resolution and the login user on an existing control-plane (defaults to root). Mirrors the ssh command --user. |
+| `--engine-repo <url>` | Custom engine repo cloned + normalized to /home/dd/engine on the node (default: <GITHUB_USERNAME>/engine). |
+| `--engine-branch <branch>` | Branch of the engine repo to clone on the node. |
+| `--engine-private-repo <url>` | Custom private repo cloned + normalized to /home/dd/engine/engine-private on the node (default: <GITHUB_USERNAME>/engine-<id>-private). |
+| `--engine-private-branch <branch>` | Branch of the engine-private repo to clone on the node. |
 | `--bootstrap-http-server-run` | Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning. |
 | `--bootstrap-http-server-path <path>` | Sets a custom bootstrap HTTP server path for baremetal commissioning. |
 | `--bootstrap-http-server-port <port>` | Sets a custom bootstrap HTTP server port for baremetal commissioning. |
@@ -997,6 +1049,8 @@ Manages baremetal server operations, including installation, database setup, com
 | `--logs <log-id>` | Displays logs for log id: dhcp,dhcp-lease,dhcp-lan,cloud-init,cloud-init-machine,cloud-init-config |
 | `--dev` | Sets the development context environment for baremetal operations. |
 | `--ls` | Lists available boot resources and machines. |
+| `--resume-infra-setup` | Skip commissioning, OS install, and all bootstrapping; resume only the SSH-based infra setup (kubeadm join/init) on a node that already has the OS installed and is reachable via SSH. |
+| `--resume-join` | Skip everything except the kubeadm join command. Assumes engine, Node.js, CRI-O, kubelet, and kubeadm are already installed. Only retrieves a fresh join token from the control-plane and runs kubeadm join. |
 | `-h, --help` | display help for command |
 
 ---
