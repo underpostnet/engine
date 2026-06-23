@@ -22,6 +22,8 @@ Minimalist reference for Underpost engine cluster lifecycle commands.
 14. [Cron](#cron)
 15. [Sync](#sync)
 16. [Deploy Job](#deploy-job)
+17. [Node Move](#node-move)
+18. [Baremetal Node Commissioning & Join](#baremetal-node-commissioning--join)
 
 ---
 
@@ -579,27 +581,115 @@ node bin run deploy-job my-job --image-name my-app:v1 --host-aliases "127.0.0.1=
 
 ---
 
+## Node Move
+
+**Command:** `node bin run node-move [resource] [options]`
+
+Abstract, kind-agnostic runner that relocates any schedulable Kubernetes workload onto a target node by patching its pod-template `nodeSelector` and rolling it out. It resolves the resource kind dynamically, so the same command handles `deployment`, `statefulset`, `daemonset`, `replicaset`, `job`, `cronjob`, and `replicationcontroller` without bespoke logic.
+
+```bash
+# Move a single deployment to a node (built-in hostname label, no node mutation)
+node bin run node-move deployment/dd-cyberia-production-blue --node-name hp-envy-iso-ram-rocky9
+
+# Move every StatefulSet in a namespace — preview the kubectl commands only
+node bin run node-move statefulset --node-name hp-envy-iso-ram-rocky9 --dry-run
+
+# Move all movable workloads (deployment + statefulset + daemonset) in the namespace
+node bin run node-move --node-name hp-envy-iso-ram-rocky9
+
+# Label-pool style: label the target node and select by that label (reusable pools)
+node bin run node-move deployment/dd-core-production-blue --node-name hp-envy-iso-ram-rocky9 --labels workload=worker2
+
+# Undo placement — clear the nodeSelector so the scheduler is free again
+node bin run node-move deployment/dd-cyberia-production-blue --remove
+```
+
+**Resource selector (`path`):**
+
+| Form            | Selects                                                           |
+| --------------- | ----------------------------------------------------------------- |
+| `<kind>/<name>` | A single resource (e.g. `deployment/dd-core-production-blue`)     |
+| `<kind>`        | Every resource of that kind in the namespace (e.g. `statefulset`) |
+| _(empty)_       | All movable workloads (deployment + statefulset + daemonset)      |
+
+| Option               | Description                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--node-name <node>` | Target node (required unless `--remove`). Verified to exist before patching.                                                                                  |
+| `--namespace <name>` | Namespace to operate in (default: `default`).                                                                                                                 |
+| `--labels <k=v,...>` | Label the target node with these pairs and use them as the `nodeSelector` (reusable pool). Default placement is the built-in `kubernetes.io/hostname=<node>`. |
+| `--dry-run`          | Print the exact `kubectl patch` / `kubectl rollout restart` commands without applying.                                                                        |
+| `--remove`           | Clear the `nodeSelector` (unpin placement) instead of moving.                                                                                                 |
+
+**Mechanics:** for templated controllers it applies `kubectl patch <kind> <name> --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":{…}}}}}'` (CronJobs use `spec.jobTemplate…`), then `kubectl rollout restart` for Deployment/StatefulSet/DaemonSet to reschedule existing pods now.
+
+> **⚠️ Caveats:**
+>
+> - **Services, ConfigMaps, and bare Pods are skipped with a warning** — they are not schedulable controllers (a Service has no node placement). Move the owning controller instead.
+> - **StatefulSets bound to node-local storage** (e.g. `local-path-provisioner` PVs for `mongodb`, `mariadb`, `valkey`, `ipfs-cluster`) may stay `Pending` after a move because the PV is pinned to the original node's disk — moving the pod does not move the data. Stateless Deployments are the safe ones to relocate.
+
+---
+
+## Baremetal Node Commissioning & Join
+
+**Command:** `node bin baremetal <workflow-id> [options]`
+
+Provisions a physical machine through MAAS commissioning, installs the OS, and dispatches a workflow-configured post-install infra setup. The infra setup type is read from the `infraSetup` attribute in `baremetal/commission-workflows.json` (first supported value: `underpost-kubeadm-contour`, which runs `scripts/kubeadm-node-setup.sh`).
+
+The post-install role is selected with `--worker` (join an existing cluster) or omitted (initialize a control-plane). Two resume flags skip earlier phases so an already-installed node can be (re)driven into the cluster without re-imaging.
+
+```bash
+# Full worker flow: OS already deployed → run host prereqs + engine setup + join
+node bin baremetal hp-envy-iso-ram-rocky9 --dev --worker \
+  --control 192.168.1.85 --deploy-id dd-core --user admin \
+  --engine-repo https://github.com/underpostnet/engine.git \
+  --engine-private-repo https://github.com/underpostnet/engine-private.git \
+  --resume-infra-setup
+
+# Fast re-join only: node already has engine + Node.js + CRI-O + kubelet + kubeadm
+node bin baremetal hp-envy-iso-ram-rocky9 --dev --worker \
+  --control 192.168.1.85 --deploy-id dd-core --user admin --resume-join
+```
+
+| Option                        | Description                                                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--worker`                    | Post-install role: join the node as a Kubernetes worker (requires `--control <ip>`). Without it the node is set up as a control-plane.                             |
+| `--control <ip>`              | Control-plane IP the worker joins. The retrieved join command's endpoint host is auto-mapped to this IP on the worker so it never dials `localhost.localdomain`.   |
+| `--deploy-id <id>` / `--user` | Resolve the SSH key for orchestration (`engine-private/conf/<id>/users/<user>/id_rsa`) and the login user on an existing control-plane. Mirrors the `ssh` command. |
+| `--engine-repo <url>`         | Engine repo cloned + normalized to `/home/dd/engine` on the node (default: `<GITHUB_USERNAME>/engine`).                                                            |
+| `--engine-private-repo <url>` | Private repo cloned + normalized to `/home/dd/engine/engine-private` on the node (default: `<GITHUB_USERNAME>/engine-<id>-private`).                               |
+| `--resume-infra-setup`        | Skip commissioning + OS install + bootstrapping; resume only the SSH-based infra setup (kubeadm join/init) on a reachable, already-installed node.                 |
+| `--resume-join`               | Skip everything except the kubeadm join — assumes engine, Node.js, CRI-O, kubelet, and kubeadm are already installed. Retrieves a fresh token and joins directly.  |
+
+The join command is retrieved live from the control-plane over SSH (`kubeadm token create --print-join-command`) — no manual token paste. A failed `kubeadm join` aborts with a non-zero exit (no false-positive success).
+
+---
+
 ## Common Options
 
-| Option                           | Scope     | Description                     |
-| -------------------------------- | --------- | ------------------------------- |
-| `--dev`                          | All       | Development mode                |
-| `--kind` / `--kubeadm` / `--k3s` | Cluster   | Cluster type                    |
-| `--namespace <name>`             | Cluster   | Kubernetes namespace            |
-| `--node-name <name>`             | Cluster   | Target node                     |
-| `--replicas <n>`                 | Deploy    | Replica count                   |
-| `--force`                        | Git       | Force push                      |
-| `--pod-name <name>`              | Container | Pod name                        |
-| `--image-name <name>`            | Container | Docker image                    |
-| `--volume-host-path <path>`      | Container | Host directory                  |
-| `--volume-mount-path <path>`     | Container | Container mount path            |
-| `--claim-name <name>`            | Container | PVC name                        |
-| `--host-network`                 | Container | Use host networking             |
-| `--tls`                          | Deploy    | Enable TLS                      |
-| `--expose`                       | Deploy    | Expose services                 |
-| `--etc-hosts`                    | Deploy    | Modify /etc/hosts for local DNS |
-| `--build`                        | Build     | Trigger build                   |
-| `--reset`                        | Cluster   | Reset cluster state             |
+| Option                           | Scope     | Description                                  |
+| -------------------------------- | --------- | -------------------------------------------- |
+| `--dev`                          | All       | Development mode                             |
+| `--kind` / `--kubeadm` / `--k3s` | Cluster   | Cluster type                                 |
+| `--namespace <name>`             | Cluster   | Kubernetes namespace                         |
+| `--node-name <name>`             | Cluster   | Target node                                  |
+| `--labels <k=v,...>`             | Cluster   | Node/workload labels (node-move, deploy-job) |
+| `--dry-run`                      | Cluster   | Preview commands without applying            |
+| `--remove`                       | Cluster   | Clear/teardown resources or placement        |
+| `--worker` / `--control <ip>`    | Baremetal | Post-install role + control-plane IP         |
+| `--resume-join`                  | Baremetal | Skip setup; run only kubeadm join            |
+| `--replicas <n>`                 | Deploy    | Replica count                                |
+| `--force`                        | Git       | Force push                                   |
+| `--pod-name <name>`              | Container | Pod name                                     |
+| `--image-name <name>`            | Container | Docker image                                 |
+| `--volume-host-path <path>`      | Container | Host directory                               |
+| `--volume-mount-path <path>`     | Container | Container mount path                         |
+| `--claim-name <name>`            | Container | PVC name                                     |
+| `--host-network`                 | Container | Use host networking                          |
+| `--tls`                          | Deploy    | Enable TLS                                   |
+| `--expose`                       | Deploy    | Expose services                              |
+| `--etc-hosts`                    | Deploy    | Modify /etc/hosts for local DNS              |
+| `--build`                        | Build     | Trigger build                                |
+| `--reset`                        | Cluster   | Reset cluster state                          |
 
 ## Prerequisites
 

@@ -374,6 +374,182 @@ class UnderpostRun {
     },
 
     /**
+     * @method node-move
+     * @description Abstract runner that relocates any schedulable Kubernetes workload
+     * (Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob, ReplicationController)
+     * onto a target node by patching its pod-template `nodeSelector` and rolling it out.
+     * Resource-kind agnostic: it resolves the kind dynamically and applies the right
+     * patch path, so it works for `sts`, `deployment`, etc. without bespoke logic.
+     *
+     * Selection grammar via `path`:
+     *   - `<kind>/<name>`  -> a single resource (e.g. `deployment/dd-core-production-blue`)
+     *   - `<kind>`         -> every resource of that kind in the namespace (e.g. `statefulset`)
+     *   - ``               -> all movable workloads (deployment, statefulset, daemonset) in the namespace
+     *
+     * Placement:
+     *   - default: built-in `kubernetes.io/hostname=<node>` (no node mutation required)
+     *   - `--labels k=v,...`: label the target node with those pairs and use them as the
+     *     nodeSelector (matches the "label node + nodeSelector" pattern), enabling reusable
+     *     workload pools instead of pinning to a single hostname.
+     *
+     * Flags: `--node-name <node>` (target), `--namespace <ns>`, `--dry-run` (preview only),
+     *        `--remove` (clear the nodeSelector / unpin placement).
+     *
+     * Caveats: Services/ConfigMaps and bare Pods are not schedulable controllers and are
+     * skipped (move the owning controller). StatefulSets bound to node-local PVs may stay
+     * Pending after a move until their volume is available on the target node.
+     * @param {string} path - Resource selector (`kind/name`, `kind`, or empty).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     * @returns {Array<{ref:string,kind:string,status:string,node?:string}>} Per-resource outcome.
+     */
+    'node-move': (path = '', options = DEFAULT_OPTION) => {
+      const node = options.nodeName;
+      const ns = options.namespace || 'default';
+      const dryRun = options.dryRun === true;
+      const remove = options.remove === true;
+
+      if (!remove && !node) {
+        throw new Error('node-move requires --node-name <target-node> (or --remove to clear placement)');
+      }
+
+      const normalizeKind = (k) =>
+        ({
+          deploy: 'deployment',
+          deployments: 'deployment',
+          deployment: 'deployment',
+          sts: 'statefulset',
+          statefulsets: 'statefulset',
+          statefulset: 'statefulset',
+          ds: 'daemonset',
+          daemonsets: 'daemonset',
+          daemonset: 'daemonset',
+          rs: 'replicaset',
+          replicasets: 'replicaset',
+          replicaset: 'replicaset',
+          rc: 'replicationcontroller',
+          replicationcontroller: 'replicationcontroller',
+          job: 'job',
+          jobs: 'job',
+          cj: 'cronjob',
+          cronjob: 'cronjob',
+          cronjobs: 'cronjob',
+          po: 'pod',
+          pod: 'pod',
+          pods: 'pod',
+          svc: 'service',
+          service: 'service',
+          services: 'service',
+        })[k] || k;
+
+      // Kinds that own a pod template we can patch; rolloutKinds additionally
+      // support `kubectl rollout restart` to reschedule existing pods now.
+      const templated = ['deployment', 'statefulset', 'daemonset', 'replicaset', 'job', 'cronjob', 'replicationcontroller'];
+      const rolloutKinds = ['deployment', 'statefulset', 'daemonset'];
+      const templateSelectorPath = (kind) =>
+        kind === 'cronjob'
+          ? ['spec', 'jobTemplate', 'spec', 'template', 'spec', 'nodeSelector']
+          : ['spec', 'template', 'spec', 'nodeSelector'];
+
+      // Resolve the desired nodeSelector. Custom --labels enables reusable pools;
+      // otherwise pin by the always-present hostname label.
+      let selector = { 'kubernetes.io/hostname': node };
+      if (!remove && options.labels) {
+        selector = {};
+        for (const pair of `${options.labels}`.split(',').map((s) => s.trim()).filter(Boolean)) {
+          const eq = pair.indexOf('=');
+          if (eq < 0) continue;
+          selector[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+        }
+      }
+
+      // Verify the target node exists, and apply custom labels to it if provided.
+      if (!remove) {
+        const found = shellExec(`kubectl get node ${node} -o name`, {
+          silent: true,
+          stdout: true,
+          silentOnError: true,
+        }).trim();
+        if (!found) throw new Error(`Target node not found: ${node}`);
+        if (options.labels) {
+          const labelArgs = Object.entries(selector)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(' ');
+          const labelCmd = `kubectl label node ${node} ${labelArgs} --overwrite`;
+          if (dryRun) logger.info(`[dry-run] ${labelCmd}`);
+          else shellExec(labelCmd);
+        }
+      }
+
+      const kubectlNames = (kind) =>
+        (
+          shellExec(`kubectl get ${kind} -n ${ns} -o name`, { silent: true, stdout: true, silentOnError: true }).trim() ||
+          ''
+        )
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+      // Build the list of "kind/name" targets from the selection grammar.
+      let targets = [];
+      if (!path) {
+        for (const kind of ['deployment', 'statefulset', 'daemonset']) targets.push(...kubectlNames(kind));
+      } else if (path.includes('/')) {
+        targets = [path];
+      } else {
+        targets = kubectlNames(path);
+      }
+
+      if (targets.length === 0) {
+        logger.warn('node-move: no matching resources found', { path, namespace: ns });
+        return [];
+      }
+
+      // Merge-patch body that sets (or clears, when --remove) the nodeSelector.
+      const buildPatch = (kind) => {
+        const keys = templateSelectorPath(kind);
+        let obj = remove ? null : selector;
+        for (let i = keys.length - 1; i >= 0; i--) obj = { [keys[i]]: obj };
+        return JSON.stringify(obj);
+      };
+
+      const results = [];
+      for (const ref of targets) {
+        const slash = ref.indexOf('/');
+        const rawKind = slash >= 0 ? ref.slice(0, slash) : path && !path.includes('/') ? path : '';
+        const name = slash >= 0 ? ref.slice(slash + 1) : ref;
+        const kind = normalizeKind(`${rawKind}`.split('.')[0].toLowerCase());
+
+        if (!templated.includes(kind)) {
+          logger.warn(`node-move: ${kind}/${name} is not a schedulable controller; skipping`, {
+            hint: 'move its owning controller (deployment/statefulset/daemonset) instead',
+          });
+          results.push({ ref, kind, status: 'skipped' });
+          continue;
+        }
+
+        const patchCmd = `kubectl patch ${kind} ${name} -n ${ns} --type=merge -p '${buildPatch(kind)}'`;
+        const restartCmd = `kubectl rollout restart ${kind} ${name} -n ${ns}`;
+        if (dryRun) {
+          logger.info(`[dry-run] ${patchCmd}`);
+          if (rolloutKinds.includes(kind)) logger.info(`[dry-run] ${restartCmd}`);
+          results.push({ ref, kind, status: 'dry-run', node: remove ? undefined : node });
+          continue;
+        }
+
+        shellExec(patchCmd);
+        if (rolloutKinds.includes(kind)) shellExec(restartCmd);
+        logger.info(remove ? `Cleared node placement: ${kind}/${name}` : `Moved ${kind}/${name} -> ${node}`, {
+          namespace: ns,
+        });
+        results.push({ ref, kind, status: remove ? 'cleared' : 'moved', node: remove ? undefined : node });
+      }
+
+      logger.info('node-move complete', { namespace: ns, node: remove ? null : node, count: results.length });
+      return results;
+    },
+
+    /**
      * @method dev-hosts-expose
      * @description Deploys a specified service in development mode with `/etc/hosts` modification for local access.
      * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
