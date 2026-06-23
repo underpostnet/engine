@@ -911,6 +911,16 @@ program
     'SSH user paired with --deploy-id for key resolution and the login user on an existing control-plane (defaults to root). Mirrors the ssh command --user.',
   )
   .option(
+    '--engine-repo <url>',
+    'Custom engine repo cloned + normalized to /home/dd/engine on the node (default: <GITHUB_USERNAME>/engine).',
+  )
+  .option('--engine-branch <branch>', 'Branch of the engine repo to clone on the node.')
+  .option(
+    '--engine-private-repo <url>',
+    'Custom private repo cloned + normalized to /home/dd/engine/engine-private on the node (default: <GITHUB_USERNAME>/engine-<id>-private).',
+  )
+  .option('--engine-private-branch <branch>', 'Branch of the engine-private repo to clone on the node.')
+  .option(
     '--bootstrap-http-server-run',
     'Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning.',
   )

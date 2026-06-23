@@ -70,7 +70,7 @@ log() { echo "$(date): [kubeadm-setup] $*"; }
 # ---------------------------------------------------------------------------
 log "Installing base prerequisites (tar, xz, gzip, git, curl)..."
 sudo dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils 2>/dev/null \
-    || dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils
+|| dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils
 
 # ---------------------------------------------------------------------------
 # 1. NVM and Node.js — required for the `node bin ...` entrypoints. Idempotent so
@@ -81,11 +81,11 @@ if command -v node >/dev/null 2>&1 && node --version 2>/dev/null | grep -q '^v24
 else
     log "Installing NVM and Node.js v24.15.0..."
     curl -o- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
-
+    
     export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
     # shellcheck disable=SC1090
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
+    
     nvm install 24.15.0
     nvm use 24.15.0
     nvm alias default 24.15.0
@@ -106,34 +106,69 @@ Bringing up underpost kubeadm node (role=$ROLE) from $ENGINE_ROOT
 "
 
 # ---------------------------------------------------------------------------
-# 2. Engine source — required by `node bin cluster` (manifests + CLI)
+# 2. Engine source — required by `node bin cluster` (manifests + CLI).
+#    Normalizes any (custom-named) repo into the canonical paths, mirroring
+#    src/server/start.js: clone into a temp dir then copy the contents into the
+#    target, so the working tree is always $ENGINE_ROOT regardless of repo name.
 # ---------------------------------------------------------------------------
-if [ ! -d "$ENGINE_ROOT" ] || [ -z "$(ls -A "$ENGINE_ROOT" 2>/dev/null)" ]; then
-    log "Engine source missing at $ENGINE_ROOT; cloning $ENGINE_REPO ..."
-    command -v git >/dev/null 2>&1 || sudo dnf install -y git
-    if [ -n "$ENGINE_BRANCH" ]; then
-        git clone --depth 1 --branch "$ENGINE_BRANCH" "$ENGINE_REPO" "$ENGINE_ROOT"
-    else
-        git clone --depth 1 "$ENGINE_REPO" "$ENGINE_ROOT"
+command -v git >/dev/null 2>&1 || sudo dnf install -y git
+
+# clone_normalize <repo-url> <branch> <target-dir> [mask-secret]
+# Clones into a temp dir and copies the contents to <target-dir> so a custom
+# repo (e.g. engine-test-test) always lands at the canonical path. [mask-secret]
+# is redacted from any logged output.
+clone_normalize() {
+    # Defaulted so optional args don't trip `set -u` (nounset).
+    local url="${1:-}" branch="${2:-}" target="${3:-}" mask="${4:-}"
+    if [ -d "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
+        log "$target already present; skipping clone"
+        return 0
     fi
+    local tmp; tmp="$(mktemp -d)"
+    local ok=0
+    if [ -n "$branch" ]; then
+        if [ -n "$mask" ]; then git clone --depth 1 --branch "$branch" "$url" "$tmp/repo" 2>&1 | sed "s/${mask}/***/g"; ok=${PIPESTATUS[0]}; else git clone --depth 1 --branch "$branch" "$url" "$tmp/repo"; ok=$?; fi
+    else
+        if [ -n "$mask" ]; then git clone --depth 1 "$url" "$tmp/repo" 2>&1 | sed "s/${mask}/***/g"; ok=${PIPESTATUS[0]}; else git clone --depth 1 "$url" "$tmp/repo"; ok=$?; fi
+    fi
+    if [ "$ok" -ne 0 ] || [ ! -d "$tmp/repo" ]; then
+        rm -rf "$tmp"
+        return 1
+    fi
+    mkdir -p "$target"
+    cp -a "$tmp/repo/." "$target/"
+    rm -rf "$tmp"
+}
+
+if [ ! -d "$ENGINE_ROOT" ] || [ -z "$(ls -A "$ENGINE_ROOT" 2>/dev/null)" ]; then
+    if [ -n "$GITHUB_TOKEN" ]; then
+        log "Engine source missing at $ENGINE_ROOT; cloning + normalizing (authenticated) $ENGINE_REPO -> $ENGINE_ROOT ..."
+        ENGINE_REPO_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_REPO#https://}"
+    else
+        log "Engine source missing at $ENGINE_ROOT; cloning + normalizing $ENGINE_REPO -> $ENGINE_ROOT ..."
+        ENGINE_REPO_URL="$ENGINE_REPO"
+    fi
+    clone_normalize "$ENGINE_REPO_URL" "$ENGINE_BRANCH" "$ENGINE_ROOT" "$GITHUB_TOKEN" || { log "FATAL: engine clone failed"; exit 1; }
+    # Drop the token from the remote URL so it is not persisted on disk.
+    git -C "$ENGINE_ROOT" remote set-url origin "$ENGINE_REPO" 2>/dev/null || true
 fi
 
 cd "$ENGINE_ROOT"
 
-# Clone the private secrets repo (engine-private) using the GitHub token so
-# `node bin run secret` can read engine-private/conf/.../.env.production. The
-# token is masked from logs. Without it, secrets are unavailable.
+# Clone + normalize the private secrets repo into $ENGINE_ROOT/engine-private
+# (where `node bin run secret` reads engine-private/conf/.../.env.production),
+# regardless of the private repo's name. The token is masked in logs and then
+# stripped from the saved remote URL.
 if [ ! -d "$ENGINE_ROOT/engine-private" ] || [ -z "$(ls -A "$ENGINE_ROOT/engine-private" 2>/dev/null)" ]; then
     if [ -n "$GITHUB_TOKEN" ]; then
-        log "Cloning engine-private (secrets) with GitHub token..."
+        log "Cloning + normalizing engine-private (secrets) -> $ENGINE_ROOT/engine-private ..."
         PRIV_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_PRIVATE_REPO#https://}"
-        if [ -n "$ENGINE_PRIVATE_BRANCH" ]; then
-            git clone --depth 1 --branch "$ENGINE_PRIVATE_BRANCH" "$PRIV_URL" "$ENGINE_ROOT/engine-private" 2>&1 | sed "s/${GITHUB_TOKEN}/***/g"
+        if clone_normalize "$PRIV_URL" "$ENGINE_PRIVATE_BRANCH" "$ENGINE_ROOT/engine-private" "$GITHUB_TOKEN"; then
+            # Drop the token from the remote URL so it is not persisted on disk.
+            git -C "$ENGINE_ROOT/engine-private" remote set-url origin "$ENGINE_PRIVATE_REPO" 2>/dev/null || true
         else
-            git clone --depth 1 "$PRIV_URL" "$ENGINE_ROOT/engine-private" 2>&1 | sed "s/${GITHUB_TOKEN}/***/g"
+            log "WARNING: engine-private clone failed — secrets will be unavailable"
         fi
-        # Drop the token from the remote URL so it is not persisted on disk.
-        git -C "$ENGINE_ROOT/engine-private" remote set-url origin "$ENGINE_PRIVATE_REPO" 2>/dev/null || true
     else
         log "WARNING: GITHUB_TOKEN not provided; engine-private not cloned — secrets will be unavailable"
     fi
@@ -161,12 +196,12 @@ if [ "$ROLE" = "control" ]; then
         log "Initializing kubeadm control-plane (underpost cluster --kubeadm)..."
         node bin cluster --dev --kubeadm
     fi
-
+    
     echo ""
     log "Control-plane ready. Join command for workers:"
     sudo kubeadm token create --print-join-command
-
-elif [ "$ROLE" = "worker" ]; then
+    
+    elif [ "$ROLE" = "worker" ]; then
     if [ -z "$JOIN_COMMAND" ]; then
         if [ -n "$CONTROL_IP" ] && [ -n "$TOKEN" ] && [ -n "$CA_CERT_HASH" ]; then
             JOIN_COMMAND="kubeadm join ${CONTROL_IP}:6443 --token ${TOKEN} --discovery-token-ca-cert-hash ${CA_CERT_HASH}"
@@ -175,7 +210,7 @@ elif [ "$ROLE" = "worker" ]; then
             exit 1
         fi
     fi
-
+    
     # Apply the same host configuration cluster.js uses (SELinux, swap, sysctl),
     # then the pod-network kernel prereqs kubeadm join needs (the control path
     # gets these from natSetup; workers set them here).
@@ -183,9 +218,9 @@ elif [ "$ROLE" = "worker" ]; then
     node bin cluster --dev --config
     sudo modprobe br_netfilter || true
     printf 'net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.ipv4.ip_forward = 1\n' \
-        | sudo tee /etc/sysctl.d/99-kubernetes.conf >/dev/null
+    | sudo tee /etc/sysctl.d/99-kubernetes.conf >/dev/null
     sudo sysctl --system >/dev/null 2>&1 || true
-
+    
     log "Joining cluster: ${JOIN_COMMAND%% --token*} ..."
     sudo ${JOIN_COMMAND} --cri-socket="${CRI_SOCKET}"
     log "Worker joined the cluster."

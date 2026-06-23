@@ -99,6 +99,10 @@ class UnderpostBaremetal {
      * @param {string} [options.control=''] - Specifies the control node for the baremetal machine.
      * @param {string} [options.sshKeyDir=''] - Specifies the directory containing SSH keys for the baremetal machine.
      * @param {string} [options.deployId=''] - Specifies the deployment ID for SSH key resolution.
+     * @param {string} [options.engineRepo=''] - Specifies the custom engine repository URL.
+     * @param {string} [options.engineBranch=''] - Specifies the custom engine repository branch.
+     * @param {string} [options.enginePrivateRepo=''] - Specifies the custom private engine repository URL.
+     * @param {string} [options.enginePrivateBranch=''] - Specifies the custom private engine repository branch.
      * @param {string} [options.user=''] - Specifies the SSH user for the baremetal machine.
      * @memberof UnderpostBaremetal
      * @returns {void}
@@ -159,6 +163,10 @@ class UnderpostBaremetal {
         sshKeyDir: '',
         user: '',
         deployId: '',
+        engineRepo: '',
+        engineBranch: '',
+        enginePrivateRepo: '',
+        enginePrivateBranch: '',
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
@@ -1437,13 +1445,34 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Secrets needed on the node to clone the private engine-private repo
       // (engine-private/conf/.../.env.production for `node bin run secret`).
+      const githubUsername = Underpost.baremetal.readEngineConfig('GITHUB_USERNAME') || 'underpostnet';
       const githubEnv = {
         GITHUB_TOKEN: Underpost.baremetal.readEngineConfig('GITHUB_TOKEN'),
-        GITHUB_USERNAME: Underpost.baremetal.readEngineConfig('GITHUB_USERNAME'),
+        GITHUB_USERNAME: githubUsername,
       };
       if (!githubEnv.GITHUB_TOKEN) {
         logger.warn('GITHUB_TOKEN not resolved on controller; engine-private clone on the node will be skipped');
       }
+
+      // Resolve the engine + engine-private repos the node clones and normalizes
+      // to /home/dd/engine and /home/dd/engine/engine-private. CLI overrides win;
+      // otherwise default to the base engine and the deployId's private repo
+      // (engine-<id>-private), mirroring repository.privateEngineRepoFactory.
+      const deployIdSuffix = options.deployId ? options.deployId.split('-')[1] : '';
+      const engineRepo = options.engineRepo || `https://github.com/${githubUsername}/engine.git`;
+      const enginePrivateRepo =
+        options.enginePrivateRepo ||
+        (deployIdSuffix
+          ? `https://github.com/${githubUsername}/engine-${deployIdSuffix}-private.git`
+          : `https://github.com/${githubUsername}/engine-private.git`);
+      const repoArgs = [
+        `--engine-repo=${engineRepo}`,
+        `--engine-private-repo=${enginePrivateRepo}`,
+        ...(options.engineBranch ? [`--engine-branch=${options.engineBranch}`] : []),
+        ...(options.enginePrivateBranch ? [`--engine-private-branch=${options.enginePrivateBranch}`] : []),
+      ].join(' ');
+      scriptArgs = `${scriptArgs} ${repoArgs}`.trim();
+      logger.info('Node engine repos', { engineRepo, enginePrivateRepo });
 
       logger.info(`Running kubeadm-node-setup.sh (${role}) on ${ipAddress}... (this can take several minutes)`);
       // The node setup is a long, mostly-idempotent install. Keep retries low so
