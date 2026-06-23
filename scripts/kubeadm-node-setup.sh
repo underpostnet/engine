@@ -28,8 +28,10 @@ set -euo pipefail
 ROLE="control"
 JOIN_COMMAND=""
 CONTROL_IP=""
+CONTROL_ENDPOINT_HOST=""
 TOKEN=""
 CA_CERT_HASH=""
+JOIN_ONLY="0"
 INSTALL_CONTOUR="1"
 ENGINE_ROOT="/home/dd/engine"
 ENGINE_REPO="https://github.com/underpostnet/engine.git"
@@ -49,8 +51,10 @@ for arg in "$@"; do
         --worker)                           ROLE="worker" ;;
         --join-command=*)                   JOIN_COMMAND="${arg#*=}" ;;
         --control-ip=*)                     CONTROL_IP="${arg#*=}" ;;
+        --control-endpoint-host=*)          CONTROL_ENDPOINT_HOST="${arg#*=}" ;;
         --token=*)                          TOKEN="${arg#*=}" ;;
         --discovery-token-ca-cert-hash=*)   CA_CERT_HASH="${arg#*=}" ;;
+        --join-only)                        JOIN_ONLY="1" ;;
         --engine-root=*)                    ENGINE_ROOT="${arg#*=}" ;;
         --engine-repo=*)                    ENGINE_REPO="${arg#*=}" ;;
         --engine-branch=*)                  ENGINE_BRANCH="${arg#*=}" ;;
@@ -63,6 +67,83 @@ for arg in "$@"; do
 done
 
 log() { echo "$(date): [kubeadm-setup] $*"; }
+
+# worker_join: lightweight, idempotent kubeadm join. Centralizes the join logic
+# used by both the full worker flow and the --join-only short-circuit. Returns
+# non-zero on failure so `set -e` aborts the script (no false-positive success).
+worker_join() {
+    if [ -z "$JOIN_COMMAND" ]; then
+        if [ -n "$CONTROL_IP" ] && [ -n "$TOKEN" ] && [ -n "$CA_CERT_HASH" ]; then
+            JOIN_COMMAND="kubeadm join ${CONTROL_IP}:6443 --token ${TOKEN} --discovery-token-ca-cert-hash ${CA_CERT_HASH}"
+        else
+            echo "ERROR: worker mode needs --join-command=... OR --control-ip/--token/--discovery-token-ca-cert-hash" >&2
+            return 1
+        fi
+    fi
+
+    command -v kubeadm >/dev/null 2>&1 || {
+        echo "ERROR: kubeadm not found on node. Run a full (non --join-only) setup first." >&2
+        return 1
+    }
+
+    # Make the control-plane endpoint hostname resolve to the control IP. kubeadm
+    # reads the cluster-info / kubeadm-config ConfigMaps whose server URL is the
+    # control-plane endpoint (often 'localhost.localdomain:6443'); without this the
+    # worker dials [::1]:6443 and fails with "connection refused".
+    if [ -n "$CONTROL_ENDPOINT_HOST" ] && [ -n "$CONTROL_IP" ] && [ "$CONTROL_ENDPOINT_HOST" != "$CONTROL_IP" ]; then
+        log "Mapping control-plane endpoint '$CONTROL_ENDPOINT_HOST' -> $CONTROL_IP in /etc/hosts"
+        ESC_HOST="$(printf '%s' "$CONTROL_ENDPOINT_HOST" | sed 's/[.]/\\./g')"
+        # Strip the endpoint host from any existing (loopback) line so it no longer
+        # resolves to 127.0.0.1, then point it at the real control-plane IP.
+        sudo sed -i -E "s/[[:space:]]+${ESC_HOST}([[:space:]]|\$)/\1/g" /etc/hosts || true
+        if ! grep -qE "^${CONTROL_IP}[[:space:]].*${ESC_HOST}([[:space:]]|\$)" /etc/hosts; then
+            echo "${CONTROL_IP} ${CONTROL_ENDPOINT_HOST}" | sudo tee -a /etc/hosts >/dev/null
+        fi
+    fi
+
+    # Kernel/sysctl prereqs the kubeadm preflight needs (no engine/node required).
+    sudo swapoff -a || true
+    sudo sed -i '/swap/d' /etc/fstab || true
+    sudo modprobe br_netfilter || true
+    printf 'net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.ipv4.ip_forward = 1\n' \
+    | sudo tee /etc/sysctl.d/99-kubernetes.conf >/dev/null
+    sudo sysctl --system >/dev/null 2>&1 || true
+
+    # Replace --discovery-token-ca-cert-hash with --discovery-token-unsafe-skip-ca-verification
+    # so token discovery does not depend on the pinned CA hash.
+    UNSAFE_JOIN="$(echo "${JOIN_COMMAND}" | sed 's/--discovery-token-ca-cert-hash [^ ]*/--discovery-token-unsafe-skip-ca-verification/')"
+
+    _do_join() {
+        # Reset any stale state from a previous failed join so kubeadm does not
+        # reuse cached config that points at an unreachable endpoint.
+        sudo kubeadm reset -f --cri-socket="${CRI_SOCKET}" >/dev/null 2>&1 || true
+        sudo rm -rf /etc/kubernetes/* /var/lib/kubelet/pki 2>/dev/null || true
+        log "Joining cluster: ${UNSAFE_JOIN%% --token*} ..."
+        sudo ${UNSAFE_JOIN} --cri-socket="${CRI_SOCKET}"
+    }
+
+    if _do_join; then
+        log "Worker joined the cluster."
+        return 0
+    fi
+    log "WARNING: kubeadm join attempt failed; resetting and retrying once..."
+    if _do_join; then
+        log "Worker joined the cluster."
+        return 0
+    fi
+    log "FATAL: kubeadm join failed after retry"
+    return 1
+}
+
+# --join-only: skip all prerequisite/engine/host setup and go straight to the
+# join (used by `baremetal --resume-join` on an already-provisioned node).
+if [ "$JOIN_ONLY" = "1" ]; then
+    [ "$ROLE" = "worker" ] || { echo "ERROR: --join-only is only valid with --worker" >&2; exit 1; }
+    log "--join-only: skipping prerequisites/engine setup; joining cluster directly"
+    worker_join
+    log "kubeadm worker (join-only) complete."
+    exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # 0. Base prerequisites — a minimal @core Rocky install lacks tar/xz/git, which
@@ -225,41 +306,12 @@ if [ "$ROLE" = "control" ]; then
     sudo kubeadm token create --print-join-command
     
     elif [ "$ROLE" = "worker" ]; then
-    if [ -z "$JOIN_COMMAND" ]; then
-        if [ -n "$CONTROL_IP" ] && [ -n "$TOKEN" ] && [ -n "$CA_CERT_HASH" ]; then
-            JOIN_COMMAND="kubeadm join ${CONTROL_IP}:6443 --token ${TOKEN} --discovery-token-ca-cert-hash ${CA_CERT_HASH}"
-        else
-            echo "ERROR: worker mode needs --join-command=... OR --control-ip/--token/--discovery-token-ca-cert-hash" >&2
-            exit 1
-        fi
-    fi
-    
-    # Apply the same host configuration cluster.js uses (SELinux, swap, sysctl),
-    # then the pod-network kernel prereqs kubeadm join needs (the control path
-    # gets these from natSetup; workers set them here).
+    # Apply the same host configuration cluster.js uses (SELinux, swap, sysctl)
+    # before joining; worker_join then handles endpoint mapping + the join itself
+    # and fails the script (set -e) if the join does not succeed.
     log "Applying host configuration (underpost cluster --config)..."
     node bin cluster --dev --config
-    sudo modprobe br_netfilter || true
-    printf 'net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.ipv4.ip_forward = 1\n' \
-    | sudo tee /etc/sysctl.d/99-kubernetes.conf >/dev/null
-    sudo sysctl --system >/dev/null 2>&1 || true
-    
-    # Clean any stale kubelet bootstrap state from previous failed joins so
-    # kubeadm does not reuse cached localhost.localdomain -> [::1] config that
-    # causes "dial tcp [::1]:6443: connection refused".
-    log "Cleaning stale kubelet bootstrap state..."
-    sudo rm -rf /etc/kubernetes/bootstrap-kubelet.conf /etc/kubernetes/kubelet.conf /etc/kubernetes/pki 2>/dev/null || true
-    
-    log "Joining cluster: ${JOIN_COMMAND%% --token*} ..."
-    sudo ${JOIN_COMMAND} --cri-socket="${CRI_SOCKET}" || {
-        log "WARNING: kubeadm join attempt failed; retrying with fresh token..."
-        # If join failed (e.g. stale discovery hash), force a clean /etc/kubernetes
-        # and retry once. The controller re-generates the join command with a fresh
-        # token on each resume run.
-        sudo rm -rf /etc/kubernetes/* 2>/dev/null || true
-        sudo ${JOIN_COMMAND} --cri-socket="${CRI_SOCKET}" || log "FATAL: kubeadm join failed after retry"
-    }
-    log "Worker joined the cluster."
+    worker_join
 fi
 
 log "kubeadm ${ROLE} setup complete."

@@ -967,6 +967,10 @@ program
     '--resume-infra-setup',
     'Skip commissioning, OS install, and all bootstrapping; resume only the SSH-based infra setup (kubeadm join/init) on a node that already has the OS installed and is reachable via SSH.',
   )
+  .option(
+    '--resume-join',
+    'Skip everything except the kubeadm join command. Assumes engine, Node.js, CRI-O, kubelet, and kubeadm are already installed. Only retrieves a fresh join token from the control-plane and runs kubeadm join.',
+  )
   .description(
     'Manages baremetal server operations, including installation, database setup, commissioning, and user management.',
   )

@@ -105,6 +105,7 @@ class UnderpostBaremetal {
      * @param {string} [options.enginePrivateBranch=''] - Specifies the custom private engine repository branch.
      * @param {string} [options.user=''] - Specifies the SSH user for the baremetal machine.
      * @param {boolean} [options.resumeInfraSetup=false] - Flag to skip commissioning and OS install, resuming SSH-based infra setup on an already installed node.
+     * @param {boolean} [options.resumeJoin=false] - Flag to skip everything except the kubeadm join command.
      * @memberof UnderpostBaremetal
      * @returns {void}
      */
@@ -169,6 +170,7 @@ class UnderpostBaremetal {
         enginePrivateRepo: '',
         enginePrivateBranch: '',
         resumeInfraSetup: false,
+        resumeJoin: false,
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
@@ -264,6 +266,31 @@ class UnderpostBaremetal {
         return await Underpost.baremetal.postInstallDispatcher({
           workflowId,
           workflowsConfig,
+          hostname,
+          ipAddress,
+          options,
+          underpostRoot,
+          keyPath: privateKeyPath,
+          controlUser: resolvedUser,
+        });
+      }
+
+      // --resume-join: skip everything except the kubeadm join command.
+      // Even lighter than --resume-infra-setup: no engine setup, no npm install,
+      // no init-host, no config. Assumes all infra is already installed.
+      if (options.resumeJoin) {
+        const { privateKeyPath, user: resolvedUser } = Underpost.baremetal.resolveSshKeyPaths({
+          options,
+          workflowsConfig,
+          workflowId,
+        });
+        logger.info('--resume-join: skipping all bootstrapping; joining cluster directly with minimal SSH command', {
+          hostname,
+          ipAddress,
+          keyPath: privateKeyPath,
+          user: resolvedUser,
+        });
+        return await Underpost.baremetal.infraSetupKubeadm({
           hostname,
           ipAddress,
           options,
@@ -1407,7 +1434,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       logger.info(`Kubeadm post-install setup (${role}) on ${hostname} (${ipAddress})`);
 
-      if (!options.resumeInfraSetup) {
+      if (!options.resumeInfraSetup && !options.resumeJoin) {
         // The node is rebooting from the ephemeral installer into the deployed OS.
         // First wait for the (ephemeral) SSH port to CLOSE so we don't latch onto
         // the pre-reboot sshd, then wait for the installed OS sshd to come UP.
@@ -1469,11 +1496,20 @@ rm -rf ${artifacts.join(' ')}`);
           );
         }
         // kubeadm prints the API endpoint as the control-plane's hostname (often
-        // localhost.localdomain), which the worker cannot resolve/route. Rewrite
-        // the endpoint host to the real control-plane IP so the join works.
+        // localhost.localdomain), which the worker cannot resolve/route. Capture
+        // that original endpoint host (so the worker can map it -> control IP in
+        // /etc/hosts; the cluster-info / kubeadm-config ConfigMaps reference it),
+        // then rewrite the join positional endpoint to the real control-plane IP.
+        const endpointMatch = joinCommand.match(/kubeadm join\s+([^\s:]+):\d+/);
+        const endpointHost = endpointMatch ? endpointMatch[1] : '';
         joinCommand = joinCommand.replace(/kubeadm join\s+\S+:(\d+)/, `kubeadm join ${controlIp}:$1`);
-        logger.info('✓ Retrieved kubeadm join command from control-plane', { controlIp, joinCommand });
-        scriptArgs = `--worker --join-command="${joinCommand}"`;
+        logger.info('✓ Retrieved kubeadm join command from control-plane', { controlIp, endpointHost, joinCommand });
+        scriptArgs = `--worker --join-command="${joinCommand}" --control-ip=${controlIp}`;
+        if (endpointHost && endpointHost !== controlIp) {
+          scriptArgs += ` --control-endpoint-host=${endpointHost}`;
+        }
+        // --resume-join: skip all node prep and go straight to the kubeadm join.
+        if (options.resumeJoin) scriptArgs += ' --join-only';
       } else {
         scriptArgs = '--control';
       }
