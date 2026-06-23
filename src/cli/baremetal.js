@@ -104,6 +104,7 @@ class UnderpostBaremetal {
      * @param {string} [options.enginePrivateRepo=''] - Specifies the custom private engine repository URL.
      * @param {string} [options.enginePrivateBranch=''] - Specifies the custom private engine repository branch.
      * @param {string} [options.user=''] - Specifies the SSH user for the baremetal machine.
+     * @param {boolean} [options.resumeInfraSetup=false] - Flag to skip commissioning and OS install, resuming SSH-based infra setup on an already installed node.
      * @memberof UnderpostBaremetal
      * @returns {void}
      */
@@ -167,6 +168,7 @@ class UnderpostBaremetal {
         engineBranch: '',
         enginePrivateRepo: '',
         enginePrivateBranch: '',
+        resumeInfraSetup: false,
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
@@ -241,6 +243,35 @@ class UnderpostBaremetal {
 
       // Log the initiation of the baremetal callback with relevant metadata.
       logger.info('Baremetal callback', callbackMetaData);
+
+      // --resume-infra-setup: skip commissioning, OS install, and all PXE/TFTP/MAAS
+      // bootstrapping; directly resume the SSH-based infra setup on a node that
+      // already has the OS installed and is reachable via SSH.
+      if (options.resumeInfraSetup) {
+        const { privateKeyPath, user: resolvedUser } = Underpost.baremetal.resolveSshKeyPaths({
+          options,
+          workflowsConfig,
+          workflowId,
+        });
+        logger.info('--resume-infra-setup: skipping commission/bootstrapping; resuming SSH infra setup', {
+          hostname,
+          ipAddress,
+          keyPath: privateKeyPath,
+          user: resolvedUser,
+          workflowId,
+          infraSetup: workflowsConfig[workflowId]?.infraSetup || 'none',
+        });
+        return await Underpost.baremetal.postInstallDispatcher({
+          workflowId,
+          workflowsConfig,
+          hostname,
+          ipAddress,
+          options,
+          underpostRoot,
+          keyPath: privateKeyPath,
+          controlUser: resolvedUser,
+        });
+      }
 
       // Create a new machine in MAAS if the option is set.
       let machine;
@@ -1376,25 +1407,29 @@ rm -rf ${artifacts.join(' ')}`);
 
       logger.info(`Kubeadm post-install setup (${role}) on ${hostname} (${ipAddress})`);
 
-      // The node is rebooting from the ephemeral installer into the deployed OS.
-      // First wait for the (ephemeral) SSH port to CLOSE so we don't latch onto
-      // the pre-reboot sshd, then wait for the installed OS sshd to come UP.
-      logger.info('Waiting for node to reboot into the deployed OS (port close → reopen)...', { ipAddress });
-      await Underpost.ssh.waitForSshPortClosed({ host: ipAddress, port: 22, timeoutMs: 4 * 60 * 1000 });
-      const reachable = await Underpost.ssh.waitForSshPort({
-        host: ipAddress,
-        port: 22,
-        timeoutMs: installedOsTimeoutMs,
-      });
-      if (!reachable) {
-        logger.error('Installed OS SSH not reachable after reboot; cannot run kubeadm setup', { ipAddress });
-        return;
+      if (!options.resumeInfraSetup) {
+        // The node is rebooting from the ephemeral installer into the deployed OS.
+        // First wait for the (ephemeral) SSH port to CLOSE so we don't latch onto
+        // the pre-reboot sshd, then wait for the installed OS sshd to come UP.
+        logger.info('Waiting for node to reboot into the deployed OS (port close → reopen)...', { ipAddress });
+        await Underpost.ssh.waitForSshPortClosed({ host: ipAddress, port: 22, timeoutMs: 4 * 60 * 1000 });
+        const reachable = await Underpost.ssh.waitForSshPort({
+          host: ipAddress,
+          port: 22,
+          timeoutMs: installedOsTimeoutMs,
+        });
+        if (!reachable) {
+          logger.error('Installed OS SSH not reachable after reboot; cannot run kubeadm setup', { ipAddress });
+          return;
+        }
+        // The first time the port opens the node is still early in boot and
+        // NetworkManager may re-apply the static profile, resetting in-flight TCP
+        // connections. Let the network settle before driving the long node setup.
+        logger.info('Deployed OS SSH is up; letting the network settle before node setup...', { ipAddress });
+        await timer(30000);
+      } else {
+        logger.info('--resume-infra-setup: SSH already up, skipping port close/reopen wait', { ipAddress });
       }
-      // The first time the port opens the node is still early in boot and
-      // NetworkManager may re-apply the static profile, resetting in-flight TCP
-      // connections. Let the network settle before driving the long node setup.
-      logger.info('Deployed OS SSH is up; letting the network settle before node setup...', { ipAddress });
-      await timer(30000);
 
       let scriptArgs;
       if (role === 'worker') {

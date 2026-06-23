@@ -691,7 +691,9 @@ EOF
       // shellExec(
       //   `sudo sed -i '/SystemdCgroup = true/a       selinux_disabled = true' /etc/containerd/config.toml`,
       // );
-      shellExec(`sudo service docker restart`); // Restart docker after containerd config changes
+      // Restart docker after containerd config changes. Rocky 9 uses systemctl,
+      // not the legacy service command.
+      shellExec(`sudo systemctl restart docker || sudo service docker restart || true`);
       shellExec(`sudo systemctl enable --now containerd.service`);
       shellExec(`sudo systemctl restart containerd`); // Restart containerd to apply changes
 

@@ -891,7 +891,10 @@ program
     '--install-disk [device]',
     'Explicit target install disk for Rocky deployment (e.g. /dev/nvme0n1). Omit or leave empty to auto-detect the internal disk.',
   )
-  .option('--no-auto-install', 'Disables the ephemeral runtime AUTO_INSTALL fallback (controller must trigger install).')
+  .option(
+    '--no-auto-install',
+    'Disables the ephemeral runtime AUTO_INSTALL fallback (controller must trigger install).',
+  )
   .option('--no-remote-install', 'Skips the controller-side remote install orchestration over SSH.')
   .option(
     '--worker',
@@ -960,6 +963,10 @@ program
   )
   .option('--dev', 'Sets the development context environment for baremetal operations.')
   .option('--ls', 'Lists available boot resources and machines.')
+  .option(
+    '--resume-infra-setup',
+    'Skip commissioning, OS install, and all bootstrapping; resume only the SSH-based infra setup (kubeadm join/init) on a node that already has the OS installed and is reachable via SSH.',
+  )
   .description(
     'Manages baremetal server operations, including installation, database setup, commissioning, and user management.',
   )

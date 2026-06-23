@@ -1443,8 +1443,24 @@ gpgcheck=1
 gpgkey=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.33/rpm/repodata/repomd.xml.key
 EOF`);
       shellExec(`sudo dnf -y install cri-o`);
-      // crictl is in the kubernetes repo but excluded by default — install it explicitly
-      shellExec(`sudo yum install -y cri-tools --disableexcludes=kubernetes`);
+      // Add the Kubernetes repo so cri-tools (crictl CLI) is available.
+      // The repo has exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni, so we
+      // use --disableexcludes=kubernetes to override and install cri-tools.
+      shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.36/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.36/rpm/repodata/repomd.xml.key
+exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+EOF`);
+      shellExec(`sudo yum install -y cri-tools --disableexcludes=kubernetes 2>/dev/null || {
+        CRICTL_VERSION="v1.31.0"
+        ARCH="amd64"
+        log "Kubernetes repo not available, downloading crictl binary directly..."
+        curl -sL "https://github.com/kubernetes-sigs/cri-tools/releases/download/\${CRICTL_VERSION}/crictl-\${CRICTL_VERSION}-\${ARCH}.tar.gz" | sudo tar -C /usr/local/bin -xz
+      }`);
       // Ensure CRI-O uses systemd cgroup driver (matches kubelet default)
       shellExec(`sudo sed -i 's/^#\?cgroup_manager =.*/cgroup_manager = "systemd"/' /etc/crio/crio.conf`, {
         silentOnError: true,

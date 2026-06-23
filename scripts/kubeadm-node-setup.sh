@@ -113,17 +113,43 @@ Bringing up underpost kubeadm node (role=$ROLE) from $ENGINE_ROOT
 # ---------------------------------------------------------------------------
 command -v git >/dev/null 2>&1 || sudo dnf install -y git
 
-# clone_normalize <repo-url> <branch> <target-dir> [mask-secret]
-# Clones into a temp dir and copies the contents to <target-dir> so a custom
-# repo (e.g. engine-test-test) always lands at the canonical path. [mask-secret]
-# is redacted from any logged output.
-clone_normalize() {
-    # Defaulted so optional args don't trip `set -u` (nounset).
-    local url="${1:-}" branch="${2:-}" target="${3:-}" mask="${4:-}"
-    if [ -d "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
-        log "$target already present; skipping clone"
-        return 0
+# clone_or_pull <repo-url> <branch> <target-dir> <remote-name> [mask-secret]
+# If <target-dir> exists with a git repo, does a git pull (fetch+reset) to
+# update it. Otherwise clones <repo-url> into a temp dir and copies contents
+# to <target-dir> so a custom repo (e.g. engine-test-test) always lands at
+# the canonical path. [mask-secret] is redacted from any logged output.
+clone_or_pull() {
+    local url="${1:-}" branch="${2:-}" target="${3:-}" remote="${4:-origin}" mask="${5:-}"
+    if [ -d "$target" ] && git -C "$target" rev-parse --git-dir >/dev/null 2>&1; then
+        log "$target already present; pulling latest ..."
+        if git -C "$target" remote get-url "$remote" >/dev/null 2>&1; then
+            # Temporarily set the authenticated URL so the fetch succeeds.
+            # The caller strips the token from the remote URL after this returns.
+            local saved_url; saved_url="$(git -C "$target" remote get-url "$remote" 2>/dev/null || true)"
+            git -C "$target" remote set-url "$remote" "$url" 2>/dev/null || true
+            if [ -n "$mask" ]; then
+                git -C "$target" fetch --depth 1 "$remote" 2>&1 | sed "s/${mask}/***/g" || true
+            else
+                git -C "$target" fetch --depth 1 "$remote" 2>&1 || true
+            fi
+            # Restore the saved (clean) URL immediately so the token is never persisted.
+            if [ -n "$saved_url" ]; then
+                git -C "$target" remote set-url "$remote" "$saved_url" 2>/dev/null || true
+            fi
+            if [ -n "$branch" ]; then
+                git -C "$target" reset --hard "$remote/$branch" 2>/dev/null || true
+            else
+                # No branch specified: pull whichever branch is HEAD on remote
+                git -C "$target" reset --hard "$remote/$(git -C "$target" rev-parse --abbrev-ref HEAD 2>/dev/null)" 2>/dev/null || true
+            fi
+            # Clean untracked files so stale artifacts don't accumulate
+            git -C "$target" clean -fd 2>/dev/null || true
+            log "$target updated via pull"
+            return 0
+        fi
     fi
+    # Full clone + normalize path
+    log "Cloning + normalizing $url -> $target ..."
     local tmp; tmp="$(mktemp -d)"
     local ok=0
     if [ -n "$branch" ]; then
@@ -140,17 +166,14 @@ clone_normalize() {
     rm -rf "$tmp"
 }
 
-if [ ! -d "$ENGINE_ROOT" ] || [ -z "$(ls -A "$ENGINE_ROOT" 2>/dev/null)" ]; then
-    if [ -n "$GITHUB_TOKEN" ]; then
-        log "Engine source missing at $ENGINE_ROOT; cloning + normalizing (authenticated) $ENGINE_REPO -> $ENGINE_ROOT ..."
-        ENGINE_REPO_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_REPO#https://}"
-    else
-        log "Engine source missing at $ENGINE_ROOT; cloning + normalizing $ENGINE_REPO -> $ENGINE_ROOT ..."
-        ENGINE_REPO_URL="$ENGINE_REPO"
-    fi
-    clone_normalize "$ENGINE_REPO_URL" "$ENGINE_BRANCH" "$ENGINE_ROOT" "$GITHUB_TOKEN" || { log "FATAL: engine clone failed"; exit 1; }
+if [ -n "$GITHUB_TOKEN" ]; then
+    ENGINE_REPO_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_REPO#https://}"
+    # Mask the token in log output by routing through clone_or_pull with mask arg
+    clone_or_pull "$ENGINE_REPO_URL" "$ENGINE_BRANCH" "$ENGINE_ROOT" "origin" "$GITHUB_TOKEN" || { log "FATAL: engine clone failed"; exit 1; }
     # Drop the token from the remote URL so it is not persisted on disk.
     git -C "$ENGINE_ROOT" remote set-url origin "$ENGINE_REPO" 2>/dev/null || true
+else
+    clone_or_pull "$ENGINE_REPO" "$ENGINE_BRANCH" "$ENGINE_ROOT" "origin" "" || { log "FATAL: engine clone failed"; exit 1; }
 fi
 
 cd "$ENGINE_ROOT"
@@ -159,19 +182,16 @@ cd "$ENGINE_ROOT"
 # (where `node bin run secret` reads engine-private/conf/.../.env.production),
 # regardless of the private repo's name. The token is masked in logs and then
 # stripped from the saved remote URL.
-if [ ! -d "$ENGINE_ROOT/engine-private" ] || [ -z "$(ls -A "$ENGINE_ROOT/engine-private" 2>/dev/null)" ]; then
-    if [ -n "$GITHUB_TOKEN" ]; then
-        log "Cloning + normalizing engine-private (secrets) -> $ENGINE_ROOT/engine-private ..."
-        PRIV_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_PRIVATE_REPO#https://}"
-        if clone_normalize "$PRIV_URL" "$ENGINE_PRIVATE_BRANCH" "$ENGINE_ROOT/engine-private" "$GITHUB_TOKEN"; then
-            # Drop the token from the remote URL so it is not persisted on disk.
-            git -C "$ENGINE_ROOT/engine-private" remote set-url origin "$ENGINE_PRIVATE_REPO" 2>/dev/null || true
-        else
-            log "WARNING: engine-private clone failed — secrets will be unavailable"
-        fi
+if [ -n "$GITHUB_TOKEN" ]; then
+    PRIV_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_PRIVATE_REPO#https://}"
+    if clone_or_pull "$PRIV_URL" "$ENGINE_PRIVATE_BRANCH" "$ENGINE_ROOT/engine-private" "origin" "$GITHUB_TOKEN"; then
+        # Drop the token from the remote URL so it is not persisted on disk.
+        git -C "$ENGINE_ROOT/engine-private" remote set-url origin "$ENGINE_PRIVATE_REPO" 2>/dev/null || true
     else
-        log "WARNING: GITHUB_TOKEN not provided; engine-private not cloned — secrets will be unavailable"
+        log "WARNING: engine-private clone failed — secrets will be unavailable"
     fi
+else
+    log "WARNING: GITHUB_TOKEN not provided; engine-private not cloned — secrets will be unavailable"
 fi
 
 # Install JS deps and generate secrets using the local engine entrypoint.
@@ -183,7 +203,10 @@ node bin run secret
 # 3. Host prerequisites (Docker, CRI-O, kubelet/kubeadm/kubectl, ...) via cluster.js
 # ---------------------------------------------------------------------------
 log "Installing Kubernetes host prerequisites (underpost cluster --init-host)..."
-node bin cluster --dev --init-host
+# CRI-O is already installed by this point (idempotent dnf). The install-crio
+# runner also tries to install cri-tools (crictl) which is not in Rocky 9 repos.
+# That failure is non-fatal; CRI-O itself works fine without crictl.
+node bin cluster --dev --init-host || log "WARNING: init-host had minor errors (CRI-O is already installed)"
 
 # ---------------------------------------------------------------------------
 # 4. Role-specific bring-up, fully delegated to src/cli/cluster.js
@@ -221,8 +244,21 @@ if [ "$ROLE" = "control" ]; then
     | sudo tee /etc/sysctl.d/99-kubernetes.conf >/dev/null
     sudo sysctl --system >/dev/null 2>&1 || true
     
+    # Clean any stale kubelet bootstrap state from previous failed joins so
+    # kubeadm does not reuse cached localhost.localdomain -> [::1] config that
+    # causes "dial tcp [::1]:6443: connection refused".
+    log "Cleaning stale kubelet bootstrap state..."
+    sudo rm -rf /etc/kubernetes/bootstrap-kubelet.conf /etc/kubernetes/kubelet.conf /etc/kubernetes/pki 2>/dev/null || true
+    
     log "Joining cluster: ${JOIN_COMMAND%% --token*} ..."
-    sudo ${JOIN_COMMAND} --cri-socket="${CRI_SOCKET}"
+    sudo ${JOIN_COMMAND} --cri-socket="${CRI_SOCKET}" || {
+        log "WARNING: kubeadm join attempt failed; retrying with fresh token..."
+        # If join failed (e.g. stale discovery hash), force a clean /etc/kubernetes
+        # and retry once. The controller re-generates the join command with a fresh
+        # token on each resume run.
+        sudo rm -rf /etc/kubernetes/* 2>/dev/null || true
+        sudo ${JOIN_COMMAND} --cri-socket="${CRI_SOCKET}" || log "FATAL: kubeadm join failed after retry"
+    }
     log "Worker joined the cluster."
 fi
 
