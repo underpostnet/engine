@@ -528,6 +528,38 @@ class UnderpostRun {
           continue;
         }
 
+        // Idempotency: skip the patch + rollout if the resource is already where
+        // we want it. Compares the live pod-template nodeSelector against the
+        // desired placement so a repeated run does not trigger an unnecessary
+        // rollout restart.
+        const basePath = kind === 'cronjob' ? 'spec.jobTemplate.spec.template.spec' : 'spec.template.spec';
+        const jsonpath = (expr) =>
+          shellExec(`kubectl get ${kind} ${name} -n ${ns} -o jsonpath='${expr}'`, {
+            silent: true,
+            stdout: true,
+            silentOnError: true,
+            disableLog: true,
+          }).trim();
+
+        if (remove) {
+          const current = jsonpath(`{.${basePath}.nodeSelector}`);
+          if (!current || current === 'map[]') {
+            logger.info(`node-move: ${kind}/${name} already has no nodeSelector; nothing to clear`);
+            results.push({ ref, kind, status: 'already-cleared' });
+            continue;
+          }
+        } else {
+          const alreadyOnNode = Object.entries(selector).every(([k, v]) => {
+            const esc = k.replace(/\./g, '\\.');
+            return jsonpath(`{.${basePath}.nodeSelector.${esc}}`) === v;
+          });
+          if (alreadyOnNode) {
+            logger.info(`node-move: ${kind}/${name} already pinned to ${node}; skipping`, { namespace: ns });
+            results.push({ ref, kind, status: 'already-on-node', node });
+            continue;
+          }
+        }
+
         const patchCmd = `kubectl patch ${kind} ${name} -n ${ns} --type=merge -p '${buildPatch(kind)}'`;
         const restartCmd = `kubectl rollout restart ${kind} ${name} -n ${ns}`;
         if (dryRun) {
