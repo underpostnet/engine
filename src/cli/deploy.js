@@ -455,6 +455,9 @@ ${Underpost.deploy
           ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
           : [];
         if (confVolume.length > 0) {
+          // Mirror deployVolume's data-node resolution so the generated manifest
+          // pins the PV to the same node that physically receives the volume data.
+          const pvDataNode = !options.k3s && !options.kubeadm ? options.node || 'kind-worker' : os.hostname();
           let volumeYaml = '';
           for (const deploymentVersion of deploymentVersions) {
             for (const volume of confVolume) {
@@ -466,6 +469,7 @@ ${Underpost.deploy
                 pvcId,
                 namespace: options.namespace,
                 hostPath,
+                nodeName: pvDataNode,
               })}\n`;
             }
           }
@@ -1076,14 +1080,20 @@ EOF`);
       if (options.gitClean && volume.volumeMountPath) {
         Underpost.repo.clean({ paths: [volume.volumeMountPath] });
       }
+      // The node that physically receives the volume data: the kind node container
+      // for kind, otherwise the local host where fs.copySync writes. The PV is then
+      // pinned here so the pod cannot be scheduled onto a node with an empty hostPath.
+      let dataNode;
       if (clusterContext === 'kind') {
         const kindNode = options.nodeName || 'kind-worker';
+        dataNode = kindNode;
         shellExec(`docker exec -i ${kindNode} bash -c "mkdir -p ${rootVolumeHostPath}"`);
         shellExec(`tar -C ${volume.volumeMountPath} -c . | docker cp - ${kindNode}:${rootVolumeHostPath}`);
         shellExec(
           `docker exec -i ${kindNode} bash -c "chown -R 1000:1000 ${rootVolumeHostPath}; chmod -R 755 ${rootVolumeHostPath}"`,
         );
       } else {
+        dataNode = os.hostname();
         if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
         fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
       }
@@ -1094,6 +1104,7 @@ ${Underpost.deploy.persistentVolumeFactory({
   hostPath: rootVolumeHostPath,
   pvcId,
   namespace,
+  nodeName: dataNode,
 })}
 EOF
 `);
@@ -1182,11 +1193,28 @@ ${secret ? `          readOnly: true\n` : ''}`;
      * @param {string} options.hostPath - Host path for the persistent volume.
      * @param {string} options.pvcId - Persistent volume claim ID.
      * @param {string} [options.namespace='default'] - Kubernetes namespace for the PVC claimRef.
+     * @param {string} [options.nodeName=''] - Node name to which the persistent volume is pinned (optional).
      * @returns {string} - YAML configuration for the persistent volume and claim.
      * @memberof UnderpostDeploy
      */
-    persistentVolumeFactory({ hostPath, pvcId, namespace = 'default' }) {
+    persistentVolumeFactory({ hostPath, pvcId, namespace = 'default', nodeName = '' }) {
       const pvId = pvcId.replace(/^pvc-/, 'pv-');
+      // hostPath volumes are node-local: deployVolume writes the content to the
+      // filesystem of a single node. Without nodeAffinity the scheduler can place
+      // the pod on a different node and mount an empty DirectoryOrCreate hostPath
+      // (missing the materialized assets). Pin the PV to the node that holds the
+      // data so the pod is always co-located with its volume.
+      const nodeAffinity = nodeName
+        ? `
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ${nodeName}`
+        : '';
       return `apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -1197,7 +1225,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
+  storageClassName: manual${nodeAffinity}
   claimRef:
     apiVersion: v1
     kind: PersistentVolumeClaim
