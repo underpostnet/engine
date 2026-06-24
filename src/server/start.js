@@ -241,7 +241,7 @@ class UnderpostStartUp {
       const result = await awaitDeployMonitor(true);
       if (result === true) {
         if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
-        setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING);
+        setTimeout(() => setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING));
       } else {
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
       }

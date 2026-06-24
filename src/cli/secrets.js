@@ -107,9 +107,11 @@ class UnderpostSecret {
      * @memberof UnderpostSecret
      */
     globalSecretClean() {
+      const status = Underpost.env.get('container-status');
       loadConf('clean');
       Underpost.repo.cleanupPrivateEngineRepo();
       Underpost.env.clean();
+      if (status) Underpost.env.set('container-status', status);
     },
   };
 }
