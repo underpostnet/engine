@@ -132,6 +132,12 @@ program
     '--has-changes',
     'Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise.',
   )
+  .option('--remote-url', 'Prints the current git remote URL (origin) in plain text.')
+  .option(
+    '--switch-repo <url>',
+    'Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo".',
+  )
+  .option('--target-branch <branch>', 'Target branch for --switch-repo (default: master).')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

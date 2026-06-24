@@ -106,6 +106,9 @@ class UnderpostRepository {
      * @param {boolean} [options.changelogBuild=false] - If true, scrapes all git history and builds a full CHANGELOG.md. Commits containing 'New release v:' are used as version section titles. Only commits starting with '[<tag>]' are included as entries.
      * @param {string} [options.changelogMinVersion=''] - If set, overrides the default minimum version limit (2.85.0) for --changelog-build.
      * @param {boolean} [options.changelogNoHash=false] - If true, omits commit hashes from the changelog entries.
+     * @param {boolean} [options.remoteUrl=false] - If true, prints the current git remote URL (origin) in plain text and returns.
+     * @param {string} [options.switchRepo=''] - If set, switches the remote `origin` to this URL and force-pulls the target branch, overwriting the current working tree.
+     * @param {string} [options.targetBranch=''] - Target branch for `switchRepo` (defaults to `master`).
      * @memberof UnderpostRepository
      */
     commit(
@@ -135,6 +138,9 @@ class UnderpostRepository {
         bc: '',
         isRemoteRepo: '',
         hasChanges: false,
+        remoteUrl: false,
+        switchRepo: '',
+        targetBranch: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
@@ -152,6 +158,22 @@ class UnderpostRepository {
       if (options.isRemoteRepo) {
         const accessible = Underpost.repo.isRemoteRepo(options.isRemoteRepo);
         console.log(accessible);
+        return;
+      }
+
+      if (options.remoteUrl) {
+        const url = Underpost.repo.getRemoteUrl({ path: repoPath });
+        if (options.copy) pbcopy(url);
+        else console.log(url);
+        return;
+      }
+
+      if (options.switchRepo) {
+        Underpost.repo.switchRemote({
+          path: repoPath,
+          url: options.switchRepo,
+          branch: options.targetBranch || 'master',
+        });
         return;
       }
 
@@ -1330,6 +1352,65 @@ Prevent build private config repo.`,
       });
       logger.info('isRemoteRepo', { url, raw: (raw || '').slice(0, 120) });
       return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
+    },
+
+    /**
+     * Returns the current URL of a git remote in plain text.
+     * @param {object} [opts]
+     * @param {string} [opts.path='.'] - Path to the git repository.
+     * @param {string} [opts.remote='origin'] - Remote name to query.
+     * @returns {string} The remote URL, or '' when the remote is not configured.
+     * @memberof UnderpostRepository
+     */
+    getRemoteUrl({ path: repoPath = '.', remote = 'origin' } = {}) {
+      return shellExec(`cd "${repoPath}" && git remote get-url ${remote}`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+      }).trim();
+    },
+
+    /**
+     * Switches a local repository onto a different remote and force-syncs its
+     * working tree to a target branch, discarding local commits and tracked
+     * changes — effectively "switch repo to <url>#<branch>".
+     *
+     * Sequence (idempotent, re-runnable):
+     *   1. Normalize the URL (`owner/repo` → full GitHub HTTPS) and set/add the
+     *      remote, storing the token-free URL so no secret leaks into `.git/config`.
+     *   2. Force-fetch the target branch (auth injected inline for private repos).
+     *   3. Reset the working tree to the fetched tip and check out the target
+     *      branch, overwriting any current tracked content.
+     *
+     * Untracked files are intentionally left in place (no `git clean`).
+     *
+     * @param {object} opts
+     * @param {string} opts.url - New remote URL (full URL or "owner/repo" short form).
+     * @param {string} [opts.path='.'] - Path to the git repository.
+     * @param {string} [opts.branch='master'] - Target branch to overwrite the current tree with.
+     * @param {string} [opts.remote='origin'] - Remote name to set and fetch from.
+     * @returns {void}
+     * @memberof UnderpostRepository
+     */
+    switchRemote({ url, path: repoPath = '.', branch = 'master', remote = 'origin' }) {
+      if (!url) throw new Error('switchRemote requires a target remote url');
+      if (!fs.existsSync(`${repoPath}/.git`)) throw new Error(`switchRemote: not a git repository: ${repoPath}`);
+      // Token-free URL for the stored remote; auth-injected URL only for the fetch.
+      let normalized = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('git@')) {
+        normalized = `https://github.com/${url}`;
+      }
+      const authUrl = Underpost.repo.resolveAuthUrl(url);
+      const current = Underpost.repo.getRemoteUrl({ path: repoPath, remote });
+      if (!current) shellExec(`cd "${repoPath}" && git remote add ${remote} "${normalized}"`);
+      else shellExec(`cd "${repoPath}" && git remote set-url ${remote} "${normalized}"`);
+      logger.info('switchRemote', { path: repoPath, remote, branch, url: normalized });
+      shellExec(`cd "${repoPath}" && GIT_TERMINAL_PROMPT=0 git fetch --force "${authUrl}" ${branch}`);
+      // reset --hard first clears the worktree so the checkout cannot be blocked
+      // by conflicting local changes; -B points the target branch at the fetched tip.
+      shellExec(`cd "${repoPath}" && git reset --hard FETCH_HEAD`);
+      shellExec(`cd "${repoPath}" && git checkout -B ${branch} FETCH_HEAD`);
     },
 
     /**
