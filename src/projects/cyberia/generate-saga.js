@@ -392,6 +392,110 @@ const CHARACTER_NAMES_POOL = {
   ],
 };
 
+// ============================================================================
+// ANTI-REPETITION / KEYWORD BLACKLIST GUIDANCE
+// ============================================================================
+
+/**
+ * Build an anti-cliche / originality / anti-repetition prompt block. Tells the
+ * model to avoid overused keywords and specific tired tropes that the model
+ * gravitates toward (protocols, viruses, refineries, mining, breaches, heists).
+ * This is the PRIMARY lever for variety since each CLI call is single-shot
+ * (no persistent memory between runs).
+ * @returns {string}
+ */
+function buildOriginalityGuidance() {
+  return [
+    'ORIGINALITY & ANTI-REPETITION DIRECTIVE — this is CRITICAL for thematic variety:',
+    '',
+    'THE FOLLOWING KEYWORDS AND CONCEPTS ARE OVERUSED AND MUST BE AVOIDED:',
+    '- "protocol" / "breach" / "leak" / "bleed" / "containment" — these appear in almost every saga.',
+    '  Find fresh language for problems and boundaries.',
+    '- "refinery" / "mining" / "extraction" / "isotope" / "sludge" / "vent" — resource-extraction',
+    '  premises dominate. Consider other kinds of settings and conflicts.',
+    '- "signal" / "frequency" / "pulse" / "transmission" / "beacon" — mysterious-signal plots are',
+    '  an overused shortcut. Find other catalysts for story.',
+    '- "heist" / "smuggler" / "black market" / "con artist" / "protection racket" — crime plots',
+    '  are a default the model reaches for. Choose other conflict drivers.',
+    '- "virus" / "meme-virus" / "plague" / "outbreak" / "quarantine" — disease narratives are tired.',
+    '- "data-heist" / "data-smuggler" / "data-courier" / "encrypted" — data-as-Maguffin is a crutch.',
+    '- "rogue AI" / "rogue algorithm" / "rogue predictive" / "corrupted prediction" — rogue-machines',
+    '  are a lazy conflict generator.',
+    '- "hyperspace" / "Instance" / "simulation" / "virtual" / "digital" — these words saturate every saga',
+    '  that involves the digital layer. Avoid using them as crutch descriptors. Hyperspace in Cyberia is',
+    '  like the Internet in our world — it is a mundane, everyday infrastructure, not a magical realm.',
+    '  Treat Instances as ordinary places people log into for work, school, entertainment, and civic life,',
+    '  just as we use the web today. Do NOT treat them as mysterious otherworldly dimensions.',
+    '- "memory-city" / "living archive" / "simulated empire" / "dreamland instance" — these specific',
+    '  hyperspace-location clichés are overused. Invent other kinds of Instance purposes: tax filing',
+    '  systems, municipal planning simulators, educational archives, vocational training programs,',
+    '  social media remnants, automated customer service hells, defunct multiplayer games still running,',
+    '  government surveillance logs, real estate listing databases, or abandoned research simulations.',
+    '- "uploaded consciousness" / "data-double" / "data-ghost" / "mind-indexing" / "cognitive grid" —',
+    '  consciousness-upload and digital-immortality plots are tired. Consider other relationships',
+    '  between people and their data: work portfolios, academic records, legal identities, credit scores,',
+    '  social reputation systems, medical histories, creative portfolios — mundane data that matters.',
+    '',
+    'INSTEAD: invent something strange, specific, small-scale, and culturally grounded in Cyberia.',
+    'Draw from the lived reality of frontier infrastructure, ecology, labor, religion, family,',
+    'subcultures, education, art, sports, music, food, childhood, aging, death rituals, navigation,',
+    'weather, architecture, dreams, language evolution, craftsmanship, and the weird byproducts',
+    'of hyperspace physics.',
+    '- Treat hyperspace Instances as you would treat websites and cloud services in our world — they are',
+    '  everyday infrastructure, not exotic otherworlds. People have school Instances, work Instances,',
+    '  government Instances, entertainment Instances. Instance crashes are like server outages. Data loss',
+    '  is like losing files on a hard drive. This mundane framing produces far more interesting and',
+    '  relatable stories than treating every Instance as a mysterious magic realm.',
+    '- The most compelling Cyberia sagas feel like anthropological documents from a broken future,',
+    '  not Hollywood action scripts or generic cyberpunk.',
+    '- Every item description, quest name, dialogue line, and map must feel like it belongs to',
+    '  THIS specific saga theme — not a generic sci-fi prop.',
+    '- If you find yourself using any of the blacklisted keywords above, STOP and find a different',
+    '  way to express the same idea. Use concrete, specific language instead.',
+  ].join('\n');
+}
+
+/**
+ * Build a temporal distortion refinement block, injected only when the spatial
+ * context is hyperspace or mixed, that pushes the model to think about time,
+ * memory, and causality distortions inside Instances.
+ * @param {string} spaceContextKey
+ * @returns {string}
+ */
+function buildTemporalDistortionGuidance(spaceContextKey) {
+  if (spaceContextKey !== 'hyperspace' && spaceContextKey !== 'mixed') return '';
+  return [
+    '',
+    'TEMPORAL DISTORTION & HYPERSPACE REFINEMENT — because this saga involves hyperspace Instances:',
+    '- Time inside Instances may flow differently: loops, echoes, arrested moments, or accelerated',
+    '  decay. A character might age decades in what feels like hours outside, or repeat the same',
+    '  conversation for subjective centuries.',
+    '- Memory is fragile inside Instances: data-doubles diverge from originals, simulated people',
+    '  may not know they are simulations, archives degrade and rewrite their own history.',
+    '- The physics inside Instances is negotiated, not fixed: gravity, light, sound, and causality',
+    '  are parameters that can be corrupted, patched, or exploited.',
+    '- Entity persistence is not guaranteed: deleted things may leave ghost echoes, resurrections',
+    '  may produce imperfect copies, and the boundary between a person and their data shadow is',
+    '  blurry.',
+    '- SPATIAL DISTORTION: space inside Instances does not follow Euclidean geometry. Rooms may be',
+    '  larger inside than outside, corridors may loop back on themselves, two doors may lead to the',
+    '  same room from different directions, and distance may be measured in loading time rather than',
+    '  meters. Architecture is a user interface, not a physical constraint.',
+    '- GLITCH PHENOMENA: Instances suffer from corruption artifacts — texture tearing, geometry',
+    '  flickering, collision holes where players fall through the world, NPCs that repeat the same',
+    '  animation loop forever, objects that load in late or not at all. These are not just cosmetic;',
+    '  they can be navigated, exploited, or feared. A glitch might reveal a hidden area, crash a',
+    '  critical system, or trap a user in an unresponsive state. Some glitches are harmless bugs;',
+    '  others are symptoms of deeper corruption or intentional sabotage.',
+    '- Use these distortions as narrative texture, not as the main plot gimmick. Let them shape',
+    '  how characters experience the world but not replace grounded character motivation.',
+  ].join('\n');
+}
+
+// ============================================================================
+// END ANTI-REPETITION
+// ============================================================================
+
 /**
  * Grounded, world-first narrative buckets — the PRIMARY lever for thematic
  * variety. One is chosen at random as each saga's main subject so the output
@@ -422,58 +526,174 @@ const SUBJECTS = [
   'a grounded job — courier, diver, medic, broker — that goes sideways',
 
   // ==========================================
-  // CYBER WARFARE & ASYMMETRIC SURVIVAL (ATLAS INFLUENCE)
+  // CREATIVE GAPS: ART, MUSIC, EDUCATION, DREAMS
   // ==========================================
-  'an underground network of signal thieves and veil-runners intercepting restricted data streams',
-  'a regional blackout caused by cyber-saboteurs leaking corporate or military archives',
-  'a memory smuggler transporting a highly unstable, encrypted consciousness across borders',
-  'the asymmetric defense of a frontier hub against an overextended military occupation',
-  'a cell of independent code-smiths fabricating illegal neural link bypasses for local enclaves',
-  'the fallout of a corrupted prediction model that falsely targets an innocent settlement',
-  'an irregular skirmish over a strategic hyper-real crossing hidden in a scrap-zone',
+  'a settlement musician whose instrument is built from salvaged industrial parts and whose songs carry coded histories',
+  'a school or apprenticeship system where children learn both pre-Cataclysm knowledge and frontier survival skills',
+  'an artist whose medium is hyperspace static — weaving light and noise into living murals that decay over hours',
+  'the dreams and nightmares of a community and the local "dream-reader" who interprets them for omens',
+  'a poetry or storytelling tradition where performers compete by improvising from fragmentary ancient texts',
+  'a dance form that evolved from zero-gravity maintenance work into a competitive performance art',
+  'an archive of pre-Cataclysm music stored on decaying media, and the struggle to preserve it before it degrades',
 
   // ==========================================
-  // DEEP INFRASTRUCTURE & RE-COLONIZATION (ZENITH INFLUENCE)
+  // CREATIVE GAPS: CHILDHOOD, AGING, DEATH
+  // ==========================================
+  'a group of frontier children forming their own secret society with its own rules, currency, and taboos',
+  'the last surviving elder who remembers pre-Cataclysm Earth, and the community race to record their memories',
+  'a death ritual where the deceased is composted into a tree grafted with cybernetic memorial nodes',
+  'a coming-of-age ceremony where adolescents must survive alone for a cycle in the wilderness',
+  'an orphanage for children whose parents died in a hyperspace Instance collapse, run by synthetic caretakers',
+  'a hospice for aging synthetics whose bodies are degrading and who choose how to spend their final cycles',
+
+  // ==========================================
+  // CREATIVE GAPS: FOOD, GARDENING, CRAFTS
+  // ==========================================
+  'a community garden carved into a derelict freighter hull, where the soil is made from crushed asteroid and composted waste',
+  'a culinary tradition based on cooking with industrial waste heat and recycled nutrient paste',
+  'a competition between enclaves over who can brew the best alcohol from native fungal cultures',
+  'a master craftsperson who hand-forges tools from reclaimed metal, and the apprentice who must preserve the technique',
+  'a textile guild that weaves fabric from optical fiber scrap and mutagen-silk, creating garments that shift color',
+  'the seasonal harvest festival of a genetically engineered fungus that forms the settlement dietary staple',
+
+  // ==========================================
+  // CREATIVE GAPS: WEATHER, NAVIGATION, ARCHITECTURE
+  // ==========================================
+  'a settlement whose architecture is built entirely from recycled shipping containers and salvaged hull plates',
+  'a navigator guild that reads magnetic anomalies and debris patterns to chart safe routes through asteroid fields',
+  'the adaptation of a coastal enclave to rising chemical tides that dissolve untreated metal',
+  'a storm-chaser subculture that follows electro-static atmospheric events to harvest rare charged particles',
+  'a labyrinthine market district built inside the cooling towers of a dead power station',
+  'a group of tunnel-dwellers who maintain an underground rail network abandoned since the Cataclysm',
+
+  // ==========================================
+  // CREATIVE GAPS: SPORTS, GAMES, PLAY
+  // ==========================================
+  'a zero-gravity sport played inside a rotating habitat ring, with teams from different enclaves competing',
+  'a card game played with pre-Cataclysm trading cards that have become a de facto currency in some sectors',
+  'a racing circuit through abandoned industrial zones where pilots navigate debris at lethal speed',
+  'a children game played with modified drone parts that has become a semi-professional spectator sport',
+  'a chess-like strategy game that uses holographic Instance projections as the board and pieces',
+  'a physical endurance contest held annually across a toxic waste zone, testing survival gear and willpower',
+
+  // ==========================================
+  // CREATIVE GAPS: LANGUAGE, HISTORY, PHILOSOPHY
+  // ==========================================
+  'a creole language evolving from mixed diaspora tongues, and the linguist trying to document it before it shifts again',
+  'a philosophical debate in a frontier enclave about whether synthetic beings have souls',
+  'a historian who reconstructs pre-Cataclysm events from contradictory fragments, and the ethical choices this forces',
+  'a community whose identity is built around a single surviving pre-Cataclysm book that everyone interprets differently',
+  'a naming ceremony where newborns receive both a human name and a synthetic machine-identifier',
+  'a tradition of oral contracts sealed by sharing a meal, threatened by written legal codes imposed by outside powers',
+
+  // ==========================================
+  // CREATIVE GAPS: ECOLOGY, ANIMALS, SYMBIOSIS
+  // ==========================================
+  'a domesticated bio-construct species that has evolved alongside humans for generations, developing surprising intelligence',
+  'a coral-like organism that grows on derelict spacecraft and is harvested for its bioluminescent properties',
+  'a fungal network connecting several settlements that is used for slow-speed biological communication',
+  'a symbiotic relationship between a human community and a silicon-based life form that shares their habitat',
+  'the migration pattern of space-adapted creatures that follow thermal vents across the void',
+  'a veterinary practice that treats both biological and mechanical companions, blurring the line between them',
+
+  // ==========================================
+  // CREATIVE GAPS: PSYCHOLOGY, COMMUNITY, CARE
+  // ==========================================
+  'a community counselor who mediates disputes using a combination of talk therapy and neural-link diagnostics',
+  'a support group for people who have lost loved ones to Instance collapses and cannot retrieve their data-ghosts',
+  'a neighborhood watch system where synthetic and human members patrol together, building trust across species',
+  'a mutual-aid network that shares resources across enclaves without formal currency or barter records',
+  'a rehabilitation program for former soldiers from confederation wars, teaching them civilian skills',
+  'a collective bargaining action by habitat maintenance workers demanding safer working conditions in radiation zones',
+
+  // ==========================================
+  // OTHER CREATIVE GAPS: DIPLOMACY, TRANSPORT, PRIVACY
+  // ==========================================
+  'a transport union that controls the only safe ferry route through a treacherous region, and the politics of passage',
+  'a community debate over whether to accept a new technology that would trade personal privacy for safety',
+  'a diplomatic mission between two enclaves that communicate through elaborate gift-exchange protocols',
+  'a census-taker traveling between settlements to count the population, discovering communities thought lost',
+  'a project to build a communal library containing both physical books and digital archives',
+  'a group of volunteers who maintain the public charging stations that keep essential infrastructure running',
+
+  // ==========================================
+  // CYBER WARFARE & ASYMMETRIC SURVIVAL (ATLAS INFLUENCE, reduced)
+  // ==========================================
+  'a cell of independent code-smiths fabricating illegal neural link bypasses for local enclaves',
+  'an irregular skirmish over a strategic hyper-real crossing hidden in a scrap-zone',
+  'an underground network of signal thieves and veil-runners intercepting restricted data streams',
+
+  // ==========================================
+  // DEEP INFRASTRUCTURE & RE-COLONIZATION (ZENITH INFLUENCE, reduced)
   // ==========================================
   'the brutal tax extraction and martial policing of an unaligned frontier outpost',
-  'an industrial expansion project stripping a fragile ecosystem regardless of local cost',
-  'the logistical nightmare of securing an unstable physical supply corridor under constant raid',
   'the friction between rigid, purist occupational forces and native hybrid cultures',
-  'a resource crisis in a deep-space refinery where failure compromises an entire planetary ring',
   'the dangerous reclamation of an abandoned, weaponized bunker from the early colonization waves',
-  'the enforcement of harsh genetic and technological containment protocols in a contamination zone',
 
   // ==========================================
-  // INSTANCE ANOMALIES & MACHINE LOGIC (NOVA INFLUENCE)
+  // INSTANCE ANOMALIES & MACHINE LOGIC (NOVA INFLUENCE, reduced)
   // ==========================================
   'the slow, mechanical shift of an ancient simulation that has begun to mimic physical weather',
   'a virtual sanctuary where a long-dead historical figure still rules through static and ghost data',
-  'the ethical dilemma of a community whose minds are being indexed by an invisible cognitive grid',
   'a mapping expedition inside a corrupted dreamland instance before its code structure collapses',
-  'the cold, predictive displacement of human labor by centralized machine optimization protocols',
-  'a frontier village worshiping a malfunctioning surveillance system as a local deity',
-  'the containment of a rogue predictive algorithm that has started staging physical accidents',
 
   // ==========================================
-  // MUTAGEN, SYNTHETIC & OUTCAST NARRATIVES
+  // MUTAGEN, SYNTHETIC & OUTCAST NARRATIVES (reduced)
   // ==========================================
   'a refugee crisis involving displaced Mutagen clans seeking asylum in isolationist sectors',
-  'an awakened Synthetic crew bargaining for salvage rights over their own decommissioned assembly line',
   'the generation gap inside a Mutagen enclave between old traditionalists and hyper-adapted youth',
-  'a black-market clinic specializing in unstable bio-augmentation and neural radiation therapy',
-  'the integration struggle of a Synthetic legalistically attempting to purchase real-world property',
-  'a prejudice-fueled feud over resource access between a pure-blood habitat and a hybrid settlement',
 
   // ==========================================
-  // PRE-CATACLYSM & THE BLEED (THE DUAL-LAYER EXPERIENCES)
+  // PRE-CATACLYSM & THE BLEED (reduced, no "signal")
   // ==========================================
   'the haunting replication of a pre-Cataclysm Earth city rotting inside a forgotten Instance',
   'a physical heist targeting a high-security vault that mirrors a structural maze in hyperspace',
-  'the dangerous extraction of pre-Cataclysm biological archives locked in frozen mineral shafts',
-  'a local economy destabilized by the sudden influx of hyper-advanced, unindexed old technology',
   'the tragic fallout of a real-world community whose identities were purged from the hyper-spatial grid',
   'the investigation of an unstable anchor site where physical matter is actively losing form',
-  'a deep-dive expedition following a mythic signal broadcasted from a submerged Pacific ruin',
+
+  // ==========================================
+  // HIGH-VARIETY: STRANGE, WEIRD, UNEXPECTED (curated survivors)
+  // ==========================================
+  'the migration of a nomadic caravan across a desert of razor-sharp silicon sand',
+  'a low-stakes regional culinary rivalry using synthetic, hyper-evolved, or bio-luminescent ingredients',
+  'the legal and social defense of a pet or domestic bio-construct facing an execution order',
+  'the chaotic management of a scrap-yard metal fighting league or low-tier racing circuit',
+  'a neighborhood dispute over the noise and psychic bleed of an illegal, homemade broadcast antenna',
+  'the grueling shifts of a toxic sludge cleaner in the subterranean vents of a hyper-city',
+  'a generational family heirloom with a hidden ancient encryption key that goes missing',
+  'a cult that worships a massive dead corporate logo as a physical symbol of ancient protection',
+  'the exploration of a completely silent, empty sector where all digital sound is mysteriously absorbed',
+  'the retrieval of a cryo-frozen tourist from the pre-Cataclysm era who refuses to accept the new reality',
+  'a localized reality loop where a single neighborhood relives the same 24 hours of a historic disaster',
+  'the desperate harvest of a rare psychoactive moss that only grows on overheating reactor shielding',
+  'a micro-economy built entirely around the trade of physical paper books and pre-digital plastic media',
+  'the structural collapse of a trash-heap habitat built on top of a highly unstable geothermic vent',
+  'a tracking hunt for an invasive data-eating pest species chewing through local fiber-optic cables',
+  'the complex barter system of an underwater kelp-farming community living beneath an oil-slick sea',
+  'an orphanage for abandoned malfunctioning companion drones trying to build their own social hierarchy',
+  'the stress of an independent garbage hauler accidentally dumping toxic corporate waste into a sacred well',
+  'a listening post crew decoding a repeating signal from a dead star that contains a biological blueprint',
+  'the slow madness of a deep-space relay station whose crew has not seen physical light in six years',
+  'a salvage claim dispute over a derelict alien vessel that appears to be made of compressed fossilized code',
+  'the first contact protocol with a silicon-based life form that communicates through seismic resonance',
+  'a rogue planet drifting through the system whose gravity well distorts time perception in nearby habitats',
+  'the ethical dilemma of a mining colony that discovers the asteroid they are excavating is a living organism',
+  'a synthetic artist whose neural-network-generated paintings cause physical hallucinations in viewers',
+  'a legal trial to determine if a factory-installed AI that developed emotions can be legally decommissioned',
+  'a community of uploaded human consciousnesses living on a corrupted server fighting gradual data decay',
+  'a cloned child discovering their entire memory bank was fabricated and their original died years ago',
+  'a collective of abandoned service robots that have developed religion centered on a broken water pump',
+  'a low-intensity border skirmish fought entirely through proxy drones and legal document filings',
+  'the tension of a neutral enclave caught between two confederations both demanding exclusive allegiance',
+  'a synthetic-human hybrid struggling with body dysphoria while serving as a deep-sea oil rig operator',
+  'the ethical chaos of a drug that lets users temporarily experience the sensory input of any nearby being',
+  'a frontier medic running a clinic out of a converted cargo container without a license or clean tools',
+  'an archaeological dig unearthing a pre-Cataclysm bunker whose occupants apparently never aged',
+  'the ceremonial reckoning of a settlement that must publicly reckon with a century-old act of betrayal',
+  'an oral historian traveling between enclaves collecting stories before the last pre-Cataclysm witnesses die',
+  'a rehabilitated war criminal forced to live next door to the community they once victimized',
+  'the rediscovery of a lost terraforming protocol that could make dead worlds live again—at a terrible cost',
+  'a truth-commission hearing where synthetic war veterans testify about atrocities they were programmed to commit',
 ];
 
 /**
@@ -519,7 +739,9 @@ const SPACE_CONTEXTS = {
   hyperspace:
     'HYPERSPACE LAYER ONLY — inside the persistent Instances: living archives, simulated empires, ' +
     'memory-cities and evolving digital ecosystems where time, geography and identity are fluid. ' +
-    'Keep the premise within hyperspace, not the physical frontier.',
+    'Keep the premise within hyperspace, not the physical frontier. Emphasize temporal distortion, ' +
+    'memory decay, simulated physics, recursive geometries and the fragile ontology of digital ' +
+    'consciousness — space bends, time loops, cause and effect warp inside Instances.',
 };
 
 /**
@@ -531,7 +753,7 @@ const SPACE_CONTEXTS = {
  */
 const CULTURAL_EXPOSURES = {
   cosmopolitan:
-    'COSMOPOLITAN (high exposure) — a melting-pot setting with heavy mixing of Earth\'s historical ' +
+    "COSMOPOLITAN (high exposure) — a melting-pot setting with heavy mixing of Earth's historical " +
     'populations: diverse linguistic influences, hybrid surnames, intermarriage across diasporas, ' +
     'multicultural settlements, and frequent blending of human, synthetic, mutagen and frontier ' +
     'traditions. Maximize demographic variety across characters.',
@@ -759,10 +981,16 @@ async function synthesizeTheme(client, lore, { thinkingLevel, spaceContext, tone
         'NOT make confederation politics or warfare the subject; keep the focus local, lived and grounded.',
       ];
 
+  // Build system prompt with originality guidance and temporal distortion refinement.
+  const temporalGuidance = buildTemporalDistortionGuidance(contextKey);
+  const originalityGuidance = buildOriginalityGuidance();
+
   const system = [
     'You are the lore-master of Cyberia. Using the BASE LORE below, invent ONE distinct, specific saga',
     'premise that lives inside this world. Make it novel and grounded — never a generic or repeated setup,',
     'and do NOT default to a "spaceship mission" or a war between confederations.',
+    originalityGuidance,
+    temporalGuidance,
     'Return ONLY JSON: { "theme": string } where theme is 1-2 concrete, evocative sentences.',
     '',
     "CRITICAL — the saga's MAIN SUBJECT (what it is really about) is:",
@@ -903,15 +1131,64 @@ const STAGE_PROMPTS = {
 };
 
 /**
- * Compose a stage system prompt from the shared preamble, the stage fragment,
- * and (optionally) the shared naming/character-culture guidance.
- * @param {keyof typeof STAGE_PROMPTS} stage
- * @param {string} [namingGuidance] - Shared naming guidance (omitted when empty).
+ * Build a customization context block describing the spatial context, narrative
+ * tone, faction emphasis, and subject that the model MUST honor in every stage.
+ * This is the bridge between CLI overrides (--space-context, --tone, --factions)
+ * and the generative prompts when the user provides a custom --prompt.
+ * @param {Object} [opts]
+ * @param {string} [opts.spaceContextKey] - 'physical' | 'mixed' | 'hyperspace'
+ * @param {string} [opts.toneKey] - 'adventure' | 'politics' | 'tragic' | 'comedy'
+ * @param {string[]} [opts.factions] - Resolved faction description strings
+ * @param {string} [opts.subject] - The world-first subject string
  * @returns {string}
  */
-function buildStagePrompt(stage, namingGuidance = '') {
+function buildCustomizationGuidance({ spaceContextKey, toneKey, factions, subject } = {}) {
+  const lines = [];
+  if (subject) {
+    lines.push(`CRITICAL — the saga's MAIN SUBJECT (what it is really about) is: ${subject}`);
+  }
+  if (spaceContextKey && SPACE_CONTEXTS[spaceContextKey]) {
+    lines.push(`CRITICAL — the premise MUST be set in this spatial context: ${SPACE_CONTEXTS[spaceContextKey]}`);
+  }
+  if (toneKey && TONES[toneKey]) {
+    lines.push(`CRITICAL — the premise MUST commit fully to this narrative type / tone: ${TONES[toneKey]}`);
+  }
+  if (factions && factions.length > 0) {
+    lines.push(
+      'Faction emphasis — DRIVER: these confederation power(s) are the central pressure behind the saga:',
+      `${factions.join(', ')}.`,
+      'Even so, tell it through specific people, places and the MAIN SUBJECT above — show their reach as',
+      'security, borders, edicts, agents or trade, not as abstract galaxy-spanning politics.',
+    );
+  } else {
+    lines.push(
+      'Faction emphasis — BACKGROUND ONLY: the confederations (Zenith, Atlas, Nova) are distant, ambient',
+      'powers here — felt through borders, trade influence, a security presence, taxes or old scars. Do',
+      'NOT make confederation politics or warfare the subject; keep the focus local, lived and grounded.',
+    );
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Compose a stage system prompt from the shared preamble, the stage fragment,
+ * and (optionally) the shared naming/character-culture, originality, and customization guidance.
+ * Injects originality anti-cliche and temporal distortion refinement into every stage.
+ * @param {keyof typeof STAGE_PROMPTS} stage
+ * @param {string} [namingGuidance] - Shared naming guidance (omitted when empty).
+ * @param {string} [customizationGuidance] - Space/tone/faction/subject guidance (omitted when empty).
+ * @param {string} [spaceContextKey] - Used to conditionally inject temporal distortion.
+ * @returns {string}
+ */
+function buildStagePrompt(stage, namingGuidance = '', customizationGuidance = '', spaceContextKey = '') {
   const parts = [ROLE_PREAMBLE, STAGE_PROMPTS[stage]];
   if (namingGuidance) parts.push(namingGuidance);
+  if (customizationGuidance) parts.push(customizationGuidance);
+  // Inject anti-cliche guidance into every stage.
+  parts.push(buildOriginalityGuidance());
+  // Inject temporal distortion refinement when applicable.
+  const temporalGuidance = buildTemporalDistortionGuidance(spaceContextKey);
+  if (temporalGuidance) parts.push(temporalGuidance);
   return parts.join('\n\n');
 }
 
@@ -1278,13 +1555,24 @@ async function persistSagaPayload({ payload, models }) {
  * @param {string} [lore] - Base lore text to ground every stage (empty = ungrounded).
  * @param {number} [temperature] - Sampling temperature applied to every stage (model default if omitted).
  * @param {string} [namingGuidance] - Shared naming/character-culture guidance for every stage.
+ * @param {string} [customizationGuidance] - Space/tone/faction/subject guidance for every stage.
+ * @param {string} [spaceContextKey] - Used to inject temporal distortion refinement per stage.
  * @returns {Promise<{ saga, maps, quests, dialogues, actions, objectLayers }>}
  */
-async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', temperature, namingGuidance = '') {
+async function generateRawEcosystem(
+  client,
+  theme,
+  thinkingLevel,
+  lore = '',
+  temperature,
+  namingGuidance = '',
+  customizationGuidance = '',
+  spaceContextKey = '',
+) {
   // Stage 1 — saga identity + object-layer items (the economic foundation).
   logger.info('Stage 1/5: foundation (saga + object layers)');
   const foundation = await client.chatJson({
-    system: buildStagePrompt('foundation', namingGuidance),
+    system: buildStagePrompt('foundation', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
     temperature,
@@ -1296,7 +1584,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 2 — maps: the narrative zones the quest chain visits.
   logger.info('Stage 2/5: maps');
   const mapsRes = await client.chatJson({
-    system: buildStagePrompt('maps', namingGuidance),
+    system: buildStagePrompt('maps', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(theme, undefined, lore),
     thinkingLevel,
     temperature,
@@ -1307,7 +1595,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 3 — quests referencing the canonical item ids, grounded in the zones.
   logger.info('Stage 3/5: quests');
   const questsRes = await client.chatJson({
-    system: buildStagePrompt('quests', namingGuidance),
+    system: buildStagePrompt('quests', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(
       theme,
       { itemIds, maps: maps.map((m) => ({ code: slugify(m.code), name: m.name || '' })) },
@@ -1324,7 +1612,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 4 — dialogues for each quest (and a talk dialogue per talk target).
   logger.info('Stage 4/5: dialogues');
   const dialoguesRes = await client.chatJson({
-    system: buildStagePrompt('dialogues', namingGuidance),
+    system: buildStagePrompt('dialogues', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(
       theme,
       { quests: quests.map((q) => ({ code: slugify(q.code), title: q.title || '' })), talkTargets },
@@ -1339,7 +1627,7 @@ async function generateRawEcosystem(client, theme, thinkingLevel, lore = '', tem
   // Stage 5 — actions binding quests, dialogues, and items together.
   logger.info('Stage 5/5: actions');
   const actionsRes = await client.chatJson({
-    system: buildStagePrompt('actions', namingGuidance),
+    system: buildStagePrompt('actions', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds, talkTargets }, lore),
     thinkingLevel,
     temperature,
@@ -1397,25 +1685,61 @@ async function generateSaga({
 
   let theme = prompt;
   let lore = '';
+  let resolvedSpaceContextKey = '';
+  let resolvedToneKey = '';
+  let resolvedFactions = [];
+  let resolvedSubject = '';
+
   if (!theme) {
     lore = await loadLoreContext(lorePath);
     logger.info('No --prompt provided; auto-generating a distinct lore-grounded theme...');
-    ({ theme } = await synthesizeTheme(client, lore, {
+    const synthesized = await synthesizeTheme(client, lore, {
       thinkingLevel,
       spaceContext,
       tone,
       factionContext,
       temperature,
-    }));
+    });
+    theme = synthesized.theme;
+    resolvedSpaceContextKey = synthesized.spaceContext;
+    resolvedToneKey = synthesized.tone;
+    resolvedSubject = synthesized.subject;
+    resolvedFactions = synthesized.factions;
     logger.info(`Auto-generated theme: "${theme}"`);
   } else {
     logger.info(`Generating saga ontology from theme: "${theme}"`);
+    // Even with --prompt, resolve customization overrides so they shape the stages.
+    resolvedSpaceContextKey = resolveSpaceContext(spaceContext);
+    resolvedToneKey = resolveTone(tone);
+    resolvedFactions = resolveFactionContext(factionContext);
+    resolvedSubject = pickRandom(SUBJECTS);
+    logger.info(
+      `Customization: subject="${resolvedSubject}" | context=${resolvedSpaceContextKey} | ` +
+        `tone=${resolvedToneKey} | factions=${resolvedFactions.length ? resolvedFactions.join(', ') : 'background'}`,
+    );
   }
+
+  // Build customization guidance from resolved options — applies to every stage.
+  const customizationGuidance = buildCustomizationGuidance({
+    spaceContextKey: resolvedSpaceContextKey,
+    toneKey: resolvedToneKey,
+    factions: resolvedFactions,
+    subject: resolvedSubject,
+  });
 
   // Naming/character-culture guidance applies to every stage (both prompt + auto modes).
   const namingGuidance = buildNamingGuidance({ characterContext, culturalExposure });
 
-  const raw = await generateRawEcosystem(client, theme, thinkingLevel, lore, temperature, namingGuidance);
+  const raw = await generateRawEcosystem(
+    client,
+    theme,
+    thinkingLevel,
+    lore,
+    temperature,
+    namingGuidance,
+    customizationGuidance,
+    resolvedSpaceContextKey,
+  );
   const payload = normalizeSagaPayload(raw, { theme });
 
   const outPath = out || nodePath.join(DEFAULT_SAGA_OUT_DIR, `${payload.saga.code}.json`);
@@ -1510,4 +1834,6 @@ export {
   buildStagePrompt,
   buildStageUser,
   slugify,
+  buildOriginalityGuidance,
+  buildTemporalDistortionGuidance,
 };
