@@ -331,6 +331,10 @@ program
   )
   .option('--node <node>', 'Sets optional node for deployment operations.')
   .option(
+    '--ssh-key-path <path>',
+    'Private key path for node SSH operations. Currently used when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa.',
+  )
+  .option(
     '--build-manifest',
     'Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets.',
   )
@@ -630,6 +634,10 @@ program
   .option('--replicas <replicas>', 'Sets a custom number of replicas for deployment.')
   .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for execution.')
   .option('--node-name <node-name>', 'Optional: Specifies the node name for execution.')
+  .option(
+    '--ssh-key-path <path>',
+    'Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa.',
+  )
   .option('--port <port>', 'Optional: Specifies the port for execution.')
   .option('--etc-hosts', 'Enables etc-hosts context for the runner execution.')
   .option('--volume-host-path <volume-host-path>', 'Optional: Specifies the volume host path for test execution.')

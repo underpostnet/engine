@@ -497,6 +497,50 @@ EOF`);
     },
 
     /**
+     * Synchronously copies a local directory to a remote host over key-only SSH,
+     * streaming it as a tar archive (no intermediate file) and fixing ownership.
+     * Mirrors the kind-node `tar | docker cp` provisioning pattern but targets a
+     * real node via SSH, so node-local hostPath volumes can be materialized on the
+     * node where the pod will actually run.
+     *
+     * Idempotent and re-runnable: `mkdir -p` + `tar -x` overwrite in place. Throws
+     * on any SSH/tar failure so an empty-volume deploy is never produced silently.
+     *
+     * @function copyDirToNode
+     * @memberof UnderpostSSH
+     * @param {object} params
+     * @param {string} params.host - Target host/IP (key-only SSH reachable).
+     * @param {string} params.localDir - Local source directory.
+     * @param {string} params.remoteDir - Destination directory on the node.
+     * @param {number} [params.port=22] - SSH port.
+     * @param {string} [params.user='root'] - SSH user (key-only).
+     * @param {string} [params.keyPath='./engine-private/deploy/id_rsa'] - Private key path.
+     * @param {string} [params.owner='1000:1000'] - chown target on the node (empty to skip).
+     * @param {string} [params.mode='755'] - chmod mode on the node (empty to skip).
+     * @returns {void}
+     */
+    copyDirToNode: ({
+      host,
+      localDir,
+      remoteDir,
+      port = 22,
+      user = 'root',
+      keyPath = './engine-private/deploy/id_rsa',
+      owner = '1000:1000',
+      mode = '755',
+    }) => {
+      if (!host) throw new Error('copyDirToNode requires a host');
+      if (!localDir || !fs.existsSync(localDir)) throw new Error(`copyDirToNode: local dir not found: ${localDir}`);
+      if (!remoteDir) throw new Error('copyDirToNode requires a remoteDir');
+      shellExec(`chmod 600 ${keyPath}`, { silent: true, silentOnError: true, disableLog: true });
+      const sshOpts = `-i ${keyPath} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
+      shellExec(`ssh ${sshOpts} ${user}@${host} 'mkdir -p ${remoteDir}'`);
+      shellExec(`tar -C ${localDir} -c . | ssh ${sshOpts} ${user}@${host} 'tar -C ${remoteDir} -x'`);
+      const fixups = `${owner ? `chown -R ${owner} ${remoteDir}; ` : ''}${mode ? `chmod -R ${mode} ${remoteDir}` : ''}`.trim();
+      if (fixups) shellExec(`ssh ${sshOpts} ${user}@${host} '${fixups}'`);
+    },
+
+    /**
      * Generic SSH remote command runner that SSH execution logic.
      * Executes arbitrary shell commands on a remote server via SSH with proper credential handling.
      * @async

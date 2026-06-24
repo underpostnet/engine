@@ -456,8 +456,9 @@ ${Underpost.deploy
           : [];
         if (confVolume.length > 0) {
           // Mirror deployVolume's data-node resolution so the generated manifest
-          // pins the PV to the same node that physically receives the volume data.
-          const pvDataNode = !options.k3s && !options.kubeadm ? options.node || 'kind-worker' : os.hostname();
+          // pins the PV to the same node that physically receives the volume data:
+          // the explicit --node target when given, else the kind worker / local host.
+          const pvDataNode = options.node || (!options.k3s && !options.kubeadm ? 'kind-worker' : os.hostname());
           let volumeYaml = '';
           for (const deploymentVersion of deploymentVersions) {
             for (const volume of confVolume) {
@@ -725,6 +726,7 @@ spec:
      * @param {string} options.traffic - Traffic status for the deployment.
      * @param {string} options.replicas - Number of replicas for the deployment.
      * @param {string} options.node - Node name for resource allocation.
+     * @param {string} [options.sshKeyPath] - Private key path for node SSH operations, forwarded to deployVolume when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa.
      * @param {boolean} options.disableUpdateDeployment - Whether to disable deployment updates.
      * @param {boolean} options.disableUpdateProxy - Whether to disable proxy updates.
      * @param {boolean} options.disableDeploymentProxy - Whether to disable deployment proxy.
@@ -945,6 +947,7 @@ EOF`);
                   nodeName: options.node ? options.node : env === 'development' ? 'kind-worker' : os.hostname(),
                   clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
                   gitClean: options.gitClean || false,
+                  sshKeyPath: options.sshKeyPath || '',
                 });
           }
 
@@ -1054,6 +1057,7 @@ EOF`);
      * @param {string} options.nodeName - Node name for the deployment.
      * @param {string} [options.clusterContext='kind'] - Cluster context type ('kind', 'kubeadm', or 'k3s').
      * @param {boolean} [options.gitClean=false] - Whether to run git clean on volumeMountPath before copying.
+     * @param {string} [options.sshKeyPath=''] - Private key path used when the target node is remote and the volume is shipped over SSH. Empty falls back to copyDirToNode's default (engine-private/deploy/id_rsa).
      * @memberof UnderpostDeploy
      */
     deployVolume(
@@ -1066,6 +1070,7 @@ EOF`);
         nodeName: '',
         clusterContext: 'kind',
         gitClean: false,
+        sshKeyPath: '',
       },
     ) {
       if (!volume.claimName) {
@@ -1080,9 +1085,10 @@ EOF`);
       if (options.gitClean && volume.volumeMountPath) {
         Underpost.repo.clean({ paths: [volume.volumeMountPath] });
       }
-      // The node that physically receives the volume data: the kind node container
-      // for kind, otherwise the local host where fs.copySync writes. The PV is then
-      // pinned here so the pod cannot be scheduled onto a node with an empty hostPath.
+      // The node that physically receives the volume data. hostPath volumes are
+      // node-local, so the data must land on the node where the pod will run, and
+      // the PV is pinned there (nodeAffinity) so the scheduler co-locates the pod
+      // with its volume — never mounting an empty DirectoryOrCreate on another node.
       let dataNode;
       if (clusterContext === 'kind') {
         const kindNode = options.nodeName || 'kind-worker';
@@ -1093,9 +1099,34 @@ EOF`);
           `docker exec -i ${kindNode} bash -c "chown -R 1000:1000 ${rootVolumeHostPath}; chmod -R 755 ${rootVolumeHostPath}"`,
         );
       } else {
-        dataNode = os.hostname();
-        if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
-        fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
+        const localHost = os.hostname();
+        dataNode = options.nodeName || localHost;
+        if (dataNode === localHost) {
+          // Target node is the control plane / current host: write directly.
+          if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
+          fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
+        } else {
+          // Target node is remote: fs.copySync would only write the control-plane
+          // filesystem, leaving the real node's hostPath empty. Ship the folder to
+          // the node over SSH so the data exists where the pod is pinned.
+          const nodeHost =
+            shellExec(
+              `kubectl get node ${dataNode} -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}'`,
+              { stdout: true, silent: true, silentOnError: true },
+            ).trim() || dataNode;
+          logger.info('Shipping volume to remote node over SSH', {
+            node: dataNode,
+            host: nodeHost,
+            src: volume.volumeMountPath,
+            dest: rootVolumeHostPath,
+          });
+          Underpost.ssh.copyDirToNode({
+            host: nodeHost,
+            localDir: volume.volumeMountPath,
+            remoteDir: rootVolumeHostPath,
+            ...(options.sshKeyPath ? { keyPath: options.sshKeyPath } : {}),
+          });
+        }
       }
       shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);

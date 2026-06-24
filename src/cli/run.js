@@ -56,6 +56,7 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} dev - Whether to run in development mode.
  * @property {string} podName - The name of the pod to run.
  * @property {string} nodeName - The name of the node to run.
+ * @property {string} sshKeyPath - Private key path for node SSH operations, forwarded to volume shipping over SSH.
  * @property {number} port - Custom port to use.
  * @property {string} volumeHostPath - The host path for the volume.
  * @property {string} volumeMountPath - The mount path for the volume.
@@ -127,6 +128,7 @@ const DEFAULT_OPTION = {
   dev: false,
   podName: '',
   nodeName: '',
+  sshKeyPath: '',
   port: 0,
   volumeHostPath: '',
   volumeMountPath: '',
@@ -613,7 +615,9 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'cluster-build': (path, options = DEFAULT_OPTION) => {
-      const nodeOptions = options.nodeName ? ` --node-name ${options.nodeName}` : '';
+      const nodeOptions =
+        (options.nodeName ? ` --node-name ${options.nodeName}` : '') +
+        (options.sshKeyPath ? ` --ssh-key-path ${options.sshKeyPath}` : '');
       shellExec(`node bin run clean`);
       shellExec(`node bin run --dev sync-replica template-deploy${nodeOptions}`);
       shellExec(`node bin run sync-replica template-deploy${nodeOptions}`);
@@ -950,13 +954,14 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const skipFullBuildFlag = options.skipFullBuild ? ' --skip-full-build' : '';
       const pullBundleFlag = options.pullBundle ? ' --pull-bundle' : '';
       const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
+      const sshKeyPathFlag = options.sshKeyPath ? ` --ssh-key-path ${options.sshKeyPath}` : '';
 
       shellExec(
         `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
           image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${
           options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag} ${deployId} ${env}`,
+        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag}${sshKeyPathFlag} ${deployId} ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -965,9 +970,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           `${baseCommand} db ${deployId} ${clusterFlag}${baseClusterCommand} --repo-backup --primary-pod --git --force-clone --preserveUUID ${options.namespace ? ` --ns ${options.namespace}` : ''}`,
         );
         shellExec(
-          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
+          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --node ${node} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
             options.namespace ? ` --namespace ${options.namespace}` : ''
-          }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}`,
+          }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}`,
         );
         if (!targetTraffic)
           targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
@@ -1330,6 +1335,7 @@ EOF
               nodeName: options.nodeName,
               clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
               gitClean: options.gitClean || false,
+              sshKeyPath: options.sshKeyPath || '',
             });
         // Regenerate the parent deploy's gRPC ClusterIP service pointing to the
         // parent's current traffic colour and apply it before the instance pod starts so
