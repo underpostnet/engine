@@ -446,7 +446,15 @@ class UnderpostRun {
 
       // Kinds that own a pod template we can patch; rolloutKinds additionally
       // support `kubectl rollout restart` to reschedule existing pods now.
-      const templated = ['deployment', 'statefulset', 'daemonset', 'replicaset', 'job', 'cronjob', 'replicationcontroller'];
+      const templated = [
+        'deployment',
+        'statefulset',
+        'daemonset',
+        'replicaset',
+        'job',
+        'cronjob',
+        'replicationcontroller',
+      ];
       const rolloutKinds = ['deployment', 'statefulset', 'daemonset'];
       const templateSelectorPath = (kind) =>
         kind === 'cronjob'
@@ -458,7 +466,10 @@ class UnderpostRun {
       let selector = { 'kubernetes.io/hostname': node };
       if (!remove && options.labels) {
         selector = {};
-        for (const pair of `${options.labels}`.split(',').map((s) => s.trim()).filter(Boolean)) {
+        for (const pair of `${options.labels}`
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)) {
           const eq = pair.indexOf('=');
           if (eq < 0) continue;
           selector[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
@@ -485,8 +496,11 @@ class UnderpostRun {
 
       const kubectlNames = (kind) =>
         (
-          shellExec(`kubectl get ${kind} -n ${ns} -o name`, { silent: true, stdout: true, silentOnError: true }).trim() ||
-          ''
+          shellExec(`kubectl get ${kind} -n ${ns} -o name`, {
+            silent: true,
+            stdout: true,
+            silentOnError: true,
+          }).trim() || ''
         )
           .split('\n')
           .map((s) => s.trim())
@@ -913,7 +927,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       replicas = replicas ? replicas : defaultPath[1];
       versions = versions ? versions.replaceAll('+', ',') : defaultPath[2];
       image = image ? image : defaultPath[3];
-      node = node ? node : defaultPath[4];
+      node = node ? node : options.nodeName ? options.nodeName : defaultPath[4];
       shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
 
       if (image && !image.startsWith('localhost'))
@@ -1332,7 +1346,13 @@ EOF
               deployId: _deployId,
               env,
               version: targetTraffic,
-              nodeName: options.nodeName,
+              nodeName: Underpost.deploy.resolveDeployNode({
+                node: options.nodeName,
+                kind: options.kind,
+                kubeadm: options.kubeadm,
+                k3s: options.k3s,
+                env,
+              }),
               clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
               gitClean: options.gitClean || false,
               sshKeyPath: options.sshKeyPath || '',
