@@ -40,6 +40,7 @@ const RUNTIME_STATUS = {
 };
 
 const CONTAINER_STATUS_KEY = 'container-status';
+const START_CONTAINER_STATUS_KEY = 'start-container-status';
 const INTERNAL_STATUS_PATH = '/_internal/status';
 const INTERNAL_READY_PATH = '/_internal/ready';
 const INTERNAL_HEALTH_PATH = '/_internal/health';
@@ -119,6 +120,20 @@ const getRuntimeStatus = () =>
   normalizeContainerStatus(Underpost.env.get(CONTAINER_STATUS_KEY, undefined, { disableLog: true }));
 
 /**
+ * Reads the start-container-status env key — an insulated marker set by the
+ * start pipeline after it completes the running phase. Unlike container-status
+ * (which external scripts / backup failures may clobber), this key is written
+ * once and survives globalSecretClean. Used exclusively by the readinessProbe
+ * endpoint so K8s pod readiness is never derailed by lifecycle noise.
+ * @memberof RuntimeStatus
+ * @returns {string|undefined}
+ */
+const getStartContainerStatus = () => {
+  const raw = Underpost.env.get(START_CONTAINER_STATUS_KEY, undefined, { disableLog: true });
+  return raw && typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+};
+
+/**
  * Minimal, secret-free payload served by the internal status endpoint and used
  * by the monitor for failure classification and observability.
  * @memberof RuntimeStatus
@@ -188,7 +203,7 @@ const startInternalStatusServer = (port = resolveInternalStatusPort()) => {
       case INTERNAL_HEALTH_PATH:
         return sendJson(200, { status: 'ok' });
       case INTERNAL_READY_PATH:
-        return getRuntimeStatus() === RUNTIME_STATUS.RUNNING
+        return getStartContainerStatus()
           ? sendJson(200, { status: RUNTIME_STATUS.RUNNING })
           : sendJson(503, { status: getRuntimeStatus() ?? null });
       case INTERNAL_STATUS_PATH:
@@ -220,6 +235,7 @@ const stopInternalStatusServer = () =>
 export {
   RUNTIME_STATUS,
   CONTAINER_STATUS_KEY,
+  START_CONTAINER_STATUS_KEY,
   INTERNAL_STATUS_PATH,
   INTERNAL_READY_PATH,
   INTERNAL_HEALTH_PATH,
@@ -228,6 +244,7 @@ export {
   containerStatusValue,
   normalizeContainerStatus,
   getRuntimeStatus,
+  getStartContainerStatus,
   runtimeStatusPayload,
   setRuntimeStatus,
   startInternalStatusServer,

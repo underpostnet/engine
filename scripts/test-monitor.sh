@@ -2,9 +2,7 @@
 #
 # test-monitor.sh — end-to-end deploy + two-phase monitor smoke test.
 #
-# Two deployment shapes are supported (see
-# src/client/public/nexodev/docs/references/Deploy-Monitor-PRD.md and
-# 'Deploy custom instance to K8S.md'):
+# Two deployment shapes are supported:
 #
 #   --mode runtime   `underpost start` deploy (e.g. dd-test). Monitored with the
 #                    HTTP gate: /_internal/ready probes + port-forward status.
@@ -26,11 +24,11 @@ MODE=runtime                                  # runtime | instance
 ENV=development                               # development | production
 DEPLOY_ID=dd-test                             # deploy id (instance mode: parent of conf.instances.json)
 INSTANCE_IDS=                                 # instance mode: csv of ids (default: all in conf.instances.json)
-IMAGE=underpost/wp:v3.2.14                    # runtime mode image (instance mode reads image from conf)
+IMAGE=underpost/wp:v3.2.28                    # runtime mode image (instance mode reads image from conf)
 VERSIONS=green                                # csv of blue/green versions
 REPLICAS=1                                    # replicas per deployment
 NAMESPACE=default                             # k8s namespace
-CLUSTER=                                      # kind | kubeadm | k3s | "" (auto/none)
+CLUSTER=kind                                  # kind | kubeadm | k3s | "" (auto/none)
 TIMEOUT_RESPONSE=300000ms                     # HTTPProxy per-route response timeout
 TEMPLATE_REPO=underpostnet/pwa-microservices-template-private  # runtime mode link repo
 ENVOY_NAMESPACE=projectcontour                # ingress namespace (instance TLS exposure)

@@ -112,7 +112,9 @@ class UnderpostSecret {
       const { keepKeys } = options;
       loadConf('clean');
       Underpost.repo.cleanupPrivateEngineRepo();
-      Underpost.env.clean({ keepKeys: keepKeys.length > 0 ? keepKeys : ['container-status'] });
+      Underpost.env.clean({
+        keepKeys: keepKeys.length > 0 ? keepKeys : ['container-status', 'start-container-status'],
+      });
     },
   };
 }

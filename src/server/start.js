@@ -8,7 +8,14 @@ import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
 import { shellCd, shellExec } from './process.js';
-import { RUNTIME_STATUS, setRuntimeStatus, startInternalStatusServer, deployStatusPort } from './runtime-status.js';
+import {
+  RUNTIME_STATUS,
+  START_CONTAINER_STATUS_KEY,
+  setRuntimeStatus,
+  startInternalStatusServer,
+  deployStatusPort,
+  containerStatusValue,
+} from './runtime-status.js';
 import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
@@ -241,7 +248,10 @@ class UnderpostStartUp {
       const result = await awaitDeployMonitor(true);
       if (result === true) {
         if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
-        setTimeout(() => setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING));
+        setTimeout(() => {
+          setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING);
+          Underpost.env.set(START_CONTAINER_STATUS_KEY, containerStatusValue(deployId, env, RUNTIME_STATUS.RUNNING));
+        });
       } else {
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
       }
