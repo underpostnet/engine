@@ -143,12 +143,21 @@ class UnderpostRootEnv {
     /**
      * @method clean
      * @description Cleans the underpost root environment by removing the environment file.
+     * @param {object} options - Options for cleaning the environment.
+     * @param {Array<string>} [options.keepKeys=[]] - List of keys to keep in the environment file. If provided, only these keys will be retained.
      * @memberof UnderpostEnv
      */
-    clean() {
+    clean(options = { keepKeys: [] }) {
+      const { keepKeys } = options;
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
-      fs.removeSync(envPath);
+      if (keepKeys && keepKeys.length > 0 && fs.existsSync(envPath)) {
+        const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+        const filteredEnv = Object.fromEntries(Object.entries(env).filter(([key]) => keepKeys.includes(key)));
+        writeEnv(envPath, filteredEnv);
+      } else {
+        fs.removeSync(envPath);
+      }
     },
     /**
      * @method isInsideContainer

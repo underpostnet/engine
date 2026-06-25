@@ -104,14 +104,15 @@ class UnderpostSecret {
     /**
      * Removes all filesystem traces of secrets after deployment startup.
      * Centralizes the defense-in-depth cleanup performed
+     * @param {object} options - Options for cleaning the environment.
+     * @param {Array<string>} [options.keepKeys=[]] - List of keys to keep in the environment file. If provided, only these keys will be retained.
      * @memberof UnderpostSecret
      */
-    globalSecretClean() {
-      const status = Underpost.env.get('container-status');
+    globalSecretClean(options = { keepKeys: [] }) {
+      const { keepKeys } = options;
       loadConf('clean');
       Underpost.repo.cleanupPrivateEngineRepo();
-      Underpost.env.clean();
-      if (status) Underpost.env.set('container-status', status);
+      Underpost.env.clean({ keepKeys: keepKeys.length > 0 ? keepKeys : ['container-status'] });
     },
   };
 }
