@@ -290,19 +290,16 @@ class MongoBootstrap {
    * @returns {Promise<number>} Number of pods that failed to become ready (0 = all good).
    */
   static async waitForPods(namespace, replicaCount) {
-    const { default: Underpost } = await import('../../index.js');
-    const results = await Promise.all(
-      Array.from({ length: replicaCount }, async (_, i) => {
-        const podName = `${MONGODB_STATEFULSET_NAME}-${i}`;
-        const ready = await Underpost.test.statusMonitor(podName, 'Running', 'pods', 1000, 60 * 10);
-        return { index: i, ready };
-      }),
-    );
-    const failed = results.filter((r) => !r.ready).map((r) => `${MONGODB_STATEFULSET_NAME}-${r.index}`);
-    if (failed.length > 0) {
-      logger.error('MongoDB pods did not become ready', { failed });
+    let failedCount = 0;
+    for (let i = 0; i < replicaCount; i++) {
+      const podName = `${MONGODB_STATEFULSET_NAME}-${i}`;
+      const result = shellExec(`kubectl wait --for=condition=Ready pod/${podName} -n ${namespace} --timeout=60s`);
+      if (result.code !== 0) {
+        logger.error(`Pod ${podName} did not become ready`);
+        failedCount++;
+      }
     }
-    return failed.length;
+    return failedCount;
   }
 
   /**
@@ -619,6 +616,9 @@ class MongoBootstrap {
       process.env.MONGODB_PASSWORD ||
       process.env.DB_PASSWORD ||
       readTrimmedFile('./engine-private/mongodb-password');
+
+    // Ensure the pod is ready before querying
+    shellExec(`kubectl wait --for=condition=Ready pod/${podName} -n ${namespace} --timeout=60s`);
 
     const evalExpr = 'rs.status().members.filter(m=>m.stateStr=="PRIMARY").map(m=>m.name)';
 
