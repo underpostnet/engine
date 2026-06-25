@@ -1708,14 +1708,20 @@ async function generateSaga({
     logger.info(`Auto-generated theme: "${theme}"`);
   } else {
     logger.info(`Generating saga ontology from theme: "${theme}"`);
-    // Even with --prompt, resolve customization overrides so they shape the stages.
+    // With --prompt, the user's prompt IS the creative driver — do NOT impose a
+    // random SUBJECT. Only resolve space/tone/faction overrides if explicitly
+    // provided (they stay at their default empty/false values otherwise, meaning
+    // the model derives them from the prompt alone).
     resolvedSpaceContextKey = resolveSpaceContext(spaceContext);
     resolvedToneKey = resolveTone(tone);
     resolvedFactions = resolveFactionContext(factionContext);
-    resolvedSubject = pickRandom(SUBJECTS);
+    // Leave resolvedSubject empty when --prompt is given so the LLM has full
+    // creative freedom — no SUBJECT bucket constrains the theme.
+    resolvedSubject = '';
     logger.info(
-      `Customization: subject="${resolvedSubject}" | context=${resolvedSpaceContextKey} | ` +
-        `tone=${resolvedToneKey} | factions=${resolvedFactions.length ? resolvedFactions.join(', ') : 'background'}`,
+      `Customization: context=${resolvedSpaceContextKey} | tone=${resolvedToneKey} | ` +
+        `factions=${resolvedFactions.length ? resolvedFactions.join(', ') : 'background'}` +
+        ' | subject=PROMPT (user-provided — no SUBJECT bucket applied)',
     );
   }
 
