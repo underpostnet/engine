@@ -15,5 +15,3 @@ const logger = loggerFactory(import.meta);
 await logger.setUpInfo();
 
 await clientLiveBuild();
-
-// ProcessController.init(logger);
