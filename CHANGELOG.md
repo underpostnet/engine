@@ -1,6 +1,46 @@
 # Changelog
 
-## 2026-06-23
+## 2026-06-25
+
+### server
+
+- Add only build client in development mode in normal server run start up ([a332ae458](https://github.com/underpostnet/engine/commit/a332ae458f79458c7911a4a158037ada250d3af6))
+
+### cli-start
+
+- Add start-container-status in start pipeline to insulate readinessProbe monitor server status, prevent external overwritten status ([75f67cf3f](https://github.com/underpostnet/engine/commit/75f67cf3fcbc07716415caac4e67ab91abb05985))
+
+### cyberia-cli
+
+- Enhance cyberia-saga variety theme separate custom prompt of random subject theme ([1945a2553](https://github.com/underpostnet/engine/commit/1945a2553780d1d3b5fa20e40eedcc7d0b1ecd9c))
+- Enhance cyberia-saga variety theme handle and prompt seed customization ([a335d3e20](https://github.com/underpostnet/engine/commit/a335d3e20025f8e714ff98fdc27d7895970187b5))
+
+### db
+
+- Improve wait status ready mongo pods in bootstrap methods ([6805e35c2](https://github.com/underpostnet/engine/commit/6805e35c22e43315c14dc9e7457ca3d599877ea8))
+
+### cli-env
+
+- Add keepKeys array options in clean env method ([5b3be0bca](https://github.com/underpostnet/engine/commit/5b3be0bca14a0ccfa64740aff12d2af17a7c29ce))
+
+### repository
+
+- Add getRemoteUrl and switchRemote repository methods in repository cli ([0412b9986](https://github.com/underpostnet/engine/commit/0412b998683a8369833eb363f8c9953744ae1a3a))
+
+### deploy
+
+- Enhance node customization in default deployment and custom instance workloads ([31c6b6d3b](https://github.com/underpostnet/engine/commit/31c6b6d3b397229b0216f82b8aef29b6941e474e))
+- Fix node affinity assignment in volume mount factory ([9ec1ef931](https://github.com/underpostnet/engine/commit/9ec1ef9313ac0dbb5993cd3f158d2d01eae7dec5))
+
+### cli-run
+
+- Add flag ssh key path to customize key usage for ssh operations in deployments pipelines ([861cd7373](https://github.com/underpostnet/engine/commit/861cd73734d3442783419af4403bbb8e88711f19))
+
+### start-cli
+
+- Improve underpost container status persistence ([bff2e8f8d](https://github.com/underpostnet/engine/commit/bff2e8f8d65c6a2fe8572fe0bc9c42b9566db918))
+
+## New release v:3.2.28 (2026-06-23)
 
 ### hardhat
 

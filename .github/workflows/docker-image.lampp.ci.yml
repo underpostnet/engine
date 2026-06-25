@@ -27,7 +27,7 @@ jobs:
         with:
           images: underpost/lampp
           tags: |
-            type=raw,value=v3.2.28
+            type=raw,value=v3.2.30
             type=ref,event=branch
             type=sha,prefix=sha-
 

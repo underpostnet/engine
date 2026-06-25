@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.28
+> underpost ci/cd cli v3.2.30
 
 **Usage:** `underpost [options] [command]`
 
@@ -222,6 +222,9 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--bc <commit-hash>` | Shows branches that contain the specified commit. |
 | `--is-remote-repo <url-repo>` | Checks whether a remote Git repository URL is reachable. Prints true or false. |
 | `--has-changes` | Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise. |
+| `--remote-url` | Prints the current git remote URL (origin) in plain text. |
+| `--switch-repo <url>` | Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo". |
+| `--target-branch <branch>` | Target branch for --switch-repo (default: master). |
 | `-h, --help` | display help for command |
 
 ---
@@ -467,6 +470,7 @@ Manages application deployments, defaulting to deploying development pods.
 | `--cert-hosts <hosts>` | Resets TLS/SSL certificate secrets for specified hosts. |
 | `--self-signed` | Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. The secret must already exist in the namespace with the same name as the host. Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer. |
 | `--node <node>` | Sets optional node for deployment operations. |
+| `--ssh-key-path <path>` | Private key path for node SSH operations. Currently used when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa. |
 | `--build-manifest` | Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets. |
 | `--replicas <replicas>` | Sets a custom number of replicas for deployments. |
 | `--image <image>` | Sets a custom image for deployments. |
@@ -830,6 +834,7 @@ Runs specified scripts using various runners.
 | `--replicas <replicas>` | Sets a custom number of replicas for deployment. |
 | `--pod-name <pod-name>` | Optional: Specifies the pod name for execution. |
 | `--node-name <node-name>` | Optional: Specifies the node name for execution. |
+| `--ssh-key-path <path>` | Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa. |
 | `--port <port>` | Optional: Specifies the port for execution. |
 | `--etc-hosts` | Enables etc-hosts context for the runner execution. |
 | `--volume-host-path <volume-host-path>` | Optional: Specifies the volume host path for test execution. |
