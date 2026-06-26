@@ -151,13 +151,43 @@ class MapEngineCyberia {
       return false;
     }
 
+    // Collect indices of filtered entities that have the source itemId
+    const eligible = [];
+    for (const { i } of filtered) {
+      const entity = MapEngineCyberia.entities[i];
+      if (Array.isArray(entity?.objectLayerItemIds) && entity.objectLayerItemIds.includes(source)) {
+        eligible.push(i);
+      }
+    }
+
+    if (!eligible.length) {
+      NotificationManager.Push({
+        html: `No exact ItemId matches for "${source}" were found in the current filtered entities.`,
+        status: 'error',
+      });
+      return false;
+    }
+
+    // When enableRandomFactors is active, each matching entity independently rolls
+    // a random probability check in [fMin, fMax]. If the roll passes, it gets renamed;
+    // otherwise it stays unchanged. This produces an intermediate intensity between
+    // "almost everyone" (factors near/above 1.0) and "almost no one" (factors near 0).
     let matchedEntities = 0;
     let renamedReferences = 0;
     const changed = MapEngineCyberia.commitEntityMutation(() => {
-      for (const { i } of filtered) {
+      for (const i of eligible) {
+        if (MapEngineCyberia.enableRandomFactors) {
+          const rawA = parseFloat(s('.map-engine-factor-a')?.value);
+          const rawB = parseFloat(s('.map-engine-factor-b')?.value);
+          const minF = Number.isFinite(rawA) ? rawA : 0.5;
+          const maxF = Number.isFinite(rawB) ? rawB : 1.5;
+          const fMin = Math.min(minF, maxF);
+          const fMax = Math.max(minF, maxF);
+          const roll = fMin + Math.random() * (fMax - fMin);
+          // If the roll is >= 1.0, always rename; otherwise compare against Math.random()
+          if (roll < 1.0 && Math.random() > roll) continue;
+        }
         const entity = MapEngineCyberia.entities[i];
-        if (!Array.isArray(entity?.objectLayerItemIds) || entity.objectLayerItemIds.length === 0) continue;
-
         let entityChanged = false;
         entity.objectLayerItemIds = entity.objectLayerItemIds.map((itemId) => {
           if (itemId !== source) return itemId;
@@ -165,7 +195,6 @@ class MapEngineCyberia {
           renamedReferences += 1;
           return target;
         });
-
         if (entityChanged) matchedEntities += 1;
       }
     });
