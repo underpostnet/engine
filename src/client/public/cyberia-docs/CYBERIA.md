@@ -224,7 +224,7 @@ cyberia chain register / mint / transfer / burn / pause / unpause
 
 # Named workflows
 cyberia run-workflow import-default-items
-cyberia run-workflow seed-skill-config --instance-code default
+cyberia run-workflow seed-skills
 cyberia run-workflow seed-dialogues
 cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard

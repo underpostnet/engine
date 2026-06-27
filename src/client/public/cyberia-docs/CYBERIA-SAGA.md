@@ -38,7 +38,7 @@ for binding quests/actions to cells and producing object-layer renders.
 
 ## Pipeline
 
-The ecosystem is generated in **five bounded, sequential stages** rather than a
+The ecosystem is generated in **six bounded, sequential stages** rather than a
 single monolithic request. Each stage emits one layer and feeds canonical
 (slugified) references into the next, so no single model call has to produce the
 whole cross-referenced graph — this keeps each Gemini request small enough to
@@ -54,12 +54,20 @@ Google Gemini (Generative Language API /v1beta/models/{model}:generateContent)
    │   stage 3  quests      → quests           (consume item ids + map zones)
    │   stage 4  dialogues   → dialogues        (consume quest codes)
    │   stage 5  actions     → actions          (consume quest + dialogue + item codes)
+   │   stage 6  skills      → skills           (bind trigger items → logic-event handlers)
    ▼
-normalizeSagaPayload()   ── enforces text-only boundary, slugifies, resolves refs
-   │
+normalizeSagaPayload()   ── enforces text-only boundary, slugifies, resolves refs,
+   │                         derives the CyberiaInstance shell from saga + map codes
    ▼
 persistSagaPayload()     ── idempotent upserts into MongoDB
 ```
+
+The **instance** is not a model call: it is derived deterministically from the
+saga's own metadata (`code`, `name`, `description`) plus the map codes the saga
+already defined, so the saga is immediately playable as a `CyberiaInstance`.
+Skill `logicEventId`s are restricted to the handlers the simulation actually
+implements (`projectile`, `coin_drop_or_transaction`, `doppelganger`); unknown
+ones are dropped during normalization.
 
 ### Theme source: prompt vs. lore-grounded auto-generation
 
@@ -284,14 +292,23 @@ Options:
 A single JSON object with these interrelated sections:
 
 - **saga** — `code`, `name`, `description`, `mapCodes[]`, `itemIds[]`, `questCodes[]`.
+- **instance** — the playable `CyberiaInstance` shell derived from the saga
+  metadata: `code`, `name`, `description`, `tags[]`, `cyberiaMapCodes[]` (the
+  saga's map codes), `itemIds[]` (`{ id, defaultPlayerInventory }`),
+  `topologyMode`. Spatial topology (`portals`) and the tuning ref (`conf`) are
+  left empty here and bound by downstream spatial synthesis.
 - **maps[]** — narrative zones the quest chain visits: `code`, `name`,
   `description` (text only — grid/cells/entities stay at schema defaults). Their
-  codes populate `saga.mapCodes`.
+  codes populate `saga.mapCodes` and `instance.cyberiaMapCodes`.
 - **quests[]** — textual objectives, titles, linear `steps[]` with
   `collect | talk | kill` objectives and `rewards[]`. Spatial fields `null`.
 - **dialogues[]** — narrative nodes: `code`, `order`, `speaker`, `text`, `mood`.
 - **actions[]** — interaction nodes: `dialogCode`, `questDialogueCodes[]`,
   `shopItems[]` pricing, and `craftRecipes[]`. Spatial fields `null`.
+- **skills[]** — `triggerItemId` → logic skills: `logicEventIds[]` (derived) and
+  `skills[]` (`logicEventId`, `name`, `description`, `summonedEntityItemId`). The
+  trigger and every non-placeholder summoned id resolve to an
+  `objectLayers[].item.id`.
 - **objectLayers[]** — item data with balanced `stats`, an `item`
   (`id`, `type`, `description`, `activable`), and `render: null`.
 
@@ -315,8 +332,13 @@ normalization slugifies every code/id so they line up:
 - action `questDialogueCodes[].questCode` resolves to a `quests[].code`;
 - action `dialogCode` / `questDialogueCodes[].dialogCode` resolve to a
   `dialogues[].code`;
+- skill `triggerItemId` resolves to an `objectLayers[].item.id` (skills whose
+  trigger is unknown are dropped), and each non-placeholder `summonedEntityItemId`
+  resolves to one too — a deterministic repair (`ensureSkillLinkage`) appends a
+  minimal `skill`-type item for any summoned id the model omitted;
 - `saga.questCodes` / `saga.itemIds` are reconciled to include every generated
-  quest and item.
+  quest and item (including appended skill items), and `instance.cyberiaMapCodes`
+  / `instance.itemIds` mirror the saga's.
 
 ### `talk` objectives (guaranteed fulfillable)
 
@@ -343,11 +365,19 @@ Documents are written sequentially with idempotent upserts (rerunnable):
 | Section       | Model                  | Upsert key       |
 | ------------- | ---------------------- | ---------------- |
 | saga          | `CyberiaSagaModel`     | `code`           |
+| instance      | `CyberiaInstanceModel` | `code`           |
 | maps          | `CyberiaMapModel`      | `code`           |
 | quests        | `CyberiaQuestModel`    | `code`           |
 | dialogues     | `CyberiaDialogueModel` | `code` + `order` |
 | actions       | `CyberiaActionModel`   | `code`           |
+| skills        | `CyberiaSkillModel`    | `triggerItemId`  |
 | object layers | `ObjectLayerModel`     | `data.item.id`   |
+
+The **instance** refreshes its textual/logical fields every run but PRESERVES
+`portals` and `conf` (set only on insert), so downstream spatial topology is
+never clobbered — the same preservation contract `ObjectLayer` render/ledger
+uses. **Skills** are upserted by `triggerItemId` into the `CyberiaSkill`
+collection — the authoritative own-model source the gRPC server reads.
 
 Both `generate` and `import` go through the same persistence path. Object-layer
 items are written as real `ObjectLayer` documents so they are immediately

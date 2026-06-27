@@ -178,8 +178,8 @@ Named scripts from the `scripts/` directory for seeding and build maintenance.
 
 | Subcommand                   | Description                                                                         |
 | ---------------------------- | ----------------------------------------------------------------------------------- |
-| `import-default-items`       | Import default object layers, skill config, dialogues, client-hints to Mongo        |
-| `seed-skill-config`          | Upsert `DefaultSkillConfig` into a `CyberiaInstance` (`--instance-code`)            |
+| `import-default-items`       | Import default object layers, skills, dialogues, actions/quests, client-hints to Mongo |
+| `seed-skills`                | Upsert `DefaultSkillConfig` into the `cyberia-skill` collection (full records)       |
 | `seed-dialogues`             | Upsert `DefaultCyberiaDialogues` into the `cyberia-dialogue` collection             |
 | `generate-semantic-examples` | Generate one procedural example per registered semantic prefix                      |
 | `build-manifest`             | Build K8s Deployment + Service manifests for mmo-client / mmo-server                |
@@ -187,7 +187,7 @@ Named scripts from the `scripts/` directory for seeding and build maintenance.
 
 ```bash
 cyberia run-workflow import-default-items --env-path ./engine-private/conf/dd-cyberia/.env.development
-cyberia run-workflow seed-skill-config --instance-code default
+cyberia run-workflow seed-skills
 cyberia run-workflow generate-semantic-examples
 cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard
