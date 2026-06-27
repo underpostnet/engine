@@ -1762,6 +1762,7 @@ try {
           'cyberia-quest',
           'cyberia-action',
           'cyberia-skill',
+          'cyberia-saga',
           'object-layer',
           'object-layer-render-frames',
           'atlas-sprite-sheet',
@@ -1780,6 +1781,7 @@ try {
       const CyberiaQuest = DataBaseProviderService.getModel('cyberia-quest', { host, path });
       const CyberiaAction = DataBaseProviderService.getModel('cyberia-action', { host, path });
       const CyberiaSkill = DataBaseProviderService.getModel('cyberia-skill', { host, path });
+      const CyberiaSaga = DataBaseProviderService.getModel('cyberia-saga', { host, path });
       const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
       const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
       const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
@@ -2016,7 +2018,9 @@ try {
         if (quests.length > 0) {
           fs.ensureDirSync(`${backupDir}/cyberia-quests`);
           for (const quest of quests) {
-            fs.writeJsonSync(`${backupDir}/cyberia-quests/${encodeURIComponent(quest.code)}.json`, quest, { spaces: 2 });
+            fs.writeJsonSync(`${backupDir}/cyberia-quests/${encodeURIComponent(quest.code)}.json`, quest, {
+              spaces: 2,
+            });
           }
           logger.info(`Exported ${quests.length} CyberiaQuest document(s)`, { codes: quests.map((q) => q.code) });
         }
@@ -2083,11 +2087,9 @@ try {
           if (skills.length > 0) {
             fs.ensureDirSync(`${backupDir}/cyberia-skills`);
             for (const skill of skills) {
-              fs.writeJsonSync(
-                `${backupDir}/cyberia-skills/${encodeURIComponent(skill.triggerItemId)}.json`,
-                skill,
-                { spaces: 2 },
-              );
+              fs.writeJsonSync(`${backupDir}/cyberia-skills/${encodeURIComponent(skill.triggerItemId)}.json`, skill, {
+                spaces: 2,
+              });
               for (const def of skill.skills || []) {
                 if (def.summonedEntityItemId && !def.summonedEntityItemId.startsWith('$')) {
                   objectLayerItemIds.add(def.summonedEntityItemId);
@@ -2100,7 +2102,33 @@ try {
           }
         }
 
-        // 4e. Export dialogues for all relevant object-layer items (codes follow the
+        // 4e. Export sagas related to this instance. A saga is considered related
+        //     when its code matches the instance code (direct namespace match), or
+        //     when its mapCodes or itemIds overlap with the instance's data.
+        //     At this point objectLayerItemIds contains all map-entity, instance-level,
+        //     conf-default, and skill-summoned item IDs — giving the broadest possible
+        //     match surface for saga discovery.
+        const sagaCodeMatch = instanceCode ? await CyberiaSaga.find({ code: instanceCode }).lean() : [];
+        const sagaMapOverlap =
+          mapCodes.size > 0 ? await CyberiaSaga.find({ mapCodes: { $in: [...mapCodes] } }).lean() : [];
+        const sagaItemOverlap =
+          objectLayerItemIds.size > 0
+            ? await CyberiaSaga.find({ itemIds: { $in: [...objectLayerItemIds] } }).lean()
+            : [];
+        const allSagas = [
+          ...new Map(
+            [...sagaCodeMatch, ...sagaMapOverlap, ...sagaItemOverlap].map((s) => [s._id.toString(), s]),
+          ).values(),
+        ];
+        if (allSagas.length > 0) {
+          fs.ensureDirSync(`${backupDir}/cyberia-sagas`);
+          for (const saga of allSagas) {
+            fs.writeJsonSync(`${backupDir}/cyberia-sagas/${encodeURIComponent(saga.code)}.json`, saga, { spaces: 2 });
+          }
+          logger.info(`Exported ${allSagas.length} CyberiaSaga document(s)`, { codes: allSagas.map((s) => s.code) });
+        }
+
+        // 4f. Export dialogues for all relevant object-layer items (codes follow the
         //     pattern "default-<itemId>") plus the dialogue codes the instance's
         //     actions reference. If an item has no dialogue docs yet but ships with
         //     DefaultCyberiaDialogues, seed those defaults into Mongo first.
@@ -2982,6 +3010,25 @@ try {
         }
         if (backfilledSkillCount > 0) {
           logger.info(`Backfilled ${backfilledSkillCount} CyberiaSkill document(s) from DefaultSkillConfig`);
+        }
+
+        // 8f. Import CyberiaSaga documents (overwrite by code).
+        const sagasDir = `${backupDir}/cyberia-sagas`;
+        if (fs.existsSync(sagasDir)) {
+          const sagaFiles = fs.readdirSync(sagasDir).filter((f) => f.endsWith('.json'));
+          let sagaCount = 0;
+          for (const file of sagaFiles) {
+            const sagaData = fs.readJsonSync(`${sagasDir}/${file}`);
+            if (!sagaData.code) {
+              logger.warn(`Skipping CyberiaSaga backup without code: ${file}`);
+              continue;
+            }
+            await CyberiaSaga.deleteOne({ code: sagaData.code });
+            if (sagaData._id) await CyberiaSaga.deleteOne({ _id: sagaData._id });
+            await CyberiaSaga.create(sagaData);
+            sagaCount++;
+          }
+          logger.info(`Imported ${sagaCount} CyberiaSaga document(s)`);
         }
 
         // 9. Restore IPFS pin records and payloads
