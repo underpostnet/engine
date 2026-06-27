@@ -589,16 +589,16 @@ Abstract, kind-agnostic runner that relocates any schedulable Kubernetes workloa
 
 ```bash
 # Move a single deployment to a node (built-in hostname label, no node mutation)
-node bin run node-move deployment/dd-cyberia-production-blue --node-name hp-envy-iso-ram-rocky9
+node bin run node-move deployment/dd-cyberia-production-blue --node-name machine-node-hostname
 
 # Move every StatefulSet in a namespace — preview the kubectl commands only
-node bin run node-move statefulset --node-name hp-envy-iso-ram-rocky9 --dry-run
+node bin run node-move statefulset --node-name machine-node-hostname --dry-run
 
 # Move all movable workloads (deployment + statefulset + daemonset) in the namespace
-node bin run node-move --node-name hp-envy-iso-ram-rocky9
+node bin run node-move --node-name machine-node-hostname
 
 # Label-pool style: label the target node and select by that label (reusable pools)
-node bin run node-move deployment/dd-core-production-blue --node-name hp-envy-iso-ram-rocky9 --labels workload=worker2
+node bin run node-move deployment/dd-core-production-blue --node-name machine-node-hostname --labels workload=worker2
 
 # Undo placement — clear the nodeSelector so the scheduler is free again
 node bin run node-move deployment/dd-cyberia-production-blue --remove
@@ -639,14 +639,14 @@ The post-install role is selected with `--worker` (join an existing cluster) or 
 
 ```bash
 # Full worker flow: OS already deployed → run host prereqs + engine setup + join
-node bin baremetal hp-envy-iso-ram-rocky9 --dev --worker \
+node bin baremetal machine-node-hostname --dev --worker \
   --control 192.168.1.85 --deploy-id dd-core --user admin \
   --engine-repo https://github.com/underpostnet/engine.git \
   --engine-private-repo https://github.com/underpostnet/engine-private.git \
   --resume-infra-setup
 
 # Fast re-join only: node already has engine + Node.js + CRI-O + kubelet + kubeadm
-node bin baremetal hp-envy-iso-ram-rocky9 --dev --worker \
+node bin baremetal machine-node-hostname --dev --worker \
   --control 192.168.1.85 --deploy-id dd-core --user admin --resume-join
 ```
 
