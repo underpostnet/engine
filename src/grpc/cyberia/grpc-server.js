@@ -20,11 +20,8 @@ import {
   ENTITY_TYPE_DEFAULTS,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
-  DefaultCyberiaItems,
-  // STATUS_ICONS deliberately not imported here — see toInstanceConfig.
-  // Server simulation only cares about the numeric u8 IDs (which travel on
-  // the AOI wire). Icon stems + border colours live in SharedDefaultsCyberia.
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 
 const logger = loggerFactory(import.meta);
@@ -126,6 +123,91 @@ function selectCanonicalEntityDefaultIndex(entityDefault, canonicalDefaults, use
     return preferredIndex;
   }
   return pickBestIndex(canonicalDefaults.map((_, index) => index));
+}
+
+// Merge instance-level itemIds flagged `defaultPlayerInventory` into the player
+// entityDefault's defaultObjectLayers so cyberia-server seeds them into every new
+// player's inventory (see handlers.go player spawn). Items are added inactive —
+// present in the inventory, not auto-equipped — so they never violate the
+// one-active-per-type equipment rule.
+//
+// Also **removes** items that are flagged `defaultPlayerInventory: false` from
+// the player's defaultObjectLayers. This ensures the instance's explicit intent
+// is honoured even when the conf's entityDefaults (e.g. from a backup/import)
+// baked those items into the player layer list.
+function applyInstanceDefaultPlayerInventory(config, instanceItemIds = []) {
+  const entries = instanceItemIds || [];
+
+  // ── 1. Remove items explicitly flagged as NOT default player inventory ─────
+  const removeIds = new Set(
+    entries
+      .filter((entry) => entry && entry.defaultPlayerInventory === false && entry.id)
+      .map((entry) => entry.id),
+  );
+  if (removeIds.size > 0) {
+    for (const ed of config.entityDefaults || []) {
+      if (ed.defaultObjectLayers) {
+        ed.defaultObjectLayers = ed.defaultObjectLayers.filter((ol) => !removeIds.has(ol.itemId));
+      }
+    }
+  }
+
+  // ── 2. Add items flagged as default player inventory ──────────────────────
+  const addIds = entries
+    .filter((entry) => entry && entry.defaultPlayerInventory && entry.id)
+    .map((entry) => entry.id);
+  if (addIds.length === 0) return config;
+
+  const playerDefault = (config.entityDefaults || []).find((d) => d.entityType === 'player');
+  if (!playerDefault) return config;
+
+  playerDefault.defaultObjectLayers = playerDefault.defaultObjectLayers || [];
+  const existing = new Set(playerDefault.defaultObjectLayers.map((ol) => ol.itemId));
+  for (const id of addIds) {
+    if (existing.has(id)) continue;
+    playerDefault.defaultObjectLayers.push({ itemId: id, active: false, quantity: 1 });
+    existing.add(id);
+  }
+  return config;
+}
+
+// Map CyberiaSkill collection docs to the proto skillConfig shape. The skill
+// collection is the authoritative own-model source: it carries full skill
+// metadata (summonedEntityItemId, name, description) that the instance-conf
+// skillConfig schema deliberately does not store.
+function skillDocsToConfig(skillDocs = []) {
+  return skillDocs
+    .filter((d) => d && d.triggerItemId)
+    .map((d) => ({
+      triggerItemId: d.triggerItemId,
+      skills: (d.skills || []).map((sk) => ({
+        logicEventId: sk.logicEventId || '',
+        name: sk.name || '',
+        description: sk.description || '',
+        summonedEntityItemId: sk.summonedEntityItemId || '',
+      })),
+    }));
+}
+
+// Load authoritative skill configs from the CyberiaSkill collection. Returns []
+// when the model is not loaded (api not mounted) or the collection is empty, so
+// callers transparently keep the conf / fallback skillConfig.
+async function loadSkillConfigDocs(models) {
+  if (!models.CyberiaSkill) return [];
+  return await models.CyberiaSkill.find({}).lean();
+}
+
+// Feed skill trigger items and every concrete summoned-entity id into the atlas
+// id set so the Go server resolves their sprites even when the entity appears in
+// no map. Runtime placeholders ('$active_skin', …) are excluded.
+function addSkillAtlasIds(skillDocs, atlasItemIds) {
+  for (const d of skillDocs || []) {
+    if (d.triggerItemId) atlasItemIds.add(d.triggerItemId);
+    for (const sk of d.skills || []) {
+      const id = sk.summonedEntityItemId;
+      if (id && !id.startsWith('$')) atlasItemIds.add(id);
+    }
+  }
 }
 
 function mergeEntityDefaults(entityDefaults = []) {
@@ -496,9 +578,17 @@ function buildHandlers(dbKey) {
             if (it?.item?.id) fallbackItemIds.add(it.item.id);
           }
 
+          // Own-model skills (if seeded) override the fallback skillConfig; their
+          // summoned-entity atlases are resolved alongside the world's.
+          const fallbackSkillDocs = await loadSkillConfigDocs(models);
+          addSkillAtlasIds(fallbackSkillDocs, fallbackItemIds);
+
           const fallbackOlDocs = fallbackItemIds.size
             ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } }).lean()
             : [];
+
+          const fallbackConfig = toInstanceConfig(fallbackConf);
+          if (fallbackSkillDocs.length) fallbackConfig.skillConfig = skillDocsToConfig(fallbackSkillDocs);
 
           callback(null, {
             instance: toInstanceMsg({
@@ -523,7 +613,7 @@ function buildHandlers(dbKey) {
               entities: (m.entities || []).map(toEntityMsg),
             })),
             objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
-            config: toInstanceConfig(fallbackConf),
+            config: fallbackConfig,
             version: 'fallback',
             // Mission content for the procedural fallback comes straight from
             // the canonical defaults — no DB, fully self-contained.
@@ -560,6 +650,14 @@ function buildHandlers(dbKey) {
           }
         }
 
+        // Instance-level itemIds (e.g. default-player-inventory items) may not
+        // appear in any map entity — include them so their atlases resolve.
+        // Tolerate legacy flat-string entries alongside the { id, … } shape.
+        for (const entry of inst.itemIds || []) {
+          const id = typeof entry === 'string' ? entry : entry?.id;
+          if (id) itemIds.add(id);
+        }
+
         // Include system OL items from BOTH canonical ENTITY_TYPE_DEFAULTS AND
         // the DB conf so the Go server always caches all default atlases even if
         // the DB doc has incomplete entityDefaults.
@@ -572,6 +670,11 @@ function buildHandlers(dbKey) {
           }
         }
 
+        // Authoritative skills come from the CyberiaSkill collection (own model);
+        // resolve their atlases before the OL query so summoned entities render.
+        const skillDocs = await loadSkillConfigDocs(models);
+        addSkillAtlasIds(skillDocs, itemIds);
+
         const olDocs = itemIds.size
           ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } }).lean()
           : [];
@@ -581,6 +684,9 @@ function buildHandlers(dbKey) {
         const versionParts = [String(inst.updatedAt || inst._id)];
         for (const m of mapDocs) versionParts.push(String(m.updatedAt || m._id));
         if (conf.updatedAt) versionParts.push(String(conf.updatedAt));
+        // Skill edits live in their own collection — fold them in so a skill
+        // change triggers a Go-side world rebuild instead of serving stale skills.
+        for (const sk of skillDocs) versionParts.push(String(sk.updatedAt || sk._id));
         const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
         // Mission content for this instance: actions and quests bound to its
@@ -596,11 +702,16 @@ function buildHandlers(dbKey) {
             ? await models.CyberiaQuest.find({ sourceMapCode: { $in: mapCodes } }).lean()
             : [];
 
+        const config = applyInstanceDefaultPlayerInventory(toInstanceConfig(conf), inst.itemIds);
+        // Own-model skills win over the conf's stripped skillConfig (which lacks
+        // summonedEntityItemId); empty collection leaves the conf/fallback as-is.
+        if (skillDocs.length) config.skillConfig = skillDocsToConfig(skillDocs);
+
         callback(null, {
           instance: toInstanceMsg(inst),
           maps: mapDocs.map(toMapMsg),
           objectLayers: olDocs.map(toObjectLayerMsg),
-          config: toInstanceConfig(conf),
+          config,
           version,
           actions: actionDocs.map(toActionMsg),
           quests: questDocs.map(toQuestMsg),
