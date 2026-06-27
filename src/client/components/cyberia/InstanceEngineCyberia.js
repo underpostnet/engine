@@ -27,10 +27,79 @@ class InstanceEngineCyberia {
   static thumbnailDirty = false;
   static portals = [];
   static itemIdsDropdownId = 'instance-engine-item-ids-dropdown';
+  static itemInventoryListId = 'instance-engine-item-inventory-list';
+  // itemId → defaultPlayerInventory flag for the currently selected item ids.
+  static itemInventoryFlags = {};
+
+  // Current selection, read from the dropdown's `oncheckvalues` (always live —
+  // it is updated before `_renderSelectedBadges` runs, unlike `.value` which
+  // lags by one in the option-click path).
+  static getSelectedItemIds() {
+    const token = DropDown.Tokens[InstanceEngineCyberia.itemIdsDropdownId];
+    if (!token) return [];
+    const fromChecks = Object.values(token.oncheckvalues || {})
+      .map((v) => v.data)
+      .filter(Boolean);
+    if (fromChecks.length > 0) return fromChecks;
+    return Array.isArray(token.value) ? token.value.filter(Boolean) : [];
+  }
+
+  // Render the per-item "Default Player Inventory" toggles for every selected
+  // item id. Kept in sync with the dropdown via a MutationObserver on its badge
+  // container (see render()).
+  static renderItemInventoryList(containerId = InstanceEngineCyberia.itemInventoryListId) {
+    const container = s(`.${containerId}`);
+    if (!container) return;
+
+    const selected = InstanceEngineCyberia.getSelectedItemIds();
+
+    // Drop flags for items no longer selected so the payload never carries them.
+    for (const key of Object.keys(InstanceEngineCyberia.itemInventoryFlags)) {
+      if (!selected.includes(key)) delete InstanceEngineCyberia.itemInventoryFlags[key];
+    }
+
+    if (selected.length === 0) {
+      htmls(`.${containerId}`, html`<div style="color:#888;font-size:12px;">No item IDs selected.</div>`);
+      return;
+    }
+
+    let listHtml = '';
+    for (const itemId of selected) {
+      const checked = InstanceEngineCyberia.itemInventoryFlags[itemId] ? 'checked' : '';
+      listHtml += html`<div class="fl" style="border-bottom:1px solid #444;padding:4px 0;align-items:center;">
+        <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">${itemId}</div>
+        <div class="in fll" style="display:flex;align-items:center;justify-content:flex-end;">
+          <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+            <input
+              type="checkbox"
+              class="instance-engine-item-inv-checkbox"
+              data-item-id="${itemId}"
+              ${checked}
+              style="cursor:pointer;"
+            />
+            Default Player Inventory
+          </label>
+        </div>
+      </div>`;
+    }
+    htmls(`.${containerId}`, listHtml);
+
+    container.querySelectorAll('.instance-engine-item-inv-checkbox').forEach((cb) => {
+      cb.onchange = () => {
+        InstanceEngineCyberia.itemInventoryFlags[cb.dataset.itemId] = cb.checked;
+      };
+    });
+  }
 
   static syncItemIdsDropdownSelection(itemIds = []) {
     const dropdownId = InstanceEngineCyberia.itemIdsDropdownId;
     if (!DropDown.Tokens[dropdownId]) return;
+
+    // Accept both the new [{ id, defaultPlayerInventory }] shape and the legacy
+    // string[] shape so older instance docs keep loading.
+    const normalized = (itemIds || [])
+      .map((entry) => (typeof entry === 'string' ? { id: entry, defaultPlayerInventory: false } : entry))
+      .filter((entry) => entry && entry.id);
 
     DropDown.Tokens[dropdownId].value = [];
     if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = [];
@@ -38,17 +107,22 @@ class InstanceEngineCyberia {
     htmls(`.dropdown-current-${dropdownId}`, '');
     htmls(`.${dropdownId}-render-container`, '');
 
-    for (const itemId of itemIds) {
-      const key = dropdownValueKey(itemId);
+    InstanceEngineCyberia.itemInventoryFlags = {};
+    const ids = [];
+    for (const entry of normalized) {
+      const key = dropdownValueKey(entry.id);
       DropDown.Tokens[dropdownId].oncheckvalues[key] = {
-        data: itemId,
-        display: itemId,
-        value: itemId,
+        data: entry.id,
+        display: entry.id,
+        value: entry.id,
       };
+      InstanceEngineCyberia.itemInventoryFlags[entry.id] = !!entry.defaultPlayerInventory;
+      ids.push(entry.id);
     }
-    DropDown.Tokens[dropdownId].value = [...itemIds];
-    if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = [...itemIds];
+    DropDown.Tokens[dropdownId].value = [...ids];
+    if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = [...ids];
     DropDown.Tokens[dropdownId]._renderSelectedBadges?.();
+    InstanceEngineCyberia.renderItemInventoryList();
   }
 
   static async buildItemIdsDropdown() {
@@ -184,7 +258,10 @@ class InstanceEngineCyberia {
       const cyberiaMapCodes = DropDown.Tokens[idMapCodesDropdown]?.value
         ? [...DropDown.Tokens[idMapCodesDropdown].value]
         : [];
-      const itemIds = DropDown.Tokens[idItemIdsDropdown]?.value ? [...DropDown.Tokens[idItemIdsDropdown].value] : [];
+      const itemIds = InstanceEngineCyberia.getSelectedItemIds().map((id) => ({
+        id,
+        defaultPlayerInventory: !!InstanceEngineCyberia.itemInventoryFlags[id],
+      }));
       const payload = {
         code: s(`.${idCode}`)?.value || '',
         name: s(`.${idName}`)?.value || '',
@@ -381,6 +458,8 @@ class InstanceEngineCyberia {
         htmls(`.dropdown-current-${idItemIdsDropdown}`, '');
         htmls(`.${idItemIdsDropdown}-render-container`, '');
       }
+      InstanceEngineCyberia.itemInventoryFlags = {};
+      InstanceEngineCyberia.renderItemInventoryList();
       InstanceEngineCyberia.portals = [];
       InstanceEngineCyberia.renderPortalList(portalListId);
     };
@@ -494,6 +573,19 @@ class InstanceEngineCyberia {
           });
           InstanceEngineCyberia.renderPortalList(portalListId);
         };
+
+      // Keep the per-item "Default Player Inventory" toggles in sync with the
+      // item-ids dropdown. Every add/remove/clear re-renders the dropdown badge
+      // container, so observing it is a reliable change hook (the dropdown
+      // exposes no onChange callback).
+      const itemBadgeContainer = s(`.dropdown-current-${idItemIdsDropdown}`);
+      if (itemBadgeContainer) {
+        const itemInventoryObserver = new MutationObserver(() => {
+          InstanceEngineCyberia.renderItemInventoryList();
+        });
+        itemInventoryObserver.observe(itemBadgeContainer, { childList: true, subtree: true });
+      }
+      InstanceEngineCyberia.renderItemInventoryList();
 
       ThemeEvents['instance-engine-theme'] = () => {
         InstanceEngineCyberia.renderPortalList(portalListId);
@@ -645,6 +737,10 @@ class InstanceEngineCyberia {
         })}
       </div>
       <div class="in section-mp" style="margin-top: 10px;">${await InstanceEngineCyberia.buildItemIdsDropdown()}</div>
+      <div class="in section-mp" style="margin-top: 5px;">
+        <div class="in input-label" style="font-size:13px;margin-bottom:5px;">Default Player Inventory</div>
+        <div class="in ${InstanceEngineCyberia.itemInventoryListId}" style="max-height:200px;overflow-y:auto;"></div>
+      </div>
       <div class="in section-mp" style="margin-top: 10px;">
         <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Portals</div>
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalSource, type: 'search-inputs' })}

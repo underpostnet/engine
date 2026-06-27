@@ -52,8 +52,19 @@ const CyberiaInstanceSchema = new Schema(
     // Vertex set of the graph
     cyberiaMapCodes: { type: [String], default: [] },
 
-    // Instance-level object layer item IDs.
-    itemIds: { type: [String], default: [] },
+    // Instance-level object layer item IDs. Each entry binds an item id to the
+    // instance and flags whether it seeds every player's starting inventory
+    // (defaultPlayerInventory → merged into the player entityDefault's
+    // defaultObjectLayers when the world is served to cyberia-server).
+    itemIds: {
+      type: [
+        {
+          id: { type: String, required: true },
+          defaultPlayerInventory: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
 
     // Directed edge set of the graph
     portals: { type: [PortalEdgeSchema], default: [] },
