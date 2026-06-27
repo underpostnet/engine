@@ -11,6 +11,7 @@ import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.servic
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { CyberiaActionService } from '../../services/cyberia-action/cyberia-action.service.js';
 import { CyberiaDialogueService } from '../../services/cyberia-dialogue/cyberia-dialogue.service.js';
+import { CyberiaSkillService } from '../../services/cyberia-skill/cyberia-skill.service.js';
 import { QUEST_STEPS_TYPES, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
 
 const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
@@ -38,15 +39,20 @@ class ActionEngineCyberia {
   static questListCache = [];
   static actionListCache = [];
   static dialogueListCache = [];
+  static skillListCache = [];
 
   static currentQuestId = null;
   static currentActionId = null;
   static currentDialogueId = null;
+  static currentSkillId = null;
 
   static questSteps = [];
   static questRewards = [];
   static actionQuestDialogues = [];
   static loadedActionPayloadExtras = {};
+  // Editable `skills[]` for the loaded CyberiaSkill (logicEventIds are derived
+  // from these on save, mirroring DefaultSkillConfig).
+  static skillDefs = [];
 
   static ids = {
     mapDropdown: 'action-engine-map-dropdown',
@@ -55,6 +61,8 @@ class ActionEngineCyberia {
     objectiveType: 'action-engine-objective-type',
     actionDialogPicker: 'action-engine-action-dialog-picker',
     actionQuestDialogPicker: 'action-engine-action-quest-dialog-picker',
+    skillTriggerItemPicker: 'action-engine-skill-trigger-item-picker',
+    skillSummonedItemPicker: 'action-engine-skill-summoned-item-picker',
   };
 
   // ── Searchable dropdown helpers ─────────────────────────────────────────
@@ -337,7 +345,7 @@ class ActionEngineCyberia {
   // ── Mode switching ──────────────────────────────────────────────────────
   static setMode(mode) {
     ActionEngineCyberia.mode = mode;
-    for (const m of ['quest', 'action', 'dialogue']) {
+    for (const m of ['quest', 'action', 'dialogue', 'skill']) {
       const panel = s(`.action-engine-panel-${m}`);
       if (panel) panel.classList[m === mode ? 'remove' : 'add']('hide');
       const tab = s(`.action-engine-tab-${m}`);
@@ -1032,6 +1040,183 @@ class ActionEngineCyberia {
     }
   }
 
+  // ── Skill list editor + persistence (own model: CyberiaSkill) ────────────
+  static async renderSkillDefList() {
+    const container = s('.action-engine-skill-def-list');
+    if (!container) return;
+    let out = '';
+    for (let i = 0; i < ActionEngineCyberia.skillDefs.length; i++) {
+      const sk = ActionEngineCyberia.skillDefs[i];
+      out += html`<div
+        class="fl"
+        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+      >
+        <div class="in fll" style="flex:1;">
+          <span style="color:${darkTheme ? '#8cf' : '#246'};">${sk.logicEventId}</span>${sk.name
+            ? ` · ${sk.name}`
+            : ''}${sk.summonedEntityItemId
+            ? html`<span style="margin:0 4px;">&rarr;</span>${sk.summonedEntityItemId}`
+            : ''}
+        </div>
+        ${await BtnIcon.instance({
+          class: `btn-aes-rmskill-${i}`,
+          label: html`<i class="fa-solid fa-xmark"></i>`,
+          style: 'min-width:30px;padding:2px 8px;',
+        })}
+      </div>`;
+    }
+    if (!out) out = '<div style="color:#888;font-size:12px;">No skills. Add at least one logic event.</div>';
+    htmls('.action-engine-skill-def-list', out);
+    for (let i = 0; i < ActionEngineCyberia.skillDefs.length; i++) {
+      if (s(`.btn-aes-rmskill-${i}`))
+        s(`.btn-aes-rmskill-${i}`).onclick = () => {
+          ActionEngineCyberia.skillDefs.splice(i, 1);
+          ActionEngineCyberia.renderSkillDefList();
+        };
+    }
+  }
+
+  static addSkillDef() {
+    const logicEventId = s('.action-engine-skill-logic-event')?.value?.trim();
+    const name = s('.action-engine-skill-name')?.value?.trim() || '';
+    const description = s('.action-engine-skill-description')?.value || '';
+    const summonedEntityItemId = ActionEngineCyberia.getSingleDropdownValue(
+      ActionEngineCyberia.ids.skillSummonedItemPicker,
+    );
+    if (!logicEventId) {
+      NotificationManager.Push({ html: 'Logic event id is required.', status: 'error' });
+      return;
+    }
+    if (ActionEngineCyberia.skillDefs.some((sk) => sk.logicEventId === logicEventId)) {
+      NotificationManager.Push({ html: `Logic event "${logicEventId}" already added.`, status: 'error' });
+      return;
+    }
+    ActionEngineCyberia.skillDefs.push({ logicEventId, name, description, summonedEntityItemId });
+    for (const cls of ['action-engine-skill-logic-event', 'action-engine-skill-name', 'action-engine-skill-description'])
+      if (s(`.${cls}`)) s(`.${cls}`).value = '';
+    ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
+    ActionEngineCyberia.renderSkillDefList();
+  }
+
+  static async renderSkillCards() {
+    const container = s('.action-engine-skill-cards');
+    if (!container) return;
+    const filter = (s('.action-engine-skill-search')?.value || '').toLowerCase();
+    const items = ActionEngineCyberia.skillListCache.filter(
+      (d) =>
+        !filter ||
+        (d.triggerItemId || '').toLowerCase().includes(filter) ||
+        (d.logicEventIds || []).some((l) => (l || '').toLowerCase().includes(filter)),
+    );
+    let out = '';
+    for (const doc of items) {
+      const [loadBtn, delBtn] = await ActionEngineCyberia.cardActionsHtml(
+        `btn-aes-load-${doc._id}`,
+        `btn-aes-del-${doc._id}`,
+      );
+      out += ActionEngineCyberia.cardWrap(
+        html`<div class="fl" style="align-items:center;">
+          <div class="in fll" style="flex:1;">
+            <div style="font-weight:bold;font-family:monospace;font-size:12px;">${doc.triggerItemId}</div>
+            <div style="font-size:11px;color:#888;">${(doc.logicEventIds || []).join(', ') || '—'}</div>
+            <div style="font-size:11px;color:#888;">${(doc.skills || []).length} skill(s)</div>
+          </div>
+          <div class="in fll" style="display:flex;gap:4px;">${loadBtn}${delBtn}</div>
+        </div>`,
+      );
+    }
+    if (!out) out = '<div style="color:#888;font-size:12px;">No skills found.</div>';
+    htmls('.action-engine-skill-cards', out);
+    for (const doc of items) {
+      if (s(`.btn-aes-load-${doc._id}`))
+        s(`.btn-aes-load-${doc._id}`).onclick = async () => {
+          const res = await CyberiaSkillService.get({ id: doc._id });
+          if (res.status === 'success' && res.data) ActionEngineCyberia.loadSkill(res.data);
+        };
+      if (s(`.btn-aes-del-${doc._id}`))
+        s(`.btn-aes-del-${doc._id}`).onclick = () => ActionEngineCyberia.deleteSkill(doc._id);
+    }
+  }
+
+  static async refreshSkillList() {
+    const res = await CyberiaSkillService.get({ limit: 500 });
+    ActionEngineCyberia.skillListCache = res?.data?.data || [];
+    await ActionEngineCyberia.renderSkillCards();
+  }
+
+  static getSkillPayload() {
+    const triggerItemId = ActionEngineCyberia.getSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker);
+    const skills = ActionEngineCyberia.skillDefs.map((sk) => ({
+      logicEventId: sk.logicEventId,
+      name: sk.name || '',
+      description: sk.description || '',
+      summonedEntityItemId: sk.summonedEntityItemId || '',
+    }));
+    // logicEventIds is the compact discriminator list — derived from the skills
+    // so the two can never drift (matches DefaultSkillConfig).
+    const logicEventIds = [...new Set(skills.map((sk) => sk.logicEventId).filter(Boolean))];
+    return { triggerItemId, logicEventIds, skills };
+  }
+
+  static loadSkill(doc) {
+    ActionEngineCyberia.setMode('skill');
+    ActionEngineCyberia.currentSkillId = doc._id || null;
+    ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, doc.triggerItemId || '');
+    ActionEngineCyberia.skillDefs = (doc.skills || []).map((sk) => ({
+      logicEventId: sk.logicEventId,
+      name: sk.name || '',
+      description: sk.description || '',
+      summonedEntityItemId: sk.summonedEntityItemId || '',
+    }));
+    ActionEngineCyberia.renderSkillDefList();
+    NotificationManager.Push({ html: `Skill "${doc.triggerItemId}" loaded`, status: 'success' });
+  }
+
+  static resetSkill() {
+    ActionEngineCyberia.currentSkillId = null;
+    ActionEngineCyberia.skillDefs = [];
+    ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, '');
+    ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
+    for (const cls of ['action-engine-skill-logic-event', 'action-engine-skill-name', 'action-engine-skill-description'])
+      if (s(`.${cls}`)) s(`.${cls}`).value = '';
+    ActionEngineCyberia.renderSkillDefList();
+  }
+
+  static async saveSkill() {
+    const body = ActionEngineCyberia.getSkillPayload();
+    if (!body.triggerItemId) {
+      NotificationManager.Push({ html: 'Trigger item id is required.', status: 'error' });
+      return;
+    }
+    if (body.skills.length === 0) {
+      NotificationManager.Push({ html: 'Add at least one skill (logic event).', status: 'error' });
+      return;
+    }
+    const isUpdate = !!ActionEngineCyberia.currentSkillId;
+    const result = isUpdate
+      ? await CyberiaSkillService.put({ id: ActionEngineCyberia.currentSkillId, body })
+      : await CyberiaSkillService.post({ body });
+    ActionEngineCyberia.notifyResult(result, isUpdate);
+    if (result.status === 'success') {
+      if (result.data?._id) ActionEngineCyberia.currentSkillId = result.data._id;
+      await ActionEngineCyberia.refreshSkillList();
+    }
+  }
+
+  static async deleteSkill(id) {
+    const targetId = id || ActionEngineCyberia.currentSkillId;
+    if (!targetId) return;
+    const result = await CyberiaSkillService.delete({ id: targetId });
+    NotificationManager.Push({
+      html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
+      status: result.status,
+    });
+    if (result.status === 'success') {
+      if (targetId === ActionEngineCyberia.currentSkillId) ActionEngineCyberia.resetSkill();
+      await ActionEngineCyberia.refreshSkillList();
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
   static async render() {
     ActionEngineCyberia.mode = 'quest';
@@ -1042,13 +1227,16 @@ class ActionEngineCyberia {
     ActionEngineCyberia.questListCache = [];
     ActionEngineCyberia.actionListCache = [];
     ActionEngineCyberia.dialogueListCache = [];
+    ActionEngineCyberia.skillListCache = [];
     ActionEngineCyberia.currentQuestId = null;
     ActionEngineCyberia.currentActionId = null;
     ActionEngineCyberia.currentDialogueId = null;
+    ActionEngineCyberia.currentSkillId = null;
     ActionEngineCyberia.questSteps = [];
     ActionEngineCyberia.questRewards = [];
     ActionEngineCyberia.actionQuestDialogues = [];
     ActionEngineCyberia.loadedActionPayloadExtras = {};
+    ActionEngineCyberia.skillDefs = [];
 
     const ids = ActionEngineCyberia.ids;
     const objectiveTypeOptions = QUEST_STEPS_TYPES.map((t) => ({ value: t, display: t, data: t, onClick: () => {} }));
@@ -1065,6 +1253,7 @@ class ActionEngineCyberia {
       actionCl: 'action-engine-dc-action-cl',
       actionQd: 'action-engine-dc-action-qd',
       dialogue: 'action-engine-dc-dialogue',
+      skillDef: 'action-engine-dc-skill-def',
     };
 
     const group = (title, icon, inner) =>
@@ -1135,7 +1324,7 @@ class ActionEngineCyberia {
         ActionEngineCyberia.renderAssignmentReview();
       };
 
-      for (const m of ['quest', 'action', 'dialogue'])
+      for (const m of ['quest', 'action', 'dialogue', 'skill'])
         if (s(`.action-engine-tab-${m}`)) s(`.action-engine-tab-${m}`).onclick = () => ActionEngineCyberia.setMode(m);
       ActionEngineCyberia.setMode('quest');
 
@@ -1217,13 +1406,29 @@ class ActionEngineCyberia {
       if (s('.action-engine-dialogue-search'))
         s('.action-engine-dialogue-search').addEventListener('input', () => ActionEngineCyberia.renderDialogueCards());
 
+      // Skill wiring
+      if (s('.btn-action-engine-add-skill-def'))
+        s('.btn-action-engine-add-skill-def').onclick = () => ActionEngineCyberia.addSkillDef();
+      if (s('.btn-action-engine-skill-save'))
+        s('.btn-action-engine-skill-save').onclick = () => ActionEngineCyberia.saveSkill();
+      if (s('.btn-action-engine-skill-delete'))
+        s('.btn-action-engine-skill-delete').onclick = () => ActionEngineCyberia.deleteSkill();
+      if (s('.btn-action-engine-skill-new'))
+        s('.btn-action-engine-skill-new').onclick = () => ActionEngineCyberia.resetSkill();
+      if (s('.btn-action-engine-skill-refresh'))
+        s('.btn-action-engine-skill-refresh').onclick = () => ActionEngineCyberia.refreshSkillList();
+      if (s('.action-engine-skill-search'))
+        s('.action-engine-skill-search').addEventListener('input', () => ActionEngineCyberia.renderSkillCards());
+
       ActionEngineCyberia.renderStepList();
       ActionEngineCyberia.renderRewardList();
       ActionEngineCyberia.renderQuestDialogueList();
+      ActionEngineCyberia.renderSkillDefList();
       ActionEngineCyberia.renderAssignmentReview();
       await ActionEngineCyberia.refreshQuestList();
       await ActionEngineCyberia.refreshActionList();
       await ActionEngineCyberia.refreshDialogueList();
+      await ActionEngineCyberia.refreshSkillList();
     });
 
     const tabBtn = (mode, label) =>
@@ -1288,6 +1493,7 @@ class ActionEngineCyberia {
         ${tabBtn('quest', html`<i class="fa-solid fa-scroll"></i> Quests`)}
         ${tabBtn('action', html`<i class="fa-solid fa-handshake"></i> Actions`)}
         ${tabBtn('dialogue', html`<i class="fa-solid fa-comments"></i> Dialogues`)}
+        ${tabBtn('skill', html`<i class="fa-solid fa-wand-sparkles"></i> Skills`)}
       </div>
 
       <!-- Quest panel -->
@@ -1573,6 +1779,70 @@ class ActionEngineCyberia {
           'fa-solid fa-comments',
           html`${await listToolbar('dialogue')}
             <div class="in action-engine-dialogue-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+        )}
+      </div>
+
+      <!-- Skill panel -->
+      <div class="in action-engine-panel-skill hide">
+        ${group(
+          'Skill Definition',
+          'fa-solid fa-circle-info',
+          html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
+              Trigger item — the ObjectLayer item whose active layer fires these skills.
+            </div>
+            ${await ActionEngineCyberia.buildItemIdDropdown(ids.skillTriggerItemPicker, html`Search trigger itemId`)}`,
+        )}
+        ${group(
+          'Logic Skills',
+          'fa-solid fa-bolt',
+          html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add logic event</div>
+            ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
+            <div class="fl">
+              <div class="in fll ${dc.skillDef}-col-a" style="padding-right:4px;">
+                ${await Input.instance({
+                  id: 'action-engine-skill-logic-event',
+                  label: html`Logic Event Id`,
+                  containerClass: 'inl',
+                  type: 'text',
+                })}
+              </div>
+              <div class="in fll ${dc.skillDef}-col-b" style="padding-left:4px;">
+                ${await Input.instance({
+                  id: 'action-engine-skill-name',
+                  label: html`Name`,
+                  containerClass: 'inl',
+                  type: 'text',
+                })}
+              </div>
+            </div>
+            <div class="in" style="margin-top:6px;">
+              ${await Input.instance({
+                id: 'action-engine-skill-description',
+                label: html`Description`,
+                containerClass: 'inl',
+                type: 'text',
+              })}
+            </div>
+            <div class="in" style="margin-top:6px;">
+              ${await ActionEngineCyberia.buildItemIdDropdown(
+                ids.skillSummonedItemPicker,
+                html`Summoned entity itemId`,
+              )}
+            </div>
+            <div class="in" style="margin-top:6px;">
+              ${await BtnIcon.instance({
+                class: 'wfa btn-action-engine-add-skill-def',
+                label: html`<i class="fa-solid fa-plus"></i> Add Skill`,
+              })}
+            </div>
+            <div class="in action-engine-skill-def-list" style="margin-top:8px;"></div>`,
+        )}
+        ${group('Save Skill', 'fa-solid fa-floppy-disk', await crudButtons('skill', false))}
+        ${group(
+          'Existing Skills',
+          'fa-solid fa-wand-sparkles',
+          html`${await listToolbar('skill')}
+            <div class="in action-engine-skill-cards" style="max-height:300px;overflow-y:auto;"></div>`,
         )}
       </div>
     </div>`;
