@@ -1077,8 +1077,7 @@ const SKILL_LOGIC_EVENTS = {
     'Fires a projectile toward the tap direction, summoning a skill/bullet entity. Spawn chance and lifetime scale with Intelligence and Range.',
   coin_drop_or_transaction:
     'Drops coins automatically when an entity is killed; transfer amount scales with the kill-percent rules.',
-  doppelganger:
-    'Summons a passive clone of the caster that wanders nearby. Spawn chance scales with Intelligence.',
+  doppelganger: 'Summons a passive clone of the caster that wanders nearby. Spawn chance scales with Intelligence.',
 };
 
 /**
@@ -1358,6 +1357,55 @@ function ensureTalkLinkage({ quests, dialogues, actions, objectLayers }) {
 }
 
 /**
+ * Resolve the NPC skin item id an action is mounted on: the `<skin>` in its
+ * `default-<skin>` greeting dialog code, falling back to a slug of its label.
+ * @param {Object} action
+ * @returns {string}
+ */
+function actionProviderSkin(action) {
+  const dialogCode = String(action?.dialogCode || '');
+  const prefix = 'default-';
+  if (dialogCode.startsWith(prefix)) return dialogCode.slice(prefix.length);
+  return slugify(action?.label || '');
+}
+
+/**
+ * Derive the saga's NPC-provider reference maps from the action graph — the
+ * authoritative source binding NPCs to content: each action represents an NPC
+ * skin (its `default-<skin>` greeting) and binds quests via `questDialogueCodes`.
+ * Returns deduped entries shaped for the CyberiaSaga schema.
+ * @param {Object[]} actions - Normalized actions (post-{@link ensureTalkLinkage}).
+ * @returns {{ questCodes: {providerSkinItemId: string, questCode: string}[],
+ *             actionCodes: {providerSkinItemId: string, actionCode: string}[] }}
+ */
+function deriveSagaProviderRefs(actions) {
+  const questCodes = [];
+  const actionCodes = [];
+  const seenQuest = new Set();
+  const seenAction = new Set();
+
+  for (const action of asArray(actions)) {
+    const providerSkinItemId = actionProviderSkin(action);
+    if (!providerSkinItemId) continue;
+
+    if (action.code && !seenAction.has(action.code)) {
+      seenAction.add(action.code);
+      actionCodes.push({ providerSkinItemId, actionCode: action.code });
+    }
+
+    for (const qd of asArray(action.questDialogueCodes)) {
+      const questCode = qd?.questCode;
+      if (!questCode) continue;
+      const key = `${providerSkinItemId}::${questCode}`;
+      if (seenQuest.has(key)) continue;
+      seenQuest.add(key);
+      questCodes.push({ providerSkinItemId, questCode });
+    }
+  }
+  return { questCodes, actionCodes };
+}
+
+/**
  * Slugify an item reference, preserving the runtime placeholder sentinel
  * (`$active_skin` and any `$`-prefixed value), which the server resolves at
  * runtime rather than a real ObjectLayer id.
@@ -1548,8 +1596,11 @@ function normalizeSagaPayload(raw, { theme }) {
   ensureSkillLinkage({ skills, objectLayers });
 
   const itemIds = objectLayers.map((ol) => ol.item.id).filter(Boolean);
-  const questCodes = quests.map((q) => q.code).filter(Boolean);
   const mapCodes = maps.map((m) => m.code).filter(Boolean);
+  // questCodes / actionCodes are NPC-provider maps derived from the (now
+  // self-consistent) action graph — the single source of truth for which bot
+  // provides each quest / hosts each action.
+  const { questCodes, actionCodes } = deriveSagaProviderRefs(actions);
 
   const saga = {
     code: slugify(rawSaga.code) || slugify(theme) || `cyberia-saga-${Date.now()}`,
@@ -1557,7 +1608,8 @@ function normalizeSagaPayload(raw, { theme }) {
     description: rawSaga.description || '',
     mapCodes: [...new Set([...asArray(rawSaga.mapCodes).map(slugify), ...mapCodes])].filter(Boolean),
     itemIds: [...new Set([...asArray(rawSaga.itemIds).map(slugify), ...itemIds])].filter(Boolean),
-    questCodes: [...new Set([...asArray(rawSaga.questCodes).map(slugify), ...questCodes])].filter(Boolean),
+    questCodes,
+    actionCodes,
   };
 
   // A CyberiaInstance derived from the saga's own metadata + the map codes it
@@ -1665,8 +1717,16 @@ async function persistInstance({ instance, CyberiaInstance }) {
  * @returns {Promise<{ saga, instance, maps, quests, dialogues, actions, skills, objectLayers: number }>}
  */
 async function persistSagaPayload({ payload, models }) {
-  const { CyberiaSaga, CyberiaInstance, CyberiaMap, CyberiaQuest, CyberiaDialogue, CyberiaAction, CyberiaSkill, ObjectLayer } =
-    models;
+  const {
+    CyberiaSaga,
+    CyberiaInstance,
+    CyberiaMap,
+    CyberiaQuest,
+    CyberiaDialogue,
+    CyberiaAction,
+    CyberiaSkill,
+    ObjectLayer,
+  } = models;
   const { saga, instance, maps, quests, dialogues, actions, skills, objectLayers } = payload;
 
   await CyberiaSaga.findOneAndUpdate({ code: saga.code }, { $set: saga }, { upsert: true });
@@ -1825,11 +1885,7 @@ async function generateRawEcosystem(
     .filter((it) => it.id);
   const skillsRes = await client.chatJson({
     system: buildStagePrompt('skills', namingGuidance, customizationGuidance, spaceContextKey),
-    user: buildStageUser(
-      theme,
-      { items: itemsWithTypes, logicEvents: Object.keys(SKILL_LOGIC_EVENTS) },
-      lore,
-    ),
+    user: buildStageUser(theme, { items: itemsWithTypes, logicEvents: Object.keys(SKILL_LOGIC_EVENTS) }, lore),
     thinkingLevel,
     temperature,
   });
@@ -2033,6 +2089,7 @@ export {
   ensureTalkLinkage,
   ensureSkillLinkage,
   collectTalkTargets,
+  deriveSagaProviderRefs,
   persistSagaPayload,
   persistInstance,
   persistObjectLayers,

@@ -19,10 +19,29 @@ const CyberiaSagaSchema = new Schema(
     // Complete set of item identifiers associated with this saga.
     itemIds: { type: [String], default: [] },
 
-    // Complete set of quest identifiers that belong to this saga,
-    // regardless of whether they are roots, branches, optional,
-    // hidden, or unlocked later in progression.
-    questCodes: { type: [String], default: [] },
+    // Quests that belong to this saga, each paired with the NPC skin item that
+    // provides it (the bot whose interaction opens or advances the quest).
+    questCodes: {
+      type: [
+        {
+          providerSkinItemId: { type: String, required: true },
+          questCode: { type: String, required: true },
+        },
+      ],
+      default: [],
+    },
+
+    // Actions that belong to this saga, each paired with the NPC skin item the
+    // action is mounted on (the bot the action represents).
+    actionCodes: {
+      type: [
+        {
+          providerSkinItemId: { type: String, required: true },
+          actionCode: { type: String, required: true },
+        },
+      ],
+      default: [],
+    },
 
     // Publication or visibility status.
     status: { type: String, default: 'unlisted' },
