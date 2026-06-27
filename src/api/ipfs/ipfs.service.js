@@ -18,13 +18,26 @@ const logger = loggerFactory(import.meta);
  */
 const createPinRecord = async ({ cid, resourceType, mfsPath = '', options }) => {
   const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
-  const record = await Ipfs.findOneAndUpdate(
-    { cid, resourceType },
-    { cid, resourceType, mfsPath },
-    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-  );
-  logger.info(`IPFS registry upserted – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
-  return record;
+  try {
+    const record = await Ipfs.findOneAndUpdate(
+      { cid, resourceType },
+      { $set: { mfsPath } },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+    );
+    logger.info(`IPFS registry upserted – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
+    return record;
+  } catch (err) {
+    if (err?.code === 11000) {
+      const record = await Ipfs.findOneAndUpdate(
+        { cid, resourceType },
+        { $set: { mfsPath } },
+        { returnDocument: 'after' },
+      );
+      logger.info(`IPFS registry reconciled (duplicate key) – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
+      return record;
+    }
+    throw err;
+  }
 };
 /**
  * Remove all DB registry entries for a CID, then best-effort unpin from the IPFS node.

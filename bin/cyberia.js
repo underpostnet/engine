@@ -2260,20 +2260,12 @@ try {
               }
             }
 
-            // Export AtlasSpriteSheet + its File using canonical payload bytes from the DB state.
-            if (ol.atlasSpriteSheetId) {
-              const atlas = await AtlasSpriteSheet.findById(ol.atlasSpriteSheetId).lean();
-              if (!atlas) {
-                ipfsPayloadFailures.push({
-                  itemKey,
-                  resourceType: 'atlas-sprite-sheet',
-                  mfsPath: itemPaths.atlasSpriteSheet,
-                  reason: 'AtlasSpriteSheet document not found in MongoDB',
-                });
-                continue;
-              }
-
+            const atlas =
+              (ol.atlasSpriteSheetId ? await AtlasSpriteSheet.findById(ol.atlasSpriteSheetId).lean() : null) ||
+              (await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey }).lean());
+            if (atlas) {
               const atlasExport = newInstance(atlas);
+              objectLayerExport.atlasSpriteSheetId = atlas._id;
               if (atlas.fileId) {
                 await exportFileDoc(atlas.fileId, `atlas-${itemKey}`);
               }
@@ -3061,10 +3053,6 @@ try {
           }
 
           const backupPinEntries = serialiseCanonicalPins(backupPins);
-          const backupCids = [...new Set(backupPinEntries.map((entry) => entry.cid).filter(Boolean))];
-          if (backupCids.length > 0) {
-            await Ipfs.deleteMany({ cid: { $in: backupCids } });
-          }
 
           const restoreAdditionalMfsPaths = async (cid, mfsPaths, primaryPath) => {
             let restoredCount = 0;
@@ -3076,78 +3064,99 @@ try {
             return restoredCount;
           };
 
-          const upsertImportedPin = async ({ cid, resourceType, mfsPath }) => {
-            if (!cid || !resourceType) return;
-            await Ipfs.deleteMany({ cid, resourceType });
-            await createPinRecord({ cid, resourceType, mfsPath: mfsPath || '', options: { host, path } });
-          };
-
           if (fs.existsSync(ipfsContentDir)) {
             let cidRewriteCount = 0;
             let extraMfsRestoreCount = 0;
+            let ipfsAlreadyPresent = 0;
 
             for (const [index, doc] of backupPinEntries.entries()) {
               const mfsPaths = collectMfsPaths(doc);
               const primaryPath = mfsPaths[0] || '';
               const payloadPath = `${ipfsContentDir}/${doc.cid}.bin`;
 
-              logger.info('IPFS raw payload restore start', {
-                index: index + 1,
-                total: backupPinEntries.length,
-                cid: doc.cid,
-                resourceType: doc.resourceType,
-                mfsPath: primaryPath || null,
-              });
+              try {
+                const existing = await Ipfs.findOne({ cid: doc.cid, resourceType: doc.resourceType })
+                  .select({ _id: 1 })
+                  .lean();
+                if (existing) {
+                  ipfsAlreadyPresent++;
+                  continue;
+                }
 
-              if (!fs.existsSync(payloadPath)) {
-                logger.warn('IPFS raw payload file missing from backup', {
+                logger.info('IPFS raw payload restore start', {
+                  index: index + 1,
+                  total: backupPinEntries.length,
                   cid: doc.cid,
                   resourceType: doc.resourceType,
                   mfsPath: primaryPath || null,
                 });
-                ipfsSkipped++;
-                continue;
-              }
 
-              const addResult = await IpfsClient.addToIpfs(
-                fs.readFileSync(payloadPath),
-                nodePath.basename(primaryPath || doc.cid),
-                primaryPath || undefined,
-              );
+                if (!fs.existsSync(payloadPath)) {
+                  logger.warn('IPFS raw payload file missing from backup', {
+                    cid: doc.cid,
+                    resourceType: doc.resourceType,
+                    mfsPath: primaryPath || null,
+                  });
+                  ipfsSkipped++;
+                  continue;
+                }
 
-              if (!addResult?.cid) {
-                logger.warn('IPFS raw payload restore failed', {
+                const addResult = await IpfsClient.addToIpfs(
+                  fs.readFileSync(payloadPath),
+                  nodePath.basename(primaryPath || doc.cid),
+                  primaryPath || undefined,
+                );
+
+                if (!addResult?.cid) {
+                  logger.warn('IPFS raw payload restore failed', {
+                    cid: doc.cid,
+                    resourceType: doc.resourceType,
+                    mfsPath: primaryPath || null,
+                  });
+                  ipfsSkipped++;
+                  continue;
+                }
+
+                const finalCid = addResult.cid;
+                if (doc.cid !== finalCid) {
+                  await rewriteImportedCidReferences({
+                    oldCid: doc.cid,
+                    newCid: finalCid,
+                    resourceType: doc.resourceType,
+                  });
+                  cidRewriteCount++;
+                  logger.warn('IPFS raw payload CID mismatch during import; rewriting imported references', {
+                    oldCid: doc.cid,
+                    newCid: finalCid,
+                    resourceType: doc.resourceType,
+                    mfsPath: primaryPath || null,
+                  });
+                }
+
+                extraMfsRestoreCount += await restoreAdditionalMfsPaths(finalCid, mfsPaths, primaryPath);
+                // createPinRecord is an idempotent upsert on (cid, resourceType).
+                await createPinRecord({
+                  cid: finalCid,
+                  resourceType: doc.resourceType,
+                  mfsPath: primaryPath || '',
+                  options: { host, path },
+                });
+                ipfsCount++;
+              } catch (entryError) {
+                logger.warn('IPFS pin restore failed for one entry — skipping it, the import continues', {
                   cid: doc.cid,
                   resourceType: doc.resourceType,
                   mfsPath: primaryPath || null,
+                  error: entryError?.message ?? String(entryError),
                 });
                 ipfsSkipped++;
-                continue;
               }
-
-              const finalCid = addResult.cid;
-              if (doc.cid !== finalCid) {
-                await rewriteImportedCidReferences({
-                  oldCid: doc.cid,
-                  newCid: finalCid,
-                  resourceType: doc.resourceType,
-                });
-                cidRewriteCount++;
-                logger.warn('IPFS raw payload CID mismatch during import; rewriting imported references', {
-                  oldCid: doc.cid,
-                  newCid: finalCid,
-                  resourceType: doc.resourceType,
-                  mfsPath: primaryPath || null,
-                });
-              }
-
-              extraMfsRestoreCount += await restoreAdditionalMfsPaths(finalCid, mfsPaths, primaryPath);
-              await upsertImportedPin({ cid: finalCid, resourceType: doc.resourceType, mfsPath: primaryPath });
-              ipfsCount++;
             }
 
             logger.info(
-              `Imported ${ipfsCount} Ipfs pin record(s) from exact backup payloads${ipfsSkipped ? `, skipped ${ipfsSkipped}` : ''}`,
+              `Imported ${ipfsCount} Ipfs pin record(s) from exact backup payloads` +
+                `${ipfsAlreadyPresent ? `, ${ipfsAlreadyPresent} already present (skipped)` : ''}` +
+                `${ipfsSkipped ? `, ${ipfsSkipped} skipped` : ''}`,
             );
             logger.info(
               `IPFS raw payload restore: ${ipfsCount}/${backupPinEntries.length} record(s) restored, ${extraMfsRestoreCount} additional MFS path(s) restored${cidRewriteCount ? `, ${cidRewriteCount} CID rewrite(s)` : ''}`,
