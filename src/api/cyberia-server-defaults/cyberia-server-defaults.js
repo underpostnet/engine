@@ -38,19 +38,6 @@
 // Node imports work from any path, so we reach into it from here.
 import { ITEM_TYPES, ENTITY_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
-// Re-export the shared vocabulary so existing server-side imports keep
-// working without each consumer having to know which module owns which.
-export {
-  ITEM_TYPES,
-  ENTITY_TYPES,
-  ENTITY_TYPE_TO_ITEM_TYPES,
-  QUEST_STEPS_TYPES,
-  DefaultCyberiaItems,
-  getDefaultCyberiaItemById,
-  getDefaultCyberiaItemsByItemType,
-  getDefaultCyberiaItemsByEntityType,
-} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-
 /**
  * Native-dependency pin list. Consumed by `bin/build.js` and `bin/deploy.js`
  * when materialising the Cyberia subtree so versions stay reproducible
@@ -69,12 +56,71 @@ export class CyberiaDependencies {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Compact `triggerItemId → logicEventIds[]` table.  The engine expands each
- * entry into a richer skill record in CYBERIA_INSTANCE_CONF_DEFAULTS below.
+ * Canonical skill configuration — single source of truth for every trigger
+ * item → skill mapping consumed by the runtime simulation.
+ *
+ * Each entry carries both:
+ *   - `logicEventIds`  (compact array of handler keys, used by the Mongo schema)
+ *   - `skills`         (expanded metadata with name, description, summoned entity)
+ *
+ * Consumers:
+ *   - `CYBERIA_INSTANCE_CONF_DEFAULTS.skillConfig` (gRPC fallback defaults)
+ *   - `bin/cyberia.js seed-skills` (upsert into the cyberia-skill collection —
+ *     the authoritative CyberiaSkill model keeps the full record, including the
+ *     `skills` metadata the instance-conf skillConfig schema drops)
  */
 export const DefaultSkillConfig = [
-  { triggerItemId: 'atlas_pistol_mk2', logicEventIds: ['projectile'] },
-  { triggerItemId: 'coin', logicEventIds: ['coin_drop_or_transaction'] },
+  {
+    triggerItemId: 'atlas_pistol_mk2',
+    logicEventIds: ['projectile'],
+    skills: [
+      {
+        logicEventId: 'projectile',
+        name: 'Projectile',
+        description:
+          'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+        summonedEntityItemId: 'atlas_pistol_mk2_bullet',
+      },
+    ],
+  },
+  {
+    triggerItemId: 'coin',
+    logicEventIds: ['coin_drop_or_transaction'],
+    skills: [
+      {
+        logicEventId: 'coin_drop_or_transaction',
+        name: 'Coin Drop',
+        description:
+          'Coins are dropped automatically when an entity is killed. Transfer amount scales with kill percent rules.',
+        summonedEntityItemId: 'coin',
+      },
+    ],
+  },
+  // {
+  //   triggerItemId: 'anon',
+  //   logicEventIds: ['doppelganger'],
+  //   skills: [
+  //     {
+  //       logicEventId: 'doppelganger',
+  //       name: 'Doppelganger',
+  //       description: 'Summons a passive clone of yourself that wanders nearby. Spawn chance scales with Intelligence.',
+  //       summonedEntityItemId: '$active_skin',
+  //     },
+  //   ],
+  // },
+  {
+    triggerItemId: 'hatchet',
+    logicEventIds: ['projectile'],
+    skills: [
+      {
+        logicEventId: 'projectile',
+        name: 'Projectile',
+        description:
+          'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+        summonedEntityItemId: 'hatchet-skill',
+      },
+    ],
+  },
 ];
 
 /**
@@ -609,6 +655,9 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: ENTITY_TYPES.obstacle, liveItemIds: [], deadItemIds: [], dropItemIds: [], defaultObjectLayers: [] },
   { entityType: ENTITY_TYPES.portal, liveItemIds: [], deadItemIds: [], dropItemIds: [], defaultObjectLayers: [] },
   { entityType: ENTITY_TYPES.foreground, liveItemIds: [], deadItemIds: [], dropItemIds: [], defaultObjectLayers: [] },
+  // Static decorator — non-moving, passable, depth-sorted. Visuals come from the
+  // map definition / world generator; no live/dead/drop rotation.
+  { entityType: ENTITY_TYPES.static, liveItemIds: [], deadItemIds: [], dropItemIds: [], defaultObjectLayers: [] },
   ...RESOURCE_ENTITY_TYPE_DEFAULTS,
 ]);
 
@@ -680,56 +729,10 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   statusIcons: STATUS_ICONS.map((s) => ({ ...s })),
 
   // ── Skill system ───────────────────────────────────────────────────
-  skillConfig: [
-    {
-      triggerItemId: 'atlas_pistol_mk2',
-      skills: [
-        {
-          logicEventId: 'projectile',
-          name: 'Projectile',
-          description:
-            'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
-          summonedEntityItemId: 'atlas_pistol_mk2_bullet',
-        },
-      ],
-    },
-    {
-      triggerItemId: 'coin',
-      skills: [
-        {
-          logicEventId: 'coin_drop_or_transaction',
-          name: 'Coin Drop',
-          description:
-            'Coins are dropped automatically when an entity is killed. Transfer amount scales with kill percent rules.',
-          summonedEntityItemId: 'coin',
-        },
-      ],
-    },
-    {
-      triggerItemId: 'anon',
-      skills: [
-        {
-          logicEventId: 'doppelganger',
-          name: 'Doppelganger',
-          description:
-            'Summons a passive clone of yourself that wanders nearby. Spawn chance scales with Intelligence.',
-          summonedEntityItemId: '$active_skin',
-        },
-      ],
-    },
-    {
-      triggerItemId: 'hatchet',
-      skills: [
-        {
-          logicEventId: 'projectile',
-          name: 'Projectile',
-          description:
-            'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
-          summonedEntityItemId: 'hatchet-skill',
-        },
-      ],
-    },
-  ],
+  // Canonical skill definitions live in DefaultSkillConfig above.
+  // This reference is the single point of consumption for the gRPC
+  // fallback defaults — any change goes through DefaultSkillConfig.
+  skillConfig: DefaultSkillConfig,
 
   skillRules: {
     projectileSpawnChance: 0.5,

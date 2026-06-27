@@ -22,9 +22,9 @@ import {
   ObjectLayerEngine,
   resolveCanonicalCid,
   pngDirectoryIteratorByObjectLayerType,
-  getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
 } from '../src/projects/cyberia/object-layer.js';
+import { getKeyframeDirectionsByCode } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { AtlasSpriteSheetGenerator } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
 import {
   generateMultiFrame,
@@ -40,13 +40,16 @@ import nodePath from 'path';
 import Underpost from '../src/index.js';
 import { newInstance } from '../src/client/components/core/CommonJs.js';
 import {
-  ITEM_TYPES as itemTypes,
-  DefaultCyberiaItems,
   DefaultSkillConfig,
   DefaultCyberiaDialogues,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+
+import {
+  ITEM_TYPES as itemTypes,
+  DefaultCyberiaItems,
+} from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.
@@ -1222,7 +1225,7 @@ try {
           }
 
           // Get the keyframe direction name from the numerical direction code
-          const objectLayerFrameDirections = getKeyFramesDirectionsFromNumberFolderDirection(direction);
+          const objectLayerFrameDirections = getKeyframeDirectionsByCode(direction);
           if (objectLayerFrameDirections.length === 0) {
             logger.error(`Invalid direction code: ${direction}. Valid codes: 08, 18, 02, 12, 04, 14, 06, 16`);
             process.exit(1);
@@ -1756,6 +1759,9 @@ try {
           'cyberia-dialogue',
           'cyberia-map',
           'cyberia-entity',
+          'cyberia-quest',
+          'cyberia-action',
+          'cyberia-skill',
           'object-layer',
           'object-layer-render-frames',
           'atlas-sprite-sheet',
@@ -1771,6 +1777,9 @@ try {
       const CyberiaInstanceConf = DataBaseProviderService.getModel('cyberia-instance-conf', { host, path });
       const CyberiaDialogue = DataBaseProviderService.getModel('cyberia-dialogue', { host, path });
       const CyberiaMap = DataBaseProviderService.getModel('cyberia-map', { host, path });
+      const CyberiaQuest = DataBaseProviderService.getModel('cyberia-quest', { host, path });
+      const CyberiaAction = DataBaseProviderService.getModel('cyberia-action', { host, path });
+      const CyberiaSkill = DataBaseProviderService.getModel('cyberia-skill', { host, path });
       const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
       const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
       const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
@@ -1999,6 +2008,34 @@ try {
         }
         logger.info(`Exported ${maps.length} CyberiaMap document(s)`, { codes: maps.map((m) => m.code) });
 
+        // 3b. Export quests + actions bound to THIS instance's maps (sourceMapCode
+        //     in the instance's map codes) — only the content tied to this instance.
+        //     Dialogue codes the actions reference are collected so they travel too.
+        const actionDialogueCodes = new Set();
+        const quests = await CyberiaQuest.find({ sourceMapCode: { $in: [...mapCodes] } }).lean();
+        if (quests.length > 0) {
+          fs.ensureDirSync(`${backupDir}/cyberia-quests`);
+          for (const quest of quests) {
+            fs.writeJsonSync(`${backupDir}/cyberia-quests/${encodeURIComponent(quest.code)}.json`, quest, { spaces: 2 });
+          }
+          logger.info(`Exported ${quests.length} CyberiaQuest document(s)`, { codes: quests.map((q) => q.code) });
+        }
+
+        const actions = await CyberiaAction.find({ sourceMapCode: { $in: [...mapCodes] } }).lean();
+        if (actions.length > 0) {
+          fs.ensureDirSync(`${backupDir}/cyberia-actions`);
+          for (const action of actions) {
+            fs.writeJsonSync(`${backupDir}/cyberia-actions/${encodeURIComponent(action.code)}.json`, action, {
+              spaces: 2,
+            });
+            if (action.dialogCode) actionDialogueCodes.add(action.dialogCode);
+            for (const qd of action.questDialogueCodes || []) {
+              if (qd.dialogCode) actionDialogueCodes.add(qd.dialogCode);
+            }
+          }
+          logger.info(`Exported ${actions.length} CyberiaAction document(s)`, { codes: actions.map((a) => a.code) });
+        }
+
         // 4. Collect all objectLayerItemIds from map entities
         const objectLayerItemIds = new Set();
         for (const map of maps) {
@@ -2009,8 +2046,9 @@ try {
           }
         }
 
-        // 4b. Add instance-level itemIds
-        for (const id of instance.itemIds || []) {
+        // 4b. Add instance-level itemIds ({ id, defaultPlayerInventory }).
+        for (const entry of instance.itemIds || []) {
+          const id = typeof entry === 'string' ? entry : entry?.id;
           if (id) objectLayerItemIds.add(id);
         }
 
@@ -2036,12 +2074,41 @@ try {
           }
         }
 
-        // 4d. Export dialogues for all relevant object-layer items. Codes follow the pattern
-        //     "default-<itemId>". If an item has no dialogue docs yet but ships with
-        //     DefaultCyberiaDialogues, seed those defaults into Mongo first.
+        // 4d. Export skills whose trigger item belongs to this instance (own model:
+        //     CyberiaSkill, keyed by triggerItemId). Their summoned-entity items are
+        //     added to the OL set so those atlases export too. Runs before the
+        //     dialogue + OL queries so the summoned ids are included.
         if (objectLayerItemIds.size > 0) {
+          const skills = await CyberiaSkill.find({ triggerItemId: { $in: [...objectLayerItemIds] } }).lean();
+          if (skills.length > 0) {
+            fs.ensureDirSync(`${backupDir}/cyberia-skills`);
+            for (const skill of skills) {
+              fs.writeJsonSync(
+                `${backupDir}/cyberia-skills/${encodeURIComponent(skill.triggerItemId)}.json`,
+                skill,
+                { spaces: 2 },
+              );
+              for (const def of skill.skills || []) {
+                if (def.summonedEntityItemId && !def.summonedEntityItemId.startsWith('$')) {
+                  objectLayerItemIds.add(def.summonedEntityItemId);
+                }
+              }
+            }
+            logger.info(`Exported ${skills.length} CyberiaSkill document(s)`, {
+              triggerItemIds: skills.map((sk) => sk.triggerItemId),
+            });
+          }
+        }
+
+        // 4e. Export dialogues for all relevant object-layer items (codes follow the
+        //     pattern "default-<itemId>") plus the dialogue codes the instance's
+        //     actions reference. If an item has no dialogue docs yet but ships with
+        //     DefaultCyberiaDialogues, seed those defaults into Mongo first.
+        if (objectLayerItemIds.size > 0 || actionDialogueCodes.size > 0) {
           const requestedItemIds = [...objectLayerItemIds];
-          const requestedCodes = requestedItemIds.map((id) => `default-${id}`);
+          const requestedCodes = [
+            ...new Set([...requestedItemIds.map((id) => `default-${id}`), ...actionDialogueCodes]),
+          ];
           const defaultDialoguesByItemId = getDefaultDialoguesByItemId(requestedItemIds);
           const existingDialogueDocs = await CyberiaDialogue.find({
             code: { $in: requestedCodes },
@@ -2377,6 +2444,11 @@ try {
 
         logger.info('Importing instance', { code: instanceCode, backupDir });
 
+        // Item ids belonging to this instance (collected from imported object
+        // layers + the instance doc) — used to backfill missing skills from the
+        // canonical DefaultSkillConfig when the backup predates the skill model.
+        const importedItemIds = new Set();
+
         // 0. Drop existing documents if --drop is set
         if (options.drop && !options.conf) {
           const existingInstance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
@@ -2396,7 +2468,10 @@ try {
             const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
 
             // Add instance-level itemIds (may not appear in any map entity)
-            for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
+            for (const entry of existingInstance.itemIds || []) {
+              const id = typeof entry === 'string' ? entry : entry?.id;
+              if (id) dropOlItemIds.add(id);
+            }
 
             // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
             const existingConf =
@@ -2436,6 +2511,37 @@ try {
 
               const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
               logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
+
+              // Quests + actions are bound to maps by sourceMapCode, so they drop
+              // with this instance's maps — only the content tied to this instance.
+              const questResult = await CyberiaQuest.deleteMany({ sourceMapCode: { $in: [...dropMapCodes] } });
+              if (questResult.deletedCount > 0)
+                logger.info(`Dropped ${questResult.deletedCount} CyberiaQuest document(s)`);
+
+              // Collect instance-specific dialogue codes the actions reference
+              // (e.g. quest-talk-<questCode>) before deleting the actions. The
+              // shared "default-<itemId>" greetings are left to the item-shared
+              // logic below so dialogues shared with other instances survive.
+              const dropActions = await CyberiaAction.find(
+                { sourceMapCode: { $in: [...dropMapCodes] } },
+                { dialogCode: 1, 'questDialogueCodes.dialogCode': 1 },
+              ).lean();
+              const dropActionDialogueCodes = new Set();
+              const collectDlg = (code) => {
+                if (code && !code.startsWith('default-')) dropActionDialogueCodes.add(code);
+              };
+              for (const a of dropActions) {
+                collectDlg(a.dialogCode);
+                for (const qd of a.questDialogueCodes || []) collectDlg(qd.dialogCode);
+              }
+              const actionResult = await CyberiaAction.deleteMany({ sourceMapCode: { $in: [...dropMapCodes] } });
+              if (actionResult.deletedCount > 0)
+                logger.info(`Dropped ${actionResult.deletedCount} CyberiaAction document(s)`);
+              if (dropActionDialogueCodes.size > 0) {
+                const advResult = await CyberiaDialogue.deleteMany({ code: { $in: [...dropActionDialogueCodes] } });
+                if (advResult.deletedCount > 0)
+                  logger.info(`Dropped ${advResult.deletedCount} CyberiaDialogue document(s) (action-referenced)`);
+              }
             }
 
             // Exclude OL item IDs referenced by maps outside this instance
@@ -2464,6 +2570,12 @@ try {
               const dropDialogueCodes = [...dropOlItemIds].map((id) => `default-${id}`);
               const dialogueResult = await CyberiaDialogue.deleteMany({ code: { $in: dropDialogueCodes } });
               logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
+
+              // Skills are keyed by triggerItemId — drop those whose trigger item is
+              // being removed (i.e. not shared with another instance's maps).
+              const skillResult = await CyberiaSkill.deleteMany({ triggerItemId: { $in: [...dropOlItemIds] } });
+              if (skillResult.deletedCount > 0)
+                logger.info(`Dropped ${skillResult.deletedCount} CyberiaSkill document(s)`);
               const olDocs = await ObjectLayer.find(
                 { 'data.item.id': { $in: [...dropOlItemIds] } },
                 {
@@ -2665,6 +2777,7 @@ try {
               await ObjectLayer.deleteOne({ sha256: olData.sha256 });
             }
             await ObjectLayer.create(olData);
+            if (olData.data?.item?.id) importedItemIds.add(olData.data.item.id);
             olCount++;
           }
           logger.info(`Imported ${olCount} ObjectLayer document(s)`);
@@ -2749,6 +2862,13 @@ try {
         const instancePath = `${backupDir}/cyberia-instance.json`;
         if (fs.existsSync(instancePath)) {
           const instanceData = fs.readJsonSync(instancePath);
+          // Heal legacy shapes against the current model. itemIds migrated from a
+          // flat string[] to [{ id, defaultPlayerInventory }] — a raw old backup
+          // would fail Mongoose embedded-cast validation, so normalize it here.
+          instanceData.itemIds = (instanceData.itemIds || [])
+            .map((entry) => (typeof entry === 'string' ? { id: entry, defaultPlayerInventory: false } : entry))
+            .filter((entry) => entry && entry.id);
+          for (const entry of instanceData.itemIds) importedItemIds.add(entry.id);
           await CyberiaInstance.deleteOne({ code: instanceCode });
           await CyberiaInstance.deleteOne({ _id: instanceData._id });
           await CyberiaInstance.create(instanceData);
@@ -2784,6 +2904,84 @@ try {
           }
 
           logger.info(`Imported ${dialogueCount} CyberiaDialogue document(s)`);
+        }
+
+        // 8b. Import CyberiaQuest documents (overwrite by code).
+        const questsDir = `${backupDir}/cyberia-quests`;
+        if (fs.existsSync(questsDir)) {
+          const questFiles = fs.readdirSync(questsDir).filter((f) => f.endsWith('.json'));
+          let questCount = 0;
+          for (const file of questFiles) {
+            const questData = fs.readJsonSync(`${questsDir}/${file}`);
+            if (!questData.code) {
+              logger.warn(`Skipping CyberiaQuest backup without code: ${file}`);
+              continue;
+            }
+            await CyberiaQuest.deleteOne({ code: questData.code });
+            if (questData._id) await CyberiaQuest.deleteOne({ _id: questData._id });
+            await CyberiaQuest.create(questData);
+            questCount++;
+          }
+          logger.info(`Imported ${questCount} CyberiaQuest document(s)`);
+        }
+
+        // 8c. Import CyberiaAction documents (overwrite by code).
+        const actionsDir = `${backupDir}/cyberia-actions`;
+        if (fs.existsSync(actionsDir)) {
+          const actionFiles = fs.readdirSync(actionsDir).filter((f) => f.endsWith('.json'));
+          let actionCount = 0;
+          for (const file of actionFiles) {
+            const actionData = fs.readJsonSync(`${actionsDir}/${file}`);
+            if (!actionData.code) {
+              logger.warn(`Skipping CyberiaAction backup without code: ${file}`);
+              continue;
+            }
+            await CyberiaAction.deleteOne({ code: actionData.code });
+            if (actionData._id) await CyberiaAction.deleteOne({ _id: actionData._id });
+            await CyberiaAction.create(actionData);
+            actionCount++;
+          }
+          logger.info(`Imported ${actionCount} CyberiaAction document(s)`);
+        }
+
+        // 8d. Import CyberiaSkill documents (own model, overwrite by triggerItemId).
+        const skillsDir = `${backupDir}/cyberia-skills`;
+        if (fs.existsSync(skillsDir)) {
+          const skillFiles = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.json'));
+          let skillCount = 0;
+          for (const file of skillFiles) {
+            const skillData = fs.readJsonSync(`${skillsDir}/${file}`);
+            if (!skillData.triggerItemId) {
+              logger.warn(`Skipping CyberiaSkill backup without triggerItemId: ${file}`);
+              continue;
+            }
+            await CyberiaSkill.deleteOne({ triggerItemId: skillData.triggerItemId });
+            if (skillData._id) await CyberiaSkill.deleteOne({ _id: skillData._id });
+            await CyberiaSkill.create(skillData);
+            skillCount++;
+          }
+          logger.info(`Imported ${skillCount} CyberiaSkill document(s)`);
+        }
+
+        // 8e. Backfill missing skills from the canonical DefaultSkillConfig. Old
+        //     backups predate the CyberiaSkill model and ship no skills/ dir, so
+        //     any instance item that has a canonical skill (e.g. atlas_pistol_mk2,
+        //     coin, hatchet) but no document yet is seeded from defaults. Existing
+        //     skills are never overwritten.
+        let backfilledSkillCount = 0;
+        for (const sk of DefaultSkillConfig) {
+          if (!importedItemIds.has(sk.triggerItemId)) continue;
+          const exists = await CyberiaSkill.findOne({ triggerItemId: sk.triggerItemId }).lean();
+          if (exists) continue;
+          await CyberiaSkill.create({
+            triggerItemId: sk.triggerItemId,
+            logicEventIds: sk.logicEventIds || [],
+            skills: sk.skills || [],
+          });
+          backfilledSkillCount++;
+        }
+        if (backfilledSkillCount > 0) {
+          logger.info(`Backfilled ${backfilledSkillCount} CyberiaSkill document(s) from DefaultSkillConfig`);
         }
 
         // 9. Restore IPFS pin records and payloads
@@ -3056,7 +3254,10 @@ try {
           const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
 
           // Add instance-level itemIds (may not appear in any map entity)
-          for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
+          for (const entry of existingInstance.itemIds || []) {
+            const id = typeof entry === 'string' ? entry : entry?.id;
+            if (id) dropOlItemIds.add(id);
+          }
 
           // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
           const existingConf =
@@ -3399,7 +3600,16 @@ try {
         logger.info('generate-saga', { deployId, host, path, db });
 
         await DataBaseProviderService.load({
-          apis: ['cyberia-saga', 'cyberia-map', 'cyberia-quest', 'cyberia-dialogue', 'cyberia-action', 'object-layer'],
+          apis: [
+            'cyberia-saga',
+            'cyberia-map',
+            'cyberia-quest',
+            'cyberia-dialogue',
+            'cyberia-action',
+            'cyberia-skill',
+            'cyberia-instance',
+            'object-layer',
+          ],
           host,
           path,
           db,
@@ -3411,6 +3621,8 @@ try {
           CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
           CyberiaDialogue: DataBaseProviderService.getModel('cyberia-dialogue', { host, path }),
           CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
+          CyberiaSkill: DataBaseProviderService.getModel('cyberia-skill', { host, path }),
+          CyberiaInstance: DataBaseProviderService.getModel('cyberia-instance', { host, path }),
           ObjectLayer: DataBaseProviderService.getModel('object-layer', { host, path }),
         };
       }
@@ -4271,9 +4483,9 @@ try {
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
     .option(
       '--mongo-host <mongo-host>',
-      'Mongo host override (forwarded to ol, seed-skill-config, seed-dialogues, client-hints)',
+      'Mongo host override (forwarded to ol, seed-skills, seed-dialogues, seed-actions-quests, client-hints)',
     )
-    .description('Import default Object Layer items, skill config, dialogues, and client-hints into MongoDB')
+    .description('Import default Object Layer items, skills, dialogues, actions/quests, and client-hints into MongoDB')
     .action(async (options) => {
       // Pre-flight: every item id referenced by the fallback world must
       // exist in DefaultCyberiaItems. Drift here causes silent missing
@@ -4293,81 +4505,10 @@ try {
       const mongoHostFlag = options.mongoHost ? ` --mongo-host ${options.mongoHost}` : '';
       const instanceCode = process.env.INSTANCE_CODE || 'cyberia-main';
       shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}${mongoHostFlag}`);
-      shellExec(`node bin/cyberia run-workflow seed-skill-config${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-skills${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-actions-quests${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}${mongoHostFlag}`);
-    });
-
-  runner
-    .command('seed-skill-config')
-    .option('--instance-code <code>', 'CyberiaInstance code to update (default: $INSTANCE_CODE env or "default")')
-    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
-    .option('--mongo-host <mongo-host>', 'Mongo host override')
-    .option('--dev', 'Force development environment')
-    .description('Upsert default skillConfig entries into a CyberiaInstance document')
-    .action(async (options) => {
-      if (!options.envPath) options.envPath = `./.env`;
-      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
-
-      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
-        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
-        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
-      }
-
-      const deployId = process.env.DEFAULT_DEPLOY_ID;
-      const host = process.env.DEFAULT_DEPLOY_HOST;
-      const path = process.env.DEFAULT_DEPLOY_PATH;
-      const instanceCode = options.instanceCode || process.env.INSTANCE_CODE || 'default';
-
-      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-      if (!fs.existsSync(confServerPath)) {
-        logger.error(`Server config not found: ${confServerPath}`);
-        process.exit(1);
-      }
-      const confServer = loadConfServerJson(confServerPath, { resolve: true });
-      const { db } = confServer[host][path];
-
-      db.host = options.mongoHost
-        ? options.mongoHost
-        : options.dev
-          ? db.host
-          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
-
-      logger.info('seed-skill-config', { instanceCode, deployId, host, path, db });
-
-      await DataBaseProviderService.load({ apis: ['cyberia-instance', 'cyberia-instance-conf'], host, path, db });
-
-      const CyberiaInstance = DataBaseProviderService.getModel('cyberia-instance', { host, path });
-      const CyberiaInstanceConf = DataBaseProviderService.getModel('cyberia-instance-conf', { host, path });
-
-      const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
-
-      if (!instance) {
-        logger.info(
-          `CyberiaInstance "${instanceCode}" not found — seeding skillConfig into conf using fallback defaults. ` +
-            `To link to a live instance, create or import it with: node bin/cyberia instance ${instanceCode} --import`,
-        );
-      }
-
-      // Always upsert the conf with DefaultSkillConfig — idempotent regardless of instance existence.
-      const conf = await CyberiaInstanceConf.findOneAndUpdate(
-        { instanceCode },
-        { $set: { skillConfig: DefaultSkillConfig } },
-        { upsert: true, returnDocument: 'after' },
-      );
-
-      // If a live instance exists, ensure its conf ref is linked.
-      if (instance && (!instance.conf || String(instance.conf) !== String(conf._id))) {
-        await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: conf._id });
-      }
-
-      logger.info(
-        `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
-        DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
-      );
-
-      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
 
   runner
@@ -4477,6 +4618,66 @@ try {
       }
 
       logger.info(`seed-actions-quests: ${actions} actions, ${quests} quests upserted`);
+
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    });
+
+  runner
+    .command('seed-skills')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert DefaultSkillConfig into the cyberia-skill collection (full records, idempotent)')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-skills', { deployId, host, path, db });
+
+      await DataBaseProviderService.load({ apis: ['cyberia-skill'], host, path, db });
+
+      const CyberiaSkill = DataBaseProviderService.getModel('cyberia-skill', { host, path });
+
+      // Upsert each skill record keyed by triggerItemId — full record (logic
+      // event keys + expanded skills metadata), unlike the instance-conf
+      // skillConfig schema which keeps only triggerItemId + logicEventIds.
+      let upserted = 0;
+      for (const sk of DefaultSkillConfig) {
+        await CyberiaSkill.findOneAndUpdate(
+          { triggerItemId: sk.triggerItemId },
+          { $set: { logicEventIds: sk.logicEventIds || [], skills: sk.skills || [] } },
+          { upsert: true },
+        );
+        upserted++;
+      }
+
+      logger.info(
+        `seed-skills: ${upserted} skill records upserted`,
+        DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${(e.logicEventIds || []).join(', ')}]`),
+      );
 
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
