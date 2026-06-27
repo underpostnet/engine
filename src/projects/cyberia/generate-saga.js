@@ -1066,6 +1066,22 @@ const ROLE_PREAMBLE = [
 ].join('\n');
 
 /**
+ * Logic-event handlers the cyberia-server skill dispatcher actually implements.
+ * The skills stage MUST pick `logicEventId` from these keys — any other value is
+ * a no-op in the simulation, so normalization drops unknown ones.
+ * Mirrors DefaultSkillConfig (cyberia-server-defaults.js).
+ * @type {Object<string, string>}
+ */
+const SKILL_LOGIC_EVENTS = {
+  projectile:
+    'Fires a projectile toward the tap direction, summoning a skill/bullet entity. Spawn chance and lifetime scale with Intelligence and Range.',
+  coin_drop_or_transaction:
+    'Drops coins automatically when an entity is killed; transfer amount scales with the kill-percent rules.',
+  doppelganger:
+    'Summons a passive clone of the caster that wanders nearby. Spawn chance scales with Intelligence.',
+};
+
+/**
  * Per-stage system prompt fragments. Each stage emits exactly one top-level key
  * and references canonical codes/ids handed in from previous stages.
  * @type {Object<string, string>}
@@ -1127,6 +1143,23 @@ const STAGE_PROMPTS = {
     'Produce 2-4 actions. Each questDialogueCodes[].questCode MUST be a provided quest code; every',
     'questDialogueCodes[].dialogCode MUST be a provided dialogue code; every shop/craft itemId MUST be',
     'a provided item id.',
+  ].join('\n'),
+
+  skills: [
+    'STAGE: skills. Return ONE JSON object: { "skills": [...] }.',
+    'skills[]: { triggerItemId, skills:[ { logicEventId, name, description, summonedEntityItemId } ] }',
+    '  (omit logicEventIds — it is derived from skills[].logicEventId downstream).',
+    '- triggerItemId MUST be one of the provided item ids — the item whose active layer fires the skill',
+    '  (typically a "weapon" item, or the "coin" currency item).',
+    '- logicEventId MUST be EXACTLY one of these supported handlers (anything else is ignored):',
+    '    projectile, coin_drop_or_transaction, doppelganger.',
+    '- summonedEntityItemId: for projectile, a provided "skill"-type item id (the bullet/effect spawned);',
+    '  for coin_drop_or_transaction, the provided "coin" item id; for doppelganger, the literal',
+    '  "$active_skin" (a runtime placeholder for the caster\'s own skin).',
+    '- name + description: short, evocative text tied to THIS saga theme (the in-game skill copy).',
+    'Produce 1-4 skills. Bind weapon items to "projectile" and the coin item to',
+    '"coin_drop_or_transaction" where it fits the theme. Every triggerItemId and every non-placeholder',
+    'summonedEntityItemId MUST be a provided item id.',
   ].join('\n'),
 };
 
@@ -1325,13 +1358,58 @@ function ensureTalkLinkage({ quests, dialogues, actions, objectLayers }) {
 }
 
 /**
+ * Slugify an item reference, preserving the runtime placeholder sentinel
+ * (`$active_skin` and any `$`-prefixed value), which the server resolves at
+ * runtime rather than a real ObjectLayer id.
+ * @param {string} value
+ * @returns {string}
+ */
+function slugifyItemRef(value) {
+  const v = String(value || '').trim();
+  return v.startsWith('$') ? v : slugify(v);
+}
+
+/**
+ * Build a minimal, schema-valid summoned "skill"-type object-layer item.
+ * @param {string} id
+ * @returns {Object}
+ */
+function makeSkillItem(id) {
+  return {
+    stats: { effect: 1, resistance: 0, agility: 0, range: 1, intelligence: 1, utility: 0 },
+    item: { id, type: 'skill', description: `Skill effect ${id}`, activable: false },
+    render: null,
+  };
+}
+
+/**
+ * Guarantee skill referential integrity: every non-placeholder
+ * `summonedEntityItemId` must resolve to a real object-layer item, so a missing
+ * one gets a minimal "skill"-type item appended (mirrors how `ensureTalkLinkage`
+ * backs talk objectives with NPC skins). Mutates `objectLayers` in place.
+ * @param {{ skills: Object[], objectLayers: Object[] }} payload
+ */
+function ensureSkillLinkage({ skills, objectLayers }) {
+  const itemIndex = new Map(objectLayers.map((ol) => [ol.item.id, ol]));
+  for (const sk of skills) {
+    for (const def of sk.skills) {
+      const id = def.summonedEntityItemId;
+      if (!id || id.startsWith('$') || itemIndex.has(id)) continue;
+      const item = makeSkillItem(id);
+      objectLayers.push(item);
+      itemIndex.set(id, item);
+    }
+  }
+}
+
+/**
  * Normalize a raw model payload into model-ready documents, enforcing the
  * text-only architectural boundary (spatial + render fields nulled).
  *
  * @param {Object} raw - Parsed Gemini JSON.
  * @param {Object} params
  * @param {string} params.theme - Original prompt seed (used to derive a saga code fallback).
- * @returns {{ saga: Object, maps: Object[], quests: Object[], dialogues: Object[], actions: Object[], objectLayers: Object[] }}
+ * @returns {{ saga: Object, instance: Object, maps: Object[], quests: Object[], dialogues: Object[], actions: Object[], objectLayers: Object[], skills: Object[] }}
  */
 function normalizeSagaPayload(raw, { theme }) {
   const rawSaga = raw.saga || {};
@@ -1430,9 +1508,44 @@ function normalizeSagaPayload(raw, { theme }) {
     };
   });
 
+  // Skills bind a trigger item to one or more supported logic-event handlers.
+  // The trigger must be a known item; defs with an unsupported logicEventId are
+  // dropped (they would be a no-op in the simulation). logicEventIds is derived
+  // from the kept defs so it can never drift (mirrors DefaultSkillConfig).
+  const knownItemIds = new Set(objectLayers.map((ol) => ol.item.id).filter(Boolean));
+  const validLogicEvents = new Set(Object.keys(SKILL_LOGIC_EVENTS));
+  // Logic-event keys are fixed handler ids that use underscores
+  // (coin_drop_or_transaction) — slugify() would convert '_' to '-' and break
+  // the match, so normalize separators to '_' and compare against the closed set.
+  const normLogicEvent = (v) =>
+    String(v || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_');
+  const skills = asArray(raw.skills)
+    .map((sk) => {
+      const triggerItemId = slugify(sk.triggerItemId);
+      const defs = asArray(sk.skills)
+        .map((d) => {
+          const logicEventId = normLogicEvent(d.logicEventId);
+          return {
+            logicEventId,
+            name: d.name || '',
+            description: d.description || SKILL_LOGIC_EVENTS[logicEventId] || '',
+            summonedEntityItemId: slugifyItemRef(d.summonedEntityItemId),
+          };
+        })
+        .filter((d) => validLogicEvents.has(d.logicEventId));
+      return { triggerItemId, logicEventIds: [...new Set(defs.map((d) => d.logicEventId))], skills: defs };
+    })
+    .filter((sk) => sk.triggerItemId && knownItemIds.has(sk.triggerItemId) && sk.skills.length > 0);
+
   // Guarantee every talk objective has a backing NPC skin, dialogue, and action
   // mapping (may append skin items / dialogues / actions) before reconciling ids.
   ensureTalkLinkage({ quests, dialogues, actions, objectLayers });
+  // Guarantee every summoned skill entity resolves to a real item (may append
+  // skill items). Runs before itemIds are reconciled so they are recorded.
+  ensureSkillLinkage({ skills, objectLayers });
 
   const itemIds = objectLayers.map((ol) => ol.item.id).filter(Boolean);
   const questCodes = quests.map((q) => q.code).filter(Boolean);
@@ -1447,7 +1560,22 @@ function normalizeSagaPayload(raw, { theme }) {
     questCodes: [...new Set([...asArray(rawSaga.questCodes).map(slugify), ...questCodes])].filter(Boolean),
   };
 
-  return { saga, maps, quests, dialogues, actions, objectLayers };
+  // A CyberiaInstance derived from the saga's own metadata + the map codes it
+  // defined — the playable shell that binds this saga's maps together. Spatial
+  // topology (portals) and tuning (conf) belong to downstream synthesis, so they
+  // are left empty here and PRESERVED on rerun by persistInstance.
+  const instance = {
+    code: saga.code,
+    name: saga.name,
+    description: saga.description,
+    tags: ['saga', 'generated'],
+    cyberiaMapCodes: [...saga.mapCodes],
+    itemIds: saga.itemIds.map((id) => ({ id, defaultPlayerInventory: false })),
+    portals: [],
+    topologyMode: 'procedural',
+  };
+
+  return { saga, instance, maps, quests, dialogues, actions, objectLayers, skills };
 }
 
 /**
@@ -1495,20 +1623,58 @@ async function persistObjectLayers({ objectLayers, ObjectLayer }) {
 }
 
 /**
+ * Persist the saga's CyberiaInstance shell. The textual/logical fields (name,
+ * description, tags, map codes, item ids, topology) are refreshed every run;
+ * spatial topology (`portals`) and the tuning ref (`conf`) are PRESERVED — set
+ * only on insert — so downstream spatial synthesis is never clobbered back to
+ * empty (mirrors how {@link persistObjectLayers} preserves render/ledger).
+ *
+ * @async
+ * @param {Object} params
+ * @param {Object} params.instance - Normalized instance ({ code, name, … }).
+ * @param {import('mongoose').Model} params.CyberiaInstance - The CyberiaInstance model.
+ * @returns {Promise<number>} 1 once upserted.
+ */
+async function persistInstance({ instance, CyberiaInstance }) {
+  await CyberiaInstance.findOneAndUpdate(
+    { code: instance.code },
+    {
+      $set: {
+        name: instance.name,
+        description: instance.description,
+        tags: instance.tags,
+        cyberiaMapCodes: instance.cyberiaMapCodes,
+        itemIds: instance.itemIds,
+        topologyMode: instance.topologyMode,
+      },
+      $setOnInsert: { code: instance.code, portals: instance.portals || [] },
+    },
+    { upsert: true },
+  );
+  return 1;
+}
+
+/**
  * Persist the normalized payload into MongoDB via the provided Mongoose models.
  * Upserts by natural key so reruns are idempotent.
  *
  * @async
  * @param {Object} params
  * @param {Object} params.payload - Output of {@link normalizeSagaPayload}.
- * @param {Object} params.models - { CyberiaSaga, CyberiaMap?, CyberiaQuest, CyberiaDialogue, CyberiaAction, ObjectLayer? }.
- * @returns {Promise<{ saga, maps, quests, dialogues, actions, objectLayers: number }>}
+ * @param {Object} params.models - { CyberiaSaga, CyberiaInstance?, CyberiaMap?, CyberiaQuest, CyberiaDialogue, CyberiaAction, CyberiaSkill?, ObjectLayer? }.
+ * @returns {Promise<{ saga, instance, maps, quests, dialogues, actions, skills, objectLayers: number }>}
  */
 async function persistSagaPayload({ payload, models }) {
-  const { CyberiaSaga, CyberiaMap, CyberiaQuest, CyberiaDialogue, CyberiaAction, ObjectLayer } = models;
-  const { saga, maps, quests, dialogues, actions, objectLayers } = payload;
+  const { CyberiaSaga, CyberiaInstance, CyberiaMap, CyberiaQuest, CyberiaDialogue, CyberiaAction, CyberiaSkill, ObjectLayer } =
+    models;
+  const { saga, instance, maps, quests, dialogues, actions, skills, objectLayers } = payload;
 
   await CyberiaSaga.findOneAndUpdate({ code: saga.code }, { $set: saga }, { upsert: true });
+
+  let instanceCount = 0;
+  if (CyberiaInstance && instance?.code) {
+    instanceCount = await persistInstance({ instance, CyberiaInstance });
+  }
 
   let mapCount = 0;
   if (CyberiaMap) {
@@ -1531,14 +1697,30 @@ async function persistSagaPayload({ payload, models }) {
     await CyberiaAction.findOneAndUpdate({ code: action.code }, { $set: action }, { upsert: true });
   }
 
+  // Skills live in their own collection (CyberiaSkill), upserted by triggerItemId
+  // — the authoritative own-model source the gRPC server reads.
+  let skillCount = 0;
+  if (CyberiaSkill) {
+    for (const skill of asArray(skills)) {
+      await CyberiaSkill.findOneAndUpdate(
+        { triggerItemId: skill.triggerItemId },
+        { $set: { logicEventIds: skill.logicEventIds, skills: skill.skills } },
+        { upsert: true },
+      );
+      skillCount++;
+    }
+  }
+
   const objectLayerCount = ObjectLayer ? await persistObjectLayers({ objectLayers, ObjectLayer }) : 0;
 
   return {
     saga: 1,
+    instance: instanceCount,
     maps: mapCount,
     quests: quests.length,
     dialogues: dialogues.length,
     actions: actions.length,
+    skills: skillCount,
     objectLayers: objectLayerCount,
   };
 }
@@ -1570,7 +1752,7 @@ async function generateRawEcosystem(
   spaceContextKey = '',
 ) {
   // Stage 1 — saga identity + object-layer items (the economic foundation).
-  logger.info('Stage 1/5: foundation (saga + object layers)');
+  logger.info('Stage 1/6: foundation (saga + object layers)');
   const foundation = await client.chatJson({
     system: buildStagePrompt('foundation', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(theme, undefined, lore),
@@ -1582,7 +1764,7 @@ async function generateRawEcosystem(
   const itemIds = objectLayers.map((ol) => slugify(ol.item?.id)).filter(Boolean);
 
   // Stage 2 — maps: the narrative zones the quest chain visits.
-  logger.info('Stage 2/5: maps');
+  logger.info('Stage 2/6: maps');
   const mapsRes = await client.chatJson({
     system: buildStagePrompt('maps', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(theme, undefined, lore),
@@ -1593,7 +1775,7 @@ async function generateRawEcosystem(
   const mapCodes = maps.map((m) => slugify(m.code)).filter(Boolean);
 
   // Stage 3 — quests referencing the canonical item ids, grounded in the zones.
-  logger.info('Stage 3/5: quests');
+  logger.info('Stage 3/6: quests');
   const questsRes = await client.chatJson({
     system: buildStagePrompt('quests', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(
@@ -1610,7 +1792,7 @@ async function generateRawEcosystem(
   const talkTargets = collectTalkTargets(quests);
 
   // Stage 4 — dialogues for each quest (and a talk dialogue per talk target).
-  logger.info('Stage 4/5: dialogues');
+  logger.info('Stage 4/6: dialogues');
   const dialoguesRes = await client.chatJson({
     system: buildStagePrompt('dialogues', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(
@@ -1625,7 +1807,7 @@ async function generateRawEcosystem(
   const dialogueCodes = [...new Set(dialogues.map((d) => slugify(d.code)).filter(Boolean))];
 
   // Stage 5 — actions binding quests, dialogues, and items together.
-  logger.info('Stage 5/5: actions');
+  logger.info('Stage 5/6: actions');
   const actionsRes = await client.chatJson({
     system: buildStagePrompt('actions', namingGuidance, customizationGuidance, spaceContextKey),
     user: buildStageUser(theme, { questCodes, dialogueCodes, itemIds, talkTargets }, lore),
@@ -1634,7 +1816,26 @@ async function generateRawEcosystem(
   });
   const actions = asArray(actionsRes.actions);
 
-  return { saga, maps, quests, dialogues, actions, objectLayers };
+  // Stage 6 — skills: bind trigger items to supported logic-event handlers. The
+  // model sees item ids WITH their types so it can pick valid trigger / summoned
+  // items, and the closed set of logic events it may use.
+  logger.info('Stage 6/6: skills');
+  const itemsWithTypes = objectLayers
+    .map((ol) => ({ id: slugify(ol.item?.id), type: ol.item?.type || 'skin' }))
+    .filter((it) => it.id);
+  const skillsRes = await client.chatJson({
+    system: buildStagePrompt('skills', namingGuidance, customizationGuidance, spaceContextKey),
+    user: buildStageUser(
+      theme,
+      { items: itemsWithTypes, logicEvents: Object.keys(SKILL_LOGIC_EVENTS) },
+      lore,
+    ),
+    thinkingLevel,
+    temperature,
+  });
+  const skills = asArray(skillsRes.skills);
+
+  return { saga, maps, quests, dialogues, actions, objectLayers, skills };
 }
 
 /**
@@ -1795,9 +1996,10 @@ async function importSaga({ file, models, dryRun = false, out }) {
  */
 async function finalizeSaga({ payload, models, out, dryRun = false }) {
   logger.info(
-    `Normalized: saga=${payload.saga.code} maps=${payload.maps.length} quests=${payload.quests.length} ` +
+    `Normalized: saga=${payload.saga.code} instance=${payload.instance?.code || '—'} ` +
+      `maps=${payload.maps.length} quests=${payload.quests.length} ` +
       `dialogues=${payload.dialogues.length} actions=${payload.actions.length} ` +
-      `objectLayers=${payload.objectLayers.length}`,
+      `skills=${payload.skills?.length || 0} objectLayers=${payload.objectLayers.length}`,
   );
 
   if (out) {
@@ -1814,8 +2016,9 @@ async function finalizeSaga({ payload, models, out, dryRun = false }) {
 
   const summary = await persistSagaPayload({ payload, models });
   logger.info(
-    `Persisted: ${summary.saga} saga, ${summary.maps} maps, ${summary.quests} quests, ` +
-      `${summary.dialogues} dialogues, ${summary.actions} actions, ${summary.objectLayers} object layers`,
+    `Persisted: ${summary.saga} saga, ${summary.instance} instance, ${summary.maps} maps, ` +
+      `${summary.quests} quests, ${summary.dialogues} dialogues, ${summary.actions} actions, ` +
+      `${summary.skills} skills, ${summary.objectLayers} object layers`,
   );
 
   return { ...payload, summary };
@@ -1828,8 +2031,10 @@ export {
   generateRawEcosystem,
   normalizeSagaPayload,
   ensureTalkLinkage,
+  ensureSkillLinkage,
   collectTalkTargets,
   persistSagaPayload,
+  persistInstance,
   persistObjectLayers,
   loadLoreContext,
   synthesizeTheme,
