@@ -14,7 +14,11 @@ import crypto from 'crypto';
 import stringify from 'fast-json-stable-stringify';
 
 import { range } from '../../client/components/core/CommonJs.js';
-import { random } from '../../client/components/core/CommonJs.js';
+import {
+  generateRandomStats,
+  getKeyframeDirectionsByCode,
+  OBJECT_LAYER_DIRECTION_NAME_TO_CODE,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -207,46 +211,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Converts a numerical folder direction (e.g., '08', '14') into an array of corresponding keyframe names (e.g., 'down_idle', 'left_walking').
-   * @static
-   * @param {string} direction - The numerical direction string.
-   * @returns {string[]} An array of keyframe direction names.
-   * @memberof CyberiaObjectLayer
-   */
-  static getKeyFramesDirectionsFromNumberFolderDirection(direction) {
-    let objectLayerFrameDirections = [];
-
-    switch (direction) {
-      case '08':
-        objectLayerFrameDirections = ['down_idle', 'none_idle', 'default_idle'];
-        break;
-      case '18':
-        objectLayerFrameDirections = ['down_walking'];
-        break;
-      case '02':
-        objectLayerFrameDirections = ['up_idle'];
-        break;
-      case '12':
-        objectLayerFrameDirections = ['up_walking'];
-        break;
-      case '04':
-        objectLayerFrameDirections = ['left_idle', 'up_left_idle', 'down_left_idle'];
-        break;
-      case '14':
-        objectLayerFrameDirections = ['left_walking', 'up_left_walking', 'down_left_walking'];
-        break;
-      case '06':
-        objectLayerFrameDirections = ['right_idle', 'up_right_idle', 'down_right_idle'];
-        break;
-      case '16':
-        objectLayerFrameDirections = ['right_walking', 'up_right_walking', 'down_right_walking'];
-        break;
-    }
-
-    return objectLayerFrameDirections;
-  }
-
-  /**
    * Processes an image file through {@link ObjectLayerEngine.frameFactory} and adds the resulting frame to the render data structure.
    * Updates the color palette and pushes the frame to all keyframe directions corresponding to the given direction code.
    * Initializes colors array, frames object, and direction arrays if they don't exist.
@@ -278,7 +242,7 @@ export class ObjectLayerEngine {
     objectLayerRenderFramesData.colors = processedObjectLayerRenderFramesData.colors;
 
     // Get all keyframe directions for this direction code
-    const keyframeDirections = ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection(directionCode);
+    const keyframeDirections = getKeyframeDirectionsByCode(directionCode);
 
     // Push the frame to all corresponding directions
     for (const keyframeDirection of keyframeDirections) {
@@ -355,23 +319,6 @@ export class ObjectLayerEngine {
     await image.write(imagePath);
   }
 
-  /**
-   * Generates a random set of character statistics for an item, with values between 0 and 10.
-   * @static
-   * @returns {{effect: number, resistance: number, agility: number, range: number, intelligence: number, utility: number}} The random stats object.
-   * @memberof CyberiaObjectLayer
-   */
-  static generateRandomStats() {
-    return {
-      effect: random(0, 10),
-      resistance: random(0, 10),
-      agility: random(0, 10),
-      range: random(0, 10),
-      intelligence: random(0, 10),
-      utility: random(0, 10),
-    };
-  }
-
   // ──────────────────────────────────────────────────────────────────────────
   // Document lifecycle methods
   // ──────────────────────────────────────────────────────────────────────────
@@ -441,7 +388,7 @@ export class ObjectLayerEngine {
             description: '',
             activable: true,
           },
-          stats: metadata.data.stats || ObjectLayerEngine.generateRandomStats(),
+          stats: metadata.data.stats || generateRandomStats(),
           ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
         },
       };
@@ -454,7 +401,7 @@ export class ObjectLayerEngine {
             description: '',
             activable: true,
           },
-          stats: ObjectLayerEngine.generateRandomStats(),
+          stats: generateRandomStats(),
           ledger: { type: 'OFF_CHAIN' },
         },
       };
@@ -507,34 +454,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Map of keyframe direction names to their numeric folder direction codes.
-   * Inverse of {@link ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection}.
-   * @static
-   * @type {Object<string, string>}
-   * @memberof CyberiaObjectLayer
-   */
-  static directionNameToCode = {
-    down_idle: '08',
-    none_idle: '08',
-    default_idle: '08',
-    up_idle: '02',
-    left_idle: '04',
-    up_left_idle: '04',
-    down_left_idle: '04',
-    right_idle: '06',
-    up_right_idle: '06',
-    down_right_idle: '06',
-    down_walking: '18',
-    up_walking: '12',
-    left_walking: '14',
-    up_left_walking: '14',
-    down_left_walking: '14',
-    right_walking: '16',
-    up_right_walking: '16',
-    down_right_walking: '16',
-  };
-
-  /**
    * Writes frame PNGs and an optional metadata.json to one or more base asset
    * directories.  This is the shared write-to-disk step consumed by both the
    * Cyberia CLI `--generate` / `--import` flows and the REST API service
@@ -571,7 +490,7 @@ export class ObjectLayerEngine {
     cellPixelDim = 20,
   }) {
     const writtenPaths = [];
-    const dirToCode = ObjectLayerEngine.directionNameToCode;
+    const dirToCode = OBJECT_LAYER_DIRECTION_NAME_TO_CODE;
 
     for (const basePath of basePaths) {
       // Track which directionCode/frameIndex combos we already wrote for
@@ -996,14 +915,6 @@ export const readPngAsync = ObjectLayerEngine.readPngAsync;
 export const frameFactory = ObjectLayerEngine.frameFactory;
 
 /**
- * @see {@link ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection}
- * @function getKeyFramesDirectionsFromNumberFolderDirection
- * @memberof CyberiaObjectLayer
- */
-export const getKeyFramesDirectionsFromNumberFolderDirection =
-  ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection;
-
-/**
  * @see {@link ObjectLayerEngine.processAndPushFrame}
  * @function processAndPushFrame
  * @memberof CyberiaObjectLayer
@@ -1016,13 +927,6 @@ export const processAndPushFrame = ObjectLayerEngine.processAndPushFrame;
  * @memberof CyberiaObjectLayer
  */
 export const buildImgFromTile = ObjectLayerEngine.buildImgFromTile;
-
-/**
- * @see {@link ObjectLayerEngine.generateRandomStats}
- * @function generateRandomStats
- * @memberof CyberiaObjectLayer
- */
-export const generateRandomStats = ObjectLayerEngine.generateRandomStats;
 
 /**
  * @see {@link ObjectLayerEngine.buildObjectLayerDataFromDirectory}

@@ -24,6 +24,7 @@ import {
   generateObstacles,
   generateForeground,
   generateResources,
+  generateStatic,
   generateFloorEntities,
   generatePortalEntity,
   generatePortalEntities,
@@ -36,10 +37,11 @@ import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
-  DefaultCyberiaItems,
+  DefaultSkillConfig,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import {
   CYBERIA_CLIENT_HINTS_DEFAULTS,
+  DefaultCyberiaItems,
   PALETTE,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
@@ -63,7 +65,9 @@ const KNOWN_DEFAULT_ITEM_IDS = new Set(DefaultCyberiaItems.map((e) => e.item.id)
 
 function collectReferencedItemIds() {
   const ids = new Set();
-  const push = (id) => { if (typeof id === 'string' && id.length > 0) ids.add(id); };
+  const push = (id) => {
+    if (typeof id === 'string' && id.length > 0) ids.add(id);
+  };
 
   for (const e of ENTITY_TYPE_DEFAULTS) {
     (e.liveItemIds || []).forEach(push);
@@ -75,6 +79,17 @@ function collectReferencedItemIds() {
     (r.liveItemIds || []).forEach(push);
     (r.deadItemIds || []).forEach(push);
     (r.dropItemIds || []).forEach(push);
+  }
+  // Skill trigger items and the entities they summon must also resolve to an
+  // ObjectLayer. Runtime placeholders ('$active_skin', …) are resolved by the
+  // server and are intentionally excluded.
+  for (const sk of DefaultSkillConfig) {
+    push(sk.triggerItemId);
+    for (const s of sk.skills || []) {
+      if (typeof s.summonedEntityItemId === 'string' && !s.summonedEntityItemId.startsWith('$')) {
+        push(s.summonedEntityItemId);
+      }
+    }
   }
   return ids;
 }
@@ -119,6 +134,7 @@ function entitiesOverlap(a, b) {
  * @param {number} [opts.foregroundCount]
  * @param {number} [opts.botCount]
  * @param {number} [opts.resourceCount]
+ * @param {number} [opts.staticCount]
  * @returns {object}  CyberiaMap-shaped plain object.
  */
 function generateFallbackMap(mapCode, colors, opts = {}) {
@@ -155,9 +171,18 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
   // 8. Foreground — decorative, no collision restriction
   const foreground = generateForeground(mapDims, colors, { count: opts.foregroundCount });
 
+  // 9. Statics — non-moving, passable decorators; depth-sorted with entities.
+  const statics = generateStatic(mapDims, colors, { count: opts.staticCount });
+
   const entities = [
-    ...floors, ...obstacles, ...portalEntities, ...foreground,
-    ...actionProviders, ...bots, ...resources,
+    ...floors,
+    ...obstacles,
+    ...portalEntities,
+    ...foreground,
+    ...actionProviders,
+    ...bots,
+    ...resources,
+    ...statics,
   ];
 
   return {
@@ -189,6 +214,7 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
  * @param {number} [opts.foregroundCount]     Foreground entities per map (random if omitted).
  * @param {number} [opts.botCount]            Bots per map (random if omitted).
  * @param {number} [opts.resourceCount]        Resources per map (random if omitted).
+ * @param {number} [opts.staticCount]          Static decorators per map (random if omitted).
  * @param {Array}  [opts.colors]              Override palette.
  * @returns {{
  *   instance: object,
@@ -207,6 +233,7 @@ function generateFallbackWorld(opts = {}) {
     foregroundCount,
     botCount,
     resourceCount,
+    staticCount,
     // Palette lives in SharedDefaultsCyberia (presentation-owned). The
     // world generator only uses it to stamp a cosmetic rgba(...) string on
     // entities so the browser editor / preview can render a coloured
@@ -242,6 +269,7 @@ function generateFallbackWorld(opts = {}) {
       foregroundCount,
       botCount,
       resourceCount,
+      staticCount,
     }),
   );
 

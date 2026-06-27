@@ -19,10 +19,10 @@
 import {
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
-  DefaultCyberiaItems,
   DefaultCyberiaActions,
-  ITEM_TYPES,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+
+import { DefaultCyberiaItems, ITEM_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 import { PORTAL_MODES, PORTAL_MODE_COLOR_KEY, EXTRA_PORTAL_MODES } from './cyberia-portal-connector.js';
 
@@ -60,6 +60,7 @@ const OBSTACLE_RANGE = [20, 35];
 const FOREGROUND_RANGE = [10, 20];
 const BOT_RANGE = [8, 16];
 const RESOURCE_RANGE = [6, 12];
+const STATIC_RANGE = [8, 16];
 const BOT_WEAPON_CHANCE = 0.6;
 const PORTAL_DIM_RANGE = [2, 3];
 const PORTAL_COUNT_RANGE = [2, 4];
@@ -263,6 +264,51 @@ function generateForeground(mapDims, colors, opts = {}) {
     const maxY = Math.max(0, gridY - dimY);
     entities.push({
       entityType: 'foreground',
+      initCellX: randInt(0, maxX),
+      initCellY: randInt(0, maxY),
+      dimX,
+      dimY,
+      color: rgba,
+      objectLayerItemIds: [],
+    });
+  }
+  return entities;
+}
+
+/**
+ * Generate procedural static decorator entities for a map.
+ *
+ * Statics are non-moving, passable decorations (rocks, bushes, signage, etc.).
+ * Unlike obstacles they never block movement; unlike foreground they are
+ * depth-sorted with bots/players by the client (Y-axis ordering) so the player
+ * can pass behind or in front of them. They carry no life and are never
+ * exploitable. Placed on any cell (no occupancy reservation — they are
+ * transferable).
+ *
+ * @param {{ gridX: number, gridY: number }} mapDims  Map grid dimensions.
+ * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors  Palette.
+ * @param {object} [opts]
+ * @param {number} [opts.count]         Override count (ignores range).
+ * @param {number} [opts.minDim=2]      Minimum width/height (cells).
+ * @param {number} [opts.maxDim=4]      Maximum width/height (cells).
+ * @returns {object[]}  Array of CyberiaEntity plain objects.
+ */
+function generateStatic(mapDims, colors, opts = {}) {
+  const { minDim = 2, maxDim = 4 } = opts;
+  const count = opts.count ?? randInt(STATIC_RANGE[0], STATIC_RANGE[1]);
+  const { gridX, gridY } = mapDims;
+
+  const staticColor = findColor(colors, 'STATIC');
+  const rgba = staticColor ? colorToRgba(staticColor) : 'rgba(120, 140, 110, 1)';
+
+  const entities = [];
+  for (let i = 0; i < count; i++) {
+    const dimX = randInt(minDim, maxDim);
+    const dimY = randInt(minDim, maxDim);
+    const maxX = Math.max(0, gridX - dimX);
+    const maxY = Math.max(0, gridY - dimY);
+    entities.push({
+      entityType: 'static',
       initCellX: randInt(0, maxX),
       initCellY: randInt(0, maxY),
       dimX,
@@ -536,6 +582,7 @@ function generateProceduralEntities(mapDims, colors, opts = {}) {
     obstacles: generateObstacles(mapDims, colors, { count: opts.obstacleCount }),
     foreground: generateForeground(mapDims, colors, { count: opts.foregroundCount }),
     resources: generateResources(mapDims, colors, { count: opts.resourceCount, grid: opts.grid }),
+    statics: generateStatic(mapDims, colors, { count: opts.staticCount }),
   };
 }
 
@@ -553,6 +600,7 @@ export {
   generateObstacles,
   generateForeground,
   generateResources,
+  generateStatic,
   generatePortalEntity,
   generatePortalEntities,
   generateBots,
@@ -563,6 +611,7 @@ export {
   FOREGROUND_RANGE,
   BOT_RANGE,
   RESOURCE_RANGE,
+  STATIC_RANGE,
   BOT_WEAPON_CHANCE,
   PORTAL_DIM_RANGE,
   PORTAL_COUNT_RANGE,

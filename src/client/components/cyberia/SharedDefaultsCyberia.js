@@ -70,6 +70,7 @@ export const ITEM_TYPES = Object.freeze({
   portal: 'portal',
   foreground: 'foreground',
   resource: 'resource',
+  static: 'static',
 });
 
 /**
@@ -89,6 +90,7 @@ export const ENTITY_TYPES = Object.freeze({
   portal: 'portal',
   foreground: 'foreground',
   resource: 'resource',
+  static: 'static',
 });
 
 /** Per-entity-type allowlist of item types that may appear on the entity. */
@@ -103,10 +105,91 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
   [ENTITY_TYPES.portal]: Object.freeze([ITEM_TYPES.portal]),
   [ENTITY_TYPES.foreground]: Object.freeze([ITEM_TYPES.foreground]),
   [ENTITY_TYPES.resource]: Object.freeze([ITEM_TYPES.resource]),
+  [ENTITY_TYPES.static]: Object.freeze([ITEM_TYPES.static]),
 });
 
 /** Quest step objective types accepted by the quest-progress engine. */
 export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
+
+/**
+ * Canonical object-layer animation directions. Each entry binds:
+ *   code      — numeric asset folder name on disk
+ *               (`./assets/<type>/<id>/<code>/<frame>.png`)
+ *   label     — human-readable label for the editor UI
+ *   keyframes — render keyframe direction names this folder code feeds
+ *
+ * Single source of truth for the browser editor (`ObjectLayerEngineModal`) and
+ * the Node asset pipeline (`src/projects/cyberia/object-layer.js`). Adding a
+ * direction here is the only place it needs to be declared.
+ *
+ * @type {ReadonlyArray<{code:string,label:string,keyframes:ReadonlyArray<string>}>}
+ */
+export const OBJECT_LAYER_DIRECTIONS = Object.freeze([
+  Object.freeze({
+    code: '08',
+    label: 'Down Idle',
+    keyframes: Object.freeze(['down_idle', 'none_idle', 'default_idle']),
+  }),
+  Object.freeze({ code: '18', label: 'Down Walk', keyframes: Object.freeze(['down_walking']) }),
+  Object.freeze({ code: '02', label: 'Up Idle', keyframes: Object.freeze(['up_idle']) }),
+  Object.freeze({ code: '12', label: 'Up Walk', keyframes: Object.freeze(['up_walking']) }),
+  Object.freeze({
+    code: '04',
+    label: 'Left Idle',
+    keyframes: Object.freeze(['left_idle', 'up_left_idle', 'down_left_idle']),
+  }),
+  Object.freeze({
+    code: '14',
+    label: 'Left Walk',
+    keyframes: Object.freeze(['left_walking', 'up_left_walking', 'down_left_walking']),
+  }),
+  Object.freeze({
+    code: '06',
+    label: 'Right Idle',
+    keyframes: Object.freeze(['right_idle', 'up_right_idle', 'down_right_idle']),
+  }),
+  Object.freeze({
+    code: '16',
+    label: 'Right Walk',
+    keyframes: Object.freeze(['right_walking', 'up_right_walking', 'down_right_walking']),
+  }),
+]);
+
+/** Ordered list of object-layer direction folder codes. */
+export const OBJECT_LAYER_DIRECTION_CODES = Object.freeze(OBJECT_LAYER_DIRECTIONS.map((d) => d.code));
+
+/** Map: direction folder code → editor label. */
+export const OBJECT_LAYER_DIRECTION_LABELS = Object.freeze(
+  Object.fromEntries(OBJECT_LAYER_DIRECTIONS.map((d) => [d.code, d.label])),
+);
+
+/** Render keyframe direction names a numeric folder code feeds (empty if unknown). */
+export const getKeyframeDirectionsByCode = (code) => {
+  const entry = OBJECT_LAYER_DIRECTIONS.find((d) => d.code === code);
+  return entry ? [...entry.keyframes] : [];
+};
+
+/** Inverse map: render keyframe direction name → numeric folder code. */
+export const OBJECT_LAYER_DIRECTION_NAME_TO_CODE = Object.freeze(
+  OBJECT_LAYER_DIRECTIONS.reduce((acc, d) => {
+    for (const name of d.keyframes) acc[name] = d.code;
+    return acc;
+  }, {}),
+);
+
+/**
+ * Canonical entity/item stat types, in display order. Shared by the object-layer
+ * editor (stat inputs) and the asset pipeline (random stat generation).
+ */
+export const STAT_TYPES = Object.freeze(['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility']);
+
+/**
+ * Build a random stat block keyed by STAT_TYPES, each value 0–10 inclusive.
+ * Non-deterministic (uses Math.random) — the asset pipeline uses it to seed
+ * default stats for newly authored object layers.
+ */
+export const generateRandomStats = () =>
+  Object.fromEntries(STAT_TYPES.map((statType) => [statType, Math.floor(Math.random() * 11)]));
 
 /**
  * Canonical (itemId → itemType) registry shipped with the engine. Used
@@ -196,6 +279,7 @@ export const PALETTE = Object.freeze([
   { key: 'COIN', r: 255, g: 215, b: 0, a: 255 },
   { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 },
   { key: 'RESOURCE', r: 100, g: 180, b: 80, a: 255 },
+  { key: 'STATIC', r: 120, g: 140, b: 110, a: 255 },
   { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 },
   { key: 'SELF_BORDER', r: 220, g: 190, b: 60, a: 240 },
 ]);
@@ -216,6 +300,7 @@ export const ENTITY_COLOR_KEYS = Object.freeze([
   { entityType: 'portal', colorKey: 'PORTAL' },
   { entityType: 'foreground', colorKey: 'FOREGROUND' },
   { entityType: 'resource', colorKey: 'RESOURCE' },
+  { entityType: 'static', colorKey: 'STATIC' },
 ]);
 
 /**

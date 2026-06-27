@@ -16,6 +16,13 @@ import { Modal } from '../core/Modal.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import * as _ from '../cyberia/ObjectLayerEngine.js';
+import {
+  ITEM_TYPES,
+  OBJECT_LAYER_DIRECTION_CODES,
+  OBJECT_LAYER_DIRECTION_LABELS,
+  getKeyframeDirectionsByCode,
+  STAT_TYPES,
+} from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const CANVAS_BEHAVIOR_ICON = 'fa-solid fa-shapes';
@@ -614,8 +621,7 @@ class ObjectLayerEngineModal {
       ole.clear();
     }
 
-    const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
-    for (const directionCode of directionCodes) {
+    for (const directionCode of OBJECT_LAYER_DIRECTION_CODES) {
       const framesContainer = s(`.frames-${directionCode}`);
       if (framesContainer) {
         framesContainer.innerHTML = '';
@@ -637,8 +643,7 @@ class ObjectLayerEngineModal {
     if (activableCheckbox) activableCheckbox.checked = false;
 
     // Clear stat inputs with correct IDs
-    const statTypes = Object.keys(ObjectLayerEngineModal.statDescriptions);
-    for (const stat of statTypes) {
+    for (const stat of STAT_TYPES) {
       const statInput = getRenderedInputNode(`ol-input-item-stats-${stat}`);
       if (statInput) statInput.value = '0';
     }
@@ -714,19 +719,14 @@ class ObjectLayerEngineModal {
 
     const { appStore } = options;
 
-    const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
-    const directionCodeLabels = {
-      '08': 'Down Idle',
-      18: 'Down Walk',
-      '02': 'Up Idle',
-      12: 'Up Walk',
-      '04': 'Left Idle',
-      14: 'Left Walk',
-      '06': 'Right Idle',
-      16: 'Right Walk',
-    };
-    const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor', 'resource', 'obstacle', 'foreground', 'portal'];
-    const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
+    const directionCodes = OBJECT_LAYER_DIRECTION_CODES;
+    const directionCodeLabels = OBJECT_LAYER_DIRECTION_LABELS;
+    const statTypes = STAT_TYPES;
+
+    // Canonical authorable item types (includes `static`). A per-render copy so a
+    // loaded layer's custom type can be appended without mutating the shared enum.
+    const itemTypes = Object.values(ITEM_TYPES);
+
     const distortionDropdownId = 'ol-dropdown-distortion-type';
     const distortionApplyBtnClass = 'ol-btn-apply-distortion';
     const distortionStatusClass = 'ol-distortion-status';
@@ -1004,8 +1004,8 @@ class ObjectLayerEngineModal {
       }
     }
 
-    let cellsW = 26;
-    let cellsH = 26;
+    let cellsW = 16;
+    let cellsH = 16;
     if (loadedData && loadedData.objectLayerRenderFramesId && loadedData.objectLayerRenderFramesId.frames) {
       const frames = loadedData.objectLayerRenderFramesId.frames;
       for (const direction of Object.keys(frames)) {
@@ -1016,7 +1016,8 @@ class ObjectLayerEngineModal {
         }
       }
     }
-    const pixelSize = parseInt(320 / Math.max(cellsW, cellsH));
+    // const pixelSize = parseInt(320 / Math.max(cellsW, cellsH));
+    const pixelSize = 30;
     const idSectionA = 'template-section-a';
     const idSectionB = 'template-section-b';
     const colorPaletteClass = 'ol-color-palette';
@@ -2365,36 +2366,7 @@ class ObjectLayerEngineModal {
   };
 
   static getDirectionsFromDirectionCode(directionCode = '08') {
-    let objectLayerFrameDirections = [];
-
-    switch (directionCode) {
-      case '08':
-        objectLayerFrameDirections = ['down_idle', 'none_idle', 'default_idle'];
-        break;
-      case '18':
-        objectLayerFrameDirections = ['down_walking'];
-        break;
-      case '02':
-        objectLayerFrameDirections = ['up_idle'];
-        break;
-      case '12':
-        objectLayerFrameDirections = ['up_walking'];
-        break;
-      case '04':
-        objectLayerFrameDirections = ['left_idle', 'up_left_idle', 'down_left_idle'];
-        break;
-      case '14':
-        objectLayerFrameDirections = ['left_walking', 'up_left_walking', 'down_left_walking'];
-        break;
-      case '06':
-        objectLayerFrameDirections = ['right_idle', 'up_right_idle', 'down_right_idle'];
-        break;
-      case '16':
-        objectLayerFrameDirections = ['right_walking', 'up_right_walking', 'down_right_walking'];
-        break;
-    }
-
-    return objectLayerFrameDirections;
+    return getKeyframeDirectionsByCode(directionCode);
   }
 
   static toManagement = async (id = null) => {
