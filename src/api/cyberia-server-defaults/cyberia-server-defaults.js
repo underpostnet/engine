@@ -591,6 +591,13 @@ export const RESOURCE_ENTITY_TYPE_DEFAULTS = Object.freeze([
     dropItemIds: ['wood-drop-2'],
     defaultObjectLayers: [],
   }),
+  Object.freeze({
+    entityType: ENTITY_TYPES.resource,
+    liveItemIds: ['purplish-sap-vial'],
+    deadItemIds: ['purplish-sap-vial-extracted'],
+    dropItemIds: ['purplish-sap-vial'],
+    defaultObjectLayers: [],
+  }),
 ]);
 
 /** Convenience alias — first variant, used by single-resource fallbacks. */
