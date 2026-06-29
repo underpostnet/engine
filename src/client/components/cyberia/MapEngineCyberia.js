@@ -33,6 +33,7 @@ class MapEngineCyberia {
   static loadMap = null;
   static showGridBorders = true;
   static addOnClick = true;
+  static removeOnClick = false;
   static showObjectLayers = false;
   static enableRandomFactors = false;
   static captureObjLayerThumbnail = true;
@@ -1172,7 +1173,15 @@ class MapEngineCyberia {
         if (s(`.${idInitCellX}`)) s(`.${idInitCellX}`).value = col;
         if (s(`.${idInitCellY}`)) s(`.${idInitCellY}`).value = row;
 
-        if (MapEngineCyberia.addOnClick) addEntityLocally();
+        if (MapEngineCyberia.addOnClick) {
+          addEntityLocally();
+        } else if (MapEngineCyberia.removeOnClick) {
+          MapEngineCyberia.commitEntityMutation(() => {
+            MapEngineCyberia.entities = MapEngineCyberia.entities.filter(
+              (entity) => !(entity.initCellX === col && entity.initCellY === row),
+            );
+          });
+        }
       };
 
       if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityLocally();
@@ -1490,67 +1499,107 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCanvasOpts, type: 'search-inputs' })}
         <div class="fl" style="margin-bottom: 5px;">
           <div class="in fll ${dcCanvasOpts}-col-a">
-            <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
-              ${await ToggleSwitch.instance({
-                id: 'map-engine-show-grid',
-                type: 'checkbox',
-                displayMode: 'checkbox',
-                containerClass: 'in fll',
-                checked: true,
-                on: {
-                  checked: () => {
-                    MapEngineCyberia.showGridBorders = true;
-                    rerenderCanvas();
+            <div class="in section-mp-border" style="padding: 10px;">
+              <div class="in input-label" style="margin-bottom: 6px; font-size: 14px;">Click Action</div>
+              <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
+                ${await ToggleSwitch.instance({
+                  id: 'map-engine-add-on-click',
+                  type: 'checkbox',
+                  displayMode: 'checkbox',
+                  containerClass: 'in fll',
+                  checked: true,
+                  on: {
+                    checked: () => {
+                      MapEngineCyberia.addOnClick = true;
+                      MapEngineCyberia.removeOnClick = false;
+                      const removeToken = ToggleSwitch.Tokens['map-engine-remove-on-click'];
+                      if (removeToken) {
+                        const removeCheckbox = s('.map-engine-remove-on-click-checkbox');
+                        if (removeCheckbox && removeCheckbox.checked) removeToken.click();
+                      }
+                    },
+                    unchecked: () => {
+                      MapEngineCyberia.addOnClick = false;
+                    },
                   },
-                  unchecked: () => {
-                    MapEngineCyberia.showGridBorders = false;
-                    rerenderCanvas();
+                })}
+                <div class="section-mp">&nbsp &nbsp Add on Click</div>
+              </div>
+              <div
+                class="fl"
+                style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin-top: 4px;"
+              >
+                ${await ToggleSwitch.instance({
+                  id: 'map-engine-remove-on-click',
+                  type: 'checkbox',
+                  displayMode: 'checkbox',
+                  containerClass: 'in fll',
+                  checked: false,
+                  on: {
+                    checked: () => {
+                      MapEngineCyberia.removeOnClick = true;
+                      MapEngineCyberia.addOnClick = false;
+                      const addToken = ToggleSwitch.Tokens['map-engine-add-on-click'];
+                      if (addToken) {
+                        const addCheckbox = s('.map-engine-add-on-click-checkbox');
+                        if (addCheckbox && addCheckbox.checked) addToken.click();
+                      }
+                    },
+                    unchecked: () => {
+                      MapEngineCyberia.removeOnClick = false;
+                    },
                   },
-                },
-              })}
-              <div class="section-mp">&nbsp &nbsp Show Grid</div>
+                })}
+                <div class="section-mp">&nbsp &nbsp Remove on Click</div>
+              </div>
             </div>
           </div>
           <div class="in fll ${dcCanvasOpts}-col-b">
-            <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
-              ${await ToggleSwitch.instance({
-                id: 'map-engine-add-on-click',
-                type: 'checkbox',
-                displayMode: 'checkbox',
-                containerClass: 'in fll',
-                checked: true,
-                on: {
-                  checked: () => {
-                    MapEngineCyberia.addOnClick = true;
+            <div class="in section-mp-border" style="padding: 10px;">
+              <div class="in input-label" style="margin-bottom: 6px; font-size: 14px;">View Options</div>
+              <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
+                ${await ToggleSwitch.instance({
+                  id: 'map-engine-show-grid',
+                  type: 'checkbox',
+                  displayMode: 'checkbox',
+                  containerClass: 'in fll',
+                  checked: true,
+                  on: {
+                    checked: () => {
+                      MapEngineCyberia.showGridBorders = true;
+                      rerenderCanvas();
+                    },
+                    unchecked: () => {
+                      MapEngineCyberia.showGridBorders = false;
+                      rerenderCanvas();
+                    },
                   },
-                  unchecked: () => {
-                    MapEngineCyberia.addOnClick = false;
+                })}
+                <div class="section-mp">&nbsp &nbsp Show Grid</div>
+              </div>
+              <div
+                class="fl"
+                style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin-top: 4px;"
+              >
+                ${await ToggleSwitch.instance({
+                  id: 'map-engine-show-object-layers',
+                  type: 'checkbox',
+                  displayMode: 'checkbox',
+                  containerClass: 'in fll',
+                  checked: false,
+                  on: {
+                    checked: () => {
+                      MapEngineCyberia.showObjectLayers = true;
+                      rerenderCanvas();
+                    },
+                    unchecked: () => {
+                      MapEngineCyberia.showObjectLayers = false;
+                      rerenderCanvas();
+                    },
                   },
-                },
-              })}
-              <div class="section-mp">&nbsp &nbsp Add on Click</div>
-            </div>
-          </div>
-          <div class="in fll ${dcCanvasOpts}-col-c">
-            <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
-              ${await ToggleSwitch.instance({
-                id: 'map-engine-show-object-layers',
-                type: 'checkbox',
-                displayMode: 'checkbox',
-                containerClass: 'in fll',
-                checked: false,
-                on: {
-                  checked: () => {
-                    MapEngineCyberia.showObjectLayers = true;
-                    rerenderCanvas();
-                  },
-                  unchecked: () => {
-                    MapEngineCyberia.showObjectLayers = false;
-                    rerenderCanvas();
-                  },
-                },
-              })}
-              <div class="section-mp">&nbsp &nbsp Object Layers</div>
+                })}
+                <div class="section-mp">&nbsp &nbsp Object Layers</div>
+              </div>
             </div>
           </div>
         </div>
