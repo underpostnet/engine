@@ -44,6 +44,7 @@ import {
   DefaultCyberiaDialogues,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
+  ENTITY_TYPE_DEFAULTS,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 import {
@@ -1762,6 +1763,7 @@ try {
           'cyberia-quest',
           'cyberia-action',
           'cyberia-skill',
+          'cyberia-entity-type-default',
           'cyberia-saga',
           'object-layer',
           'object-layer-render-frames',
@@ -1781,6 +1783,7 @@ try {
       const CyberiaQuest = DataBaseProviderService.getModel('cyberia-quest', { host, path });
       const CyberiaAction = DataBaseProviderService.getModel('cyberia-action', { host, path });
       const CyberiaSkill = DataBaseProviderService.getModel('cyberia-skill', { host, path });
+      const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('cyberia-entity-type-default', { host, path });
       const CyberiaSaga = DataBaseProviderService.getModel('cyberia-saga', { host, path });
       const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
       const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
@@ -2098,6 +2101,36 @@ try {
             }
             logger.info(`Exported ${skills.length} CyberiaSkill document(s)`, {
               triggerItemIds: skills.map((sk) => sk.triggerItemId),
+            });
+          }
+        }
+
+        // 4d-bis. Export entity-type defaults whose item ids belong to this
+        //     instance (own model: CyberiaEntityTypeDefault). A default is related
+        //     when any of its live/dead/drop ids or default object-layer ids appears
+        //     in the instance's item set. Their referenced ids are folded back into
+        //     objectLayerItemIds so the matching atlases + dialogues export too.
+        if (objectLayerItemIds.size > 0) {
+          const idsForMatch = [...objectLayerItemIds];
+          const entityDefaults = await CyberiaEntityTypeDefault.find({
+            $or: [
+              { liveItemIds: { $in: idsForMatch } },
+              { deadItemIds: { $in: idsForMatch } },
+              { dropItemIds: { $in: idsForMatch } },
+              { 'defaultObjectLayers.itemId': { $in: idsForMatch } },
+            ],
+          }).lean();
+          if (entityDefaults.length > 0) {
+            fs.ensureDirSync(`${backupDir}/cyberia-entity-type-defaults`);
+            for (const ed of entityDefaults) {
+              fs.writeJsonSync(`${backupDir}/cyberia-entity-type-defaults/${ed._id}.json`, ed, { spaces: 2 });
+              for (const id of ed.liveItemIds || []) if (id) objectLayerItemIds.add(id);
+              for (const id of ed.deadItemIds || []) if (id) objectLayerItemIds.add(id);
+              for (const id of ed.dropItemIds || []) if (id) objectLayerItemIds.add(id);
+              for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) objectLayerItemIds.add(slot.itemId);
+            }
+            logger.info(`Exported ${entityDefaults.length} CyberiaEntityTypeDefault document(s)`, {
+              entityTypes: entityDefaults.map((ed) => ed.entityType),
             });
           }
         }
@@ -2981,6 +3014,29 @@ try {
             skillCount++;
           }
           logger.info(`Imported ${skillCount} CyberiaSkill document(s)`);
+        }
+
+        // 8d-bis. Import CyberiaEntityTypeDefault documents (own model, overwrite
+        //     by the natural (entityType, liveItemIds) key, then by _id).
+        const entityDefaultsDir = `${backupDir}/cyberia-entity-type-defaults`;
+        if (fs.existsSync(entityDefaultsDir)) {
+          const entityDefaultFiles = fs.readdirSync(entityDefaultsDir).filter((f) => f.endsWith('.json'));
+          let entityDefaultCount = 0;
+          for (const file of entityDefaultFiles) {
+            const edData = fs.readJsonSync(`${entityDefaultsDir}/${file}`);
+            if (!edData.entityType) {
+              logger.warn(`Skipping CyberiaEntityTypeDefault backup without entityType: ${file}`);
+              continue;
+            }
+            await CyberiaEntityTypeDefault.deleteMany({
+              entityType: edData.entityType,
+              liveItemIds: edData.liveItemIds || [],
+            });
+            if (edData._id) await CyberiaEntityTypeDefault.deleteOne({ _id: edData._id });
+            await CyberiaEntityTypeDefault.create(edData);
+            entityDefaultCount++;
+          }
+          logger.info(`Imported ${entityDefaultCount} CyberiaEntityTypeDefault document(s)`);
         }
 
         // 8e. Backfill missing skills from the canonical DefaultSkillConfig. Old
@@ -4539,9 +4595,11 @@ try {
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
     .option(
       '--mongo-host <mongo-host>',
-      'Mongo host override (forwarded to ol, seed-skills, seed-dialogues, seed-actions-quests, client-hints)',
+      'Mongo host override (forwarded to ol, seed-skills, seed-entities, seed-dialogues, seed-actions-quests, client-hints)',
     )
-    .description('Import default Object Layer items, skills, dialogues, actions/quests, and client-hints into MongoDB')
+    .description(
+      'Import default Object Layer items, skills, entity defaults, dialogues, actions/quests, and client-hints into MongoDB',
+    )
     .action(async (options) => {
       // Pre-flight: every item id referenced by the fallback world must
       // exist in DefaultCyberiaItems. Drift here causes silent missing
@@ -4562,6 +4620,7 @@ try {
       const instanceCode = process.env.INSTANCE_CODE || 'cyberia-main';
       shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-skills${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-entities${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-actions-quests${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}${mongoHostFlag}`);
@@ -4733,6 +4792,89 @@ try {
       logger.info(
         `seed-skills: ${upserted} skill records upserted`,
         DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${(e.logicEventIds || []).join(', ')}]`),
+      );
+
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    });
+
+  runner
+    .command('seed-entities')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert ENTITY_TYPE_DEFAULTS into the cyberia-entity-type-default collection (idempotent)')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-entities', { deployId, host, path, db });
+
+      await DataBaseProviderService.load({ apis: ['cyberia-entity-type-default'], host, path, db });
+
+      const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('cyberia-entity-type-default', { host, path });
+
+      // liveItemIds is the resolution key and must be globally unique, so a live
+      // itemId may belong to only one document. ENTITY_TYPE_DEFAULTS intentionally
+      // ships overlapping variants (player / other_player share the same skin set);
+      // the first claimant wins and later overlapping entries are skipped, keeping
+      // the by-itemId lookup unambiguous. Documents are upserted by the
+      // (entityType, liveItemIds) pair so the seed stays idempotent.
+      const claimedLiveIds = new Set();
+      let upserted = 0;
+      let skipped = 0;
+      for (const ed of ENTITY_TYPE_DEFAULTS) {
+        const liveIds = (ed.liveItemIds || []).filter(Boolean);
+        const conflict = liveIds.find((id) => claimedLiveIds.has(id));
+        if (conflict) {
+          logger.warn(
+            `seed-entities: skipping entityType "${ed.entityType}" — live itemId "${conflict}" already claimed (liveItemIds must be globally unique)`,
+          );
+          skipped++;
+          continue;
+        }
+        for (const id of liveIds) claimedLiveIds.add(id);
+        await CyberiaEntityTypeDefault.findOneAndUpdate(
+          { entityType: ed.entityType, liveItemIds: ed.liveItemIds || [] },
+          {
+            $set: {
+              entityType: ed.entityType,
+              liveItemIds: ed.liveItemIds || [],
+              deadItemIds: ed.deadItemIds || [],
+              dropItemIds: ed.dropItemIds || [],
+              defaultObjectLayers: ed.defaultObjectLayers || [],
+            },
+          },
+          { upsert: true },
+        );
+        upserted++;
+      }
+
+      logger.info(
+        `seed-entities: ${upserted} entity-type-default records upserted, ${skipped} skipped`,
+        ENTITY_TYPE_DEFAULTS.map((e) => `${e.entityType} → [${(e.liveItemIds || []).join(', ')}]`),
       );
 
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();

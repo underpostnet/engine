@@ -26,6 +26,10 @@ class TranslateCyberiaPortal {
       en: 'Cyberia Action Engine',
       es: 'Cyberia Action Engine',
     };
+    Translate.Data['cyberia-entity-engine'] = {
+      en: 'Cyberia Entity Engine',
+      es: 'Cyberia Entity Engine',
+    };
   }
 }
 

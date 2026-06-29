@@ -140,9 +140,7 @@ function applyInstanceDefaultPlayerInventory(config, instanceItemIds = []) {
 
   // ── 1. Remove items explicitly flagged as NOT default player inventory ─────
   const removeIds = new Set(
-    entries
-      .filter((entry) => entry && entry.defaultPlayerInventory === false && entry.id)
-      .map((entry) => entry.id),
+    entries.filter((entry) => entry && entry.defaultPlayerInventory === false && entry.id).map((entry) => entry.id),
   );
   if (removeIds.size > 0) {
     for (const ed of config.entityDefaults || []) {
@@ -153,9 +151,7 @@ function applyInstanceDefaultPlayerInventory(config, instanceItemIds = []) {
   }
 
   // ── 2. Add items flagged as default player inventory ──────────────────────
-  const addIds = entries
-    .filter((entry) => entry && entry.defaultPlayerInventory && entry.id)
-    .map((entry) => entry.id);
+  const addIds = entries.filter((entry) => entry && entry.defaultPlayerInventory && entry.id).map((entry) => entry.id);
   if (addIds.length === 0) return config;
 
   const playerDefault = (config.entityDefaults || []).find((d) => d.entityType === 'player');
@@ -195,6 +191,47 @@ function skillDocsToConfig(skillDocs = []) {
 async function loadSkillConfigDocs(models) {
   if (!models.CyberiaSkill) return [];
   return await models.CyberiaSkill.find({}).lean();
+}
+
+// Map CyberiaEntityTypeDefault collection docs to the proto entityDefaults shape.
+// This collection is the authoritative own-model source for per-entity-type item
+// defaults (live/dead/drop + seed object layers). Resolution is by liveItemIds
+// membership, so every variant (e.g. each resource skin) must travel as its own
+// entry — never collapsed by entityType.
+function entityTypeDefaultDocsToConfig(docs = []) {
+  return docs
+    .filter((d) => d && d.entityType)
+    .map((d) => ({
+      entityType: d.entityType,
+      liveItemIds: [...(d.liveItemIds || [])],
+      deadItemIds: [...(d.deadItemIds || [])],
+      dropItemIds: [...(d.dropItemIds || [])],
+      defaultObjectLayers: (d.defaultObjectLayers || []).map((ol) => ({
+        itemId: ol.itemId,
+        active: !!ol.active,
+        quantity: ol.quantity || 0,
+      })),
+    }));
+}
+
+// Load authoritative entity-type defaults from the CyberiaEntityTypeDefault
+// collection. Returns [] when the model is not mounted or empty, so callers
+// transparently keep the conf / canonical entityDefaults.
+async function loadEntityTypeDefaultDocs(models) {
+  if (!models.CyberiaEntityTypeDefault) return [];
+  return await models.CyberiaEntityTypeDefault.find({}).lean();
+}
+
+// Feed every live/dead/drop and default-object-layer item id from the collection
+// defaults into the atlas id set so the Go server resolves their sprites even
+// when the entity appears in no map (e.g. a new resource skin).
+function addEntityDefaultAtlasIds(entityDefaults, atlasItemIds) {
+  for (const d of entityDefaults || []) {
+    for (const id of d.liveItemIds || []) if (id) atlasItemIds.add(id);
+    for (const id of d.deadItemIds || []) if (id) atlasItemIds.add(id);
+    for (const id of d.dropItemIds || []) if (id) atlasItemIds.add(id);
+    for (const ol of d.defaultObjectLayers || []) if (ol.itemId) atlasItemIds.add(ol.itemId);
+  }
 }
 
 // Feed skill trigger items and every concrete summoned-entity id into the atlas
@@ -583,11 +620,19 @@ function buildHandlers(dbKey) {
           const fallbackSkillDocs = await loadSkillConfigDocs(models);
           addSkillAtlasIds(fallbackSkillDocs, fallbackItemIds);
 
+          // Own-model entity defaults (if seeded) override the fallback
+          // entityDefaults; their live/dead/drop atlases resolve alongside.
+          const fallbackEntityDefaultDocs = await loadEntityTypeDefaultDocs(models);
+          const fallbackEntityDefaultsConfig = entityTypeDefaultDocsToConfig(fallbackEntityDefaultDocs);
+          addEntityDefaultAtlasIds(fallbackEntityDefaultsConfig, fallbackItemIds);
+
           const fallbackOlDocs = fallbackItemIds.size
             ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } }).lean()
             : [];
 
           const fallbackConfig = toInstanceConfig(fallbackConf);
+          if (fallbackEntityDefaultsConfig.length)
+            fallbackConfig.entityDefaults = mergeEntityDefaults(fallbackEntityDefaultsConfig);
           if (fallbackSkillDocs.length) fallbackConfig.skillConfig = skillDocsToConfig(fallbackSkillDocs);
 
           callback(null, {
@@ -658,9 +703,15 @@ function buildHandlers(dbKey) {
           if (id) itemIds.add(id);
         }
 
-        // Include system OL items from BOTH canonical ENTITY_TYPE_DEFAULTS AND
-        // the DB conf so the Go server always caches all default atlases even if
-        // the DB doc has incomplete entityDefaults.
+        // Authoritative per-entity-type defaults come from the
+        // CyberiaEntityTypeDefault collection (own model); empty collection leaves
+        // the conf/canonical defaults in place.
+        const entityDefaultDocs = await loadEntityTypeDefaultDocs(models);
+        const entityDefaultsConfig = entityTypeDefaultDocsToConfig(entityDefaultDocs);
+
+        // Include system OL items from canonical ENTITY_TYPE_DEFAULTS, the DB conf,
+        // AND the collection so the Go server always caches every default atlas
+        // even when an entity (e.g. a new resource skin) appears in no map.
         for (const d of [...ENTITY_TYPE_DEFAULTS, ...(conf.entityDefaults || [])]) {
           for (const id of d.liveItemIds || []) itemIds.add(id);
           for (const id of d.deadItemIds || []) itemIds.add(id);
@@ -669,6 +720,7 @@ function buildHandlers(dbKey) {
             if (ol.itemId) itemIds.add(ol.itemId);
           }
         }
+        addEntityDefaultAtlasIds(entityDefaultsConfig, itemIds);
 
         // Authoritative skills come from the CyberiaSkill collection (own model);
         // resolve their atlases before the OL query so summoned entities render.
@@ -687,6 +739,9 @@ function buildHandlers(dbKey) {
         // Skill edits live in their own collection — fold them in so a skill
         // change triggers a Go-side world rebuild instead of serving stale skills.
         for (const sk of skillDocs) versionParts.push(String(sk.updatedAt || sk._id));
+        // Entity-type-default edits live in their own collection too — fold them
+        // in so adding/editing a default (e.g. a new resource) rebuilds the world.
+        for (const ed of entityDefaultDocs) versionParts.push(String(ed.updatedAt || ed._id));
         const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
         // Mission content for this instance: actions and quests bound to its
@@ -702,7 +757,13 @@ function buildHandlers(dbKey) {
             ? await models.CyberiaQuest.find({ sourceMapCode: { $in: mapCodes } }).lean()
             : [];
 
-        const config = applyInstanceDefaultPlayerInventory(toInstanceConfig(conf), inst.itemIds);
+        const baseConfig = toInstanceConfig(conf);
+        // Own-model entity defaults win over the conf's entityDefaults (overlaid on
+        // canonical via mergeEntityDefaults), so every collection variant — e.g.
+        // each resource skin — reaches the Go runtime keyed by liveItemIds. Applied
+        // BEFORE default-player-inventory so the player layer additions survive.
+        if (entityDefaultsConfig.length) baseConfig.entityDefaults = mergeEntityDefaults(entityDefaultsConfig);
+        const config = applyInstanceDefaultPlayerInventory(baseConfig, inst.itemIds);
         // Own-model skills win over the conf's stripped skillConfig (which lacks
         // summonedEntityItemId); empty collection leaves the conf/fallback as-is.
         if (skillDocs.length) config.skillConfig = skillDocsToConfig(skillDocs);
