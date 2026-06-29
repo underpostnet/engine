@@ -319,6 +319,12 @@ export const ENTITY_COLOR_KEYS = Object.freeze([
  *   defaultObjHeight — default entity dimensions used by the world editor
  *                     and the client when a doc omits dims. Presentation
  *                     because dims-in-cells is just a visual sizing.
+ *   fontFamily      — TTF file name under engine `assets/fonts/`. When set, the
+ *                     cyberia-client fetches `assets/fonts/<fontFamily>` and loads
+ *                     it as the main default font for all text. Empty = raylib's
+ *                     built-in font.
+ *   fontFactorSize  — uniform multiplier applied to every text size, so a
+ *                     deployment can scale all UI/HUD text without per-call edits.
  */
 export const RENDER_DEFAULTS = Object.freeze({
   cellSize: 45,
@@ -330,6 +336,8 @@ export const RENDER_DEFAULTS = Object.freeze({
   defaultHeightScreenFactor: 1,
   interpolationMs: 100,
   devUi: false,
+  fontFamily: 'PressStart2P-Regular.ttf',
+  fontFactorSize: 0.8,
 });
 
 /**
@@ -406,6 +414,8 @@ export function buildClientHints(overrides = {}) {
     defaultHeightScreenFactor: ov.defaultHeightScreenFactor ?? RENDER_DEFAULTS.defaultHeightScreenFactor,
     interpolationMs: ov.interpolationMs ?? RENDER_DEFAULTS.interpolationMs,
     devUi: ov.devUi ?? RENDER_DEFAULTS.devUi,
+    fontFamily: ov.fontFamily ?? RENDER_DEFAULTS.fontFamily,
+    fontFactorSize: ov.fontFactorSize ?? RENDER_DEFAULTS.fontFactorSize,
   };
 }
 
