@@ -7,6 +7,7 @@ import { dynamicCol, darkTheme, ThemeEvents } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { CyberiaInstanceManagement } from '../../services/cyberia-instance/cyberia-instance.management.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
+import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
@@ -243,6 +244,11 @@ class InstanceEngineCyberia {
     const idTargetCellY = 'instance-engine-target-cell-y';
     const idFilterSource = 'instance-engine-filter-source';
     const idFilterTarget = 'instance-engine-filter-target';
+    const idSpawnMapCode = 'instance-engine-spawn-map-code';
+    const idSpawnCellX = 'instance-engine-spawn-cell-x';
+    const idSpawnCellY = 'instance-engine-spawn-cell-y';
+    const idSpawnRandom = 'instance-engine-spawn-random';
+    const idAoiRadius = 'instance-engine-aoi-radius';
 
     InstanceEngineCyberia.currentInstanceId = null;
     InstanceEngineCyberia.currentThumbnailId = null;
@@ -271,9 +277,35 @@ class InstanceEngineCyberia {
         cyberiaMapCodes,
         itemIds,
         portals: InstanceEngineCyberia.portals,
+        playerSpawn: {
+          sourceMapCode: s(`.${idSpawnMapCode}`)?.value?.trim() || '',
+          sourceCellX: parseInt(s(`.${idSpawnCellX}`)?.value) || 0,
+          sourceCellY: parseInt(s(`.${idSpawnCellY}`)?.value) || 0,
+          random: !!s(`.${idSpawnRandom}`)?.checked,
+        },
       };
       if (InstanceEngineCyberia.currentThumbnailId) payload.thumbnail = InstanceEngineCyberia.currentThumbnailId;
       return payload;
+    };
+
+    // AOI radius lives on the linked CyberiaInstanceConf (auto-upserted on
+    // instance save). Fetch / update it by instanceCode so the engine can edit
+    // it alongside instance identity without touching the rest of the conf.
+    const fetchConfByCode = async (instanceCode) => {
+      if (!instanceCode) return null;
+      const res = await CyberiaInstanceConfService.get({
+        filterModel: { instanceCode: { filterType: 'text', type: 'equals', filter: instanceCode } },
+      });
+      return res?.data?.data?.[0] || null;
+    };
+
+    const persistAoiRadius = async (instanceCode) => {
+      const raw = s(`.${idAoiRadius}`)?.value;
+      if (raw === undefined || raw === '') return;
+      const aoiRadius = parseFloat(raw);
+      if (!Number.isFinite(aoiRadius)) return;
+      const conf = await fetchConfByCode(instanceCode);
+      if (conf?._id) await CyberiaInstanceConfService.put({ id: conf._id, body: { aoiRadius } });
     };
 
     const persistInstance = async ({ notify = true } = {}) => {
@@ -322,6 +354,9 @@ class InstanceEngineCyberia {
       }
       if (result.status === 'success') {
         if (result.data?._id) InstanceEngineCyberia.currentInstanceId = result.data._id;
+        // The conf is auto-upserted on instance save; persist the AOI radius onto
+        // it now that we know the instance code resolves to a conf document.
+        await persistAoiRadius(body.code);
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
       return result;
@@ -424,6 +459,17 @@ class InstanceEngineCyberia {
         portalMode: p.portalMode || 'inter-portal',
       }));
       InstanceEngineCyberia.renderPortalList(portalListId);
+
+      // Player spawn (instance-level).
+      const spawn = instanceData.playerSpawn || {};
+      if (s(`.${idSpawnMapCode}`)) s(`.${idSpawnMapCode}`).value = spawn.sourceMapCode || '';
+      if (s(`.${idSpawnCellX}`)) s(`.${idSpawnCellX}`).value = spawn.sourceCellX ?? 0;
+      if (s(`.${idSpawnCellY}`)) s(`.${idSpawnCellY}`).value = spawn.sourceCellY ?? 0;
+      if (s(`.${idSpawnRandom}`)) s(`.${idSpawnRandom}`).checked = !!spawn.random;
+
+      // AOI radius (lives on the linked conf, fetched by instance code).
+      const conf = await fetchConfByCode(instanceData.code);
+      if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = conf?.aoiRadius ?? '';
     };
 
     const resetForm = () => {
@@ -462,6 +508,11 @@ class InstanceEngineCyberia {
       InstanceEngineCyberia.renderItemInventoryList();
       InstanceEngineCyberia.portals = [];
       InstanceEngineCyberia.renderPortalList(portalListId);
+      if (s(`.${idSpawnMapCode}`)) s(`.${idSpawnMapCode}`).value = '';
+      if (s(`.${idSpawnCellX}`)) s(`.${idSpawnCellX}`).value = 0;
+      if (s(`.${idSpawnCellY}`)) s(`.${idSpawnCellY}`).value = 0;
+      if (s(`.${idSpawnRandom}`)) s(`.${idSpawnRandom}`).checked = false;
+      if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = '';
     };
 
     setTimeout(() => {
@@ -619,6 +670,7 @@ class InstanceEngineCyberia {
     const dcPortalSource = 'instance-engine-dc-portal-source';
     const dcPortalTarget = 'instance-engine-dc-portal-target';
     const dcPortalFilter = 'instance-engine-dc-portal-filter';
+    const dcSpawn = 'instance-engine-dc-spawn';
 
     return html`<div class="in section-mp instance-engine-container">
       ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcFields, type: 'search-inputs' })}
@@ -851,6 +903,59 @@ class InstanceEngineCyberia {
           </div>
         </div>
         <div class="in ${portalListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+      </div>
+      <div class="in section-mp" style="margin-top: 10px;">
+        <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Player Spawn &amp; World</div>
+        <div class="in" style="font-size:12px;color:#888;margin-bottom:6px;">
+          Fixed spawn places every new player at the cell below. Enable Random (or leave the map code blank) to spawn at
+          a random walkable cell on a random map.
+        </div>
+        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSpawn, type: 'search-inputs' })}
+        <div class="fl">
+          <div class="in fll ${dcSpawn}-col-a">
+            ${await Input.instance({
+              id: idSpawnMapCode,
+              label: html`Spawn Map Code`,
+              containerClass: 'inl',
+              type: 'text',
+            })}
+          </div>
+          <div class="in fll ${dcSpawn}-col-b">
+            ${await Input.instance({
+              id: idSpawnCellX,
+              label: html`Spawn Cell X`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 0,
+              value: 0,
+            })}
+          </div>
+          <div class="in fll ${dcSpawn}-col-c">
+            ${await Input.instance({
+              id: idSpawnCellY,
+              label: html`Spawn Cell Y`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 0,
+              value: 0,
+            })}
+          </div>
+        </div>
+        <div class="in" style="margin-top:6px;">
+          <label style="font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            <input class="${idSpawnRandom}" type="checkbox" style="cursor:pointer;" /> Random spawn (ignore the fixed
+            cell)
+          </label>
+        </div>
+        <div class="in" style="margin-top:10px;">
+          ${await Input.instance({
+            id: idAoiRadius,
+            label: html`AOI Radius (cells)`,
+            containerClass: 'inl',
+            type: 'number',
+            min: 1,
+          })}
+        </div>
       </div>
       <div class="in section-mp" style="margin-top: 10px;">
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}

@@ -35,6 +35,7 @@ import {
 
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
+  DEFAULT_PLAYER_SPAWN,
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
   DefaultSkillConfig,
@@ -285,6 +286,7 @@ function generateFallbackWorld(opts = {}) {
     cyberiaMapCodes: mapCodes,
     portals,
     topologyMode: 'procedural',
+    playerSpawn: { ...DEFAULT_PLAYER_SPAWN },
   };
 
   return {

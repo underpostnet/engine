@@ -662,6 +662,27 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Player spawn
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Canonical default player spawn policy. Mirrors PlayerSpawnSchema in
+ * cyberia-instance.model.js and the Go PlayerSpawnConfig: when `random` is false
+ * and `sourceMapCode` names a loaded map, new players spawn at
+ * (sourceCellX, sourceCellY) on it; otherwise (random, or no/unknown map) they
+ * spawn at a random walkable cell on a random map.
+ *
+ * The canonical default is a random spawn so a fresh or procedural world never
+ * piles every new player onto a single cell.
+ */
+export const DEFAULT_PLAYER_SPAWN = Object.freeze({
+  sourceMapCode: 'fallback-map-0',
+  sourceCellX: 3,
+  sourceCellY: 3,
+  random: false,
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Instance-level simulation configuration
 // ─────────────────────────────────────────────────────────────────────────────
 

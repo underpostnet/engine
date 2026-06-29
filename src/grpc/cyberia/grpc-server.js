@@ -17,6 +17,7 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
+  DEFAULT_PLAYER_SPAWN,
   ENTITY_TYPE_DEFAULTS,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
@@ -370,6 +371,12 @@ function toInstanceMsg(doc) {
     })),
     topologyMode: doc.topologyMode || 'hybrid',
     seed: doc.seed || '',
+    playerSpawn: {
+      sourceMapCode: doc.playerSpawn?.sourceMapCode || '',
+      sourceCellX: doc.playerSpawn?.sourceCellX || 0,
+      sourceCellY: doc.playerSpawn?.sourceCellY || 0,
+      random: !!doc.playerSpawn?.random,
+    },
   };
 }
 
@@ -646,6 +653,7 @@ function buildHandlers(dbKey) {
               portals: world.portals,
               topologyMode: 'procedural',
               seed: instanceCode,
+              playerSpawn: world.instance.playerSpawn,
             }),
             maps: world.maps.map((m) => ({
               mongoId: '',

@@ -32,6 +32,22 @@ const PortalEdgeSchema = new Schema(
 );
 
 /**
+ * Authoritative initial spawn position for new players joining this instance.
+ * When `random` is false and `sourceMapCode` names a loaded map, players spawn at
+ * (sourceCellX, sourceCellY) on it; otherwise (random true, or no/unknown map)
+ * the server spawns them at a random walkable cell on a random map.
+ */
+const PlayerSpawnSchema = new Schema(
+  {
+    sourceMapCode: { type: String, trim: true },
+    sourceCellX: { type: Number },
+    sourceCellY: { type: Number },
+    random: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+/**
  * Graph container / instance.
  * The instance stores:
  * - nodes: cyberiaMapCodes[]
@@ -68,6 +84,9 @@ const CyberiaInstanceSchema = new Schema(
 
     // Directed edge set of the graph
     portals: { type: [PortalEdgeSchema], default: [] },
+
+    // Authoritative initial spawn for new players (see PlayerSpawnSchema).
+    playerSpawn: { type: PlayerSpawnSchema, default: () => ({}) },
 
     // Optional topology generation mode
     seed: { type: String, default: '' },
