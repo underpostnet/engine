@@ -566,6 +566,18 @@ export const STATUS_ICONS = Object.freeze([
     description:
       'Capability: bot offers or advances a cyberia-quest for the viewing player (acceptable offer or active talk-target). Sent as a capability bit, not a presence state.',
   },
+  {
+    id: 10,
+    name: 'portal',
+    description:
+      'Presence: fixed-target portal / transport entity. The client renders the transport icon plus a "<targetMapCode> <x>,<y>" nameplate.',
+  },
+  {
+    id: 11,
+    name: 'portal-random',
+    description:
+      'Presence: random-target portal (inter-random / intra-random, targetCell -1,-1). The client renders the transport-random icon plus a "<targetMapCode>" nameplate (no cell, the destination is random).',
+  },
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────

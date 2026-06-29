@@ -352,6 +352,8 @@ export const STATUS_ICONS_PRESENTATION = Object.freeze([
   { id: 7, iconId: 'clock', bounce: false, borderColor: { r: 160, g: 130, b: 200, a: 200 } },
   { id: 8, iconId: 'hand', bounce: true, borderColor: { r: 80, g: 160, b: 220, a: 240 } },
   { id: 9, iconId: 'quest', bounce: true, borderColor: { r: 220, g: 190, b: 60, a: 240 } },
+  { id: 10, iconId: 'transport', bounce: false, borderColor: { r: 90, g: 170, b: 230, a: 240 } },
+  { id: 11, iconId: 'transport-random', bounce: false, borderColor: { r: 150, g: 130, b: 230, a: 240 } },
 ]);
 
 /**
