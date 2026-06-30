@@ -66,6 +66,7 @@ function normalizeEntityDefault(entityDefault = {}, canonical = {}) {
       active: !!ol.active,
       quantity: ol.quantity || 0,
     })),
+    behavior: entityDefault.behavior ?? canonical.behavior ?? '',
   };
 }
 
@@ -155,6 +156,7 @@ function entityTypeDefaultDocsToConfig(docs = []) {
         active: !!ol.active,
         quantity: ol.quantity || 0,
       })),
+      behavior: d.behavior || '',
     }));
 }
 
