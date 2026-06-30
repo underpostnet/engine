@@ -16,16 +16,22 @@ import { Schema, model } from 'mongoose';
 // contains that itemId, then applies the document's deadItemIds / dropItemIds /
 // defaultObjectLayers to drive what is shown as the entity's state changes.
 //
+// Resolution (subset matching): a document matches an entity when ALL of its
+// `liveItemIds` are present in the entity's active item ids, and the MOST SPECIFIC
+// match wins — the document requiring the largest item set. This lets the same
+// skin map to different defaults by its full active set, e.g.
+//   { bot, liveItemIds:[purple, atlas_pistol_mk2], behavior:hostile }
+//   { bot, liveItemIds:[purple],                    behavior:passive }
+// where a purple bot carrying the pistol is hostile and a bare purple bot is
+// passive. The Go simulation (game/entity_defaults.go) implements the same rule.
+//
 // Invariants:
-//   - `entityType` is a NON-unique, NON-indexed label: a category may appear in
-//     many documents (e.g. resource wood-1 / wood-2 / sap, or one document per
-//     skin variant), and resolution never keys off it.
-//   - `liveItemIds` is the lookup key, so every itemId may appear in `liveItemIds`
-//     of AT MOST ONE document across the whole collection — two documents (of the
-//     same or different entityType) sharing a live itemId would make the lookup
-//     ambiguous. Documents with an empty `liveItemIds` carry no lookup key and are
-//     exempt. Enforced in the API service (writes) and the seed runner; indexed
-//     (non-unique multikey) for fast membership lookup.
+//   - `entityType` is a label, not a unique key — a category appears in many
+//     documents.
+//   - There is NO per-itemId uniqueness: the same itemId may appear in the
+//     `liveItemIds` of many documents (different entity types, or the same type
+//     at different specificity levels). `liveItemIds` is indexed (non-unique
+//     multikey) only for fast membership lookups.
 
 const ObjectLayerDefaultSchema = new Schema(
   {
@@ -43,6 +49,11 @@ const CyberiaEntityTypeDefaultSchema = new Schema(
     deadItemIds: [{ type: String, trim: true }],
     dropItemIds: [{ type: String, trim: true }],
     defaultObjectLayers: [ObjectLayerDefaultSchema],
+    // Canonical entity behavior bound to entities matched by liveItemIds (see
+    // SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty = let the runtime derive it
+    // (armed → hostile, else passive). The Go simulation resolves this with the
+    // same liveItemIds matching used for the live/dead/drop sets.
+    behavior: { type: String, trim: true },
   },
   {
     timestamps: true,

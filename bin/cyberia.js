@@ -4841,26 +4841,22 @@ try {
 
       const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('cyberia-entity-type-default', { host, path });
 
-      // liveItemIds is the resolution key and must be globally unique, so a live
-      // itemId may belong to only one document. ENTITY_TYPE_DEFAULTS intentionally
-      // ships overlapping variants (player / other_player share the same skin set);
-      // the first claimant wins and later overlapping entries are skipped, keeping
-      // the by-itemId lookup unambiguous. Documents are upserted by the
-      // (entityType, liveItemIds) pair so the seed stays idempotent.
-      const claimedLiveIds = new Set();
+      // Reconcile DB indexes with the current schema. This drops the obsolete
+      // unique (entityType, liveItemIds) index from earlier builds so the same
+      // itemId may appear in multiple same-type defaults (subset matching), and
+      // (re)creates the non-unique liveItemIds lookup index.
+      try {
+        await CyberiaEntityTypeDefault.syncIndexes();
+      } catch (error) {
+        logger.warn(`seed-entities: syncIndexes skipped: ${error?.message || error}`);
+      }
+
+      // Resolution is by subset containment (most-specific match wins), so there
+      // is NO per-itemId uniqueness — the same itemId may appear in many entries
+      // (across entity types, or within one type at different specificity). Every
+      // entry is upserted, idempotently, by its exact (entityType, liveItemIds) key.
       let upserted = 0;
-      let skipped = 0;
       for (const ed of ENTITY_TYPE_DEFAULTS) {
-        const liveIds = (ed.liveItemIds || []).filter(Boolean);
-        const conflict = liveIds.find((id) => claimedLiveIds.has(id));
-        if (conflict) {
-          logger.warn(
-            `seed-entities: skipping entityType "${ed.entityType}" — live itemId "${conflict}" already claimed (liveItemIds must be globally unique)`,
-          );
-          skipped++;
-          continue;
-        }
-        for (const id of liveIds) claimedLiveIds.add(id);
         await CyberiaEntityTypeDefault.findOneAndUpdate(
           { entityType: ed.entityType, liveItemIds: ed.liveItemIds || [] },
           {
@@ -4870,6 +4866,7 @@ try {
               deadItemIds: ed.deadItemIds || [],
               dropItemIds: ed.dropItemIds || [],
               defaultObjectLayers: ed.defaultObjectLayers || [],
+              behavior: ed.behavior || '',
             },
           },
           { upsert: true },
@@ -4878,7 +4875,7 @@ try {
       }
 
       logger.info(
-        `seed-entities: ${upserted} entity-type-default records upserted, ${skipped} skipped`,
+        `seed-entities: ${upserted} entity-type-default records upserted`,
         ENTITY_TYPE_DEFAULTS.map((e) => `${e.entityType} → [${(e.liveItemIds || []).join(', ')}]`),
       );
 
