@@ -2142,10 +2142,15 @@ try {
         //     conf-default, and skill-summoned item IDs — giving the broadest possible
         //     match surface for saga discovery.
         const sagaCodeMatch = instanceCode ? await CyberiaSaga.find({ code: instanceCode }).lean() : [];
-        const sagaMapOverlap =
-          mapCodes.size > 0 ? await CyberiaSaga.find({ mapCodes: { $in: [...mapCodes] } }).lean() : [];
-        const sagaItemOverlap =
-          objectLayerItemIds.size > 0
+        // Disabling overlaps queries for now because they can be very expensive and are not strictly necessary for a backup.
+        const sagaMapOverlap = true
+          ? []
+          : mapCodes.size > 0
+            ? await CyberiaSaga.find({ mapCodes: { $in: [...mapCodes] } }).lean()
+            : [];
+        const sagaItemOverlap = true
+          ? []
+          : objectLayerItemIds.size > 0
             ? await CyberiaSaga.find({ itemIds: { $in: [...objectLayerItemIds] } }).lean()
             : [];
         const allSagas = [
