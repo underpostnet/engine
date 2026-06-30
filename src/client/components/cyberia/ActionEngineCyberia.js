@@ -12,7 +12,7 @@ import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.
 import { CyberiaActionService } from '../../services/cyberia-action/cyberia-action.service.js';
 import { CyberiaDialogueService } from '../../services/cyberia-dialogue/cyberia-dialogue.service.js';
 import { CyberiaSkillService } from '../../services/cyberia-skill/cyberia-skill.service.js';
-import { QUEST_STEPS_TYPES, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
+import { QUEST_STEPS_TYPES, getDefaultCyberiaItemById, SKILL_LOGIC_IDS } from './SharedDefaultsCyberia.js';
 
 const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
 // DropDown invokes optionData.onClick on selection, so every option (including
@@ -1077,14 +1077,14 @@ class ActionEngineCyberia {
   }
 
   static addSkillDef() {
-    const logicEventId = s('.action-engine-skill-logic-event')?.value?.trim();
+    const logicEventId = ActionEngineCyberia.getSingleDropdownValue('action-engine-skill-logic-event');
     const name = s('.action-engine-skill-name')?.value?.trim() || '';
     const description = s('.action-engine-skill-description')?.value || '';
     const summonedEntityItemId = ActionEngineCyberia.getSingleDropdownValue(
       ActionEngineCyberia.ids.skillSummonedItemPicker,
     );
     if (!logicEventId) {
-      NotificationManager.Push({ html: 'Logic event id is required.', status: 'error' });
+      NotificationManager.Push({ html: 'Select a canonical logic event id first.', status: 'error' });
       return;
     }
     if (ActionEngineCyberia.skillDefs.some((sk) => sk.logicEventId === logicEventId)) {
@@ -1092,7 +1092,8 @@ class ActionEngineCyberia {
       return;
     }
     ActionEngineCyberia.skillDefs.push({ logicEventId, name, description, summonedEntityItemId });
-    for (const cls of ['action-engine-skill-logic-event', 'action-engine-skill-name', 'action-engine-skill-description'])
+    ActionEngineCyberia.setSingleDropdownValue('action-engine-skill-logic-event', '');
+    for (const cls of ['action-engine-skill-name', 'action-engine-skill-description'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
     ActionEngineCyberia.renderSkillDefList();
@@ -1177,7 +1178,8 @@ class ActionEngineCyberia {
     ActionEngineCyberia.skillDefs = [];
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, '');
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
-    for (const cls of ['action-engine-skill-logic-event', 'action-engine-skill-name', 'action-engine-skill-description'])
+    ActionEngineCyberia.setSingleDropdownValue('action-engine-skill-logic-event', '');
+    for (const cls of ['action-engine-skill-name', 'action-engine-skill-description'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.renderSkillDefList();
   }
@@ -1799,11 +1801,16 @@ class ActionEngineCyberia {
             ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
             <div class="fl">
               <div class="in fll ${dc.skillDef}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
+                ${await DropDown.instance({
                   id: 'action-engine-skill-logic-event',
                   label: html`Logic Event Id`,
                   containerClass: 'inl',
-                  type: 'text',
+                  data: SKILL_LOGIC_IDS.map((l) => ({
+                    value: l.id,
+                    display: l.name ? `${l.id} — ${l.name}` : l.id,
+                    data: l.id,
+                    onClick: () => {},
+                  })),
                 })}
               </div>
               <div class="in fll ${dc.skillDef}-col-b" style="padding-left:4px;">

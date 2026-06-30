@@ -36,7 +36,12 @@
 // The canonical client-defaults module lives under src/client/ so the
 // browser bundler can resolve the URL inside the client tree. Engine-side
 // Node imports work from any path, so we reach into it from here.
-import { ITEM_TYPES, ENTITY_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  ITEM_TYPES,
+  ENTITY_TYPES,
+  SKILL_LOGIC_ID_VALUES,
+  isCanonicalSkillLogicId,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 /**
  * Native-dependency pin list. Consumed by `bin/build.js` and `bin/deploy.js`
@@ -122,6 +127,20 @@ export const DefaultSkillConfig = [
     ],
   },
 ];
+
+// Fail fast on a non-canonical logicEventId: the canonical LogicId registry in
+// SharedDefaultsCyberia.js is the single source of truth, so a typo or a handler
+// the dispatcher does not know must surface at boot, not as a silent no-op skill.
+for (const cfg of DefaultSkillConfig) {
+  for (const logicEventId of [...(cfg.logicEventIds || []), ...(cfg.skills || []).map((sk) => sk.logicEventId)]) {
+    if (!isCanonicalSkillLogicId(logicEventId)) {
+      throw new Error(
+        `DefaultSkillConfig: unknown skill logicEventId "${logicEventId}" for trigger "${cfg.triggerItemId}". ` +
+          `Allowed (SharedDefaultsCyberia.SKILL_LOGIC_IDS): ${SKILL_LOGIC_ID_VALUES.join(', ')}`,
+      );
+    }
+  }
+}
 
 /**
  * Default dialogue seeds. Mirrors `CyberiaDialogue` model schema:
@@ -651,6 +670,14 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
       { itemId: 'coin', active: false, quantity: 0 },
     ],
   },
+  // Fallback-world mission/action givers. Resolved by their active skin (the
+  // liveItemIds key), these bots take the canonical `provider` behavior: they
+  // barely move from their spawn and are immortal. Lain only talks in place, so
+  // she is fully static. Authors can retarget any of these via EntityEngineCyberia.
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['wason'], deadItemIds: ['ghost'], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: ['ghost'], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: ['ghost'], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['lain'], deadItemIds: ['ghost'], behavior: 'provider-static' },
   {
     entityType: ENTITY_TYPES.skill,
     liveItemIds: ['atlas_pistol_mk2_bullet'],

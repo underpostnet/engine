@@ -31,6 +31,9 @@ const EntityDefaultSchema = new Schema(
     // The coin slot must always have active:false — coins are non-activable.
     // When non-empty this supersedes liveItemIds for inventory initialization.
     defaultObjectLayers: { type: [ObjectLayerSlotSchema], default: [] },
+    // Canonical entity behavior (SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty
+    // lets the runtime derive it (armed → hostile, else passive).
+    behavior: { type: String, default: '' },
   },
   { _id: false },
 );

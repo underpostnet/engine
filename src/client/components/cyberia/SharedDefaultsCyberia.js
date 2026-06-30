@@ -112,6 +112,101 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
 export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
 
 /**
+ * Canonical skill LogicId registry — the single source of truth for the
+ * `logicEventId` handler keys the simulation skill dispatcher knows how to run.
+ * MUST stay aligned with the handlers registered in cyberia-server
+ * `game/skill_dispatcher.go#InitSkills`. The skill editor (ActionEngineCyberia)
+ * offers ONLY these ids, and `DefaultSkillConfig` (cyberia-server-defaults.js)
+ * draws its `logicEventId`s from here.
+ *
+ * @type {ReadonlyArray<{id:string,name:string,description:string}>}
+ */
+export const SKILL_LOGIC_IDS = Object.freeze([
+  Object.freeze({
+    id: 'projectile',
+    name: 'Projectile',
+    description: 'Fires a projectile toward the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+  }),
+  Object.freeze({
+    id: 'coin_drop_or_transaction',
+    name: 'Coin Drop',
+    description: 'Drops coins on kill; transfer amount follows the kill-percent economy rules.',
+  }),
+  Object.freeze({
+    id: 'doppelganger',
+    name: 'Doppelganger',
+    description: 'Summons a passive clone that wanders nearby. Spawn chance scales with Intelligence.',
+  }),
+]);
+
+/** Ordered list of canonical skill LogicId values. */
+export const SKILL_LOGIC_ID_VALUES = Object.freeze(SKILL_LOGIC_IDS.map((l) => l.id));
+
+/** True when `logicEventId` is a known canonical skill LogicId. */
+export const isCanonicalSkillLogicId = (logicEventId) => SKILL_LOGIC_ID_VALUES.includes(logicEventId);
+
+/**
+ * Canonical entity-behavior registry — the authoritative vocabulary for the
+ * `behavior` an entity-type default may bind to its matched entities. The Go
+ * simulation owns the runtime semantics; this registry is the shared label /
+ * documentation source consumed by the editor (EntityEngineCyberia) and by
+ * content-authority validation. MUST stay aligned with cyberia-server
+ * `game/behavior.go`.
+ *
+ * `selectable: false` marks behaviors the runtime assigns itself
+ * (projectiles, coin drops) — they are not author-assignable to a default.
+ *
+ * @type {ReadonlyArray<{id:string,label:string,description:string,selectable:boolean}>}
+ */
+export const ENTITY_BEHAVIORS = Object.freeze([
+  Object.freeze({
+    id: 'passive',
+    label: 'Passive',
+    description: 'Wanders within its spawn radius; never aggroes. Default for unarmed entities.',
+    selectable: true,
+  }),
+  Object.freeze({
+    id: 'hostile',
+    label: 'Hostile',
+    description: 'Pursues and attacks players within aggro range. Default for armed entities.',
+    selectable: true,
+  }),
+  Object.freeze({
+    id: 'provider',
+    label: 'Provider',
+    description: 'Mission/action giver: barely moves from its spawn (sporadic short steps) and is immortal.',
+    selectable: true,
+  }),
+  Object.freeze({
+    id: 'provider-static',
+    label: 'Provider (Static)',
+    description: 'Like provider but completely immobile, and immortal.',
+    selectable: true,
+  }),
+  Object.freeze({
+    id: 'skill',
+    label: 'Skill',
+    description: 'Runtime projectile entity — assigned by the skill engine, not author-selectable.',
+    selectable: false,
+  }),
+  Object.freeze({
+    id: 'coin',
+    label: 'Coin',
+    description: 'Runtime coin entity — assigned by the economy engine, not author-selectable.',
+    selectable: false,
+  }),
+]);
+
+/** Ordered list of canonical behavior id values. */
+export const ENTITY_BEHAVIOR_VALUES = Object.freeze(ENTITY_BEHAVIORS.map((b) => b.id));
+
+/** Author-assignable behaviors (the subset the entity-default editor offers). */
+export const SELECTABLE_ENTITY_BEHAVIORS = Object.freeze(ENTITY_BEHAVIORS.filter((b) => b.selectable));
+
+/** True when `behavior` is a known canonical entity behavior. */
+export const isCanonicalEntityBehavior = (behavior) => ENTITY_BEHAVIOR_VALUES.includes(behavior);
+
+/**
  * Canonical object-layer animation directions. Each entry binds:
  *   code      — numeric asset folder name on disk
  *               (`./assets/<type>/<id>/<code>/<frame>.png`)

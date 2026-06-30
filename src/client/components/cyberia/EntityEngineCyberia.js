@@ -8,7 +8,7 @@ import { DropDown } from '../core/DropDown.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
-import { ENTITY_TYPES } from './SharedDefaultsCyberia.js';
+import { ENTITY_TYPES, SELECTABLE_ENTITY_BEHAVIORS } from './SharedDefaultsCyberia.js';
 
 // DropDown invokes optionData.onClick on selection, so every option must carry one.
 const dropdownOption = (value) => ({ value, display: value, data: value, onClick: () => {} });
@@ -38,11 +38,26 @@ class EntityEngineCyberia {
 
   static ids = {
     entityType: 'entity-engine-entity-type',
+    behavior: 'entity-engine-behavior',
     liveItemPicker: 'entity-engine-live-item-picker',
     deadItemPicker: 'entity-engine-dead-item-picker',
     dropItemPicker: 'entity-engine-drop-item-picker',
     layerItemPicker: 'entity-engine-layer-item-picker',
   };
+
+  // Behavior options: a leading "auto" (empty → runtime derives armed→hostile,
+  // else passive) plus the author-assignable canonical behaviors.
+  static behaviorOptions() {
+    return [
+      { value: '', display: '— auto (derive) —', data: '', onClick: () => {} },
+      ...SELECTABLE_ENTITY_BEHAVIORS.map((b) => ({
+        value: b.id,
+        display: b.label,
+        data: b.id,
+        onClick: () => {},
+      })),
+    ];
+  }
 
   // ── Searchable dropdown helpers (mirror ActionEngineCyberia) ──────────────
   static getSingleDropdownValue(id) {
@@ -190,6 +205,7 @@ class EntityEngineCyberia {
     return {
       _id: doc._id,
       entityType: doc.entityType || '',
+      behavior: doc.behavior || '',
       liveItemIds: (doc.liveItemIds || []).join(', '),
       deadItemIds: (doc.deadItemIds || []).join(', '),
       dropItemIds: (doc.dropItemIds || []).join(', '),
@@ -221,6 +237,7 @@ class EntityEngineCyberia {
   static getPayload() {
     return {
       entityType: EntityEngineCyberia.getSingleDropdownValue(EntityEngineCyberia.ids.entityType),
+      behavior: EntityEngineCyberia.getSingleDropdownValue(EntityEngineCyberia.ids.behavior),
       liveItemIds: [...EntityEngineCyberia.liveItemIds],
       deadItemIds: [...EntityEngineCyberia.deadItemIds],
       dropItemIds: [...EntityEngineCyberia.dropItemIds],
@@ -235,6 +252,7 @@ class EntityEngineCyberia {
   static load(doc) {
     EntityEngineCyberia.currentId = doc._id || null;
     EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.entityType, doc.entityType || '');
+    EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.behavior, doc.behavior || '');
     EntityEngineCyberia.liveItemIds = [...(doc.liveItemIds || [])];
     EntityEngineCyberia.deadItemIds = [...(doc.deadItemIds || [])];
     EntityEngineCyberia.dropItemIds = [...(doc.dropItemIds || [])];
@@ -257,6 +275,7 @@ class EntityEngineCyberia {
     EntityEngineCyberia.dropItemIds = [];
     EntityEngineCyberia.defaultObjectLayers = [];
     EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.entityType, '');
+    EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.behavior, '');
     EntityEngineCyberia.renderItemList('live');
     EntityEngineCyberia.renderItemList('dead');
     EntityEngineCyberia.renderItemList('drop');
@@ -278,6 +297,8 @@ class EntityEngineCyberia {
     return true;
   }
 
+  // Save: create-or-update by whether a row is loaded. Use Update for an explicit
+  // update of the loaded row, or Clone to force a new copy.
   static async save() {
     const body = EntityEngineCyberia.getPayload();
     if (!EntityEngineCyberia.validate(body)) return;
@@ -292,22 +313,33 @@ class EntityEngineCyberia {
     }
   }
 
-  // liveItemIds is the globally-unique lookup key, so a clone cannot reuse the
-  // source's live ids. Clone keeps entityType + dead/drop/default-layer content
-  // as a NEW unsaved draft and clears live item ids for the author to reassign,
-  // rather than POSTing a guaranteed conflict.
-  static clone() {
+  // Update: explicitly persist the loaded row (PUT). Requires a loaded document.
+  static async update() {
     if (!EntityEngineCyberia.currentId) {
-      NotificationManager.Push({ html: 'Load an entity default to clone first.', status: 'warning' });
+      NotificationManager.Push({ html: 'Load an entity default to update first.', status: 'warning' });
       return;
     }
+    const body = EntityEngineCyberia.getPayload();
+    if (!EntityEngineCyberia.validate(body)) return;
+    const result = await CyberiaEntityTypeDefaultService.put({ id: EntityEngineCyberia.currentId, body });
+    EntityEngineCyberia.notifyResult(result, true);
+    if (result.status === 'success') await EntityEngineCyberia.refreshList();
+  }
+
+  // Clone: create a NEW document from the current form values (POST), then load
+  // the created copy. Subset matching allows shared itemIds, so a near-duplicate
+  // default is valid — typically the author then tweaks behavior or live ids.
+  static async clone() {
+    const body = EntityEngineCyberia.getPayload();
+    if (!EntityEngineCyberia.validate(body)) return;
     EntityEngineCyberia.currentId = null;
-    EntityEngineCyberia.liveItemIds = [];
-    EntityEngineCyberia.renderItemList('live');
-    NotificationManager.Push({
-      html: 'Cloned into a new draft — set unique live item ids, then Save.',
-      status: 'success',
-    });
+    const result = await CyberiaEntityTypeDefaultService.post({ body });
+    EntityEngineCyberia.notifyResult(result, false);
+    if (result.status === 'success') {
+      if (result.data?._id) EntityEngineCyberia.currentId = result.data._id;
+      await EntityEngineCyberia.refreshList();
+      NotificationManager.Push({ html: 'Cloned into a new entity default.', status: 'success' });
+    }
   }
 
   static async delete() {
@@ -383,6 +415,7 @@ class EntityEngineCyberia {
       if (s('.btn-entity-engine-add-layer'))
         s('.btn-entity-engine-add-layer').onclick = () => EntityEngineCyberia.addLayer();
       if (s('.btn-entity-engine-save')) s('.btn-entity-engine-save').onclick = () => EntityEngineCyberia.save();
+      if (s('.btn-entity-engine-update')) s('.btn-entity-engine-update').onclick = () => EntityEngineCyberia.update();
       if (s('.btn-entity-engine-clone')) s('.btn-entity-engine-clone').onclick = () => EntityEngineCyberia.clone();
       if (s('.btn-entity-engine-delete')) s('.btn-entity-engine-delete').onclick = () => EntityEngineCyberia.delete();
       if (s('.btn-entity-engine-new')) s('.btn-entity-engine-new').onclick = () => EntityEngineCyberia.reset();
@@ -419,6 +452,7 @@ class EntityEngineCyberia {
               rowData: [],
               columnDefs: [
                 { field: 'entityType', headerName: 'Entity Type', minWidth: 120 },
+                { field: 'behavior', headerName: 'Behavior', minWidth: 110 },
                 { field: 'liveItemIds', headerName: 'Live Item Ids' },
                 { field: 'deadItemIds', headerName: 'Dead Item Ids' },
                 { field: 'dropItemIds', headerName: 'Drop Item Ids' },
@@ -443,11 +477,20 @@ class EntityEngineCyberia {
               containerClass: 'inl',
             })}
           </div>
+          <div class="in" style="margin-bottom:8px;">
+            ${await DropDown.instance({
+              id: ids.behavior,
+              label: html`Behavior`,
+              data: EntityEngineCyberia.behaviorOptions(),
+              containerClass: 'inl',
+            })}
+          </div>
           <div class="in" style="font-size:12px;color:#888;">
             <i class="fa-solid fa-circle-info"></i> Defaults are resolved by the entity's active itemId (usually the
             skin): the system finds the document whose <b>Live Item Ids</b> contains it, then applies its dead, drop and
-            default object-layer ids. Entity Type is a label only — it is not the lookup key and may repeat across
-            documents.
+            default object-layer ids — and its <b>Behavior</b> when set. Entity Type is a label only — it is not the
+            lookup key and may repeat across documents. Leave Behavior on <b>auto</b> to derive it (armed → hostile,
+            else passive).
           </div>`,
       )}
       ${group(
@@ -501,6 +544,12 @@ class EntityEngineCyberia {
             ${await BtnIcon.instance({
               class: 'wfa btn-entity-engine-save',
               label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
+            })}
+          </div>
+          <div class="in fll" style="flex:1 1 120px;padding:3px;">
+            ${await BtnIcon.instance({
+              class: 'wfa btn-entity-engine-update',
+              label: html`<i class="fa-solid fa-pen-to-square"></i> Update`,
             })}
           </div>
           <div class="in fll" style="flex:1 1 120px;padding:3px;">
