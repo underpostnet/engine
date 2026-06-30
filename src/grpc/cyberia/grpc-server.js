@@ -54,20 +54,6 @@ function getModels(dbKey) {
   return bucket.models;
 }
 
-function countSharedItemIds(source = [], target = []) {
-  if (!Array.isArray(source) || source.length === 0 || !Array.isArray(target) || target.length === 0) {
-    return 0;
-  }
-  const targetSet = new Set(target.filter(Boolean));
-  let count = 0;
-  for (const itemId of source) {
-    if (targetSet.has(itemId)) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
 function normalizeEntityDefault(entityDefault = {}, canonical = {}) {
   const defaultObjectLayers = entityDefault.defaultObjectLayers ?? canonical.defaultObjectLayers ?? [];
   return {
@@ -81,49 +67,6 @@ function normalizeEntityDefault(entityDefault = {}, canonical = {}) {
       quantity: ol.quantity || 0,
     })),
   };
-}
-
-function selectCanonicalEntityDefaultIndex(entityDefault, canonicalDefaults, usedIndexes) {
-  const pickBestIndex = (candidateIndexes) => {
-    let firstSameTypeIndex = -1;
-    let bestLiveOverlapIndex = -1;
-    let bestLiveOverlap = 0;
-    let bestLiveItemCount = Number.POSITIVE_INFINITY;
-
-    for (const index of candidateIndexes) {
-      const canonical = canonicalDefaults[index];
-      if (canonical.entityType !== entityDefault.entityType) {
-        continue;
-      }
-      if (firstSameTypeIndex === -1) {
-        firstSameTypeIndex = index;
-      }
-      const liveOverlap = countSharedItemIds(entityDefault.liveItemIds, canonical.liveItemIds);
-      if (
-        liveOverlap > 0 &&
-        (bestLiveOverlapIndex === -1 ||
-          liveOverlap > bestLiveOverlap ||
-          (liveOverlap === bestLiveOverlap && (canonical.liveItemIds?.length ?? 0) < bestLiveItemCount))
-      ) {
-        bestLiveOverlapIndex = index;
-        bestLiveOverlap = liveOverlap;
-        bestLiveItemCount = canonical.liveItemIds?.length ?? 0;
-      }
-    }
-
-    if (bestLiveOverlapIndex !== -1) {
-      return bestLiveOverlapIndex;
-    }
-    return firstSameTypeIndex;
-  };
-
-  const unusedCandidateIndexes = canonicalDefaults.map((_, index) => index).filter((index) => !usedIndexes.has(index));
-
-  const preferredIndex = pickBestIndex(unusedCandidateIndexes);
-  if (preferredIndex !== -1) {
-    return preferredIndex;
-  }
-  return pickBestIndex(canonicalDefaults.map((_, index) => index));
 }
 
 // Merge instance-level itemIds flagged `defaultPlayerInventory` into the player
@@ -249,21 +192,12 @@ function addSkillAtlasIds(skillDocs, atlasItemIds) {
 }
 
 function mergeEntityDefaults(entityDefaults = []) {
-  const mergedDefaults = ENTITY_TYPE_DEFAULTS.map((canonical) => normalizeEntityDefault(canonical, canonical));
-  const usedCanonicalIndexes = new Set();
-
-  for (const entityDefault of entityDefaults) {
-    const canonicalIndex = selectCanonicalEntityDefaultIndex(entityDefault, ENTITY_TYPE_DEFAULTS, usedCanonicalIndexes);
-    if (canonicalIndex === -1) {
-      mergedDefaults.push(normalizeEntityDefault(entityDefault));
-      continue;
-    }
-
-    mergedDefaults[canonicalIndex] = normalizeEntityDefault(entityDefault, ENTITY_TYPE_DEFAULTS[canonicalIndex]);
-    usedCanonicalIndexes.add(canonicalIndex);
+  const merged = entityDefaults.map((entityDefault) => normalizeEntityDefault(entityDefault));
+  const coveredTypes = new Set(merged.map((entityDefault) => entityDefault.entityType));
+  for (const canonical of ENTITY_TYPE_DEFAULTS) {
+    if (!coveredTypes.has(canonical.entityType)) merged.push(normalizeEntityDefault(canonical, canonical));
   }
-
-  return mergedDefaults;
+  return merged;
 }
 
 // ── Mongoose doc → protobuf message converters ───────────────────
