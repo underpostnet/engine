@@ -285,3 +285,9 @@ go run main.go
 go build -o cyberia-server .
 ./cyberia-server
 ```
+
+### Test logx
+
+```bash
+go test ./logx/ -run TestResolveLevel
+```

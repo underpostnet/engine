@@ -4566,6 +4566,13 @@ try {
       shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}${mongoHostFlag}`);
     });
 
+  runner.command('sync-src').action(() => {
+    fs.copyFileSync('./cyberia-server/README.md', './src/client/public/cyberia-docs/CYBERIA-SERVER.md');
+    fs.copyFileSync('./cyberia-server/Dockerfile', './src/runtime/cyberia-server/Dockerfile');
+    fs.copyFileSync('./cyberia-client/README.md', './src/client/public/cyberia-docs/CYBERIA-CLIENT.md');
+    fs.copyFileSync('./cyberia-client/Dockerfile', './src/runtime/cyberia-client/Dockerfile');
+  });
+
   runner
     .command('seed-dialogues')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')

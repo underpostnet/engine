@@ -16,7 +16,7 @@ RUN make -f Web.mk clean all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 FROM rockylinux/rockylinux:9 AS runtime
 ARG UNDERPOST_VERSION=3.2.9
 
-RUN dnf module install -y nodejs:22/common && \
+RUN dnf module install -y nodejs:24/common && \
     dnf install -y python3 && \
     npm install -g underpost@${UNDERPOST_VERSION} && \
     dnf clean all && \
@@ -25,9 +25,10 @@ RUN dnf module install -y nodejs:22/common && \
 WORKDIR /opt/cyberia-client
 
 COPY --from=builder /cyberia-client/bin .
+COPY --from=builder /cyberia-client/docker-driver.py ./docker-driver.py
 
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8081
 
-CMD ["python3", "-m", "http.server", "-b", "0.0.0.0", "8081"]
+CMD ["python3", "docker-driver.py", "8081"]
