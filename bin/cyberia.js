@@ -1867,36 +1867,6 @@ try {
           ...(entry.mfsPaths.length ? { mfsPaths: entry.mfsPaths } : {}),
         }));
 
-      const getDefaultDialoguesByItemId = (itemIds = []) => {
-        const requestedItemIds = new Set(itemIds.filter(Boolean));
-        const defaultsByItemId = new Map();
-
-        for (const dialogue of DefaultCyberiaDialogues) {
-          // Match by code prefix: "default-<itemId>" covers the common case;
-          // callers may also pass a full code directly.
-          const matchingIds = [...requestedItemIds].filter(
-            (id) => dialogue.code === `default-${id}` || dialogue.code === id,
-          );
-          if (!matchingIds.length) continue;
-          for (const id of matchingIds) {
-            if (!defaultsByItemId.has(id)) defaultsByItemId.set(id, []);
-            defaultsByItemId.get(id).push({
-              code: dialogue.code,
-              order: dialogue.order ?? 0,
-              speaker: dialogue.speaker ?? '',
-              text: dialogue.text,
-              mood: dialogue.mood ?? 'neutral',
-            });
-          }
-        }
-
-        for (const dialogues of defaultsByItemId.values()) {
-          dialogues.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        }
-
-        return defaultsByItemId;
-      };
-
       const rewriteImportedCidReferences = async ({ oldCid, newCid, resourceType }) => {
         if (!oldCid || !newCid || oldCid === newCid) return;
 
@@ -2175,44 +2145,9 @@ try {
           const requestedCodes = [
             ...new Set([...requestedItemIds.map((id) => `default-${id}`), ...actionDialogueCodes]),
           ];
-          const defaultDialoguesByItemId = getDefaultDialoguesByItemId(requestedItemIds);
-          const existingDialogueDocs = await CyberiaDialogue.find({
-            code: { $in: requestedCodes },
-          })
-            .sort({ code: 1, order: 1 })
-            .lean();
-
-          const existingDialogueCodes = new Set(existingDialogueDocs.map((dialogue) => dialogue.code).filter(Boolean));
-          let seededDialogueCount = 0;
-
-          for (const [itemId, dialogues] of defaultDialoguesByItemId.entries()) {
-            const firstCode = dialogues[0]?.code;
-            if (firstCode && existingDialogueCodes.has(firstCode)) continue;
-
-            for (const dialogue of dialogues) {
-              await CyberiaDialogue.findOneAndUpdate(
-                { code: dialogue.code, order: dialogue.order },
-                {
-                  $set: {
-                    speaker: dialogue.speaker,
-                    text: dialogue.text,
-                    mood: dialogue.mood,
-                  },
-                },
-                { upsert: true },
-              );
-              seededDialogueCount++;
-            }
-          }
-
           const dialogueDocs = await CyberiaDialogue.find({ code: { $in: requestedCodes } })
             .sort({ code: 1, order: 1 })
             .lean();
-
-          if (seededDialogueCount > 0) {
-            logger.info(`Seeded ${seededDialogueCount} CyberiaDialogue default record(s) for export`);
-          }
-
           if (dialogueDocs.length > 0) {
             fs.ensureDirSync(`${backupDir}/cyberia-dialogues`);
             const dialoguesByCode = new Map();
