@@ -154,6 +154,16 @@ const buildDeployTemplate = async (confName) => {
   if (!fs.existsSync(`${basePath}/images`)) fs.mkdirSync(`${basePath}/images`);
 
   fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
+  if (fs.existsSync(`./.github/workflows/docker-image.${repoName}.ci.yml`))
+    fs.copyFileSync(
+      `./.github/workflows/docker-image.${repoName}.ci.yml`,
+      `${basePath}/.github/workflows/docker-image.${repoName}.ci.yml`,
+    );
+  if (fs.existsSync(`./.github/workflows/docker-image.${repoName}.dev.ci.yml`))
+    fs.copyFileSync(
+      `./.github/workflows/docker-image.${repoName}.dev.ci.yml`,
+      `${basePath}/.github/workflows/docker-image.${repoName}.dev.ci.yml`,
+    );
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
 
   if (fs.existsSync(`./typedoc.${confName}.json`)) {
@@ -179,6 +189,26 @@ const buildDeployTemplate = async (confName) => {
     `${basePath}/.gitignore`,
     fs.readFileSync(`.gitignore`, 'utf8').split('# Ignore ERP / CRM custom prototypes src')[0],
   );
+
+  // Process catalog copies — each [src, dest] pair is copied from engine root to the template target.
+  if (catalog.copies && catalog.copies.length) {
+    for (const [src, dest] of catalog.copies) {
+      if (fs.existsSync(src)) {
+        logger.info(`Build copy`, `${src} -> ${dest}`);
+        fs.copySync(src, `${basePath}/${dest.replace(/^\.\//, '')}`);
+      }
+    }
+  }
+
+  // Process catalog moves — each [src, dest] pair is moved from engine src to template dest.
+  if (catalog.moves && catalog.moves.length) {
+    for (const [src, dest] of catalog.moves) {
+      if (fs.existsSync(src)) {
+        logger.info(`Build move`, `${src} -> ${dest}`);
+        fs.moveSync(src, `${basePath}/${dest.replace(/^\.\//, '')}`, { overwrite: true });
+      }
+    }
+  }
 };
 
 const program = new Command();

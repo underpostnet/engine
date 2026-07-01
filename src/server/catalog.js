@@ -24,6 +24,8 @@ const EMPTY_CATALOG = {
   privateConfPaths: [],
   templatePaths: [],
   stripPaths: [],
+  moves: [],
+  copies: [],
   keywords: [],
   description: '',
 };
