@@ -20,6 +20,27 @@ export default {
     ['../engine-prototype/src/client/Bymyelectrics.index.js', 'src/client/Bymyelectrics.index.js'],
     ['../engine-prototype/src/client/Cecinasmarcelina.index.js', 'src/client/Cecinasmarcelina.index.js'],
     ['../engine-prototype/src/client/Healthcare.index.js', 'src/client/Healthcare.index.js'],
+    [
+      '../engine-prototype/src/client/ssr/body/BymyelectricsSplashScreen.js',
+      'src/client/ssr/body/BymyelectricsSplashScreen.js',
+    ],
+    [
+      '../engine-prototype/src/client/ssr/body/CecinasmarcelinaSplashScreen.js',
+      'src/client/ssr/body/CecinasmarcelinaSplashScreen.js',
+    ],
+    [
+      '../engine-prototype/src/client/ssr/body/HealthcareSplashScreen.js',
+      'src/client/ssr/body/HealthcareSplashScreen.js',
+    ],
+    ['../engine-prototype/src/client/ssr/head/BymyelectricsScripts.js', 'src/client/ssr/head/BymyelectricsScripts.js'],
+    [
+      '../engine-prototype/src/client/ssr/head/CecinasmarcelinaScripts.js',
+      'src/client/ssr/head/CecinasmarcelinaScripts.js',
+    ],
+    ['../engine-prototype/src/client/ssr/head/HealthcareScripts.js', 'src/client/ssr/head/HealthcareScripts.js'],
+    ['../engine-prototype/src/client/ssr/head/PwaBymyelectrics.js', 'src/client/ssr/head/PwaBymyelectrics.js'],
+    ['../engine-prototype/src/client/ssr/head/PwaCecinasmarcelina.js', 'src/client/ssr/head/PwaCecinasmarcelina.js'],
+    ['../engine-prototype/src/client/ssr/head/PwaHealthcare.js', 'src/client/ssr/head/PwaHealthcare.js'],
   ],
   privateConfPaths: [],
   templatePaths: ['/src/projects/prototype'],
