@@ -1629,6 +1629,25 @@ EOF
           fs.copyFileSync(ciSrc, `${rootPath}/.github/workflows/docker-image.${_runtime}.ci.yml`);
           logger.info(`[instance-build-manifest] CI workflow copied`, { src: ciSrc });
         }
+
+        // Ship the development variant alongside production so the instance repo
+        // is self-contained: the dev Dockerfile (built by the -dev CI workflow
+        // into underpost/<runtime>-dev, consumed by the development compose
+        // stack) and its dispatchable workflow. Both are optional — synced only
+        // when the source-of-truth files exist in the engine repo.
+        if (_runtime) {
+          const devDockerfileSrc = `src/runtime/${_runtime}/Dockerfile.dev`;
+          if (fs.existsSync(devDockerfileSrc)) {
+            fs.copyFileSync(devDockerfileSrc, `${rootPath}/Dockerfile.dev`);
+            logger.info('[instance-build-manifest] Dev Dockerfile copied', { src: devDockerfileSrc });
+          }
+          const devCiSrc = `./.github/workflows/docker-image.${_runtime}.dev.ci.yml`;
+          if (fs.existsSync(devCiSrc)) {
+            if (!fs.existsSync(`${rootPath}/.github/workflows`)) fs.mkdirpSync(`${rootPath}/.github/workflows`);
+            fs.copyFileSync(devCiSrc, `${rootPath}/.github/workflows/docker-image.${_runtime}.dev.ci.yml`);
+            logger.info(`[instance-build-manifest] Dev CI workflow copied`, { src: devCiSrc });
+          }
+        }
       }
     },
 

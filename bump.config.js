@@ -17,6 +17,7 @@ export default {
     'package-lock.json',
     // engine-private confs are git-ignored and visited only if present at bump time.
     'engine-private/conf/**/package.json',
+    'scripts/*',
   ],
   commit: false,
   tag: false,

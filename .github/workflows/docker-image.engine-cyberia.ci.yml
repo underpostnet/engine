@@ -1,0 +1,65 @@
+name: CI | Docker Image engine-cyberia
+
+# Publishes the Cyberia content-authority engine image (underpost/engine-cyberia)
+# to Docker Hub. Unlike the cyberia-server / cyberia-client workflows — which are
+# synced into standalone project repos — this one builds directly from the engine
+# repo root: `node bin run docker-image engine-cyberia` resolves the target repo
+# via Underpost.repo.resolveInstanceRepo('engine-cyberia'), which falls back to
+# `${GITHUB_USERNAME}/engine` (this repo) since engine-cyberia is the parent
+# dd-cyberia deploy, not a child instance in conf.instances.json.
+#
+# The image ships only the underpost CLI: at container start it bootstraps the
+# private dd-cyberia deploy (clone + build + run), so the Docker build context is
+# minimal and needs no engine sources.
+
+on:
+  workflow_dispatch:
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: underpost/engine-cyberia
+          tags: |
+            type=raw,value=v3.2.30
+            type=ref,event=branch
+            type=sha,prefix=sha-
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./src/runtime/engine-cyberia/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Keep the underpost CLI baked into the image aligned with the image
+          # tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
+          build-args: |
+            UNDERPOST_VERSION=3.2.30
+          # GitHub credentials for cloning the private dd-cyberia deploy are
+          # passed as BuildKit secrets (never build-args), so they are mounted
+          # only for the build RUN and never persist in any layer or history.
+          # NOTE: cloning the private engine-cyberia repo needs a PAT with access
+          # to it; swap `secrets.GITHUB_TOKEN` for your PAT secret if required.
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+            github_username=${{ github.actor }}

@@ -765,6 +765,12 @@ program
     '--deploy-id <deploy-id>',
     "Deployment to run as the app container (default: dd-default). 'dd-default' self-bootstraps a fresh engine; any other id runs the standard 'underpost start' command (mirrors src/cli/deploy.js).",
   )
+  .option(
+    '--docker-compose-id <docker-compose-id>',
+    'Selects a canonical custom-workflow stack at engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/ ' +
+      '(docker-compose.yml + compose.env + nginx.conf, used as-is; nginx/env generation is skipped). ' +
+      'e.g. --deploy-id dd-cyberia --docker-compose-id cyberia for the Cyberia MMO ecosystem.',
+  )
   .option('--env <env>', 'Deployment environment for non-default deploy ids (default: development).')
   .option('--generate', 'Render dynamic supporting files (nginx router config, env-file, app-command override).')
   .option('--up', 'Start the full stack detached (regenerates config first).')

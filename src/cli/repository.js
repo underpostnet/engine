@@ -1789,6 +1789,10 @@ Prevent build private config repo.`,
     resolveInstanceRepo(runtime = '') {
       const fallback = `${process.env.GITHUB_USERNAME}/engine`;
       if (!runtime) return fallback;
+      // A `.dev` suffix selects the development image workflow
+      // (docker-image.<runtime>.dev.ci.yml) but resolves to the same instance
+      // repo as its production counterpart, so strip it before matching.
+      runtime = runtime.replace(/\.dev$/, '');
       const ddRouter = './engine-private/deploy/dd.router';
       const deployIds = fs.existsSync(ddRouter)
         ? fs

@@ -1,0 +1,88 @@
+name: CI | Docker Image cyberia-server (dev)
+
+# Development variant of docker-image.cyberia-server.ci.yml. Publishes
+# underpost/cyberia-server-dev (note the `-dev` suffix) from the dev Dockerfile
+# (./Dockerfile.dev, synced into this repo from src/runtime/cyberia-server/
+# Dockerfile.dev by `node bin run instance-build-manifest`). Used only by the
+# development docker-compose stack.
+#
+# The dev Dockerfile builds the Go server with debug flags (-gcflags="all=-N -l")
+# and keeps live-inspection tooling in the runtime image. Everything else mirrors
+# the production workflow.
+
+on:
+  workflow_dispatch:
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Primary checkout: the cyberia-server repo (the repo this workflow
+      # was dispatched on). Lands at the workspace root.
+      - uses: actions/checkout@v7
+
+      # Secondary checkout: the engine repo, into ./engine/. We need it
+      # for the underpost CLI sources that render the SSR dashboard into
+      # ./public/ before the docker build. The Go server hard-requires
+      # public/index.html on boot (cmd/cyberia-server/main.go calls
+      # log.Fatalf when findPublicDir returns empty).
+      - name: Checkout engine
+        uses: actions/checkout@v7
+        with:
+          repository: underpostnet/engine
+          path: engine
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+
+      - name: Install engine dependencies
+        working-directory: engine
+        run: npm ci --ignore-scripts
+
+      # Render the development SSR dashboard (dev env vars, e.g. localhost API
+      # endpoints) from inside the engine checkout, writing to ../public/.
+      - name: Build cyberia-server SSR dashboard (dev)
+        working-directory: engine
+        run: |
+          node bin/deploy cyberia
+          node bin/cyberia run-workflow build-server-dashboard --dev --output-path ../public/index.html
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: underpost/cyberia-server-dev
+          tags: |
+            type=raw,value=v3.2.30
+            type=ref,event=branch
+            type=sha,prefix=sha-
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          # Build context is the project repo root. Dockerfile.dev is the
+          # project-root dev variant synced from src/runtime/cyberia-server/
+          # Dockerfile.dev in the engine repo by `instance-build-manifest`.
+          context: .
+          file: ./Dockerfile.dev
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Keep the underpost CLI installed in the image aligned with the
+          # image tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
+          build-args: |
+            UNDERPOST_VERSION=3.2.30

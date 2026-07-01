@@ -4571,6 +4571,10 @@ try {
     fs.copyFileSync('./cyberia-server/Dockerfile', './src/runtime/cyberia-server/Dockerfile');
     fs.copyFileSync('./cyberia-client/README.md', './src/client/public/cyberia-docs/CYBERIA-CLIENT.md');
     fs.copyFileSync('./cyberia-client/Dockerfile', './src/runtime/cyberia-client/Dockerfile');
+    fs.copyFileSync(
+      './engine-private/conf/dd-cyberia/docker-compose/cyberia/docker-compose.yml',
+      './src/runtime/engine-cyberia/docker-compose.yml',
+    );
   });
 
   runner

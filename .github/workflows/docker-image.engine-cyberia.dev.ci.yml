@@ -1,0 +1,66 @@
+name: CI | Docker Image engine-cyberia (dev)
+
+# Development variant of docker-image.engine-cyberia.ci.yml. Publishes the
+# development Cyberia content-authority image (underpost/engine-cyberia-dev,
+# note the `-dev` suffix) to Docker Hub, built from the dev Dockerfile
+# (src/runtime/engine-cyberia/Dockerfile.dev). Used only by the development
+# docker-compose stack (engine-private/conf/dd-cyberia/docker-compose/cyberia).
+#
+# Like the production workflow it builds directly from the engine repo root:
+# `node bin run docker-image engine-cyberia.dev` resolves to `${GITHUB_USERNAME}/
+# engine` (engine-cyberia is the parent dd-cyberia deploy, not a child instance).
+# The dev image bakes the dd-cyberia development build at image-build time.
+
+on:
+  workflow_dispatch:
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: underpost/engine-cyberia-dev
+          tags: |
+            type=raw,value=v3.2.30
+            type=ref,event=branch
+            type=sha,prefix=sha-
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./src/runtime/engine-cyberia/Dockerfile.dev
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Keep the underpost CLI baked into the image aligned with the image
+          # tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
+          build-args: |
+            UNDERPOST_VERSION=3.2.30
+          # GitHub credentials are passed as BuildKit secrets (NOT build-args):
+          # they are mounted only for the RUN that clones/builds the private
+          # deploy and never persist in any image layer or `docker history`.
+          # The Dockerfile consumes them via `--mount=type=secret,id=github_*`.
+          # NOTE: cloning a *different* private repo (engine-cyberia) needs a PAT
+          # with access to it; the built-in GITHUB_TOKEN only scopes the current
+          # repo. Swap `secrets.GITHUB_TOKEN` for your PAT secret if required.
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+            github_username=${{ github.actor }}

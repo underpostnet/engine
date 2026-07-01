@@ -43,7 +43,7 @@ RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 # --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
 
-ARG UNDERPOST_VERSION=3.2.9
+ARG UNDERPOST_VERSION=3.2.30
 RUN dnf -y update && \
     dnf -y install epel-release && \
     dnf -y install --allowerasing \
@@ -56,12 +56,11 @@ RUN dnf -y update && \
 
 WORKDIR /home/dd/engine/cyberia-client
 
-COPY --from=builder /cyberia-client/server.py ./server.py
-COPY --from=builder /cyberia-client/bin       ./bin/
+COPY --from=builder /cyberia-client/docker-driver.py ./docker-driver.py
+COPY --from=builder /cyberia-client/bin              ./bin/
 
 ENV CYBERIA_PORT=8082
-ENV CYBERIA_MODE=development
 
 EXPOSE 8081 8082
 
-CMD ["sh", "-c", "exec python3 server.py ${CYBERIA_PORT} bin ${CYBERIA_MODE}"]
+CMD ["sh", "-c", "exec python3 docker-driver.py ${CYBERIA_PORT} bin"]

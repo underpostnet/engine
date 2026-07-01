@@ -78,13 +78,41 @@ class UnderpostDockerCompose {
   }
 
   /**
+   * Resolves the canonical directory for a custom docker-compose workflow,
+   * keyed by `--deploy-id` + `--docker-compose-id`:
+   * `engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>`.
+   * This directory ships its own `docker-compose.yml`, `compose.env`, and
+   * `nginx.conf` (used as-is, never generated). Returns null when
+   * `--docker-compose-id` is not set (the default, self-generating workflow).
+   * @param {object} options - CLI options.
+   * @returns {string|null} Repo-root-relative canonical dir, or null.
+   * @memberof UnderpostDockerCompose
+   */
+  static composeIdBase(options = {}) {
+    if (!options.dockerComposeId) return null;
+    const deployId = options.deployId || DEFAULT_DEPLOY_ID;
+    return `engine-private/conf/${deployId}/docker-compose/${options.dockerComposeId}`;
+  }
+
+  /**
    * Builds the base `docker compose` invocation with explicit file and env-file,
    * so behavior is independent of the caller's working directory.
+   *
+   * Custom workflow (`--docker-compose-id`): the compose file, env-file, and
+   * bind-mounted config (nginx.conf, mongodb/) all live in the canonical dir, so
+   * compose runs with `--project-directory` pinned there and no app-override.
    * @param {object} options - CLI options.
    * @returns {string} The base command string (without a subcommand).
    * @memberof UnderpostDockerCompose
    */
   static baseCmd(options = {}) {
+    const base = UnderpostDockerCompose.composeIdBase(options);
+    if (base) {
+      const projectDir = UnderpostDockerCompose.resolve(base);
+      const composeFile = UnderpostDockerCompose.resolve(options.composeFile || `${base}/docker-compose.yml`);
+      const envFile = UnderpostDockerCompose.resolve(options.envFile || `${base}/compose.env`);
+      return `docker compose --project-directory ${projectDir} --env-file ${envFile} -f ${composeFile}`;
+    }
     const composeFile = UnderpostDockerCompose.resolve(options.composeFile || 'docker-compose.yml');
     const envFile = UnderpostDockerCompose.resolve(options.envFile || 'docker/compose.env');
     const overrideFile = UnderpostDockerCompose.resolve(options.appOverride || 'docker/compose.app.yml');
@@ -163,7 +191,7 @@ services:
 MONGO_IMAGE=mongo:latest
 VALKEY_IMAGE=valkey/valkey:latest
 APP_IMAGE=underpost/underpost-engine
-APP_TAG=v3.2.22
+APP_TAG=v3.2.30
 PROXY_IMAGE=nginx:stable-alpine
 PROMETHEUS_IMAGE=prom/prometheus:latest
 GRAFANA_IMAGE=grafana/grafana:latest
@@ -343,6 +371,20 @@ datasources:
    * @memberof UnderpostDockerCompose
    */
   static generate(options = {}) {
+    // Custom workflow: docker-compose.yml, compose.env, and nginx.conf are
+    // pre-authored in the canonical dir and used as-is — do NOT generate them.
+    // Only (re)write the required MongoDB entrypoint (replica-set bootstrap),
+    // the single generated infra artifact, into <canonical>/mongodb so the
+    // stack stays self-contained under `--project-directory`.
+    const composeIdBase = UnderpostDockerCompose.composeIdBase(options);
+    if (composeIdBase) {
+      const mongoEntrypointPath = UnderpostDockerCompose.resolve(`${composeIdBase}/mongodb/entrypoint.sh`);
+      fs.mkdirpSync(nodePath.dirname(mongoEntrypointPath));
+      fs.writeFileSync(mongoEntrypointPath, UnderpostDockerCompose.mongoEntrypointContent(), { mode: 0o755 });
+      logger.info('mongodb entrypoint written (custom workflow)', { path: mongoEntrypointPath });
+      return;
+    }
+
     Nginx.removeRouter();
     for (const { host, routes } of PROXY_HOSTS) Nginx.createApp({ host, routes });
     Nginx.createDefaultServer(DEFAULT_UPSTREAM);
@@ -449,6 +491,20 @@ datasources:
       silentOnError: true,
     });
 
+    // Custom workflow: the compose file, compose.env, and nginx.conf are
+    // hand-authored source — never prune them. Only drop the one generated
+    // artifact (the mongo entrypoint), regenerated on the next --up/--generate.
+    const composeIdBase = UnderpostDockerCompose.composeIdBase(options);
+    if (composeIdBase) {
+      const mongoEntrypointPath = UnderpostDockerCompose.resolve(`${composeIdBase}/mongodb/entrypoint.sh`);
+      if (fs.existsSync(mongoEntrypointPath)) {
+        fs.removeSync(mongoEntrypointPath);
+        logger.info('removed generated artifact', { path: mongoEntrypointPath });
+      }
+      logger.info('Docker Compose reset complete. Run `--up` to recreate the stack.');
+      return;
+    }
+
     // Phase 2: prune generated artifacts (regenerated on the next --generate/--up).
     const artifacts = options.force
       ? [...GENERATED_ARTIFACTS, options.envFile || 'docker/compose.env']
@@ -489,6 +545,7 @@ datasources:
      * @param {boolean} [options.shell] - Open an interactive shell in `target` (default: app).
      * @param {string} [options.exec] - General-purpose passthrough docker compose subcommand.
      * @param {string} [options.deployId] - Deployment to run as the app (default: dd-default). `dd-default` self-bootstraps a fresh engine; any other id runs the standard `underpost start` command.
+     * @param {string} [options.dockerComposeId] - Custom-workflow selector. When set, use the canonical stack at `engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/` (docker-compose.yml + compose.env + nginx.conf, used as-is), skipping nginx/env/app-override generation. Used by the Cyberia MMO ecosystem (`--deploy-id dd-cyberia --docker-compose-id cyberia`).
      * @param {string} [options.env] - Deployment environment for non-default deploy ids (default: development).
      * @param {string} [options.composeFile] - Override compose file path.
      * @param {string} [options.envFile] - Override env-file path.

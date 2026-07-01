@@ -5,6 +5,9 @@
  */
 
 import fs from 'fs-extra';
+import os from 'os';
+import nodePath from 'path';
+import crypto from 'crypto';
 import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
 import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
@@ -46,21 +49,27 @@ class UnderpostImage {
         imageName: '',
       },
     ) {
-      shellExec(`sudo podman pull docker.io/library/rockylinux:9`);
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-      const baseCommandOption = options.dev ? ' --dev' : '';
+      shellExec(`sudo podman pull docker.io/rockylinux/rockylinux:9`);
       const IMAGE_NAME = options.imageName
-        ? `options.imageName${options.version ? `:${options.version}` : ''}`
+        ? `${options.imageName}${options.version ? `:${options.version}` : ''}`
         : `rockylinux9-underpost:${options.version ? options.version : Underpost.version}`;
-      let LOAD_TYPE = '';
-      if (options.kind === true) LOAD_TYPE = `--kind`;
-      else if (options.kubeadm === true) LOAD_TYPE = `--kubeadm`;
-      else if (options.k3s === true) LOAD_TYPE = `--k3s`;
-      shellExec(
-        `${baseCommand} image${baseCommandOption} --build --podman-save --reset --image-path=. --path ${
-          options.path ? options.path : getUnderpostRootPath()
-        } --image-name=${IMAGE_NAME} ${LOAD_TYPE}`,
-      );
+      // Build IN-PROCESS instead of re-shelling `underpost image --build`: the
+      // running CLI's build() is always used (including host-credential
+      // --secret injection), rather than whatever `underpost` is on PATH — which
+      // may be a globally-installed version that predates the secret support and
+      // would leave /run/secrets/* empty.
+      Underpost.image.build({
+        path: options.path ? options.path : getUnderpostRootPath(),
+        imageName: IMAGE_NAME,
+        imagePath: '.',
+        dockerfileName: options.dockerfileName,
+        podmanSave: true,
+        reset: true,
+        kind: options.kind === true,
+        kubeadm: options.kubeadm === true,
+        k3s: options.k3s === true,
+        dev: options.dev === true,
+      });
     },
     /**
      * @method build
@@ -108,12 +117,49 @@ class UnderpostImage {
       const tarFile = `${imagePath}/${imageName.replace(':', '_')}.tar`;
       let cache = '';
       if (reset === true) cache += ' --rm --no-cache';
+
+      // Forward GitHub credentials from the host environment into the build as
+      // podman/BuildKit secrets (`--secret id=...,src=...`), matching the
+      // `RUN --mount=type=secret,id=github_*` contract in the runtime
+      // Dockerfiles (e.g. src/runtime/engine-cyberia). Secrets are written to
+      // short-lived 0600 temp files and removed right after the build — they are
+      // never passed as build-args (which would persist in image history) nor
+      // baked into any layer.
+      const secretTmpFiles = [];
+      const secretFlags = [];
+      const addBuildSecret = (id, value) => {
+        if (!value) return;
+        const file = nodePath.join(os.tmpdir(), `underpost-secret-${id}-${crypto.randomBytes(6).toString('hex')}`);
+        fs.writeFileSync(file, String(value), { mode: 0o600 });
+        secretTmpFiles.push(file);
+        secretFlags.push(`--secret id=${id},src=${file}`);
+      };
+      addBuildSecret('github_token', process.env.GITHUB_TOKEN);
+      addBuildSecret('github_username', process.env.GITHUB_USERNAME);
+      // Cloudinary creds power build-time asset pulls (`node bin fs --pull`).
+      addBuildSecret('cloudinary_cloud_name', process.env.CLOUDINARY_CLOUD_NAME);
+      addBuildSecret('cloudinary_api_key', process.env.CLOUDINARY_API_KEY);
+      addBuildSecret('cloudinary_api_secret', process.env.CLOUDINARY_API_SECRET);
+      const secretArgs = secretFlags.length ? ` ${secretFlags.join(' ')}` : '';
+      if (secretFlags.length)
+        logger.info('Passing host GitHub credentials as build secrets', { ids: secretFlags.length });
+
       if (path)
-        shellExec(
-          `cd ${path} && sudo podman build -f ./${
-            dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
-          } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache} --network host`,
-        );
+        try {
+          shellExec(
+            `cd ${path} && sudo podman build -f ./${
+              dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
+            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretArgs} --network host`,
+          );
+        } finally {
+          for (const file of secretTmpFiles) {
+            try {
+              fs.removeSync(file);
+            } catch {
+              /* best-effort cleanup */
+            }
+          }
+        }
       if (podmanSave === true) {
         if (fs.existsSync(tarFile)) fs.removeSync(tarFile);
         shellExec(`podman save -o ${tarFile} ${podManImg}`);

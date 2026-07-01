@@ -1,0 +1,236 @@
+# Cyberia ecosystem Docker Compose stack — canonical custom workflow.
+#
+# Orchestrates the entire Cyberia MMORPG on the underpost platform base
+# (MongoDB + Valkey), then replaces the default engine template with the Cyberia
+# content-authority engine and its two custom instances, fronted by an nginx
+# reverse proxy — the same topology as the root docker-compose.yml, specialized
+# for the dd-cyberia deploy.
+#
+# Canonical location (custom docker-compose workflow):
+#   engine-private/conf/dd-cyberia/docker-compose/cyberia/
+#     ├── docker-compose.yml   (this file)
+#     ├── compose.env          (working env-file, used as-is — not generated)
+#     ├── nginx.conf           (reverse-proxy config, used as-is — not generated)
+#     └── mongodb/entrypoint.sh (only generated infra: replica-set bootstrap)
+# All bind mounts below are relative to this directory: the CLI runs compose
+# with `--project-directory` pinned here (see src/cli/docker-compose.js).
+#
+# Architecture boundaries (see CLAUDE.md "Cyberia architecture boundaries"):
+#   engine-cyberia  — content, validation, persistence, gRPC(:50051)+REST(:4005)
+#                     data services, asset metadata. The authority layer.
+#   cyberia-server  — authoritative real-time simulation / tick processing (Go).
+#   cyberia-client  — rendering, input, prediction, presentation (WASM bundle).
+#
+# Usage:
+#   underpost docker-compose --up --deploy-id dd-cyberia --docker-compose-id cyberia
+#   (or the docker:cyberia:* npm scripts). The engine-cyberia image bakes the
+#   dd-cyberia build at image-build time, so no private-repo credentials are
+#   required at container start.
+
+name: dd-cyberia
+
+services:
+  # --- MongoDB -------------------------------------------------------------
+  # Identical bootstrap to the root docker-compose.yml: replSet rs0, keyFile
+  # cluster auth, replica-set + root-user init over the loopback localhost
+  # exception. Uses ./mongodb/entrypoint.sh, generated into this canonical dir
+  # by `underpost docker-compose --generate --docker-compose-id cyberia ...`.
+  mongodb:
+    image: ${MONGO_IMAGE:-mongo:latest}
+    container_name: dd-cyberia-mongodb
+    entrypoint: ['bash', '/docker-init/entrypoint.sh']
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?set MONGO_INITDB_ROOT_USERNAME in compose.env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?set MONGO_INITDB_ROOT_PASSWORD in compose.env}
+      DB_REPLICA_SET: ${DB_REPLICA_SET:-rs0}
+    volumes:
+      - ./mongodb:/docker-init:ro
+      - mongodb-keyfile:/opt/keyfile
+      - mongodb-data:/data/db
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '27017'
+    ports:
+      - '${MONGO_HOST_PORT:-27017}:27017'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          mongosh --quiet -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD"
+          --authenticationDatabase admin --eval "db.hello().isWritablePrimary" | grep -q true
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  # --- Valkey --------------------------------------------------------------
+  valkey-service:
+    image: ${VALKEY_IMAGE:-valkey/valkey:latest}
+    container_name: dd-cyberia-valkey
+    command: ['valkey-server', '--port', '6379', '--bind', '0.0.0.0', '--protected-mode', 'no']
+    volumes:
+      - valkey-data:/data
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '6379'
+    ports:
+      - '${VALKEY_NODEPORT:-32079}:6379'
+    healthcheck:
+      test: ['CMD', 'valkey-cli', '-p', '6379', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # --- engine-cyberia (content authority) ----------------------------------
+  # The underpost Node engine for deploy dd-cyberia. The image bakes the
+  # dd-cyberia build at image-build time (see src/runtime/engine-cyberia/
+  # Dockerfile), so the container start only runs `underpost start --run`.
+  # Serves the portal/REST/WS on 4005 and the engine gRPC data service on
+  # 50051 (conf.server.json www.cyberiaonline.com.grpc).
+  engine-cyberia:
+    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.2.30}
+    container_name: dd-cyberia-engine
+    # Startup seeds the DB (the deploy-time steps the image build cannot run:
+    # they need the now-healthy mongodb service) and then runs the engine.
+    command:
+      - /bin/sh
+      - -c
+      - >
+        node bin/cyberia ol --drop &&
+        node bin/cyberia instance amethyst-strata-expansion --import &&
+        underpost start --run dd-cyberia development
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_PROVIDER: ${DB_PROVIDER:-mongoose}
+      DB_HOST: ${DB_HOST:-mongodb://mongodb:27017}
+      DB_REPLICA_SET: ${DB_REPLICA_SET:-rs0}
+      DB_AUTH_SOURCE: ${DB_AUTH_SOURCE:-admin}
+      DB_USER: ${MONGO_INITDB_ROOT_USERNAME:?}
+      DB_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?}
+      VALKEY_HOST: ${VALKEY_HOST:-valkey-service}
+      VALKEY_PORT: ${VALKEY_PORT:-6379}
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '4005'
+      - '50051'
+    ports:
+      - '${ENGINE_CYBERIA_REST_PORT:-4005}:4005'
+      - '${ENGINE_CYBERIA_GRPC_PORT:-50051}:50051'
+    healthcheck:
+      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/4005' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # The dd-cyberia build is baked into the image; start just runs the
+      # engine, so a moderate start_period covers DB connect + listen.
+      start_period: 120s
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      valkey-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- cyberia-server (authoritative simulation) ---------------------------
+  # Go MMO runtime. Reads the engine authority endpoints from the environment
+  # (compose service DNS) instead of the K8s {{grpc-service-dns}} template used
+  # in conf.instances.json. Uses the published image's default ENTRYPOINT.
+  cyberia-server:
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.2.30}
+    container_name: dd-cyberia-server
+    environment:
+      INSTANCE_CODE: ${INSTANCE_CODE:-FOREST}
+      ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia:4005}
+      ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
+      ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '8081'
+    ports:
+      - '${CYBERIA_SERVER_PORT:-8081}:8081'
+    healthcheck:
+      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      engine-cyberia:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- cyberia-client (presentation) ---------------------------------------
+  # Python static-file server for the pre-built WASM bundle. The -dev image's
+  # docker-driver.py defaults to CYBERIA_PORT=8082; override to 8081 so the whole
+  # ecosystem (nginx upstream, healthcheck) stays on a single internal port.
+  cyberia-client:
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.2.30}
+    container_name: dd-cyberia-client
+    environment:
+      CYBERIA_PORT: '8081'
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '8081'
+    ports:
+      - '${CYBERIA_CLIENT_PORT:-8082}:8081'
+    healthcheck:
+      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # Last stage of the sequential chain: only start once cyberia-server is
+    # healthy (which itself gates on engine-cyberia -> mongodb/valkey).
+    depends_on:
+      cyberia-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Reverse proxy -------------------------------------------------------
+  # Routes the three cyberiaonline.com hosts to their upstreams with websocket
+  # upgrade support. Config source of truth: ./nginx.conf (this dir).
+  proxy:
+    image: ${PROXY_IMAGE:-nginx:stable-alpine}
+    container_name: dd-cyberia-proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - dd-cyberia-internal
+    ports:
+      - '${PROXY_HTTP_PORT:-80}:80'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # Fronts the stack only after every tier reports healthy.
+    depends_on:
+      engine-cyberia:
+        condition: service_healthy
+      cyberia-server:
+        condition: service_healthy
+      cyberia-client:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  dd-cyberia-internal:
+    name: dd-cyberia-internal
+    driver: bridge
+
+volumes:
+  mongodb-data:
+    name: dd-cyberia-mongodb-data
+  mongodb-keyfile:
+    name: dd-cyberia-mongodb-keyfile
+  valkey-data:
+    name: dd-cyberia-valkey-data

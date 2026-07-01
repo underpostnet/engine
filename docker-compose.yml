@@ -26,7 +26,7 @@ services:
   mongodb:
     image: ${MONGO_IMAGE:-mongo:latest}
     container_name: dd-mongodb
-    entrypoint: ["bash", "/docker-init/entrypoint.sh"]
+    entrypoint: ['bash', '/docker-init/entrypoint.sh']
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?set MONGO_INITDB_ROOT_USERNAME in docker/compose.env}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?set MONGO_INITDB_ROOT_PASSWORD in docker/compose.env}
@@ -38,9 +38,9 @@ services:
     networks:
       - dd-internal
     expose:
-      - "27017"
+      - '27017'
     ports:
-      - "${MONGO_HOST_PORT:-27017}:27017"
+      - '${MONGO_HOST_PORT:-27017}:27017'
     healthcheck:
       test:
         - CMD-SHELL
@@ -58,18 +58,18 @@ services:
   valkey-service:
     image: ${VALKEY_IMAGE:-valkey/valkey:latest}
     container_name: dd-valkey
-    command: ["valkey-server", "--port", "6379", "--bind", "0.0.0.0", "--protected-mode", "no"]
+    command: ['valkey-server', '--port', '6379', '--bind', '0.0.0.0', '--protected-mode', 'no']
     volumes:
       - valkey-data:/data
     networks:
       - dd-internal
     expose:
-      - "6379"
+      - '6379'
     # NodePort equivalent (manifests/valkey/valkey-nodeport.yaml nodePort 32079).
     ports:
-      - "${VALKEY_NODEPORT:-32079}:6379"
+      - '${VALKEY_NODEPORT:-32079}:6379'
     healthcheck:
-      test: ["CMD", "valkey-cli", "-p", "6379", "ping"]
+      test: ['CMD', 'valkey-cli', '-p', '6379', 'ping']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -81,7 +81,7 @@ services:
   # (dd-default-development-blue). Connection targets use Docker service
   # discovery instead of hardcoded localhost.
   app:
-    image: ${APP_IMAGE:-underpost/underpost-engine}:${APP_TAG:-v3.2.22}
+    image: ${APP_IMAGE:-underpost/underpost-engine}:${APP_TAG:-v3.2.30}
     container_name: dd-app
     # The start command is supplied by the generated override docker/compose.app.yml
     # (see `underpost docker-compose --generate --deploy-id <id>`), keeping this
@@ -100,18 +100,18 @@ services:
     networks:
       - dd-internal
     expose:
-      - "4001"
-      - "4002"
-      - "4003"
-      - "4004"
+      - '4001'
+      - '4002'
+      - '4003'
+      - '4004'
     # Direct access to the LoadBalancer-equivalent ports (manifest 4001-4004).
     ports:
-      - "${APP_PORT_4001:-4001}:4001"
-      - "${APP_PORT_4002:-4002}:4002"
-      - "${APP_PORT_4003:-4003}:4003"
-      - "${APP_PORT_4004:-4004}:4004"
+      - '${APP_PORT_4001:-4001}:4001'
+      - '${APP_PORT_4002:-4002}:4002'
+      - '${APP_PORT_4003:-4003}:4003'
+      - '${APP_PORT_4004:-4004}:4004'
     healthcheck:
-      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/4001' || exit 1"]
+      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/4001' || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -134,9 +134,9 @@ services:
     networks:
       - dd-internal
     ports:
-      - "${PROXY_HTTP_PORT:-80}:80"
+      - '${PROXY_HTTP_PORT:-80}:80'
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1/healthz']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -162,11 +162,11 @@ services:
     networks:
       - dd-internal
     expose:
-      - "9090"
+      - '9090'
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - '${PROMETHEUS_PORT:-9090}:9090'
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:9090/-/healthy"]
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1:9090/-/healthy']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -185,18 +185,18 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_SIGN_UP: 'false'
     volumes:
       - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-data:/var/lib/grafana
     networks:
       - dd-internal
     expose:
-      - "3000"
+      - '3000'
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+      - '${GRAFANA_PORT:-3000}:3000'
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/api/health"]
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1:3000/api/health']
       interval: 15s
       timeout: 5s
       retries: 5
