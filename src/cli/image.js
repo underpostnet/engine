@@ -144,6 +144,51 @@ class UnderpostImage {
       if (dockerCompose === true) shellExec(`sudo docker load -i ${tarFile}`);
     },
     /**
+     * @method importTar
+     * @description Loads a pre-built image tar archive into each enabled target
+     * without building anything. Mirrors the load step of {@link build}, but
+     * the archive is supplied directly via `--import-tar <tar-path>` and every
+     * enabled target flag is honored (the same archive is loaded into each), so
+     * `--kind --docker-compose` loads it into both.
+     * @param {object} options - CLI options.
+     * @param {string} options.importTar - Path to the image tar archive (e.g. `./image-v1.0.0.tar`).
+     * @param {boolean} [options.kind] - Load into the Kind cluster (`kind load image-archive`).
+     * @param {boolean} [options.kubeadm] - Import into kubeadm containerd (`ctr -n k8s.io images import`).
+     * @param {boolean} [options.k3s] - Import into k3s containerd (`k3s ctr images import`).
+     * @param {boolean} [options.dockerCompose] - Load into the local Docker daemon (`docker load`) for Docker Compose.
+     * @returns {void}
+     * @memberof UnderpostImage
+     */
+    importTar(options = { importTar: '', kind: false, kubeadm: false, k3s: false, dockerCompose: false }) {
+      const { importTar, kind, kubeadm, k3s, dockerCompose } = options;
+      if (!importTar || typeof importTar !== 'string' || !fs.existsSync(importTar)) {
+        logger.error('image --import-tar: archive not found', { importTar });
+        return;
+      }
+      const targets = [];
+      if (kind === true) {
+        shellExec(`sudo kind load image-archive ${importTar}`);
+        targets.push('kind');
+      }
+      if (kubeadm === true) {
+        shellExec(`sudo ctr -n k8s.io images import ${importTar}`);
+        targets.push('kubeadm');
+      }
+      if (k3s === true) {
+        shellExec(`sudo k3s ctr images import ${importTar}`);
+        targets.push('k3s');
+      }
+      if (dockerCompose === true) {
+        shellExec(`sudo docker load -i ${importTar}`);
+        targets.push('docker-compose');
+      }
+      if (targets.length === 0)
+        logger.warn(
+          'image --import-tar: no target enabled; combine with --kind, --kubeadm, --k3s and/or --docker-compose',
+        );
+      else logger.info('image --import-tar: archive loaded', { importTar, targets });
+    },
+    /**
      * @method getCurrentLoaded
      * @description Retrieves the currently loaded images in the Kubernetes cluster.
      * @param {string} [node='kind-worker'] - Node name to check for loaded images.

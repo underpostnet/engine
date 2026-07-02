@@ -448,12 +448,17 @@ program
   .option('--reset', 'Performs a build without using the cache.')
   .option('--dev', 'Use development mode.')
   .option('--pull-dockerhub <dockerhub-image>', 'Sets a custom Docker Hub image for base image pulls.')
+  .option(
+    '--import-tar <tar-path>',
+    'Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one.',
+  )
   .description('Manages Docker images, including building, saving, and loading into Kubernetes clusters.')
   .action(async (options) => {
     if (options.rm) Underpost.image.rm({ ...options, imageName: options.rm });
     if (options.ls) Underpost.image.list({ ...options, log: true });
     if (options.pullBase) Underpost.image.pullBaseImages(options);
     if (options.build) Underpost.image.build(options);
+    if (options.importTar) Underpost.image.importTar(options);
     if (options.pullDockerhub)
       Underpost.image.pullDockerHubImage({ ...options, dockerhubImage: options.pullDockerhub });
   });
