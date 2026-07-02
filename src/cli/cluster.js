@@ -877,6 +877,74 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
     },
 
     /**
+     * @method _pruneContainerCaches
+     * @description Reclaims container-runtime disk left behind after a cluster
+     * teardown: stopped containers, unused images, build cache and anonymous
+     * volumes. Best-effort across every runtime present on the host (docker,
+     * podman, and optionally the CRI runtime via crictl). Each block is guarded
+     * by a command-existence check, so it is safe to call when a runtime is
+     * absent. This is what turns a "cluster deleted" into "disk actually freed":
+     * `kind delete` / `kubeadm reset` remove the cluster but leave gigabytes of
+     * images and overlay layers under /var/lib/{docker,containers}.
+     * @param {object} [options]
+     * @param {boolean} [options.all=true] - Remove all unused images, not just dangling ones.
+     * @param {boolean} [options.crictl=false] - Also prune the CRI runtime via crictl.
+     * @param {string} [options.criSocket] - Optional crictl --runtime-endpoint override.
+     * @private
+     */
+    _pruneContainerCaches(options = {}) {
+      const all = options.all !== false;
+      const a = all ? '-a ' : '';
+      logger.info(`  -> Pruning container-runtime caches (all=${all})...`);
+      // Docker (also matches the podman-docker shim when docker is symlinked to podman).
+      shellExec(
+        `if command -v docker >/dev/null 2>&1; then sudo docker system prune ${a}--volumes -f; sudo docker builder prune ${a}-f; fi`,
+        { silentOnError: true },
+      );
+      // Podman native — on this host images/overlays live under /var/lib/containers/storage.
+      shellExec(
+        `if command -v podman >/dev/null 2>&1; then sudo podman system prune ${a}--volumes -f; fi`,
+        { silentOnError: true },
+      );
+      if (options.crictl) {
+        const ep = options.criSocket ? `--runtime-endpoint ${options.criSocket} ` : '';
+        shellExec(
+          `if command -v crictl >/dev/null 2>&1; then sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl ${ep}rmi --prune; fi`,
+          { silentOnError: true },
+        );
+      }
+      Underpost.cluster._unmountOrphanContainerOverlays();
+    },
+
+    /**
+     * @method _unmountOrphanContainerOverlays
+     * @description Unmounts leaked container overlay 'merged' mounts under
+     * /var/lib/{containers/storage,docker}/overlay. Pruning images/containers
+     * frees the backing data but leaves these mountpoints attached, so they
+     * keep showing up as identical `overlay ... /merged` rows in `df -h` long
+     * after the containers are gone. Only overlays NOT backing a still-existing
+     * container are unmounted, so running workloads are never disturbed.
+     * Best-effort; safe to call when no runtime is present.
+     * @private
+     */
+    _unmountOrphanContainerOverlays() {
+      logger.info('  -> Unmounting orphaned container overlay mounts...');
+      shellExec(`if command -v podman >/dev/null 2>&1; then sudo podman umount --all >/dev/null 2>&1 || true; fi`, {
+        silentOnError: true,
+      });
+      shellExec(
+        `active="$(sudo podman ps -aq 2>/dev/null | xargs -r -I{} sudo podman inspect --format '{{.GraphDriver.Data.MergedDir}}' {} 2>/dev/null || true)"
+findmnt -rn -o TARGET 2>/dev/null | grep -E '/var/lib/(containers/storage|docker)/overlay.*/merged' | sort -r | while IFS= read -r m; do
+  if ! printf '%s\\n' "$active" | grep -qxF "$m"; then
+    echo "Unmounting orphaned overlay: $m"
+    sudo umount -l "$m" 2>/dev/null || true
+  fi
+done`,
+        { silentOnError: true },
+      );
+    },
+
+    /**
      * @method _lazyUmountKubeletMounts
      * @description Lazy-unmounts every mount under /var/lib/kubelet so a
      * subsequent `rm -rf` does not hit 'Device or resource busy'. Best-effort.
@@ -910,7 +978,7 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
       if (options.removeVolumeHostPaths) Underpost.cluster._cleanHostPathPvs();
       else logger.info('  -> Skipping (pass --remove-volume-host-paths to enable).');
 
-      logger.info('Phase 3/5: Deleting all Kind clusters...');
+      logger.info('Phase 3/6: Deleting all Kind clusters...');
       shellExec(`clusters=$(kind get clusters)
 if [ -n "$clusters" ]; then
   for c in $clusters; do
@@ -919,11 +987,14 @@ if [ -n "$clusters" ]; then
   done
 fi`);
 
-      logger.info('Phase 4/5: Cleaning kubeconfig and Kind Docker networks...');
+      logger.info('Phase 4/6: Cleaning kubeconfig and Kind Docker networks...');
       shellExec(`rm -rf "$HOME/.kube"`);
       Underpost.cluster.recoverKindDockerNetworks();
 
-      logger.info('Phase 5/5: Re-applying host configuration (Docker, containerd, sysctl).');
+      logger.info('Phase 5/6: Pruning container-runtime caches (kindest/node images, build cache, volumes)...');
+      Underpost.cluster._pruneContainerCaches({ all: true });
+
+      logger.info('Phase 6/6: Re-applying host configuration (Docker, containerd, sysctl).');
       Underpost.cluster.config();
 
       logger.info('=== KIND SAFE RESET COMPLETE ===');
@@ -995,7 +1066,7 @@ fi`);
       shellExec(`if ip link show tunl0 >/dev/null 2>&1; then sudo ip link del tunl0; fi`);
       shellExec(`sudo iptables -F`);
       shellExec(`sudo iptables -t nat -F`);
-      shellExec(`if command -v crictl >/dev/null 2>&1; then sudo crictl rmi --prune; fi`);
+      Underpost.cluster._pruneContainerCaches({ all: true, crictl: true });
 
       logger.info('Phase 7/7: Re-applying host configuration (Docker, containerd, sysctl).');
       Underpost.cluster.config();
@@ -1042,6 +1113,8 @@ fi`);
       shellExec(`if [ -d /etc/rancher/k3s ]; then sudo rm -rf /etc/rancher/k3s; fi`);
       shellExec(`if ip link show flannel.1 >/dev/null 2>&1; then sudo ip link del flannel.1; fi`);
       shellExec(`if ip link show cni0 >/dev/null 2>&1; then sudo ip link del cni0; fi`);
+      // k3s-uninstall.sh removes /var/lib/rancher/k3s; still prune any host docker/podman leftovers.
+      Underpost.cluster._pruneContainerCaches({ all: true });
 
       logger.info('Phase 5/5: Re-applying minimal K3s host config.');
       Underpost.cluster.configMinimalK3s();
