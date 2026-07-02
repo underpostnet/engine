@@ -77,10 +77,7 @@ RUN --mount=type=secret,id=github_token \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
     node bin env dd-cyberia production; \
-    node bin fs src/client/public/cyberia --git --pull --recursive --deploy-id dd-cyberia; \
-    node bin fs src/client/public/underpost --git --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'; \
-    chmod +x /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh; \
-    /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh; \
+    node bin fs --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.engine-cyberia.json'; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     ( cd /home/dd/engine && underpost clone underpostnet/cyberia-server ); \
     \
@@ -126,11 +123,18 @@ RUN --mount=type=secret,id=github_token \
 FROM rockylinux/rockylinux:9 AS runtime
 ENV NODE_ENV=production
 
+# Node + npm + the underpost CLI (exact pinned version) from the builder — no
+# re-download, no git/build toolchain. libstdc++ is the only runtime lib the
+# prebuilt Node binary needs beyond the base image.
 COPY --from=builder /usr/local/ /usr/local/
-RUN dnf install -y libstdc++ && dnf clean all && rm -rf /var/cache/dnf && \
+RUN dnf install -y libstdc++ git && dnf clean all && rm -rf /var/cache/dnf && \
     useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd
 
+# Copy ONLY the scrubbed runtime tree — no .git, no token, no caches.
 COPY --from=builder --chown=dd:dd /home/dd/engine /home/dd/engine
+
+RUN chmod +x /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh && \
+    /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh
 
 USER dd
 WORKDIR /home/dd/engine

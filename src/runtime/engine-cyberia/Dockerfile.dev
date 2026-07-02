@@ -90,8 +90,6 @@ RUN --mount=type=secret,id=github_token \
     npm install; \
     node bin env dd-cyberia development; \
     node bin fs --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.engine-cyberia.json'; \
-    chmod +x /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh; \
-    /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     ( cd /home/dd/engine && underpost clone underpostnet/cyberia-server ); \
     \
@@ -141,11 +139,14 @@ ENV NODE_ENV=development
 # re-download, no git/build toolchain. libstdc++ is the only runtime lib the
 # prebuilt Node binary needs beyond the base image.
 COPY --from=builder /usr/local/ /usr/local/
-RUN dnf install -y libstdc++ && dnf clean all && rm -rf /var/cache/dnf && \
+RUN dnf install -y libstdc++ git && dnf clean all && rm -rf /var/cache/dnf && \
     useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd
 
 # Copy ONLY the scrubbed runtime tree — no .git, no token, no caches.
 COPY --from=builder --chown=dd:dd /home/dd/engine /home/dd/engine
+
+RUN chmod +x /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh && \
+    /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh
 
 USER dd
 WORKDIR /home/dd/engine
