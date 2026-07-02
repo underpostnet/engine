@@ -86,6 +86,73 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # --- IPFS (Kubo daemon) --------------------------------------------------
+  # Content plane: add / pin / cat / files (MFS). The engine reaches it at
+  # http://ipfs:5001 (RPC) and http://ipfs:8080 (gateway) via the
+  # IPFS_API_URL / IPFS_GATEWAY_URL overrides in compose.env. The init hook
+  # binds the API/gateway to 0.0.0.0 (default is loopback-only) so both the
+  # engine and the ipfs-cluster service can reach the daemon.
+  ipfs:
+    image: ${IPFS_IMAGE:-ipfs/kubo:latest}
+    container_name: dd-cyberia-ipfs
+    volumes:
+      - ./ipfs/configure-ipfs.sh:/container-init.d/001-configure-ipfs.sh:ro
+      - ipfs-data:/data/ipfs
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '5001'
+      - '8080'
+      - '4001'
+    ports:
+      - '${IPFS_API_PORT:-5001}:5001'
+      - '${IPFS_GATEWAY_PORT:-8080}:8080'
+    healthcheck:
+      test: ['CMD-SHELL', 'ipfs --api=/ip4/127.0.0.1/tcp/5001 id >/dev/null 2>&1 || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+  # --- IPFS Cluster (pin orchestration) ------------------------------------
+  # Single-node dev equivalent of manifests/ipfs (StatefulSet ipfs-cluster).
+  # Serves the Cluster REST API on :9094 (ipfs-client.js IPFS_CLUSTER_API_URL);
+  # the engine POSTs /pins/<cid> here to replicate pins. It drives the shared
+  # Kubo daemon above via CLUSTER_IPFSHTTP_NODEMULTIADDRESS and starts only once
+  # Kubo is healthy, so the engine (which waits for this service to be healthy)
+  # never races an unreachable cluster.
+  ipfs-cluster:
+    image: ${IPFS_CLUSTER_IMAGE:-ipfs/ipfs-cluster:latest}
+    container_name: dd-cyberia-ipfs-cluster
+    depends_on:
+      ipfs:
+        condition: service_healthy
+    environment:
+      CLUSTER_PEERNAME: dd-cyberia-cluster
+      # 32-byte hex shared secret. Fixed dev default keeps the cluster identity
+      # stable across restarts; override in compose.env for anything shared.
+      CLUSTER_SECRET: ${CLUSTER_SECRET:-0e1d2c3b4a59687778695a4b3c2d1e0f0e1d2c3b4a59687778695a4b3c2d1e0f}
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs/tcp/5001
+      CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS: /ip4/0.0.0.0/tcp/9094
+      CLUSTER_CRDT_TRUSTEDPEERS: '*'
+    volumes:
+      - ipfs-cluster-data:/data/ipfs-cluster
+    networks:
+      - dd-cyberia-internal
+    expose:
+      - '9094'
+      - '9096'
+    ports:
+      - '${IPFS_CLUSTER_API_PORT:-9094}:9094'
+    healthcheck:
+      test: ['CMD-SHELL', 'ipfs-cluster-ctl --host /ip4/127.0.0.1/tcp/9094 id >/dev/null 2>&1 || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
   # --- engine-cyberia (content authority) ----------------------------------
   # The underpost Node engine for deploy dd-cyberia. The image bakes the
   # dd-cyberia build at image-build time (see src/runtime/engine-cyberia/
@@ -95,8 +162,6 @@ services:
   engine-cyberia:
     image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.2.30}
     container_name: dd-cyberia-engine
-    # Startup seeds the DB (the deploy-time steps the image build cannot run:
-    # they need the now-healthy mongodb service) and then runs the engine.
     command:
       - /bin/sh
       - -c
@@ -104,9 +169,6 @@ services:
         node bin/cyberia ol --drop &&
         node bin/cyberia instance amethyst-strata-expansion --import &&
         underpost start --run dd-cyberia development
-    # Load the full dd-cyberia runtime env into the container. loadConf only
-    # overrides keys present in the image's baked .env, so the DB-name / JWT /
-    # mailer keys it lacks come from here — no image rebuild required.
     env_file:
       - ./compose.env
     environment:
@@ -140,6 +202,10 @@ services:
         condition: service_healthy
       valkey-service:
         condition: service_healthy
+      ipfs:
+        condition: service_healthy
+      ipfs-cluster:
+        condition: service_healthy
     restart: unless-stopped
 
   # --- cyberia-server (authoritative simulation) ---------------------------
@@ -154,6 +220,7 @@ services:
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
+      STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
     networks:
       - dd-cyberia-internal
     expose:
@@ -239,3 +306,7 @@ volumes:
     name: dd-cyberia-mongodb-keyfile
   valkey-data:
     name: dd-cyberia-valkey-data
+  ipfs-data:
+    name: dd-cyberia-ipfs-data
+  ipfs-cluster-data:
+    name: dd-cyberia-ipfs-cluster-data

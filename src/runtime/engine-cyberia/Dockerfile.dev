@@ -101,6 +101,7 @@ RUN --mount=type=secret,id=github_token \
     cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.development"; \
     cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.production"; \
     cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.test"; \
+    cp -a "$CONF/conf.server.dev.dev.json" "$CONF/conf.server.json"; \
     cp -a "$CONF/docker-compose/cyberia/compose.env" /home/dd/engine/.env; \
     \
     # --- drop build-only / non-runtime private material ----------------------
@@ -126,6 +127,12 @@ RUN --mount=type=secret,id=github_token \
     #    build/CLI tooling (used only to build the coverage docs above); the
     #    runtime server never imports it, so its dev node_modules is pure bloat.
     npm cache clean --force 2>/dev/null || true; \
+    rm -rf /home/dd/engine/src/client/public/itemledger \
+    rm -rf /home/dd/engine/src/client/public/cryptokoyn \
+    rm -rf /home/dd/engine/src/client/components/cryptokoyn \
+    rm -rf /home/dd/engine/src/client/components/itemledger \
+    rm -rf /home/dd/engine/src/client/Itemledger.index.js \
+    rm -rf /home/dd/engine/src/client/Cryptokoyn.index.js \
     rm -rf /home/dd/engine/hardhat/node_modules \
            /home/dd/engine/.npm /tmp/* /var/tmp/* /var/cache/dnf
 
@@ -140,7 +147,10 @@ ENV NODE_ENV=development
 # prebuilt Node binary needs beyond the base image.
 COPY --from=builder /usr/local/ /usr/local/
 RUN dnf install -y libstdc++ git && dnf clean all && rm -rf /var/cache/dnf && \
-    useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd
+    useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd && \
+    # underpost persists its global env at $(npm root -g)/underpost/.env; the
+    # non-root runtime user must be able to write it (fixes EACCES on start).
+    chown -R dd:dd /usr/local/lib/node_modules/underpost
 
 # Copy ONLY the scrubbed runtime tree — no .git, no token, no caches.
 COPY --from=builder --chown=dd:dd /home/dd/engine /home/dd/engine

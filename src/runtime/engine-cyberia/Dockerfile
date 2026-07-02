@@ -128,7 +128,10 @@ ENV NODE_ENV=production
 # prebuilt Node binary needs beyond the base image.
 COPY --from=builder /usr/local/ /usr/local/
 RUN dnf install -y libstdc++ git && dnf clean all && rm -rf /var/cache/dnf && \
-    useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd
+    useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd && \
+    # underpost persists its global env at $(npm root -g)/underpost/.env; the
+    # non-root runtime user must be able to write it (fixes EACCES on start).
+    chown -R dd:dd /usr/local/lib/node_modules/underpost
 
 # Copy ONLY the scrubbed runtime tree — no .git, no token, no caches.
 COPY --from=builder --chown=dd:dd /home/dd/engine /home/dd/engine
