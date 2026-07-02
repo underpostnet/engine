@@ -1544,7 +1544,7 @@ EOF
           path: projectPath,
           imageName: _image,
           podmanSave: true,
-          imagePath: projectPath,
+          imageOutPath: projectPath,
           kind: isKind,
           kubeadm: !!options.kubeadm,
           k3s: !!options.k3s,
@@ -1760,7 +1760,11 @@ EOF`);
       }
 
       if (!currentImage)
-        shellExec(`${baseCommand} image${baseClusterCommand} --pull-base ${options.dev ? '--kind' : '--kubeadm'}`);
+        shellExec(
+          `${baseCommand} image${baseClusterCommand} --pull-base --build --path ${
+            options.dev ? '.' : options.underpostRoot
+          } ${options.dev ? '--kind' : '--kubeadm'}`,
+        );
       // shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
 
       const payload = {

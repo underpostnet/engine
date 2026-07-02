@@ -79,7 +79,7 @@ node bin image [options]
 | -------------------------- | --------------------------------- | ----------------------------------- |
 | `--path [path]`            | Path to Dockerfile directory      | `--path ./my-app`                   |
 | `--image-name [name]`      | Custom name for the image         | `--image-name my-app:1.0`           |
-| `--image-path [path]`      | Output path for tar archive       | `--image-path ./images`             |
+| `--image-out-path [path]`  | Output path for tar archive       | `--image-out-path ./images`         |
 | `--dockerfile-name [name]` | Custom Dockerfile name            | `--dockerfile-name Dockerfile.prod` |
 | `--podman-save`            | Save image as tar archive         | `--podman-save`                     |
 | `--reset`                  | Build without cache (fresh build) | `--reset`                           |
@@ -118,7 +118,7 @@ node bin image --build --path . --image-name my-app:latest
 Build and export the image as a tar archive:
 
 ```bash
-node bin image --build --podman-save --path ./app --image-name my-app:1.0 --image-path ./exports
+node bin image --build --podman-save --path ./app --image-name my-app:1.0 --image-out-path ./exports
 ```
 
 This creates `./exports/my-app_1.0.tar`.
@@ -361,7 +361,7 @@ Avoid using `latest` in production environments.
 For reproducibility and backup, save images as tar archives:
 
 ```bash
-node bin image --build --podman-save --image-path ./image-backups --image-name my-app:1.0.0 --path ./app
+node bin image --build --podman-save --image-out-path ./image-backups --image-name my-app:1.0.0 --path ./app
 ```
 
 ### 3. Use No-Cache for Clean Builds
@@ -567,7 +567,7 @@ node bin image --build --kind --image-name my-app:1.0.0 --path ./app
 node bin image --build --reset --kubeadm --podman-save --image-name my-app:1.0.0 --path ./app
 
 # 2. Save image archive for backup
-node bin image --build --podman-save --image-path ./prod-images --image-name my-app:1.0.0 --path ./app
+node bin image --build --podman-save --image-out-path ./prod-images --image-name my-app:1.0.0 --path ./app
 
 # 3. Load to production cluster
 node bin image --build --kubeadm --podman-save --image-name my-app:1.0.0 --path ./app
@@ -583,7 +583,7 @@ node bin image --ls --kubeadm
 
 ```bash
 # Build once
-node bin image --build --podman-save --image-path ./images --image-name my-app:1.0.0 --path ./app
+node bin image --build --podman-save --image-out-path ./images --image-name my-app:1.0.0 --path ./app
 
 # Load to Kind (development)
 node bin image --build --kind --podman-save --image-name my-app:1.0.0 --path ./app
@@ -628,7 +628,7 @@ node bin image --pull-base --kind
 --build --kind --path ./app --image-name my-app:1.0
 
 # Save as archive
---build --podman-save --image-path ./exports --path ./app --image-name my-app:1.0
+--build --podman-save --image-out-path ./exports --path ./app --image-name my-app:1.0
 
 # Fresh build
 --build --reset --kind --path ./app --image-name my-app:1.0

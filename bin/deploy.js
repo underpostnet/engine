@@ -422,7 +422,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
         const args = [
           `node bin image --build --path ${path}/backend/`,
-          `--image-name=${imageName} --image-path=${path}`,
+          `--image-name=${imageName} --image-out-path=${path}`,
           `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'} --reset`,
         ];
         shellExec(args.join(' '));
@@ -434,7 +434,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
         const args = [
           `node bin image --build --path ${path}/frontend/`,
-          `--image-name=${imageName} --image-path=${path}`,
+          `--image-name=${imageName} --image-out-path=${path}`,
           `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'} --reset`,
         ];
         shellExec(args.join(' '));

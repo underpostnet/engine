@@ -350,7 +350,7 @@ node bin image --pull-dockerhub underpost --kind
 | `--spec`                         | Get cached list of container images used by all pods           |
 | `--path <path>`                  | Dockerfile directory                                           |
 | `--image-name <name>`            | Custom image name                                              |
-| `--image-path <path>`            | Output path for tar image archive                              |
+| `--image-out-path <path>`        | Output path for tar image archive                              |
 | `--dockerfile-name <name>`       | Custom Dockerfile name                                         |
 | `--podman-save`                  | Export built image as tar file using Podman                    |
 | `--pull-dockerhub <image>`       | Pull a Docker Hub image (use `underpost` for the engine image) |
