@@ -38,17 +38,7 @@
     "docker:pull": "node bin docker-compose --pull",
     "docker:logs": "node bin docker-compose --logs",
     "docker:status": "node bin docker-compose --status",
-    "docker:shell": "node bin docker-compose --shell",
-    "docker:cyberia:generate": "node bin docker-compose --generate --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:up": "node bin docker-compose --up --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:up:build": "node bin docker-compose --up --build --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:down": "node bin docker-compose --down --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:down:volumes": "node bin docker-compose --down --volumes --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:restart": "node bin docker-compose --restart --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:pull": "node bin docker-compose --pull --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:logs": "node bin docker-compose --logs --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:status": "node bin docker-compose --status --deploy-id dd-cyberia --docker-compose-id cyberia",
-    "docker:cyberia:reset": "node bin docker-compose --reset --deploy-id dd-cyberia --docker-compose-id cyberia"
+    "docker:shell": "node bin docker-compose --shell"
   },
   "repository": {
     "type": "git",

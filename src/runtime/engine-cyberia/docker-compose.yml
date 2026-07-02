@@ -104,6 +104,11 @@ services:
         node bin/cyberia ol --drop &&
         node bin/cyberia instance amethyst-strata-expansion --import &&
         underpost start --run dd-cyberia development
+    # Load the full dd-cyberia runtime env into the container. loadConf only
+    # overrides keys present in the image's baked .env, so the DB-name / JWT /
+    # mailer keys it lacks come from here — no image rebuild required.
+    env_file:
+      - ./compose.env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       DB_PROVIDER: ${DB_PROVIDER:-mongoose}

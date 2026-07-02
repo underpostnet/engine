@@ -4577,6 +4577,78 @@ try {
     );
   });
 
+  const dockerImageIds = ['engine-cyberia', 'cyberia-server', 'cyberia-client'];
+  runner
+    .command('docker-image [id]')
+    .option('--load-tar', 'Load a pre-built image tar archive into the enabled target(s) without building.')
+    .action((id, options) => {
+      // no funca
+      if (options.loadTar) {
+        for (const imageId of dockerImageIds)
+          if (imageId === id || id === '.') shellExec(`docker load -i ./${imageId}-dev_v3.2.30.tar`);
+        return;
+      }
+      switch (id) {
+        case 'engine-cyberia':
+          shellExec(`clear
+node bin/build dd-cyberia --conf
+node bin/build dd-cyberia --update-private
+node bin image --path src/runtime/engine-cyberia \
+  --docker-compose --pull-base --build \
+  --dockerfile-name Dockerfile.dev \
+  --image-name engine-cyberia-dev:v3.2.30 \
+  --image-out-path .
+`);
+          break;
+
+        case 'cyberia-server':
+          shellExec(
+            `clear && node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
+          );
+          shellExec(`
+cp -f src/runtime/cyberia-server/Dockerfile.dev cyberia-server/Dockerfile.dev
+node bin image --path cyberia-server \
+  --docker-compose --pull-base --build \
+  --dockerfile-name Dockerfile.dev \
+  --image-name cyberia-server-dev:v3.2.30 \
+  --image-out-path .
+`);
+          break;
+        case 'cyberia-client':
+          shellExec(`clear
+cp -f src/runtime/cyberia-client/Dockerfile.dev cyberia-client/Dockerfile.dev
+node bin image --path cyberia-client \
+  --docker-compose --pull-base --build \
+  --dockerfile-name Dockerfile.dev \
+  --image-name cyberia-client-dev:v3.2.30 \
+  --image-out-path .
+`);
+          break;
+      }
+    });
+
+  {
+    // docker compose lyfe cycle commands for the dd-cyberia deployment
+    const dockerComposeId = 'cyberia';
+    const deployId = 'dd-cyberia';
+    const commands = {
+      'docker:generate': `node bin docker-compose --generate --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:up': `node bin docker-compose --up --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:up:build': `node bin docker-compose --up --build --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:down': `node bin docker-compose --down --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:down:volumes': `node bin docker-compose --down --volumes --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:restart': `node bin docker-compose --restart --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:pull': `node bin docker-compose --pull --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:logs': `node bin docker-compose --logs --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:status': `node bin docker-compose --status --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+      'docker:reset': `node bin docker-compose --reset --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
+    };
+    for (const [cmd, action] of Object.entries(commands))
+      runner.command(cmd).action(() => {
+        shellExec(action);
+      });
+  }
+
   runner
     .command('seed-dialogues')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
