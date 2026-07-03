@@ -75,11 +75,12 @@ RUN --mount=type=secret,id=github_token \
     # provisioning steps inline (asset pulls, ffmpeg, hardhat deps, cyberia-server
     # clone). Pre-clone so privateEngineRepoFactory no-ops and --skip-pull-base
     # reuses the tree.
+    export ENGINE_CYBERIA_REPO="engine-cyberia"; \
     cd /home/dd; \
-    underpost clone "$GITHUB_USERNAME/engine-test-cyberia"; \
+    underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
     mkdir -p /home/dd/engine; \
-    cp -a ./engine-test-cyberia/. /home/dd/engine/; \
-    rm -rf ./engine-test-cyberia; \
+    cp -a ./"$ENGINE_CYBERIA_REPO"/. /home/dd/engine/; \
+    rm -rf ./"$ENGINE_CYBERIA_REPO"; \
     cd /home/dd/engine; \
     rm -rf ./engine-private; \
     underpost clone "$GITHUB_USERNAME/engine-cyberia-private"; \
@@ -105,7 +106,15 @@ RUN --mount=type=secret,id=github_token \
     cp -a "$CONF/docker-compose/cyberia/compose.env" /home/dd/engine/.env; \
     \
     # --- drop build-only / non-runtime private material ----------------------
-    rm -rf /home/dd/engine/engine-private/itc-scripts "$CONF/build" "$CONF/instances"; \
+    rm -rf /home/dd/engine/engine-private/itc-scripts; \
+    rm -rf /home/dd/engine/engine-private/cyberia-instances/FOREST; \
+    rm -rf /home/dd/engine/engine-private/logs; \
+    rm -rf "$CONF/build" "$CONF/instances"; \
+    rm -rf "$CONF/conf.instances.json"; \
+    rm -rf "$CONF/conf.server.dev.underpost.json"; \
+    rm -rf "$CONF/storage.bundle.json"; \
+    rm -rf "$CONF/storage.json"; \
+    rm -rf "$CONF/storage.underpost.json"; \
     \
     # --- CREDENTIAL SCRUB (defense in depth, while secrets are still in scope) -
     # 1) Redact every real secret value from any file it may have reached.
