@@ -1,0 +1,40 @@
+name: CD | Cyberia mmo client | remote ssh
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (deploy)'
+        required: true
+        type: choice
+        options:
+          - deploy
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'underpostnet/cyberia-client'
+      && github.event.inputs.job == 'deploy'
+    name: Remote SSH deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          command_timeout: 60m
+          script: |
+            set -e
+            echo "Starting remote deploy"
+            cd /home/dd/engine
+            TARGET_NODE=hp-envy-iso-ram-rocky9
+            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "node bin run secret"
+            sudo -n -- /bin/bash -lc "node bin/build dd-cyberia --conf"
+            sudo -n -- /bin/bash -lc "node bin run instance --node-name $HOSTNAME --kubeadm 'dd-cyberia,mmo-client' --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9"

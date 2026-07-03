@@ -4578,6 +4578,15 @@ try {
   });
 
   const dockerImageIds = ['engine-cyberia', 'cyberia-server', 'cyberia-client'];
+
+  runner.command('deploy [id]').action((id) => {
+    if (!dockerImageIds.includes(id)) {
+      logger.error(`Invalid deploy id: ${id}. Must be one of: ${dockerImageIds.join(', ')}`);
+      process.exit(1);
+    }
+    shellExec(`gh workflow run ${id}.cd.yml -R underpostnet/${id} -f job=deploy`);
+  });
+
   runner
     .command('docker-image [id]')
     .option('--load-tar', 'Load a pre-built image tar archive into the enabled target(s) without building.')
@@ -4983,6 +4992,14 @@ node bin image --path cyberia-client \
       // Edit the canonical sources; never hand-edit these generated outputs.
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md');
+      fs.copyFileSync(
+        './.github/workflows/cyberia-client.cd.yml',
+        './cyberia-client/.github/workflows/cyberia-client.cd.yml',
+      );
+      fs.copyFileSync(
+        './.github/workflows/cyberia-server.cd.yml',
+        './cyberia-server/.github/workflows/cyberia-server.cd.yml',
+      );
       logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
     });
 
