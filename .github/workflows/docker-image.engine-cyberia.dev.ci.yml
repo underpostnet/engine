@@ -13,6 +13,12 @@ name: CI | Docker Image engine-cyberia (dev)
 
 on:
   workflow_dispatch:
+
+# Single source of truth for the image version: the metadata tag (vX.Y.Z) and
+# the baked underpost CLI (ARG UNDERPOST_VERSION) always move together.
+env:
+  UNDERPOST_VERSION: '3.2.30'
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -38,7 +44,7 @@ jobs:
         with:
           images: underpost/engine-cyberia-dev
           tags: |
-            type=raw,value=v3.2.30
+            type=raw,value=v${{ env.UNDERPOST_VERSION }}
             type=ref,event=branch
             type=sha,prefix=sha-
 
@@ -53,7 +59,7 @@ jobs:
           # Keep the underpost CLI baked into the image aligned with the image
           # tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
           build-args: |
-            UNDERPOST_VERSION=3.2.30
+            UNDERPOST_VERSION=${{ env.UNDERPOST_VERSION }}
           # GitHub credentials are passed as BuildKit secrets (NOT build-args):
           # they are mounted only for the RUN that clones/builds the private
           # deploy and never persist in any image layer or `docker history`.
