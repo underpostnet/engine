@@ -49,7 +49,10 @@ export default {
     './hardhat',
   ],
   moves: [],
-  copies: [['./src/runtime/engine-cyberia/docker-compose.yml', './docker-compose.yml']],
+  copies: [
+    ['./src/runtime/engine-cyberia/docker-compose.yml', './docker-compose.yml'],
+    ['./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env', './.env.example'],
+  ],
   keywords: [
     'cyberia',
     'cyberia-cli',
