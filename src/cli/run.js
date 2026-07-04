@@ -773,7 +773,7 @@ class UnderpostRun {
       const repo = Underpost.repo.resolveInstanceRepo(path);
       Underpost.repo.dispatchWorkflow({
         repo,
-        workflowFile: `docker-image${path ? `.${path}` : ''}.ci.yml`,
+        workflowFile: `docker-image${path ? `.${path}` : ''}${options.dev ? '.dev' : ''}.ci.yml`,
         ref: 'master',
         inputs: {},
       });
