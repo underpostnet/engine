@@ -22,7 +22,7 @@ import { actionInitLog, loggerFactory } from '../server/logger.js';
 
 import fs from 'fs-extra';
 import net from 'net';
-import { range, setPad, timer } from '../client/components/core/CommonJs.js';
+import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js';
 
 import os from 'os';
 import Underpost from '../index.js';
@@ -1447,6 +1447,32 @@ EOF
         const hostListenResult = etcHostFactory(etcHosts);
         logger.info(hostListenResult.renderHosts);
       }
+    },
+
+    /**
+     * @method deploy-key
+     * @description Copies the deploy key for a specific user and deployId to a temporary location on the local machine.
+     * @param {string} path - The input value, identifier, or path for the operation (not used in this method).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {string} options.user - The user for which to copy the deploy key.
+     * @param {string} options.deployId - The deployment identifier associated with the deploy key.
+     * @memberof UnderpostRun
+     */
+    'deploy-key': (path, options = DEFAULT_OPTION) => {
+      const prefix = 'dd-key';
+      if (options.reset) {
+        shellExec(`rm -rf /home/dd/tmp/${prefix}_*`);
+        return;
+      }
+      if (!options.user || !options.deployId) {
+        logger.error('Both --user and --deploy-id options are required to copy the deploy key.');
+        return;
+      }
+      const targetPath = `/home/dd/tmp/${prefix}_${s4()}${s4()}`;
+      fs.mkdirSync('/home/dd/tmp', { recursive: true });
+      fs.copyFileSync(`./engine-private/conf/${options.deployId}/users/${options.user}/id_rsa`, targetPath);
+      logger.info(`Copied deploy key to ${targetPath}`);
+      if (options.copy) pbcopy(targetPath);
     },
 
     /**
