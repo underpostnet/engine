@@ -36,6 +36,8 @@ export default {
     '/.github/workflows/docker-image.cyberia-client.dev.ci.yml',
     '/.github/workflows/docker-image.cyberia-server.ci.yml',
     '/.github/workflows/docker-image.cyberia-server.dev.ci.yml',
+    '/.github/workflows/cyberia-client.cd.yml',
+    '/.github/workflows/cyberia-server.cd.yml',
   ],
   stripPaths: [
     './src/projects/cyberia',
@@ -51,7 +53,8 @@ export default {
   moves: [],
   copies: [
     ['./src/runtime/engine-cyberia/docker-compose.yml', './docker-compose.yml'],
-    ['./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env', './.env.example'],
+    ['./src/runtime/engine-cyberia/compose.env', './.env.example'],
+    ['./src/runtime/engine-cyberia/.', './'],
   ],
   keywords: [
     'cyberia',

@@ -222,6 +222,8 @@ services:
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
+      APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
+      LOG_LEVEL: ${CYBERIA_SERVER_LOG_LEVEL:-}
     networks:
       - dd-cyberia-internal
     expose:
