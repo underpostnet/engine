@@ -1,5 +1,6 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input } from '../core/Input.js';
+import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
@@ -360,7 +361,10 @@ class EntityEngineCyberia {
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
-  static async render() {
+  static async render(options = {}) {
+    const { appStore } = options;
+    const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
+    EntityEngineCyberia.canMutate = commonModeratorGuard(role);
     EntityEngineCyberia.listCache = [];
     EntityEngineCyberia.currentId = null;
     EntityEngineCyberia.liveItemIds = [];
@@ -540,30 +544,32 @@ class EntityEngineCyberia {
         'Save Entity Default',
         'fa-solid fa-floppy-disk',
         html`<div class="fl" style="margin-top:4px;flex-wrap:wrap;">
-          <div class="in fll" style="flex:1 1 120px;padding:3px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-entity-engine-save',
-              label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
-            })}
-          </div>
-          <div class="in fll" style="flex:1 1 120px;padding:3px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-entity-engine-update',
-              label: html`<i class="fa-solid fa-pen-to-square"></i> Update`,
-            })}
-          </div>
-          <div class="in fll" style="flex:1 1 120px;padding:3px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-entity-engine-clone',
-              label: html`<i class="fa-solid fa-clone"></i> Clone`,
-            })}
-          </div>
-          <div class="in fll" style="flex:1 1 120px;padding:3px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-entity-engine-delete',
-              label: html`<i class="fa-solid fa-trash"></i> Delete`,
-            })}
-          </div>
+          ${EntityEngineCyberia.canMutate
+            ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-entity-engine-save',
+                    label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
+                  })}
+                </div>
+                <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-entity-engine-update',
+                    label: html`<i class="fa-solid fa-pen-to-square"></i> Update`,
+                  })}
+                </div>
+                <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-entity-engine-clone',
+                    label: html`<i class="fa-solid fa-clone"></i> Clone`,
+                  })}
+                </div>
+                <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-entity-engine-delete',
+                    label: html`<i class="fa-solid fa-trash"></i> Delete`,
+                  })}
+                </div>`
+            : ''}
           <div class="in fll" style="flex:1 1 120px;padding:3px;">
             ${await BtnIcon.instance({
               class: 'wfa btn-entity-engine-new',

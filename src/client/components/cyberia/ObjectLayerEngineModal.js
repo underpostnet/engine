@@ -6,7 +6,7 @@ import { EventsUI } from '../core/EventsUI.js';
 import { Translate } from '../core/Translate.js';
 import { s, append, hexToRgbA } from '../core/VanillaJs.js';
 import { getProxyPath, getQueryParams, setPath, setQueryParams, RouterEvents } from '../core/Router.js';
-import { s4 } from '../core/CommonJs.js';
+import { s4, commonModeratorGuard } from '../core/CommonJs.js';
 import { Input } from '../core/Input.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
@@ -718,6 +718,7 @@ class ObjectLayerEngineModal {
     ObjectLayerEngineModal.clearData();
 
     const { appStore } = options;
+    const canMutate = commonModeratorGuard(appStore?.Data?.user?.main?.model?.user?.role || 'guest');
 
     const directionCodes = OBJECT_LAYER_DIRECTION_CODES;
     const directionCodeLabels = OBJECT_LAYER_DIRECTION_LABELS;
@@ -1817,9 +1818,9 @@ class ObjectLayerEngineModal {
           clone ? '(CLONE MODE)' : isUpdateMode ? '(UPDATE MODE)' : '(CREATE MODE)',
         );
 
-        if (appStore.Data.user.main.model.user.role === 'guest') {
+        if (!commonModeratorGuard(appStore.Data.user.main.model.user.role)) {
           NotificationManager.Push({
-            html: 'Guests cannot save object layers. Please log in.',
+            html: 'Only moderators and admins can create or edit object layers.',
             status: 'warning',
           });
           return;
@@ -2345,12 +2346,14 @@ class ObjectLayerEngineModal {
       </div>
 
       <div class="fl section-mp">
-        ${await BtnIcon.instance({
-          label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
-            ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
-          class: `in flr ol-btn-save`,
-        })}
-        ${ObjectLayerEngineModal.existingObjectLayerId
+        ${canMutate
+          ? await BtnIcon.instance({
+              label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
+                ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
+              class: `in flr ol-btn-save`,
+            })
+          : ''}
+        ${canMutate && ObjectLayerEngineModal.existingObjectLayerId
           ? await BtnIcon.instance({
               label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
               class: `in flr ol-btn-clone`,

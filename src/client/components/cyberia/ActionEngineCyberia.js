@@ -1,5 +1,6 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input } from '../core/Input.js';
+import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
@@ -570,11 +571,13 @@ class ActionEngineCyberia {
         label: html`<i class="fa-solid fa-upload"></i>`,
         style: 'min-width:34px;padding:3px 9px;',
       }),
-      BtnIcon.instance({
-        class: delCls,
-        label: html`<i class="fa-solid fa-trash"></i>`,
-        style: 'min-width:34px;padding:3px 9px;',
-      }),
+      ActionEngineCyberia.canMutate
+        ? BtnIcon.instance({
+            class: delCls,
+            label: html`<i class="fa-solid fa-trash"></i>`,
+            style: 'min-width:34px;padding:3px 9px;',
+          })
+        : '',
     ]);
   }
 
@@ -1220,7 +1223,10 @@ class ActionEngineCyberia {
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
-  static async render() {
+  static async render(options = {}) {
+    const { appStore } = options;
+    const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
+    ActionEngineCyberia.canMutate = commonModeratorGuard(role);
     ActionEngineCyberia.mode = 'quest';
     ActionEngineCyberia.mapCode = '';
     ActionEngineCyberia.mapDoc = null;
@@ -1273,26 +1279,28 @@ class ActionEngineCyberia {
     // flex-basis, which keeps them tappable on narrow / mobile widths.
     const crudButtons = async (prefix, includeClone) =>
       html`<div class="fl" style="margin-top:4px;flex-wrap:wrap;">
-        <div class="in fll" style="flex:1 1 120px;padding:3px;">
-          ${await BtnIcon.instance({
-            class: `wfa btn-action-engine-${prefix}-save`,
-            label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
-          })}
-        </div>
-        ${includeClone
+        ${ActionEngineCyberia.canMutate
           ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
-              ${await BtnIcon.instance({
-                class: `wfa btn-action-engine-${prefix}-clone`,
-                label: html`<i class="fa-solid fa-clone"></i> Clone`,
-              })}
-            </div>`
+                ${await BtnIcon.instance({
+                  class: `wfa btn-action-engine-${prefix}-save`,
+                  label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
+                })}
+              </div>
+              ${includeClone
+                ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
+                    ${await BtnIcon.instance({
+                      class: `wfa btn-action-engine-${prefix}-clone`,
+                      label: html`<i class="fa-solid fa-clone"></i> Clone`,
+                    })}
+                  </div>`
+                : ''}
+              <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                ${await BtnIcon.instance({
+                  class: `wfa btn-action-engine-${prefix}-delete`,
+                  label: html`<i class="fa-solid fa-trash"></i> Delete`,
+                })}
+              </div>`
           : ''}
-        <div class="in fll" style="flex:1 1 120px;padding:3px;">
-          ${await BtnIcon.instance({
-            class: `wfa btn-action-engine-${prefix}-delete`,
-            label: html`<i class="fa-solid fa-trash"></i> Delete`,
-          })}
-        </div>
         <div class="in fll" style="flex:1 1 120px;padding:3px;">
           ${await BtnIcon.instance({
             class: `wfa btn-action-engine-${prefix}-new`,

@@ -1,6 +1,7 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input, InputFile, getFileFromBlobEndpoint } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
+import { commonModeratorGuard } from '../core/CommonJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { darkTheme, dynamicCol, ThemeEvents } from '../core/Css.js';
@@ -600,6 +601,8 @@ class MapEngineCyberia {
 
   static async render(options = {}) {
     const { appStore } = options;
+    const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
+    const canMutate = commonModeratorGuard(role);
     const idCode = 'map-engine-input-code';
     const idName = 'map-engine-input-name';
     const idDescription = 'map-engine-input-description';
@@ -1891,18 +1894,20 @@ class MapEngineCyberia {
         <div class="in ${entityListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcSaveNew, type: 'search-inputs' })}
         <div class="fl" style="margin-top: 10px;">
-          <div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-map-engine-save-map',
-              label: html`<i class="fa-solid fa-floppy-disk"></i> Save Map`,
-            })}
-          </div>
-          <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-map-engine-clone-map',
-              label: html`<i class="fa-solid fa-clone"></i> Clone Map`,
-            })}
-          </div>
+          ${canMutate
+            ? html`<div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-map-engine-save-map',
+                    label: html`<i class="fa-solid fa-floppy-disk"></i> Save Map`,
+                  })}
+                </div>
+                <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-map-engine-clone-map',
+                    label: html`<i class="fa-solid fa-clone"></i> Clone Map`,
+                  })}
+                </div>`
+            : ''}
           <div class="in fll ${dcSaveNew}-col-c" style="padding: 5px;">
             ${await BtnIcon.instance({
               class: 'wfa btn-map-engine-new-map',

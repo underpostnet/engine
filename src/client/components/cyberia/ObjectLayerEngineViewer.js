@@ -11,6 +11,7 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
+import { commonModeratorGuard } from '../core/CommonJs.js';
 import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
@@ -179,6 +180,7 @@ class ObjectLayerEngineViewer {
   }
   static async renderViewer({ appStore }) {
     const id = 'object-layer-engine-viewer';
+    const canMutate = commonModeratorGuard(appStore?.Data?.user?.main?.model?.user?.role || 'guest');
     const { objectLayer, frameCounts } = ObjectLayerEngineViewer.Data;
     if (!objectLayer || !frameCounts) return;
     // Check if DOM element exists
@@ -915,10 +917,12 @@ class ObjectLayerEngineViewer {
                           </div>
                         </div>
                         <div class="atlas-actions-grid">
-                          <button class="default-viewer-btn" id="generate-atlas-btn">
-                            <i class="fa-solid fa-sync"></i>
-                            <span>Update</span>
-                          </button>
+                          ${canMutate
+                            ? html`<button class="default-viewer-btn" id="generate-atlas-btn">
+                                <i class="fa-solid fa-sync"></i>
+                                <span>Update</span>
+                              </button>`
+                            : ''}
                           <button class="default-viewer-btn" id="download-atlas-png-btn">
                             <i class="fa-solid fa-download"></i>
                             <span>PNG</span>
@@ -927,18 +931,22 @@ class ObjectLayerEngineViewer {
                             <i class="fa-solid fa-code"></i>
                             <span>JSON</span>
                           </button>
-                          <button class="default-viewer-btn" id="remove-atlas-btn" style="background: #dc3545;">
-                            <i class="fa-solid fa-trash"></i>
-                            <span>Remove</span>
-                          </button>
+                          ${canMutate
+                            ? html`<button class="default-viewer-btn" id="remove-atlas-btn" style="background: #dc3545;">
+                                <i class="fa-solid fa-trash"></i>
+                                <span>Remove</span>
+                              </button>`
+                            : ''}
                         </div>
                       `
                         : html`
                             <p>No atlas sprite sheet associated with this object layer.</p>
-                            <button class="default-viewer-btn" id="generate-atlas-btn">
-                              <i class="fa-solid fa-wand-magic-sparkles"></i>
-                              <span>Generate Atlas</span>
-                            </button>
+                            ${canMutate
+                              ? html`<button class="default-viewer-btn" id="generate-atlas-btn">
+                                  <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                  <span>Generate Atlas</span>
+                                </button>`
+                              : ''}
                           `}
                     </div>
                   </div>
@@ -948,14 +956,20 @@ class ObjectLayerEngineViewer {
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>Return to List</span>
                   </button>
-                  <button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
-                    <i class="fa-solid fa-edit"></i>
-                    <span>Edit</span>
-                  </button>
-                  <button class="default-viewer-btn" id="delete-object-layer-btn" style="background: #dc3545;">
-                    <i class="fa-solid fa-trash"></i>
-                    <span>Delete</span>
-                  </button>
+                  ${canMutate
+                    ? html`<button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
+                          <i class="fa-solid fa-edit"></i>
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          class="default-viewer-btn"
+                          id="delete-object-layer-btn"
+                          style="background: #dc3545;"
+                        >
+                          <i class="fa-solid fa-trash"></i>
+                          <span>Delete</span>
+                        </button>`
+                    : ''}
                 </div>
               `}
         </div>

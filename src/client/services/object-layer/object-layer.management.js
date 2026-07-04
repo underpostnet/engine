@@ -283,10 +283,10 @@ class ObjectLayerManagement {
       {
         field: 'data.item.id',
         headerName: 'Item ID',
-        editable: role === 'user',
+        editable: commonModeratorGuard(role),
       },
-      { field: 'data.item.type', headerName: 'Item Type', editable: role === 'user' },
-      { field: 'data.item.description', headerName: 'Description', flex: 1, editable: role === 'user' },
+      { field: 'data.item.type', headerName: 'Item Type', editable: commonModeratorGuard(role) },
+      { field: 'data.item.description', headerName: 'Description', flex: 1, editable: commonModeratorGuard(role) },
       {
         field: 'data.ledger.type',
         headerName: 'Ledger Type',
@@ -369,7 +369,7 @@ class ObjectLayerManagement {
       serviceId,
       entity: 'object-layer',
       permissions: {
-        add: commonUserGuard(role),
+        add: commonModeratorGuard(role),
         remove: false,
         reload: commonUserGuard(role),
       },

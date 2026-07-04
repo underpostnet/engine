@@ -1,5 +1,5 @@
 import { BtnIcon } from '../../components/core/BtnIcon.js';
-import { getId, commonUserGuard, commonAdminGuard } from '../../components/core/CommonJs.js';
+import { getId, commonModeratorGuard, commonAdminGuard } from '../../components/core/CommonJs.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { s } from '../../components/core/VanillaJs.js';
@@ -118,7 +118,7 @@ class CyberiaMapManagement {
       entity: 'cyberia-map',
       permissions: {
         add: false,
-        remove: commonUserGuard(role),
+        remove: commonModeratorGuard(role),
         reload: true,
       },
       usePagination: true,

@@ -1,6 +1,7 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input, InputFile, getFileFromBlobEndpoint } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
+import { commonModeratorGuard } from '../core/CommonJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { dynamicCol, darkTheme, ThemeEvents } from '../core/Css.js';
@@ -226,6 +227,8 @@ class InstanceEngineCyberia {
 
   static async render(options = {}) {
     const { appStore } = options;
+    const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
+    const canMutate = commonModeratorGuard(role);
     const idCode = 'instance-engine-input-code';
     const idName = 'instance-engine-input-name';
     const idDescription = 'instance-engine-input-description';
@@ -960,12 +963,14 @@ class InstanceEngineCyberia {
       <div class="in section-mp" style="margin-top: 10px;">
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
         <div class="fl">
-          <div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-instance-engine-save',
-              label: html`<i class="fa-solid fa-floppy-disk"></i> Save Instance`,
-            })}
-          </div>
+          ${canMutate
+            ? html`<div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
+                ${await BtnIcon.instance({
+                  class: 'wfa btn-instance-engine-save',
+                  label: html`<i class="fa-solid fa-floppy-disk"></i> Save Instance`,
+                })}
+              </div>`
+            : ''}
           <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
             ${await BtnIcon.instance({
               class: 'wfa btn-instance-engine-new',
