@@ -1478,9 +1478,10 @@ EOF
     /**
      * @method instance-build-manifest
      * @description Builds a Kubernetes Deployment + Service manifest for a specific instance entry
-     * from `conf.instances.json` and writes it to a file.
-     * Traffic colour is automatically chosen as the opposite of the current live colour (blue/green),
-     * defaulting to `blue` when no deployment is running yet.
+     * from `conf.instances.json` and writes it to a file. This is a purely local
+     * artifact generator: it never probes a live cluster. Traffic colour defaults
+     * to the canonical initial `blue` and can be overridden with `--traffic`; the
+     * real blue/green swap is resolved at deploy time (`deploy --sync`).
      *
      * If `--build` is supplied the image is built from the project Dockerfile and loaded into the
      * cluster before the manifest is written (kind by default; `--kubeadm` / `--k3s` override).
@@ -1516,7 +1517,6 @@ EOF
 
       let {
         id: _id,
-        host: _host,
         path: _path,
         image: _image,
         fromPort: _fromPort,
@@ -1583,15 +1583,8 @@ EOF
         });
       }
 
-      // Determine target traffic: opposite of current, or 'blue' if nothing is running yet.
-      const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
-        hostTest: _host,
-        namespace: options.namespace,
-      });
-      const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
-
-      // Resolve {{grpc-service-dns}} using the parent deploy's current (or default) traffic.
-      const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
+      const targetTraffic = options.traffic || 'blue';
+      const parentTraffic = targetTraffic;
       const resolvedCmd = _cmd[env].map((c) =>
         c.replaceAll(
           '{{grpc-service-dns}}',

@@ -698,6 +698,7 @@ program
   .option('--kubeadm', 'Sets the kubeadm cluster context for the runner execution.')
   .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
+  .option('--traffic <traffic>', 'Blue/green traffic colour to bake into generated manifests (default: blue).')
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
   .option('--user <user>', 'Sets user context for the runner execution.')
