@@ -266,7 +266,8 @@ All content data (ObjectLayer metadata, asset blobs, optional client hints) is s
 | --------------------------------- | ----------------- | -------------------------------------------------- |
 | `ENGINE_GRPC_ADDRESS`             | `localhost:50051` | engine-cyberia gRPC address (**required**)         |
 | `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                   |
-| `ENGINE_API_BASE_URL`             | _(empty)_         | engine-cyberia REST base URL; forwarded to clients |
+| `ENGINE_API_BASE_URL`             | _(empty)_         | Internal engine-cyberia origin (server→engine only) |
+| `ENGINE_PUBLIC_URL`               | _(empty)_         | Client-visible Content Authority origin (forwarded to clients) |
 | `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval            |
 | `SERVER_PORT`                     | `8081`            | WebSocket + HTTP listen port                       |
 | `STATIC_DIR`                      | `./public`        | Directory for static WASM client files             |

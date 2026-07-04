@@ -219,6 +219,7 @@ services:
     environment:
       INSTANCE_CODE: ${INSTANCE_CODE:-FOREST}
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia:4005}
+      ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
