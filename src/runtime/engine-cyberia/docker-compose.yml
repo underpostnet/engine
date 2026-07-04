@@ -167,6 +167,7 @@ services:
       - -c
       - >
         node bin/cyberia ol --drop &&
+        node bin/cyberia run-workflow drop-db &&
         node bin/cyberia instance amethyst-strata-expansion --import &&
         underpost start --run dd-cyberia development
     env_file:
