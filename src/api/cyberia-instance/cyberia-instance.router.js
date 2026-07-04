@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaInstanceController } from './cyberia-instance.controller.js';
-import { userGuard, adminGuard } from '../../server/auth.js';
+import { userGuard, moderatorGuard, adminGuard } from '../../server/auth.js';
 import express from 'express';
 
 const logger = loggerFactory(import.meta);
@@ -24,13 +24,13 @@ class CyberiaInstanceRouter {
     router.post(
       `/:id`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaInstanceController.post(req, res, options),
     );
     router.post(
       `/`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaInstanceController.post(req, res, options),
     );
     router.get(`/:id`, async (req, res) => await CyberiaInstanceController.get(req, res, options));
@@ -38,19 +38,19 @@ class CyberiaInstanceRouter {
     router.put(
       `/:id`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaInstanceController.put(req, res, options),
     );
     router.put(
       `/`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaInstanceController.put(req, res, options),
     );
     router.delete(
       `/:id`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaInstanceController.delete(req, res, options),
     );
     router.delete(

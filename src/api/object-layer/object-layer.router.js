@@ -1,7 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { ObjectLayerController } from './object-layer.controller.js';
 import express from 'express';
-import { adminGuard } from '../../server/auth.js';
+import { moderatorGuard, adminGuard } from '../../server/auth.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -12,8 +12,12 @@ class ObjectLayerRouter {
    */
   static router(options) {
     const router = express.Router();
-    router.post(`/frame-image/:itemType/:itemId/:directionCode`, async (req, res) => {
-      /*
+    router.post(
+      `/frame-image/:itemType/:itemId/:directionCode`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => {
+        /*
           #swagger.auto = false
           #swagger.tags = ['object-layer']
           #swagger.summary = 'Upload frame image'
@@ -65,9 +69,10 @@ class ObjectLayerRouter {
             }
           }
         */
-      return await ObjectLayerController.post(req, res, options);
-    });
-    router.post(`/metadata/:itemType/:itemId`, async (req, res) => {
+        return await ObjectLayerController.post(req, res, options);
+      },
+    );
+    router.post(`/metadata/:itemType/:itemId`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['object-layer']
@@ -117,7 +122,7 @@ class ObjectLayerRouter {
       return await ObjectLayerController.post(req, res, options);
     });
 
-    router.post(`/:id`, options.authMiddleware, async (req, res) => {
+    router.post(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['object-layer']
@@ -162,7 +167,7 @@ class ObjectLayerRouter {
       */
       return await ObjectLayerController.post(req, res, options);
     });
-    router.post(`/`, options.authMiddleware, async (req, res) => {
+    router.post(`/`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['object-layer']
@@ -484,8 +489,12 @@ class ObjectLayerRouter {
       */
       return await ObjectLayerController.get(req, res, options);
     });
-    router.put(`/:id/frame-image/:itemType/:itemId/:directionCode`, options.authMiddleware, async (req, res) => {
-      /*
+    router.put(
+      `/:id/frame-image/:itemType/:itemId/:directionCode`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => {
+        /*
           #swagger.auto = false
           #swagger.tags = ['object-layer']
           #swagger.summary = 'Update frame image'
@@ -547,9 +556,10 @@ class ObjectLayerRouter {
             }
           }
         */
-      return await ObjectLayerController.put(req, res, options);
-    });
-    router.put(`/:id/metadata/:itemType/:itemId`, options.authMiddleware, async (req, res) => {
+        return await ObjectLayerController.put(req, res, options);
+      },
+    );
+    router.put(`/:id/metadata/:itemType/:itemId`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
           #swagger.auto = false
           #swagger.tags = ['object-layer']
@@ -608,7 +618,7 @@ class ObjectLayerRouter {
         */
       return await ObjectLayerController.put(req, res, options);
     });
-    router.put(`/:id`, options.authMiddleware, async (req, res) => {
+    router.put(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['object-layer']
@@ -653,7 +663,7 @@ class ObjectLayerRouter {
       */
       return await ObjectLayerController.put(req, res, options);
     });
-    router.put(`/`, options.authMiddleware, async (req, res) => {
+    router.put(`/`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
         #swagger.ignore = true
       */

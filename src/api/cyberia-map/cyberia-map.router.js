@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaMapController } from './cyberia-map.controller.js';
-import { userGuard, adminGuard } from '../../server/auth.js';
+import { moderatorGuard, adminGuard } from '../../server/auth.js';
 import express from 'express';
 
 const logger = loggerFactory(import.meta);
@@ -15,19 +15,34 @@ class CyberiaMapRouter {
     router.post(
       `/:id`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaMapController.post(req, res, options),
     );
-    router.post(`/`, options.authMiddleware, userGuard, async (req, res) => await CyberiaMapController.post(req, res, options));
+    router.post(
+      `/`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaMapController.post(req, res, options),
+    );
     router.get(`/search-codes`, async (req, res) => await CyberiaMapController.get(req, res, options));
     router.get(`/:id`, async (req, res) => await CyberiaMapController.get(req, res, options));
     router.get(`/`, async (req, res) => await CyberiaMapController.get(req, res, options));
-    router.put(`/:id`, options.authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
-    router.put(`/`, options.authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
+    router.put(
+      `/:id`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaMapController.put(req, res, options),
+    );
+    router.put(
+      `/`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaMapController.put(req, res, options),
+    );
     router.delete(
       `/:id`,
       options.authMiddleware,
-      userGuard,
+      moderatorGuard,
       async (req, res) => await CyberiaMapController.delete(req, res, options),
     );
     router.delete(
