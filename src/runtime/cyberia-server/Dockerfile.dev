@@ -26,14 +26,23 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM rockylinux/rockylinux:9 AS runtime
 
 ARG UNDERPOST_VERSION=3.2.30
-RUN dnf -y update && \
-    dnf -y install epel-release && \
+ARG NODE_VERSION=24.15.0
+RUN set -eux; \
+    dnf -y update; \
+    dnf -y install epel-release; \
     dnf -y install --allowerasing \
-        curl git \
-        procps-ng strace lsof vim-minimal && \
-    curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
-    dnf install -y nodejs && \
-    npm install -g underpost@${UNDERPOST_VERSION} && \
+        curl git tar xz \
+        procps-ng strace lsof vim-minimal; \
+    arch="$(uname -m)"; \
+    case "$arch" in \
+      x86_64) node_arch=x64 ;; \
+      aarch64) node_arch=arm64 ;; \
+      *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1; \
+    node --version; npm --version; \
+    npm install -g underpost@${UNDERPOST_VERSION}; \
     dnf clean all
 
 WORKDIR /home/dd/engine/cyberia-server
