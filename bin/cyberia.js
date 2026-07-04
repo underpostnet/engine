@@ -4575,6 +4575,44 @@ try {
   });
 
   runner
+    .command('dev-env')
+    .option('--run', 'Run docker:reset, cluster --dev --reset, docker-image, and docker:up after updating compose.env')
+    .option(
+      '--clean',
+      'Restore repositories to canonical state (git checkout Dockerfile, etc.) before updating compose.env',
+    )
+    .action((options) => {
+      if (options.clean) {
+        shellExec(`node bin run clean`);
+        shellExec(`node bin run clean ./cyberia-server`);
+        shellExec(`node bin run clean ./cyberia-client`);
+        return;
+      }
+      const envPath = `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`;
+      const canonicalDevDockerfile = './src/runtime/engine-cyberia/Dockerfile.dev';
+      fs.writeFileSync(
+        canonicalDevDockerfile,
+        fs
+          .readFileSync(canonicalDevDockerfile, 'utf8')
+          .replace('ENGINE_CYBERIA_REPO="engine-cyberia"', 'ENGINE_CYBERIA_REPO="engine-test-cyberia"'),
+        'utf8',
+      );
+      fs.writeFileSync(envPath, fs.readFileSync(envPath, 'utf8').replaceAll('underpost/', 'localhost/'), 'utf8');
+      shellExec('node bin/cyberia run-workflow sync-src');
+      shellExec(`git checkout './src/runtime/cyberia-server/Dockerfile'`);
+      shellExec(`git checkout './src/runtime/cyberia-client/Dockerfile'`);
+      shellExec('node bin/cyberia run-workflow build-manifest');
+      if (options.run) {
+        shellExec('node bin/cyberia run-workflow docker:reset');
+        shellExec('node bin cluster --dev --reset');
+        shellExec('node bin/cyberia run-workflow docker-image engine-cyberia');
+        shellExec('node bin/cyberia run-workflow docker-image cyberia-server');
+        shellExec('node bin/cyberia run-workflow docker-image cyberia-client');
+        shellExec('node bin/cyberia run-workflow docker:up');
+      }
+    });
+
+  runner
     .command('drop-db')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
