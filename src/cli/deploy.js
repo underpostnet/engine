@@ -562,7 +562,7 @@ ${Underpost.deploy
           const yamlPath = `./engine-private/conf/${deployId}/build/${env}/secret.yaml`;
           fs.writeFileSync(yamlPath, secretYaml, 'utf8');
         } else {
-          const deploymentsFiles = ['Dockerfile', 'proxy.yaml', 'deployment.yaml', 'pv-pvc.yaml'];
+          const deploymentsFiles = ['Dockerfile', 'proxy.yaml', 'deployment.yaml', 'pv-pvc.yaml', 'grpc-service.yaml'];
           for (const file of deploymentsFiles) {
             if (fs.existsSync(`./engine-private/conf/${deployId}/build/${env}/${file}`)) {
               fs.copyFileSync(

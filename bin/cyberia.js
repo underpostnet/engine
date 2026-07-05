@@ -1723,8 +1723,8 @@ try {
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
       if (!instanceCode) {
-        logger.error('instance-code argument is required');
-        process.exit(1);
+        instanceCode = 'amethyst-strata-expansion';
+        logger.warn(`No instance code provided, defaulting to: ${instanceCode}`);
       }
 
       if (!options.envPath) options.envPath = `./.env`;
@@ -1893,24 +1893,38 @@ try {
         }
       };
 
-      if (options.publish) {
+      if (options.publish || options.publishBuild || options.publishRemove) {
         if (!fs.existsSync('/home/dd/cyberia-instances')) {
           shellExec('cd /home/dd && underpost clone underpostnet/cyberia-instances');
         } else {
           shellExec(`underpost run clean /home/dd/cyberia-instances`);
-          shellExec(`cd /home/dd/cyberia-instances && underpost pull underpostnet/cyberia-instances`);
+          shellExec(`cd /home/dd/cyberia-instances && underpost pull . underpostnet/cyberia-instances`);
         }
-        fs.mkdirSync(`/home/dd/cyberia-instances/deployments`);
+        fs.mkdirpSync(`/home/dd/cyberia-instances/deployments`);
         fs.copySync(`./src/runtime/engine-cyberia`, `/home/dd/cyberia-instances/deployments/engine-cyberia`);
+        fs.copySync(
+          `./manifests/deployment/dd-cyberia-development/.`,
+          `/home/dd/cyberia-instances/deployments/engine-cyberia/.`,
+        );
         fs.copySync(`./src/runtime/cyberia-client`, `/home/dd/cyberia-instances/deployments/cyberia-client`);
+        fs.copySync(
+          `./engine-private/conf/dd-cyberia/instances/mmo-client/build/development/.`,
+          `/home/dd/cyberia-instances/deployments/cyberia-client/.`,
+        );
         fs.copySync(`./src/runtime/cyberia-server`, `/home/dd/cyberia-instances/deployments/cyberia-server`);
+        fs.copySync(
+          `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
+          `/home/dd/cyberia-instances/deployments/cyberia-server/.`,
+        );
 
         if (options.publishBuild) {
+          fs.removeSync(`/home/dd/cyberia-instances/public/cyberia`);
           fs.mkdirpSync(`/home/dd/cyberia-instances/public/cyberia`);
           for (const assetPath of Object.keys(
             JSON.parse(fs.readFileSync(`./engine-private/conf/dd-cyberia/storage.engine-cyberia.json`, 'utf-8')),
           )) {
-            const targetPath = `/home/dd/cyberia-instances/public/cyberia/${assetPath}`;
+            const relativePath = assetPath.replace(/^src\/client\/public\/cyberia\//, '');
+            const targetPath = `/home/dd/cyberia-instances/public/cyberia/${relativePath}`;
             fs.mkdirpSync(nodePath.dirname(targetPath));
             logger.info(`Copying asset: ${assetPath} → ${targetPath}`);
             fs.copySync(`./${assetPath}`, targetPath);
@@ -1921,18 +1935,21 @@ try {
             `./engine-private/cyberia-instances/${instanceCode}`,
             `/home/dd/cyberia-instances/instances/${instanceCode}`,
           );
-          fs.mkdirSync(`/home/dd/cyberia-instances/sagas`);
-          fs.copySync(
-            `./engine-private/cyberia-instances/cyberia-sagas/${instanceCode}`,
-            `/home/dd/cyberia-instances/sagas/${instanceCode}`,
+          fs.mkdirpSync(`/home/dd/cyberia-instances/sagas`);
+          fs.copyFileSync(
+            `./engine-private/cyberia-sagas/${instanceCode}.json`,
+            `/home/dd/cyberia-instances/sagas/${instanceCode}.json`,
           );
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           return;
         } else if (options.publishRemove) {
           shellExec(`rm -rf /home/dd/cyberia-instances/instances/${instanceCode}`);
-          shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}`);
+          shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}.json`);
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           return;
         }
         shellExec(`cd /home/dd/cyberia-instances && underpost push . underpostnet/cyberia-instances`);
+        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
         return;
       }
 
