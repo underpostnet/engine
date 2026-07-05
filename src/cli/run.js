@@ -1517,6 +1517,7 @@ EOF
 
       let {
         id: _id,
+        host: _host,
         path: _path,
         image: _image,
         fromPort: _fromPort,
@@ -1632,11 +1633,82 @@ EOF
         image: _image,
       });
 
+      // --- Sibling manifests (pv-pvc, proxy, grpc-service) ------------------
+      // Emit the same apply-able set the parent deploy writes to build/<env>,
+      // scoped to this instance so the project repo and engine-private ship
+      // more than just deployment.yaml. Content matches what `run instance`
+      // creates dynamically at deploy time (deployVolume / instance-promote /
+      // the parent gRPC ClusterIP), so a static `kubectl apply` is equivalent.
+      const pvDataNode = Underpost.deploy.resolveDeployNode({
+        node: options.nodeName,
+        kind: options.kind,
+        kubeadm: options.kubeadm,
+        k3s: options.k3s,
+        env,
+      });
+
+      // pv-pvc.yaml — one PV+PVC per instance volume; names mirror deployVolume.
+      let pvPvcYaml = '';
+      for (const volume of _volumes || []) {
+        if (!volume.claimName) continue;
+        const pvcId = `${volume.claimName}-${_deployId}-${env}-${targetTraffic}`;
+        const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${_deployId}-${env}-${targetTraffic}`;
+        pvPvcYaml += `---\n${Underpost.deploy.persistentVolumeFactory({
+          pvcId,
+          namespace: options.namespace,
+          hostPath: `/home/dd/engine/volume/${pvId}`,
+          nodeName: pvDataNode,
+        })}\n`;
+      }
+
+      // proxy.yaml — HTTPProxy for the instance host (mirrors instance-promote).
+      const proxyYaml =
+        Underpost.deploy.baseProxyYamlFactory({ host: _host, env, options }) +
+        Underpost.deploy.deploymentYamlServiceFactory({
+          path: _path,
+          port: _fromPort,
+          deployId: _deployId,
+          env,
+          deploymentVersions: [targetTraffic],
+        });
+
+      // grpc-service.yaml — the parent deploy's gRPC ClusterIP (shared; the
+      // instance cmd resolves {{grpc-service-dns}} to it). Reuse the parent's
+      // generated manifest when present rather than regenerating it here.
+      const parentGrpcServicePath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;
+      const grpcServiceYaml = fs.existsSync(parentGrpcServicePath)
+        ? fs.readFileSync(parentGrpcServicePath, 'utf8')
+        : '';
+
+      // Write the sibling set next to deployment.yaml (project) and into the
+      // engine-private per-instance build dir (mirrors instances/<id>/ layout).
+      const instanceBuildDir = `./engine-private/conf/${deployId}/instances/${_id}/build/${env}`;
+      fs.mkdirpSync(instanceBuildDir);
+      fs.writeFileSync(`${instanceBuildDir}/deployment.yaml`, deploymentYaml, 'utf8');
+      const siblingManifests = { 'pv-pvc.yaml': pvPvcYaml, 'proxy.yaml': proxyYaml, 'grpc-service.yaml': grpcServiceYaml };
+      for (const [name, content] of Object.entries(siblingManifests)) {
+        if (!content) continue;
+        fs.writeFileSync(`${envManifestPath}/${name}`, content, 'utf8');
+        fs.writeFileSync(`${instanceBuildDir}/${name}`, content, 'utf8');
+      }
+      logger.info('[instance-build-manifest] Sibling manifests written', {
+        project: envManifestPath,
+        enginePrivate: instanceBuildDir,
+        pvPvc: !!pvPvcYaml,
+        proxy: !!proxyYaml,
+        grpcService: !!grpcServiceYaml,
+      });
+
       if (env === 'production') {
         if (fs.existsSync(dockerfileManifestPath)) {
           fs.copyFileSync(dockerfileManifestPath, `${rootPath}/Dockerfile`);
         }
         fs.copyFileSync(outputPath, `${rootPath}/deployment.yaml`);
+        // Sibling manifests alongside deployment.yaml at the project root.
+        for (const name of ['pv-pvc.yaml', 'proxy.yaml', 'grpc-service.yaml']) {
+          const src = `${envManifestPath}/${name}`;
+          if (fs.existsSync(src)) fs.copyFileSync(src, `${rootPath}/${name}`);
+        }
         logger.info('[instance-build-manifest] Production artifacts copied to project root', {
           rootPath,
           dockerfile: `${rootPath}/Dockerfile`,

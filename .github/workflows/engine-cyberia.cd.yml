@@ -88,7 +88,13 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "npm run test"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-cyberia --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9"
+            sudo -n -- /bin/bash -lc "node bin run sync 'dd-cyberia,,underpost/engine-cyberia:v3.2.30'
+              --kubeadm \
+              --deploy-id-cron-jobs none \
+              --timeout-response 300000ms \
+              --node-name ${TARGET_NODE} \
+              --ssh-key-path /home/dd/tmp/897as9dxhaskd9" \
+              --cmd 'cd /home/dd/engine && underpost run start dd-cyberia production --run'
   init:
     if: >-
       github.repository == 'underpostnet/engine'
