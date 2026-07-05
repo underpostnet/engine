@@ -72,8 +72,20 @@ class UnderpostImage {
         dev: false,
       },
     ) {
-      let { path, imageName, version, imageOutPath, dockerfileName, podmanSave, kind, kubeadm, k3s, dockerCompose, reset, dev } =
-        options;
+      let {
+        path,
+        imageName,
+        version,
+        imageOutPath,
+        dockerfileName,
+        podmanSave,
+        kind,
+        kubeadm,
+        k3s,
+        dockerCompose,
+        reset,
+        dev,
+      } = options;
       if (!path) path = '.';
       if (!imageName) imageName = `rockylinux9-underpost:${Underpost.version}`;
       if (!imageOutPath) imageOutPath = '.';
@@ -103,12 +115,12 @@ class UnderpostImage {
         secretTmpFiles.push(file);
         secretFlags.push(`--secret id=${id},src=${file}`);
       };
-      addBuildSecret('github_token', process.env.GITHUB_TOKEN);
+      // addBuildSecret('github_token', process.env.GITHUB_TOKEN);
       addBuildSecret('github_username', process.env.GITHUB_USERNAME);
       // Cloudinary creds power build-time asset pulls (`node bin fs --pull`).
-      addBuildSecret('cloudinary_cloud_name', process.env.CLOUDINARY_CLOUD_NAME);
-      addBuildSecret('cloudinary_api_key', process.env.CLOUDINARY_API_KEY);
-      addBuildSecret('cloudinary_api_secret', process.env.CLOUDINARY_API_SECRET);
+      // addBuildSecret('cloudinary_cloud_name', process.env.CLOUDINARY_CLOUD_NAME);
+      // addBuildSecret('cloudinary_api_key', process.env.CLOUDINARY_API_KEY);
+      // addBuildSecret('cloudinary_api_secret', process.env.CLOUDINARY_API_SECRET);
       const secretArgs = secretFlags.length ? ` ${secretFlags.join(' ')}` : '';
       if (secretFlags.length)
         logger.info('Passing host GitHub credentials as build secrets', { ids: secretFlags.length });

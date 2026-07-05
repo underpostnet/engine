@@ -1746,6 +1746,107 @@ try {
         logger.error(`Server config not found: ${confServerPath}`);
         process.exit(1);
       }
+
+      if (options.publish || options.publishBuild || options.publishRemove) {
+        if (options.publishBuild) {
+          if (!fs.existsSync('/home/dd/cyberia-instances')) {
+            shellExec('cd /home/dd && underpost clone underpostnet/cyberia-instances');
+          } else {
+            shellExec(`underpost run clean /home/dd/cyberia-instances`);
+            shellExec(`cd /home/dd/cyberia-instances && underpost pull . underpostnet/cyberia-instances`, {
+              silentOnError: true,
+            });
+          }
+
+          fs.mkdirpSync(`/home/dd/cyberia-instances/conf/dd-cyberia`);
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/conf.server.dev.dev.json`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/conf.server.json`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/conf.client.json`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/conf.client.json`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/conf.cron.json`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/conf.cron.json`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/conf.ssr.json`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/conf.ssr.json`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/conf.volume.json`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/conf.volume.json`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/package.json`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/package.json`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/.env.production`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/.env.development`,
+          );
+          fs.copyFileSync(
+            `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
+            `/home/dd/cyberia-instances/conf/dd-cyberia/.env.test`,
+          );
+
+          fs.mkdirpSync(`/home/dd/cyberia-instances/deployments`);
+          fs.copySync(`./src/runtime/engine-cyberia`, `/home/dd/cyberia-instances/deployments/engine-cyberia`);
+          fs.copySync(
+            `./manifests/deployment/dd-cyberia-development/.`,
+            `/home/dd/cyberia-instances/deployments/engine-cyberia/.`,
+          );
+          fs.copySync(`./src/runtime/cyberia-client`, `/home/dd/cyberia-instances/deployments/cyberia-client`);
+          fs.copySync(
+            `./engine-private/conf/dd-cyberia/instances/mmo-client/build/development/.`,
+            `/home/dd/cyberia-instances/deployments/cyberia-client/.`,
+          );
+          fs.copySync(`./src/runtime/cyberia-server`, `/home/dd/cyberia-instances/deployments/cyberia-server`);
+          fs.copySync(
+            `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
+            `/home/dd/cyberia-instances/deployments/cyberia-server/.`,
+          );
+          fs.removeSync(`/home/dd/cyberia-instances/public/cyberia`);
+          fs.mkdirpSync(`/home/dd/cyberia-instances/public/cyberia`);
+          for (const assetPath of Object.keys(
+            JSON.parse(fs.readFileSync(`./engine-private/conf/dd-cyberia/storage.engine-cyberia.json`, 'utf-8')),
+          )) {
+            const relativePath = assetPath.replace(/^src\/client\/public\/cyberia\//, '');
+            const targetPath = `/home/dd/cyberia-instances/public/cyberia/${relativePath}`;
+            fs.mkdirpSync(nodePath.dirname(targetPath));
+            logger.info(`Copying asset: ${assetPath} → ${targetPath}`);
+            fs.copySync(`./${assetPath}`, targetPath);
+          }
+
+          fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
+          fs.copySync(
+            `./engine-private/cyberia-instances/${instanceCode}`,
+            `/home/dd/cyberia-instances/instances/${instanceCode}`,
+          );
+          fs.mkdirpSync(`/home/dd/cyberia-instances/sagas`);
+          fs.copyFileSync(
+            `./engine-private/cyberia-sagas/${instanceCode}.json`,
+            `/home/dd/cyberia-instances/sagas/${instanceCode}.json`,
+          );
+          return;
+        } else if (options.publishRemove) {
+          shellExec(`rm -rf /home/dd/cyberia-instances/instances/${instanceCode}`);
+          shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}.json`);
+          return;
+        }
+        shellExec(`cd /home/dd/cyberia-instances \
+          && git add . \
+          && git commit -m "Update instance ${instanceCode}" \
+          && underpost push . underpostnet/cyberia-instances`);
+        return;
+      }
+
       const confServer = loadConfServerJson(confServerPath, { resolve: true });
       const { db } = confServer[host][path];
 
@@ -1892,66 +1993,6 @@ try {
           );
         }
       };
-
-      if (options.publish || options.publishBuild || options.publishRemove) {
-        if (!fs.existsSync('/home/dd/cyberia-instances')) {
-          shellExec('cd /home/dd && underpost clone underpostnet/cyberia-instances');
-        } else {
-          shellExec(`underpost run clean /home/dd/cyberia-instances`);
-          shellExec(`cd /home/dd/cyberia-instances && underpost pull . underpostnet/cyberia-instances`);
-        }
-        fs.mkdirpSync(`/home/dd/cyberia-instances/deployments`);
-        fs.copySync(`./src/runtime/engine-cyberia`, `/home/dd/cyberia-instances/deployments/engine-cyberia`);
-        fs.copySync(
-          `./manifests/deployment/dd-cyberia-development/.`,
-          `/home/dd/cyberia-instances/deployments/engine-cyberia/.`,
-        );
-        fs.copySync(`./src/runtime/cyberia-client`, `/home/dd/cyberia-instances/deployments/cyberia-client`);
-        fs.copySync(
-          `./engine-private/conf/dd-cyberia/instances/mmo-client/build/development/.`,
-          `/home/dd/cyberia-instances/deployments/cyberia-client/.`,
-        );
-        fs.copySync(`./src/runtime/cyberia-server`, `/home/dd/cyberia-instances/deployments/cyberia-server`);
-        fs.copySync(
-          `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
-          `/home/dd/cyberia-instances/deployments/cyberia-server/.`,
-        );
-
-        if (options.publishBuild) {
-          fs.removeSync(`/home/dd/cyberia-instances/public/cyberia`);
-          fs.mkdirpSync(`/home/dd/cyberia-instances/public/cyberia`);
-          for (const assetPath of Object.keys(
-            JSON.parse(fs.readFileSync(`./engine-private/conf/dd-cyberia/storage.engine-cyberia.json`, 'utf-8')),
-          )) {
-            const relativePath = assetPath.replace(/^src\/client\/public\/cyberia\//, '');
-            const targetPath = `/home/dd/cyberia-instances/public/cyberia/${relativePath}`;
-            fs.mkdirpSync(nodePath.dirname(targetPath));
-            logger.info(`Copying asset: ${assetPath} → ${targetPath}`);
-            fs.copySync(`./${assetPath}`, targetPath);
-          }
-
-          fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
-          fs.copySync(
-            `./engine-private/cyberia-instances/${instanceCode}`,
-            `/home/dd/cyberia-instances/instances/${instanceCode}`,
-          );
-          fs.mkdirpSync(`/home/dd/cyberia-instances/sagas`);
-          fs.copyFileSync(
-            `./engine-private/cyberia-sagas/${instanceCode}.json`,
-            `/home/dd/cyberia-instances/sagas/${instanceCode}.json`,
-          );
-          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-          return;
-        } else if (options.publishRemove) {
-          shellExec(`rm -rf /home/dd/cyberia-instances/instances/${instanceCode}`);
-          shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}.json`);
-          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-          return;
-        }
-        shellExec(`cd /home/dd/cyberia-instances && underpost push . underpostnet/cyberia-instances`);
-        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-        return;
-      }
 
       // ── EXPORT ──────────────────────────────────────────────────────
       if (options.export !== undefined) {
@@ -4671,7 +4712,30 @@ try {
         canonicalDevDockerfile,
         fs
           .readFileSync(canonicalDevDockerfile, 'utf8')
-          .replace('ENGINE_CYBERIA_REPO="engine-cyberia"', 'ENGINE_CYBERIA_REPO="engine-test-cyberia"'),
+          .replace('ENGINE_CYBERIA_REPO="engine-cyberia"', 'ENGINE_CYBERIA_REPO="engine-test-cyberia"')
+          .replace(`    # --mount=type=secret,id=github_token`, `    --mount=type=secret,id=github_token`)
+          .replace(
+            `    # export GITHUB_TOKEN="$(cat /run/secrets/github_token)";`,
+            `    export GITHUB_TOKEN="$(cat /run/secrets/github_token)";`,
+          )
+          .replace(`    for _secret in "$GITHUB_USERNAME"; do`, `    # for _secret in "$GITHUB_USERNAME"; do`)
+          .replace(`    unset GITHUB_USERNAME;`, `    # unset GITHUB_USERNAME;`)
+          .replace(
+            `    # for _secret in "$GITHUB_USERNAME" "$GITHUB_TOKEN"; do`,
+            `    for _secret in "$GITHUB_USERNAME" "$GITHUB_TOKEN"; do`,
+          )
+          .replace(`    # unset GITHUB_TOKEN GITHUB_USERNAME;`, `    unset GITHUB_TOKEN GITHUB_USERNAME;`),
+
+        'utf8',
+      );
+      fs.writeFileSync(
+        './src/cli/image.js',
+        fs
+          .readFileSync('./src/cli/image.js', 'utf8')
+          .replace(
+            `      // addBuildSecret('github_token', process.env.GITHUB_TOKEN);`,
+            `      addBuildSecret('github_token', process.env.GITHUB_TOKEN);`,
+          ),
         'utf8',
       );
       fs.writeFileSync(envPath, fs.readFileSync(envPath, 'utf8').replaceAll('underpost/', 'localhost/'), 'utf8');

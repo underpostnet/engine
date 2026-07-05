@@ -173,7 +173,7 @@ services:
     env_file:
       - ./compose.env
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-development}
       DB_PROVIDER: ${DB_PROVIDER:-mongoose}
       DB_HOST: ${DB_HOST:-mongodb://mongodb:27017}
       DB_REPLICA_SET: ${DB_REPLICA_SET:-rs0}
