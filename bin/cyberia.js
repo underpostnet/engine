@@ -1717,6 +1717,9 @@ try {
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
+    .option('--publish-build', 'Build instance backup directory with all related maps, entities and object layers')
+    .option('--publish-remove', 'Remove published instance from underpostnet/cyberia-instances repository')
+    .option('--publish', 'Publish instance in underpostnet/cyberia-instances repository')
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
       if (!instanceCode) {
@@ -1889,6 +1892,49 @@ try {
           );
         }
       };
+
+      if (options.publish) {
+        if (!fs.existsSync('/home/dd/cyberia-instances')) {
+          shellExec('cd /home/dd && underpost clone underpostnet/cyberia-instances');
+        } else {
+          shellExec(`underpost run clean /home/dd/cyberia-instances`);
+          shellExec(`cd /home/dd/cyberia-instances && underpost pull underpostnet/cyberia-instances`);
+        }
+        fs.mkdirSync(`/home/dd/cyberia-instances/deployments`);
+        fs.copySync(`./src/runtime/engine-cyberia`, `/home/dd/cyberia-instances/deployments/engine-cyberia`);
+        fs.copySync(`./src/runtime/cyberia-client`, `/home/dd/cyberia-instances/deployments/cyberia-client`);
+        fs.copySync(`./src/runtime/cyberia-server`, `/home/dd/cyberia-instances/deployments/cyberia-server`);
+
+        if (options.publishBuild) {
+          fs.mkdirpSync(`/home/dd/cyberia-instances/public/cyberia`);
+          for (const assetPath of Object.keys(
+            JSON.parse(fs.readFileSync(`./engine-private/conf/dd-cyberia/storage.engine-cyberia.json`, 'utf-8')),
+          )) {
+            const targetPath = `/home/dd/cyberia-instances/public/cyberia/${assetPath}`;
+            fs.mkdirpSync(nodePath.dirname(targetPath));
+            logger.info(`Copying asset: ${assetPath} → ${targetPath}`);
+            fs.copySync(`./${assetPath}`, targetPath);
+          }
+
+          fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
+          fs.copySync(
+            `./engine-private/cyberia-instances/${instanceCode}`,
+            `/home/dd/cyberia-instances/instances/${instanceCode}`,
+          );
+          fs.mkdirSync(`/home/dd/cyberia-instances/sagas`);
+          fs.copySync(
+            `./engine-private/cyberia-instances/cyberia-sagas/${instanceCode}`,
+            `/home/dd/cyberia-instances/sagas/${instanceCode}`,
+          );
+          return;
+        } else if (options.publishRemove) {
+          shellExec(`rm -rf /home/dd/cyberia-instances/instances/${instanceCode}`);
+          shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}`);
+          return;
+        }
+        shellExec(`cd /home/dd/cyberia-instances && underpost push . underpostnet/cyberia-instances`);
+        return;
+      }
 
       // ── EXPORT ──────────────────────────────────────────────────────
       if (options.export !== undefined) {
