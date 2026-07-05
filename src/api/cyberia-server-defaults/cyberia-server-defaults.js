@@ -809,3 +809,72 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Equipment Rules ────────────────────────────────────────────────
   equipmentRules: { ...EQUIPMENT_RULES_DEFAULTS },
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Instance-conf default backfill
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+const _cloneDefault = (v) => JSON.parse(JSON.stringify(v));
+
+/**
+ * Recursively backfill one value against its canonical default:
+ *   - null / undefined  → deep clone of the default
+ *   - empty array       → deep clone of the default (config lists must never
+ *                         export empty — e.g. skillConfig, entityDefaults)
+ *   - non-empty array   → kept verbatim (author content)
+ *   - plain object      → keep author-set keys, recurse to fill missing default keys
+ *   - scalar            → kept verbatim when present (0, '', false count as present)
+ */
+function _deepFillDefaults(value, defaultValue) {
+  if (value === null || value === undefined) return _cloneDefault(defaultValue);
+  if (Array.isArray(defaultValue)) {
+    return Array.isArray(value) && value.length > 0 ? value : _cloneDefault(defaultValue);
+  }
+  if (_isPlainObject(defaultValue) && _isPlainObject(value)) {
+    const out = { ...value };
+    for (const key of Object.keys(defaultValue)) {
+      out[key] = _deepFillDefaults(value[key], defaultValue[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Normalise a skillConfig array to the shape CyberiaInstanceConfSchema stores
+ * (`SkillConfigEntrySchema` = { triggerItemId, logicEventIds }). The canonical
+ * DefaultSkillConfig carries extra `skills` metadata the schema drops on write;
+ * stripping it here keeps export ⇄ DB round-trips churn-free.
+ */
+function _normaliseSkillConfig(skillConfig) {
+  if (!Array.isArray(skillConfig)) return [];
+  return skillConfig.map((entry) => ({
+    triggerItemId: entry.triggerItemId,
+    logicEventIds: [...(entry.logicEventIds || [])],
+  }));
+}
+
+/**
+ * Return a copy of a CyberiaInstanceConf document with every field defined by
+ * CyberiaInstanceConfSchema present. Missing, null/undefined, or empty-array
+ * fields — common when a doc is read with `.lean()` (which skips Mongoose schema
+ * defaults), was created before a schema field existed, or was seeded with the
+ * schema's empty-array default (e.g. `skillConfig`) — are filled from
+ * CYBERIA_INSTANCE_CONF_DEFAULTS, the same canonical values the fallback world
+ * uses. Author-set scalars (including 0, '', false), non-empty arrays, and DB
+ * metadata (_id, instanceCode, timestamps) are preserved untouched.
+ *
+ * @param {object} [conf]
+ * @returns {object}
+ */
+export function fillInstanceConfDefaults(conf = {}) {
+  const source = _isPlainObject(conf) ? conf : {};
+  const out = { ...source };
+  for (const key of Object.keys(CYBERIA_INSTANCE_CONF_DEFAULTS)) {
+    out[key] = _deepFillDefaults(source[key], CYBERIA_INSTANCE_CONF_DEFAULTS[key]);
+  }
+  out.skillConfig = _normaliseSkillConfig(out.skillConfig);
+  return out;
+}

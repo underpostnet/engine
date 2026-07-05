@@ -45,6 +45,7 @@ import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
+  fillInstanceConfDefaults,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 import {
@@ -1950,6 +1951,10 @@ try {
           instanceConf = created?.toObject ? created.toObject() : created;
         }
         if (instanceConf) {
+          // `.lean()` skips Mongoose schema defaults and older docs may predate
+          // some fields, so backfill every CyberiaInstanceConfSchema field from
+          // the canonical defaults before writing the backup.
+          instanceConf = fillInstanceConfDefaults(instanceConf);
           fs.writeJsonSync(`${backupDir}/cyberia-instance-conf.json`, instanceConf, { spaces: 2 });
           logger.info('Exported CyberiaInstanceConf', { instanceCode });
         } else {
@@ -2029,6 +2034,8 @@ try {
           if (id) objectLayerItemIds.add(id);
         }
 
+        const contentItemIds = new Set(objectLayerItemIds);
+
         // 4c. Add all itemIds referenced by CyberiaInstanceConf (entityDefaults + skillConfig).
         //     This ensures liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers and
         //     skill trigger items are included even if no map entity currently uses them.
@@ -2076,12 +2083,15 @@ try {
         }
 
         // 4d-bis. Export entity-type defaults whose item ids belong to this
-        //     instance (own model: CyberiaEntityTypeDefault). A default is related
-        //     when any of its live/dead/drop ids or default object-layer ids appears
-        //     in the instance's item set. Their referenced ids are folded back into
-        //     objectLayerItemIds so the matching atlases + dialogues export too.
-        if (objectLayerItemIds.size > 0) {
-          const idsForMatch = [...objectLayerItemIds];
+        //     instance's real content (own model: CyberiaEntityTypeDefault). A
+        //     default is related when any of its live/dead/drop ids or default
+        //     object-layer ids appears in contentItemIds — map/instance content
+        //     only, NOT the canonical conf defaults every instance shares (which
+        //     would spuriously drag in the global seed entity-type-defaults).
+        //     Matched ids are folded back into objectLayerItemIds so the related
+        //     atlases + dialogues export too.
+        if (contentItemIds.size > 0) {
+          const idsForMatch = [...contentItemIds];
           const entityDefaults = await CyberiaEntityTypeDefault.find({
             $or: [
               { liveItemIds: { $in: idsForMatch } },
@@ -2663,7 +2673,9 @@ try {
           const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
           let importedConf = null;
           if (fs.existsSync(confImportPath)) {
-            const confData = fs.readJsonSync(confImportPath);
+            // Backfill any missing schema fields so older backups import a
+            // complete, playable config into the DB.
+            const confData = fillInstanceConfDefaults(fs.readJsonSync(confImportPath));
             if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
             await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
             // Always bump updatedAt so the Go server's version hash changes and
@@ -2842,7 +2854,9 @@ try {
         // 6. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
         if (fs.existsSync(confImportPath)) {
-          const confData = fs.readJsonSync(confImportPath);
+          // Backfill any missing schema fields so older backups import a
+          // complete, playable config into the DB.
+          const confData = fillInstanceConfDefaults(fs.readJsonSync(confImportPath));
           if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
           await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
           await CyberiaInstanceConf.create(confData);
