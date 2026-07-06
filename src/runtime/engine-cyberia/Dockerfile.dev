@@ -2,24 +2,6 @@
 #
 # engine-cyberia — DEVELOPMENT image (underpost/engine-cyberia-dev).
 #
-# Secure multi-stage build. The dd-cyberia deploy is assembled from a PRIVATE
-# GitHub repository at build time, but the published image is PUBLIC, so no
-# credential, token, private-repo VCS metadata, cache, or temp artifact may
-# survive into the final stage.
-#
-# Security model:
-#   1. Secrets are injected with BuildKit/podman `--mount=type=secret`, never
-#      `ARG` (build args persist in `docker history`). Locally, `underpost image
-#      --build` forwards host GITHUB_TOKEN/GITHUB_USERNAME as `--secret`; in CI
-#      the workflow passes them via `secrets:`.
-#   2. `underpost clone` authenticates as `https://$GITHUB_TOKEN@github.com/...`,
-#      which git persists in each clone's `.git/config`. The build clones,
-#      builds, bakes non-secret env, and SCRUBS every VCS/credential artifact in
-#      ONE builder RUN — so the token never lands in a persisted layer.
-#   3. The private repository lives only in the builder stage.
-#   4. The final stage starts FROM a clean base and copies only the scrubbed
-#      runtime tree plus the pinned Node toolchain — no git, no caches.
-
 # ---------------------------------------------------------------------------
 # Stage 1 — builder: clone the private deploy, build it, then scrub secrets.
 # ---------------------------------------------------------------------------

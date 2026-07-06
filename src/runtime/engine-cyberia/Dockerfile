@@ -2,12 +2,6 @@
 #
 # engine-cyberia — PRODUCTION image (underpost/engine-cyberia).
 #
-# Secure multi-stage build. The dd-cyberia deploy is assembled from a PRIVATE
-# GitHub repository at build time, but the published image is PUBLIC, so no
-# credential, token, private-repo VCS metadata, cache, or temp artifact may
-# survive into the final stage. See Dockerfile.dev for the full security
-# rationale — this file is the production counterpart (NODE_ENV=production).
-
 # ---------------------------------------------------------------------------
 # Stage 1 — builder: clone the private deploy, build it, then scrub secrets.
 # ---------------------------------------------------------------------------
