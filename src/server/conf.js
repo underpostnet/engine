@@ -476,9 +476,6 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
     fs.removeSync(`${path}/.env.production`);
     fs.removeSync(`${path}/.env.development`);
     fs.removeSync(`${path}/.env.test`);
-    if (fs.existsSync(`${path}/typedoc.json`)) shellExec(`git checkout ${path}/typedoc.json`);
-    shellExec(`git checkout ${path}/package.json`);
-    shellExec(`git checkout ${path}/package-lock.json`);
     return;
   }
   const folder = getConfFolder(deployId);

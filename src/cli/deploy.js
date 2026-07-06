@@ -1009,10 +1009,17 @@ EOF`);
      */
     configMap(env, namespace = 'default') {
       const cronDeployId = cronDeployIdResolve() || 'dd-cron';
+      const envFilePath = `/home/dd/engine/engine-private/conf/${cronDeployId}/.env.${env}`;
+      // `--from-env-file` turns every KEY=VALUE into a secret key that the Deployment injects via
+      // `envFrom`. Strip shell/runtime-critical keys (notably PATH) first — an injected PATH
+      // overrides the image's own and breaks coreutils/sudo resolution inside the pod.
+      const sanitizedEnvPath = `${envFilePath}.secret`;
+      fs.writeFileSync(sanitizedEnvPath, Underpost.secret.sanitizeSecretEnvFile(fs.readFileSync(envFilePath, 'utf8')));
       shellExec(`kubectl delete secret underpost-config -n ${namespace} --ignore-not-found`);
       shellExec(
-        `kubectl create secret generic underpost-config --from-env-file=/home/dd/engine/engine-private/conf/${cronDeployId}/.env.${env} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+        `kubectl create secret generic underpost-config --from-env-file=${sanitizedEnvPath} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
       );
+      fs.removeSync(sanitizedEnvPath);
     },
     /**
      * Switches the traffic for a deployment.

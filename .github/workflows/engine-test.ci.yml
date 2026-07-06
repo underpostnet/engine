@@ -67,8 +67,7 @@ jobs:
           if [ -n "${{ github.event.inputs.message }}" ]; then
             LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
           else
-            FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
-            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //')
+            LAST_COMMIT_MESSAGE=$(cd engine && node bin cmt --changelog-msg --from-n-commit 1 --changelog-no-hash 2>/dev/null || echo "")
           fi
           SHOULD_CD="${{ github.event.inputs.sync }}"
           DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"

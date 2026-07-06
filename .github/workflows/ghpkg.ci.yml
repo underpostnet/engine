@@ -84,7 +84,7 @@ jobs:
 
   engine-ghpkg:
     if: github.repository == 'underpostnet/engine' && github.event_name == 'workflow_dispatch'
-    name: Publish canonical engine github package repo Jobs
+    name: Build engine ${{ github.event.inputs.conf_id || 'cyberia' }} ghpkg repository
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -120,6 +120,9 @@ jobs:
       - name: Capture commit message
         run: |
           FULL_MSG="${{ github.event.inputs.message }}"
+          if [ -z "$FULL_MSG" ]; then
+            FULL_MSG=$(node bin cmt --changelog-msg --from-n-commit 1 --changelog-no-hash 2>/dev/null || echo "")
+          fi
           LAST_COMMIT_MESSAGE="${FULL_MSG:-Update canonical github package repo}"
           echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
           echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV

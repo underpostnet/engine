@@ -448,11 +448,10 @@ class UnderpostRelease {
       let commitMsg = message;
       if (!commitMsg) {
         shellCd('/home/dd/engine');
-        const rawMsg = shellExec(`node bin cmt --changelog 1 --changelog-no-hash`, {
+        commitMsg = shellExec(`node bin cmt --changelog-msg --changelog-no-hash`, {
           stdout: true,
           silent: true,
         }).trim();
-        commitMsg = Underpost.repo.sanitizeChangelogMessage(rawMsg);
         shellCd('/home/dd');
       }
       commitMsg = (commitMsg || '').trim() || `Update ${repoName} repository`;
@@ -492,11 +491,10 @@ class UnderpostRelease {
       let commitMsg = message;
       if (!commitMsg) {
         shellCd('/home/dd/engine');
-        const rawMsg = shellExec(`node bin cmt --changelog 1 --changelog-no-hash`, {
+        commitMsg = shellExec(`node bin cmt --changelog-msg --changelog-no-hash`, {
           stdout: true,
           silent: true,
         }).trim();
-        commitMsg = Underpost.repo.sanitizeChangelogMessage(rawMsg);
       }
       commitMsg = (commitMsg || '').trim() || `Update pwa-microservices-template repository`;
       shellCd('/home/dd');

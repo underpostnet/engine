@@ -13,6 +13,58 @@ import { loggerFactory } from '../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
+// Shell/runtime-critical and Kubernetes-injected env keys that must never be persisted as
+// application secrets nor injected into a pod via `envFrom`. An injected PATH (or HOME, etc.)
+// overrides the container image's own and breaks coreutils/sudo resolution inside the pod
+// ("rm: command not found"). Single source of truth for both container-env capture and the
+// `underpost-config` secret built from an env file.
+const RESERVED_ENV_KEYS = new Set([
+  'HOME',
+  'HOSTNAME',
+  'PATH',
+  'TERM',
+  'SHLVL',
+  'PWD',
+  '_',
+  'LANG',
+  'LANGUAGE',
+  'LC_ALL',
+  'container',
+  'SHELL',
+  'USER',
+  'LOGNAME',
+  'MAIL',
+  'OLDPWD',
+  'LESSOPEN',
+  'LESSCLOSE',
+  'LS_COLORS',
+  'DISPLAY',
+  'COLORTERM',
+  'EDITOR',
+  'VISUAL',
+  'TERM_PROGRAM',
+  'TERM_PROGRAM_VERSION',
+  'SSH_AUTH_SOCK',
+  'SSH_CLIENT',
+  'SSH_CONNECTION',
+  'SSH_TTY',
+  'XDG_SESSION_ID',
+  'XDG_RUNTIME_DIR',
+  'XDG_DATA_DIRS',
+  'XDG_CONFIG_DIRS',
+  'DBUS_SESSION_BUS_ADDRESS',
+  'GPG_AGENT_INFO',
+  'WINDOWID',
+  'DESKTOP_SESSION',
+  'SESSION_MANAGER',
+  'XAUTHORITY',
+  'WAYLAND_DISPLAY',
+  'which_declare',
+]);
+const RESERVED_ENV_KEY_PREFIXES = ['KUBERNETES_', 'npm_', 'NODE_'];
+const isReservedEnvKey = (key) =>
+  RESERVED_ENV_KEYS.has(key) || RESERVED_ENV_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
+
 /**
  * @class UnderpostSecret
  * @description Manages the secrets of the application.
@@ -49,56 +101,33 @@ class UnderpostSecret {
        */
       createFromContainerEnv() {
         Underpost.env.clean();
-        const systemKeys = new Set([
-          'HOME',
-          'HOSTNAME',
-          'PATH',
-          'TERM',
-          'SHLVL',
-          'PWD',
-          '_',
-          'LANG',
-          'LANGUAGE',
-          'LC_ALL',
-          'container',
-          'SHELL',
-          'USER',
-          'LOGNAME',
-          'MAIL',
-          'OLDPWD',
-          'LESSOPEN',
-          'LESSCLOSE',
-          'LS_COLORS',
-          'DISPLAY',
-          'COLORTERM',
-          'EDITOR',
-          'VISUAL',
-          'TERM_PROGRAM',
-          'TERM_PROGRAM_VERSION',
-          'SSH_AUTH_SOCK',
-          'SSH_CLIENT',
-          'SSH_CONNECTION',
-          'SSH_TTY',
-          'XDG_SESSION_ID',
-          'XDG_RUNTIME_DIR',
-          'XDG_DATA_DIRS',
-          'XDG_CONFIG_DIRS',
-          'DBUS_SESSION_BUS_ADDRESS',
-          'GPG_AGENT_INFO',
-          'WINDOWID',
-          'DESKTOP_SESSION',
-          'SESSION_MANAGER',
-          'XAUTHORITY',
-          'WAYLAND_DISPLAY',
-          'which_declare',
-        ]);
-        const systemKeyPrefixes = ['KUBERNETES_', 'npm_', 'NODE_'];
         for (const [key, value] of Object.entries(process.env)) {
-          if (systemKeys.has(key)) continue;
-          if (systemKeyPrefixes.some((prefix) => key.startsWith(prefix))) continue;
+          if (isReservedEnvKey(key)) continue;
           Underpost.env.set(key, value);
         }
       },
+    },
+
+    /**
+     * @method sanitizeSecretEnvFile
+     * @description Strips shell/runtime-critical and Kubernetes-injected keys (PATH, HOME, …) from
+     * raw `.env` file content so the resulting `underpost-config` secret can be safely injected via
+     * `envFrom` without clobbering the container image's own PATH. Blank lines and comments are
+     * preserved. Uses the same {@link RESERVED_ENV_KEYS} blocklist as container-env capture.
+     * @param {string} envFileContent - Raw contents of a `.env.<env>` file.
+     * @returns {string} Filtered env-file content.
+     * @memberof UnderpostSecret
+     */
+    sanitizeSecretEnvFile(envFileContent) {
+      return envFileContent
+        .split('\n')
+        .filter((line) => {
+          const trimmed = line.trimStart();
+          if (!trimmed || trimmed.startsWith('#')) return true;
+          const key = line.slice(0, line.indexOf('=')).trim();
+          return !key || !isReservedEnvKey(key);
+        })
+        .join('\n');
     },
 
     /**

@@ -218,7 +218,7 @@ class UnderpostRepository {
         return;
       }
 
-      if (options.changelog !== undefined || options.changelogBuild) {
+      if (options.changelog !== undefined || options.changelogBuild || options.changelogMsg !== undefined) {
         const releaseMatch = 'New release v:';
         // Helper: parse [<tag>] commits into grouped sections
         const buildSectionChangelog = (commits) => {
@@ -255,7 +255,8 @@ class UnderpostRepository {
             stdout: true,
             silent: true,
             disableLog: true,
-          });
+            silentOnError: true,
+          }).toString();
           return rawLog
             .split('\n')
             .map((line) => {
@@ -346,15 +347,18 @@ class UnderpostRepository {
           fs.writeFileSync(changelogPath, `# Changelog\n\n${changelog}`);
           logger.info('CHANGELOG.md built at', changelogPath);
         } else {
-          // --changelog [latest-n]: print changelog of last N commits (default: 1)
-          const hasExplicitCount =
-            options.changelog !== undefined && options.changelog !== true && !isNaN(parseInt(options.changelog));
-          const scanLimit = hasExplicitCount ? parseInt(options.changelog) : 1;
-          const allCommits = fetchHistory(scanLimit);
-
-          const sections = buildVersionSections(allCommits);
-          let changelog = renderSections(sections);
-          console.log(changelog || `No changelog entries found.\n`);
+          // --changelog / --changelog-msg: message from the last N commits, where N is --from-n-commit
+          // (default 1, last commit only). No auto-detection.
+          const n = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+          const sections = buildVersionSections(fetchHistory(n));
+          const changelog = renderSections(sections);
+          if (options.changelogMsg !== undefined) {
+            // Sanitized, commit-ready message; empty string when there are no tagged entries so
+            // callers fall back to their own generic default instead of a placeholder.
+            console.log(Underpost.repo.sanitizeChangelogMessage(changelog));
+          } else {
+            console.log(changelog || `No changelog entries found.\n`);
+          }
         }
 
         return;
@@ -1426,17 +1430,31 @@ Prevent build private config repo.`,
      * @memberof UnderpostRepository
      */
     getUnpushedCount(repoPath = '.', fallback = 1) {
+      // Every git call is silentOnError: a detached HEAD (CI checkout) or a missing upstream must
+      // degrade to the fallback, never throw — otherwise the thrown error is logged to stdout and
+      // can be captured as a commit message by callers that read this command's output.
       const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
         stdout: true,
         silent: true,
         disableLog: true,
-      }).trim();
-      shellExec(`cd ${repoPath} && git fetch origin 2>/dev/null`, { silent: true, disableLog: true });
+        silentOnError: true,
+      })
+        .toString()
+        .trim();
+      if (!branch) return { count: fallback, branch: '', hasUnpushed: false };
+      shellExec(`cd ${repoPath} && git fetch origin 2>/dev/null`, {
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+      });
       const raw = shellExec(`cd ${repoPath} && git rev-list --count origin/${branch}..HEAD 2>/dev/null`, {
         stdout: true,
         silent: true,
         disableLog: true,
-      }).trim();
+        silentOnError: true,
+      })
+        .toString()
+        .trim();
       const count = parseInt(raw);
       const hasUnpushed = !isNaN(count) && count > 0;
       return { count: hasUnpushed ? count : fallback, branch, hasUnpushed };
@@ -1451,7 +1469,7 @@ Prevent build private config repo.`,
      */
     sanitizeChangelogMessage(message) {
       if (!message) return '';
-      return message
+      const sanitized = message
         .replace(/^##\s+\d{4}-\d{2}-\d{2}\s*/gm, '')
         .replace(/^###\s+(\S+)\s*/gm, '[$1] ')
         .replace(/^- /gm, '')
@@ -1463,6 +1481,9 @@ Prevent build private config repo.`,
         .join('\n')
         .trim()
         .replaceAll('] - ', '] ');
+      // The empty-changelog placeholder must never become a commit message; return empty so
+      // callers fall back to their own generic default.
+      return sanitized === 'No changelog entries found.' ? '' : sanitized;
     },
     /**
      * Initializes a git repository at the given path and configures user identity

@@ -117,6 +117,9 @@ ENV NODE_ENV=production
 COPY --from=builder /usr/local/ /usr/local/
 RUN dnf install -y libstdc++ git sudo && dnf clean all && rm -rf /var/cache/dnf && \
     useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd && \
+    # The runtime runs as `dd`, but `underpost start --build` shells out to `sudo cp`/`sudo rm`
+    # (src/server/start.js). Grant passwordless sudo so those succeed without a TTY/password.
+    printf 'dd ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dd && chmod 0440 /etc/sudoers.d/dd && \
     # underpost persists its global env at $(npm root -g)/underpost/.env; the
     # non-root runtime user must be able to write it (fixes EACCES on start).
     chown -R dd:dd /usr/local/lib/node_modules/underpost
@@ -126,6 +129,10 @@ COPY --from=builder --chown=dd:dd /home/dd/engine /home/dd/engine
 
 RUN chmod +x /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh && \
     /home/dd/engine/scripts/rpmfusion-ffmpeg-setup.sh
+
+# Explicit re-chown: PVC-backed mounts under src/client/public land here at
+# pod start and may override the COPY --chown above with root ownership.
+RUN chown -R dd:dd /home/dd/engine/src/client/public
 
 USER dd
 WORKDIR /home/dd/engine

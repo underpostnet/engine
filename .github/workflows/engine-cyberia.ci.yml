@@ -67,8 +67,7 @@ jobs:
           if [ -n "${{ github.event.inputs.message }}" ]; then
             LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
           else
-            FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
-            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //')
+            LAST_COMMIT_MESSAGE=$(cd engine && node bin cmt --changelog-msg --from-n-commit 1 --changelog-no-hash 2>/dev/null || echo "")
           fi
           SHOULD_CD="${{ github.event.inputs.sync }}"
           DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
@@ -100,11 +99,16 @@ jobs:
             git commit -m "$LAST_COMMIT_MESSAGE"
             node ../engine/bin push . underpostnet/engine-cyberia
             echo "[INFO] Dispatching canonical github package build engine-ghpkg-cyberia"
+            GHPKG_PAYLOAD=$(MSG="$LAST_COMMIT_MESSAGE" node -e '
+              const i = { conf_id: "cyberia" };
+              if (process.env.MSG) i.message = process.env.MSG;
+              process.stdout.write(JSON.stringify({ ref: "master", inputs: i }));
+            ')
             curl -s -X POST \
               -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
               "https://api.github.com/repos/underpostnet/engine/actions/workflows/ghpkg.ci.yml/dispatches" \
-              -d "{\"ref\":\"master\",\"inputs\":{\"conf_id\":\"cyberia\"}}"
+              -d "$GHPKG_PAYLOAD"
           fi
           if [ "$SHOULD_CD" = "true" ]; then
             if [ -z "$DEPLOY_TYPE" ]; then

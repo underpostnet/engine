@@ -212,7 +212,9 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--cached` | Commit staged changes only or context. |
 | `--hashes <hashes>` | Comma-separated list of specific file hashes of commits. |
 | `--extension <extension>` | specific file extensions of commits. |
-| `--changelog [latest-n]` | Print plain the changelog of the specified number of latest n commits, if no number is provided it will get the changelog to latest ci integration |
+| `--changelog` | Print the plain changelog of the last N commits (see `--from-n-commit`, default 1). |
+| `--changelog-msg` | Print the sanitized, commit-ready changelog message of the last N commits (see `--from-n-commit`, default 1). |
+| `--from-n-commit <n>` | Number of latest commits to include in `--changelog`/`--changelog-msg` (default: 1). |
 | `--changelog-build` | Builds a CHANGELOG.md file based on the commit history |
 | `--changelog-min-version <version>` | Sets the minimum version limit for --changelog-build (default: 2.85.0) |
 | `--changelog-no-hash` | Excludes commit hashes from the generated changelog entries (used with --changelog-build). |

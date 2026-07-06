@@ -664,13 +664,10 @@ class UnderpostRun {
       shellExec(`${baseCommand} run pull`);
       shellExec(`${baseCommand} run shared-dir`);
 
-      // Capture last N commit messages for propagation.
-      // When --from-n-commit is not set, auto-detect unpushed commit count (same as --unpush flag).
-      const fromN =
-        options.fromNCommit && parseInt(options.fromNCommit) > 0
-          ? parseInt(options.fromNCommit)
-          : Underpost.repo.getUnpushedCount('.').count;
-      const message = shellExec(`node bin cmt --changelog ${fromN} --changelog-no-hash`, {
+      // Capture the sanitized message from the last N commits (--from-n-commit, default 1) for
+      // propagation to pwa-microservices-template and every engine-* repo.
+      const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+      const sanitizedMessage = shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
         silent: true,
         stdout: true,
       }).trim();
@@ -681,8 +678,6 @@ class UnderpostRun {
         }/engine-private`,
       );
       shellCd('/home/dd/engine');
-
-      const sanitizedMessage = Underpost.repo.sanitizeChangelogMessage(message);
 
       // Push engine repo so workflow YAML changes reach GitHub
       shellExec(`git reset`);
@@ -745,17 +740,12 @@ class UnderpostRun {
       shellExec(`${baseCommand} run pull`);
       shellExec(`${baseCommand} run shared-dir`);
 
-      // Capture last N commit messages from the engine repo.
-      // When --from-n-commit is not set, auto-detect unpushed commit count (same as --unpush flag).
-      const fromN =
-        options.fromNCommit && parseInt(options.fromNCommit) > 0
-          ? parseInt(options.fromNCommit)
-          : Underpost.repo.getUnpushedCount('.').count;
-      const rawMessage = shellExec(`node bin cmt --changelog ${fromN} --changelog-no-hash`, {
+      // Capture the sanitized message from the last N commits (--from-n-commit, default 1).
+      const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+      const sanitizedMessage = shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
         silent: true,
         stdout: true,
       }).trim();
-      const sanitizedMessage = Underpost.repo.sanitizeChangelogMessage(rawMessage);
 
       const { triggerCmd } = path
         ? await Underpost.release.ci(path, sanitizedMessage, options)

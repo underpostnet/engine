@@ -1720,6 +1720,10 @@ try {
     .option('--publish-build', 'Build instance backup directory with all related maps, entities and object layers')
     .option('--publish-remove', 'Remove published instance from underpostnet/cyberia-instances repository')
     .option('--publish', 'Publish instance in underpostnet/cyberia-instances repository')
+    .option(
+      '--from-n-commit <n>',
+      'Number of latest engine commits to use for the publish commit message (default: 1).',
+    )
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
       if (!instanceCode) {
@@ -1840,9 +1844,15 @@ try {
           shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}.json`);
           return;
         }
+        const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+        const publishMessage =
+          shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
+            stdout: true,
+            silent: true,
+          }).trim() || `Update instance ${instanceCode}`;
         shellExec(`cd /home/dd/cyberia-instances \
           && git add . \
-          && git commit -m "Update instance ${instanceCode}" \
+          && git commit -m "${publishMessage.replace(/"/g, '\\"')}" \
           && underpost push . underpostnet/cyberia-instances`);
         return;
       }

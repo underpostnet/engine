@@ -110,16 +110,18 @@ program
   .option('--cached', 'Commit staged changes only or context.')
   .option('--hashes <hashes>', 'Comma-separated list of specific file hashes of commits.')
   .option('--extension <extension>', 'specific file extensions of commits.')
-  .option(
-    '--changelog [latest-n]',
-    'Print plain the changelog of the specified number of latest n commits, if no number is provided it will get the changelog to latest ci integration',
-  )
+  .option('--changelog', 'Print the plain changelog of the last N commits (see --from-n-commit, default 1).')
   .option('--changelog-build', 'Builds a CHANGELOG.md file based on the commit history')
   .option('--changelog-min-version <version>', 'Sets the minimum version limit for --changelog-build (default: 2.85.0)')
   .option(
     '--changelog-no-hash',
     'Excludes commit hashes from the generated changelog entries (used with --changelog-build).',
   )
+  .option(
+    '--changelog-msg',
+    'Print the sanitized, commit-ready changelog message of the last N commits (see --from-n-commit, default 1). Empty when there are no tagged entries.',
+  )
+  .option('--from-n-commit <n>', 'Number of latest commits to include in --changelog/--changelog-msg (default: 1).')
   .option('--unpush', 'With --log, automatically sets range to unpushed commits ahead of remote.')
   .option('-b', 'Shows the current Git branch name.')
   .option('-p [branch]', 'Shows the reflog for the specified branch.')
