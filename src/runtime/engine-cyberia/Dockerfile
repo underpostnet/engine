@@ -38,70 +38,57 @@ RUN set -eux; \
 
 WORKDIR /home/dd
 
-# Single hermetic RUN: GitHub credentials are mounted as secrets (readable only
-# here, never persisted), used to clone + build the private dd-cyberia deploy,
-# then every credential/secret/VCS trace is removed BEFORE this layer commits.
-RUN --mount=type=secret,id=github_token \
-    --mount=type=secret,id=github_username \
-    --mount=type=secret,id=cloudinary_cloud_name \
-    --mount=type=secret,id=cloudinary_api_key \
-    --mount=type=secret,id=cloudinary_api_secret \
+RUN --mount=type=secret,id=github_username \
+    # --mount=type=secret,id=github_token \
     set -eu; \
-    export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
     export GITHUB_USERNAME="$(cat /run/secrets/github_username)"; \
-    # Cloudinary creds power the `node bin fs --pull` asset downloads below; they
-    # are optional (empty when not provided) so builds that don't need assets
-    # still work.
-    export CLOUDINARY_CLOUD_NAME="$(cat /run/secrets/cloudinary_cloud_name 2>/dev/null || true)"; \
-    export CLOUDINARY_API_KEY="$(cat /run/secrets/cloudinary_api_key 2>/dev/null || true)"; \
-    export CLOUDINARY_API_SECRET="$(cat /run/secrets/cloudinary_api_secret 2>/dev/null || true)"; \
-    \
-    # --- fetch sources under our control, then build WITHOUT itc-scripts -----
-    # itc-scripts are DEPLOY-time provisioning; the DB-seeding parts (`cyberia
-    # ol --drop`, `instance --import`) and the in-cluster .env rewrite cannot run
-    # in a hermetic build, so we strip the scripts and replay ONLY the build-safe
-    # provisioning steps inline (asset pulls, ffmpeg, hardhat deps, cyberia-server
-    # clone). Pre-clone so privateEngineRepoFactory no-ops and --skip-pull-base
-    # reuses the tree.
+    # export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
+    export ENGINE_CYBERIA_REPO="engine-cyberia"; \
+    export INSTANCE_CODE="amethyst-strata-expansion"; \
     cd /home/dd; \
-    underpost clone "$GITHUB_USERNAME/engine-cyberia"; \
+    underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
     mkdir -p /home/dd/engine; \
-    cp -a ./engine-cyberia/. /home/dd/engine/; \
-    rm -rf ./engine-cyberia; \
+    cp -a ./"$ENGINE_CYBERIA_REPO"/. /home/dd/engine/; \
+    rm -rf ./"$ENGINE_CYBERIA_REPO"; \
+    cd /home/dd; \
+    underpost clone "$GITHUB_USERNAME/cyberia-instances"; \
+    rm -rf /home/dd/engine/engine-private; \
+    mkdir -p /home/dd/engine/engine-private/conf/dd-cyberia; \
+    cp -a ./cyberia-instances/conf/dd-cyberia/. /home/dd/engine/engine-private/conf/dd-cyberia/.; \
+    cp -a /home/dd/engine/package.json /home/dd/engine/engine-private/conf/dd-cyberia/package.json; \
+    mkdir -p /home/dd/engine/engine-private/cyberia-instances; \
+    cp -a ./cyberia-instances/instances/"$INSTANCE_CODE" /home/dd/engine/engine-private/cyberia-instances/"$INSTANCE_CODE"; \
+    mkdir -p /home/dd/engine/src/client/public/cyberia; \
+    cp -a ./cyberia-instances/public/cyberia/. /home/dd/engine/src/client/public/cyberia/.; \
+    # The engine gRPC server loads its schema at runtime from
+    # cyberia-server/gen/proto/cyberia.proto (src/grpc/cyberia/grpc-server.js);
+    # fetch just that file so the engine can bind :50051 / :4005 without the
+    # full cyberia-server repo.
+    underpost clone "$GITHUB_USERNAME/cyberia-server"; \
+    mkdir -p /home/dd/engine/cyberia-server/gen/proto; \
+    cp -a ./cyberia-server/gen/proto/cyberia.proto /home/dd/engine/cyberia-server/gen/proto/cyberia.proto; \
+    rm -rf ./cyberia-server; \
     cd /home/dd/engine; \
-    rm -rf ./engine-private; \
-    underpost clone "$GITHUB_USERNAME/engine-cyberia-private"; \
-    mv ./engine-cyberia-private ./engine-private; \
-    rm -rf ./engine-private/itc-scripts; \
-    \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
     node bin env dd-cyberia production; \
-    node bin fs --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.engine-cyberia.json'; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
-    ( cd /home/dd/engine && underpost clone underpostnet/cyberia-server ); \
-    \
     # --- build the client bundle (assets are now in place) --------------------
+    cd /home/dd/engine; \
     node bin client dd-cyberia; \
-    \
-    # --- bake NON-secret env (placeholders; real creds come from runtime env) -
-    CONF=/home/dd/engine/engine-private/conf/dd-cyberia; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.development"; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.production"; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.test"; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" /home/dd/engine/.env; \
-    \
-    # --- drop build-only / non-runtime private material ----------------------
-    rm -rf /home/dd/engine/engine-private/itc-scripts "$CONF/build" "$CONF/instances"; \
-    \
     # --- CREDENTIAL SCRUB (defense in depth, while secrets are still in scope) -
     # 1) Redact every real secret value from any file it may have reached.
-    for _secret in "$GITHUB_TOKEN" "$CLOUDINARY_API_SECRET" "$CLOUDINARY_API_KEY"; do \
+    # for _secret in "$GITHUB_TOKEN" "$CLOUDINARY_API_SECRET" "$CLOUDINARY_API_KEY"; do \
+    for _secret in "$GITHUB_USERNAME"; do \
+    # for _secret in "$GITHUB_USERNAME" "$GITHUB_TOKEN"; do \
       [ -n "$_secret" ] || continue; \
       grep -rlF --exclude-dir=node_modules --exclude-dir=.git "$_secret" /home/dd/engine 2>/dev/null \
         | xargs -r sed -i "s#${_secret}#__REDACTED__#g" || true; \
     done; \
-    unset GITHUB_TOKEN GITHUB_USERNAME CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET; \
+    # unset GITHUB_TOKEN GITHUB_USERNAME; \
+    # unset GITHUB_TOKEN GITHUB_USERNAME CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET; \
+    unset GITHUB_USERNAME; \
+
     # 2) Every .git dir — clone URLs embed the token in .git/config, and the
     #    private history itself must not ship.
     find /home/dd/engine -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true; \
@@ -114,7 +101,14 @@ RUN --mount=type=secret,id=github_token \
     #    build/CLI tooling (used only to build the coverage docs above); the
     #    runtime server never imports it, so its dev node_modules is pure bloat.
     npm cache clean --force 2>/dev/null || true; \
-    rm -rf /home/dd/engine/hardhat/node_modules \
+    rm -rf /home/dd/cyberia-instances \
+           /home/dd/engine/src/client/public/itemledger \
+           /home/dd/engine/src/client/public/cryptokoyn \
+           /home/dd/engine/src/client/components/cryptokoyn \
+           /home/dd/engine/src/client/components/itemledger \
+           /home/dd/engine/src/client/Itemledger.index.js \
+           /home/dd/engine/src/client/Cryptokoyn.index.js \
+           /home/dd/engine/hardhat/node_modules \
            /home/dd/engine/.npm /tmp/* /var/tmp/* /var/cache/dnf
 
 # ---------------------------------------------------------------------------
