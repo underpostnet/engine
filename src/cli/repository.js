@@ -1344,14 +1344,21 @@ Prevent build private config repo.`,
       if (!url) return false;
       const authUrl = Underpost.repo.resolveAuthUrl(url);
       // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
-      const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git ls-remote "${authUrl}" HEAD 2>&1`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      });
-      logger.info('isRemoteRepo', { url, raw: (raw || '').slice(0, 120) });
-      return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
+      // `-c credential.helper=` disables any host-configured credential helper so its stderr
+      // warnings don't pollute the ls-remote output; the token is already embedded in authUrl.
+      const raw = shellExec(
+        `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote "${authUrl}" HEAD 2>&1`,
+        {
+          stdout: true,
+          silent: true,
+          disableLog: true,
+          silentOnError: true,
+        },
+      );
+      const refLine = typeof raw === 'string' ? (raw.match(/^[0-9a-f]{40}\t.*$/m) || [])[0] : undefined;
+      const accessible = !!refLine;
+      logger.info('isRemoteRepo', { url, accessible, ref: refLine || (raw || '').trim().split('\n').pop() });
+      return accessible;
     },
 
     /**
@@ -1817,6 +1824,14 @@ Prevent build private config repo.`,
         } catch (err) {
           logger.warn(`[resolveInstanceRepo] failed to parse ${confPath}: ${err.message}`);
         }
+      }
+      const runtimeRepo = Underpost.repo.isRemoteRepo(`${process.env.GITHUB_USERNAME}/${runtime}`);
+      if (runtimeRepo) {
+        logger.info(`[resolveInstanceRepo] resolved from ${process.env.GITHUB_USERNAME}/${runtime}`, {
+          runtime,
+          repo: `${process.env.GITHUB_USERNAME}/${runtime}`,
+        });
+        return `${process.env.GITHUB_USERNAME}/${runtime}`;
       }
       return fallback;
     },
