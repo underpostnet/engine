@@ -114,7 +114,7 @@
     "split-file": "^2.3.0",
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.0",
-    "typedoc": "^0.28.19",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "validator": "^13.15.35",
     "vanilla-jsoneditor": "^3.12.0",
