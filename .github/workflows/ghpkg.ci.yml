@@ -4,6 +4,16 @@ on:
     branches: ['master']
   pull_request:
     branches: ['master']
+  workflow_dispatch:
+    inputs:
+      conf_id:
+        description: 'Conf id of the canonical engine github package repo (engine-ghpkg-<conf_id>)'
+        required: false
+        default: 'cyberia'
+      message:
+        description: 'Commit message for the canonical package build'
+        required: false
+        default: ''
 permissions:
   contents: write
   packages: write
@@ -71,3 +81,74 @@ jobs:
           git status
           git commit -m "$LAST_COMMIT_MESSAGE"
           node bin push . underpostnet/pwa-microservices-template-ghpkg
+
+  engine-ghpkg:
+    if: github.repository == 'underpostnet/engine' && github.event_name == 'workflow_dispatch'
+    name: Publish canonical engine github package repo Jobs
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/rockylinux/rockylinux:9
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install required packages
+        run: |
+          dnf install -y sudo tar gzip bzip2 git
+          dnf install -y curl --allowerasing
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
+          dnf install nodejs -y
+
+      - name: Resolve canonical github package repo
+        run: |
+          CONF_ID="${{ github.event.inputs.conf_id }}"
+          CONF_ID="${CONF_ID:-cyberia}"
+          echo "CONF_ID=$CONF_ID" >> $GITHUB_ENV
+          echo "GHPKG_REPO=engine-ghpkg-$CONF_ID" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=@underpostnet/$CONF_ID" >> $GITHUB_ENV
+          echo "[INFO] Canonical github package repo: underpostnet/engine-ghpkg-$CONF_ID"
+
+      - name: Capture commit message
+        run: |
+          FULL_MSG="${{ github.event.inputs.message }}"
+          LAST_COMMIT_MESSAGE="${FULL_MSG:-Update canonical github package repo}"
+          echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "[INFO] Commit message: $LAST_COMMIT_MESSAGE"
+
+      - name: Set git global credentials
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global credential.helper ""
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'development@underpost.net'
+
+      - name: Mirror engine-$CONF_ID and Push to canonical github package repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+        run: |
+          cd .. && node engine/bin clone underpostnet/engine-$CONF_ID
+          node engine/bin clone --bare underpostnet/$GHPKG_REPO
+          cd engine-$CONF_ID
+          rm -rf ./.git
+          mv ../$GHPKG_REPO.git ./.git
+          node ./bin/deploy rename-package "$PACKAGE_NAME"
+          node ./bin/deploy set-repo underpostnet/$GHPKG_REPO
+          git init
+          git config user.name 'underpostnet'
+          git config user.email 'development@underpost.net'
+          git add .
+          if git diff --cached --quiet; then
+            echo "[INFO] No changes to publish; skipping commit and push."
+          else
+            git commit -m "$LAST_COMMIT_MESSAGE"
+            node ../engine/bin push . underpostnet/$GHPKG_REPO
+          fi
