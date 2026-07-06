@@ -137,7 +137,7 @@ ENV NODE_ENV=development
 # re-download, no git/build toolchain. libstdc++ is the only runtime lib the
 # prebuilt Node binary needs beyond the base image.
 COPY --from=builder /usr/local/ /usr/local/
-RUN dnf install -y libstdc++ git && dnf clean all && rm -rf /var/cache/dnf && \
+RUN dnf install -y libstdc++ git sudo && dnf clean all && rm -rf /var/cache/dnf && \
     useradd --create-home --home-dir /home/dd --shell /usr/sbin/nologin dd && \
     # underpost persists its global env at $(npm root -g)/underpost/.env; the
     # non-root runtime user must be able to write it (fixes EACCES on start).
