@@ -1,6 +1,5 @@
 name: CD | Engine test | remote ssh
 on:
-  push:
   workflow_dispatch:
     inputs:
       job:
@@ -18,12 +17,7 @@ permissions:
 
 jobs:
   deploy:
-    if: >-
-      github.repository == 'underpostnet/engine'
-      && (
-        startsWith(github.event.head_commit.message, 'cd(ssh-engine-test)')
-        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'deploy')
-      )
+    if: github.event.inputs.job == 'deploy'
     name: Remote SSH deployment
     runs-on: ubuntu-latest
     steps:
@@ -53,12 +47,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-test"
   sync-and-deploy:
-    if: >-
-      github.repository == 'underpostnet/engine'
-      && (
-        startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-test)')
-        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'sync-and-deploy')
-      )
+    if: github.event.inputs.job == 'sync-and-deploy'
     name: Remote SSH sync and deploy
     runs-on: ubuntu-latest
     steps:
@@ -88,12 +77,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production' dd-test,1,,underpost/wp:v3.2.30"
   init:
-    if: >-
-      github.repository == 'underpostnet/engine'
-      && (
-        startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-test)')
-        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'init')
-      )
+    if: github.event.inputs.job == 'init'
     name: Remote SSH init deployment
     runs-on: ubuntu-latest
     steps:

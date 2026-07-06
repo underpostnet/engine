@@ -851,9 +851,9 @@ class UnderpostRun {
         job = 'init';
         confId = path.replace(/^init-/, '');
       }
-
+      const repo = Underpost.repo.resolveInstanceRepo(confId);
       Underpost.repo.dispatchWorkflow({
-        repo: `${process.env.GITHUB_USERNAME}/engine`,
+        repo,
         workflowFile: `${confId}.cd.yml`,
         ref: 'master',
         inputs: { job },
@@ -1685,7 +1685,11 @@ EOF
       const instanceBuildDir = `./engine-private/conf/${deployId}/instances/${_id}/build/${env}`;
       fs.mkdirpSync(instanceBuildDir);
       fs.writeFileSync(`${instanceBuildDir}/deployment.yaml`, deploymentYaml, 'utf8');
-      const siblingManifests = { 'pv-pvc.yaml': pvPvcYaml, 'proxy.yaml': proxyYaml, 'grpc-service.yaml': grpcServiceYaml };
+      const siblingManifests = {
+        'pv-pvc.yaml': pvPvcYaml,
+        'proxy.yaml': proxyYaml,
+        'grpc-service.yaml': grpcServiceYaml,
+      };
       for (const [name, content] of Object.entries(siblingManifests)) {
         if (!content) continue;
         fs.writeFileSync(`${envManifestPath}/${name}`, content, 'utf8');

@@ -1,6 +1,5 @@
 name: CD | Engine cyberia | remote ssh
 on:
-  push:
   workflow_dispatch:
     inputs:
       job:
@@ -18,12 +17,7 @@ permissions:
 
 jobs:
   deploy:
-    if: >-
-      github.repository == 'underpostnet/engine'
-      && (
-        startsWith(github.event.head_commit.message, 'cd(ssh-engine-cyberia)')
-        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'deploy')
-      )
+    if: github.event.inputs.job == 'deploy'
     name: Remote SSH deployment
     runs-on: ubuntu-latest
     steps:
@@ -53,12 +47,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-cyberia"
   sync-and-deploy:
-    if: >-
-      github.repository == 'underpostnet/engine'
-      && (
-        startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-cyberia)')
-        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'sync-and-deploy')
-      )
+    if: github.event.inputs.job == 'sync-and-deploy'
     name: Remote SSH sync and deploy
     runs-on: ubuntu-latest
     steps:
@@ -104,12 +93,7 @@ jobs:
               node bin client dd-cyberia && \
               underpost run start dd-cyberia production --run'
   init:
-    if: >-
-      github.repository == 'underpostnet/engine'
-      && (
-        startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-cyberia)')
-        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'init')
-      )
+    if: github.event.inputs.job == 'init'
     name: Remote SSH init deployment
     runs-on: ubuntu-latest
     steps:
