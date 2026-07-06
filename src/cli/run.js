@@ -52,6 +52,7 @@ const logger = loggerFactory(import.meta);
 /**
  * @constant DEFAULT_OPTION
  * @description Default options for the UnderpostRun class.
+ * @typedef {Object} UnderpostRunDefaultOptions
  * @type {Object}
  * @property {boolean} dev - Whether to run in development mode.
  * @property {string} podName - The name of the pod to run.
@@ -215,7 +216,7 @@ class UnderpostRun {
      * @method dev-cluster
      * @description Resets and deploys a full development cluster including MongoDB, Valkey, exposes services, and updates `/etc/hosts` for local access.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'dev-cluster': (path, options = DEFAULT_OPTION) => {
@@ -297,7 +298,7 @@ class UnderpostRun {
      * @method metadata
      * @description Generates metadata for the specified path after exposing the development cluster.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     metadata: async (path, options = DEFAULT_OPTION) => {
@@ -322,7 +323,7 @@ class UnderpostRun {
      * @method svc-ls
      * @description Lists systemd services and installed packages, optionally filtering by the provided path.
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional filter for services and packages).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'svc-ls': (path, options = DEFAULT_OPTION) => {
@@ -342,7 +343,7 @@ class UnderpostRun {
      * @method svc-rm
      * @description Removes a systemd service by stopping it, disabling it, uninstalling the package, and deleting related files.
      * @param {string} path - The input value, identifier, or path for the operation (used as the service name).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'svc-rm': (path, options = DEFAULT_OPTION) => {
@@ -357,7 +358,7 @@ class UnderpostRun {
      * @method ssh-deploy-info
      * @description Retrieves deployment status and pod information from a remote server via SSH.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'ssh-deploy-info': async (path = '', options = DEFAULT_OPTION) => {
@@ -401,7 +402,7 @@ class UnderpostRun {
      * skipped (move the owning controller). StatefulSets bound to node-local PVs may stay
      * Pending after a move until their volume is available on the target node.
      * @param {string} path - Resource selector (`kind/name`, `kind`, or empty).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      * @returns {Array<{ref:string,kind:string,status:string,node?:string}>} Per-resource outcome.
      */
@@ -601,7 +602,7 @@ class UnderpostRun {
      * @method dev-hosts-expose
      * @description Deploys a specified service in development mode with `/etc/hosts` modification for local access.
      * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'dev-hosts-expose': (path, options = DEFAULT_OPTION) => {
@@ -614,7 +615,7 @@ class UnderpostRun {
      * @method dev-hosts-restore
      * @description Restores the `/etc/hosts` file to its original state after modifications made during development deployments.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'dev-hosts-restore': (path, options = DEFAULT_OPTION) => {
@@ -625,7 +626,7 @@ class UnderpostRun {
      * @method cluster-build
      * @description Build configuration for cluster deployment.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'cluster-build': (path, options = DEFAULT_OPTION) => {
@@ -649,7 +650,7 @@ class UnderpostRun {
      * and optionally triggers engine-<conf-id> CI with sync/init which in turn dispatches the CD workflow
      * after the build chain completes (template → ghpkg → engine-<conf-id> → CD).
      * @param {string} path - The deployment path identifier (e.g., 'sync-engine-core', 'init-engine-core', or empty for build-only).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'template-deploy': (path = '', options = DEFAULT_OPTION) => {
@@ -730,7 +731,7 @@ class UnderpostRun {
      * @method template-deploy-local
      * @description Similar to `template-deploy` but runs the workflow locally without dispatching GitHub Actions. It pulls the latest changes, pushes to GitHub, builds the template, and optionally triggers a local release with CI push.
      * @param {string} path - The deployment path identifier (e.g., 'sync-engine-core', 'init-engine-core', or empty for build-only).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'template-deploy-local': async (path, options = DEFAULT_OPTION) => {
@@ -766,11 +767,11 @@ class UnderpostRun {
      * @description Dispatches the Docker image CI workflow (`docker-image[.<runtime>].ci.yml`) via `workflow_dispatch`.
      * Repository resolution is delegated to `Underpost.repo.resolveInstanceRepo(path)`.
      * @param {string} path - Optional runtime / workflow suffix (e.g. `cyberia-server`, `cyberia-client`).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'docker-image': (path, options = DEFAULT_OPTION) => {
-      const repo = Underpost.repo.resolveInstanceRepo(path);
+      const repo = Underpost.repo.resolveInstanceRepo(path, options.dev);
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: `docker-image${path ? `.${path}` : ''}${options.dev ? '.dev' : ''}.ci.yml`,
@@ -782,7 +783,7 @@ class UnderpostRun {
      * @method clean
      * @description Changes directory to the provided path (defaulting to `/home/dd/engine`) and runs `node bin/deploy clean-core-repo`.
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional directory path).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     clean: (path = '', options = DEFAULT_OPTION) => {
@@ -793,7 +794,7 @@ class UnderpostRun {
      * @method pull
      * @description Clones or pulls updates for the `engine` and `engine-private` repositories into `/home/dd/engine` and `/home/dd/engine/engine-private`.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     pull: (path, options = DEFAULT_OPTION) => {
@@ -820,7 +821,7 @@ class UnderpostRun {
      * @method release-deploy
      * @description Executes deployment (`underpost run deploy`) for all deployment IDs listed in `./engine-private/deploy/dd.router`.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'release-deploy': (path, options = DEFAULT_OPTION) => {
@@ -836,7 +837,7 @@ class UnderpostRun {
      * @method ssh-deploy
      * @description Dispatches the corresponding CD workflow for SSH-based deployment, replacing empty commits with workflow_dispatch.
      * @param {string} path - The deployment identifier (e.g., 'engine-core', 'sync-engine-core', 'init-engine-core').
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'ssh-deploy': (path, options = DEFAULT_OPTION) => {
@@ -851,7 +852,7 @@ class UnderpostRun {
         job = 'init';
         confId = path.replace(/^init-/, '');
       }
-      const repo = Underpost.repo.resolveInstanceRepo(confId);
+      const repo = Underpost.repo.resolveInstanceRepo(confId, options.dev);
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: `${confId}.cd.yml`,
@@ -864,7 +865,7 @@ class UnderpostRun {
      * @description Opens a Visual Studio Code (VS Code) session for the specified path using `node ${underpostRoot}/bin/zed ${path}`,
      * or installs Zed and sublime-text IDE if `path` is 'install'.
      * @param {string} path - The input value, identifier, or path for the operation (used as the path to the directory to open in the IDE).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     ide: (path = '', options = DEFAULT_OPTION) => {
@@ -891,7 +892,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method crypto-policy
      * @description Sets the system's crypto policies to `DEFAULT:SHA1` using `update-crypto-policies` command.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'crypto-policy': (path, options = DEFAULT_OPTION) => {
@@ -906,7 +907,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * `deployment.yaml`. Useful when you want to force `Always` so the kubelet re-pulls a mutable tag on every rollout. Example:
      *   `node bin run sync dd-core --kubeadm --image-pull-policy Always`
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing deploy parameters).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     sync: async (path, options = DEFAULT_OPTION) => {
@@ -1000,7 +1001,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method stop
      * @description Stops a deployment by deleting the corresponding Kubernetes deployment and service resources.
      * @param {string} path - The input value, identifier, or path for the operation (used to determine which traffic to stop).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     stop: async (path = '', options = DEFAULT_OPTION) => {
@@ -1024,7 +1025,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method ssh-deploy-stop
      * @description Stops a remote deployment via SSH by executing the appropriate Underpost command on the remote server.
      * @param {string} path - The input value, identifier, or path for the operation (used to determine which traffic to stop).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'ssh-deploy-stop': async (path, options = DEFAULT_OPTION) => {
@@ -1051,7 +1052,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method ssh-deploy-db-rollback
      * @description Performs a database rollback on remote deployment via SSH.
      * @param {string} path - Comma-separated deployId and optional number of commits to reset (format: "deployId,nCommits")
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @param {string} options.deployId - The deployment identifier
      * @param {string} options.user - The SSH user for credential lookup
      * @param {boolean} options.dev - Development mode flag
@@ -1078,7 +1079,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method ssh-deploy-db
      * @description Imports/restores a database on remote deployment via SSH.
      * @param {string} path - The deployment ID for database import
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @param {string} options.deployId - The deployment identifier
      * @param {string} options.user - The SSH user for credential lookup
      * @param {boolean} options.dev - Development mode flag
@@ -1103,7 +1104,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method ssh-deploy-db-status
      * @description Retrieves database status/stats for a deployment (or all deployments from dd.router) via SSH.
      * @param {string} path - Comma-separated deployId(s) or 'dd' to use the dd.router list.
-     * @param {Object} options - Runner options (uses options.deployId for SSH host lookup).
+     * @param {UnderpostRunDefaultOptions} options - Runner options (uses options.deployId for SSH host lookup).
      * @param {string} options.deployId - Deployment identifier used for SSH config lookup.
      * @param {string} options.user - SSH user for credential lookup.
      * @param {boolean} options.dev - Development mode flag.
@@ -1149,7 +1150,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method tz
      * @description Sets the system timezone using `timedatectl set-timezone` command.
      * @param {string} path - The input value, identifier, or path for the operation (used as the timezone string).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     tz: (path, options = DEFAULT_OPTION) => {
@@ -1170,7 +1171,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method get-proxy
      * @description Retrieves and logs the HTTPProxy resources in the specified namespace using `kubectl get HTTPProxy`.
      * @param {string} path - The input value, identifier, or path for the operation (used as an optional filter for the HTTPProxy resources).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'get-proxy': async (path = '', options = DEFAULT_OPTION) => {
@@ -1277,7 +1278,7 @@ EOF
     /**
      * @method instance
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing workflow parameters).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     instance: async (path = '', options = DEFAULT_OPTION) => {
@@ -1453,7 +1454,7 @@ EOF
      * @method deploy-key
      * @description Copies the deploy key for a specific user and deployId to a temporary location on the local machine.
      * @param {string} path - The input value, identifier, or path for the operation (not used in this method).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @param {string} options.user - The user for which to copy the deploy key.
      * @param {string} options.deployId - The deployment identifier associated with the deploy key.
      * @memberof UnderpostRun
@@ -1492,7 +1493,7 @@ EOF
      *   `<projectPath>/manifests/<env>/deployment.yaml`.
      *   In production, files are also copied to `<projectPath>/Dockerfile` and
      *   `<projectPath>/deployment.yaml`.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'instance-build-manifest': (path, options = DEFAULT_OPTION) => {
@@ -1750,7 +1751,7 @@ EOF
      * @method ls-deployments
      * @description Retrieves and logs a table of Kubernetes deployments using `Underpost.deploy.get`.
      * @param {string} path - The input value, identifier, or path for the operation (used as an optional deployment name filter).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'ls-deployments': async (path, options = DEFAULT_OPTION) => {
@@ -1761,7 +1762,7 @@ EOF
      * @method host-update
      * @description Executes the `rocky-setup.sh` script to update the host system configuration.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'host-update': async (path, options = DEFAULT_OPTION) => {
@@ -1777,7 +1778,7 @@ EOF
      * the systemd cgroup driver, enables the `crio` service, and writes `/etc/crictl.yaml`
      * so that `crictl` targets the CRI-O socket by default.
      * @param {string} path - Unused.
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @memberof UnderpostRun
      */
     'install-crio': (path, options = DEFAULT_OPTION) => {
@@ -1828,7 +1829,7 @@ EOF`);
      * @method dd-container
      * @description Deploys a development or debug container tasks jobs, setting up necessary volumes and images, and running specified commands within the container.
      * @param {string} path - The input value, identifier, or path for the operation (used as the command to run inside the container).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'dd-container': async (path = '', options = DEFAULT_OPTION) => {
@@ -1887,7 +1888,7 @@ EOF`);
      * @method ip-info
      * @description Executes the `ip-info.sh` script to display IP-related information for the specified path.
      * @param {string} path - The input value, identifier, or path for the operation (used as an argument to the script).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'ip-info': (path, options = DEFAULT_OPTION) => {
@@ -1900,7 +1901,7 @@ EOF`);
      * @method db-client
      * @description Deploys and exposes the Adminer database client application (using `adminer:4.7.6-standalone` image) on the cluster.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'db-client': async (path, options = DEFAULT_OPTION) => {
@@ -1927,7 +1928,7 @@ EOF`);
      * @method git-conf
      * @description Configures Git global and local user name and email settings based on the provided `path` (formatted as `username,email`), or defaults to environment variables.
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string: `username,email`).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'git-conf': (path = '', options = DEFAULT_OPTION) => {
@@ -1975,7 +1976,7 @@ EOF`);
      * TLS config, deletes stale Certificate resources, then reapplies the proxy and secret.yaml
      * (cert-manager Certificate resources) for each affected deployment.
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string: `deployId,env,replicas`).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     promote: async (path, options = DEFAULT_OPTION) => {
@@ -2029,7 +2030,7 @@ EOF`);
      * @method metrics
      * @description Deploys Prometheus and Grafana for metrics monitoring, targeting the hosts defined in the deployment configuration files.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     metrics: async (path, options = DEFAULT_OPTION) => {
@@ -2067,7 +2068,7 @@ EOF`);
      * @method cluster
      * @description Deploys a full production/development ready Kubernetes cluster environment including MongoDB, MariaDB, Valkey, Contour (Ingress), and Cert-Manager, and deploys all services.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     cluster: async (path = '', options = DEFAULT_OPTION) => {
@@ -2129,7 +2130,7 @@ EOF`);
      * @method deploy
      * @description Deploys a specified service (identified by `path`) using blue/green strategy, monitors its status, and switches traffic upon readiness.
      * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     deploy: async (path, options = DEFAULT_OPTION) => {
@@ -2154,7 +2155,7 @@ EOF`);
      * @method disk-clean
      * @description Executes the `disk-clean-sh` script to perform disk cleanup operations.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'disk-clean': async (path, options = DEFAULT_OPTION) => {
@@ -2167,7 +2168,7 @@ EOF`);
      * @method disk-devices
      * @description Executes the `disk-devices.sh` script to display information about disk devices.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'disk-devices': async (path = '/', options = DEFAULT_OPTION) => {
@@ -2180,7 +2181,7 @@ EOF`);
      * @method disk-usage
      * @description Displays disk usage statistics using the `du` command, sorted by size.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'disk-usage': async (path = '/', options = DEFAULT_OPTION) => {
@@ -2195,7 +2196,7 @@ EOF`);
      * @method dev
      * @description Starts development servers for client, API, and proxy based on provided parameters (deployId, host, path, clientHostPort).
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,subConf,host,path,clientHostPort`).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     dev: async (path = '', options = DEFAULT_OPTION) => {
@@ -2255,7 +2256,7 @@ EOF`);
      * @method service
      * @description Deploys and exposes specific services (like `mongo-express-service`) on the cluster, updating deployment configurations and monitoring status.
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,serviceId,host,path,replicas,image,node`).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     service: async (path = '', options = DEFAULT_OPTION) => {
@@ -2351,7 +2352,7 @@ EOF`);
      * @method etc-hosts
      * @description Generates and logs the contents for the `/etc/hosts` file based on provided hosts or deployment configurations.
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated list of hosts).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'etc-hosts': async (path = '', options = DEFAULT_OPTION) => {
@@ -2368,7 +2369,7 @@ EOF`);
      * @method sh
      * @description Enables remote control for the Kitty terminal emulator.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     sh: async (path = '', options = DEFAULT_OPTION) => {
@@ -2388,7 +2389,7 @@ EOF`);
      * @method log
      * @description Searches and highlights keywords in a specified log file, optionally showing surrounding lines.
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `filePath,keywords,lines`).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     log: async (path, options = DEFAULT_OPTION) => {
@@ -2405,7 +2406,7 @@ EOF`);
      * @method ps
      * @description Displays running processes that match a specified path or keyword.
      * @param {string} path - The input value, identifier, or path for the operation (used as a keyword to filter processes).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     ps: async (path = '', options = DEFAULT_OPTION) => {
@@ -2430,7 +2431,7 @@ EOF`);
      * @method pid-info
      * @description Displays detailed information about a process by PID, including service details, command line, executable path, working directory, environment variables, and parent process tree.
      * @param {string} path - The PID of the process to inspect.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'pid-info': (path, options = DEFAULT_OPTION) => {
@@ -2470,7 +2471,7 @@ EOF`);
      * @method background
      * @description Runs a custom command in the background using nohup, logging output to `/var/log/<id>.log` and saving the PID to `/var/run/<id>.pid`.
      * @param {string} path - The command to run in the background (e.g. 'npm run prod:container dd-cyberia-r3').
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     background: (path, options = DEFAULT_OPTION) => {
@@ -2490,7 +2491,7 @@ EOF`);
      * @method ports
      * @description Set on ~/.bashrc alias: ports <port> Command to list listening ports that match the given keyword.
      * @param {string} path - The input value, identifier, or path for the operation (used as a keyword to filter listening ports).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     ports: async (path = '', options = DEFAULT_OPTION) => {
@@ -2502,7 +2503,7 @@ EOF`);
      * @method deploy-test
      * @description Deploys a test deployment (`dd-test`) in either development or production mode, setting up necessary secrets and starting the deployment.
      * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'deploy-test': async (path, options = DEFAULT_OPTION) => {
@@ -2527,7 +2528,7 @@ EOF`);
      * @method tf-vae-test
      * @description Creates and runs a job pod (`tf-vae-test`) that installs TensorFlow dependencies, clones the TensorFlow docs, and runs the CVAE tutorial script, with a terminal monitor attached.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'tf-vae-test': async (path, options = DEFAULT_OPTION) => {
@@ -2627,7 +2628,7 @@ EOF`);
      * @method spark-template
      * @description Creates a new Spark template project using `sbt new` in `/home/dd/spark-template`, initializes a Git repository, and runs `replace_params.sh` and `build.sh`.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'spark-template': (path, options = DEFAULT_OPTION) => {
@@ -2655,7 +2656,7 @@ EOF`);
      * @method pull-rocky-image
      * @description Pulls the base `rockylinux:9` image from Docker Hub via Podman.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'pull-rocky-image': (path, options = DEFAULT_OPTION) => {
@@ -2665,7 +2666,7 @@ EOF`);
      * @method rmi
      * @description Forces the removal of all local Podman images (`podman rmi $(podman images -qa) --force`).
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     rmi: (path, options = DEFAULT_OPTION) => {
@@ -2675,7 +2676,7 @@ EOF`);
      * @method kill
      * @description Kills processes listening on the specified port(s). If the `path` contains a `+`, it treats it as a range of ports to kill.
      * @param {string} path - The input value, identifier, or path for the operation (used as the port number).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     kill: (path = '', options = DEFAULT_OPTION) => {
@@ -2707,7 +2708,7 @@ EOF`);
      * constraints (lowercase, uppercase, digit, special char, min 8 chars). Logs the plain password
      * to the console or, when `--copy` is set, copies it to the clipboard via pbcopy.
      * @param {string} path - Optional password length (default: 16).
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @param {boolean} options.copy - When true, copies to clipboard instead of logging.
      * @memberof UnderpostRun
      */
@@ -2741,7 +2742,7 @@ EOF`);
      * @method secret
      * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     secret: (path, options = DEFAULT_OPTION) => {
@@ -2754,7 +2755,7 @@ EOF`);
      * @method underpost-config
      * @description Calls `Underpost.deploy.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional configuration name/environment).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'underpost-config': (path = '', options = DEFAULT_OPTION) => {
@@ -2764,7 +2765,7 @@ EOF`);
      * @method gpu-env
      * @description Sets up a dedicated GPU development environment cluster, resetting and then setting up the cluster with `--dedicated-gpu` and monitoring the pods.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'gpu-env': (path, options = DEFAULT_OPTION) => {
@@ -2777,7 +2778,7 @@ EOF`);
      * @method tf-gpu-test
      * @description Deletes existing `tf-gpu-test-script` ConfigMap and `tf-gpu-test-pod`, and applies the test manifest from `manifests/deployment/tensorflow/tf-gpu-test.yaml`.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'tf-gpu-test': (path, options = DEFAULT_OPTION) => {
@@ -2791,7 +2792,7 @@ EOF`);
      * @method deploy-job
      * @description Creates and applies a custom Kubernetes Pod manifest (Job) for running arbitrary commands inside a container image (defaulting to a TensorFlow/NVIDIA image).
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional script path or job argument).
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'deploy-job': async (path, options = DEFAULT_OPTION) => {
@@ -2926,7 +2927,7 @@ EOF`;
      *   Only files matching `<host>-<route>.zip.part*` or `<host>-<route>.zip` for each non-skipped route are uploaded.
      * @param {string} path - Optional `fsPath.splitOption` string.
      *   Examples: `build` (default split 8), `build.16` (split 16 MB), `build.none-split` (no split flag).
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @param {string} [options.deployId] - Override deploy ID.
      * @param {boolean} [options.dev] - Use development environment; defaults to production.
      * @memberof UnderpostRun
@@ -3014,7 +3015,7 @@ EOF`;
      *   so that multi-path deployments are handled correctly.
      * @param {string} path - Optional comma-separated host name(s) to restrict processing (e.g. 'underpost.net' or 'a.com,b.com').
      *   If omitted, all hosts from `engine-private/conf/<deployId>/conf.server.json` are used.
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @param {string} [options.deployId] - Deploy ID for storage lookup (defaults to 'dd-default').
      * @param {boolean} [options.dev] - Use development environment; defaults to production.
      * @memberof UnderpostRun
@@ -3106,7 +3107,7 @@ EOF`;
      * @method build-cluster-deployment-manifests
      * @description Builds deployment manifests for both production and development environments using `node bin deploy --build-manifest`, syncing them, and setting replicas to 1 for the `dd` deployment.
      * @param {string} path - Unused.
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @memberof UnderpostRun
      */
     'build-cluster-deployment-manifests': (path = '', options = DEFAULT_OPTION) => {
@@ -3119,7 +3120,7 @@ EOF`;
      * @description Installs and enables the Cockpit KVM Dashboard (cockpit, cockpit-machines, libvirt)
      * and opens the cockpit firewall service. With `--remove`, closes the firewall service instead.
      * @param {string} path - Unused.
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      *   `options.remove` — when true, removes the cockpit firewall rule instead of adding it.
      * @memberof UnderpostRun
      */
@@ -3143,7 +3144,7 @@ EOF`;
      * Use `reload-shared-dir` for subsequent permission repairs without recreating the group.
      * @param {string} path - Target directory to set up (defaults to `/home/dd/engine`).
      *   Customise via the `path` argument or leave empty to use the default.
-     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      *   Key fields: `options.user` (default `'admin'`), `options.group` (default `'engine-dev'`).
      * @memberof UnderpostRun
      */
@@ -3171,7 +3172,7 @@ EOF`;
      * write throughout the shared workspace while preserving existing ownership.
      *
      * @param {string} path - Shared directory (defaults to `/home/dd/engine`).
-     * @param {Object} options - Underpost runner options.
+     * @param {UnderpostRunDefaultOptions} options - Underpost runner options.
      *   Key fields:
      *     - options.user  (default: 'admin')
      *     - options.group (default: 'engine-dev')
@@ -3219,7 +3220,7 @@ EOF`;
      * @description Executes a specified runner function from the UnderpostRun class with the provided path and options.
      * @param {string} runner - The name of the runner to execute.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      * @returns {Promise<any>} The result of the runner execution.
      */
@@ -3232,7 +3233,7 @@ EOF`;
      * @description Initiates the execution of a specified CLI command (runner) with the given input value (`path`) and processed options.
      * @param {string} runner - The name of the runner to execute.
      * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      * @returns {Promise<any>} The result of the callback execution.
      */

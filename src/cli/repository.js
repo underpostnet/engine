@@ -1346,15 +1346,12 @@ Prevent build private config repo.`,
       // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
       // `-c credential.helper=` disables any host-configured credential helper so its stderr
       // warnings don't pollute the ls-remote output; the token is already embedded in authUrl.
-      const raw = shellExec(
-        `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote "${authUrl}" HEAD 2>&1`,
-        {
-          stdout: true,
-          silent: true,
-          disableLog: true,
-          silentOnError: true,
-        },
-      );
+      const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote "${authUrl}" HEAD 2>&1`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+      });
       const refLine = typeof raw === 'string' ? (raw.match(/^[0-9a-f]{40}\t.*$/m) || [])[0] : undefined;
       const accessible = !!refLine;
       logger.info('isRemoteRepo', { url, accessible, ref: refLine || (raw || '').trim().split('\n').pop() });
@@ -1790,10 +1787,11 @@ Prevent build private config repo.`,
      *  4. Falls back to `${GITHUB_USERNAME}/engine` when no match is found.
      *
      * @param {string} [runtime=''] - The runtime identifier to look up (e.g. `'cyberia-server'`, `'cyberia-client'`).
+     * @param {boolean} [ownRuntimeRepo=false] - Whether to check for the runtime's own repository.
      * @returns {string} The resolved `owner/repo` string.
      * @memberof UnderpostRepository
      */
-    resolveInstanceRepo(runtime = '') {
+    resolveInstanceRepo(runtime = '', ownRuntimeRepo = false) {
       const fallback = `${process.env.GITHUB_USERNAME}/engine`;
       if (!runtime) return fallback;
       // A `.dev` suffix selects the development image workflow
@@ -1825,13 +1823,15 @@ Prevent build private config repo.`,
           logger.warn(`[resolveInstanceRepo] failed to parse ${confPath}: ${err.message}`);
         }
       }
-      const runtimeRepo = Underpost.repo.isRemoteRepo(`${process.env.GITHUB_USERNAME}/${runtime}`);
-      if (runtimeRepo) {
-        logger.info(`[resolveInstanceRepo] resolved from ${process.env.GITHUB_USERNAME}/${runtime}`, {
-          runtime,
-          repo: `${process.env.GITHUB_USERNAME}/${runtime}`,
-        });
-        return `${process.env.GITHUB_USERNAME}/${runtime}`;
+      if (ownRuntimeRepo) {
+        const runtimeRepo = Underpost.repo.isRemoteRepo(`${process.env.GITHUB_USERNAME}/${runtime}`);
+        if (runtimeRepo) {
+          logger.info(`[resolveInstanceRepo] resolved from ${process.env.GITHUB_USERNAME}/${runtime}`, {
+            runtime,
+            repo: `${process.env.GITHUB_USERNAME}/${runtime}`,
+          });
+          return `${process.env.GITHUB_USERNAME}/${runtime}`;
+        }
       }
       return fallback;
     },
