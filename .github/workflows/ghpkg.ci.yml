@@ -105,6 +105,9 @@ jobs:
           curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
           dnf install nodejs -y
 
+      - name: Install dependencies
+        run: npm install
+
       - name: Resolve canonical github package repo
         run: |
           CONF_ID="${{ github.event.inputs.conf_id }}"
@@ -140,8 +143,8 @@ jobs:
           cd engine-$CONF_ID
           rm -rf ./.git
           mv ../$GHPKG_REPO.git ./.git
-          node ./bin/deploy rename-package "$PACKAGE_NAME"
-          node ./bin/deploy set-repo underpostnet/$GHPKG_REPO
+          node ../engine/bin/deploy rename-package "$PACKAGE_NAME"
+          node ../engine/bin/deploy set-repo underpostnet/$GHPKG_REPO
           git init
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'
