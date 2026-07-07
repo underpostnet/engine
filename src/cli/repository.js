@@ -1262,16 +1262,39 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Resolves the default branch for a remote GitHub repository by querying
+     * `git ls-remote --symref` and extracting the HEAD ref target.
+     * Falls back to `main` when detection fails.
+     * @param {string} repo - The GitHub repository (e.g., "owner/repo").
+     * @returns {string} The default branch name (e.g. "main" or "master").
+     * @memberof UnderpostRepository
+     */
+    getDefaultBranch(repo) {
+      if (!repo) return 'main';
+      const authUrl = Underpost.repo.resolveAuthUrl(repo);
+      const raw = shellExec(
+        `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --symref "${authUrl}" HEAD 2>&1`,
+        { stdout: true, silent: true, disableLog: true, silentOnError: true },
+      );
+      // --symref emits a line like: ref: refs/heads/main	HEAD
+      const match = typeof raw === 'string' ? raw.match(/^ref:\s*refs\/heads\/(\S+)\tHEAD$/m) : null;
+      const branch = match ? match[1] : 'main';
+      logger.info('getDefaultBranch', { repo, branch });
+      return branch;
+    },
+
+    /**
      * Dispatches a GitHub Actions workflow using gh CLI or curl fallback.
      * @param {object} options - Dispatch options.
      * @param {string} options.repo - The GitHub repository (e.g., "owner/repo").
      * @param {string} options.workflowFile - The workflow file name (e.g., "engine-core.cd.yml").
-     * @param {string} [options.ref='master'] - The git ref to dispatch against.
+     * @param {string} [options.ref] - The git ref to dispatch against. Auto-detects the remote's default branch when omitted.
      * @param {object} [options.inputs={}] - Key-value inputs for the workflow_dispatch event.
      * @memberof UnderpostRepository
      */
-    dispatchWorkflow(options = { repo: '', workflowFile: '', ref: 'master', inputs: {} }) {
-      const { repo, workflowFile, ref, inputs } = options;
+    dispatchWorkflow(options = { repo: '', workflowFile: '', ref: '', inputs: {} }) {
+      const { repo, workflowFile, inputs } = options;
+      const ref = options.ref || Underpost.repo.getDefaultBranch(repo);
       const ghAvailable = shellExec('command -v gh 2>/dev/null', {
         stdout: true,
         silent: true,

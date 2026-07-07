@@ -765,7 +765,6 @@ class UnderpostRun {
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: `docker-image${path ? `.${path}` : ''}${options.dev ? '.dev' : ''}.ci.yml`,
-        ref: 'master',
         inputs: {},
       });
     },
