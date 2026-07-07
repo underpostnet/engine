@@ -431,8 +431,14 @@ export const RENDER_DEFAULTS = Object.freeze({
   defaultHeightScreenFactor: 1,
   interpolationMs: 100,
   devUi: false,
-  fontFamily: 'PressStart2P-Regular.ttf',
-  fontFactorSize: 0.8,
+  // EndlessBossBattleRegular-v7Ey.ttf
+  // Pixeboy-z8XGD.ttf
+  // PressStart2P-Regular.ttf
+  // VT323-Regular.ttf
+  // Jersey15-Regular.ttf
+
+  fontFamily: 'Jersey15-Regular.ttf',
+  fontFactorSize: 1.4,
 });
 
 /**
