@@ -14,7 +14,7 @@ RUN make -f Web.mk clean all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 
 # --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
-ARG UNDERPOST_VERSION=3.2.30
+ARG UNDERPOST_VERSION=3.2.70
 ARG NODE_VERSION=24.15.0
 
 RUN set -eux; \

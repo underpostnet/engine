@@ -81,7 +81,7 @@ services:
   # (dd-default-development-blue). Connection targets use Docker service
   # discovery instead of hardcoded localhost.
   app:
-    image: ${APP_IMAGE:-underpost/underpost-engine}:${APP_TAG:-v3.2.30}
+    image: ${APP_IMAGE:-underpost/underpost-engine}:${APP_TAG:-v3.2.70}
     container_name: dd-app
     # The start command is supplied by the generated override docker/compose.app.yml
     # (see `underpost docker-compose --generate --deploy-id <id>`), keeping this

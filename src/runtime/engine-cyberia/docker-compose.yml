@@ -160,7 +160,7 @@ services:
   # Serves the portal/REST/WS on 4005 and the engine gRPC data service on
   # 50051 (conf.server.json www.cyberiaonline.com.grpc).
   engine-cyberia:
-    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.2.30}
+    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.2.70}
     container_name: dd-cyberia-engine
     command:
       - /bin/sh
@@ -214,7 +214,7 @@ services:
   # (compose service DNS) instead of the K8s {{grpc-service-dns}} template used
   # in conf.instances.json. Uses the published image's default ENTRYPOINT.
   cyberia-server:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.2.30}
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.2.70}
     container_name: dd-cyberia-server
     environment:
       INSTANCE_CODE: ${INSTANCE_CODE:-FOREST}
@@ -247,7 +247,7 @@ services:
   # docker-driver.py defaults to CYBERIA_PORT=8082; override to 8081 so the whole
   # ecosystem (nginx upstream, healthcheck) stays on a single internal port.
   cyberia-client:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.2.30}
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.2.70}
     container_name: dd-cyberia-client
     environment:
       CYBERIA_PORT: '8081'

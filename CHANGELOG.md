@@ -1,6 +1,126 @@
 # Changelog
 
-## 2026-06-25
+## 2026-07-07
+
+### release
+
+- Enhance buildVersionBumpTargets patterns scope ([510abdd94](https://github.com/underpostnet/engine/commit/510abdd94faaa121b7f81a21450beba484de654b))
+
+### cli-repository
+
+- Add default branch resolution ([c5074d31c](https://github.com/underpostnet/engine/commit/c5074d31cac7046280d24d12e30a87ad2db86285))
+- FIx commit message propagation in CI engines workflows ([4b5458d83](https://github.com/underpostnet/engine/commit/4b5458d834efa88a1cf81ae32d517a71a4bb58f2))
+- Add runtimeRepo logic in  resolveInstanceRepo method ([1ef3ad279](https://github.com/underpostnet/engine/commit/1ef3ad27908989f3ab7f620500257b6e9ff76f4b))
+
+### github-actions
+
+- Clean comments ([785e9d55d](https://github.com/underpostnet/engine/commit/785e9d55d27351ad4d529e38f60d3962f9439fee))
+- Fix typo engine cyberia cd cmd command, and clean comments in cyberia-engine related dockerfiles ([d93dbf54a](https://github.com/underpostnet/engine/commit/d93dbf54a2ec44e1c1b4c01abd21e1baa0cf7fbc))
+- Fix add missing install dependencies in cyberia github package workflow ([8897dcdbb](https://github.com/underpostnet/engine/commit/8897dcdbbea619687165438f3ac64702480f4d23))
+- Add cyberia cli github package workflow ([6ae0ac5f7](https://github.com/underpostnet/engine/commit/6ae0ac5f76c08643171b4b3853c874ed26b423c1))
+- Add cyberia-server and cyberia-client CD workflows ([c92a6c278](https://github.com/underpostnet/engine/commit/c92a6c27810738c2c6a87962c6fefaf98060cb70))
+- Fix engine-cyberia CD  and engine-prototype CI manifests workflows ([3ca123dbf](https://github.com/underpostnet/engine/commit/3ca123dbf9d4d0cfbc1d504e6b0c847abd2f8757))
+- Add single source of truth for the underpost image version in ci dockerhub workflows ([97585e735](https://github.com/underpostnet/engine/commit/97585e735c1cd48c80e8c7af8601e14a79e233fd))
+- Update engine-cyberia default deployment node ([b181a5bd5](https://github.com/underpostnet/engine/commit/b181a5bd5254d2a692579c9c7d188161ae351e59))
+
+### engine-cyberia
+
+- Add sudo in engine-cyberia runtime dockerfiles ([3c3da0fcc](https://github.com/underpostnet/engine/commit/3c3da0fccc5b91c01722d3224146ae37ebcc6a27))
+- Update production engine-cyberia Dockerfile ([e1a9330e9](https://github.com/underpostnet/engine/commit/e1a9330e9c3325a8a1ee41318bbe48714deaf3a2))
+- Refactor Dockerfile and deployment configurations for production and development environments ([4901a3f92](https://github.com/underpostnet/engine/commit/4901a3f925ce038ede03b5e08c6b06eb03bc1617))
+- Refactor separate engine-cybera public engine URL from internal cyberia-server api engine base url endpoint ([48923d900](https://github.com/underpostnet/engine/commit/48923d90062dc934228c049a33f619dcdacd5cbc))
+- Add in runtime engine-cyberia module docker-compose env file related ([ae30329d4](https://github.com/underpostnet/engine/commit/ae30329d4e80d4911c3129ad042c623f74110462))
+- Add centralized node version arg and update to v24.15.0 id dockerfiles related ([64a649a1b](https://github.com/underpostnet/engine/commit/64a649a1b29a941b10d91879207e8a7ff76f48a2))
+- Update Dockerfile.dev use canonical repository ([12e439122](https://github.com/underpostnet/engine/commit/12e4391225ee207dd5e3edff93af4cfe667982dd))
+- Add ipfs cluster service in cyberia docker-compose deployment ([8ee19a3fa](https://github.com/underpostnet/engine/commit/8ee19a3fa5792ed800b03f45a0a677b0d6244450))
+- Move ffmpeg to runtime stage in docker-image build pipeline ([1fcca3783](https://github.com/underpostnet/engine/commit/1fcca3783add20e42c3c80a14dfdf9a9ff2b08a9))
+- Add engine-cyberia runtime module, docker-compose cyberia mmo ecosystem, and docker-image engine-cyberia dockerhub pipeline ([df2162b7d](https://github.com/underpostnet/engine/commit/df2162b7d755a814d36bd2da322c3e554496daa2))
+- Add behavior field, entity behavior vocabulary, and skill logic validation ([6ac9bcaf5](https://github.com/underpostnet/engine/commit/6ac9bcaf5eede564ae80ce74498c91eb9a4e4b20))
+- Refactor entity-type-default to subset matching resolution ([bf0aa9fe6](https://github.com/underpostnet/engine/commit/bf0aa9fe65523d0817d18b8796ce71b9be858955))
+- Add fontFamily+fontFactorSize;  in RENDER_DEFAULTS  and buildClientHints passthrough; client-hints model fields related logic ([34a1ee78b](https://github.com/underpostnet/engine/commit/34a1ee78bf8eba5ed1ffca5bad3c92f5eef5c4fd))
+- Add transport status definition for portal entities ([4cf015892](https://github.com/underpostnet/engine/commit/4cf015892eaafd58e6d65f19c7aeeaec3eccfb5e))
+- Implement cyberia-entity-type-default model and EntityEngineCyberia and related logic ([96c8c94ec](https://github.com/underpostnet/engine/commit/96c8c94ec4a0faf506232d3a1059e0c84f83edc6))
+- Add cyberia saga amethyst-strata-expansion custom resources ([6422570ab](https://github.com/underpostnet/engine/commit/6422570ab33b686016bed5f338cbbf8a0395f285))
+- Refactor questCodes field in cyberia-saga model and add actionCodes references ([93ffb7f0b](https://github.com/underpostnet/engine/commit/93ffb7f0bc8097769d3b9f3c4ffbf1c8359af18a))
+- Fix  idempotency consistency in atlasSpriteSheetId ref in export / import instance pipeline ([05e62ebbe](https://github.com/underpostnet/engine/commit/05e62ebbe0fc8284ee468b458818e19fc77298bb))
+- Add cyberia-saga documents in import / export cyberia instance pipelines ([e77583fc8](https://github.com/underpostnet/engine/commit/e77583fc8b129a875270ef8d7e1c40d61ecc7a18))
+- Update CLI and saga documentation for skills ([1655a5c87](https://github.com/underpostnet/engine/commit/1655a5c877c712210cbe83a35848896cdc5e4125))
+- CLI seed-skills, import/export, and server defaults skill config ([b2215cce2](https://github.com/underpostnet/engine/commit/b2215cce22c5499579a2df63db0ac301a0553feb))
+- Action engine skill editor with CyberiaSkill CRUD ([7a3f3b8d7](https://github.com/underpostnet/engine/commit/7a3f3b8d71272eee9a3c4fb9218d9152b2023776))
+- Saga generator skills stage and instance persistence ([669d991ca](https://github.com/underpostnet/engine/commit/669d991cac09dedf60b60c7261cb045cb7dd7f71))
+- Skill system - DefaultSkillConfig, gRPC server, CRUD API, and client service ([2e1997ebc](https://github.com/underpostnet/engine/commit/2e1997ebceb03723ea7ffd15ea61d950a3723414))
+- Instance model itemIds schema with defaultPlayerInventory flag ([342df03c3](https://github.com/underpostnet/engine/commit/342df03c3612cc82131b287e1f7545e3fcd7f9f8))
+- Add static entity type and shared direction/stat constants ([86ab2ffca](https://github.com/underpostnet/engine/commit/86ab2ffca38851ce870ee72c37221cbf260e5bd8))
+
+### cli-fs
+
+- Isolate Git tracking from JSON storage ([2f9145be9](https://github.com/underpostnet/engine/commit/2f9145be92456124118f9c7d74726bdff82dc5f3))
+
+### cli-run
+
+- Add typedef UnderpostRunDefaultOptions in cli runner module ([8a3580109](https://github.com/underpostnet/engine/commit/8a3580109d8f70a10c4ac2d216fbd35844e09541))
+- Add resolve runtimeRepo logic in  ssh-deploy runner ([1d4c26002](https://github.com/underpostnet/engine/commit/1d4c26002ac513fcde86c8839445e2b82fd55e50))
+- Add generate sibling manifests (pv-pvc, proxy, grpc-service) in instance-build-manifest runner ([36bf33b4b](https://github.com/underpostnet/engine/commit/36bf33b4b2ec34bac3925a4330b4eb5606cf8876))
+- Add dev mode in runner docker-image to trigger dev variant docker hub push ([bc1e23ac0](https://github.com/underpostnet/engine/commit/bc1e23ac0ce5c705e3d2f7b3e47546e1e3c583bb))
+- Fix custom instance artifact generator add custom --trafic flag inteast ([d6873f3c3](https://github.com/underpostnet/engine/commit/d6873f3c300d09f34cf5399f671b86ac5f4b8d55))
+- Add deploy key runner ([6164b0190](https://github.com/underpostnet/engine/commit/6164b0190e59510bdd51bb60d3064ba3a9c32a7b))
+- Add kubernetes-sigs metrics server runner setup ([4761c6351](https://github.com/underpostnet/engine/commit/4761c6351482fe27e84f47d4cf53946f8f04caa6))
+
+### cyberia-cli
+
+- Add missing deployment manifests copy to build cyberia-instance dir ([ee71573ee](https://github.com/underpostnet/engine/commit/ee71573eea0e979d883238744bee97714cf0b224))
+- Add publishing functionality for cyberia instances ([aaf8485bf](https://github.com/underpostnet/engine/commit/aaf8485bfd003a39dec59760c5dd2b2ffb051f3d))
+- Add method to fill empty fields  in Instance Conf Defaults export process ([6e1c268ae](https://github.com/underpostnet/engine/commit/6e1c268ae755b240abdfcd60ff0f26d2c35a9fe3))
+- Add docker-compose-dev-env-up runner workflow ([9e765185a](https://github.com/underpostnet/engine/commit/9e765185ad782f34cddddbc2862981416a830de4))
+- Add drop-db workflow to clear only cyberia collections ([5b741c22c](https://github.com/underpostnet/engine/commit/5b741c22cda0cf7c9ee531903769d466826cf133))
+- Add sync-src to engine runner logic ([a777e5ad6](https://github.com/underpostnet/engine/commit/a777e5ad69b1069eadb04846010a6d34508ce7c5))
+- Remove seed default dialogues in export instance logic ([1cbcb9e52](https://github.com/underpostnet/engine/commit/1cbcb9e52f1441ae10abb046bf356b49dd7fcfd2))
+- In cyberia instance export / import disabling overlaps queries for now because they can be very expensive and are not strictly necessary for a backup ([b7d7858d6](https://github.com/underpostnet/engine/commit/b7d7858d619edb9feac968c6fce2ac99d5978d24))
+
+### cyberia-api
+
+- Add moderator auth guard in cyberia api CRUD operations endpoints ([0373a052f](https://github.com/underpostnet/engine/commit/0373a052f257577b7afec887d18c982938b8de02))
+
+### client-cyberia
+
+- Add moderator guard for CRUD operations in cyberia components ([f746ea9ce](https://github.com/underpostnet/engine/commit/f746ea9ced0a0dac113129fb26f2d7f6df763f26))
+
+### cli-cyberia
+
+- Add cyberia run-workflow docker-image local tar builder runner ([a953dec8f](https://github.com/underpostnet/engine/commit/a953dec8f108a4d53d9fde07fae7149f5f0e2dd4))
+
+### cli-image
+
+- Add --import-tar flag option and logic ([5f00f64c9](https://github.com/underpostnet/engine/commit/5f00f64c9b9c41b6c6220c09c42345f378caee90))
+- Refactor and simplifi image build logic, and add support to load local tar in docker-compose ([f87523253](https://github.com/underpostnet/engine/commit/f8752325363bde9f8d18cefb0b348e570c00d9f9))
+
+### cluster
+
+- Enhance cluster and disk clean logic ([d9a079f7d](https://github.com/underpostnet/engine/commit/d9a079f7de4add9d7b30c0493d367f620c837d7b))
+
+### catalog
+
+- Add copies and moves options in catalog build logic ([b1940e067](https://github.com/underpostnet/engine/commit/b1940e067a9961581998e9adfd6ba39c62f35735))
+
+### engine-prototype
+
+- Remove ssr prototype components from base engine ([4f3e04f4b](https://github.com/underpostnet/engine/commit/4f3e04f4b5fcaca831139f4cdcd6ce871b50297d))
+
+### grpc-cyberia
+
+- Add behavior passthrough in entity defaults merge ([7998df262](https://github.com/underpostnet/engine/commit/7998df26276de1693054bbf3eb00a368edccfb67))
+- Fix merge entity defaults logic, preventing cross-instance entity defaults overlap ([0d64d6b8f](https://github.com/underpostnet/engine/commit/0d64d6b8ff40a1a889df9c767aa90052a08656f5))
+
+### cyberia-instance-engine
+
+- Implement handler for authoritative initial spawn for new players connections logic and aoi radius customization in intance engine component ([89d68aca0](https://github.com/underpostnet/engine/commit/89d68aca0152d1800d6632cddbd428409845a58a))
+
+### cyberia-map-engine
+
+- Add checkbox removeOnClick and enhance ui / ux ([5b557256f](https://github.com/underpostnet/engine/commit/5b557256fd17790913e9628440bd6e125d92ee0d))
+- Add in client component MapEngineCyberia.js renameFilteredObjectLayerItemId with random factor ([c6519a1c0](https://github.com/underpostnet/engine/commit/c6519a1c0b3dfab9ba7856e3dd03914bd14a846a))
+
+## New release v:3.2.30 (2026-06-25)
 
 ### server
 

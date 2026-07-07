@@ -191,7 +191,7 @@ services:
 MONGO_IMAGE=mongo:latest
 VALKEY_IMAGE=valkey/valkey:latest
 APP_IMAGE=underpost/underpost-engine
-APP_TAG=v3.2.30
+APP_TAG=v3.2.70
 PROXY_IMAGE=nginx:stable-alpine
 PROMETHEUS_IMAGE=prom/prometheus:latest
 GRAFANA_IMAGE=grafana/grafana:latest

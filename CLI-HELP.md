@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.30
+> underpost ci/cd cli v3.2.70
 
 **Usage:** `underpost [options] [command]`
 
@@ -212,10 +212,12 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--cached` | Commit staged changes only or context. |
 | `--hashes <hashes>` | Comma-separated list of specific file hashes of commits. |
 | `--extension <extension>` | specific file extensions of commits. |
-| `--changelog [latest-n]` | Print plain the changelog of the specified number of latest n commits, if no number is provided it will get the changelog to latest ci integration |
+| `--changelog` | Print the plain changelog of the last N commits (see --from-n-commit, default 1). |
 | `--changelog-build` | Builds a CHANGELOG.md file based on the commit history |
 | `--changelog-min-version <version>` | Sets the minimum version limit for --changelog-build (default: 2.85.0) |
 | `--changelog-no-hash` | Excludes commit hashes from the generated changelog entries (used with --changelog-build). |
+| `--changelog-msg` | Print the sanitized, commit-ready changelog message of the last N commits (see --from-n-commit, default 1). Empty when there are no tagged entries. |
+| `--from-n-commit <n>` | Number of latest commits to include in --changelog/--changelog-msg (default: 1). |
 | `--unpush` | With --log, automatically sets range to unpushed commits ahead of remote. |
 | `-b` | Shows the current Git branch name. |
 | `-p [branch]` | Shows the reflog for the specified branch. |
@@ -517,7 +519,7 @@ Manages secrets for various platforms.
 
 | Argument | Description |
 | --- | --- |
-| `platform` | The secret management platform. Options: underpost, globalSecretClean. |
+| `platform` | The secret management platform. Options: underpost, sanitizeSecretEnvFile, globalSecretClean. |
 
 #### Options
 
@@ -547,19 +549,21 @@ Manages Docker images, including building, saving, and loading into Kubernetes c
 | `--rm <image-id>` | Removes specified Underpost Dockerfile images. |
 | `--path [path]` | The path to the Dockerfile directory. |
 | `--image-name [image-name]` | Sets a custom name for the Docker image. |
-| `--image-path [image-path]` | Sets the output path for the tar image archive. |
+| `--image-out-path [image-out-path]` | Sets the output path for the tar image archive. |
 | `--dockerfile-name [dockerfile-name]` | Sets a custom name for the Dockerfile. |
 | `--podman-save` | Exports the built image as a tar file using Podman. |
-| `--pull-base` | Pulls base images and builds a "rockylinux9-underpost" image. |
+| `--pull-base` | Pulls the base image prerequisites (rockylinux:9) on the host; combine with --build. |
 | `--spec` | Get current cached list of container images used by all pods |
 | `--namespace <namespace>` | Kubernetes namespace for image operations (defaults to "default"). |
 | `--kind` | Set kind cluster env image context management. |
 | `--kubeadm` | Set kubeadm cluster env image context management. |
 | `--k3s` | Set k3s cluster env image context management. |
+| `--docker-compose` | Load the built image tar into the local Docker store for Docker Compose availability. |
 | `--node-name` | Set node name for kubeadm or k3s cluster env image context management. |
 | `--reset` | Performs a build without using the cache. |
 | `--dev` | Use development mode. |
 | `--pull-dockerhub <dockerhub-image>` | Sets a custom Docker Hub image for base image pulls. |
+| `--import-tar <tar-path>` | Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one. |
 | `-h, --help` | display help for command |
 
 ---
@@ -820,7 +824,7 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: dev-cluster,etc-hosts,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
+| `runner-id` | The runner ID to run. Options: dev-cluster,etc-hosts,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
 | `path` | The input value, identifier, or path for the operation. |
 
 #### Options
@@ -871,6 +875,7 @@ Runs specified scripts using various runners.
 | `--kubeadm` | Sets the kubeadm cluster context for the runner execution. |
 | `--k3s` | Sets the k3s cluster context for the runner execution. |
 | `--kind` | Sets the kind cluster context for the runner execution. |
+| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue). |
 | `--git-clean` | Runs git clean on volume mount paths before copying. |
 | `--deploy-id <deploy-id>` | Sets deploy id context for the runner execution. |
 | `--user <user>` | Sets user context for the runner execution. |
@@ -920,6 +925,7 @@ General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev 
 | `--reset` | Comprehensive teardown (equivalent to cluster --reset): removes all stack containers, the network, named volumes (destroys data), orphans, and generated artifacts. |
 | `--force` | Force reinstall (--install), remove volumes (--down), or also drop the env-file (--reset). |
 | `--deploy-id <deploy-id>` | Deployment to run as the app container (default: dd-default). 'dd-default' self-bootstraps a fresh engine; any other id runs the standard 'underpost start' command (mirrors src/cli/deploy.js). |
+| `--docker-compose-id <docker-compose-id>` | Selects a canonical custom-workflow stack at engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/ (docker-compose.yml + compose.env + nginx.conf, used as-is; nginx/env generation is skipped). e.g. --deploy-id dd-cyberia --docker-compose-id cyberia for the Cyberia MMO ecosystem. |
 | `--env <env>` | Deployment environment for non-default deploy ids (default: development). |
 | `--generate` | Render dynamic supporting files (nginx router config, env-file, app-command override). |
 | `--up` | Start the full stack detached (regenerates config first). |
