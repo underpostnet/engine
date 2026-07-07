@@ -117,7 +117,51 @@ const buildVersionBumpTargets = () => [
       /(underpost-engine:v)\d+\.\d+\.\d+/g,
       /(type=raw,value=v)\d+\.\d+\.\d+/g,
       /(UNDERPOST_VERSION=)\d+\.\d+\.\d+/g,
+      /(UNDERPOST_VERSION:\s*['"]?)\d+\.\d+\.\d+/g,
     ],
+  },
+
+  // ── Docker-compose image-tag defaults. Root compose + generator + cyberia runtime compose.
+  //    Tags live in `${VAR:-vX.Y.Z}` / `VAR=vX.Y.Z` shapes bumpp cannot detect. ──
+  {
+    file: 'docker-compose.yml',
+    patterns: /(_TAG:-v)\d+\.\d+\.\d+/g,
+  },
+  {
+    file: 'src/cli/docker-compose.js',
+    patterns: /(_TAG=v)\d+\.\d+\.\d+/g,
+  },
+  {
+    file: 'src/runtime/engine-cyberia/docker-compose.yml',
+    patterns: /(_TAG:-v)\d+\.\d+\.\d+/g,
+  },
+
+  // ── Cyberia CLI dev image tar/name defaults (bin/cyberia.js). ──
+  {
+    file: 'bin/cyberia.js',
+    patterns: [/(-dev_v)\d+\.\d+\.\d+(?=\.tar)/g, /(-dev:v)\d+\.\d+\.\d+/g],
+  },
+
+  // ── Runtime Dockerfiles: `ARG UNDERPOST_VERSION=X.Y.Z` build-arg defaults. ──
+  {
+    dir: 'src/runtime',
+    match: /^Dockerfile(\.\w+)?$/,
+    patterns: /(ARG UNDERPOST_VERSION=)\d+\.\d+\.\d+/g,
+    recursive: true,
+  },
+
+  // ── Runtime compose.env shipped tag defaults ──
+  {
+    dir: 'src/runtime',
+    match: /^compose\.env$/,
+    patterns: /(_TAG=v)\d+\.\d+\.\d+/g,
+    recursive: true,
+  },
+
+  // ── Deploy-monitor smoke-test image default (scripts/test-monitor.sh). ──
+  {
+    file: 'scripts/test-monitor.sh',
+    patterns: /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
   },
 
   // ── engine-private confs (gitignored — bumped only if present). ──
