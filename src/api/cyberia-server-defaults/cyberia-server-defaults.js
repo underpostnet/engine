@@ -741,7 +741,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
 
   // ── World / AOI ────────────────────────────────────────────────────
   aoiRadius: 10,
-  portalHoldTimeMs: 1000,
+  portalHoldTimeMs: 3000,
   portalSpawnRadius: 3,
 
   // ── Entity base stats ──────────────────────────────────────────────
