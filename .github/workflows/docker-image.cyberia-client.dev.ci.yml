@@ -1,20 +1,8 @@
 name: CI | Docker Image cyberia-client (dev)
 
-# Development variant of docker-image.cyberia-client.ci.yml. Publishes
-# underpost/cyberia-client-dev (note the `-dev` suffix) from the dev Dockerfile
-# (./Dockerfile.dev, synced into this repo from src/runtime/cyberia-client/
-# Dockerfile.dev by `node bin run instance-build-manifest`). Used only by the
-# development docker-compose stack.
-#
-# The dev Dockerfile builds the WASM bundle with BUILD_MODE=DEBUG (DWARF symbols,
-# asserts, source maps) and serves it with CYBERIA_PORT=8082 by default; the
-# compose stack overrides CYBERIA_PORT to keep the ecosystem on 8081.
-
 on:
   workflow_dispatch:
 
-# Single source of truth for the image version: the metadata tag (vX.Y.Z) and
-# the baked underpost CLI (ARG UNDERPOST_VERSION) always move together.
 env:
   UNDERPOST_VERSION: '3.2.30'
 
@@ -50,16 +38,11 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v7
         with:
-          # Build context is the cyberia-client repo root. Dockerfile.dev is the
-          # project-root dev variant synced from src/runtime/cyberia-client/
-          # Dockerfile.dev in the engine repo by `instance-build-manifest`.
           context: .
           file: ./Dockerfile.dev
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Keep the underpost CLI aligned with the image tag; build the WASM
-          # bundle in DEBUG mode for the development image.
           build-args: |
             UNDERPOST_VERSION=${{ env.UNDERPOST_VERSION }}
             BUILD_MODE=DEBUG

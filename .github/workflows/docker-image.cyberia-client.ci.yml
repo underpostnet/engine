@@ -1,17 +1,8 @@
 name: CI | Docker Image cyberia-client
 
-# Source-of-truth template living in the engine repo.
-# `node bin run instance-build-manifest dd-cyberia,mmo-client,./cyberia-client`
-# syncs it into ./cyberia-client/.github/workflows/ so it ships in
-# underpostnet/cyberia-client and can be dispatched by
-# `node bin run docker-image cyberia-client` (which resolves the target
-# repo from conf.instances.json `metadata.repository`).
-
 on:
   workflow_dispatch:
 
-# Single source of truth for the image version: the metadata tag (vX.Y.Z) and
-# the baked underpost CLI (ARG UNDERPOST_VERSION) always move together.
 env:
   UNDERPOST_VERSION: '3.2.30'
 
@@ -47,20 +38,12 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v7
         with:
-          # Build context is the cyberia-client repo root. The
-          # Dockerfile here is a project-root variant (COPY . . rather
-          # than COPY cyberia-client/ .) synced from
-          # src/runtime/cyberia-client/ in the engine repo by
-          # `instance-build-manifest`.
           context: .
           file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Keep the underpost CLI installed in the image aligned with the
-          # image tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
-          # BUILD_MODE defaults to RELEASE inside the Dockerfile; override
-          # via workflow_dispatch input if a DEBUG image is ever needed.
+
           build-args: |
             UNDERPOST_VERSION=${{ env.UNDERPOST_VERSION }}
             BUILD_MODE=RELEASE

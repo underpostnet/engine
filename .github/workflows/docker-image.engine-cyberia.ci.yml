@@ -1,22 +1,8 @@
 name: CI | Docker Image engine-cyberia
 
-# Publishes the Cyberia content-authority engine image (underpost/engine-cyberia)
-# to Docker Hub. Unlike the cyberia-server / cyberia-client workflows — which are
-# synced into standalone project repos — this one builds directly from the engine
-# repo root: `node bin run docker-image engine-cyberia` resolves the target repo
-# via Underpost.repo.resolveInstanceRepo('engine-cyberia'), which falls back to
-# `${GITHUB_USERNAME}/engine` (this repo) since engine-cyberia is the parent
-# dd-cyberia deploy, not a child instance in conf.instances.json.
-#
-# The image ships only the underpost CLI: at container start it bootstraps the
-# private dd-cyberia deploy (clone + build + run), so the Docker build context is
-# minimal and needs no engine sources.
-
 on:
   workflow_dispatch:
 
-# Single source of truth for the image version: the metadata tag (vX.Y.Z) and
-# the baked underpost CLI (ARG UNDERPOST_VERSION) always move together.
 env:
   UNDERPOST_VERSION: '3.2.30'
 
@@ -57,15 +43,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Keep the underpost CLI baked into the image aligned with the image
-          # tag. The Dockerfile accepts ARG UNDERPOST_VERSION.
+
           build-args: |
             UNDERPOST_VERSION=${{ env.UNDERPOST_VERSION }}
-          # GitHub credentials for cloning the private dd-cyberia deploy are
-          # passed as BuildKit secrets (never build-args), so they are mounted
-          # only for the build RUN and never persist in any layer or history.
-          # NOTE: cloning the private engine-cyberia repo needs a PAT with access
-          # to it; swap `secrets.GITHUB_TOKEN` for your PAT secret if required.
+
           secrets: |
             github_token=${{ secrets.GITHUB_TOKEN }}
             github_username=${{ github.actor }}
