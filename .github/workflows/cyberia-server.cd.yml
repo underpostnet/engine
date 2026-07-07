@@ -37,4 +37,4 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin/build dd-cyberia --conf"
-            sudo -n -- /bin/bash -lc "node bin run instance --node-name $HOSTNAME --kubeadm 'dd-cyberia,mmo-server' --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9"
+            sudo -n -- /bin/bash -lc "node bin run instance --image-pull-policy Always --node-name $HOSTNAME --kubeadm 'dd-cyberia,mmo-server' --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9"
