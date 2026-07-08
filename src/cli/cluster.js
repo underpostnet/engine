@@ -902,10 +902,9 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
         { silentOnError: true },
       );
       // Podman native — on this host images/overlays live under /var/lib/containers/storage.
-      shellExec(
-        `if command -v podman >/dev/null 2>&1; then sudo podman system prune ${a}--volumes -f; fi`,
-        { silentOnError: true },
-      );
+      shellExec(`if command -v podman >/dev/null 2>&1; then sudo podman system prune ${a}--volumes -f; fi`, {
+        silentOnError: true,
+      });
       if (options.crictl) {
         const ep = options.criSocket ? `--runtime-endpoint ${options.criSocket} ` : '';
         shellExec(
@@ -1198,13 +1197,34 @@ exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF`);
       shellExec(`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`);
 
-      // Install Helm
-      shellExec(`curl -fsSL -o get_helm.sh https://cdn.jsdelivr.net/gh/helm/helm@main/scripts/get-helm-3`);
-      shellExec(`chmod 700 get_helm.sh`);
-      shellExec(`./get_helm.sh`);
-      shellExec(`chmod +x /usr/local/bin/helm`);
-      shellExec(`sudo mv /usr/local/bin/helm /bin/helm`);
-      shellExec(`sudo rm -rf get_helm.sh`);
+      // Install Helm — check if already installed and linked to /bin/helm first
+      const helmBin = shellExec(`test -x /bin/helm && echo exists || echo missing`, {
+        stdout: true,
+        silent: true,
+      }).trim();
+      const helmLocalBin = shellExec(`test -x /usr/local/bin/helm && echo exists || echo missing`, {
+        stdout: true,
+        silent: true,
+      }).trim();
+
+      if (helmBin === 'exists') {
+        logger.info('Helm is already installed and linked to /bin/helm; skipping.');
+      } else if (helmLocalBin === 'exists') {
+        // Helm binary exists at /usr/local/bin but not linked to /bin/helm
+        logger.info('Helm found at /usr/local/bin; linking to /bin/helm...');
+        shellExec(`sudo ln -sf /usr/local/bin/helm /bin/helm`);
+      } else {
+        // Helm not installed — download and install
+        shellExec(`curl -fsSL -o get_helm.sh https://cdn.jsdelivr.net/gh/helm/helm@main/scripts/get-helm-3`);
+        shellExec(`chmod 700 get_helm.sh`);
+        // Run get_helm.sh but ignore its exit code — it may fail on PATH check
+        // even when installation succeeds (binary placed at /usr/local/bin).
+        shellExec(`bash ./get_helm.sh || true`);
+        // Ensure the binary is executable and linked to /bin/helm
+        shellExec(`test -x /usr/local/bin/helm && sudo chmod +x /usr/local/bin/helm || true`);
+        shellExec(`test -x /usr/local/bin/helm && sudo ln -sf /usr/local/bin/helm /bin/helm || true`);
+        shellExec(`sudo rm -rf get_helm.sh`);
+      }
 
       // Install snap
       shellExec(`sudo yum install -y snapd`);
