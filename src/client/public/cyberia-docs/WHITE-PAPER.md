@@ -636,9 +636,11 @@ The off-chain economy runs on the **Fountain & Sink** model — the industry sta
                 └──────┬───────────────────────┘
                        │
           ┌────────────┴────────────┐
-          │   KILL TRANSFER         │  (zero-sum redistribution)
+          │   KILL LOOT             │  (zero-sum drop race)
+          │  victim stake → grid drop     │
           │  PvE: coinKillPercentVsBot    │
           │  PvP: coinKillPercentVsPlayer │
+          │  contributors race to collect │
           └────────────┬────────────┘
                        │
                 ┌──────▼──────────────────────┐
@@ -655,25 +657,31 @@ The off-chain economy runs on the **Fountain & Sink** model — the industry sta
 | ------------------------- | ------- | ----------------------------------------------------- |
 | `botSpawnCoins`           | 50      | Coins on bot spawn/respawn (infinite mint)            |
 | `playerSpawnCoins`        | 50      | Guest starting wallet                                 |
-| `coinKillPercentVsBot`    | 0.40    | 40% of bot wallet → killer on PvE kill                |
-| `coinKillPercentVsPlayer` | 0.15    | 15% of player wallet → killer on PvP kill             |
+| `coinKillPercentVsBot`    | 0.40    | 40% of bot wallet → coin drop on PvE kill             |
+| `coinKillPercentVsPlayer` | 0.15    | 15% of player wallet → coin drop on PvP kill          |
 | `coinKillMinAmount`       | 10      | Minimum coins per kill (hard floor)                   |
 | `respawnCostPercent`      | 0.0     | Fraction burned on player death (alpha: disabled)     |
 | `portalFee`               | 0       | Flat coins burned per portal use (alpha: disabled)    |
 | `craftingFeePercent`      | 0.0     | Fraction burned per crafting action (alpha: disabled) |
 
-### Kill Transfer Logic
+### Kill Loot Logic
+
+Every kill scatters the victim's coin stake as a grid drop token. Only damage
+contributors may collect it — the amount of damage does not matter, only that
+the player contributed — and collection is a race: the first eligible player
+to collide with the token wins it. One model for PvE and PvP.
 
 ```
-ExecuteKillTransfer(caster, victim):
-  rate = coinKillPercentVsBot   if victim is bot
+OnDeath(victim):
+  contributors = players in victim.DamageLedger   # bot-only kills drop nothing
+  if empty(contributors): return
+  rate = coinKillPercentVsBot    if victim is bot
          coinKillPercentVsPlayer if victim is player
-  transfer = max(floor(victim.coins * rate), coinKillMinAmount)
-  transfer = min(transfer, victim.coins)
-  victim.coins  -= transfer
-  caster.coins  += transfer
-  → sendFCT(caster, FCTTypeCoinGain)
-  → sendFCT(victim, FCTTypeCoinLoss)
+  amount = max(floor(victim.coins * rate), coinKillMinAmount)
+  amount = min(amount, victim.coins)
+  victim.coins -= amount                          # bots re-mint on respawn
+  spawnDropToken(coin × amount, contributors)     # race: first contributor collision collects
+  # no coin FCT — the balance change shows in the inventory bar, the gain in the loot grid
 ```
 
 ---

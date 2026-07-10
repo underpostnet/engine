@@ -28,8 +28,9 @@ Cyberia Online uses the **Fountain & Sink** economy — the industry standard fo
                 └──────┬───────────────────────┘
                        │
           ┌────────────┴────────────┐
-          │   KILL TRANSFER         │  zero-sum redistribution
-          │   loser → winner        │
+          │   KILL LOOT             │  zero-sum drop race
+          │   victim stake → grid drop    │
+          │   contributors race to collect│
           │                         │
           │  PvE: coinKillPercentVsBot    │
           │  PvP: coinKillPercentVsPlayer │
@@ -51,7 +52,8 @@ Cyberia Online uses the **Fountain & Sink** economy — the industry standard fo
 | Rule                          | Description                                                                                     |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- |
 | **Bots are infinite mint**    | Every bot respawn resets wallet to `botSpawnCoins`. Supply bounded by player kill rate.         |
-| **Players are zero-sum**      | Killing a player transfers coins but creates no new ones. PvP is redistribution only.           |
+| **Players are zero-sum**      | A PvP kill scatters the victim's coins as a grid drop but creates no new ones — redistribution only. |
+| **Loot is a contributor race**| Every kill drops a coin token only damage contributors may collect; the first eligible collider wins. Damage amount is irrelevant — only contribution counts. Bot-only kills drop nothing. |
 | **Kill floor**                | `coinKillMinAmount` guarantees every successful kill pays out even against a near-empty wallet. |
 | **Sinks scale with activity** | Fees burn a fraction — more activity = more burn, preventing indefinite inflation.              |
 
@@ -124,28 +126,36 @@ All economy logic is encapsulated in a single file enforcing the single-source p
 | ------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
 | `FountainInitPlayer(player)`          | `handlers.go` on WebSocket connect | Credits `playerSpawnCoins` to new player             |
 | `FountainInitBot(bot)`                | `collision.go` on bot respawn      | Resets bot wallet to `botSpawnCoins` (infinite mint) |
-| `ExecuteKillTransfer(caster, victim)` | `skill.go HandleOnKillSkills`      | Transfers coins based on kill scenario               |
+| `botCoinDropAmount(bot)`              | `collision.go handleBotDeath`      | Coin stake a dead bot scatters as a grid drop        |
+| `pvpCoinDropAmount(player)`           | `collision.go handlePlayerDeath`   | Coin stake a dead player scatters as a grid drop     |
 | `SinkRespawnCost(player)`             | `collision.go handlePlayerDeath`   | Burns `respawnCostPercent`% of player coins          |
 | `SinkPortalFee(player)`               | Portal handler                     | Burns flat `portalFee` coins on portal use           |
 | `SinkCraftingFee(player, item)`       | Craft handler                      | Burns `craftingFeePercent`% on crafting              |
 
-### Kill Transfer Logic
+### Kill Loot Logic
+
+Every kill scatters the victim's coin stake as a grid drop token (`spawnDrops`,
+`loot.go`). Only damage contributors may collect it — the amount of damage does
+not matter, only that the player contributed — and collection is a race: the
+first eligible player to collide with the settled token wins it. The same model
+covers PvE and PvP; a kill with no player contributor drops nothing.
 
 ```
-ExecuteKillTransfer(caster, victim):
+OnDeath(victim):
+  contributors = players in victim.DamageLedger    // bot-only kills drop nothing
+  if empty(contributors): return
 
-  if caster=Player, victim=Bot    → rate = coinKillPercentVsBot     (PvE farming)
-  if caster=Player, victim=Player → rate = coinKillPercentVsPlayer  (PvP)
-  if caster=Bot,    victim=Player → rate = coinKillPercentVsPlayer  (bot kills player)
-  if caster=Bot,    victim=Bot    → rate = coinKillPercentVsBot     (bot-on-bot)
+  rate = coinKillPercentVsBot     if victim is bot     (PvE)
+         coinKillPercentVsPlayer  if victim is player  (PvP)
 
-  transfer = max(floor(victim.coins × rate), coinKillMinAmount)
-  transfer = min(transfer, victim.coins)    // can't take more than available
+  amount = max(floor(victim.coins × rate), coinKillMinAmount)
+  amount = min(amount, victim.coins)         // can't drop more than available
+                                             // (bots mint up to botSpawnCoins)
 
-  victim.coins  -= transfer
-  caster.coins  += transfer                 // bots ignore received coins
-  → sendFCT(caster, FCTTypeCoinGain, worldX, worldY, transfer)
-  → sendFCT(victim, FCTTypeCoinLoss,  worldX, worldY, transfer)
+  victim.coins -= amount                     // bots re-mint on respawn
+  spawnDropToken(coin × amount, contributors)
+  // No coin FCT — the victim's balance change surfaces in the inventory-bar
+  // quantity FX, and the gain side in the collector's loot grid.
 ```
 
 ---
@@ -201,14 +211,23 @@ Offset  Size  Field
  15      str  itemId bytes
 ```
 
-| `fct_type` | Constant          | Color  | Display        |
-| ---------- | ----------------- | ------ | -------------- |
-| `0x00`     | `FCTTypeDamage`   | Red    | `-N` HP lost   |
-| `0x01`     | `FCTTypeRegen`    | Green  | `+N` HP gained |
-| `0x02`     | `FCTTypeCoinGain` | Yellow | `+N` coins     |
-| `0x03`     | `FCTTypeCoinLoss` | Yellow | `-N` coins     |
-| `0x04`     | `FCTTypeItemGain` | Cyan   | `+N ItemID`    |
-| `0x05`     | `FCTTypeItemLoss` | Purple | `-N ItemID`    |
+| `fct_type` | Constant            | Color  | Display        | Status |
+| ---------- | ------------------- | ------ | -------------- | ------ |
+| `0x00`     | `FCTTypeDamage`     | Red    | `-N` HP lost   | active |
+| `0x01`     | `FCTTypeRegen`      | Green  | `+N` HP gained | active |
+| `0x02`     | `FCTTypeCoinGain`   | Yellow | `+N` coins     | retired |
+| `0x03`     | `FCTTypeCoinLoss`   | Yellow | `-N` coins     | retired |
+| `0x04`     | `FCTTypeItemGain`   | Cyan   | `+N ItemID`    | retired |
+| `0x05`     | `FCTTypeItemLoss`   | Purple | `-N ItemID`    | retired |
+
+One uniform visibility rule: **every combat FCT (damage and regen, on any
+entity — player, bot, or resource) is broadcast with its exact amount to every
+player whose AOI covers the event. All viewers see the identical message.**
+
+Coin and item quantity changes emit no FCT: gains surface in the loot grid and
+balance changes in the inventory-bar quantity FX (`fx_inventory_bar_qty`),
+which plays a `+N`/`-N` popup on the affected slot. The retired wire values
+are never reused.
 
 ---
 
