@@ -262,7 +262,7 @@ export const DefaultCyberiaDialogues = [
     text: 'How boring... nothing ever surprises me anymore.',
     mood: 'sad',
   },
-  { code: 'default-ghost', order: 0, speaker: 'Ghost', text: '...', mood: 'neutral' },
+  { code: 'default-ghost', order: 0, speaker: 'fragmentation', text: '...', mood: 'neutral' },
   {
     code: 'default-eiri',
     order: 0,
@@ -657,7 +657,9 @@ export const DefaultCyberiaQuests = [
 /**
  * Governs which ObjectLayer item types may be simultaneously active on an
  * entity and enforces the one-per-type constraint.  The server validates
- * every item_activation request against these rules.
+ * every item_activation request against these rules, scoped to the item set
+ * of the entity's current state: liveItemIds while alive, deadItemIds while
+ * in the Fragmented State (see DEFAULT_DEAD_ITEM_ID).
  */
 export const EQUIPMENT_RULES_DEFAULTS = Object.freeze({
   activeItemTypes: [ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon],
@@ -742,6 +744,19 @@ export const RESOURCE_ENTITY_TYPE_DEFAULTS = Object.freeze([
 export const RESOURCE_ENTITY_TYPE_DEFAULT = RESOURCE_ENTITY_TYPE_DEFAULTS[0];
 
 /**
+ * Canonical dead-state visual (Fragmentation): applied by cyberia-server when
+ * an entity-type default declares no deadItemIds. Dead-state items — this
+ * default and any deadItemIds configured via MongoDB — form the Fragmented
+ * State's aesthetic loadout: equippable only while the entity is dead, under
+ * EQUIPMENT_RULES_DEFAULTS scoped to the dead-item set, and remembered across
+ * deaths. Only this default id is excluded from the player inventory wire;
+ * the rest appear (lock-badged while alive). No defaultObjectLayers row is
+ * needed — the death handler appends missing dead items on demand.
+ * Mirrored by `defaultDeadItemID` in cyberia-server/game/dead_items.go.
+ */
+export const DEFAULT_DEAD_ITEM_ID = 'fragmentation';
+
+/**
  * Per-entity-type defaults consumed by the Go server (live / dead / drop
  * item IDs and the seed inventory for newly spawned entities).
  *
@@ -756,29 +771,28 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   {
     entityType: ENTITY_TYPES.player,
     liveItemIds: ['anon', 'atlas_pistol_mk2'],
-    deadItemIds: ['ghost'],
+    deadItemIds: [DEFAULT_DEAD_ITEM_ID],
     defaultObjectLayers: [
       { itemId: 'anon', active: true, quantity: 1 },
       { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
-      { itemId: 'ghost', active: false, quantity: 1 },
       { itemId: 'coin', active: false, quantity: 0 },
+      { itemId: 'eiri', active: false, quantity: 1 },
     ],
   },
   {
     entityType: ENTITY_TYPES.other_player,
     liveItemIds: ['anon', 'atlas_pistol_mk2'],
-    deadItemIds: ['ghost'],
+    deadItemIds: [DEFAULT_DEAD_ITEM_ID],
     defaultObjectLayers: [
       { itemId: 'anon', active: true, quantity: 1 },
       { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
-      { itemId: 'ghost', active: false, quantity: 1 },
       { itemId: 'coin', active: false, quantity: 0 },
     ],
   },
   {
     entityType: ENTITY_TYPES.bot,
     liveItemIds: ['purple'],
-    deadItemIds: ['ghost'],
+    deadItemIds: [DEFAULT_DEAD_ITEM_ID],
     defaultObjectLayers: [
       { itemId: 'purple', active: true, quantity: 1 },
       { itemId: 'coin', active: false, quantity: 0 },
@@ -788,10 +802,10 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   // liveItemIds key), these bots take the canonical `provider` behavior: they
   // barely move from their spawn and are immortal. Lain only talks in place, so
   // she is fully static. Authors can retarget any of these via EntityEngineCyberia.
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['wason'], deadItemIds: ['ghost'], behavior: 'provider' },
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: ['ghost'], behavior: 'provider' },
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: ['ghost'], behavior: 'provider' },
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['lain'], deadItemIds: ['ghost'], behavior: 'provider-static' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['wason'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['lain'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
   {
     entityType: ENTITY_TYPES.skill,
     liveItemIds: ['atlas_pistol_mk2_bullet'],

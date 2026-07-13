@@ -17,6 +17,7 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
+  DEFAULT_DEAD_ITEM_ID,
   DEFAULT_PLAYER_SPAWN,
   ENTITY_TYPE_DEFAULTS,
   DefaultCyberiaActions,
@@ -660,6 +661,9 @@ function buildHandlers(dbKey) {
             if (ol.itemId) itemIds.add(ol.itemId);
           }
         }
+        // The Go server falls back to this dead visual when a build declares
+        // no deadItemIds — its atlas must resolve even when nothing references it.
+        itemIds.add(DEFAULT_DEAD_ITEM_ID);
         addEntityDefaultAtlasIds(entityDefaultsConfig, itemIds);
 
         // Authoritative skills come from the CyberiaSkill collection (own model);

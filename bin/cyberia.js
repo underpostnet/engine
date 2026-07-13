@@ -3649,10 +3649,10 @@ try {
           for (const code of codes) {
             await CyberiaClientHints.findOneAndUpdate(
               { code },
-              { $setOnInsert: { code, ...CYBERIA_CLIENT_HINTS_DEFAULTS } },
+              { $setOnInsert: { code } },
               { upsert: true, returnDocument: 'after' },
             );
-            logger.info(`client-hints --seed-defaults: seeded defaults for code="${code}"`);
+            logger.info(`client-hints --seed-defaults: seeded overrides shell for code="${code}"`);
           }
         }
 
