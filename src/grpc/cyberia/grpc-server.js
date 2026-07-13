@@ -454,6 +454,15 @@ function buildFallbackConfig() {
   return JSON.parse(JSON.stringify(FALLBACK_CONFIG_DEFAULTS));
 }
 
+/**
+ * Assembles the InstanceConfig for the procedural fallback world from code
+ * defaults only — no own-model collection may override it — then applies the
+ * fallback instance's default-player-inventory itemIds.
+ */
+function buildFallbackInstanceConfig(fallbackConf, instanceItemIds) {
+  return applyInstanceDefaultPlayerInventory(toInstanceConfig(fallbackConf), instanceItemIds);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // RPC handler factory
 // ═══════════════════════════════════════════════════════════════════
@@ -558,39 +567,26 @@ function buildHandlers(dbKey) {
             if (it?.item?.id) fallbackItemIds.add(it.item.id);
           }
 
-          // Own-model skills (if seeded) override the fallback skillConfig; their
-          // summoned-entity atlases are resolved alongside the world's.
-          const fallbackSkillDocs = await loadSkillConfigDocs(models);
-          addSkillAtlasIds(fallbackSkillDocs, fallbackItemIds);
+          // Instance-level itemIds (default-player-inventory) may not appear in
+          // any map entity — include them so their atlases resolve.
+          for (const entry of world.instance.itemIds || []) {
+            if (entry?.id) fallbackItemIds.add(entry.id);
+          }
 
-          // Own-model entity defaults (if seeded) override the fallback
-          // entityDefaults; their live/dead/drop atlases resolve alongside.
-          const fallbackEntityDefaultDocs = await loadEntityTypeDefaultDocs(models);
-          const fallbackEntityDefaultsConfig = entityTypeDefaultDocsToConfig(fallbackEntityDefaultDocs);
-          addEntityDefaultAtlasIds(fallbackEntityDefaultsConfig, fallbackItemIds);
-
+          // The fallback world is fully self-contained: content config comes
+          // exclusively from the canonical code defaults (cyberia-server-defaults
+          // + SharedDefaultsCyberia). Own-model collections (CyberiaSkill,
+          // CyberiaEntityTypeDefault) are deliberately NOT consulted here so a
+          // stale seed can never mask a code-default change. Only ObjectLayer is
+          // read — sprite/render assets have no code-side source.
           const fallbackOlDocs = fallbackItemIds.size
             ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } }).lean()
             : [];
 
-          const fallbackConfig = toInstanceConfig(fallbackConf);
-          if (fallbackEntityDefaultsConfig.length)
-            fallbackConfig.entityDefaults = mergeEntityDefaults(fallbackEntityDefaultsConfig);
-          if (fallbackSkillDocs.length) fallbackConfig.skillConfig = skillDocsToConfig(fallbackSkillDocs);
+          const fallbackConfig = buildFallbackInstanceConfig(fallbackConf, world.instance.itemIds);
 
           callback(null, {
-            instance: toInstanceMsg({
-              _id: '',
-              code: 'fallback',
-              name: 'Fallback Instance',
-              description: 'Auto-generated procedural world (not persisted)',
-              tags: ['fallback', 'procedural'],
-              cyberiaMapCodes: world.instance.cyberiaMapCodes,
-              portals: world.portals,
-              topologyMode: 'procedural',
-              seed: instanceCode,
-              playerSpawn: world.instance.playerSpawn,
-            }),
+            instance: toInstanceMsg({ ...world.instance, _id: '', seed: instanceCode }),
             maps: world.maps.map((m) => ({
               mongoId: '',
               code: m.code,
@@ -792,4 +788,4 @@ class GrpcServer {
   }
 }
 
-export { GrpcServer };
+export { GrpcServer, buildFallbackConfig, buildFallbackInstanceConfig };
