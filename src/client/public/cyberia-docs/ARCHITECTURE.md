@@ -37,7 +37,8 @@ Underpost Platform provides the toolchain, deployment surface, PWA delivery, and
 │  │  cyberia-client     │     C / WebAssembly (Raylib · Emscripten)       │
 │  └─────────────────────┘                                                 │
 │            │                                                             │
-│            │ REST (atlas frames, asset metadata, optional client hints)  │
+│            │ REST (atlas frames, asset metadata, client hints,           │
+│            │       instance-map graph + provider activity)                │
 │            └──→ engine-cyberia                                           │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -60,6 +61,7 @@ What it owns:
 - Persisted character/quest/dialogue/action data.
 - gRPC `CyberiaDataService` for world load and content streaming.
 - REST APIs for assets and the optional client-hints overrides.
+- Instance Map REST (`/api/cyberia-instance/instance-map/:code/{static,dynamic}`): strategic graph topology and per-player provider activity for the client's expanded map overlay. Never live positions — those stay client-side.
 - Static content distribution + Cloudinary-backed asset flow.
 - Editor and CLI integration for content workflows.
 
@@ -260,6 +262,7 @@ Every Cyberia document uses the same terms. Aliases are not permitted.
 | **presentation metadata** | Render-only data. Client-owned.                                                                                           |
 | **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                       |
 | **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                |
+| **Instance Map**          | Client strategic overlay of the instance graph (nodes, portals, provider POIs). Fed by engine-cyberia REST, independent from the AOI stream and gameplay camera. |
 | **replication**           | Production and delivery of snapshots from server to clients.                                                              |
 | **simulation phase**      | A named step inside one simulation tick.                                                                                  |
 | **healthy**               | All three Cyberia services up and connected; game is playable.                                                            |

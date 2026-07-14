@@ -225,8 +225,40 @@ The client speaks REST directly to engine-cyberia for content. None of these cal
 | `GET /api/cyberia-dialogue/code/default-:itemId` | Dialogue lines for an NPC            |
 | `GET /assets/ui-icons/:iconId.png`               | Status-bar icons                     |
 | `GET /api/cyberia-client-hints/:instanceCode`    | Optional presentation overrides      |
+| `GET /api/cyberia-instance/instance-map/:instanceCode/static`  | Instance Map graph (nodes, edges, POIs)   |
+| `GET /api/cyberia-instance/instance-map/:instanceCode/dynamic` | Instance Map provider activity (~1/s poll) |
 
 All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
+
+---
+
+## Instance Map
+
+The Instance Map is a strategic overlay, not a minimap. It visualises the instance as a stylised pseudo-3D graph — maps are glowing hex nodes on a tilted plane, portals are animated edges — for navigation and planning. It never reproduces the gameplay viewport.
+
+One integrated widget with two modes, split across two modules:
+
+- **Container** (`ui/modal_map`) — compact mode is the always-on top-right HUD readout (map code, position, fps); a **Map** toggle button (ui-icon `map`, styled like the neighbouring fullscreen toggle) morphs the container to the full screen with an eased transition, and retracts it the same way on close.
+- **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: a non-blocking translucent full-screen panel (the world keeps rendering behind it). While expanded, the Map button swaps to a close icon in the same slot; clicking it retracts the container.
+
+Strict independence from the gameplay renderer:
+
+| Concern | Owner |
+| ------- | ----- |
+| Graph data | `ui/instance_map_data` — engine-cyberia REST only, never the AOI stream |
+| Camera | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom) |
+| Layout | deterministic force-directed relaxation over the portal graph, computed client-side |
+| Selection | tap a node → contextual panel (name, quest/action provider counts, portal links) |
+
+Data lifecycle:
+
+1. Opening the overlay fetches the **static** payload once: graph nodes (maps), edges (portals), and strategic POIs (quest providers, action providers). The instance code arrives in the simulation server's `metadata` message.
+2. While open, the client polls the **dynamic** endpoint (~1/s, `?playerId=`) for per-player provider activity: `acceptable` / `active` quest providers and active action providers.
+3. Closing the overlay stops polling immediately; late responses are discarded.
+
+Live player position never travels through this API — engine-cyberia holds no simulation state. The overlay marks the player's node (and cell fraction within it) from the client's own predicted position, refreshed every frame.
+
+Only strategic POIs are displayed (player, quest providers, action providers, portals) — never ordinary NPCs or the full entity set.
 
 ---
 

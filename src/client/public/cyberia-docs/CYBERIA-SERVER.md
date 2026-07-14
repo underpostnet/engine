@@ -256,7 +256,7 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the 
 | `/api/v1/metrics/websocket` | GET    | Active connections, message rates         |
 | `/api/v1/metrics/workload`  | GET    | Per-map entity workload                   |
 
-All content data (ObjectLayer metadata, asset blobs, optional client hints) is served directly by engine-cyberia REST. `cyberia-server` does not proxy content.
+All content data (ObjectLayer metadata, asset blobs, optional client hints, the Instance Map graph) is served directly by engine-cyberia REST. `cyberia-server` does not proxy content; it only forwards `instanceCode` (alongside `apiBaseUrl`) in the WebSocket `metadata` message so the client can key its engine-cyberia fetches.
 
 ---
 
