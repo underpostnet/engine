@@ -48,9 +48,12 @@ class CyberiaMapService {
     if (!map) throw new Error('map not found');
     if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
+    const File = DataBaseProviderService.getModel("File", options);
     if (req.body.thumbnail && map.thumbnail && String(req.body.thumbnail) !== String(map.thumbnail)) {
-      const File = DataBaseProviderService.getModel("File", options);
       await File.findByIdAndDelete(map.thumbnail);
+    }
+    if (req.body.preview && map.preview && String(req.body.preview) !== String(map.preview)) {
+      await File.findByIdAndDelete(map.preview);
     }
     return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   };
@@ -62,10 +65,9 @@ class CyberiaMapService {
       if (!map) throw new Error('map not found');
       if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
         throw new Error('insufficient permission');
-      if (map.thumbnail) {
-        const File = DataBaseProviderService.getModel("File", options);
-        await File.findByIdAndDelete(map.thumbnail);
-      }
+      const File = DataBaseProviderService.getModel("File", options);
+      if (map.thumbnail) await File.findByIdAndDelete(map.thumbnail);
+      if (map.preview) await File.findByIdAndDelete(map.preview);
       return await CyberiaMap.findByIdAndDelete(req.params.id);
     } else return await CyberiaMap.deleteMany();
   };

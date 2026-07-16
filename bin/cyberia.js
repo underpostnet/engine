@@ -2091,13 +2091,16 @@ try {
           if (portal.targetMapCode) mapCodes.add(portal.targetMapCode);
         }
 
-        // 3. Export maps + thumbnails
+        // 3. Export maps + thumbnails + Instance Map previews
         const maps = await CyberiaMap.find({ code: { $in: [...mapCodes] } }).lean();
         fs.ensureDirSync(`${backupDir}/maps`);
         for (const map of maps) {
           fs.writeJsonSync(`${backupDir}/maps/${map.code}.json`, map, { spaces: 2 });
           if (map.thumbnail) {
             await exportFileDoc(map.thumbnail, `thumb-map-${map.code}`);
+          }
+          if (map.preview) {
+            await exportFileDoc(map.preview, `preview-map-${map.code}`);
           }
         }
         logger.info(`Exported ${maps.length} CyberiaMap document(s)`, { codes: maps.map((m) => m.code) });
@@ -2612,13 +2615,15 @@ try {
 
             const otherMaps = await CyberiaMap.find(
               { code: { $nin: [...dropMapCodes] } },
-              { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
+              { 'entities.objectLayerItemIds': 1, thumbnail: 1, preview: 1 },
             ).lean();
 
             if (dropMapCodes.size > 0) {
               const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
               for (const map of dropMaps) {
                 if (map.thumbnail) thumbFileIds.push(map.thumbnail);
+              if (map.preview) thumbFileIds.push(map.preview);
+                if (map.preview) thumbFileIds.push(map.preview);
                 for (const entity of map.entities || []) {
                   for (const itemId of entity.objectLayerItemIds || []) {
                     dropOlItemIds.add(itemId);
@@ -2675,8 +2680,10 @@ try {
               logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
             }
 
-            // Exclude thumbnail File IDs referenced by other instances or maps
-            const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
+            // Exclude thumbnail/preview File IDs referenced by other instances or maps
+            const otherMapThumbs = otherMaps
+              .flatMap((m) => [m.thumbnail?.toString(), m.preview?.toString()])
+              .filter(Boolean);
             const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
             const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
             for (let i = thumbFileIds.length - 1; i >= 0; i--) {
@@ -3461,13 +3468,14 @@ try {
 
           const otherMaps = await CyberiaMap.find(
             { code: { $nin: [...dropMapCodes] } },
-            { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
+            { 'entities.objectLayerItemIds': 1, thumbnail: 1, preview: 1 },
           ).lean();
 
           if (dropMapCodes.size > 0) {
             const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
             for (const map of dropMaps) {
               if (map.thumbnail) thumbFileIds.push(map.thumbnail);
+              if (map.preview) thumbFileIds.push(map.preview);
               for (const entity of map.entities || []) {
                 for (const itemId of entity.objectLayerItemIds || []) {
                   dropOlItemIds.add(itemId);
@@ -3492,8 +3500,10 @@ try {
             logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
           }
 
-          // Exclude thumbnail File IDs referenced by other instances or maps
-          const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
+          // Exclude thumbnail/preview File IDs referenced by other instances or maps
+          const otherMapThumbs = otherMaps
+            .flatMap((m) => [m.thumbnail?.toString(), m.preview?.toString()])
+            .filter(Boolean);
           const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
           const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
           for (let i = thumbFileIds.length - 1; i >= 0; i--) {
@@ -4819,14 +4829,18 @@ try {
 
       const File = DataBaseProviderService.getModel('file', { host, path });
 
-      // Thumbnails on instances/maps are File _id references; collect them before
-      // dropping so the backing File documents don't leak as orphans.
+      // Thumbnails/previews on instances/maps are File _id references; collect
+      // them before dropping so the backing File documents don't leak as orphans.
       const thumbnailFileIds = new Set();
       for (const api of ['cyberia-instance', 'cyberia-map']) {
         const Model = DataBaseProviderService.getModel(api, { host, path });
-        const docs = await Model.find({ thumbnail: { $ne: null } }, { thumbnail: 1 }).lean();
+        const docs = await Model.find(
+          { $or: [{ thumbnail: { $ne: null } }, { preview: { $ne: null } }] },
+          { thumbnail: 1, preview: 1 },
+        ).lean();
         for (const doc of docs) {
           if (doc.thumbnail) thumbnailFileIds.add(doc.thumbnail.toString());
+          if (doc.preview) thumbnailFileIds.add(doc.preview.toString());
         }
       }
 

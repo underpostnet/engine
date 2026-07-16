@@ -31,6 +31,7 @@ class MapEngineCyberia {
   static currentMapId = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
+  static currentPreviewId = null;
   static loadMap = null;
   static showGridBorders = true;
   static addOnClick = true;
@@ -639,6 +640,7 @@ class MapEngineCyberia {
     MapEngineCyberia.setEntities([], { clearHistory: true });
     MapEngineCyberia.currentMapId = null;
     MapEngineCyberia.currentThumbnailId = null;
+    MapEngineCyberia.currentPreviewId = null;
 
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -873,15 +875,53 @@ class MapEngineCyberia {
       return payload;
     };
 
+    // Render the current auto-captured Instance Map preview image (or an
+    // empty-state hint) into the Instance Map Preview section.
+    const renderPreviewImage = () => {
+      const el = s('.map-engine-preview-image');
+      if (!el) return;
+      const rawId = MapEngineCyberia.currentPreviewId;
+      const previewId = rawId && typeof rawId === 'object' ? rawId._id : rawId;
+      el.innerHTML = previewId
+        ? html`<img
+            src="${getApiBaseUrl({ id: previewId, endpoint: 'file/blob' })}"
+            class="in"
+            style="max-width:300px;height:auto;border:1px solid #555;margin:auto"
+            onerror="this.style.display='none';"
+          />`
+        : html`<span style="color:#888;font-size:12px;">No preview captured yet — save the map to generate it.</span>`;
+    };
+
+    // Capture the Object Layer canvas render and upload it as a File.
+    // Returns the uploaded file id, or null when capture/upload failed.
+    const captureObjectLayerUpload = async (filename) => {
+      const { cols, rows, cellW, cellH } = getCanvasParams();
+      const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
+        forceObjectLayers: true,
+      });
+      const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
+      if (!blob) return null;
+      const file = new File([blob], filename, { type: 'image/png' });
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadResult = await FileService.post({ body: formData });
+      if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
+        return uploadResult.data[0]._id;
+      }
+      return null;
+    };
+
     const saveMap = async () => {
-      // Upload thumbnail file only if user selected a new one
+      // Thumbnail: a user-selected custom image always wins; the Object
+      // Layer canvas capture is the checkbox-gated fallback when no custom
+      // image was set.
       const thumbnailInput = s(`.${idThumbnail}`);
-      if (
+      const hasCustomThumbnail =
         MapEngineCyberia.thumbnailDirty &&
         thumbnailInput &&
         thumbnailInput.files &&
-        thumbnailInput.files.length > 0
-      ) {
+        thumbnailInput.files.length > 0;
+      if (hasCustomThumbnail) {
         const formData = new FormData();
         formData.append('file', thumbnailInput.files[0]);
         const uploadResult = await FileService.post({ body: formData });
@@ -894,27 +934,19 @@ class MapEngineCyberia {
           });
           return;
         }
+      } else if (MapEngineCyberia.captureObjLayerThumbnail) {
+        const thumbId = await captureObjectLayerUpload('map-thumbnail.png');
+        if (thumbId) MapEngineCyberia.currentThumbnailId = thumbId;
       }
 
-      // Capture object layer thumbnail on save/update if checkbox is checked
-      if (MapEngineCyberia.captureObjLayerThumbnail) {
-        const { cols, rows, cellW, cellH } = getCanvasParams();
-        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
-          forceObjectLayers: true,
-        });
-        const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
-        if (blob) {
-          const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
-          const formData = new FormData();
-          formData.append('file', file);
-          const uploadResult = await FileService.post({ body: formData });
-          if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
-            MapEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
-          }
-        }
-      }
+      // Preview is always a fresh automatic Object Layer capture — the node
+      // background for the client's Instance Map. Independent of the
+      // thumbnail checkbox and never user-managed.
+      const previewId = await captureObjectLayerUpload('map-preview.png');
+      if (previewId) MapEngineCyberia.currentPreviewId = previewId;
 
       const body = getMapPayload();
+      if (previewId) body.preview = previewId;
       let result;
       if (MapEngineCyberia.currentMapId) {
         result = await CyberiaMapService.put({ id: MapEngineCyberia.currentMapId, body });
@@ -932,6 +964,7 @@ class MapEngineCyberia {
       });
       if (result.status === 'success') {
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
+        renderPreviewImage();
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
     };
@@ -941,42 +974,33 @@ class MapEngineCyberia {
 
       let cloneThumbnailId = null;
 
-      // When enabled, clone should use a fresh object-layer capture instead of reusing the current thumbnail file.
-      if (MapEngineCyberia.captureObjLayerThumbnail) {
-        const { cols, rows, cellW, cellH } = getCanvasParams();
-        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
-          forceObjectLayers: true,
-        });
-        const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
-        if (blob) {
-          const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
-          const formData = new FormData();
-          formData.append('file', file);
-          const uploadResult = await FileService.post({ body: formData });
-          if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
-            cloneThumbnailId = uploadResult.data[0]._id;
-          }
+      // Same precedence as saveMap: a user-selected custom image wins; the
+      // Object Layer capture is the checkbox-gated fallback. The clone never
+      // reuses the source map's thumbnail file (it would be double-owned).
+      const thumbnailInput = s(`.${idThumbnail}`);
+      if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0) {
+        const formData = new FormData();
+        formData.append('file', thumbnailInput.files[0]);
+        const uploadResult = await FileService.post({ body: formData });
+        if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
+          cloneThumbnailId = uploadResult.data[0]._id;
+        } else {
+          NotificationManager.Push({
+            html: uploadResult.message || 'Failed to upload thumbnail',
+            status: 'error',
+          });
+          return;
         }
-      } else {
-        const thumbnailInput = s(`.${idThumbnail}`);
-        if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0) {
-          const formData = new FormData();
-          formData.append('file', thumbnailInput.files[0]);
-          const uploadResult = await FileService.post({ body: formData });
-          if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
-            cloneThumbnailId = uploadResult.data[0]._id;
-          } else {
-            NotificationManager.Push({
-              html: uploadResult.message || 'Failed to upload thumbnail',
-              status: 'error',
-            });
-            return;
-          }
-        }
+      } else if (MapEngineCyberia.captureObjLayerThumbnail) {
+        cloneThumbnailId = await captureObjectLayerUpload('map-thumbnail.png');
       }
+
+      // The clone always gets its own automatic Object Layer preview capture.
+      const clonePreviewId = await captureObjectLayerUpload('map-preview.png');
 
       const body = getMapPayload();
       if (cloneThumbnailId) body.thumbnail = cloneThumbnailId;
+      if (clonePreviewId) body.preview = clonePreviewId;
       const result = await CyberiaMapService.post({ body });
       NotificationManager.Push({
         html: result.status === 'error' ? result.message : Translate.instance('success-create-item'),
@@ -985,6 +1009,8 @@ class MapEngineCyberia {
       if (result.status === 'success') {
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
         if (cloneThumbnailId) MapEngineCyberia.currentThumbnailId = cloneThumbnailId;
+        if (clonePreviewId) MapEngineCyberia.currentPreviewId = clonePreviewId;
+        renderPreviewImage();
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
     };
@@ -1009,6 +1035,8 @@ class MapEngineCyberia {
 
       // Thumbnail
       MapEngineCyberia.currentThumbnailId = mapData.thumbnail || null;
+      MapEngineCyberia.currentPreviewId = mapData.preview || null;
+      renderPreviewImage();
       const thumbnailPreview = s(`.map-engine-thumbnail-preview`);
       if (MapEngineCyberia.currentThumbnailId) {
         const thumbId =
@@ -1076,6 +1104,7 @@ class MapEngineCyberia {
     const resetForm = () => {
       MapEngineCyberia.currentMapId = null;
       MapEngineCyberia.currentThumbnailId = null;
+      MapEngineCyberia.currentPreviewId = null;
       MapEngineCyberia.thumbnailDirty = false;
       if (s(`.${idCode}`)) s(`.${idCode}`).value = '';
       if (s(`.${idName}`)) s(`.${idName}`).value = '';
@@ -1087,6 +1116,7 @@ class MapEngineCyberia {
       }
       const thumbnailPreview = s(`.map-engine-thumbnail-preview`);
       if (thumbnailPreview) thumbnailPreview.innerHTML = '';
+      renderPreviewImage();
       if (s(`.${idThumbnail}`)) {
         s(`.${idThumbnail}`).value = '';
         s(`.${idThumbnail}`).onchange({ target: s(`.${idThumbnail}`) });
@@ -1245,6 +1275,17 @@ class MapEngineCyberia {
         s(`.btn-map-engine-toggle-thumbnail`).onclick = () => {
           const body = s(`.map-engine-thumbnail-body`);
           const caret = s(`.map-engine-thumbnail-caret`);
+          if (body) body.classList.toggle('hide');
+          if (caret) {
+            caret.classList.toggle('fa-caret-right');
+            caret.classList.toggle('fa-caret-down');
+          }
+        };
+
+      if (s(`.btn-map-engine-toggle-preview`))
+        s(`.btn-map-engine-toggle-preview`).onclick = () => {
+          const body = s(`.map-engine-preview-body`);
+          const caret = s(`.map-engine-preview-caret`);
           if (body) body.classList.toggle('hide');
           if (caret) {
             caret.classList.toggle('fa-caret-right');
@@ -1442,6 +1483,17 @@ class MapEngineCyberia {
               },
             },
           )}
+        </div>
+        ${await BtnIcon.instance({
+          class: 'wfa btn-map-engine-toggle-preview',
+          label: html`<i class="fa-solid fa-caret-right map-engine-preview-caret"></i> Instance Map Preview`,
+        })}
+        <div class="in map-engine-preview-body hide">
+          <div class="in map-engine-preview-image" style="margin: 5px 0; text-align: center;"></div>
+          <div class="in" style="color:#888;font-size:12px;">
+            Auto-captured Object Layer render on Save/Update/Clone — used as this map's node background in the
+            Instance Map.
+          </div>
         </div>
       </div>
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcGridSize, type: 'a-50-b-50' })}

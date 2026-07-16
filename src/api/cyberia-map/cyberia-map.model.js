@@ -13,6 +13,9 @@ const CyberiaMapSchema = new Schema(
     creator: { type: Schema.Types.ObjectId, ref: 'User' },
     status: { type: String, default: 'unlisted' },
     thumbnail: { type: Schema.Types.ObjectId, ref: 'File' },
+    // Auto-generated Object Layer canvas capture (MapEngine save/clone).
+    // Serves as the node background image in the client's Instance Map.
+    preview: { type: Schema.Types.ObjectId, ref: 'File' },
     gridX: { type: Number, default: 16 },
     gridY: { type: Number, default: 16 },
     cellWidth: { type: Number, default: 32 },

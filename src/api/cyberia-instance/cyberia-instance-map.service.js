@@ -40,6 +40,9 @@ const buildStaticPayload = ({ instance, maps, quests, actions, fallback }) => {
     name: m.name || m.code,
     gridX: m.gridX,
     gridY: m.gridY,
+    // File id of the map's auto-captured Object Layer render; the client
+    // fetches /api/file/blob/:id and draws it as the node background.
+    preview: m.preview ? String(m.preview) : '',
     questProviders: quests
       .filter((q) => q.sourceMapCode === m.code)
       .map((q) => ({ questCode: q.code, title: q.title || q.code, cellX: q.sourceCellX ?? 0, cellY: q.sourceCellY ?? 0 })),
@@ -155,7 +158,7 @@ const resolveInstanceWorld = async (instanceCode, options) => {
   const mapCodes = instance.cyberiaMapCodes || [];
   const [maps, dbQuests, dbActions] = await Promise.all([
     CyberiaMap.find({ code: { $in: mapCodes } })
-      .select('code name gridX gridY')
+      .select('code name gridX gridY preview')
       .lean(),
     CyberiaQuest.find({ sourceMapCode: { $in: mapCodes } })
       .select('code title prerequisiteCodes sourceMapCode sourceCellX sourceCellY')
