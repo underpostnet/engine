@@ -21,10 +21,11 @@ CyberiaEntity {
   dimY:               Number  // height in cells (default: 1)
   color:              String  // RGBA fallback color (no active OL texture)
   objectLayerItemIds: [String] // ordered list of ObjectLayer item IDs
+  portalSubtype:      String  // portal only: inter/intra fixed or random mode
 
   // Bot-specific (ignored for non-bot entities)
   spawnRadius:  Number  // max wander / respawn radius in cells
-  aggroRange:   Number  // attack range in cells (0 = passive)
+  aggroRange:   Number  // optional attack-range override in cells
   maxLife:      Number  // maximum HP (0 = immortal)
   lifeRegen:    Number  // HP regeneration per tick
 }

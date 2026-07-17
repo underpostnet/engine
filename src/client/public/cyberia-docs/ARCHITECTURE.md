@@ -38,7 +38,7 @@ Underpost Platform provides the toolchain, deployment surface, PWA delivery, and
 │  └─────────────────────┘                                                 │
 │            │                                                             │
 │            │ REST (atlas frames, asset metadata, client hints,           │
-│            │       instance-map graph + provider activity)                │
+│            │       instance-map static presence + capability activity)    │
 │            └──→ engine-cyberia                                           │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -61,7 +61,7 @@ What it owns:
 - Persisted character/quest/dialogue/action data.
 - gRPC `CyberiaDataService` for world load and content streaming.
 - REST APIs for assets and the optional client-hints overrides.
-- Instance Map REST (`/api/cyberia-instance/instance-map/:code/{static,dynamic}`): strategic graph topology and per-player provider activity for the client's expanded map overlay. Never live positions — those stay client-side.
+- Instance Map REST (`/api/cyberia-instance/instance-map/:code/{static,dynamic}`): static map topology plus authored presence POIs, `sumStatsLimit`-capped baseline ObjectLayer stat sums, and capability membership; the dynamic response supplies only per-player capability activity. Never live positions or simulation stats — those stay client-side.
 - Static content distribution + Cloudinary-backed asset flow.
 - Editor and CLI integration for content workflows.
 
@@ -136,14 +136,14 @@ Underpost Platform deploy orchestration ensures the backend layer is ready befor
 
 The tick is the universal coordinate of the simulation. Every server→client snapshot and every client→server input command carries a tick value.
 
-| Concept                  | Value                                 | Notes                                                                                                   |
-| ------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **tick**                 | `uint32`                              | Monotonic simulation step counter on `cyberia-server`. Resets only on world rebuild.                    |
+| Concept                  | Value                                 | Notes                                                                                                                       |
+| ------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **tick**                 | `uint32`                              | Monotonic simulation step counter on `cyberia-server`. Resets only on world rebuild.                                        |
 | **tick rate**            | Hz (default `30`)                     | Simulation frequency. Authoritative; comes from world configuration. The string "fps" is never used to describe the server. |
-| **snapshot rate**        | Hz (default `20`)                     | AOI replication frequency. Decoupled from tick rate so bandwidth scales independently of simulation fidelity. |
-| **tick duration**        | `1 / tick_rate`                       | The dt used by every simulation phase.                                                                  |
-| **client tick estimate** | derived                               | Client estimate of the server's current tick, used to stamp outgoing input commands.                    |
-| **render tick**          | `server_tick_estimate − INTERP_TICKS` | The tick the interpolation module samples remote entities at.                                           |
+| **snapshot rate**        | Hz (default `20`)                     | AOI replication frequency. Decoupled from tick rate so bandwidth scales independently of simulation fidelity.               |
+| **tick duration**        | `1 / tick_rate`                       | The dt used by every simulation phase.                                                                                      |
+| **client tick estimate** | derived                               | Client estimate of the server's current tick, used to stamp outgoing input commands.                                        |
+| **render tick**          | `server_tick_estimate − INTERP_TICKS` | The tick the interpolation module samples remote entities at.                                                               |
 
 Three clocks, one tick number: simulation tick (server), snapshot tick (server replication), render frame (client). The tick number is the only synchronization point.
 
@@ -225,16 +225,16 @@ WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequen
 
 Presentation is client-owned. The authoritative server holds no presentation state.
 
-| Concern                                          | Owner                 | Mechanism                                                                       |
-| ------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------- |
+| Concern                                          | Owner                 | Mechanism                                                                                                        |
+| ------------------------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Palette (named ColorRGBA entries)                | engine-cyberia (REST) | served by `GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`. Source schema: `SharedDefaultsCyberia.js`. |
-| Status-icon visuals (icon stems + border colors) | engine-cyberia (REST) | same                                                                            |
-| Per-entity-type fallback color keys              | engine-cyberia (REST) | same                                                                            |
-| Camera defaults (smoothing, zoom)                | engine-cyberia (REST) | same                                                                            |
-| Cell-pixel size, default object dims             | engine-cyberia (REST) | same                                                                            |
-| Interpolation window                             | engine-cyberia (REST) | same                                                                            |
-| Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                            |
-| World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf` — no presentation; only simulation                        |
+| Status-icon visuals (icon stems + border colors) | engine-cyberia (REST) | same                                                                                                             |
+| Per-entity-type fallback color keys              | engine-cyberia (REST) | same                                                                                                             |
+| Camera defaults (smoothing, zoom)                | engine-cyberia (REST) | same                                                                                                             |
+| Cell-pixel size, default object dims             | engine-cyberia (REST) | same                                                                                                             |
+| Interpolation window                             | engine-cyberia (REST) | same                                                                                                             |
+| Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                                                             |
+| World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf` — no presentation; only simulation                                                         |
 
 The cyberia-client carries **no** compile-time palette. `domain/presentation_runtime.{c,h}` fetches the full presentation surface on startup; until the fetch settles the runtime returns a tiny inline neutral-grey bootstrap so the splash screen has something to draw. The simulation is unaffected by the fetch outcome.
 
@@ -246,27 +246,27 @@ The cyberia-client carries **no** compile-time palette. `domain/presentation_run
 
 Every Cyberia document uses the same terms. Aliases are not permitted.
 
-| Term                      | Definition                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **tick**                  | Monotonic simulation step counter.                                                                                        |
-| **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                        |
-| **snapshot**              | AOI-filtered world view at one tick for one player.                                                                       |
-| **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                    |
-| **reconciliation**        | Drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs.                                   |
-| **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries. |
-| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                  |
-| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                          |
-| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                            |
-| **client hints**          | Optional presentation overrides served by engine-cyberia.                                                                 |
-| **world configuration**   | Gameplay parameters loaded at server boot from engine-cyberia.                                                            |
-| **presentation metadata** | Render-only data. Client-owned.                                                                                           |
-| **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                       |
-| **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                |
-| **Instance Map**          | Client strategic overlay of the instance graph (nodes, portals, provider POIs). Fed by engine-cyberia REST, independent from the AOI stream and gameplay camera. |
-| **replication**           | Production and delivery of snapshots from server to clients.                                                              |
-| **simulation phase**      | A named step inside one simulation tick.                                                                                  |
-| **healthy**               | All three Cyberia services up and connected; game is playable.                                                            |
-| **standby**               | Game paused because at least one of the three services is not healthy.                                                    |
+| Term                      | Definition                                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **tick**                  | Monotonic simulation step counter.                                                                                                                                                                                                                                                                         |
+| **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                                                         |
+| **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                                                        |
+| **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                                                     |
+| **reconciliation**        | Drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs.                                                                                                                                                                                                                    |
+| **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries.                                                                                                                                |
+| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                                                   |
+| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                                                           |
+| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                                                                                                                                             |
+| **client hints**          | Optional presentation overrides served by engine-cyberia.                                                                                                                                                                                                                                                  |
+| **world configuration**   | Gameplay parameters loaded at server boot from engine-cyberia.                                                                                                                                                                                                                                             |
+| **presentation metadata** | Render-only data. Client-owned.                                                                                                                                                                                                                                                                            |
+| **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                                                                                                                                                                                                        |
+| **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                                                                                                                                                                                                 |
+| **Instance Map**          | Client strategic overlay of packed map tiles and authored presence POIs. The static REST response supplies topology, presence, baseline ObjectLayer stat sums, and capability membership; the dynamic response supplies per-player capability activity. Live player presence and stats remain client-side. |
+| **replication**           | Production and delivery of snapshots from server to clients.                                                                                                                                                                                                                                               |
+| **simulation phase**      | A named step inside one simulation tick.                                                                                                                                                                                                                                                                   |
+| **healthy**               | All three Cyberia services up and connected; game is playable.                                                                                                                                                                                                                                             |
+| **standby**               | Game paused because at least one of the three services is not healthy.                                                                                                                                                                                                                                     |
 
 Forbidden usages:
 
@@ -300,9 +300,9 @@ Topology modes: `linear`, `hub-spoke`, `open`, `grid`.
 
 ## Entity types
 
-| Type           | Behavior              | Description                 |
-| -------------- | --------------------- | --------------------------- |
-| `player`       | interactive           | Local player (self)         |
-| `other_player` | interactive           | Remote players inside AOI   |
-| `bot`          | `hostile` / `passive` | AI-controlled entities      |
-| `skill`        | `skill`               | Runtime-spawned projectile  |
+| Type           | Behavior              | Description                |
+| -------------- | --------------------- | -------------------------- |
+| `player`       | interactive           | Local player (self)        |
+| `other_player` | interactive           | Remote players inside AOI  |
+| `bot`          | `hostile` / `passive` | AI-controlled entities     |
+| `skill`        | `skill`               | Runtime-spawned projectile |

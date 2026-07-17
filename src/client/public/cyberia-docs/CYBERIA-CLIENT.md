@@ -217,15 +217,15 @@ Other message types — init data (0x02), FCT (0x04), ItemFCT (0x05) — carry t
 
 The client speaks REST directly to engine-cyberia for content. None of these calls go through cyberia-server.
 
-| Endpoint                                         | Purpose                              |
-| ------------------------------------------------ | ------------------------------------ |
-| `GET /api/atlas-sprite-sheet/metadata/:itemKey`  | Frame layout JSON for a sprite atlas |
-| `GET /api/atlas-sprite-sheet/blob/:itemKey`      | Atlas PNG                            |
-| `GET /api/object-layer/:itemId`                  | ObjectLayer JSON metadata            |
-| `GET /api/cyberia-dialogue/code/default-:itemId` | Dialogue lines for an NPC            |
-| `GET /assets/ui-icons/:iconId.png`               | Status-bar icons                     |
-| `GET /api/cyberia-client-hints/:instanceCode`    | Optional presentation overrides      |
-| `GET /api/cyberia-instance/instance-map/:instanceCode/static`  | Instance Map graph (nodes, edges, POIs)   |
+| Endpoint                                                       | Purpose                                    |
+| -------------------------------------------------------------- | ------------------------------------------ |
+| `GET /api/atlas-sprite-sheet/metadata/:itemKey`                | Frame layout JSON for a sprite atlas       |
+| `GET /api/atlas-sprite-sheet/blob/:itemKey`                    | Atlas PNG                                  |
+| `GET /api/object-layer/:itemId`                                | ObjectLayer JSON metadata                  |
+| `GET /api/cyberia-dialogue/code/default-:itemId`               | Dialogue lines for an NPC                  |
+| `GET /assets/ui-icons/:iconId.png`                             | Status-bar icons                           |
+| `GET /api/cyberia-client-hints/:instanceCode`                  | Optional presentation overrides            |
+| `GET /api/cyberia-instance/instance-map/:instanceCode/static`  | Instance Map graph (nodes, edges, POIs)    |
 | `GET /api/cyberia-instance/instance-map/:instanceCode/dynamic` | Instance Map provider activity (~1/s poll) |
 
 All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
@@ -234,31 +234,32 @@ All requests are CORS-simple GETs (no preflight) and cacheable. None require cre
 
 ## Instance Map
 
-The Instance Map is a strategic overlay, not a minimap. It visualises the instance as a stylised pseudo-3D graph — maps are glowing hex nodes on a tilted plane, portals are animated edges — for navigation and planning. It never reproduces the gameplay viewport.
+The Instance Map is a strategic overlay, not a minimap. It visualises the instance as a packed, gapless grid of map cards with animated portal edges, for navigation and planning. It never reproduces the gameplay viewport.
 
 One integrated widget with two modes, split across two modules:
 
-- **Container** (`ui/modal_map`) — compact mode is the always-on top-right HUD readout (map code, position, fps); a **Map** toggle button (ui-icon `map`, styled like the neighbouring fullscreen toggle) morphs the container to the full screen with an eased transition, and retracts it the same way on close.
-- **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: a non-blocking translucent full-screen panel (the world keeps rendering behind it). While expanded, the Map button swaps to a close icon in the same slot; clicking it retracts the container.
+- **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[quest][map][fullscreen]`. The quest button shows/hides the Quest Journal (hidden by default); the **Map** toggle (ui-icon `map`) morphs the container to the full screen with an eased transition and retracts it the same way on close, swapping to a close icon while expanded.
+- **Container** (`ui/modal_map`) — compact mode is the always-on readout (map code, position, fps) hosted inside the toolbar; expanded mode is the full-screen morph target.
+- **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: a non-blocking translucent full-screen panel (the world keeps rendering behind it).
 
 Strict independence from the gameplay renderer:
 
-| Concern | Owner |
-| ------- | ----- |
-| Graph data | `ui/instance_map_data` — engine-cyberia REST only, never the AOI stream |
-| Camera | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom) |
-| Layout | deterministic force-directed relaxation over the portal graph, computed client-side |
-| Selection | tap a node → contextual panel (name, quest/action provider counts, portal links) |
+| Concern    | Owner                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------- |
+| Graph data | `ui/instance_map_data` — engine-cyberia REST only, never the AOI stream                |
+| Camera     | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom)  |
+| Layout     | deterministic row-major map-card grid with quarter-turn rotation, computed client-side |
+| Selection  | tap a node → contextual panel (name, quest/action provider counts, portal links)       |
 
 Data lifecycle:
 
-1. Opening the overlay fetches the **static** payload once: graph nodes (maps), edges (portals), and strategic POIs (quest providers, action providers). The instance code arrives in the simulation server's `metadata` message.
-2. While open, the client polls the **dynamic** endpoint (~1/s, `?playerId=`) for per-player provider activity: `acceptable` / `active` quest providers and active action providers.
+1. Opening the overlay fetches the **static** payload once: graph nodes, portal edges, and authored `presencePois` carrying map-cell presence status, `sumStatsLimit`-capped baseline ObjectLayer stat sums, and static action/quest capability membership. The instance code arrives in the simulation server's `metadata` message.
+2. While open, the client polls the **dynamic** endpoint (~1/s, `?playerId=`) only for per-player capability activity: `acceptable` / `active` quests and active actions.
 3. Closing the overlay stops polling immediately; late responses are discarded.
 
 Live player position never travels through this API — engine-cyberia holds no simulation state. The overlay marks the player's node (and cell fraction within it) from the client's own predicted position, refreshed every frame.
 
-Only strategic POIs are displayed (player, quest providers, action providers, portals) — never ordinary NPCs or the full entity set.
+At normal zoom, POIs render only their authored presence-status icon. At inspection zoom, static action and quest capability icons appear with the authored baseline stat sum; dynamic activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
 
 ---
 
