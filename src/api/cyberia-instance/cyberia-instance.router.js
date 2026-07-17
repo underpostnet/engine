@@ -14,9 +14,7 @@ class CyberiaInstanceRouter {
     const router = express.Router();
     // ── Custom actions (must come before generic /:id routes) ──────────────
     router.get(`/fallback-world`, async (req, res) => await CyberiaInstanceController.fallbackWorld(req, res, options));
-    // Instance Map — strategic graph for the client's expanded map modal.
-    // static: full topology + POIs, fetched once on modal open.
-    // dynamic: per-player provider activity, polled ~1/s while open.
+    // Instance Map — static topology/presence plus dynamic player capability activity.
     router.get(
       `/instance-map/:instanceCode/static`,
       async (req, res) => await CyberiaInstanceController.instanceMapStatic(req, res, options),
