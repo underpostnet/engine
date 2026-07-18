@@ -544,38 +544,38 @@ class ObjectLayerEngineModal {
   static statDescriptions = {
     effect: {
       title: 'Effect',
-      icon: 'fa-solid fa-burst',
+      icon: 'stat-effect.png',
       description: 'Amount of life removed when an entity collides or deals an impact.',
       detail: 'Measured in life points.',
     },
     resistance: {
       title: 'Resistance',
-      icon: 'fa-solid fa-shield',
+      icon: 'stat-resistance.png',
       description: "Adds to the owner's maximum life (survivability cap).",
       detail:
         "This value is summed with the entity's base max life. It also increases the amount of life restored when a regeneration event occurs (adds directly to current life).",
     },
     agility: {
       title: 'Agility',
-      icon: 'fa-solid fa-person-running',
+      icon: 'stat-agility.png',
       description: 'Increases the movement speed of entities.',
       detail: 'Higher values result in faster movement.',
     },
     range: {
       title: 'Range',
-      icon: 'fa-solid fa-bullseye',
+      icon: 'stat-range.png',
       description: 'Increases the lifetime of a cast/summoned entity.',
       detail: 'Measured in milliseconds.',
     },
     intelligence: {
       title: 'Intelligence',
-      icon: 'fa-solid fa-brain',
+      icon: 'stat-intelligence.png',
       description: 'Probability-based stat that increases the chance to spawn/trigger a summoned entity.',
       detail: 'Higher values increase summoning success rate.',
     },
     utility: {
       title: 'Utility',
-      icon: 'fa-solid fa-wrench',
+      icon: 'stat-utility.png',
       description: 'Reduces the cooldown time between actions, allowing for more frequent actions.',
       detail: 'It also increases the chance to trigger life-regeneration events.',
     },
@@ -1373,7 +1373,11 @@ class ObjectLayerEngineModal {
               class="inl stat-label-container stat-info-icon"
               style="width: 120px; font-size: 16px; overflow: visible; position: relative;"
             >
-              <i class="${statInfo.icon}" style="margin-right: 5px;"></i> ${statInfo.title}
+              <img
+                src="${getProxyPath()}assets/ui-icons/${statInfo.icon}"
+                style="width: 32px; height: 32px; margin-right: 5px; image-rendering: pixelated; vertical-align: middle;"
+              />
+              ${statInfo.title}
             </div>`,
             containerClass: 'inl',
             type: 'number',

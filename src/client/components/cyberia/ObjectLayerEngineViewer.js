@@ -716,7 +716,11 @@ class ObjectLayerEngineViewer {
                             return html`
                               <div class="item-stat-entry">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                  <i class="${statInfo.icon}" id="stat-icon-${statKey}-${id}"></i>
+                                  <img
+                                    src="${getProxyPath()}assets/ui-icons/${statInfo.icon}"
+                                    id="stat-icon-${statKey}-${id}"
+                                    style="width: 40px; height: 40px; image-rendering: pixelated;"
+                                  />
                                   <span class="item-data-key-label">${statInfo.title}</span>
                                 </div>
                                 <span class="item-data-value-label">${statValue}</span>
@@ -917,12 +921,14 @@ class ObjectLayerEngineViewer {
                           </div>
                         </div>
                         <div class="atlas-actions-grid">
-                          ${canMutate
-                            ? html`<button class="default-viewer-btn" id="generate-atlas-btn">
-                                <i class="fa-solid fa-sync"></i>
-                                <span>Update</span>
-                              </button>`
-                            : ''}
+                          ${
+                            canMutate
+                              ? html`<button class="default-viewer-btn" id="generate-atlas-btn">
+                                  <i class="fa-solid fa-sync"></i>
+                                  <span>Update</span>
+                                </button>`
+                              : ''
+                          }
                           <button class="default-viewer-btn" id="download-atlas-png-btn">
                             <i class="fa-solid fa-download"></i>
                             <span>PNG</span>
@@ -931,12 +937,18 @@ class ObjectLayerEngineViewer {
                             <i class="fa-solid fa-code"></i>
                             <span>JSON</span>
                           </button>
-                          ${canMutate
-                            ? html`<button class="default-viewer-btn" id="remove-atlas-btn" style="background: #dc3545;">
-                                <i class="fa-solid fa-trash"></i>
-                                <span>Remove</span>
-                              </button>`
-                            : ''}
+                          ${
+                            canMutate
+                              ? html`<button
+                                  class="default-viewer-btn"
+                                  id="remove-atlas-btn"
+                                  style="background: #dc3545;"
+                                >
+                                  <i class="fa-solid fa-trash"></i>
+                                  <span>Remove</span>
+                                </button>`
+                              : ''
+                          }
                         </div>
                       `
                         : html`
@@ -961,11 +973,7 @@ class ObjectLayerEngineViewer {
                           <i class="fa-solid fa-edit"></i>
                           <span>Edit</span>
                         </button>
-                        <button
-                          class="default-viewer-btn"
-                          id="delete-object-layer-btn"
-                          style="background: #dc3545;"
-                        >
+                        <button class="default-viewer-btn" id="delete-object-layer-btn" style="background: #dc3545;">
                           <i class="fa-solid fa-trash"></i>
                           <span>Delete</span>
                         </button>`
