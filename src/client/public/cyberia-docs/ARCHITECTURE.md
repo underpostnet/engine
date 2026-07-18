@@ -20,7 +20,7 @@ Underpost Platform provides the toolchain, deployment surface, PWA delivery, and
 │  │  IPFS / Cloudinary  │                                                 │
 │  │  ObjectLayerToken   │     Hyperledger Besu (off-line dependency)      │
 │  └─────────┬───────────┘                                                 │
-│            │ gRPC (world load, hot reload)                               │
+│            │ gRPC · REST boot fallback (world load, hot reload)          │
 │            ▼                                                             │
 │  ┌─────────────────────┐                                                 │
 │  │ Authoritative       │   ← Cyberia simulation authority                │
@@ -60,6 +60,7 @@ What it owns:
 - World configuration: AOI radius, economy rules, skill rules, equipment rules, entity gameplay defaults.
 - Persisted character/quest/dialogue/action data.
 - gRPC `CyberiaDataService` for world load and content streaming.
+- REST boot fallback (`/api/cyberia-instance/boot/*`): the same world-load / hot-reload payloads as the gRPC service, served over REST for deploys where the engine gRPC server is not enabled.
 - REST APIs for assets and the optional client-hints overrides.
 - Instance Map REST (`/api/cyberia-instance/instance-map/:code/{static,dynamic}`): static map topology plus authored presence POIs, `sumStatsLimit`-capped baseline ObjectLayer stat sums, and capability membership; the dynamic response supplies only per-player capability activity. Never live positions or simulation stats — those stay client-side.
 - Static content distribution + Cloudinary-backed asset flow.
@@ -124,7 +125,7 @@ The three processes are supervised independently. Each service owns its own moni
 
 Dependency between services is handled by supervision and reconnect loops:
 
-- `cyberia-server` dials `engine-cyberia` gRPC at boot and exits on dial failure rather than fabricate a world. On reconnect, it reloads world configuration.
+- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`ENGINE_API_BASE_URL`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world. On reconnect, it reloads world configuration.
 - `cyberia-client` reconnects to `cyberia-server` over WebSocket and re-fetches content from `engine-cyberia` over REST independently.
 - If any one of the three services goes unhealthy, the game moves to standby until all three recover.
 

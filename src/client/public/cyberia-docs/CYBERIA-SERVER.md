@@ -38,13 +38,13 @@ persisted maps + rules                  tick + AOI + snapshots           render 
 ```
 
 - Each service is supervised independently and owns its own monitor and reconnector.
-- `cyberia-server` dials `engine-cyberia` gRPC at boot and exits on dial failure rather than fabricate a world.
+- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`ENGINE_API_BASE_URL`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world.
 - On reconnect, world configuration is reloaded via `GetFullInstance(instanceCode)`.
 - If any one of the three services is unhealthy, the game moves to standby until all three recover.
 
 The server speaks two protocols:
 
-- **gRPC, inbound, at boot and hot reload:** consumes world configuration from `engine-cyberia`.
+- **gRPC (or its REST boot fallback), inbound, at boot and hot reload:** consumes world configuration from `engine-cyberia`.
 - **WebSocket binary, ongoing:** delivers AOI snapshots to clients, accepts typed input commands.
 
 There is no per-tick traffic between `cyberia-server` and `engine-cyberia`, and no presentation authority in the Go runtime.
@@ -212,7 +212,7 @@ The client treats those wire bytes as a hint and resolves the actual fallback co
 
 ## Source layout
 
-Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the gRPC client and world builder under `src/grpcclient/`; the chi-based REST router under `api/`.
+Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the engine transport clients (gRPC + REST fallback dispatcher) and world builder under `engine_client/`; the chi-based REST router under `api/`.
 
 | File                                                                                              | Responsibility                                                                                          |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -237,7 +237,7 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the 
 | `src/frozen_state.go`                                                                             | FrozenInteractionState                                                                                  |
 | `src/handlers.go`                                                                                 | WebSocket lifecycle, binary uplink decoder, JSON-uplink back-compat adapter                             |
 | `src/sim_palette.go`                                                                              | Internal RGBA fill for AOI wire bytes (not a contract)                                                  |
-| `src/grpcclient/`                                                                                 | gRPC client + world builder for engine-cyberia                                                          |
+| `engine_client/`                                                                                  | engine-cyberia transport clients (gRPC, REST fallback, dispatcher) + world builder                      |
 | `api/router.go`, `api/metrics.go`                                                                 | chi router; `/api/v1/*` endpoints                                                                       |
 | `proto/cyberia.proto`                                                                             | gRPC service contract shared with engine-cyberia                                                        |
 
