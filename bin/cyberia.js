@@ -2622,7 +2622,7 @@ try {
               const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
               for (const map of dropMaps) {
                 if (map.thumbnail) thumbFileIds.push(map.thumbnail);
-              if (map.preview) thumbFileIds.push(map.preview);
+                if (map.preview) thumbFileIds.push(map.preview);
                 if (map.preview) thumbFileIds.push(map.preview);
                 for (const entity of map.entities || []) {
                   for (const itemId of entity.objectLayerItemIds || []) {
@@ -4711,7 +4711,6 @@ try {
     fs.copyFileSync('./cyberia-server/Dockerfile', './src/runtime/cyberia-server/Dockerfile');
     fs.copyFileSync('./cyberia-client/README.md', './src/client/public/cyberia-docs/CYBERIA-CLIENT.md');
     fs.copyFileSync('./cyberia-client/Dockerfile', './src/runtime/cyberia-client/Dockerfile');
-    shellExec('cp -a ./engine-private/conf/dd-cyberia/docker-compose/cyberia/. ./src/runtime/engine-cyberia/');
   });
 
   runner
@@ -5281,6 +5280,8 @@ node bin image --path cyberia-client \
         './.github/workflows/cyberia-server.cd.yml',
         './cyberia-server/.github/workflows/cyberia-server.cd.yml',
       );
+      shellExec('cp -a ./engine-private/conf/dd-cyberia/docker-compose/cyberia/. ./src/runtime/engine-cyberia/');
+      shellExec('node bin/cyberia.js instance --publish-build');
       logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
     });
 

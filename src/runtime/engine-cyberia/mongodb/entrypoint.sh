@@ -7,7 +7,7 @@ RS="${DB_REPLICA_SET:-rs0}"
 MEMBER_HOST="mongodb:27017"
 
 if [ ! -s "$KEYFILE" ]; then
-  openssl rand -base64 756 > "$KEYFILE"
+    openssl rand -base64 756 > "$KEYFILE"
 fi
 chmod 400 "$KEYFILE"
 chown 999:999 "$KEYFILE"
@@ -17,13 +17,13 @@ chown -R 999:999 /data/db
 # One-time replica-set + root-user bootstrap via the localhost exception,
 # performed in the background once mongod accepts loopback connections.
 (
-  for i in $(seq 1 60); do
-    if mongosh --quiet --host 127.0.0.1 --eval 'db.adminCommand({ ping: 1 })' >/dev/null 2>&1; then
-      break
-    fi
-    sleep 1
-  done
-
+    for i in $(seq 1 60); do
+        if mongosh --quiet --host 127.0.0.1 --eval 'db.adminCommand({ ping: 1 })' >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    
   cat > /tmp/mongo-bootstrap.js <<JS
 var RS = "$RS";
 var HOST = "$MEMBER_HOST";
@@ -68,9 +68,9 @@ if (!initialized) {
   print("BOOTSTRAP_ALREADY_INITIALIZED");
 }
 JS
-
-  mongosh --quiet --host 127.0.0.1 /tmp/mongo-bootstrap.js > /tmp/mongo-bootstrap.log 2>&1 || true
+    
+    mongosh --quiet --host 127.0.0.1 /tmp/mongo-bootstrap.js > /tmp/mongo-bootstrap.log 2>&1 || true
 ) &
 
 exec gosu mongodb mongod \
-  --replSet "$RS" --auth --clusterAuthMode keyFile --keyFile "$KEYFILE" --bind_ip_all
+--replSet "$RS" --auth --clusterAuthMode keyFile --keyFile "$KEYFILE" --bind_ip_all
