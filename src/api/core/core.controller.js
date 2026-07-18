@@ -1,69 +1,8 @@
-import { loggerFactory } from '../../server/logger.js';
+import { buildCrudController, serviceHandler } from '../../server/middlewares.js';
 import { CoreService } from './core.service.js';
 
-const logger = loggerFactory(import.meta);
-
-class CoreController {
-  static post = async (req, res, options) => {
-    try {
-      const result = await CoreService.post(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-  static get = async (req, res, options) => {
-    try {
-      const result = await CoreService.put(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-  static put = async (req, res, options) => {
-    try {
-      const result = await CoreService.get(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-  static delete = async (req, res, options) => {
-    try {
-      const result = await CoreService.delete(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-}
+const CoreController = buildCrudController(CoreService, {
+  get: serviceHandler(CoreService.get),
+});
 
 export { CoreController };

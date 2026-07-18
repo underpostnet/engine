@@ -1,8 +1,5 @@
-import { loggerFactory } from '../../server/logger.js';
-import { TestController } from './test.controller.js';
 import express from 'express';
-
-const logger = loggerFactory(import.meta);
+import { TestController } from './test.controller.js';
 
 class TestRouter {
   /**

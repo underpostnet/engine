@@ -1,74 +1,27 @@
-import { loggerFactory } from '../../server/logger.js';
-import { CyberiaClientHintsService } from './cyberia-client-hints.service.js';
-
-const logger = loggerFactory(import.meta);
+import { controllerHandler, sendSuccess } from '../../server/middlewares.js';
+import { CYBERIA_CLIENT_HINTS_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { resolveClientHints } from './cyberia-client-hints.service.js';
 
 class CyberiaClientHintsController {
-  static post = async (req, res, options) => {
-    try {
-      const result = await CyberiaClientHintsService.post(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
+  static getByCode = controllerHandler(
+    async (req, res, options) => {
+      const { data, source } = await resolveClientHints(req.params.code, {
+        host: options.host || 'default',
+        path: options.path || '/',
       });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-  static get = async (req, res, options) => {
-    try {
-      const { page, limit } = req.query;
-      const result = await CyberiaClientHintsService.get(
-        { ...req, query: { ...req.query, page: parseInt(page), limit: parseInt(limit) } },
-        res,
-        options,
-      );
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-  static put = async (req, res, options) => {
-    try {
-      const result = await CyberiaClientHintsService.put(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
-  static delete = async (req, res, options) => {
-    try {
-      const result = await CyberiaClientHintsService.delete(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  };
+      // Surface the resolution source as a non-authoritative header so
+      // operators can see whether the runtime fetched from the new
+      // collection, the compatibility read on instance-conf, the cache, or defaults.
+      res.setHeader('X-Cyberia-Hints-Source', source);
+      return sendSuccess(res, data);
+    },
+    { errorStatus: 500 },
+  );
+
+  static getDefaults = controllerHandler(async (req, res, options) => {
+    res.setHeader('X-Cyberia-Hints-Source', 'defaults');
+    return sendSuccess(res, CYBERIA_CLIENT_HINTS_DEFAULTS);
+  });
 }
 
 export { CyberiaClientHintsController };

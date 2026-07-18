@@ -1,8 +1,6 @@
-import { loggerFactory } from '../../server/logger.js';
-import { DocumentController } from './document.controller.js';
 import express from 'express';
-
-const logger = loggerFactory(import.meta);
+import { registerCrudRoutes } from '../../server/middlewares.js';
+import { DocumentController } from './document.controller.js';
 
 class DocumentRouter {
   /**
@@ -11,23 +9,21 @@ class DocumentRouter {
    */
   static router(options) {
     const router = express.Router();
-    router.post(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
-    router.post(`/`, options.authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
+    const authOnly = [options.authMiddleware];
+    // Public listings — must come before the guarded generic /:id routes.
     router.get(`/public/high`, async (req, res) => await DocumentController.get(req, res, options));
     router.get(`/public`, async (req, res) => await DocumentController.get(req, res, options));
-    router.get(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
-    router.get(`/`, options.authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
-    router.put(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
-    router.put(`/`, options.authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
     router.patch(`/:id/copy-share-link`, async (req, res) => await DocumentController.patch(req, res, options));
     router.patch(
       `/:id/toggle-public`,
       options.authMiddleware,
       async (req, res) => await DocumentController.patch(req, res, options),
     );
-    router.delete(`/:id`, options.authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
-    router.delete(`/`, options.authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
-    return router;
+    return registerCrudRoutes(router, DocumentController, options, {
+      readGuards: authOnly,
+      writeGuards: authOnly,
+      deleteAllGuards: authOnly,
+    });
   }
 }
 

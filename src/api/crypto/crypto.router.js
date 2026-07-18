@@ -1,8 +1,5 @@
-import { loggerFactory } from '../../server/logger.js';
-import { CryptoController } from './crypto.controller.js';
 import express from 'express';
-
-const logger = loggerFactory(import.meta);
+import { CryptoController } from './crypto.controller.js';
 
 class CryptoRouter {
   /**

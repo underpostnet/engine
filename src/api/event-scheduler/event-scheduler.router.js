@@ -1,9 +1,7 @@
-import { moderatorGuard } from '../../server/auth.js';
-import { loggerFactory } from '../../server/logger.js';
-import { EventSchedulerController } from './event-scheduler.controller.js';
 import express from 'express';
-
-const logger = loggerFactory(import.meta);
+import { registerCrudRoutes } from '../../server/middlewares.js';
+import { moderatorGuard } from '../../server/auth.js';
+import { EventSchedulerController } from './event-scheduler.controller.js';
 
 class EventSchedulerRouter {
   /**
@@ -12,51 +10,20 @@ class EventSchedulerRouter {
    */
   static router(options) {
     const router = express.Router();
-    router.post(
-      `/:id`,
+    router.get(
+      `/creatorUser`,
       options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await EventSchedulerController.post(req, res, options),
+      async (req, res) => await EventSchedulerController.get(req, res, options),
     );
-    router.post(
-      `/`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await EventSchedulerController.post(req, res, options),
-    );
-    router.get(`/creatorUser`, options.authMiddleware, async (req, res) => await EventSchedulerController.get(req, res, options));
     router.get(
       `/creatorUser/:id`,
       options.authMiddleware,
       async (req, res) => await EventSchedulerController.get(req, res, options),
     );
-    router.get(`/:id`, async (req, res) => await EventSchedulerController.get(req, res, options));
-    router.get(`/`, async (req, res) => await EventSchedulerController.get(req, res, options));
-    router.put(
-      `/:id`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await EventSchedulerController.put(req, res, options),
-    );
-    router.put(
-      `/`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await EventSchedulerController.put(req, res, options),
-    );
-    router.delete(
-      `/:id`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await EventSchedulerController.delete(req, res, options),
-    );
-    router.delete(
-      `/`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await EventSchedulerController.delete(req, res, options),
-    );
-    return router;
+    // Collection delete uses moderator (not admin) guard, matching prior behavior.
+    return registerCrudRoutes(router, EventSchedulerController, options, {
+      deleteAllGuards: [options.authMiddleware, moderatorGuard],
+    });
   }
 }
 

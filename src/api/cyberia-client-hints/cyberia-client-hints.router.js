@@ -38,11 +38,8 @@
  */
 
 import express from 'express';
-import { loggerFactory } from '../../server/logger.js';
-import { CYBERIA_CLIENT_HINTS_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { resolveClientHints } from './cyberia-client-hints.service.js';
-
-const logger = loggerFactory(import.meta);
+import { crossOriginMiddleware } from '../../server/middlewares.js';
+import { CyberiaClientHintsController } from './cyberia-client-hints.controller.js';
 
 class CyberiaClientHintsRouter {
   /**
@@ -51,6 +48,7 @@ class CyberiaClientHintsRouter {
    */
   static router(options) {
     const router = express.Router();
+    router.use(crossOriginMiddleware);
 
     // GET /:code -> resolved hints.
     // Resolution order is documented in cyberia-client-hints.service.js:
@@ -58,36 +56,10 @@ class CyberiaClientHintsRouter {
     //   2. CyberiaClientHints collection (preferred).
     //   3. Legacy presentation fields on CyberiaInstanceConf (back-compat).
     //   4. Canonical client defaults (never cached so a later DB insert wins).
-    router.get('/:code', async (req, res) => {
-      try {
-        if (req && req.headers && req.headers.origin) {
-          res.set('Access-Control-Allow-Origin', req.headers.origin);
-        } else res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        const { data, source } = await resolveClientHints(req.params.code, {
-          host: options.host || 'default',
-          path: options.path || '/',
-        });
-        // Surface the resolution source as a non-authoritative header so
-        // operators can see whether the runtime fetched from the new
-        // collection, the compatibility read on instance-conf, the cache, or defaults.
-        res.setHeader('X-Cyberia-Hints-Source', source);
-        return res.status(200).json({ status: 'success', data });
-      } catch (err) {
-        logger.error('cyberia-client-hints GET failed:', err);
-        return res.status(500).json({ status: 'error', message: err.message });
-      }
-    });
+    router.get('/:code', async (req, res) => await CyberiaClientHintsController.getByCode(req, res, options));
 
     // GET / -> canonical defaults. No DB read. Documentation/diagnostic.
-    router.get('/', async (_req, res) => {
-      if (_req && _req.headers && _req.headers.origin) {
-        res.set('Access-Control-Allow-Origin', _req.headers.origin);
-      } else res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('X-Cyberia-Hints-Source', 'defaults');
-      return res.status(200).json({ status: 'success', data: CYBERIA_CLIENT_HINTS_DEFAULTS });
-    });
+    router.get('/', async (req, res) => await CyberiaClientHintsController.getDefaults(req, res, options));
 
     return router;
   }

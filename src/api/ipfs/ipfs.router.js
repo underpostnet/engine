@@ -1,9 +1,7 @@
-import { adminGuard } from '../../server/auth.js';
-import { loggerFactory } from '../../server/logger.js';
-import { IpfsController } from './ipfs.controller.js';
 import express from 'express';
-
-const logger = loggerFactory(import.meta);
+import { registerCrudRoutes } from '../../server/middlewares.js';
+import { adminGuard } from '../../server/auth.js';
+import { IpfsController } from './ipfs.controller.js';
 
 class IpfsRouter {
   /**
@@ -12,17 +10,14 @@ class IpfsRouter {
    */
   static router(options) {
     const router = express.Router();
+    const adminOnly = [options.authMiddleware, adminGuard];
     // Health / audit — must come before /:id to avoid matching conflicts.
-    router.get(`/verify`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.verify(req, res, options));
-    router.post(`/:id`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.post(req, res, options));
-    router.post(`/`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.post(req, res, options));
-    router.get(`/:id`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.get(req, res, options));
-    router.get(`/`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.get(req, res, options));
-    router.put(`/:id`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.put(req, res, options));
-    router.put(`/`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.put(req, res, options));
-    router.delete(`/:id`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.delete(req, res, options));
-    router.delete(`/`, options.authMiddleware, adminGuard, async (req, res) => await IpfsController.delete(req, res, options));
-    return router;
+    router.get(`/verify`, ...adminOnly, async (req, res) => await IpfsController.verify(req, res, options));
+    return registerCrudRoutes(router, IpfsController, options, {
+      readGuards: adminOnly,
+      writeGuards: adminOnly,
+      deleteAllGuards: adminOnly,
+    });
   }
 }
 
