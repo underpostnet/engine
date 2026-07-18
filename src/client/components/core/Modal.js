@@ -683,6 +683,28 @@ class Modal {
                       >
                     </div>`
                   : ''}
+                ${idModal === 'modal-menu' && options.mode !== 'slide-menu-right'
+                  ? html`<div
+                        class="abs main-btn-menu-top-container"
+                        style="bottom: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
+                      >
+                        ${await BtnIcon.instance({
+                          style: `height: 100%`,
+                          class: `in fll main-btn-menu-top action-bar-box action-btn-center-top`,
+                          label: html`<div class="abs center">
+                            <i class="far fa-square btn-bar-center-icon-square hide"></i>
+                            <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
+                            <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
+                          </div>`,
+                        })}
+                      </div>
+
+                      <style>
+                        .a-link-top-banner {
+                          padding-left: 35px;
+                        }
+                      </style>`
+                  : ''}
               </div>`,
             );
             EventsUI.onClick(`.action-btn-profile-log-in`, () => {
@@ -697,6 +719,12 @@ class Modal {
               }
               s(`.main-btn-sign-up`).click();
             });
+            if (idModal === 'modal-menu' && options.mode !== 'slide-menu-right') {
+              EventsUI.onClick(`.action-btn-center-top`, (e) => {
+                e.preventDefault();
+                Modal.actionBtnCenter();
+              });
+            }
             s(`.input-info-${inputSearchBoxId}`).style.textAlign = 'left';
             htmls(`.input-info-${inputSearchBoxId}`, '');
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
