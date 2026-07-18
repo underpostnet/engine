@@ -53,6 +53,7 @@ jobs:
           images: underpost/cyberia-server-dev
           tags: |
             type=raw,value=v${{ env.UNDERPOST_VERSION }}
+            type=raw,value=latest
             type=ref,event=branch
             type=sha,prefix=sha-
 

@@ -28,6 +28,7 @@ jobs:
           images: underpost/express
           tags: |
             type=raw,value=v3.2.70
+            type=raw,value=latest
             type=ref,event=branch
             type=sha,prefix=sha-
 
