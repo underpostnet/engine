@@ -1,6 +1,6 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/middlewares.js';
-import { userGuard } from '../../server/auth.js';
+import { userGuard, moderatorGuard } from '../../server/auth.js';
 import { CyberiaInstanceController } from './cyberia-instance.controller.js';
 
 class CyberiaInstanceRouter {
@@ -46,6 +46,19 @@ class CyberiaInstanceRouter {
     router.get(
       `/instance-map/:instanceCode/dynamic`,
       async (req, res) => await CyberiaInstanceController.instanceMapDynamic(req, res, options),
+    );
+    // Cached node-background capture of a fallback-world map (PNG).
+    router.get(
+      `/instance-map/:instanceCode/preview/:mapCode`,
+      async (req, res) => await CyberiaInstanceController.instanceMapPreview(req, res, options),
+    );
+    // Hot reload — engine-cyberia -> cyberia-server control trigger. Elevated
+    // privilege only; the internal API key stays server-side.
+    router.post(
+      `/:id/hot-reload`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaInstanceController.hotReload(req, res, options),
     );
     router.get(
       `/:id/portal-connect`,

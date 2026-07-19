@@ -3,6 +3,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
 import { generateFallbackWorld } from './cyberia-fallback-world.js';
+import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -79,6 +80,28 @@ class CyberiaInstanceService {
    *
    *   ?persist=true  — save generated portals to DB
    */
+  /**
+   * Ask a running cyberia-server to rebuild its world now (gRPC control
+   * service, REST fallback). Moderator/admin only — the route guards the
+   * caller; the internal CYBERIA_SERVER_API_KEY never leaves the engine.
+   */
+  static hotReload = async (req, res, options) => {
+    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
+    const { serverUrl, mode } = req.body || {};
+    if (!serverUrl) throw new Error('serverUrl is required');
+
+    // Resolve the instance the component is editing so the target server can
+    // reject a trigger aimed at a different world.
+    let instanceCode = req.body?.instanceCode || '';
+    if (!instanceCode && req.params.id) {
+      const instance = await CyberiaInstance.findById(req.params.id).select('code').lean();
+      instanceCode = instance?.code || '';
+    }
+
+    const { transport, result, grpcError } = await triggerHotReload({ serverUrl, instanceCode, mode });
+    return { transport, instanceCode, grpcError, ...result };
+  };
+
   static portalConnect = async (req, res, options) => {
     const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
     const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
