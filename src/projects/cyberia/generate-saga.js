@@ -1707,6 +1707,36 @@ async function persistInstance({ instance, CyberiaInstance }) {
 }
 
 /**
+ * Spatial placement fields owned by instance placement/export, never by the saga.
+ * The saga is text/metadata only, so it always emits these as null (see STAGE
+ * prompts). Persisting those nulls would clobber the coordinates assigned when the
+ * NPC entity is placed on a map, so they are stripped from $set below.
+ */
+const SAGA_PLACEMENT_FIELDS = ['sourceMapCode', 'sourceCellX', 'sourceCellY'];
+
+/**
+ * Build a placement-safe upsert update for actions/quests: null spatial fields are
+ * seeded only on insert ($setOnInsert) so a saga re-import never overwrites the
+ * coordinates instance placement/export already assigned. Non-null spatial values
+ * (explicit placement in the saga itself) still go through $set.
+ *
+ * @param {Object} doc - Normalized action/quest document.
+ * @returns {{ $set: Object, $setOnInsert?: Object }}
+ */
+function buildPlacementSafeUpdate(doc) {
+  const $set = {};
+  const $setOnInsert = {};
+  for (const [key, value] of Object.entries(doc)) {
+    if (SAGA_PLACEMENT_FIELDS.includes(key) && (value === null || value === undefined)) {
+      $setOnInsert[key] = null;
+      continue;
+    }
+    $set[key] = value;
+  }
+  return Object.keys($setOnInsert).length ? { $set, $setOnInsert } : { $set };
+}
+
+/**
  * Persist the normalized payload into MongoDB via the provided Mongoose models.
  * Upserts by natural key so reruns are idempotent.
  *
@@ -1744,7 +1774,7 @@ async function persistSagaPayload({ payload, models }) {
     }
   }
   for (const quest of quests) {
-    await CyberiaQuest.findOneAndUpdate({ code: quest.code }, { $set: quest }, { upsert: true });
+    await CyberiaQuest.findOneAndUpdate({ code: quest.code }, buildPlacementSafeUpdate(quest), { upsert: true });
   }
   for (const dialogue of dialogues) {
     await CyberiaDialogue.findOneAndUpdate(
@@ -1754,7 +1784,7 @@ async function persistSagaPayload({ payload, models }) {
     );
   }
   for (const action of actions) {
-    await CyberiaAction.findOneAndUpdate({ code: action.code }, { $set: action }, { upsert: true });
+    await CyberiaAction.findOneAndUpdate({ code: action.code }, buildPlacementSafeUpdate(action), { upsert: true });
   }
 
   // Skills live in their own collection (CyberiaSkill), upserted by triggerItemId
