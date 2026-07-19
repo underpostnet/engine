@@ -425,8 +425,8 @@ class Modal {
               s(`.main-body-btn-ui-menu-menu`).classList.add('hide');
               s(`.main-body-btn-ui-menu-close`).classList.remove('hide');
               if (s(`.btn-bar-center-icon-menu`)) {
-                s(`.btn-bar-center-icon-close`).classList.remove('hide');
-                s(`.btn-bar-center-icon-menu`).classList.add('hide');
+                sa(`.btn-bar-center-icon-close`).forEach((el) => el.classList.remove('hide'));
+                sa(`.btn-bar-center-icon-menu`).forEach((el) => el.classList.add('hide'));
               }
 
               s(`.main-body-btn-container`).style[
@@ -449,8 +449,8 @@ class Modal {
               s(`.main-body-btn-ui-menu-close`).classList.add('hide');
               s(`.main-body-btn-ui-menu-menu`).classList.remove('hide');
               if (s(`.btn-bar-center-icon-menu`)) {
-                s(`.btn-bar-center-icon-menu`).classList.remove('hide');
-                s(`.btn-bar-center-icon-close`).classList.add('hide');
+                sa(`.btn-bar-center-icon-menu`).forEach((el) => el.classList.remove('hide'));
+                sa(`.btn-bar-center-icon-close`).forEach((el) => el.classList.add('hide'));
               }
               s(`.main-body-btn-container`).style[
                 true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
@@ -702,6 +702,12 @@ class Modal {
                       <style>
                         .a-link-top-banner {
                           padding-left: 35px;
+                        }
+                        .main-body-btn-bar-custom {
+                          top: 50px !important;
+                        }
+                        .main-body-btn-menu {
+                          display: none;
                         }
                       </style>`
                   : ''}
