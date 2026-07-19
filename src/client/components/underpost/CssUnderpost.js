@@ -114,7 +114,9 @@ const CssCommonUnderpost = async () => {
       }
 
       .default-slide-menu-top-bar-fix-title-container-text {
-        font-size: 40px !important;
+        font-size: 30px !important;
+        left: -15px !important;
+        top: 42px !important;
       }
 
       .modal,
@@ -239,7 +241,6 @@ class CssUnderpostDark {
             color: white;
           }
           .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
             color: black !important;
           }
         </style>
@@ -267,7 +268,6 @@ class CssUnderpostLight {
             color: black;
           }
           .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
             color: white !important;
           }
         </style>
