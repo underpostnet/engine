@@ -4717,14 +4717,18 @@ try {
 
       const devFlag = options.dev ? ' --dev' : '';
       const mongoHostFlag = options.mongoHost ? ` --mongo-host ${options.mongoHost}` : '';
-      const instanceCode = process.env.INSTANCE_CODE || 'cyberia-main';
-      shellExec(`node bin run clean src/client/public/cyberia`);
+      const instanceHintsCode = process.env.INSTANCE_CODE || 'cyberia-main';
+      const sagaCode = 'amethyst-strata-expansion';
+      shellExec(`node bin run clean src/client/public/cyberia${devFlag}${mongoHostFlag}`);
+      shellExec(
+        `node bin/cyberia generate-saga --import engine-private/cyberia-sagas/${sagaCode}.json${devFlag}${mongoHostFlag}`,
+      );
       shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-skills${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-entities${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-actions-quests${devFlag}${mongoHostFlag}`);
-      shellExec(`node bin/cyberia client-hints ${instanceCode} --seed-defaults${devFlag}${mongoHostFlag}`);
+      shellExec(`node bin/cyberia client-hints ${instanceHintsCode} --seed-defaults${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia instance FOREST --import --dev`);
     });
 
