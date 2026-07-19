@@ -1942,6 +1942,8 @@ try {
         atlasMetadata: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
       });
 
+      // Canonical pins now carry a single `mfsPath`; `mfsPaths` (plural) is only read
+      // for backward compatibility with older backups that consolidated shared CIDs.
       const collectMfsPaths = (doc = {}) => {
         const paths = new Set();
         if (doc.mfsPath) paths.add(doc.mfsPath);
@@ -1975,25 +1977,19 @@ try {
 
       const upsertCanonicalPinEntry = (pinMap, { cid, resourceType, mfsPath = '' }) => {
         if (!cid || !resourceType) return;
-        const key = `${resourceType}:${cid}`;
         const nextPath = mfsPath || '';
-        if (!pinMap.has(key)) {
-          pinMap.set(key, {
-            cid,
-            resourceType,
-            mfsPath: nextPath,
-            mfsPaths: nextPath ? [nextPath] : [],
-          });
+        // mfsPath uniquely identifies an item-id asset; when absent, fall back to
+        // cid+resourceType so path-less pins still dedupe.
+        const key = nextPath || `${resourceType}:${cid}`;
+        const existing = pinMap.get(key);
+        if (!existing) {
+          pinMap.set(key, { cid, resourceType, mfsPath: nextPath });
           return;
         }
-
-        const existing = pinMap.get(key);
-        if (nextPath && !existing.mfsPaths.includes(nextPath)) {
-          existing.mfsPaths.push(nextPath);
-        }
-        if (!existing.mfsPath && nextPath) {
-          existing.mfsPath = nextPath;
-        }
+        // A new CID for the same mfsPath overwrites the previous association (last write wins).
+        existing.cid = cid;
+        existing.resourceType = resourceType;
+        if (nextPath) existing.mfsPath = nextPath;
       };
 
       const serialiseCanonicalPins = (pinMap) =>
@@ -2001,8 +1997,38 @@ try {
           cid: entry.cid,
           resourceType: entry.resourceType,
           ...(entry.mfsPath ? { mfsPath: entry.mfsPath } : {}),
-          ...(entry.mfsPaths.length ? { mfsPaths: entry.mfsPaths } : {}),
         }));
+
+      // Bring the live Ipfs collection in line with the mfsPath-unique model: collapse
+      // duplicate mfsPath rows (keeping the most recently updated association) then sync
+      // indexes so the legacy {cid,resourceType} unique index is dropped and the new
+      // partial unique index on mfsPath is built. Idempotent and safe to re-run.
+      const reconcileIpfsRegistryIndexes = async () => {
+        let removedDuplicates = 0;
+        const duplicateGroups = await Ipfs.aggregate([
+          { $match: { mfsPath: { $gt: '' } } },
+          { $sort: { updatedAt: -1, _id: -1 } },
+          { $group: { _id: '$mfsPath', keepId: { $first: '$_id' }, ids: { $push: '$_id' }, count: { $sum: 1 } } },
+          { $match: { count: { $gt: 1 } } },
+        ]);
+        for (const group of duplicateGroups) {
+          const staleIds = group.ids.filter((id) => String(id) !== String(group.keepId));
+          if (staleIds.length) {
+            const res = await Ipfs.deleteMany({ _id: { $in: staleIds } });
+            removedDuplicates += res?.deletedCount || 0;
+          }
+        }
+        try {
+          await Ipfs.syncIndexes();
+        } catch (err) {
+          logger.warn(`IPFS registry index sync failed (mfsPath uniqueness may not be enforced): ${err?.message ?? err}`);
+        }
+        if (removedDuplicates) {
+          logger.info(
+            `IPFS registry reconciled: removed ${removedDuplicates} duplicate mfsPath record(s), kept newest association per path`,
+          );
+        }
+      };
 
       const rewriteImportedCidReferences = async ({ oldCid, newCid, resourceType }) => {
         if (!oldCid || !newCid || oldCid === newCid) return;
@@ -2518,7 +2544,6 @@ try {
               ? await Ipfs.find({
                   $or: [
                     ...(relatedPinPaths.length ? [{ mfsPath: { $in: relatedPinPaths } }] : []),
-                    ...(relatedPinPaths.length ? [{ mfsPaths: { $in: relatedPinPaths } }] : []),
                     ...(relatedPinCids.length ? [{ cid: { $in: relatedPinCids } }] : []),
                   ],
                 }).lean()
@@ -3179,6 +3204,7 @@ try {
         // 9. Restore IPFS pin records and payloads
         const ipfsFile = `${backupDir}/ipfs/pins.json`;
         if (fs.existsSync(ipfsFile)) {
+          await reconcileIpfsRegistryIndexes();
           const ipfsDocs = fs.readJsonSync(ipfsFile);
           const ipfsContentDir = `${backupDir}/ipfs/content`;
           let ipfsCount = 0;
@@ -3207,28 +3233,18 @@ try {
 
           const backupPinEntries = serialiseCanonicalPins(backupPins);
 
-          const restoreAdditionalMfsPaths = async (cid, mfsPaths, primaryPath) => {
-            let restoredCount = 0;
-            for (const mfsPath of mfsPaths) {
-              if (!mfsPath || mfsPath === primaryPath) continue;
-              const ok = await IpfsClient.restoreMfsPath(cid, mfsPath);
-              if (ok) restoredCount++;
-            }
-            return restoredCount;
-          };
-
           if (fs.existsSync(ipfsContentDir)) {
             let cidRewriteCount = 0;
-            let extraMfsRestoreCount = 0;
             let ipfsAlreadyPresent = 0;
 
             for (const [index, doc] of backupPinEntries.entries()) {
-              const mfsPaths = collectMfsPaths(doc);
-              const primaryPath = mfsPaths[0] || '';
+              const primaryPath = doc.mfsPath || '';
               const payloadPath = `${ipfsContentDir}/${doc.cid}.bin`;
 
               try {
-                const existing = await Ipfs.findOne({ cid: doc.cid, resourceType: doc.resourceType })
+                const existing = await Ipfs.findOne(
+                  primaryPath ? { mfsPath: primaryPath } : { cid: doc.cid, resourceType: doc.resourceType },
+                )
                   .select({ _id: 1 })
                   .lean();
                 if (existing) {
@@ -3286,8 +3302,7 @@ try {
                   });
                 }
 
-                extraMfsRestoreCount += await restoreAdditionalMfsPaths(finalCid, mfsPaths, primaryPath);
-                // createPinRecord is an idempotent upsert on (cid, resourceType).
+                // createPinRecord is an idempotent upsert keyed by mfsPath.
                 await createPinRecord({
                   cid: finalCid,
                   resourceType: doc.resourceType,
@@ -3312,7 +3327,7 @@ try {
                 `${ipfsSkipped ? `, ${ipfsSkipped} skipped` : ''}`,
             );
             logger.info(
-              `IPFS raw payload restore: ${ipfsCount}/${backupPinEntries.length} record(s) restored, ${extraMfsRestoreCount} additional MFS path(s) restored${cidRewriteCount ? `, ${cidRewriteCount} CID rewrite(s)` : ''}`,
+              `IPFS raw payload restore: ${ipfsCount}/${backupPinEntries.length} record(s) restored${cidRewriteCount ? `, ${cidRewriteCount} CID rewrite(s)` : ''}`,
             );
           } else {
             logger.warn(

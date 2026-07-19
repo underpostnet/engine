@@ -18,21 +18,22 @@ const logger = loggerFactory(import.meta);
  */
 const createPinRecord = async ({ cid, resourceType, mfsPath = '', options }) => {
   const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
+  // mfsPath uniquely identifies an item-id asset, so it is the upsert key: a new
+  // CID arriving for the same path overwrites the previous association (last write
+  // wins). Only content added without an MFS copy falls back to cid+resourceType.
+  const filter = mfsPath ? { mfsPath } : { cid, resourceType };
+  const update = { $set: { cid, resourceType, mfsPath } };
   try {
-    const record = await Ipfs.findOneAndUpdate(
-      { cid, resourceType },
-      { $set: { mfsPath } },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-    );
+    const record = await Ipfs.findOneAndUpdate(filter, update, {
+      upsert: true,
+      returnDocument: 'after',
+      setDefaultsOnInsert: true,
+    });
     logger.info(`IPFS registry upserted – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
     return record;
   } catch (err) {
     if (err?.code === 11000) {
-      const record = await Ipfs.findOneAndUpdate(
-        { cid, resourceType },
-        { $set: { mfsPath } },
-        { returnDocument: 'after' },
-      );
+      const record = await Ipfs.findOneAndUpdate(filter, update, { returnDocument: 'after' });
       logger.info(`IPFS registry reconciled (duplicate key) – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
       return record;
     }
