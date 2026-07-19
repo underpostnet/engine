@@ -19,6 +19,7 @@
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { generateFallbackWorld } from './cyberia-fallback-world.js';
+import { cacheWorldMapPreviews, getCachedMapPreview } from '../../projects/cyberia/map-preview-generator.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   DefaultCyberiaActions,
@@ -302,15 +303,23 @@ const buildStaticPayload = ({
   objectLayerMetadata = {},
   entityDefaults = mergeEntityDefaults(),
   sumStatsLimit = CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
+  previewCachedMapCodes = new Set(),
 }) => {
   const nodes = maps.map((m) => ({
     mapCode: m.code,
     name: m.name || m.code,
     gridX: m.gridX,
     gridY: m.gridY,
-    // File id of the map's auto-captured Object Layer render; the client
-    // fetches /api/file/blob/:id and draws it as the node background.
+    // File id of the map's auto-captured Object Layer render (persisted maps).
     preview: m.preview ? String(m.preview) : '',
+    // Ready-to-fetch path of the node background. Persisted maps serve the
+    // captured File; the procedural fallback world serves the preview this
+    // server rendered and cached for the generated layout.
+    previewUrl: m.preview
+      ? `/api/file/blob/${String(m.preview)}`
+      : previewCachedMapCodes.has(m.code)
+        ? `/api/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(m.code)}`
+        : '',
   }));
 
   const edges = (instance.portals || []).map((p) => ({
@@ -438,6 +447,10 @@ const resolveInstanceWorld = async (instanceCode, options) => {
       objectLayerMetadata,
       entityDefaults: mergeEntityDefaults(),
       sumStatsLimit: CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
+      // The procedural world never passes through the browser editor, so its
+      // node backgrounds are rendered here and served from the in-memory
+      // preview cache (see instanceMapPreview).
+      previewCachedMapCodes: new Set(await cacheWorldMapPreviews(instanceCode, world.maps)),
       fallback: true,
     };
   }
@@ -483,6 +496,26 @@ class CyberiaInstanceMapService {
     if (!instanceCode) throw new Error('instanceCode parameter is required');
     const world = await resolveInstanceWorld(instanceCode, options);
     return buildStaticPayload(world);
+  };
+
+  /**
+   * Cached node-background PNG for one map of the procedural fallback world.
+   * Persisted maps serve their captured File through /api/file/blob instead.
+   */
+  static getPreview = async (req, res, options) => {
+    const { instanceCode, mapCode } = req.params;
+    if (!instanceCode || !mapCode) throw new Error('instanceCode and mapCode parameters are required');
+
+    let png = getCachedMapPreview(instanceCode, mapCode);
+    if (!png) {
+      // Cold cache (first hit, or a restart since the modal last opened):
+      // regenerate the world so the preview exists, then serve it.
+      const { maps } = await resolveInstanceWorld(instanceCode, options);
+      await cacheWorldMapPreviews(instanceCode, maps);
+      png = getCachedMapPreview(instanceCode, mapCode);
+    }
+    if (!png) throw new Error(`No cached preview for map "${mapCode}"`);
+    return png;
   };
 
   static getDynamic = async (req, res, options) => {
