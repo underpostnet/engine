@@ -4697,6 +4697,7 @@ try {
       '--mongo-host <mongo-host>',
       'Mongo host override (forwarded to ol, seed-skills, seed-entities, seed-dialogues, seed-actions-quests, client-hints)',
     )
+    .option('--clean', 'Clean the database before importing')
     .description(
       'Import default Object Layer items, skills, entity defaults, dialogues, actions/quests, and client-hints into MongoDB',
     )
@@ -4719,6 +4720,11 @@ try {
       const mongoHostFlag = options.mongoHost ? ` --mongo-host ${options.mongoHost}` : '';
       const instanceHintsCode = process.env.INSTANCE_CODE || 'cyberia-main';
       const sagaCode = 'amethyst-strata-expansion';
+      if (options.clean) {
+        shellExec(`node bin/cyberia ol --drop${devFlag}${mongoHostFlag}`);
+        shellExec(`node bin/cyberia run-workflow drop-db${devFlag}${mongoHostFlag}`);
+        return;
+      }
       shellExec(`node bin run clean src/client/public/cyberia${devFlag}${mongoHostFlag}`);
       shellExec(
         `node bin/cyberia generate-saga --import engine-private/cyberia-sagas/${sagaCode}.json${devFlag}${mongoHostFlag}`,
