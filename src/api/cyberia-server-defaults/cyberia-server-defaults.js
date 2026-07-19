@@ -142,6 +142,135 @@ for (const cfg of DefaultSkillConfig) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Lain demo quests (testing only) — single source of truth
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Offered by Lain (15,22): a batch of simple no-prerequisite quests so the
+// Quest Journal can exercise pagination with 4+ concurrently active quests.
+//
+// These specs drive THREE derived structures so they can never drift apart:
+//   - DefaultCyberiaQuests      — the quest definitions
+//   - DefaultCyberiaDialogues   — one quest-talk dialogue per talk objective
+//   - DefaultCyberiaActions     — Lain's questDialogueCodes mapping
+//
+// Every `talk` objective MUST have its own quest-talk dialogue mapped on the
+// provider's action: the server validates a talk objective only when the
+// completed dialogue matches that mapping, so a quest without one could be
+// satisfied by reading the NPC's default greeting.
+
+const LAIN_DEMO_QUEST_SPECS = [
+  {
+    suffix: 'coin-cache',
+    title: 'Coin Cache',
+    description: 'Lain is short on change. Round up some loose coins.',
+    steps: [
+      {
+        id: 'step-collect-coins',
+        description: 'Collect 3 coins from field drops.',
+        objectives: [{ type: 'collect', itemId: 'coin', quantity: 3 }],
+      },
+    ],
+    rewards: [{ itemId: 'coin', quantity: 10 }],
+  },
+  {
+    suffix: 'timber-run',
+    title: 'Timber Run',
+    description: 'The camp stockpile is low. Bring back fresh wood.',
+    talkLines: ['The reserve thanks you. That timber will hold the frame another cycle.'],
+    steps: [
+      {
+        id: 'step-collect-wood',
+        description: 'Gather 2 pieces of wood.',
+        objectives: [{ type: 'collect', itemId: 'wood-drop-1', quantity: 2 }],
+      },
+      {
+        id: 'step-return-lain',
+        description: 'Deliver the wood to Lain.',
+        objectives: [{ type: 'talk', itemId: 'lain', quantity: 1 }],
+      },
+    ],
+    rewards: [{ itemId: 'coin', quantity: 15 }],
+  },
+  {
+    suffix: 'pest-control',
+    title: 'Pest Control',
+    description: 'Kishins keep raiding the perimeter. Thin them out.',
+    steps: [
+      {
+        id: 'step-kill-kishins',
+        description: 'Defeat 3 Kishins.',
+        objectives: [{ type: 'kill', itemId: 'kishins', quantity: 3 }],
+      },
+    ],
+    rewards: [{ itemId: 'coin', quantity: 20 }],
+  },
+  {
+    suffix: 'field-sweep',
+    title: 'Field Sweep',
+    description: 'A mixed patrol order: clear hostiles, then salvage the field.',
+    talkLines: ['Patrol logged. The perimeter reads quiet — for now.'],
+    steps: [
+      {
+        id: 'step-kill-one',
+        description: 'Defeat 1 Kishin scout.',
+        objectives: [{ type: 'kill', itemId: 'kishins', quantity: 1 }],
+      },
+      {
+        id: 'step-salvage',
+        description: 'Salvage 5 coins from the aftermath.',
+        objectives: [{ type: 'collect', itemId: 'coin', quantity: 5 }],
+      },
+      {
+        id: 'step-debrief-lain',
+        description: 'Debrief with Lain.',
+        objectives: [{ type: 'talk', itemId: 'lain', quantity: 1 }],
+      },
+    ],
+    rewards: [{ itemId: 'coin', quantity: 25 }],
+  },
+  {
+    suffix: 'lumber-reserve',
+    title: 'Lumber Reserve',
+    description: 'Stock the winter reserve before the next cycle.',
+    steps: [
+      {
+        id: 'step-collect-wood',
+        description: 'Gather 4 pieces of wood.',
+        objectives: [{ type: 'collect', itemId: 'wood-drop-1', quantity: 4 }],
+      },
+    ],
+    rewards: [{ itemId: 'coin', quantity: 30 }],
+  },
+  {
+    suffix: 'proof-of-valor',
+    title: 'Proof of Valor',
+    description: 'Show Lain you can hold the line on your own.',
+    talkLines: ['You held the line alone. The wired remembers that much.'],
+    steps: [
+      {
+        id: 'step-kill-kishins',
+        description: 'Defeat 5 Kishins.',
+        objectives: [{ type: 'kill', itemId: 'kishins', quantity: 5 }],
+      },
+      {
+        id: 'step-report-lain',
+        description: 'Report your feat to Lain.',
+        objectives: [{ type: 'talk', itemId: 'lain', quantity: 1 }],
+      },
+    ],
+    rewards: [{ itemId: 'hatchet', quantity: 1 }],
+  },
+];
+
+const lainDemoQuestCode = (suffix) => `lain-demo-${suffix}`;
+const lainDemoTalkDialogCode = (suffix) => `quest-talk-lain-${suffix}`;
+
+/** Demo specs carrying a `talk` objective targeting Lain — these need a mapping. */
+const LAIN_DEMO_TALK_SPECS = LAIN_DEMO_QUEST_SPECS.filter((q) =>
+  (q.steps || []).some((s) => (s.objectives || []).some((o) => o.type === 'talk' && o.itemId === 'lain')),
+);
+
 /**
  * Default dialogue seeds. Mirrors `CyberiaDialogue` model schema:
  *   { code, order, speaker, text, mood }
@@ -390,6 +519,16 @@ export const DefaultCyberiaDialogues = [
     text: 'Civilian. There is a bounty if you have the stomach for it. Eliminate the threat, collect the drop, report back.',
     mood: 'neutral',
   },
+  // One quest-talk dialogue per Lain demo quest that has a `talk` objective.
+  ...LAIN_DEMO_TALK_SPECS.flatMap((q) =>
+    (q.talkLines || [`Report received: ${q.title}.`]).map((text, order) => ({
+      code: lainDemoTalkDialogCode(q.suffix),
+      order,
+      speaker: 'Lain',
+      text,
+      mood: 'neutral',
+    })),
+  ),
 ];
 
 /**
@@ -442,7 +581,13 @@ export const DefaultCyberiaActions = [
     sourceCellX: 15,
     sourceCellY: 22,
     dialogCode: 'default-lain',
-    questDialogueCodes: [],
+    // Every demo quest with a `talk` objective gets its own quest-talk
+    // dialogue here — without the mapping the server would accept the
+    // default greeting as the talk, and no quest-talk button would show.
+    questDialogueCodes: LAIN_DEMO_TALK_SPECS.map((q) => ({
+      questCode: lainDemoQuestCode(q.suffix),
+      dialogCode: lainDemoTalkDialogCode(q.suffix),
+    })),
   },
 ];
 
@@ -535,109 +680,10 @@ export const DefaultCyberiaQuests = [
     rewards: [{ itemId: 'hatchet', quantity: 1 }],
   },
   // ── Demo quests (testing only) ─────────────────────────────────────────────
-  // Offered by Lain (15,22): a batch of simple no-prerequisite quests so the
-  // Quest Journal can exercise pagination with 4+ concurrently active quests.
-  ...[
-    {
-      suffix: 'coin-cache',
-      title: 'Coin Cache',
-      description: 'Lain is short on change. Round up some loose coins.',
-      steps: [
-        {
-          id: 'step-collect-coins',
-          description: 'Collect 3 coins from field drops.',
-          objectives: [{ type: 'collect', itemId: 'coin', quantity: 3 }],
-        },
-      ],
-      rewards: [{ itemId: 'coin', quantity: 10 }],
-    },
-    {
-      suffix: 'timber-run',
-      title: 'Timber Run',
-      description: 'The camp stockpile is low. Bring back fresh wood.',
-      steps: [
-        {
-          id: 'step-collect-wood',
-          description: 'Gather 2 pieces of wood.',
-          objectives: [{ type: 'collect', itemId: 'wood-drop-1', quantity: 2 }],
-        },
-        {
-          id: 'step-return-lain',
-          description: 'Deliver the wood to Lain.',
-          objectives: [{ type: 'talk', itemId: 'lain', quantity: 1 }],
-        },
-      ],
-      rewards: [{ itemId: 'coin', quantity: 15 }],
-    },
-    {
-      suffix: 'pest-control',
-      title: 'Pest Control',
-      description: 'Kishins keep raiding the perimeter. Thin them out.',
-      steps: [
-        {
-          id: 'step-kill-kishins',
-          description: 'Defeat 3 Kishins.',
-          objectives: [{ type: 'kill', itemId: 'kishins', quantity: 3 }],
-        },
-      ],
-      rewards: [{ itemId: 'coin', quantity: 20 }],
-    },
-    {
-      suffix: 'field-sweep',
-      title: 'Field Sweep',
-      description: 'A mixed patrol order: clear hostiles, then salvage the field.',
-      steps: [
-        {
-          id: 'step-kill-one',
-          description: 'Defeat 1 Kishin scout.',
-          objectives: [{ type: 'kill', itemId: 'kishins', quantity: 1 }],
-        },
-        {
-          id: 'step-salvage',
-          description: 'Salvage 5 coins from the aftermath.',
-          objectives: [{ type: 'collect', itemId: 'coin', quantity: 5 }],
-        },
-        {
-          id: 'step-debrief-lain',
-          description: 'Debrief with Lain.',
-          objectives: [{ type: 'talk', itemId: 'lain', quantity: 1 }],
-        },
-      ],
-      rewards: [{ itemId: 'coin', quantity: 25 }],
-    },
-    {
-      suffix: 'lumber-reserve',
-      title: 'Lumber Reserve',
-      description: 'Stock the winter reserve before the next cycle.',
-      steps: [
-        {
-          id: 'step-collect-wood',
-          description: 'Gather 4 pieces of wood.',
-          objectives: [{ type: 'collect', itemId: 'wood-drop-1', quantity: 4 }],
-        },
-      ],
-      rewards: [{ itemId: 'coin', quantity: 30 }],
-    },
-    {
-      suffix: 'proof-of-valor',
-      title: 'Proof of Valor',
-      description: 'Show Lain you can hold the line on your own.',
-      steps: [
-        {
-          id: 'step-kill-kishins',
-          description: 'Defeat 5 Kishins.',
-          objectives: [{ type: 'kill', itemId: 'kishins', quantity: 5 }],
-        },
-        {
-          id: 'step-report-lain',
-          description: 'Report your feat to Lain.',
-          objectives: [{ type: 'talk', itemId: 'lain', quantity: 1 }],
-        },
-      ],
-      rewards: [{ itemId: 'hatchet', quantity: 1 }],
-    },
-  ].map((q) => ({
-    code: `lain-demo-${q.suffix}`,
+  // Built from LAIN_DEMO_QUEST_SPECS so the quest definitions, their
+  // quest-talk dialogues, and Lain's questDialogueCodes mapping stay in sync.
+  ...LAIN_DEMO_QUEST_SPECS.map((q) => ({
+    code: lainDemoQuestCode(q.suffix),
     title: q.title,
     description: q.description,
     sourceMapCode: 'fallback-map-0',
