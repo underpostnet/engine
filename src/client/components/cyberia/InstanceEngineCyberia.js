@@ -234,6 +234,7 @@ class InstanceEngineCyberia {
     const idDescription = 'instance-engine-input-description';
     const idTags = 'instance-engine-input-tags';
     const idStatus = 'instance-engine-input-status';
+    const idHotReloadUrl = 'instance-engine-input-hot-reload-url';
     const idThumbnail = 'instance-engine-input-thumbnail';
     const idMapCodesDropdown = 'instance-engine-map-codes-dropdown';
     const idItemIdsDropdown = InstanceEngineCyberia.itemIdsDropdownId;
@@ -532,6 +533,72 @@ class InstanceEngineCyberia {
             caret.classList.toggle('fa-caret-down');
           }
         };
+
+      // Hot reload — trigger a world rebuild on a running cyberia-server.
+      if (s(`.btn-instance-engine-toggle-hot-reload`))
+        s(`.btn-instance-engine-toggle-hot-reload`).onclick = () => {
+          const body = s(`.instance-engine-hot-reload-body`);
+          const caret = s(`.instance-engine-hot-reload-caret`);
+          if (body) body.classList.toggle('hide');
+          if (caret) {
+            caret.classList.toggle('fa-caret-right');
+            caret.classList.toggle('fa-caret-down');
+          }
+        };
+
+      const triggerHotReload = async (mode) => {
+        const buttons = [s(`.btn-instance-engine-hot-reload`), s(`.btn-instance-engine-hot-reload-incremental`)];
+        const statusSelector = `.instance-engine-hot-reload-status`;
+        const serverUrl = s(`.${idHotReloadUrl}`)?.value?.trim();
+        if (!serverUrl) {
+          NotificationManager.Push({ html: 'Set the cyberia-server URL first.', status: 'warning' });
+          return;
+        }
+        // The server rejects a trigger aimed at a different instance, so the
+        // instance must exist before it can be named.
+        const persistResult = await persistInstance({ notify: false });
+        if (!persistResult || persistResult.status !== 'success' || !InstanceEngineCyberia.currentInstanceId) {
+          NotificationManager.Push({
+            html: persistResult?.message || Translate.instance('save-instance-first') || 'Save the instance first.',
+            status: persistResult?.status === 'error' ? 'error' : 'warning',
+          });
+          return;
+        }
+
+        for (const btn of buttons) if (btn) btn.disabled = true;
+        if (s(statusSelector))
+          htmls(statusSelector, html`<span style="color:#888;">Triggering ${mode} hot reload…</span>`);
+        try {
+          const result = await CyberiaInstanceService.hotReload({
+            id: InstanceEngineCyberia.currentInstanceId,
+            body: { serverUrl, mode },
+          });
+          if (result.status === 'error') {
+            NotificationManager.Push({ html: result.message, status: 'error' });
+            if (s(statusSelector)) htmls(statusSelector, html`<span style="color:#d66;">${result.message}</span>`);
+            return;
+          }
+          const { transport, durationMs, message, grpcError } = result.data || {};
+          NotificationManager.Push({ html: `Hot reload via ${transport}: ${message}`, status: 'success' });
+          if (s(statusSelector))
+            htmls(
+              statusSelector,
+              html`<span style="color:#6b6;">via <b>${transport}</b> · ${durationMs}ms · ${message}</span>${grpcError
+                  ? html`<div style="color:#a80;">gRPC unavailable: ${grpcError}</div>`
+                  : ''}`,
+            );
+        } catch (error) {
+          NotificationManager.Push({ html: error.message, status: 'error' });
+          if (s(statusSelector)) htmls(statusSelector, html`<span style="color:#d66;">${error.message}</span>`);
+        } finally {
+          for (const btn of buttons) if (btn) btn.disabled = false;
+        }
+      };
+
+      if (s(`.btn-instance-engine-hot-reload`))
+        s(`.btn-instance-engine-hot-reload`).onclick = () => triggerHotReload('full');
+      if (s(`.btn-instance-engine-hot-reload-incremental`))
+        s(`.btn-instance-engine-hot-reload-incremental`).onclick = () => triggerHotReload('incremental');
 
       // Portal management
       if (s(`.btn-instance-engine-portal-connect`))
@@ -960,6 +1027,38 @@ class InstanceEngineCyberia {
           })}
         </div>
       </div>
+      ${canMutate
+        ? html`<div class="in section-mp" style="margin-top: 10px;">
+            ${await BtnIcon.instance({
+              class: 'wfa btn-instance-engine-toggle-hot-reload',
+              label: html`<i class="fa-solid fa-caret-right instance-engine-hot-reload-caret"></i> Hot Reload`,
+            })}
+            <div class="in instance-engine-hot-reload-body hide">
+              <div class="in" style="color:#888;font-size:12px;margin:5px 0;">
+                Rebuilds the world of a running cyberia-server for this instance now, instead of waiting for its polling
+                interval. Tries the gRPC control service first and falls back to the REST endpoint.
+              </div>
+              ${await Input.instance({
+                id: idHotReloadUrl,
+                label: html`<i class="fa-solid fa-server"></i> Cyberia Server URL`,
+                containerClass: 'in',
+                placeholder: 'https://server.cyberiaonline.com',
+                type: 'text',
+              })}
+              <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
+                ${await BtnIcon.instance({
+                  class: 'wfa btn-instance-engine-hot-reload',
+                  label: html`<i class="fa-solid fa-rotate"></i> Trigger Hot Reload`,
+                })}
+                ${await BtnIcon.instance({
+                  class: 'wfa btn-instance-engine-hot-reload-incremental',
+                  label: html`<i class="fa-solid fa-layer-group"></i> Incremental (assets only)`,
+                })}
+              </div>
+              <div class="in instance-engine-hot-reload-status" style="margin-top:5px;font-size:12px;"></div>
+            </div>
+          </div>`
+        : ''}
       <div class="in section-mp" style="margin-top: 10px;">
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
         <div class="fl">

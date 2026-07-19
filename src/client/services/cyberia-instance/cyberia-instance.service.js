@@ -75,6 +75,25 @@ class CyberiaInstanceService {
         }),
     );
   };
+  /** Trigger a world reload on a running cyberia-server (moderator/admin). */
+  static hotReload = (options = { id: '', body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `${options.id}/hot-reload`, endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: JSON.stringify(options.body ?? {}),
+      })
+        .then(async (res) => res.json())
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static portalConnect = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `${options.id}/portal-connect`, endpoint }), {
