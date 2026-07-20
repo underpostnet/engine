@@ -22,7 +22,10 @@ import crypto from 'crypto';
 import fs from 'fs-extra';
 import sharp from 'sharp';
 import { loggerFactory } from '../../server/logger.js';
-import { getDefaultCyberiaItemById } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  ENTITY_TYPE_TO_ITEM_TYPES,
+  getDefaultCyberiaItemById,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -35,35 +38,139 @@ const PREVIEW_FRAME = '0.png';
 const DEFAULT_CELL_PX = 8;
 const MAX_SIDE_PX = 1024;
 
-/** itemId → on-disk frame path, or null when the item is not a known default. */
-function itemFramePath(itemId) {
-  const item = getDefaultCyberiaItemById(itemId)?.item;
-  if (!item?.type || !item?.id) return null;
-  return `${ASSET_ROOT}/${item.type}/${item.id}/${PREVIEW_DIRECTION}/${PREVIEW_FRAME}`;
+/** Item-type directories under ASSET_ROOT, read once. */
+let assetTypeDirs = null;
+
+async function itemTypeDirs() {
+  if (assetTypeDirs) return assetTypeDirs;
+  try {
+    const entries = await fs.readdir(ASSET_ROOT, { withFileTypes: true });
+    assetTypeDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+  } catch (error) {
+    logger.warn(`map preview: cannot read asset root: ${error.message}`);
+    assetTypeDirs = [];
+  }
+  return assetTypeDirs;
 }
 
 /**
- * Resized-frame cache: `${itemId}:${w}x${h}` → Buffer | null.
+ * itemId → on-disk frame path, or null when no asset exists.
+ *
+ * The defaults registry only knows canonical items; saga-generated ones live on
+ * disk without an entry, so the item type is resolved by probing — registry
+ * first, then the types this entity type allows, then any remaining directory.
+ */
+const framePathCache = new Map();
+
+async function resolveFramePath(itemId, entityType) {
+  const key = `${itemId}:${entityType || ''}`;
+  if (framePathCache.has(key)) return framePathCache.get(key);
+
+  const candidates = [];
+  const pushType = (type) => {
+    if (type && !candidates.includes(type)) candidates.push(type);
+  };
+
+  pushType(getDefaultCyberiaItemById(itemId)?.item?.type);
+  for (const type of ENTITY_TYPE_TO_ITEM_TYPES[entityType] || []) pushType(type);
+  for (const type of await itemTypeDirs()) pushType(type);
+
+  let found = null;
+  for (const type of candidates) {
+    const path = `${ASSET_ROOT}/${type}/${itemId}/${PREVIEW_DIRECTION}/${PREVIEW_FRAME}`;
+    if (await fs.pathExists(path)) {
+      found = path;
+      break;
+    }
+  }
+  framePathCache.set(key, found);
+  return found;
+}
+
+/**
+ * Resized-frame cache: `${framePath}:${w}x${h}` → Buffer | null.
  * A map tiles thousands of floor cells from a handful of distinct items, so
- * resizing once per (item, size) is the difference between fast and unusable.
+ * resizing once per (frame, size) is the difference between fast and unusable.
  */
 const frameCache = new Map();
 
-async function resizedFrame(itemId, width, height) {
-  const key = `${itemId}:${width}x${height}`;
+async function resizedFrame(itemId, entityType, width, height) {
+  const framePath = await resolveFramePath(itemId, entityType);
+  if (!framePath) return null;
+
+  const key = `${framePath}:${width}x${height}`;
   if (frameCache.has(key)) return frameCache.get(key);
 
   let buffer = null;
-  const framePath = itemFramePath(itemId);
-  if (framePath && (await fs.pathExists(framePath))) {
-    try {
-      // `nearest` keeps the pixel-art edges crisp at small sizes.
-      buffer = await sharp(framePath).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
-    } catch (error) {
-      logger.warn(`map preview: frame render failed for "${itemId}": ${error.message}`);
-    }
+  try {
+    // `nearest` keeps the pixel-art edges crisp at small sizes.
+    buffer = await sharp(framePath).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
+  } catch (error) {
+    logger.warn(`map preview: frame render failed for "${itemId}": ${error.message}`);
   }
   frameCache.set(key, buffer);
+  return buffer;
+}
+
+const clamp255 = (n) => Math.min(255, Math.max(0, Math.round(Number(n) || 0)));
+
+/**
+ * Parse the entity's cosmetic colour string into a sharp background.
+ * Accepts `rgba(r,g,b,a)`, `rgb(r,g,b)` and `#rgb` / `#rrggbb`.
+ * @returns {{ r: number, g: number, b: number, alpha: number }|null}
+ */
+function parseEntityColor(color) {
+  if (typeof color !== 'string') return null;
+  const value = color.trim();
+
+  const fn = value.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+  if (fn) {
+    const alpha = fn[4] === undefined ? 1 : Math.min(1, Math.max(0, Number(fn[4])));
+    return { r: clamp255(fn[1]), g: clamp255(fn[2]), b: clamp255(fn[3]), alpha };
+  }
+
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const h =
+      hex[1].length === 3
+        ? hex[1]
+            .split('')
+            .map((c) => c + c)
+            .join('')
+        : hex[1];
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+      alpha: 1,
+    };
+  }
+  return null;
+}
+
+/**
+ * Solid-fill cache: `${r},${g},${b},${a}:${w}x${h}` → Buffer | null.
+ * Entities without object layers all fall back to a flat rect, so the same few
+ * palette colours repeat across the whole map.
+ */
+const solidCache = new Map();
+
+async function solidFrame(color, width, height) {
+  const rgba = parseEntityColor(color);
+  if (!rgba || rgba.alpha <= 0) return null;
+
+  const key = `${rgba.r},${rgba.g},${rgba.b},${rgba.alpha}:${width}x${height}`;
+  if (solidCache.has(key)) return solidCache.get(key);
+
+  let buffer = null;
+  try {
+    buffer = await sharp({ create: { width, height, channels: 4, background: rgba } })
+      .png()
+      .toBuffer();
+  } catch (error) {
+    logger.warn(`map preview: solid fill failed for "${color}": ${error.message}`);
+  }
+  solidCache.set(key, buffer);
   return buffer;
 }
 
@@ -75,6 +182,9 @@ function mapPreviewHash(map, cellPx) {
     e.dimX,
     e.dimY,
     (e.objectLayerItemIds || []).join(','),
+    // Drives frame-path resolution, and the colour is the render fallback.
+    e.entityType || '',
+    e.color || '',
   ]);
   return crypto
     .createHash('sha1')
@@ -101,11 +211,10 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX } = {}) {
   const width = gridX * cell;
   const height = gridY * cell;
 
+  // Every entity of every entityType in the array renders something: its layer
+  // frames when they resolve on disk, otherwise a flat fill of its colour.
   const composites = [];
   for (const entity of map.entities || []) {
-    const itemIds = entity.objectLayerItemIds || [];
-    if (itemIds.length === 0) continue;
-
     const left = Math.round((entity.initCellX || 0) * cell);
     const top = Math.round((entity.initCellY || 0) * cell);
     const w = Math.max(1, Math.round((entity.dimX || 1) * cell));
@@ -113,10 +222,18 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX } = {}) {
     if (left >= width || top >= height || left + w <= 0 || top + h <= 0) continue;
 
     // Stack the entity's layers in declaration order, exactly like the editor.
-    for (const itemId of itemIds) {
-      const input = await resizedFrame(itemId, w, h);
-      if (input) composites.push({ input, left, top });
+    let drew = false;
+    for (const itemId of entity.objectLayerItemIds || []) {
+      const input = await resizedFrame(itemId, entity.entityType, w, h);
+      if (input) {
+        composites.push({ input, left, top });
+        drew = true;
+      }
     }
+    if (drew) continue;
+
+    const input = await solidFrame(entity.color, w, h);
+    if (input) composites.push({ input, left, top });
   }
   if (composites.length === 0) return null;
 

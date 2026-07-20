@@ -19,7 +19,13 @@
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { generateFallbackWorld } from './cyberia-fallback-world.js';
-import { cacheWorldMapPreviews, getCachedMapPreview } from '../../projects/cyberia/map-preview-generator.js';
+import {
+  cacheWorldMapPreviews,
+  getCachedMapPreview,
+  renderMapPreviewPng,
+} from '../../projects/cyberia/map-preview-generator.js';
+import { FileFactory } from '../file/file.service.js';
+import { loggerFactory } from '../../server/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   DefaultCyberiaActions,
@@ -27,6 +33,8 @@ import {
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+
+const logger = loggerFactory(import.meta);
 
 const actionHasStandalonePayload = (action) =>
   (action.shopItems || []).length > 0 || (action.craftRecipes || []).length > 0 || (action.storageSlots || 0) > 0;
@@ -305,6 +313,9 @@ const buildStaticPayload = ({
   sumStatsLimit = CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
   previewCachedMapCodes = new Set(),
 }) => {
+  const previewRoute = (mapCode) =>
+    `/api/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(mapCode)}`;
+
   const nodes = maps.map((m) => ({
     mapCode: m.code,
     name: m.name || m.code,
@@ -312,14 +323,18 @@ const buildStaticPayload = ({
     gridY: m.gridY,
     // File id of the map's auto-captured Object Layer render (persisted maps).
     preview: m.preview ? String(m.preview) : '',
-    // Ready-to-fetch path of the node background. Persisted maps serve the
-    // captured File; the procedural fallback world serves the preview this
-    // server rendered and cached for the generated layout.
+    // Ready-to-fetch path of the node background. A captured File is served
+    // directly; otherwise the client hits the preview route, which renders on
+    // demand — and for a persisted map also stores the result as its `preview`
+    // File, so the next payload serves it through the default blob path.
+    // Fallback-world maps only advertise the route once a render succeeded.
     previewUrl: m.preview
       ? `/api/file/blob/${String(m.preview)}`
-      : previewCachedMapCodes.has(m.code)
-        ? `/api/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(m.code)}`
-        : '',
+      : fallback
+        ? previewCachedMapCodes.has(m.code)
+          ? previewRoute(m.code)
+          : ''
+        : previewRoute(m.code),
   }));
 
   const edges = (instance.portals || []).map((p) => ({
@@ -499,12 +514,36 @@ class CyberiaInstanceMapService {
   };
 
   /**
-   * Cached node-background PNG for one map of the procedural fallback world.
-   * Persisted maps serve their captured File through /api/file/blob instead.
+   * Node-background PNG for one map.
+   *
+   * A persisted map with no captured `preview` is rendered once and the result
+   * is stored as its preview File — not just cached — so every later request is
+   * served through the default /api/file/blob path. The procedural fallback
+   * world has no document to update and stays on the in-memory cache.
    */
   static getPreview = async (req, res, options) => {
     const { instanceCode, mapCode } = req.params;
     if (!instanceCode || !mapCode) throw new Error('instanceCode and mapCode parameters are required');
+
+    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+    const File = DataBaseProviderService.getModel('File', options);
+    const map = await CyberiaMap.findOne({ code: mapCode }).select('code gridX gridY preview entities').lean();
+
+    if (map) {
+      // Another request may have persisted it between the payload and this hit.
+      if (map.preview) {
+        const stored = await File.findOne({ _id: map.preview });
+        if (stored?.data) return stored.data;
+      }
+
+      const rendered = await renderMapPreviewPng(map);
+      if (rendered) {
+        const file = await new File(FileFactory.create(rendered, `${mapCode}-preview.png`)).save();
+        await CyberiaMap.updateOne({ _id: map._id }, { $set: { preview: file._id } });
+        logger.info(`map preview persisted for "${mapCode}" (file ${file._id})`);
+        return rendered;
+      }
+    }
 
     let png = getCachedMapPreview(instanceCode, mapCode);
     if (!png) {
