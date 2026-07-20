@@ -1075,7 +1075,13 @@ EOF`);
      *      runners derive it from the comma-path field or `--node-name`
      *      (`run sync`: `path.split(',')[4]` > `--node-name` > default) and from
      *      `--node-name` directly (`run instance`).
-     *   2. **Cluster-type default** — when no explicit node is given: `kind-worker`
+     *   2. **`UNDERPOST_DEPLOY_NODE` env** — for kubeadm / k3s, the configured
+     *      target node name. This makes hostPath PV `nodeAffinity` deterministic
+     *      regardless of where the manifest is *built*: building inside a
+     *      container or CI runner would otherwise leak that box's `os.hostname()`
+     *      (e.g. a random container id) into `nodeSelector`, pinning the PV to a
+     *      node that does not exist in the cluster.
+     *   3. **Cluster-type default** — when nothing above is set: `kind-worker`
      *      for a kind cluster (the node that hosts kind hostPath volumes),
      *      otherwise the control-plane / current host (`os.hostname()`) for
      *      kubeadm / k3s. With no explicit cluster flag, `development` is treated
@@ -1093,7 +1099,8 @@ EOF`);
     resolveDeployNode({ node = '', kind = false, kubeadm = false, k3s = false, env = '' } = {}) {
       if (node) return node;
       const isKind = kind || (!kubeadm && !k3s && env !== 'production');
-      return isKind ? 'kind-worker' : os.hostname();
+      if (isKind) return 'kind-worker';
+      return process.env.UNDERPOST_DEPLOY_NODE || os.hostname();
     },
 
     /**
