@@ -4794,7 +4794,13 @@ try {
       '--clean',
       'Restore repositories to canonical state (git checkout Dockerfile, etc.) before updating compose.env',
     )
+    .option('--reset', 'Reset the development environment before updating compose.env')
     .action((options) => {
+      if (options.reset) {
+        shellExec('node bin/cyberia run-workflow docker:reset');
+        shellExec('node bin cluster --dev --reset');
+        return;
+      }
       if (options.clean) {
         shellExec(`node bin run clean`);
         shellExec(`node bin run clean ./cyberia-server`);
@@ -4842,8 +4848,7 @@ try {
         'utf8',
       );
       if (options.run) {
-        shellExec('node bin/cyberia run-workflow docker:reset');
-        shellExec('node bin cluster --dev --reset');
+        shellExec('node bin/cyberia run-workflow dev-env --reset');
         shellExec('node bin/cyberia run-workflow docker-image engine-cyberia');
         shellExec('node bin/cyberia run-workflow docker-image cyberia-server');
         shellExec('node bin/cyberia run-workflow docker-image cyberia-client');
