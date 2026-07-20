@@ -14,7 +14,9 @@ import {
   etcHostFactory,
   getNpmRootPath,
   isDeployRunnerContext,
+  loadConfInstances,
   loadConfServerJson,
+  selectConfInstances,
   loadReplicas,
   writeEnv,
 } from '../server/conf.js';
@@ -48,6 +50,32 @@ const waitForPort = (port, host = '127.0.0.1', { maxAttempts = 30, interval = 20
   });
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * @method instanceProxyRoutesFactory
+ * @description Renders the HTTPProxy route block for every instance sharing a host.
+ * Routes are emitted longest-prefix first so a specific instance path (`/FOREST`)
+ * is never shadowed by the default instance's catch-all (`/`).
+ * @param {string} deployId - Parent deployment identifier.
+ * @param {Array<object>} instances - Expanded instance entries bound to one host.
+ * @param {string} env - `development` | `production`.
+ * @param {Object<string,string>} trafficById - Instance id → traffic colour.
+ * @returns {string} Concatenated route YAML.
+ */
+const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =>
+  [...instances]
+    .sort((a, b) => (b.path || '/').length - (a.path || '/').length)
+    .map((instance) =>
+      Underpost.deploy.deploymentYamlServiceFactory({
+        path: instance.path,
+        port: env === 'development' && instance.fromDebugPort ? instance.fromDebugPort : instance.fromPort,
+        deployId: `${deployId}-${instance.id}`,
+        env,
+        deploymentVersions: [trafficById[instance.id] || 'blue'],
+        pathRewritePolicy: instance.pathRewritePolicy,
+      }),
+    )
+    .join('');
 
 /**
  * @constant DEFAULT_OPTION
@@ -1182,66 +1210,53 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
     'instance-promote': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-      const baseClusterCommand = options.dev ? ' --dev' : '';
       let [deployId, id] = path.split(',');
-      const confInstances = JSON.parse(
-        fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
-      );
+      const confInstances = loadConfInstances(deployId);
+      const promoted = selectConfInstances(confInstances, id);
       let promotedTraffic = '';
-      for (const instance of confInstances) {
-        let {
-          id: _id,
-          host: _host,
-          path: _path,
-          image: _image,
-          fromPort: _fromPort,
-          toPort: _toPort,
-          fromDebugPort: _fromDebugPort,
-          toDebugPort: _toDebugPort,
-          cmd: _cmd,
-          volumes: _volumes,
-          metadata: _metadata,
-        } = instance;
-        if (id !== _id) continue;
-        const _deployId = `${deployId}-${_id}`;
-        // Use debug ports in development when defined, fall back to production ports.
-        if (env === 'development' && _fromDebugPort) _fromPort = _fromDebugPort;
-        if (env === 'development' && _toDebugPort) _toPort = _toDebugPort;
-        const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
-          hostTest: _host,
+
+      // A Contour HTTPProxy is named after its host, so every instance sharing a
+      // host shares one object. Rebuilding it from the promoted instance alone
+      // would drop its siblings' routes, so each host is rendered from the full
+      // set: promoted instances flip colour, the rest keep their live colour.
+      const promotedIds = new Set(promoted.map((instance) => instance.id));
+      const hosts = [...new Set(promoted.map((instance) => instance.host))];
+      const affected = confInstances.filter((instance) => hosts.includes(instance.host));
+      const trafficById = {};
+      for (const instance of affected) {
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(`${deployId}-${instance.id}`, {
+          hostTest: instance.host,
           namespace: options.namespace,
         });
-        const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
-        promotedTraffic = targetTraffic;
+        if (!promotedIds.has(instance.id)) {
+          trafficById[instance.id] = currentTraffic || 'blue';
+          continue;
+        }
+        trafficById[instance.id] = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
+        promotedTraffic = trafficById[instance.id];
+      }
+
+      for (const host of hosts) {
+        const hostInstances = affected.filter((instance) => instance.host === host);
         let proxyYaml =
-          Underpost.deploy.baseProxyYamlFactory({ host: _host, env: options.tls ? 'production' : env, options }) +
-          Underpost.deploy.deploymentYamlServiceFactory({
-            path: _path,
-            port: _fromPort,
-            // serviceId: deployId,
-            deployId: _deployId,
-            env,
-            deploymentVersions: [targetTraffic],
-            // pathRewritePolicy,
-          });
+          Underpost.deploy.baseProxyYamlFactory({ host, env: options.tls ? 'production' : env, options }) +
+          instanceProxyRoutesFactory({ deployId, instances: hostInstances, env, trafficById });
         if (options.tls) {
           if (options.test) {
-            const sslDir = `./engine-private/ssl/${_host}`;
-            const nameSafe = _host.replace(/[^a-zA-Z0-9_.-]/g, '_');
+            const sslDir = `./engine-private/ssl/${host}`;
+            const nameSafe = host.replace(/[^a-zA-Z0-9_.-]/g, '_');
             fs.mkdirpSync(sslDir);
-            shellExec(`bash ./scripts/ssl.sh "${sslDir}" "${_host}"`);
-            shellExec(`kubectl delete secret ${_host} -n ${options.namespace} --ignore-not-found`);
+            shellExec(`bash ./scripts/ssl.sh "${sslDir}" "${host}"`);
+            shellExec(`kubectl delete secret ${host} -n ${options.namespace} --ignore-not-found`);
             shellExec(
-              `kubectl create secret tls ${_host} --cert="${sslDir}/${nameSafe}.pem" --key="${sslDir}/${nameSafe}-key.pem" -n ${options.namespace}`,
+              `kubectl create secret tls ${host} --cert="${sslDir}/${nameSafe}.pem" --key="${sslDir}/${nameSafe}-key.pem" -n ${options.namespace}`,
             );
           } else {
-            shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
-            proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host: _host });
+            shellExec(`sudo kubectl delete Certificate ${host} -n ${options.namespace} --ignore-not-found`);
+            proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host });
           }
         }
-        // console.log(proxyYaml);
-        shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
+        shellExec(`kubectl delete HTTPProxy ${host} --namespace ${options.namespace} --ignore-not-found`);
         shellExec(
           `kubectl apply -f - -n ${options.namespace} <<EOF
 ${proxyYaml}
@@ -1276,9 +1291,7 @@ EOF
       const baseClusterCommand = options.dev ? ' --dev' : '';
       let [deployId, id, replicas] = path.split(',');
       if (!replicas) replicas = options.replicas;
-      const confInstances = JSON.parse(
-        fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
-      );
+      const confInstances = selectConfInstances(loadConfInstances(deployId), id);
       const etcHosts = [];
       for (const instance of confInstances) {
         let {
@@ -1297,7 +1310,6 @@ EOF
           readinessProbe: _readinessProbe,
           livenessProbe: _livenessProbe,
         } = instance;
-        if (id !== _id) continue;
         const _deployId = `${deployId}-${_id}`;
         // Use debug ports in development when defined, fall back to production ports.
         if (env === 'development' && _fromDebugPort) _fromPort = _fromDebugPort;
@@ -1430,7 +1442,7 @@ EOF
           `${baseCommand} run${baseClusterCommand} --namespace ${options.namespace}` +
             `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
             `${options.tls ? ` --tls ${options.test ? '--test' : ''}` : ''}` +
-            ` instance-promote '${path}'`,
+            ` instance-promote '${deployId},${_id}'`,
         );
       }
       if (options.etcHosts) {
@@ -1489,26 +1501,42 @@ EOF
       const env = options.dev ? 'development' : 'production';
       let [deployId, id, projectPath] = path.split(',');
       const rootPath = projectPath ? projectPath : '.';
+
+      const confInstances = loadConfInstances(deployId);
+      // Targeting a template id builds every world in the family. The fan-out
+      // re-enters this runner with `instanceOnly` because the default world
+      // keeps the template id verbatim — without it, selecting `mmo-server`
+      // would match the family again and recurse forever. Only that default
+      // world publishes to the project root, so the repo keeps exactly one
+      // canonical Dockerfile/deployment.yaml pair.
+      const selected = options.instanceOnly
+        ? confInstances.filter((instance) => instance.id === id)
+        : selectConfInstances(confInstances, id);
+      if (selected.length === 0) {
+        logger.error(`Instance with id '${id}' not found in conf.instances.json for deployId '${deployId}'`);
+        return;
+      }
+      if (!options.instanceOnly && (selected.length > 1 || selected[0].id !== id)) {
+        for (const instance of selected)
+          UnderpostRun.RUNNERS['instance-build-manifest'](
+            [deployId, instance.id, projectPath].filter((v) => v !== undefined).join(','),
+            { ...options, instanceOnly: true },
+          );
+        return;
+      }
+
       const envManifestPath = `${rootPath}/manifests/deployments/${id}-${env}`;
       const outputPath = `${envManifestPath}/deployment.yaml`;
       const dockerfileManifestPath = `${envManifestPath}/Dockerfile`;
 
       fs.mkdirpSync(envManifestPath);
 
-      const confInstances = JSON.parse(
-        fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
-      );
-
-      const instance = confInstances.find((i) => i.id === id);
-      if (!instance) {
-        logger.error(`Instance with id '${id}' not found in conf.instances.json for deployId '${deployId}'`);
-        return;
-      }
+      const instance = selected[0];
+      const isDefaultInstance = instance.id === instance.templateId || !instance.templateId;
 
       let {
         id: _id,
         host: _host,
-        path: _path,
         image: _image,
         fromPort: _fromPort,
         toPort: _toPort,
@@ -1652,14 +1680,16 @@ EOF
       }
 
       // proxy.yaml — HTTPProxy for the instance host (mirrors instance-promote).
+      // One HTTPProxy per host carries the routes of every instance bound to it,
+      // so applying any single instance's proxy.yaml yields the complete host.
+      const hostInstances = confInstances.filter((i) => i.host === _host);
       const proxyYaml =
         Underpost.deploy.baseProxyYamlFactory({ host: _host, env, options }) +
-        Underpost.deploy.deploymentYamlServiceFactory({
-          path: _path,
-          port: _fromPort,
-          deployId: _deployId,
+        instanceProxyRoutesFactory({
+          deployId,
+          instances: hostInstances,
           env,
-          deploymentVersions: [targetTraffic],
+          trafficById: Object.fromEntries(hostInstances.map((i) => [i.id, targetTraffic])),
         });
 
       // grpc-service.yaml — the parent deploy's gRPC ClusterIP (shared; the
@@ -1693,7 +1723,39 @@ EOF
         grpcService: !!grpcServiceYaml,
       });
 
-      if (env === 'production') {
+      // --- Per-instance env files -----------------------------------------
+      // Each env file is seeded from the template instance's env file for the
+      // same mode so operator-owned keys (API keys, memory limits, service URLs)
+      // are inherited verbatim; only the keys the instance declares under
+      // `multiInstance.env` — plus the derived container id — are (re)written.
+      //
+      // A derived instance's env dir is generated in full: both development.env
+      // and production.env are written on every build, so a deploy in either
+      // environment always finds the env file its `cmd` sources, no matter which
+      // mode this build ran. The default/template instance owns the committed
+      // source files, so only its current-mode file is idempotently refreshed.
+      if (instance.templateId) {
+        const instanceEnvDir = `./engine-private/conf/${deployId}/instances/${_id}/env`;
+        fs.mkdirpSync(instanceEnvDir);
+        const envsToWrite = isDefaultInstance ? [env] : ['development', 'production'];
+        for (const targetEnv of envsToWrite) {
+          const templateEnvPath = `./engine-private/conf/${deployId}/instances/${instance.templateId}/env/${targetEnv}.env`;
+          const baseEnv = fs.existsSync(templateEnvPath) ? dotenv.parse(fs.readFileSync(templateEnvPath, 'utf8')) : {};
+          writeEnv(`${instanceEnvDir}/${targetEnv}.env`, {
+            ...baseEnv,
+            ...(instance.instanceEnv?.[targetEnv] || {}),
+            CONTAINER_DEPLOY_ID: `${_deployId}-${targetEnv}`,
+          });
+        }
+        logger.info('[instance-build-manifest] Instance env written', {
+          dir: instanceEnvDir,
+          instanceCode: instance.instanceCode,
+          envs: envsToWrite,
+          keys: Object.keys(instance.instanceEnv?.[env] || {}),
+        });
+      }
+
+      if (env === 'production' && isDefaultInstance) {
         if (fs.existsSync(dockerfileManifestPath)) {
           fs.copyFileSync(dockerfileManifestPath, `${rootPath}/Dockerfile`);
         }

@@ -1773,6 +1773,158 @@ const loadConfServerJson = (jsonPath, options) => {
 };
 
 /**
+ * @method deepReplaceToken
+ * @description Recursively replaces every occurrence of `from` with `to` in all
+ * string leaves of a JSON-shaped value, returning a new structure.
+ * @param {*} value - Any JSON-serialisable value.
+ * @param {string} from - Token to replace.
+ * @param {string} to - Replacement token.
+ * @returns {*} A structurally identical value with the token replaced.
+ * @memberof ServerConfBuilder
+ */
+const deepReplaceToken = (value, from, to) => {
+  if (typeof value === 'string') return value.split(from).join(to);
+  if (Array.isArray(value)) return value.map((entry) => deepReplaceToken(entry, from, to));
+  if (value && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, deepReplaceToken(v, from, to)]));
+  return value;
+};
+
+/**
+ * @method readConfInstances
+ * @description Reads `conf.instances.json` in either supported shape and
+ * normalises it. The file is historically a bare array of instance entries; the
+ * object form adds a deploy-wide `multiInstance` block alongside them.
+ * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
+ * @returns {{multiInstance: ?object, instances: Array<object>}} Normalised conf.
+ * @memberof ServerConfBuilder
+ */
+const readConfInstances = (deployId) => {
+  const raw = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'));
+  if (Array.isArray(raw)) return { multiInstance: null, instances: raw };
+  return { multiInstance: raw.multiInstance || null, instances: raw.instances || [] };
+};
+
+/**
+ * @method loadInstanceTopology
+ * @description Returns the deploy-wide `multiInstance` block, or `null` when the
+ * deploy is single-instance. Application-agnostic: the block only declares
+ * variants (code, slug, path) and the default variant code.
+ * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
+ * @returns {?object} The topology block, or `null` when absent.
+ * @memberof ServerConfBuilder
+ */
+const loadInstanceTopology = (deployId) => readConfInstances(deployId).multiInstance;
+
+/**
+ * @method resolveInstanceEnvValue
+ * @description Resolves one declared env value. A plain string is used verbatim;
+ * an object is treated as env-scoped (`{ development, production }`), matching the
+ * convention already used by `lifecycle` / `readinessProbe` / `livenessProbe`.
+ * Placeholders are substituted from the variant tokens.
+ * @param {string|object} value - Declared value.
+ * @param {string} env - `development` | `production`.
+ * @param {Object<string,string>} tokens - Placeholder name → replacement.
+ * @returns {?string} Resolved value, or `null` when the env has no entry.
+ * @memberof ServerConfBuilder
+ */
+const resolveInstanceEnvValue = (value, env, tokens) => {
+  const scoped = value && typeof value === 'object' && !Array.isArray(value) ? value[env] : value;
+  if (scoped === undefined || scoped === null) return null;
+  return `${scoped}`.replace(/\{\{(\w+)\}\}/g, (match, token) => (token in tokens ? tokens[token] : match));
+};
+
+/**
+ * @method loadConfInstances
+ * @description Loads `conf.instances.json` and expands every entry carrying a
+ * `multiInstance` block into one concrete instance per declared variant.
+ *
+ * A template entry is never deployed as-is once variants exist: each variant
+ * produces its own entry whose id, env file path, volume mount and
+ * container-status strings are derived by replacing the template id token
+ * throughout. The variant whose `slug` is empty keeps the template id verbatim,
+ * so pre-existing deployments, PVCs and env directories survive the move to
+ * multi-instance untouched.
+ *
+ * Nothing here is application-specific: which env keys an instance needs is
+ * declared per entry under `multiInstance.env`, where values may use the
+ * `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders and
+ * may be env-scoped objects.
+ *
+ * Every expanded entry carries three extra fields consumed by the deploy runners:
+ * `instanceCode` (the variant this instance serves), `templateId` (so targeting
+ * the template id acts on the whole family) and `instanceEnv` (the resolved env
+ * keys to write, keyed by environment: `{ development, production }`, so a build
+ * in either mode can emit a complete env directory).
+ *
+ * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
+ * @returns {Array<object>} Expanded instance entries.
+ * @memberof ServerConfBuilder
+ */
+const INSTANCE_ENVS = ['development', 'production'];
+
+const loadConfInstances = (deployId) => {
+  const { multiInstance, instances } = readConfInstances(deployId);
+  const variants = multiInstance?.variants;
+  if (!Array.isArray(variants) || 0 === variants.length) return instances;
+
+  const expanded = [];
+  for (const entry of instances) {
+    const spec = entry.multiInstance;
+    if (!spec) {
+      expanded.push(entry);
+      continue;
+    }
+    for (const variant of variants) {
+      const id = variant.slug ? `${entry.id}-${variant.slug}` : entry.id;
+      const instance = variant.slug ? deepReplaceToken(entry, entry.id, id) : JSON.parse(JSON.stringify(entry));
+      delete instance.multiInstance;
+      instance.id = id;
+      instance.path = variant.path;
+      instance.instanceCode = variant.code;
+      instance.templateId = entry.id;
+
+      const tokens = {
+        code: variant.code,
+        slug: variant.slug || '',
+        path: variant.path,
+        id,
+        default: multiInstance.default || '',
+      };
+      // Resolve the declared env keys for both environments so a build in either
+      // mode writes a complete env directory (development.env + production.env).
+      instance.instanceEnv = Object.fromEntries(INSTANCE_ENVS.map((e) => [e, {}]));
+      for (const [key, value] of Object.entries(spec.env || {}))
+        for (const e of INSTANCE_ENVS) {
+          const resolved = resolveInstanceEnvValue(value, e, tokens);
+          if (resolved !== null) instance.instanceEnv[e][key] = resolved;
+        }
+
+      // A backend that serves its routes at the root knows nothing about the
+      // variant prefix — it is selected by env instead. Strip the prefix at the
+      // proxy so the runtime stays instance-agnostic.
+      if (spec.stripPathPrefix && variant.path !== '/')
+        instance.pathRewritePolicy = [{ prefix: variant.path, replacement: '/' }];
+      expanded.push(instance);
+    }
+  }
+  return expanded;
+};
+
+/**
+ * @method selectConfInstances
+ * @description Filters expanded instances for a deploy target. Targeting a
+ * template id (`mmo-server`) selects the whole instance family; targeting a
+ * concrete id (`mmo-server-forest`) selects just that one.
+ * @param {Array<object>} instances - Expanded entries from {@link loadConfInstances}.
+ * @param {string} id - Target instance id or template id.
+ * @returns {Array<object>} Matching entries.
+ * @memberof ServerConfBuilder
+ */
+const selectConfInstances = (instances, id) =>
+  instances.filter((instance) => instance.id === id || instance.templateId === id);
+
+/**
  * Creates and writes the /etc/hosts file for a deployment.
  * @method etcHostFactory
  * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
@@ -2100,6 +2252,10 @@ git add .`);
 export {
   Config,
   loadConf,
+  loadConfInstances,
+  loadInstanceTopology,
+  readConfInstances,
+  selectConfInstances,
   loadReplicas,
   cloneConf,
   getCapVariableName,
