@@ -1720,14 +1720,21 @@ try {
     .option('--publish-build', 'Build instance backup directory with all related maps, entities and object layers')
     .option('--publish-remove', 'Remove published instance from underpostnet/cyberia-instances repository')
     .option('--publish', 'Publish instance in underpostnet/cyberia-instances repository')
+    .option('--revert', 'Revert instance to previous commit in underpostnet/cyberia-instances repository')
     .option(
       '--from-n-commit <n>',
       'Number of latest engine commits to use for the publish commit message (default: 1).',
     )
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
+      if (options.revert) {
+        shellExec(`cd /home/dd/cyberia-instances && underpost cmt . reset && underpost run clean .`);
+        shellExec(`cd /home/dd/engine/cyberia-server && underpost cmt . reset && underpost run clean .`);
+        shellExec(`cd /home/dd/engine/cyberia-client && underpost cmt . reset && underpost run clean .`);
+        return;
+      }
       if (!instanceCode) {
-        instanceCode = 'amethyst-strata-expansion';
+        instanceCode = 'amethyst-strata-expansion,FOREST';
         logger.warn(`No instance code provided, defaulting to: ${instanceCode}`);
       }
 
@@ -1828,16 +1835,33 @@ try {
             fs.copySync(`./${assetPath}`, targetPath);
           }
 
+          // Copy default-items asset folders (src/client/public/cyberia/assets/<type>/<id>/ → public/cyberia/assets/<type>/<id>/)
+          for (const entry of DefaultCyberiaItems) {
+            const { id, type } = entry.item;
+            const srcDir = `src/client/public/cyberia/assets/${type}/${id}`;
+            const targetDir = `/home/dd/cyberia-instances/public/cyberia/assets/${type}/${id}`;
+            if (fs.existsSync(srcDir)) {
+              fs.mkdirpSync(nodePath.dirname(targetDir));
+              logger.info(`Copying default-item asset: ${srcDir} → ${targetDir}`);
+              fs.copySync(srcDir, targetDir);
+            } else {
+              logger.warn(`Default-item asset directory not found, skipping: ${srcDir}`);
+            }
+          }
+
           fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
-          fs.copySync(
-            `./engine-private/cyberia-instances/${instanceCode}`,
-            `/home/dd/cyberia-instances/instances/${instanceCode}`,
-          );
           fs.mkdirpSync(`/home/dd/cyberia-instances/sagas`);
-          fs.copyFileSync(
-            `./engine-private/cyberia-sagas/${instanceCode}.json`,
-            `/home/dd/cyberia-instances/sagas/${instanceCode}.json`,
-          );
+          for (const _instanceCode of instanceCode.split(',')) {
+            fs.copySync(
+              `./engine-private/cyberia-instances/${_instanceCode}`,
+              `/home/dd/cyberia-instances/instances/${_instanceCode}`,
+            );
+            if (fs.existsSync(`./engine-private/cyberia-sagas/${_instanceCode}.json`))
+              fs.copyFileSync(
+                `./engine-private/cyberia-sagas/${_instanceCode}.json`,
+                `/home/dd/cyberia-instances/sagas/${_instanceCode}.json`,
+              );
+          }
           const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
           const publishMessage =
             shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
@@ -2021,7 +2045,9 @@ try {
         try {
           await Ipfs.syncIndexes();
         } catch (err) {
-          logger.warn(`IPFS registry index sync failed (mfsPath uniqueness may not be enforced): ${err?.message ?? err}`);
+          logger.warn(
+            `IPFS registry index sync failed (mfsPath uniqueness may not be enforced): ${err?.message ?? err}`,
+          );
         }
         if (removedDuplicates) {
           logger.info(
@@ -4750,7 +4776,8 @@ try {
       shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-actions-quests${devFlag}${mongoHostFlag}`);
       shellExec(`node bin/cyberia client-hints ${instanceHintsCode} --seed-defaults${devFlag}${mongoHostFlag}`);
-      shellExec(`node bin/cyberia instance FOREST --import --dev`);
+      shellExec(`node bin/cyberia instance ${sagaCode} --import${devFlag}`);
+      shellExec(`node bin/cyberia instance FOREST --import${devFlag}`);
     });
 
   runner.command('sync-src').action(() => {
@@ -4806,11 +4833,14 @@ try {
           ),
         'utf8',
       );
-      fs.writeFileSync(envPath, fs.readFileSync(envPath, 'utf8').replaceAll('underpost/', 'localhost/'), 'utf8');
-      shellExec('node bin/cyberia run-workflow sync-src');
-      shellExec(`git checkout './src/runtime/cyberia-server/Dockerfile'`);
-      shellExec(`git checkout './src/runtime/cyberia-client/Dockerfile'`);
-      shellExec('node bin/cyberia run-workflow build-manifest');
+      fs.writeFileSync(
+        envPath,
+        fs
+          .readFileSync(envPath, 'utf8')
+          .replaceAll('underpost/', 'localhost/')
+          .replaceAll('TAG=latest', 'TAG=' + Underpost.version),
+        'utf8',
+      );
       if (options.run) {
         shellExec('node bin/cyberia run-workflow docker:reset');
         shellExec('node bin cluster --dev --reset');
@@ -5303,18 +5333,34 @@ node bin image --path cyberia-client \
       '--dev',
       'Build dev-variant manifests (kind cluster, Dockerfile.dev). Default builds prod (kubeadm, Dockerfile).',
     )
+    .option(
+      '--node-name <node-name>',
+      'Target kubeadm/k3s node for hostPath PV nodeAffinity (production). ' +
+        'Overrides the UNDERPOST_DEPLOY_NODE env and os.hostname() fallback — set it when building outside the target node (CI/container) so nodeSelector is not the build box hostname.',
+    )
     .description(
       'Build k8s resource manifests for the Cyberia mmo-server + mmo-client instances. ' +
+        'Each expands into one deployment per variant declared in the conf.instances.json multiInstance block. ' +
         'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
     )
     .action((options) => {
       const isDev = !!options.dev;
-      const flags = isDev ? '--kind --dev' : '--kubeadm';
+      const nodeFlag = options.nodeName ? ` --node-name ${options.nodeName}` : '';
+      const flags = `${isDev ? '--kind --dev' : '--kubeadm'}${nodeFlag}`;
       // shellExec is fail-fast by default: any non-zero exit throws
       // ShellExecError, which propagates to the outer catch and exits
       // the CLI non-zero — observable by GitHub Actions.
-      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
-      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+
+      {
+        const flags = `${true ? '--kind --dev' : '--kubeadm'}${nodeFlag}`;
+        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
+        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+      }
+      {
+        const flags = `${false ? '--kind --dev' : '--kubeadm'}${nodeFlag}`;
+        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
+        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+      }
       // Copy canonical doc sources into the generated project READMEs.
       // Edit the canonical sources; never hand-edit these generated outputs.
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
