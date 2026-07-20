@@ -8,6 +8,7 @@ This guide covers how to deploy custom application instances to Kubernetes using
 
 - [Prerequisites](#prerequisites)
 - [Configuration File Structure](#configuration-file-structure)
+- [Path-based multi-instance deployments](#path-based-multi-instance-deployments)
 - [Core Commands](#core-commands)
 - [Deployment Workflow](#deployment-workflow)
 - [Advanced Usage](#advanced-usage)
@@ -217,6 +218,135 @@ Resolution rules:
 Use `Always` when the image tag is mutable (e.g. `:latest` or a moving CI tag) so kubelet re-pulls on every pod rollout. Use `IfNotPresent` for immutable, version-pinned tags (recommended default for production). Use `Never` for images already side-loaded into the node (`kind load docker-image …` or `crictl load`).
 
 > The `imagePullPolicy` key is **only** recognised inside the lifecycle block by the instance runners — it is not part of the K8S `lifecycle` schema, and putting it anywhere else in the instance config has no effect. The same `--image-pull-policy` flag is accepted by `node bin run sync` and `node bin deploy --build-manifest` for non-instance deploys (see Main cluster lifecycle commands → Sync).
+
+## Path-based multi-instance deployments
+
+Any instance entry can act as a **template** that expands into one deployment per
+declared variant, with the variant selected by URL path rather than by a separate
+image or hostname. Adding a variant is a config edit — no new build, image, or
+DNS record. Nothing in the mechanism is application-specific: the runners never
+know what a variant *means*, only which env keys to stamp.
+
+To opt in, give `conf.instances.json` its object form — a deploy-wide
+`multiInstance` block alongside the usual entries. (The historic bare-array form
+is still accepted and behaves exactly as before.)
+
+```json
+{
+  "multiInstance": {
+    "default": "amethyst-strata-expansion",
+    "variants": [
+      { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
+      { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
+      { "code": "TEST", "slug": "test", "path": "/TEST" }
+    ]
+  },
+  "instances": [ /* … */ ]
+}
+```
+
+| Field     | Meaning                                                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `default` | Variant code used when a request arrives at the root path.                                                                                              |
+| `code`    | Variant identifier handed to the runtime through the env keys the entry declares.                                                                       |
+| `slug`    | Suffix appended to the template id. **Empty** keeps the template id verbatim, so the pre-existing deployment, PVC and env directory survive unchanged.   |
+| `path`    | URL prefix the instance is routed under.                                                                                                                |
+
+An entry joins the expansion by declaring its own `multiInstance` block:
+
+```jsonc
+{
+  "id": "mmo-server",
+  // …
+  "multiInstance": {
+    "stripPathPrefix": true,
+    "env": { "INSTANCE_CODE": "{{code}}" }
+  }
+}
+```
+
+```jsonc
+{
+  "id": "mmo-client",
+  // …
+  "multiInstance": {
+    "stripPathPrefix": false,
+    "env": {
+      "CYBERIA_INSTANCE_CODE": "{{code}}",
+      "CYBERIA_DEFAULT_INSTANCE": "{{default}}",
+      "CYBERIA_BASE_PATH": "{{path}}",
+      "CYBERIA_WS_ORIGIN": {
+        "development": "ws://localhost:8081",
+        "production": "wss://server.cyberiaonline.com"
+      }
+    }
+  }
+}
+```
+
+| Key               | Meaning                                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `stripPathPrefix` | Emit a `replacePrefix` rewrite so the backend receives `/` and stays instance-agnostic. Use it for runtimes that serve their routes at the root.               |
+| `env`             | Env keys written into the instance's env file. Values may use the `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders, and may be env-scoped objects (`{ development, production }`) like `lifecycle` and the probes. |
+
+`CONTAINER_DEPLOY_ID` is always derived and written for you — it never needs declaring.
+
+### What expansion produces
+
+`mmo-server` + the three variants above yields `mmo-server`, `mmo-server-forest`
+and `mmo-server-test`. The template id token is replaced throughout each entry,
+so the env file path, volume mount and `container-status` strings all follow:
+
+```
+dd-cyberia-mmo-server-forest-production-blue
+  env    engine-private/conf/dd-cyberia/instances/mmo-server-forest/env/production.env
+  code   INSTANCE_CODE=FOREST
+```
+
+Each per-instance env file is seeded from the template's env file, so
+operator-owned keys (API keys, memory limits) are inherited and only the declared
+keys are rewritten. All instances keep pointing at the **shared** parent gRPC
+service — content is authored once and served to every variant.
+
+### Routing
+
+One Contour `HTTPProxy` is named per host, so all instances sharing a host are
+rendered into a single object with routes ordered longest-prefix first. Promoting
+one instance preserves its siblings' routes rather than replacing them.
+
+```yaml
+routes:
+  - conditions: [{ prefix: /FOREST }]   # rewritten to / when stripPathPrefix
+  - conditions: [{ prefix: /TEST }]
+  - conditions: [{ prefix: / }]         # default variant, matched last
+```
+
+### Targeting
+
+Targeting a **template id** acts on the whole family; targeting a concrete id
+acts on one instance:
+
+```bash
+# All variants
+node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' --kubeadm
+
+# Just one
+node bin run instance-build-manifest 'dd-cyberia,mmo-server-forest,./cyberia-server' --kubeadm
+```
+
+Only the instance whose id matches the template verbatim publishes its artifacts
+to the project root, so the repo keeps one canonical `Dockerfile` /
+`deployment.yaml` pair.
+
+### Client-side instance resolution
+
+The client ships **one** WASM binary for every variant. `runtime_config_init()`
+reads the first path segment of `window.location.pathname`, falling back to
+`window.CYBERIA_DEFAULT_INSTANCE`, and composes
+`<CYBERIA_WS_ORIGIN>/<instance>/ws`. `docker-driver.py` injects those globals
+into `index.html` from the deployment env and strips the leading instance
+segment when resolving files, so the flat bundle is served under every path
+while the browser URL — the source of the instance code — is preserved.
 
 ## Core Commands
 
