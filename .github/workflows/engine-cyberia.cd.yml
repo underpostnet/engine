@@ -77,6 +77,8 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "npm run test"
+            sudo -n -- /bin/bash -lc "node bin fs src/client/public/cyberia --pull --recursive --deploy-id dd-cyberia"
+            sudo -n -- /bin/bash -lc "node bin fs src/client/public/underpost --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
             sudo -n -- /bin/bash -lc "node bin run sync 'dd-cyberia,1,,underpost/engine-cyberia:latest' \
               --kubeadm \
               --deploy-id-cron-jobs none \
