@@ -38,7 +38,7 @@ RUN --mount=type=secret,id=github_username \
     export GITHUB_USERNAME="$(cat /run/secrets/github_username)"; \
     # export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
     export ENGINE_CYBERIA_REPO="engine-cyberia"; \
-    export INSTANCE_CODES="amethyst-strata-expansion,FOREST"; \
+    export INSTANCE_CODES="/** INSTANCE_CODES */amethyst-strata-expansion,FOREST/** INSTANCE_CODES */"; \
     cd /home/dd; \
     underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
     mkdir -p /home/dd/engine; \

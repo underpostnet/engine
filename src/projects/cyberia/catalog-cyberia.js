@@ -20,7 +20,15 @@
 
 export default {
   sourceMoves: [],
-  privateConfPaths: ['cyberia-instances/amethyst-strata-expansion'],
+  privateConfPaths: [
+    /** INSTANCE_CODES */
+
+    'cyberia-instances/amethyst-strata-expansion',
+    'sagas/amethyst-strata-expansion.json',
+    'cyberia-instances/FOREST',
+
+    /** INSTANCE_CODES */
+  ],
   templatePaths: [
     '/src/grpc/cyberia',
     '/src/client/ssr/views/CyberiaServerMetrics.js',

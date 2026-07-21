@@ -5357,18 +5357,114 @@ node bin image --path cyberia-client \
     .action((options) => {
       const isDev = !!options.dev;
       const nodeFlag = options.nodeName ? ` --node-name ${options.nodeName}` : '';
-      const flags = `${isDev ? '--kind --dev' : '--kubeadm'}${nodeFlag}`;
-      // shellExec is fail-fast by default: any non-zero exit throws
-      // ShellExecError, which propagates to the outer catch and exits
-      // the CLI non-zero — observable by GitHub Actions.
 
+      // ── Dynamically resolve instance codes from conf.instances.json ──────
+      // Read all cyberia-server runtime instances and collect their
+      // multiInstance variant codes. These are used to update the
+      // INSTANCE_CODES label in Dockerfile.dev so the dev image
+      // provisions every variant's backup dir and saga at build time.
+      //
+      // Only codes that have an on-disk instance backup directory are
+      // included. The saga file is optional — the Dockerfile's for loop
+      // already handles missing sagas gracefully (`if [ -f ... ]`).
+      // A variant declared in conf.instances.json without the instance
+      // directory is silently skipped so the Dockerfile never tries to
+      // copy a non-existent directory and the container build does not fail.
+      const confInstancesPath = './engine-private/conf/dd-cyberia/conf.instances.json';
+      const cyberiaInstancesDir = '/home/dd/cyberia-instances';
+      let instanceCodes = 'amethyst-strata-expansion,FOREST'; // fallback
+      try {
+        const confInstances = JSON.parse(fs.readFileSync(confInstancesPath, 'utf8'));
+        const serverInstances = confInstances.filter((inst) => inst.runtime === 'cyberia-server');
+        const codes = new Set();
+        for (const inst of serverInstances) {
+          if (inst.multiInstance?.variants) {
+            for (const v of inst.multiInstance.variants) {
+              if (!v.code) continue;
+              // Skip codes that have no on-disk instance backup dir
+              const instanceDir = `${cyberiaInstancesDir}/instances/${v.code}`;
+              if (!fs.existsSync(instanceDir)) {
+                logger.info(`[build-manifest] Skipping code "${v.code}": no instance dir at ${instanceDir}`);
+                continue;
+              }
+              codes.add(v.code);
+            }
+          }
+        }
+        if (codes.size > 0) {
+          instanceCodes = [...codes].join(',');
+          logger.info(`[build-manifest] Resolved instance codes: ${instanceCodes}`);
+        } else {
+          logger.warn(`[build-manifest] No valid instance codes found; keeping fallback: ${instanceCodes}`);
+        }
+      } catch (err) {
+        logger.warn(`[build-manifest] Could not read ${confInstancesPath}: ${err.message}; using fallback`);
+      }
+
+      // ── Update Dockerfile.dev + Dockerfile INSTANCE_CODES labels ─────────
+      // The label is bounded by /** INSTANCE_CODES */ markers in both files.
+      // Replace the content between them with the resolved codes so every
+      // image — dev and production — provisions every variant's backup dir
+      // and saga at build time.
+      for (const dockerfileName of ['Dockerfile.dev', 'Dockerfile']) {
+        const dockerfilePath = `./src/runtime/engine-cyberia/${dockerfileName}`;
+        try {
+          const content = fs.readFileSync(dockerfilePath, 'utf8');
+          const updated = content.replace(
+            /\/\*\* INSTANCE_CODES \*\/.*?\/\*\* INSTANCE_CODES \*\//,
+            `/** INSTANCE_CODES */${instanceCodes}/** INSTANCE_CODES */`,
+          );
+          if (updated !== content) {
+            fs.writeFileSync(dockerfilePath, updated);
+            logger.info(`[build-manifest] Updated INSTANCE_CODES in ${dockerfilePath} -> ${instanceCodes}`);
+          }
+        } catch (err) {
+          logger.warn(`[build-manifest] Could not update ${dockerfilePath}: ${err.message}`);
+        }
+      }
+
+      // ── Update catalog-cyberia.js privateConfPaths ───────────────────────
+      // The array block in privateConfPaths is bounded by /** INSTANCE_CODES */
+      // markers. Replace everything between them with the resolved per-code
+      // paths: one `cyberia-instances/<code>` per variant, plus one
+      // `sagas/<code>.json` per variant when the saga file exists on disk.
+      const catalogPath = './src/projects/cyberia/catalog-cyberia.js';
+      try {
+        const catalogContent = fs.readFileSync(catalogPath, 'utf8');
+        const codes = instanceCodes
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean);
+        const lines = [];
+        for (const code of codes) {
+          lines.push(`    'cyberia-instances/${code}',`);
+          const sagaFile = `${cyberiaInstancesDir}/sagas/${code}.json`;
+          if (fs.existsSync(sagaFile)) {
+            lines.push(`    'sagas/${code}.json',`);
+          }
+        }
+        const replacement = lines.join('\n');
+        const catalogUpdated = catalogContent.replace(
+          /\/\*\* INSTANCE_CODES \*\/[\s\S]*?\/\*\* INSTANCE_CODES \*\//,
+          `/** INSTANCE_CODES */\n\n${replacement}\n\n    /** INSTANCE_CODES */`,
+        );
+        if (catalogUpdated !== catalogContent) {
+          fs.writeFileSync(catalogPath, catalogUpdated);
+          logger.info(`[build-manifest] Updated privateConfPaths in ${catalogPath}`);
+        }
+      } catch (err) {
+        logger.warn(`[build-manifest] Could not update ${catalogPath}: ${err.message}`);
+      }
+
+      // ── Build dev manifests (always --kind --dev) ────────────────────────
       {
-        const flags = `${true ? '--kind --dev' : '--kubeadm'}${nodeFlag}`;
+        const flags = `--kind --dev${nodeFlag}`;
         shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
         shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
       }
-      {
-        const flags = `${false ? '--kind --dev' : '--kubeadm'}${nodeFlag}`;
+      // ── Build prod manifests (--kubeadm, no --dev) ───────────────────────
+      if (!isDev) {
+        const flags = `--kubeadm${nodeFlag}`;
         shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
         shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
       }
