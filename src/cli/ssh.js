@@ -532,12 +532,28 @@ EOF`);
       if (!host) throw new Error('copyDirToNode requires a host');
       if (!localDir || !fs.existsSync(localDir)) throw new Error(`copyDirToNode: local dir not found: ${localDir}`);
       if (!remoteDir) throw new Error('copyDirToNode requires a remoteDir');
-      shellExec(`chmod 600 ${keyPath}`, { silent: true, silentOnError: true, disableLog: true });
-      const sshOpts = `-i ${keyPath} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
-      shellExec(`ssh ${sshOpts} ${user}@${host} 'mkdir -p ${remoteDir}'`);
-      shellExec(`tar -C ${localDir} -c . | ssh ${sshOpts} ${user}@${host} 'tar -C ${remoteDir} -x'`);
-      const fixups = `${owner ? `chown -R ${owner} ${remoteDir}; ` : ''}${mode ? `chmod -R ${mode} ${remoteDir}` : ''}`.trim();
-      if (fixups) shellExec(`ssh ${sshOpts} ${user}@${host} '${fixups}'`);
+      try {
+        shellExec(`chmod 600 ${keyPath}`, { silent: true, silentOnError: true, disableLog: true });
+        const sshOpts = `-i ${keyPath} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
+        shellExec(`ssh ${sshOpts} ${user}@${host} 'mkdir -p ${remoteDir}'`, {
+          silent: true,
+          disableLog: true,
+        });
+        shellExec(`tar -C ${localDir} -c . | ssh ${sshOpts} ${user}@${host} 'tar -C ${remoteDir} -x'`, {
+          silent: true,
+          disableLog: true,
+        });
+        const fixups =
+          `${owner ? `chown -R ${owner} ${remoteDir}; ` : ''}${mode ? `chmod -R ${mode} ${remoteDir}` : ''}`.trim();
+        if (fixups)
+          shellExec(`ssh ${sshOpts} ${user}@${host} '${fixups}'`, {
+            silent: true,
+            disableLog: true,
+          });
+      } catch (err) {
+        logger.error(`copyDirToNode failed`);
+        process.exit(1);
+      }
     },
 
     /**
@@ -703,11 +719,14 @@ EOF
 
       let last = { ok: false, code: 255, stdout: '', stderr: '', attempts: 0 };
       for (let attempt = 1; attempt <= retries; attempt++) {
-        const result = shellExec(`ssh ${sshOpts} ${user}@${host} bash -s <<'UNDERPOST_SSH_BATCH_EOF'\n${command}\nUNDERPOST_SSH_BATCH_EOF`, {
-          stdout: false,
-          silentOnError: true,
-          disableLog: true,
-        });
+        const result = shellExec(
+          `ssh ${sshOpts} ${user}@${host} bash -s <<'UNDERPOST_SSH_BATCH_EOF'\n${command}\nUNDERPOST_SSH_BATCH_EOF`,
+          {
+            stdout: false,
+            silentOnError: true,
+            disableLog: true,
+          },
+        );
         last = {
           ok: result.code === 0,
           code: result.code,

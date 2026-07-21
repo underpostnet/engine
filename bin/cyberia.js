@@ -4772,7 +4772,6 @@ try {
         shellExec(`node bin/cyberia run-workflow drop-db${devFlag}${mongoHostFlag}`);
         return;
       }
-      shellExec(`node bin run clean src/client/public/cyberia${devFlag}${mongoHostFlag}`);
       shellExec(
         `node bin/cyberia generate-saga --import engine-private/cyberia-sagas/${sagaCode}.json${devFlag}${mongoHostFlag}`,
       );
@@ -5411,10 +5410,7 @@ node bin image --path cyberia-client \
         const dockerfilePath = `./src/runtime/engine-cyberia/${dockerfileName}`;
         try {
           const content = fs.readFileSync(dockerfilePath, 'utf8');
-          const updated = content.replace(
-            /ARG INSTANCE_CODES="[^"]*"/,
-            `ARG INSTANCE_CODES="${instanceCodes}"`,
-          );
+          const updated = content.replace(/ARG INSTANCE_CODES="[^"]*"/, `ARG INSTANCE_CODES="${instanceCodes}"`);
           if (updated === content && !/ARG INSTANCE_CODES="/.test(content)) {
             logger.warn(`[build-manifest] No 'ARG INSTANCE_CODES' anchor in ${dockerfilePath}; skipped`);
           } else if (updated !== content) {

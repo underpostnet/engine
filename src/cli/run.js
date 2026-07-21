@@ -1232,6 +1232,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         const currentTraffic = Underpost.deploy.getCurrentTraffic(`${deployId}-${instance.id}`, {
           hostTest: instance.host,
           namespace: options.namespace,
+          env,
         });
         if (!promotedIds.has(instance.id)) {
           trafficById[instance.id] = currentTraffic || 'blue';
@@ -1338,6 +1339,7 @@ EOF
         const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
           hostTest: _host,
           namespace: options.namespace,
+          env,
         });
 
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
@@ -1443,11 +1445,20 @@ EOF
           logger.error(`Deployment ${deployId} did not become ready in time.`);
           return;
         }
+      }
+      // Promote (switch the HTTPProxy to the new colour) ONLY after EVERY
+      // instance in the family is deployed and ready — never per-instance inside
+      // the loop. A per-variant switch would flip server.cyberiaonline.com to the
+      // default's new deployment while -forest/-test are still being created,
+      // pointing routes at services that don't exist yet. instance-promote
+      // rebuilds the whole host proxy (all variant routes) in one shot, so a
+      // single call with the family id promotes the family atomically.
+      if (!options.expose) {
         shellExec(
           `${baseCommand} run${baseClusterCommand} --namespace ${options.namespace}` +
             `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
             `${options.tls ? ` --tls ${options.test ? '--test' : ''}` : ''}` +
-            ` instance-promote '${deployId},${_id}'`,
+            ` instance-promote '${deployId},${id}'`,
         );
       }
       if (options.etcHosts) {
@@ -1684,17 +1695,19 @@ EOF
         })}\n`;
       }
 
-      // proxy.yaml — HTTPProxy for the instance host (mirrors instance-promote).
-      // One HTTPProxy per host carries the routes of every instance bound to it,
-      // so applying any single instance's proxy.yaml yields the complete host.
-      const hostInstances = confInstances.filter((i) => i.host === _host);
+      // proxy.yaml — this instance's OWN route only (its sub-path → its own
+      // service), so each variant's build dir carries a distinct, instance-scoped
+      // fragment rather than an identical copy of the whole host proxy. The
+      // complete host HTTPProxy — every variant's route aggregated onto the one
+      // fqdn, each pointing at its live colour — is assembled and applied by
+      // `instance-promote` at deploy time, and only once EVERY variant is ready.
       const proxyYaml =
         Underpost.deploy.baseProxyYamlFactory({ host: _host, env, options }) +
         instanceProxyRoutesFactory({
           deployId,
-          instances: hostInstances,
+          instances: [instance],
           env,
-          trafficById: Object.fromEntries(hostInstances.map((i) => [i.id, targetTraffic])),
+          trafficById: { [instance.id]: targetTraffic },
         });
 
       // grpc-service.yaml — the parent deploy's gRPC ClusterIP (shared; the

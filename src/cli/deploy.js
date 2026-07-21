@@ -23,7 +23,24 @@ import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime-sta
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import Underpost from '../index.js';
+
+/**
+ * Clamps an identifier to the Kubernetes DNS-1123 label limit (63 chars),
+ * used for pod-local `volumes[].name` / `volumeMounts[].name`. Names within the
+ * limit are returned verbatim so existing short names are stable; longer ones
+ * are truncated and suffixed with an 8-char content hash to stay unique and
+ * deterministic (e.g. the per-variant instance volume names, which append the
+ * full `<deployId>-<env>-<traffic>` and can exceed 63).
+ * @param {string} name - Candidate name.
+ * @returns {string} A name no longer than 63 characters.
+ */
+const k8sVolumeName = (name) => {
+  if (typeof name !== 'string' || name.length <= 63) return name;
+  const hash = crypto.createHash('sha1').update(name).digest('hex').slice(0, 8);
+  return `${name.slice(0, 54)}-${hash}`;
+};
 
 const logger = loggerFactory(import.meta);
 
@@ -669,7 +686,7 @@ spec:
      * @returns {string|null} - Current traffic status ('blue' or 'green') or null if not found.
      * @memberof UnderpostDeploy
      */
-    getCurrentTraffic(deployId, options = { hostTest: '', namespace: '' }) {
+    getCurrentTraffic(deployId, options = { hostTest: '', namespace: '', env: '' }) {
       if (!options.namespace) options.namespace = 'default';
       // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
       const hostTest = options?.hostTest
@@ -684,6 +701,18 @@ spec:
         silentOnError: true,
       });
       if (!info) return null;
+      // Env-scoped resolution: read THIS deploy's colour from its own service
+      // name (`<deployId>-<env>-<colour>-service`). Essential for shared
+      // multi-instance hosts, where one HTTPProxy holds several variants' routes
+      // on possibly different colours — a whole-document `.match('blue')` would
+      // return whichever colour appears first, i.e. a sibling's, not this one's.
+      // The regex is anchored on the full `<deployId>-<env>-` prefix so
+      // `dd-cyberia-mmo-server` never matches `dd-cyberia-mmo-server-forest`.
+      if (options.env) {
+        const escaped = deployId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = info.match(new RegExp(`${escaped}-${options.env}-(blue|green)-service`));
+        return match ? match[1] : null;
+      }
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
     },
 
@@ -839,7 +868,7 @@ EOF`);
                 toPort: instance.toPort,
                 fromDebugPort: instance.fromDebugPort,
                 toDebugPort: instance.toDebugPort,
-                traffic: Underpost.deploy.getCurrentTraffic(_deployId, { namespace, hostTest: instance.host }),
+                traffic: Underpost.deploy.getCurrentTraffic(_deployId, { namespace, hostTest: instance.host, env }),
               });
             }
           }
@@ -1249,13 +1278,18 @@ EOF
           volumeName = `${volumeName}-${version}`;
           claimName = claimName ? `${claimName}-${version}` : null;
         }
+        // The pod-local volume name is a DNS-1123 label (max 63 chars); the PVC
+        // `claimName` it references is a subdomain (max 253) and stays verbatim.
+        // Per-variant instance names append <deployId>-<env>-<traffic> and can
+        // exceed 63, so clamp only the pod-local name (mount name must match it).
+        const podVolumeName = k8sVolumeName(volumeName);
         _volumeMounts += `
-        - name: ${volumeName}
+        - name: ${podVolumeName}
           mountPath: ${volumeMountPath}
 ${secret ? `          readOnly: true\n` : ''}`;
 
         _volumes += `
-    - name: ${volumeName}
+    - name: ${podVolumeName}
  ${
    emptyDir
      ? `     emptyDir: {}`

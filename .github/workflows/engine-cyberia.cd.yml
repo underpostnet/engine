@@ -77,8 +77,18 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "npm run test"
+            sudo -n -- /bin/bash -lc "node bin cmt src/client/public/cyberia --init-repo"
+            sudo -n -- /bin/bash -lc "node bin cmt src/client/public/underpost --init-repo"
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/cyberia --pull --recursive --deploy-id dd-cyberia"
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/underpost --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
+            CHANGES_CYBERIA=$(sudo -n -- /bin/bash -lc "node bin cmt src/client/public/cyberia --has-changes" | tr -d '\n')
+            if [ "$CHANGES_CYBERIA" = "1" ]; then
+              sudo -n -- /bin/bash -lc "node bin cmt src/client/public/cyberia feat 'Update cyberia public assets'"
+            fi
+            CHANGES_UNDERPOST=$(sudo -n -- /bin/bash -lc "node bin cmt src/client/public/underpost --has-changes" | tr -d '\n')
+            if [ "$CHANGES_UNDERPOST" = "1" ]; then
+              sudo -n -- /bin/bash -lc "node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
+            fi
             sudo -n -- /bin/bash -lc "node bin run sync 'dd-cyberia,1,,underpost/engine-cyberia:latest' \
               --kubeadm \
               --deploy-id-cron-jobs none \
@@ -105,6 +115,8 @@ jobs:
                 sudo mv ./engine-cyberia-private ./engine-private, \
                 node bin env dd-cyberia production, \
                 node ./engine-private/itc-scripts/dd-cyberia-0.js, \
+                sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
+                node bin/cyberia run-workflow import-default-items, \
                 node bin env dd-cyberia production, \
                 node bin client dd-cyberia, \
                 node bin start dd-cyberia production --run'"
