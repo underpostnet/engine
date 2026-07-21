@@ -315,7 +315,6 @@ class UnderpostFileStorage {
         public_ids: [path],
         resource_type: 'raw',
       });
-      logger.info('download result', downloadResult);
       await Downloader.downloadFile(downloadResult, zipPath);
 
       if (options.omitUnzip === true) {

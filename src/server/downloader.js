@@ -41,18 +41,18 @@ class Downloader {
           const writer = fs.createWriteStream(fullPath);
           response.data.pipe(writer);
           writer.on('finish', () => {
-            logger.info('Download complete. File saved at', fullPath);
+            logger.info('Download completet');
             return resolve(fullPath);
           });
           writer.on('error', (error) => {
-            logger.error(error, 'Error downloading the file');
+            logger.error('Error downloading the file');
             // Cleanup incomplete file if possible
             if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
             return reject(error);
           });
         })
         .catch((error) => {
-          logger.error(error, 'Error in the request');
+          logger.error('Error in the request');
           return reject(error);
         }),
     );
