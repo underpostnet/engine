@@ -1862,6 +1862,12 @@ try {
                 `/home/dd/cyberia-instances/sagas/${_instanceCode}.json`,
               );
           }
+          if (fs.existsSync('./engine-private/conf/dd-cyberia/conf.instances.json'))
+            fs.copySync(
+              './engine-private/conf/dd-cyberia/conf.instances.json',
+              '/home/dd/cyberia-instances/conf/dd-cyberia/conf.instances.json',
+            );
+
           const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
           const publishMessage =
             shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {

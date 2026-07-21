@@ -21,6 +21,7 @@ import {
   getDataDeploy,
   buildReplicaId,
   writeEnv,
+  readConfInstances,
 } from '../server/conf.js';
 import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../client-builder/client-build.js';
 import { DefaultConf } from '../../conf.js';
@@ -1854,8 +1855,10 @@ Prevent build private config repo.`,
         const confPath = `./engine-private/conf/${deployId}/conf.instances.json`;
         if (!fs.existsSync(confPath)) continue;
         try {
-          const instances = JSON.parse(fs.readFileSync(confPath, 'utf8'));
-          const match = instances.find((i) => i && i.runtime === runtime);
+          // readConfInstances returns the bare array of entries. The template
+          // entries carry runtime + metadata.repository, so the un-expanded list
+          // is enough here (no need to expand variants).
+          const match = readConfInstances(deployId).find((i) => i && i.runtime === runtime);
           if (match && match.metadata && match.metadata.repository) {
             logger.info(`[resolveInstanceRepo] resolved from ${confPath}`, {
               runtime,

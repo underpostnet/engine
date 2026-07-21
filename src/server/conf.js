@@ -1792,29 +1792,38 @@ const deepReplaceToken = (value, from, to) => {
 
 /**
  * @method readConfInstances
- * @description Reads `conf.instances.json` in either supported shape and
- * normalises it. The file is historically a bare array of instance entries; the
- * object form adds a deploy-wide `multiInstance` block alongside them.
+ * @description Reads `conf.instances.json` and returns the bare array of instance
+ * entries. The canonical shape is a plain array; the historical `{ instances }`
+ * object wrapper is still unwrapped for backward compatibility. Multi-instance is
+ * declared per entry under `entry.multiInstance` (not deploy-wide).
  * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
- * @returns {{multiInstance: ?object, instances: Array<object>}} Normalised conf.
+ * @returns {Array<object>} Instance entries.
  * @memberof ServerConfBuilder
  */
 const readConfInstances = (deployId) => {
   const raw = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'));
-  if (Array.isArray(raw)) return { multiInstance: null, instances: raw };
-  return { multiInstance: raw.multiInstance || null, instances: raw.instances || [] };
+  return Array.isArray(raw) ? raw : raw.instances || [];
 };
 
 /**
  * @method loadInstanceTopology
- * @description Returns the deploy-wide `multiInstance` block, or `null` when the
- * deploy is single-instance. Application-agnostic: the block only declares
- * variants (code, slug, path) and the default variant code.
+ * @description Returns `{ default, variants }` describing the deploy's instance
+ * variants, or `null` when the deploy is single-instance. The topology is
+ * declared per instance entry (`entry.multiInstance.default` / `.variants`); all
+ * multi-instance entries share the same variant set, so this returns it from the
+ * first entry that declares one.
  * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
- * @returns {?object} The topology block, or `null` when absent.
+ * @returns {?{default: string, variants: Array<object>}} The topology, or `null`.
  * @memberof ServerConfBuilder
  */
-const loadInstanceTopology = (deployId) => readConfInstances(deployId).multiInstance;
+const loadInstanceTopology = (deployId) => {
+  for (const entry of readConfInstances(deployId)) {
+    const mi = entry.multiInstance;
+    if (mi && Array.isArray(mi.variants) && mi.variants.length > 0)
+      return { default: mi.default || mi.variants[0].code, variants: mi.variants };
+  }
+  return null;
+};
 
 /**
  * @method resolveInstanceEnvValue
@@ -1846,8 +1855,9 @@ const resolveInstanceEnvValue = (value, env, tokens) => {
  * so pre-existing deployments, PVCs and env directories survive the move to
  * multi-instance untouched.
  *
- * Nothing here is application-specific: which env keys an instance needs is
- * declared per entry under `multiInstance.env`, where values may use the
+ * Nothing here is application-specific: the variant set (`default` + `variants`),
+ * which env keys an instance needs (`env`), and prefix-stripping (`stripPathPrefix`)
+ * are all declared per entry under `entry.multiInstance`. Env values may use the
  * `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders and
  * may be env-scoped objects.
  *
@@ -1864,14 +1874,11 @@ const resolveInstanceEnvValue = (value, env, tokens) => {
 const INSTANCE_ENVS = ['development', 'production'];
 
 const loadConfInstances = (deployId) => {
-  const { multiInstance, instances } = readConfInstances(deployId);
-  const variants = multiInstance?.variants;
-  if (!Array.isArray(variants) || 0 === variants.length) return instances;
-
   const expanded = [];
-  for (const entry of instances) {
+  for (const entry of readConfInstances(deployId)) {
     const spec = entry.multiInstance;
-    if (!spec) {
+    const variants = spec?.variants;
+    if (!Array.isArray(variants) || 0 === variants.length) {
       expanded.push(entry);
       continue;
     }
@@ -1889,7 +1896,7 @@ const loadConfInstances = (deployId) => {
         slug: variant.slug || '',
         path: variant.path,
         id,
-        default: multiInstance.default || '',
+        default: spec.default || '',
       };
       // Resolve the declared env keys for both environments so a build in either
       // mode writes a complete env directory (development.env + production.env).

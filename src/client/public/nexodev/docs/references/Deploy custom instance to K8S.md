@@ -227,65 +227,64 @@ image or hostname. Adding a variant is a config edit — no new build, image, or
 DNS record. Nothing in the mechanism is application-specific: the runners never
 know what a variant *means*, only which env keys to stamp.
 
-To opt in, give `conf.instances.json` its object form — a deploy-wide
-`multiInstance` block alongside the usual entries. (The historic bare-array form
-is still accepted and behaves exactly as before.)
+`conf.instances.json` stays a **plain array** of instance entries. An entry opts
+into multi-instance by declaring its own `multiInstance` block — there is no
+deploy-wide wrapper. The block is self-contained: it carries the variant set
+(`default` + `variants`), the env keys to stamp (`env`), and the prefix-strip
+flag (`stripPathPrefix`).
 
-```json
-{
-  "multiInstance": {
-    "default": "amethyst-strata-expansion",
-    "variants": [
-      { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
-      { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
-      { "code": "TEST", "slug": "test", "path": "/TEST" }
-    ]
+```jsonc
+[
+  {
+    "id": "mmo-server",
+    // …
+    "multiInstance": {
+      "stripPathPrefix": true,
+      "env": { "INSTANCE_CODE": "{{code}}" },
+      "default": "amethyst-strata-expansion",
+      "variants": [
+        { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
+        { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
+        { "code": "TEST", "slug": "test", "path": "/TEST" }
+      ]
+    }
   },
-  "instances": [ /* … */ ]
-}
-```
-
-| Field     | Meaning                                                                                                                                                |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `default` | Variant code used when a request arrives at the root path.                                                                                              |
-| `code`    | Variant identifier handed to the runtime through the env keys the entry declares.                                                                       |
-| `slug`    | Suffix appended to the template id. **Empty** keeps the template id verbatim, so the pre-existing deployment, PVC and env directory survive unchanged.   |
-| `path`    | URL prefix the instance is routed under.                                                                                                                |
-
-An entry joins the expansion by declaring its own `multiInstance` block:
-
-```jsonc
-{
-  "id": "mmo-server",
-  // …
-  "multiInstance": {
-    "stripPathPrefix": true,
-    "env": { "INSTANCE_CODE": "{{code}}" }
-  }
-}
-```
-
-```jsonc
-{
-  "id": "mmo-client",
-  // …
-  "multiInstance": {
-    "stripPathPrefix": false,
-    "env": {
-      "CYBERIA_INSTANCE_CODE": "{{code}}",
-      "CYBERIA_DEFAULT_INSTANCE": "{{default}}",
-      "CYBERIA_BASE_PATH": "{{path}}",
-      "CYBERIA_WS_ORIGIN": {
-        "development": "ws://localhost:8081",
-        "production": "wss://server.cyberiaonline.com"
-      }
+  {
+    "id": "mmo-client",
+    // …
+    "multiInstance": {
+      "stripPathPrefix": false,
+      "env": {
+        "CYBERIA_INSTANCE_CODE": "{{code}}",
+        "CYBERIA_DEFAULT_INSTANCE": "{{default}}",
+        "CYBERIA_BASE_PATH": "{{path}}",
+        "CYBERIA_WS_ORIGIN": {
+          "development": "ws://localhost:8081",
+          "production": "wss://server.cyberiaonline.com"
+        }
+      },
+      "default": "amethyst-strata-expansion",
+      "variants": [
+        { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
+        { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
+        { "code": "TEST", "slug": "test", "path": "/TEST" }
+      ]
     }
   }
-}
+]
 ```
+
+An entry with no `multiInstance` block is deployed as-is (single instance). Each
+multi-instance entry declares its own variant set; when several entries take part
+(server + client), keep their `default`/`variants` in sync — the routing derives
+the topology from the first entry that declares one.
 
 | Key               | Meaning                                                                                                                                                     |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `default`         | Variant code used when a request arrives at the root path.                                                                                                   |
+| `variants[].code` | Variant identifier handed to the runtime through the env keys the entry declares.                                                                            |
+| `variants[].slug` | Suffix appended to the template id. **Empty** keeps the template id verbatim, so the pre-existing deployment, PVC and env directory survive unchanged.        |
+| `variants[].path` | URL prefix the instance is routed under.                                                                                                                     |
 | `stripPathPrefix` | Emit a `replacePrefix` rewrite so the backend receives `/` and stays instance-agnostic. Use it for runtimes that serve their routes at the root.               |
 | `env`             | Env keys written into the instance's env file. Values may use the `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders, and may be env-scoped objects (`{ development, production }`) like `lifecycle` and the probes. |
 

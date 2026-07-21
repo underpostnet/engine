@@ -6,7 +6,7 @@
  * Supports MariaDB and MongoDB with import/export capabilities, Git integration, and multi-pod operations.
  */
 
-import { mergeFile, splitFileFactory, loadConfServerJson, resolveConfSecrets } from '../server/conf.js';
+import { mergeFile, splitFileFactory, loadConfServerJson, resolveConfSecrets, loadConfInstances } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
@@ -1119,7 +1119,9 @@ class UnderpostDB {
             // Process additional instances
             const confInstancesPath = `./engine-private/conf/${deployId}/conf.instances.json`;
             if (fs.existsSync(confInstancesPath)) {
-              const confInstances = JSON.parse(fs.readFileSync(confInstancesPath, 'utf8'));
+              // Expands multiInstance variants so each deployed instance is
+              // registered (handles both the bare-array and { instances } shapes).
+              const confInstances = loadConfInstances(deployId);
               for (const instance of confInstances) {
                 const { id, host, path, fromPort, metadata } = instance;
                 const { runtime } = metadata;

@@ -12,6 +12,7 @@ import {
   cronDeployIdResolve,
   deployRangePortFactory,
   getDataDeploy,
+  loadConfInstances,
   loadConfServerJson,
   loadReplicas,
   pathPortAssignmentFactory,
@@ -825,9 +826,9 @@ EOF`);
           const deployId = _deployId.trim();
           const instances = [];
           if (fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`)) {
-            const confInstances = JSON.parse(
-              fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
-            );
+            // Expands multiInstance variants so status lists every deployed
+            // instance (mmo-server, mmo-server-forest, …), not just the templates.
+            const confInstances = loadConfInstances(deployId);
             for (const instance of confInstances) {
               const _deployId = `${deployId}-${instance.id}`;
               instances.push({

@@ -789,7 +789,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'docker-image': (path, options = DEFAULT_OPTION) => {
-      const repo = Underpost.repo.resolveInstanceRepo(path, options.dev);
+      const repo = Underpost.repo.resolveInstanceRepo(path, !options.test);
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: `docker-image${path ? `.${path}` : ''}${options.dev ? '.dev' : ''}.ci.yml`,
@@ -869,7 +869,7 @@ class UnderpostRun {
         job = 'init';
         confId = path.replace(/^init-/, '');
       }
-      const repo = Underpost.repo.resolveInstanceRepo(confId, options.dev);
+      const repo = Underpost.repo.resolveInstanceRepo(confId, !options.test);
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: `${confId}.cd.yml`,
