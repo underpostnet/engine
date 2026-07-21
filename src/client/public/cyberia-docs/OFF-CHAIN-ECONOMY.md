@@ -31,6 +31,7 @@ Cyberia Online uses the **Fountain & Sink** economy — the industry standard fo
           │   KILL LOOT             │  zero-sum drop race
           │   victim stake → grid drop    │
           │   contributors race to collect│
+          │   (players + bots, any victim)│
           │                         │
           │  PvE: coinKillPercentVsBot    │
           │  PvP: coinKillPercentVsPlayer │
@@ -52,8 +53,8 @@ Cyberia Online uses the **Fountain & Sink** economy — the industry standard fo
 | Rule                          | Description                                                                                     |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- |
 | **Bots are infinite mint**    | Every bot respawn resets wallet to `botSpawnCoins`. Supply bounded by player kill rate.         |
-| **Players are zero-sum**      | A PvP kill scatters the victim's coins as a grid drop but creates no new ones — redistribution only. |
-| **Loot is a contributor race**| Every kill drops a coin token only damage contributors may collect; the first eligible collider wins. Damage amount is irrelevant — only contribution counts. Bot-only kills drop nothing. |
+| **Players are zero-sum**      | A player kill scatters the victim's coins as a grid drop but creates no new ones — redistribution only. A player who dies to bots still drops coins (per `coinKillPercentVsPlayer`); the contributing bots may reclaim them. |
+| **Loot is a contributor race**| Every kill scatters the victim's configured `dropItemIds` (plus coins where the entity carries them); only damage contributors may collect, and the first eligible collider wins. Damage amount is irrelevant — only contribution counts. The contributor set is tracked uniformly for **any** victim (player, bot, resource) and includes both players and the bots that dealt damage: a contributing player collects on collision, a contributing bot has the loot transferred to it on collision. A death with no contributor drops nothing. |
 | **Kill floor**                | `coinKillMinAmount` guarantees every successful kill pays out even against a near-empty wallet. |
 | **Sinks scale with activity** | Fees burn a fraction — more activity = more burn, preventing indefinite inflation.              |
 
@@ -134,26 +135,36 @@ All economy logic is encapsulated in a single file enforcing the single-source p
 
 ### Kill Loot Logic
 
-Every kill scatters the victim's coin stake as a grid drop token (`spawnDrops`,
-`loot.go`). Only damage contributors may collect it — the amount of damage does
-not matter, only that the player contributed — and collection is a race: the
-first eligible player to collide with the settled token wins it. The same model
-covers PvE and PvP; a kill with no player contributor drops nothing.
+Every kill scatters the victim's configured `dropItemIds` (resolved per entity
+via the entity-type default build) plus its coin stake — where the entity carries
+coins — as grid drop tokens (`spawnDrops`, `loot.go`). Contribution is tracked
+uniformly for **any** victim (player, bot, resource): players and the bots that
+dealt damage all join the set. Only contributors may collect — the amount of
+damage does not matter, only that the entity contributed — and collection is a
+race: the first eligible collider with the settled token wins it. A contributing
+player collects on collision; a contributing bot has the loot transferred to it
+on collision. A death with no contributor drops nothing.
 
 ```
 OnDeath(victim):
-  contributors = players in victim.DamageLedger    // bot-only kills drop nothing
-  if empty(contributors): return
+  contributors = players who damaged victim
+                 + bots who damaged victim    // uniform for any victim type
+  if empty(contributors): return             // no contributor → no drop
 
+  // Item drops (all victim types): the victim's configured dropItemIds.
+  for itemID in victim.dropItemIds:
+    spawnDropToken(itemID × 1, contributors)
+
+  // Coin drop (only entities that carry coins: players, bots — resources = 0).
   rate = coinKillPercentVsBot     if victim is bot     (PvE)
-         coinKillPercentVsPlayer  if victim is player  (PvP)
+         coinKillPercentVsPlayer  if victim is player  (PvP or bot-kills-player)
 
   amount = max(floor(victim.coins × rate), coinKillMinAmount)
-  amount = min(amount, victim.coins)         // can't drop more than available
-                                             // (bots mint up to botSpawnCoins)
+  amount = min(amount, victim.coins)          // can't drop more than available
+                                              // (bots mint up to botSpawnCoins)
 
-  victim.coins -= amount                     // bots re-mint on respawn
-  spawnDropToken(coin × amount, contributors)
+  victim.coins -= amount                      // bots re-mint on respawn
+  if amount > 0: spawnDropToken(coin × amount, contributors)
   // No coin FCT — the victim's balance change surfaces in the inventory-bar
   // quantity FX, and the gain side in the collector's loot grid.
 ```
