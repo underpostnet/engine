@@ -758,6 +758,7 @@ program
     '--test',
     'Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager).',
   )
+  .option('--branch <branch>', 'Sets the branch for git operations (default: current branch).')
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
 

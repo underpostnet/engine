@@ -151,6 +151,7 @@ const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =
  * @property {boolean} pullBundle - Whether to pull the bundle before running. Use together with --skip-full-build to skip the local build entirely (supported by: sync, template-deploy).
  * @property {boolean} remove - Whether to remove/teardown resources instead of creating them (e.g. delete-expose for k3s proxy devices in dev-cluster).
  * @property {boolean} test - Whether to enable test/generic-purpose mode (e.g. use self-signed TLS instead of cert-manager).
+ * @property {string} branch - The Git branch to use for operations (e.g., for template-deploy, ssh-deploy).
  * @memberof UnderpostRun
  */
 const DEFAULT_OPTION = {
@@ -221,6 +222,7 @@ const DEFAULT_OPTION = {
   pullBundle: false,
   remove: false,
   test: false,
+  branch: '',
 };
 
 /**
@@ -742,10 +744,11 @@ class UnderpostRun {
       if (deployConfId) inputs.deploy_conf_id = deployConfId;
       if (deployType) inputs.deploy_type = deployType;
 
+      // Omit `ref` so dispatchWorkflow auto-detects the repo's default branch
+      // (a fork may default to `main` rather than the monorepo's `master`).
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: 'npmpkg.ci.yml',
-        ref: 'master',
         inputs,
       });
     },
@@ -870,10 +873,12 @@ class UnderpostRun {
         confId = path.replace(/^init-/, '');
       }
       const repo = Underpost.repo.resolveInstanceRepo(confId, !options.test);
+      // Omit `ref` so dispatchWorkflow auto-detects the target repo's default
+      // branch (getDefaultBranch): the monorepo is `master` but instance repos
+      // like engine-cyberia default to `main` — hardcoding either 422s.
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: `${confId}.cd.yml`,
-        ref: 'master',
         inputs: { job },
       });
     },
