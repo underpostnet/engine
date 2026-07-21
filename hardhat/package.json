@@ -13,7 +13,10 @@
     "deploy:local": "hardhat run scripts/deployObjectLayerToken.js --network hardhat",
     "clean": "hardhat clean",
     "coverage": "hardhat build && hardhat test --coverage",
-    "audit": "npm audit --audit-level=moderate"
+    "audit": "npm audit --audit-level=moderate",
+    "audit:signatures": "npm audit signatures",
+    "fix": "npm audit fix",
+    "fix:force": "npm audit fix --force"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
@@ -29,6 +32,7 @@
     "node": ">=22.0.0"
   },
   "overrides": {
+    "adm-zip": ">=0.6.0",
     "serialize-javascript": "7.0.5",
     "diff": ">=8.0.3",
     "elliptic": ">=6.6.1",
