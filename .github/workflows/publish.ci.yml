@@ -24,7 +24,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y sudo tar gzip bzip2 git curl
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
@@ -71,7 +71,7 @@ jobs:
         run: npm publish --provenance --access public
 
       - name: Setup node to publish to GitHub Packages
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24.x'
           registry-url: 'https://npm.pkg.github.com'
