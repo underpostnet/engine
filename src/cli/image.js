@@ -117,20 +117,38 @@ class UnderpostImage {
       };
       // addBuildSecret('github_token', process.env.GITHUB_TOKEN);
       addBuildSecret('github_username', process.env.GITHUB_USERNAME);
-      // Cloudinary creds power build-time asset pulls (`node bin fs --pull`).
-      // addBuildSecret('cloudinary_cloud_name', process.env.CLOUDINARY_CLOUD_NAME);
-      // addBuildSecret('cloudinary_api_key', process.env.CLOUDINARY_API_KEY);
-      // addBuildSecret('cloudinary_api_secret', process.env.CLOUDINARY_API_SECRET);
+      // Build secrets are created dynamically: each `RUN --mount=type=secret,id=<x>`
+      // id maps to a host env var; only the ones actually set are passed, so a
+      // Dockerfile that omits (or comments out) a mount just never sees it. Extend
+      // this map — plus a merge of any caller-supplied `options.buildSecrets` — to
+      // add more without touching the call sites. Secrets never persist in image
+      // history (unlike build-args); they live in 0600 temp files removed post-build.
+      const BUILD_SECRET_ENV = {
+        //   // Cloudinary creds power build-time asset pulls (`node bin fs --pull`).
+        //   cloudinary_cloud_name: 'CLOUDINARY_CLOUD_NAME',
+        //   cloudinary_api_key: 'CLOUDINARY_API_KEY',
+        //   cloudinary_api_secret: 'CLOUDINARY_API_SECRET',
+      };
+      for (const [id, envVar] of Object.entries(BUILD_SECRET_ENV)) addBuildSecret(id, process.env[envVar]);
+      for (const [id, value] of Object.entries(options.buildSecrets || {})) addBuildSecret(id, value);
       const secretArgs = secretFlags.length ? ` ${secretFlags.join(' ')}` : '';
-      if (secretFlags.length)
-        logger.info('Passing host GitHub credentials as build secrets', { ids: secretFlags.length });
+      if (secretFlags.length) logger.info('Passing host credentials as build secrets', { ids: secretFlags.length });
+
+      // Non-secret build args (e.g. INSTANCE_CODES for engine-cyberia): injected
+      // dynamically from `options.buildArgs`, overriding the Dockerfile's ARG
+      // defaults. Unlike secrets these DO persist in image metadata, so only
+      // non-sensitive values belong here.
+      const buildArgFlags = Object.entries(options.buildArgs || {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => `--build-arg ${k}=${JSON.stringify(String(v))}`);
+      const buildArgStr = buildArgFlags.length ? ` ${buildArgFlags.join(' ')}` : '';
 
       if (path)
         try {
           shellExec(
             `cd ${path} && sudo podman build -f ./${
               dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
-            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretArgs} --network host`,
+            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretArgs}${buildArgStr} --network host`,
           );
         } finally {
           for (const file of secretTmpFiles) {

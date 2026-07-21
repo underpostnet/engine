@@ -5401,20 +5401,23 @@ node bin image --path cyberia-client \
         logger.warn(`[build-manifest] Could not read ${confInstancesPath}: ${err.message}; using fallback`);
       }
 
-      // ── Update Dockerfile.dev + Dockerfile INSTANCE_CODES labels ─────────
-      // The label is bounded by /** INSTANCE_CODES */ markers in both files.
-      // Replace the content between them with the resolved codes so every
-      // image — dev and production — provisions every variant's backup dir
-      // and saga at build time.
+      // ── Update Dockerfile.dev + Dockerfile INSTANCE_CODES build arg ──────
+      // The value lives in a clean `ARG INSTANCE_CODES="…"` default (not a
+      // marker-wrapped shell string — a `/** … */` literal would glob-expand in
+      // the RUN's `for` loop). Rewrite the ARG default with the resolved codes so
+      // every image — dev and production — provisions every variant's backup dir
+      // and saga at build time. Overridable at build via `--build-arg`.
       for (const dockerfileName of ['Dockerfile.dev', 'Dockerfile']) {
         const dockerfilePath = `./src/runtime/engine-cyberia/${dockerfileName}`;
         try {
           const content = fs.readFileSync(dockerfilePath, 'utf8');
           const updated = content.replace(
-            /\/\*\* INSTANCE_CODES \*\/.*?\/\*\* INSTANCE_CODES \*\//,
-            `/** INSTANCE_CODES */${instanceCodes}/** INSTANCE_CODES */`,
+            /ARG INSTANCE_CODES="[^"]*"/,
+            `ARG INSTANCE_CODES="${instanceCodes}"`,
           );
-          if (updated !== content) {
+          if (updated === content && !/ARG INSTANCE_CODES="/.test(content)) {
+            logger.warn(`[build-manifest] No 'ARG INSTANCE_CODES' anchor in ${dockerfilePath}; skipped`);
+          } else if (updated !== content) {
             fs.writeFileSync(dockerfilePath, updated);
             logger.info(`[build-manifest] Updated INSTANCE_CODES in ${dockerfilePath} -> ${instanceCodes}`);
           }

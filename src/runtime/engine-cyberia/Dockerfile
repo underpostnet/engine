@@ -32,13 +32,20 @@ RUN set -eux; \
 
 WORKDIR /home/dd
 
+# Comma-separated instance codes to provision (backup dir + optional saga).
+# `node bin/cyberia run-workflow build-manifest` rewrites this default from the
+# conf.instances.json multiInstance variants; override at build with
+# `--build-arg INSTANCE_CODES=...`. Declared as an ARG (not a marker-wrapped
+# shell string) so the value is clean — a `/** … */` literal in the shell would
+# glob-expand in the `for` loop below.
+ARG INSTANCE_CODES="amethyst-strata-expansion,FOREST"
+
 RUN --mount=type=secret,id=github_username \
     # --mount=type=secret,id=github_token \
     set -eu; \
     export GITHUB_USERNAME="$(cat /run/secrets/github_username)"; \
     # export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
     export ENGINE_CYBERIA_REPO="engine-cyberia"; \
-    export INSTANCE_CODES="/** INSTANCE_CODES */amethyst-strata-expansion,FOREST/** INSTANCE_CODES */"; \
     cd /home/dd; \
     underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
     mkdir -p /home/dd/engine; \
