@@ -115,7 +115,7 @@
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.0",
     "typedoc": "^0.28.20",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "validator": "^13.15.35",
     "vanilla-jsoneditor": "^3.12.0",
     "winston": "^3.19.0",
