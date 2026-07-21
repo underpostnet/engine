@@ -24,7 +24,7 @@ export default {
     /** INSTANCE_CODES */
 
     'cyberia-instances/amethyst-strata-expansion',
-    'sagas/amethyst-strata-expansion.json',
+    'cyberia-sagas/amethyst-strata-expansion.json',
     'cyberia-instances/FOREST',
 
     /** INSTANCE_CODES */

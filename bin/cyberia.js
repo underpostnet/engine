@@ -5428,9 +5428,13 @@ node bin image --path cyberia-client \
 
       // ── Update catalog-cyberia.js privateConfPaths ───────────────────────
       // The array block in privateConfPaths is bounded by /** INSTANCE_CODES */
-      // markers. Replace everything between them with the resolved per-code
-      // paths: one `cyberia-instances/<code>` per variant, plus one
-      // `sagas/<code>.json` per variant when the saga file exists on disk.
+      // markers (valid JS comments here). Replace everything between them with
+      // the resolved per-code paths. These are synced by syncPrivateConf, which
+      // copies each entry from `./engine-private/<path>` — so they must match the
+      // LOCAL engine-private layout (`cyberia-instances/<code>`,
+      // `cyberia-sagas/<code>.json`), not the published cyberia-instances repo
+      // (which uses `instances/` + `sagas/`). Only emit paths that exist on disk
+      // so the sync never hits ENOENT on a variant without local content.
       const catalogPath = './src/projects/cyberia/catalog-cyberia.js';
       try {
         const catalogContent = fs.readFileSync(catalogPath, 'utf8');
@@ -5440,11 +5444,10 @@ node bin image --path cyberia-client \
           .filter(Boolean);
         const lines = [];
         for (const code of codes) {
-          lines.push(`    'cyberia-instances/${code}',`);
-          const sagaFile = `${cyberiaInstancesDir}/sagas/${code}.json`;
-          if (fs.existsSync(sagaFile)) {
-            lines.push(`    'sagas/${code}.json',`);
-          }
+          if (fs.existsSync(`./engine-private/cyberia-instances/${code}`))
+            lines.push(`    'cyberia-instances/${code}',`);
+          if (fs.existsSync(`./engine-private/cyberia-sagas/${code}.json`))
+            lines.push(`    'cyberia-sagas/${code}.json',`);
         }
         const replacement = lines.join('\n');
         const catalogUpdated = catalogContent.replace(
