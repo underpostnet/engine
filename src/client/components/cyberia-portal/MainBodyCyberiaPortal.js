@@ -1,3 +1,4 @@
+import { range } from '../core/CommonJs.js';
 import { ThemeEvents, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { getProxyPath } from '../core/Router.js';
@@ -15,14 +16,37 @@ class MainBodyCyberiaPortal {
 
     const id = 'cyberia-portal-landing';
 
+    // Stable pixel-art particle field: positions/motion fixed once so they don't jump on theme change.
+    // Colors are theme-driven via CSS custom properties resolved in ThemeEvents.
+    const pixelSizes = [10, 14, 18, 24, 30];
+    const heroParticles = range(1, 34).map((i) => ({
+      i,
+      size: pixelSizes[Math.floor(Math.random() * pixelSizes.length)],
+      left: Math.round(Math.random() * 100),
+      duration: 9 + Math.round(Math.random() * 15),
+      delay: Math.round(Math.random() * 24),
+      drift: Math.round((Math.random() - 0.5) * 220),
+      spin: Math.round((Math.random() - 0.5) * 360),
+      alt: i % 3 === 0,
+    }));
+    const heroParticlesHtml = heroParticles
+      .map(
+        (p) =>
+          html`<span
+            class="hero-particle${p.alt ? ' hero-particle-alt' : ''}"
+            style="left: ${p.left}%; width: ${p.size}px; height: ${p.size}px; --drift: ${p.drift}px; --spin: ${p.spin}deg; animation-duration: ${p.duration}s; animation-delay: -${p.delay}s;"
+          ></span>`,
+      )
+      .join('');
+
     ThemeEvents[id] = () => {
       if (!s(`.style-${id}`)) return;
       htmls(
         `.style-${id}`,
         html`<style>
           :root {
-            --primary-color: ${darkTheme ? '#c0392b' : '#e74c3c'};
-            --secondary-color: ${darkTheme ? '#f1c40f' : '#f39c12'};
+            --primary-color: ${darkTheme ? '#9b59b6' : '#ffcc00'};
+            --secondary-color: ${darkTheme ? '#8e44ad' : '#e6b800'};
             --background-color: ${darkTheme ? '#1a1a1a' : '#f4f6f8'};
             --text-color: ${darkTheme ? '#E0E0E0' : '#333'};
             --header-bg-color: ${darkTheme ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)'};
@@ -30,11 +54,22 @@ class MainBodyCyberiaPortal {
             --card-bg-color: ${darkTheme ? '#2c2c2c' : '#FFFFFF'};
             --card-shadow: ${darkTheme ? '0 8px 25px rgba(0, 0, 0, 0.5)' : '0 8px 25px rgba(0, 0, 0, 0.1)'};
             --btn-primary-bg: ${darkTheme
-              ? 'linear-gradient(45deg, #e74c3c, #c0392b)'
-              : 'linear-gradient(45deg, #e74c3c, #c0392b)'};
+              ? 'linear-gradient(45deg, #9b59b6, #8e44ad)'
+              : 'linear-gradient(45deg, #ffcc00, #e6b800)'};
             --btn-primary-shadow: ${darkTheme
-              ? '0 4px 15px rgba(231, 76, 60, 0.4)'
-              : '0 4px 15px rgba(231, 76, 60, 0.4)'};
+              ? '0 4px 15px rgba(155, 89, 182, 0.4)'
+              : '0 4px 15px rgba(255, 204, 0, 0.4)'};
+
+            /* Pixel-art particle + title palette (theme aware) */
+            --particle-color-1: ${darkTheme ? '#bb8fce' : '#ffcc00'};
+            --particle-color-2: ${darkTheme ? '#8e44ad' : '#e6b800'};
+            --pixel-glow: ${darkTheme ? '14px' : '7px'};
+            --title-accent: ${darkTheme ? '#bb8fce' : '#e6b800'};
+            --title-shadow: ${darkTheme ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.55)'};
+            --hero-overlay: ${darkTheme
+              ? 'linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.5))'
+              : 'linear-gradient(180deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.4))'};
+            --pixel-grid-color: ${darkTheme ? 'rgba(155, 89, 182, 0.2)' : 'rgba(255, 204, 0, 0.16)'};
           }
 
           .landing-page {
@@ -54,35 +89,106 @@ class MainBodyCyberiaPortal {
             justify-content: center;
             text-align: center;
             min-height: 100vh;
-            background: url('${getProxyPath()}assets/lore/vectorized/lore8.svg') no-repeat center center/cover;
+            /*     background: url('${getProxyPath()}assets/lore/vectorized/lore8.svg') no-repeat center center/cover;*/
             position: relative;
             padding: 0 1rem;
+            overflow: hidden;
           }
+          .hero-video {
+            position: absolute;
+            inset: 0;
+
+            width: 100%;
+            height: 100%;
+
+            display: block;
+
+            object-fit: cover;
+            object-position: center center;
+
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+          }
+          /* Soft blurred backdrop over the video (kept light) */
           .hero-section::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-          }
-          .hero-content {
+            inset: 0;
+            background: var(--hero-overlay);
+
             z-index: 1;
+          }
+          /* Pixel grid overlay (theme aware, slow drift) */
+          .hero-pixel-grid {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background-image:
+              linear-gradient(var(--pixel-grid-color) 2px, transparent 2px),
+              linear-gradient(90deg, var(--pixel-grid-color) 2px, transparent 2px);
+            background-size:
+              34px 34px,
+              34px 34px;
+            -webkit-mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1), transparent 92%);
+            mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1), transparent 92%);
+            animation: heroGridDrift 34s linear infinite;
+          }
+
+          /* Pixel-art particle field */
+          .hero-particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 2;
+          }
+          .hero-particle {
+            position: absolute;
+            bottom: -24px;
+            border-radius: 0;
+            image-rendering: pixelated;
+            background: var(--particle-color-1);
+            box-shadow: 0 0 var(--pixel-glow) var(--particle-color-1);
+            opacity: 0;
+            will-change: transform, opacity;
+            animation-name: heroParticleFloat;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+          }
+          .hero-particle-alt {
+            background: var(--particle-color-2);
+            box-shadow: 0 0 var(--pixel-glow) var(--particle-color-2);
+          }
+
+          .hero-content {
+            position: relative;
+            z-index: 5;
             max-width: 800px;
             animation: fadeInUp 1s ease-out;
           }
           .hero-content .logo-image {
             max-width: 250px;
             margin-bottom: 1rem;
+            image-rendering: pixelated;
+            transform-origin: center bottom;
+            animation:
+              heroLogoSlam 0.9s steps(9, end) both,
+              heroLogoFloat 4.5s ease-in-out 1.1s infinite;
           }
           .hero-content h1 {
+            position: relative;
+            display: inline-block;
             font-size: 4rem;
             margin-bottom: 1rem;
-            text-shadow: 3px 3px 10px rgba(0, 0, 0, 0.8);
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 4px;
             color: #fff;
+            text-shadow:
+              4px 4px 0 var(--title-accent),
+              9px 9px 0 var(--title-shadow);
+            animation: heroTitlePixelIn 1s steps(18, end) 0.55s both;
           }
           .hero-content p {
             font-size: 1.25rem;
@@ -91,6 +197,8 @@ class MainBodyCyberiaPortal {
             margin-left: auto;
             margin-right: auto;
             line-height: 1.6;
+            text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+            animation: heroFadeUp 0.8s steps(6, end) 0.95s both;
           }
 
           .cta-button {
@@ -158,6 +266,7 @@ class MainBodyCyberiaPortal {
             max-width: 64px;
             height: 64px;
             margin-bottom: 1.5rem;
+            image-rendering: pixelated;
           }
           .feature-card h3 {
             font-size: 1.5rem;
@@ -181,6 +290,96 @@ class MainBodyCyberiaPortal {
             to {
               opacity: 1;
               transform: translateY(0);
+            }
+          }
+
+          /* RPG-style logo entrance: pixelated slam-down, then a slow idle float */
+          @keyframes heroLogoSlam {
+            0% {
+              opacity: 0;
+              transform: scale(2.6) translateY(-46px);
+            }
+            55% {
+              opacity: 1;
+              transform: scale(0.9) translateY(0);
+            }
+            75% {
+              transform: scale(1.07);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          @keyframes heroLogoFloat {
+            0%,
+            100% {
+              transform: translateY(0);
+            }
+            50% {
+              transform: translateY(-10px);
+            }
+          }
+
+          /* Smooth pixel-stepped title reveal (fine steps keep the pixel-art feel) */
+          @keyframes heroTitlePixelIn {
+            0% {
+              opacity: 0;
+              transform: translateY(16px) scale(0.94);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+          @keyframes heroFadeUp {
+            0% {
+              opacity: 0;
+              transform: translateY(24px);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          /* Pixel-art particles rise with drift + spin; grid drifts slowly */
+          @keyframes heroParticleFloat {
+            0% {
+              transform: translateY(0) translateX(0) rotate(0deg);
+              opacity: 0;
+            }
+            8% {
+              opacity: 0.9;
+            }
+            92% {
+              opacity: 0.9;
+            }
+            100% {
+              transform: translateY(-116vh) translateX(var(--drift, 0px)) rotate(var(--spin, 0deg));
+              opacity: 0;
+            }
+          }
+          @keyframes heroGridDrift {
+            from {
+              background-position:
+                0 0,
+                0 0;
+            }
+            to {
+              background-position:
+                0 -64px,
+                64px 0;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .hero-particle,
+            .hero-pixel-grid,
+            .hero-content .logo-image,
+            .hero-content h1,
+            .hero-content p {
+              animation: none !important;
             }
           }
 
@@ -208,6 +407,8 @@ class MainBodyCyberiaPortal {
           }
         </style> `,
       );
+      const logo = s(`.hero-content .logo-image`);
+      if (logo) logo.src = `${getProxyPath()}assets/ui-icons/${darkTheme ? 'cyberia-white.png' : 'cyberia-yellow.png'}`;
     };
 
     setTimeout(() => {
@@ -218,10 +419,16 @@ class MainBodyCyberiaPortal {
       <div class="style-${id}"></div>
       <div class="landing-page">
         <section class="hero-section">
+          <video class="hero-video" autoplay muted loop playsinline preload="auto" poster="/assets/video/landing.webp">
+            <!-- H.264 (compatibilidad) -->
+            <source src="/assets/video/landing-web.mp4" type='video/mp4; codecs="avc1.42E01E"' />
+          </video>
+          <div class="hero-pixel-grid"></div>
+          <div class="hero-particles">${heroParticlesHtml}</div>
           <div class="hero-content">
             <img src="${getProxyPath()}assets/ui-icons/cyberia-white.png" alt="Cyberia Logo" class="logo-image" />
             <h1 style="margin: 10px">CYBERIA</h1>
-            <p style="color: #fff; margin: 10px 20px 10px 20px;">
+            <p style="color: #fff; text-align: center; margin: 10px auto;">
               An action-packed Hack and Slash MMORPG. Explore a dynamic online sandbox pixel art universe, right from
               your browser.
             </p>
