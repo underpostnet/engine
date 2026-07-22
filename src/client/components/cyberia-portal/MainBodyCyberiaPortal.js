@@ -9,8 +9,7 @@ class MainBodyCyberiaPortal {
     setTimeout(() => {
       EventsUI.onClick('.cta-button', () => {
         console.log('Enter the world button clicked');
-        const loginButton = s(`.main-btn-log-in`);
-        if (loginButton) loginButton.click();
+        location.href = 'https://client.cyberiaonline.com/';
       });
     });
 
