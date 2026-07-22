@@ -27,6 +27,20 @@ const setHTML = (el, html) => {
   if (element) element.innerHTML = html;
 };
 
+// Instance sub-path this dashboard is served under ("/FOREST", "/TEST", …), or
+// "" for the default instance at "/". One dashboard bundle is baked into the
+// cyberia-server image and served by EVERY instance server; the reverse proxy
+// strips "<prefix>/" before the instance's Go server sees the request, so every
+// API call must carry that prefix — a bare "/api/..." resolves to the host root
+// and hits the DEFAULT instance regardless of which instance's dashboard is
+// open. Deriving it from window.location keeps the same bundle instance-correct.
+const basePath = () => {
+  const seg = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
+  return seg ? `/${seg}` : '';
+};
+
+const apiUrl = (path) => `${basePath()}${path}`;
+
 // ── Formatters ─────────────────────────────────────────────────────────────
 
 const pad = (n, w = 2) => String(n).padStart(w, '0');
@@ -476,9 +490,9 @@ const renderDashboard = (m) => {
           <span class="brand-text">CYBERIA SERVER</span>
         </div>
         <nav class="dash-nav">
-          <a href="/api/v1/docs">${icon('doc')}<span>API docs</span></a>
-          <a href="/api/v1/openapi.json">${icon('doc')}<span>openapi.json</span></a>
-          <a href="/api/v1/postman.json" download>${icon('doc')}<span>postman</span></a>
+          <a href="${apiUrl('/api/v1/docs')}">${icon('doc')}<span>API docs</span></a>
+          <a href="${apiUrl('/api/v1/openapi.json')}">${icon('doc')}<span>openapi.json</span></a>
+          <a href="${apiUrl('/api/v1/postman.json')}" download>${icon('doc')}<span>postman</span></a>
         </nav>
       </header>
       <section class="grid-12">
@@ -519,7 +533,7 @@ const renderError = (status, detail) => {
 
 const fetchMetrics = async () => {
   try {
-    const res = await fetch('/api/v1/metrics', { headers: { Accept: 'application/json' } });
+    const res = await fetch(apiUrl('/api/v1/metrics'), { headers: { Accept: 'application/json' } });
     if (!res.ok) {
       // RFC 9457: server returns problem+json with a stable `title`/`detail`.
       let detail = res.statusText;
@@ -949,6 +963,8 @@ SrrComponent = () =>
       const sa = ${sa};
       const append = ${append};
       const setHTML = ${setHTML};
+      const basePath = ${basePath};
+      const apiUrl = ${apiUrl};
       const pad = ${pad};
       const formatUptime = ${formatUptime};
       const formatNumber = ${formatNumber};
