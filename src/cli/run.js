@@ -1453,14 +1453,7 @@ EOF
       // pointing routes at services that don't exist yet. instance-promote
       // rebuilds the whole host proxy (all variant routes) in one shot, so a
       // single call with the family id promotes the family atomically.
-      if (!options.expose) {
-        shellExec(
-          `${baseCommand} run${baseClusterCommand} --namespace ${options.namespace}` +
-            `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
-            `${options.tls ? ` --tls ${options.test ? '--test' : ''}` : ''}` +
-            ` instance-promote '${deployId},${id}'`,
-        );
-      }
+      if (!options.expose) await UnderpostRun.RUNNERS['instance-promote'](`${deployId},${id}`, options);
       if (options.etcHosts) {
         const hostListenResult = etcHostFactory(etcHosts);
         logger.info(hostListenResult.renderHosts);
