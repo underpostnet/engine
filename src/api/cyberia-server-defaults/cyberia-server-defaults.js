@@ -43,6 +43,10 @@ import {
   isCanonicalSkillLogicId,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
+export const DOCKER_COMPOSE_ID = 'cyberia';
+
+export const DEPLOY_ID = 'dd-cyberia';
+
 /**
  * Native-dependency pin list. Consumed by `bin/build.js` and `bin/deploy.js`
  * when materialising the Cyberia subtree so versions stay reproducible
@@ -55,6 +59,19 @@ export class CyberiaDependencies {
   static sharp = '^0.34.5';
   static ethers = '~6.16.0';
 }
+
+export const DOCKER_SCRIPTS = {
+  'docker:generate': `node bin docker-compose --generate --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:up': `node bin docker-compose --up --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:up:build': `node bin docker-compose --up --build --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:down': `node bin docker-compose --down --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:down:volumes': `node bin docker-compose --down --volumes --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:restart': `node bin docker-compose --restart --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:pull': `node bin docker-compose --pull --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:logs': `node bin docker-compose --logs --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:status': `node bin docker-compose --status --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+  'docker:reset': `node bin docker-compose --reset --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Skill / action / quest seed content
@@ -851,7 +868,12 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['wason'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['lain'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
+  {
+    entityType: ENTITY_TYPES.bot,
+    liveItemIds: ['lain'],
+    deadItemIds: [DEFAULT_DEAD_ITEM_ID],
+    behavior: 'provider-static',
+  },
   {
     entityType: ENTITY_TYPES.skill,
     liveItemIds: ['atlas_pistol_mk2_bullet'],

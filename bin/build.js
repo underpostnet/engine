@@ -14,7 +14,8 @@ import {
   updatePrivateEngineTestRepo,
 } from '../src/server/conf.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
-import UnderpostRepository from '../src/cli/repository.js';
+import Underpost from '../src/index.js';
+import { DOCKER_SCRIPTS } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
 if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: true });
@@ -34,8 +35,8 @@ const buildDeployTemplate = async (confName) => {
   const catalog = await loadDeployCatalog(confName);
 
   if (catalog.sourceMoves.length) {
-    UnderpostRepository.API.sparseCheckoutDirectory(`conf/${confName}`);
-    if (catalog.sourceMoves.some(([src]) => !fs.existsSync(src))) UnderpostRepository.API.pullSourceRepo(repoName);
+    Underpost.repo.sparseCheckoutDirectory(`conf/${confName}`);
+    if (catalog.sourceMoves.some(([src]) => !fs.existsSync(src))) Underpost.repo.pullSourceRepo(repoName);
   }
   syncDeployIdSources(catalog.sourceMoves);
 
@@ -125,8 +126,13 @@ const buildDeployTemplate = async (confName) => {
       packageJson.description = catalog.description;
       const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
       packageJson.dependencies = {
-        ...originPackageJson.dependencies,
+        underpost: '^' + Underpost.version.replace('v', ''),
+        'adm-zip': '^0.6.0',
         ...CyberiaDependencies,
+      };
+      packageJson.scripts = {
+        ...packageJson.scripts,
+        ...DOCKER_SCRIPTS,
       };
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       // Canonical Cyberia doc; engine-cyberia/README.md is a generated copy — never hand-edited.

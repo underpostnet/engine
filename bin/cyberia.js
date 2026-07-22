@@ -46,6 +46,7 @@ import {
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
   fillInstanceConfDefaults,
+  DOCKER_SCRIPTS,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 import {
@@ -5000,27 +5001,10 @@ node bin image --path cyberia-client \
       }
     });
 
-  {
-    // docker compose lyfe cycle commands for the dd-cyberia deployment
-    const dockerComposeId = 'cyberia';
-    const deployId = 'dd-cyberia';
-    const commands = {
-      'docker:generate': `node bin docker-compose --generate --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:up': `node bin docker-compose --up --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:up:build': `node bin docker-compose --up --build --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:down': `node bin docker-compose --down --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:down:volumes': `node bin docker-compose --down --volumes --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:restart': `node bin docker-compose --restart --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:pull': `node bin docker-compose --pull --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:logs': `node bin docker-compose --logs --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:status': `node bin docker-compose --status --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-      'docker:reset': `node bin docker-compose --reset --deploy-id ${deployId} --docker-compose-id ${dockerComposeId}`,
-    };
-    for (const [cmd, action] of Object.entries(commands))
-      runner.command(cmd).action(() => {
-        shellExec(action);
-      });
-  }
+  for (const [cmd, action] of Object.entries(DOCKER_SCRIPTS))
+    runner.command(cmd).action(() => {
+      shellExec(action);
+    });
 
   runner
     .command('seed-dialogues')

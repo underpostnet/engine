@@ -56,7 +56,7 @@ RUN --mount=type=secret,id=github_username \
     rm -rf /home/dd/engine/engine-private; \
     mkdir -p /home/dd/engine/engine-private/conf/dd-cyberia; \
     cp -a ./cyberia-instances/conf/dd-cyberia/. /home/dd/engine/engine-private/conf/dd-cyberia/.; \
-    cp -a /home/dd/engine/package.json /home/dd/engine/engine-private/conf/dd-cyberia/package.json; \
+    cp -a /home/dd/engine/engine-private/conf/dd-cyberia/package.json /home/dd/engine/package.json; \
     # Per instance code: copy its backup dir and, when present, its top-level
     # saga (cyberia-instances/sagas/<code>.json). The engine boot seed
     # (`run-workflow import-default-items`) reads engine-private/cyberia-sagas/
