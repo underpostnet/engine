@@ -4966,7 +4966,7 @@ try {
       }
       switch (id) {
         case 'engine-cyberia':
-          shellExec(`clear
+          shellExec(`
 node bin/build dd-cyberia --conf
 node bin/build dd-cyberia --update-private
 node bin image --path src/runtime/engine-cyberia \
@@ -4978,9 +4978,6 @@ node bin image --path src/runtime/engine-cyberia \
           break;
 
         case 'cyberia-server':
-          shellExec(
-            `clear && node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
-          );
           shellExec(`
 cp -f src/runtime/cyberia-server/Dockerfile.dev cyberia-server/Dockerfile.dev
 node bin image --path cyberia-server \
@@ -4991,7 +4988,7 @@ node bin image --path cyberia-server \
 `);
           break;
         case 'cyberia-client':
-          shellExec(`clear
+          shellExec(`
 cp -f src/runtime/cyberia-client/Dockerfile.dev cyberia-client/Dockerfile.dev
 node bin image --path cyberia-client \
   --docker-compose --pull-base --build \
@@ -5470,6 +5467,17 @@ node bin image --path cyberia-client \
         shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
         shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
       }
+
+      // ── Build SSR views ──────────────────────────────────────────────────
+      const env404 = isDev ? ' --dev' : '';
+      shellExec(
+        `node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-server/public/404.html${env404}`,
+      );
+      shellExec(`node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-client/bin/404.html${env404}`);
+      shellExec(
+        `node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
+      );
+
       // Copy canonical doc sources into the generated project READMEs.
       // Edit the canonical sources; never hand-edit these generated outputs.
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
@@ -5530,9 +5538,32 @@ node bin image --path cyberia-client \
       shellExec(
         `node bin static --page ./src/client/ssr/views/CyberiaServerMetrics.js` +
           ` --output-path ${outputPath}` +
-          ` --title 'Cyberia Server Metrics'` +
+          ` --title 'Metrics | CYBERIA MMO'` +
           ` --favicon /favicon.ico` +
           ` --description 'Operational dashboard for the cyberia-server MMO runtime.'` +
+          ` --lang en` +
+          ` --env ${options.dev ? 'development' : 'production'}`,
+      );
+    });
+
+  runner
+    .command('build-cyberia-404')
+    .option('--dev', 'Build a development variant of the 404 page.')
+    .option(
+      '--output-path <path>',
+      'Output path for the rendered 404.html (default: ./cyberia-server/public/404.html). ' +
+        'The same page is served, sub-path aware, by every instance variant of both the ' +
+        'cyberia-server (Go static server) and cyberia-client (docker-driver).',
+    )
+    .description('Build the cyberpunk pixel-art "sector not found" (404) page shared by the Cyberia server + client.')
+    .action((options) => {
+      const outputPath = options.outputPath || './cyberia-server/public/404.html';
+      shellExec(
+        `node bin static --page ./src/client/ssr/views/Cyberia404.js` +
+          ` --output-path ${outputPath}` +
+          ` --title 'Cyberia — Sector Not Found'` +
+          ` --favicon /favicon.ico` +
+          ` --description 'Cyberia Online 404 — the requested sector is not on the grid.'` +
           ` --lang en` +
           ` --env ${options.dev ? 'development' : 'production'}`,
       );

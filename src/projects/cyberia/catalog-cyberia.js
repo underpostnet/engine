@@ -32,6 +32,7 @@ export default {
   templatePaths: [
     '/src/grpc/cyberia',
     '/src/client/ssr/views/CyberiaServerMetrics.js',
+    '/src/client/ssr/views/Cyberia404.js',
     '/test/cyberia-instance-conf-defaults.test.js',
     '/test/shape-generator.test.js',
     '/src/projects/cyberia',
