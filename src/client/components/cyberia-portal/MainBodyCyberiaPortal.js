@@ -67,8 +67,8 @@ class MainBodyCyberiaPortal {
             --title-shadow: ${darkTheme ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.55)'};
             --hero-overlay: ${darkTheme
               ? 'linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.5))'
-              : 'linear-gradient(180deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.4))'};
-            --pixel-grid-color: ${darkTheme ? 'rgba(155, 89, 182, 0.2)' : 'rgba(255, 204, 0, 0.16)'};
+              : 'linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.35))'};
+            --pixel-grid-color: ${darkTheme ? 'rgba(155, 89, 182, 0.75)' : 'rgba(255, 204, 0, 1)'};
           }
 
           .landing-page {
@@ -196,7 +196,7 @@ class MainBodyCyberiaPortal {
             margin-left: auto;
             margin-right: auto;
             line-height: 1.6;
-            text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
             animation: heroFadeUp 0.8s steps(6, end) 0.95s both;
           }
 
