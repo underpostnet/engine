@@ -77,6 +77,8 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "npm run test"
+            sudo -n -- /bin/bash -lc "node bin run clean src/client/public/cyberia"
+            sudo -n -- /bin/bash -lc "node bin run clean src/client/public/underpost"
             sudo -n -- /bin/bash -lc "node bin cmt src/client/public/cyberia --init-repo"
             sudo -n -- /bin/bash -lc "node bin cmt src/client/public/underpost --init-repo"
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/cyberia --pull --recursive --deploy-id dd-cyberia"
