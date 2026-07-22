@@ -42,11 +42,18 @@ const jsonDeserialize = (buffer) => JSON.parse(Buffer.from(buffer).toString('utf
 const serverApiKey = () => process.env.CYBERIA_SERVER_API_KEY || '';
 
 /**
- * Split a user-supplied server URL into the REST origin and the gRPC target.
+ * Split a user-supplied server URL into the REST base URL and the gRPC target.
  *
- * Accepts `https://server.cyberiaonline.com`, `localhost:8081`, or an explicit
+ * Accepts `https://server.cyberiaonline.com`, a variant sub-path
+ * (`https://server.cyberiaonline.com/FOREST`), `localhost:8081`, or an explicit
  * gRPC target. The gRPC host reuses the hostname with the control port, since
  * the control service listens on its own port.
+ *
+ * The URL sub-path is preserved as `basePath` ("", "/FOREST", "/TEST") and kept
+ * on `restBaseUrl`: a path-based multi-instance proxy routes the REST trigger to
+ * the right variant by that prefix (then strips it via pathRewritePolicy, so the
+ * backend matches its own instanceCode). Using `url.origin` alone would drop the
+ * sub-path and land every trigger on the default (root) deployment.
  */
 const resolveTargets = (rawUrl, { grpcPort = DEFAULT_GRPC_PORT } = {}) => {
   const trimmed = String(rawUrl || '').trim();
@@ -54,9 +61,10 @@ const resolveTargets = (rawUrl, { grpcPort = DEFAULT_GRPC_PORT } = {}) => {
 
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
   const url = new URL(withScheme);
-  const restBaseUrl = url.origin;
+  const basePath = url.pathname.replace(/\/+$/, '');
+  const restBaseUrl = `${url.origin}${basePath}`;
   const grpcTarget = `${url.hostname}:${grpcPort}`;
-  return { restBaseUrl, grpcTarget };
+  return { restBaseUrl, grpcTarget, basePath };
 };
 
 /** Trigger over the gRPC control service. Rejects on any transport error. */
@@ -122,8 +130,19 @@ const triggerHotReload = async ({
   if (!apiKey) {
     throw new Error('CYBERIA_SERVER_API_KEY is not configured on engine-cyberia — hot reload is disabled');
   }
-  const { restBaseUrl, grpcTarget } = resolveTargets(serverUrl, { grpcPort });
+  const { restBaseUrl, grpcTarget, basePath } = resolveTargets(serverUrl, { grpcPort });
   const call = { apiKey, mode, instanceCode, timeoutMs };
+
+  // A path-based multi-instance proxy routes by URL sub-path, but a gRPC method
+  // path is fixed (/cyberia.CyberiaControlService/…) and can't carry the
+  // /FOREST prefix — a control call to hostname:port reaches the default
+  // variant. When the target names a variant sub-path, use the sub-path-aware
+  // REST transport directly instead of triggering the wrong world over gRPC.
+  if (basePath) {
+    const result = await triggerViaRest({ ...call, restBaseUrl });
+    logger.info(`hot reload via REST ${restBaseUrl}: ${result?.message}`);
+    return { transport: 'rest', result };
+  }
 
   try {
     const result = await triggerViaGrpc({ ...call, grpcTarget });

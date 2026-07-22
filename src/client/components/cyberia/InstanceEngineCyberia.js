@@ -1036,13 +1036,15 @@ class InstanceEngineCyberia {
             <div class="in instance-engine-hot-reload-body hide">
               <div class="in" style="color:#888;font-size:12px;margin:5px 0;">
                 Rebuilds the world of a running cyberia-server for this instance now, instead of waiting for its polling
-                interval. Tries the gRPC control service first and falls back to the REST endpoint.
+                interval. Tries the gRPC control service first and falls back to the REST endpoint. For a multi-instance
+                deployment, append the variant sub-path so the trigger reaches the right world (e.g.
+                <code>https://server.cyberiaonline.com/FOREST</code>); the default world uses the bare origin.
               </div>
               ${await Input.instance({
                 id: idHotReloadUrl,
                 label: html`<i class="fa-solid fa-server"></i> Cyberia Server URL`,
                 containerClass: 'in',
-                placeholder: 'https://server.cyberiaonline.com',
+                placeholder: 'https://server.cyberiaonline.com/FOREST',
                 type: 'text',
               })}
               <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
