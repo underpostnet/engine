@@ -35,7 +35,7 @@ jobs:
         working-directory: engine
         run: |
           node bin/deploy cyberia
-          node bin/cyberia run-workflow build-cyberia-404 --output-path ../bin/404.html
+          node bin/cyberia run-workflow build-cyberia-404 --output-path ../public/404.html
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
