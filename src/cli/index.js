@@ -108,6 +108,10 @@ program
   .option('--edit', 'Edit last commit.')
   .option('--deploy-id <deploy-id>', 'Sets the deployment configuration ID for the commit context.')
   .option('--cached', 'Commit staged changes only or context.')
+  .option(
+    '--init-repo [origin]',
+    'Initialize a git repository at the specified path. Optionally set the git remote origin URL.',
+  )
   .option('--hashes <hashes>', 'Comma-separated list of specific file hashes of commits.')
   .option('--extension <extension>', 'specific file extensions of commits.')
   .option('--changelog', 'Print the plain changelog of the last N commits (see --from-n-commit, default 1).')

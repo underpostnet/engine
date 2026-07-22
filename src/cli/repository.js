@@ -146,6 +146,14 @@ class UnderpostRepository {
     ) {
       if (!repoPath) repoPath = '.';
 
+      if (options.initRepo) {
+        Underpost.repo.initLocalRepo({
+          path: repoPath,
+          origin: typeof options.initRepo === 'string' ? options.initRepo : undefined,
+        });
+        return;
+      }
+
       if (options.hasChanges) {
         const status = shellExec(`cd ${repoPath} && git status --porcelain`, {
           stdout: true,
