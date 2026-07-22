@@ -9,10 +9,12 @@
 //     step. Every value is text in a single-page console.
 //
 // Visual contract:
-//   - Retro pixel-art aesthetic: VT323 fixed-width font, hard 2 px
+//   - Retro pixel-art RPG aesthetic: 'Jersey 15' display font, hard 2 px
 //     borders, terminal palette, no border-radius, no shadows.
-//   - No emojis; every glyph in the UI is an SVG resolved through the
-//     `<svg><use href="#icon-..."/></svg>` sprite defined in main().
+//   - Dark/light themes via a persisted toggle (data-theme on <html>).
+//   - Icons and the display font are self-hosted on cyberiaonline.com — no
+//     third-party CDN. Icons are pixel-art PNGs; each is paired with a text
+//     label, so a decorative glyph never carries information alone.
 //   - Dense data layout suitable for operators monitoring a live server.
 
 const POLL_INTERVAL_MS = 2000;
@@ -27,13 +29,7 @@ const setHTML = (el, html) => {
   if (element) element.innerHTML = html;
 };
 
-// Instance sub-path this dashboard is served under ("/FOREST", "/TEST", …), or
-// "" for the default instance at "/". One dashboard bundle is baked into the
-// cyberia-server image and served by EVERY instance server; the reverse proxy
-// strips "<prefix>/" before the instance's Go server sees the request, so every
-// API call must carry that prefix — a bare "/api/..." resolves to the host root
-// and hits the DEFAULT instance regardless of which instance's dashboard is
-// open. Deriving it from window.location keeps the same bundle instance-correct.
+// Instance sub-path instance variant handler
 const basePath = () => {
   const seg = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
   return seg ? `/${seg}` : '';
@@ -121,74 +117,72 @@ const rateUpdate = (snapshot) => {
   rateState.prevTs = snapshot._ts;
 };
 
-// ── Icon sprite ────────────────────────────────────────────────────────────
-// Every glyph in the UI is rendered through this single sprite via
-// <svg class="icon"><use href="#icon-..."/></svg>. Icons are designed
-// on a 12 × 12 grid so they stay crisp at the dashboard's pixel scale.
-const iconSprite = html`
-  <svg width="0" height="0" style="position: absolute; overflow: hidden;" aria-hidden="true">
-    <defs>
-      <!-- Pulse / liveness dot -->
-      <symbol id="icon-pulse" viewBox="0 0 12 12">
-        <path d="M0 6h2l1-3 2 6 2-4 1 2h4v2H7l-1-1-2 4-2-6-1 1H0z" fill="currentColor" />
-      </symbol>
-      <!-- Server / chip -->
-      <symbol id="icon-cpu" viewBox="0 0 12 12">
-        <path d="M3 1h6v2h1v6H9v2H3V9H1V3h2zM3 3v6h6V3z M4 4h4v4H4z" fill="currentColor" />
-      </symbol>
-      <!-- Clock -->
-      <symbol id="icon-clock" viewBox="0 0 12 12">
-        <path d="M2 2h8v8H2zM4 4v4h4V7H5V4z" fill="currentColor" />
-      </symbol>
-      <!-- Bar chart / load -->
-      <symbol id="icon-load" viewBox="0 0 12 12">
-        <path d="M1 9h2v2H1zm3-3h2v5H4zm3-3h2v8H7zm3-2h2v10h-2z" fill="currentColor" />
-      </symbol>
-      <!-- Plug / websocket -->
-      <symbol id="icon-plug" viewBox="0 0 12 12">
-        <path d="M3 1h2v3H3zm4 0h2v3H7zM2 4h8v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3zM5 10h2v2H5z" fill="currentColor" />
-      </symbol>
-      <!-- Players / users -->
-      <symbol id="icon-users" viewBox="0 0 12 12">
-        <path d="M4 1h2v2H4zM3 4h4v2H3zM2 6h6v1H2zM1 7h8v3H1z" fill="currentColor" />
-      </symbol>
-      <!-- Map / grid -->
-      <symbol id="icon-map" viewBox="0 0 12 12">
-        <path d="M1 1h3v3H1zm4 0h3v3H5zm4 0h2v3H9zM1 5h3v3H1zm4 0h3v3H5zm4 0h2v3H9zM1 9h3v2H1zm4 0h3v2H5zm4 0h2v2H9z" fill="currentColor" />
-      </symbol>
-      <!-- Entity / square -->
-      <symbol id="icon-cube" viewBox="0 0 12 12">
-        <path d="M2 2h8v8H2zM4 4v4h4V4z" fill="currentColor" />
-      </symbol>
-      <!-- Layer / stack -->
-      <symbol id="icon-stack" viewBox="0 0 12 12">
-        <path d="M1 3l5-2 5 2-5 2zm0 3l5 2 5-2-2-1-3 1.2L4 5zm0 3l5 2 5-2-2-1-3 1.2L4 8z" fill="currentColor" />
-      </symbol>
-      <!-- Tick / cadence -->
-      <symbol id="icon-tick" viewBox="0 0 12 12">
-        <path d="M6 1l1 4h4l-3 2 1 4-3-2-3 2 1-4-3-2h4z" fill="currentColor" />
-      </symbol>
-      <!-- Alert / error -->
-      <symbol id="icon-alert" viewBox="0 0 12 12">
-        <path d="M5 1h2v6H5zm0 8h2v2H5z" fill="currentColor" />
-      </symbol>
-      <!-- Down arrow / inbound -->
-      <symbol id="icon-down" viewBox="0 0 12 12">
-        <path d="M5 1h2v6h2L6 11 3 7h2z" fill="currentColor" />
-      </symbol>
-      <!-- Up arrow / outbound -->
-      <symbol id="icon-up" viewBox="0 0 12 12">
-        <path d="M5 11h2V5h2L6 1 3 5h2z" fill="currentColor" />
-      </symbol>
-      <!-- Doc / api -->
-      <symbol id="icon-doc" viewBox="0 0 12 12">
-        <path d="M2 1h6l2 2v8H2zM4 4h4v1H4zm0 2h4v1H4zm0 2h3v1H4z" fill="currentColor" />
-      </symbol>
-    </defs>
-  </svg>
-`;
+// ── Assets (self-hosted on cyberiaonline.com; no third-party CDN) ────────────
+// Icons and the display font are served from the project's own asset host. The
+// dashboard runs on server.cyberiaonline.com, so these are absolute cross-origin
+// URLs: <img> icons load without CORS; the @font-face degrades to a monospace
+// stack if the asset host omits CORS headers for the font.
+const ICON_BASE = 'https://www.cyberiaonline.com/assets/ui-icons/';
 
-const icon = (id) => `<svg class="icon" aria-hidden="true"><use href="#icon-${id}"/></svg>`;
+// Logical id -> pixel-art icon file. Every id is paired with a text label, so an
+// icon is decorative and a missing glyph never hides information.
+const ICONS = {
+  pulse: 'server.png',
+  cpu: 'engine.png',
+  tick: 'reload.png',
+  load: 'stats.png',
+  plug: 'cloud.png',
+  users: 'character.png',
+  map: 'map.png',
+  cube: 'polyhedron.png',
+  stack: 'stack.png',
+  alert: 'skull.png',
+  down: 'arrow-down.png',
+  up: 'arrow-up.png',
+  doc: 'doc.png',
+  clock: 'clock.png',
+};
+
+const icon = (id) => `<img class="icon" src="${ICON_BASE}${ICONS[id] || ICONS.cube}" alt="" />`;
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+// Dark is the default console look; the toggle flips to a warm parchment light
+// theme and persists the choice. First load with no stored choice follows the OS
+// preference. The palette lives in CSS custom properties keyed off
+// documentElement[data-theme]; these helpers only flip that attribute.
+const THEME_KEY = 'cyberia-metrics-theme';
+
+const currentTheme = () => (document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
+const applyTheme = (theme) => {
+  document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+  const label = s('.theme-toggle-label');
+  if (label) label.textContent = currentTheme().toUpperCase();
+};
+
+const initTheme = () => {
+  let stored = null;
+  try {
+    stored = localStorage.getItem(THEME_KEY);
+  } catch (_) {}
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(stored === 'light' || stored === 'dark' ? stored : prefersLight ? 'light' : 'dark');
+};
+
+const toggleTheme = () => {
+  const next = currentTheme() === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  try {
+    localStorage.setItem(THEME_KEY, next);
+  } catch (_) {}
+};
+
+const themeToggle = () => `
+  <button type="button" class="theme-toggle" title="Toggle light / dark theme" aria-label="Toggle theme">
+    <img class="icon" src="${ICON_BASE}pallet-colors.png" alt="" />
+    <span class="theme-toggle-label">${currentTheme().toUpperCase()}</span>
+  </button>
+`;
 
 // ── Atoms ──────────────────────────────────────────────────────────────────
 
@@ -261,7 +255,8 @@ const renderRuntimePanel = (m) => {
     html`
       <div class="grid-2">
         ${kv('Tick rate', `${r.tick_rate_hz || 0} Hz`)} ${kv('Snapshot rate', `${r.snapshot_rate_hz || 0} Hz`)}
-        ${kv('Tick #', formatNumber(r.current_tick))} ${kv('Tick duration', `${(r.tick_duration_ms || 0).toFixed(2)} ms`)}
+        ${kv('Tick #', formatNumber(r.current_tick))}
+        ${kv('Tick duration', `${(r.tick_duration_ms || 0).toFixed(2)} ms`)}
         ${kv('AOI radius', `${(r.aoi_radius || 0).toFixed(1)}`)} ${kv('GOMAXPROCS', r.gomaxprocs || r.num_cpu || 0)}
       </div>
     `,
@@ -486,13 +481,14 @@ const renderDashboard = (m) => {
     <main class="dash">
       <header class="dash-head">
         <div class="brand">
-          <span class="brand-glyph">${icon('cpu')}</span>
+          <span class="brand-emblem"><img class="brand-logo" src="${ICON_BASE}cyberia-white.png" alt="Cyberia" /></span>
           <span class="brand-text">CYBERIA SERVER</span>
         </div>
         <nav class="dash-nav">
           <a href="${apiUrl('/api/v1/docs')}">${icon('doc')}<span>API docs</span></a>
           <a href="${apiUrl('/api/v1/openapi.json')}">${icon('doc')}<span>openapi.json</span></a>
           <a href="${apiUrl('/api/v1/postman.json')}" download>${icon('doc')}<span>postman</span></a>
+          ${themeToggle()}
         </nav>
       </header>
       <section class="grid-12">
@@ -554,19 +550,27 @@ const fetchMetrics = async () => {
 };
 
 const main = () => {
-  append('body', iconSprite);
-  append(
-    'body',
-    html`
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-      <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet" />
-    `,
-  );
+  initTheme();
+  document.addEventListener('click', (event) => {
+    const toggle = event.target.closest && event.target.closest('.theme-toggle');
+    if (toggle) {
+      event.preventDefault();
+      toggleTheme();
+    }
+  });
   append(
     'body',
     html`
       <style>
+        @font-face {
+          font-family: 'Jersey 15';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url('https://www.cyberiaonline.com/assets/fonts/Jersey15-Regular.ttf') format('truetype');
+        }
+        /* Dark is the default (no-JS and OS-dark). initTheme() may switch to
+           light before first paint; the toggle persists the choice. */
         :root {
           --bg: #0a0d12;
           --bg-2: #11161e;
@@ -581,9 +585,33 @@ const main = () => {
           --err: #ff6b6b;
           --info: #c084fc;
           --accent: #7dd3fc;
+          --scanline: rgba(255, 255, 255, 0.03);
+          --logo-tile: #ffffff00;
+          --brand-text: #f0b429;
+        }
+        :root[data-theme='light'] {
+          --bg: #e7e3d7;
+          --bg-2: #f3f0e7;
+          --bg-3: #e2ded0;
+          --fg: #20242c;
+          --fg-dim: #5a6270;
+          --fg-muted: #857f6f;
+          --line: #c3bca8;
+          --line-2: #d8d2c1;
+          --ok: #2f8f3e;
+          --warn: #a9710a;
+          --err: #c73838;
+          --info: #7c3aed;
+          --accent: #0e6f95;
+          --scanline: rgba(0, 0, 0, 0.045);
+          --logo-tile: #ffffff00;
+          --brand-text: #b68719;
         }
         * {
           box-sizing: border-box;
+        }
+        .brand-text {
+          color: var(--brand-text);
         }
         html,
         body {
@@ -591,13 +619,15 @@ const main = () => {
           padding: 0;
           background: var(--bg);
           color: var(--fg);
-          font-family: 'VT323', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-          font-size: 18px;
-          line-height: 1.35;
-          letter-spacing: 0.5px;
+          font-family: 'Jersey 15', ui-monospace, 'IBM Plex Mono', Menlo, monospace;
+          font-size: 20px;
+          line-height: 1.3;
+          letter-spacing: 0.4px;
           min-height: 100vh;
-          image-rendering: pixelated;
-          -webkit-font-smoothing: none;
+          font-variant-numeric: tabular-nums;
+          transition:
+            background 0.15s ease,
+            color 0.15s ease;
         }
         body::before {
           content: '';
@@ -606,19 +636,17 @@ const main = () => {
           pointer-events: none;
           background-image: repeating-linear-gradient(
             to bottom,
-            rgba(255, 255, 255, 0.03) 0,
-            rgba(255, 255, 255, 0.03) 1px,
+            var(--scanline) 0,
+            var(--scanline) 1px,
             transparent 1px,
             transparent 3px
           );
           z-index: 1;
         }
         .icon {
-          width: 12px;
-          height: 12px;
-          fill: currentColor;
-          shape-rendering: crispEdges;
-          vertical-align: -1px;
+          width: 15px;
+          height: 15px;
+          vertical-align: -2px;
           margin-right: 6px;
         }
         a {
@@ -648,16 +676,26 @@ const main = () => {
         .brand {
           display: flex;
           align-items: center;
-          gap: 10px;
-          font-family: 'Press Start 2P', 'VT323', monospace;
-          font-size: 11px;
-          letter-spacing: 2px;
+          gap: 12px;
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 24px;
+          letter-spacing: 3px;
           color: var(--accent);
         }
-        .brand-glyph .icon {
-          width: 18px;
-          height: 18px;
-          margin: 0;
+        .brand-emblem {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          background: var(--logo-tile);
+          border: 2px solid var(--line);
+          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+        }
+        .brand-logo {
+          width: 24px;
+          height: 24px;
+          display: block;
         }
         .dash-nav {
           display: flex;
@@ -671,13 +709,40 @@ const main = () => {
           border: 2px solid var(--line);
           background: var(--bg-3);
           color: var(--fg);
-          font-size: 14px;
+          font-size: 16px;
           letter-spacing: 1px;
           text-transform: uppercase;
         }
         .dash-nav a:hover {
           border-color: var(--accent);
           color: var(--accent);
+        }
+        .theme-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          border: 2px solid var(--line);
+          background: var(--bg-3);
+          color: var(--fg);
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 16px;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+        .theme-toggle:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+        }
+        .theme-toggle .icon {
+          width: 16px;
+          height: 16px;
+          margin-right: 0;
+        }
+        .theme-toggle-label {
+          min-width: 42px;
+          text-align: left;
         }
         .grid-12 {
           display: grid;
@@ -717,8 +782,8 @@ const main = () => {
         }
         .panel-title {
           margin: 0;
-          font-family: 'Press Start 2P', 'VT323', monospace;
-          font-size: 9px;
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 15px;
           letter-spacing: 2px;
           color: var(--fg);
           text-transform: uppercase;
@@ -861,8 +926,8 @@ const main = () => {
           }
         }
         .health-status {
-          font-family: 'Press Start 2P', 'VT323', monospace;
-          font-size: 14px;
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 20px;
           letter-spacing: 2px;
         }
         .health-desc {
@@ -879,15 +944,15 @@ const main = () => {
           border: 1px solid var(--line-2);
         }
         .load-pct {
-          font-family: 'Press Start 2P', 'VT323', monospace;
-          font-size: 22px;
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 32px;
           letter-spacing: 1px;
         }
         .load-tag {
-          font-family: 'Press Start 2P', 'VT323', monospace;
-          font-size: 9px;
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 14px;
           letter-spacing: 2px;
-          padding: 2px 6px;
+          padding: 2px 8px;
           border: 2px solid currentColor;
         }
         .dash-foot {
@@ -911,8 +976,8 @@ const main = () => {
           text-align: center;
         }
         .dash-error-tag {
-          font-family: 'Press Start 2P', 'VT323', monospace;
-          font-size: 12px;
+          font-family: 'Jersey 15', ui-monospace, monospace;
+          font-size: 18px;
           letter-spacing: 2px;
           margin-bottom: 12px;
         }
@@ -977,8 +1042,15 @@ SrrComponent = () =>
       const rateState = { prev: null, prevTs: 0 };
       const rateDiff = ${rateDiff};
       const rateUpdate = ${rateUpdate};
-      const iconSprite = ${JSON.stringify(iconSprite)};
+      const ICON_BASE = ${JSON.stringify(ICON_BASE)};
+      const ICONS = ${JSON.stringify(ICONS)};
       const icon = ${icon};
+      const THEME_KEY = ${JSON.stringify(THEME_KEY)};
+      const currentTheme = ${currentTheme};
+      const applyTheme = ${applyTheme};
+      const initTheme = ${initTheme};
+      const toggleTheme = ${toggleTheme};
+      const themeToggle = ${themeToggle};
       const kv = ${kv};
       const meter = ${meter};
       const panel = ${panel};
