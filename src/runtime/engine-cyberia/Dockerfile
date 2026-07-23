@@ -83,7 +83,6 @@ RUN --mount=type=secret,id=github_username \
     cd /home/dd/engine; \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
-    node bin/deploy cyberia; \
     node bin env dd-cyberia production; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     # --- build the client bundle (assets are now in place) --------------------

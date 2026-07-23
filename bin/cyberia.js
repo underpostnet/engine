@@ -47,12 +47,14 @@ import {
   ENTITY_TYPE_DEFAULTS,
   fillInstanceConfDefaults,
   DOCKER_SCRIPTS,
+  CyberiaDependencies,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 import {
   ITEM_TYPES as itemTypes,
   DefaultCyberiaItems,
 } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
+import { loadDeployCatalog } from '../src/server/catalog.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.
@@ -1791,10 +1793,43 @@ try {
             `./engine-private/conf/dd-cyberia/conf.volume.json`,
             `/home/dd/cyberia-instances/conf/dd-cyberia/conf.volume.json`,
           );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/package.json`,
-            `/home/dd/cyberia-instances/conf/dd-cyberia/package.json`,
-          );
+          {
+            const catalog = await loadDeployCatalog('dd-cyberia');
+            fs.copyFileSync(
+              `./engine-private/conf/dd-cyberia/package.json`,
+              `/home/dd/cyberia-instances/conf/dd-cyberia/package.json`,
+            );
+            const originPackageJson = JSON.parse(
+              fs.readFileSync(`./engine-private/conf/dd-cyberia/package.json`, 'utf-8'),
+            );
+            const scriptsOrigin = originPackageJson.scripts;
+            const scriptsTarget = JSON.parse(fs.readFileSync(`./package.json`, 'utf-8')).scripts;
+            originPackageJson.name = 'cyberia';
+            originPackageJson.bin = {
+              cyberia: 'bin/index.js',
+            };
+            originPackageJson.keywords = catalog.keywords;
+            originPackageJson.description = catalog.description;
+            fs.writeFileSync(
+              `/home/dd/cyberia-instances/conf/dd-cyberia/package.json`,
+              JSON.stringify(
+                {
+                  ...originPackageJson,
+                  scripts: {
+                    ...scriptsTarget,
+                    start: scriptsOrigin.start,
+                    ...DOCKER_SCRIPTS,
+                  },
+                  dependencies: {
+                    ...originPackageJson.dependencies,
+                    ...CyberiaDependencies,
+                  },
+                },
+                null,
+                2,
+              ),
+            );
+          }
           fs.copyFileSync(
             `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
             `/home/dd/cyberia-instances/conf/dd-cyberia/.env.production`,
