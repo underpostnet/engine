@@ -27,5 +27,5 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:v3.2.70
+            ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:v3.2.80
             ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:latest

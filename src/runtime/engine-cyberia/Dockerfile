@@ -6,7 +6,7 @@
 # Stage 1 — builder: clone the private deploy, build it, then scrub secrets.
 # ---------------------------------------------------------------------------
 FROM rockylinux/rockylinux:9 AS builder
-ARG UNDERPOST_VERSION=3.2.70
+ARG UNDERPOST_VERSION=3.2.80
 # Pin Node to an exact patch: dnf's nodejs:24 module lags (24.14.1) while
 # underpost's dependencies require >=24.15.0, so install the official binary.
 ARG NODE_VERSION=24.15.0

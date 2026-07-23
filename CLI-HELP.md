@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.70
+> underpost ci/cd cli v3.2.80
 
 **Usage:** `underpost [options] [command]`
 
@@ -210,6 +210,7 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--edit` | Edit last commit. |
 | `--deploy-id <deploy-id>` | Sets the deployment configuration ID for the commit context. |
 | `--cached` | Commit staged changes only or context. |
+| `--init-repo [origin]` | Initialize a git repository at the specified path. Optionally set the git remote origin URL. |
 | `--hashes <hashes>` | Comma-separated list of specific file hashes of commits. |
 | `--extension <extension>` | specific file extensions of commits. |
 | `--changelog` | Print the plain changelog of the last N commits (see --from-n-commit, default 1). |
@@ -901,6 +902,7 @@ Runs specified scripts using various runners.
 | `--pull-bundle` | Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build. |
 | `--remove` | Remove/teardown resources |
 | `--test` | Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager). |
+| `--branch <branch>` | Sets the branch for git operations (default: current branch). |
 | `-h, --help` | display help for command |
 
 ---
