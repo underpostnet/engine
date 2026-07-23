@@ -23,6 +23,7 @@ import {
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 import { DefaultCyberiaItems, ITEM_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { nextRandom } from './cyberia-random-source.js';
 
 import { PORTAL_MODES, PORTAL_MODE_COLOR_KEY, EXTRA_PORTAL_MODES } from './cyberia-portal-connector.js';
 
@@ -51,7 +52,7 @@ const findColor = (colors, key) => colors.find((c) => c.key === key);
  * @param {number} max
  * @returns {number}
  */
-const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+const randInt = (min, max) => min + Math.floor(nextRandom() * (max - min + 1));
 
 // ── Entity count ranges ──────────────────────────────────────────────────────
 // [min, max] — actual count is random within range on each generation call.
@@ -438,7 +439,7 @@ function generatePortalEntities(mapDims, colors, opts = {}) {
     // First portal is always inter-portal (reserved for the ring topology);
     // extra portals get a random non-ring subtype.
     const subtype =
-      i === 0 ? PORTAL_MODES.INTER_PORTAL : EXTRA_PORTAL_MODES[Math.floor(Math.random() * EXTRA_PORTAL_MODES.length)];
+      i === 0 ? PORTAL_MODES.INTER_PORTAL : EXTRA_PORTAL_MODES[Math.floor(nextRandom() * EXTRA_PORTAL_MODES.length)];
     const portal = generatePortalEntity(mapDims, colors, opts.grid, subtype);
     if (portal) entities.push(portal);
   }
@@ -484,7 +485,7 @@ function generateBots(mapDims, colors, opts = {}) {
 
     // const skin = BOT_SKIN_POOL[Math.floor(Math.random() * BOT_SKIN_POOL.length)];
     const skin = 'kishins';
-    const hasWeapon = Math.random() < BOT_WEAPON_CHANCE;
+    const hasWeapon = nextRandom() < BOT_WEAPON_CHANCE;
     const itemIds = hasWeapon ? [skin, 'atlas_pistol_mk2'] : [skin];
 
     entities.push({

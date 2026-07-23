@@ -19,6 +19,7 @@
  */
 
 import { connectPortals } from './cyberia-portal-connector.js';
+import { withSeededRandom } from './cyberia-random-source.js';
 
 import {
   generateObstacles,
@@ -262,20 +263,32 @@ function generateFallbackWorld(opts = {}) {
     mapCodes.push(`fallback-map-${i}`);
   }
 
-  // Generate each map (all randomized independently).
-  const maps = mapCodes.map((code) =>
-    generateFallbackMap(code, colors, {
-      gridSize,
-      obstacleCount,
-      foregroundCount,
-      botCount,
-      resourceCount,
-      staticCount,
-    }),
-  );
+  // Deterministic layout: seed the shared random source so every call
+  // reproduces the SAME world. The instance-map `/static` POIs and the
+  // `/preview` node image are built by independent requests (and survive
+  // restarts) — they must agree on where every entity sits, so a resource POI
+  // lands exactly where the preview draws that resource. The seed folds in the
+  // layout-affecting options so a custom count set stays internally consistent.
+  const seed = `cyberia-fallback-world-v1:${mapCount}:${gridSize ?? ''}:${obstacleCount ?? ''}:${
+    foregroundCount ?? ''
+  }:${botCount ?? ''}:${resourceCount ?? ''}:${staticCount ?? ''}`;
 
-  // Connect maps with portal topology using the portal connector module.
-  const { portals, topology } = connectPortals(mapCodes, maps);
+  const { maps, portals, topology } = withSeededRandom(seed, () => {
+    // Generate each map (deterministic under the seeded source).
+    const genMaps = mapCodes.map((code) =>
+      generateFallbackMap(code, colors, {
+        gridSize,
+        obstacleCount,
+        foregroundCount,
+        botCount,
+        resourceCount,
+        staticCount,
+      }),
+    );
+    // Connect maps with portal topology using the portal connector module.
+    const { portals: p, topology: t } = connectPortals(mapCodes, genMaps);
+    return { maps: genMaps, portals: p, topology: t };
+  });
 
   // Build the instance shell (never persisted — no mongoId).
   const instance = {

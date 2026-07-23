@@ -430,9 +430,10 @@ const resolveInstanceWorld = async (instanceCode, options) => {
   const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
 
   if (!instance) {
-    // Fallback world: topology is regenerated (portal cells may drift from
-    // the live simulation's world), but map codes and provider POIs come
-    // from the deterministic canonical defaults.
+    // Fallback world: generateFallbackWorld is deterministically seeded, so
+    // this layout is identical to the one the gRPC path loads into the live
+    // simulation AND to the one the /preview renderer draws — POIs, portals,
+    // and resource cells all line up with the node preview image.
     const world = generateFallbackWorld();
     const mapCodes = new Set(world.instance.cyberiaMapCodes);
 

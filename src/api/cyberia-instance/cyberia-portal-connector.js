@@ -20,6 +20,8 @@
  * @module src/api/cyberia-instance/cyberia-portal-connector
  */
 
+import { nextRandom } from './cyberia-random-source.js';
+
 // ── Portal mode constants ────────────────────────────────────────────────────
 
 /**
@@ -117,7 +119,7 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
 
       // Target: pick any portal on the target map for landing coordinates
       const tgtAll = portalIndex[tgtCode] || [];
-      const tgtEnt = tgtAll.length > 0 ? tgtAll[Math.floor(Math.random() * tgtAll.length)] : null;
+      const tgtEnt = tgtAll.length > 0 ? tgtAll[Math.floor(nextRandom() * tgtAll.length)] : null;
 
       if (srcEnt) {
         usedInRing.add(srcEnt);
@@ -139,7 +141,7 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
     if (n < 2) return srcCode;
     let code;
     do {
-      code = orderedCodes[Math.floor(Math.random() * n)];
+      code = orderedCodes[Math.floor(nextRandom() * n)];
     } while (code === srcCode && n > 1);
     return code;
   };
@@ -151,13 +153,13 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
     for (const srcEnt of remaining) {
       // If the entity already has an explicit subtype, honour it;
       // otherwise assign a random mode (matching fallback-world behaviour).
-      const sub = srcEnt.portalSubtype || PORTAL_MODE_LIST[Math.floor(Math.random() * PORTAL_MODE_LIST.length)];
+      const sub = srcEnt.portalSubtype || PORTAL_MODE_LIST[Math.floor(nextRandom() * PORTAL_MODE_LIST.length)];
 
       switch (sub) {
         case PORTAL_MODES.INTER_PORTAL: {
           const tgtCode = otherMap(srcCode);
           const candidates = portalIndex[tgtCode] || [];
-          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(nextRandom() * candidates.length)] : null;
           portals.push({
             sourceMapCode: srcCode,
             sourceCellX: srcEnt.initCellX ?? 0,
@@ -198,7 +200,7 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
           const candidates = allOnMap.filter(
             (e) => e !== srcEnt && (e.initCellX !== srcEnt.initCellX || e.initCellY !== srcEnt.initCellY),
           );
-          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(nextRandom() * candidates.length)] : null;
           portals.push({
             sourceMapCode: srcCode,
             sourceCellX: srcEnt.initCellX ?? 0,
