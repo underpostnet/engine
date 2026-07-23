@@ -11,6 +11,10 @@ class MainBodyCyberiaPortal {
         console.log('Enter the world button clicked');
         location.href = 'https://client.cyberiaonline.com/';
       });
+      EventsUI.onClick('.cta-button-select-instance', () => {
+        console.log('or select one button clicked');
+        s(`.main-btn-instance-selection`).click();
+      });
     });
 
     const id = 'cyberia-portal-landing';
@@ -218,6 +222,27 @@ class MainBodyCyberiaPortal {
           .cta-button:hover {
             transform: translateY(-5px);
             box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+          }
+          .cta-button-select-instance {
+            margin-top: 12px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 10px 25px;
+            border: 1px solid var(--primary-color);
+            border-radius: 50px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition:
+              transform 0.3s,
+              box-shadow 0.3s;
+            background: var(--card-bg-color);
+            color: var(--text-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          }
+          .cta-button-select-instance:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
           }
 
           /* Features Section */
@@ -432,6 +457,7 @@ class MainBodyCyberiaPortal {
               your browser.
             </p>
             <button class="cta-button">Enter The World</button>
+            <button class="cta-button-select-instance">or select one</button>
           </div>
         </section>
 

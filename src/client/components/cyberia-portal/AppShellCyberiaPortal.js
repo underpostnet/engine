@@ -31,6 +31,7 @@ import { ObjectLayerManagement } from '../../services/object-layer/object-layer.
 import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
+import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
 
@@ -59,6 +60,18 @@ class AppShellCyberiaPortal {
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
+          })}
+          ${await BtnIcon.instance({
+            class: 'in wfa main-btn-menu main-btn-instance-selection',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/map.png" />`,
+              text: html`<span class="menu-label-text">${Translate.instance('instance-selection')}</span>`,
+            }),
+            attrs: `data-id="instance-selection"`,
+            tabHref: `${getProxyPath()}instance-selection`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('instance-selection')),
           })}
           ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -379,6 +392,25 @@ class AppShellCyberiaPortal {
       }
     };
     setTimeout(ThemeEvents['portal-main-theme-event']);
+
+    EventsUI.onClick(`.main-btn-instance-selection`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-instance-selection',
+        route: 'instance-selection',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/map.png" />`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('instance-selection')}</span>`,
+        }),
+        html: async () => await InstanceSelectionView.render({ appStore: AppStoreCyberiaPortal }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();

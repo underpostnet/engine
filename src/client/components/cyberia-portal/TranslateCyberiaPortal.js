@@ -30,6 +30,18 @@ class TranslateCyberiaPortal {
       en: 'Cyberia Entity Engine',
       es: 'Cyberia Entity Engine',
     };
+    Translate.Data['instance-selection'] = {
+      en: 'Select World',
+      es: 'Seleccionar Mundo',
+    };
+    Translate.Data['reload'] = {
+      en: 'Reload',
+      es: 'Recargar',
+    };
+    Translate.Data['retry'] = {
+      en: 'Retry',
+      es: 'Reintentar',
+    };
   }
 }
 
