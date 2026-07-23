@@ -135,6 +135,10 @@ const buildVersionBumpTargets = () => [
     file: 'src/runtime/engine-cyberia/docker-compose.yml',
     patterns: /(_TAG:-v)\d+\.\d+\.\d+/g,
   },
+  {
+    file: 'engine-private/conf/dd-cyberia/docker-compose/cyberia/docker-compose.yml',
+    patterns: /(_TAG:-v)\d+\.\d+\.\d+/g,
+  },
 
   // ── Cyberia CLI dev image tar/name defaults (bin/cyberia.js). ──
   {
