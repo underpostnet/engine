@@ -316,6 +316,9 @@ class InstanceSelectionView {
         });
         return;
       }
+      if (instance.playUrl.split('/').pop() === DEFAULT_INSTANCE_CODE)
+        instance.playUrl = instance.playUrl.replace(DEFAULT_INSTANCE_CODE, '');
+
       if (typeof onPlay === 'function') return onPlay(instance);
       if (instance.playUrl) location.href = instance.playUrl;
     };
