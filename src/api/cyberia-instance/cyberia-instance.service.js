@@ -2,7 +2,11 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
-import { generateFallbackWorld } from './cyberia-fallback-world.js';
+import {
+  generateFallbackWorld,
+  fallbackListInstance,
+  DEFAULT_FALLBACK_INSTANCE_CODE,
+} from './cyberia-fallback-world.js';
 import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
 
 const logger = loggerFactory(import.meta);
@@ -10,9 +14,8 @@ const logger = loggerFactory(import.meta);
 class CyberiaInstanceService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
-    const CyberiaInstanceConf =
-      DataBaseProviderService.getModel("CyberiaInstanceConf", options);
+    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
+    const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
     if (req.auth && req.auth.user) req.body.creator = req.auth.user._id;
     const instance = await new CyberiaInstance(req.body).save();
 
@@ -38,7 +41,7 @@ class CyberiaInstanceService {
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
+    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
     if (req.params.id) return await CyberiaInstance.findById(req.params.id).populate(populateCreator);
 
@@ -50,18 +53,26 @@ class CyberiaInstanceService {
       CyberiaInstance.countDocuments(query),
     ]);
 
-    const totalPages = Math.ceil(total / limit);
-    return { data, total, page, totalPages };
+    // Opt-in (?fallback=true): surface the always-on TEST world so the selection
+    // view is never empty. Skipped when a real TEST instance is already present.
+    const injectFallback =
+      /^(true|1)$/i.test(String(req.query.fallback || '')) &&
+      !data.some((d) => d.code === DEFAULT_FALLBACK_INSTANCE_CODE);
+    const items = injectFallback ? [...data, fallbackListInstance()] : data;
+    const count = injectFallback ? total + 1 : total;
+
+    const totalPages = Math.ceil(count / limit);
+    return { data: items, total: count, page, totalPages };
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
+    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const instance = await CyberiaInstance.findById(req.params.id);
     if (!instance) throw new Error('instance not found');
     if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
     if (req.body.thumbnail && instance.thumbnail && String(req.body.thumbnail) !== String(instance.thumbnail)) {
-      const File = DataBaseProviderService.getModel("File", options);
+      const File = DataBaseProviderService.getModel('File', options);
       await File.findByIdAndDelete(instance.thumbnail);
     }
     return await CyberiaInstance.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
@@ -103,8 +114,8 @@ class CyberiaInstanceService {
   };
 
   static portalConnect = async (req, res, options) => {
-    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
-    const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
+    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
+    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
 
     const instance = await CyberiaInstance.findById(req.params.id).lean();
     if (!instance) throw new Error('instance not found');
@@ -139,14 +150,14 @@ class CyberiaInstanceService {
 
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
-    const CyberiaInstance = DataBaseProviderService.getModel("CyberiaInstance", options);
+    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     if (req.params.id) {
       const instance = await CyberiaInstance.findById(req.params.id);
       if (!instance) throw new Error('instance not found');
       if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
         throw new Error('insufficient permission');
       if (instance.thumbnail) {
-        const File = DataBaseProviderService.getModel("File", options);
+        const File = DataBaseProviderService.getModel('File', options);
         await File.findByIdAndDelete(instance.thumbnail);
       }
       return await CyberiaInstance.findByIdAndDelete(req.params.id);

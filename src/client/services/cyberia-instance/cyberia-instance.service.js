@@ -46,7 +46,7 @@ class CyberiaInstanceService {
         }),
     );
   static get = (options = {}) => {
-    const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
+    const { id, page, limit, filterModel, sortModel, sort, asc, order, fallback } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
       page,
       limit,
@@ -56,6 +56,8 @@ class CyberiaInstanceService {
       asc,
       order,
     });
+    // Opt-in: ask the API to append the always-on fallback (TEST) world.
+    if (fallback) url.searchParams.set('fallback', 'true');
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',

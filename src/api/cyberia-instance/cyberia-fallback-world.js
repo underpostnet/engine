@@ -300,6 +300,38 @@ function generateFallbackWorld(opts = {}) {
   };
 }
 
+// ── Selection-view fallback instance ─────────────────────────────────────────
+//
+// A dummy, never-persisted instance surfaced in the world/instance selection
+// list so it is never empty: it points at the always-on TEST variant (a real
+// deployed world in the mmo-server multiInstance block). Shaped like a
+// CyberiaInstance list row — only the fields InstanceSelectionView reads
+// (code/name/description/tags/status/thumbnail). Injected into the instance list
+// return by CyberiaInstanceService.get when the caller opts in (?fallback=true).
+
+const DEFAULT_FALLBACK_INSTANCE_CODE = 'TEST';
+
+function fallbackListInstance() {
+  return {
+    _id: `fallback-${DEFAULT_FALLBACK_INSTANCE_CODE.toLowerCase()}`,
+    code: DEFAULT_FALLBACK_INSTANCE_CODE,
+    name: 'Test Grounds',
+    description: 'Always-on sandbox world — drop in to explore a procedurally generated instance.',
+    tags: ['fallback', 'test', 'sandbox'],
+    status: 'published',
+    thumbnail: null,
+    cyberiaMapCodes: [],
+    creator: null,
+    _fallback: true,
+  };
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export { generateFallbackWorld, generateFallbackMap, auditFallbackItemIds };
+export {
+  generateFallbackWorld,
+  generateFallbackMap,
+  auditFallbackItemIds,
+  fallbackListInstance,
+  DEFAULT_FALLBACK_INSTANCE_CODE,
+};
