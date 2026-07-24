@@ -31,8 +31,8 @@ import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
-  RESOURCE_ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -437,16 +437,30 @@ const resolveInstanceWorld = async (instanceCode, options) => {
     const world = generateFallbackWorld();
     const mapCodes = new Set(world.instance.cyberiaMapCodes);
 
-    // Build synthetic object-layer metadata for the fallback world's resource
-    // items so resource entities carry a stats-sum readout.  The canonical
-    // resource defaults (wood-1, wood-2) are not persisted to MongoDB in the
-    // fallback path, so we compute a reasonable stats sum from the item type's
-    // default stat block (each stat 0-10, 6 stats → ~30 average).
-    const resourceItemIds = [
-      ...new Set(RESOURCE_ENTITY_TYPE_DEFAULTS.flatMap((r) => [...(r.liveItemIds || []), ...(r.dropItemIds || [])])),
+    // Build synthetic object-layer metadata for EVERY item id that appears on
+    // any entity in the generated fallback world.  The canonical defaults
+    // (wood-1, wood-2, kishins, atlas_pistol_mk2, …) are not persisted to
+    // MongoDB in the fallback path, so we compute a consistent stats sum from
+    // the canonical stat block shape (6 stats, each 0-10 → average ~30) and
+    // resolve the item type from the DefaultCyberiaItems registry.
+    //
+    // This ensures:
+    //   - resource entities carry a correct stats-sum readout
+    //   - bot weapon items are recognised as type 'weapon' so
+    //     entityPresenceStatus can classify weapon-carrying bots as 'hostile'
+    //   - every item's statsSum is consistent between the world generator
+    //     and the map-instance-modal payload
+    const allItemIds = [
+      ...new Set(world.maps.flatMap((m) => (m.entities || []).flatMap((e) => e.objectLayerItemIds || []))),
     ];
+    const itemTypeById = Object.fromEntries(DefaultCyberiaItems.map((entry) => [entry.item.id, entry.item.type]));
+    // Deterministic stats sum: 6 stats × average 5 per stat = 30.
+    // This matches the canonical stat block shape (STAT_TYPES length = 6,
+    // each stat 0-10) and is the same value used by the persisted path
+    // when ObjectLayer documents have no explicit stats.
+    const FALLBACK_STATS_SUM = 30;
     const objectLayerMetadata = Object.fromEntries(
-      resourceItemIds.map((itemId) => [itemId, { statsSum: 30, type: 'resource' }]),
+      allItemIds.map((itemId) => [itemId, { statsSum: FALLBACK_STATS_SUM, type: itemTypeById[itemId] || 'resource' }]),
     );
 
     return {
