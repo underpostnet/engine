@@ -31,8 +31,8 @@ import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
-  RESOURCE_ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -430,23 +430,18 @@ const resolveInstanceWorld = async (instanceCode, options) => {
   const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
 
   if (!instance) {
-    // Fallback world: generateFallbackWorld is deterministically seeded, so
-    // this layout is identical to the one the gRPC path loads into the live
-    // simulation AND to the one the /preview renderer draws — POIs, portals,
-    // and resource cells all line up with the node preview image.
     const world = generateFallbackWorld();
     const mapCodes = new Set(world.instance.cyberiaMapCodes);
 
-    // Build synthetic object-layer metadata for the fallback world's resource
-    // items so resource entities carry a stats-sum readout.  The canonical
-    // resource defaults (wood-1, wood-2) are not persisted to MongoDB in the
-    // fallback path, so we compute a reasonable stats sum from the item type's
-    // default stat block (each stat 0-10, 6 stats → ~30 average).
-    const resourceItemIds = [
-      ...new Set(RESOURCE_ENTITY_TYPE_DEFAULTS.flatMap((r) => [...(r.liveItemIds || []), ...(r.dropItemIds || [])])),
+    const fallbackItemIds = [
+      ...new Set(world.maps.flatMap((m) => (m.entities || []).flatMap((e) => e.objectLayerItemIds || []))),
     ];
+    const itemTypeById = Object.fromEntries(DefaultCyberiaItems.map((entry) => [entry.item.id, entry.item.type]));
+    const resolved = await resolveObjectLayerMetadata(fallbackItemIds, options);
     const objectLayerMetadata = Object.fromEntries(
-      resourceItemIds.map((itemId) => [itemId, { statsSum: 30, type: 'resource' }]),
+      Object.entries(resolved).map(([itemId, meta]) => {
+        return [itemId, { statsSum: meta.statsSum, type: meta.type }];
+      }),
     );
 
     return {
