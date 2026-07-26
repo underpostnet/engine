@@ -29,8 +29,8 @@ jobs:
           tags: |
             type=raw,value=v3.2.80
             type=raw,value=latest
-            type=ref,event=branch
-            type=sha,prefix=sha-
+      # type=ref,event=branch
+      # type=sha,prefix=sha-
 
       - name: Build and push image
         uses: docker/build-push-action@v7
