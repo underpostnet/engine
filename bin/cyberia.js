@@ -219,7 +219,6 @@ try {
           deployId,
           host,
           path,
-          db,
         });
 
         await DataBaseProviderService.load({
@@ -1954,7 +1953,7 @@ try {
           ? db.host
           : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-      logger.info('instance env', { env: options.envPath, deployId, host, path, db });
+      logger.info('instance env', { env: options.envPath, deployId, host, path });
 
       await DataBaseProviderService.load({
         apis: [
@@ -3892,7 +3891,7 @@ try {
             ? db.host
             : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-        logger.info('generate-saga', { deployId, host, path, db });
+        logger.info('generate-saga', { deployId, host, path });
 
         await DataBaseProviderService.load({
           apis: [
@@ -4930,7 +4929,7 @@ try {
           ? db.host
           : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-      logger.info('drop-db', { deployId, host, path, db });
+      logger.info('drop-db', { deployId, host, path });
 
       const cyberiaCollections = [
         'cyberia-entity',
@@ -5074,7 +5073,7 @@ node bin image --path cyberia-client \
           ? db.host
           : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-      logger.info('seed-dialogues', { deployId, host, path, db });
+      logger.info('seed-dialogues', { deployId, host, path });
 
       await DataBaseProviderService.load({ apis: ['cyberia-dialogue'], host, path, db });
 
@@ -5129,7 +5128,7 @@ node bin image --path cyberia-client \
           ? db.host
           : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-      logger.info('seed-actions-quests', { deployId, host, path, db });
+      logger.info('seed-actions-quests', { deployId, host, path });
 
       await DataBaseProviderService.load({ apis: ['cyberia-action', 'cyberia-quest'], host, path, db });
 
@@ -5185,7 +5184,7 @@ node bin image --path cyberia-client \
           ? db.host
           : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-      logger.info('seed-skills', { deployId, host, path, db });
+      logger.info('seed-skills', { deployId, host, path });
 
       await DataBaseProviderService.load({ apis: ['cyberia-skill'], host, path, db });
 
@@ -5245,7 +5244,7 @@ node bin image --path cyberia-client \
           ? db.host
           : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-      logger.info('seed-entities', { deployId, host, path, db });
+      logger.info('seed-entities', { deployId, host, path });
 
       await DataBaseProviderService.load({ apis: ['cyberia-entity-type-default'], host, path, db });
 

@@ -142,7 +142,7 @@ class MongooseDBService {
    */
   async connect(configOrHost, name) {
     const uri = this.buildUri(configOrHost, name);
-    if (process.env.NODE_ENV === 'development') logger.info(`Connecting to MongoDB with URI`, uri);
+    // if (process.env.NODE_ENV === 'development') logger.info(`Connecting to MongoDB with URI`, uri);
     return await mongoose
       .createConnection(uri, {
         autoIndex: process.env.NODE_ENV !== 'production',
