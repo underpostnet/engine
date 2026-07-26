@@ -5489,9 +5489,11 @@ node bin image --path cyberia-client \
       // ── Build SSR views ──────────────────────────────────────────────────
       const env404 = isDev ? ' --dev' : '';
       shellExec(
-        `node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-server/public/404.html${env404}`,
+        `node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-client/assets/404/index.html${env404}`,
       );
-      shellExec(`node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-client/bin/404.html${env404}`);
+      shellExec(
+        `node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-server/public/404/index.html${env404}`,
+      );
       shellExec(
         `node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
       );
