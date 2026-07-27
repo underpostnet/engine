@@ -91,6 +91,11 @@ jobs:
             if [ "$CHANGES_UNDERPOST" = "1" ]; then
               sudo -n -- /bin/bash -lc "node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
             fi
+            sudo -n -- /bin/bash -lc "npm run fix"
+            sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "node bin/deploy cyberia"
+            sudo -n -- /bin/bash -lc "underpost run clean"
+            sudo -n -- /bin/bash -lc "node bin/cyberia run-workflow build-manifest"
             sudo -n -- /bin/bash -lc "node bin run sync 'dd-cyberia,1,,underpost/engine-cyberia:latest' \
               --kubeadm \
               --deploy-id-cron-jobs none \
