@@ -275,7 +275,7 @@ class UnderpostDB {
         const authFlags = user && password
           ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
           : '';
-        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
+        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath} --numParallelCollections=1 --numInsertionWorkersPerCollection=1 --batchSize=100 --stopOnError${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
         Underpost.kubectl.exec({ podName, namespace, command: restoreCmd });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
@@ -790,7 +790,7 @@ class UnderpostDB {
 
               // Handle primary pod detection for MongoDB
               let podsToProcess = [];
-              if (provider === 'mongoose' && !options.allPods) {
+              if (provider === 'mongoose' && (options.import === true || !options.allPods)) {
                 // For MongoDB, always use primary pod unless allPods is true
                 if (!targetPods || targetPods.length === 0) {
                   logger.warn('No MongoDB pods available to check for primary');

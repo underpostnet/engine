@@ -15,6 +15,9 @@ const MONGODB_STATEFULSET_NAME = 'mongodb';
 const MONGODB_DEFAULT_AUTH_SOURCE = 'admin';
 const MONGODB_DEFAULT_REPLICA_SET = 'rs0';
 const MONGODB_DEFAULT_REPLICA_COUNT = 3;
+// Node-local base path backing the hostPath PVs (`<root>/v<replica index>`),
+// as declared in manifests/mongodb/pv-pvc.yaml.
+const MONGODB_DATA_ROOT = '/data/mongodb';
 
 /**
  * Resolves MongoDB replica hosts from explicit input or StatefulSet defaults.
@@ -147,12 +150,14 @@ class MongooseDBService {
       .createConnection(uri, {
         autoIndex: process.env.NODE_ENV !== 'production',
         heartbeatFrequencyMS: 10000,
-        maxPoolSize: 20,
-        minPoolSize: 2,
+        maxConnecting: 2,
+        maxPoolSize: 10,
+        minPoolSize: 0,
         retryReads: true,
         retryWrites: true,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 120000,
+        waitQueueTimeoutMS: 10000,
       })
       .asPromise();
   }
@@ -191,6 +196,7 @@ const MongooseDB = new MongooseDBService();
 export {
   MongooseDB,
   MongooseDBService as MongooseDBClass,
+  MONGODB_DATA_ROOT,
   MONGODB_DEFAULT_REPLICA_COUNT,
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,

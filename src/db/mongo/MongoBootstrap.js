@@ -11,7 +11,9 @@
 import fs from 'fs-extra';
 import { loggerFactory } from '../../server/logger.js';
 import { shellExec } from '../../server/process.js';
+import { crictlCommandFactory } from '../../server/cri.js';
 import {
+  MONGODB_DATA_ROOT,
   MONGODB_DEFAULT_REPLICA_COUNT,
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,
@@ -135,6 +137,30 @@ class MongoBootstrap {
       `  return true;`,
       `};`,
 
+      // Recovery for a node holding a config it is not a member of. A forced
+      // reconfig is the only way out: it is accepted on a non-primary node,
+      // which an ordinary reconfig is not. Auth is best-effort — when the set
+      // already has users the unauthenticated pass fails here and the caller's
+      // authenticated pass performs the recovery.
+      //
+      // The recovery config has ONE member. Forcing the full member list back
+      // in place leaves the node needing a majority of the others to elect it,
+      // and they are typically holding their own stale configs from the same
+      // dead cluster, so no election ever completes. A single-member set needs
+      // only its own vote and becomes writable at once; reconfigure() then
+      // widens it — the same two-step the pristine path takes after rs.initiate.
+      `const currentConfigVersion = () => { try { return rs.conf().version || 0; } catch(e) { return 0; } };`,
+      `const forceReconfig = () => {`,
+      `  try { ensureAdminAuth(); } catch(e) {}`,
+      `  const soloConfig = {`,
+      `    _id: desiredConfig._id,`,
+      `    version: currentConfigVersion() + 1,`,
+      `    members: [{ _id: 0, host: "localhost:" + mePort }],`,
+      `  };`,
+      `  rs.reconfig(soloConfig, { force: true });`,
+      `  print("SUCCESS_FORCE_RECONFIGURED");`,
+      `};`,
+
       `const reconfigure = () => {`,
       `  if (!ensureAdminAuth()) return false;`,
       `  const cur = rs.conf();`,
@@ -149,28 +175,39 @@ class MongoBootstrap {
       `  return true;`,
       `};`,
 
-      // Determine if replica set is already initialized
-      `let initialized = false;`,
+      // Classify before acting. Three distinct states reach this script:
+      //   pristine — no config yet (fresh volume)
+      //   orphaned — a config exists but this node is not a member of it, which
+      //              is what a volume retained from an earlier cluster leaves
+      //              behind; mongod parks in REMOVED and never elects itself
+      //   live     — a usable config, or one hidden behind auth
+      // The distinction matters for ordering: an orphaned node must be force
+      // reconfigured BEFORE waiting for a primary, because it can never become
+      // writable on its own. Waiting first is an unconditional timeout.
+      `const matchesAny = (msg, list) => list.some(s => msg.includes(s));`,
+      `let state = "live";`,
       `try {`,
       `  const s = rs.status();`,
-      `  if (s && s.ok === 1) initialized = true;`,
+      `  if (!s || s.ok !== 1) state = "pristine";`,
       `} catch(e) {`,
       `  const msg = String(e);`,
-      `  if (msg.includes("requires authentication") || msg.includes("Unauthorized") || msg.includes("not authorized")) {`,
-      `    initialized = true;`,
-      `  } else if (!msg.includes("NotYetInitialized") && !msg.includes("no replset config") && !msg.includes("maps to this node")) {`,
-      `    throw e;`,
-      `  }`,
+      `  const ORPHANED = ["not a member of it", "InvalidReplicaSetConfig", "maps to this node"];`,
+      `  if (matchesAny(msg, ORPHANED)) state = "orphaned";`,
+      `  else if (matchesAny(msg, ["NotYetInitialized", "no replset config"])) state = "pristine";`,
+      `  else if (matchesAny(msg, ["requires authentication", "Unauthorized", "not authorized"])) state = "live";`,
+      `  else throw e;`,
       `}`,
+      `print("REPLSET_STATE_" + state.toUpperCase());`,
 
-      // Not initialized: bootstrap via localhost
-      `if (!initialized) {`,
+      `if (state === "pristine") {`,
       `  try {`,
       `    rs.initiate({ _id: desiredConfig._id, members: [{ _id: 0, host: "localhost:" + mePort }] });`,
       `  } catch(e) {`,
       `    const msg = String(e);`,
       `    if (!msg.includes("already initialized") && !msg.includes("AlreadyInitialized")) throw e;`,
       `  }`,
+      `} else if (state === "orphaned") {`,
+      `  forceReconfig();`,
       `}`,
 
       // Wait for primary, create user, then reconfig to full host list
@@ -189,7 +226,7 @@ class MongoBootstrap {
   static findNodesMissingMongoMount(kindNodes) {
     return kindNodes.filter((node) => {
       const inspect = shellExec(
-        `sudo docker inspect ${node} --format '{{range .Mounts}}{{if eq .Destination "/data/mongodb"}}yes{{end}}{{end}}'`,
+        `sudo docker inspect ${node} --format '{{range .Mounts}}{{if eq .Destination "${MONGODB_DATA_ROOT}"}}yes{{end}}{{end}}'`,
         { stdout: true, silent: true, silentOnError: true },
       );
       return !inspect.trim().includes('yes');
@@ -210,7 +247,7 @@ class MongoBootstrap {
       logger.info('No Kind nodes detected for hostPath cleanup.');
       return;
     }
-    const basePath = '/data/mongodb';
+    const basePath = MONGODB_DATA_ROOT;
     for (const node of nodes) {
       const prepareCmd = Array.from(
         { length: replicaCount },
@@ -234,7 +271,7 @@ class MongoBootstrap {
    * @param {string[]} kindNodes - List of Kind node container names.
    * @param {string} [basePath='/data/mongodb'] - The base path containing v0/v1/v2 subdirs.
    */
-  static remountKindMongoVolume(kindNodes, basePath = '/data/mongodb') {
+  static remountKindMongoVolume(kindNodes, basePath = MONGODB_DATA_ROOT) {
     for (const node of kindNodes) {
       logger.info(`Cleaning MongoDB data dirs inside Kind node '${node}'...`);
       for (let i = 0; i < 3; i++) {
@@ -364,16 +401,7 @@ class MongoBootstrap {
         }
         shellExec(`rm -f ${tarPath}`);
       } else {
-        const criSock =
-          shellExec('test -S /var/run/crio/crio.sock && echo crio || echo containerd', {
-            stdout: true,
-            silent: true,
-          }).trim() === 'crio'
-            ? 'unix:///var/run/crio/crio.sock'
-            : 'unix:///run/containerd/containerd.sock';
-        shellExec(
-          `sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint ${criSock} pull mongo:latest`,
-        );
+        shellExec(crictlCommandFactory('pull mongo:latest', { k3s: clusterType === 'k3s' }));
       }
     }
 
@@ -391,15 +419,23 @@ class MongoBootstrap {
       shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
       shellExec(`kubectl delete pv mongodb-pv --ignore-not-found`);
 
-      if (isKind) {
-        shellExec('sudo mkdir -p /data/mongodb');
-        for (let i = 0; i < effectiveReplicaCount; i++) {
-          shellExec(`sudo rm -rf /data/mongodb/v${i}`);
-          shellExec(`sudo mkdir -p /data/mongodb/v${i}`);
-        }
-        // Fix any stale bind mounts caused by prior deletion of /data/mongodb on the host
-        MongoBootstrap.remountKindMongoVolume(kindNodes);
+      // The data itself, for every cluster type. The PVs are hostPath with
+      // `persistentVolumeReclaimPolicy: Retain`, so deleting the objects frees
+      // nothing: the next run re-binds the same directories and mongod boots
+      // with the previous cluster's replica set config, ending up outside it.
+      // Only this node's copy is removed — on a multi-node cluster, wipe the
+      // other nodes' /data/mongodb before rebuilding there.
+      logger.info('Removing retained MongoDB hostPath data', {
+        path: MONGODB_DATA_ROOT,
+        replicas: effectiveReplicaCount,
+      });
+      shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}`);
+      for (let i = 0; i < effectiveReplicaCount; i++) {
+        shellExec(`sudo rm -rf ${MONGODB_DATA_ROOT}/v${i}`);
+        shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}/v${i}`);
       }
+      // Fix any stale bind mounts caused by prior deletion of /data/mongodb on the host
+      if (isKind) MongoBootstrap.remountKindMongoVolume(kindNodes);
     }
 
     // Apply manifests
@@ -550,10 +586,10 @@ class MongoBootstrap {
       // IMPORTANT: Do NOT remove /data/mongodb itself — it is bind-mounted into Kind node
       // containers by inode. Removing it makes the bind mount stale; only clear subdirs.
       logger.info('Phase 5/6: Cleaning up MongoDB hostPath data...');
-      shellExec(`sudo mkdir -p /data/mongodb`);
+      shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}`);
       for (let i = 0; i < 3; i++) {
-        shellExec(`sudo rm -rf /data/mongodb/v${i}`);
-        shellExec(`sudo mkdir -p /data/mongodb/v${i}`);
+        shellExec(`sudo rm -rf ${MONGODB_DATA_ROOT}/v${i}`);
+        shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}/v${i}`);
       }
       // For Kind: repair any stale bind mounts via nsenter (overmounts with current host inode)
       if (isKind) {
