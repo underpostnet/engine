@@ -12,6 +12,7 @@ import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
 import { getNpmRootPath } from '../server/conf.js';
 import { shellExec } from '../server/process.js';
+import { crictlCommandFactory } from '../server/cri.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -225,6 +226,7 @@ class UnderpostImage {
      * @param {object} options - Options for the image retrieval.
      * @param {boolean} options.spec - Whether to retrieve images from the pod specifications.
      * @param {string} options.namespace - Kubernetes namespace to filter pods.
+     * @param {boolean} [options.k3s] - Resolve the CRI endpoint as K3s' embedded containerd.
      * @returns {Array<object>} - Array of objects containing pod names and their corresponding images.
      * @memberof UnderpostImage
      */
@@ -245,10 +247,17 @@ class UnderpostImage {
           }))
           .filter((o) => o.image);
       }
-      const raw = shellExec(node === 'kind-worker' ? `docker exec -i ${node} crictl images` : `crictl images`, {
-        stdout: true,
-        silent: true,
-      });
+      // Outside kind, target the live CRI endpoint explicitly: /etc/crictl.yaml
+      // may still point at a CRI-O socket the host no longer runs.
+      const raw = shellExec(
+        node === 'kind-worker'
+          ? `docker exec -i ${node} crictl images`
+          : crictlCommandFactory('images', options || {}),
+        {
+          stdout: true,
+          silent: true,
+        },
+      );
 
       const heads = raw
         .split(`\n`)[0]
@@ -312,7 +321,7 @@ class UnderpostImage {
         shellExec(`docker exec -i kind-control-plane crictl rmi ${imageName}`);
         shellExec(`docker exec -i kind-worker crictl rmi ${imageName}`);
       } else if (kubeadm === true) {
-        shellExec(`crictl rmi ${imageName}`);
+        shellExec(crictlCommandFactory(`rmi ${imageName}`));
       } else if (k3s === true) {
         shellExec(`sudo k3s ctr images rm ${imageName}`);
       }
@@ -381,7 +390,7 @@ class UnderpostImage {
         shellExec(`docker pull ${image}`);
         shellExec(`sudo kind load docker-image ${image}`);
       } else {
-        shellExec(`sudo crictl pull ${image}`);
+        shellExec(crictlCommandFactory(`pull ${image}`, { k3s: targetK3s }));
       }
     },
   };
