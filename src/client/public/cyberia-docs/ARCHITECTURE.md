@@ -133,6 +133,24 @@ Underpost Platform deploy orchestration ensures the backend layer is ready befor
 
 ---
 
+## Edge tier
+
+Every `cyberiaonline.com` hostname is served through one Envoy Gateway data plane over HTTP/1.1, HTTP/2 and HTTP/3 (QUIC), with TLS terminated per hostname by SNI. In development the certificates are self-signed and locally trusted, and the hostnames are mapped in `/etc/hosts`, so a browser reaches the real routing stack rather than a dev proxy.
+
+Three portal views never reach the engine at all. They are rendered SSR documents with no request-time logic, so `HTTPRoute` rules hand them to `gateway-static-utility` — a small Nginx workload in the gateway tier that holds each hostname's documents:
+
+| Route          | Declared by                             | Served                                                   |
+| -------------- | --------------------------------------- | -------------------------------------------------------- |
+| `/404`         | a `CyberiaPortal` view with path `/404` | `www.cyberiaonline.com/root/status-pages/404/index.html` |
+| `/offline`     | the view flagged `offlineDefault`       | `www.cyberiaonline.com/root/offline/index.html`          |
+| `/maintenance` | the view flagged `maintenanceDefault`   | `www.cyberiaonline.com/root/maintenance/index.html`      |
+
+A request to an unknown path reaches the portal, whose SSR middleware redirects to `/404`; the gateway then answers that from the static tier. So the engine never renders a status page, and the page a player sees is the one `conf.ssr.json` declares.
+
+Per-instance hosts follow the same layout under their own sub-path — `client.cyberiaonline.com/FOREST/status-pages/404/index.html` — from the `customStatusPages` entries in `conf.instances.json`. Both configuration files live in `engine-private/`, which is a private repository: expect the layout to be referenced without assuming the files are present locally.
+
+---
+
 ## Tick model
 
 The tick is the universal coordinate of the simulation. Every server→client snapshot and every client→server input command carries a tick value.

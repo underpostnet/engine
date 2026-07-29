@@ -176,14 +176,14 @@ cyberia chain unpause [--network besu-k8s]
 
 Named scripts from the `scripts/` directory for seeding and build maintenance.
 
-| Subcommand                   | Description                                                                         |
-| ---------------------------- | ----------------------------------------------------------------------------------- |
+| Subcommand                   | Description                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
 | `import-default-items`       | Import default object layers, skills, dialogues, actions/quests, client-hints to Mongo |
-| `seed-skills`                | Upsert `DefaultSkillConfig` into the `cyberia-skill` collection (full records)       |
-| `seed-dialogues`             | Upsert `DefaultCyberiaDialogues` into the `cyberia-dialogue` collection             |
-| `generate-semantic-examples` | Generate one procedural example per registered semantic prefix                      |
-| `build-manifest`             | Build K8s Deployment + Service manifests for mmo-client / mmo-server                |
-| `build-server-dashboard`     | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`) |
+| `seed-skills`                | Upsert `DefaultSkillConfig` into the `cyberia-skill` collection (full records)         |
+| `seed-dialogues`             | Upsert `DefaultCyberiaDialogues` into the `cyberia-dialogue` collection                |
+| `generate-semantic-examples` | Generate one procedural example per registered semantic prefix                         |
+| `build-manifest`             | Build K8s Deployment + Service manifests for mmo-client / mmo-server                   |
+| `build-server-dashboard`     | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)    |
 
 ```bash
 cyberia run-workflow import-default-items --env-path ./engine-private/conf/dd-cyberia/.env.development
@@ -191,6 +191,30 @@ cyberia run-workflow seed-skills
 cyberia run-workflow generate-semantic-examples
 cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard
+```
+
+---
+
+## Bringing up the full stack locally
+
+```bash
+node bin run cluster 'express,dd-cyberia' --dev
+```
+
+One command, no extra flags. It resets and rebuilds the node, deploys MongoDB / IPFS / Valkey, imports each database from its git backup, installs the Gateway API control plane, and deploys `dd-cyberia` behind it.
+
+What `--dev` implies, rather than requiring you to pass it:
+
+- **Gateway API + Envoy Gateway**, with **HTTP/3 (QUIC) on by default** beside HTTP/2 and HTTP/1.1.
+- **Self-signed, locally trusted TLS** for every hostname in `conf.server.json`, plus the matching `/etc/hosts` entries — so a local Chromium reaches `https://www.cyberiaonline.com` through the real data plane.
+- **The gateway static tier seeded** with the portal's `/404`, `/offline` and `/maintenance` documents before the routes are applied, then refreshed from the running container once it is Ready. See [Architecture → Edge tier](./ARCHITECTURE.md).
+
+The run ends with a gateway status report: listener and route conditions, the workloads behind them, and an HTTPS probe of every route hostname.
+
+To place the static documents again without redeploying — after rebuilding the portal client, for instance:
+
+```bash
+node bin deploy dd-cyberia development --sync-static --gateway-api --kubeadm
 ```
 
 ---

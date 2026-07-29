@@ -287,12 +287,53 @@ node bin run cluster --k3s
 
 **Path format:** `<runtime-image>,<deploy-list>` — runtime defaults to `express` (valid values: `express`, `lampp`), deploy-list defaults to `dd.router` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format. When runtime is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB.
 
-| Option               | Description                                  |
-| -------------------- | -------------------------------------------- |
-| `--dev`              | Development environment (uses `--etc-hosts`) |
-| `--namespace <name>` | Kubernetes namespace (default: `default`)    |
-| `--kubeadm`          | Kubeadm cluster                              |
-| `--k3s`              | K3s cluster                                  |
+| Option                  | Description                                                      |
+| ----------------------- | ---------------------------------------------------------------- |
+| `--dev`                 | Development environment (self-signed TLS + `/etc/hosts` mapping) |
+| `--namespace <name>`    | Kubernetes namespace (default: `default`)                        |
+| `--kubeadm`             | Kubeadm cluster (default)                                        |
+| `--k3s`                 | K3s cluster                                                      |
+| `--gateway-class <n>`   | GatewayClass to provision (default: `eg`)                        |
+| `--disable-gateway-api` | Fall back to the Contour HTTPProxy stack                         |
+| `--disable-http3`       | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` header     |
+
+### What `--dev` sets up on its own
+
+The dev cluster is a single command — there are no extra flags to remember, because everything the browser needs is derived from `conf.server.json` and applied by the runner itself:
+
+```bash
+node bin run cluster 'express,dd-cyberia' --dev
+```
+
+- **Gateway API + Envoy Gateway** is the default routing stack. `--disable-gateway-api` is the only way back to Contour.
+- **HTTP/3 (QUIC) is on by default**, alongside HTTP/2 and HTTP/1.1. Each route advertises it with `Alt-Svc: h3=":443"`, and a `ClientTrafficPolicy` enables QUIC on the merged HTTPS listener. QUIC has no cleartext transport, so this only exists where TLS does.
+- **TLS is self-signed and locally trusted.** Every host in the deploy's `conf.server.json` gets a certificate from `scripts/ssl.sh` (mkcert, which installs its root CA into the system and NSS trust stores) and a `kubernetes.io/tls` secret named after the host.
+- **`/etc/hosts` is mapped** for those same hosts in a single rewrite, so `https://www.cyberiaonline.com` resolves to the local data plane. In development Envoy binds 80/443 on the host network, so no port-forward is involved.
+- **The gateway static tier is seeded** with each deploy's status pages and intercepted contexts before the routes are applied. See [Gateway static tier](#gateway-static-tier).
+
+The runner ends by calling `run gateway-status`, which waits for the Gateways to report `Programmed`, prints the listener/route/policy conditions, and probes every route hostname over HTTP and HTTPS — so the workflow finishes on an observed response rather than an inference.
+
+### Gateway static tier
+
+Status pages (`/404`) and intercepted contexts (`/offline`, `/maintenance`) are rendered SSR documents with no request-time logic, so they are served at the edge and never reach the application pods. They cannot be carried in the gateway config itself: Envoy rejects a direct-response body over 4096 bytes while translating the route, and the rejection fails the whole route rather than the one rule.
+
+Instead one small Nginx deployment — `gateway-static-utility`, installed with the Gateway API control plane — holds every host's documents in a hostPath volume, and HTTPRoute rules reach it as an ordinary backend:
+
+```
+<static-root>/<host>/<sub-path>/status-pages/<status>/index.html
+<static-root>/<host>/<sub-path>/<context>/index.html
+```
+
+`<sub-path>` is the proxy sub-path with `/` written as `root`, so `www.cyberiaonline.com` + `/` + 404 becomes `www.cyberiaonline.com/root/status-pages/404/index.html`. Each rule rewrites onto the _directory_, so one rule covers the document and anything beside it.
+
+Documents are placed by `deploy --sync-static`, which the cluster runner calls twice per deploy:
+
+| When                                                    | Source                         | Why                                                                                  |
+| ------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
+| After `--build-manifest`, before the routes are applied | this checkout's `public/` tree | Seeds the tree so every route is correct from the first request                      |
+| After the deployment is Ready                           | the running workload           | Several clients are built from private sources cloned into the container at start-up |
+
+A host whose document is in neither place falls through to the shared default page, which answers **404** and is sent `Cache-Control: no-store` — so a fallback is never stored by the PWA service worker and never outlives the moment the real document lands.
 
 ---
 

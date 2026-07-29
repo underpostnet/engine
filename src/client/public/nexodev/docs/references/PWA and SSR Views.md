@@ -72,6 +72,29 @@ Views with neither flag are SSR-rendered and reachable by URL, but **not** preca
 
 ---
 
+## Edge-served views
+
+Some views carry no request-time logic at all, so the gateway answers them and the application pods never see the request. Which views those are is derived from the same `views[]` array — no path is named a second time:
+
+| Selector                                      | Becomes                       | Placed at                                            |
+| --------------------------------------------- | ----------------------------- | ---------------------------------------------------- |
+| `path` is a bare status code (`/404`, `/503`) | a status page                 | `<host>/<sub-path>/status-pages/<status>/index.html` |
+| `offlineDefault` or `maintenanceDefault`      | an intercepted static context | `<host>/<sub-path>/<context>/index.html`             |
+
+`<sub-path>` is the client's proxy sub-path with `/` written as `root`, so the `CyberiaPortal` `/404` view on `www.cyberiaonline.com` lands at `www.cyberiaonline.com/root/status-pages/404/index.html`.
+
+`deploy --build-manifest` emits one HTTPRoute rule per entry, rewriting the request prefix onto that **directory** — so `/404` resolves the document through `index.html` and `/404/logo.png` resolves the asset beside it, from one rule. `deploy --sync-static` places the documents those rules point at. Both read the same selectors, so a new edge-served view needs nothing beyond its `views[]` entry.
+
+The documents are not carried in the gateway configuration: Envoy rejects a direct-response body over 4096 bytes while translating the route, and the rejection fails the entire route rather than the one rule. They are held instead by the `gateway-static-utility` Nginx workload, which routes reach as an ordinary backend. See [Deploy to K8S](<./Deploy to K8S.md>) for the placement commands.
+
+### How a wrong path is answered
+
+A request to a path the workload does not have gets the workload's own 404, and `ssrMiddlewareFactory` redirects it to the deploy's `/404` view when that view was built — which is the route the gateway intercepts. So `https://www.cyberiaonline.com/no-exist-page` ends on the deploy's own rendered 404 page, served by the edge, with the application pod never rendering a status page.
+
+If the document is missing from the static tier, the request falls through to a shared default page that answers **404** with `Cache-Control: no-store`. That is deliberate: a 200 would let the service worker's navigation cache store the placeholder as the host's own page and keep serving it for hours after the real document landed.
+
+---
+
 ## Service worker lifecycle
 
 The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/client-builder/client-build.js`) bundles it via esbuild and prepends a `self.renderPayload` prelude with values resolved from the `views` array:
