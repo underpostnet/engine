@@ -5352,6 +5352,84 @@ node bin image --path cyberia-client \
       logger.info('All semantic examples generated.');
     });
 
+  // Instance id → project root. Single source of truth for the workloads this
+  // workflow builds: both the k8s manifests and the status page artifacts each
+  // project ships are resolved from this list plus conf.instances.json.
+  const CYBERIA_INSTANCE_PROJECTS = [
+    { id: 'mmo-client', rootPath: './cyberia-client' },
+    { id: 'mmo-server', rootPath: './cyberia-server' },
+  ];
+  const CYBERIA_CONF_INSTANCES_PATH = './engine-private/conf/dd-cyberia/conf.instances.json';
+  const CYBERIA_CONF_SSR_PATH = './engine-private/conf/dd-cyberia/conf.ssr.json';
+  // Copy shared by the server and the client for a given status code. A status
+  // without an entry falls back to its conf.ssr.json view title.
+  const CYBERIA_STATUS_PAGE_META = {
+    404: {
+      title: 'Cyberia — Sector Not Found',
+      description: 'Cyberia Online 404 — the requested sector is not on the grid.',
+    },
+  };
+
+  /**
+   * Reads the raw (unexpanded) conf.instances.json entries.
+   * @returns {Array<object>} Instance entries, or an empty list when unavailable.
+   */
+  const readCyberiaConfInstances = () => {
+    try {
+      return JSON.parse(fs.readFileSync(CYBERIA_CONF_INSTANCES_PATH, 'utf8'));
+    } catch (err) {
+      logger.warn(`Could not read ${CYBERIA_CONF_INSTANCES_PATH}: ${err.message}`);
+      return [];
+    }
+  };
+
+  /**
+   * Resolves the SSR view that renders a status page. The view is declared in
+   * conf.ssr.json as a route whose path is the bare status code (`/404`), the
+   * same declaration the PWA build turns into `/404/index.html`.
+   * @param {string} status - HTTP status code.
+   * @returns {{ client: string, title: string }|null} View descriptor, or null when undeclared.
+   */
+  const resolveStatusPageView = (status) => {
+    if (!fs.existsSync(CYBERIA_CONF_SSR_PATH)) return null;
+    const confSSR = JSON.parse(fs.readFileSync(CYBERIA_CONF_SSR_PATH, 'utf8'));
+    for (const clientConf of Object.values(confSSR))
+      for (const view of clientConf?.views || []) if (view.path === `/${status}`) return view;
+    return null;
+  };
+
+  /**
+   * Renders one custom status page to a static HTML artifact. The workloads no
+   * longer serve error pages themselves — the document is carried into the
+   * gateway config by `run instance-build-manifest`, so this only has to place
+   * it at the `hostPath` the instance declares.
+   * @param {string} status - HTTP status code.
+   * @param {string} outputPath - Destination HTML path.
+   * @param {boolean} [dev] - Render the development variant.
+   * @returns {boolean} True when the artifact was rendered.
+   */
+  const buildCyberiaStatusPage = ({ status, outputPath, dev = false }) => {
+    const view = resolveStatusPageView(status);
+    const pagePath = `./src/client/ssr/views/${view?.client || `Cyberia${status}`}.js`;
+    if (!fs.existsSync(pagePath)) {
+      logger.warn(`[build-status-page] No SSR view for status ${status}; skipping`, { pagePath, outputPath });
+      return false;
+    }
+    const meta = CYBERIA_STATUS_PAGE_META[status] || {};
+    const title = meta.title || view?.title || `Cyberia — ${status}`;
+    const description = meta.description || `Cyberia Online ${status}.`;
+    shellExec(
+      `node bin static --page ${pagePath}` +
+        ` --output-path ${outputPath}` +
+        ` --title '${title}'` +
+        ` --favicon /favicon.ico` +
+        ` --description '${description}'` +
+        ` --lang en` +
+        ` --env ${dev ? 'development' : 'production'}`,
+    );
+    return true;
+  };
+
   runner
     .command('build-manifest')
     .option(
@@ -5384,12 +5462,11 @@ node bin image --path cyberia-client \
       // A variant declared in conf.instances.json without the instance
       // directory is silently skipped so the Dockerfile never tries to
       // copy a non-existent directory and the container build does not fail.
-      const confInstancesPath = './engine-private/conf/dd-cyberia/conf.instances.json';
       const cyberiaInstancesDir = '/home/dd/cyberia-instances';
       let instanceCodes = 'amethyst-strata-expansion,FOREST'; // fallback
+      const confInstancesEntries = readCyberiaConfInstances();
       try {
-        const confInstances = JSON.parse(fs.readFileSync(confInstancesPath, 'utf8'));
-        const serverInstances = confInstances.filter((inst) => inst.runtime === 'cyberia-server');
+        const serverInstances = confInstancesEntries.filter((inst) => inst.runtime === 'cyberia-server');
         const codes = new Set();
         for (const inst of serverInstances) {
           if (inst.multiInstance?.variants) {
@@ -5412,7 +5489,7 @@ node bin image --path cyberia-client \
           logger.warn(`[build-manifest] No valid instance codes found; keeping fallback: ${instanceCodes}`);
         }
       } catch (err) {
-        logger.warn(`[build-manifest] Could not read ${confInstancesPath}: ${err.message}; using fallback`);
+        logger.warn(`[build-manifest] Could not read ${CYBERIA_CONF_INSTANCES_PATH}: ${err.message}; using fallback`);
       }
 
       // ── Update Dockerfile.dev + Dockerfile INSTANCE_CODES build arg ──────
@@ -5473,30 +5550,37 @@ node bin image --path cyberia-client \
         logger.warn(`[build-manifest] Could not update ${catalogPath}: ${err.message}`);
       }
 
+      // ── Build SSR views ──────────────────────────────────────────────────
+      // Status pages are rendered BEFORE the manifests: the gateway manifests
+      // embed each document declared under an instance's `customStatusPages`,
+      // so the artifact has to exist at its `hostPath` by manifest time.
+      const statusPagesBuilt = [];
+      for (const { id, rootPath } of CYBERIA_INSTANCE_PROJECTS) {
+        const instance = confInstancesEntries.find((entry) => entry.id === id);
+        for (const page of instance?.customStatusPages || []) {
+          if (!page?.status || !page?.hostPath) continue;
+          const outputPath = nodePath.normalize(`${rootPath}/${page.hostPath}`);
+          if (buildCyberiaStatusPage({ status: page.status, outputPath, dev: isDev }))
+            statusPagesBuilt.push({ instance: id, status: page.status, outputPath });
+        }
+      }
+      logger.info('[build-manifest] Custom status pages built', statusPagesBuilt);
+      shellExec(
+        `node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
+      );
+
       // ── Build dev manifests (always --kind --dev) ────────────────────────
       {
         const flags = `--kind --dev${nodeFlag}`;
-        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
-        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+        for (const { id, rootPath } of CYBERIA_INSTANCE_PROJECTS)
+          shellExec(`node bin run instance-build-manifest 'dd-cyberia,${id},${rootPath}' ${flags}`);
       }
       // ── Build prod manifests (--kubeadm, no --dev) ───────────────────────
       if (!isDev) {
         const flags = `--kubeadm${nodeFlag}`;
-        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' ${flags}`);
-        shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' ${flags}`);
+        for (const { id, rootPath } of CYBERIA_INSTANCE_PROJECTS)
+          shellExec(`node bin run instance-build-manifest 'dd-cyberia,${id},${rootPath}' ${flags}`);
       }
-
-      // ── Build SSR views ──────────────────────────────────────────────────
-      const env404 = isDev ? ' --dev' : '';
-      shellExec(
-        `node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-client/assets/404/index.html${env404}`,
-      );
-      shellExec(
-        `node bin/cyberia run-workflow build-cyberia-404 --output-path ./cyberia-server/public/404/index.html${env404}`,
-      );
-      shellExec(
-        `node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
-      );
 
       // Copy canonical doc sources into the generated project READMEs.
       // Edit the canonical sources; never hand-edit these generated outputs.
@@ -5567,26 +5651,53 @@ node bin image --path cyberia-client \
     });
 
   runner
+    .command('build-status-page')
+    .requiredOption(
+      '--status <status>',
+      'HTTP status code to render (must be declared as an SSR view in conf.ssr.json).',
+    )
+    .option('--dev', 'Build a development variant of the status page.')
+    .option(
+      '--output-path <path>',
+      'Output path for the rendered HTML. Defaults to the `hostPath` the mmo-server instance declares for the status.',
+    )
+    .description(
+      'Build one custom status page artifact. The SSR view is resolved from the conf.ssr.json route whose path is ' +
+        'the bare status code; the rendered document is served by the gateway, not by the workload.',
+    )
+    .action((options) => {
+      const status = `${options.status}`;
+      const statusPage = (
+        readCyberiaConfInstances().find((entry) => entry.id === 'mmo-server')?.customStatusPages || []
+      ).find((page) => `${page.status}` === status);
+      const outputPath =
+        options.outputPath || (statusPage ? nodePath.normalize(`./cyberia-server/${statusPage.hostPath}`) : null);
+      if (!outputPath) {
+        logger.error(`[build-status-page] No --output-path and no customStatusPages entry for status ${status}`);
+        return;
+      }
+      buildCyberiaStatusPage({ status, outputPath, dev: !!options.dev });
+    });
+
+  runner
     .command('build-cyberia-404')
     .option('--dev', 'Build a development variant of the 404 page.')
     .option(
       '--output-path <path>',
       'Output path for the rendered 404.html (default: ./cyberia-server/public/404.html). ' +
-        'The same page is served, sub-path aware, by every instance variant of both the ' +
-        'cyberia-server (Go static server) and cyberia-client (docker-driver).',
+        'The same page is served, sub-path aware, by the gateway for every instance variant of both the ' +
+        'cyberia-server and cyberia-client workloads.',
     )
-    .description('Build the cyberpunk pixel-art "sector not found" (404) page shared by the Cyberia server + client.')
+    .description(
+      'Build the cyberpunk pixel-art "sector not found" (404) page shared by the Cyberia server + client. ' +
+        'Thin alias of `build-status-page --status 404`, kept as the entrypoint the instance CI workflows call.',
+    )
     .action((options) => {
-      const outputPath = options.outputPath || './cyberia-server/public/404.html';
-      shellExec(
-        `node bin static --page ./src/client/ssr/views/Cyberia404.js` +
-          ` --output-path ${outputPath}` +
-          ` --title 'Cyberia — Sector Not Found'` +
-          ` --favicon /favicon.ico` +
-          ` --description 'Cyberia Online 404 — the requested sector is not on the grid.'` +
-          ` --lang en` +
-          ` --env ${options.dev ? 'development' : 'production'}`,
-      );
+      buildCyberiaStatusPage({
+        status: '404',
+        outputPath: options.outputPath || './cyberia-server/public/404.html',
+        dev: !!options.dev,
+      });
     });
 
   // Passthrough check: if the user invoked a command that is OWNED by the
