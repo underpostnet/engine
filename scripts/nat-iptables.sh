@@ -32,6 +32,12 @@ sudo firewall-cmd --permanent --zone=public --add-service=ssh
 sudo firewall-cmd --permanent --zone=public --add-service=http
 sudo firewall-cmd --permanent --zone=public --add-service=https
 
+# QUIC / HTTP3. The `https` service above covers TCP 443 only, so without this
+# an HTTP/3 gateway advertises `Alt-Svc: h3=":443"` and every client that acts
+# on it silently fails over UDP while HTTP/2 keeps working.
+sudo firewall-cmd --permanent --zone=public --add-port=443/udp
+sudo firewall-cmd --permanent --zone=public --add-port=80/udp
+
 echo "[INFO] Opening Kubernetes control plane ports..."
 
 # Kubernetes API Server
@@ -98,10 +104,10 @@ sudo firewall-cmd --reload
 echo
 echo "[INFO] Sysctl status:"
 sudo sysctl \
-  net.ipv4.ip_forward \
-  net.ipv6.conf.all.forwarding \
-  net.bridge.bridge-nf-call-iptables \
-  net.bridge.bridge-nf-call-ip6tables
+net.ipv4.ip_forward \
+net.ipv6.conf.all.forwarding \
+net.bridge.bridge-nf-call-iptables \
+net.bridge.bridge-nf-call-ip6tables
 
 echo
 echo "[INFO] Firewall status:"
