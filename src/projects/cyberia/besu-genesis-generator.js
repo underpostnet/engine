@@ -19,6 +19,7 @@ import path from 'path';
 import { keccak256 as ethersKeccak256 } from 'ethers';
 import { loggerFactory } from '../../server/logger.js';
 import { shellExec } from '../../server/process.js';
+import { crictlCommandFactory } from '../../server/cri.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -1394,8 +1395,8 @@ async function deployBesu(options = {}) {
   // ── Step 2: Pull container images if requested ─────────────────────────
   if (pullImage) {
     logger.info('Pulling Besu images via crictl...');
-    shellExec(`sudo crictl pull ${besuImage}`);
-    shellExec(`sudo crictl pull ${curlImage}`);
+    shellExec(crictlCommandFactory(`pull ${besuImage}`));
+    shellExec(crictlCommandFactory(`pull ${curlImage}`));
   }
 
   // ── Step 3: Apply all besu resources via kustomize ─────────────────────
