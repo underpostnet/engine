@@ -223,21 +223,22 @@ try {
         .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
         .split(`,`)
         .concat(['dd-cron'])) {
-        if (fs.existsSync(`./engine-private/conf/${deployId}/build/development/deployment.yaml`))
-          fs.copySync(
-            `./engine-private/conf/${deployId}/build/development/deployment.yaml`,
-            `./manifests/deployment/${deployId}-development/deployment.yaml`,
-          );
-        if (fs.existsSync(`./engine-private/conf/${deployId}/build/development/proxy.yaml`))
-          fs.copySync(
-            `./engine-private/conf/${deployId}/build/development/proxy.yaml`,
-            `./manifests/deployment/${deployId}-development/proxy.yaml`,
-          );
-        if (fs.existsSync(`./engine-private/conf/${deployId}/build/development/pv-pvc.yaml`))
-          fs.copySync(
-            `./engine-private/conf/${deployId}/build/development/pv-pvc.yaml`,
-            `./manifests/deployment/${deployId}-development/pv-pvc.yaml`,
-          );
+        // The same set `deploy --build-manifest` mirrors. Anything missing here
+        // is a manifest the project repo silently stops carrying while the
+        // private build dir still has it.
+        for (const file of [
+          'deployment.yaml',
+          'proxy.yaml',
+          'gateway.yaml',
+          'httproute.yaml',
+          'pv-pvc.yaml',
+          'grpc-service.yaml',
+        ]) {
+          const source = `./engine-private/conf/${deployId}/build/development/${file}`;
+          const target = `./manifests/deployment/${deployId}-development/${file}`;
+          if (fs.existsSync(source)) fs.copySync(source, target);
+          else fs.removeSync(target);
+        }
         shellExec(`node bin new --dev --default-conf --deploy-id ${deployId}`);
       }
       break;
