@@ -30,6 +30,8 @@ import os from 'os';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
+import { GATEWAY_STATIC, statusPageAssetPathFactory, writeStaticAsset } from '../server/gateway-static.js';
+import nodePath from 'node:path';
 
 const waitForPort = (port, host = '127.0.0.1', { maxAttempts = 30, interval = 2000 } = {}) =>
   new Promise((resolve, reject) => {
@@ -78,6 +80,66 @@ const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =
     .join('');
 
 /**
+ * @method instanceStatusPageDeployIdFactory
+ * @description Status page documents are identical across a family's variants,
+ * so the ConfigMap + direct-response filter pair is named after the template
+ * instance and shared by every variant route.
+ * @param {string} deployId - Parent deployment identifier.
+ * @param {object} instance - Expanded instance entry.
+ * @returns {string} Family-scoped deploy id owning the status page resources.
+ */
+const instanceStatusPageDeployIdFactory = (deployId, instance) => `${deployId}-${instance.templateId || instance.id}`;
+
+/**
+ * @method instanceHttpRouteRulesFactory
+ * @description Renders the Gateway API rules for every instance sharing a host:
+ * the workload rule for each instance sub-path, plus the gateway-served status
+ * page rules declared by that instance's `customStatusPages`. Longest-prefix
+ * first, mirroring {@link instanceProxyRoutesFactory} — Gateway API resolves
+ * precedence itself, but the emitted order keeps both stacks diff-comparable.
+ *
+ * Relative asset loading under a variant sub-path is preserved by carrying the
+ * instance `pathRewritePolicy` through verbatim: an instance that declares
+ * `stripPathPrefix` gets a ReplacePrefixMatch rewrite, and one that does not
+ * keeps its prefix so the workload still sees the URLs the browser requested.
+ * @param {string} deployId - Parent deployment identifier.
+ * @param {Array<object>} instances - Expanded instance entries bound to one host.
+ * @param {string} env - `development` | `production`.
+ * @param {Object<string,string>} trafficById - Instance id → traffic colour.
+ * @param {object} options - Runner options (namespace, gateway/QUIC settings).
+ * @returns {string} Concatenated rule YAML.
+ */
+const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, options, servedStatuses }) => {
+  const { http3, altSvc } = Underpost.deploy.gatewayApiConfigFactory(options);
+  const sorted = [...instances].sort((a, b) => (b.path || '/').length - (a.path || '/').length);
+  // The `/` status fallback is only emitted when no workload claims the root
+  // path: two rules matching `/` would leave gateway precedence ambiguous.
+  const rootClaimed = sorted.some((instance) => (instance.path || '/') === '/');
+  let rules = '';
+  for (const [i, instance] of sorted.entries()) {
+    rules += Underpost.deploy.statusPageRouteRulesFactory({
+      deployId: instanceStatusPageDeployIdFactory(deployId, instance),
+      host: instance.host,
+      basePath: instance.path,
+      statusPages: instance.customStatusPages,
+      altSvc: http3 ? altSvc : undefined,
+      catchAll: !rootClaimed && i === sorted.length - 1,
+      servedStatuses,
+    });
+    rules += Underpost.deploy.httpRouteRuleFactory({
+      path: instance.path,
+      port: env === 'development' && instance.fromDebugPort ? instance.fromDebugPort : instance.fromPort,
+      deployId: `${deployId}-${instance.id}`,
+      env,
+      deploymentVersions: [trafficById[instance.id] || 'blue'],
+      pathRewritePolicy: instance.pathRewritePolicy,
+      altSvc: http3 ? altSvc : undefined,
+    });
+  }
+  return rules;
+};
+
+/**
  * @constant DEFAULT_OPTION
  * @description Default options for the UnderpostRun class.
  * @typedef {Object} UnderpostRunDefaultOptions
@@ -101,6 +163,11 @@ const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =
  * @property {boolean} force - Whether to force the operation.
  * @property {boolean} reset - Whether to reset the operation.
  * @property {boolean} tls - Whether to use TLS.
+ * @property {boolean} gatewayApi - Apply the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. Both manifest sets are always generated.
+ * @property {boolean} disableGatewayApi - Fall back to the Contour HTTPProxy stack in runners where the Gateway API is the default (`cluster`).
+ * @property {string} gatewayClass - GatewayClass name baked into generated Gateway manifests.
+ * @property {boolean} disableHttp3 - Omit QUIC/HTTP3 listener config and the Alt-Svc advertisement.
+ * @property {number} quicPort - UDP port advertised for QUIC/HTTP3.
  * @property {string} cmd - The command to run in the container.
  * @property {string} tty - The TTY option for the container.
  * @property {string} stdin - The stdin option for the container.
@@ -174,6 +241,11 @@ const DEFAULT_OPTION = {
   force: false,
   reset: false,
   tls: false,
+  gatewayApi: false,
+  disableGatewayApi: false,
+  gatewayClass: '',
+  disableHttp3: false,
+  quicPort: 0,
   cmd: '',
   tty: '',
   stdin: '',
@@ -298,16 +370,6 @@ class UnderpostRun {
       }
       const hostListenResult = etcHostFactory([primaryMongoHost]);
       logger.info(hostListenResult.renderHosts);
-    },
-
-    /**
-     * @method etc-hosts
-     * @description Modifies the `/etc/hosts` file to add entries for local access to services,
-     * based on the provided path input.
-     * @param {string} path - The input value, identifier, or path for the operation (used to specify the entries to add to /etc/hosts).
-     */
-    'etc-hosts': (path = '', options = DEFAULT_OPTION) => {
-      etcHostFactory(path.split(','));
     },
 
     /**
@@ -635,10 +697,12 @@ class UnderpostRun {
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'dev-hosts-expose': (path, options = DEFAULT_OPTION) => {
-      shellExec(
-        `node bin deploy ${path} development --disable-update-deployment --disable-update-proxy --kubeadm --etc-hosts`,
-      );
+    'dev-hosts-expose': async (path, options = DEFAULT_OPTION) => {
+      shellExec(`node bin deploy ${path} development --disable-update-deployment --disable-update-proxy --kubeadm`);
+      // /etc/hosts is written here, not by `deploy`: that command has no
+      // --etc-hosts option, and the `etc-hosts` runner already resolves a
+      // deploy's hosts from its conf.server.json.
+      await UnderpostRun.RUNNERS['etc-hosts']('', { ...options, deployId: path });
     },
 
     /**
@@ -649,7 +713,10 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'dev-hosts-restore': (path, options = DEFAULT_OPTION) => {
-      shellExec(`node bin deploy --restore-hosts`);
+      // Rewrite /etc/hosts with the loopback block alone, dropping the deploy
+      // host entries `dev-hosts-expose` (and the `cluster` runner) added.
+      const hostListenResult = etcHostFactory([]);
+      logger.info(hostListenResult.renderHosts);
     },
 
     /**
@@ -972,7 +1039,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
-        ? Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace })
+        ? Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, gatewayApi: options.gatewayApi })
         : '';
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = versions ? versions : targetTraffic;
@@ -992,13 +1059,14 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const pullBundleFlag = options.pullBundle ? ' --pull-bundle' : '';
       const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
       const sshKeyPathFlag = options.sshKeyPath ? ` --ssh-key-path ${options.sshKeyPath}` : '';
+      const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory(options);
 
       shellExec(
         `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
           image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${
           options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag}${sshKeyPathFlag} ${deployId} ${env}`,
+        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags} ${deployId} ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -1009,10 +1077,13 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         shellExec(
           `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --node ${node} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
             options.namespace ? ` --namespace ${options.namespace}` : ''
-          }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}`,
+          }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags}`,
         );
         if (!targetTraffic)
-          targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
+          targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
+            namespace: options.namespace,
+            gatewayApi: options.gatewayApi,
+          });
         await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
         Underpost.deploy.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
       } else
@@ -1233,6 +1304,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           hostTest: instance.host,
           namespace: options.namespace,
           env,
+          gatewayApi: options.gatewayApi,
         });
         if (!promotedIds.has(instance.id)) {
           trafficById[instance.id] = currentTraffic || 'blue';
@@ -1242,29 +1314,40 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         promotedTraffic = trafficById[instance.id];
       }
 
-      for (const host of hosts) {
+      for (const [hostIndex, host] of hosts.entries()) {
         const hostInstances = affected.filter((instance) => instance.host === host);
-        let proxyYaml =
-          Underpost.deploy.baseProxyYamlFactory({ host, env: options.tls ? 'production' : env, options }) +
-          instanceProxyRoutesFactory({ deployId, instances: hostInstances, env, trafficById });
+        const routingEnv = options.tls ? 'production' : env;
+        let proxyYaml = options.gatewayApi
+          ? Underpost.deploy.gatewayYamlFactory({ host, env: routingEnv, options }) +
+            // The QUIC policy configures the merged listener shared by every
+            // Gateway, so exactly one is emitted for the whole promotion.
+            (hostIndex === 0
+              ? Underpost.deploy.clientTrafficPolicyYamlFactory({ host, env: routingEnv, options })
+              : '') +
+            Underpost.deploy.httpRouteYamlFactory({
+              host,
+              options,
+              rules: instanceHttpRouteRulesFactory({ deployId, instances: hostInstances, env, trafficById, options }),
+            })
+          : Underpost.deploy.baseProxyYamlFactory({ host, env: routingEnv, options }) +
+            instanceProxyRoutesFactory({ deployId, instances: hostInstances, env, trafficById });
         if (options.tls) {
           if (options.test) {
-            const sslDir = `./engine-private/ssl/${host}`;
-            const nameSafe = host.replace(/[^a-zA-Z0-9_.-]/g, '_');
-            fs.mkdirpSync(sslDir);
-            shellExec(`bash ./scripts/ssl.sh "${sslDir}" "${host}"`);
-            shellExec(`kubectl delete secret ${host} -n ${options.namespace} --ignore-not-found`);
-            shellExec(
-              `kubectl create secret tls ${host} --cert="${sslDir}/${nameSafe}.pem" --key="${sslDir}/${nameSafe}-key.pem" -n ${options.namespace}`,
-            );
+            Underpost.deploy.selfSignedTlsSecretFactory({
+              host,
+              namespace: options.namespace,
+              underpostRoot: options.underpostRoot || '.',
+            });
           } else {
             shellExec(`sudo kubectl delete Certificate ${host} -n ${options.namespace} --ignore-not-found`);
             proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host });
           }
         }
-        shellExec(`kubectl delete HTTPProxy ${host} --namespace ${options.namespace} --ignore-not-found`);
+        if (options.gatewayApi)
+          shellExec(`kubectl delete HTTPRoute ${host} --namespace ${options.namespace} --ignore-not-found`);
+        else shellExec(`kubectl delete HTTPProxy ${host} --namespace ${options.namespace} --ignore-not-found`);
         shellExec(
-          `kubectl apply -f - -n ${options.namespace} <<EOF
+          `kubectl apply -f - -n ${options.namespace} <<'EOF'
 ${proxyYaml}
 EOF
 `,
@@ -1340,6 +1423,7 @@ EOF
           hostTest: _host,
           namespace: options.namespace,
           env,
+          gatewayApi: options.gatewayApi,
         });
 
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
@@ -1423,7 +1507,7 @@ ${Underpost.deploy
 `;
         // console.log(deploymentYaml);
         shellExec(
-          `kubectl apply -f - -n ${options.namespace} <<EOF
+          `kubectl apply -f - -n ${options.namespace} <<'EOF'
 ${deploymentYaml}
 EOF
 `,
@@ -1703,6 +1787,46 @@ EOF
           trafficById: { [instance.id]: targetTraffic },
         });
 
+      // Each declared page is copied into the static utility's tree; the routes
+      // then rewrite to it. Nothing about the document enters the cluster's
+      // object store, so its size is irrelevant.
+      const staticHostRoot = Underpost.deploy.gatewayStaticHostRootFactory(options);
+      const statusPageEntries = (instance.customStatusPages || []).filter((page) => {
+        if (!page?.status || !page?.hostPath) return false;
+        const { assetPath } = statusPageAssetPathFactory({
+          host: _host,
+          path: instance.path,
+          status: page.status,
+        });
+        return writeStaticAsset({
+          hostRoot: staticHostRoot,
+          assetPath,
+          sourcePath: nodePath.normalize(`${rootPath}/${page.hostPath}`),
+        });
+      });
+
+      // gateway.yaml / httproute.yaml — the Gateway API equivalent of the pair
+      // above: the host Gateway (with the QUIC/HTTP3 listener config) and this
+      // instance's own routes, including the status routes that reach the
+      // static utility instead of this workload.
+      // A per-instance manifest carries a single host, so its Gateway owns the
+      // one QUIC policy for that host's merged listener.
+      const gatewayYaml =
+        Underpost.deploy.gatewayYamlFactory({ host: _host, env, options }) +
+        Underpost.deploy.clientTrafficPolicyYamlFactory({ host: _host, env, options });
+      const httpRouteYaml = Underpost.deploy.httpRouteYamlFactory({
+        host: _host,
+        options,
+        rules: instanceHttpRouteRulesFactory({
+          deployId,
+          instances: [instance],
+          env,
+          trafficById: { [instance.id]: targetTraffic },
+          options,
+          servedStatuses: statusPageEntries.map((page) => `${page.status}`),
+        }),
+      });
+
       // grpc-service.yaml — the parent deploy's gRPC ClusterIP (shared; the
       // instance cmd resolves {{grpc-service-dns}} to it). Reuse the parent's
       // generated manifest when present rather than regenerating it here.
@@ -1719,19 +1843,39 @@ EOF
       const siblingManifests = {
         'pv-pvc.yaml': pvPvcYaml,
         'proxy.yaml': proxyYaml,
+        'gateway.yaml': gatewayYaml,
+        'httproute.yaml': httpRouteYaml,
         'grpc-service.yaml': grpcServiceYaml,
       };
-      for (const [name, content] of Object.entries(siblingManifests)) {
-        if (!content) continue;
-        fs.writeFileSync(`${envManifestPath}/${name}`, content, 'utf8');
-        fs.writeFileSync(`${instanceBuildDir}/${name}`, content, 'utf8');
-      }
+      // Written only when they carry objects, and removed otherwise: an empty
+      // manifest makes `kubectl apply` fail with "no objects passed to apply",
+      // so a build that produces none must leave none behind either.
+      for (const [name, content] of Object.entries(siblingManifests))
+        for (const dir of [envManifestPath, instanceBuildDir])
+          Underpost.deploy.writeManifest({ filePath: `${dir}/${name}`, content });
       logger.info('[instance-build-manifest] Sibling manifests written', {
         project: envManifestPath,
         enginePrivate: instanceBuildDir,
         pvPvc: !!pvPvcYaml,
         proxy: !!proxyYaml,
+        gateway: !!gatewayYaml,
+        httpRoute: !!httpRouteYaml,
+        statusPages: statusPageEntries.length,
         grpcService: !!grpcServiceYaml,
+      });
+      const { gatewayClassName, http3, quicPort, altSvc } = Underpost.deploy.gatewayApiConfigFactory(options);
+      logger.info('[instance-build-manifest] Gateway API manifests written', {
+        host: _host,
+        gatewayClass: gatewayClassName,
+        http3,
+        quicPort,
+        altSvc: http3 ? altSvc : null,
+        statusPages: (instance.customStatusPages || []).map((page) => ({
+          status: page.status,
+          route: `${instance.path === '/' ? '' : instance.path}/${page.status}`,
+          hostPath: page.hostPath,
+        })),
+        statusPageResources: statusPageEntries,
       });
 
       // --- Per-instance env files -----------------------------------------
@@ -1772,9 +1916,12 @@ EOF
         }
         fs.copyFileSync(outputPath, `${rootPath}/deployment.yaml`);
         // Sibling manifests alongside deployment.yaml at the project root.
-        for (const name of ['pv-pvc.yaml', 'proxy.yaml', 'grpc-service.yaml']) {
+        for (const name of ['pv-pvc.yaml', 'proxy.yaml', 'gateway.yaml', 'httproute.yaml', 'grpc-service.yaml']) {
           const src = `${envManifestPath}/${name}`;
+          // Absence is mirrored too, so the repo never ships a manifest this
+          // build stopped producing.
           if (fs.existsSync(src)) fs.copyFileSync(src, `${rootPath}/${name}`);
+          else fs.removeSync(`${rootPath}/${name}`);
         }
         logger.info('[instance-build-manifest] Production artifacts copied to project root', {
           rootPath,
@@ -2128,7 +2275,15 @@ EOF`);
     },
     /**
      * @method cluster
-     * @description Deploys a full production/development ready Kubernetes cluster environment including MongoDB, MariaDB, Valkey, Contour (Ingress), and Cert-Manager, and deploys all services.
+     * @description Deploys a full production/development ready Kubernetes cluster environment including MongoDB,
+     * MariaDB, Valkey, the Gateway API data plane (Envoy Gateway), Contour, and Cert-Manager, and deploys all services.
+     *
+     * Ingress is served by the Gateway API stack (Gateway + HTTPRoute) with QUIC/HTTP3 in **both** environments;
+     * `--disable-gateway-api` falls back to the Contour HTTPProxy stack. Because HTTP/3 has no cleartext transport,
+     * development terminates TLS too: a self-signed certificate per host (mkcert via `scripts/ssl.sh`, whose root CA
+     * the script installs into the system + NSS trust stores) is issued into the secret the Gateway listener
+     * references, and every host is written to `/etc/hosts` so the operator's browser reaches the PWA at
+     * `https://<host>` on the local machine.
      * @param {string} path - The input value, identifier, or path for the operation.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -2151,17 +2306,25 @@ EOF`);
               'express',
               fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+'),
             ];
-      shellExec(
-        `${baseCommand} image${baseClusterCommand} --build ${
-          runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
-        } --${clusterType}`,
-      );
+      // shellExec(
+      //   `${baseCommand} image${baseClusterCommand} --build ${
+      //     runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
+      //   } --${clusterType}`,
+      // );
       if (!deployList) {
         deployList = [];
         logger.warn('No deploy list provided');
       } else deployList = deployList.split('+');
       await timer(5000);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --mongodb`);
+      // --reset-mongodb wipes the retained hostPath volumes before the rollout.
+      // This workflow already tore the node down and re-imports every database
+      // from its git backup a few lines below, so inheriting the previous
+      // cluster's replica set config is never wanted — that state leaves mongod
+      // parked outside its own config and the bootstrap fighting to recover it.
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --mongodb --reset-mongodb`);
+      if (deployList.includes('dd-cyberia'))
+        shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --ipfs --replicas 1`);
+
       if (runtimeImage === 'lampp') {
         await timer(5000);
         shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --mariadb`);
@@ -2174,19 +2337,495 @@ EOF`);
       }
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --valkey`);
+      // Exactly one ingress stack is installed, because the two cannot coexist
+      // on this node: Contour's Envoy DaemonSet declares hostPort 80/443, so the
+      // CNI hostport plugin DNATs everything arriving on those ports straight to
+      // it — before the Gateway API data plane's own listener can see them. With
+      // no HTTPProxy objects to program (this workflow applies HTTPRoutes),
+      // Contour's Envoy has no listeners and refuses the redirected connection,
+      // which looks exactly like a gateway that is not listening at all.
+      const gatewayApi = options.disableGatewayApi !== true;
+      const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory({ ...options, gatewayApi });
       await timer(5000);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --contour`);
+      if (gatewayApi) {
+        shellExec(
+          `${baseCommand} cluster${baseClusterCommand} --${clusterType} --gateway-api${
+            options.gatewayClass ? ` --gateway-class ${options.gatewayClass}` : ''
+          }`,
+        );
+      } else shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --contour`);
       if (env === 'production') {
         await timer(5000);
         shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --cert-manager`);
       }
+
+      // Development terminates TLS with a locally trusted certificate instead of
+      // cert-manager: QUIC/HTTP3 has no cleartext transport, so without it the
+      // dev gateway would fall back to an HTTP-only listener. The hosts are
+      // written to /etc/hosts in a single pass — etcHostFactory rewrites the
+      // file, so one call per deploy would drop the previous deploy's entries.
+      const hosts = [
+        ...new Set(
+          deployList.flatMap((deployId) => {
+            const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+            if (fs.existsSync(confServerPath)) return Object.keys(loadConfServerJson(confServerPath));
+            logger.warn(`[cluster] No conf.server.json for ${deployId}; no hosts resolved`, { confServerPath });
+            return [];
+          }),
+        ),
+      ];
+      if (env === 'development') {
+        for (const host of hosts)
+          Underpost.deploy.selfSignedTlsSecretFactory({
+            host,
+            namespace: options.namespace || 'default',
+            underpostRoot,
+          });
+        const hostListenResult = etcHostFactory(hosts);
+        logger.info(hostListenResult.renderHosts);
+      }
+
+      // Regenerating the manifests is required, not incidental: the TLS listener
+      // — and with it the QUIC policy and the HTTPRoute set — is only emitted
+      // when the TLS and gateway flags are known at generation time. It takes two
+      // passes because `--build-manifest` returns after writing the manifests, so
+      // the same flags have to be repeated on the apply call.
       for (const deployId of deployList) {
-        shellExec(
-          `${baseCommand} deploy ${deployId} ${env} --${clusterType}${env === 'production' ? ' --cert' : ''}${
-            env === 'development' ? ' --etc-hosts' : ''
-          }${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
+        const deployFlags =
+          `--${clusterType}${env === 'production' ? ' --cert' : ' --self-signed'}${gatewayApiFlags}` +
+          `${options.namespace ? ` --namespace ${options.namespace}` : ''}` +
+          (deployId === 'dd-cyberia'
+            ? ` --image 'underpost/engine-cyberia:v3.2.80'  \
+                --versions blue \
+                --image-pull-policy Always \
+                --cmd 'cd /home/dd/engine, \
+                underpost clone underpostnet/engine-cyberia, \
+                mkdir -p /home/dd/engine/src/client/public/itemledger \
+                  /home/dd/engine/src/client/public/cryptokoyn \
+                  /home/dd/engine/src/client/components/cryptokoyn \
+                  /home/dd/engine/src/client/components/itemledger \
+                  /home/dd/engine/hardhat, \
+                cp -a ./engine-cyberia/src/client/public/itemledger/. /home/dd/engine/src/client/public/itemledger/, \
+                cp -a ./engine-cyberia/src/client/public/cryptokoyn/. /home/dd/engine/src/client/public/cryptokoyn/, \
+                cp -a ./engine-cyberia/src/client/components/cryptokoyn/. /home/dd/engine/src/client/components/cryptokoyn/, \
+                cp -a ./engine-cyberia/src/client/components/itemledger/. /home/dd/engine/src/client/components/itemledger/, \
+                cp -a ./engine-cyberia/src/client/Itemledger.index.js /home/dd/engine/src/client/Itemledger.index.js, \
+                cp -a ./engine-cyberia/src/client/Cryptokoyn.index.js /home/dd/engine/src/client/Cryptokoyn.index.js, \
+                rm -rf ./engine-cyberia, \
+                sudo rm -rf ./engine-private/, \
+                node bin clone underpostnet/engine-cyberia-private, \
+                sudo mv ./engine-cyberia-private ./engine-private, \
+                node bin env dd-cyberia ${env}, \
+                node ./engine-private/itc-scripts/dd-cyberia-0.js, \
+                sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
+                node bin/cyberia run-workflow import-default-items, \
+                node bin env dd-cyberia ${env}, \
+                node bin client dd-cyberia ${env}, \
+                node bin start dd-cyberia ${env} --run'`
+            : '');
+        shellExec(`${baseCommand} deploy ${deployId} ${env} --build-manifest ${deployFlags}`);
+        // Seed the static tree before the routes exist, so every status page and
+        // intercepted context the manifests just pointed at resolves from the
+        // first request. This pass places what this checkout built; the pass
+        // after the rollout replaces each document with the container's own,
+        // which is the only place clients built from private sources exist.
+        if (gatewayApi) shellExec(`${baseCommand} deploy ${deployId} ${env} --sync-static ${deployFlags}`);
+        shellExec(`${baseCommand} deploy ${deployId} ${env} ${deployFlags}`);
+        // The wait is on the rollout rather than the engine's own deploy signal,
+        // which is written by the container and would not be observable here.
+        if (gatewayApi) {
+          const namespace = options.namespace || 'default';
+          const version = /--versions\s+([^\s,]+)/.exec(deployFlags)?.[1] || 'blue';
+          shellExec(`kubectl rollout status deployment/${deployId}-${env}-${version} -n ${namespace} --timeout=15m`, {
+            silentOnError: true,
+          });
+          // The routes are already correct: the apply pass waits for ready
+          // endpoints before programming them, because Envoy Gateway resolves
+          // backends at translation time. Nothing is re-applied here — deleting
+          // and re-adding the route set would drop every hostname out of the
+          // data plane while Envoy reconverges, which reads as 404s and reset
+          // connections for as long as it takes.
+          shellExec(`${baseCommand} deploy ${deployId} ${env} --sync-static ${deployFlags}`);
+        }
+      }
+      logger.info('[cluster] Ingress stack deployed', {
+        env,
+        stack: gatewayApi ? 'gateway-api' : 'httpproxy',
+        gatewayClass: gatewayApi ? Underpost.deploy.gatewayApiConfigFactory(options).gatewayClassName : null,
+        http3: gatewayApi && options.disableHttp3 !== true,
+        tls: env === 'production' ? 'cert-manager' : 'self-signed',
+        hosts,
+      });
+      if (gatewayApi) await UnderpostRun.RUNNERS['gateway-status']('', options);
+    },
+
+    /**
+     * @method gateway-status
+     * @description Reports whether the Gateway API data plane is actually
+     * serving. Applying a Gateway only records intent: the controller
+     * provisions Envoy asynchronously, so a deploy can finish cleanly while
+     * nothing listens on the node — the failure then surfaces much later as a
+     * bare "connection refused" from the browser. This waits for the Gateways to
+     * be Programmed and prints the data plane's pods and services.
+     * @param {string} path - Unused.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'gateway-status': async (path = '', options = DEFAULT_OPTION) => {
+      const namespace = options.namespace || 'default';
+      const dataPlaneNamespace = 'envoy-gateway-system';
+      const capture = (cmd) => shellExec(cmd, { stdout: true, silent: true, silentOnError: true })?.trim?.() || '';
+
+      const programmed = shellExec(
+        `kubectl wait --for=condition=Programmed --timeout=180s gateway --all -n ${namespace}`,
+        { silentOnError: true },
+      );
+      if (programmed?.code !== 0)
+        logger.warn(
+          '[gateway-status] Gateways are not Programmed. The listeners are not being served; ' +
+            `check 'kubectl describe gateway -n ${namespace}' and the controller logs in ${dataPlaneNamespace}.`,
+        );
+      shellExec(`kubectl get gateway -n ${namespace} -o wide`, { silentOnError: true });
+
+      // Per-listener truth. A Gateway reports Programmed while individual
+      // listeners are rejected, so the aggregate condition hides exactly the
+      // case where some hostnames serve and others do not. Prints each
+      // listener's attached route count and any failing condition with its
+      // reason — an unresolved TLS secret or a rejected listener names itself.
+      const listenerStatus = capture(
+        `kubectl get gateway -n ${namespace} -o jsonpath=` +
+          `'{range .items[*]}{.metadata.name}{"  "}` +
+          `{range .status.listeners[*]}{.name}=routes:{.attachedRoutes}` +
+          `{range .conditions[?(@.status=="False")]}{" "}{.type}/{.reason}{end}{"  "}{end}{"\\n"}{end}'`,
+      );
+      logger.info('[gateway-status] Listeners (name=routes + failing conditions)\n' + (listenerStatus || '(none)'));
+
+      // Envoy Gateway policies attach to a Gateway but configure the merged
+      // listener, so two of them competing for the same listener is resolved by
+      // rejecting one — and the rejection is recorded here, not on the Gateway.
+      const policyStatus = capture(
+        `kubectl get clienttrafficpolicy -n ${namespace} -o jsonpath=` +
+          `'{range .items[*]}{.metadata.name}{range .status.ancestors[*]}` +
+          `{range .conditions[?(@.status=="False")]}{"  "}{.type}/{.reason}: {.message}{end}{end}{"\\n"}{end}'`,
+      );
+      logger.info(
+        '[gateway-status] ClientTrafficPolicies (failing conditions)\n' +
+          (policyStatus
+            .split('\n')
+            .filter((line) => line.includes('  '))
+            .join('\n') || '(none — all policies accepted)'),
+      );
+
+      // Envoy Gateway policies that fail to translate are not visible on the
+      // Gateway or the route: the resource is admitted, its status carries the
+      // rejection, and the xDS snapshot it belonged to can go with it — which
+      // reads downstream as every hostname answering route_not_found.
+      const backendPolicyStatus = capture(
+        `kubectl get backendtrafficpolicy -n ${namespace} -o jsonpath=` +
+          `'{range .items[*]}{.metadata.name}{range .status.ancestors[*]}` +
+          `{range .conditions[?(@.status=="False")]}{"  "}{.type}/{.reason}: {.message}{end}{end}{"\n"}{end}' ` +
+          `2>/dev/null`,
+      );
+      logger.info(
+        '[gateway-status] BackendTrafficPolicies (failing conditions)\n' +
+          (backendPolicyStatus
+            .split('\n')
+            .filter((line) => line.includes('  '))
+            .join('\n') || '(none — all policies accepted)'),
+      );
+
+      // Route-level conditions. A rule that references something unresolvable
+      // can cost the whole route, and then every path on that hostname answers
+      // with a bare gateway 404 while the Gateway and its listeners stay green.
+      const routeStatus = capture(
+        `kubectl get httproute -n ${namespace} -o jsonpath=` +
+          `'{range .items[*]}{.metadata.name}{range .status.parents[*]}` +
+          `{range .conditions[?(@.status=="False")]}{"  "}{.type}/{.reason}: {.message}{end}{end}{"\\n"}{end}'`,
+      )
+        .split('\n')
+        .filter((line) => line.includes('  '));
+      logger.info(
+        '[gateway-status] HTTPRoutes (failing conditions)\n' +
+          (routeStatus.join('\n') || '(none — all routes accepted)'),
+      );
+
+      // The workloads the routes point at. A status code that moves between runs
+      // (500 here, 404 there) is the application's, not the gateway's, and the
+      // gateway config cannot explain it — restarts and unready containers can.
+      const backends = capture(
+        `kubectl get pods -n ${namespace} -o custom-columns=` +
+          `'NAME:.metadata.name,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount,STATUS:.status.phase'`,
+      );
+      logger.info('[gateway-status] Workloads behind the routes\n' + (backends || '(none)'));
+
+      // A Programmed Gateway only means Envoy was provisioned — not that it is
+      // reachable from this machine. Which of the two is false decides the fix,
+      // so report the pod's network mode and container ports, the service type
+      // and node ports, and what the host is actually listening on.
+      const dataPlane = capture(
+        `kubectl get pods -n ${dataPlaneNamespace} -o custom-columns=` +
+          `'NAME:.metadata.name,HOST_NETWORK:.spec.hostNetwork,PORTS:.spec.containers[*].ports[*].containerPort'`,
+      );
+      const services = capture(
+        `kubectl get svc -n ${dataPlaneNamespace} -o custom-columns=` +
+          `'NAME:.metadata.name,TYPE:.spec.type,PORTS:.spec.ports[*].port,NODEPORTS:.spec.ports[*].nodePort,TARGETS:.spec.ports[*].targetPort'`,
+      );
+      logger.info('[gateway-status] Data plane\n' + dataPlane + '\n\n' + services);
+
+      // Envoy creates its listener sockets only once the control plane has
+      // pushed a config with routes attached, which lands a little after the
+      // pod reports Ready. Polling that window is the difference between
+      // "connection refused" and a working gateway, so wait for the socket
+      // rather than sampling it once.
+      const listenerFilter = `grep -E ':(80|443|10080|10443) '`;
+      let hostListeners = '';
+      for (let attempt = 0; attempt < 30; attempt++) {
+        hostListeners = capture(`sudo ss -lntupH 2>/dev/null | ${listenerFilter}`);
+        if (/:443\s/.test(hostListeners)) break;
+        await timer(2000);
+      }
+      const servesHttps = /:443\s/.test(hostListeners);
+      logger.info('[gateway-status] Host listeners on 80/443/10080/10443\n' + (hostListeners || '(none)'));
+
+      if (!servesHttps) {
+        logger.warn(
+          '[gateway-status] Nothing is listening on this host port 443, so a browser reaching the ' +
+            'hostnames through /etc/hosts gets "connection refused". Compare the two tables above: ' +
+            'HOST_NETWORK=false means the pod is on the pod network (only the ClusterIP/NodePort is ' +
+            'reachable); HOST_NETWORK=true with PORTS 10080/10443 means the privileged-port remap is ' +
+            'still active. Until it is resolved, forward the merged service to expose it locally:\n' +
+            `  kubectl port-forward -n ${dataPlaneNamespace} svc/<envoy-service> 443:443 80:80 --address 127.0.0.1`,
+        );
+        return { programmed: programmed?.code === 0, servesHttps, dataPlane, services, hostListeners, probes: [] };
+      }
+
+      // An open socket still is not proof the hostname routes anywhere. Probe
+      // each Gateway hostname exactly as the browser would — through /etc/hosts,
+      // validating the certificate against the trust store `scripts/ssl.sh`
+      // populated — so the workflow ends on an observed response, not an
+      // inference. Each host is probed twice: over loopback, and pinned to the
+      // node IP. The two answers separate a loopback-specific block from a data
+      // plane that is not reachable at all.
+      const nodeIp = capture(
+        `kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'`,
+      );
+      // The `server` header is reported alongside the status because the code
+      // alone cannot say who produced it: `500 (envoy)` is a gateway or upstream
+      // failure, while `500` from the workload's own server is an application
+      // error, and the two lead to completely different fixes.
+      const probeUrl = (url, resolveArgs = '') => {
+        const raw = capture(
+          `curl -sS -o /dev/null -D - -w 'HTTP_CODE=%{http_code}' --max-time 10 ${resolveArgs}${url} 2>&1 | tr -d '\\r'`,
+        );
+        const status = /HTTP_CODE=([0-9]{3})/.exec(raw)?.[1];
+        if (!status) return raw.split('\n').find((line) => line.startsWith('curl:')) || 'no-response';
+        const server = /^server:\s*(.+)$/im.exec(raw)?.[1]?.trim();
+        return server ? `${status} (${server})` : status;
+      };
+      const probe = (host, resolveTo) =>
+        probeUrl(`https://${host}`, resolveTo ? `--resolve ${host}:443:${resolveTo} ` : '');
+      // Port 80 is the same Envoy process, same host, same listener set — only
+      // the port differs. It separates "this gateway is unreachable" from
+      // "something specifically rejects 443".
+      const probeHttp = (host) => probeUrl(`http://${host}`);
+      // curl writes `000` when it never got a response, so a bare three-digit
+      // match would read a failed connection as success.
+      const answered = (status) => /^[1-5][0-9]{2}\b/.test(status);
+      // The routes, not the listeners, are where the hostnames live: a
+      // consolidated Gateway serves every hostname from one hostname-less
+      // listener and picks the certificate by SNI, so reading the listeners
+      // would leave nothing to probe.
+      const hosts = [
+        ...new Set(
+          (path
+            ? path.split(',')
+            : capture(`kubectl get httproute -n ${namespace} -o jsonpath='{.items[*].spec.hostnames[*]}'`).split(/\s+/)
+          )
+            .map((host) => host.trim())
+            .filter(Boolean),
+        ),
+      ];
+      const probes = hosts.map((host) => ({
+        host,
+        http: probeHttp(host),
+        loopback: probe(host),
+        ...(nodeIp ? { nodeIp: probe(host, nodeIp) } : {}),
+      }));
+      logger.info('[gateway-status] HTTPS probe', { nodeIp: nodeIp || '(unknown)', probes });
+
+      // A gateway answer alone cannot say whether the gateway or the workload
+      // produced the code: Envoy relays an upstream response unchanged. So when
+      // a hostname fails, ask its backend the *same* question from inside the
+      // cluster, bypassing Envoy.
+      //
+      // Same question is the whole point: these workloads route by virtual host,
+      // so a probe carrying `Host: <service-name>` exercises a different branch
+      // than the browser did and its answer means nothing. Each probe therefore
+      // replays the route it came from — the Gateway hostname, the rule path,
+      // and the rewrite the rule would have applied — against the rule's own
+      // backend. Only then do the two columns compare.
+      const failing = probes.filter((entry) => /^[45]/.test(entry.loopback) || /^[45]/.test(entry.http));
+      if (failing.length > 0) {
+        const routes = JSON.parse(
+          capture(`kubectl get httproute -n ${namespace} -o json`) || '{"items":[]}',
+        ).items.filter((route) => failing.some((entry) => route.spec?.hostnames?.includes(entry.host)));
+        // Exec into the static utility rather than spawning a probe pod: it is
+        // installed with the gateway stack, sits in this namespace, and its
+        // BusyBox shell already carries wget — no image pull, no pod churn.
+        const probePod = capture(
+          `kubectl get pods -n ${namespace} -l app=${GATEWAY_STATIC.name} -o jsonpath='{.items[0].metadata.name}'`,
+        );
+        if (!probePod || routes.length === 0) {
+          logger.warn(
+            '[gateway-status] Cannot probe backends directly: ' +
+              (probePod ? 'no HTTPRoute matched a failing hostname' : `no ${GATEWAY_STATIC.name} pod in ${namespace}`),
+          );
+        } else {
+          const backendProbes = [];
+          for (const route of routes) {
+            const host = route.spec.hostnames[0];
+            for (const rule of route.spec.rules || []) {
+              const backend = (rule.backendRefs || [])[0];
+              if (!backend) continue;
+              const match = rule.matches?.[0]?.path?.value || '/';
+              const rewrite = (rule.filters || []).find((filter) => filter.type === 'URLRewrite')?.urlRewrite?.path;
+              const target =
+                rewrite?.type === 'ReplaceFullPath'
+                  ? rewrite.replaceFullPath
+                  : rewrite?.type === 'ReplacePrefixMatch'
+                    ? rewrite.replacePrefixMatch
+                    : match;
+              const raw = capture(
+                `kubectl exec -n ${namespace} ${probePod} -- wget -S -O /dev/null -T 5 ` +
+                  `--header 'Host: ${host}' http://${backend.name}:${backend.port}${target} 2>&1 || true`,
+              );
+              const code = /HTTP\/[0-9.]+\s+([0-9]{3})/.exec(raw)?.[1];
+              const failure = raw.split('\n').find((line) => line.includes('wget:'));
+              backendProbes.push({
+                request: `${host}${match}`,
+                backend: `${backend.name}:${backend.port}${target}`,
+                direct: code || failure?.trim() || 'no-response',
+                gateway: failing.find((entry) => entry.host === host)?.http,
+              });
+            }
+          }
+          logger.info('[gateway-status] Backend probe (same Host and path, bypassing Envoy)', { backendProbes });
+          // Only the rule the browser actually hit is comparable, so judge on
+          // the root rule rather than on every rule of the route.
+          const rootProbes = backendProbes.filter((entry) => entry.request.endsWith('/'));
+          const appFault = rootProbes.filter((entry) => `${entry.direct}` === `${entry.gateway}`);
+          const gatewayFault = rootProbes.filter(
+            (entry) => /^[0-9]{3}$/.test(entry.direct) && `${entry.direct}` !== `${entry.gateway}`,
+          );
+          if (gatewayFault.length > 0) {
+            logger.warn(
+              '[gateway-status] These backends answer differently without Envoy in the path, so the gateway is ' +
+                'not relaying the workload response — the routing layer is the fault:\n  ' +
+                gatewayFault
+                  .map((entry) => `${entry.request} -> backend ${entry.direct}, gateway ${entry.gateway}`)
+                  .join('\n  '),
+            );
+            // The access log is the only artifact that says *why*. Its
+            // response_flags column separates an Envoy local reply (NR no route,
+            // UF upstream connect failure, UH no healthy upstream, DPE protocol
+            // error) from a relayed upstream status, which no amount of probing
+            // from outside can distinguish.
+            // Selector, not owning-gateway labels: under `mergeGateways` the data
+            // plane belongs to the GatewayClass, so per-Gateway labels are absent
+            // and a selector built from them silently matches nothing.
+            const dataPlaneLog = capture(
+              `kubectl logs -n ${dataPlaneNamespace} ` +
+                `-l app.kubernetes.io/name=envoy,app.kubernetes.io/component=proxy ` +
+                `-c envoy --tail=60 --prefix 2>/dev/null | tail -60`,
+            );
+            logger.info(
+              '[gateway-status] Data plane access log (response_flags names the reason)\n' +
+                (dataPlaneLog || `(none — check: kubectl get pods -n ${dataPlaneNamespace} --show-labels)`),
+            );
+            // A translation the control plane rejected after admitting the
+            // resource surfaces only here, never on the object's own status.
+            const controlPlaneLog = capture(
+              `kubectl logs -n ${dataPlaneNamespace} deployment/envoy-gateway --tail=40 2>/dev/null ` +
+                `| grep -Ei 'error|warn|reject|invalid' | tail -20`,
+            );
+            logger.info('[gateway-status] Control plane errors\n' + (controlPlaneLog || '(none in the last 40 lines)'));
+          }
+          if (appFault.length > 0)
+            logger.warn(
+              '[gateway-status] These backends return the same code without Envoy in the path, so the gateway is ' +
+                'relaying an application response — the routing layer is not the fault:\n  ' +
+                appFault.map((entry) => `${entry.request} -> ${entry.direct}`).join('\n  ') +
+                `\n  Read the workload log: kubectl logs -n ${namespace} <pod>`,
+            );
+        }
+      }
+
+      const unreachable = probes.filter((entry) => !answered(entry.loopback));
+      if (unreachable.length > 0) {
+        // Narrow it here rather than leaving the operator with a bare refusal.
+        // A socket bound on 0.0.0.0 that resets a loopback connection is either
+        // not in this network namespace, or something is rejecting the packet.
+        const listenerPid = /pid=(\d+)/.exec(hostListeners)?.[1];
+        const hostNetns = capture(`sudo readlink /proc/1/ns/net`);
+        const listenerNetns = listenerPid ? capture(`sudo readlink /proc/${listenerPid}/ns/net`) : '';
+        // Anything that can answer a SYN with ICMP port-unreachable, from either
+        // rule engine. firewalld on RHEL 9 keeps its rules in its own `inet
+        // firewalld` nftables table, which `iptables-save` cannot see at all —
+        // grepping only iptables hides half the packet path.
+        const rejectRules = capture(
+          `sudo iptables-save 2>/dev/null | grep -E '(REJECT|DROP)' | grep -E '(dport|dpt:) ?(443|https)\\b' | head -20`,
+        );
+        const nftRules = capture(
+          `sudo nft list ruleset 2>/dev/null | grep -nE '(dport|ports) .*(443|https)|reject' | head -20`,
+        );
+        // A hostPort claim outranks any process listening on the node: the CNI
+        // plugin DNATs the port to the claiming pod first, so the packet never
+        // reaches the gateway. This is the one failure that leaves every other
+        // signal green.
+        const hostPortHijack = capture(
+          `sudo nft list ruleset 2>/dev/null | grep -E 'dport (80|443)\\b.*dnat to' | head -5`,
+        );
+        const hostPortClaims = capture(
+          `kubectl get daemonset,deployment -A ` +
+            `-o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}={.spec.template.spec.containers[*].ports[*].hostPort}{"\\n"}{end}'`,
+        )
+          .split('\n')
+          .filter((line) => /=.*\b(80|443)\b/.test(line));
+        logger.warn(`[gateway-status] ${unreachable.length}/${probes.length} hostnames did not answer over HTTPS`, {
+          listenerPid: listenerPid || '(unknown)',
+          hostNetns: hostNetns || '(unknown)',
+          listenerNetns: listenerNetns || '(unknown)',
+          sameNetworkNamespace: !!hostNetns && hostNetns === listenerNetns,
+          nodeIpReachable: probes.some((entry) => answered(entry.nodeIp)),
+          endpointlessServices: capture(
+            `kubectl get svc -A -o jsonpath=` + `'{range .items[*]}{.metadata.namespace}/{.metadata.name} {end}'`,
+          )
+            .split(/\s+/)
+            .filter(Boolean)
+            .filter((ref) => {
+              const [ns, name] = ref.split('/');
+              return !capture(
+                `kubectl get endpointslice -n ${ns} -l kubernetes.io/service-name=${name} ` +
+                  `-o jsonpath='{.items[*].endpoints[*].addresses[*]}'`,
+              ).trim();
+            }),
+          httpReachable: probes.some((entry) => answered(entry.http)),
+          hostPortHijack: hostPortHijack || '(none)',
+          hostPortClaims: hostPortClaims.length > 0 ? hostPortClaims : '(none)',
+          rejectRules: rejectRules || '(none matching 443 in iptables)',
+          nftRules: nftRules || '(none matching 443 in nftables)',
+        });
+        logger.warn(
+          '[gateway-status] Read it as: hostPortHijack non-empty → another workload reserved host port ' +
+            '80/443 and the CNI DNATs those ports to it before the gateway can see them; hostPortClaims ' +
+            'names the owner, and only one ingress stack can hold them. httpReachable=true → the same Envoy ' +
+            'answers on 80, so only 443 is rejected. sameNetworkNamespace=false → the listener is not on ' +
+            'this host despite hostNetwork. endpointlessServices naming a Service that publishes 80/443 → ' +
+            'kube-proxy REJECTs those ports on its behalf; delete it.',
         );
       }
+
+      return { programmed: programmed?.code === 0, servesHttps, dataPlane, services, hostListeners, probes };
     },
     /**
      * @method deploy
@@ -2920,7 +3559,7 @@ EOF`);
 
       const envs = Underpost.env.list();
 
-      const cmd = `kubectl apply -f - <<EOF
+      const cmd = `kubectl apply -f - <<'EOF'
 apiVersion: ${apiVersion}
 kind: ${kindType}
 metadata:
