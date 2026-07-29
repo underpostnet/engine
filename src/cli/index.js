@@ -264,7 +264,8 @@ program
   .option('--reset', `Deletes all clusters and prunes all related data and caches.`)
   .option(
     '--reset-mongodb',
-    `Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node.`,
+    `Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node. ` +
+      `Combined with --mongodb it instead wipes the retained hostPath volumes as part of that deploy, so the replica set starts from empty data.`,
   )
   .option('--mariadb', 'Initializes the cluster with a MariaDB statefulset.')
   .option('--mysql', 'Initializes the cluster with a MySQL statefulset.')
@@ -275,6 +276,12 @@ program
   .option('--valkey', 'Initializes the cluster with a Valkey service.')
   .option('--ipfs', 'Initializes the cluster with an ipfs-cluster statefulset.')
   .option('--contour', 'Initializes the cluster with Project Contour base HTTPProxy and Envoy.')
+  .option(
+    '--gateway-api',
+    'Initializes the cluster with the Gateway API control plane (CRDs, Envoy Gateway, GatewayClass) used by generated HTTPRoute + QUIC/HTTP3 manifests. ' +
+      'With --dev the data plane binds the listener ports on the host network for direct browser access.',
+  )
+  .option('--gateway-class <name>', 'GatewayClass name to provision (default "eg").')
   .option(
     '--node-port',
     'Exposes enabled ready services (e.g. MongoDB 4.4, Valkey) to the host/public network via their NodePort Service manifest.',
@@ -350,6 +357,10 @@ program
     '--build-manifest',
     'Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets.',
   )
+  .option(
+    '--sync-static',
+    'Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready.',
+  )
   .option('--replicas <replicas>', 'Sets a custom number of replicas for deployments.')
   .option('--image <image>', 'Sets a custom image for deployments.')
   .option('--versions <deployment-versions>', 'A comma-separated list of custom deployment versions.')
@@ -366,6 +377,17 @@ program
   .option('--tcp-probes', 'Generates legacy TCP socket probes instead of HTTP internal-status probes (migration).')
   .option('--disable-update-proxy', 'Disables updates to proxies.')
   .option('--disable-deployment-proxy', 'Disables proxies of deployments.')
+  .option(
+    '--gateway-api',
+    'Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. ' +
+      'Both manifest sets are always generated; this selects which one is applied.',
+  )
+  .option('--gateway-class <name>', 'GatewayClass name for generated Gateway manifests (default "eg").')
+  .option(
+    '--disable-http3',
+    'Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests.',
+  )
+  .option('--quic-port <port>', 'UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443).')
   .option('--disable-update-volume', 'Disables updates to volume mounts during deployment.')
   .option(
     '--status',
@@ -718,6 +740,21 @@ program
   .option('--timeout-idle <duration>', 'Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").')
   .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
+  .option(
+    '--gateway-api',
+    'Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. ' +
+      'Both manifest sets are always generated; this selects which one is applied.',
+  )
+  .option(
+    '--disable-gateway-api',
+    'Falls back to the Contour HTTPProxy stack in runners where the Gateway API is the default (cluster).',
+  )
+  .option('--gateway-class <name>', 'GatewayClass name for generated Gateway manifests (default "eg").')
+  .option(
+    '--disable-http3',
+    'Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests.',
+  )
+  .option('--quic-port <port>', 'UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443).')
   .option('--disable-private-conf-update', 'Disables updates to private configuration during execution.')
   .option('--logs', 'Streams logs during the runner execution.')
   .option('--monitor-status <status>', 'Sets the status to monitor for pod/resource (default: "Running").')

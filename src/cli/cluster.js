@@ -7,6 +7,8 @@
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
+import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
+import { GATEWAY_STATIC, seedDefaultStatusPage } from '../server/gateway-static.js';
 import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/MongooseDB.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 import os from 'os';
@@ -14,6 +16,18 @@ import fs from 'fs-extra';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
+
+// Pinned Gateway API control plane. The CRD release and the implementation are
+// upgraded together, and the pairing is not free choice: Envoy Gateway builds
+// against one `sigs.k8s.io/gateway-api` version (v1.4.2 -> v1.3.0, per its
+// go.mod) and reads fields the older CRD schemas do not define, which the API
+// server silently strips. Check the implementation's go.mod before moving
+// either pin.
+const GATEWAY_API_RELEASE = 'v1.3.0';
+const ENVOY_GATEWAY_VERSION = 'v1.4.2';
+// Namespace the upstream Contour render deploys into, and the only one where an
+// `app=envoy` selector resolves to its DaemonSet.
+const CONTOUR_NAMESPACE = 'projectcontour';
 
 /**
  * @class UnderpostCluster
@@ -41,9 +55,11 @@ class UnderpostCluster {
      * @param {boolean} [options.ipfs=false] - Deploy ipfs-cluster statefulset.
      * @param {boolean} [options.info=false] - Display extensive Kubernetes cluster information.
      * @param {boolean} [options.certManager=false] - Deploy Cert-Manager for certificate management.
+     * @param {boolean} [options.gatewayApi=false] - Install the Gateway API control plane (CRDs, Envoy Gateway, and the GatewayClass generated Gateways attach to). Exposure follows the environment: host network in `--dev`, NodePort otherwise.
+     * @param {string} [options.gatewayClass=''] - GatewayClass name to provision; must match the one baked into generated manifests.
      * @param {boolean} [options.listPods=false] - List Kubernetes pods.
      * @param {boolean} [options.reset=false] - Perform a comprehensive reset of Kubernetes and container environments.
-     * @param {boolean} [options.resetMongodb=false] - Perform a targeted reset of MongoDB components without restarting the entire cluster.
+     * @param {boolean} [options.resetMongodb=false] - Perform a targeted reset of MongoDB components without restarting the entire cluster. Combined with `--mongodb` it instead wipes the retained volumes as part of that deploy.
      * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
      * @param {string} [options.nsUse=''] - Set the current kubectl namespace (creates namespace if it doesn't exist).
      * @param {string} [options.namespace='default'] - Kubernetes namespace for cluster operations.
@@ -165,8 +181,12 @@ class UnderpostCluster {
         });
       }
 
-      // Targeted MongoDB-only reset (does not restart the whole node)
-      if (options.resetMongodb) {
+      // Targeted MongoDB-only reset (does not restart the whole node). Combined
+      // with --mongodb it is a modifier instead: the deploy below wipes the
+      // retained volumes before rolling the StatefulSet out. `--reset` cannot
+      // serve that purpose — it short-circuits into the whole-node reset above,
+      // which is why `initReplicaSet`'s reset branch was unreachable from the CLI.
+      if (options.resetMongodb && !options.mongodb) {
         const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
         return await MongoBootstrap.reset({
           namespace: options.namespace,
@@ -218,17 +238,9 @@ class UnderpostCluster {
           const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
           const controlPlaneEndpoint = options.controlPlaneEndpoint || `${os.hostname()}:6443`;
 
-          // Initialize kubeadm control plane.
-          // Use CRI-O socket when available, otherwise fall back to containerd.
-          const crioSocket = 'unix:///var/run/crio/crio.sock';
-          const containerdSocket = 'unix:///run/containerd/containerd.sock';
-          const criSocket =
-            shellExec(`test -S /var/run/crio/crio.sock && echo crio || echo containerd`, {
-              stdout: true,
-              silent: true,
-            }).trim() === 'crio'
-              ? crioSocket
-              : containerdSocket;
+          // Initialize kubeadm control plane against whichever CRI runtime the
+          // host actually exposes.
+          const criSocket = resolveCriSocket(options);
           shellExec(
             `sudo kubeadm init --pod-network-cidr=${podNetworkCidr} --control-plane-endpoint="${controlPlaneEndpoint}" --cri-socket=${criSocket}`,
           );
@@ -310,7 +322,7 @@ class UnderpostCluster {
           .readFileSync(`${underpostRoot}/manifests/grafana/deployment.yaml`, 'utf8')
           .replace('{{GF_SERVER_ROOT_URL}}', options.hosts.split(',')[0])}`;
         console.log(yaml);
-        shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
+        shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
 ${yaml}
 EOF
 `);
@@ -329,7 +341,7 @@ EOF
             .join(',')}]`,
         )}`;
         console.log(yaml);
-        shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
+        shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
 ${yaml}
 EOF
 `);
@@ -447,7 +459,7 @@ EOF
           replicaCount: Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT,
           hostList: serviceHostInput,
           pullImage: options.pullImage,
-          reset: options.reset,
+          reset: options.resetMongodb === true,
           clusterType,
           underpostRoot,
         });
@@ -463,14 +475,93 @@ EOF
         shellExec(
           `kubectl apply -f https://cdn.jsdelivr.net/gh/projectcontour/contour@release-1.33/examples/render/contour.yaml`,
         );
+        // The NodePort patch belongs to Contour's own namespace: its `app=envoy`
+        // selector only matches the Envoy DaemonSet there. Applied anywhere else
+        // the Service is born with no endpoints, and kube-proxy then answers
+        // EVERY connection to its ports with an ICMP port-unreachable REJECT —
+        // including 443 on every local address, which silently breaks whatever
+        // else serves HTTPS on the node.
+        Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: options.namespace });
         if (options.kubeadm) {
           // Envoy service might need NodePort for kubeadm
           shellExec(
-            `sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml -n ${options.namespace}`,
+            `sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml -n ${CONTOUR_NAMESPACE}`,
           );
         }
         // K3s has a built-in LoadBalancer (Klipper-lb) that can expose services,
         // so a specific NodePort service might not be needed or can be configured differently.
+      }
+
+      if (options.gatewayApi) {
+        // Gateway API stack: the CRDs, the implementation that serves them, and
+        // the GatewayClass every generated Gateway attaches to. Envoy Gateway is
+        // the implementation because the manifests this repo generates use two of
+        // its ClientTrafficPolicy extension, which carries the QUIC/HTTP3
+        // listener config. Both versions are pinned so a rebuild provisions the
+        // same control plane.
+        const env = options.dev ? 'development' : 'production';
+        // Envoy Gateway provisions and owns its own data plane Service in
+        // envoy-gateway-system. Any hand-managed Service elsewhere that publishes
+        // the same ports without endpoints would have kube-proxy reject 80/443
+        // out from under it, and any DaemonSet holding hostPort 80/443 would
+        // swallow the traffic before the data plane's listener sees it.
+        Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: options.namespace });
+        Underpost.cluster.pruneHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
+        shellExec(
+          `kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_RELEASE}/standard-install.yaml`,
+        );
+        shellExec(
+          `helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version ${ENVOY_GATEWAY_VERSION} ` +
+            `--namespace envoy-gateway-system --create-namespace`,
+        );
+        // The GatewayClass is rejected while the webhook is still coming up.
+        shellExec(
+          `kubectl wait --namespace envoy-gateway-system --for=condition=Available --timeout=5m deployment/envoy-gateway`,
+          { silentOnError: true },
+        );
+        // Validate against the live CRD schema before creating anything. These
+        // are vendor CRDs whose optional fields move between releases, and
+        // kubectl applies documents independently: without the pre-flight, a
+        // field the installed Envoy Gateway does not know leaves a GatewayClass
+        // pointing at an EnvoyProxy that never applied.
+        const gatewayClassYaml = Underpost.deploy.gatewayClassYamlFactory({ env, options });
+        shellExec(`kubectl apply --dry-run=server -f - <<'EOF'
+${gatewayClassYaml}
+EOF
+`);
+        shellExec(`kubectl apply -f - <<'EOF'
+${gatewayClassYaml}
+EOF
+`);
+        // The static utility that serves status pages and intercepted contexts.
+        // It belongs to the gateway tier, not to any one deploy: a single Nginx
+        // holds every host's documents, and routes reach it as an ordinary
+        // backend — which is what removes the 4096-byte direct-response ceiling.
+        //
+        // The heredoc delimiter is quoted, as it must be for every generated
+        // manifest: the values are already substituted by the template literal,
+        // so anything the shell expands here is content. This one carries
+        // `nginx.conf`, whose `$uri` an unquoted delimiter deletes — leaving a
+        // `try_files` that matches nothing and answers every host's status page
+        // with the shared default.
+        const gatewayStaticYaml = Underpost.deploy.gatewayStaticYamlFactory(options);
+        shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
+${gatewayStaticYaml}
+EOF
+`);
+        const gatewayStaticRoot = Underpost.deploy.gatewayStaticHostRootFactory(options);
+        seedDefaultStatusPage(gatewayStaticRoot);
+        logger.info('Gateway static utility applied', {
+          name: GATEWAY_STATIC.name,
+          root: gatewayStaticRoot,
+        });
+
+        logger.info('Gateway API control plane installed', {
+          gatewayApiRelease: GATEWAY_API_RELEASE,
+          envoyGateway: ENVOY_GATEWAY_VERSION,
+          gatewayClass: Underpost.deploy.gatewayApiConfigFactory(options).gatewayClassName,
+          env,
+        });
       }
 
       if (options.certManager) {
@@ -637,26 +728,102 @@ EOF
           `for node in $(kind get nodes); do cat ${tarPath} | docker exec -i $node ctr --namespace=k8s.io images import -; done`,
         );
         shellExec(`rm -f ${tarPath}`);
-      } else if (options.k3s) {
-        // K3s uses its own embedded containerd socket, not the host-level one
-        // used by kubeadm/containerd installations.
-        shellExec(
-          `sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint unix:///run/k3s/containerd/containerd.sock pull ${image}`,
-        );
-      } else if (options.kubeadm) {
-        // Kubeadm / K3s: use crictl to pull directly into the active CRI runtime.
-        // crictl is not in sudo's secure_path; pass full PATH through env.
-        // Point crictl at CRI-O when the socket exists, otherwise fall back to containerd.
-        const criSock =
-          shellExec(`test -S /var/run/crio/crio.sock && echo crio || echo containerd`, {
-            stdout: true,
-            silent: true,
-          }).trim() === 'crio'
-            ? 'unix:///var/run/crio/crio.sock'
-            : 'unix:///run/containerd/containerd.sock';
-        shellExec(`sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint ${criSock} pull ${image}`);
+      } else {
+        // Kubeadm / K3s: pull directly into the active CRI runtime.
+        shellExec(crictlCommandFactory(`pull ${image}`, options));
       }
     },
+
+    /**
+     * @method pruneHostPortClaim
+     * @description Removes a DaemonSet that reserves node ports the caller needs.
+     * A `hostPort` is not a soft claim: the CNI hostport plugin installs a DNAT
+     * that rewrites every packet arriving on that port to the claiming pod,
+     * ahead of any process listening on the node. A second ingress stack bound
+     * to the same port therefore never sees a single packet, and the symptom is
+     * a connection refused by the *other* stack — with nothing in its own logs.
+     *
+     * Only a DaemonSet that actually claims one of `ports` is removed.
+     * @param {string} name - DaemonSet name.
+     * @param {string} namespace - Namespace to inspect.
+     * @param {Array<number>} ports - Host ports the caller requires.
+     * @returns {boolean} True when a DaemonSet was pruned.
+     * @memberof UnderpostCluster
+     */
+    pruneHostPortClaim({ name, namespace, ports = [80, 443] }) {
+      const claimed = shellExec(
+        `kubectl get daemonset ${name} -n ${namespace} ` +
+          `-o jsonpath='{.spec.template.spec.containers[*].ports[*].hostPort}'`,
+        { stdout: true, silent: true, silentOnError: true },
+      );
+      const claimedPorts = `${claimed || ''}`
+        .split(/\s+/)
+        .map((port) => parseInt(port, 10))
+        .filter((port) => !isNaN(port));
+      const conflicts = claimedPorts.filter((port) => ports.includes(port));
+      if (conflicts.length === 0) return false;
+      logger.warn(`Pruning DaemonSet ${namespace}/${name}: it reserves host ports needed by this ingress stack`, {
+        conflicts,
+        reason: 'the CNI hostport DNAT redirects those ports before any node listener receives them',
+      });
+      shellExec(`kubectl delete daemonset ${name} -n ${namespace} --ignore-not-found`);
+      return true;
+    },
+
+    /**
+     * @method pruneEndpointlessService
+     * @description Removes a Service that resolves to nothing. kube-proxy does
+     * not ignore such a Service — it installs an ICMP port-unreachable REJECT
+     * for every port it publishes, so an orphan is not inert: it actively
+     * refuses connections on those ports, and the refusal looks exactly like
+     * "no server is listening" even while one is.
+     *
+     * Only an endpointless Service is removed, so a healthy one of the same name
+     * is never touched.
+     * @param {string} name - Service name.
+     * @param {string} [namespace] - Namespace to inspect.
+     * @returns {boolean} True when a Service was pruned.
+     * @memberof UnderpostCluster
+     */
+    pruneEndpointlessService({ name, namespace = 'default' }) {
+      const exists = shellExec(`kubectl get svc ${name} -n ${namespace} -o name`, {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+      });
+      if (!exists || !`${exists}`.trim()) return false;
+      // EndpointSlice rather than the deprecated Endpoints API.
+      const addresses = shellExec(
+        `kubectl get endpointslice -n ${namespace} -l kubernetes.io/service-name=${name} ` +
+          `-o jsonpath='{.items[*].endpoints[*].addresses[*]}'`,
+        { stdout: true, silent: true, silentOnError: true },
+      );
+      if (addresses && `${addresses}`.trim()) return false;
+      logger.warn(`Pruning endpointless Service ${namespace}/${name}`, {
+        reason: 'kube-proxy REJECTs every port a Service with no endpoints publishes',
+      });
+      shellExec(`kubectl delete svc ${name} -n ${namespace} --ignore-not-found`);
+      return true;
+    },
+
+    /**
+     * @method resolveCriSocket
+     * @description CLI-facing binding of {@link CriEndpoint.resolveCriSocket}.
+     * @param {object} [options] - Cluster options (`k3s`, `criSocket`).
+     * @returns {string} CRI endpoint URI.
+     * @memberof UnderpostCluster
+     */
+    resolveCriSocket,
+
+    /**
+     * @method crictlCommandFactory
+     * @description CLI-facing binding of {@link CriEndpoint.crictlCommandFactory}.
+     * @param {string} args - crictl subcommand and arguments (e.g. `pull mongo:latest`).
+     * @param {object} [options] - Cluster options (`k3s`, `criSocket`).
+     * @returns {string} Full shell command.
+     * @memberof UnderpostCluster
+     */
+    crictlCommandFactory,
 
     /**
      * @method config
@@ -889,7 +1056,7 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
      * @param {object} [options]
      * @param {boolean} [options.all=true] - Remove all unused images, not just dangling ones.
      * @param {boolean} [options.crictl=false] - Also prune the CRI runtime via crictl.
-     * @param {string} [options.criSocket] - Optional crictl --runtime-endpoint override.
+     * @param {string} [options.criSocket] - Optional CRI endpoint override; otherwise the live runtime is resolved.
      * @private
      */
     _pruneContainerCaches(options = {}) {
@@ -906,11 +1073,9 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
         silentOnError: true,
       });
       if (options.crictl) {
-        const ep = options.criSocket ? `--runtime-endpoint ${options.criSocket} ` : '';
-        shellExec(
-          `if command -v crictl >/dev/null 2>&1; then sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl ${ep}rmi --prune; fi`,
-          { silentOnError: true },
-        );
+        shellExec(`if command -v crictl >/dev/null 2>&1; then ${crictlCommandFactory('rmi --prune', options)}; fi`, {
+          silentOnError: true,
+        });
       }
       Underpost.cluster._unmountOrphanContainerOverlays();
     },
@@ -1039,11 +1204,15 @@ fi`);
       Underpost.cluster._lazyUmountKubeletMounts();
 
       logger.info('Phase 4/7: Killing control-plane processes and running kubeadm reset...');
-      shellExec(`if command -v crictl >/dev/null 2>&1; then sudo crictl rm -a -f; fi`, { silentOnError: true });
+      shellExec(`if command -v crictl >/dev/null 2>&1; then ${crictlCommandFactory('rm -a -f')}; fi`, {
+        silentOnError: true,
+      });
       // Remove CNI config before stopping sandboxes so Calico's CNI delete hook is
       // not invoked (the API server is already down and the hook would fail).
       shellExec(`sudo rm -rf /etc/cni/net.d/*`);
-      shellExec(`if command -v crictl >/dev/null 2>&1; then sudo crictl rmp -a -f; fi`, { silentOnError: true });
+      shellExec(`if command -v crictl >/dev/null 2>&1; then ${crictlCommandFactory('rmp -a -f')}; fi`, {
+        silentOnError: true,
+      });
       shellExec(`if systemctl is-active --quiet etcd; then sudo systemctl stop etcd; fi`);
       for (const port of [6443, 10259, 10257, 2379, 2380]) {
         shellExec(`if sudo fuser ${port}/tcp >/dev/null 2>&1; then sudo fuser -k ${port}/tcp; fi`);
