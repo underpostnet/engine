@@ -18,9 +18,11 @@ import {
   timer,
 } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
+import net from 'net';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
+import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from './underpost-gateway.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
 import Underpost from '../index.js';
@@ -1932,6 +1934,557 @@ const selectConfInstances = (instances, id) =>
   instances.filter((instance) => instance.id === id || instance.templateId === id);
 
 /**
+ * @method resolveEnvScoped
+ * @description Resolves a conf value that may be declared either shared or
+ * env-scoped. An instance block is written as `{ ...spec }` when both
+ * environments share it and as `{ development: {...}, production: {...} }` when
+ * they do not; both shapes reach the manifest factories, which expect the
+ * resolved one.
+ * @param {object|undefined} value - Shared or env-scoped block.
+ * @param {string} env - `development` | `production`.
+ * @returns {object|undefined} The block for `env`, or the value unchanged when it is shared.
+ * @memberof ServerConfBuilder
+ */
+const resolveEnvScoped = (value, env) => (value && (value.development || value.production) ? value[env] : value);
+
+/**
+ * @method instancePortFactory
+ * @description The port an instance is reached on for an environment.
+ * Development prefers the instance's debug port when it declares one, so a
+ * local runtime can expose a debugger without the production port moving.
+ * @param {object} instance - Expanded instance entry.
+ * @param {string} env - `development` | `production`.
+ * @param {boolean} [container] - Resolve the container-side port (`toPort`) instead of the proxied one (`fromPort`).
+ * @returns {number|undefined} The effective port.
+ * @memberof ServerConfBuilder
+ */
+const instancePortFactory = ({ instance, env, container = false }) => {
+  const [port, debugPort] = container
+    ? [instance.toPort, instance.toDebugPort]
+    : [instance.fromPort, instance.fromDebugPort];
+  return env === 'development' && debugPort ? debugPort : port;
+};
+
+/**
+ * @method sortInstancesByPath
+ * @description Orders instances longest sub-path first, so a specific instance
+ * path (`/FOREST`) is never shadowed by the default instance's catch-all (`/`).
+ * @param {Array<object>} instances - Expanded instance entries.
+ * @returns {Array<object>} A new ordered array.
+ * @memberof ServerConfBuilder
+ */
+const sortInstancesByPath = (instances) =>
+  [...instances].sort((a, b) => (b.path || '/').length - (a.path || '/').length);
+
+/**
+ * @method deployHostsFactory
+ * @description Every hostname a deploy terminates: the ones its `conf.server.json`
+ * serves directly, plus the ones its `conf.instances.json` instances serve.
+ *
+ * Both sets reach the browser through the one Gateway the deploy owns, so both
+ * have to appear in its listener's certificate list and in the `/etc/hosts` pass
+ * — an instance host missing from either is unreachable even though its workload
+ * and route are correct.
+ *
+ * Every declared hostname is returned, not just the ones being deployed right
+ * now: the Gateway is per deploy, not per run, and a certificate reference it
+ * carries for a hostname the environment never provisioned is unresolvable —
+ * which costs the listener, and with it every other hostname on it.
+ * @param {string} deployId - Deployment identifier.
+ * @returns {Array<string>} Unique hostnames, deploy hosts first.
+ * @memberof ServerConfBuilder
+ */
+const deployHostsFactory = (deployId) => {
+  const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+  const confInstancesPath = `./engine-private/conf/${deployId}/conf.instances.json`;
+  const serverHosts = fs.existsSync(confServerPath) ? Object.keys(loadConfServerJson(confServerPath)) : [];
+  const instanceHosts = fs.existsSync(confInstancesPath)
+    ? loadConfInstances(deployId).map((instance) => instance.host)
+    : [];
+  return [...new Set([...serverHosts, ...instanceHosts].filter(Boolean))];
+};
+
+/**
+ * @method instanceStatusPageDeployIdFactory
+ * @description Status page documents are identical across a family's variants,
+ * so the resources holding them are named after the template instance and
+ * shared by every variant route.
+ * @param {string} deployId - Parent deployment identifier.
+ * @param {object} instance - Expanded instance entry.
+ * @returns {string} Family-scoped deploy id owning the status page resources.
+ * @memberof ServerConfBuilder
+ */
+const instanceStatusPageDeployIdFactory = (deployId, instance) => `${deployId}-${instance.templateId || instance.id}`;
+
+/**
+ * @method instanceProjectPathFactory
+ * @description Where an instance's own project sits in this checkout. A
+ * `customStatusPages` entry declares `hostPath` relative to that project
+ * (`./public/404/index.html`), not to the engine root, because the document is
+ * built and versioned by the project the instance runs.
+ *
+ * The directory is the repository's own name — the same name `underpost clone`
+ * checks it out under — falling back to the runtime and then the instance id.
+ * @param {object} instance - Expanded instance entry.
+ * @returns {string} Project root, relative to the engine root.
+ * @memberof ServerConfBuilder
+ */
+const instanceProjectPathFactory = (instance) =>
+  `./${`${instance?.metadata?.repository || instance?.runtime || instance?.id || ''}`.split('/').pop()}`;
+
+/**
+ * @method instanceStatusPageEntriesFactory
+ * @description Resolves every `customStatusPages` entry an instance declares
+ * into the document to copy and the place under the static root to copy it to.
+ *
+ * Single source of truth for the two sides that must agree exactly: the
+ * destination comes from the same {@link UnderpostGateway.statusPageAssetPathFactory}
+ * the HTTPRoute rewrites to, so a variant's page lands where that variant's rule
+ * points — `/FOREST/404` at `<host>/FOREST/status-pages/404/index.html`, and the
+ * default variant's at `<host>/root/status-pages/404/index.html`.
+ * @param {Array<object>} instances - Expanded instance entries.
+ * @param {string} [projectPath] - Project root override; omit to derive one per instance.
+ * @returns {Array<{host: string, path: string, status: string, assetPath: string, sourcePath: string}>}
+ *   One entry per declared page, skipping entries missing a status or a source.
+ * @memberof ServerConfBuilder
+ */
+const instanceStatusPageEntriesFactory = ({ instances = [], projectPath }) =>
+  instances.flatMap((instance) =>
+    (instance.customStatusPages || [])
+      .filter((page) => page?.status && page?.hostPath)
+      .map((page) => ({
+        host: instance.host,
+        path: instance.path,
+        status: `${page.status}`,
+        assetPath: statusPageAssetPathFactory({ host: instance.host, path: instance.path, status: page.status })
+          .assetPath,
+        sourcePath: dir.normalize(`${projectPath || instanceProjectPathFactory(instance)}/${page.hostPath}`),
+      })),
+  );
+
+/**
+ * @method nextTrafficFactory
+ * @description The colour a promote routes to next.
+ *
+ * The single definition of the blue/green flip. An explicit request wins; with no
+ * colour live yet the canonical first colour is `blue`.
+ * @param {string} [liveTraffic] - Colour currently routed, or empty when none is.
+ * @param {string} [requestedTraffic] - Explicitly requested colour, if any.
+ * @returns {string} `blue` or `green`.
+ * @memberof ServerConfBuilder
+ */
+const nextTrafficFactory = (liveTraffic = '', requestedTraffic = '') =>
+  requestedTraffic === 'blue' || requestedTraffic === 'green'
+    ? requestedTraffic
+    : liveTraffic === 'blue'
+      ? 'green'
+      : 'blue';
+
+/**
+ * @method trafficFromRoutingInfoFactory
+ * @description Reads a deployment's live colour out of the routing text that
+ * carries it.
+ *
+ * Every stack names the backend service `<deployId>-<env>-<colour>-service`, so
+ * the colour reads the same way from an HTTPRoute, an HTTPProxy, or the Nginx
+ * server block an intercepted host is proxied through. Kept pure and separate
+ * from the read so one host's routing text can be matched against several
+ * deployments and environments without fetching it again.
+ *
+ * With `env` given the match is anchored on the full `<deployId>-<env>-` prefix:
+ * essential on a shared multi-instance host, where one object holds several
+ * variants' routes on possibly different colours, and where an unanchored match
+ * would return a sibling's answer. `dd-cyberia-mmo-server` never matches
+ * `dd-cyberia-mmo-server-forest` this way.
+ * @param {string} [info] - Routing text (route object YAML and/or Nginx block).
+ * @param {string} deployId - Deployment identifier the colour is wanted for.
+ * @param {string} [env] - `development` | `production`; omitted falls back to a whole-text match.
+ * @returns {string|null} `blue`, `green`, or null when the text names neither.
+ * @memberof ServerConfBuilder
+ */
+const trafficFromRoutingInfoFactory = ({ info = '', deployId = '', env = '' }) => {
+  if (!`${info}`.trim()) return null;
+  if (env) {
+    const escaped = `${deployId}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = `${info}`.match(new RegExp(`${escaped}-${env}-(blue|green)-service`));
+    return match ? match[1] : null;
+  }
+  return `${info}`.match('blue') ? 'blue' : `${info}`.match('green') ? 'green' : null;
+};
+
+/**
+ * @method deployTrafficEntriesFactory
+ * @description Every routable deployment a deploy id owns, of both kinds.
+ *
+ * The two kinds are named differently in the cluster and resolved from different
+ * conf files, which is exactly why a colour report has to build them together:
+ * the PWA workload is one Deployment per deploy id serving whatever hosts its
+ * `conf.server.json` declares, while each expanded custom instance is its own
+ * Deployment behind one host sub-path.
+ * @param {string} deployId - Deployment identifier.
+ * @param {string} env - `development` | `production`.
+ * @returns {Array<{kind: string, deployId: string, id: string, host: string, path: string, deployment: string}>} One entry per routable deployment.
+ * @memberof ServerConfBuilder
+ */
+const deployTrafficEntriesFactory = ({ deployId, env }) => {
+  const entries = [];
+  const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+  if (fs.existsSync(confServerPath)) {
+    const confServer = loadConfServerJson(confServerPath);
+    for (const host of Object.keys(confServer))
+      entries.push({
+        kind: 'pwa',
+        deployId,
+        id: deployId,
+        host,
+        path: Object.keys(confServer[host]).join(' ') || '/',
+        deployment: `${deployId}-${env}`,
+      });
+  }
+  if (fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`))
+    for (const instance of loadConfInstances(deployId))
+      entries.push({
+        kind: 'instance',
+        deployId,
+        id: `${deployId}-${instance.id}`,
+        host: instance.host,
+        path: instance.path || '/',
+        deployment: `${deployId}-${instance.id}-${env}`,
+      });
+  return entries;
+};
+
+/**
+ * @method trafficTableRowsFactory
+ * @description Resolves the live colour of each routable deployment, optionally
+ * narrowed to a set of hosts.
+ *
+ * Cluster lookups are injected so the shaping stays a pure resolution over the
+ * conf. An entry whose colour cannot be read is reported with an empty colour
+ * rather than dropped — "no route published" is the answer, not an absence.
+ * @param {Array<object>} [entries] - Entries from {@link ServerConfBuilder.deployTrafficEntriesFactory}.
+ * @param {Array<string>} [hosts] - Hosts to report on; empty reports every host.
+ * @param {Function} liveTrafficOf - `(entry) => 'blue' | 'green' | '' | null`.
+ * @param {Function} servesTraffic - `(entry, colour) => boolean`.
+ * @returns {Array<object>} Entries with `traffic` and `serving` resolved.
+ * @memberof ServerConfBuilder
+ */
+const trafficTableRowsFactory = ({
+  entries = [],
+  hosts = [],
+  liveTrafficOf = () => '',
+  servesTraffic = () => false,
+}) => {
+  const wanted = new Set(hosts.filter(Boolean));
+  return entries
+    .filter((entry) => wanted.size === 0 || wanted.has(entry.host))
+    .map((entry) => {
+      const traffic = liveTrafficOf(entry) || '';
+      return {
+        ...entry,
+        traffic,
+        serving: isTrafficServingFactory({
+          liveTraffic: traffic,
+          hasReadyEndpoints: (colour) => servesTraffic(entry, colour),
+        }),
+      };
+    });
+};
+
+/**
+ * @method hostRenderInstancesFactory
+ * @description The instances a shared host's routing must be rendered from.
+ *
+ * A host's Nginx server block and its HTTPRoute are single objects shared by
+ * every variant on that host, so both are rewritten whole on every promote.
+ * Rendering them from the declared set alone therefore deletes the routes of any
+ * variant that is still deployed but no longer declared — silently taking down a
+ * workload this deploy was never asked to touch.
+ *
+ * Each variant sub-path is its own deployment, so a variant loses its route only
+ * once its workload is actually gone. `preserved` carries the descriptors last
+ * published for this host; a declared entry always wins, since it is the current
+ * truth for that id.
+ * @param {Array<object>} [declared] - Instances the conf declares for this host.
+ * @param {Array<object>} [preserved] - Instances last published for this host.
+ * @param {Function} [isDeployed] - `(instance) => boolean`, true while its workload exists.
+ * @returns {Array<object>} Declared entries, plus still-deployed preserved ones.
+ * @memberof ServerConfBuilder
+ */
+const hostRenderInstancesFactory = ({ declared = [], preserved = [], isDeployed = () => false }) => {
+  const declaredIds = new Set(declared.map((instance) => instance.id));
+  return [
+    ...declared,
+    ...preserved.filter((instance) => instance?.id && !declaredIds.has(instance.id) && isDeployed(instance)),
+  ];
+};
+
+/**
+ * @method isTrafficServingFactory
+ * @description Whether a routed colour is actually carrying traffic.
+ *
+ * The one gate every no-backend fallback checkpoint is conditional on, shared by
+ * `run sync` and `run instance`. A colour is serving only when it is both routed
+ * and still has a ready endpoint: a route can name a colour whose workload is
+ * long gone, and taking a host offline to prove a fallback is only acceptable
+ * when nothing is serving it.
+ * @param {string} [liveTraffic] - Colour currently routed, or empty when none is.
+ * @param {Function} hasReadyEndpoints - `(colour) => boolean`.
+ * @returns {boolean} True when that colour is routed and reachable.
+ * @memberof ServerConfBuilder
+ */
+const isTrafficServingFactory = ({ liveTraffic = '', hasReadyEndpoints = () => false }) =>
+  !!liveTraffic && hasReadyEndpoints(liveTraffic);
+
+/**
+ * @method instanceTrafficPlanFactory
+ * @description Resolves, for each instance, the colour routed now and the colour
+ * to route next, and which instances are actually serving on the live one.
+ *
+ * `serving` is the precondition for the no-backend fallback checkpoint, which
+ * routes the edge at a colour that has no Deployment yet. That is correct on a
+ * first bring-up and an outage on a re-deploy, and a routed colour is only real
+ * traffic when it still has a ready endpoint — a route alone can name a colour
+ * whose workload is long gone.
+ *
+ * Cluster lookups are injected so this stays a pure resolution over the conf.
+ * @param {Array<object>} [instances] - Expanded instance entries.
+ * @param {string} [requestedTraffic] - Explicitly requested colour, if any.
+ * @param {Function} liveTrafficOf - `(instance) => 'blue' | 'green' | '' | null`.
+ * @param {Function} servesTraffic - `(instance, colour) => boolean`, true when that colour has a ready endpoint.
+ * @returns {{liveTrafficById: Object<string,string>, targetTrafficById: Object<string,string>, serving: Array<object>}} The plan.
+ * @memberof ServerConfBuilder
+ */
+const instanceTrafficPlanFactory = ({
+  instances = [],
+  requestedTraffic = '',
+  liveTrafficOf = () => '',
+  servesTraffic = () => false,
+}) => {
+  const liveTrafficById = {};
+  const targetTrafficById = {};
+  const serving = [];
+  for (const instance of instances) {
+    const liveTraffic = liveTrafficOf(instance) || '';
+    liveTrafficById[instance.id] = liveTraffic;
+    targetTrafficById[instance.id] = nextTrafficFactory(liveTraffic, requestedTraffic);
+    if (isTrafficServingFactory({ liveTraffic, hasReadyEndpoints: (colour) => servesTraffic(instance, colour) }))
+      serving.push(instance);
+  }
+  return { liveTrafficById, targetTrafficById, serving };
+};
+
+/**
+ * @method instanceInterceptStatusesFactory
+ * @description The statuses the gateway intercepts for one instance, and the
+ * context directory each is answered from.
+ *
+ * Driven entirely by what the instance declares: every `customStatusPages` entry
+ * answers its own status, and those declarations are also what upstream-failure
+ * codes fall back to — a variant whose workload is gone should show the same page
+ * as one that has no such route, because to the client they are the same thing.
+ * @param {object} instance - Expanded instance entry.
+ * @returns {Object<string,string>} Status code → context directory under the instance sub-path.
+ * @memberof ServerConfBuilder
+ */
+const instanceInterceptStatusesFactory = (instance) => {
+  const statuses = {};
+  for (const page of instance?.customStatusPages || []) {
+    if (!page?.status || !page?.hostPath) continue;
+    const context = `status-pages/${page.status}`;
+    statuses[page.status] = context;
+    // Custom instances do not have the PWA's `maintenanceDefault` SSR view.
+    // Their declared status document is therefore also the only useful answer
+    // while the binary is absent or still becoming Ready. Nginx preserves the
+    // original 502/503/504 code while substituting this document, so clients
+    // can distinguish an unavailable runtime from the instance's own 404.
+    for (const failureStatus of [502, 503, 504]) if (!statuses[failureStatus]) statuses[failureStatus] = context;
+  }
+  return statuses;
+};
+
+/**
+ * @method instanceProxyRoutesFactory
+ * @description Renders the Contour HTTPProxy route block for every instance
+ * sharing a host.
+ * @param {string} deployId - Parent deployment identifier.
+ * @param {Array<object>} instances - Expanded instance entries bound to one host.
+ * @param {string} env - `development` | `production`.
+ * @param {Object<string,string>} trafficById - Instance id → traffic colour.
+ * @returns {string} Concatenated route YAML.
+ * @memberof ServerConfBuilder
+ */
+const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =>
+  sortInstancesByPath(instances)
+    .map((instance) =>
+      Underpost.deploy.deploymentYamlServiceFactory({
+        path: instance.path,
+        port: instancePortFactory({ instance, env }),
+        deployId: `${deployId}-${instance.id}`,
+        env,
+        deploymentVersions: [trafficById[instance.id] || 'blue'],
+        pathRewritePolicy: instance.pathRewritePolicy,
+      }),
+    )
+    .join('');
+
+/**
+ * @method instanceHttpRouteRulesFactory
+ * @description Renders the Gateway API rules for every instance sharing a host:
+ * the workload rule for each instance sub-path, plus the edge-served status page
+ * rules declared by that instance's `customStatusPages`.
+ *
+ * Relative asset loading under a variant sub-path is preserved by carrying the
+ * instance `pathRewritePolicy` through verbatim: an instance that declares
+ * `stripPathPrefix` gets a ReplacePrefixMatch rewrite, and one that does not
+ * keeps its prefix so the workload still sees the URLs the browser requested.
+ * @param {string} deployId - Parent deployment identifier.
+ * @param {Array<object>} instances - Expanded instance entries bound to one host.
+ * @param {string} env - `development` | `production`.
+ * @param {Object<string,string>} trafficById - Instance id → traffic colour.
+ * @param {object} [options] - Runner options (namespace, gateway/QUIC settings).
+ * @param {Array<string>} [servedStatuses] - Statuses whose document reached the static tree; undefined means all declared.
+ * @returns {string} Concatenated rule YAML.
+ * @memberof ServerConfBuilder
+ */
+const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, options, servedStatuses }) => {
+  const { http3, altSvc } = Underpost.deploy.gatewayApiConfigFactory(options);
+  const sorted = sortInstancesByPath(instances);
+  // The `/` status fallback is only emitted when no workload claims the root
+  // path: two rules matching `/` would leave gateway precedence ambiguous.
+  const rootClaimed = sorted.some((instance) => (instance.path || '/') === '/');
+  let rules = '';
+  for (const [i, instance] of sorted.entries()) {
+    rules += Underpost.deploy.statusPageRouteRulesFactory({
+      deployId: instanceStatusPageDeployIdFactory(deployId, instance),
+      host: instance.host,
+      basePath: instance.path,
+      statusPages: instance.customStatusPages,
+      altSvc: http3 ? altSvc : undefined,
+      catchAll: !rootClaimed && i === sorted.length - 1,
+      servedStatuses,
+    });
+    // An instance that declares a status page is reached through the shared
+    // gateway, which proxies to its workload and intercepts the errors. One that
+    // declares none is routed straight there, so the extra hop only exists where
+    // it buys something. `pathRewritePolicy` moves to the gateway with it: the
+    // prefix strip belongs to whoever dials the workload.
+    const intercepted = Object.keys(instanceInterceptStatusesFactory(instance)).length > 0;
+    rules += Underpost.deploy.httpRouteRuleFactory({
+      path: instance.path,
+      ...(intercepted
+        ? { serviceId: UNDERPOST_GATEWAY.serviceName, port: UNDERPOST_GATEWAY.port }
+        : {
+            port: instancePortFactory({ instance, env }),
+            deployId: `${deployId}-${instance.id}`,
+            env,
+            deploymentVersions: [trafficById[instance.id] || 'blue'],
+            pathRewritePolicy: instance.pathRewritePolicy,
+          }),
+      altSvc: http3 ? altSvc : undefined,
+    });
+  }
+  return rules;
+};
+
+/**
+ * @method clusterTypeFactory
+ * @description The cluster runtime a set of options selects, as the string every
+ * command line and volume context spells it.
+ * @param {object} [options] - Options carrying the cluster flags.
+ * @param {string} [defaultType] - Type when no flag is set; `kind` everywhere except workflows that never provision one.
+ * @returns {string} `k3s` | `kubeadm` | `kind`.
+ * @memberof ServerConfBuilder
+ */
+const clusterTypeFactory = (options = {}, defaultType = 'kind') =>
+  options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : defaultType;
+
+/**
+ * @method gatewayApiEnabledFactory
+ * @description Whether a workflow routes through the Gateway API stack.
+ *
+ * On unless explicitly disabled, in every runner: the Gateway API with QUIC/HTTP3
+ * is the platform's routing stack, and the Contour HTTPProxy set is the fallback
+ * a caller opts into with `--disable-gateway-api`. `--gateway-api` stays
+ * meaningful as an explicit request, so a caller that passes it is never
+ * second-guessed. Reading it from one place is what keeps a runner from
+ * defaulting to a different stack than the one that deployed the routes.
+ * @param {object} [options] - Runner/deploy options.
+ * @returns {boolean} True when the Gateway API stack is in effect.
+ * @memberof ServerConfBuilder
+ */
+const gatewayApiEnabledFactory = (options = {}) => options.gatewayApi === true || options.disableGatewayApi !== true;
+
+/**
+ * @method clusterContextFactory
+ * @description The inverse of {@link ServerConfBuilder.clusterTypeFactory}: a
+ * cluster type as the option flags a runner reads.
+ *
+ * A workflow resolves its cluster type once and passes it to spawned commands as
+ * `--${clusterType}`. A runner invoked in-process gets no such string — it sees
+ * the raw options, where every consumer independently defaults to kind: the
+ * image pull (`docker exec kind-worker`), the node resolution behind hostPath
+ * `nodeAffinity`, and the volume cluster context. This carries the choice across
+ * that boundary.
+ * @param {string} clusterType - `kubeadm` | `k3s` | `kind`.
+ * @returns {{kind: boolean, kubeadm: boolean, k3s: boolean}} Mutually exclusive context flags.
+ * @memberof ServerConfBuilder
+ */
+const clusterContextFactory = (clusterType) => ({
+  kind: clusterType === 'kind',
+  kubeadm: clusterType === 'kubeadm',
+  k3s: clusterType === 'k3s',
+});
+
+/**
+ * @method waitForPort
+ * @description Polls a TCP port until it reaches the wanted state.
+ *
+ * Single source of truth for every "is it listening yet" wait: a port-forward
+ * coming up locally, a freshly provisioned node's sshd, and the closed edge that
+ * proves a reboot actually started. The probe is a native connect rather than a
+ * shelled-out one, so it needs neither a shell nor `timeout` on the host and
+ * reports the same result on every platform.
+ * @param {number} port - Port to probe.
+ * @param {string} [host] - Host to probe.
+ * @param {boolean} [open] - Wanted state: true waits for the port to accept, false waits for it to refuse.
+ * @param {number} [timeoutMs] - Maximum wait window.
+ * @param {number} [intervalMs] - Delay between attempts.
+ * @param {number} [connectTimeoutMs] - Per-attempt connect timeout.
+ * @returns {Promise<boolean>} True once the wanted state is observed, false on timeout.
+ * @memberof ServerConfBuilder
+ */
+const waitForPort = async ({
+  port,
+  host = '127.0.0.1',
+  open = true,
+  timeoutMs = 60 * 1000,
+  intervalMs = 2000,
+  connectTimeoutMs = 5000,
+}) => {
+  const probe = () =>
+    new Promise((resolve) => {
+      const socket = new net.Socket();
+      const done = (reachable) => {
+        socket.destroy();
+        resolve(reachable);
+      };
+      socket.setTimeout(connectTimeoutMs);
+      socket.once('connect', () => done(true));
+      socket.once('timeout', () => done(false));
+      socket.once('error', () => done(false));
+      socket.connect(port, host);
+    });
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if ((await probe()) === open) return true;
+    await timer(intervalMs);
+  }
+  logger.warn(`Port ${host}:${port} was not ${open ? 'reachable' : 'closed'} within timeout`, { timeoutMs });
+  return false;
+};
+
+/**
  * Creates and writes the /etc/hosts file for a deployment.
  * @method etcHostFactory
  * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
@@ -2256,6 +2809,52 @@ git add .`);
   else logger.info('No changes to publish', { repoName });
 };
 
+/**
+ * @function clusterInstancesFactory
+ * @description Binds the instance ids requested by the `cluster` runner to the
+ * deploys that actually declare them.
+ *
+ * An instance belongs to a deploy through that deploy's own
+ * `conf.instances.json` — nothing else relates the two — so the same id under a
+ * different deploy is a different workload, and an id no deploy declares is a
+ * typo rather than a silent no-op. A deploy without the file simply has no
+ * instances.
+ *
+ * Ids are returned as requested, not expanded: `run instance` owns variant
+ * expansion, so a template id (`mmo-server`) is handed over whole and deploys
+ * its whole family. Hosts *are* expanded, because they are needed before any
+ * instance runs — `/etc/hosts` is written in one pass for every host the
+ * gateway will serve.
+ * @param {Array<string>} deployList - Deploy ids being brought up.
+ * @param {string} [instanceList] - `+`-separated instance/template ids.
+ * @returns {{ byDeployId: Object<string,{ids: Array<string>, hosts: Array<string>}>, unmatched: Array<string> }}
+ *   Per-deploy selection, and the requested ids no deploy declares.
+ */
+const clusterInstancesFactory = (deployList = [], instanceList = '') => {
+  const requested = `${instanceList || ''}`.split('+').filter((id) => id.trim());
+  const byDeployId = Object.fromEntries(
+    deployList.map((deployId) => {
+      const confPath = `./engine-private/conf/${deployId}/conf.instances.json`;
+      if (requested.length === 0 || !fs.existsSync(confPath)) return [deployId, { ids: [], hosts: [] }];
+      const confInstances = loadConfInstances(deployId);
+      const matched = requested
+        .map((id) => ({ id, instances: selectConfInstances(confInstances, id) }))
+        .filter((entry) => entry.instances.length > 0);
+      return [
+        deployId,
+        {
+          ids: matched.map((entry) => entry.id),
+          hosts: [...new Set(matched.flatMap((entry) => entry.instances.map((instance) => instance.host)))],
+        },
+      ];
+    }),
+  );
+  return {
+    byDeployId,
+    unmatched: requested.filter((id) => !deployList.some((deployId) => byDeployId[deployId].ids.includes(id))),
+  };
+};
+
 export {
   Config,
   loadConf,
@@ -2306,7 +2905,29 @@ export {
   DEFAULT_DEPLOY_ID,
   loadCronDeployEnv,
   cronDeployIdResolve,
+  clusterContextFactory,
+  clusterTypeFactory,
+  deployHostsFactory,
+  clusterInstancesFactory,
   etcHostFactory,
+  gatewayApiEnabledFactory,
+  instanceHttpRouteRulesFactory,
+  instanceInterceptStatusesFactory,
+  instancePortFactory,
+  instanceProjectPathFactory,
+  instanceProxyRoutesFactory,
+  instanceStatusPageDeployIdFactory,
+  instanceStatusPageEntriesFactory,
+  deployTrafficEntriesFactory,
+  hostRenderInstancesFactory,
+  instanceTrafficPlanFactory,
+  isTrafficServingFactory,
+  nextTrafficFactory,
+  trafficFromRoutingInfoFactory,
+  trafficTableRowsFactory,
+  resolveEnvScoped,
+  sortInstancesByPath,
+  waitForPort,
   resolveDeployList,
   syncPrivateConf,
   syncDeployIdSources,

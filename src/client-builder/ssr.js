@@ -9,9 +9,8 @@ import vm from 'node:vm';
 
 import Underpost from '../index.js';
 
-import { srcFormatted, JSONweb } from './client-formatted.js';
+import { srcFormatted } from './client-formatted.js';
 import { loggerFactory } from '../server/logger.js';
-import { getRootDirectory } from '../server/process.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -47,78 +46,33 @@ const sanitizeHtml = (res, req, html) => {
 };
 
 /**
- * Factory function to create Express middleware for handling 404 and 500 errors.
- * It generates server-side rendered HTML for these error pages. If static error pages exist, it redirects to them.
- * @param {object} options - The options for creating the middleware.
- * @param {object} options.app - The Express app instance.
- * @param {string} options.directory - The directory for the instance's static files.
- * @param {string} options.rootHostPath - The root path for the host's public files.
- * @param {string} options.path - The base path for the instance.
- * @returns {Promise<{error500: Function, error400: Function}>} A promise that resolves to an object containing the 500 and 404 error handling middleware.
+ * Creates the Express middleware that terminates an unmatched request and an
+ * unhandled error.
+ *
+ * Both return a bare status and nothing else. Status page delivery belongs to
+ * the edge: the gateway intercepts the status and serves the declared document
+ * from `underpost-gateway`, preserving this response's code and the client's
+ * URI. A runtime that rendered its own page, redirected to one, or fetched one
+ * over HTTP would be competing with that — and would be the only one of the
+ * three runtimes doing so.
+ * @param {string} [path] - The instance's proxy sub-path, used only to alias `/home`.
+ * @returns {Promise<{error500: Function, error400: Function}>} The two terminators.
  * @memberof ServerSideRendering
  */
-const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
-  const Render = await ssrFactory();
-  const ssrPath = path === '/' ? path : `${path}/`;
-
-  // Build default html src for 404 and 500
-
-  const defaultHtmlSrc404 = Render({
-    title: '404 Not Found',
-    ssrPath,
-    ssrHeadComponents: '',
-    ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/404.js`))(),
-    renderPayload: {
-      apiBasePath: process.env.BASE_API,
-      version: Underpost.version,
-    },
-    renderApi: {
-      JSONweb,
-    },
-  });
-  const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404/index.html`;
-  const page404 = fs.existsSync(path404) ? `${path === '/' ? '' : path}/404` : undefined;
-
-  const defaultHtmlSrc500 = Render({
-    title: '500 Server Error',
-    ssrPath,
-    ssrHeadComponents: '',
-    ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/500.js`))(),
-    renderPayload: {
-      apiBasePath: process.env.BASE_API,
-      version: Underpost.version,
-    },
-    renderApi: {
-      JSONweb,
-    },
-  });
-  const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
-  const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
-
-  return {
-    error500: function (err, req, res, next) {
-      logger.error(err, err.stack);
-      if (page500) return res.status(500).redirect(page500);
-      else {
-        res.set('Content-Type', 'text/html');
-        return res.status(500).send(sanitizeHtml(res, req, defaultHtmlSrc500));
-      }
-    },
-    error400: function (req, res, next) {
-      // if /<path>/home redirect to /<path>
-      const homeRedirectPath = `${path === '/' ? '' : path}/home`;
-      if (req.url.startsWith(homeRedirectPath)) {
-        const redirectUrl = req.url.replace('/home', '');
-        return res.redirect(redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`);
-      }
-
-      if (page404) return res.status(404).redirect(page404);
-      else {
-        res.set('Content-Type', 'text/html');
-        return res.status(404).send(sanitizeHtml(res, req, defaultHtmlSrc404));
-      }
-    },
-  };
-};
+const ssrMiddlewareFactory = async ({ path = '/' } = {}) => ({
+  error500: function (err, req, res, next) {
+    logger.error(err, err.stack);
+    return res.sendStatus(500);
+  },
+  error400: function (req, res, next) {
+    // `/<path>/home` is an alias of `/<path>`, not a missing route.
+    const homeRedirectPath = `${path === '/' ? '' : path}/home`;
+    if (req.url.startsWith(homeRedirectPath)) {
+      const redirectUrl = req.url.replace('/home', '');
+      return res.redirect(redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`);
+    }
+    return res.sendStatus(404);
+  },
+});
 
 export { ssrMiddlewareFactory, ssrFactory, sanitizeHtml };

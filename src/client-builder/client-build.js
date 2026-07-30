@@ -23,6 +23,7 @@ import { shellExec } from '../server/process.js';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
 import { buildIcons } from './client-icons.js';
+import { statusPageBuildSegment } from '../server/underpost-gateway.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 import { ssrFactory } from './ssr.js';
@@ -810,14 +811,12 @@ const buildClient = async (
       }
 
       if (views) {
-        if (
-          !(
-            enableLiveRebuild &&
-            !options.liveClientBuildPaths.find(
-              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
-            )
+        if (!(
+          enableLiveRebuild &&
+          !options.liveClientBuildPaths.find(
+            (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
           )
-        )
+        ))
           for (const view of views) {
             const buildPath = `${
               rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -1069,9 +1068,16 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
             renderApi: { JSONweb },
           });
 
-          const buildPath = `${
-            rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-          }${view.path === '/' ? view.path : `${view.path}/`}`;
+          // A status view is built under `status-pages/<status>/`, not on its own
+          // `/<status>` route: the gateway serves it by intercepting the
+          // runtime's error, and a document on that route would give the runtime
+          // a page of its own to serve or redirect to for the same condition.
+          const statusCode = statusPageRoutes.find((route) => route.routePath === `${proxyPrefix}${view.path}`)?.status;
+          const clientRoot =
+            rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath;
+          const buildPath = statusCode
+            ? `${clientRoot}/${dir.dirname(statusPageBuildSegment(statusCode))}/`
+            : `${clientRoot}${view.path === '/' ? view.path : `${view.path}/`}`;
 
           const indexUrl = buildIndexUrl(view.path);
           if (view.offlineDefault) {
