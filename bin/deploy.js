@@ -764,7 +764,7 @@ nvidia/gpu-operator \
 
     case 'pw-conf': {
       const scriptPath = process.argv[3];
-      shellExec(`kubectl delete configmap playwright-script`);
+      shellExec(`kubectl delete configmap playwright-script --ignore-not-found`);
       shellExec(`kubectl create configmap playwright-script \
   --from-file=script.js=${scriptPath} \
   --dry-run=client -o yaml | kubectl apply -f -
