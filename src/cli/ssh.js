@@ -7,6 +7,7 @@
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
+import { waitForPort } from '../server/conf.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 
@@ -606,8 +607,8 @@ EOF
     },
 
     /**
-     * Waits until a TCP SSH port becomes reachable on a host.
-     * @async
+     * Waits until a TCP SSH port becomes reachable on a host. Delegates to
+     * {@link ServerConfBuilder.waitForPort}, which owns the probe.
      * @function waitForSshPort
      * @memberof UnderpostSSH
      * @param {object} params
@@ -617,25 +618,14 @@ EOF
      * @param {number} [params.intervalMs=3000] - Poll interval.
      * @returns {Promise<boolean>} True once the port accepts connections, false on timeout.
      */
-    waitForSshPort: async ({ host, port = 22, timeoutMs = 10 * 60 * 1000, intervalMs = 3000 }) => {
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline) {
-        const probe = shellExec(
-          `timeout 5 bash -c '</dev/tcp/${host}/${port}' >/dev/null 2>&1 && echo open || echo closed`,
-          { silent: true, stdout: true, silentOnError: true, disableLog: true },
-        );
-        if (`${probe}`.trim() === 'open') return true;
-        await new Promise((r) => setTimeout(r, intervalMs));
-      }
-      logger.warn(`SSH port ${host}:${port} not reachable within timeout`);
-      return false;
-    },
+    waitForSshPort: ({ host, port = 22, timeoutMs = 10 * 60 * 1000, intervalMs = 3000 }) =>
+      waitForPort({ host, port, open: true, timeoutMs, intervalMs }),
 
     /**
      * Waits until a host's SSH port stops accepting connections (e.g. while it
      * reboots). Used to detect a reboot edge before waiting for the port to come
      * back up, so callers don't latch onto the pre-reboot (ephemeral) sshd.
-     * @async
+     * Delegates to {@link ServerConfBuilder.waitForPort}.
      * @function waitForSshPortClosed
      * @memberof UnderpostSSH
      * @param {object} params
@@ -645,18 +635,8 @@ EOF
      * @param {number} [params.intervalMs=3000] - Poll interval.
      * @returns {Promise<boolean>} True once the port is closed, false on timeout.
      */
-    waitForSshPortClosed: async ({ host, port = 22, timeoutMs = 3 * 60 * 1000, intervalMs = 3000 }) => {
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline) {
-        const probe = shellExec(
-          `timeout 5 bash -c '</dev/tcp/${host}/${port}' >/dev/null 2>&1 && echo open || echo closed`,
-          { silent: true, stdout: true, silentOnError: true, disableLog: true },
-        );
-        if (`${probe}`.trim() === 'closed') return true;
-        await new Promise((r) => setTimeout(r, intervalMs));
-      }
-      return false;
-    },
+    waitForSshPortClosed: ({ host, port = 22, timeoutMs = 3 * 60 * 1000, intervalMs = 3000 }) =>
+      waitForPort({ host, port, open: false, timeoutMs, intervalMs }),
 
     /**
      * Orchestrates a non-interactive, key-only SSH session against a freshly
