@@ -2081,6 +2081,90 @@ const nextTrafficFactory = (liveTraffic = '', requestedTraffic = '') =>
       : 'blue';
 
 /**
+ * @method stopPlanFactory
+ * @description Resolves which colour-suffixed Deployments a stop should remove.
+ *
+ * Four ways to name them, in precedence order:
+ *
+ * 1. A literal comma path names the Deployments outright and every flag is
+ *    ignored — the caller already knows the exact object, so nothing is derived
+ *    and nothing else can be caught by accident.
+ * 2. `deployId` alone selects that deploy's PWA workload.
+ * 3. `deployId` with `instanceId` adds every custom instance of each id; a
+ *    template id expands to its whole variant family, since each variant is its
+ *    own Deployment.
+ * 4. `instanceId` without `deployId` is refused: an instance id is only unique
+ *    inside a deploy, so acting on it alone would be a guess.
+ *
+ * Colour selection is separate: `traffic` names the colours explicitly (a comma
+ * list, so `blue,green` stops both), and without it each target resolves to the
+ * blue/green partner of whatever it is currently serving — the colour that is by
+ * definition not carrying traffic.
+ * @param {string} [path] - Literal comma-separated Deployment names.
+ * @param {string} [deployId] - Deploy id whose workload and instances are targeted.
+ * @param {string} [instanceId] - Comma-separated instance or template ids.
+ * @param {string} [traffic] - Comma-separated colours; empty means the inactive one.
+ * @param {string} [env] - `development` | `production`.
+ * @param {Function} [instancesFor] - `(instanceId) => Array<object>` expanded instances.
+ * @param {Function} [liveTrafficOf] - `(target) => 'blue' | 'green' | '' | null`.
+ * @returns {{deployments: Array<object>, error: string|null}} The plan, or why there isn't one.
+ * @memberof ServerConfBuilder
+ */
+const stopPlanFactory = ({
+  path = '',
+  deployId = '',
+  instanceId = '',
+  traffic = '',
+  env = '',
+  instancesFor = () => [],
+  liveTrafficOf = () => '',
+}) => {
+  const list = (value) =>
+    `${value || ''}`
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+  const literal = list(path);
+  if (literal.length > 0)
+    return {
+      deployments: literal.map((deployment) => ({ deployment, kind: 'literal', id: deployment, host: '', colour: '' })),
+      error: null,
+    };
+
+  const instanceIds = list(instanceId);
+  if (!deployId)
+    return {
+      deployments: [],
+      error:
+        instanceIds.length > 0
+          ? '--instance-id requires --deploy-id: an instance id is only unique inside a deploy'
+          : 'nothing to stop: pass a literal deployment path, or --deploy-id',
+    };
+
+  const requestedRaw = list(traffic);
+  const requested = requestedRaw.filter((colour) => colour === 'blue' || colour === 'green');
+  if (requestedRaw.length > 0 && requested.length === 0)
+    return { deployments: [], error: `--traffic accepts blue and/or green, got: ${requestedRaw.join(',')}` };
+
+  const targets = [{ id: deployId, host: '', kind: 'pwa' }];
+  for (const id of instanceIds)
+    for (const instance of instancesFor(id))
+      targets.push({ id: `${deployId}-${instance.id}`, host: instance.host || '', kind: 'instance' });
+
+  const deployments = [];
+  const seen = new Set();
+  for (const target of targets)
+    for (const colour of requested.length > 0 ? requested : [nextTrafficFactory(liveTrafficOf(target))]) {
+      const deployment = `${target.id}-${env}-${colour}`;
+      if (seen.has(deployment)) continue;
+      seen.add(deployment);
+      deployments.push({ ...target, colour, deployment });
+    }
+  return { deployments, error: null };
+};
+
+/**
  * @method trafficFromRoutingInfoFactory
  * @description Reads a deployment's live colour out of the routing text that
  * carries it.
@@ -2923,6 +3007,7 @@ export {
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
   nextTrafficFactory,
+  stopPlanFactory,
   trafficFromRoutingInfoFactory,
   trafficTableRowsFactory,
   resolveEnvScoped,

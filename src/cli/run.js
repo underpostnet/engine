@@ -37,6 +37,7 @@ import {
   trafficTableRowsFactory,
   isTrafficServingFactory,
   nextTrafficFactory,
+  stopPlanFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
@@ -1082,22 +1083,36 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
     /**
      * @method stop
-     * @description Deletes one colour's Deployment and Service, leaving routing untouched.
+     * @description Deletes colour-suffixed Deployments and their Services, leaving routing untouched.
      *
-     * By default it stops the *inactive* colour — the blue/green partner of
-     * whatever is serving — so a stop is safe against a live host. Passing
-     * `current` in the comma path stops the serving colour instead, which takes
-     * the workload behind the published route offline; that is the caller's
-     * decision, so it is warned about rather than refused.
+     * Four ways to say what to stop, resolved by {@link ServerConfBuilder.stopPlanFactory}:
      *
-     * The colour is resolved through the same routing stack that published it:
-     * the Gateway API HTTPRoute by default, the Contour HTTPProxy under
-     * `--disable-gateway-api`. Reading the wrong kind returns no colour at all,
-     * which silently degrades to "blue" and stops whichever deployment happens to
-     * carry that name. It is also resolved for the exact object being deleted —
-     * an instance's colour lives under its own `<deployId>-<instanceId>` prefix,
-     * and on a shared host the parent's answer belongs to a different variant.
-     * @param {string} [path] - Comma-separated: the deploy id, and optionally `current`.
+     * ```bash
+     * # Literal: exactly this Deployment, flags ignored
+     * node bin run stop dd-cyberia-mmo-server-forest-development-blue
+     *
+     * # The deploy's PWA workload, inactive colour
+     * node bin run stop --deploy-id dd-cyberia
+     *
+     * # ...plus every variant of each instance family, inactive colour
+     * node bin run stop --deploy-id dd-cyberia --instance-id mmo-client,mmo-server
+     *
+     * # Explicit colours; both, where they exist
+     * node bin run stop --deploy-id dd-cyberia --traffic blue,green
+     * ```
+     *
+     * The default colour is the blue/green partner of whatever each target is
+     * serving, so a stop is safe against a live host unless `--traffic` names the
+     * serving colour outright — which is warned about, not refused.
+     *
+     * That colour is read through the same routing stack that published it: the
+     * Gateway API HTTPRoute by default, the Contour HTTPProxy under
+     * `--disable-gateway-api`. Reading the wrong kind finds no colour, degrades to
+     * "blue", and stops whichever Deployment happens to carry that name. It is
+     * resolved per target too — an instance's colour lives under its own
+     * `<deployId>-<instanceId>` prefix, and on a shared host the parent's answer
+     * belongs to a different variant.
+     * @param {string} [path] - Literal comma-separated Deployment names; when set, every flag is ignored.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -1105,42 +1120,63 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const env = options.dev ? 'development' : 'production';
       const namespace = options.namespace || 'default';
       const gatewayApi = gatewayApiEnabledFactory(options);
-      const fields = `${path || ''}`
-        .split(',')
-        .map((field) => field.trim())
-        .filter(Boolean);
-      const stopCurrent = fields.includes('current');
-      const deployId = fields.find((field) => field !== 'current') || options.deployId;
-      if (!deployId) {
-        logger.error('A deploy id is required, in the comma path or as --deploy-id');
-        return;
-      }
 
-      const targetId = `${deployId}${options.instanceId ? `-${options.instanceId}` : ''}`;
-      const liveTraffic = Underpost.deploy.getCurrentTraffic(targetId, {
-        hostTest: options.hosts,
-        namespace,
+      // Memoized because the plan and the serving check ask the same question,
+      // and `--traffic` skips the plan's lookup entirely — which is exactly when
+      // the check has to make its own.
+      const liveTraffic = {};
+      const liveTrafficOf = (target) => {
+        if (liveTraffic[target.id] === undefined)
+          liveTraffic[target.id] =
+            Underpost.deploy.getCurrentTraffic(target.id, {
+              hostTest: target.host || options.hosts,
+              namespace,
+              env,
+              gatewayApi,
+            }) || '';
+        return liveTraffic[target.id];
+      };
+
+      const { deployments, error } = stopPlanFactory({
+        path,
+        deployId: options.deployId,
+        instanceId: options.instanceId,
+        traffic: options.traffic,
         env,
-        gatewayApi,
+        instancesFor: (instanceId) => selectConfInstances(loadConfInstances(options.deployId), instanceId),
+        liveTrafficOf,
       });
-      if (stopCurrent && !liveTraffic) {
-        logger.error('No published colour to stop; the route was read from the stack in use and named none', {
-          targetId,
-          stack: gatewayApi ? 'HTTPRoute' : 'HTTPProxy',
-          namespace,
-        });
-        return;
+      if (error) {
+        logger.error(error);
+        return [];
       }
-      const traffic = stopCurrent ? liveTraffic : nextTrafficFactory(liveTraffic);
-      const deploymentId = `${targetId}-${env}-${traffic}`;
-      if (stopCurrent)
-        logger.warn('Stopping the serving colour; its routes stay published and will have no backend', {
-          deploymentId,
-        });
-      logger.info('Stopping deployment', { deploymentId, namespace, liveTraffic: liveTraffic || 'none' });
 
-      shellExec(`kubectl delete deployment ${deploymentId} -n ${namespace} --ignore-not-found`);
-      shellExec(`kubectl delete svc ${deploymentId}-service -n ${namespace} --ignore-not-found`);
+      // Read once: it decides what is reported as actually stopped, and a target
+      // that is already gone is a no-op worth naming rather than a silent delete.
+      const deployedNames = Underpost.kubectl.get('', 'deployment', namespace).map((entry) => entry.NAME);
+      const stopped = [];
+      for (const target of deployments) {
+        const existed = deployedNames.includes(target.deployment);
+        if (existed) stopped.push(target.deployment);
+        // The Service is deleted either way: an orphan left by a half-finished
+        // cycle outlives its Deployment and would keep resolving to no endpoints.
+        shellExec(`kubectl delete deployment ${target.deployment} -n ${namespace} --ignore-not-found`);
+        shellExec(`kubectl delete svc ${target.deployment}-service -n ${namespace} --ignore-not-found`);
+      }
+
+      const serving = deployments.filter(
+        (target) => target.kind !== 'literal' && target.colour === liveTrafficOf(target),
+      );
+      if (serving.length > 0)
+        logger.warn('Stopped the serving colour; those routes stay published and now have no backend', {
+          deployments: serving.map((target) => target.deployment),
+        });
+      logger.info('Stop complete', {
+        namespace,
+        stopped,
+        absent: deployments.filter((target) => !stopped.includes(target.deployment)).map((t) => t.deployment),
+      });
+      return stopped;
     },
 
     /**

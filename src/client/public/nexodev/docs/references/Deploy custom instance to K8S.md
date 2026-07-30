@@ -659,6 +659,44 @@ The swap order is what makes it zero-downtime, and it holds in both directions:
   only when nothing is serving the host yet. On a re-deploy it is skipped, because
   proving a fallback there would mean taking a healthy host down to do it.
 
+### Stopping a colour
+
+`run stop` deletes colour-suffixed Deployments and their Services. It never
+touches routing, so it is the way to reclaim the inactive half of a blue/green
+pair. There are four ways to say what to stop, in precedence order:
+
+```bash
+# 1. Literal — exactly this Deployment and its Service. Every flag is ignored.
+node bin run stop dd-cyberia-mmo-server-forest-development-blue
+
+# 2. The deploy's PWA workload, inactive colour
+node bin run stop --deploy-id dd-cyberia
+
+# 3. ...plus every variant of each instance family, inactive colour
+node bin run stop --deploy-id dd-cyberia --instance-id mmo-client,mmo-server
+
+# 4. Explicit colours — both, wherever they exist
+node bin run stop --deploy-id dd-cyberia --instance-id mmo-server --traffic blue,green
+```
+
+| Input                           | Stops                                                                |
+| ------------------------------- | -------------------------------------------------------------------- |
+| literal path                    | only the named Deployments; nothing is derived                       |
+| `--deploy-id`                   | that deploy's PWA workload                                           |
+| `--deploy-id` + `--instance-id` | the PWA workload **and** every variant of each instance family       |
+| `--traffic blue,green`          | those colours instead of the inactive one, for every selected target |
+| `--instance-id` alone           | refused — an instance id is only unique inside a deploy              |
+
+Without `--traffic`, each target resolves to the blue/green partner of whatever
+**it** is serving, read per target: a shared host can legitimately have `/` on
+green and `/FOREST` on blue, so one answer would be wrong for the other. That
+colour is read from the routing stack in use (HTTPRoute, or HTTPProxy under
+`--disable-gateway-api`).
+
+Naming the serving colour with `--traffic` is allowed and warned about — the
+routes stay published and will have no backend until something is deployed
+behind them. A target that is already gone is reported as absent, not an error.
+
 ## Command Options Reference
 
 ### Common Options
