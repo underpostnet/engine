@@ -17,6 +17,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4033
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4033
+          weight: 0
     
     - conditions:
         - prefix: /
@@ -26,6 +29,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4034
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4034
+          weight: 0
     
     - conditions:
         - prefix: /peer
@@ -35,6 +41,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4035
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4035
+          weight: 0
     
     - conditions:
         - prefix: /r1
@@ -44,6 +53,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4036
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4036
+          weight: 0
     
     - conditions:
         - prefix: /r1/peer
@@ -53,6 +65,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4037
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4037
+          weight: 0
     
     - conditions:
         - prefix: /r2
@@ -62,6 +77,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4038
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4038
+          weight: 0
     
     - conditions:
         - prefix: /r2/peer
@@ -71,6 +89,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4039
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4039
+          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -90,6 +111,9 @@ spec:
         - name: dd-test-development-blue-service
           port: 4040
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4040
+          weight: 0
     
     - conditions:
         - prefix: /peer
@@ -99,4 +123,7 @@ spec:
         - name: dd-test-development-blue-service
           port: 4041
           weight: 100
+        - name: dd-test-development-green-service
+          port: 4041
+          weight: 0
     

@@ -17,6 +17,9 @@ spec:
         - name: dd-core-development-blue-service
           port: 4017
           weight: 100
+        - name: dd-core-development-green-service
+          port: 4017
+          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -36,6 +39,9 @@ spec:
         - name: dd-core-development-blue-service
           port: 4018
           weight: 100
+        - name: dd-core-development-green-service
+          port: 4018
+          weight: 0
     
     - conditions:
         - prefix: /peer
@@ -45,6 +51,9 @@ spec:
         - name: dd-core-development-blue-service
           port: 4019
           weight: 100
+        - name: dd-core-development-green-service
+          port: 4019
+          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -64,6 +73,9 @@ spec:
         - name: dd-core-development-blue-service
           port: 4020
           weight: 100
+        - name: dd-core-development-green-service
+          port: 4020
+          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -83,6 +95,9 @@ spec:
         - name: dd-core-development-blue-service
           port: 4021
           weight: 100
+        - name: dd-core-development-green-service
+          port: 4021
+          weight: 0
     
     - conditions:
         - prefix: /peer
@@ -92,4 +107,7 @@ spec:
         - name: dd-core-development-blue-service
           port: 4022
           weight: 100
+        - name: dd-core-development-green-service
+          port: 4022
+          weight: 0
     

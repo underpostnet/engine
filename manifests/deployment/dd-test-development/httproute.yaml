@@ -1,0 +1,341 @@
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: test.nexodev.org
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-test-development
+      namespace: default
+  hostnames:
+    - test.nexodev.org
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /wp
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4033
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4033
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /test.nexodev.org/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /test.nexodev.org/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4034
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4034
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4035
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4035
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r1/offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /test.nexodev.org/r1/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r1/maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /test.nexodev.org/r1/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r1/api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4036
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4036
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r1
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r1/peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4037
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4037
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r2
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4038
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4038
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /r2/peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4039
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4039
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: stagging.nexodev.org
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-test-development
+      namespace: default
+  hostnames:
+    - stagging.nexodev.org
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /stagging.nexodev.org/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /stagging.nexodev.org/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4040
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4040
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-test-development-blue-service
+          port: 4041
+          weight: 100
+        - name: dd-test-development-green-service
+          port: 4041
+          weight: 0

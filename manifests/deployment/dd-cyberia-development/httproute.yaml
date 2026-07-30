@@ -1,0 +1,540 @@
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: underpost.net
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - underpost.net
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /underpost.net/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /underpost.net/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4005
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4005
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4006
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4006
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: www.underpost.net
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - www.underpost.net
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4007
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4007
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: www.cyberiaonline.com
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - www.cyberiaonline.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /www.cyberiaonline.com/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /www.cyberiaonline.com/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4008
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4008
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4009
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4009
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cyberiaonline.com
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - cyberiaonline.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4010
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4010
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cryptokoyn.net
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - cryptokoyn.net
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /cryptokoyn.net/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /cryptokoyn.net/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4011
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4011
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4012
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4012
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: www.cryptokoyn.net
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - www.cryptokoyn.net
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4013
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4013
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: itemledger.com
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - itemledger.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /itemledger.com/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /itemledger.com/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4014
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4014
+          weight: 0
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4015
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4015
+          weight: 0
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: www.itemledger.com
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - www.itemledger.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-blue-service
+          port: 4016
+          weight: 100
+        - name: dd-cyberia-development-green-service
+          port: 4016
+          weight: 0
