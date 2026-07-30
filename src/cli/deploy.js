@@ -8,32 +8,41 @@ import {
   buildKindPorts,
   buildPortProxyRouter,
   buildProxyRouter,
+  clusterTypeFactory,
   Config,
   cronDeployIdResolve,
+  deployHostsFactory,
   deployRangePortFactory,
+  gatewayApiEnabledFactory,
   getDataDeploy,
+  instanceStatusPageEntriesFactory,
   loadConfInstances,
   loadConfServerJson,
   loadReplicas,
   pathPortAssignmentFactory,
+  trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime-status.js';
 import { staticContextRoutesFactory, statusPageRoutesFactory } from '../client-builder/client-build.js';
 import {
-  GATEWAY_STATIC,
-  gatewayStaticManifestsFactory,
+  UNDERPOST_GATEWAY,
+  hostServerConfFactory,
+  installGatewayConf,
+  underpostGatewayManifestsFactory,
   staticLocationFactory,
   statusPageAssetPathFactory,
+  statusPageBuildSegment,
   syncStaticAssetFromPod,
+  writeHostServerConf,
   writeStaticAsset,
-} from '../server/gateway-static.js';
+} from '../server/underpost-gateway.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import fs from 'fs-extra';
+import nodePath from 'node:path';
 import dotenv from 'dotenv';
 import os from 'node:os';
-import nodePath from 'node:path';
 import crypto from 'node:crypto';
 import Underpost from '../index.js';
 
@@ -70,7 +79,47 @@ const GATEWAY_CLASS_DEFAULT = 'eg';
 // SSR status views declared in conf.ssr.json (`<host><path>/<status>/index.html`).
 // Engine root inside the workload container; the built PWA artifacts live under
 // its `public/` tree, which is where the static edge documents are sourced from.
+// A workload that is gone answers with none of these itself; Envoy or the
+// gateway hop produces them, and a maintenance page is what they mean.
+const UPSTREAM_FAILURE_STATUSES = [502, 503, 504];
+
 const CONTAINER_ENGINE_ROOT = '/home/dd/engine';
+
+/**
+ * Maps a host/path's edge-served views onto the statuses the gateway intercepts
+ * for it, and the context directory each status is answered from.
+ *
+ * The mapping is the config's, not a policy of its own: a declared status page
+ * (`/404`) answers that status, and the maintenance view answers the codes that
+ * mean the workload is not there — a dead pod is exactly what a maintenance page
+ * is for. A host that declares neither is never intercepted and keeps routing
+ * straight to its workload.
+ * @param {Array<object>} edgeRoutes - Entries from {@link UnderpostDeploy.edgeRouteEntriesFactory}.
+ * @returns {Object<string,string>} Status code → context directory under the sub-path.
+ */
+const interceptStatusesFactory = (edgeRoutes = []) => {
+  const statuses = {};
+  for (const route of edgeRoutes) {
+    if (route.status) statuses[route.status] = `status-pages/${route.status}`;
+    else if (route.context === 'maintenance')
+      for (const code of UPSTREAM_FAILURE_STATUSES) statuses[code] = route.context;
+  }
+  return statuses;
+};
+
+/**
+ * The API sub-path of a host/path, when it declares one. Kept out of the
+ * intercepted route so an API answers with its own status and body.
+ * @param {object} confServer - Parsed `conf.server.json`.
+ * @param {string} host - Hostname.
+ * @param {string} path - Proxy sub-path.
+ * @returns {string} API path prefix, or an empty string when the path serves no API.
+ */
+const apiPathFactory = ({ confServer, host, path }) => {
+  const apis = confServer?.[host]?.[path]?.apis;
+  if (!Array.isArray(apis) || apis.length === 0) return '';
+  return `${path === '/' ? '' : path}/${process.env.BASE_API || 'api'}`;
+};
 const GATEWAY_DURATION_UNITS = [
   ['h', 3600000],
   ['m', 60000],
@@ -581,8 +630,12 @@ ${Underpost.deploy
         // Node directory backing the static utility's volume; documents are
         // placed here rather than in the cluster's object store, which is what
         // lifts the size ceiling entirely.
-        const staticHostRoot = Underpost.deploy.gatewayStaticHostRootFactory(options);
-        const statusPageRoutes = [];
+        const staticHostRoot = Underpost.deploy.underpostGatewayRootFactory(options);
+        // Contexts routed to the gateway. Status pages are absent by design: they
+        // are reached by interception only, never as a destination.
+        const edgeRouteRecords = [];
+        // Per-host proxy routes contributed to the shared gateway's own config.
+        const gatewayRoutesByHost = {};
         // Every host attaches to one Gateway. Its HTTPS listener carries every
         // certificate and Envoy picks by SNI, so there are two listeners in
         // total instead of two per hostname.
@@ -596,8 +649,11 @@ ${Underpost.deploy
           const pathPortAssignment = pathPortAssignmentData[host];
           // logger.info('', { host, pathPortAssignment });
           let _proxyYaml = Underpost.deploy.baseProxyYamlFactory({ host, env, options });
-          const deploymentVersions =
-            options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'];
+          // The live colour is a cluster fact, and a build must not need one: with
+          // no `--traffic` the routes carry every colour this build emits, the
+          // first at full weight. `switchTraffic` passes the promoted colour
+          // explicitly, so a real promotion still pins exactly one.
+          const deploymentVersions = `${options.traffic || options.versions || 'blue,green'}`.split(',');
           let proxyRoutes = '';
           const globalTimeoutPolicy =
             (options.timeoutResponse && options.timeoutResponse !== '') ||
@@ -629,51 +685,78 @@ ${Underpost.deploy
                 timeoutPolicy: globalTimeoutPolicy,
                 retryPolicy: globalRetryPolicy,
               });
-              // Status pages and intercepted contexts are the same problem: a
-              // rendered SSR document with no request-time logic. Both are
-              // routed to the static utility unconditionally, so the workload
-              // never receives the request; the documents themselves are placed
-              // by `deploy --sync-static`. Neither can be carried in the gateway
-              // config — a rendered page is far past the 4096-byte ceiling, and
-              // exceeding it fails the whole route.
-              for (const edgeRoute of Underpost.deploy.edgeRouteEntriesFactory({
-                confServer,
-                confSSR,
-                host,
-                path,
-              })) {
+              // Intercepted contexts get a route of their own — `/offline` and
+              // `/maintenance` are addresses a client asks for, and the service
+              // worker precaches them by URL.
+              //
+              // A status page gets none. It is reached only by interception, so
+              // the client's URI is always the one it requested: a route for
+              // `/404` would make the status page a destination, and any hop to
+              // it — a rewrite, or a runtime that redirects its own 404s — is a
+              // URI the client did not ask for. `/invalid-path` must answer 404
+              // with the configured document while staying `/invalid-path`, which
+              // only `proxy_intercept_errors` in the gateway can do.
+              const edgeRoutes = Underpost.deploy.edgeRouteEntriesFactory({ confServer, confSSR, host, path });
+              const interceptStatuses = Object.keys(interceptStatusesFactory(edgeRoutes));
+              for (const edgeRoute of edgeRoutes.filter((route) => !route.status)) {
                 routeRules += Underpost.deploy.httpRouteRuleFactory({
                   path: edgeRoute.routePath,
                   // Onto the directory, not the document: one rule then covers
                   // the page and any asset beside it, which is exactly what the
                   // static utility's `try_files $uri $uri/index.html` resolves.
                   replacePrefixMatch: edgeRoute.dir,
-                  serviceId: GATEWAY_STATIC.serviceName,
-                  port: GATEWAY_STATIC.port,
+                  serviceId: UNDERPOST_GATEWAY.serviceName,
+                  port: UNDERPOST_GATEWAY.port,
                   timeoutPolicy: globalTimeoutPolicy,
                   retryPolicy: globalRetryPolicy,
                   altSvc: http3 ? altSvc : undefined,
                 });
-                statusPageRoutes.push({
+                edgeRouteRecords.push({
                   host,
                   path: edgeRoute.routePath,
-                  status: edgeRoute.status,
                   kind: edgeRoute.kind,
-                  servedBy: GATEWAY_STATIC.serviceName,
+                  servedBy: UNDERPOST_GATEWAY.serviceName,
                   rewrite: edgeRoute.dir,
                   assetPath: edgeRoute.assetPath,
                 });
               }
+              // The site path goes through the shared gateway, which proxies it
+              // to this workload and swaps in a status document when the
+              // workload errors or is gone. The API path is routed straight to
+              // the workload instead: its errors are its own contract, and a
+              // client parsing JSON must not receive an HTML page.
+              const intercepted = interceptStatuses.length > 0;
+              if (intercepted && apiPathFactory({ confServer, host, path }))
+                routeRules += Underpost.deploy.httpRouteRuleFactory({
+                  path: apiPathFactory({ confServer, host, path }),
+                  deployId,
+                  env,
+                  port,
+                  deploymentVersions,
+                  timeoutPolicy: globalTimeoutPolicy,
+                  retryPolicy: globalRetryPolicy,
+                  altSvc: http3 ? altSvc : undefined,
+                });
               routeRules += Underpost.deploy.httpRouteRuleFactory({
                 path,
-                deployId,
-                env,
-                port,
-                deploymentVersions,
+                ...(intercepted
+                  ? { serviceId: UNDERPOST_GATEWAY.serviceName, port: UNDERPOST_GATEWAY.port }
+                  : { deployId, env, port, deploymentVersions }),
                 timeoutPolicy: globalTimeoutPolicy,
                 retryPolicy: globalRetryPolicy,
                 altSvc: http3 ? altSvc : undefined,
               });
+              gatewayRoutesByHost[host] = (gatewayRoutesByHost[host] || []).concat(
+                intercepted
+                  ? {
+                      path,
+                      upstream: `${deployId}-${env}-${deploymentVersions[0]}-service:${port}`,
+                      statuses: interceptStatusesFactory(
+                        Underpost.deploy.edgeRouteEntriesFactory({ confServer, confSSR, host, path }),
+                      ),
+                    }
+                  : [],
+              );
             }
           for (const customService of customServices) {
             const {
@@ -719,9 +802,16 @@ ${Underpost.deploy
           }
         }
         if (gatewayHosts.length > 0) {
+          // Instance hostnames belong on this Gateway's certificate list even
+          // though their routes are applied later by `instance-promote`: one
+          // Gateway terminates every hostname the deploy serves, and a hostname
+          // with no certificate here has no TLS filter chain to be reached
+          // through. A per-host Gateway is not the alternative — a
+          // hostname-scoped listener beside this hostname-less one is the
+          // ambiguity the consolidation exists to remove.
           gatewayYaml += Underpost.deploy.gatewayYamlFactory({
             name: gatewayName,
-            hosts: gatewayHosts,
+            hosts: [...new Set([...gatewayHosts, ...deployHostsFactory(deployId).filter((host) => !confServer[host])])],
             env,
             options,
           });
@@ -732,6 +822,20 @@ ${Underpost.deploy
             options,
           });
         }
+        // The shared gateway proxies the intercepted paths, so its own config is
+        // part of this build — written as an artifact beside the manifests and
+        // nothing more. Installing it into the live workload and reloading it is
+        // the apply path's job: a build must work with no cluster running.
+        for (const [gatewayHost, routes] of Object.entries(gatewayRoutesByHost))
+          writeHostServerConf({
+            confDir: Underpost.deploy.gatewayConfDirFactory({ deployId, env }),
+            host: gatewayHost,
+            conf: hostServerConfFactory({
+              host: gatewayHost,
+              routes,
+              namespace: options.namespace || 'default',
+            }),
+          });
         const yamlPath = `./engine-private/conf/${deployId}/build/${env}/proxy.yaml`;
         fs.writeFileSync(yamlPath, proxyYaml, 'utf8');
         const buildPath = `./engine-private/conf/${deployId}/build/${env}`;
@@ -746,7 +850,7 @@ ${Underpost.deploy
           gatewayClass: gatewayClassName,
           http3,
           altSvc: http3 ? altSvc : null,
-          statusPageRoutes,
+          edgeRoutes: edgeRouteRecords,
         });
         if (env === 'production') {
           const yamlPath = `./engine-private/conf/${deployId}/build/${env}/secret.yaml`;
@@ -863,41 +967,60 @@ spec:
      * @param {object} options - Options for the traffic retrieval.
      * @param {string} options.hostTest - Hostname to test for traffic status.
      * @param {string} options.namespace - Kubernetes namespace for the deployment.
-     * @param {boolean} [options.gatewayApi] - Read the live colour from the Gateway API HTTPRoute instead of the Contour HTTPProxy.
+     * @param {boolean} [options.gatewayApi] - Force the Gateway API stack; on by default unless `disableGatewayApi` is set.
+     * @param {boolean} [options.disableGatewayApi] - Read the colour from the Contour HTTPProxy instead of the Gateway API HTTPRoute.
+     * @param {string} [options.underpostGatewayRoot] - Node directory backing the gateway volume, where an intercepted host's colour lives.
      * @returns {string|null} - Current traffic status ('blue' or 'green') or null if not found.
      * @memberof UnderpostDeploy
      */
     getCurrentTraffic(deployId, options = { hostTest: '', namespace: '', env: '' }) {
       if (!options.namespace) options.namespace = 'default';
-      // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
       const hostTest = options?.hostTest
         ? options.hostTest
         : Object.keys(loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`))[0];
-      // Both routing stacks name the backend service `<deployId>-<env>-<colour>-service`,
-      // so the colour is read the same way from whichever object is live.
+      return trafficFromRoutingInfoFactory({
+        info: Underpost.deploy.readHostRoutingInfo({ host: hostTest, options }),
+        deployId,
+        env: options.env,
+      });
+    },
+
+    /**
+     * All the routing text that can carry a host's traffic colour.
+     *
+     * Two sources, because one is not enough on its own: the route object names
+     * the colour for a host routed straight at its workload, and the Nginx server
+     * block names it for a host whose errors the gateway intercepts — those are
+     * routed at `underpost-gateway-service`, so their colour appears nowhere in
+     * the route object. Reading both means the colour resolves the same way
+     * whichever stack is live and whether or not the host is intercepted.
+     *
+     * Split out of {@link UnderpostDeploy.getCurrentTraffic} so a report covering
+     * many deployments and environments can read each host once instead of once
+     * per row.
+     * @param {string} host - Hostname whose routing is read.
+     * @param {object} [options] - Options carrying namespace, gateway stack and gateway root.
+     * @returns {string} Route object YAML and Nginx block, concatenated; empty when neither exists.
+     * @memberof UnderpostDeploy
+     */
+    readHostRoutingInfo({ host, options = {} }) {
+      const namespace = options.namespace || 'default';
       // A missing route object is the canonical "no traffic colour set yet"
       // state for blue/green rollouts. silentOnError swallows kubectl's NotFound
-      // exit so the function can return null cleanly.
-      const kind = options.gatewayApi ? 'HTTPRoute' : 'HTTPProxy';
-      const info = shellExec(`sudo kubectl get ${kind}/${hostTest} -n ${options.namespace} -o yaml`, {
+      // exit so the caller sees empty text rather than a throw.
+      const kind = gatewayApiEnabledFactory(options) ? 'HTTPRoute' : 'HTTPProxy';
+      const routeInfo = shellExec(`sudo kubectl get ${kind}/${host} -n ${namespace} -o yaml`, {
         silent: true,
         stdout: true,
         silentOnError: true,
       });
-      if (!info) return null;
-      // Env-scoped resolution: read THIS deploy's colour from its own service
-      // name (`<deployId>-<env>-<colour>-service`). Essential for shared
-      // multi-instance hosts, where one HTTPProxy holds several variants' routes
-      // on possibly different colours — a whole-document `.match('blue')` would
-      // return whichever colour appears first, i.e. a sibling's, not this one's.
-      // The regex is anchored on the full `<deployId>-<env>-` prefix so
-      // `dd-cyberia-mmo-server` never matches `dd-cyberia-mmo-server-forest`.
-      if (options.env) {
-        const escaped = deployId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const match = info.match(new RegExp(`${escaped}-${options.env}-(blue|green)-service`));
-        return match ? match[1] : null;
-      }
-      return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
+      const gatewayConfPath = nodePath.join(
+        Underpost.deploy.underpostGatewayRootFactory(options),
+        UNDERPOST_GATEWAY.confDir,
+        `${host}.conf`,
+      );
+      const gatewayInfo = fs.existsSync(gatewayConfPath) ? fs.readFileSync(gatewayConfPath, 'utf8') : '';
+      return `${routeInfo || ''}\n${gatewayInfo}`;
     },
 
     /**
@@ -1079,57 +1202,58 @@ spec:
     },
 
     /**
-     * Creates the Gateway that HTTPRoutes for a host attach to. The HTTPS
-     * listener is emitted under the same TLS rules as the HTTPProxy virtualhost
-     * (production, or development with `--self-signed`); QUIC is only wired when
-     * that listener exists, since HTTP/3 has no cleartext transport.
-     * @param {string} host - Hostname the Gateway terminates.
+     * Creates the one Gateway a deploy's HTTPRoutes attach to.
+     *
+     * Its listeners carry no hostname: a single listener per protocol serves
+     * every hostname and picks the certificate by SNI. The alternative — a
+     * Gateway per host, with the hostname on its listener — cannot stand beside
+     * it. `mergeGateways` collapses every Gateway of the class onto one listener
+     * per (port, protocol), so on 80 the hostname-scoped listener is dropped
+     * outright and on 443 it keeps an SNI filter chain whose route table is left
+     * empty. Both report Programmed while every path on that hostname answers
+     * 404, which is why the shape is not offered.
+     *
+     * The HTTPS listener is emitted under the same TLS rules as the HTTPProxy
+     * virtualhost (production, or development with `--self-signed`); QUIC is
+     * only wired when that listener exists, since HTTP/3 has no cleartext
+     * transport.
+     * @param {string} name - Gateway name, from {@link UnderpostDeploy.gatewayNameFactory}.
+     * @param {Array<string>} hosts - Every hostname the deploy terminates; each becomes a certificate ref.
      * @param {string} env - `development` | `production`.
-     * @param {object} options - Deploy/run options (namespace, gateway/QUIC settings, selfSigned).
-     * @returns {string} Gateway YAML, plus the QUIC ClientTrafficPolicy when HTTP/3 is enabled.
+     * @param {object} [options] - Deploy/run options (namespace, gateway/QUIC settings, selfSigned).
+     * @returns {string} Gateway YAML.
      * @memberof UnderpostDeploy
      */
-    gatewayYamlFactory({ host, hosts, name, env, options = {} }) {
+    gatewayYamlFactory({ hosts = [], name, env, options = {} }) {
       const namespace = options.namespace || 'default';
       const { gatewayClassName } = Underpost.deploy.gatewayApiConfigFactory(options);
       const includeTls = env !== 'development' || options.selfSigned === true;
-      const hostList = hosts && hosts.length > 0 ? hosts : [host];
-      // A per-host Gateway keeps its hostname on the listener; the consolidated
-      // one does not, because a single listener serves every hostname and picks
-      // the certificate by SNI. Under `mergeGateways` the two shapes coexist:
-      // the merge key is (port, protocol, hostname), so a hostname-less listener
-      // never collides with a hostname-scoped one.
-      const perHost = !name;
-      const gatewayName = name || host;
-      const listenerName = (prefix) =>
-        perHost ? Underpost.deploy.gatewayListenerNameFactory({ host, prefix }) : prefix;
       const allowedRoutes = `      allowedRoutes:
         namespaces:
           from: Same`;
-      const hostname = perHost ? `\n      hostname: ${host}` : '';
       return `
 ---
 apiVersion: ${GATEWAY_API_GROUP_VERSION}
 kind: Gateway
 metadata:
-  name: ${gatewayName}
+  name: ${name}
   namespace: ${namespace}
 spec:
   gatewayClassName: ${gatewayClassName}
   listeners:
-    - name: ${listenerName('http')}
+    - name: http
       protocol: HTTP
-      port: 80${hostname}
+      port: 80
 ${allowedRoutes}${
         includeTls
           ? `
-    - name: ${listenerName('https')}
+    - name: https
       protocol: HTTPS
-      port: 443${hostname}
+      port: 443
       tls:
         mode: Terminate
         certificateRefs:
-${hostList
+${hosts
   .map(
     (tlsHost) => `          - group: ""
             kind: Secret
@@ -1176,24 +1300,6 @@ ${allowedRoutes}`
     },
 
     /**
-     * Names a Gateway listener. Host-scoped because every Gateway of the class
-     * is merged into one data plane: the name is the handle the implementation
-     * keys each merged listener by, and it is what a policy references to scope
-     * itself to one section. `SectionName` permits only lowercase alphanumerics
-     * and dashes, so the hostname's dots are folded out.
-     * @param {string} host - Hostname the listener serves.
-     * @param {string} prefix - `http` | `https`.
-     * @returns {string} Listener name.
-     * @memberof UnderpostDeploy
-     */
-    gatewayListenerNameFactory({ host, prefix }) {
-      return `${prefix}-${host
-        .replace(/[^a-zA-Z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase()}`;
-    },
-
-    /**
      * Creates the QUIC/HTTP3 ClientTrafficPolicy for the merged data plane.
      *
      * Emitted **once per manifest**, not once per Gateway. A ClientTrafficPolicy
@@ -1205,16 +1311,14 @@ ${allowedRoutes}`
      * filter chain: the first host serves HTTPS and every other one is reset
      * mid-handshake, while all Gateways still report Programmed with their
      * listeners Accepted.
-     * @param {string} [host] - Host whose per-host Gateway the policy attaches to.
-     * @param {string} [name] - Consolidated Gateway name; takes precedence over `host`.
-     * @param {string} [sectionName] - Listener the policy scopes itself to.
+     * @param {string} name - Gateway the policy attaches to, from {@link UnderpostDeploy.gatewayNameFactory}.
+     * @param {string} sectionName - Listener the policy scopes itself to.
      * @param {string} env - `development` | `production`.
      * @param {object} [options] - Deploy/run options (namespace, QUIC settings).
      * @returns {string} ClientTrafficPolicy YAML, or an empty string when HTTP/3 has no TLS transport.
      * @memberof UnderpostDeploy
      */
-    clientTrafficPolicyYamlFactory({ host, name, sectionName, env, options = {} }) {
-      const gatewayName = name || host;
+    clientTrafficPolicyYamlFactory({ name, sectionName, env, options = {} }) {
       const namespace = options.namespace || 'default';
       const { http3 } = Underpost.deploy.gatewayApiConfigFactory(options);
       const includeTls = env !== 'development' || options.selfSigned === true;
@@ -1225,23 +1329,23 @@ ${allowedRoutes}`
       // rejects outright ("applied to multiple http (non https) listeners on the
       // same port"), leaving HTTP/3 silently off.
       //
-      // One policy, because there is now one HTTPS listener. Per-host listeners
-      // needed a policy each, and those policies fought over the merged 443
-      // listener until only one hostname kept a TLS filter chain; consolidating
-      // the listeners removes the contention rather than managing it.
+      // One policy, because there is one HTTPS listener. Per-host listeners needed
+      // a policy each, and those policies fought over the merged 443 listener
+      // until only one hostname kept a TLS filter chain; consolidating the
+      // listeners removes the contention rather than managing it.
       return `
 ---
 apiVersion: ${GATEWAY_EXTENSION_GROUP_VERSION}
 kind: ClientTrafficPolicy
 metadata:
-  name: ${gatewayName}-http3
+  name: ${name}-http3
   namespace: ${namespace}
 spec:
   targetRefs:
     - group: ${GATEWAY_API_GROUP}
       kind: Gateway
-      name: ${gatewayName}
-      sectionName: ${sectionName || Underpost.deploy.gatewayListenerNameFactory({ host, prefix: 'https' })}
+      name: ${name}
+      sectionName: ${sectionName}
   http3: {}
 `;
     },
@@ -1391,8 +1495,28 @@ ${rules}`;
      * @returns {string} Absolute host path.
      * @memberof UnderpostDeploy
      */
-    gatewayStaticHostRootFactory(options = {}) {
-      return options.gatewayStaticRoot || `/home/dd/engine/volume/${GATEWAY_STATIC.volumeName}`;
+    underpostGatewayRootFactory(options = {}) {
+      return options.underpostGatewayRoot || `/home/dd/engine/volume/${UNDERPOST_GATEWAY.volumeName}`;
+    },
+
+    /**
+     * Reports whether a Service currently has at least one ready endpoint.
+     *
+     * The single reachability predicate for a colour: a Service with no ready
+     * endpoint cannot serve, so it is neither safe to route to nor something
+     * live traffic can be sitting on.
+     * @param {string} service - Service name.
+     * @param {string} [namespace] - Namespace.
+     * @returns {boolean} True when an endpoint is ready right now.
+     * @memberof UnderpostDeploy
+     */
+    serviceHasReadyEndpoints({ service, namespace = 'default' }) {
+      const ready = shellExec(
+        `kubectl get endpointslice -n ${namespace} -l kubernetes.io/service-name=${service} ` +
+          `-o jsonpath='{.items[*].endpoints[*].conditions.ready}' 2>/dev/null`,
+        { stdout: true, silent: true, silentOnError: true },
+      );
+      return `${ready}`.includes('true');
     },
 
     /**
@@ -1412,12 +1536,7 @@ ${rules}`;
     awaitServiceEndpoints({ service, namespace = 'default', timeoutMs = 15 * 60 * 1000 }) {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
-        const ready = shellExec(
-          `kubectl get endpointslice -n ${namespace} -l kubernetes.io/service-name=${service} ` +
-            `-o jsonpath='{.items[*].endpoints[*].conditions.ready}' 2>/dev/null`,
-          { stdout: true, silent: true, silentOnError: true },
-        );
-        if (`${ready}`.includes('true')) return true;
+        if (Underpost.deploy.serviceHasReadyEndpoints({ service, namespace })) return true;
         shellExec('sleep 2', { silent: true });
       }
       logger.warn('Service never reported a ready endpoint; routes may be programmed as 500', {
@@ -1458,7 +1577,7 @@ ${rules}`;
       }
       const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
       const confSSR = JSON.parse(fs.readFileSync(confSSRPath, 'utf8'));
-      const hostRoot = Underpost.deploy.gatewayStaticHostRootFactory(options);
+      const hostRoot = Underpost.deploy.underpostGatewayRootFactory(options);
       const version = (options.versions && `${options.versions}`.split(',')[0]) || 'blue';
       const podName = Underpost.kubectl
         .get(`${deployId}-${env}-${version}`, 'pods', namespace)
@@ -1485,11 +1604,28 @@ ${rules}`;
               source: fromPod ? 'workload' : fromHost ? 'checkout' : null,
             });
           }
+      // Instance status pages are the same kind of document under the same
+      // layout, so they are placed by the same pass — but they come from neither
+      // of the sources above. Each is built and versioned by the project its
+      // instance runs, so `customStatusPages[].hostPath` resolves against that
+      // project's checkout on this host, and one document is placed per variant
+      // so `/FOREST/404` and `/404` each land where their own rule rewrites to.
+      if (fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`))
+        for (const entry of instanceStatusPageEntriesFactory({ instances: loadConfInstances(deployId) }))
+          synced.push({
+            host: entry.host,
+            kind: `status:${entry.status}`,
+            assetPath: entry.assetPath,
+            source: writeStaticAsset({ hostRoot, assetPath: entry.assetPath, sourcePath: entry.sourcePath })
+              ? 'project'
+              : null,
+          });
       logger.info('Static edge documents placed', {
         deployId,
         podName: podName || '(no running workload; placed from this checkout)',
         fromWorkload: synced.filter((entry) => entry.source === 'workload').length,
         fromCheckout: synced.filter((entry) => entry.source === 'checkout').length,
+        fromProject: synced.filter((entry) => entry.source === 'project').length,
         missing: synced.filter((entry) => !entry.source).map((entry) => entry.assetPath),
       });
       return synced;
@@ -1519,23 +1655,28 @@ ${rules}`;
       // The client build writes each view to `public/<host><path>/<view>/index.html`,
       // under the container root for the workload's copy and under this repo for
       // the host's.
-      const publicPath = (artifact) => `public/${host}${path === '/' ? '' : path}/${artifact}/index.html`;
-      const addresses = (artifact) => ({
-        containerPath: `${CONTAINER_ENGINE_ROOT}/${publicPath(artifact)}`,
-        hostPath: `./${publicPath(artifact)}`,
+      // A context is built on its own route (`/offline/index.html`) because a
+      // client requests it by URL; a status page is built under `status-pages/`
+      // instead, off any route the runtime could answer with. Both sides read the
+      // segment from one factory so the sync never looks where the build did not
+      // write.
+      const publicPath = (segment) => `public/${host}${path === '/' ? '' : path}/${segment}`;
+      const addresses = (segment) => ({
+        containerPath: `${CONTAINER_ENGINE_ROOT}/${publicPath(segment)}`,
+        hostPath: `./${publicPath(segment)}`,
       });
       return [
         ...statusPageRoutesFactory({ views, proxyPath: path }).map((route) => ({
           ...route,
           ...statusPageAssetPathFactory({ host, path, status: route.status }),
           kind: `status:${route.status}`,
-          ...addresses(route.status),
+          ...addresses(statusPageBuildSegment(route.status)),
         })),
         ...staticContextRoutesFactory({ views, proxyPath: path }).map((route) => ({
           ...route,
           ...staticLocationFactory({ host, path, context: route.context }),
           kind: `context:${route.context}`,
-          ...addresses(route.context),
+          ...addresses(`${route.context}/index.html`),
         })),
       ];
     },
@@ -1549,12 +1690,42 @@ ${rules}`;
      * @returns {string} Multi-document YAML.
      * @memberof UnderpostDeploy
      */
-    gatewayStaticYamlFactory(options = {}) {
-      return gatewayStaticManifestsFactory({
+    underpostGatewayYamlFactory(options = {}) {
+      return underpostGatewayManifestsFactory({
         namespace: options.namespace || 'default',
-        hostPath: Underpost.deploy.gatewayStaticHostRootFactory(options),
+        hostPath: Underpost.deploy.underpostGatewayRootFactory(options),
         nodeName: Underpost.deploy.resolveDeployNode(options),
+        resolver: Underpost.deploy.clusterDnsFactory(),
       });
+    },
+
+    /**
+     * Where a build writes the shared gateway's server blocks. A build artifact
+     * like every other manifest, installed into the live workload by the apply
+     * path rather than by the build that produced it.
+     * @param {string} deployId - Deploy id.
+     * @param {string} env - `development` | `production`.
+     * @returns {string} Directory holding the built blocks.
+     * @memberof UnderpostDeploy
+     */
+    gatewayConfDirFactory({ deployId, env }) {
+      return `./engine-private/conf/${deployId}/build/${env}/gateway-conf.d`;
+    },
+
+    /**
+     * The cluster DNS address Nginx resolves upstream Service names through.
+     * Read from the live Service because it follows the cluster's own Service
+     * CIDR, and baked into the config because nginx cannot resolve the name of
+     * its own resolver.
+     * @returns {string} kube-dns ClusterIP, or the conventional default.
+     * @memberof UnderpostDeploy
+     */
+    clusterDnsFactory() {
+      const clusterIp = shellExec(
+        `kubectl get svc kube-dns -n kube-system -o jsonpath='{.spec.clusterIP}' 2>/dev/null`,
+        { stdout: true, silent: true, silentOnError: true },
+      );
+      return /^\d+\.\d+\.\d+\.\d+$/.test(`${clusterIp}`.trim()) ? `${clusterIp}`.trim() : UNDERPOST_GATEWAY.resolver;
     },
 
     /**
@@ -1603,8 +1774,8 @@ ${rules}`;
         Underpost.deploy.httpRouteRuleFactory({
           path,
           ...rewrite,
-          serviceId: GATEWAY_STATIC.serviceName,
-          port: GATEWAY_STATIC.port,
+          serviceId: UNDERPOST_GATEWAY.serviceName,
+          port: UNDERPOST_GATEWAY.port,
           altSvc,
         });
       let rules = '';
@@ -1881,7 +2052,7 @@ EOF`);
                     k3s: options.k3s,
                     env,
                   }),
-                  clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
+                  clusterContext: clusterTypeFactory(options),
                   gitClean: options.gitClean || false,
                   sshKeyPath: options.sshKeyPath || '',
                 });
@@ -1889,11 +2060,11 @@ EOF`);
 
         for (const host of Object.keys(confServer)) {
           if (!options.disableUpdateProxy) {
-            shellExec(
-              options.gatewayApi
-                ? `sudo kubectl delete HTTPRoute ${host} -n ${namespace} --ignore-not-found`
-                : `sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`,
-            );
+            // The host's route object is left in place and replaced by the `apply`
+            // below. Deleting it first unpublished the hostname for the whole
+            // reconciliation window, so every promote dropped live requests before
+            // the new colour was ever the question.
+            //
             // A deploy that previously ran the per-host model left a Gateway
             // named after each host. Those are superseded by the consolidated
             // one, and leaving them behind puts a hostname-scoped 443 listener
@@ -1933,19 +2104,26 @@ EOF`);
           // Applying both would publish duplicate routes for the same hostnames.
           if (!options.disableUpdateProxy) {
             if (options.gatewayApi) {
-              // Envoy Gateway resolves backends when it translates the route, and
-              // a rule whose destinations have no ready endpoint is rewritten to a
-              // 500 direct response that never clears (route.go: Valid == 0). The
-              // deployment above was just recreated, so its Service has no
-              // endpoints yet — applying the routes now would program every one of
-              // them as a 500. Wait instead of applying early and repairing later:
-              // a delete/re-apply would take the whole route set out of the data
-              // plane while Envoy reconverges.
-              for (const version of options.versions.split(','))
-                Underpost.deploy.awaitServiceEndpoints({
-                  service: `${deployId}-${env}-${version.trim()}-service`,
-                  namespace,
-                });
+              // In the normal one-shot deploy, wait for the application endpoints
+              // before publishing direct API routes. The cluster runner also uses
+              // this apply path in an explicit ingress-only bootstrap, where the
+              // Service is intentionally absent and the site route must already
+              // reach underpost-gateway so it can serve the maintenance fallback.
+              if (!options.disableUpdateDeployment)
+                for (const version of options.versions.split(','))
+                  Underpost.deploy.awaitServiceEndpoints({
+                    service: `${deployId}-${env}-${version.trim()}-service`,
+                    namespace,
+                  });
+              // Nginx must know how to proxy and intercept this host before Envoy
+              // can send the first request to it. Installing first removes the
+              // reconciliation window where the HTTPRoute is Accepted but the
+              // shared gateway still serves its default server block.
+              installGatewayConf({
+                hostRoot: Underpost.deploy.underpostGatewayRootFactory(options),
+                confSourceDir: Underpost.deploy.gatewayConfDirFactory({ deployId, env }),
+                namespace,
+              });
               for (const file of ['gateway.yaml', 'httproute.yaml']) {
                 const gatewayApiPath = `./${manifestsPath}/${file}`;
                 if (fs.existsSync(gatewayApiPath) && fs.readFileSync(gatewayApiPath, 'utf8').trim())
@@ -1986,6 +2164,11 @@ EOF`);
     },
     /**
      * Switches the traffic for a deployment.
+     *
+     * Routing only: the workload is the caller's to deploy and make Ready, and
+     * this must never rebuild it. The colour being switched to is, by definition,
+     * the one about to receive every request, so tearing it down here would make
+     * the flip the outage it exists to avoid.
      * @param {string} deployId - Deployment ID for which the traffic is being switched.
      * @param {string} env - Environment for which the traffic is being switched.
      * @param {string} targetTraffic - Target traffic status for the deployment.
@@ -2017,6 +2200,26 @@ EOF`);
       const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
       const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory(options);
 
+      // Envoy translates a route's backends when the route is applied, so routing
+      // at a colour with no ready endpoint programmes a 500. Callers that roll a
+      // new colour await its readiness first; the failover and cert flips
+      // deliberately do not, and must stay fast — so this reports rather than
+      // blocks.
+      if (
+        !Underpost.deploy.serviceHasReadyEndpoints({
+          service: `${deployId}-${env}-${targetTraffic}-service`,
+          namespace,
+        })
+      )
+        logger.warn('Switching traffic to a colour with no ready endpoint; routes may be programmed as 500', {
+          deployId,
+          env,
+          targetTraffic,
+        });
+
+      // Regenerates the manifests against the target colour only: `--build-manifest`
+      // returns before any cluster mutation, so the workload is untouched and the
+      // applies below are the whole switch.
       shellExec(
         `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${timeoutFlags}${imagePullPolicyFlag}${gatewayApiFlags} ${deployId} ${env}`,
       );
@@ -2458,7 +2661,7 @@ spec:
      *   - `imagePullPolicy` — the extracted value, or `undefined` if absent.
      *
      * @param {object|undefined} lifecycle - Env-resolved lifecycle block
-     *   (already passed through pickEnv). May be `undefined`.
+     *   (already passed through {@link ServerConfBuilder.resolveEnvScoped}). May be `undefined`.
      * @returns {{ lifecycle: (object|undefined), imagePullPolicy: (string|undefined) }}
      * @memberof UnderpostDeploy
      */
@@ -2498,6 +2701,7 @@ spec:
      * child process instead of silently reverting to the HTTPProxy default.
      * @param {object} options - Options containing the gateway settings.
      * @param {boolean} [options.gatewayApi] - Apply the Gateway API stack.
+     * @param {boolean} [options.disableGatewayApi] - Apply the legacy Contour HTTPProxy stack.
      * @param {string} [options.gatewayClass] - GatewayClass name.
      * @param {boolean} [options.disableHttp3] - Disable QUIC/HTTP3.
      * @param {string|number} [options.quicPort] - Advertised QUIC port.
@@ -2507,6 +2711,10 @@ spec:
     gatewayApiFlagsFactory: (options = {}) => {
       return (
         `${options.gatewayApi ? ' --gateway-api' : ''}` +
+        // The legacy selection has to travel too. Gateway API is the default, so
+        // a child that never receives this flag reverts to it and reads or writes
+        // a different routing kind than the workflow that spawned it.
+        `${options.disableGatewayApi ? ' --disable-gateway-api' : ''}` +
         `${options.gatewayClass ? ` --gateway-class ${options.gatewayClass}` : ''}` +
         `${options.disableHttp3 ? ' --disable-http3' : ''}` +
         `${options.quicPort ? ` --quic-port ${options.quicPort}` : ''}`
