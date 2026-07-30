@@ -4,11 +4,11 @@
  * @namespace UnderpostCluster
  */
 
-import { getNpmRootPath } from '../server/conf.js';
+import { clusterTypeFactory, getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
-import { GATEWAY_STATIC, seedDefaultStatusPage } from '../server/gateway-static.js';
+import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/underpost-gateway.js';
 import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/MongooseDB.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 import os from 'os';
@@ -19,12 +19,12 @@ const logger = loggerFactory(import.meta);
 
 // Pinned Gateway API control plane. The CRD release and the implementation are
 // upgraded together, and the pairing is not free choice: Envoy Gateway builds
-// against one `sigs.k8s.io/gateway-api` version (v1.4.2 -> v1.3.0, per its
-// go.mod) and reads fields the older CRD schemas do not define, which the API
+// against one `sigs.k8s.io/gateway-api` version (v1.8.3 -> v1.5.1) and reads
+// fields the older CRD schemas do not define, which the API
 // server silently strips. Check the implementation's go.mod before moving
 // either pin.
-const GATEWAY_API_RELEASE = 'v1.3.0';
-const ENVOY_GATEWAY_VERSION = 'v1.4.2';
+const GATEWAY_API_RELEASE = 'v1.5.1';
+const ENVOY_GATEWAY_VERSION = 'v1.8.3';
 // Namespace the upstream Contour render deploys into, and the only one where an
 // `app=envoy` selector resolves to its DaemonSet.
 const CONTOUR_NAMESPACE = 'projectcontour';
@@ -134,7 +134,7 @@ class UnderpostCluster {
 
       if (options.config) return options.k3s ? Underpost.cluster.configMinimalK3s() : Underpost.cluster.config();
 
-      if (options.chown) return Underpost.cluster.chown(options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind');
+      if (options.chown) return Underpost.cluster.chown(clusterTypeFactory(options));
 
       const npmRoot = getNpmRootPath();
       const underpostRoot = options.dev ? '.' : `${npmRoot}/underpost`;
@@ -187,7 +187,7 @@ class UnderpostCluster {
       // serve that purpose — it short-circuits into the whole-node reset above,
       // which is why `initReplicaSet`'s reset branch was unreachable from the CLI.
       if (options.resetMongodb && !options.mongodb) {
-        const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
+        const clusterType = clusterTypeFactory(options);
         return await MongoBootstrap.reset({
           namespace: options.namespace,
           clusterType,
@@ -453,7 +453,7 @@ EOF
             });
         }
       } else if (options.mongodb) {
-        const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
+        const clusterType = clusterTypeFactory(options);
         await MongoBootstrap.initReplicaSet({
           namespace: options.namespace,
           replicaCount: Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT,
@@ -544,16 +544,16 @@ EOF
         // `nginx.conf`, whose `$uri` an unquoted delimiter deletes — leaving a
         // `try_files` that matches nothing and answers every host's status page
         // with the shared default.
-        const gatewayStaticYaml = Underpost.deploy.gatewayStaticYamlFactory(options);
+        const underpostGatewayYaml = Underpost.deploy.underpostGatewayYamlFactory(options);
         shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
-${gatewayStaticYaml}
+${underpostGatewayYaml}
 EOF
 `);
-        const gatewayStaticRoot = Underpost.deploy.gatewayStaticHostRootFactory(options);
-        seedDefaultStatusPage(gatewayStaticRoot);
+        const underpostGatewayRoot = Underpost.deploy.underpostGatewayRootFactory(options);
+        seedDefaultStatusPage(underpostGatewayRoot);
         logger.info('Gateway static utility applied', {
-          name: GATEWAY_STATIC.name,
-          root: gatewayStaticRoot,
+          name: UNDERPOST_GATEWAY.name,
+          root: underpostGatewayRoot,
         });
 
         logger.info('Gateway API control plane installed', {
