@@ -281,21 +281,22 @@ Complete cluster initialization: reset → setup → pull images → deploy data
 node bin run cluster
 node bin run cluster express,dd-core+dd-cyberia
 node bin run cluster lampp,dd-core+dd-cyberia+dd-lampp
+node bin run cluster 'express,dd-cyberia,mmo-server' --dev
 node bin run cluster --dev
 node bin run cluster --k3s
 ```
 
-**Path format:** `<runtime-image>,<deploy-list>` — runtime defaults to `express` (valid values: `express`, `lampp`), deploy-list defaults to `dd.router` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format. When runtime is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB.
+**Path format:** `<runtime-image>,<deploy-list>[,<instance-list>]` — runtime defaults to `express` (valid values: `express`, `lampp`), deploy-list defaults to `dd.router` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format. When runtime is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB. The optional third segment names custom instances to deploy — see [Custom instances](#custom-instances).
 
-| Option                  | Description                                                      |
-| ----------------------- | ---------------------------------------------------------------- |
-| `--dev`                 | Development environment (self-signed TLS + `/etc/hosts` mapping) |
-| `--namespace <name>`    | Kubernetes namespace (default: `default`)                        |
-| `--kubeadm`             | Kubeadm cluster (default)                                        |
-| `--k3s`                 | K3s cluster                                                      |
-| `--gateway-class <n>`   | GatewayClass to provision (default: `eg`)                        |
-| `--disable-gateway-api` | Fall back to the Contour HTTPProxy stack                         |
-| `--disable-http3`       | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` header     |
+| Option                  | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `--dev`                 | Development environment (self-signed TLS + `/etc/hosts` mapping)               |
+| `--namespace <name>`    | Kubernetes namespace (default: `default`)                                      |
+| `--kubeadm`             | Kubeadm cluster (default)                                                      |
+| `--k3s`                 | K3s cluster                                                                    |
+| `--gateway-class <n>`   | GatewayClass to provision (default: `eg`)                                      |
+| `--disable-gateway-api` | Fall back to the Contour HTTPProxy stack (Gateway API + HTTP/3 is the default) |
+| `--disable-http3`       | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` header                   |
 
 ### What `--dev` sets up on its own
 
@@ -309,31 +310,101 @@ node bin run cluster 'express,dd-cyberia' --dev
 - **HTTP/3 (QUIC) is on by default**, alongside HTTP/2 and HTTP/1.1. Each route advertises it with `Alt-Svc: h3=":443"`, and a `ClientTrafficPolicy` enables QUIC on the merged HTTPS listener. QUIC has no cleartext transport, so this only exists where TLS does.
 - **TLS is self-signed and locally trusted.** Every host in the deploy's `conf.server.json` gets a certificate from `scripts/ssl.sh` (mkcert, which installs its root CA into the system and NSS trust stores) and a `kubernetes.io/tls` secret named after the host.
 - **`/etc/hosts` is mapped** for those same hosts in a single rewrite, so `https://www.cyberiaonline.com` resolves to the local data plane. In development Envoy binds 80/443 on the host network, so no port-forward is involved.
-- **The gateway static tier is seeded** with each deploy's status pages and intercepted contexts before the routes are applied. See [Gateway static tier](#gateway-static-tier).
+- **The gateway static tier is seeded** with each deploy's status pages and intercepted contexts before the routes are applied. See [Gateway infrastructure service](#gateway-infrastructure-service).
 
-The runner ends by calling `run gateway-status`, which waits for the Gateways to report `Programmed`, prints the listener/route/policy conditions, and probes every route hostname over HTTP and HTTPS — so the workflow finishes on an observed response rather than an inference.
+The runner now has an explicit no-backend checkpoint before any application Deployment YAML is applied:
 
-### Gateway static tier
+1. Wait for the shared `underpost-gateway` Deployment.
+2. Build SSR documents on the host, place every configured PWA context and instance status page, and fail if any declared asset is missing.
+3. Install and validate the Nginx host blocks, then apply parent and selected-instance Gateway/HTTPRoute objects with application Services deliberately absent.
+4. Run `gateway-status`, then request every configured fallback over HTTPS. The response must keep a 502/503/504 status and its body hash must match the configured maintenance/custom-status document.
+5. Only after that checkpoint passes, apply workload manifests with `--disable-update-proxy`; instance pods still wait for the parent gRPC workload to become Ready.
 
-Status pages (`/404`) and intercepted contexts (`/offline`, `/maintenance`) are rendered SSR documents with no request-time logic, so they are served at the edge and never reach the application pods. They cannot be carried in the gateway config itself: Envoy rejects a direct-response body over 4096 bytes while translating the route, and the rejection fails the whole route rather than the one rule.
+The runner calls `run gateway-status` again at the end, so the workflow verifies both the deliberate fallback state and the completed runtime state.
 
-Instead one small Nginx deployment — `gateway-static-utility`, installed with the Gateway API control plane — holds every host's documents in a hostPath volume, and HTTPRoute rules reach it as an ordinary backend:
+### Gateway infrastructure service
+
+`underpost-gateway` is the cluster's single edge utility layer, installed with the Gateway API control plane and shared by every deploy. One Nginx deployment owns:
+
+- status pages (40x) and maintenance pages (50x)
+- intercepted static contexts (`/offline`, `/maintenance`)
+- shared edge resources and future edge-only contexts
+- reverse proxying the workloads whose errors it intercepts
+
+There is never one Nginx per application. Application runtimes — `engine-cyberia`, `cyberia-server`, `cyberia-client` — stay completely agnostic: they return a standard status code or become unreachable, and nothing about status page delivery lives in them.
+
+Documents live in a hostPath volume under:
 
 ```
-<static-root>/<host>/<sub-path>/status-pages/<status>/index.html
-<static-root>/<host>/<sub-path>/<context>/index.html
+<root>/<host>/<sub-path>/status-pages/<status>/index.html
+<root>/<host>/<sub-path>/<context>/index.html
+<root>/conf.d/<host>.conf                            generated server blocks
 ```
 
-`<sub-path>` is the proxy sub-path with `/` written as `root`, so `www.cyberiaonline.com` + `/` + 404 becomes `www.cyberiaonline.com/root/status-pages/404/index.html`. Each rule rewrites onto the _directory_, so one rule covers the document and anything beside it.
+`<sub-path>` is the proxy sub-path with `/` written as `root`, so `www.cyberiaonline.com` + `/` + 404 becomes `www.cyberiaonline.com/root/status-pages/404/index.html`.
 
-Documents are placed by `deploy --sync-static`, which the cluster runner calls twice per deploy:
+**Why Nginx is in the request path.** Envoy cannot re-dispatch a request to another cluster once the upstream has answered, and its only body-substitution mechanisms inline a body capped at 4096 bytes. Nginx `proxy_intercept_errors` satisfies all three constraints at once: the client's URI is unchanged, the upstream's status code is preserved, and the document is read from disk so its size is unbounded. Each deploy contributes its own `conf.d/<host>.conf` — the workload is shared, so one deploy must never rewrite another's routing — and the block is validated with `nginx -t` in the pod before a reload, which is skipped outright if it does not parse.
 
-| When                                                    | Source                         | Why                                                                                  |
-| ------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
-| After `--build-manifest`, before the routes are applied | this checkout's `public/` tree | Seeds the tree so every route is correct from the first request                      |
-| After the deployment is Ready                           | the running workload           | Several clients are built from private sources cloned into the container at start-up |
+Upstreams are dialled through a variable so a redeployed Service is re-resolved; that needs a `resolver`, whose address is read from the live `kube-dns` Service because nginx cannot resolve the name of its own resolver.
 
-A host whose document is in neither place falls through to the shared default page, which answers **404** and is sent `Cache-Control: no-store` — so a fallback is never stored by the PWA service worker and never outlives the moment the real document lands.
+Documents are placed twice per deploy:
+
+| When                                                          | Source                              | Why                                                                                  |
+| ------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
+| After the host client build, before any workload YAML is used | checkout `public/` + instance repos | Makes every declared route testable during the intentional no-backend checkpoint     |
+| After the deployment is Ready                                 | the running workload                | Several clients are built from private sources cloned into the container at start-up |
+
+The first pass is mandatory: any configured document missing from both its expected source and the static tree aborts cluster startup before routes or workloads advance. Instance `customStatusPages[].hostPath` resolves against that instance project's checkout (`./cyberia-server/public/404/index.html`), one document per variant.
+
+A host whose document is in none of them falls through to the shared default page, which answers **404** and is sent `Cache-Control: no-store` — so a fallback is never stored by the PWA service worker and never outlives the moment the real document lands.
+
+> The manifests reach `kubectl` through a **quoted** heredoc. Every value is already substituted before the string is built, so anything the shell would expand there is content — and `nginx.conf` is nothing but content the shell recognises. An unquoted delimiter turns `try_files $uri $uri/index.html` into `try_files /index.html`, which matches nothing, and every host's status page is answered by the shared default.
+
+### Routing stack defaults
+
+The Gateway API stack with QUIC/HTTP3 is the default for **every** runner that touches routing — `run cluster`, `run sync`, `run instance`, `run instance-promote`, `run promote`, `run stop` and `run get-traffic` — in both `development` and `production`. Each resolves it from one place, so no runner can act on a different stack than the one that deployed the routes. `--disable-gateway-api` is forwarded to spawned commands alongside the other gateway flags, so a legacy Contour workflow stays on HTTPProxy end to end instead of reverting to the default in a child process:
+
+| Flags                                 | Stack                       | HTTP/3 |
+| ------------------------------------- | --------------------------- | ------ |
+| _(none)_                              | Gateway API + HTTPRoute     | on     |
+| `--gateway-api`                       | Gateway API + HTTPRoute     | on     |
+| `--disable-http3`                     | Gateway API + HTTPRoute     | off    |
+| `--disable-gateway-api`               | Contour HTTPProxy           | n/a    |
+| `--gateway-api --disable-gateway-api` | Gateway API (explicit wins) | on     |
+
+QUIC only exists where TLS does, so `--dev` without `--self-signed` yields an HTTP-only listener and no HTTP/3.
+
+**Traffic colour detection.** `getCurrentTraffic` reads the blue/green colour from whichever object carries it: the `HTTPRoute` backendRef, the `HTTPProxy` service, or — for a host whose errors the gateway intercepts — the `conf.d/<host>.conf` server block, because that host's route points at `underpost-gateway-service` and holds no colour of its own. All three are read on every call, so a blue/green promotion behaves identically in either stack and whether or not the host is intercepted.
+
+### Custom instances
+
+The optional third path segment names instances from `engine-private/conf/<deploy-id>/conf.instances.json`:
+
+```bash
+# One instance of one deploy
+node bin run cluster 'express,dd-cyberia,mmo-server' --dev
+
+# Several, across several deploys
+node bin run cluster 'express,dd-cyberia+dd-core,mmo-server+mmo-client+worker' --dev
+
+# A single variant rather than the whole family
+node bin run cluster 'express,dd-cyberia,mmo-server-forest' --dev
+```
+
+An instance belongs to a deploy through that deploy's own `conf.instances.json` — nothing else relates the two. Each requested id is resolved against every deploy in the list, and only runs where it is declared; an id no deploy declares is reported as a warning rather than silently skipped. Naming a template id (`mmo-server`) selects its whole variant family, exactly as `run instance` resolves it.
+
+**Ordering.** Instance static documents, Nginx host blocks and HTTPRoutes are bootstrapped before any application pod, so the instance hostname already returns its configured document while its Service does not exist. The instance pod itself is still deployed _after_ its parent workload is Ready: it reads world configuration over the parent's gRPC ClusterIP at boot. Each id is then handed to [`run instance`](#cluster) whole, which owns variant expansion, the new blue/green colour, the readiness gate and the final atomic promotion; the pre-existing route keeps serving fallback until that promotion.
+
+**Environment.** Instance hosts share the deploy's environment rather than getting a parallel one:
+
+| Environment | TLS                                                          | Hosts                                     |
+| ----------- | ------------------------------------------------------------ | ----------------------------------------- |
+| `--dev`     | self-signed secret per instance host (same `scripts/ssl.sh`) | written into the single `/etc/hosts` pass |
+| production  | cert-manager `Certificate` per instance host                 | resolved by real DNS                      |
+
+`/etc/hosts` is rewritten wholesale, so instance hosts are resolved _before_ any deploy runs and written together with the deploy hosts in one pass — the runner never passes `--etc-hosts` down to `run instance`, which would rewrite the file with only its own hosts.
+
+Instance status pages declared under `customStatusPages` are placed by the cluster's first static sync, resolved relative to the instance project directory. An instance without a separate PWA `maintenanceDefault` view reuses its first declared custom status document for unavailable-upstream responses: Nginx substitutes that body while preserving the original 502/503/504 code.
 
 ---
 
@@ -566,6 +637,17 @@ node bin run sync dd-my-app --dev --kind --deploy-id-cron-jobs dd-cron
 node bin run sync dd-my-app --k3s --namespace production
 node bin run sync dd-core --kubeadm --image-pull-policy Always
 ```
+
+On a **first bring-up**, before `sync` applies the target colour's `deployment.yaml`, it enforces the same no-backend checkpoint as `run cluster`: it builds (or reuses, with `--skip-full-build`) configured SSR assets, syncs them into `underpost-gateway`, applies only the target-colour Gateway/HTTPRoute configuration, and requests every `maintenanceDefault` fallback. Each response must preserve a 502/503/504 status and exactly match the configured document. Only then does sync execute its existing `--disable-update-proxy` workload apply, readiness monitor and final traffic reconciliation.
+
+On a **re-deploy the checkpoint is skipped**, and `sync` logs `Live colour serving; holding traffic until the target colour is Ready`. Publishing a route to a colour that has no workload yet is what proves the fallback, so running it against a host that is already serving would take that host down for the whole image pull and rollout. A colour counts as serving only when it is both routed and still has a ready endpoint — a route naming a colour whose workload is gone is a dead route, not traffic, and the checkpoint still runs. This is the same gate `run instance` uses, from one shared predicate.
+
+The re-deploy ordering is therefore:
+
+1. Manifests and SSR assets are rebuilt; the live colour keeps every request.
+2. The target colour's workload is applied with `--disable-update-proxy`, so routes are untouched while it rolls out.
+3. Readiness is monitored on the target colour.
+4. `switchTraffic` regenerates the routes against the target colour and applies them in place — the single, atomic hand-over.
 
 Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/deploy/dd.router`.
 

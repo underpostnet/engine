@@ -211,6 +211,19 @@ What `--dev` implies, rather than requiring you to pass it:
 
 The run ends with a gateway status report: listener and route conditions, the workloads behind them, and an HTTPS probe of every route hostname.
 
+### With the MMO services
+
+The optional third path segment brings up custom instances from `engine-private/conf/dd-cyberia/conf.instances.json` in the same run:
+
+```bash
+node bin run cluster 'express,dd-cyberia,mmo-server' --dev
+node bin run cluster 'express,dd-cyberia,mmo-server+mmo-client' --dev
+```
+
+Each id runs only where `dd-cyberia` declares it, and only once the portal workload has rolled out — `cyberia-server` dials the engine's gRPC ClusterIP for its world configuration at boot, so the content authority has to be serving first. `mmo-server` names the whole variant family (`amethyst-strata-expansion`, `FOREST`, `TEST`); `mmo-server-forest` names one variant.
+
+`server.cyberiaonline.com` and `client.cyberiaonline.com` are issued the same self-signed certificates as the portal hosts and written into the same `/etc/hosts` pass, so the three services are reachable over TLS from a local browser without further setup. In production the same segment issues cert-manager certificates instead.
+
 To place the static documents again without redeploying — after rebuilding the portal client, for instance:
 
 ```bash

@@ -61,23 +61,23 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 
 ### Configuration Parameters
 
-| Parameter       | Type           | Description                                                                                                                                          |
-| --------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`            | string         | Unique identifier for the instance                                                                                                                   |
-| `runtime`       | string         | (Optional) Dockerfile source dir under `src/runtime/<runtime>/Dockerfile` used by `instance-build-manifest`. Omit when the image is pre-built/pulled. |
-| `host`          | string         | Domain name for the instance                                                                                                                         |
-| `path`          | string         | URL path prefix (default: `/`)                                                                                                                       |
-| `image`         | string         | Docker image to deploy (optional, defaults to `underpost/underpost-engine`)                                                                          |
-| `fromPort`      | number         | Container port to expose (production)                                                                                                                |
-| `toPort`        | number         | Target port mapping (production)                                                                                                                     |
-| `fromDebugPort` | number         | Container port to expose in development/`--dev` mode (optional, falls back to `fromPort`)                                                            |
-| `toDebugPort`   | number         | Target port mapping in development/`--dev` mode (optional, falls back to `toPort`)                                                                   |
-| `cmd`           | object         | `{development: string[], production: string[]}` — array of shell commands joined by the runner. Supports the `{{grpc-service-dns}}` template.        |
-| `lifecycle`     | object         | K8S `lifecycle` hooks (`postStart`, `preStop`) plus the per-instance `imagePullPolicy` extension (see [imagePullPolicy](#imagepullpolicy--per-instance-override-extension)). May be env-scoped (`{development, production}`) or shared. |
-| `readinessProbe`| object         | K8S `readinessProbe` — see [Lifecycle, readiness, and liveness](#lifecycle-readiness-and-liveness--moving-status-hooks-out-of-cmd). May be env-scoped. |
-| `livenessProbe` | object         | K8S `livenessProbe`. May be env-scoped.                                                                                                              |
-| `volumes`       | array          | Volume mount configurations                                                                                                                          |
-| `metadata`      | object         | Additional metadata                                                                                                                                  |
+| Parameter        | Type   | Description                                                                                                                                                                                                                             |
+| ---------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | string | Unique identifier for the instance                                                                                                                                                                                                      |
+| `runtime`        | string | (Optional) Dockerfile source dir under `src/runtime/<runtime>/Dockerfile` used by `instance-build-manifest`. Omit when the image is pre-built/pulled.                                                                                   |
+| `host`           | string | Domain name for the instance                                                                                                                                                                                                            |
+| `path`           | string | URL path prefix (default: `/`)                                                                                                                                                                                                          |
+| `image`          | string | Docker image to deploy (optional, defaults to `underpost/underpost-engine`)                                                                                                                                                             |
+| `fromPort`       | number | Container port to expose (production)                                                                                                                                                                                                   |
+| `toPort`         | number | Target port mapping (production)                                                                                                                                                                                                        |
+| `fromDebugPort`  | number | Container port to expose in development/`--dev` mode (optional, falls back to `fromPort`)                                                                                                                                               |
+| `toDebugPort`    | number | Target port mapping in development/`--dev` mode (optional, falls back to `toPort`)                                                                                                                                                      |
+| `cmd`            | object | `{development: string[], production: string[]}` — array of shell commands joined by the runner. Supports the `{{grpc-service-dns}}` template.                                                                                           |
+| `lifecycle`      | object | K8S `lifecycle` hooks (`postStart`, `preStop`) plus the per-instance `imagePullPolicy` extension (see [imagePullPolicy](#imagepullpolicy--per-instance-override-extension)). May be env-scoped (`{development, production}`) or shared. |
+| `readinessProbe` | object | K8S `readinessProbe` — see [Lifecycle, readiness, and liveness](#lifecycle-readiness-and-liveness--moving-status-hooks-out-of-cmd). May be env-scoped.                                                                                  |
+| `livenessProbe`  | object | K8S `livenessProbe`. May be env-scoped.                                                                                                                                                                                                 |
+| `volumes`        | array  | Volume mount configurations                                                                                                                                                                                                             |
+| `metadata`       | object | Additional metadata                                                                                                                                                                                                                     |
 
 ### `cmd` conventions
 
@@ -91,10 +91,10 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 
 When you set `runtime: "<name>"`, `underpost run instance-build-manifest` copies a Dockerfile from `src/runtime/<name>/` into the generated manifest directory. Dev/prod selection:
 
-| Mode                   | Lookup order                                    | Fallback                                      |
-| ---------------------- | ----------------------------------------------- | --------------------------------------------- |
-| `--dev`                | `Dockerfile.dev` → `Dockerfile`                 | Warns and uses `Dockerfile` if `.dev` missing |
-| production (default)   | `Dockerfile`                                    | —                                             |
+| Mode                 | Lookup order                    | Fallback                                      |
+| -------------------- | ------------------------------- | --------------------------------------------- |
+| `--dev`              | `Dockerfile.dev` → `Dockerfile` | Warns and uses `Dockerfile` if `.dev` missing |
+| production (default) | `Dockerfile`                    | —                                             |
 
 `Dockerfile.dev` is a **full Dockerfile, not an overlay** — each runtime owns the contract between its dev and prod images. Reference dev variants for the Cyberia stack:
 
@@ -121,42 +121,54 @@ An instance config may declare K8S-native lifecycle hooks and probes. These spli
   "toPort": 8081,
   "cmd": {
     "production": [
-      "set -a && . /env/production.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && exec /home/dd/engine/cyberia-server/server"
-    ]
+      "set -a && . /env/production.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && exec /home/dd/engine/cyberia-server/server",
+    ],
   },
   "lifecycle": {
     "production": {
       "postStart": {
-        "exec": { "command": ["sh", "-c", "underpost config set container-status dd-cyberia-mmo-server-production-initializing-deployment || true"] }
+        "exec": {
+          "command": [
+            "sh",
+            "-c",
+            "underpost config set container-status dd-cyberia-mmo-server-production-initializing-deployment || true",
+          ],
+        },
       },
       "preStop": {
-        "exec": { "command": ["sh", "-c", "underpost config set container-status dd-cyberia-mmo-server-production-stopping-deployment || true"] }
-      }
-    }
+        "exec": {
+          "command": [
+            "sh",
+            "-c",
+            "underpost config set container-status dd-cyberia-mmo-server-production-stopping-deployment || true",
+          ],
+        },
+      },
+    },
   },
   "readinessProbe": {
     "tcpSocket": { "port": 8081 },
     "initialDelaySeconds": 3,
     "periodSeconds": 5,
     "timeoutSeconds": 3,
-    "failureThreshold": 6
+    "failureThreshold": 6,
   },
   "livenessProbe": {
     "tcpSocket": { "port": 8081 },
     "initialDelaySeconds": 30,
     "periodSeconds": 20,
-    "failureThreshold": 3
-  }
+    "failureThreshold": 3,
+  },
 }
 ```
 
 Status transitions explained:
 
-| Status                  | Stamped by                                                                                                 | Trigger                                                                  |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `initializing-deployment` | `lifecycle.postStart.exec` — K8S runs this immediately after the container starts.                         | Pod boot.                                                                |
-| `running-deployment`    | Kubernetes `readinessProbe` (TCP socket) passes — kubelet sets `Ready: True`.                                        | Successful socket bind; a crashing runtime never reaches Ready.          |
-| `stopping-deployment`   | `lifecycle.preStop.exec` — K8S runs this before sending SIGTERM.                                            | Pod termination (scale-down, rolling update, eviction).                  |
+| Status                    | Stamped by                                                                         | Trigger                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `initializing-deployment` | `lifecycle.postStart.exec` — K8S runs this immediately after the container starts. | Pod boot.                                                       |
+| `running-deployment`      | Kubernetes `readinessProbe` (TCP socket) passes — kubelet sets `Ready: True`.      | Successful socket bind; a crashing runtime never reaches Ready. |
+| `stopping-deployment`     | `lifecycle.preStop.exec` — K8S runs this before sending SIGTERM.                   | Pod termination (scale-down, rolling update, eviction).         |
 
 K8S marks the pod **Ready** only when `readinessProbe` succeeds (TCP socket on the listening port). A runtime that crashes on startup exits non-zero, kubelet surfaces a CrashLoopBackOff, and the pod's Ready condition stays False — the orchestrator gate never opens.
 
@@ -183,15 +195,23 @@ The `instance` and `instance-build-manifest` runners recognise a non-standard `i
   "lifecycle": {
     "development": {
       "imagePullPolicy": "Always",
-      "postStart": { "exec": { "command": ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] } },
-      "preStop":   { "exec": { "command": ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] } }
+      "postStart": {
+        "exec": { "command": ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] },
+      },
+      "preStop": {
+        "exec": { "command": ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] },
+      },
     },
     "production": {
       "imagePullPolicy": "Always",
-      "postStart": { "exec": { "command": ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] } },
-      "preStop":   { "exec": { "command": ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] } }
-    }
-  }
+      "postStart": {
+        "exec": { "command": ["sh", "-c", "underpost config set container-status …-initializing-deployment || true"] },
+      },
+      "preStop": {
+        "exec": { "command": ["sh", "-c", "underpost config set container-status …-stopping-deployment || true"] },
+      },
+    },
+  },
 }
 ```
 
@@ -209,11 +229,11 @@ This compiles to the following container snippet in the rendered manifest:
 
 Resolution rules:
 
-| Source                                                  | Wins                                                                                                                                          |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--image-pull-policy <policy>` CLI flag on `run instance` | Highest — overrides the conf value.                                                                                                           |
-| `lifecycle.<env>.imagePullPolicy` in `conf.instances.json` | Used when the CLI flag is omitted.                                                                                                            |
-| _(none)_                                                | Falls back to `Never` for `localhost/…` images and `IfNotPresent` for every other image — preserving the existing default.                    |
+| Source                                                     | Wins                                                                                                                       |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `--image-pull-policy <policy>` CLI flag on `run instance`  | Highest — overrides the conf value.                                                                                        |
+| `lifecycle.<env>.imagePullPolicy` in `conf.instances.json` | Used when the CLI flag is omitted.                                                                                         |
+| _(none)_                                                   | Falls back to `Never` for `localhost/…` images and `IfNotPresent` for every other image — preserving the existing default. |
 
 Use `Always` when the image tag is mutable (e.g. `:latest` or a moving CI tag) so kubelet re-pulls on every pod rollout. Use `IfNotPresent` for immutable, version-pinned tags (recommended default for production). Use `Never` for images already side-loaded into the node (`kind load docker-image …` or `crictl load`).
 
@@ -225,7 +245,7 @@ Any instance entry can act as a **template** that expands into one deployment pe
 declared variant, with the variant selected by URL path rather than by a separate
 image or hostname. Adding a variant is a config edit — no new build, image, or
 DNS record. Nothing in the mechanism is application-specific: the runners never
-know what a variant *means*, only which env keys to stamp.
+know what a variant _means_, only which env keys to stamp.
 
 `conf.instances.json` stays a **plain array** of instance entries. An entry opts
 into multi-instance by declaring its own `multiInstance` block — there is no
@@ -245,9 +265,9 @@ flag (`stripPathPrefix`).
       "variants": [
         { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
         { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
-        { "code": "TEST", "slug": "test", "path": "/TEST" }
-      ]
-    }
+        { "code": "TEST", "slug": "test", "path": "/TEST" },
+      ],
+    },
   },
   {
     "id": "mmo-client",
@@ -260,17 +280,17 @@ flag (`stripPathPrefix`).
         "CYBERIA_BASE_PATH": "{{path}}",
         "CYBERIA_WS_ORIGIN": {
           "development": "ws://localhost:8081",
-          "production": "wss://server.cyberiaonline.com"
-        }
+          "production": "wss://server.cyberiaonline.com",
+        },
       },
       "default": "amethyst-strata-expansion",
       "variants": [
         { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
         { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
-        { "code": "TEST", "slug": "test", "path": "/TEST" }
-      ]
-    }
-  }
+        { "code": "TEST", "slug": "test", "path": "/TEST" },
+      ],
+    },
+  },
 ]
 ```
 
@@ -279,13 +299,13 @@ multi-instance entry declares its own variant set; when several entries take par
 (server + client), keep their `default`/`variants` in sync — the routing derives
 the topology from the first entry that declares one.
 
-| Key               | Meaning                                                                                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `default`         | Variant code used when a request arrives at the root path.                                                                                                   |
-| `variants[].code` | Variant identifier handed to the runtime through the env keys the entry declares.                                                                            |
-| `variants[].slug` | Suffix appended to the template id. **Empty** keeps the template id verbatim, so the pre-existing deployment, PVC and env directory survive unchanged.        |
-| `variants[].path` | URL prefix the instance is routed under.                                                                                                                     |
-| `stripPathPrefix` | Emit a `replacePrefix` rewrite so the backend receives `/` and stays instance-agnostic. Use it for runtimes that serve their routes at the root.               |
+| Key               | Meaning                                                                                                                                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`         | Variant code used when a request arrives at the root path.                                                                                                                                                                                    |
+| `variants[].code` | Variant identifier handed to the runtime through the env keys the entry declares.                                                                                                                                                             |
+| `variants[].slug` | Suffix appended to the template id. **Empty** keeps the template id verbatim, so the pre-existing deployment, PVC and env directory survive unchanged.                                                                                        |
+| `variants[].path` | URL prefix the instance is routed under.                                                                                                                                                                                                      |
+| `stripPathPrefix` | Emit a `replacePrefix` rewrite so the backend receives `/` and stays instance-agnostic. Use it for runtimes that serve their routes at the root.                                                                                              |
 | `env`             | Env keys written into the instance's env file. Values may use the `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders, and may be env-scoped objects (`{ development, production }`) like `lifecycle` and the probes. |
 
 `CONTAINER_DEPLOY_ID` is always derived and written for you — it never needs declaring.
@@ -315,10 +335,35 @@ one instance preserves its siblings' routes rather than replacing them.
 
 ```yaml
 routes:
-  - conditions: [{ prefix: /FOREST }]   # rewritten to / when stripPathPrefix
+  - conditions: [{ prefix: /FOREST }] # rewritten to / when stripPathPrefix
   - conditions: [{ prefix: /TEST }]
-  - conditions: [{ prefix: / }]         # default variant, matched last
+  - conditions: [{ prefix: / }] # default variant, matched last
 ```
+
+#### Each variant sub-path is its own deployment
+
+The host object is shared, but the deployments behind it are not: every variant
+is a separate Deployment and Service, promoted on its own colour. Because the
+shared object is rewritten whole on each promote, the render is **not** limited to
+what `conf.instances.json` currently declares — a variant removed from the
+`variants` list while its workload is still running keeps its route, and only
+loses it once its Deployment is gone.
+
+That is what makes it safe to trim the `variants` list to scope a deploy:
+
+```json
+"variants": [{ "code": "FOREST", "slug": "forest", "path": "/FOREST" }]
+```
+
+With the above, `run instance` acts on `/FOREST` alone; the still-running `/` and
+`/TEST` deployments keep serving on their existing colours. Previously they were
+dropped from the rebuilt host block and HTTPRoute, which took them offline.
+
+The descriptors that make this possible are recorded per host next to the
+generated Nginx block, as `<host>.instances.json` under
+`engine-private/conf/<deploy-id>/build/<env>/gateway-conf.d/`. It is written on
+every promote, so a host must be promoted once with its full variant list before a
+trimmed list can preserve the rest.
 
 ### Targeting
 
@@ -371,6 +416,18 @@ underpost run --namespace production --node-name worker-01 instance myapp,app-1,
 underpost run instance myapp,api-v1,2
 ```
 
+A direct `run instance` resolves the next blue/green colour before creating anything. When the selected entries declare `customStatusPages`, it first copies those project-owned documents into `underpost-gateway`, installs the Nginx host block, and routes the hostname to that exact target colour while its Service is absent. It then verifies over the gateway that the unavailable upstream keeps a 502/503/504 status and returns the configured custom document byte-for-byte. Only after the probe passes does it render and apply `deployment.yaml`. The route remains on that colour, so the fallback automatically becomes live application traffic when Kubernetes marks the pod Ready; no second colour toggle occurs.
+
+#### As part of a full cluster bring-up
+
+`run cluster` takes the same instance ids as an optional third path segment and deploys them itself, so a whole environment comes up in one command:
+
+```bash
+node bin run cluster 'express,dd-cyberia,mmo-server' --dev
+```
+
+Each id is resolved against every deploy in the list and runs only where that deploy's `conf.instances.json` declares it. Instances start after their deploy's default workload has rolled out, and their hosts are folded into the run's existing TLS and `/etc/hosts` pass — self-signed in development, cert-manager in production. See [Main cluster lifecycle commands → Custom instances](<./Main cluster lifecycle commands.md>).
+
 ### 2. Promote Instance (Blue-Green Deployment)
 
 Switch traffic from one deployment version to another:
@@ -390,17 +447,37 @@ underpost run --tls --namespace production instance-promote myapp,api-v1
 - Updates HTTPProxy configuration
 - Manages TLS certificates if `--tls` is specified
 
-### 3. Get Proxy Configuration
+### 3. Get Traffic Colours
 
-View the current HTTPProxy configuration:
+Show the live blue/green colour of every routable deployment — both the default
+PWA workload and each custom instance — as a table:
 
 ```bash
-# View all proxies
-underpost run get-proxy
+# Every host of every deploy, both environments
+underpost run get-traffic
 
-# View specific proxy
-underpost run --namespace production get-proxy myapp.example.com
+# Narrow to a comma-separated host list
+underpost run --namespace production get-traffic myapp.example.com,api.example.com
+
+# Narrow to development
+underpost run --dev get-traffic
 ```
+
+```
+HOST                      PATH     KIND      ENV          DEPLOYMENT                                     TRAFFIC  SERVING
+server.cyberiaonline.com  /        instance  development  dd-cyberia-mmo-server-development-green        green    yes
+server.cyberiaonline.com  /FOREST  instance  development  dd-cyberia-mmo-server-forest-development-blue  blue     yes
+underpost.net             /        pwa       development  dd-cyberia-development-blue                    blue     yes
+```
+
+Only deployments that actually exist in the namespace are listed, so the table
+reports what is running rather than what the conf declares. Both environments are
+scanned for the same reason — reporting a single environment chosen by a flag
+would show a `development` cluster as entirely unrouted.
+
+`SERVING` is the routed colour's own reachability, so a route still naming a
+colour whose workload is gone reads as `no`. Variants on a shared host are read
+individually, which is why `/` and `/FOREST` above can sit on different colours.
 
 ### 4. List Deployments
 
@@ -571,6 +648,17 @@ The system automatically:
 - Updates HTTPProxy to route traffic
 - Maintains zero-downtime deployments
 
+The swap order is what makes it zero-downtime, and it holds in both directions:
+
+- The live colour keeps serving for the whole image pull and rollout. Traffic is
+  moved only after the target colour reports a ready endpoint.
+- The route object is replaced in place, never deleted first, so the hostname is
+  never briefly unrouted.
+- The no-backend fallback checkpoint — which publishes the route before any
+  workload exists, to prove the configured status page is what clients get — runs
+  only when nothing is serving the host yet. On a re-deploy it is skipped, because
+  proving a fallback there would mean taking a healthy host down to do it.
+
 ## Command Options Reference
 
 ### Common Options
@@ -616,8 +704,8 @@ kubectl describe deployment myapp-api-v1-production-blue -n production
 # Check service
 kubectl get svc myapp-api-v1-production-blue-service -n production
 
-# Check HTTPProxy
-underpost run get-proxy myapp.example.com
+# Check the published traffic colour
+underpost run get-traffic myapp.example.com
 ```
 
 ### Image Not Found
@@ -793,9 +881,8 @@ underpost run --tls --namespace production instance-promote mywebapp,api
 # Check deployments
 underpost run ls-deployments mywebapp
 
-# Check proxies
-underpost run get-proxy app.mycompany.com
-underpost run get-proxy api.mycompany.com
+# Check the published traffic colours
+underpost run get-traffic app.mycompany.com,api.mycompany.com
 
 # Test endpoints
 curl https://app.mycompany.com
