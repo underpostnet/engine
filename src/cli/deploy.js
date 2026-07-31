@@ -1896,8 +1896,7 @@ ${Underpost.deploy.buildCertManagerCertificate({ host, namespace })}
 EOF`);
         }
         return;
-      } else if (!deployList) deployList = 'dd-default';
-      if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
+      } else if (!deployList || deployList === 'dd')
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.status === true) {
         for (const _deployId of deployList.split(',')) {
