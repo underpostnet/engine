@@ -1903,9 +1903,9 @@ const dispatchBuildInstanceEnv = ({
  * throughout. The `/` variant keeps the template id verbatim, so pre-existing
  * deployments, PVCs and env directories survive multi-instance expansion.
  *
- * Nothing here is application-specific: the path variants and prefix-stripping
- * (`stripPathPrefix`) are declared per entry under
- * `entry.multiInstance`. Project-specific env behavior is delegated through
+ * Nothing here is application-specific: variants preserve their public path
+ * through the ingress and the runtime owns that base-path contract.
+ * Project-specific env behavior is delegated through
  * {@link dispatchBuildInstanceEnv} rather than encoded in topology configuration.
  *
  * Every expanded entry carries normalized metadata consumed by deploy runners:
@@ -1942,12 +1942,6 @@ const loadConfInstances = (deployId) => {
       instance.instanceSlug = variant.slug;
       instance.isDefaultInstance = variant.isDefault;
       instance.templateId = entry.id;
-
-      // A backend that serves its routes at the root knows nothing about the
-      // variant prefix — it is selected by env instead. Strip the prefix at the
-      // proxy so the runtime stays instance-agnostic.
-      if (spec.stripPathPrefix && variant.path !== '/')
-        instance.pathRewritePolicy = [{ prefix: variant.path, replacement: '/' }];
       expanded.push(instance);
     }
   }
@@ -2511,10 +2505,9 @@ const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =
  * the workload rule for each instance sub-path, plus the edge-served status page
  * rules declared by that instance's `customStatusPages`.
  *
- * Relative asset loading under a variant sub-path is preserved by carrying the
- * instance `pathRewritePolicy` through verbatim: an instance that declares
- * `stripPathPrefix` gets a ReplacePrefixMatch rewrite, and one that does not
- * keeps its prefix so the workload still sees the URLs the browser requested.
+ * Variant paths are preserved by default, so the selected runtime receives the
+ * same URL that the client requested. An explicit generic `pathRewritePolicy`
+ * is still passed through for unrelated workloads that define one directly.
  * @param {string} deployId - Parent deployment identifier.
  * @param {Array<object>} instances - Expanded instance entries bound to one host.
  * @param {string} env - `development` | `production`.
@@ -2544,8 +2537,8 @@ const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, 
     // An instance that declares a status page is reached through the shared
     // gateway, which proxies to its workload and intercepts the errors. One that
     // declares none is routed straight there, so the extra hop only exists where
-    // it buys something. `pathRewritePolicy` moves to the gateway with it: the
-    // prefix strip belongs to whoever dials the workload.
+    // it buys something. Any explicit generic `pathRewritePolicy` moves to the
+    // gateway with the workload route.
     const intercepted = Object.keys(instanceInterceptStatusesFactory(instance)).length > 0;
     rules += Underpost.deploy.httpRouteRuleFactory({
       path: instance.path,

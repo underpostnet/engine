@@ -393,9 +393,6 @@ datasources:
         // the historic `cyberia-server` / `cyberia-client` names (and their
         // published host ports); `-forest`, `-test`, … for the rest.
         suffix: isDefault ? '' : `-${slug}`,
-        // Backend prefix strip, mirroring the K8s pathRewritePolicy: the Go
-        // server serves `/ws` at its root, so a `/FOREST` prefix is stripped.
-        strip: path !== '/',
       };
     });
     return { variants };
@@ -407,7 +404,7 @@ datasources:
    * the K8s HTTPProxy, not this file). All three tiers share one origin, routed
    * by URL sub-path so `http://localhost/` works with no /etc/hosts:
    *   /api/*, /assets/*        -> engine-cyberia (shared content authority)
-   *   /<code>/ws               -> cyberia-server-<slug> (prefix stripped)
+   *   /<code>/ws               -> cyberia-server-<slug> (prefix preserved)
    *   /ws                      -> default cyberia-server
    *   /<code>                  -> cyberia-client-<slug> (prefix kept)
    *   /                        -> default cyberia-client
@@ -442,11 +439,7 @@ ${headers}`;
         const upstream = `cyberia-server${v.suffix}:8081`;
         const varName = `$up_server_${v.slug || 'default'}`;
         if (v.isDefault) return `        location = /ws {\n${proxyBlock(varName, upstream)}\n        }`;
-        return `        location ${v.path}/ws {\n${proxyBlock(
-          varName,
-          upstream,
-          `            rewrite ^${v.path}/(.*)$ /$1 break;\n`,
-        )}\n        }`;
+        return `        location ${v.path}/ws {\n${proxyBlock(varName, upstream)}\n        }`;
       })
       .join('\n\n');
 

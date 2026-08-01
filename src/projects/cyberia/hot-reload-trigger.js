@@ -51,9 +51,9 @@ const serverApiKey = () => process.env.CYBERIA_SERVER_API_KEY || '';
  *
  * The URL sub-path is preserved as `basePath` ("", "/FOREST", "/TEST") and kept
  * on `restBaseUrl`: a path-based multi-instance proxy routes the REST trigger to
- * the right variant by that prefix (then strips it via pathRewritePolicy, so the
- * backend matches its own instanceCode). Using `url.origin` alone would drop the
- * sub-path and land every trigger on the default (root) deployment.
+ * the right variant, and cyberia-server consumes that same base path natively.
+ * Using `url.origin` alone would drop the sub-path and land every trigger on the
+ * default (root) deployment.
  */
 const resolveTargets = (rawUrl, { grpcPort = DEFAULT_GRPC_PORT } = {}) => {
   const trimmed = String(rawUrl || '').trim();
