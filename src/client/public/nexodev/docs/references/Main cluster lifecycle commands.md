@@ -396,6 +396,8 @@ Installing one stack no longer breaks the other. `--contour` on a cluster that a
 
 `underpost-ingress` owns the node's ports and hands each connection to the data plane that has a route object for that hostname. Both data planes are moved off the host: Contour's `hostPort` claim is released (the DaemonSet is patched, not deleted, so it keeps serving through its ClusterIP), and the Envoy Gateway `EnvoyProxy` is re-applied without `hostNetwork`. Neither is uninstalled, and neither has to be.
 
+Application placement and edge placement are independent. `run instance --node-name worker-01` and `deploy --node worker-01` move only that application; route publication preserves the node already running `underpost-ingress`. To explicitly recover or relocate the public listener, use `node bin run ingress-refresh <public-node> --kubeadm` (or `--ingress-node <public-node>`). The command waits for the replacement ingress to become Ready before migration may delete the old route kind. Its Nginx image uses `IfNotPresent`, so restarting on an edge node with the image cached does not require Docker Hub access.
+
 It is a distinct workload from `underpost-gateway`, and the two sit on opposite sides of the data plane: `underpost-ingress` is in front of Contour and Envoy Gateway, while `underpost-gateway` is a backend they route to for status pages and intercepted contexts.
 
 Why the split by port:

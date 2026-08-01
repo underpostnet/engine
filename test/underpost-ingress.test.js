@@ -138,6 +138,10 @@ describe('shared ingress front', () => {
       expect(fields.filter((line) => /^\s*-?\s*(ports|containerPort|hostPort):/.test(line))).to.deep.equal([]);
     });
 
+    it('restarts from the cached Nginx image when an edge node cannot reach Docker Hub', () => {
+      expect(underpostIngressManifestsFactory({ conf: 'x' })).to.include('imagePullPolicy: IfNotPresent');
+    });
+
     // Host-map changes are reloaded in place. Keeping them out of the pod
     // template avoids a Recreate gap on every HTTPRoute/HTTPProxy migration.
     it('keeps the pod template stable and runs from a writable config copy', () => {
@@ -211,6 +215,39 @@ describe('shared ingress front', () => {
       expect(testCandidate).to.be.greaterThan(-1);
       expect(reload).to.be.greaterThan(testCandidate);
       expect(persist).to.be.greaterThan(reload);
+    });
+
+    it('never inherits an application node flag during a route-table refresh', () => {
+      const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+      const install = clusterSource.slice(
+        clusterSource.indexOf('    installUnderpostIngress('),
+        clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),
+      );
+      expect(install).to.include("const requestedNode = options.ingressNode || '';");
+      expect(install).to.not.include('const requestedNode = options.nodeName || options.node;');
+      expect(install).to.include('requestedNode ||\n        liveNode ||');
+    });
+
+    it('waits for an explicit ingress-node replacement before reporting refresh success', () => {
+      const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+      const install = clusterSource.slice(
+        clusterSource.indexOf('    installUnderpostIngress('),
+        clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),
+      );
+      const changesNode = install.indexOf('const changesNode =');
+      const preflight = install.indexOf('pod/${preflightPod}', changesNode);
+      const apply = install.indexOf('underpostIngressManifestsFactory({');
+      const rollout = install.indexOf('if (!canHotReload || changesNode)', apply);
+      const available = install.indexOf('--for=condition=Available', rollout);
+      const nginxTest = install.indexOf("execIngress('nginx -t -c /tmp/nginx.conf'", available);
+      const success = install.indexOf("logger.info('Underpost ingress applied'", rollout);
+      expect(changesNode).to.be.greaterThan(-1);
+      expect(preflight).to.be.greaterThan(changesNode);
+      expect(apply).to.be.greaterThan(preflight);
+      expect(rollout).to.be.greaterThan(apply);
+      expect(available).to.be.greaterThan(rollout);
+      expect(nginxTest).to.be.greaterThan(available);
+      expect(success).to.be.greaterThan(nginxTest);
     });
   });
 });

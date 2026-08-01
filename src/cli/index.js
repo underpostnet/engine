@@ -283,6 +283,10 @@ program
   )
   .option('--gateway-class <name>', 'GatewayClass name to provision (default "eg").')
   .option(
+    '--ingress-node <node-name>',
+    'Dedicated node for underpost-ingress when both routing stacks coexist. Workload placement flags do not move it.',
+  )
+  .option(
     '--node-port',
     'Exposes enabled ready services (e.g. MongoDB 4.4, Valkey) to the host/public network via their NodePort Service manifest.',
   )
@@ -349,6 +353,10 @@ program
       'Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer.',
   )
   .option('--node <node>', 'Sets optional node for deployment operations.')
+  .option(
+    '--ingress-node <node-name>',
+    'Explicitly relocates the shared host-network ingress; ordinary --node placement never moves it.',
+  )
   .option(
     '--ssh-key-path <path>',
     'Private key path for node SSH operations. Currently used when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa.',
@@ -677,6 +685,10 @@ program
   .option('--replicas <replicas>', 'Sets a custom number of replicas for deployment.')
   .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for execution.')
   .option('--node-name <node-name>', 'Optional: Specifies the node name for execution.')
+  .option(
+    '--ingress-node <node-name>',
+    'Dedicated node for the host-network underpost-ingress listener. Workload --node-name never relocates it.',
+  )
   .option(
     '--ssh-key-path <path>',
     'Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa.',

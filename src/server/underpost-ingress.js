@@ -292,6 +292,10 @@ spec:
       containers:
         - name: nginx
           image: ${UNDERPOST_INGRESS.image}
+          # The latest tag otherwise implies Always. Production edge nodes are often
+          # deliberately unable to reach Docker Hub; once the audited image is
+          # present, a route-table refresh or pod restart must stay offline-safe.
+          imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
             - -c

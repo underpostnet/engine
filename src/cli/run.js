@@ -75,6 +75,7 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} dev - Whether to run in development mode.
  * @property {string} podName - The name of the pod to run.
  * @property {string} nodeName - The name of the node to run.
+ * @property {string} ingressNode - Dedicated node for the host-network public ingress; never inherited from nodeName.
  * @property {string} sshKeyPath - Private key path for node SSH operations, forwarded to volume shipping over SSH.
  * @property {number} port - Custom port to use.
  * @property {string} volumeHostPath - The host path for the volume.
@@ -165,6 +166,7 @@ const DEFAULT_OPTION = {
   dev: false,
   podName: '',
   nodeName: '',
+  ingressNode: '',
   sshKeyPath: '',
   port: 0,
   volumeHostPath: '',
@@ -1419,6 +1421,35 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       for (const cell of cells) console.log(line(cell, true));
       console.log('');
       return rows;
+    },
+
+    /**
+     * @method ingress-refresh
+     * @description Rebuilds the shared HTTPProxy/HTTPRoute host map without
+     * inheriting application workload placement. Supplying a path or
+     * `--ingress-node` is the explicit recovery mechanism for relocating the
+     * public 80/443 listener.
+     * @param {string} [path] - Optional ingress node name.
+     * @param {UnderpostRunDefaultOptions} options - Runner options.
+     * @returns {boolean} True after the ingress is Ready with the refreshed map.
+     * @memberof UnderpostRun
+     */
+    'ingress-refresh': (path = '', options = DEFAULT_OPTION) => {
+      const namespace = options.namespace || 'default';
+      const ingressNode = options.ingressNode || `${path || ''}`.trim();
+      const updated = Underpost.cluster.refreshUnderpostIngress({
+        namespace,
+        options: { ...options, ingressNode },
+      });
+      if (!updated)
+        throw new Error(
+          `[ingress-refresh] ${UNDERPOST_INGRESS.name} is not installed; install both ingress stacks first`,
+        );
+      logger.info('[ingress-refresh] Shared ingress is operational', {
+        namespace,
+        node: ingressNode || '(preserved)',
+      });
+      return true;
     },
 
     'instance-promote': async (path, options = DEFAULT_OPTION) => {

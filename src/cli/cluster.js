@@ -1005,7 +1005,8 @@ EOF
      * host to stack, not host to colour — so an ordinary deploy re-applies the
      * same bytes and nothing restarts.
      * @param {string} [namespace] - Namespace holding the ingress.
-     * @param {object} [options] - Cluster options (node pinning).
+     * @param {object} [options] - Cluster options. `ingressNode` is the only
+     * placement override; application `node` / `nodeName` flags are ignored.
      * @returns {boolean} True when the table was rebuilt.
      * @memberof UnderpostCluster
      */
@@ -1030,7 +1031,8 @@ EOF
      * last. Rebuilt on every call, which is what keeps it correct after routes
      * move between stacks.
      * @param {string} [namespace] - Namespace to deploy the underpost ingress into.
-     * @param {object} [options] - Cluster options (node pinning).
+     * @param {object} [options] - Cluster options. Use `ingressNode` to
+     * explicitly place or recover the public listener.
      * @returns {boolean} True when the underpost ingress was applied.
      * @memberof UnderpostCluster
      */
@@ -1099,15 +1101,18 @@ EOF
           { stdout: true, silent: true, silentOnError: true },
         ) || ''
       }`.trim();
-      // Route refreshes arrive through deploy commands, whose node flag is not
-      // necessarily the cluster command's nodeName flag. Preserve the live pin
-      // unless this invocation explicitly changes it; otherwise an ordinary
-      // host-table edit mutates the pod template and forces a Recreate outage.
-      const requestedNode = options.nodeName || options.node;
+      // `node` and `nodeName` place application workloads. Reusing either here
+      // relocates the public listener during an ordinary deploy; with Recreate
+      // that first deletes the healthy edge and can leave the whole site on
+      // connection-refused if the destination cannot pull Nginx. Only the
+      // dedicated ingressNode option may move this workload. Every route-table
+      // refresh otherwise preserves the established edge node.
+      const requestedNode = options.ingressNode || '';
       const ingressNode =
-        (!requestedNode && liveNode) ||
+        requestedNode ||
+        liveNode ||
         Underpost.deploy.resolveDeployNode({
-          node: requestedNode,
+          node: '',
           kind: options.kind,
           kubeadm: options.kubeadm,
           k3s: options.k3s,
@@ -1127,8 +1132,48 @@ EOF
         ) || ''
       }`.trim();
       const canHotReload = liveMount === '/etc/underpost-ingress' && parseInt(liveReady || '0', 10) > 0;
+      const changesNode = !!liveNode && ingressNode !== liveNode;
       const execIngress = (command, execOptions = {}) =>
         shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_INGRESS.name} -- ${command}`, execOptions);
+
+      if (changesNode) {
+        // Prove the destination can start the exact edge image before Recreate
+        // removes the listener that is serving now. This pod has no hostNetwork,
+        // so it cannot contend for 80/443. On an offline node, IfNotPresent uses
+        // the cache; a missing image fails here while the current edge remains.
+        const preflightPod = `${UNDERPOST_INGRESS.name}-image-preflight`;
+        shellExec(`kubectl delete pod ${preflightPod} -n ${namespace} --ignore-not-found`, {
+          silent: true,
+          silentOnError: true,
+        });
+        try {
+          shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${preflightPod}
+  namespace: ${namespace}
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: ${ingressNode}
+  containers:
+    - name: nginx
+      image: ${UNDERPOST_INGRESS.image}
+      imagePullPolicy: IfNotPresent
+      command: ['/bin/sh', '-c', 'nginx -v && sleep 300']
+EOF
+`);
+          shellExec(`kubectl wait --for=condition=Ready pod/${preflightPod} -n ${namespace} --timeout=2m`, {
+            silent: true,
+          });
+        } finally {
+          shellExec(`kubectl delete pod ${preflightPod} -n ${namespace} --ignore-not-found`, {
+            silent: true,
+            silentOnError: true,
+          });
+        }
+      }
       const liveConf = canHotReload
         ? `${execIngress('cat /tmp/nginx.conf', {
             stdout: true,
@@ -1184,7 +1229,11 @@ EOF
           silent: true,
           silentOnError: true,
         });
-      if (!canHotReload)
+      // A live pod before apply is not proof the desired template rolled out.
+      // In particular, changing nodeSelector uses Recreate and invalidates the
+      // ready replica that made canHotReload true. Do not let the caller delete
+      // the old route kind until the replacement edge is actually Available.
+      if (!canHotReload || changesNode)
         shellExec(
           `kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${namespace} --timeout=5m`,
           { silent: true },
@@ -1194,10 +1243,17 @@ EOF
         // scheduling turn to start the new workers before the caller removes
         // the old stack's route object.
         shellExec('sleep 1', { silent: true });
+      shellExec(
+        `kubectl wait --for=condition=Available deployment/${UNDERPOST_INGRESS.name} ` +
+          `-n ${namespace} --timeout=5m`,
+        { silent: true },
+      );
+      execIngress('nginx -t -c /tmp/nginx.conf', { silent: true });
       logger.info('Underpost ingress applied', {
         namespace,
         backends: Object.keys(backends),
         hosts: entries.length,
+        node: ingressNode,
         hotReloaded: shouldHotReload,
       });
       return true;
