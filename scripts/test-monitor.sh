@@ -202,7 +202,8 @@ run_runtime_mode() {
     setup_tls_secrets $(hosts_from "$SERVER_CONF")
     expose_flags="--tls"
   fi
-  [ "$DO_EXPOSE" = true ] && node bin deploy --expose --local-proxy "$DEPLOY_ID" "$ENV" $expose_flags
+  [ "$DO_EXPOSE" = true ] && node bin run expose "${DEPLOY_ID}-${ENV}-traffic-service" --namespace "$NAMESPACE" \
+    --local-proxy $DEV_FLAG $CLUSTER_FLAG $expose_flags
 }
 
 # ─────────────────────────── instance mode ───────────────────────────
@@ -234,7 +235,7 @@ run_instance_mode() {
     # Plain HTTP: port-forward each instance service port directly.
     for id in "${ids[@]}"; do
       [ -n "$id" ] || continue
-      node bin deploy --expose "${DEPLOY_ID}-${id}" "$ENV" --namespace "$NAMESPACE" || true
+      node bin run expose "${DEPLOY_ID}-${id}-${ENV}-traffic-service" --namespace "$NAMESPACE" $CLUSTER_FLAG || true
     done
   fi
 }
