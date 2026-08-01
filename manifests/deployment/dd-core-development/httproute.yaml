@@ -25,12 +25,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-core-development-blue-service
+        - name: dd-core-development-traffic-service
           port: 4017
           weight: 100
-        - name: dd-core-development-green-service
-          port: 4017
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -96,12 +93,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-core-development-blue-service
+        - name: dd-core-development-traffic-service
           port: 4018
           weight: 100
-        - name: dd-core-development-green-service
-          port: 4018
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -127,12 +121,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-core-development-blue-service
+        - name: dd-core-development-traffic-service
           port: 4019
           weight: 100
-        - name: dd-core-development-green-service
-          port: 4019
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -160,12 +151,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-core-development-blue-service
+        - name: dd-core-development-traffic-service
           port: 4020
           weight: 100
-        - name: dd-core-development-green-service
-          port: 4020
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -231,12 +219,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-core-development-blue-service
+        - name: dd-core-development-traffic-service
           port: 4021
           weight: 100
-        - name: dd-core-development-green-service
-          port: 4021
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -262,9 +247,6 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-core-development-blue-service
+        - name: dd-core-development-traffic-service
           port: 4022
           weight: 100
-        - name: dd-core-development-green-service
-          port: 4022
-          weight: 0

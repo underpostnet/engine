@@ -14,12 +14,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4001
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4001
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -36,12 +33,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4002
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4002
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -58,12 +52,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4003
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4003
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -80,10 +71,7 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4004
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4004
-          weight: 0
     

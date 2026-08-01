@@ -25,12 +25,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4033
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4033
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -80,12 +77,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4034
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4034
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -111,12 +105,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4035
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4035
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -166,12 +157,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4036
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4036
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -197,12 +185,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4037
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4037
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -214,12 +199,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4038
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4038
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -231,12 +213,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4039
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4039
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -302,12 +281,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4040
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4040
-          weight: 0
     - matches:
         - path:
             type: PathPrefix
@@ -333,9 +309,6 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-test-development-blue-service
+        - name: dd-test-development-traffic-service
           port: 4041
           weight: 100
-        - name: dd-test-development-green-service
-          port: 4041
-          weight: 0

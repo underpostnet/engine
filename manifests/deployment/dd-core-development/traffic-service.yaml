@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-core-development-traffic-service
+  namespace: default
+  labels:
+    underpost.net/traffic-service: "true"
+    underpost.net/deploy-id: dd-core-development
+spec:
+  type: ClusterIP
+  selector:
+    app: dd-core-development-blue
+  ports:
+    - name: 'tcp-4017'
+      protocol: TCP
+      port: 4017
+      targetPort: 4017
+    - name: 'udp-4017'
+      protocol: UDP
+      port: 4017
+      targetPort: 4017
+
+    - name: 'tcp-4018'
+      protocol: TCP
+      port: 4018
+      targetPort: 4018
+    - name: 'udp-4018'
+      protocol: UDP
+      port: 4018
+      targetPort: 4018
+
+    - name: 'tcp-4019'
+      protocol: TCP
+      port: 4019
+      targetPort: 4019
+    - name: 'udp-4019'
+      protocol: UDP
+      port: 4019
+      targetPort: 4019
+
+    - name: 'tcp-4020'
+      protocol: TCP
+      port: 4020
+      targetPort: 4020
+    - name: 'udp-4020'
+      protocol: UDP
+      port: 4020
+      targetPort: 4020
+
+    - name: 'tcp-4021'
+      protocol: TCP
+      port: 4021
+      targetPort: 4021
+    - name: 'udp-4021'
+      protocol: UDP
+      port: 4021
+      targetPort: 4021
+
+    - name: 'tcp-4022'
+      protocol: TCP
+      port: 4022
+      targetPort: 4022
+    - name: 'udp-4022'
+      protocol: UDP
+      port: 4022
+      targetPort: 4022

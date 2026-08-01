@@ -14,24 +14,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4005
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4005
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4006
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4006
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -48,12 +42,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4007
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4007
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -70,24 +61,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4008
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4008
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4009
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4009
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -104,12 +89,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4010
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4010
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -126,24 +108,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4011
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4011
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4012
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4012
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -160,12 +136,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4013
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4013
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -182,24 +155,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4014
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4014
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4015
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4015
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -216,10 +183,7 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-cyberia-development-blue-service
+        - name: dd-cyberia-development-traffic-service
           port: 4016
           weight: 100
-        - name: dd-cyberia-development-green-service
-          port: 4016
-          weight: 0
     

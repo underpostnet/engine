@@ -25,12 +25,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4001
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4001
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -58,12 +55,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4002
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4002
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -91,12 +85,9 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4003
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4003
-          weight: 0
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -124,9 +115,6 @@ spec:
               - name: Alt-Svc
                 value: 'h3=":443"; ma=86400'
       backendRefs:
-        - name: dd-lampp-development-blue-service
+        - name: dd-lampp-development-traffic-service
           port: 4004
           weight: 100
-        - name: dd-lampp-development-green-service
-          port: 4004
-          weight: 0

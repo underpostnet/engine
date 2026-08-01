@@ -14,24 +14,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4023
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4023
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4024
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4024
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -48,24 +42,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4025
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4025
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4026
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4026
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -82,12 +70,9 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4027
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4027
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -104,24 +89,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4028
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4028
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4029
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4029
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -138,24 +117,18 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4030
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4030
-          weight: 0
     
     - conditions:
         - prefix: /peer
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4031
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4031
-          weight: 0
     
 ---
 apiVersion: projectcontour.io/v1
@@ -172,10 +145,7 @@ spec:
       
       enableWebsockets: true
       services:
-        - name: dd-prototype-development-blue-service
+        - name: dd-prototype-development-traffic-service
           port: 4032
           weight: 100
-        - name: dd-prototype-development-green-service
-          port: 4032
-          weight: 0
     
