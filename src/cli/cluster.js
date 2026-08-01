@@ -4,7 +4,7 @@
  * @namespace UnderpostCluster
  */
 
-import { clusterTypeFactory, getNpmRootPath } from '../server/conf.js';
+import { clusterTypeFactory, gatewayApiEnabledFactory, getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
@@ -1074,10 +1074,16 @@ EOF
       const { entries, conflicts } = underpostIngressHostMapFactory({
         contourHosts: presence.contour ? hostsOf('httpproxy') : [],
         gatewayHosts: presence.gateway ? hostsOf('httproute') : [],
+        // During migration both route kinds deliberately coexist. Point the
+        // host at the destination stack before the old object is deleted; a
+        // fixed Gateway preference would create a 404 window when migrating in
+        // the opposite direction (Gateway API -> Contour).
+        preferred: gatewayApiEnabledFactory(options) ? 'gateway' : 'contour',
       });
       if (conflicts.length > 0)
-        logger.warn('Hosts described by both stacks; the Gateway API route wins until the HTTPProxy is removed', {
+        logger.warn('Hosts described by both stacks; the destination stack wins until the old route is removed', {
           conflicts,
+          destination: gatewayApiEnabledFactory(options) ? 'gateway' : 'contour',
         });
 
       const conf = underpostIngressConfFactory({
@@ -1086,24 +1092,113 @@ EOF
         resolver: Underpost.deploy.clusterDnsFactory(),
         defaultBackend: backends.gateway ? 'gateway' : 'contour',
       });
-      shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
+      const liveNode = `${
+        shellExec(
+          `kubectl get deployment ${UNDERPOST_INGRESS.name} -n ${namespace} ` +
+            `-o jsonpath='{.spec.template.spec.nodeSelector.kubernetes\\.io/hostname}'`,
+          { stdout: true, silent: true, silentOnError: true },
+        ) || ''
+      }`.trim();
+      // Route refreshes arrive through deploy commands, whose node flag is not
+      // necessarily the cluster command's nodeName flag. Preserve the live pin
+      // unless this invocation explicitly changes it; otherwise an ordinary
+      // host-table edit mutates the pod template and forces a Recreate outage.
+      const requestedNode = options.nodeName || options.node;
+      const ingressNode =
+        (!requestedNode && liveNode) ||
+        Underpost.deploy.resolveDeployNode({
+          node: requestedNode,
+          kind: options.kind,
+          kubeadm: options.kubeadm,
+          k3s: options.k3s,
+          env: options.dev ? 'development' : 'production',
+        });
+      const liveMount = `${
+        shellExec(
+          `kubectl get deployment ${UNDERPOST_INGRESS.name} -n ${namespace} ` +
+            `-o jsonpath='{.spec.template.spec.containers[0].volumeMounts[?(@.name=="nginx-conf")].mountPath}'`,
+          { stdout: true, silent: true, silentOnError: true },
+        ) || ''
+      }`.trim();
+      const liveReady = `${
+        shellExec(
+          `kubectl get deployment ${UNDERPOST_INGRESS.name} -n ${namespace} -o jsonpath='{.status.readyReplicas}'`,
+          { stdout: true, silent: true, silentOnError: true },
+        ) || ''
+      }`.trim();
+      const canHotReload = liveMount === '/etc/underpost-ingress' && parseInt(liveReady || '0', 10) > 0;
+      const execIngress = (command, execOptions = {}) =>
+        shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_INGRESS.name} -- ${command}`, execOptions);
+      const liveConf = canHotReload
+        ? `${execIngress('cat /tmp/nginx.conf', {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+          }) || ''}`
+        : '';
+      const shouldHotReload = canHotReload && liveConf.trimEnd() !== `${conf}`.trimEnd();
+
+      if (shouldHotReload) {
+        // Validate the exact candidate before either the running master or the
+        // persisted ConfigMap sees it. The quoted heredoc preserves every Nginx
+        // variable and keeps a malformed host table from reaching the edge.
+        shellExec(`kubectl exec -i -n ${namespace} deploy/${UNDERPOST_INGRESS.name} -- sh -c 'cat > /tmp/nginx.candidate.conf' <<'EOF'
+${conf}
+EOF
+`);
+        execIngress('nginx -t -c /tmp/nginx.candidate.conf', { silent: true });
+        try {
+          execIngress(
+            `sh -c 'cp /tmp/nginx.conf /tmp/nginx.previous.conf && ` +
+              `cp /tmp/nginx.candidate.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`,
+            { silent: true },
+          );
+        } catch (error) {
+          execIngress(
+            `sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`,
+            { silent: true, silentOnError: true },
+          );
+          throw error;
+        }
+      }
+
+      try {
+        shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
 ${underpostIngressManifestsFactory({
   namespace,
   conf,
-  nodeName: Underpost.deploy.resolveDeployNode({
-    node: options.nodeName,
-    kind: options.kind,
-    kubeadm: options.kubeadm,
-    k3s: options.k3s,
-    env: options.dev ? 'development' : 'production',
-  }),
+  nodeName: ingressNode,
 })}
 EOF
 `);
+      } catch (error) {
+        if (shouldHotReload)
+          execIngress(
+            `sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`,
+            { silent: true, silentOnError: true },
+          );
+        throw error;
+      }
+      if (shouldHotReload)
+        execIngress('rm -f /tmp/nginx.previous.conf /tmp/nginx.candidate.conf', {
+          silent: true,
+          silentOnError: true,
+        });
+      if (!canHotReload)
+        shellExec(
+          `kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${namespace} --timeout=5m`,
+          { silent: true },
+        );
+      else if (shouldHotReload)
+        // `nginx -s reload` returns after signalling the master. Give it one
+        // scheduling turn to start the new workers before the caller removes
+        // the old stack's route object.
+        shellExec('sleep 1', { silent: true });
       logger.info('Underpost ingress applied', {
         namespace,
         backends: Object.keys(backends),
         hosts: entries.length,
+        hotReloaded: shouldHotReload,
       });
       return true;
     },

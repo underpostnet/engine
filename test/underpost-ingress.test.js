@@ -1,6 +1,7 @@
 'use strict';
 
 import { expect } from 'chai';
+import fs from 'fs-extra';
 // Named import: js-yaml's ESM build exports no default.
 import { loadAll } from 'js-yaml';
 import {
@@ -137,12 +138,15 @@ describe('shared ingress front', () => {
       expect(fields.filter((line) => /^\s*-?\s*(ports|containerPort|hostPort):/.test(line))).to.deep.equal([]);
     });
 
-    // subPath mounts are never refreshed in place, so a template that does not
-    // change leaves the running Nginx on the previous config forever.
-    it('changes the pod template when the config changes', () => {
-      const hash = (conf) => underpostIngressManifestsFactory({ conf }).match(/nginx-conf-hash: '(\w+)'/)[1];
-      expect(hash('a')).to.not.equal(hash('b'));
-      expect(hash('a')).to.equal(hash('a'));
+    // Host-map changes are reloaded in place. Keeping them out of the pod
+    // template avoids a Recreate gap on every HTTPRoute/HTTPProxy migration.
+    it('keeps the pod template stable and runs from a writable config copy', () => {
+      const deployment = (conf) =>
+        loadAll(underpostIngressManifestsFactory({ conf })).find((document) => document?.kind === 'Deployment');
+      expect(deployment('a').spec.template).to.deep.equal(deployment('b').spec.template);
+      const out = underpostIngressManifestsFactory({ conf: 'a' });
+      expect(out).to.include('cp /etc/underpost-ingress/nginx.conf /tmp/nginx.conf');
+      expect(out).to.not.include('subPath:');
     });
 
     // Verified against the real nginx:alpine image: dropping any of these is a
@@ -193,6 +197,20 @@ describe('shared ingress front', () => {
 
       const configMap = documents.find((document) => document.kind === 'ConfigMap');
       expect(configMap.data['nginx.conf'].trimEnd()).to.equal(conf.trimEnd());
+    });
+
+    it('validates and reloads a live config before persisting it', () => {
+      const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+      const install = clusterSource.slice(
+        clusterSource.indexOf('    installUnderpostIngress('),
+        clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),
+      );
+      const testCandidate = install.indexOf("execIngress('nginx -t -c /tmp/nginx.candidate.conf'");
+      const reload = install.indexOf('nginx -s reload -c /tmp/nginx.conf', testCandidate);
+      const persist = install.indexOf("shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'", reload);
+      expect(testCandidate).to.be.greaterThan(-1);
+      expect(reload).to.be.greaterThan(testCandidate);
+      expect(persist).to.be.greaterThan(reload);
     });
   });
 });

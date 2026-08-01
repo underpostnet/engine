@@ -24,8 +24,6 @@
  * @namespace UnderpostIngress
  */
 
-import crypto from 'crypto';
-
 /**
  * @constant UNDERPOST_INGRESS
  * @description Identity of the underpost ingress workload. One deployment fronts every
@@ -246,10 +244,6 @@ ${
  * @memberof UnderpostIngress
  */
 const underpostIngressManifestsFactory = ({ namespace = 'default', conf, nodeName = '' } = {}) => {
-  // subPath mounts are never refreshed in place and the pod template is
-  // otherwise identical across rebuilds, so without this the edited config
-  // reaches the ConfigMap and nothing else.
-  const configHash = crypto.createHash('sha256').update(`${conf}`).digest('hex').slice(0, 16);
   return `
 ---
 apiVersion: v1
@@ -274,12 +268,9 @@ metadata:
     app: ${UNDERPOST_INGRESS.name}
 spec:
   replicas: 1
-  # Recreate, because the node's ports are a single resource. A rolling update
-  # would start the replacement while the current pod still holds 80/443, and the
-  # new one would crash-loop on \`Address in use\` until the rollout gave up — the
-  # old pod keeps serving throughout, so the symptom is a deploy that never
-  # finishes rather than an outage. The brief gap here is the honest trade, and
-  # it is only reached when the host table actually changes.
+  # Recreate is retained for real pod-template upgrades because the node's ports
+  # cannot be held twice. Host-table changes do not alter this template: the
+  # installer validates and hot-reloads /tmp/nginx.conf in the existing pod.
   strategy:
     type: Recreate
   selector:
@@ -289,8 +280,6 @@ spec:
     metadata:
       labels:
         app: ${UNDERPOST_INGRESS.name}
-      annotations:
-        underpost.net/nginx-conf-hash: '${configHash}'
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet${
@@ -303,6 +292,10 @@ spec:
       containers:
         - name: nginx
           image: ${UNDERPOST_INGRESS.image}
+          command:
+            - /bin/sh
+            - -c
+            - cp /etc/underpost-ingress/nginx.conf /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf -g 'daemon off;'
           # No \`ports:\` block, deliberately. Under \`hostNetwork: true\` Kubernetes
           # sets \`hostPort\` to each \`containerPort\`, and the scheduler then
           # refuses to place the pod unless those host ports are already free —
@@ -341,8 +334,8 @@ spec:
             periodSeconds: 20
           volumeMounts:
             - name: nginx-conf
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
+              mountPath: /etc/underpost-ingress
+              readOnly: true
             - name: cache
               mountPath: /var/cache/nginx
             - name: run
