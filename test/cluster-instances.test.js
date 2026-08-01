@@ -12,6 +12,7 @@ import {
   instanceProjectPathFactory,
   instanceStatusPageEntriesFactory,
   loadConfInstances,
+  loadProjectInstanceEnvBuilder,
   normalizeInstanceTopology,
 } from '../src/server/conf.js';
 import { statusPageAssetPathFactory } from '../src/server/underpost-gateway.js';
@@ -117,12 +118,19 @@ describe('cluster custom instances', () => {
         path: '/FOREST',
         isDefaultInstance: false,
       });
+      expect(forest).not.to.have.property('pathRewritePolicy');
     });
 
     it('rejects the legacy topology env map with migration guidance', () => {
       expect(() => loadConfInstances('dd-fixture-legacy-env')).to.throw(
         /uses removed multiInstance\.env.*dispatch env builder/,
       );
+    });
+
+    it('loads a project env builder by deploy-id convention', async () => {
+      const builder = await loadProjectInstanceEnvBuilder('dd-cyberia');
+      expect(builder).to.be.a('function').and.have.property('name', 'buildCyberiaMmoInstanceEnv');
+      expect(await loadProjectInstanceEnvBuilder('dd-fixture-a')).to.equal(null);
     });
   });
 

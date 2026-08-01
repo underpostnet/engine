@@ -24,6 +24,7 @@ import {
   instanceStatusPageEntriesFactory,
   isDeployRunnerContext,
   loadConfInstances,
+  loadProjectInstanceEnvBuilder,
   loadConfServerJson,
   loadReplicas,
   resolveDeployList,
@@ -64,10 +65,7 @@ import {
   writeHostInstanceRegistry,
   writeHostServerConf,
 } from '../server/underpost-gateway.js';
-import { buildCyberiaMmoInstanceEnv } from '../projects/cyberia/instance-data.js';
-
 const logger = loggerFactory(import.meta);
-const INSTANCE_ENV_BUILDERS = { 'dd-cyberia': buildCyberiaMmoInstanceEnv };
 
 /**
  * @constant DEFAULT_OPTION
@@ -1929,7 +1927,7 @@ EOF
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'instance-build-manifest': (path, options = DEFAULT_OPTION) => {
+    'instance-build-manifest': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       let [deployId, id, projectPath] = path.split(',');
       const rootPath = projectPath ? projectPath : '.';
@@ -1950,7 +1948,7 @@ EOF
       }
       if (!options.instanceOnly && (selected.length > 1 || selected[0].id !== id)) {
         for (const instance of selected)
-          UnderpostRun.RUNNERS['instance-build-manifest'](
+          await UnderpostRun.RUNNERS['instance-build-manifest'](
             [deployId, instance.id, projectPath].filter((v) => v !== undefined).join(','),
             { ...options, instanceOnly: true },
           );
@@ -1965,6 +1963,7 @@ EOF
 
       const instance = selected[0];
       const isDefaultInstance = instance.id === instance.templateId || !instance.templateId;
+      const instanceEnvBuilder = await loadProjectInstanceEnvBuilder(deployId);
 
       let {
         id: _id,
@@ -2239,7 +2238,7 @@ EOF
             environment: targetEnv,
             baseEnv,
             containerDeployId: `${_deployId}-${targetEnv}`,
-            builders: INSTANCE_ENV_BUILDERS,
+            builders: instanceEnvBuilder ? { [deployId]: instanceEnvBuilder } : {},
           });
           writeEnv(`${instanceEnvDir}/${targetEnv}.env`, builtEnv);
         }
@@ -2247,7 +2246,7 @@ EOF
           dir: instanceEnvDir,
           instanceCode: instance.instanceCode,
           envs: envsToWrite,
-          builder: INSTANCE_ENV_BUILDERS[deployId]?.name || 'canonical-copy',
+          builder: instanceEnvBuilder?.name || 'canonical-copy',
         });
       }
 

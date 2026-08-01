@@ -719,6 +719,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
 }
 
 export {
+  buildCyberiaMmoInstanceEnv as buildInstanceEnv,
   buildCyberiaMmoInstanceEnv,
   getInstanceModels,
   normalizeEntityDefault,
