@@ -12,7 +12,6 @@ import fs from 'fs-extra';
 import nodePath from 'path';
 import { getRootDirectory, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
-import { loadInstanceTopology } from '../server/conf.js';
 import Nginx from '../runtime/nginx/Nginx.js';
 
 const logger = loggerFactory(import.meta);
@@ -82,9 +81,10 @@ class UnderpostDockerCompose {
    * Resolves the canonical directory for a custom docker-compose workflow,
    * keyed by `--deploy-id` + `--docker-compose-id`:
    * `engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>`.
-   * This directory ships its own `docker-compose.yml`, `compose.env`, and
-   * `nginx.conf` (used as-is, never generated). Returns null when
-   * `--docker-compose-id` is not set (the default, self-generating workflow).
+   * This directory ships its own `docker-compose.yml`, `compose.env`, and any
+   * project-specific bind-mounted files (all used as-is, never generated).
+   * Returns null when `--docker-compose-id` is not set (the default,
+   * self-generating workflow).
    * @param {object} options - CLI options.
    * @returns {string|null} Repo-root-relative canonical dir, or null.
    * @memberof UnderpostDockerCompose
@@ -100,8 +100,8 @@ class UnderpostDockerCompose {
    * so behavior is independent of the caller's working directory.
    *
    * Custom workflow (`--docker-compose-id`): the compose file, env-file, and
-   * bind-mounted config (nginx.conf, mongodb/) all live in the canonical dir, so
-   * compose runs with `--project-directory` pinned there and no app-override.
+   * project-owned bind-mounted config all live in the canonical dir, so compose
+   * runs with `--project-directory` pinned there and no app-override.
    * @param {object} options - CLI options.
    * @returns {string} The base command string (without a subcommand).
    * @memberof UnderpostDockerCompose
@@ -363,142 +363,6 @@ datasources:
   }
 
   /**
-   * Expands the deploy's `multiInstance` topology (from conf.instances.json, via
-   * {@link loadInstanceTopology}) into the per-variant descriptors the compose
-   * generators consume. Application-agnostic: `/` is the default; other paths
-   * derive their code and slug. Returns null when the deploy is single-instance.
-   * @param {object} options - CLI options.
-   * @returns {?{variants: Array<object>}}
-   * @memberof UnderpostDockerCompose
-   */
-  static instanceTopology(options = {}) {
-    const deployId = options.deployId || DEFAULT_DEPLOY_ID;
-    let topology = null;
-    try {
-      topology = loadInstanceTopology(deployId);
-    } catch {
-      return null;
-    }
-    if (!topology || !Array.isArray(topology.variants) || topology.variants.length === 0) return null;
-    const variants = topology.variants.map((v) => {
-      const path = v.path || '/';
-      const slug = (v.slug || '').replace(/^\//, '');
-      const isDefault = path === '/';
-      return {
-        code: v.code,
-        slug,
-        path,
-        isDefault,
-        // Service/container suffix: empty for the default variant so it keeps
-        // the historic `cyberia-server` / `cyberia-client` names (and their
-        // published host ports); `-forest`, `-test`, … for the rest.
-        suffix: isDefault ? '' : `-${slug}`,
-      };
-    });
-    return { variants };
-  }
-
-  /**
-   * Renders the nginx reverse-proxy config for the multi-instance Cyberia stack
-   * as a SINGLE localhost gateway (dev compose is single-host; production uses
-   * the K8s HTTPProxy, not this file). All three tiers share one origin, routed
-   * by URL sub-path so `http://localhost/` works with no /etc/hosts:
-   *   /api/*, /assets/*        -> engine-cyberia (shared content authority)
-   *   /<code>/ws               -> cyberia-server-<slug> (prefix preserved)
-   *   /ws                      -> default cyberia-server
-   *   /<code>                  -> cyberia-client-<slug> (prefix kept)
-   *   /                        -> default cyberia-client
-   * Upstreams resolve lazily through Docker's embedded DNS so a variant that is
-   * briefly down never fails nginx startup. Returns null for single-instance.
-   * @param {object} options - CLI options.
-   * @returns {?string} nginx.conf content, or null.
-   * @memberof UnderpostDockerCompose
-   */
-  static instancesNginxContent(options = {}) {
-    const topology = UnderpostDockerCompose.instanceTopology(options);
-    if (!topology) return null;
-    const { variants } = topology;
-
-    const headers = `            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection $connection_upgrade;
-            proxy_read_timeout 3600s;`;
-
-    const proxyBlock = (variable, upstream, extra = '') =>
-      `            set ${variable} ${upstream};
-${extra}            proxy_pass http://${variable};
-${headers}`;
-
-    // Websocket tier: /<path>/ws -> server; the root variant owns /ws.
-    // Longest-prefix ensures /<path>/ws beats the /<path> client location.
-    const wsLocations = variants
-      .map((v) => {
-        const upstream = `cyberia-server${v.suffix}:8081`;
-        const varName = `$up_server_${v.slug || 'default'}`;
-        if (v.isDefault) return `        location = /ws {\n${proxyBlock(varName, upstream)}\n        }`;
-        return `        location = ${v.path}/ws {\n${proxyBlock(varName, upstream)}\n        }`;
-      })
-      .join('\n\n');
-
-    // Presentation tier: non-root prefixes are kept; `/` is the catch-all.
-    const clientLocations = variants
-      .map((v) => {
-        const upstream = `cyberia-client${v.suffix}:8081`;
-        const varName = `$up_client_${v.slug || 'default'}`;
-        if (v.isDefault) return `        location / {\n${proxyBlock(varName, upstream)}\n        }`;
-        return `        location = ${v.path} { return 301 ${v.path}/; }
-        location ^~ ${v.path}/ {\n${proxyBlock(varName, upstream)}\n        }`;
-      })
-      .join('\n\n');
-
-    const deployId = options.deployId || DEFAULT_DEPLOY_ID;
-    return `# Generated by 'underpost docker-compose --generate --deploy-id ${deployId} --docker-compose-id ${options.dockerComposeId || 'cyberia'}' — do not hand-edit.
-# Source of truth: engine-private/conf/${deployId}/conf.instances.json (multiInstance).
-# Single localhost gateway (dev compose). Access http://localhost/ for the
-# default and http://localhost/<PATH> for other variants. Client origins point back here
-# (compose.env CYBERIA_WS_ORIGIN=ws://localhost, CYBERIA_ENGINE_API_ORIGIN=http://localhost).
-
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-
-# Docker embedded DNS: resolve upstream names per request so a variant that is
-# briefly down never fails nginx startup or config reload.
-resolver 127.0.0.11 ipv6=off valid=10s;
-
-proxy_http_version 1.1;
-
-server {
-    listen 80 default_server;
-    server_name localhost 127.0.0.1 _;
-
-        location = /healthz {
-            access_log off;
-            return 200 "ok\\n";
-            add_header Content-Type text/plain;
-        }
-
-        # Shared content authority: REST API + engine-served assets (fonts, ui-icons).
-        location /api/ {
-${proxyBlock('$up_engine', 'engine-cyberia:4005')}
-        }
-
-        location /assets/ {
-${proxyBlock('$up_engine', 'engine-cyberia:4005')}
-        }
-
-${wsLocations}
-
-${clientLocations}
-}
-`;
-  }
-
-  /**
    * Renders all dynamic supporting files: the nginx reverse-proxy config (from
    * PROXY_HOSTS), the monitoring configs (Prometheus + Grafana datasource), and
    * the env-file example. Creates a working env-file from the example only when
@@ -508,25 +372,17 @@ ${clientLocations}
    * @memberof UnderpostDockerCompose
    */
   static generate(options = {}) {
-    // Custom workflow: docker-compose.yml and compose.env are hand-authored in
-    // the canonical dir and used as-is — do NOT generate them. Only (re)write
-    // the two generated artifacts: the MongoDB entrypoint (replica-set
-    // bootstrap) and, for a multi-instance deploy, nginx.conf (per-variant
-    // sub-path routing derived from the conf.instances.json multiInstance block,
-    // kept in sync with the service tiers hand-authored in docker-compose.yml).
+    // A named custom workflow is fully owned by its canonical directory. The
+    // generic CLI validates the standard entry files but never imports project
+    // modules or generates application-specific nginx, env, or helper content.
     const composeIdBase = UnderpostDockerCompose.composeIdBase(options);
     if (composeIdBase) {
-      const mongoEntrypointPath = UnderpostDockerCompose.resolve(`${composeIdBase}/mongodb/entrypoint.sh`);
-      fs.mkdirpSync(nodePath.dirname(mongoEntrypointPath));
-      fs.writeFileSync(mongoEntrypointPath, UnderpostDockerCompose.mongoEntrypointContent(), { mode: 0o755 });
-      logger.info('mongodb entrypoint written (custom workflow)', { path: mongoEntrypointPath });
-
-      const nginx = UnderpostDockerCompose.instancesNginxContent(options);
-      if (nginx) {
-        const nginxPath = UnderpostDockerCompose.resolve(`${composeIdBase}/nginx.conf`);
-        fs.writeFileSync(nginxPath, nginx, 'utf8');
-        logger.info('multi-instance nginx.conf written', { path: nginxPath });
-      }
+      const required = ['docker-compose.yml', 'compose.env'].map((name) =>
+        UnderpostDockerCompose.resolve(`${composeIdBase}/${name}`),
+      );
+      const missing = required.filter((path) => !fs.existsSync(path));
+      if (missing.length) throw new Error(`Custom Docker Compose workflow is missing: ${missing.join(', ')}`);
+      logger.info('custom Docker Compose workflow uses canonical files as-is', { path: composeIdBase });
       return;
     }
 
@@ -636,17 +492,10 @@ ${clientLocations}
       silentOnError: true,
     });
 
-    // Custom workflow: docker-compose.yml and compose.env are hand-authored
-    // source — never prune them. Drop only the generated mongo entrypoint;
-    // nginx.conf is left in place so the mount stays valid and --generate/--up
-    // rewrites it.
+    // A named custom workflow owns every file beneath its canonical directory.
+    // Reset tears down Docker resources but never prunes project-owned files.
     const composeIdBase = UnderpostDockerCompose.composeIdBase(options);
     if (composeIdBase) {
-      const mongoEntrypointPath = UnderpostDockerCompose.resolve(`${composeIdBase}/mongodb/entrypoint.sh`);
-      if (fs.existsSync(mongoEntrypointPath)) {
-        fs.removeSync(mongoEntrypointPath);
-        logger.info('removed generated artifact', { path: mongoEntrypointPath });
-      }
       logger.info('Docker Compose reset complete. Run `--up` to recreate the stack.');
       return;
     }
@@ -691,7 +540,7 @@ ${clientLocations}
      * @param {boolean} [options.shell] - Open an interactive shell in `target` (default: app).
      * @param {string} [options.exec] - General-purpose passthrough docker compose subcommand.
      * @param {string} [options.deployId] - Deployment to run as the app (default: dd-default). `dd-default` self-bootstraps a fresh engine; any other id runs the standard `underpost start` command.
-     * @param {string} [options.dockerComposeId] - Custom-workflow selector. When set, use the canonical stack at `engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/` (docker-compose.yml + compose.env + nginx.conf, used as-is), skipping nginx/env/app-override generation. Used by the Cyberia MMO ecosystem (`--deploy-id dd-cyberia --docker-compose-id cyberia`).
+     * @param {string} [options.dockerComposeId] - Custom-workflow selector. When set, use the canonical stack at `engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/` (docker-compose.yml + compose.env, used as-is), skipping nginx/env/app-override generation.
      * @param {string} [options.env] - Deployment environment for non-default deploy ids (default: development).
      * @param {string} [options.composeFile] - Override compose file path.
      * @param {string} [options.envFile] - Override env-file path.

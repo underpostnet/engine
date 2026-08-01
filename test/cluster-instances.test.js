@@ -68,6 +68,10 @@ describe('cluster custom instances', () => {
       fs.outputJsonSync(`${dir}/conf.server.json`, SERVER_FIXTURE[deployId]);
       created.push(dir);
     }
+    const customComposeDir = `${CONF_DIR('dd-fixture-a')}/docker-compose/custom-stack`;
+    fs.outputFileSync(`${customComposeDir}/docker-compose.yml`, 'services: {}\n');
+    fs.outputFileSync(`${customComposeDir}/compose.env`, 'FIXTURE=true\n');
+    fs.outputFileSync(`${customComposeDir}/project-router.conf`, 'project-owned\n');
   });
 
   after(() => {
@@ -136,11 +140,14 @@ describe('cluster custom instances', () => {
       expect(await loadProjectInstanceEnvBuilder('dd-fixture-a')).to.equal(null);
     });
 
-    it('preserves and bounds variant paths in the compose gateway', () => {
-      const nginx = UnderpostDockerCompose.instancesNginxContent({ deployId: 'dd-fixture-a' });
-      expect(nginx).to.include('location = /FOREST/ws {');
-      expect(nginx).to.include('location ^~ /FOREST/ {');
-      expect(nginx).not.to.include('rewrite ^/FOREST');
+    it('uses a named compose workflow without rewriting project-owned files', () => {
+      const options = { deployId: 'dd-fixture-a', dockerComposeId: 'custom-stack' };
+      const customComposeDir = 'engine-private/conf/dd-fixture-a/docker-compose/custom-stack';
+      const routerPath = `${customComposeDir}/project-router.conf`;
+      expect(UnderpostDockerCompose.composeIdBase(options)).to.equal(customComposeDir);
+      expect(() => UnderpostDockerCompose.generate(options)).not.to.throw();
+      expect(fs.readFileSync(routerPath, 'utf8')).to.equal('project-owned\n');
+      expect(UnderpostDockerCompose.baseCmd(options)).to.include(`--project-directory ${process.cwd()}/${customComposeDir}`);
     });
   });
 
