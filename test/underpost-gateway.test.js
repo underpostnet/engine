@@ -361,6 +361,7 @@ describe('underpost gateway edge tier', () => {
     it('keeps the cluster work in the install path', () => {
       expect(bodyOf('installGatewayConf')).to.include('nginx -t');
       expect(bodyOf('installGatewayConf')).to.include('nginx -s reload');
+      expect(bodyOf('installGatewayConf')).to.include('throw new Error');
     });
 
     it('writes a block to the directory it is given, and removes it when empty', () => {
@@ -402,6 +403,41 @@ describe('underpost gateway edge tier', () => {
     it('renders nginx variables the shell would otherwise eat', () => {
       expect(nginxConfFactory()).to.include('try_files $uri $uri/index.html =404;');
       expect(nginxConfFactory()).to.match(/\$remote_addr.+\$request.+\$status/);
+    });
+  });
+
+  describe('traffic switch publication order', () => {
+    const deploySource = fs.readFileSync(new URL('../src/cli/deploy.js', import.meta.url), 'utf8');
+    const switchTraffic = deploySource.slice(
+      deploySource.indexOf('    switchTraffic('),
+      deploySource.indexOf('    resolveDeployNode(', deploySource.indexOf('    switchTraffic(')),
+    );
+
+    it('loads the rebuilt gateway host blocks before applying HTTPRoutes', () => {
+      const install = switchTraffic.indexOf('installGatewayConf({');
+      const apply = switchTraffic.indexOf("for (const file of options.gatewayApi ? ['gateway.yaml', 'httproute.yaml']");
+      expect(install).to.be.greaterThan(-1);
+      expect(apply).to.be.greaterThan(install);
+    });
+
+    it('refreshes the shared ingress host table after publishing routes', () => {
+      const apply = switchTraffic.indexOf('shellExec(`sudo kubectl apply -f ${buildPath}/${file}');
+      const refresh = switchTraffic.indexOf('Underpost.cluster.refreshUnderpostIngress({ namespace, options });');
+      expect(apply).to.be.greaterThan(-1);
+      expect(refresh).to.be.greaterThan(apply);
+    });
+
+    it('keeps the stable selector on the live colour until route migration completes', () => {
+      const ready = switchTraffic.indexOf('!Underpost.deploy.awaitServiceEndpoints({');
+      const bootstrap = switchTraffic.indexOf('Underpost.deploy.applyTrafficService({', ready);
+      const apply = switchTraffic.indexOf("for (const file of options.gatewayApi ? ['gateway.yaml', 'httproute.yaml']");
+      const removeOldRoute = switchTraffic.indexOf('Underpost.deploy.removeInactiveHostRoutes({', apply);
+      const targetSelector = switchTraffic.indexOf('if (targetTraffic !== bootstrapTraffic)', removeOldRoute);
+      expect(ready).to.be.greaterThan(-1);
+      expect(bootstrap).to.be.greaterThan(ready);
+      expect(apply).to.be.greaterThan(bootstrap);
+      expect(removeOldRoute).to.be.greaterThan(apply);
+      expect(targetSelector).to.be.greaterThan(removeOldRoute);
     });
   });
 });

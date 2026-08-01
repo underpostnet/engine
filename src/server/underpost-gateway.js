@@ -716,6 +716,8 @@ const writeHostInstanceRegistry = ({ confDir, host, instances = [] }) => {
  * @param {string} confSourceDir - Directory holding the built blocks.
  * @param {string} [namespace] - Namespace holding the workload.
  * @returns {boolean} True when Nginx was reloaded with the new config.
+ * @throws {Error} When Nginx rejects the candidate config or cannot reload. A
+ *   rejected candidate is restored before the error is raised.
  * @memberof UnderpostGateway
  */
 const installGatewayConf = ({ hostRoot, confSourceDir, namespace = 'default' }) => {
@@ -731,14 +733,7 @@ const installGatewayConf = ({ hostRoot, confSourceDir, namespace = 'default' }) 
       return [name, fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null];
     }),
   );
-  for (const name of blocks)
-    shellExec(`sudo cp -f ${nodePath.join(confSourceDir, name)} ${nodePath.join(confDir, name)}`, { silent: true });
-  const test = shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- nginx -t 2>&1`, {
-    stdout: true,
-    silent: true,
-    silentOnError: true,
-  });
-  if (!`${test}`.includes('successful')) {
+  const restorePrevious = () => {
     for (const [name, content] of Object.entries(previous)) {
       const target = nodePath.join(confDir, name);
       if (content === null) shellExec(`sudo rm -f ${target}`, { silent: true });
@@ -749,16 +744,39 @@ const installGatewayConf = ({ hostRoot, confSourceDir, namespace = 'default' }) 
         fs.removeSync(staged);
       }
     }
+  };
+  for (const name of blocks)
+    shellExec(`sudo cp -f ${nodePath.join(confSourceDir, name)} ${nodePath.join(confDir, name)}`, { silent: true });
+  const test = shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- nginx -t 2>&1`, {
+    stdout: true,
+    silent: true,
+    silentOnError: true,
+  });
+  if (!`${test}`.includes('successful')) {
+    restorePrevious();
     logger.error('Gateway config rejected; the previous config was restored and Nginx left running', {
       blocks,
       test: `${test}`.trim().split('\n').slice(-3).join(' '),
     });
-    return false;
+    throw new Error(
+      `Gateway config rejected for ${blocks.join(', ')}: ${`${test}`.trim().split('\n').slice(-3).join(' ')}`,
+    );
   }
-  shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- nginx -s reload`, {
-    silent: true,
-    silentOnError: true,
-  });
+  try {
+    shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- nginx -s reload`, {
+      silent: true,
+    });
+  } catch (error) {
+    restorePrevious();
+    // The running master normally retains its old config when a reload signal
+    // fails. Re-signal after restoring so even a partial reload converges back
+    // to the last validated state.
+    shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- nginx -s reload`, {
+      silent: true,
+      silentOnError: true,
+    });
+    throw error;
+  }
   logger.info('Gateway config installed and reloaded', { blocks, confDir });
   return true;
 };
