@@ -998,6 +998,15 @@ spec:
      * Split out of {@link UnderpostDeploy.getCurrentTraffic} so a report covering
      * many deployments and environments can read each host once instead of once
      * per row.
+     *
+     * The stack the flags select is read first, and the other one is read when
+     * that finds nothing. Which kind describes a host is a property of the
+     * cluster, not of the invocation: a command run without `--disable-gateway-api`
+     * against a Contour-routed host would otherwise report it as having no colour
+     * at all, and silently act on that — stopping the wrong half of a blue/green
+     * pair, or reporting a live host as unrouted. When neither kind exists the
+     * host genuinely has no route and the caller proceeds with the Nginx block
+     * alone.
      * @param {string} host - Hostname whose routing is read.
      * @param {object} [options] - Options carrying namespace, gateway stack and gateway root.
      * @returns {string} Route object YAML and Nginx block, concatenated; empty when neither exists.
@@ -1007,13 +1016,33 @@ spec:
       const namespace = options.namespace || 'default';
       // A missing route object is the canonical "no traffic colour set yet"
       // state for blue/green rollouts. silentOnError swallows kubectl's NotFound
-      // exit so the caller sees empty text rather than a throw.
-      const kind = gatewayApiEnabledFactory(options) ? 'HTTPRoute' : 'HTTPProxy';
-      const routeInfo = shellExec(`sudo kubectl get ${kind}/${host} -n ${namespace} -o yaml`, {
-        silent: true,
-        stdout: true,
-        silentOnError: true,
-      });
+      // exit so this returns empty text rather than throwing. The `kind:` check
+      // is what distinguishes a real object from anything kubectl printed while
+      // failing — an empty answer has to mean "absent", or the fallback below
+      // would never run.
+      const readRouteObject = (kind) => {
+        const out = shellExec(`sudo kubectl get ${kind}/${host} -n ${namespace} -o yaml`, {
+          silent: true,
+          stdout: true,
+          silentOnError: true,
+        });
+        return `${out || ''}`.includes(`kind: ${kind}`) ? `${out}` : '';
+      };
+
+      const preferred = gatewayApiEnabledFactory(options) ? 'HTTPRoute' : 'HTTPProxy';
+      const fallback = preferred === 'HTTPRoute' ? 'HTTPProxy' : 'HTTPRoute';
+      let routeInfo = readRouteObject(preferred);
+      if (!routeInfo) {
+        routeInfo = readRouteObject(fallback);
+        if (routeInfo)
+          logger.warn('Host is routed by the other stack than the flags select; reading it instead', {
+            host,
+            selected: preferred,
+            found: fallback,
+            namespace,
+          });
+      }
+
       const gatewayConfPath = nodePath.join(
         Underpost.deploy.underpostGatewayRootFactory(options),
         UNDERPOST_GATEWAY.confDir,
