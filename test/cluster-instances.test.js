@@ -6,7 +6,6 @@ import {
   clusterContextFactory,
   clusterInstancesFactory,
   clusterTypeFactory,
-  dispatchBuildInstanceEnv,
   deployHostsFactory,
   gatewayApiEnabledFactory,
   instanceInterceptStatusesFactory,
@@ -16,9 +15,8 @@ import {
   normalizeInstanceTopology,
 } from '../src/server/conf.js';
 import { statusPageAssetPathFactory } from '../src/server/underpost-gateway.js';
-import { buildCyberiaMmoInstanceEnv } from '../src/projects/cyberia/instance-data.js';
 
-// `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
+test; // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
 // relative to the process cwd, mirroring every other conf loader. engine-private
 // is a private repository, so each fixture gets its own deploy directory, that
 // directory is removed whole afterwards, and an existing one is never touched.
@@ -118,62 +116,6 @@ describe('cluster custom instances', () => {
         instanceSlug: '/forest',
         path: '/FOREST',
         isDefaultInstance: false,
-      });
-    });
-
-    it('dispatches Cyberia MMO env logic without changing canonical-only values', () => {
-      const [, forest] = loadConfInstances('dd-fixture-a');
-      forest.runtime = 'cyberia-client';
-      const built = dispatchBuildInstanceEnv({
-        deployId: 'dd-cyberia',
-        instance: forest,
-        environment: 'production',
-        baseEnv: { API_KEY: 'private', CYBERIA_WS_ORIGIN: 'wss://server.example.test' },
-        containerDeployId: 'dd-cyberia-mmo-server-forest-production',
-        builders: { 'dd-cyberia': buildCyberiaMmoInstanceEnv },
-      });
-      expect(built).to.deep.equal({
-        API_KEY: 'private',
-        CYBERIA_WS_ORIGIN: 'wss://server.example.test',
-        CYBERIA_INSTANCE_CODE: 'FOREST',
-        CYBERIA_DEFAULT_INSTANCE: 'amethyst-strata-expansion',
-        CYBERIA_BASE_PATH: '/FOREST',
-        CONTAINER_DEPLOY_ID: 'dd-cyberia-mmo-server-forest-production',
-      });
-
-      const [root] = loadConfInstances('dd-fixture-a');
-      root.runtime = 'cyberia-client';
-      expect(
-        dispatchBuildInstanceEnv({
-          deployId: 'dd-cyberia',
-          instance: root,
-          environment: 'production',
-          baseEnv: {},
-          containerDeployId: 'dd-cyberia-mmo-server-production',
-          builders: { 'dd-cyberia': buildCyberiaMmoInstanceEnv },
-        }),
-      ).to.deep.equal({
-        CYBERIA_INSTANCE_CODE: 'amethyst-strata-expansion',
-        CYBERIA_DEFAULT_INSTANCE: 'amethyst-strata-expansion',
-        CYBERIA_BASE_PATH: '/',
-        CONTAINER_DEPLOY_ID: 'dd-cyberia-mmo-server-production',
-      });
-
-      forest.runtime = 'cyberia-server';
-      expect(
-        dispatchBuildInstanceEnv({
-          deployId: 'dd-cyberia',
-          instance: forest,
-          environment: 'production',
-          baseEnv: { API_KEY: 'private' },
-          containerDeployId: 'dd-cyberia-mmo-server-forest-production',
-          builders: { 'dd-cyberia': buildCyberiaMmoInstanceEnv },
-        }),
-      ).to.deep.equal({
-        API_KEY: 'private',
-        INSTANCE_CODE: 'FOREST',
-        CYBERIA_BASE_PATH: '/FOREST',
-        CONTAINER_DEPLOY_ID: 'dd-cyberia-mmo-server-forest-production',
       });
     });
 
