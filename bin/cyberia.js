@@ -4875,11 +4875,14 @@ try {
           'cyberia-server',
           'cyberia-client',
         ];
-        for (const host of testHosts)
-          shellExec(`curl -L -v -i -s http://${host} | head -n 10`, {
-            silentOnError: true,
-          });
-        return;
+        const testPaths = ['/', '/TEST', '/FOREST'];
+        for (const host of testHosts) {
+          for (const path of testPaths) {
+            shellExec(`curl -L -v -i -s http://${host}${path} | head -n 10`, {
+              silentOnError: true,
+            });
+          }
+        }
       }
       const envPath = `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`;
       const canonicalDevDockerfile = './src/runtime/engine-cyberia/Dockerfile.dev';
