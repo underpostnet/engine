@@ -1408,7 +1408,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * of them is readable from the route object alone: the kind is which object
      * exists, TLS lives on the Gateway's listener or an HTTPProxy's
      * `virtualhost.tls`, and HTTP/3 is a `ClientTrafficPolicy` targeting that
-     * Gateway. `REPLICAS` is the routed colour's own `ready/desired`.
+     * Gateway. `CURRENT` and `OPPOSITE` show each colour's Deployment name,
+     * `ready/desired` replicas and readiness; `CURRENT` also reports whether the
+     * stable traffic Service has a ready endpoint.
      *
      * The stable traffic Service selector is the colour authority. Legacy
      * HTTPRoute/HTTPProxy backend parsing remains as a fallback for workloads
@@ -1416,7 +1418,10 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * carries traffic, so an endpointless stable selector reports correctly.
      * Every declared host/path is also requested through the public chain with
      * `curl -L -v -i -s`; PATH displays the ordered response codes beside the
-     * path. OPPOSITE is added only when another blue/green Deployment exists.
+     * path. OPPOSITE is always displayed: when the other blue/green Deployment
+     * does not exist, its expected name is reported with a `missing` state.
+     * There is no separate environment column because the Deployment names
+     * already contain `development` or `production`.
      * @param {string} [path] - Comma-separated hosts to report on; empty reports every host.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -1449,9 +1454,6 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
       const deployments = Underpost.kubectl.get('', 'deployment', options.namespace);
       const deployedNames = deployments.map((entry) => entry.NAME);
-      // `kubectl get -o wide` already carries READY as `ready/desired`, so the
-      // replica count costs nothing beyond the read that decides what is listed.
-      const replicasOf = (name) => deployments.find((entry) => entry.NAME === name)?.READY || '-';
 
       // Four cluster-wide reads, correlated once: which kind describes a host,
       // whether its listener terminates TLS, and whether QUIC is enabled on it.
@@ -1515,6 +1517,18 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           service: legacyTraffic ? `${entry.deployment}-${legacyTraffic}-service` : '',
         });
       };
+      const servingState = {};
+      const servesTraffic = (entry, env) => {
+        const service = liveTrafficStateOf(entry, env).service;
+        if (!service) return false;
+        const key = `${options.namespace}/${service}`;
+        if (servingState[key] === undefined)
+          servingState[key] = Underpost.deploy.serviceHasReadyEndpoints({
+            service,
+            namespace: options.namespace,
+          });
+        return servingState[key];
+      };
 
       const rows = envs.flatMap((env) =>
         trafficTableRowsFactory({
@@ -1527,11 +1541,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
             .filter((entry) => deployedNames.some((name) => name.startsWith(`${entry.deployment}-`))),
           hosts,
           liveTrafficOf: (entry) => liveTrafficStateOf(entry, env).colour,
-          servesTraffic: (entry) =>
-            Underpost.deploy.serviceHasReadyEndpoints({
-              service: liveTrafficStateOf(entry, env).service,
-              namespace: options.namespace,
-            }),
+          servesTraffic: (entry) => servesTraffic(entry, env),
         }),
       );
 
@@ -1579,7 +1589,17 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         const [ready, desired] = `${replicas}`.split('/').map(Number);
         return {
           replicas,
+          exists: Boolean(deployment),
           ready: Number.isFinite(ready) && Number.isFinite(desired) && desired > 0 && ready === desired,
+        };
+      };
+      const deploymentStatusOf = (row, traffic) => {
+        if (!traffic) return null;
+        const deployment = `${row.deployment}-${traffic}`;
+        return {
+          deployment,
+          traffic,
+          ...readinessOf(deploymentByName.get(deployment)),
         };
       };
       const reportRows = rows.map((row) => {
@@ -1588,21 +1608,15 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           probePath(row.host, routePath, facts.tls),
         );
         const oppositeTraffic = row.traffic ? nextTrafficFactory(row.traffic) : '';
-        const oppositeDeployment = oppositeTraffic ? `${row.deployment}-${oppositeTraffic}` : '';
-        const oppositeResource = oppositeDeployment ? deploymentByName.get(oppositeDeployment) : null;
+        const current = deploymentStatusOf(row, row.traffic);
+        const opposite = deploymentStatusOf(row, oppositeTraffic);
         return {
           ...row,
           probes,
-          opposite: oppositeResource
-            ? {
-                deployment: oppositeDeployment,
-                traffic: oppositeTraffic,
-                ...readinessOf(oppositeResource),
-              }
-            : null,
+          current: current ? { ...current, serving: row.serving } : null,
+          opposite,
         };
       });
-      const showOpposite = reportRows.some((row) => row.opposite);
 
       // Padded on the raw values, coloured afterwards: an ANSI escape counts
       // toward String.length and would skew every column right of it.
@@ -1610,39 +1624,33 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         'HOST',
         'PATH',
         'KIND',
-        'ENV',
         'ROUTE',
         'TLS',
         'HTTP3',
-        'DEPLOYMENT',
-        ...(showOpposite ? ['OPPOSITE'] : []),
-        'TRAFFIC',
-        'REPLICAS',
-        'SERVING',
+        'CURRENT',
+        'OPPOSITE',
       ];
       const cells = reportRows.map((row) => {
         const facts = ingressFacts[row.host] || {};
-        const deployment = `${row.deployment}-${row.traffic || '?'}`;
         const pathStatus = row.probes.map((probe) => `${probe.path} [${probe.statuses.join('→')}]`).join(' ');
+        const deploymentStatus = (status, includeServing = false) => {
+          if (!status) return `unrouted - missing${includeServing ? ' not-serving' : ''}`;
+          return [
+            status.deployment,
+            status.replicas,
+            status.exists ? (status.ready ? 'ready' : 'not-ready') : 'missing',
+            ...(includeServing ? [status.serving ? 'serving' : 'not-serving'] : []),
+          ].join(' ');
+        };
         return [
           row.host,
           pathStatus,
           row.kind,
-          row.env,
           facts.route || 'none',
           facts.tls ? 'yes' : 'no',
           facts.http3 ? 'yes' : 'no',
-          deployment,
-          ...(showOpposite
-            ? [
-                row.opposite
-                  ? `${row.opposite.traffic} ${row.opposite.replicas} ${row.opposite.ready ? 'ready' : 'not-ready'}`
-                  : '-',
-              ]
-            : []),
-          row.traffic || 'none',
-          row.traffic ? replicasOf(deployment) : '-',
-          row.serving ? 'yes' : 'no',
+          deploymentStatus(row.current, true),
+          deploymentStatus(row.opposite),
         ];
       });
       const widths = columns.map((column, i) => Math.max(column.length, ...cells.map((cell) => `${cell[i]}`.length)));
@@ -1655,24 +1663,21 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
             if (/^4/.test(status)) return status.yellow;
             return status.red;
           });
-        if (columns[i] === 'OPPOSITE') {
+        if (columns[i] === 'CURRENT' || columns[i] === 'OPPOSITE') {
           if (value === '-') return value;
-          const [traffic, replicas, status] = value.split(' ');
-          const trafficDisplay = traffic === 'blue' ? traffic.bgBlue.bold.black : traffic.bgGreen.bold.black;
+          const [deployment, replicas, status, serving] = value.split(' ');
+          const deploymentDisplay = deployment.replace(/-(blue|green)$/, (_, traffic) =>
+            `-${traffic === 'blue' ? traffic.bgBlue.bold.black : traffic.bgGreen.bold.black}`,
+          );
           const replicasDisplay = readinessOf({ READY: replicas }).ready ? replicas.green : replicas.red;
-          return `${trafficDisplay} ${replicasDisplay} ${status === 'ready' ? status.green : status.red}`;
+          const statusDisplay = status === 'ready' ? status.green : status.red;
+          const servingDisplay = serving ? (serving === 'serving' ? serving.green : serving.red) : '';
+          return [deploymentDisplay, replicasDisplay, statusDisplay, servingDisplay].filter(Boolean).join(' ');
         }
-        if (columns[i] === 'TRAFFIC')
-          return value === 'blue' ? value.bgBlue.bold.black : value === 'green' ? value.bgGreen.bold.black : value.red;
-        if (columns[i] === 'SERVING') return value === 'yes' ? value.green : value.red;
         // TLS and HTTP/3 being off is a normal development state, not a fault, so
         // only the affirmative is highlighted.
         if (columns[i] === 'TLS' || columns[i] === 'HTTP3') return value === 'yes' ? value.green : value;
         if (columns[i] === 'ROUTE') return value === 'none' ? value.red : value;
-        if (columns[i] === 'REPLICAS') {
-          const [ready, desired] = `${value}`.split('/');
-          return ready === desired && parseInt(ready, 10) > 0 ? value.green : value.red;
-        }
         return value;
       };
       const line = (values, painted) =>

@@ -480,10 +480,10 @@ underpost run --dev get-traffic
 ```
 
 ```
-HOST                      PATH     KIND      ENV          DEPLOYMENT                                     TRAFFIC  SERVING
-server.cyberiaonline.com  /        instance  development  dd-cyberia-mmo-server-development-green        green    yes
-server.cyberiaonline.com  /FOREST  instance  development  dd-cyberia-mmo-server-forest-development-blue  blue     yes
-underpost.net             /        pwa       development  dd-cyberia-development-blue                    blue     yes
+HOST                      PATH     KIND      CURRENT                                                                    OPPOSITE
+server.cyberiaonline.com  /        instance  dd-cyberia-mmo-server-development-green 1/1 ready serving                  dd-cyberia-mmo-server-development-blue 0/1 not-ready
+server.cyberiaonline.com  /FOREST  instance  dd-cyberia-mmo-server-forest-development-blue 1/1 ready serving            dd-cyberia-mmo-server-forest-development-green - missing
+underpost.net             /        pwa       dd-cyberia-development-blue 1/1 ready serving                              dd-cyberia-development-green 1/1 ready
 ```
 
 Only deployments that actually exist in the namespace are listed, so the table
@@ -491,9 +491,14 @@ reports what is running rather than what the conf declares. Both environments ar
 scanned for the same reason — reporting a single environment chosen by a flag
 would show a `development` cluster as entirely unrouted.
 
-`SERVING` is the routed colour's own reachability, so a route still naming a
-colour whose workload is gone reads as `no`. Variants on a shared host are read
-individually, which is why `/` and `/FOREST` above can sit on different colours.
+`CURRENT` is the deployment receiving traffic and includes its replica readiness
+plus the stable Service's `serving` state. `OPPOSITE` always shows the other
+colour: its readiness when running, or the expected Deployment name followed by
+`missing` when absent. A route still naming a colour whose workload is gone reads
+as `missing not-serving`. The environment remains visible
+inside each Deployment name, so a separate `ENV` column is unnecessary. Variants
+on a shared host are read individually, which is why `/` and `/FOREST` above can
+sit on different colours.
 
 ### 4. List Deployments
 

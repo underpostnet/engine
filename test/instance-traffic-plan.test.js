@@ -590,14 +590,29 @@ describe('blue/green traffic plan', () => {
       expect(legacyRoute).to.be.greaterThan(stableSelector);
     });
 
-    it('uses real followed curl probes and adds OPPOSITE dynamically', () => {
+    it('uses real followed curl probes and reports current and opposite deployment status without ENV', () => {
       const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
       const start = runSource.indexOf("    'get-traffic': async");
       const end = runSource.indexOf("    'instance-promote': async", start);
       const getTraffic = runSource.slice(start, end);
       expect(getTraffic).to.include('curl -L -v -i -s');
-      expect(getTraffic).to.include("...(showOpposite ? ['OPPOSITE'] : [])");
+      expect(getTraffic).to.include("'OPPOSITE'");
+      expect(getTraffic).not.to.include('showOpposite');
+      expect(getTraffic).to.include("'CURRENT'");
+      expect(getTraffic).not.to.include("'ENV',");
+      expect(getTraffic).to.include('opposite,');
+      expect(getTraffic).to.include("status.exists ? (status.ready ? 'ready' : 'not-ready') : 'missing'");
+      expect(getTraffic).to.include("status.serving ? 'serving' : 'not-serving'");
       expect(getTraffic).to.include("`${probe.path} [${probe.statuses.join('→')}]`");
+    });
+
+    it('caches stable Service readiness across hosts sharing the same deployment', () => {
+      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const start = runSource.indexOf("    'get-traffic': async");
+      const end = runSource.indexOf("    'instance-promote': async", start);
+      const getTraffic = runSource.slice(start, end);
+      expect(getTraffic).to.include('const servingState = {}');
+      expect(getTraffic).to.include('if (servingState[key] === undefined)');
     });
   });
 });
