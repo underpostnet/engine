@@ -18,7 +18,7 @@ import {
 import { statusPageAssetPathFactory } from '../src/server/underpost-gateway.js';
 import UnderpostDockerCompose from '../src/cli/docker-compose.js';
 
-test; // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
+// `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
 // relative to the process cwd, mirroring every other conf loader. engine-private
 // is a private repository, so each fixture gets its own deploy directory, that
 // directory is removed whole afterwards, and an existing one is never touched.
@@ -128,9 +128,11 @@ describe('cluster custom instances', () => {
       );
     });
 
-    it('loads a project env builder by deploy-id convention', async () => {
+    it('loads an optional project env builder by deploy-id convention', async () => {
       const builder = await loadProjectInstanceEnvBuilder('dd-cyberia');
-      expect(builder).to.be.a('function').and.have.property('name', 'buildCyberiaMmoInstanceEnv');
+      if (fs.existsSync('./src/projects/cyberia/instance-data.js'))
+        expect(builder).to.be.a('function').and.have.property('name', 'buildCyberiaMmoInstanceEnv');
+      else expect(builder).to.equal(null);
       expect(await loadProjectInstanceEnvBuilder('dd-fixture-a')).to.equal(null);
     });
 
