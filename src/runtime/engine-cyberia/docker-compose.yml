@@ -213,8 +213,9 @@ services:
     restart: unless-stopped
 
   # === Tier 3: authoritative simulation, one per variant ===================
-  # All three share engine-cyberia (content + gRPC) and differ only by
-  # INSTANCE_CODE — the world each loads. Each waits for engine-cyberia healthy.
+  # All three share engine-cyberia (content + gRPC) and differ by INSTANCE_CODE
+  # and CYBERIA_BASE_PATH. Each server owns its public path and waits for
+  # engine-cyberia to become healthy.
   # The default variant publishes host port 8081; the rest are internal-only
   # (reached through nginx sub-path routing).
 
@@ -223,6 +224,7 @@ services:
     container_name: dd-cyberia-server
     environment:
       INSTANCE_CODE: amethyst-strata-expansion
+      CYBERIA_BASE_PATH: /
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia:4005}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
@@ -237,7 +239,7 @@ services:
     ports:
       - '${CYBERIA_SERVER_PORT:-8081}:8081'
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/api/v1/health/ready >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -252,6 +254,7 @@ services:
     container_name: dd-cyberia-server-forest
     environment:
       INSTANCE_CODE: FOREST
+      CYBERIA_BASE_PATH: /FOREST
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia:4005}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
@@ -264,7 +267,7 @@ services:
     expose:
       - '8081'
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/FOREST/api/v1/health/ready >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -279,6 +282,7 @@ services:
     container_name: dd-cyberia-server-test
     environment:
       INSTANCE_CODE: TEST
+      CYBERIA_BASE_PATH: /TEST
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia:4005}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia:50051}
@@ -291,7 +295,7 @@ services:
     expose:
       - '8081'
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/TEST/api/v1/health/ready >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -303,8 +307,9 @@ services:
 
   # === Tier 4: presentation, one per variant ===============================
   # One WASM bundle serves every variant; the instance is resolved from the URL
-  # sub-path (docker-driver injects CYBERIA_WS_ORIGIN / _ENGINE_API_ORIGIN /
-  # _DEFAULT_INSTANCE). Each client waits ONLY for its own server, so the three
+  # sub-path (docker-driver injects CYBERIA_BASE_PATH / _WS_ORIGIN /
+  # _ENGINE_API_ORIGIN / _DEFAULT_INSTANCE). Each client waits ONLY for its own
+  # server, so the three
   # server->client pipelines advance independently (in parallel) once the shared
   # engine-cyberia is healthy:
   #   cyberia-server        -> cyberia-client
@@ -328,7 +333,7 @@ services:
     ports:
       - '${CYBERIA_CLIENT_PORT:-8082}:8081'
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/ >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -353,7 +358,7 @@ services:
     expose:
       - '8081'
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/FOREST/ >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -378,7 +383,7 @@ services:
     expose:
       - '8081'
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/8081' || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/TEST/ >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
