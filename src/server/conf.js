@@ -2664,8 +2664,9 @@ const exposePathPartsFactory = (path = '') => {
 /**
  * @method exposePartialMatchesFactory
  * @description Selects every resource whose `NAME` contains any requested
- * literal path fragment. Exact-name matches sort first, followed by remaining
- * partial matches in stable lexical name order. The input array is not mutated.
+ * literal path fragment. Results follow path-fragment order, with an exact name
+ * before partial names in each group, then lexical name order. The input array
+ * is not mutated.
  * @param {ExposeKubernetesResource[]} resources - Parsed Kubernetes resource rows.
  * @param {string[]} pathParts - Literal name fragments from {@link exposePathPartsFactory}.
  * @returns {ExposeKubernetesResource[]} Matching resource rows in deterministic order.
@@ -2675,10 +2676,110 @@ const exposePartialMatchesFactory = (resources, pathParts) =>
   resources
     .filter(({ NAME }) => pathParts.some((part) => `${NAME || ''}`.includes(part)))
     .sort((a, b) => {
-      const exactA = pathParts.includes(a.NAME) ? 0 : 1;
-      const exactB = pathParts.includes(b.NAME) ? 0 : 1;
-      return exactA - exactB || `${a.NAME}`.localeCompare(`${b.NAME}`);
+      const pathIndexA = pathParts.findIndex((part) => `${a.NAME || ''}`.includes(part));
+      const pathIndexB = pathParts.findIndex((part) => `${b.NAME || ''}`.includes(part));
+      const exactA = a.NAME === pathParts[pathIndexA] ? 0 : 1;
+      const exactB = b.NAME === pathParts[pathIndexB] ? 0 : 1;
+      return pathIndexA - pathIndexB || exactA - exactB || `${a.NAME}`.localeCompare(`${b.NAME}`);
     });
+
+/**
+ * @method exposePortListFactory
+ * @description Parses and validates a comma-separated CLI port list.
+ * @param {string|number} [value=''] - Comma-separated port values.
+ * @param {string} [optionName='ports'] - Option name used in validation errors.
+ * @returns {number[]} Ordered TCP ports, preserving their CLI indices.
+ * @throws {Error} When an item is empty, non-integer, or outside `1..65535`.
+ * @memberof ServerConfBuilder
+ */
+const exposePortListFactory = (value = '', optionName = 'ports') => {
+  if (value === '' || value === undefined || value === null) return [];
+  const values = `${value}`.split(',').map((port) => port.trim());
+  if (values.some((port) => port === '')) throw new Error(`Invalid ${optionName}: ${value}`);
+  const ports = values.map(Number);
+  if (ports.some((port) => !Number.isInteger(port) || port < 1 || port > 65535))
+    throw new Error(`Invalid ${optionName}: ${value}`);
+  return ports;
+};
+
+/**
+ * A validated Kubernetes port-forward mapping.
+ *
+ * @typedef {Object} ExposePortMapping
+ * @property {string} kindType - Kubernetes resource kind (`svc` or `pod`).
+ * @property {string} name - Kubernetes resource name.
+ * @property {number} localPort - Host-side listening port.
+ * @property {number} remotePort - Service or container-side destination port.
+ */
+
+/**
+ * @method exposePortPlanFactory
+ * @description Builds a complete, collision-free port-forward plan. With more
+ * than one matched resource, container and host port lists map by resource
+ * index. With one resource, list items map pairwise to multiple ports.
+ * @param {object} options - Port planning options.
+ * @param {ExposeKubernetesResource[]} options.resources - Ordered matched resources.
+ * @param {string} options.kindType - Kubernetes resource kind (`svc` or `pod`).
+ * @param {number[]} [options.containerPorts=[]] - Explicit destination ports.
+ * @param {number[]} [options.hostPorts=[]] - Explicit host listening ports.
+ * @param {function(ExposeKubernetesResource): number[]} [options.portsOf=exposeTcpPortsFactory] - Declared-port resolver.
+ * @returns {ExposePortMapping[]} Complete port-forward mappings.
+ * @throws {Error} When list cardinality cannot map by resource/port index, no
+ * destination port exists, an explicit host port repeats, or an automatic port
+ * cannot fit inside `1..65535`.
+ * @memberof ServerConfBuilder
+ */
+const exposePortPlanFactory = ({
+  resources,
+  kindType,
+  containerPorts = [],
+  hostPorts = [],
+  portsOf = exposeTcpPortsFactory,
+}) => {
+  const resourceCount = resources.length;
+  const multipleResources = resourceCount > 1;
+  if (multipleResources && containerPorts.length > 0 && containerPorts.length !== resourceCount)
+    throw new Error(`--expose-container-ports requires ${resourceCount} ports for ${resourceCount} resources`);
+  if (multipleResources && hostPorts.length > 0 && hostPorts.length !== resourceCount)
+    throw new Error(`--expose-host-ports requires ${resourceCount} ports for ${resourceCount} resources`);
+
+  const portGroups = resources.map((resource, resourceIndex) => {
+    const remotePorts = containerPorts.length
+      ? multipleResources
+        ? [containerPorts[resourceIndex]]
+        : [...containerPorts]
+      : [...new Set(portsOf(resource))];
+    if (remotePorts.length === 0)
+      throw new Error(
+        `No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-container-ports <ports>`,
+      );
+    const localPorts = hostPorts.length
+      ? multipleResources
+        ? [hostPorts[resourceIndex]]
+        : [...hostPorts]
+      : [];
+    if (localPorts.length > 0 && localPorts.length !== remotePorts.length)
+      throw new Error(
+        `Host/container port counts differ for ${kindType}/${resource.NAME}: ${localPorts.length}/${remotePorts.length}`,
+      );
+    return { resource, remotePorts, localPorts };
+  });
+
+  const plan = [];
+  const usedLocalPorts = new Set();
+  for (const { resource, remotePorts, localPorts } of portGroups)
+    for (const [portIndex, remotePort] of remotePorts.entries()) {
+      const explicitLocalPort = localPorts[portIndex];
+      let localPort = explicitLocalPort || remotePort;
+      if (explicitLocalPort && usedLocalPorts.has(localPort))
+        throw new Error(`Duplicate --expose-host-ports value: ${localPort}`);
+      while (!explicitLocalPort && usedLocalPorts.has(localPort)) localPort++;
+      if (localPort > 65535) throw new Error(`No valid host port remains for ${kindType}/${resource.NAME}`);
+      usedLocalPorts.add(localPort);
+      plan.push({ kindType, name: resource.NAME, localPort, remotePort });
+    }
+  return plan;
+};
 
 /**
  * @method gatewayApiEnabledFactory
@@ -3215,6 +3316,8 @@ export {
   exposeTcpPortsFactory,
   exposePathPartsFactory,
   exposePartialMatchesFactory,
+  exposePortListFactory,
+  exposePortPlanFactory,
   deployHostsFactory,
   clusterInstancesFactory,
   etcHostFactory,
