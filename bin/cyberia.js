@@ -17,7 +17,7 @@ import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
-import { loadConfServerJson } from '../src/server/conf.js';
+import { loadConfServerJson, normalizeInstanceTopology } from '../src/server/conf.js';
 import {
   ObjectLayerEngine,
   resolveCanonicalCid,
@@ -51,6 +51,7 @@ import {
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 import {
+  DEFAULT_INSTANCE_CODE,
   ITEM_TYPES as itemTypes,
   DefaultCyberiaItems,
 } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
@@ -5470,15 +5471,16 @@ node bin image --path cyberia-client \
         const codes = new Set();
         for (const inst of serverInstances) {
           if (inst.multiInstance?.variants) {
-            for (const v of inst.multiInstance.variants) {
-              if (!v.code) continue;
+            const topology = normalizeInstanceTopology(inst.multiInstance, `dd-cyberia/${inst.id}`);
+            for (const v of topology.variants) {
+              const code = v.path === '/' ? DEFAULT_INSTANCE_CODE : v.code;
               // Skip codes that have no on-disk instance backup dir
-              const instanceDir = `${cyberiaInstancesDir}/instances/${v.code}`;
+              const instanceDir = `${cyberiaInstancesDir}/instances/${code}`;
               if (!fs.existsSync(instanceDir)) {
-                logger.info(`[build-manifest] Skipping code "${v.code}": no instance dir at ${instanceDir}`);
+                logger.info(`[build-manifest] Skipping code "${code}": no instance dir at ${instanceDir}`);
                 continue;
               }
-              codes.add(v.code);
+              codes.add(code);
             }
           }
         }

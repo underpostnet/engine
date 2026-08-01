@@ -12,6 +12,7 @@ import {
   clusterContextFactory,
   clusterTypeFactory,
   cronDeployIdResolve,
+  dispatchBuildInstanceEnv,
   deployHostsFactory,
   etcHostFactory,
   gatewayApiEnabledFactory,
@@ -63,8 +64,10 @@ import {
   writeHostInstanceRegistry,
   writeHostServerConf,
 } from '../server/underpost-gateway.js';
+import { buildCyberiaMmoInstanceEnv } from '../projects/cyberia/instance-data.js';
 
 const logger = loggerFactory(import.meta);
+const INSTANCE_ENV_BUILDERS = { 'dd-cyberia': buildCyberiaMmoInstanceEnv };
 
 /**
  * @constant DEFAULT_OPTION
@@ -2095,10 +2098,10 @@ EOF
       });
 
       // --- Per-instance env files -----------------------------------------
-      // Each env file is seeded from the template instance's env file for the
-      // same mode so operator-owned keys (API keys, memory limits, service URLs)
-      // are inherited verbatim; only the keys the instance declares under
-      // `multiInstance.env` — plus the derived container id — are (re)written.
+      // Each env file starts from the template instance's canonical file for the
+      // same mode. Operator-owned keys remain private and are copied verbatim;
+      // deploy-specific builders may then derive application env from the
+      // normalized instance path/code.
       //
       // A derived instance's env dir is generated in full: both development.env
       // and production.env are written on every build, so a deploy in either
@@ -2111,18 +2114,24 @@ EOF
         const envsToWrite = isDefaultInstance ? [env] : ['development', 'production'];
         for (const targetEnv of envsToWrite) {
           const templateEnvPath = `./engine-private/conf/${deployId}/instances/${instance.templateId}/env/${targetEnv}.env`;
-          const baseEnv = fs.existsSync(templateEnvPath) ? dotenv.parse(fs.readFileSync(templateEnvPath, 'utf8')) : {};
-          writeEnv(`${instanceEnvDir}/${targetEnv}.env`, {
-            ...baseEnv,
-            ...(instance.instanceEnv?.[targetEnv] || {}),
-            CONTAINER_DEPLOY_ID: `${_deployId}-${targetEnv}`,
+          if (!fs.existsSync(templateEnvPath))
+            throw new Error(`[instance-build-manifest] Missing canonical env file: ${templateEnvPath}`);
+          const baseEnv = dotenv.parse(fs.readFileSync(templateEnvPath, 'utf8'));
+          const builtEnv = dispatchBuildInstanceEnv({
+            deployId,
+            instance,
+            environment: targetEnv,
+            baseEnv,
+            containerDeployId: `${_deployId}-${targetEnv}`,
+            builders: INSTANCE_ENV_BUILDERS,
           });
+          writeEnv(`${instanceEnvDir}/${targetEnv}.env`, builtEnv);
         }
         logger.info('[instance-build-manifest] Instance env written', {
           dir: instanceEnvDir,
           instanceCode: instance.instanceCode,
           envs: envsToWrite,
-          keys: Object.keys(instance.instanceEnv?.[env] || {}),
+          builder: INSTANCE_ENV_BUILDERS[deployId]?.name || 'canonical-copy',
         });
       }
 

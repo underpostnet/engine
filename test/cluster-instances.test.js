@@ -6,14 +6,17 @@ import {
   clusterContextFactory,
   clusterInstancesFactory,
   clusterTypeFactory,
+  dispatchBuildInstanceEnv,
   deployHostsFactory,
   gatewayApiEnabledFactory,
   instanceInterceptStatusesFactory,
   instanceProjectPathFactory,
   instanceStatusPageEntriesFactory,
   loadConfInstances,
+  normalizeInstanceTopology,
 } from '../src/server/conf.js';
 import { statusPageAssetPathFactory } from '../src/server/underpost-gateway.js';
+import { buildCyberiaMmoInstanceEnv } from '../src/projects/cyberia/instance-data.js';
 
 // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
 // relative to the process cwd, mirroring every other conf loader. engine-private
@@ -24,6 +27,7 @@ const CONF_DIR = (deployId) => `./engine-private/conf/${deployId}`;
 const SERVER_FIXTURE = {
   'dd-fixture-a': { 'app.fixture.test': { '/': { client: 'App' } } },
   'dd-fixture-b': { 'b.fixture.test': { '/': { client: 'B' } } },
+  'dd-fixture-legacy-env': {},
 };
 
 const FIXTURES = {
@@ -36,16 +40,21 @@ const FIXTURES = {
       metadata: { repository: 'underpostnet/fixture-server' },
       customStatusPages: [{ status: '404', hostPath: './public/404/index.html' }],
       multiInstance: {
-        default: 'MAIN',
-        variants: [
-          { code: 'MAIN', slug: '', path: '/' },
-          { code: 'FOREST', slug: 'forest', path: '/FOREST' },
-        ],
+        variants: ['/', '/FOREST'],
       },
     },
     { id: 'mmo-client', host: 'client.fixture.test', path: '/' },
   ],
   'dd-fixture-b': [{ id: 'worker', host: 'worker.fixture.test', path: '/' }],
+  'dd-fixture-legacy-env': [
+    {
+      id: 'legacy',
+      multiInstance: {
+        env: { INSTANCE_CODE: '{{code}}' },
+        variants: ['/MAIN'],
+      },
+    },
+  ],
 };
 
 describe('cluster custom instances', () => {
@@ -63,6 +72,116 @@ describe('cluster custom instances', () => {
 
   after(() => {
     for (const dir of created) fs.removeSync(dir);
+  });
+
+  describe('multi-instance topology and env dispatch', () => {
+    it('derives code, lowercase slug, and path from compact path variants', () => {
+      expect(normalizeInstanceTopology({ variants: ['/', '/FOREST'] })).to.deep.equal({
+        variants: [
+          { code: '', slug: '', path: '/', isDefault: true },
+          { code: 'FOREST', slug: '/forest', path: '/FOREST', isDefault: false },
+        ],
+      });
+    });
+
+    it('prepends the normal root build when variants omit it', () => {
+      expect(normalizeInstanceTopology({ variants: ['/FOREST'] }).variants[0]).to.deep.equal({
+        code: '',
+        slug: '',
+        path: '/',
+        isDefault: true,
+      });
+    });
+
+    it('rejects the removed object variant schema', () => {
+      expect(() =>
+        normalizeInstanceTopology({
+          variants: [{ code: 'FOREST', slug: 'forest', path: '/FOREST' }],
+        }),
+      ).to.throw('must contain only path strings');
+    });
+
+    it('keeps project env values out of expanded topology objects', () => {
+      const [main, forest] = loadConfInstances('dd-fixture-a');
+      expect(main).not.to.have.property('instanceEnv');
+      expect(forest).not.to.have.property('instanceEnv');
+      expect(main).to.include({
+        id: 'mmo-server',
+        instanceCode: '',
+        instanceSlug: '',
+        path: '/',
+        isDefaultInstance: true,
+      });
+      expect(forest).to.include({
+        id: 'mmo-server-forest',
+        instanceCode: 'FOREST',
+        instanceSlug: '/forest',
+        path: '/FOREST',
+        isDefaultInstance: false,
+      });
+    });
+
+    it('dispatches Cyberia MMO env logic without changing canonical-only values', () => {
+      const [, forest] = loadConfInstances('dd-fixture-a');
+      forest.runtime = 'cyberia-client';
+      const built = dispatchBuildInstanceEnv({
+        deployId: 'dd-cyberia',
+        instance: forest,
+        environment: 'production',
+        baseEnv: { API_KEY: 'private', CYBERIA_WS_ORIGIN: 'wss://server.example.test' },
+        containerDeployId: 'dd-cyberia-mmo-server-forest-production',
+        builders: { 'dd-cyberia': buildCyberiaMmoInstanceEnv },
+      });
+      expect(built).to.deep.equal({
+        API_KEY: 'private',
+        CYBERIA_WS_ORIGIN: 'wss://server.example.test',
+        CYBERIA_INSTANCE_CODE: 'FOREST',
+        CYBERIA_DEFAULT_INSTANCE: 'amethyst-strata-expansion',
+        CYBERIA_BASE_PATH: '/FOREST',
+        CONTAINER_DEPLOY_ID: 'dd-cyberia-mmo-server-forest-production',
+      });
+
+      const [root] = loadConfInstances('dd-fixture-a');
+      root.runtime = 'cyberia-client';
+      expect(
+        dispatchBuildInstanceEnv({
+          deployId: 'dd-cyberia',
+          instance: root,
+          environment: 'production',
+          baseEnv: {},
+          containerDeployId: 'dd-cyberia-mmo-server-production',
+          builders: { 'dd-cyberia': buildCyberiaMmoInstanceEnv },
+        }),
+      ).to.deep.equal({
+        CYBERIA_INSTANCE_CODE: 'amethyst-strata-expansion',
+        CYBERIA_DEFAULT_INSTANCE: 'amethyst-strata-expansion',
+        CYBERIA_BASE_PATH: '/',
+        CONTAINER_DEPLOY_ID: 'dd-cyberia-mmo-server-production',
+      });
+
+      forest.runtime = 'cyberia-server';
+      expect(
+        dispatchBuildInstanceEnv({
+          deployId: 'dd-cyberia',
+          instance: forest,
+          environment: 'production',
+          baseEnv: { API_KEY: 'private' },
+          containerDeployId: 'dd-cyberia-mmo-server-forest-production',
+          builders: { 'dd-cyberia': buildCyberiaMmoInstanceEnv },
+        }),
+      ).to.deep.equal({
+        API_KEY: 'private',
+        INSTANCE_CODE: 'FOREST',
+        CYBERIA_BASE_PATH: '/FOREST',
+        CONTAINER_DEPLOY_ID: 'dd-cyberia-mmo-server-forest-production',
+      });
+    });
+
+    it('rejects the legacy topology env map with migration guidance', () => {
+      expect(() => loadConfInstances('dd-fixture-legacy-env')).to.throw(
+        /uses removed multiInstance\.env.*dispatch env builder/,
+      );
+    });
   });
 
   it('binds an instance to the deploy that declares it', () => {

@@ -1809,40 +1809,87 @@ const readConfInstances = (deployId) => {
 
 /**
  * @method loadInstanceTopology
- * @description Returns `{ default, variants }` describing the deploy's instance
- * variants, or `null` when the deploy is single-instance. The topology is
- * declared per instance entry (`entry.multiInstance.default` / `.variants`); all
- * multi-instance entries share the same variant set, so this returns it from the
- * first entry that declares one.
+ * @description Returns normalized variants describing the deploy's instance
+ * topology, or `null` when the deploy is single-instance. The root path is the
+ * default variant; no separate default code is declared.
  * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
- * @returns {?{default: string, variants: Array<object>}} The topology, or `null`.
+ * @returns {?{variants: Array<object>}} The topology, or `null`.
  * @memberof ServerConfBuilder
  */
 const loadInstanceTopology = (deployId) => {
   for (const entry of readConfInstances(deployId)) {
     const mi = entry.multiInstance;
     if (mi && Array.isArray(mi.variants) && mi.variants.length > 0)
-      return { default: mi.default || mi.variants[0].code, variants: mi.variants };
+      return normalizeInstanceTopology(mi, `${deployId}/${entry.id}`);
   }
   return null;
 };
 
 /**
- * @method resolveInstanceEnvValue
- * @description Resolves one declared env value. A plain string is used verbatim;
- * an object is treated as env-scoped (`{ development, production }`), matching the
- * convention already used by `lifecycle` / `readinessProbe` / `livenessProbe`.
- * Placeholders are substituted from the variant tokens.
- * @param {string|object} value - Declared value.
- * @param {string} env - `development` | `production`.
- * @param {Object<string,string>} tokens - Placeholder name → replacement.
- * @returns {?string} Resolved value, or `null` when the env has no entry.
+ * @method normalizeInstanceTopology
+ * @description Expands the compact `multiInstance.variants` path list into the
+ * descriptors used by deploy tooling. `/` is always the default and keeps the
+ * template workload id. `/FOREST` produces code `FOREST`, slug `/forest`, and
+ * path `/FOREST`. A missing root entry is prepended automatically.
+ * @param {{variants?: Array<string>}} spec - Multi-instance specification.
+ * @param {string} [context] - Configuration location used in validation errors.
+ * @returns {{variants: Array<{code:string,slug:string,path:string,isDefault:boolean}>}}
  * @memberof ServerConfBuilder
  */
-const resolveInstanceEnvValue = (value, env, tokens) => {
-  const scoped = value && typeof value === 'object' && !Array.isArray(value) ? value[env] : value;
-  if (scoped === undefined || scoped === null) return null;
-  return `${scoped}`.replace(/\{\{(\w+)\}\}/g, (match, token) => (token in tokens ? tokens[token] : match));
+const normalizeInstanceTopology = (spec, context = 'multiInstance') => {
+  const declaredPaths = spec?.variants;
+  if (!Array.isArray(declaredPaths) || declaredPaths.length === 0) return { variants: [] };
+  if (declaredPaths.some((path) => typeof path !== 'string'))
+    throw new Error(`${context}: multiInstance.variants must contain only path strings`);
+  if (new Set(declaredPaths).size !== declaredPaths.length)
+    throw new Error(`${context}: multiInstance.variants contains a duplicate path`);
+  const paths = ['/', ...declaredPaths.filter((path) => path !== '/')];
+
+  const variants = paths.map((path) => {
+    if (path !== '/' && !/^\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(path))
+      throw new Error(`${context}: invalid instance variant path "${path}"`);
+    const code = path.slice(1);
+    return { code, slug: path === '/' ? '' : path.toLowerCase(), path, isDefault: path === '/' };
+  });
+
+  const seen = new Set();
+  for (const variant of variants) {
+    if (seen.has(variant.slug)) throw new Error(`${context}: duplicate instance variant "${variant.path}"`);
+    seen.add(variant.slug);
+  }
+  return { variants };
+};
+
+/**
+ * @method dispatchBuildInstanceEnv
+ * @description Applies an optional deploy-specific env builder to a canonical
+ * env object. Generic topology code never knows project env key names; callers
+ * register builders by deploy id. The runner-owned container id is applied last.
+ * @param {object} options - Dispatch context.
+ * @param {string} options.deployId - Deployment id used to select a builder.
+ * @param {object} options.instance - Expanded instance descriptor.
+ * @param {string} options.environment - development or production.
+ * @param {Object<string,string>} options.baseEnv - Parsed canonical env file.
+ * @param {string} options.containerDeployId - Runner-derived deployment id.
+ * @param {Object<string,Function>} [options.builders] - Deploy id to env builder registry.
+ * @returns {Object<string,string>} Complete materialized env object.
+ * @memberof ServerConfBuilder
+ */
+const dispatchBuildInstanceEnv = ({
+  deployId,
+  instance,
+  environment,
+  baseEnv = {},
+  containerDeployId,
+  builders = {},
+}) => {
+  const builder = builders[deployId];
+  const env = builder
+    ? builder({ deployId, instance, environment, env: { ...baseEnv } })
+    : { ...baseEnv };
+  if (!env || typeof env !== 'object' || Array.isArray(env))
+    throw new TypeError(`dispatchBuildInstanceEnv: builder for "${deployId}" must return an env object`);
+  return { ...env, CONTAINER_DEPLOY_ID: containerDeployId };
 };
 
 /**
@@ -1853,61 +1900,48 @@ const resolveInstanceEnvValue = (value, env, tokens) => {
  * A template entry is never deployed as-is once variants exist: each variant
  * produces its own entry whose id, env file path, volume mount and
  * container-status strings are derived by replacing the template id token
- * throughout. The variant whose `slug` is empty keeps the template id verbatim,
- * so pre-existing deployments, PVCs and env directories survive the move to
- * multi-instance untouched.
+ * throughout. The `/` variant keeps the template id verbatim, so pre-existing
+ * deployments, PVCs and env directories survive multi-instance expansion.
  *
- * Nothing here is application-specific: the variant set (`default` + `variants`),
- * which env keys an instance needs (`env`), and prefix-stripping (`stripPathPrefix`)
- * are all declared per entry under `entry.multiInstance`. Env values may use the
- * `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders and
- * may be env-scoped objects.
+ * Nothing here is application-specific: the path variants and prefix-stripping
+ * (`stripPathPrefix`) are declared per entry under
+ * `entry.multiInstance`. Project-specific env behavior is delegated through
+ * {@link dispatchBuildInstanceEnv} rather than encoded in topology configuration.
  *
- * Every expanded entry carries three extra fields consumed by the deploy runners:
- * `instanceCode` (the variant this instance serves), `templateId` (so targeting
- * the template id acts on the whole family) and `instanceEnv` (the resolved env
- * keys to write, keyed by environment: `{ development, production }`, so a build
- * in either mode can emit a complete env directory).
+ * Every expanded entry carries normalized metadata consumed by deploy runners:
+ * `instanceCode`, `instanceSlug`, `isDefaultInstance`, and `templateId`.
  *
  * @param {string} deployId - Deployment identifier (e.g. `dd-cyberia`).
  * @returns {Array<object>} Expanded instance entries.
  * @memberof ServerConfBuilder
  */
-const INSTANCE_ENVS = ['development', 'production'];
-
 const loadConfInstances = (deployId) => {
   const expanded = [];
   for (const entry of readConfInstances(deployId)) {
     const spec = entry.multiInstance;
-    const variants = spec?.variants;
-    if (!Array.isArray(variants) || 0 === variants.length) {
-      expanded.push(entry);
+    if (!Array.isArray(spec?.variants) || spec.variants.length === 0) {
+      expanded.push(entry.path ? entry : { ...entry, path: '/' });
       continue;
     }
+    if (Object.hasOwn(spec, 'env'))
+      throw new Error(
+        `loadConfInstances: ${deployId}/${entry.id} uses removed multiInstance.env; ` +
+          'move project-specific env logic to a dispatch env builder',
+      );
+    const topology = normalizeInstanceTopology(spec, `${deployId}/${entry.id}`);
+    const variants = topology.variants;
     for (const variant of variants) {
-      const id = variant.slug ? `${entry.id}-${variant.slug}` : entry.id;
-      const instance = variant.slug ? deepReplaceToken(entry, entry.id, id) : JSON.parse(JSON.stringify(entry));
+      const id = variant.isDefault ? entry.id : `${entry.id}-${variant.slug.slice(1)}`;
+      const instance = variant.isDefault
+        ? JSON.parse(JSON.stringify(entry))
+        : deepReplaceToken(entry, entry.id, id);
       delete instance.multiInstance;
       instance.id = id;
       instance.path = variant.path;
       instance.instanceCode = variant.code;
+      instance.instanceSlug = variant.slug;
+      instance.isDefaultInstance = variant.isDefault;
       instance.templateId = entry.id;
-
-      const tokens = {
-        code: variant.code,
-        slug: variant.slug || '',
-        path: variant.path,
-        id,
-        default: spec.default || '',
-      };
-      // Resolve the declared env keys for both environments so a build in either
-      // mode writes a complete env directory (development.env + production.env).
-      instance.instanceEnv = Object.fromEntries(INSTANCE_ENVS.map((e) => [e, {}]));
-      for (const [key, value] of Object.entries(spec.env || {}))
-        for (const e of INSTANCE_ENVS) {
-          const resolved = resolveInstanceEnvValue(value, e, tokens);
-          if (resolved !== null) instance.instanceEnv[e][key] = resolved;
-        }
 
       // A backend that serves its routes at the root knows nothing about the
       // variant prefix — it is selected by env instead. Strip the prefix at the
@@ -2041,7 +2075,7 @@ const instanceProjectPathFactory = (instance) =>
  * destination comes from the same {@link UnderpostGateway.statusPageAssetPathFactory}
  * the HTTPRoute rewrites to, so a variant's page lands where that variant's rule
  * points — `/FOREST/404` at `<host>/FOREST/status-pages/404/index.html`, and the
- * default variant's at `<host>/root/status-pages/404/index.html`.
+ * default variant at `<host>/root/status-pages/404/index.html`.
  * @param {Array<object>} instances - Expanded instance entries.
  * @param {string} [projectPath] - Project root override; omit to derive one per instance.
  * @returns {Array<{host: string, path: string, status: string, assetPath: string, sourcePath: string}>}
@@ -3003,6 +3037,8 @@ export {
   Config,
   loadConf,
   loadConfInstances,
+  normalizeInstanceTopology,
+  dispatchBuildInstanceEnv,
   loadInstanceTopology,
   readConfInstances,
   selectConfInstances,

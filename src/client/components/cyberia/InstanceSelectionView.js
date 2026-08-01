@@ -26,6 +26,7 @@ import { htmls, s, htmlStrSanitize } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
+import { DEFAULT_INSTANCE_CODE } from './SharedDefaultsCyberia.js';
 
 // Client deployment that actually hosts the playable worlds. Matches the portal
 // landing CTA (MainBodyCyberiaPortal); override per-instance via `onPlay`.
@@ -33,9 +34,8 @@ const DEFAULT_CLIENT_BASE_URL = 'https://client.cyberiaonline.com';
 
 // Authoritative simulation host and the default instance's code, mirroring the
 // mmo-server multiInstance block in conf.instances.json. The default variant is
-// served at the root path; other variants at `/<CODE>`.
+// served at `/`; other variants use their literal `/<CODE>` path.
 const DEFAULT_SERVER_BASE_URL = 'https://server.cyberiaonline.com';
-const DEFAULT_INSTANCE_CODE = 'amethyst-strata-expansion';
 
 const placeholderThumbnail = () => `${getProxyPath()}assets/ui-icons/world-default-forest-city.png`;
 
@@ -95,17 +95,17 @@ const normalizeInstance = (doc, { clientBaseUrl }) => {
     players: Number.isFinite(players) ? players : null,
     capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
     tags: Array.isArray(doc.tags) ? doc.tags.filter(Boolean) : [],
-    playUrl: `${clientBaseUrl}${code ? `/${encodeURIComponent(code)}` : ''}`,
+    playUrl: `${clientBaseUrl}${code && code !== DEFAULT_INSTANCE_CODE ? `/${encodeURIComponent(code)}` : ''}`,
     playable: statusMeta(status).playable,
   };
 };
 
 // ── Live status via the cyberia-server metrics API ───────────────────────────
-// Each variant is served at server.cyberiaonline.com/<path> — '/' for the
-// default instance, '/<CODE>' for the rest (the multiInstance variants in
-// conf.instances.json). The proxy strips the prefix, so each world's own
-// /api/v1/metrics reports its health + capacity. Cross-origin, so the metrics
-// CORS allow-list (CYBERIA_CORS_ALLOWED_ORIGINS) must include this portal.
+// The default is served at `/`; other variants use the compact `/<CODE>` paths
+// from conf.instances.json. The proxy strips non-root prefixes, so each world's
+// own /api/v1/metrics reports its health + capacity.
+// Cross-origin, so the metrics CORS allow-list (CYBERIA_CORS_ALLOWED_ORIGINS)
+// must include this portal.
 
 const metricsUrlFor = (code, { serverBaseUrl, defaultInstanceCode }) => {
   const path = code && code !== defaultInstanceCode ? `/${encodeURIComponent(code)}` : '';
@@ -316,9 +316,9 @@ class InstanceSelectionView {
         });
         return;
       }
-      if (instance.playUrl.split('/').pop() === DEFAULT_INSTANCE_CODE)
-        instance.playUrl = instance.playUrl.replace(DEFAULT_INSTANCE_CODE, '');
-
+      const defaultSuffix = `/${encodeURIComponent(DEFAULT_INSTANCE_CODE)}`;
+      if (instance.playUrl?.endsWith(defaultSuffix))
+        instance.playUrl = instance.playUrl.slice(0, -defaultSuffix.length);
       if (typeof onPlay === 'function') return onPlay(instance);
       if (instance.playUrl) location.href = instance.playUrl;
     };

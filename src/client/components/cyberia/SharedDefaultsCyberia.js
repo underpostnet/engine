@@ -51,6 +51,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Default instance code for the Cyberia engine
+ */
+export const DEFAULT_INSTANCE_CODE = 'amethyst-strata-expansion';
+
+/**
  * Canonical set of ObjectLayer item type names. Used as the
  * `data.item.type` discriminator and as the asset directory name on disk.
  *

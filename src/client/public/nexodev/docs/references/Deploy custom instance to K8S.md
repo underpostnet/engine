@@ -245,13 +245,14 @@ Any instance entry can act as a **template** that expands into one deployment pe
 declared variant, with the variant selected by URL path rather than by a separate
 image or hostname. Adding a variant is a config edit — no new build, image, or
 DNS record. Nothing in the mechanism is application-specific: the runners never
-know what a variant _means_, only which env keys to stamp.
+know what a variant _means_. Project-specific environment behavior is handled by
+an env builder registered with the generic dispatch hook.
 
 `conf.instances.json` stays a **plain array** of instance entries. An entry opts
 into multi-instance by declaring its own `multiInstance` block — there is no
 deploy-wide wrapper. The block is self-contained: it carries the variant set
-(`default` + `variants`), the env keys to stamp (`env`), and the prefix-strip
-flag (`stripPathPrefix`).
+and the prefix-strip flag (`stripPathPrefix`). Runtime configuration does not
+belong in this topology file.
 
 ```jsonc
 [
@@ -260,13 +261,7 @@ flag (`stripPathPrefix`).
     // …
     "multiInstance": {
       "stripPathPrefix": true,
-      "env": { "INSTANCE_CODE": "{{code}}" },
-      "default": "amethyst-strata-expansion",
-      "variants": [
-        { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
-        { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
-        { "code": "TEST", "slug": "test", "path": "/TEST" },
-      ],
+      "variants": ["/", "/FOREST", "/TEST"],
     },
   },
   {
@@ -274,21 +269,7 @@ flag (`stripPathPrefix`).
     // …
     "multiInstance": {
       "stripPathPrefix": false,
-      "env": {
-        "CYBERIA_INSTANCE_CODE": "{{code}}",
-        "CYBERIA_DEFAULT_INSTANCE": "{{default}}",
-        "CYBERIA_BASE_PATH": "{{path}}",
-        "CYBERIA_WS_ORIGIN": {
-          "development": "ws://localhost:8081",
-          "production": "wss://server.cyberiaonline.com",
-        },
-      },
-      "default": "amethyst-strata-expansion",
-      "variants": [
-        { "code": "amethyst-strata-expansion", "slug": "", "path": "/" },
-        { "code": "FOREST", "slug": "forest", "path": "/FOREST" },
-        { "code": "TEST", "slug": "test", "path": "/TEST" },
-      ],
+      "variants": ["/", "/FOREST", "/TEST"],
     },
   },
 ]
@@ -296,19 +277,63 @@ flag (`stripPathPrefix`).
 
 An entry with no `multiInstance` block is deployed as-is (single instance). Each
 multi-instance entry declares its own variant set; when several entries take part
-(server + client), keep their `default`/`variants` in sync — the routing derives
-the topology from the first entry that declares one.
+(server + client), keep their `variants` in sync — routing derives the topology
+from the first entry that declares one.
 
-| Key               | Meaning                                                                                                                                                                                                                                       |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `default`         | Variant code used when a request arrives at the root path.                                                                                                                                                                                    |
-| `variants[].code` | Variant identifier handed to the runtime through the env keys the entry declares.                                                                                                                                                             |
-| `variants[].slug` | Suffix appended to the template id. **Empty** keeps the template id verbatim, so the pre-existing deployment, PVC and env directory survive unchanged.                                                                                        |
-| `variants[].path` | URL prefix the instance is routed under.                                                                                                                                                                                                      |
-| `stripPathPrefix` | Emit a `replacePrefix` rewrite so the backend receives `/` and stays instance-agnostic. Use it for runtimes that serve their routes at the root.                                                                                              |
-| `env`             | Env keys written into the instance's env file. Values may use the `{{code}}`, `{{slug}}`, `{{path}}`, `{{id}}` and `{{default}}` placeholders, and may be env-scoped objects (`{ development, production }`) like `lifecycle` and the probes. |
+| Key               | Meaning                                                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `variants[]`      | URL path string. `/` is the default; `/FOREST` derives code `FOREST`, lowercase slug `/forest`, and path `/FOREST`.                        |
+| `stripPathPrefix` | Emit a `replacePrefix` rewrite so the backend receives `/` and stays instance-agnostic. Use it for runtimes that serve routes at the root. |
+
+The root variant is normalized first and keeps the template workload, PVC, and
+env-directory id. If `variants` omits `/`, it is inserted automatically. An
+entry with no usable multi-instance variants follows the ordinary single-instance
+build and defaults a missing `path` to `/`.
 
 `CONTAINER_DEPLOY_ID` is always derived and written for you — it never needs declaring.
+
+### Canonical env files and project builders
+
+Keep the complete runtime configuration in the template instance's canonical
+files, one file per environment:
+
+```
+engine-private/conf/<deploy-id>/instances/<template-id>/env/development.env
+engine-private/conf/<deploy-id>/instances/<template-id>/env/production.env
+```
+
+Canonical files use ordinary dotenv syntax. They contain complete default values
+and operator-owned secrets, with no templating annotations:
+
+```dotenv
+# mmo-server/env/production.env
+INSTANCE_CODE=amethyst-strata-expansion
+CYBERIA_BASE_PATH=/
+ENGINE_API_BASE_URL=https://www.cyberiaonline.com
+CYBERIA_SERVER_API_KEY=<operator-owned-secret>
+```
+
+```dotenv
+# mmo-client/env/production.env
+CYBERIA_INSTANCE_CODE=amethyst-strata-expansion
+CYBERIA_DEFAULT_INSTANCE=amethyst-strata-expansion
+CYBERIA_BASE_PATH=/
+CYBERIA_WS_ORIGIN=wss://server.cyberiaonline.com
+CYBERIA_ENGINE_API_ORIGIN=https://www.cyberiaonline.com
+```
+
+The generic `dispatchBuildInstanceEnv` hook in `src/server/conf.js` selects a
+builder by deploy id. Cyberia registers `buildCyberiaMmoInstanceEnv` from
+`src/projects/cyberia/instance-data.js`. The generic root variant has an empty
+code and slug; Cyberia maps it to `DEFAULT_INSTANCE_CODE` from
+`SharedDefaultsCyberia.js` while keeping path `/`. Non-root variants derive their
+literal code and base path. Origins, API keys, and other operator values remain
+unchanged, and separate canonical files continue to provide environment-specific
+values.
+
+Do not add an `env` object to `multiInstance`. It is rejected so configuration
+and secrets cannot drift into topology JSON. Add application-specific derived
+fields to the project builder and register it with the dispatcher instead.
 
 ### What expansion produces
 
@@ -322,10 +347,11 @@ dd-cyberia-mmo-server-forest-production-blue
   code   INSTANCE_CODE=FOREST
 ```
 
-Each per-instance env file is seeded from the template's env file, so
-operator-owned keys (API keys, memory limits) are inherited and only the declared
-keys are rewritten. All instances keep pointing at the **shared** parent gRPC
-service — content is authored once and served to every variant.
+Each per-instance env file is built from the canonical template file, so
+operator-owned keys (API keys, memory limits) are inherited and only fields owned
+by the project builder are rewritten. All instances keep pointing at the
+**shared** parent gRPC service — content is authored once and served to every
+variant.
 
 ### Routing
 
@@ -349,21 +375,11 @@ what `conf.instances.json` currently declares — a variant removed from the
 `variants` list while its workload is still running keeps its route, and only
 loses it once its Deployment is gone.
 
-That is what makes it safe to trim the `variants` list to scope a deploy:
-
-```json
-"variants": [{ "code": "FOREST", "slug": "forest", "path": "/FOREST" }]
-```
-
-With the above, `run instance` acts on `/FOREST` alone; the still-running `/` and
-`/TEST` deployments keep serving on their existing colours. Previously they were
-dropped from the rebuilt host block and HTTPRoute, which took them offline.
-
 The descriptors that make this possible are recorded per host next to the
 generated Nginx block, as `<host>.instances.json` under
 `engine-private/conf/<deploy-id>/build/<env>/gateway-conf.d/`. It is written on
-every promote, so a host must be promoted once with its full variant list before a
-trimmed list can preserve the rest.
+every promote. Use a concrete instance id to scope a deploy; the root variant is
+always retained by topology normalization.
 
 ### Targeting
 
@@ -935,7 +951,7 @@ The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`.
 
 - **`mmo-server`** — `runtime: "cyberia-server"` (Dockerfile at `src/runtime/cyberia-server/Dockerfile`). The Go binary `/home/dd/engine/cyberia-server/server` is the long-running process. `cmd[env]` sources a deployment-secret env file from the `instance-cyberia-server` PVC, exports the runner-resolved `ENGINE_GRPC_ADDRESS` from the `{{grpc-service-dns}}` template, then exec's the binary. Readiness is observed by Kubernetes through the `readinessProbe` (TCP socket on port 8081).
 
-- **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. No env file or gRPC wiring — the client is presentation-only and talks to the cyberia-server WebSocket / engine REST endpoints at runtime.
+- **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. Its canonical env files provide the client build/runtime origins and annotated instance code/base path; it needs no gRPC wiring.
 
 Both Dockerfiles install `underpost@${UNDERPOST_VERSION}` at build time (`ARG UNDERPOST_VERSION=3.2.80`), so the `cmd` entries can call `underpost config set container-status …` without paying an `npm install -g` cost on every pod boot. The two CI workflows that publish these images forward `UNDERPOST_VERSION` as a build-arg to keep the in-image CLI aligned with the image tag.
 

@@ -24,10 +24,36 @@ import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  DEFAULT_INSTANCE_CODE,
+  DefaultCyberiaItems,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * Builds the runtime env for one Cyberia MMO variant. The generic instance
+ * loader deliberately has no knowledge of these application-specific keys;
+ * Cyberia derives them from the normalized variant path/code here.
+ * @param {object} context - Instance env build context.
+ * @param {object} context.instance - Expanded instance descriptor.
+ * @param {Object<string,string>} context.env - Parsed canonical env values.
+ * @returns {Object<string,string>} Materialized Cyberia env values.
+ */
+function buildCyberiaMmoInstanceEnv({ instance = {}, env = {} }) {
+  const built = { ...env };
+  const instanceCode = instance.path === '/' ? DEFAULT_INSTANCE_CODE : instance.instanceCode;
+  if (instance.runtime === 'cyberia-server') {
+    built.INSTANCE_CODE = instanceCode;
+    built.CYBERIA_BASE_PATH = instance.path;
+  } else if (instance.runtime === 'cyberia-client') {
+    built.CYBERIA_INSTANCE_CODE = instanceCode;
+    built.CYBERIA_DEFAULT_INSTANCE = DEFAULT_INSTANCE_CODE;
+    built.CYBERIA_BASE_PATH = instance.path;
+  }
+  return built;
+}
 
 /**
  * Resolves the mongoose model bag for a DB context.
@@ -693,6 +719,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
 }
 
 export {
+  buildCyberiaMmoInstanceEnv,
   getInstanceModels,
   normalizeEntityDefault,
   applyInstanceDefaultPlayerInventory,
