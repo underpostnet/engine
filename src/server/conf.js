@@ -2679,7 +2679,9 @@ const waitForPort = async ({
  * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
  * @param {object} options - Options for the hosts file creation.
  * @param {boolean} options.append - Whether to append to the existing hosts file.
- * @returns {object} - Object containing the rendered hosts file.
+ * @param {string} [options.blockId] - Replace an idempotent owned block while preserving unrelated entries.
+ * @param {string} [options.path=/etc/hosts] - Hosts file path; injectable for tests.
+ * @returns {{renderHosts: string, changed: boolean}} Rendered content and whether the file changed.
  * @memberof ServerConfBuilder
  */
 const etcHostFactory = (hosts = [], options = { append: false }) => {
@@ -2699,16 +2701,35 @@ const etcHostFactory = (hosts = [], options = { append: false }) => {
   )} localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
 
-  if (options && options.append && fs.existsSync(`/etc/hosts`)) {
+  const hostsPath = options?.path || '/etc/hosts';
+  if (options?.blockId) {
+    if (!/^[A-Za-z0-9._-]+$/.test(options.blockId))
+      throw new Error(`Invalid /etc/hosts block id: ${options.blockId}`);
+    const beginMarker = `# underpost hosts ${options.blockId}:begin`;
+    const endMarker = `# underpost hosts ${options.blockId}:end`;
+    const existing = fs.existsSync(hostsPath) ? fs.readFileSync(hostsPath, 'utf8') : '';
+    const begin = existing.indexOf(beginMarker);
+    const end = begin === -1 ? -1 : existing.indexOf(endMarker, begin);
+    let outsideBlock = existing;
+    if (begin !== -1)
+      outsideBlock = `${existing.slice(0, begin)}${end === -1 ? '' : existing.slice(end + endMarker.length)}`;
+    outsideBlock = outsideBlock.trimEnd();
+    const updated = `${outsideBlock}${outsideBlock ? '\n' : ''}${beginMarker}\n${renderHosts}\n${endMarker}\n`;
+    const changed = updated !== existing;
+    if (changed) fs.writeFileSync(hostsPath, updated, 'utf8');
+    return { renderHosts, changed };
+  }
+
+  if (options && options.append && fs.existsSync(hostsPath)) {
     fs.writeFileSync(
-      `/etc/hosts`,
-      fs.readFileSync(`/etc/hosts`, 'utf8') +
+      hostsPath,
+      fs.readFileSync(hostsPath, 'utf8') +
         `
 ${renderHosts}`,
       'utf8',
     );
-  } else fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
-  return { renderHosts };
+  } else fs.writeFileSync(hostsPath, renderHosts, 'utf8');
+  return { renderHosts, changed: true };
 };
 
 /**

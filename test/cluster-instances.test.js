@@ -7,6 +7,7 @@ import {
   clusterInstancesFactory,
   clusterTypeFactory,
   deployHostsFactory,
+  etcHostFactory,
   gatewayApiEnabledFactory,
   instanceInterceptStatusesFactory,
   instanceProjectPathFactory,
@@ -147,7 +148,26 @@ describe('cluster custom instances', () => {
       expect(UnderpostDockerCompose.composeIdBase(options)).to.equal(customComposeDir);
       expect(() => UnderpostDockerCompose.generate(options)).not.to.throw();
       expect(fs.readFileSync(routerPath, 'utf8')).to.equal('project-owned\n');
-      expect(UnderpostDockerCompose.baseCmd(options)).to.include(`--project-directory ${process.cwd()}/${customComposeDir}`);
+      expect(UnderpostDockerCompose.baseCmd(options)).to.include(
+        `--project-directory ${process.cwd()}/${customComposeDir}`,
+      );
+    });
+
+    it('writes one idempotent identified hosts block without replacing unrelated entries', () => {
+      const customComposeDir = 'engine-private/conf/dd-fixture-a/docker-compose/custom-stack';
+      const hostsPath = `${customComposeDir}/hosts`;
+      fs.writeFileSync(hostsPath, '127.0.0.1 localhost\n', 'utf8');
+      const options = { path: hostsPath, append: true, blockId: 'fixture-docker-compose' };
+      expect(etcHostFactory(['fixture-client', 'fixture-server', 'fixture-engine'], options).changed).to.equal(
+        true,
+      );
+      expect(etcHostFactory(['fixture-client', 'fixture-server', 'fixture-engine'], options).changed).to.equal(
+        false,
+      );
+      const hosts = fs.readFileSync(hostsPath, 'utf8');
+      expect(hosts.match(/underpost hosts fixture-docker-compose:begin/g)).to.have.length(1);
+      expect(hosts).to.include('127.0.0.1 localhost');
+      expect(hosts).to.include('fixture-client fixture-server fixture-engine');
     });
   });
 
