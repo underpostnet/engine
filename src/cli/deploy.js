@@ -2025,7 +2025,6 @@ ${rules}`;
      * @param {boolean} options.sync - Whether to synchronize deployment configurations.
      * @param {boolean} options.buildManifest - Whether to build the deployment manifest.
      * @param {boolean} options.infoUtil - Whether to display utility information.
-     * @param {boolean} options.expose - Whether to expose the deployment.
      * @param {boolean} options.cert - Whether to create cert-manager Certificate resources for the deployment.
      * @param {string} options.certHosts - Comma-separated list of hosts for which to create cert-manager certificates.
      * @param {boolean} options.selfSigned - Use a pre-created self-signed TLS secret instead of cert-manager. The secret must already exist in the namespace with the same name as the host. Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer.
@@ -2043,20 +2042,13 @@ ${rules}`;
      * @param {boolean} options.disableUpdateProxy - Whether to disable proxy updates.
      * @param {boolean} options.disableDeploymentProxy - Whether to disable deployment proxy.
      * @param {boolean} options.disableUpdateVolume - Whether to disable volume updates.
-     * @param {boolean} options.status - Whether to display deployment status.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
      * @param {string} [options.namespace] - Kubernetes namespace for the deployment (defaults to "default").
      * @param {string} [options.timeoutResponse] - HTTPProxy per-route response timeout (e.g. "300000ms", "infinity").
      * @param {string} [options.timeoutIdle] - HTTPProxy per-route idle timeout (e.g. "10s", "infinity").
      * @param {string} [options.retryCount] - HTTPProxy per-route retry count (e.g. 3).
      * @param {string} [options.retryPerTryTimeout] - HTTPProxy per-route per-try timeout (e.g. "150ms").
-     * @param {string} [options.kindType] - Kubernetes resource kind to target when using --expose (defaults to "svc").
-     * @param {number} [options.port] - Port number override for exposing the deployment.
      * @param {string} [options.cmd] - Custom initialization command (comma-separated) for deploymentYamlPartsFactory.
-     * @param {number} [options.exposePort] - Remote port override when --expose is active (overrides auto-detected service port). Used as both local and remote port unless exposeLocalPort is also set.
-     * @param {number} [options.exposeLocalPort] - Local port override for --expose (e.g. 80); remote port is still auto-detected. Enables /etc/hosts access without a port in the browser URL.
-     * @param {boolean} [options.localProxy] - When true (with --expose), forward all service TCP ports locally and start the Node.js path-routing proxy for full path-based routing (e.g. /wp alongside /).
-     * @param {boolean} [options.tls] - When true (with --expose --local-proxy), start the proxy on port 443 with TLS using self-signed certificates resolved from the local SSL store.
      * @param {boolean} [options.k3s] - Whether to use k3s cluster context.
      * @param {boolean} [options.kubeadm] - Whether to use kubeadm cluster context.
      * @param {boolean} [options.kind] - Whether to use kind cluster context.
@@ -2078,7 +2070,6 @@ ${rules}`;
         sync: false,
         buildManifest: false,
         infoUtil: false,
-        expose: false,
         cert: false,
         certHosts: '',
         versions: '',
@@ -2090,19 +2081,12 @@ ${rules}`;
         disableUpdateProxy: false,
         disableDeploymentProxy: false,
         disableUpdateVolume: false,
-        status: false,
         disableUpdateUnderpostConfig: false,
         namespace: '',
         timeoutResponse: '',
         timeoutIdle: '',
         retryCount: '',
         retryPerTryTimeout: '',
-        kindType: '',
-        port: 0,
-        exposePort: 0,
-        exposeLocalPort: 0,
-        localProxy: false,
-        tls: false,
         selfSigned: false,
         cmd: '',
         k3s: false,
@@ -2123,54 +2107,6 @@ EOF`);
         return;
       } else if (!deployList || deployList === 'dd')
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
-      if (options.status === true) {
-        for (const _deployId of deployList.split(',')) {
-          const deployId = _deployId.trim();
-          const instances = [];
-          if (fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`)) {
-            // Expands multiInstance variants so status lists every deployed
-            // instance (mmo-server, mmo-server-forest, …), not just the templates.
-            const confInstances = loadConfInstances(deployId);
-            for (const instance of confInstances) {
-              const _deployId = `${deployId}-${instance.id}`;
-              instances.push({
-                id: instance.id,
-                host: instance.host,
-                path: instance.path,
-                fromPort: instance.fromPort,
-                toPort: instance.toPort,
-                fromDebugPort: instance.fromDebugPort,
-                toDebugPort: instance.toDebugPort,
-                traffic: Underpost.deploy.getCurrentTraffic(_deployId, {
-                  namespace,
-                  hostTest: instance.host,
-                  env,
-                  gatewayApi: options.gatewayApi,
-                }),
-              });
-            }
-          }
-          logger.info('', {
-            deployId,
-            env,
-            traffic: Underpost.deploy.getCurrentTraffic(deployId, { namespace, env, gatewayApi: options.gatewayApi }),
-            router: await Underpost.deploy.routerFactory(deployId, env),
-            pods: await Underpost.kubectl.get(deployId),
-            instances,
-          });
-        }
-        const interfaceName = Underpost.dns.getDefaultNetworkInterface();
-        logger.info('Machine', {
-          hostname: os.hostname(),
-          arch: Underpost.baremetal.getHostArch(),
-          ipv4Public: await Underpost.dns.getPublicIp(),
-          ipv4Local: Underpost.dns.getLocalIPv4Address(),
-          resources: Underpost.cluster.getResourcesCapacity(options.node),
-          defaultInterfaceName: interfaceName,
-          defaultInterfaceInfo: os.networkInterfaces()[interfaceName],
-        });
-        return;
-      }
       const deployIds = deployList
         .split(',')
         .map((id) => id.trim())
@@ -2223,60 +2159,6 @@ EOF`);
         const deployId = _deployId.trim();
         if (!deployId) continue;
         const deploymentVersions = versionsByDeployId[deployId].split(',').map((version) => version.trim());
-        if (options.expose === true) {
-          const kindType = options.kindType ? options.kindType : 'svc';
-          const svc = Underpost.kubectl.get(deployId, kindType)[0];
-          if (!svc) {
-            logger.error(`No ${kindType} found matching '${deployId}', skipping expose`);
-            continue;
-          }
-          if (options.localProxy) {
-            const svcPorts = [
-              ...new Set(
-                svc['PORT(S)']
-                  .split(',')
-                  .filter((p) => p.includes('/TCP'))
-                  .map((p) => parseInt(p.split(':')[0])),
-              ),
-            ];
-            for (const svcPort of svcPorts) {
-              shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${svc.NAME} ${svcPort}:${svcPort}`, {
-                async: true,
-              });
-            }
-            const envFile = `./engine-private/conf/${deployId}/.env.${env}`;
-            let basePort = svcPorts[0] - 1;
-            if (fs.existsSync(envFile)) {
-              const portMatch = fs.readFileSync(envFile, 'utf8').match(/^PORT=(\d+)/m);
-              if (portMatch) basePort = parseInt(portMatch[1]);
-            }
-            logger.info(deployId, { svc, svcPorts, basePort });
-            const tlsFlag = options.tls ? ' tls' : '';
-            shellExec(
-              `NODE_ENV=${env} PORT=${basePort} DEV_PROXY_PORT_OFFSET=0 node src/proxy proxy ${deployId} ${env}${tlsFlag}`,
-              { async: true },
-            );
-          } else {
-            const remotePort = options.exposePort
-              ? parseInt(options.exposePort)
-              : options.port
-                ? parseInt(options.port)
-                : kindType !== 'svc'
-                  ? 80
-                  : parseInt(svc[`PORT(S)`].split('/TCP')[0]);
-            const localPort = options.exposeLocalPort ? parseInt(options.exposeLocalPort) : remotePort;
-            logger.info(deployId, {
-              svc,
-              localPort,
-              remotePort,
-            });
-            shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${svc.NAME} ${localPort}:${remotePort}`, {
-              async: true,
-            });
-          }
-          continue;
-        }
-
         const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
         const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
           ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
