@@ -2349,6 +2349,33 @@ const hostIngressFactsFactory = ({
 };
 
 /**
+ * @method curlStatusChainFactory
+ * @description Extracts the response chain emitted by `curl -L -v -i -s`.
+ * Verbose response lines are authoritative because `-i` can duplicate the same
+ * headers on stdout. A write-out marker supplies the final code when curl did
+ * not emit a verbose response (and `000` when no HTTP response was received).
+ * CONNECT tunnel acknowledgements are transport setup, not host responses, and
+ * are deliberately excluded from the displayed chain.
+ * @param {string} [raw] - Combined curl stdout/stderr.
+ * @returns {Array<string>} Ordered three-digit response codes.
+ * @memberof ServerConfBuilder
+ */
+const curlStatusChainFactory = (raw = '') => {
+  const text = `${raw || ''}`;
+  const verbose = [...text.matchAll(/^< HTTP\/\S+\s+([0-9]{3})(?![^\n]*Connection established)/gim)].map(
+    (match) => match[1],
+  );
+  const headers = [...text.matchAll(/^HTTP\/\S+\s+([0-9]{3})(?![^\n]*Connection established)/gim)].map(
+    (match) => match[1],
+  );
+  const chain = verbose.length > 0 ? verbose : headers;
+  const finalCode = /UNDERPOST_CURL_FINAL=([0-9]{3})/.exec(text)?.[1] || '';
+  if (finalCode && finalCode !== '000' && chain[chain.length - 1] !== finalCode) chain.push(finalCode);
+  if (chain.length === 0) chain.push(finalCode || '000');
+  return chain;
+};
+
+/**
  * @method trafficTableRowsFactory
  * @description Resolves the live colour of each routable deployment, optionally
  * narrowed to a set of hosts.
@@ -3133,6 +3160,7 @@ export {
   instanceStatusPageEntriesFactory,
   deployTrafficEntriesFactory,
   hostIngressFactsFactory,
+  curlStatusChainFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
