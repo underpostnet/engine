@@ -774,10 +774,10 @@ node bin run node-move deployment/dd-cyberia-production-blue --remove
 | `--node-name <node>` | Target node (required unless `--remove`). Verified to exist before patching.                                                                                  |
 | `--namespace <name>` | Namespace to operate in (default: `default`).                                                                                                                 |
 | `--labels <k=v,...>` | Label the target node with these pairs and use them as the `nodeSelector` (reusable pool). Default placement is the built-in `kubernetes.io/hostname=<node>`. |
-| `--dry-run`          | Print the exact `kubectl patch` / `kubectl rollout restart` commands without applying.                                                                        |
+| `--dry-run`          | Print the exact `kubectl patch` command without applying it.                                                                                                   |
 | `--remove`           | Clear the `nodeSelector` (unpin placement) instead of moving.                                                                                                 |
 
-**Mechanics:** for templated controllers it applies `kubectl patch <kind> <name> --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":{…}}}}}'` (CronJobs use `spec.jobTemplate…`), then `kubectl rollout restart` for Deployment/StatefulSet/DaemonSet to reschedule existing pods now.
+**Mechanics:** for templated controllers it applies `kubectl patch <kind> <name> --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":{…}}}}}'` (CronJobs use `spec.jobTemplate…`). Changing the pod template starts the controller rollout itself; no second `rollout restart` is issued.
 
 > **⚠️ Caveats:**
 >
