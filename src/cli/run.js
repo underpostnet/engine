@@ -17,6 +17,8 @@ import {
   etcHostFactory,
   exposePartialMatchesFactory,
   exposePathPartsFactory,
+  exposePortListFactory,
+  exposePortPlanFactory,
   exposeTcpPortsFactory,
   gatewayApiEnabledFactory,
   getNpmRootPath,
@@ -82,8 +84,8 @@ const logger = loggerFactory(import.meta);
  * @property {string} ingressNode - Dedicated node for the host-network public ingress; never inherited from nodeName.
  * @property {string} sshKeyPath - Private key path for node SSH operations, forwarded to volume shipping over SSH.
  * @property {number} port - Custom port to use.
- * @property {number} exposePort - Remote Kubernetes resource port selected by the expose runner.
- * @property {number} exposeLocalPort - First local port used by the expose runner.
+ * @property {string} exposeContainerPorts - Comma-separated Service/container destination ports.
+ * @property {string} exposeHostPorts - Comma-separated host listening ports.
  * @property {boolean} localProxy - Start the development path proxy after exposing matched resources.
  * @property {string} volumeHostPath - The host path for the volume.
  * @property {string} volumeMountPath - The mount path for the volume.
@@ -176,8 +178,8 @@ const DEFAULT_OPTION = {
   ingressNode: '',
   sshKeyPath: '',
   port: 0,
-  exposePort: 0,
-  exposeLocalPort: 0,
+  exposeContainerPorts: '',
+  exposeHostPorts: '',
   localProxy: false,
   volumeHostPath: '',
   volumeMountPath: '',
@@ -379,6 +381,8 @@ class UnderpostRun {
      * @method expose
      * @description Port-forwards every Service whose name partially matches path, falling back to matching Pods.
      * Works through the active kubeconfig for Kind, k3s, and kubeadm clusters.
+     * Comma-separated path fragments determine resource index order; host and
+     * container port lists are paired against that same order.
      * @param {string} path - One or more comma-separated literal Service/Pod name fragments.
      * @param {UnderpostRunDefaultOptions} options - Namespace, cluster type, and optional port overrides.
      * @returns {Array<{kindType: string, name: string, localPort: number, remotePort: number}>} Forward plan.
@@ -400,47 +404,24 @@ class UnderpostRun {
       if (resources.length === 0)
         throw new Error(`No Service or Pod partially matching '${pathParts.join(',')}' in namespace '${namespace}'`);
 
-      const explicitPortValue = options.exposePort || options.port;
-      const explicitRemotePort = explicitPortValue ? Number(explicitPortValue) : 0;
-      const firstLocalPort = options.exposeLocalPort ? Number(options.exposeLocalPort) : 0;
-      if (
-        explicitPortValue &&
-        (!Number.isInteger(explicitRemotePort) || explicitRemotePort < 1 || explicitRemotePort > 65535)
-      )
-        throw new Error(`Invalid remote expose port: ${explicitPortValue}`);
-      if (
-        options.exposeLocalPort &&
-        (!Number.isInteger(firstLocalPort) || firstLocalPort < 1 || firstLocalPort > 65535)
-      )
-        throw new Error(`Invalid local expose port: ${options.exposeLocalPort}`);
-
-      const plan = [];
-      const usedLocalPorts = new Set();
-      for (const resource of resources) {
-        let remotePorts = explicitRemotePort ? [explicitRemotePort] : exposeTcpPortsFactory(resource);
-        if (kindType === 'pod' && remotePorts.length === 0) {
+      const containerPorts = exposePortListFactory(options.exposeContainerPorts, '--expose-container-ports');
+      const hostPorts = exposePortListFactory(options.exposeHostPorts, '--expose-host-ports');
+      const portsOf = (resource) => {
+        let declaredPorts = exposeTcpPortsFactory(resource);
+        if (kindType === 'pod' && declaredPorts.length === 0) {
           const podJson = shellExec(`sudo kubectl get pod ${resource.NAME} -n ${namespace} -o json`, {
             stdout: true,
             silent: true,
           });
           const pod = JSON.parse(podJson);
-          remotePorts = (pod.spec?.containers || [])
+          declaredPorts = (pod.spec?.containers || [])
             .flatMap((container) => container.ports || [])
             .map(({ containerPort }) => parseInt(containerPort))
             .filter((port) => Number.isInteger(port) && port > 0);
         }
-        remotePorts = [...new Set(remotePorts)];
-        if (remotePorts.length === 0)
-          throw new Error(`No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-port <remote-port>`);
-
-        for (const remotePort of remotePorts) {
-          let localPort = firstLocalPort ? firstLocalPort + plan.length : remotePort;
-          while (usedLocalPorts.has(localPort)) localPort++;
-          if (localPort > 65535) throw new Error(`No valid local port remains for ${kindType}/${resource.NAME}`);
-          usedLocalPorts.add(localPort);
-          plan.push({ kindType, name: resource.NAME, localPort, remotePort });
-        }
-      }
+        return declaredPorts;
+      };
+      const plan = exposePortPlanFactory({ resources, kindType, containerPorts, hostPorts, portsOf });
 
       logger.info('[expose] Kubernetes port-forward plan', {
         clusterType,
@@ -514,11 +495,11 @@ class UnderpostRun {
           });
         }
         shellExec(
-          `${baseCommand} run expose mongodb-service --namespace ${options.namespace}${clusterFlag} --expose-port 27017 --expose-local-port 27017`,
+          `${baseCommand} run expose mongodb-service --namespace ${options.namespace}${clusterFlag} --expose-container-ports 27017 --expose-host-ports 27017`,
           { async: true },
         );
         shellExec(
-          `${baseCommand} run expose valkey-service --namespace ${options.namespace}${clusterFlag} --expose-port 6379 --expose-local-port 6379`,
+          `${baseCommand} run expose valkey-service --namespace ${options.namespace}${clusterFlag} --expose-container-ports 6379 --expose-host-ports 6379`,
           { async: true },
         );
       }
@@ -547,6 +528,16 @@ class UnderpostRun {
       shellExec(`node bin metadata --generate ${path}`);
       shellExec(`node bin db --dev --clean-fs-collection dd`);
       shellExec(`node bin run kill '${ports}'`);
+    },
+
+    /**
+     * @method ipfs-expose
+     * @description Exposes every declared TCP port on the matching IPFS Cluster Service.
+     * @type {Function}
+     * @memberof UnderpostRun
+     */
+    'ipfs-expose': (path, options = DEFAULT_OPTION) => {
+      shellExec(`node bin run expose ipfs --expose-host-ports 5002,5001,8081,8080,9094,9095,9096`);
     },
 
     /**

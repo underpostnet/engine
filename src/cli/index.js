@@ -669,10 +669,13 @@ program
     'Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa.',
   )
   .option('--port <port>', 'Optional: Specifies the port for execution.')
-  .option('--expose-port <port>', 'Remote Service or Pod port selected by the expose runner.')
   .option(
-    '--expose-local-port <port>',
-    'First local port used by the expose runner; additional matches use subsequent available ports.',
+    '--expose-container-ports <ports>',
+    'Comma-separated Service/container ports; multiple matched resources consume values by resource index.',
+  )
+  .option(
+    '--expose-host-ports <ports>',
+    'Comma-separated host ports paired with container ports by resource/port index.',
   )
   .option('--local-proxy', 'Starts the development path proxy after the expose runner creates its port-forwards.')
   .option('--etc-hosts', 'Enables etc-hosts context for the runner execution.')
