@@ -41,6 +41,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin/build dd-cyberia --conf"
             sudo -n -- /bin/bash -lc "kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
             sudo -n -- /bin/bash -lc "kubectl rollout status deployment/underpost-ingress -n default --timeout=5m"
+            sudo -n -- /bin/bash -lc "kubectl rollout status deployment/underpost-gateway -n default --timeout=5m"
             sudo -n -- /bin/bash -lc "node bin run instance \
               --kubeadm \
               --gateway-api \
