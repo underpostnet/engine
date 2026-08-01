@@ -410,6 +410,7 @@ EOF
      * @param {object} livenessProbe - Kubernetes liveness probe configuration for the deployment container.
      * @param {object} startupProbe - Kubernetes startup probe configuration for the deployment container.
      * @param {number} containerPort - Container port to expose for the deployment.
+     * @param {string} [nodeName] - Kubernetes node hostname that the workload must run on.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
@@ -437,6 +438,7 @@ EOF
       livenessProbe,
       startupProbe,
       containerPort,
+      nodeName,
       // Explicit, secret-free internal status port injected as an env var so the
       // in-pod endpoint binds exactly what the probes and the monitor target,
       // independent of the ambient `PORT` baked into the image/secret.
@@ -486,7 +488,13 @@ spec:
         app: ${deployId}-${env}-${suffix}
         deploy-id: ${deployId}-${env}
     spec:
-      containers:
+${
+  nodeName
+    ? `      nodeSelector:
+        kubernetes.io/hostname: ${nodeName}
+`
+    : ''
+}      containers:
         - name: ${deployId}-${env}-${suffix}
           image: ${containerImage}
           imagePullPolicy: ${imagePullPolicy ? imagePullPolicy : containerImage.startsWith('localhost/') ? 'Never' : 'IfNotPresent'}
@@ -661,6 +669,18 @@ ${Underpost.deploy
     skipFullBuild: options.skipFullBuild,
     pullBundle: options.pullBundle,
     imagePullPolicy: options.imagePullPolicy,
+    // Workload placement belongs in the manifest submitted for the rollout.
+    // Patching it after promotion creates a second ReplicaSet and can leave the
+    // old live pod pending termination behind a replacement that is not Ready.
+    nodeName: options.node
+      ? Underpost.deploy.resolveDeployNode({
+          node: options.node,
+          kind: options.kind,
+          kubeadm: options.kubeadm,
+          k3s: options.k3s,
+          env,
+        })
+      : '',
     internalStatusPort: internalPort,
     readinessProbe: probes.readinessProbe,
     livenessProbe: probes.livenessProbe,
