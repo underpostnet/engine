@@ -969,7 +969,11 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
-        ? Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, gatewayApi: options.gatewayApi })
+        ? Underpost.deploy.getCurrentTraffic(deployId, {
+            namespace: options.namespace,
+            env,
+            gatewayApi: options.gatewayApi,
+          })
         : '';
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = versions ? versions : targetTraffic;
@@ -1077,12 +1081,16 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         if (!targetTraffic)
           targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
             namespace: options.namespace,
+            env,
             gatewayApi: options.gatewayApi,
           });
         await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
         Underpost.deploy.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
       } else
-        logger.info('current traffic', Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }));
+        logger.info(
+          'current traffic',
+          Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env }),
+        );
     },
 
     /**
@@ -1225,10 +1233,10 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * `virtualhost.tls`, and HTTP/3 is a `ClientTrafficPolicy` targeting that
      * Gateway. `REPLICAS` is the routed colour's own `ready/desired`.
      *
-     * The colour is resolved through the same stack the routes were deployed
-     * with: the Gateway API HTTPRoute by default, the Contour HTTPProxy under
-     * `--disable-gateway-api`. `serving` is the colour's own reachability, so a
-     * route naming a colour whose workload is gone reads as not serving.
+     * The stable traffic Service selector is the colour authority. Legacy
+     * HTTPRoute/HTTPProxy backend parsing remains as a fallback for workloads
+     * that have not migrated yet. `serving` checks the Service that actually
+     * carries traffic, so an endpointless stable selector reports correctly.
      * @param {string} [path] - Comma-separated hosts to report on; empty reports every host.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -1288,6 +1296,14 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         gateways: listResources('gateway'),
         clientTrafficPolicies: listResources('clienttrafficpolicy'),
       });
+      const trafficServiceSelectors = Object.fromEntries(
+        listResources('service')
+          .filter((service) => service?.metadata?.labels?.['underpost.net/traffic-service'] === 'true')
+          .map((service) => [
+            `${service?.metadata?.namespace || 'default'}/${service?.metadata?.name}`,
+            service?.spec?.selector?.app || '',
+          ]),
+      );
 
       // One read per host, reused across every deployment and environment that
       // shares it — the colour match is pure, only the fetch is expensive.
@@ -1296,6 +1312,28 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         if (routingInfo[host] === undefined)
           routingInfo[host] = Underpost.deploy.readHostRoutingInfo({ host, options });
         return routingInfo[host];
+      };
+      const trafficState = {};
+      const liveTrafficStateOf = (entry, env) => {
+        const key = `${entry.id}/${env}`;
+        if (trafficState[key]) return trafficState[key];
+        const stableService = Underpost.deploy.trafficServiceNameFactory({ deployId: entry.id, env });
+        const selector = trafficServiceSelectors[`${options.namespace}/${stableService}`] || '';
+        const stableTraffic = trafficFromRoutingInfoFactory({ info: selector, deployId: entry.id, env });
+        if (stableTraffic)
+          return (trafficState[key] = {
+            colour: stableTraffic,
+            service: stableService,
+          });
+        const legacyTraffic = trafficFromRoutingInfoFactory({
+          info: hostRoutingInfo(entry.host),
+          deployId: entry.id,
+          env,
+        });
+        return (trafficState[key] = {
+          colour: legacyTraffic,
+          service: legacyTraffic ? `${entry.deployment}-${legacyTraffic}-service` : '',
+        });
       };
 
       const rows = envs.flatMap((env) =>
@@ -1308,11 +1346,10 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
             // conf entry would otherwise appear twice, once always empty.
             .filter((entry) => deployedNames.some((name) => name.startsWith(`${entry.deployment}-`))),
           hosts,
-          liveTrafficOf: (entry) =>
-            trafficFromRoutingInfoFactory({ info: hostRoutingInfo(entry.host), deployId: entry.id, env }),
-          servesTraffic: (entry, colour) =>
+          liveTrafficOf: (entry) => liveTrafficStateOf(entry, env).colour,
+          servesTraffic: (entry) =>
             Underpost.deploy.serviceHasReadyEndpoints({
-              service: `${entry.deployment}-${colour}-service`,
+              service: liveTrafficStateOf(entry, env).service,
               namespace: options.namespace,
             }),
         }),
@@ -1423,6 +1460,8 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       );
       const affected = hosts.flatMap((host) => instancesByHost[host]);
       const trafficById = {};
+      const currentTrafficById = {};
+      const bootstrapTrafficById = {};
       for (const instance of affected) {
         const currentTraffic = Underpost.deploy.getCurrentTraffic(`${deployId}-${instance.id}`, {
           hostTest: instance.host,
@@ -1430,6 +1469,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           env,
           gatewayApi: options.gatewayApi,
         });
+        currentTrafficById[instance.id] = currentTraffic;
         if (!promotedIds.has(instance.id)) {
           trafficById[instance.id] = currentTraffic || 'blue';
           continue;
@@ -1438,19 +1478,44 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         promotedTraffic = trafficById[instance.id];
       }
 
-      // Both layers resolve the colour at write time — Envoy translates a route's
-      // backends when it is applied, Nginx resolves the upstream it is handed — so
-      // flipping to a colour with no ready endpoint publishes a 502 for the whole
-      // rollout. Waiting here is what makes the swap zero-downtime: the live colour
-      // keeps serving until the new one can answer. Only promoted instances move,
-      // and a promoted colour with no Deployment at all is not a rollout to wait
-      // for; the no-backend checkpoint routes at exactly such a colour on purpose.
+      // Readiness is mandatory for an actual promotion. The only exception is
+      // the explicit no-backend checkpoint, whose purpose is to prove that an
+      // endpointless selector returns the configured fallback before a workload
+      // exists.
       if (!options.noBackendCheckpoint)
         for (const instance of affected.filter((entry) => promotedIds.has(entry.id))) {
           const podId = `${deployId}-${instance.id}-${env}-${trafficById[instance.id]}`;
-          if (!deployedNames.includes(podId)) continue;
-          Underpost.deploy.awaitServiceEndpoints({ service: `${podId}-service`, namespace });
+          if (
+            !Underpost.deploy.awaitDeploymentReady({ deployment: podId, namespace }) ||
+            !Underpost.deploy.awaitServiceEndpoints({ service: `${podId}-service`, namespace })
+          )
+            throw new Error(`Refusing to promote ${instance.id} to unready colour ${trafficById[instance.id]}`);
         }
+
+      // Bootstrap one stable Service per instance on its current ready colour.
+      // Routes and fallback blocks can now migrate without changing traffic;
+      // promoted selectors move to their targets only after the whole host has
+      // converged below.
+      for (const instance of affected) {
+        const instanceDeployId = `${deployId}-${instance.id}`;
+        const currentTraffic = currentTrafficById[instance.id];
+        const currentReady =
+          !!currentTraffic &&
+          Underpost.deploy.serviceHasReadyEndpoints({
+            service: `${instanceDeployId}-${env}-${currentTraffic}-service`,
+            namespace,
+          });
+        const bootstrapTraffic = currentReady ? currentTraffic : trafficById[instance.id];
+        bootstrapTrafficById[instance.id] = bootstrapTraffic;
+        Underpost.deploy.applyTrafficService({
+          deployId: instanceDeployId,
+          env,
+          traffic: bootstrapTraffic,
+          namespace,
+          fromPort: instancePortFactory({ instance, env }),
+          toPort: instancePortFactory({ instance, env, container: true }),
+        });
+      }
 
       // Instance routes attach to the Gateway the parent deploy owns. A Gateway
       // per instance host cannot work beside it: `mergeGateways` collapses every
@@ -1476,7 +1541,10 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
               namespace: options.namespace || 'default',
               routes: hostInstances.map((instance) => ({
                 path: instance.path,
-                upstream: `${deployId}-${instance.id}-${env}-${trafficById[instance.id] || 'blue'}-service:${instancePortFactory({ instance, env })}`,
+                upstream: `${Underpost.deploy.trafficServiceNameFactory({
+                  deployId: `${deployId}-${instance.id}`,
+                  env,
+                })}:${instancePortFactory({ instance, env })}`,
                 statuses: instanceInterceptStatusesFactory(instance),
                 stripPrefix: Array.isArray(instance.pathRewritePolicy) && instance.pathRewritePolicy.length > 0,
               })),
@@ -1538,10 +1606,43 @@ EOF
       // first time. A shared edge that has not been told answers them from the
       // other data plane, which has no route for them — a 404 in front of a
       // healthy workload. No-op when no shared edge is installed.
-      Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+      const sharedIngressUpdated = Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+      if (sharedIngressUpdated) {
+        Underpost.deploy.removeInactiveHostRoutes({ hosts, gatewayApi: options.gatewayApi, namespace });
+        Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+      }
+      if (!options.noBackendCheckpoint)
+        for (const instance of affected.filter((entry) => promotedIds.has(entry.id))) {
+          const instanceDeployId = `${deployId}-${instance.id}`;
+          const targetTraffic = trafficById[instance.id];
+          const bootstrapTraffic = bootstrapTrafficById[instance.id];
+          if (targetTraffic !== bootstrapTraffic)
+            Underpost.deploy.applyTrafficService({
+              deployId: instanceDeployId,
+              env,
+              traffic: targetTraffic,
+              namespace,
+              fromPort: instancePortFactory({ instance, env }),
+              toPort: instancePortFactory({ instance, env, container: true }),
+            });
+          const trafficService = Underpost.deploy.trafficServiceNameFactory({ deployId: instanceDeployId, env });
+          if (!Underpost.deploy.awaitServiceEndpoints({ service: trafficService, namespace })) {
+            if (targetTraffic !== bootstrapTraffic)
+              Underpost.deploy.applyTrafficService({
+                deployId: instanceDeployId,
+                env,
+                traffic: bootstrapTraffic,
+                namespace,
+                fromPort: instancePortFactory({ instance, env }),
+                toPort: instancePortFactory({ instance, env, container: true }),
+              });
+            throw new Error(`Traffic Service ${trafficService} never became ready on ${targetTraffic}`);
+          }
+        }
       // Refresh the gRPC service to ensure it points to the parent deploy's current traffic.
       if (promotedTraffic) {
-        const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
+        const parentTraffic =
+          Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env }) || 'blue';
         const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
           deployId,
           env,
@@ -1690,13 +1791,14 @@ EOF
         // Regenerate the parent deploy's gRPC ClusterIP service pointing to the
         // parent's current traffic colour and apply it before the instance pod starts so
         // DNS is resolvable the moment the pod boots.
-        const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
+        const parentTraffic =
+          Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env }) || 'blue';
         const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
           deployId,
           env,
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
           namespace: options.namespace,
-          traffic: [targetTraffic],
+          traffic: [parentTraffic],
           host: _host,
         });
         if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
@@ -1734,7 +1836,10 @@ ${Underpost.deploy
     volumes: _volumes,
     cmd: resolvedCmd,
     lifecycle: lifecycleForManifest,
-    readinessProbe: resolveEnvScoped(_readinessProbe, env),
+    readinessProbe: Underpost.deploy.requiredReadinessProbeFactory({
+      probe: resolveEnvScoped(_readinessProbe, env),
+      port: _toPort,
+    }),
     livenessProbe: resolveEnvScoped(_livenessProbe, env),
     containerPort: _toPort,
     imagePullPolicy: instanceImagePullPolicy,
@@ -1957,7 +2062,10 @@ EOF
             volumes: _volumes,
             cmd: resolvedCmd,
             lifecycle: lifecycleForManifest,
-            readinessProbe: resolveEnvScoped(_readinessProbe, env),
+            readinessProbe: Underpost.deploy.requiredReadinessProbeFactory({
+              probe: resolveEnvScoped(_readinessProbe, env),
+              port: _toPort,
+            }),
             livenessProbe: resolveEnvScoped(_livenessProbe, env),
             containerPort: _toPort,
             imagePullPolicy: instanceImagePullPolicy,
@@ -2060,6 +2168,14 @@ EOF
       fs.writeFileSync(`${instanceBuildDir}/deployment.yaml`, deploymentYaml, 'utf8');
       const siblingManifests = {
         'pv-pvc.yaml': pvPvcYaml,
+        'traffic-service.yaml': Underpost.deploy.trafficServiceYamlFactory({
+          deployId: _deployId,
+          env,
+          traffic: targetTraffic,
+          namespace: options.namespace,
+          fromPort: _fromPort,
+          toPort: _toPort,
+        }),
         'proxy.yaml': proxyYaml,
         // No gateway.yaml: the parent deploy owns the Gateway. `writeManifest`
         // removes the file a previous per-host build left behind.
@@ -2141,7 +2257,14 @@ EOF
         }
         fs.copyFileSync(outputPath, `${rootPath}/deployment.yaml`);
         // Sibling manifests alongside deployment.yaml at the project root.
-        for (const name of ['pv-pvc.yaml', 'proxy.yaml', 'gateway.yaml', 'httproute.yaml', 'grpc-service.yaml']) {
+        for (const name of [
+          'pv-pvc.yaml',
+          'traffic-service.yaml',
+          'proxy.yaml',
+          'gateway.yaml',
+          'httproute.yaml',
+          'grpc-service.yaml',
+        ]) {
           const src = `${envManifestPath}/${name}`;
           // Absence is mirrored too, so the repo never ships a manifest this
           // build stopped producing.
@@ -2442,13 +2565,19 @@ EOF`);
 
       if (inputDeployId === 'dd') {
         for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
-          const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
+          const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
+            namespace: options.namespace,
+            env: inputEnv,
+          });
           const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
           Underpost.deploy.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas, options.namespace, options);
           applyCerts(deployId, targetTraffic);
         }
       } else {
-        const currentTraffic = Underpost.deploy.getCurrentTraffic(inputDeployId, { namespace: options.namespace });
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(inputDeployId, {
+          namespace: options.namespace,
+          env: inputEnv,
+        });
         const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
         Underpost.deploy.switchTraffic(
           inputDeployId,
@@ -3190,11 +3319,11 @@ EOF`);
      */
     deploy: async (path, options = DEFAULT_OPTION) => {
       const deployId = path;
+      const env = options.dev ? 'development' : 'production';
       const { validVersion } = Underpost.repo.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
-      const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
+      const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env });
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-      const env = options.dev ? 'development' : 'production';
       const ignorePods = Underpost.kubectl
         .get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace)
         .map((p) => p.NAME);
@@ -3381,7 +3510,11 @@ EOF`);
       }
       const success = await Underpost.test.statusMonitor(podToMonitor);
       if (success) {
-        const versions = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
+        const versions =
+          Underpost.deploy.getCurrentTraffic(deployId, {
+            namespace: options.namespace,
+            env: options.dev ? 'development' : 'production',
+          }) || 'blue';
         if (!node) node = os.hostname();
         const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
         shellExec(
