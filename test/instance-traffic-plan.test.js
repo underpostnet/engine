@@ -1,6 +1,7 @@
 'use strict';
 
 import { expect } from 'chai';
+import fs from 'fs-extra';
 import {
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
@@ -383,6 +384,16 @@ describe('blue/green traffic plan', () => {
       ).to.equal('blue');
     });
 
+    it('reads the colour from the stable Service selector', () => {
+      expect(
+        trafficFromRoutingInfoFactory({
+          info: 'dd-cyberia-development-green',
+          deployId: 'dd-cyberia',
+          env: 'development',
+        }),
+      ).to.equal('green');
+    });
+
     // The reported failure: a development cluster reported as entirely unrouted
     // because every match was anchored on `-production-`.
     it('finds nothing for an environment the routing does not mention', () => {
@@ -540,6 +551,19 @@ describe('blue/green traffic plan', () => {
 
     it('is empty with no entries', () => {
       expect(trafficTableRowsFactory({})).to.deep.equal([]);
+    });
+
+    it('feeds the report from stable Service selectors before legacy route text', () => {
+      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const start = runSource.indexOf("    'get-traffic': async");
+      const end = runSource.indexOf("    'instance-promote': async", start);
+      const getTraffic = runSource.slice(start, end);
+      const listServices = getTraffic.indexOf("listResources('service')");
+      const stableSelector = getTraffic.indexOf('const stableTraffic = trafficFromRoutingInfoFactory');
+      const legacyRoute = getTraffic.indexOf('const legacyTraffic = trafficFromRoutingInfoFactory');
+      expect(listServices).to.be.greaterThan(-1);
+      expect(stableSelector).to.be.greaterThan(listServices);
+      expect(legacyRoute).to.be.greaterThan(stableSelector);
     });
   });
 });

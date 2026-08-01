@@ -19,6 +19,7 @@ import {
   loadConfInstances,
   loadConfServerJson,
   loadReplicas,
+  nextTrafficFactory,
   pathPortAssignmentFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
@@ -175,6 +176,87 @@ class UnderpostDeploy {
       return buildPortProxyRouter({ port: env === 'development' ? 80 : 443, proxyRouter: buildProxyRouter() });
     },
     /**
+     * Stable Service used by every routing layer for one blue/green workload.
+     * Its name never carries the colour; promotion changes only its selector.
+     * @param {string} deployId - Deployment identifier.
+     * @param {string} env - Deployment environment.
+     * @returns {string} Kubernetes Service name.
+     * @memberof UnderpostDeploy
+     */
+    trafficServiceNameFactory({ deployId, env }) {
+      return k8sVolumeName(`${deployId}-${env}-traffic-service`);
+    },
+    /**
+     * Renders the stable traffic Service. Both Envoy/Contour and the fallback
+     * gateway use this object, so one selector update moves every port/path.
+     * @param {string} deployId - Deployment identifier.
+     * @param {string} env - Deployment environment.
+     * @param {string} traffic - Selected colour.
+     * @param {string} [namespace] - Kubernetes namespace.
+     * @param {number} fromPort - First workload port.
+     * @param {number} toPort - Last workload port.
+     * @returns {string} Service YAML.
+     * @memberof UnderpostDeploy
+     */
+    trafficServiceYamlFactory({ deployId, env, traffic, namespace = 'default', fromPort, toPort }) {
+      if (!['blue', 'green'].includes(traffic)) throw new Error(`Invalid traffic colour: ${traffic}`);
+      return `---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${Underpost.deploy.trafficServiceNameFactory({ deployId, env })}
+  namespace: ${namespace}
+  labels:
+    underpost.net/traffic-service: "true"
+    underpost.net/deploy-id: ${deployId}-${env}
+spec:
+  type: ClusterIP
+  selector:
+    app: ${deployId}-${env}-${traffic}
+  ports:
+${buildKindPorts(fromPort, toPort)}`;
+    },
+    /**
+     * Applies a stable traffic Service from either a built manifest or explicit
+     * port bounds, replacing only its selector colour.
+     * @returns {string} Applied Service name.
+     * @memberof UnderpostDeploy
+     */
+    applyTrafficService({
+      deployId,
+      env,
+      traffic,
+      namespace = 'default',
+      manifestPath,
+      fromPort,
+      toPort,
+    }) {
+      if (!['blue', 'green'].includes(traffic)) throw new Error(`Invalid traffic colour: ${traffic}`);
+      let manifest = manifestPath && fs.existsSync(manifestPath)
+        ? fs.readFileSync(manifestPath, 'utf8')
+        : Underpost.deploy.trafficServiceYamlFactory({ deployId, env, traffic, namespace, fromPort, toPort });
+      const escaped = `${deployId}-${env}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      manifest = manifest.replace(new RegExp(`app: ${escaped}-(?:blue|green)`), `app: ${deployId}-${env}-${traffic}`);
+      shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
+${manifest}
+EOF
+`);
+      return Underpost.deploy.trafficServiceNameFactory({ deployId, env });
+    },
+    /**
+     * Removes the route kind owned by the inactive ingress stack. The active
+     * route is already published before this runs, so migration never creates a
+     * hostname with no route.
+     * @param {Array<string>} hosts - Hostnames/resource names to converge.
+     * @param {boolean} gatewayApi - Whether HTTPRoute is the destination stack.
+     * @param {string} namespace - Kubernetes namespace.
+     */
+    removeInactiveHostRoutes({ hosts = [], gatewayApi, namespace = 'default' }) {
+      const kind = gatewayApi ? 'HTTPProxy' : 'HTTPRoute';
+      for (const host of [...new Set(hosts.filter(Boolean))])
+        shellExec(`kubectl delete ${kind} ${host} -n ${namespace} --ignore-not-found`, { silent: true });
+    },
+    /**
      * Creates a YAML service configuration for a deployment.
      * @param {string} deployId - Deployment ID for which the service is being created.
      * @param {string} path - Path for which the service is being created.
@@ -228,7 +310,7 @@ class UnderpostDeploy {
       }
       enableWebsockets: true
       services:
-    ${deploymentVersions
+    ${(serviceId ? [null] : deploymentVersions)
       .map(
         (version, i) =>
           `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
@@ -297,6 +379,19 @@ class UnderpostDeploy {
       return probes;
     },
     /**
+     * Resolves a required readiness probe for a custom workload. A configured
+     * probe wins; otherwise a TCP probe on the instance port is the safe floor.
+     * @param {object} [probe] - Configured readiness probe.
+     * @param {number} port - Instance container port.
+     * @returns {object} A Kubernetes readiness probe.
+     */
+    requiredReadinessProbeFactory({ probe, port }) {
+      if (probe) return probe;
+      if (!port) throw new Error('A readiness probe or container port is required');
+      return Underpost.deploy.runtimeProbesFactory({ port, useHttp: false, liveness: false, startup: false })
+        .readinessProbe;
+    },
+    /**
      * Creates a YAML deployment configuration for a deployment.
      * @param {string} deployId - Deployment ID for which the deployment is being created.
      * @param {string} env - Environment for which the deployment is being created.
@@ -347,6 +442,8 @@ class UnderpostDeploy {
       // independent of the ambient `PORT` baked into the image/secret.
       internalStatusPort,
     }) {
+      if (!readinessProbe)
+        throw new Error(`Refusing to build ${deployId}-${env}-${suffix} without a readiness probe`);
       if (!cmd)
         cmd =
           pullBundle || skipFullBuild
@@ -508,7 +605,7 @@ spec:
      * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; forwarded to deploymentYamlPartsFactory.
      * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; forwarded to deploymentYamlPartsFactory. Use together with skipFullBuild.
      * @param {string} [options.imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`); forwarded to deploymentYamlPartsFactory. Defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
-     * @param {boolean} [options.disableRuntimeProbes] - Omit internal-status HTTP probes from generated manifests. When true no readiness/liveness/startup probes are emitted.
+     * @param {boolean} [options.disableRuntimeProbes] - Deprecated compatibility flag; readiness remains mandatory.
      * @param {boolean} [options.tcpProbes] - Emit legacy TCP socket probes instead of HTTP internal-status probes (migration path).
      * @param {string} [options.node] - Explicit target node for hostPath PV nodeAffinity pinning; resolved through {@link UnderpostDeploy.resolveDeployNode} together with the cluster flags.
      * @param {boolean} [options.kind] - Kind cluster context; affects the cluster-type node default when no explicit node is set.
@@ -543,11 +640,11 @@ spec:
         // inside the pod. It is injected into the pod env (UNDERPOST_INTERNAL_PORT)
         // and used for both the probes and the monitor's port-forward target so
         // all three agree regardless of the image's ambient PORT.
-        // Opt out with `--disable-runtime-probes` to keep legacy probe-less pods.
+        // Readiness is a hard promotion invariant. The legacy disable flag is
+        // intentionally ignored; workloads that cannot serve the internal HTTP
+        // endpoint can migrate with the explicit TCP probe mode.
         const internalPort = fromPort - 1;
-        const probes = options.disableRuntimeProbes
-          ? {}
-          : Underpost.deploy.runtimeProbesFactory({ port: internalPort, useHttp: !options.tcpProbes });
+        const probes = Underpost.deploy.runtimeProbesFactory({ port: internalPort, useHttp: !options.tcpProbes });
 
         let deploymentYamlParts = '';
         for (const deploymentVersion of deploymentVersions) {
@@ -564,7 +661,7 @@ ${Underpost.deploy
     skipFullBuild: options.skipFullBuild,
     pullBundle: options.pullBundle,
     imagePullPolicy: options.imagePullPolicy,
-    internalStatusPort: options.disableRuntimeProbes ? undefined : internalPort,
+    internalStatusPort: internalPort,
     readinessProbe: probes.readinessProbe,
     livenessProbe: probes.livenessProbe,
     startupProbe: probes.startupProbe,
@@ -573,6 +670,19 @@ ${Underpost.deploy
 `;
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
+        const builtTraffic = `${options.traffic || deploymentVersions[0] || 'blue'}`.split(',')[0].trim();
+        fs.writeFileSync(
+          `./engine-private/conf/${deployId}/build/${env}/traffic-service.yaml`,
+          Underpost.deploy.trafficServiceYamlFactory({
+            deployId,
+            env,
+            traffic: builtTraffic,
+            namespace: options.namespace,
+            fromPort,
+            toPort,
+          }),
+          'utf8',
+        );
 
         Underpost.deploy.buildGrpcServiceManifest({
           deployId,
@@ -640,6 +750,7 @@ ${Underpost.deploy
         // certificate and Envoy picks by SNI, so there are two listeners in
         // total instead of two per hostname.
         const gatewayName = Underpost.deploy.gatewayNameFactory({ deployId, env });
+        const trafficServiceName = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
         const gatewayHosts = [];
 
         for (const host of Object.keys(confServer)) {
@@ -678,10 +789,8 @@ ${Underpost.deploy
               const { path, port } = conditionObj;
               proxyRoutes += Underpost.deploy.deploymentYamlServiceFactory({
                 path,
-                deployId,
-                env,
                 port,
-                deploymentVersions,
+                serviceId: trafficServiceName,
                 timeoutPolicy: globalTimeoutPolicy,
                 retryPolicy: globalRetryPolicy,
               });
@@ -729,10 +838,8 @@ ${Underpost.deploy
               if (intercepted && apiPathFactory({ confServer, host, path }))
                 routeRules += Underpost.deploy.httpRouteRuleFactory({
                   path: apiPathFactory({ confServer, host, path }),
-                  deployId,
-                  env,
                   port,
-                  deploymentVersions,
+                  serviceId: trafficServiceName,
                   timeoutPolicy: globalTimeoutPolicy,
                   retryPolicy: globalRetryPolicy,
                   altSvc: http3 ? altSvc : undefined,
@@ -741,7 +848,7 @@ ${Underpost.deploy
                 path,
                 ...(intercepted
                   ? { serviceId: UNDERPOST_GATEWAY.serviceName, port: UNDERPOST_GATEWAY.port }
-                  : { deployId, env, port, deploymentVersions }),
+                  : { serviceId: trafficServiceName, port }),
                 timeoutPolicy: globalTimeoutPolicy,
                 retryPolicy: globalRetryPolicy,
                 altSvc: http3 ? altSvc : undefined,
@@ -750,7 +857,7 @@ ${Underpost.deploy
                 intercepted
                   ? {
                       path,
-                      upstream: `${deployId}-${env}-${deploymentVersions[0]}-service:${port}`,
+                      upstream: `${trafficServiceName}:${port}`,
                       statuses: interceptStatusesFactory(
                         Underpost.deploy.edgeRouteEntriesFactory({ confServer, confSSR, host, path }),
                       ),
@@ -862,6 +969,7 @@ ${Underpost.deploy
             'gateway.yaml',
             'httproute.yaml',
             'deployment.yaml',
+            'traffic-service.yaml',
             'pv-pvc.yaml',
             'grpc-service.yaml',
           ];
@@ -975,6 +1083,19 @@ spec:
      */
     getCurrentTraffic(deployId, options = { hostTest: '', namespace: '', env: '' }) {
       if (!options.namespace) options.namespace = 'default';
+      // The stable Service selector is the blue/green authority. Routes and the
+      // fallback gateway deliberately contain no colour after migration, so
+      // reading them first would make a healthy deployment appear unrouted.
+      for (const env of options.env ? [options.env] : ['production', 'development']) {
+        const service = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
+        const selector = shellExec(`kubectl get service ${service} -n ${options.namespace} -o jsonpath='{.spec.selector.app}'`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+        });
+        const traffic = trafficFromRoutingInfoFactory({ info: `${selector}`, deployId, env });
+        if (traffic) return traffic;
+      }
       const hostTest = options?.hostTest
         ? options.hostTest
         : Object.keys(loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`))[0];
@@ -1485,7 +1606,7 @@ spec:
       // and shows up only as a bare 404 from the gateway.
       if (port !== undefined && (serviceId || deployId)) {
         lines.push(`      backendRefs:`);
-        for (const [i, version] of deploymentVersions.entries())
+        for (const [i, version] of (serviceId ? [null] : deploymentVersions).entries())
           lines.push(
             `        - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}`,
             `          port: ${port}`,
@@ -1559,6 +1680,47 @@ ${rules}`;
         { stdout: true, silent: true, silentOnError: true },
       );
       return `${ready}`.includes('true');
+    },
+
+    /**
+     * Reports whether the Deployment controller has observed the current
+     * generation and every desired replica is updated, Ready, and Available.
+     * @param {string} deployment - Deployment name.
+     * @param {string} [namespace] - Kubernetes namespace.
+     * @returns {boolean} True only when the full target colour is ready.
+     */
+    deploymentHasReadyReplicas({ deployment, namespace = 'default' }) {
+      const state = `${
+        shellExec(
+          `kubectl get deployment ${deployment} -n ${namespace} ` +
+            `-o jsonpath='{.metadata.generation} {.status.observedGeneration} {.spec.replicas} ` +
+            `{.status.updatedReplicas} {.status.readyReplicas} {.status.availableReplicas}'`,
+          { stdout: true, silent: true, silentOnError: true },
+        ) || ''
+      }`
+        .trim()
+        .split(/\s+/)
+        .map(Number);
+      if (state.length !== 6 || state.some((value) => !Number.isFinite(value))) return false;
+      const [generation, observed, desired, updated, ready, available] = state;
+      return observed >= generation && desired > 0 && updated === desired && ready === desired && available === desired;
+    },
+
+    /**
+     * Waits for all replicas of a target colour, not merely its first endpoint.
+     * @param {string} deployment - Deployment name.
+     * @param {string} [namespace] - Kubernetes namespace.
+     * @param {number} [timeoutMs] - Maximum wait.
+     * @returns {boolean} True when the whole Deployment is ready.
+     */
+    awaitDeploymentReady({ deployment, namespace = 'default', timeoutMs = 15 * 60 * 1000 }) {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        if (Underpost.deploy.deploymentHasReadyReplicas({ deployment, namespace })) return true;
+        shellExec('sleep 2', { silent: true });
+      }
+      logger.warn('Deployment never made every desired replica Ready', { deployment, namespace });
+      return false;
     },
 
     /**
@@ -1882,7 +2044,7 @@ ${rules}`;
      * @param {boolean} [options.skipFullBuild] - Whether to skip the full client bundle build; passed through to buildManifest/deploymentYamlPartsFactory.
      * @param {boolean} [options.pullBundle] - Whether to pull the pre-built client bundle from Cloudinary; passed through to buildManifest/deploymentYamlPartsFactory. Use together with skipFullBuild.
      * @param {string} [options.imagePullPolicy] - Container imagePullPolicy override (`Always`, `IfNotPresent`, `Never`); passed through to buildManifest/deploymentYamlPartsFactory. Defaults to `Never` for `localhost/` images and `IfNotPresent` otherwise.
-     * @param {boolean} [options.disableRuntimeProbes] - Omit internal-status HTTP probes from generated manifests. When true no readiness/liveness/startup probes are emitted.
+     * @param {boolean} [options.disableRuntimeProbes] - Deprecated compatibility flag; readiness remains mandatory.
      * @param {boolean} [options.tcpProbes] - Emit legacy TCP socket probes instead of HTTP internal-status probes.
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
@@ -1930,6 +2092,7 @@ ${rules}`;
         imagePullPolicy: '',
       },
     ) {
+      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
       const namespace = options.namespace ? options.namespace : 'default';
       if (!deployList && options.certHosts) {
         for (const host of options.certHosts.split(',')) {
@@ -1970,7 +2133,7 @@ EOF`);
           logger.info('', {
             deployId,
             env,
-            traffic: Underpost.deploy.getCurrentTraffic(deployId, { namespace, gatewayApi: options.gatewayApi }),
+            traffic: Underpost.deploy.getCurrentTraffic(deployId, { namespace, env, gatewayApi: options.gatewayApi }),
             router: await Underpost.deploy.routerFactory(deployId, env),
             pods: await Underpost.kubectl.get(deployId),
             instances,
@@ -1988,13 +2151,40 @@ EOF`);
         });
         return;
       }
-      if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
+      const deployIds = deployList
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      const explicitVersions = options.versions && typeof options.versions === 'string' ? options.versions : '';
+      const explicitTraffic = options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',')[0] : '';
+      const liveTrafficByDeployId = Object.fromEntries(
+        deployIds.map((deployId) => [
+          deployId,
+          Underpost.deploy.getCurrentTraffic(deployId, {
+            namespace,
+            env,
+            gatewayApi: options.gatewayApi,
+          }),
+        ]),
+      );
+      const versionsByDeployId = Object.fromEntries(
+        deployIds.map((deployId) => [
+          deployId,
+          explicitVersions || explicitTraffic || nextTrafficFactory(liveTrafficByDeployId[deployId]),
+        ]),
+      );
       if (!options.replicas) options.replicas = 1;
       if (options.sync)
         await getDataDeploy({
           buildSingleReplica: true,
         });
-      if (options.buildManifest === true) await Underpost.deploy.buildManifest(deployList, env, options);
+      if (options.buildManifest === true)
+        for (const deployId of deployIds)
+          await Underpost.deploy.buildManifest(deployId, env, {
+            ...options,
+            versions: versionsByDeployId[deployId],
+            traffic: explicitTraffic || liveTrafficByDeployId[deployId] || versionsByDeployId[deployId].split(',')[0],
+          });
       if (options.syncStatic === true) {
         for (const deployId of deployList
           .split(',')
@@ -2012,6 +2202,7 @@ EOF`);
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
+        const deploymentVersions = versionsByDeployId[deployId].split(',').map((version) => version.trim());
         if (options.expose === true) {
           const kindType = options.kindType ? options.kindType : 'svc';
           const svc = Underpost.kubectl.get(deployId, kindType)[0];
@@ -2072,7 +2263,7 @@ EOF`);
           : [];
 
         if (!options.disableUpdateDeployment)
-          for (const version of options.versions.split(',')) {
+          for (const version of deploymentVersions) {
             shellExec(
               `sudo kubectl delete svc ${deployId}-${env}-${version}-service -n ${namespace} --ignore-not-found`,
             );
@@ -2144,18 +2335,44 @@ EOF`);
           // Contour HTTPProxy set, or the Gateway API set (Gateway + HTTPRoute).
           // Applying both would publish duplicate routes for the same hostnames.
           if (!options.disableUpdateProxy) {
+            const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
+              namespace,
+              env,
+              gatewayApi: options.gatewayApi,
+            });
+            const currentReady =
+              !!currentTraffic &&
+              Underpost.deploy.serviceHasReadyEndpoints({
+                service: `${deployId}-${env}-${currentTraffic}-service`,
+                namespace,
+              });
+            // With no explicit traffic request, deploying the opposite colour is
+            // preparation only: preserve the colour already serving. A first
+            // deployment has no live selector and starts on the first requested
+            // version. Explicit --traffic is the only normal apply-time switch.
+            const desiredTraffic = explicitTraffic || (currentReady ? currentTraffic : deploymentVersions[0]);
+            const desiredDeployment = `${deployId}-${env}-${desiredTraffic}`;
+            if (
+              !options.disableUpdateDeployment &&
+              (!Underpost.deploy.awaitDeploymentReady({ deployment: desiredDeployment, namespace }) ||
+                !Underpost.deploy.awaitServiceEndpoints({ service: `${desiredDeployment}-service`, namespace }))
+            )
+              throw new Error(`Refusing to route ${deployId}-${env} to unready colour ${desiredTraffic}`);
+
+            // Migration is two-phase. First make every route and fallback block
+            // use a stable Service that still selects the current colour. Only
+            // after both stacks are converged is its selector moved to the ready
+            // target, so stack migration cannot create a root/API split.
+            const bootstrapTraffic = currentReady ? currentTraffic : desiredTraffic;
+            const trafficServicePath = `./${manifestsPath}/traffic-service.yaml`;
+            Underpost.deploy.applyTrafficService({
+              deployId,
+              env,
+              traffic: bootstrapTraffic,
+              namespace,
+              manifestPath: trafficServicePath,
+            });
             if (options.gatewayApi) {
-              // In the normal one-shot deploy, wait for the application endpoints
-              // before publishing direct API routes. The cluster runner also uses
-              // this apply path in an explicit ingress-only bootstrap, where the
-              // Service is intentionally absent and the site route must already
-              // reach underpost-gateway so it can serve the maintenance fallback.
-              if (!options.disableUpdateDeployment)
-                for (const version of options.versions.split(','))
-                  Underpost.deploy.awaitServiceEndpoints({
-                    service: `${deployId}-${env}-${version.trim()}-service`,
-                    namespace,
-                  });
               // Nginx must know how to proxy and intercept this host before Envoy
               // can send the first request to it. Installing first removes the
               // reconciliation window where the HTTPRoute is Accepted but the
@@ -2175,7 +2392,41 @@ EOF`);
             // describes them. A shared edge built before this apply still sends
             // them to the other stack, which answers 404 for a healthy workload.
             // No-op when no shared edge is installed.
-            Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+            const sharedIngressUpdated = Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+            if (sharedIngressUpdated) {
+              Underpost.deploy.removeInactiveHostRoutes({
+                hosts: Object.keys(confServer),
+                gatewayApi: options.gatewayApi,
+                namespace,
+              });
+              Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+            }
+
+            if (desiredTraffic !== bootstrapTraffic)
+              Underpost.deploy.applyTrafficService({
+                deployId,
+                env,
+                traffic: desiredTraffic,
+                namespace,
+                manifestPath: trafficServicePath,
+              });
+            if (
+              !options.disableUpdateDeployment &&
+              !Underpost.deploy.awaitServiceEndpoints({
+                service: Underpost.deploy.trafficServiceNameFactory({ deployId, env }),
+                namespace,
+              })
+            ) {
+              if (desiredTraffic !== bootstrapTraffic)
+                Underpost.deploy.applyTrafficService({
+                  deployId,
+                  env,
+                  traffic: bootstrapTraffic,
+                  namespace,
+                  manifestPath: trafficServicePath,
+                });
+              throw new Error(`Traffic Service for ${deployId}-${env} never became ready on ${desiredTraffic}`);
+            }
           }
 
           if (Underpost.deploy.isCertManagerContext({ host: Object.keys(confServer)[0], env, options })) {
@@ -2242,26 +2493,35 @@ EOF`);
         imagePullPolicy: '',
       },
     ) {
+      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
       const imagePullPolicyFlag = options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : '';
       const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory(options);
 
-      // Envoy translates a route's backends when the route is applied, so routing
-      // at a colour with no ready endpoint programmes a 500. Callers that roll a
-      // new colour await its readiness first; the failover and cert flips
-      // deliberately do not, and must stay fast — so this reports rather than
-      // blocks.
+      // Readiness is a promotion precondition, not advisory. All callers use
+      // this same gate, including monitor/failover paths, so no code path can
+      // publish an endpointless target and turn a healthy opposite colour into
+      // a 500/maintenance response.
       if (
-        !Underpost.deploy.serviceHasReadyEndpoints({
-          service: `${deployId}-${env}-${targetTraffic}-service`,
+        !Underpost.deploy.awaitDeploymentReady({
+          deployment: `${deployId}-${env}-${targetTraffic}`,
           namespace,
-        })
+        }) ||
+        !Underpost.deploy.awaitServiceEndpoints({ service: `${deployId}-${env}-${targetTraffic}-service`, namespace })
       )
-        logger.warn('Switching traffic to a colour with no ready endpoint; routes may be programmed as 500', {
-          deployId,
-          env,
-          targetTraffic,
+        throw new Error(`Refusing to switch ${deployId}-${env} to unready colour ${targetTraffic}`);
+      const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
+        namespace,
+        env,
+        gatewayApi: options.gatewayApi,
+      });
+      const currentReady =
+        !!currentTraffic &&
+        Underpost.deploy.serviceHasReadyEndpoints({
+          service: `${deployId}-${env}-${currentTraffic}-service`,
+          namespace,
         });
+      const bootstrapTraffic = currentReady ? currentTraffic : targetTraffic;
 
       // Regenerates the manifests against the target colour only: `--build-manifest`
       // returns before any cluster mutation, so the workload is untouched and the
@@ -2271,9 +2531,69 @@ EOF`);
       );
 
       const buildPath = `./engine-private/conf/${deployId}/build/${env}`;
+      const trafficServicePath = `${buildPath}/traffic-service.yaml`;
+      // On the first stable-Service migration, keep serving the current colour
+      // while the Nginx block and HTTPRoute/HTTPProxy are replaced. Once every
+      // layer references this Service, one selector update below is the switch.
+      Underpost.deploy.applyTrafficService({
+        deployId,
+        env,
+        traffic: bootstrapTraffic,
+        namespace,
+        manifestPath: trafficServicePath,
+      });
+      // A traffic switch rebuilds the underpost-gateway host blocks together
+      // with the HTTPRoutes. Install and validate those blocks before publishing
+      // a route that sends an intercepted site path to the shared gateway. The
+      // regular deploy apply path already does this; omitting it here left Nginx
+      // on its default server (or a previous environment/colour), so every such
+      // request became the shared 404 page even though Envoy reported the route
+      // Accepted and relayed it successfully.
+      if (options.gatewayApi)
+        installGatewayConf({
+          hostRoot: Underpost.deploy.underpostGatewayRootFactory(options),
+          confSourceDir: Underpost.deploy.gatewayConfDirFactory({ deployId, env }),
+          namespace,
+        });
       for (const file of options.gatewayApi ? ['gateway.yaml', 'httproute.yaml'] : ['proxy.yaml'])
         if (fs.existsSync(`${buildPath}/${file}`) && fs.readFileSync(`${buildPath}/${file}`, 'utf8').trim())
           shellExec(`sudo kubectl apply -f ${buildPath}/${file} -n ${namespace}`);
+
+      // The shared front derives its Host/SNI table from the live route objects.
+      // Refresh after applying them so a hostname migrating between HTTPProxy and
+      // HTTPRoute reaches the stack that now owns it. This is also a no-op when
+      // underpost-ingress is not installed.
+      const sharedIngressUpdated = Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+      if (sharedIngressUpdated) {
+        const switchHosts = Object.keys(loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`));
+        Underpost.deploy.removeInactiveHostRoutes({
+          hosts: switchHosts,
+          gatewayApi: options.gatewayApi,
+          namespace,
+        });
+        Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+      }
+
+      if (targetTraffic !== bootstrapTraffic)
+        Underpost.deploy.applyTrafficService({
+          deployId,
+          env,
+          traffic: targetTraffic,
+          namespace,
+          manifestPath: trafficServicePath,
+        });
+      const trafficService = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
+      if (!Underpost.deploy.awaitServiceEndpoints({ service: trafficService, namespace })) {
+        if (targetTraffic !== bootstrapTraffic)
+          Underpost.deploy.applyTrafficService({
+            deployId,
+            env,
+            traffic: bootstrapTraffic,
+            namespace,
+            manifestPath: trafficServicePath,
+          });
+        throw new Error(`Traffic Service ${trafficService} never became ready on ${targetTraffic}`);
+      }
 
       const grpcServicePath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;
       if (fs.existsSync(grpcServicePath)) shellExec(`kubectl apply -f ${grpcServicePath} -n ${namespace}`);

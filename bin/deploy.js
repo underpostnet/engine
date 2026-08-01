@@ -232,6 +232,7 @@ try {
           'gateway.yaml',
           'httproute.yaml',
           'pv-pvc.yaml',
+          'traffic-service.yaml',
           'grpc-service.yaml',
         ]) {
           const source = `./engine-private/conf/${deployId}/build/development/${file}`;

@@ -1706,7 +1706,7 @@ Prevent build private config repo.`,
       }
 
       // Resolve the active blue/green traffic colour so we target the correct pod
-      const traffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace });
+      const traffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace, env });
       if (!traffic) {
         logger.warn(`backupPodRepositories: could not resolve current traffic for ${deployId} — skipping`);
         return;

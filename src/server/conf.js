@@ -2203,9 +2203,10 @@ const stopPlanFactory = ({
  * @description Reads a deployment's live colour out of the routing text that
  * carries it.
  *
- * Every stack names the backend service `<deployId>-<env>-<colour>-service`, so
- * the colour reads the same way from an HTTPRoute, an HTTPProxy, or the Nginx
- * server block an intercepted host is proxied through. Kept pure and separate
+ * Legacy stacks name the backend Service `<deployId>-<env>-<colour>-service`;
+ * the stable traffic Service names the same value in `spec.selector.app` without
+ * the `-service` suffix. The colour therefore reads the same way during and
+ * after migration. Kept pure and separate
  * from the read so one host's routing text can be matched against several
  * deployments and environments without fetching it again.
  *
@@ -2224,7 +2225,7 @@ const trafficFromRoutingInfoFactory = ({ info = '', deployId = '', env = '' }) =
   if (!`${info}`.trim()) return null;
   if (env) {
     const escaped = `${deployId}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const match = `${info}`.match(new RegExp(`${escaped}-${env}-(blue|green)-service`));
+    const match = `${info}`.match(new RegExp(`${escaped}-${env}-(blue|green)(?:-service)?(?:\\s|$)`));
     return match ? match[1] : null;
   }
   return `${info}`.match('blue') ? 'blue' : `${info}`.match('green') ? 'green' : null;
@@ -2498,9 +2499,7 @@ const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =
       Underpost.deploy.deploymentYamlServiceFactory({
         path: instance.path,
         port: instancePortFactory({ instance, env }),
-        deployId: `${deployId}-${instance.id}`,
-        env,
-        deploymentVersions: [trafficById[instance.id] || 'blue'],
+        serviceId: Underpost.deploy.trafficServiceNameFactory({ deployId: `${deployId}-${instance.id}`, env }),
         pathRewritePolicy: instance.pathRewritePolicy,
       }),
     )
@@ -2554,9 +2553,7 @@ const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, 
         ? { serviceId: UNDERPOST_GATEWAY.serviceName, port: UNDERPOST_GATEWAY.port }
         : {
             port: instancePortFactory({ instance, env }),
-            deployId: `${deployId}-${instance.id}`,
-            env,
-            deploymentVersions: [trafficById[instance.id] || 'blue'],
+            serviceId: Underpost.deploy.trafficServiceNameFactory({ deployId: `${deployId}-${instance.id}`, env }),
             pathRewritePolicy: instance.pathRewritePolicy,
           }),
       altSvc: http3 ? altSvc : undefined,
