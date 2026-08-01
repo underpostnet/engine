@@ -451,11 +451,16 @@ node bin deploy dd-old-service production --restore-hosts
 
 ```bash
 # Match every Service containing "dd-api" and expose remote port 8080.
-node bin run expose dd-api --dev --kind --expose-port 8080 --expose-local-port 8080
+node bin run expose dd-api --dev --kind --expose-container-ports 8080 --expose-host-ports 8080
 
 # Multiple literal partial names are comma-separated. If no Service matches,
 # the runner falls back to matching Pod names and their declared container ports.
 node bin run expose mongo,valkey --dev --kind --namespace default
+
+# Two matched Services consume ports by the same index:
+# mongo -> 27017:27017, valkey -> 6379:6379
+node bin run expose mongo,valkey --dev --kind \
+  --expose-container-ports 27017,6379 --expose-host-ports 27017,6379
 
 # In another terminal, access the service
 curl http://localhost:8080
