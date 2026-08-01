@@ -34,6 +34,7 @@ import {
   writeEnv,
   clusterInstancesFactory,
   deployTrafficEntriesFactory,
+  curlStatusChainFactory,
   hostIngressFactsFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
@@ -78,6 +79,9 @@ const logger = loggerFactory(import.meta);
  * @property {string} ingressNode - Dedicated node for the host-network public ingress; never inherited from nodeName.
  * @property {string} sshKeyPath - Private key path for node SSH operations, forwarded to volume shipping over SSH.
  * @property {number} port - Custom port to use.
+ * @property {number} exposePort - Remote Kubernetes resource port selected by the expose runner.
+ * @property {number} exposeLocalPort - First local port used by the expose runner.
+ * @property {boolean} localProxy - Start the development path proxy after exposing matched resources.
  * @property {string} volumeHostPath - The host path for the volume.
  * @property {string} volumeMountPath - The mount path for the volume.
  * @property {string} imageName - The name of the image to run.
@@ -169,6 +173,9 @@ const DEFAULT_OPTION = {
   ingressNode: '',
   sshKeyPath: '',
   port: 0,
+  exposePort: 0,
+  exposeLocalPort: 0,
+  localProxy: false,
   volumeHostPath: '',
   volumeMountPath: '',
   imageName: '',
@@ -250,6 +257,33 @@ const DEFAULT_OPTION = {
   volumeType: '',
 };
 
+const exposeTcpPortsFactory = (resource) =>
+  `${resource?.['PORT(S)'] || ''}`
+    .split(',')
+    .filter((port) => port.includes('/TCP'))
+    .map((port) => parseInt(port.split(':')[0]))
+    .filter((port) => Number.isInteger(port) && port > 0);
+
+const exposePathPartsFactory = (path = '') => {
+  const parts = `${path}`
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) throw new Error('Expose requires a Service or Pod name in path');
+  if (parts.some((part) => !/^[a-zA-Z0-9._-]+$/.test(part)))
+    throw new Error(`Invalid Kubernetes resource name match: ${path}`);
+  return parts;
+};
+
+const exposePartialMatchesFactory = (resources, pathParts) =>
+  resources
+    .filter(({ NAME }) => pathParts.some((part) => `${NAME || ''}`.includes(part)))
+    .sort((a, b) => {
+      const exactA = pathParts.includes(a.NAME) ? 0 : 1;
+      const exactB = pathParts.includes(b.NAME) ? 0 : 1;
+      return exactA - exactB || `${a.NAME}`.localeCompare(`${b.NAME}`);
+    });
+
 /**
  * @class UnderpostRun
  * @description Manages the execution of various CLI commands and operations.
@@ -268,6 +302,203 @@ class UnderpostRun {
    */
   static RUNNERS = {
     /**
+     * @method status
+     * @description Reports deployment traffic, routing, Pods, expanded instances, and host capacity.
+     * @param {string} path - Deploy id, comma-separated ids, or `dd`; empty uses the router/configured projects.
+     * @param {UnderpostRunDefaultOptions} options - Namespace, environment (`--dev`), cluster, and node options.
+     * @returns {Promise<{deployments: object[], machine: object}>} Structured status report.
+     * @memberof UnderpostRun
+     */
+    status: async (path = '', options = DEFAULT_OPTION) => {
+      options = {
+        ...options,
+        gatewayApi: gatewayApiEnabledFactory(options),
+        namespace: options.namespace || 'default',
+      };
+      if (!/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(options.namespace))
+        throw new Error(`Invalid Kubernetes namespace: ${options.namespace}`);
+      if (options.nodeName && !/^[a-zA-Z0-9._-]+$/.test(options.nodeName))
+        throw new Error(`Invalid Kubernetes node name: ${options.nodeName}`);
+      const env = options.dev ? 'development' : 'production';
+      const requestedDeploys = `${path || options.deployId || ''}`.trim();
+      const routerPath = './engine-private/deploy/dd.router';
+      const confRoot = './engine-private/conf';
+      const deployIds = [
+        ...new Set(
+          requestedDeploys
+            ? resolveDeployList(requestedDeploys)
+            : fs.existsSync(routerPath)
+              ? resolveDeployList('dd')
+              : fs.existsSync(confRoot)
+                ? fs
+                    .readdirSync(confRoot)
+                    .filter(
+                      (deployId) =>
+                        fs.existsSync(`${confRoot}/${deployId}/conf.server.json`) ||
+                        fs.existsSync(`${confRoot}/${deployId}/conf.instances.json`),
+                    )
+                    .sort()
+                : [],
+        ),
+      ];
+      if (deployIds.length === 0) throw new Error('No deployments found for status');
+      if (deployIds.some((deployId) => !/^[a-zA-Z0-9._-]+$/.test(deployId)))
+        throw new Error(`Invalid deployment status path: ${requestedDeploys}`);
+
+      const deployments = [];
+      for (const deployId of deployIds) {
+        const instances = [];
+        if (fs.existsSync(`${confRoot}/${deployId}/conf.instances.json`)) {
+          for (const instance of loadConfInstances(deployId)) {
+            const instanceDeployId = `${deployId}-${instance.id}`;
+            instances.push({
+              id: instance.id,
+              host: instance.host,
+              path: instance.path,
+              fromPort: instance.fromPort,
+              toPort: instance.toPort,
+              fromDebugPort: instance.fromDebugPort,
+              toDebugPort: instance.toDebugPort,
+              traffic: Underpost.deploy.getCurrentTraffic(instanceDeployId, {
+                namespace: options.namespace,
+                hostTest: instance.host,
+                env,
+                gatewayApi: options.gatewayApi,
+              }),
+            });
+          }
+        }
+        const deployment = {
+          deployId,
+          env,
+          traffic: Underpost.deploy.getCurrentTraffic(deployId, {
+            namespace: options.namespace,
+            env,
+            gatewayApi: options.gatewayApi,
+          }),
+          router: await Underpost.deploy.routerFactory(deployId, env),
+          pods: Underpost.kubectl.get(deployId, 'pods', options.namespace),
+          instances,
+        };
+        deployments.push(deployment);
+        logger.info('', deployment);
+      }
+
+      const interfaceName = Underpost.dns.getDefaultNetworkInterface();
+      const machine = {
+        hostname: os.hostname(),
+        arch: Underpost.baremetal.getHostArch(),
+        clusterType: clusterTypeFactory(options),
+        ipv4Public: await Underpost.dns.getPublicIp(),
+        ipv4Local: Underpost.dns.getLocalIPv4Address(),
+        resources: Underpost.cluster.getResourcesCapacity(options.nodeName),
+        defaultInterfaceName: interfaceName,
+        defaultInterfaceInfo: os.networkInterfaces()[interfaceName],
+      };
+      logger.info('Machine', machine);
+      return { deployments, machine };
+    },
+
+    /**
+     * @method expose
+     * @description Port-forwards every Service whose name partially matches path, falling back to matching Pods.
+     * Works through the active kubeconfig for Kind, k3s, and kubeadm clusters.
+     * @param {string} path - One or more comma-separated literal Service/Pod name fragments.
+     * @param {UnderpostRunDefaultOptions} options - Namespace, cluster type, and optional port overrides.
+     * @returns {Array<{kindType: string, name: string, localPort: number, remotePort: number}>} Forward plan.
+     * @memberof UnderpostRun
+     */
+    expose: (path, options = DEFAULT_OPTION) => {
+      const namespace = options.namespace || 'default';
+      const clusterType = clusterTypeFactory(options);
+      const pathParts = exposePathPartsFactory(path || options.podName);
+      if (!/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(namespace))
+        throw new Error(`Invalid Kubernetes namespace: ${namespace}`);
+      let kindType = 'svc';
+      let resources = exposePartialMatchesFactory(Underpost.kubectl.get('', kindType, namespace), pathParts);
+
+      if (resources.length === 0) {
+        kindType = 'pod';
+        resources = exposePartialMatchesFactory(Underpost.kubectl.get('', 'pods', namespace), pathParts);
+      }
+      if (resources.length === 0)
+        throw new Error(`No Service or Pod partially matching '${pathParts.join(',')}' in namespace '${namespace}'`);
+
+      const explicitPortValue = options.exposePort || options.port;
+      const explicitRemotePort = explicitPortValue ? Number(explicitPortValue) : 0;
+      const firstLocalPort = options.exposeLocalPort ? Number(options.exposeLocalPort) : 0;
+      if (
+        explicitPortValue &&
+        (!Number.isInteger(explicitRemotePort) || explicitRemotePort < 1 || explicitRemotePort > 65535)
+      )
+        throw new Error(`Invalid remote expose port: ${explicitPortValue}`);
+      if (
+        options.exposeLocalPort &&
+        (!Number.isInteger(firstLocalPort) || firstLocalPort < 1 || firstLocalPort > 65535)
+      )
+        throw new Error(`Invalid local expose port: ${options.exposeLocalPort}`);
+
+      const plan = [];
+      const usedLocalPorts = new Set();
+      for (const resource of resources) {
+        let remotePorts = explicitRemotePort ? [explicitRemotePort] : exposeTcpPortsFactory(resource);
+        if (kindType === 'pod' && remotePorts.length === 0) {
+          const podJson = shellExec(`sudo kubectl get pod ${resource.NAME} -n ${namespace} -o json`, {
+            stdout: true,
+            silent: true,
+          });
+          const pod = JSON.parse(podJson);
+          remotePorts = (pod.spec?.containers || [])
+            .flatMap((container) => container.ports || [])
+            .map(({ containerPort }) => parseInt(containerPort))
+            .filter((port) => Number.isInteger(port) && port > 0);
+        }
+        remotePorts = [...new Set(remotePorts)];
+        if (remotePorts.length === 0)
+          throw new Error(
+            `No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-port <remote-port>`,
+          );
+
+        for (const remotePort of remotePorts) {
+          let localPort = firstLocalPort ? firstLocalPort + plan.length : remotePort;
+          while (usedLocalPorts.has(localPort)) localPort++;
+          if (localPort > 65535) throw new Error(`No valid local port remains for ${kindType}/${resource.NAME}`);
+          usedLocalPorts.add(localPort);
+          plan.push({ kindType, name: resource.NAME, localPort, remotePort });
+        }
+      }
+
+      logger.info('[expose] Kubernetes port-forward plan', {
+        clusterType,
+        namespace,
+        matches: pathParts,
+        plan,
+      });
+      for (const { kindType, name, localPort, remotePort } of plan)
+        shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${name} ${localPort}:${remotePort}`, {
+          async: true,
+        });
+
+      if (options.localProxy) {
+        const deployId = options.deployId || pathParts[0];
+        const env = options.dev ? 'development' : 'production';
+        const envFile = `./engine-private/conf/${deployId}/.env.${env}`;
+        let basePort = plan[0].localPort - 1;
+        if (fs.existsSync(envFile)) {
+          const portMatch = fs.readFileSync(envFile, 'utf8').match(/^PORT=(\d+)/m);
+          if (portMatch) basePort = parseInt(portMatch[1]);
+        }
+        const tlsFlag = options.tls ? ' tls' : '';
+        shellExec(
+          `NODE_ENV=${env} PORT=${basePort} DEV_PROXY_PORT_OFFSET=0 node src/proxy proxy ${deployId} ${env}${tlsFlag}`,
+          { async: true },
+        );
+      }
+
+      return plan;
+    },
+
+    /**
      * @method dev-cluster
      * @description Resets and deploys a full development cluster including MongoDB, Valkey, exposes services, and updates `/etc/hosts` for local access.
      * @param {string} path - The input value, identifier, or path for the operation.
@@ -278,26 +509,21 @@ class UnderpostRun {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const mongoHosts = ['mongodb-0.mongodb-service'];
       let primaryMongoHost = 'mongodb-0.mongodb-service';
-      if (!options.expose) {
-        shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
-        shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
+      const clusterType = clusterTypeFactory(options);
+      const clusterFlag = ` --${clusterType}`;
+      const clusterInitFlag = clusterType === 'kind' ? '' : clusterFlag;
+      const clusterOptions = `${options.dev ? ' --dev' : ''}${clusterInitFlag} --namespace ${options.namespace}`;
+      if (!options.expose && !options.remove) {
+        shellExec(`${baseCommand} cluster${clusterOptions} --reset`);
+        shellExec(`${baseCommand} cluster${clusterOptions}`);
 
         shellExec(
-          `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --service-host ${mongoHosts.join(
-            ',',
-          )} --pull-image`,
+          `${baseCommand} cluster${clusterOptions} --mongodb --service-host ${mongoHosts.join(',')} --pull-image`,
         );
-        shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
+        shellExec(`${baseCommand} cluster${clusterOptions} --valkey --pull-image`);
       }
-      if (options.k3s) {
-        if (options.remove) {
-          shellExec(`${baseCommand} lxd --delete-expose k3s-control:27017`);
-          shellExec(`${baseCommand} lxd --delete-expose k3s-control:6379`);
-        } else {
-          shellExec(`${baseCommand} lxd --expose k3s-control:27017 --node-port 32017`);
-          shellExec(`${baseCommand} lxd --expose k3s-control:6379 --node-port 32079`);
-        }
-        shellExec(`lxc config device show k3s-control`);
+      if (options.remove) {
+        shellExec(`${baseCommand} run kill '6379,27017'`);
       } else {
         try {
           const primaryPodName =
@@ -306,20 +532,21 @@ class UnderpostRun {
               podName: 'mongodb-0',
               disableAuth: options.dev,
             }) || 'mongodb-0';
-          shellExec(
-            `${baseCommand} deploy --expose --namespace ${options.namespace} --disable-update-underpost-config mongo`,
-            { async: true },
-          );
-          shellExec(
-            `${baseCommand} deploy --expose --namespace ${options.namespace} --disable-update-underpost-config valkey`,
-            { async: true },
-          );
+          primaryMongoHost = `${primaryPodName}.mongodb-service`;
         } catch (error) {
           logger.warn('Failed to detect MongoDB primary pod, using default', {
             error: error.message,
             default: primaryMongoHost,
           });
         }
+        shellExec(
+          `${baseCommand} run expose mongodb-service --namespace ${options.namespace}${clusterFlag} --expose-port 27017 --expose-local-port 27017`,
+          { async: true },
+        );
+        shellExec(
+          `${baseCommand} run expose valkey-service --namespace ${options.namespace}${clusterFlag} --expose-port 6379 --expose-local-port 6379`,
+          { async: true },
+        );
       }
       const hostListenResult = etcHostFactory([primaryMongoHost]);
       logger.info(hostListenResult.renderHosts);
@@ -327,16 +554,12 @@ class UnderpostRun {
 
     /**
      * @method ipfs-expose
-     * @description Exposes IPFS Cluster services on specified ports for local access.
+     * @description Exposes every declared TCP port on the matching IPFS Cluster Service.
      * @type {Function}
      * @memberof UnderpostRun
      */
     'ipfs-expose': (path, options = DEFAULT_OPTION) => {
-      const ports = [5001, 9094, 8080];
-      for (const port of ports)
-        shellExec(`node bin deploy --expose ipfs-cluster --expose-port ${port} --disable-update-underpost-config`, {
-          async: true,
-        });
+      return UnderpostRun.RUNNERS.expose(path || 'ipfs-cluster', options);
     },
 
     /**
@@ -1236,6 +1459,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * HTTPRoute/HTTPProxy backend parsing remains as a fallback for workloads
      * that have not migrated yet. `serving` checks the Service that actually
      * carries traffic, so an endpointless stable selector reports correctly.
+     * Every declared host/path is also requested through the public chain with
+     * `curl -L -v -i -s`; PATH displays the ordered response codes beside the
+     * path. OPPOSITE is added only when another blue/green Deployment exists.
      * @param {string} [path] - Comma-separated hosts to report on; empty reports every host.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -1364,6 +1590,65 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         return rows;
       }
 
+      // Probe the exact public URL represented by each host/path row. PWA rows
+      // can carry several configured paths in one cell, while instance rows
+      // carry one; cache by URL so shared rows never repeat network work.
+      const shellArg = (value) => `'${`${value}`.replaceAll("'", "'\\''")}'`;
+      const probeCache = new Map();
+      const probePath = (host, routePath, tls) => {
+        const normalizedPath = `${routePath || '/'}`.startsWith('/') ? `${routePath || '/'}` : `/${routePath}`;
+        let url;
+        try {
+          url = new URL(normalizedPath, `${tls ? 'https' : 'http'}://${host}`).href;
+        } catch {
+          return { path: normalizedPath, url: '', statuses: ['000'] };
+        }
+        if (!probeCache.has(url)) {
+          // -L follows the real redirect chain, -v supplies one response line
+          // per hop, -i keeps full response headers available, and -s removes
+          // only the progress meter. The body is discarded to keep a status
+          // report bounded even when a host returns a large application page.
+          const raw = shellExec(
+            `curl -L -v -i -s --connect-timeout 3 --max-time 12 --max-redirs 10 ` +
+              `-o /dev/null -w '\nUNDERPOST_CURL_FINAL=%{http_code}\n' ${shellArg(url)} 2>&1 || true`,
+            { stdout: true, silent: true, silentOnError: true, disableLog: true },
+          );
+          probeCache.set(url, curlStatusChainFactory(raw));
+        }
+        return { path: normalizedPath, url, statuses: probeCache.get(url) };
+      };
+
+      const deploymentByName = new Map(deployments.map((deployment) => [deployment.NAME, deployment]));
+      const readinessOf = (deployment) => {
+        const replicas = deployment?.READY || '-';
+        const [ready, desired] = `${replicas}`.split('/').map(Number);
+        return {
+          replicas,
+          ready: Number.isFinite(ready) && Number.isFinite(desired) && desired > 0 && ready === desired,
+        };
+      };
+      const reportRows = rows.map((row) => {
+        const facts = ingressFacts[row.host] || {};
+        const probes = [...new Set(`${row.path || '/'}`.split(/\s+/).filter(Boolean))].map((routePath) =>
+          probePath(row.host, routePath, facts.tls),
+        );
+        const oppositeTraffic = row.traffic ? nextTrafficFactory(row.traffic) : '';
+        const oppositeDeployment = oppositeTraffic ? `${row.deployment}-${oppositeTraffic}` : '';
+        const oppositeResource = oppositeDeployment ? deploymentByName.get(oppositeDeployment) : null;
+        return {
+          ...row,
+          probes,
+          opposite: oppositeResource
+            ? {
+                deployment: oppositeDeployment,
+                traffic: oppositeTraffic,
+                ...readinessOf(oppositeResource),
+              }
+            : null,
+        };
+      });
+      const showOpposite = reportRows.some((row) => row.opposite);
+
       // Padded on the raw values, coloured afterwards: an ANSI escape counts
       // toward String.length and would skew every column right of it.
       const columns = [
@@ -1375,22 +1660,31 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         'TLS',
         'HTTP3',
         'DEPLOYMENT',
+        ...(showOpposite ? ['OPPOSITE'] : []),
         'TRAFFIC',
         'REPLICAS',
         'SERVING',
       ];
-      const cells = rows.map((row) => {
+      const cells = reportRows.map((row) => {
         const facts = ingressFacts[row.host] || {};
         const deployment = `${row.deployment}-${row.traffic || '?'}`;
+        const pathStatus = row.probes.map((probe) => `${probe.path} [${probe.statuses.join('→')}]`).join(' ');
         return [
           row.host,
-          row.path,
+          pathStatus,
           row.kind,
           row.env,
           facts.route || 'none',
           facts.tls ? 'yes' : 'no',
           facts.http3 ? 'yes' : 'no',
           deployment,
+          ...(showOpposite
+            ? [
+                row.opposite
+                  ? `${row.opposite.traffic} ${row.opposite.replicas} ${row.opposite.ready ? 'ready' : 'not-ready'}`
+                  : '-',
+              ]
+            : []),
           row.traffic || 'none',
           row.traffic ? replicasOf(deployment) : '-',
           row.serving ? 'yes' : 'no',
@@ -1398,6 +1692,21 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       });
       const widths = columns.map((column, i) => Math.max(column.length, ...cells.map((cell) => `${cell[i]}`.length)));
       const paint = (value, i) => {
+        if (columns[i] === 'PATH')
+          return value.replace(/\b(?:000|[1-5][0-9]{2})\b/g, (status) => {
+            if (/^1/.test(status)) return status.cyan;
+            if (/^2/.test(status)) return status.green;
+            if (/^3/.test(status)) return status.cyan;
+            if (/^4/.test(status)) return status.yellow;
+            return status.red;
+          });
+        if (columns[i] === 'OPPOSITE') {
+          if (value === '-') return value;
+          const [traffic, replicas, status] = value.split(' ');
+          const trafficDisplay = traffic === 'blue' ? traffic.bgBlue.bold.black : traffic.bgGreen.bold.black;
+          const replicasDisplay = readinessOf({ READY: replicas }).ready ? replicas.green : replicas.red;
+          return `${trafficDisplay} ${replicasDisplay} ${status === 'ready' ? status.green : status.red}`;
+        }
         if (columns[i] === 'TRAFFIC')
           return value === 'blue' ? value.bgBlue.bold.black : value === 'green' ? value.bgGreen.bold.black : value.red;
         if (columns[i] === 'SERVING') return value === 'yes' ? value.green : value.red;
@@ -1419,7 +1728,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       console.log(widths.map((width) => '-'.repeat(width)).join('  '));
       for (const cell of cells) console.log(line(cell, true));
       console.log('');
-      return rows;
+      return reportRows;
     },
 
     /**
@@ -1871,6 +2180,18 @@ ${Underpost.deploy
     livenessProbe: resolveEnvScoped(_livenessProbe, env),
     containerPort: _toPort,
     imagePullPolicy: instanceImagePullPolicy,
+    // Pin the pod in the manifest submitted for its only rollout. Volumes were
+    // already resolved against this node; leaving the pod unconstrained could
+    // schedule it away from its data and require a second, post-ready move.
+    nodeName: options.nodeName
+      ? Underpost.deploy.resolveDeployNode({
+          node: options.nodeName,
+          kind: options.kind,
+          kubeadm: options.kubeadm,
+          k3s: options.k3s,
+          env,
+        })
+      : '',
   })
   .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
 `;
@@ -2098,6 +2419,15 @@ EOF
             livenessProbe: resolveEnvScoped(_livenessProbe, env),
             containerPort: _toPort,
             imagePullPolicy: instanceImagePullPolicy,
+            nodeName: options.nodeName
+              ? Underpost.deploy.resolveDeployNode({
+                  node: options.nodeName,
+                  kind: options.kind,
+                  kubeadm: options.kubeadm,
+                  k3s: options.k3s,
+                  env,
+                })
+              : '',
           })
           .replace('{{ports}}', buildKindPorts(_fromPort, _toPort));
 
@@ -2505,9 +2835,7 @@ EOF`);
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/. -n ${options.namespace}`);
       const successInstance = await Underpost.test.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
 
-      if (successInstance) {
-        shellExec(`underpost deploy --expose adminer --namespace ${options.namespace}`);
-      }
+      if (successInstance) return UnderpostRun.RUNNERS.expose(path || 'adminer', options);
     },
 
     /**
