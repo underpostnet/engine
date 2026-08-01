@@ -5,6 +5,7 @@ import {
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
+  hostIngressFactsFactory,
   nextTrafficFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
@@ -406,6 +407,80 @@ describe('blue/green traffic plan', () => {
     it('falls back to a whole-text match with no environment', () => {
       expect(trafficFromRoutingInfoFactory({ info: 'routes to green here', deployId: 'dd-cyberia' })).to.equal('green');
       expect(trafficFromRoutingInfoFactory({ info: 'nothing routed', deployId: 'dd-cyberia' })).to.equal(null);
+    });
+  });
+
+  // None of these three is readable from the route object alone, which is why
+  // the report correlates four kinds instead of reading one.
+  describe('hostIngressFactsFactory', () => {
+    const GATEWAYS = [
+      {
+        metadata: { name: 'dd-cyberia-development' },
+        spec: {
+          listeners: [
+            { name: 'http', protocol: 'HTTP' },
+            { name: 'https', protocol: 'HTTPS', tls: { certificateRefs: [{ name: 'underpost.net' }] } },
+          ],
+        },
+      },
+      { metadata: { name: 'dd-plain-development' }, spec: { listeners: [{ name: 'http', protocol: 'HTTP' }] } },
+    ];
+    const POLICIES = [
+      { spec: { targetRefs: [{ kind: 'Gateway', name: 'dd-cyberia-development', sectionName: 'https' }], http3: {} } },
+    ];
+
+    it('reads the kind, TLS and HTTP/3 for a Gateway API host', () => {
+      const facts = hostIngressFactsFactory({
+        httpRoutes: [{ spec: { hostnames: ['underpost.net'], parentRefs: [{ name: 'dd-cyberia-development' }] } }],
+        gateways: GATEWAYS,
+        clientTrafficPolicies: POLICIES,
+      });
+      expect(facts['underpost.net']).to.deep.equal({ route: 'HTTPRoute', tls: true, http3: true });
+    });
+
+    it('reads TLS from an HTTPProxy virtualhost, and never claims HTTP/3 for it', () => {
+      const facts = hostIngressFactsFactory({
+        httpProxies: [
+          { spec: { virtualhost: { fqdn: 'legacy.test', tls: { secretName: 'legacy' } } } },
+          { spec: { virtualhost: { fqdn: 'plain.test' } } },
+        ],
+      });
+      expect(facts['legacy.test']).to.deep.equal({ route: 'HTTPProxy', tls: true, http3: false });
+      expect(facts['plain.test']).to.deep.equal({ route: 'HTTPProxy', tls: false, http3: false });
+    });
+
+    it('reports no TLS for a Gateway with only a plain HTTP listener', () => {
+      const facts = hostIngressFactsFactory({
+        httpRoutes: [{ spec: { hostnames: ['plain.test'], parentRefs: [{ name: 'dd-plain-development' }] } }],
+        gateways: GATEWAYS,
+      });
+      expect(facts['plain.test']).to.deep.equal({ route: 'HTTPRoute', tls: false, http3: false });
+    });
+
+    // QUIC only exists where TLS does, so a policy on a plain listener describes
+    // nothing — the implementation rejects it too.
+    it('does not claim HTTP/3 from a policy targeting a Gateway with no TLS listener', () => {
+      const facts = hostIngressFactsFactory({
+        httpRoutes: [{ spec: { hostnames: ['plain.test'], parentRefs: [{ name: 'dd-plain-development' }] } }],
+        gateways: GATEWAYS,
+        clientTrafficPolicies: [{ spec: { targetRefs: [{ name: 'dd-plain-development' }], http3: {} } }],
+      });
+      expect(facts['plain.test'].http3).to.equal(false);
+    });
+
+    it('lets the HTTPRoute win a host described by both kinds', () => {
+      const facts = hostIngressFactsFactory({
+        httpRoutes: [{ spec: { hostnames: ['dual.test'], parentRefs: [{ name: 'dd-cyberia-development' }] } }],
+        httpProxies: [{ spec: { virtualhost: { fqdn: 'dual.test' } } }],
+        gateways: GATEWAYS,
+        clientTrafficPolicies: POLICIES,
+      });
+      expect(facts['dual.test']).to.deep.equal({ route: 'HTTPRoute', tls: true, http3: true });
+    });
+
+    it('yields nothing for missing CRDs or malformed items', () => {
+      expect(hostIngressFactsFactory()).to.deep.equal({});
+      expect(hostIngressFactsFactory({ httpProxies: [{ spec: {} }], httpRoutes: [{ spec: {} }] })).to.deep.equal({});
     });
   });
 

@@ -32,6 +32,7 @@ import {
   writeEnv,
   clusterInstancesFactory,
   deployTrafficEntriesFactory,
+  hostIngressFactsFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
   trafficTableRowsFactory,
@@ -1215,6 +1216,12 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * in the namespace are reported, so the table shows what is running rather
      * than what a flag guessed; `--dev` narrows it to development.
      *
+     * `ROUTE`, `TLS` and `HTTP3` are correlated across four kinds, because none
+     * of them is readable from the route object alone: the kind is which object
+     * exists, TLS lives on the Gateway's listener or an HTTPProxy's
+     * `virtualhost.tls`, and HTTP/3 is a `ClientTrafficPolicy` targeting that
+     * Gateway. `REPLICAS` is the routed colour's own `ready/desired`.
+     *
      * The colour is resolved through the same stack the routes were deployed
      * with: the Gateway API HTTPRoute by default, the Contour HTTPProxy under
      * `--disable-gateway-api`. `serving` is the colour's own reachability, so a
@@ -1249,7 +1256,36 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
               .sort()
           : [];
 
-      const deployedNames = Underpost.kubectl.get('', 'deployment', options.namespace).map((entry) => entry.NAME);
+      const deployments = Underpost.kubectl.get('', 'deployment', options.namespace);
+      const deployedNames = deployments.map((entry) => entry.NAME);
+      // `kubectl get -o wide` already carries READY as `ready/desired`, so the
+      // replica count costs nothing beyond the read that decides what is listed.
+      const replicasOf = (name) => deployments.find((entry) => entry.NAME === name)?.READY || '-';
+
+      // Four cluster-wide reads, correlated once: which kind describes a host,
+      // whether its listener terminates TLS, and whether QUIC is enabled on it.
+      // A missing CRD is an empty list, so a single-stack cluster reads the same
+      // way as one running both.
+      const listResources = (kind) => {
+        const raw = shellExec(`kubectl get ${kind} -A -o json`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+        });
+        try {
+          const parsed = JSON.parse(`${raw || ''}`);
+          return Array.isArray(parsed?.items) ? parsed.items : [];
+        } catch {
+          return [];
+        }
+      };
+      const ingressFacts = hostIngressFactsFactory({
+        httpRoutes: listResources('httproute'),
+        httpProxies: listResources('httpproxy'),
+        gateways: listResources('gateway'),
+        clientTrafficPolicies: listResources('clienttrafficpolicy'),
+      });
+
       // One read per host, reused across every deployment and environment that
       // shares it — the colour match is pure, only the fetch is expensive.
       const routingInfo = {};
@@ -1291,21 +1327,49 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
       // Padded on the raw values, coloured afterwards: an ANSI escape counts
       // toward String.length and would skew every column right of it.
-      const columns = ['HOST', 'PATH', 'KIND', 'ENV', 'DEPLOYMENT', 'TRAFFIC', 'SERVING'];
-      const cells = rows.map((row) => [
-        row.host,
-        row.path,
-        row.kind,
-        row.env,
-        `${row.deployment}-${row.traffic || '?'}`,
-        row.traffic || 'none',
-        row.serving ? 'yes' : 'no',
-      ]);
+      const columns = [
+        'HOST',
+        'PATH',
+        'KIND',
+        'ENV',
+        'ROUTE',
+        'TLS',
+        'HTTP3',
+        'DEPLOYMENT',
+        'TRAFFIC',
+        'REPLICAS',
+        'SERVING',
+      ];
+      const cells = rows.map((row) => {
+        const facts = ingressFacts[row.host] || {};
+        const deployment = `${row.deployment}-${row.traffic || '?'}`;
+        return [
+          row.host,
+          row.path,
+          row.kind,
+          row.env,
+          facts.route || 'none',
+          facts.tls ? 'yes' : 'no',
+          facts.http3 ? 'yes' : 'no',
+          deployment,
+          row.traffic || 'none',
+          row.traffic ? replicasOf(deployment) : '-',
+          row.serving ? 'yes' : 'no',
+        ];
+      });
       const widths = columns.map((column, i) => Math.max(column.length, ...cells.map((cell) => `${cell[i]}`.length)));
       const paint = (value, i) => {
         if (columns[i] === 'TRAFFIC')
           return value === 'blue' ? value.bgBlue.bold.black : value === 'green' ? value.bgGreen.bold.black : value.red;
         if (columns[i] === 'SERVING') return value === 'yes' ? value.green : value.red;
+        // TLS and HTTP/3 being off is a normal development state, not a fault, so
+        // only the affirmative is highlighted.
+        if (columns[i] === 'TLS' || columns[i] === 'HTTP3') return value === 'yes' ? value.green : value;
+        if (columns[i] === 'ROUTE') return value === 'none' ? value.red : value;
+        if (columns[i] === 'REPLICAS') {
+          const [ready, desired] = `${value}`.split('/');
+          return ready === desired && parseInt(ready, 10) > 0 ? value.green : value.red;
+        }
         return value;
       };
       const line = (values, painted) =>
@@ -1467,6 +1531,11 @@ EOF
           { disableLog: true },
         );
       }
+      // These hostnames may have just moved between stacks, or appeared for the
+      // first time. A shared edge that has not been told answers them from the
+      // other data plane, which has no route for them — a 404 in front of a
+      // healthy workload. No-op when no shared edge is installed.
+      Underpost.cluster.refreshUnderpostIngress({ namespace, options });
       // Refresh the gRPC service to ensure it points to the parent deploy's current traffic.
       if (promotedTraffic) {
         const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';

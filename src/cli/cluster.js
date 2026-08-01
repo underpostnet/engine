@@ -9,6 +9,13 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
 import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/underpost-gateway.js';
+import {
+  UNDERPOST_INGRESS,
+  gatewayBackendFactory,
+  underpostIngressConfFactory,
+  underpostIngressHostMapFactory,
+  underpostIngressManifestsFactory,
+} from '../server/underpost-ingress.js';
 import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/MongooseDB.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 import os from 'os';
@@ -471,6 +478,13 @@ EOF
           });
       }
 
+      // Installing one stack must never break the other. Whichever is already
+      // present decides whether this install takes the node's 80/443 for itself
+      // or joins the underpost ingress, so it is read before anything is applied.
+      const ingressPresence = Underpost.cluster.ingressStackPresence();
+      const sharedIngress =
+        (options.contour && ingressPresence.gateway) || (options.gatewayApi && ingressPresence.contour);
+
       if (options.contour) {
         shellExec(
           `kubectl apply -f https://cdn.jsdelivr.net/gh/projectcontour/contour@release-1.33/examples/render/contour.yaml`,
@@ -482,6 +496,11 @@ EOF
         // including 443 on every local address, which silently breaks whatever
         // else serves HTTPS on the node.
         Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: options.namespace });
+        // Contour's render always claims hostPort 80/443. Left in place beside a
+        // Gateway API data plane it would DNAT every packet away from it, so the
+        // claim is released and both are reached through the underpost ingress instead.
+        if (sharedIngress)
+          Underpost.cluster.releaseHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
         if (options.kubeadm) {
           // Envoy service might need NodePort for kubeadm
           shellExec(
@@ -506,7 +525,13 @@ EOF
         // out from under it, and any DaemonSet holding hostPort 80/443 would
         // swallow the traffic before the data plane's listener sees it.
         Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: options.namespace });
-        Underpost.cluster.pruneHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
+        // Contour keeps serving beside this stack when it is already installed —
+        // it only gives up the node's ports, which the underpost ingress takes over.
+        // With no Contour present the claim is removed outright, since a leftover
+        // DaemonSet from an uninstalled stack has nothing left to serve.
+        if (sharedIngress)
+          Underpost.cluster.releaseHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
+        else Underpost.cluster.pruneHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
         shellExec(
           `kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_RELEASE}/standard-install.yaml`,
         );
@@ -524,7 +549,10 @@ EOF
         // kubectl applies documents independently: without the pre-flight, a
         // field the installed Envoy Gateway does not know leaves a GatewayClass
         // pointing at an EnvoyProxy that never applied.
-        const gatewayClassYaml = Underpost.deploy.gatewayClassYamlFactory({ env, options });
+        const gatewayClassYaml = Underpost.deploy.gatewayClassYamlFactory({
+          env,
+          options: { ...options, sharedIngress },
+        });
         shellExec(`kubectl apply --dry-run=server -f - <<'EOF'
 ${gatewayClassYaml}
 EOF
@@ -562,6 +590,46 @@ EOF
           gatewayClass: Underpost.deploy.gatewayApiConfigFactory(options).gatewayClassName,
           env,
         });
+      }
+
+      // Both stacks are now installed, so the node's 80/443 belong to neither of
+      // them. Contour was installed first and Envoy Gateway is arriving, or the
+      // reverse — either way this is the point where the underpost ingress has to exist,
+      // and the data plane that just came up has to stop binding the host.
+      if (sharedIngress) {
+        if (options.contour && ingressPresence.gateway) {
+          // `--contour` against a cluster that already runs Envoy Gateway: its
+          // data plane is still on the host network from a single-stack install,
+          // so the EnvoyProxy is re-applied to move it behind the underpost ingress.
+          const gatewayClassYaml = Underpost.deploy.gatewayClassYamlFactory({
+            env: options.dev ? 'development' : 'production',
+            options: { ...options, sharedIngress: true },
+          });
+          shellExec(`kubectl apply -f - <<'EOF'
+${gatewayClassYaml}
+EOF
+`);
+          shellExec(`kubectl rollout status deployment/envoy-gateway -n envoy-gateway-system --timeout=5m`, {
+            silentOnError: true,
+          });
+        }
+        // The edge binds the node directly, so it can only come up once both data
+        // planes have actually let go — not merely once their templates say so.
+        if (!Underpost.cluster.awaitHostPortsFree({ ports: [80, 443] })) {
+          logger.error('Skipping the underpost ingress: it would not be able to bind the node ports', {
+            hint: 'resolve the holder above, then re-run this command',
+          });
+        } else {
+          Underpost.cluster.installUnderpostIngress({ namespace: options.namespace, options });
+          shellExec(
+            `kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${options.namespace} --timeout=3m`,
+            { silentOnError: true },
+          );
+          logger.info('Both ingress stacks are live behind the underpost ingress', {
+            ingress: UNDERPOST_INGRESS.name,
+            note: 'HTTP/3 is served only by the Gateway API data plane; see the underpost-ingress module',
+          });
+        }
       }
 
       if (options.certManager) {
@@ -767,6 +835,276 @@ EOF
         reason: 'the CNI hostport DNAT redirects those ports before any node listener receives them',
       });
       shellExec(`kubectl delete daemonset ${name} -n ${namespace} --ignore-not-found`);
+      return true;
+    },
+
+    /**
+     * @method releaseHostPortClaim
+     * @description Strips a DaemonSet's `hostPort` claims without removing the
+     * workload, so it keeps serving through its ClusterIP.
+     *
+     * The non-destructive half of {@link UnderpostCluster.pruneHostPortClaim}.
+     * Deleting the DaemonSet is right when one stack replaces the other, and
+     * wrong when both are meant to stay: here the data plane is still wanted,
+     * it just must not hold the node's ports any more — the underpost ingress does.
+     *
+     * Applied as a JSON Patch, one `remove` op per claiming port. A
+     * strategic-merge patch cannot express this: `ports` is a list merged by
+     * `containerPort`, so a patch that simply omits `hostPort` merges into the
+     * existing element and leaves the claim exactly where it was — reported as
+     * `patched (no change)` while the port stays held. Removing an object field
+     * does not shift array indices, so every op in one patch stays valid.
+     * @param {string} name - DaemonSet name.
+     * @param {string} namespace - Namespace to inspect.
+     * @param {Array<number>} [ports] - Host ports to release.
+     * @returns {boolean} True when the claim is gone afterwards.
+     * @memberof UnderpostCluster
+     */
+    releaseHostPortClaim({ name, namespace, ports = [80, 443] }) {
+      const readClaims = () => {
+        const raw = shellExec(
+          `kubectl get daemonset ${name} -n ${namespace} -o jsonpath='{.spec.template.spec.containers}'`,
+          { stdout: true, silent: true, silentOnError: true },
+        );
+        try {
+          const containers = JSON.parse(`${raw || ''}`);
+          return Array.isArray(containers) ? containers : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const containers = readClaims();
+      if (!containers) return false;
+      const operations = [];
+      containers.forEach((container, containerIndex) =>
+        (container.ports || []).forEach((port, portIndex) => {
+          if (port.hostPort === undefined || !ports.includes(port.hostPort)) return;
+          operations.push({
+            op: 'remove',
+            path: `/spec/template/spec/containers/${containerIndex}/ports/${portIndex}/hostPort`,
+          });
+        }),
+      );
+      if (operations.length === 0) return false;
+
+      logger.warn(`Releasing host ports on DaemonSet ${namespace}/${name}: the underpost ingress owns them now`, {
+        ports,
+        reason:
+          'its ClusterIP keeps the data plane reachable, and the hostPort DNAT would outrank the underpost ingress listener',
+      });
+      shellExec(`kubectl patch daemonset ${name} -n ${namespace} --type=json -p '${JSON.stringify(operations)}'`);
+
+      // Verified rather than assumed: this silently did nothing once already,
+      // and the failure only surfaced later as an unschedulable edge.
+      const remaining = (readClaims() || [])
+        .flatMap((container) => container.ports || [])
+        .filter((port) => ports.includes(port.hostPort));
+      if (remaining.length > 0) {
+        logger.error(`Failed to release host ports on DaemonSet ${namespace}/${name}`, {
+          stillClaimed: remaining.map((port) => port.hostPort),
+        });
+        return false;
+      }
+      shellExec(`kubectl rollout status daemonset/${name} -n ${namespace} --timeout=3m`, { silentOnError: true });
+      return true;
+    },
+
+    /**
+     * @method awaitHostPortsFree
+     * @description Blocks until no known ingress data plane still holds the node's ports.
+     *
+     * Releasing a claim edits a template; the pod holding the socket goes away
+     * only once the rollout completes. Applying the edge before that leaves it
+     * either unschedulable or crash-looping on `bind() … Address in use`, and
+     * neither failure names the pod that is actually holding the port.
+     * @param {Array<number>} [ports] - Host ports that must be free.
+     * @param {string} [contourNamespace] - Namespace holding Contour.
+     * @param {number} [timeoutMs] - How long to wait.
+     * @returns {boolean} True once nothing claims them.
+     * @memberof UnderpostCluster
+     */
+    awaitHostPortsFree({ ports = [80, 443], contourNamespace = CONTOUR_NAMESPACE, timeoutMs = 3 * 60 * 1000 } = {}) {
+      const deadline = Date.now() + timeoutMs;
+      const holders = () => {
+        const found = [];
+        const contourPorts = `${
+          shellExec(
+            `kubectl get daemonset envoy -n ${contourNamespace} ` +
+              `-o jsonpath='{.spec.template.spec.containers[*].ports[*].hostPort}'`,
+            { stdout: true, silent: true, silentOnError: true },
+          ) || ''
+        }`
+          .split(/\s+/)
+          .map((port) => parseInt(port, 10))
+          .filter((port) => ports.includes(port));
+        if (contourPorts.length > 0) found.push(`${contourNamespace}/envoy hostPort ${contourPorts.join(',')}`);
+        // The Gateway API data plane takes the ports through the host network
+        // rather than a hostPort, so its claim is the network mode itself.
+        const gatewayHostNetwork = `${
+          shellExec(
+            `kubectl get deployment -n envoy-gateway-system -l app.kubernetes.io/name=envoy ` +
+              `-o jsonpath='{.items[*].spec.template.spec.hostNetwork}'`,
+            { stdout: true, silent: true, silentOnError: true },
+          ) || ''
+        }`.trim();
+        if (gatewayHostNetwork.includes('true')) found.push('envoy-gateway-system data plane hostNetwork');
+        return found;
+      };
+
+      let current = holders();
+      while (current.length > 0 && Date.now() < deadline) {
+        logger.info('Waiting for the node ports to be released', { ports, heldBy: current });
+        shellExec('sleep 5', { silent: true });
+        current = holders();
+      }
+      if (current.length > 0) {
+        logger.error('Node ports are still held; the underpost ingress cannot bind them', {
+          ports,
+          heldBy: current,
+        });
+        return false;
+      }
+      return true;
+    },
+
+    /**
+     * @method ingressStackPresence
+     * @description Which ingress data planes are installed right now.
+     *
+     * Read from the cluster rather than from the flags, because the whole point
+     * is to react to what a previous invocation left behind: `--contour` run
+     * against a cluster that already has Envoy Gateway has to behave differently
+     * from `--contour` on an empty one.
+     * @param {string} [contourNamespace] - Namespace holding Contour.
+     * @returns {{contour: boolean, gateway: boolean}} Presence of each stack.
+     * @memberof UnderpostCluster
+     */
+    ingressStackPresence(contourNamespace = CONTOUR_NAMESPACE) {
+      const exists = (cmd) =>
+        `${shellExec(cmd, { stdout: true, silent: true, silentOnError: true }) || ''}`.trim().length > 0;
+      return {
+        contour: exists(`kubectl get daemonset envoy -n ${contourNamespace} -o name`),
+        gateway: exists(`kubectl get deployment envoy-gateway -n envoy-gateway-system -o name`),
+      };
+    },
+
+    /**
+     * @method refreshUnderpostIngress
+     * @description Rebuilds the underpost ingress host table after routes change.
+     *
+     * The table maps each hostname to the data plane that has a route object for
+     * it, so it goes stale the moment a host is published — a hostname added
+     * after the last build falls through to the default backend, which is the
+     * *other* stack, and answers 404 for a workload that is running perfectly.
+     * Every path that publishes a route therefore ends here.
+     *
+     * A no-op when the ingress is not installed, which is the single-stack case:
+     * there is no table to keep, because the one data plane owns the ports.
+     * The rendered config is unchanged by a blue/green promotion — the table is
+     * host to stack, not host to colour — so an ordinary deploy re-applies the
+     * same bytes and nothing restarts.
+     * @param {string} [namespace] - Namespace holding the ingress.
+     * @param {object} [options] - Cluster options (node pinning).
+     * @returns {boolean} True when the table was rebuilt.
+     * @memberof UnderpostCluster
+     */
+    refreshUnderpostIngress({ namespace = 'default', options = {} } = {}) {
+      const installed = `${
+        shellExec(`kubectl get deployment ${UNDERPOST_INGRESS.name} -n ${namespace} -o name`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+        }) || ''
+      }`.trim();
+      if (!installed) return false;
+      return Underpost.cluster.installUnderpostIngress({ namespace, options });
+    },
+
+    /**
+     * @method installUnderpostIngress
+     * @description Installs or refreshes the underpost ingress in front of both data planes.
+     *
+     * The host table is built from the route objects that actually exist, so a
+     * hostname reaches the stack that describes it no matter which flag was used
+     * last. Rebuilt on every call, which is what keeps it correct after routes
+     * move between stacks.
+     * @param {string} [namespace] - Namespace to deploy the underpost ingress into.
+     * @param {object} [options] - Cluster options (node pinning).
+     * @returns {boolean} True when the underpost ingress was applied.
+     * @memberof UnderpostCluster
+     */
+    installUnderpostIngress({ namespace = 'default', options = {} } = {}) {
+      const presence = Underpost.cluster.ingressStackPresence();
+      // Each kind names its hosts in its own field, so each is read with its own
+      // jsonpath rather than one expression that happens to tolerate the other's
+      // shape being absent.
+      const HOST_FIELD = { httpproxy: '.spec.virtualhost.fqdn', httproute: '.spec.hostnames[*]' };
+      const hostsOf = (kind) =>
+        `${
+          shellExec(`kubectl get ${kind} -A -o jsonpath='{range .items[*]}{${HOST_FIELD[kind]}}{" "}{end}'`, {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+          }) || ''
+        }`
+          .split(/\s+/)
+          .map((host) => host.trim())
+          .filter(Boolean);
+
+      const backends = {};
+      if (presence.contour) backends.contour = UNDERPOST_INGRESS.backends.contour;
+      if (presence.gateway) {
+        // Envoy Gateway names its own data plane Service, so it is discovered
+        // rather than assumed; without it the underpost ingress would proxy to nothing.
+        const service = `${
+          shellExec(
+            `kubectl get svc -n envoy-gateway-system -l app.kubernetes.io/name=envoy -o jsonpath='{.items[0].metadata.name}'`,
+            { stdout: true, silent: true, silentOnError: true },
+          ) || ''
+        }`.trim();
+        if (service) backends.gateway = gatewayBackendFactory(service);
+        else logger.warn('Envoy Gateway is installed but has provisioned no data plane Service yet');
+      }
+      if (Object.keys(backends).length === 0) {
+        logger.warn('No ingress data plane installed; skipping the underpost ingress');
+        return false;
+      }
+
+      const { entries, conflicts } = underpostIngressHostMapFactory({
+        contourHosts: presence.contour ? hostsOf('httpproxy') : [],
+        gatewayHosts: presence.gateway ? hostsOf('httproute') : [],
+      });
+      if (conflicts.length > 0)
+        logger.warn('Hosts described by both stacks; the Gateway API route wins until the HTTPProxy is removed', {
+          conflicts,
+        });
+
+      const conf = underpostIngressConfFactory({
+        entries,
+        backends,
+        resolver: Underpost.deploy.clusterDnsFactory(),
+        defaultBackend: backends.gateway ? 'gateway' : 'contour',
+      });
+      shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
+${underpostIngressManifestsFactory({
+  namespace,
+  conf,
+  nodeName: Underpost.deploy.resolveDeployNode({
+    node: options.nodeName,
+    kind: options.kind,
+    kubeadm: options.kubeadm,
+    k3s: options.k3s,
+    env: options.dev ? 'development' : 'production',
+  }),
+})}
+EOF
+`);
+      logger.info('Underpost ingress applied', {
+        namespace,
+        backends: Object.keys(backends),
+        hosts: entries.length,
+      });
       return true;
     },
 

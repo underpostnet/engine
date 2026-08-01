@@ -374,7 +374,39 @@ The Gateway API stack with QUIC/HTTP3 is the default for **every** runner that t
 
 QUIC only exists where TLS does, so `--dev` without `--self-signed` yields an HTTP-only listener and no HTTP/3.
 
-**Traffic colour detection.** `getCurrentTraffic` reads the blue/green colour from whichever object carries it: the `HTTPRoute` backendRef, the `HTTPProxy` service, or — for a host whose errors the gateway intercepts — the `conf.d/<host>.conf` server block, because that host's route points at `underpost-gateway-service` and holds no colour of its own. All three are read on every call, so a blue/green promotion behaves identically in either stack and whether or not the host is intercepted.
+**Traffic colour detection.** `getCurrentTraffic` reads the blue/green colour from whichever object carries it: the `HTTPRoute` backendRef, the `HTTPProxy` service, or — for a host whose errors the gateway intercepts — the `conf.d/<host>.conf` server block, because that host's route points at `underpost-gateway-service` and holds no colour of its own. All three are read on every call, so a blue/green promotion behaves identically in either stack and whether or not the host is intercepted. When the selected kind names no colour, the other kind is probed before concluding there is none — which kind describes a host is a property of the cluster, not of the flags used to ask.
+
+### Running both stacks at once
+
+Installing one stack no longer breaks the other. `--contour` on a cluster that already runs Envoy Gateway, and `--gateway-api` on a cluster that already runs Contour, both converge on the same layout — **order does not matter**:
+
+```
+                 :80 / :443 / :443-udp  (host network)
+                              │
+                     underpost-ingress  (nginx)
+                     │                      │
+       Host header ──┤ :80  L7              │ :443  L4, SNI
+                     │                      │
+          ┌──────────┴────────┐   ┌─────────┴─────────┐
+          │ envoy             │   │ envoy-eg-<hash>   │
+          │ projectcontour    │   │ envoy-gateway-sys │
+          │ HTTPProxy hosts   │   │ HTTPRoute hosts   │
+          └───────────────────┘   └───────────────────┘
+```
+
+`underpost-ingress` owns the node's ports and hands each connection to the data plane that has a route object for that hostname. Both data planes are moved off the host: Contour's `hostPort` claim is released (the DaemonSet is patched, not deleted, so it keeps serving through its ClusterIP), and the Envoy Gateway `EnvoyProxy` is re-applied without `hostNetwork`. Neither is uninstalled, and neither has to be.
+
+It is a distinct workload from `underpost-gateway`, and the two sit on opposite sides of the data plane: `underpost-ingress` is in front of Contour and Envoy Gateway, while `underpost-gateway` is a backend they route to for status pages and intercepted contexts.
+
+Why the split by port:
+
+- **`:80` is proxied at L7.** A plaintext request carries a readable `Host`, and the backends answer it with their own redirect or content.
+- **`:443` is forwarded at L4 by SNI** (`ssl_preread`). Terminating TLS at `underpost-ingress` would mean holding every host's certificate and re-negotiating ALPN; passing the bytes through keeps certificates, HTTP/2 and mTLS exactly where they already work.
+- **`:443/udp` goes entirely to the Gateway API data plane.** QUIC cannot be routed by hostname — `ssl_preread` is TCP-only and a QUIC Initial carries its SNI inside an encrypted frame. Only Envoy Gateway serves HTTP/3 here and only it advertises `Alt-Svc`, so this is not a restriction in practice: a client that tries QUIC against a Contour host gets no answer and falls back to TCP.
+
+A hostname that has **both** an `HTTPProxy` and an `HTTPRoute` is a leftover from switching stacks, not a valid state. The Gateway API route wins and the duplicate is logged so it can be removed — nothing deletes the other kind's objects automatically.
+
+Single-stack installs are unchanged: with only one data plane present the old behaviour applies, and Contour keeps its `hostPort` claim.
 
 ### Custom instances
 

@@ -2239,6 +2239,66 @@ const deployTrafficEntriesFactory = ({ deployId, env }) => {
 };
 
 /**
+ * @method hostIngressFactsFactory
+ * @description What the cluster's routing objects say about each hostname: which
+ * kind describes it, whether it is served over TLS, and whether HTTP/3 is on.
+ *
+ * None of the three can be read from the route object alone. The kind is which
+ * object exists; TLS lives on the Gateway's listener (an HTTPRoute never carries
+ * it) or on an HTTPProxy's `virtualhost.tls`; and HTTP/3 is a `ClientTrafficPolicy`
+ * targeting that Gateway. So the answer is a correlation across four kinds, done
+ * once for the whole cluster rather than per row.
+ *
+ * A hostname described by both kinds is a leftover from switching stacks; the
+ * HTTPRoute wins, matching the precedence the shared ingress routes it with.
+ * @param {Array<object>} [httpRoutes] - HTTPRoute items.
+ * @param {Array<object>} [httpProxies] - HTTPProxy items.
+ * @param {Array<object>} [gateways] - Gateway items.
+ * @param {Array<object>} [clientTrafficPolicies] - ClientTrafficPolicy items.
+ * @returns {Object<string,{route: string, tls: boolean, http3: boolean}>} Facts by hostname.
+ * @memberof ServerConfBuilder
+ */
+const hostIngressFactsFactory = ({
+  httpRoutes = [],
+  httpProxies = [],
+  gateways = [],
+  clientTrafficPolicies = [],
+} = {}) => {
+  const tlsGateways = new Set(
+    gateways
+      .filter((gateway) =>
+        (gateway?.spec?.listeners || []).some((listener) => `${listener?.protocol}`.toUpperCase() === 'HTTPS'),
+      )
+      .map((gateway) => gateway?.metadata?.name)
+      .filter(Boolean),
+  );
+  // QUIC only exists where TLS does, so a policy naming a Gateway with no HTTPS
+  // listener describes nothing — the same reason the policy is emitted scoped to
+  // the HTTPS section in the first place.
+  const http3Gateways = new Set(
+    clientTrafficPolicies
+      .filter((policy) => policy?.spec?.http3 !== undefined)
+      .flatMap((policy) => [...(policy?.spec?.targetRefs || []), policy?.spec?.targetRef].filter(Boolean))
+      .map((ref) => ref?.name)
+      .filter((name) => name && tlsGateways.has(name)),
+  );
+
+  const facts = {};
+  for (const proxy of httpProxies) {
+    const host = proxy?.spec?.virtualhost?.fqdn;
+    if (!host) continue;
+    facts[host] = { route: 'HTTPProxy', tls: !!proxy?.spec?.virtualhost?.tls, http3: false };
+  }
+  for (const route of httpRoutes) {
+    const parents = (route?.spec?.parentRefs || []).map((ref) => ref?.name).filter(Boolean);
+    const tls = parents.some((name) => tlsGateways.has(name));
+    const http3 = parents.some((name) => http3Gateways.has(name));
+    for (const host of route?.spec?.hostnames || []) if (host) facts[host] = { route: 'HTTPRoute', tls, http3 };
+  }
+  return facts;
+};
+
+/**
  * @method trafficTableRowsFactory
  * @description Resolves the live colour of each routable deployment, optionally
  * narrowed to a set of hosts.
@@ -3003,6 +3063,7 @@ export {
   instanceStatusPageDeployIdFactory,
   instanceStatusPageEntriesFactory,
   deployTrafficEntriesFactory,
+  hostIngressFactsFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
