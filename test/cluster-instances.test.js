@@ -16,6 +16,7 @@ import {
   normalizeInstanceTopology,
 } from '../src/server/conf.js';
 import { statusPageAssetPathFactory } from '../src/server/underpost-gateway.js';
+import UnderpostDockerCompose from '../src/cli/docker-compose.js';
 
 test; // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
 // relative to the process cwd, mirroring every other conf loader. engine-private
@@ -131,6 +132,13 @@ describe('cluster custom instances', () => {
       const builder = await loadProjectInstanceEnvBuilder('dd-cyberia');
       expect(builder).to.be.a('function').and.have.property('name', 'buildCyberiaMmoInstanceEnv');
       expect(await loadProjectInstanceEnvBuilder('dd-fixture-a')).to.equal(null);
+    });
+
+    it('preserves and bounds variant paths in the compose gateway', () => {
+      const nginx = UnderpostDockerCompose.instancesNginxContent({ deployId: 'dd-fixture-a' });
+      expect(nginx).to.include('location = /FOREST/ws {');
+      expect(nginx).to.include('location ^~ /FOREST/ {');
+      expect(nginx).not.to.include('rewrite ^/FOREST');
     });
   });
 

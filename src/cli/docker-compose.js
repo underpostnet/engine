@@ -439,7 +439,7 @@ ${headers}`;
         const upstream = `cyberia-server${v.suffix}:8081`;
         const varName = `$up_server_${v.slug || 'default'}`;
         if (v.isDefault) return `        location = /ws {\n${proxyBlock(varName, upstream)}\n        }`;
-        return `        location ${v.path}/ws {\n${proxyBlock(varName, upstream)}\n        }`;
+        return `        location = ${v.path}/ws {\n${proxyBlock(varName, upstream)}\n        }`;
       })
       .join('\n\n');
 
@@ -450,7 +450,7 @@ ${headers}`;
         const varName = `$up_client_${v.slug || 'default'}`;
         if (v.isDefault) return `        location / {\n${proxyBlock(varName, upstream)}\n        }`;
         return `        location = ${v.path} { return 301 ${v.path}/; }
-        location ${v.path} {\n${proxyBlock(varName, upstream)}\n        }`;
+        location ^~ ${v.path}/ {\n${proxyBlock(varName, upstream)}\n        }`;
       })
       .join('\n\n');
 
