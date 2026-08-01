@@ -3,6 +3,7 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
 import {
+  curlStatusChainFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
@@ -29,6 +30,29 @@ const planFactory = ({ live = {}, ready = {}, requestedTraffic = '', instances =
   });
 
 describe('blue/green traffic plan', () => {
+  describe('curlStatusChainFactory', () => {
+    it('extracts every followed response without duplicating -i headers', () => {
+      const raw = [
+        '< HTTP/1.1 301 Moved Permanently',
+        'HTTP/1.1 301 Moved Permanently',
+        '< HTTP/2 200',
+        'HTTP/2 200',
+        'UNDERPOST_CURL_FINAL=200',
+      ].join('\n');
+      expect(curlStatusChainFactory(raw)).to.deep.equal(['301', '200']);
+    });
+
+    it('ignores proxy CONNECT acknowledgements and reports no-response as 000', () => {
+      expect(curlStatusChainFactory('< HTTP/1.1 200 Connection established\nUNDERPOST_CURL_FINAL=000')).to.deep.equal([
+        '000',
+      ]);
+    });
+
+    it('uses curl write-out when no verbose response line was emitted', () => {
+      expect(curlStatusChainFactory('UNDERPOST_CURL_FINAL=204')).to.deep.equal(['204']);
+    });
+  });
+
   describe('nextTrafficFactory', () => {
     it('flips the live colour', () => {
       expect(nextTrafficFactory('blue')).to.equal('green');
@@ -564,6 +588,16 @@ describe('blue/green traffic plan', () => {
       expect(listServices).to.be.greaterThan(-1);
       expect(stableSelector).to.be.greaterThan(listServices);
       expect(legacyRoute).to.be.greaterThan(stableSelector);
+    });
+
+    it('uses real followed curl probes and adds OPPOSITE dynamically', () => {
+      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const start = runSource.indexOf("    'get-traffic': async");
+      const end = runSource.indexOf("    'instance-promote': async", start);
+      const getTraffic = runSource.slice(start, end);
+      expect(getTraffic).to.include('curl -L -v -i -s');
+      expect(getTraffic).to.include("...(showOpposite ? ['OPPOSITE'] : [])");
+      expect(getTraffic).to.include("`${probe.path} [${probe.statuses.join('→')}]`");
     });
   });
 });

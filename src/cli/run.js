@@ -15,6 +15,9 @@ import {
   dispatchBuildInstanceEnv,
   deployHostsFactory,
   etcHostFactory,
+  exposePartialMatchesFactory,
+  exposePathPartsFactory,
+  exposeTcpPortsFactory,
   gatewayApiEnabledFactory,
   getNpmRootPath,
   instanceHttpRouteRulesFactory,
@@ -257,33 +260,6 @@ const DEFAULT_OPTION = {
   volumeType: '',
 };
 
-const exposeTcpPortsFactory = (resource) =>
-  `${resource?.['PORT(S)'] || ''}`
-    .split(',')
-    .filter((port) => port.includes('/TCP'))
-    .map((port) => parseInt(port.split(':')[0]))
-    .filter((port) => Number.isInteger(port) && port > 0);
-
-const exposePathPartsFactory = (path = '') => {
-  const parts = `${path}`
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) throw new Error('Expose requires a Service or Pod name in path');
-  if (parts.some((part) => !/^[a-zA-Z0-9._-]+$/.test(part)))
-    throw new Error(`Invalid Kubernetes resource name match: ${path}`);
-  return parts;
-};
-
-const exposePartialMatchesFactory = (resources, pathParts) =>
-  resources
-    .filter(({ NAME }) => pathParts.some((part) => `${NAME || ''}`.includes(part)))
-    .sort((a, b) => {
-      const exactA = pathParts.includes(a.NAME) ? 0 : 1;
-      const exactB = pathParts.includes(b.NAME) ? 0 : 1;
-      return exactA - exactB || `${a.NAME}`.localeCompare(`${b.NAME}`);
-    });
-
 /**
  * @class UnderpostRun
  * @description Manages the execution of various CLI commands and operations.
@@ -455,9 +431,7 @@ class UnderpostRun {
         }
         remotePorts = [...new Set(remotePorts)];
         if (remotePorts.length === 0)
-          throw new Error(
-            `No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-port <remote-port>`,
-          );
+          throw new Error(`No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-port <remote-port>`);
 
         for (const remotePort of remotePorts) {
           let localPort = firstLocalPort ? firstLocalPort + plan.length : remotePort;
@@ -550,16 +524,6 @@ class UnderpostRun {
       }
       const hostListenResult = etcHostFactory([primaryMongoHost]);
       logger.info(hostListenResult.renderHosts);
-    },
-
-    /**
-     * @method ipfs-expose
-     * @description Exposes every declared TCP port on the matching IPFS Cluster Service.
-     * @type {Function}
-     * @memberof UnderpostRun
-     */
-    'ipfs-expose': (path, options = DEFAULT_OPTION) => {
-      return UnderpostRun.RUNNERS.expose(path || 'ipfs-cluster', options);
     },
 
     /**

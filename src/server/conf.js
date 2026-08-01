@@ -2616,6 +2616,71 @@ const clusterTypeFactory = (options = {}, defaultType = 'kind') =>
   options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : defaultType;
 
 /**
+ * A row returned by {@link UnderpostKubectl.get}. Column names come from
+ * `kubectl get -o wide`; Services expose their port column as `PORT(S)`.
+ *
+ * @typedef {Object<string, string|undefined>} ExposeKubernetesResource
+ * @property {string} NAME - Kubernetes resource name.
+ */
+
+/**
+ * @method exposeTcpPortsFactory
+ * @description Extracts TCP Service ports from a parsed
+ * `kubectl get svc -o wide` row. NodePort suffixes are ignored, so
+ * `8080:32080/TCP` resolves to Service port `8080`.
+ * @param {ExposeKubernetesResource} resource - Parsed Kubernetes resource row.
+ * @returns {number[]} Positive TCP Service ports in the order reported by kubectl.
+ * @memberof ServerConfBuilder
+ */
+const exposeTcpPortsFactory = (resource) =>
+  `${resource?.['PORT(S)'] || ''}`
+    .split(',')
+    .filter((port) => port.includes('/TCP'))
+    .map((port) => parseInt(port.split(':')[0]))
+    .filter((port) => Number.isInteger(port) && port > 0);
+
+/**
+ * @method exposePathPartsFactory
+ * @description Parses a comma-separated expose runner path into safe literal
+ * Kubernetes name fragments. These are literal fragments, not regular
+ * expressions or shell input.
+ * @param {string} [path=''] - Comma-separated Service or Pod name fragments.
+ * @returns {string[]} Trimmed, non-empty literal resource-name fragments.
+ * @throws {Error} When no fragment is supplied or a fragment contains
+ * characters outside `[a-zA-Z0-9._-]`.
+ * @memberof ServerConfBuilder
+ */
+const exposePathPartsFactory = (path = '') => {
+  const parts = `${path}`
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) throw new Error('Expose requires a Service or Pod name in path');
+  if (parts.some((part) => !/^[a-zA-Z0-9._-]+$/.test(part)))
+    throw new Error(`Invalid Kubernetes resource name match: ${path}`);
+  return parts;
+};
+
+/**
+ * @method exposePartialMatchesFactory
+ * @description Selects every resource whose `NAME` contains any requested
+ * literal path fragment. Exact-name matches sort first, followed by remaining
+ * partial matches in stable lexical name order. The input array is not mutated.
+ * @param {ExposeKubernetesResource[]} resources - Parsed Kubernetes resource rows.
+ * @param {string[]} pathParts - Literal name fragments from {@link exposePathPartsFactory}.
+ * @returns {ExposeKubernetesResource[]} Matching resource rows in deterministic order.
+ * @memberof ServerConfBuilder
+ */
+const exposePartialMatchesFactory = (resources, pathParts) =>
+  resources
+    .filter(({ NAME }) => pathParts.some((part) => `${NAME || ''}`.includes(part)))
+    .sort((a, b) => {
+      const exactA = pathParts.includes(a.NAME) ? 0 : 1;
+      const exactB = pathParts.includes(b.NAME) ? 0 : 1;
+      return exactA - exactB || `${a.NAME}`.localeCompare(`${b.NAME}`);
+    });
+
+/**
  * @method gatewayApiEnabledFactory
  * @description Whether a workflow routes through the Gateway API stack.
  *
@@ -3147,6 +3212,9 @@ export {
   cronDeployIdResolve,
   clusterContextFactory,
   clusterTypeFactory,
+  exposeTcpPortsFactory,
+  exposePathPartsFactory,
+  exposePartialMatchesFactory,
   deployHostsFactory,
   clusterInstancesFactory,
   etcHostFactory,

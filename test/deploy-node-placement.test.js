@@ -36,4 +36,10 @@ describe('deployment node placement', () => {
     expect(runner).to.include('kubectl patch');
     expect(runner).to.not.match(/shellExec\(`kubectl rollout restart/);
   });
+
+  it('forwards --node-name into live and generated custom-instance manifests', () => {
+    const source = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+    const placements = source.match(/nodeName: options\.nodeName\s*\? Underpost\.deploy\.resolveDeployNode/g) || [];
+    expect(placements).to.have.length(2);
+  });
 });
