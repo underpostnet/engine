@@ -466,8 +466,8 @@ class UnderpostRun {
           services: 'service',
         })[k] || k;
 
-      // Kinds that own a pod template we can patch; rolloutKinds additionally
-      // support `kubectl rollout restart` to reschedule existing pods now.
+      // Kinds that own a pod template we can patch. Changing that template is
+      // itself the controller's rollout trigger.
       const templated = [
         'deployment',
         'statefulset',
@@ -477,7 +477,6 @@ class UnderpostRun {
         'cronjob',
         'replicationcontroller',
       ];
-      const rolloutKinds = ['deployment', 'statefulset', 'daemonset'];
       const templateSelectorPath = (kind) =>
         kind === 'cronjob'
           ? ['spec', 'jobTemplate', 'spec', 'template', 'spec', 'nodeSelector']
@@ -566,10 +565,9 @@ class UnderpostRun {
           continue;
         }
 
-        // Idempotency: skip the patch + rollout if the resource is already where
-        // we want it. Compares the live pod-template nodeSelector against the
-        // desired placement so a repeated run does not trigger an unnecessary
-        // rollout restart.
+        // Idempotency: skip the patch if the resource is already where we want
+        // it. Compares the live pod-template nodeSelector against the desired
+        // placement so a repeated run does not trigger an unnecessary rollout.
         const basePath = kind === 'cronjob' ? 'spec.jobTemplate.spec.template.spec' : 'spec.template.spec';
         const jsonpath = (expr) =>
           shellExec(`kubectl get ${kind} ${name} -n ${ns} -o jsonpath='${expr}'`, {
@@ -599,16 +597,17 @@ class UnderpostRun {
         }
 
         const patchCmd = `kubectl patch ${kind} ${name} -n ${ns} --type=merge -p '${buildPatch(kind)}'`;
-        const restartCmd = `kubectl rollout restart ${kind} ${name} -n ${ns}`;
         if (dryRun) {
           logger.info(`[dry-run] ${patchCmd}`);
-          if (rolloutKinds.includes(kind)) logger.info(`[dry-run] ${restartCmd}`);
           results.push({ ref, kind, status: 'dry-run', node: remove ? undefined : node });
           continue;
         }
 
         shellExec(patchCmd);
-        if (rolloutKinds.includes(kind)) shellExec(restartCmd);
+        // nodeSelector is part of the pod template, so this patch already
+        // creates a new controller revision. A rollout restart here creates a
+        // second, immediately superseding revision and can strand the previous
+        // Ready replica in "pending termination" while the newest pod starts.
         logger.info(remove ? `Cleared node placement: ${kind}/${name}` : `Moved ${kind}/${name} -> ${node}`, {
           namespace: ns,
         });
