@@ -343,7 +343,6 @@ program
   .option('--remove', 'Deletes specified deployments and their associated services.')
   .option('--sync', 'Synchronizes deployment environment variables, ports, and replica counts.')
   .option('--info-router', 'Displays the current router structure and configuration.')
-  .option('--expose', 'Exposes services matching the provided deployment ID list.')
   .option('--cert', 'Resets TLS/SSL certificate secrets for deployments.')
   .option('--cert-hosts <hosts>', 'Resets TLS/SSL certificate secrets for specified hosts.')
   .option(
@@ -400,30 +399,12 @@ program
   )
   .option('--quic-port <port>', 'UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443).')
   .option('--disable-update-volume', 'Disables updates to volume mounts during deployment.')
-  .option(
-    '--status',
-    'Retrieves current network traffic data from resource deployments and the host machine network configuration.',
-  )
   .option('--kubeadm', 'Enables the kubeadm context for deployment operations.')
   .option('--k3s', 'Enables the k3s context for deployment operations.')
   .option('--kind', 'Enables the kind context for deployment operations.')
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
   .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
-  .option('--kind-type <kind-type>', 'Specifies the Kind cluster type for deployment operations.')
-  .option('--port <port>', 'Sets up port forwarding from local to remote ports.')
-  .option(
-    '--expose-port <port>',
-    'Sets the local:remote port to expose when --expose is active (overrides auto-detected service port).',
-  )
-  .option(
-    '--expose-local-port <port>',
-    'Sets a different local port for --expose (e.g. 80) while keeping the remote service port. Useful for /etc/hosts local access without specifying a port in the browser.',
-  )
-  .option(
-    '--local-proxy',
-    'Forward all service TCP ports locally and start the Node.js path-routing proxy. Enables full path-based routing (e.g. /wp alongside /) without needing --expose-local-port. Requires --expose.',
-  )
   .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
   .option(
     '--skip-full-build',
@@ -436,12 +417,6 @@ program
   .option(
     '--image-pull-policy <policy>',
     'Override container imagePullPolicy in the generated deployment manifest (Always, IfNotPresent, Never). Defaults to Never for localhost/ images and IfNotPresent otherwise.',
-  )
-  .option(
-    '--tls',
-    'Enables TLS for the local proxy started by --expose --local-proxy. ' +
-      'The proxy will serve HTTPS on port 443 using self-signed certificates resolved from the local SSL store. ' +
-      'Use together with --expose and --local-proxy.',
   )
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
@@ -694,6 +669,12 @@ program
     'Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa.',
   )
   .option('--port <port>', 'Optional: Specifies the port for execution.')
+  .option('--expose-port <port>', 'Remote Service or Pod port selected by the expose runner.')
+  .option(
+    '--expose-local-port <port>',
+    'First local port used by the expose runner; additional matches use subsequent available ports.',
+  )
+  .option('--local-proxy', 'Starts the development path proxy after the expose runner creates its port-forwards.')
   .option('--etc-hosts', 'Enables etc-hosts context for the runner execution.')
   .option('--volume-host-path <volume-host-path>', 'Optional: Specifies the volume host path for test execution.')
   .option('--volume-mount-path <volume-mount-path>', 'Optional: Specifies the volume mount path for test execution.')
@@ -729,7 +710,10 @@ program
     '--resource-template-id <resource-template-id >',
     'Specifies a resource template ID for the runner execution.',
   )
-  .option('--expose', 'Enables service exposure for the runner execution.')
+  .option(
+    '--expose',
+    'Enables exposure-only behavior in compatible runners; the expose runner itself does not require this flag.',
+  )
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
   .option('--cmd-cron-jobs <cmd-cron-jobs>', 'Pre-script commands to run before cron job execution.')
