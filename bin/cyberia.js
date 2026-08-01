@@ -17,7 +17,7 @@ import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
-import { loadConfServerJson, normalizeInstanceTopology } from '../src/server/conf.js';
+import { etcHostFactory, loadConfServerJson, normalizeInstanceTopology } from '../src/server/conf.js';
 import {
   ObjectLayerEngine,
   resolveCanonicalCid,
@@ -95,6 +95,22 @@ async function connectDbForChain({ envPath, mongoHost }) {
 
 /** @type {Function} */
 const logger = loggerFactory(import.meta);
+
+const CYBERIA_DOCKER_HOST_ALIASES = ['cyberia-client', 'cyberia-server', 'engine-cyberia'];
+
+const installCyberiaDockerHostAliases = () => {
+  try {
+    const { changed } = etcHostFactory(CYBERIA_DOCKER_HOST_ALIASES, {
+      append: true,
+      blockId: 'dd-cyberia-docker-compose',
+    });
+    return { aliases: CYBERIA_DOCKER_HOST_ALIASES, changed };
+  } catch (error) {
+    if (error?.code === 'EACCES' || error?.code === 'EPERM')
+      throw new Error('Cannot update /etc/hosts for Cyberia Docker aliases. Re-run the workflow as root.');
+    throw error;
+  }
+};
 
 try {
   const program = new Command();
@@ -4835,6 +4851,7 @@ try {
       '--clean',
       'Restore repositories to canonical state (git checkout Dockerfile, etc.) before updating compose.env',
     )
+    .option('--test', 'Test DNS connectivity accross cyberia deployments')
     .option('--reset', 'Reset the development environment before updating compose.env')
     .action((options) => {
       if (options.reset) {
@@ -4846,6 +4863,22 @@ try {
         shellExec(`node bin run clean`);
         shellExec(`node bin run clean ./cyberia-server`);
         shellExec(`node bin run clean ./cyberia-client`);
+        return;
+      }
+      if (options.test) {
+        const testHosts = [
+          'localhost',
+          'localhost:4005',
+          'localhost:8081',
+          'localhost:8082',
+          'engine-cyberia',
+          'cyberia-server',
+          'cyberia-client',
+        ];
+        for (const host of testHosts)
+          shellExec(`curl -L -v -i -s http://${host} | head -n 10`, {
+            silentOnError: true,
+          });
         return;
       }
       const envPath = `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`;
@@ -5038,6 +5071,10 @@ node bin image --path cyberia-client \
 
   for (const [cmd, action] of Object.entries(DOCKER_SCRIPTS))
     runner.command(cmd).action(() => {
+      if (cmd === 'docker:up' || cmd === 'docker:up:build' || cmd === 'docker:restart') {
+        const { aliases, changed } = installCyberiaDockerHostAliases();
+        logger.info(`Docker host aliases ${changed ? 'installed' : 'already configured'}`, { aliases });
+      }
       shellExec(action);
     });
 
