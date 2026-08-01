@@ -843,7 +843,8 @@ The join command is retrieved live from the control-plane over SSH (`kubeadm tok
 | `--claim-name <name>`            | Container | PVC name                                     |
 | `--host-network`                 | Container | Use host networking                          |
 | `--tls`                          | Deploy    | Enable TLS                                   |
-| `--expose`                       | Deploy    | Expose services                              |
+| `run status [deploy-list]`       | Run       | Inspect production status (`--dev` for development) |
+| `run expose <partial-name>`      | Run       | Expose matching Services, falling back to Pods |
 | `--etc-hosts`                    | Deploy    | Modify /etc/hosts for local DNS              |
 | `--build`                        | Build     | Trigger build                                |
 | `--reset`                        | Cluster   | Reset cluster state                          |

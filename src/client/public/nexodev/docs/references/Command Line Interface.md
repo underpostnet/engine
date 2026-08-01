@@ -468,7 +468,6 @@ Manages application deployments, defaulting to deploying development pods.
 | `--remove` | Deletes specified deployments and their associated services. |
 | `--sync` | Synchronizes deployment environment variables, ports, and replica counts. |
 | `--info-router` | Displays the current router structure and configuration. |
-| `--expose` | Exposes services matching the provided deployment ID list. |
 | `--cert` | Resets TLS/SSL certificate secrets for deployments. |
 | `--cert-hosts <hosts>` | Resets TLS/SSL certificate secrets for specified hosts. |
 | `--self-signed` | Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. The secret must already exist in the namespace with the same name as the host. Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer. |
@@ -489,23 +488,16 @@ Manages application deployments, defaulting to deploying development pods.
 | `--disable-update-proxy` | Disables updates to proxies. |
 | `--disable-deployment-proxy` | Disables proxies of deployments. |
 | `--disable-update-volume` | Disables updates to volume mounts during deployment. |
-| `--status` | Retrieves current network traffic data from resource deployments and the host machine network configuration. |
 | `--kubeadm` | Enables the kubeadm context for deployment operations. |
 | `--k3s` | Enables the k3s context for deployment operations. |
 | `--kind` | Enables the kind context for deployment operations. |
 | `--git-clean` | Runs git clean on volume mount paths before copying. |
 | `--disable-update-underpost-config` | Disables updates to Underpost configuration during deployment. |
 | `--namespace <namespace>` | Kubernetes namespace for deployment operations (defaults to "default"). |
-| `--kind-type <kind-type>` | Specifies the Kind cluster type for deployment operations. |
-| `--port <port>` | Sets up port forwarding from local to remote ports. |
-| `--expose-port <port>` | Sets the local:remote port to expose when --expose is active (overrides auto-detected service port). |
-| `--expose-local-port <port>` | Sets a different local port for --expose (e.g. 80) while keeping the remote service port. Useful for /etc/hosts local access without specifying a port in the browser. |
-| `--local-proxy` | Forward all service TCP ports locally and start the Node.js path-routing proxy. Enables full path-based routing (e.g. /wp alongside /) without needing --expose-local-port. Requires --expose. |
 | `--cmd <cmd>` | Custom initialization command for deployment (comma-separated commands). |
 | `--skip-full-build` | Skip client bundle rebuild; container will pull pre-built bundle via pull-bundle instead. |
 | `--pull-bundle` | Explicitly pull the pre-built client bundle from Cloudinary inside the container. Use together with --skip-full-build. |
 | `--image-pull-policy <policy>` | Override container imagePullPolicy in the generated deployment manifest (Always, IfNotPresent, Never). Defaults to Never for localhost/ images and IfNotPresent otherwise. |
-| `--tls` | Enables TLS for the local proxy started by --expose --local-proxy. The proxy will serve HTTPS on port 443 using self-signed certificates resolved from the local SSL store. Use together with --expose and --local-proxy. |
 | `-h, --help` | display help for command |
 
 ---
@@ -825,7 +817,7 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: dev-cluster,etc-hosts,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
+| `runner-id` | The runner ID to run. Options include: status,expose,dev-cluster,get-traffic,instance,sync,cluster and the remaining registered runners. |
 | `path` | The input value, identifier, or path for the operation. |
 
 #### Options
@@ -841,6 +833,9 @@ Runs specified scripts using various runners.
 | `--node-name <node-name>` | Optional: Specifies the node name for execution. |
 | `--ssh-key-path <path>` | Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa. |
 | `--port <port>` | Optional: Specifies the port for execution. |
+| `--expose-port <port>` | Remote Service or Pod port selected by the expose runner. |
+| `--expose-local-port <port>` | First local port used by the expose runner; additional matches use subsequent available ports. |
+| `--local-proxy` | Starts the development path proxy after the expose runner creates its port-forwards. |
 | `--etc-hosts` | Enables etc-hosts context for the runner execution. |
 | `--volume-host-path <volume-host-path>` | Optional: Specifies the volume host path for test execution. |
 | `--volume-mount-path <volume-mount-path>` | Optional: Specifies the volume mount path for test execution. |
@@ -867,7 +862,7 @@ Runs specified scripts using various runners.
 | `--limits-memory <limits-memory>` | Sets memory limit for the runner execution. |
 | `--limits-cpu <limits-cpu>` | Sets CPU limit for the runner execution. |
 | `--resource-template-id <resource-template-id >` | Specifies a resource template ID for the runner execution. |
-| `--expose` | Enables service exposure for the runner execution. |
+| `--expose` | Enables exposure-only behavior in compatible runners; the expose runner itself does not require this flag. |
 | `--conf-server-path <conf-server-path>` | Sets a custom configuration server path. |
 | `--underpost-root <underpost-root>` | Sets a custom Underpost root path. |
 | `--cmd-cron-jobs <cmd-cron-jobs>` | Pre-script commands to run before cron job execution. |

@@ -137,9 +137,6 @@ node bin deploy <deploy-list> <environment> [options]
 | Option                 | Description                                                            | Example              |
 | ---------------------- | ---------------------------------------------------------------------- | -------------------- |
 | `--traffic <versions>` | Set traffic routing (blue/green)                                       | `--traffic blue`     |
-| `--expose`             | Expose service via port forwarding                                     | `--expose`           |
-| `--port <number>`      | Port for exposure                                                      | `--port 8080`        |
-| `--kind-type <type>`   | Resource type to expose (svc/pod)                                      | `--kind-type svc`    |
 | `--gateway-api`        | Apply the Gateway API stack (Gateway + HTTPRoute) instead of HTTPProxy | `--gateway-api`      |
 | `--gateway-class <n>`  | GatewayClass baked into generated Gateway manifests (default `eg`)     | `--gateway-class eg` |
 | `--disable-http3`      | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` advertisement    | `--disable-http3`    |
@@ -188,7 +185,6 @@ Anything found in neither place falls through to the shared default page, which 
 | Option          | Description                  | Example         |
 | --------------- | ---------------------------- | --------------- |
 | `--info-router` | Display router configuration | `--info-router` |
-| `--status`      | Check deployment status      | `--status`      |
 | `--sync`        | Synchronize configurations   | `--sync`        |
 
 ### Cleanup Options
@@ -202,7 +198,6 @@ Anything found in neither place falls through to the shared default page, which 
 
 | Option                 | Description                                        | Example                   |
 | ---------------------- | -------------------------------------------------- | ------------------------- |
-| `--expose-port <port>` | Override auto-detected service port for `--expose` | `--expose-port 8080:8080` |
 | `--cmd <cmd>`          | Custom initialization command (comma-separated)    | `--cmd "npm run migrate"` |
 | `--kubeadm`            | Kubeadm cluster context                            | `--kubeadm`               |
 | `--etc-hosts`          | Add hosts to /etc/hosts                            | `--etc-hosts`             |
@@ -455,8 +450,12 @@ node bin deploy dd-old-service production --restore-hosts
 ### Expose Service for Testing
 
 ```bash
-# Expose service on specific port
-node bin deploy dd-api development --expose --port 8080
+# Match every Service containing "dd-api" and expose remote port 8080.
+node bin run expose dd-api --dev --kind --expose-port 8080 --expose-local-port 8080
+
+# Multiple literal partial names are comma-separated. If no Service matches,
+# the runner falls back to matching Pod names and their declared container ports.
+node bin run expose mongo,valkey --dev --kind --namespace default
 
 # In another terminal, access the service
 curl http://localhost:8080
@@ -583,8 +582,11 @@ ls -la /home/dd/engine/volume/
 # View router configuration
 node bin deploy dd-app development --info-router
 
-# Check deployment status
-node bin deploy dd-app development --status
+# Check production deployment status
+node bin run status dd-app --namespace default --kubeadm
+
+# Check development status (`dd` expands engine-private/deploy/dd.router)
+node bin run status dd --dev --namespace default --kind
 
 # View all resources for deployment
 kubectl get all -l app=dd-app -n default
