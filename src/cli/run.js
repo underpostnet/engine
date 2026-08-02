@@ -1393,35 +1393,6 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      * @method get-traffic
      * @description Prints the live blue/green colour of every routable
      * deployment, of both kinds, as a table.
-     *
-     * The PWA workload and the custom instances are named differently in the
-     * cluster and described by different conf files, so reading one tells you
-     * nothing about the other — and on a shared host they can legitimately sit on
-     * different colours. Reporting them together is what makes a half-promoted
-     * host visible.
-     *
-     * Both environments are scanned and only the deployments that actually exist
-     * in the namespace are reported, so the table shows what is running rather
-     * than what a flag guessed; `--dev` narrows it to development.
-     *
-     * `ROUTE`, `TLS` and `HTTP3` are correlated across four kinds, because none
-     * of them is readable from the route object alone: the kind is which object
-     * exists, TLS lives on the Gateway's listener or an HTTPProxy's
-     * `virtualhost.tls`, and HTTP/3 is a `ClientTrafficPolicy` targeting that
-     * Gateway. `CURRENT` and `OPPOSITE` show each colour's Deployment name,
-     * `ready/desired` replicas and readiness; `CURRENT` also reports whether the
-     * stable traffic Service has a ready endpoint.
-     *
-     * The stable traffic Service selector is the colour authority. Legacy
-     * HTTPRoute/HTTPProxy backend parsing remains as a fallback for workloads
-     * that have not migrated yet. `serving` checks the Service that actually
-     * carries traffic, so an endpointless stable selector reports correctly.
-     * Every declared host/path is also requested through the public chain with
-     * `curl -L -v -i -s`; PATH displays the ordered response codes beside the
-     * path. OPPOSITE is always displayed: when the other blue/green Deployment
-     * does not exist, its expected name is reported with a `missing` state.
-     * There is no separate environment column because the Deployment names
-     * already contain `development` or `production`.
      * @param {string} [path] - Comma-separated hosts to report on; empty reports every host.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -1436,7 +1407,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       // flag and call the other absent: a cluster running `development` would be
       // reported as entirely unrouted. Both are scanned and the environment is a
       // column; `--dev` narrows to development when only that is wanted.
-      const envs = options.dev ? ['development'] : ['development', 'production'];
+      const envs = options.dev ? ['development'] : options.test ? ['development', 'production'] : ['production'];
       const hosts = `${path || ''}`
         .split(',')
         .map((host) => host.trim())
@@ -1534,11 +1505,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         trafficTableRowsFactory({
           entries: deployList
             .flatMap((deployId) => deployTrafficEntriesFactory({ deployId, env }))
-            .map((entry) => ({ ...entry, env }))
-            // A deployment declared for an environment this cluster does not run
-            // is noise, not information: with both environments scanned every
-            // conf entry would otherwise appear twice, once always empty.
-            .filter((entry) => deployedNames.some((name) => name.startsWith(`${entry.deployment}-`))),
+            .map((entry) => ({ ...entry, env })),
           hosts,
           liveTrafficOf: (entry) => liveTrafficStateOf(entry, env).colour,
           servesTraffic: (entry) => servesTraffic(entry, env),
@@ -1546,7 +1513,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       );
 
       if (rows.length === 0) {
-        logger.warn('No deployment of any declared host is running in this namespace', {
+        logger.warn('No configured hosts matched the requested traffic report', {
           hosts,
           envs,
           deployList,
@@ -1620,28 +1587,19 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
       // Padded on the raw values, coloured afterwards: an ANSI escape counts
       // toward String.length and would skew every column right of it.
-      const columns = [
-        'HOST',
-        'PATH',
-        'KIND',
-        'ROUTE',
-        'TLS',
-        'HTTP3',
-        'CURRENT',
-        'OPPOSITE',
-      ];
-      const cells = reportRows.map((row) => {
+      const columns = ['HOST', 'PATH', 'KIND', 'ROUTE', 'TLS', 'HTTP3', 'CURRENT', 'OPPOSITE'];
+      const deploymentStatus = (status, includeServing = false) => {
+        if (!status) return `unrouted - missing${includeServing ? ' not-serving' : ''}`;
+        return [
+          status.deployment,
+          status.replicas,
+          status.exists ? (status.ready ? 'ready' : 'not-ready') : 'missing',
+          ...(includeServing ? [status.serving ? 'serving' : 'not-serving'] : []),
+        ].join(' ');
+      };
+      const cellOf = (row) => {
         const facts = ingressFacts[row.host] || {};
         const pathStatus = row.probes.map((probe) => `${probe.path} [${probe.statuses.join('→')}]`).join(' ');
-        const deploymentStatus = (status, includeServing = false) => {
-          if (!status) return `unrouted - missing${includeServing ? ' not-serving' : ''}`;
-          return [
-            status.deployment,
-            status.replicas,
-            status.exists ? (status.ready ? 'ready' : 'not-ready') : 'missing',
-            ...(includeServing ? [status.serving ? 'serving' : 'not-serving'] : []),
-          ].join(' ');
-        };
         return [
           row.host,
           pathStatus,
@@ -1652,8 +1610,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           deploymentStatus(row.current, true),
           deploymentStatus(row.opposite),
         ];
-      });
-      const widths = columns.map((column, i) => Math.max(column.length, ...cells.map((cell) => `${cell[i]}`.length)));
+      };
       const paint = (value, i) => {
         if (columns[i] === 'PATH')
           return value.replace(/\b(?:000|[1-5][0-9]{2})\b/g, (status) => {
@@ -1666,8 +1623,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         if (columns[i] === 'CURRENT' || columns[i] === 'OPPOSITE') {
           if (value === '-') return value;
           const [deployment, replicas, status, serving] = value.split(' ');
-          const deploymentDisplay = deployment.replace(/-(blue|green)$/, (_, traffic) =>
-            `-${traffic === 'blue' ? traffic.bgBlue.bold.black : traffic.bgGreen.bold.black}`,
+          const deploymentDisplay = deployment.replace(
+            /-(blue|green)$/,
+            (_, traffic) => `-${traffic === 'blue' ? traffic.bgBlue.bold.black : traffic.bgGreen.bold.black}`,
           );
           const replicasDisplay = readinessOf({ READY: replicas }).ready ? replicas.green : replicas.red;
           const statusDisplay = status === 'ready' ? status.green : status.red;
@@ -1680,13 +1638,26 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         if (columns[i] === 'ROUTE') return value === 'none' ? value.red : value;
         return value;
       };
-      const line = (values, painted) =>
-        values
-          .map((value, i) => (painted ? paint(`${value}`, i) : `${value}`) + ' '.repeat(widths[i] - `${value}`.length))
-          .join('  ');
-      console.log(`\n${line(columns, false).bold}`);
-      console.log(widths.map((width) => '-'.repeat(width)).join('  '));
-      for (const cell of cells) console.log(line(cell, true));
+      // A shared table renderer, called once per environment when both are
+      // scanned: mixing development and production rows into one table is what
+      // made an unrouted production host look like a duplicate of the same,
+      // live development host.
+      const printTable = (cells, heading) => {
+        const widths = columns.map((column, i) => Math.max(column.length, ...cells.map((cell) => `${cell[i]}`.length)));
+        const line = (values, painted) =>
+          values
+            .map(
+              (value, i) => (painted ? paint(`${value}`, i) : `${value}`) + ' '.repeat(widths[i] - `${value}`.length),
+            )
+            .join('  ');
+        console.log(heading ? `\n${heading.bold}\n${line(columns, false).bold}` : `\n${line(columns, false).bold}`);
+        console.log(widths.map((width) => '-'.repeat(width)).join('  '));
+        for (const cell of cells) console.log(line(cell, true));
+      };
+      for (const env of envs) {
+        const envCells = reportRows.filter((row) => row.env === env).map(cellOf);
+        if (envCells.length > 0) printTable(envCells, `[${env.toUpperCase()}]`);
+      }
       console.log('');
       return reportRows;
     },

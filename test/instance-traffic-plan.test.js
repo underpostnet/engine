@@ -564,6 +564,15 @@ describe('blue/green traffic plan', () => {
       ]);
     });
 
+    it('keeps configured report rows when no Kubernetes deployments exist', () => {
+      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const start = runSource.indexOf("    'get-traffic': async");
+      const end = runSource.indexOf("    'instance-promote': async", start);
+      const getTraffic = runSource.slice(start, end);
+      expect(getTraffic).to.include('.map((entry) => ({ ...entry, env }))');
+      expect(getTraffic).not.to.include('.filter((entry) => deployedNames.some');
+    });
+
     it('reports a routed colour with no ready endpoint as not serving', () => {
       const rows = trafficTableRowsFactory({
         entries: [ENTRIES[0]],
