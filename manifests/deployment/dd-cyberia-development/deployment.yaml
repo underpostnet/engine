@@ -2,24 +2,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dd-cyberia-development-blue
+  name: dd-cyberia-development-green
   namespace: default
   labels:
-    app: dd-cyberia-development-blue
+    app: dd-cyberia-development-green
     deploy-id: dd-cyberia-development
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dd-cyberia-development-blue
+      app: dd-cyberia-development-green
   template:
     metadata:
       labels:
-        app: dd-cyberia-development-blue
+        app: dd-cyberia-development-green
         deploy-id: dd-cyberia-development
     spec:
       containers:
-        - name: dd-cyberia-development-blue
+        - name: dd-cyberia-development-green
           image: underpost/underpost-engine:v3.2.80
           imagePullPolicy: IfNotPresent
           envFrom:
@@ -72,32 +72,32 @@ spec:
 
     
           volumeMounts:
-            - name: vol-public-dd-cyberia-dd-cyberia-development-blue
+            - name: vol-public-dd-cyberia-dd-cyberia-development-green
               mountPath: /home/dd/engine/src/client/public/cyberia
     
-            - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
+            - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-green
               mountPath: /home/dd/engine/src/client/public/underpost
     
       volumes:
-        - name: vol-public-dd-cyberia-dd-cyberia-development-blue
+        - name: vol-public-dd-cyberia-dd-cyberia-development-green
           persistentVolumeClaim:
-            claimName: pvc-public-dd-cyberia-dd-cyberia-development-blue
+            claimName: pvc-public-dd-cyberia-dd-cyberia-development-green
     
       
-        - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
+        - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-green
           persistentVolumeClaim:
-            claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-blue
+            claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-green
     
       
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: dd-cyberia-development-blue-service
+  name: dd-cyberia-development-green-service
   namespace: default
 spec:
   selector:
-    app: dd-cyberia-development-blue
+    app: dd-cyberia-development-green
   ports:
     - name: 'tcp-4005'
       protocol: TCP

@@ -8,7 +8,15 @@ metadata:
 spec:
   gatewayClassName: eg
   listeners:
-    - name: http
+    - name: http-stagging-nexodev-org-14bce29d
+      hostname: "stagging.nexodev.org"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-test-nexodev-org-dc058d24
+      hostname: "test.nexodev.org"
       protocol: HTTP
       port: 80
       allowedRoutes:

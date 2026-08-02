@@ -8,7 +8,29 @@ metadata:
 spec:
   gatewayClassName: eg
   listeners:
-    - name: http
+    - name: http-dogmadual-com-85c5f221
+      hostname: "dogmadual.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-nexodev-org-6b8e2bac
+      hostname: "nexodev.org"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-dogmadual-com-427ae6e8
+      hostname: "www.dogmadual.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-nexodev-org-f922ef31
+      hostname: "www.nexodev.org"
       protocol: HTTP
       port: 80
       allowedRoutes:

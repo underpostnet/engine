@@ -8,7 +8,29 @@ metadata:
 spec:
   gatewayClassName: eg
   listeners:
-    - name: http
+    - name: http-ayleenbertini-com-6a7a6c8a
+      hostname: "ayleenbertini.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-giancarlobertini-com-66c66e08
+      hostname: "giancarlobertini.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-ayleenbertini-com-8f548ab5
+      hostname: "www.ayleenbertini.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-giancarlobertini-com-bf64ad20
+      hostname: "www.giancarlobertini.com"
       protocol: HTTP
       port: 80
       allowedRoutes:

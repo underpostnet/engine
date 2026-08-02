@@ -8,7 +8,71 @@ metadata:
 spec:
   gatewayClassName: eg
   listeners:
-    - name: http
+    - name: http-client-cyberiaonline-com-7ace62a4
+      hostname: "client.cyberiaonline.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-cryptokoyn-net-b6255398
+      hostname: "cryptokoyn.net"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-cyberiaonline-com-f2d45c71
+      hostname: "cyberiaonline.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-itemledger-com-1d06867c
+      hostname: "itemledger.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-server-cyberiaonline-com-611c12b2
+      hostname: "server.cyberiaonline.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-underpost-net-1db3dba9
+      hostname: "underpost.net"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-cryptokoyn-net-85b23136
+      hostname: "www.cryptokoyn.net"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-cyberiaonline-com-480af86f
+      hostname: "www.cyberiaonline.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-itemledger-com-8395cfad
+      hostname: "www.itemledger.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-underpost-net-e111e04e
+      hostname: "www.underpost.net"
       protocol: HTTP
       port: 80
       allowedRoutes:
