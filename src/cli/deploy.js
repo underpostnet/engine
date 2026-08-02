@@ -766,9 +766,10 @@ ${Underpost.deploy
         const edgeRouteRecords = [];
         // Per-host proxy routes contributed to the shared gateway's own config.
         const gatewayRoutesByHost = {};
-        // Every host attaches to one Gateway. Its HTTPS listener carries every
-        // certificate and Envoy picks by SNI, so there are two listeners in
-        // total instead of two per hostname.
+        // Every host attaches to one deploy-scoped Gateway. Each hostname gets
+        // distinct HTTP/HTTPS listeners: mergeGateways combines every Gateway
+        // in the class, and (port, protocol, hostname) must remain unique across
+        // that complete set.
         const gatewayName = Underpost.deploy.gatewayNameFactory({ deployId, env });
         const trafficServiceName = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
         const gatewayHosts = [];
@@ -932,19 +933,23 @@ ${Underpost.deploy
           // Instance hostnames belong on this Gateway's certificate list even
           // though their routes are applied later by `instance-promote`: one
           // Gateway terminates every hostname the deploy serves, and a hostname
-          // with no certificate here has no TLS filter chain to be reached
-          // through. A per-host Gateway is not the alternative — a
-          // hostname-scoped listener beside this hostname-less one is the
-          // ambiguity the consolidation exists to remove.
+          // with no certificate listener here has no TLS filter chain to reach.
+          // The Gateway remains deploy-scoped, while its listeners are scoped by
+          // hostname so they can coexist with the other merged Gateways.
+          const allGatewayHosts = [
+            ...new Set([...gatewayHosts, ...deployHostsFactory(deployId).filter((host) => !confServer[host])]),
+          ].sort();
           gatewayYaml += Underpost.deploy.gatewayYamlFactory({
             name: gatewayName,
-            hosts: [...new Set([...gatewayHosts, ...deployHostsFactory(deployId).filter((host) => !confServer[host])])],
+            hosts: allGatewayHosts,
             env,
             options,
           });
           gatewayYaml += Underpost.deploy.clientTrafficPolicyYamlFactory({
             name: gatewayName,
-            sectionName: 'https',
+            sectionNames: allGatewayHosts.map((host) =>
+              Underpost.deploy.gatewayListenerNameFactory({ protocol: 'https', host }),
+            ),
             env,
             options,
           });
@@ -1332,9 +1337,9 @@ spec:
   # deploy — and each Gateway would otherwise be provisioned its own data plane,
   # every one contending for the same node ports, so at most one could bind and
   # the rest would crash-loop. Merging collapses them onto a single Envoy fleet.
-  # It is safe now that listeners are consolidated: the merge key is
-  # (port, protocol, hostname), and a deploy contributes exactly one HTTP and
-  # one HTTPS listener instead of a pair per hostname.
+  # Every generated listener is hostname-scoped because the merge key is
+  # (port, protocol, hostname). This lets many deploy-scoped Gateways coexist
+  # in this fleet without an older hostname-less listener shadowing the rest.
   mergeGateways: true
   provider:
     type: Kubernetes
@@ -1387,14 +1392,11 @@ spec:
     /**
      * Creates the one Gateway a deploy's HTTPRoutes attach to.
      *
-     * Its listeners carry no hostname: a single listener per protocol serves
-     * every hostname and picks the certificate by SNI. The alternative — a
-     * Gateway per host, with the hostname on its listener — cannot stand beside
-     * it. `mergeGateways` collapses every Gateway of the class onto one listener
-     * per (port, protocol), so on 80 the hostname-scoped listener is dropped
-     * outright and on 443 it keeps an SNI filter chain whose route table is left
-     * empty. Both report Programmed while every path on that hostname answers
-     * 404, which is why the shape is not offered.
+     * Envoy Gateway's `mergeGateways` mode merges every Gateway of the class
+     * into one data plane. Its required uniqueness key is (port, protocol,
+     * hostname), so every host needs its own listener pair. Hostname-less
+     * listeners from separate deploy Gateways conflict: the older listener is
+     * served and newer hosts receive its certificate and 404 route table.
      *
      * The HTTPS listener is emitted under the same TLS rules as the HTTPProxy
      * virtualhost (production, or development with `--self-signed`); QUIC is
@@ -1411,9 +1413,34 @@ spec:
       const namespace = options.namespace || 'default';
       const { gatewayClassName } = Underpost.deploy.gatewayApiConfigFactory(options);
       const includeTls = env !== 'development' || options.selfSigned === true;
+      const uniqueHosts = [...new Set(hosts.filter(Boolean))].sort();
       const allowedRoutes = `      allowedRoutes:
         namespaces:
           from: Same`;
+      const listeners = uniqueHosts
+        .flatMap((host) => {
+          const http = `    - name: ${Underpost.deploy.gatewayListenerNameFactory({ protocol: 'http', host })}
+      hostname: ${JSON.stringify(host)}
+      protocol: HTTP
+      port: 80
+${allowedRoutes}`;
+          if (!includeTls) return [http];
+          return [
+            http,
+            `    - name: ${Underpost.deploy.gatewayListenerNameFactory({ protocol: 'https', host })}
+      hostname: ${JSON.stringify(host)}
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: ${host}
+${allowedRoutes}`,
+          ];
+        })
+        .join('\n');
       return `
 ---
 apiVersion: ${GATEWAY_API_GROUP_VERSION}
@@ -1424,36 +1451,35 @@ metadata:
 spec:
   gatewayClassName: ${gatewayClassName}
   listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-${allowedRoutes}${
-        includeTls
-          ? `
-    - name: https
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-${hosts
-  .map(
-    (tlsHost) => `          - group: ""
-            kind: Secret
-            name: ${tlsHost}`,
-  )
-  .join('\n')}
-${allowedRoutes}`
-          : ''
-      }
+${listeners}
 `;
     },
 
     /**
-     * Name of the Gateway a deploy's hosts share. One Gateway with one listener
-     * per protocol replaces one Gateway per host: the merged listener set drops
-     * from two per hostname to two in total, which is what removes the
-     * collisions that left hostnames without a TLS filter chain or a route.
+     * Produces a stable DNS-label listener name for a hostname and protocol.
+     * The content hash prevents two hosts that normalize to the same label from
+     * colliding, while truncation keeps the Gateway API SectionName at 63 chars.
+     * @param {object} input - Listener identity.
+     * @param {string} input.protocol - `http` or `https`.
+     * @param {string} input.host - Listener hostname.
+     * @returns {string} Stable Kubernetes DNS label.
+     * @memberof UnderpostDeploy
+     */
+    gatewayListenerNameFactory({ protocol, host }) {
+      const prefix = `${protocol || 'http'}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const normalized = `${host || 'host'}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'host';
+      const hash = crypto.createHash('sha1').update(`${host || ''}`).digest('hex').slice(0, 8);
+      const hostLength = 63 - prefix.length - hash.length - 2;
+      return `${prefix}-${normalized.slice(0, hostLength).replace(/-+$/g, '')}-${hash}`;
+    },
+
+    /**
+     * Name of the Gateway a deploy's hosts share. The Gateway is consolidated
+     * per deploy, while its listener pairs remain hostname-scoped so merged
+     * Gateways have distinct traffic selectors.
      * @param {string} deployId - Deploy id.
      * @param {string} env - `development` | `production`.
      * @returns {string} Gateway name.
@@ -1485,37 +1511,30 @@ ${allowedRoutes}`
     /**
      * Creates the QUIC/HTTP3 ClientTrafficPolicy for the merged data plane.
      *
-     * Emitted **once per manifest**, not once per Gateway. A ClientTrafficPolicy
-     * configures the Envoy listener, and `mergeGateways` collapses every
-     * Gateway of the class onto one shared listener set — so one policy per host
-     * means N policies competing to configure the same listener. The
-     * implementation resolves that by letting the oldest win and rejecting the
-     * rest, which leaves the merged TLS listener carrying a single hostname's
-     * filter chain: the first host serves HTTPS and every other one is reset
-     * mid-handshake, while all Gateways still report Programmed with their
-     * listeners Accepted.
+     * Emitted once per Gateway with one targetRef for each hostname-scoped HTTPS
+     * listener. A single policy object avoids same-scope policy competition,
+     * while section-specific targets enable QUIC on every distinct listener.
      * @param {string} name - Gateway the policy attaches to, from {@link UnderpostDeploy.gatewayNameFactory}.
-     * @param {string} sectionName - Listener the policy scopes itself to.
+     * @param {string} [sectionName] - Backward-compatible single listener target.
+     * @param {Array<string>} [sectionNames] - HTTPS listeners the policy targets.
      * @param {string} env - `development` | `production`.
      * @param {object} [options] - Deploy/run options (namespace, QUIC settings).
      * @returns {string} ClientTrafficPolicy YAML, or an empty string when HTTP/3 has no TLS transport.
      * @memberof UnderpostDeploy
      */
-    clientTrafficPolicyYamlFactory({ name, sectionName, env, options = {} }) {
+    clientTrafficPolicyYamlFactory({ name, sectionName, sectionNames = [], env, options = {} }) {
       const namespace = options.namespace || 'default';
       const { http3 } = Underpost.deploy.gatewayApiConfigFactory(options);
       const includeTls = env !== 'development' || options.selfSigned === true;
       if (!includeTls || !http3) return '';
+      const targets = [...new Set([...sectionNames, sectionName].filter(Boolean))];
+      if (targets.length === 0) return '';
       // Scoped to the HTTPS section, not the whole Gateway. QUIC only concerns
       // the TLS listener, and an unscoped policy is applied to every listener of
       // the merged set — including the plain-HTTP ones, which the implementation
       // rejects outright ("applied to multiple http (non https) listeners on the
       // same port"), leaving HTTP/3 silently off.
       //
-      // One policy, because there is one HTTPS listener. Per-host listeners needed
-      // a policy each, and those policies fought over the merged 443 listener
-      // until only one hostname kept a TLS filter chain; consolidating the
-      // listeners removes the contention rather than managing it.
       return `
 ---
 apiVersion: ${GATEWAY_EXTENSION_GROUP_VERSION}
@@ -1525,10 +1544,14 @@ metadata:
   namespace: ${namespace}
 spec:
   targetRefs:
-    - group: ${GATEWAY_API_GROUP}
+${targets
+  .map(
+    (target) => `    - group: ${GATEWAY_API_GROUP}
       kind: Gateway
       name: ${name}
-      sectionName: ${sectionName}
+      sectionName: ${target}`,
+  )
+  .join('\n')}
   http3: {}
 `;
     },
@@ -2201,9 +2224,8 @@ EOF`);
             //
             // A deploy that previously ran the per-host model left a Gateway
             // named after each host. Those are superseded by the consolidated
-            // one, and leaving them behind puts a hostname-scoped 443 listener
-            // beside the hostname-less one in the same merged set — exactly the
-            // ambiguity the consolidation exists to remove.
+            // one, and leaving them behind duplicates that hostname's listeners
+            // in the same merged set. The oldest resource would retain traffic.
             //
             // `undefined-http3` is the same problem under a different name: the
             // consolidated policy was briefly emitted with an unresolved host in

@@ -440,4 +440,30 @@ describe('underpost gateway edge tier', () => {
       expect(targetSelector).to.be.greaterThan(removeOldRoute);
     });
   });
+
+  describe('merged Gateway listener isolation', () => {
+    const deploySource = fs.readFileSync(new URL('../src/cli/deploy.js', import.meta.url), 'utf8');
+    const gatewayFactory = deploySource.slice(
+      deploySource.indexOf('    gatewayYamlFactory('),
+      deploySource.indexOf('    gatewayNameFactory(', deploySource.indexOf('    gatewayYamlFactory(')),
+    );
+    const policyFactory = deploySource.slice(
+      deploySource.indexOf('    clientTrafficPolicyYamlFactory('),
+      deploySource.indexOf('    httpRouteRuleFactory(', deploySource.indexOf('    clientTrafficPolicyYamlFactory(')),
+    );
+
+    it('gives every merged HTTP and HTTPS listener an explicit hostname', () => {
+      expect(gatewayFactory).to.include('hostname: ${JSON.stringify(host)}');
+      expect(gatewayFactory).to.include("gatewayListenerNameFactory({ protocol: 'http', host })");
+      expect(gatewayFactory).to.include("gatewayListenerNameFactory({ protocol: 'https', host })");
+      expect(gatewayFactory).not.to.include('    - name: http\n');
+      expect(gatewayFactory).not.to.include('    - name: https\n');
+    });
+
+    it('targets HTTP/3 at every distinct HTTPS listener from one policy', () => {
+      expect(policyFactory).to.include('const targets = [...new Set([...sectionNames, sectionName].filter(Boolean))]');
+      expect(policyFactory).to.include('sectionName: ${target}');
+      expect(policyFactory).to.include(".join('\\n')");
+    });
+  });
 });

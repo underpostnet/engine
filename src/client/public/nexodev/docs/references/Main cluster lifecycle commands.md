@@ -307,7 +307,7 @@ node bin run cluster 'express,dd-cyberia' --dev
 ```
 
 - **Gateway API + Envoy Gateway** is the default routing stack. `--disable-gateway-api` is the only way back to Contour.
-- **HTTP/3 (QUIC) is on by default**, alongside HTTP/2 and HTTP/1.1. Each route advertises it with `Alt-Svc: h3=":443"`, and a `ClientTrafficPolicy` enables QUIC on the merged HTTPS listener. QUIC has no cleartext transport, so this only exists where TLS does.
+- **HTTP/3 (QUIC) is on by default**, alongside HTTP/2 and HTTP/1.1. Each route advertises it with `Alt-Svc: h3=":443"`, and one `ClientTrafficPolicy` targets every hostname-scoped HTTPS listener in the merged data plane. QUIC has no cleartext transport, so this only exists where TLS does.
 - **TLS is self-signed and locally trusted.** Every host in the deploy's `conf.server.json` gets a certificate from `scripts/ssl.sh` (mkcert, which installs its root CA into the system and NSS trust stores) and a `kubernetes.io/tls` secret named after the host.
 - **`/etc/hosts` is mapped** for those same hosts in a single rewrite, so `https://www.cyberiaonline.com` resolves to the local data plane. In development Envoy binds 80/443 on the host network, so no port-forward is involved.
 - **The gateway static tier is seeded** with each deploy's status pages and intercepted contexts before the routes are applied. See [Gateway infrastructure service](#gateway-infrastructure-service).
