@@ -9,6 +9,7 @@ import {
   isTrafficServingFactory,
   hostIngressFactsFactory,
   nextTrafficFactory,
+  schedulableNodeFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
   trafficTableRowsFactory,
@@ -261,6 +262,62 @@ describe('blue/green traffic plan', () => {
     it('is the declared set when nothing was preserved', () => {
       expect(hostRenderInstancesFactory({ declared: [MAIN, FOREST] })).to.deep.equal([MAIN, FOREST]);
       expect(hostRenderInstancesFactory({})).to.deep.equal([]);
+    });
+  });
+
+  // A nodeSelector naming a node that does not exist does not degrade — nothing
+  // schedules — so the guessed default has to be checked against the cluster.
+  describe('schedulableNodeFactory', () => {
+    const KUBEADM = [{ NAME: 'localhost.localdomain', STATUS: 'Ready', ROLES: 'control-plane' }];
+    const KIND = [
+      { NAME: 'kind-control-plane', STATUS: 'Ready', ROLES: 'control-plane' },
+      { NAME: 'kind-worker', STATUS: 'Ready', ROLES: '<none>' },
+    ];
+
+    // The reported failure: `--dev` on a kubeadm cluster guesses `kind-worker`.
+    it('substitutes a real node when the guess does not exist', () => {
+      expect(schedulableNodeFactory({ nodes: KUBEADM, node: 'kind-worker' })).to.deep.equal({
+        node: 'localhost.localdomain',
+        corrected: true,
+      });
+    });
+
+    it('keeps a node the cluster actually has', () => {
+      expect(schedulableNodeFactory({ nodes: KIND, node: 'kind-worker' })).to.deep.equal({
+        node: 'kind-worker',
+        corrected: false,
+      });
+    });
+
+    it('prefers a worker over the control plane', () => {
+      expect(schedulableNodeFactory({ nodes: KIND, node: 'nope' }).node).to.equal('kind-worker');
+    });
+
+    it('falls back to the control plane when it is the only node', () => {
+      expect(schedulableNodeFactory({ nodes: KUBEADM, node: '' }).node).to.equal('localhost.localdomain');
+    });
+
+    it('skips a NotReady node but still answers when none are Ready', () => {
+      const nodes = [
+        { NAME: 'down', STATUS: 'NotReady', ROLES: '<none>' },
+        { NAME: 'up', STATUS: 'Ready', ROLES: '<none>' },
+      ];
+      expect(schedulableNodeFactory({ nodes, node: 'nope' }).node).to.equal('up');
+      expect(schedulableNodeFactory({ nodes: [nodes[0]], node: 'nope' }).node).to.equal('down');
+    });
+
+    it('treats a cordoned node as Ready', () => {
+      const nodes = [{ NAME: 'only', STATUS: 'Ready,SchedulingDisabled', ROLES: '<none>' }];
+      expect(schedulableNodeFactory({ nodes, node: 'nope' }).node).to.equal('only');
+    });
+
+    // An unreadable cluster is not evidence the name is wrong.
+    it('leaves the choice untouched when there is no node list', () => {
+      expect(schedulableNodeFactory({ nodes: [], node: 'kind-worker' })).to.deep.equal({
+        node: 'kind-worker',
+        corrected: false,
+      });
+      expect(schedulableNodeFactory({ nodes: [{}, null], node: 'kind-worker' }).corrected).to.equal(false);
     });
   });
 

@@ -21,6 +21,7 @@ import {
   loadReplicas,
   nextTrafficFactory,
   pathPortAssignmentFactory,
+  schedulableNodeFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
@@ -222,19 +223,12 @@ ${buildKindPorts(fromPort, toPort)}`;
      * @returns {string} Applied Service name.
      * @memberof UnderpostDeploy
      */
-    applyTrafficService({
-      deployId,
-      env,
-      traffic,
-      namespace = 'default',
-      manifestPath,
-      fromPort,
-      toPort,
-    }) {
+    applyTrafficService({ deployId, env, traffic, namespace = 'default', manifestPath, fromPort, toPort }) {
       if (!['blue', 'green'].includes(traffic)) throw new Error(`Invalid traffic colour: ${traffic}`);
-      let manifest = manifestPath && fs.existsSync(manifestPath)
-        ? fs.readFileSync(manifestPath, 'utf8')
-        : Underpost.deploy.trafficServiceYamlFactory({ deployId, env, traffic, namespace, fromPort, toPort });
+      let manifest =
+        manifestPath && fs.existsSync(manifestPath)
+          ? fs.readFileSync(manifestPath, 'utf8')
+          : Underpost.deploy.trafficServiceYamlFactory({ deployId, env, traffic, namespace, fromPort, toPort });
       const escaped = `${deployId}-${env}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       manifest = manifest.replace(new RegExp(`app: ${escaped}-(?:blue|green)`), `app: ${deployId}-${env}-${traffic}`);
       shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
@@ -444,8 +438,7 @@ EOF
       // independent of the ambient `PORT` baked into the image/secret.
       internalStatusPort,
     }) {
-      if (!readinessProbe)
-        throw new Error(`Refusing to build ${deployId}-${env}-${suffix} without a readiness probe`);
+      if (!readinessProbe) throw new Error(`Refusing to build ${deployId}-${env}-${suffix} without a readiness probe`);
       if (!cmd)
         cmd =
           pullBundle || skipFullBuild
@@ -1113,11 +1106,14 @@ spec:
       // reading them first would make a healthy deployment appear unrouted.
       for (const env of options.env ? [options.env] : ['production', 'development']) {
         const service = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
-        const selector = shellExec(`kubectl get service ${service} -n ${options.namespace} -o jsonpath='{.spec.selector.app}'`, {
-          stdout: true,
-          silent: true,
-          silentOnError: true,
-        });
+        const selector = shellExec(
+          `kubectl get service ${service} -n ${options.namespace} -o jsonpath='{.spec.selector.app}'`,
+          {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+          },
+        );
         const traffic = trafficFromRoutingInfoFactory({ info: `${selector}`, deployId, env });
         if (traffic) return traffic;
       }
@@ -1467,11 +1463,16 @@ ${listeners}
      */
     gatewayListenerNameFactory({ protocol, host }) {
       const prefix = `${protocol || 'http'}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-      const normalized = `${host || 'host'}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'host';
-      const hash = crypto.createHash('sha1').update(`${host || ''}`).digest('hex').slice(0, 8);
+      const normalized =
+        `${host || 'host'}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'host';
+      const hash = crypto
+        .createHash('sha1')
+        .update(`${host || ''}`)
+        .digest('hex')
+        .slice(0, 8);
       const hostLength = 63 - prefix.length - hash.length - 2;
       return `${prefix}-${normalized.slice(0, hostLength).replace(/-+$/g, '')}-${hash}`;
     },
@@ -2135,7 +2136,8 @@ EOF`);
         .map((id) => id.trim())
         .filter(Boolean);
       const explicitVersions = options.versions && typeof options.versions === 'string' ? options.versions : '';
-      const explicitTraffic = options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',')[0] : '';
+      const explicitTraffic =
+        options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',')[0] : '';
       const liveTrafficByDeployId = Object.fromEntries(
         deployIds.map((deployId) => [
           deployId,
@@ -2561,6 +2563,22 @@ EOF`);
       const isKind = kind || (!kubeadm && !k3s && env !== 'production');
       if (isKind) return 'kind-worker';
       return process.env.UNDERPOST_DEPLOY_NODE || os.hostname();
+    },
+
+    /**
+     * Checks a node name against the cluster and substitutes a real one when it
+     * does not exist.
+     *
+     * {@link UnderpostDeploy.resolveDeployNode} guesses from the environment when
+     * no cluster flag is given, so `--dev` against a kubeadm cluster yields
+     * `kind-worker`. For anything pinned by `nodeSelector` that guess does not
+     * degrade — it simply never schedules.
+     * @param {string} [node] - The chosen node name.
+     * @returns {{node: string, corrected: boolean}} The name to use, and whether it had to change.
+     * @memberof UnderpostDeploy
+     */
+    resolveSchedulableNode({ node = '' } = {}) {
+      return schedulableNodeFactory({ nodes: Underpost.kubectl.get('', 'nodes'), node });
     },
 
     /**

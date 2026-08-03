@@ -1108,7 +1108,7 @@ EOF
       // dedicated ingressNode option may move this workload. Every route-table
       // refresh otherwise preserves the established edge node.
       const requestedNode = options.ingressNode || '';
-      const ingressNode =
+      const chosenNode =
         requestedNode ||
         liveNode ||
         Underpost.deploy.resolveDeployNode({
@@ -1117,6 +1117,22 @@ EOF
           kubeadm: options.kubeadm,
           k3s: options.k3s,
           env: options.dev ? 'development' : 'production',
+        });
+      // The chosen name is a guess unless it came from `--ingress-node`: the
+      // cluster-type default reads `--dev` as kind, and `liveNode` re-reads
+      // whatever a previous run wrote. This workload is pinned by `nodeSelector`
+      // with `hostNetwork`, so a name no node carries does not degrade — the pod
+      // stays Pending and every rollout wait times out.
+      const { node: ingressNode, corrected } = Underpost.deploy.resolveSchedulableNode({ node: chosenNode });
+      if (corrected && requestedNode)
+        throw new Error(
+          `[underpost-ingress] --ingress-node ${requestedNode} is not a node in this cluster (schedulable: ${ingressNode})`,
+        );
+      if (corrected)
+        logger.warn('Ingress node does not exist in this cluster; using a schedulable node instead', {
+          chosen: chosenNode,
+          from: liveNode === chosenNode ? 'the live deployment' : 'the cluster-type default',
+          using: ingressNode,
         });
       const liveMount = `${
         shellExec(

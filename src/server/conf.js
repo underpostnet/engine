@@ -1884,9 +1884,7 @@ const dispatchBuildInstanceEnv = ({
   builders = {},
 }) => {
   const builder = builders[deployId];
-  const env = builder
-    ? builder({ deployId, instance, environment, env: { ...baseEnv } })
-    : { ...baseEnv };
+  const env = builder ? builder({ deployId, instance, environment, env: { ...baseEnv } }) : { ...baseEnv };
   if (!env || typeof env !== 'object' || Array.isArray(env))
     throw new TypeError(`dispatchBuildInstanceEnv: builder for "${deployId}" must return an env object`);
   return { ...env, CONTAINER_DEPLOY_ID: containerDeployId };
@@ -1953,9 +1951,7 @@ const loadConfInstances = (deployId) => {
     const variants = topology.variants;
     for (const variant of variants) {
       const id = variant.isDefault ? entry.id : `${entry.id}-${variant.slug.slice(1)}`;
-      const instance = variant.isDefault
-        ? JSON.parse(JSON.stringify(entry))
-        : deepReplaceToken(entry, entry.id, id);
+      const instance = variant.isDefault ? JSON.parse(JSON.stringify(entry)) : deepReplaceToken(entry, entry.id, id);
       delete instance.multiInstance;
       instance.id = id;
       instance.path = variant.path;
@@ -2128,6 +2124,36 @@ const nextTrafficFactory = (liveTraffic = '', requestedTraffic = '') =>
     : liveTraffic === 'blue'
       ? 'green'
       : 'blue';
+
+/**
+ * @method schedulableNodeFactory
+ * @description Narrows a chosen node name to one the cluster actually has.
+ *
+ * Node defaults are guessed from the environment when no cluster flag is given —
+ * `development` implies a kind cluster and therefore `kind-worker`. That guess is
+ * wrong on a `--dev` kubeadm cluster, and for a `hostNetwork` listener pinned by
+ * `nodeSelector` it is fatal rather than merely suboptimal: nothing schedules,
+ * and the name persists in the live object so every later run inherits it.
+ *
+ * A control-plane node is the last resort, not the first: on a multi-node cluster
+ * the public listener belongs on a worker. With no node list to check against the
+ * caller's choice is returned untouched — an unreadable cluster is not evidence
+ * the name is wrong.
+ * @param {Array<object>} [nodes] - Rows from `kubectl get nodes` (NAME, STATUS, ROLES).
+ * @param {string} [node] - The chosen node name.
+ * @returns {{node: string, corrected: boolean}} The name to use, and whether it had to change.
+ * @memberof ServerConfBuilder
+ */
+const schedulableNodeFactory = ({ nodes = [], node = '' }) => {
+  const named = nodes.filter((entry) => entry?.NAME);
+  if (named.length === 0) return { node, corrected: false };
+  if (node && named.some((entry) => entry.NAME === node)) return { node, corrected: false };
+  // STATUS can be a comma-joined list (e.g. "Ready,SchedulingDisabled").
+  const ready = named.filter((entry) => `${entry.STATUS || ''}`.split(',').includes('Ready'));
+  const pool = ready.length > 0 ? ready : named;
+  const worker = pool.find((entry) => !`${entry.ROLES || ''}`.includes('control-plane'));
+  return { node: (worker || pool[0]).NAME, corrected: true };
+};
 
 /**
  * @method stopPlanFactory
@@ -2750,14 +2776,8 @@ const exposePortPlanFactory = ({
         : [...containerPorts]
       : [...new Set(portsOf(resource))];
     if (remotePorts.length === 0)
-      throw new Error(
-        `No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-container-ports <ports>`,
-      );
-    const localPorts = hostPorts.length
-      ? multipleResources
-        ? [hostPorts[resourceIndex]]
-        : [...hostPorts]
-      : [];
+      throw new Error(`No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-container-ports <ports>`);
+    const localPorts = hostPorts.length ? (multipleResources ? [hostPorts[resourceIndex]] : [...hostPorts]) : [];
     if (localPorts.length > 0 && localPorts.length !== remotePorts.length)
       throw new Error(
         `Host/container port counts differ for ${kindType}/${resource.NAME}: ${localPorts.length}/${remotePorts.length}`,
@@ -2896,8 +2916,7 @@ const etcHostFactory = (hosts = [], options = { append: false }) => {
 
   const hostsPath = options?.path || '/etc/hosts';
   if (options?.blockId) {
-    if (!/^[A-Za-z0-9._-]+$/.test(options.blockId))
-      throw new Error(`Invalid /etc/hosts block id: ${options.blockId}`);
+    if (!/^[A-Za-z0-9._-]+$/.test(options.blockId)) throw new Error(`Invalid /etc/hosts block id: ${options.blockId}`);
     const beginMarker = `# underpost hosts ${options.blockId}:begin`;
     const endMarker = `# underpost hosts ${options.blockId}:end`;
     const existing = fs.existsSync(hostsPath) ? fs.readFileSync(hostsPath, 'utf8') : '';
@@ -3336,6 +3355,7 @@ export {
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
   nextTrafficFactory,
+  schedulableNodeFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
   trafficTableRowsFactory,
