@@ -380,9 +380,14 @@ EOF
         await Underpost.ipfs.deploy(options, underpostRoot);
       }
       if (options.mariadb) {
-        shellExec(
-          `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-        );
+        // Secrets before workloads: the StatefulSet's secretKeyRef must resolve at pod admission.
+        // Encrypted store first; when no manifest exists the secret is seeded from its origin
+        // seed path below. A manifest that exists but fails validation raises rather than
+        // silently seeding stale credentials.
+        if (!Underpost.secret.sops.applyIfPresent('mariadb-secret', options.namespace))
+          shellExec(
+            `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          );
         shellExec(`kubectl delete statefulset mariadb-statefulset -n ${options.namespace} --ignore-not-found`);
 
         if (options.pullImage) Underpost.cluster.pullImage('mariadb:latest', options);
@@ -390,9 +395,10 @@ EOF
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb -n ${options.namespace}`);
       }
       if (options.mysql) {
-        shellExec(
-          `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-        );
+        if (!Underpost.secret.sops.applyIfPresent('mysql-secret', options.namespace))
+          shellExec(
+            `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          );
         shellExec(`sudo mkdir -p /mnt/data`);
         shellExec(`sudo chmod 777 /mnt/data`);
         shellExec(`sudo chown -R $(whoami):$(whoami) /mnt/data`);
@@ -400,9 +406,10 @@ EOF
       }
       if (options.postgresql) {
         if (options.pullImage) Underpost.cluster.pullImage('postgres:latest', options);
-        shellExec(
-          `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-        );
+        if (!Underpost.secret.sops.applyIfPresent('postgres-secret', options.namespace))
+          shellExec(
+            `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
+          );
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
       }
       if (options.mongodb4) {
@@ -1899,6 +1906,10 @@ EOF`);
         shellExec(`test -x /usr/local/bin/helm && sudo ln -sf /usr/local/bin/helm /bin/helm || true`);
         shellExec(`sudo rm -rf get_helm.sh`);
       }
+
+      // SOPS and Age for Git-native encrypted secret manifests. Owned by UnderpostSecret so the
+      // same idempotent install backs `underpost secret --install-tools`.
+      Underpost.secret.sops.installTooling();
 
       // Install snap
       shellExec(`sudo yum install -y snapd`);
