@@ -1663,6 +1663,22 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
     },
 
     /**
+     * @method restore-mongo
+     * @description Initializes a MongoDB replica set in the cluster without resetting existing data.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'restore-mongo': async (path, options = DEFAULT_OPTION) => {
+      await MongoBootstrap.initReplicaSet({
+        namespace: options.namespace || 'default',
+        reset: options.reset || false,
+        clusterType: options.kubeadm ? 'kubeadm' : options.k3s ? 'k3s' : 'kind', // o 'k3s' / 'kubeadm' según corresponda
+        underpostRoot: '.',
+      });
+    },
+
+    /**
      * @method ingress-refresh
      * @description Rebuilds the shared HTTPProxy/HTTPRoute host map without
      * inheriting application workload placement. Supplying a path or
