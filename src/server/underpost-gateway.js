@@ -31,7 +31,7 @@ import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
 import { timer } from '../client/components/core/CommonJs.js';
-import { instanceStatusPageEntriesFactory, loadConfServerJson } from './conf.js';
+import { instanceStatusPageEntriesFactory, loadConfServerJson, loadReplicas } from './conf.js';
 import Underpost from '../index.js';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
@@ -838,17 +838,25 @@ const gatewayStaticAssetExists = ({ hostRoot, assetPath }) => {
  * One probe per host/sub-path that declares a maintenance view, because that is
  * the document an unreachable workload has to answer with — the condition the
  * edge must satisfy before any application is deployed behind it.
+ *
+ * `loadReplicas` expansion and the `singleReplica` skip mirror
+ * `buildProxyRouter`/`buildManifest` exactly: a plain `replicas` path (no
+ * `singleReplica`) is built and routed by this same deploy id, so its fallback
+ * is checked too; a `singleReplica` canonical path is never built or routed
+ * under this deploy id at all — it is each replica's own, separate deploy id —
+ * so probing it here would poll a document that structurally cannot exist.
  * @param {string} deployId - Deploy id whose conf declares the views.
  * @returns {Array<{host: string, path: string, assetPath: string, kind: string}>} One probe per declaring sub-path.
  * @memberof UnderpostGateway
  */
 const pwaFallbackChecksFactory = (deployId) => {
-  const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
+  const confServer = loadReplicas(deployId, loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`));
   const confSSRPath = `./engine-private/conf/${deployId}/conf.ssr.json`;
   const confSSR = fs.existsSync(confSSRPath) ? JSON.parse(fs.readFileSync(confSSRPath, 'utf8')) : {};
   const checks = [];
   for (const host of Object.keys(confServer))
     for (const path of Object.keys(confServer[host])) {
+      if (confServer[host][path].singleReplica) continue;
       const maintenance = Underpost.deploy
         .edgeRouteEntriesFactory({ confServer, confSSR, host, path })
         .find((entry) => entry.context === 'maintenance');

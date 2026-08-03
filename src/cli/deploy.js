@@ -1823,7 +1823,12 @@ ${rules}`;
         logger.warn('No conf.server.json / conf.ssr.json; nothing to sync', { deployId, confServerPath });
         return [];
       }
-      const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+      // loadReplicas expands a plain `replicas` path (no singleReplica) into its
+      // own literal path key with the canonical path's client/view config
+      // cloned onto it, matching what buildManifest/buildProxyRouter resolve
+      // against — so a replica path this workload actually built (e.g. `/r1`)
+      // gets its edge documents synced too, not just the canonical path.
+      const confServer = loadReplicas(deployId, JSON.parse(fs.readFileSync(confServerPath, 'utf8')));
       const confSSR = JSON.parse(fs.readFileSync(confSSRPath, 'utf8'));
       const hostRoot = Underpost.deploy.underpostGatewayRootFactory(options);
       const version = (options.versions && `${options.versions}`.split(',')[0]) || 'blue';
@@ -1832,7 +1837,14 @@ ${rules}`;
         .find((pod) => pod.NAME?.startsWith(`${deployId}-${env}-${version}-`) && pod.STATUS === 'Running')?.NAME;
       const synced = [];
       for (const host of Object.keys(confServer))
-        for (const path of Object.keys(confServer[host]))
+        for (const path of Object.keys(confServer[host])) {
+          // A singleReplica canonical path is never built under this deploy id —
+          // client-build.js skips it (see `if (singleReplica) continue`) and
+          // buildProxyRouter/buildManifest route none of its own edge documents
+          // for it either. Its replicas are each their own deploy id, built and
+          // synced independently; requiring this path's assets here would fail
+          // on a document that structurally cannot exist for this deploy.
+          if (confServer[host][path].singleReplica) continue;
           for (const entry of Underpost.deploy.edgeRouteEntriesFactory({ confServer, confSSR, host, path })) {
             const fromPod =
               !!podName &&
@@ -1852,6 +1864,7 @@ ${rules}`;
               source: fromPod ? 'workload' : fromHost ? 'checkout' : null,
             });
           }
+        }
       // Instance status pages are the same kind of document under the same
       // layout, so they are placed by the same pass — but they come from neither
       // of the sources above. Each is built and versioned by the project its
