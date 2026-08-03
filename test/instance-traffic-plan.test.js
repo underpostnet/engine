@@ -12,6 +12,7 @@ import {
   schedulableNodeFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
+  trafficProbePathsFactory,
   trafficTableRowsFactory,
 } from '../src/server/conf.js';
 
@@ -573,6 +574,31 @@ describe('blue/green traffic plan', () => {
     it('yields nothing for missing CRDs or malformed items', () => {
       expect(hostIngressFactsFactory()).to.deep.equal({});
       expect(hostIngressFactsFactory({ httpProxies: [{ spec: {} }], httpRoutes: [{ spec: {} }] })).to.deep.equal({});
+    });
+  });
+
+  describe('trafficProbePathsFactory', () => {
+    it('probes only the canonical path when no replicas are declared', () => {
+      expect(trafficProbePathsFactory({}, '/wp')).to.deep.equal(['/wp']);
+      expect(trafficProbePathsFactory(undefined, '/wp')).to.deep.equal(['/wp']);
+    });
+
+    // '/' in engine-private/conf/dd-test/conf.server.json: replicas without
+    // singleReplica, so the canonical path is still actually served.
+    it('probes the canonical path plus every replica when singleReplica is not set', () => {
+      expect(trafficProbePathsFactory({ replicas: ['/r1'] }, '/')).to.deep.equal(['/', '/r1']);
+    });
+
+    // '/single-replica' in the same fixture: singleReplica means the canonical
+    // path is never itself served, only its replicas are.
+    it('probes only the replicas, dropping the canonical path, when singleReplica is set', () => {
+      expect(trafficProbePathsFactory({ replicas: ['/r2'], singleReplica: true }, '/single-replica')).to.deep.equal([
+        '/r2',
+      ]);
+    });
+
+    it('treats a non-array replicas value as no replicas', () => {
+      expect(trafficProbePathsFactory({ replicas: 'not-an-array' }, '/wp')).to.deep.equal(['/wp']);
     });
   });
 

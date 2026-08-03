@@ -2273,6 +2273,26 @@ const trafficFromRoutingInfoFactory = ({ info = '', deployId = '', env = '' }) =
 };
 
 /**
+ * @method trafficProbePathsFactory
+ * @description The literal paths a conf.server.json route should be probed on,
+ * matching the `replicas`/`singleReplica` convention `loadReplicas` expands for
+ * a real build (see push-bundle/pull-bundle): a `singleReplica` route is never
+ * itself served, so probing its canonical path always reads as unrouted; a
+ * plain `replicas` route serves the canonical path in addition to each replica.
+ * Read-only by design — a traffic report must not mutate conf.server.json as a
+ * side effect of being read, unlike `loadReplicas`.
+ * @param {object} [routeConf] - `confServer[host][path]` entry.
+ * @param {string} routePath - The canonical path key.
+ * @returns {Array<string>} Paths to probe for this route.
+ * @memberof ServerConfBuilder
+ */
+const trafficProbePathsFactory = (routeConf = {}, routePath) => {
+  const replicas = Array.isArray(routeConf.replicas) ? routeConf.replicas : [];
+  if (replicas.length === 0) return [routePath];
+  return routeConf.singleReplica ? replicas : [routePath, ...replicas];
+};
+
+/**
  * @method deployTrafficEntriesFactory
  * @description Every routable deployment a deploy id owns, of both kinds.
  *
@@ -2297,7 +2317,10 @@ const deployTrafficEntriesFactory = ({ deployId, env }) => {
         deployId,
         id: deployId,
         host,
-        path: Object.keys(confServer[host]).join(' ') || '/',
+        path:
+          Object.keys(confServer[host])
+            .flatMap((routePath) => trafficProbePathsFactory(confServer[host][routePath], routePath))
+            .join(' ') || '/',
         deployment: `${deployId}-${env}`,
       });
   }
@@ -3349,6 +3372,7 @@ export {
   instanceStatusPageDeployIdFactory,
   instanceStatusPageEntriesFactory,
   deployTrafficEntriesFactory,
+  trafficProbePathsFactory,
   hostIngressFactsFactory,
   curlStatusChainFactory,
   hostRenderInstancesFactory,
