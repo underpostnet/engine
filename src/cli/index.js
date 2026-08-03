@@ -423,19 +423,66 @@ program
 
 program
   .command('secret')
-  .argument('<platform>', `The secret management platform. Options: ${Object.keys(Underpost.secret).join(', ')}.`)
+  .argument(
+    '[platform]',
+    `The secret management platform. Options: ${Object.keys(Underpost.secret).join(', ')}. Defaults to "sops".`,
+    'sops',
+  )
   .option('--init', 'Initializes the secrets platform environment.')
   .option('--create-from-file <path-env-file>', 'Creates secrets from a specified environment file.')
   .option('--create-from-env', 'Creates secrets from container environment variables (envFrom: secretRef).')
   .option('--global-clean', 'Removes all filesystem traces of secrets (engine-private, .env, conf cache).')
   .option('--list', 'Lists all available secrets for the platform.')
+  .option(
+    '--encrypt <plaintext-path>',
+    'Encrypts a plaintext Secret manifest into the Git-tracked SOPS store and shreds the source (sops platform).',
+  )
+  .option(
+    '--apply',
+    'Decrypts stored SOPS manifests and streams them into kubectl apply, without writing plaintext to disk (sops platform).',
+  )
+  .option('--namespace <namespace>', 'Kubernetes namespace for secret operations (defaults to "default").')
+  .option(
+    '--install-tools',
+    'Installs the sops and age host binaries only, without running a full cluster host initialization.',
+  )
+  .option(
+    '--rotate',
+    'Re-keys every stored SOPS manifest onto --recipient. Secret values are unchanged, so no workload restart is needed.',
+  )
+  .option('--recipient <age-public-key>', 'Incoming Age public recipient for --rotate.')
+  .option(
+    '--prune-recipients',
+    'With --rotate, makes --recipient the only recipient, revoking every previous key (use after a key compromise). ' +
+      'Requires --force, and revokes CI/CD keys too unless they are named in --keep-recipients.',
+  )
+  .option(
+    '--keep-recipients <age-public-keys>',
+    'Comma-separated recipients to retain while --prune-recipients revokes the rest (e.g. the CI/CD key).',
+  )
+  .option(
+    '--purge <secret-name>',
+    'Emergency removal: deletes the live Kubernetes Secret and takes its encrypted manifest out of the store.',
+  )
+  .option(
+    '--force',
+    'Confirms the irreversible variant: deletes the manifest instead of archiving it (--purge), ' +
+      'revokes recipients (--rotate --prune-recipients), or replaces an existing manifest (--encrypt).',
+  )
+  .option('--dry-run', 'Reports what --apply, --rotate, or --purge would do without changing anything.')
   .description(`Manages secrets for various platforms.`)
-  .action((...args) => {
-    if (args[1].globalClean) return Underpost.secret.globalSecretClean();
-    if (args[1].createFromFile) return Underpost.secret[args[0]].createFromEnvFile(args[1].createFromFile);
-    if (args[1].createFromEnv) return Underpost.secret[args[0]].createFromContainerEnv();
-    if (args[1].list) return Underpost.secret[args[0]].list();
-    if (args[1].init) return Underpost.secret[args[0]].init();
+  .action((platform, options) => {
+    // Host tooling install is platform-independent, so it resolves before any platform lookup.
+    if (options.installTools) return Underpost.secret.sops.installTooling();
+    if (options.globalClean) return Underpost.secret.globalSecretClean();
+    if (options.rotate) return Underpost.secret[platform].rotate(options.recipient, options);
+    if (options.purge) return Underpost.secret[platform].purge(options.purge, options);
+    if (options.encrypt) return Underpost.secret[platform].encrypt(options.encrypt, options.namespace, options);
+    if (options.apply) return Underpost.secret[platform].apply(options.namespace, options);
+    if (options.createFromFile) return Underpost.secret[platform].createFromEnvFile(options.createFromFile);
+    if (options.createFromEnv) return Underpost.secret[platform].createFromContainerEnv();
+    if (options.list) return Underpost.secret[platform].list();
+    if (options.init) return Underpost.secret[platform].init();
   });
 
 program

@@ -59,3 +59,8 @@ gitleaks-report.json
 /src/client/**/*bymelectrics*
 /src/client/**/*cecinasmarcelina*
 /src/client/**/*healthcare*
+
+# Age private key material. Encrypted SOPS manifests are safe to commit; keys never are.
+**/keys.txt
+**/*.agekey
+*.age.key
