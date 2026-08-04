@@ -12,16 +12,27 @@ import fs from 'fs-extra';
 import { loggerFactory } from '../../server/logger.js';
 import { shellExec } from '../../server/process.js';
 import { crictlCommandFactory } from '../../server/cri.js';
+import { resolveReplicaCount } from '../../server/conf.js';
+// Cyclic by construction (index -> cluster -> MongoBootstrap -> index), same as cluster.js.
+// Safe because the binding is only dereferenced inside method bodies, never at module scope.
+import Underpost from '../../index.js';
 import {
   MONGODB_DATA_ROOT,
   MONGODB_DEFAULT_REPLICA_COUNT,
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,
   MONGODB_STATEFULSET_NAME,
+  MONGODB_STORAGE_CLASS_NAME,
+  MONGODB_STORAGE_CLASS_PROVISIONER,
   resolveMongoReplicaHosts,
 } from './MongooseDB.js';
 
 const logger = loggerFactory(import.meta);
+
+// Teardown sweeps ordinals rather than a live replica count: the deployed count is not knowable
+// during a reset, and a member left behind from a larger previous deployment keeps its volume and
+// stale replica-set config, which a later deploy then trips over.
+const MONGODB_ORDINAL_SWEEP = 10;
 
 /**
  * @typedef {Object} MongoBootstrapOptions
@@ -269,12 +280,14 @@ class MongoBootstrap {
    * an empty /data/db regardless of bind-mount staleness.
    *
    * @param {string[]} kindNodes - List of Kind node container names.
-   * @param {string} [basePath='/data/mongodb'] - The base path containing v0/v1/v2 subdirs.
+   * @param {number} [replicaCount=3] - Number of replica ordinal directories to clean. Must track
+   *   the deployed replica count, or members above the third start on stale data.
+   * @param {string} [basePath='/data/mongodb'] - The base path containing the v<ordinal> subdirs.
    */
-  static remountKindMongoVolume(kindNodes, basePath = MONGODB_DATA_ROOT) {
+  static remountKindMongoVolume(kindNodes, replicaCount = MONGODB_DEFAULT_REPLICA_COUNT, basePath = MONGODB_DATA_ROOT) {
     for (const node of kindNodes) {
       logger.info(`Cleaning MongoDB data dirs inside Kind node '${node}'...`);
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < replicaCount; i++) {
         const dir = `${basePath}/v${i}`;
         // Ensure directory exists, wipe all contents (including hidden files), set open permissions
         // so the pod's initContainer chown can run without issues.
@@ -301,23 +314,174 @@ class MongoBootstrap {
 
   /**
    * Creates or updates Kubernetes secrets required by the MongoDB statefulset.
+   *
+   * Prefers the SOPS/Age encrypted store, exactly like the MariaDB/MySQL/PostgreSQL branches of
+   * cluster init: when `engine-private/secrets/<ns>/<name>.enc.yaml` exists it is decrypted
+   * straight into `kubectl apply`, and only otherwise is the secret seeded from its plaintext
+   * origin seed file.
+   *
+   * The seed path uses `--from-literal`, which places the credential in the command string and so
+   * in the process table and the command log; `disableLog` keeps it out of the log at least. The
+   * encrypted path has no such exposure — the value only ever crosses an anonymous pipe.
    * @param {string} namespace - Target namespace.
    * @param {string} enginePrivateRoot - Path to engine-private directory.
    */
   static ensureMongoSecrets(namespace, enginePrivateRoot) {
-    const keyfile = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-keyfile`);
-    const { username, password } = MongoBootstrap.readMongoCredentials(enginePrivateRoot);
+    if (!Underpost.secret.sops.applyIfPresent('mongodb-keyfile', namespace)) {
+      const keyfile = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-keyfile`);
+      shellExec(
+        `sudo kubectl create secret generic mongodb-keyfile` +
+          ` --from-literal=mongodb-keyfile="${keyfile.replace(/'/g, "'\\''")}"` +
+          ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+        { disableLog: true },
+      );
+      logger.info(`Seeded mongodb-keyfile from ${enginePrivateRoot}/mongodb-keyfile`);
+    }
 
-    shellExec(
-      `sudo kubectl create secret generic mongodb-keyfile` +
-        ` --from-literal=mongodb-keyfile="${keyfile.replace(/'/g, "'\\''")}"` +
-        ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
-    );
-    shellExec(
-      `sudo kubectl create secret generic mongodb-secret` +
-        ` --from-literal=username="${username}" --from-literal=password="${password}"` +
-        ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
-    );
+    if (!Underpost.secret.sops.applyIfPresent('mongodb-secret', namespace)) {
+      const { username, password } = MongoBootstrap.readMongoCredentials(enginePrivateRoot);
+      shellExec(
+        `sudo kubectl create secret generic mongodb-secret` +
+          ` --from-literal=username="${username}" --from-literal=password="${password}"` +
+          ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+        { disableLog: true },
+      );
+      logger.info(`Seeded mongodb-secret from ${enginePrivateRoot}/mongodb-{username,password}`);
+    }
+  }
+
+  /**
+   * Renders one hostPath PersistentVolume per replica, each pre-bound to that member's claim.
+   *
+   * The volume set is a function of the replica count, so it is generated rather than read from a
+   * fixed manifest — a static file can only describe a fixed number, and any `--replicas` above
+   * it leaves the surplus members unbindable.
+   * @param {number} replicaCount - Number of members to provision volumes for.
+   * @param {string} namespace - Namespace the claims live in.
+   * @returns {string} Multi-document PersistentVolume YAML.
+   */
+  static buildReplicaVolumeManifest(replicaCount, namespace) {
+    return Array.from({ length: replicaCount }, (_, i) =>
+      [
+        'apiVersion: v1',
+        'kind: PersistentVolume',
+        'metadata:',
+        `  name: ${MONGODB_STATEFULSET_NAME}-pv-${i}`,
+        '  labels:',
+        `    app: ${MONGODB_STATEFULSET_NAME}`,
+        'spec:',
+        '  capacity:',
+        '    storage: 5Gi',
+        '  accessModes:',
+        '    - ReadWriteOnce',
+        '  persistentVolumeReclaimPolicy: Retain',
+        `  storageClassName: ${MONGODB_STORAGE_CLASS_NAME}`,
+        // claimRef pins each volume to exactly one member, so ordinals can never cross-bind and
+        // land two mongod processes on one data directory.
+        '  claimRef:',
+        `    namespace: ${namespace}`,
+        `    name: ${MONGODB_STATEFULSET_NAME}-storage-${MONGODB_STATEFULSET_NAME}-${i}`,
+        '  hostPath:',
+        `    path: ${MONGODB_DATA_ROOT}/v${i}`,
+        '    type: DirectoryOrCreate',
+      ].join('\n'),
+    ).join('\n---\n');
+  }
+
+  /**
+   * Applies the generated replica volumes, and removes any volume left over from a larger previous
+   * replica count so a scale-down does not strand a PV bound to a claim that no longer exists.
+   * @param {string} namespace - Target namespace.
+   * @param {number} replicaCount - Number of members to provision volumes for.
+   */
+  static applyReplicaVolumes(namespace, replicaCount) {
+    const manifest = MongoBootstrap.buildReplicaVolumeManifest(replicaCount, namespace);
+    shellExec(`kubectl apply -f - <<'UNDERPOST_MONGO_PV_EOF'\n${manifest}\nUNDERPOST_MONGO_PV_EOF`);
+    logger.info(`Applied ${replicaCount} MongoDB replica volume(s)`);
+
+    const stale = shellExec(`kubectl get pv -l app=${MONGODB_STATEFULSET_NAME} -o name 2>/dev/null || true`, {
+      stdout: true,
+      silent: true,
+      silentOnError: true,
+    })
+      .split('\n')
+      .map((name) => name.replace('persistentvolume/', '').trim())
+      .filter((name) => {
+        const ordinal = name.startsWith(`${MONGODB_STATEFULSET_NAME}-pv-`)
+          ? Number(name.slice(`${MONGODB_STATEFULSET_NAME}-pv-`.length))
+          : NaN;
+        return Number.isInteger(ordinal) && ordinal >= replicaCount;
+      });
+    for (const name of stale) {
+      shellExec(`kubectl delete pv ${name} --ignore-not-found`);
+      logger.info(`Removed stale replica volume ${name} (beyond replica count ${replicaCount})`);
+    }
+  }
+
+  /**
+   * Reads the claim-to-volume-to-path mapping for every replica and logs it. Non-throwing, so it
+   * can enrich a failure path without masking the original error.
+   * @param {string} namespace - Target namespace.
+   * @param {number} replicaCount - Expected number of members.
+   * @returns {Array<{claim: string, volume: string, path: string}>} Bindings in ordinal order.
+   */
+  static reportReplicaVolumeBindings(namespace, replicaCount) {
+    const bindings = [];
+    for (let i = 0; i < replicaCount; i++) {
+      const claim = `${MONGODB_STATEFULSET_NAME}-storage-${MONGODB_STATEFULSET_NAME}-${i}`;
+      const volume = shellExec(
+        `kubectl get pvc ${claim} -n ${namespace} -o jsonpath='{.spec.volumeName}' 2>/dev/null || true`,
+        { stdout: true, silent: true, silentOnError: true },
+      ).trim();
+      const path = volume
+        ? shellExec(`kubectl get pv ${volume} -o jsonpath='{.spec.hostPath.path}' 2>/dev/null || true`, {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+          }).trim()
+        : '';
+      bindings.push({ claim, volume, path });
+    }
+    logger.info('MongoDB replica volume bindings', bindings);
+    return bindings;
+  }
+
+  /**
+   * Verifies every replica PVC bound to its own distinct hostPath.
+   *
+   * Two members sharing one directory is unrecoverable at the mongod level — the second dies on
+   * `WiredTiger.lock: fcntl: Resource temporarily unavailable` after the readiness wait has
+   * already burned its timeout, and the real cause (a volume binding, not MongoDB) is invisible
+   * in the pod logs. Checking the binding directly turns that into an immediate, named failure.
+   * @param {string} namespace - Target namespace.
+   * @param {number} replicaCount - Expected number of members.
+   * @throws {Error} When a claim is unbound, or two claims share a backing path.
+   */
+  static assertReplicaVolumeBindings(namespace, replicaCount) {
+    const bindings = MongoBootstrap.reportReplicaVolumeBindings(namespace, replicaCount);
+
+    const unbound = bindings.filter((binding) => !binding.volume);
+    if (unbound.length > 0)
+      throw new Error(
+        `MongoDB claims are not bound to a PersistentVolume: ${unbound.map((b) => b.claim).join(', ')}. ` +
+          `Expected one volume per replica (${replicaCount} total); check that the generated PVs applied ` +
+          `and that each claimRef matches.`,
+      );
+
+    // Only hostPath-backed volumes expose a path to compare; a dynamically provisioned volume
+    // reports none, which is itself worth surfacing since these PVs are meant to be static.
+    const byPath = bindings.reduce((acc, binding) => {
+      if (binding.path) (acc[binding.path] = acc[binding.path] || []).push(binding.claim);
+      return acc;
+    }, {});
+    const shared = Object.entries(byPath).filter(([, claims]) => claims.length > 1);
+    if (shared.length > 0)
+      throw new Error(
+        `MongoDB members would share a data directory, which mongod cannot survive: ` +
+          shared.map(([path, claims]) => `${path} <- ${claims.join(' + ')}`).join('; ') +
+          `. Delete the claims and PVs, then redeploy: ` +
+          `kubectl delete pvc -n ${namespace} -l app=mongodb; kubectl delete pv -l app=mongodb`,
+      );
   }
 
   /**
@@ -360,7 +524,15 @@ class MongoBootstrap {
     } = options;
 
     const enginePrivateRoot = `${process.cwd()}/engine-private`;
-    const effectiveReplicaCount = Math.max(Number(replicaCount) || MONGODB_DEFAULT_REPLICA_COUNT, 3);
+    // No upward clamp: an explicit `--replicas 2` must deploy two members, not be silently
+    // raised to the default.
+    const effectiveReplicaCount = resolveReplicaCount(replicaCount, MONGODB_DEFAULT_REPLICA_COUNT);
+    if (effectiveReplicaCount % 2 === 0)
+      logger.warn(
+        `Deploying ${effectiveReplicaCount} MongoDB members. An even-sized replica set has no ` +
+          `majority when one member is down, so the set becomes read-only on a single failure. ` +
+          `Odd counts (3, 5) are recommended.`,
+      );
     const mongoRootUsername = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-username`);
     const mongoRootPassword = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-password`);
     const mongoReplicaHosts = resolveMongoReplicaHosts({
@@ -414,6 +586,16 @@ class MongoBootstrap {
 
     // Clean data if reset or kind
     if (reset || isKind) {
+      // Delete the StatefulSet's PVCs by name. A label selector cannot reach them: the
+      // `volumeClaimTemplates` entry carries no labels, so `-l app=mongodb` matches nothing and
+      // silently leaves the previous run's PVCs Bound. With `persistentVolumeReclaimPolicy:
+      // Retain` those stale claims keep their old PVs, so the freshly created `mongodb-pv-N`
+      // (whose `claimRef` names the same PVCs) never binds and pods mount the previous volumes —
+      // which is how two members end up on one hostPath and mongod dies on the WiredTiger lock.
+      for (let i = 0; i < MONGODB_ORDINAL_SWEEP; i++)
+        shellExec(
+          `kubectl delete pvc ${MONGODB_STATEFULSET_NAME}-storage-${MONGODB_STATEFULSET_NAME}-${i} -n ${namespace} --ignore-not-found`,
+        );
       shellExec(`kubectl delete pvc -l app=mongodb -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pvc mongodb-pvc -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
@@ -435,11 +617,30 @@ class MongoBootstrap {
         shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}/v${i}`);
       }
       // Fix any stale bind mounts caused by prior deletion of /data/mongodb on the host
-      if (isKind) MongoBootstrap.remountKindMongoVolume(kindNodes);
+      if (isKind) MongoBootstrap.remountKindMongoVolume(kindNodes, effectiveReplicaCount);
     }
 
     // Apply manifests
+    // A StorageClass `provisioner` is immutable, so a plain apply fails against a class created
+    // with a different one. Clusters provisioned before the switch to `kubernetes.io/no-provisioner`
+    // carry the dynamic `rancher.io/local-path`; recreate in that case. Deleting the class is safe
+    // — bound PVs and PVCs reference it by name only and are untouched.
+    const storageClassProvisioner = shellExec(
+      `kubectl get storageclass ${MONGODB_STORAGE_CLASS_NAME} -o jsonpath='{.provisioner}' 2>/dev/null || true`,
+      { stdout: true, silent: true, silentOnError: true },
+    ).trim();
+    if (storageClassProvisioner && storageClassProvisioner !== MONGODB_STORAGE_CLASS_PROVISIONER) {
+      logger.warn(
+        `StorageClass ${MONGODB_STORAGE_CLASS_NAME} uses provisioner '${storageClassProvisioner}'; recreating as ` +
+          `'${MONGODB_STORAGE_CLASS_PROVISIONER}' so the static replica PVs bind deterministically.`,
+      );
+      shellExec(`kubectl delete storageclass ${MONGODB_STORAGE_CLASS_NAME} --ignore-not-found`);
+    }
     shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml -n ${namespace}`);
+    // One PV per member, generated from the effective replica count. A static manifest can only
+    // ever describe a fixed number, so any `--replicas` above it leaves the extra members with no
+    // volume to bind and the StatefulSet stalls forever on Pending.
+    MongoBootstrap.applyReplicaVolumes(namespace, effectiveReplicaCount);
     shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb -n ${namespace}`);
     shellExec(
       `kubectl scale statefulset/${MONGODB_STATEFULSET_NAME} --replicas=${effectiveReplicaCount} -n ${namespace}`,
@@ -448,11 +649,16 @@ class MongoBootstrap {
     // Wait for all pods
     const failedCount = await MongoBootstrap.waitForPods(namespace, effectiveReplicaCount);
     if (failedCount > 0) {
+      // Surface the volume topology before failing: a stalled rollout is far more often a binding
+      // problem than a MongoDB one, and the mapping names it immediately.
+      MongoBootstrap.reportReplicaVolumeBindings(namespace, effectiveReplicaCount);
       throw new Error(
         `MongoDB replica pods did not reach Running state in time. ` +
           `Ensure podManagementPolicy is set to OrderedReady in statefulset.yaml.`,
       );
     }
+
+    MongoBootstrap.assertReplicaVolumeBindings(namespace, effectiveReplicaCount);
 
     // Build the bootstrap script
     const defaultHosts = Array.from(
@@ -564,13 +770,12 @@ class MongoBootstrap {
       // Phase 4: Delete MongoDB PVCs and PVs (both current and legacy mongodb-4.4)
       logger.info('Phase 4/6: Deleting MongoDB PersistentVolumeClaims and PersistentVolumes...');
       // Delete PVCs from volumeClaimTemplates
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < MONGODB_ORDINAL_SWEEP; i++) {
         shellExec(`kubectl delete pvc mongodb-storage-mongodb-${i} -n ${namespace} --ignore-not-found`);
       }
       shellExec(`kubectl delete pvc mongodb-pvc -n ${namespace} --ignore-not-found`);
-      shellExec(`kubectl delete pv mongodb-pv-0 --ignore-not-found`);
-      shellExec(`kubectl delete pv mongodb-pv-1 --ignore-not-found`);
-      shellExec(`kubectl delete pv mongodb-pv-2 --ignore-not-found`);
+      for (let i = 0; i < MONGODB_ORDINAL_SWEEP; i++)
+        shellExec(`kubectl delete pv ${MONGODB_STATEFULSET_NAME}-pv-${i} --ignore-not-found`);
       shellExec(`kubectl delete pv mongodb-pv --ignore-not-found`);
       // Also catch any remaining PVs with the app=mongodb label
       shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
@@ -587,7 +792,7 @@ class MongoBootstrap {
       // containers by inode. Removing it makes the bind mount stale; only clear subdirs.
       logger.info('Phase 5/6: Cleaning up MongoDB hostPath data...');
       shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}`);
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < MONGODB_ORDINAL_SWEEP; i++) {
         shellExec(`sudo rm -rf ${MONGODB_DATA_ROOT}/v${i}`);
         shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}/v${i}`);
       }

@@ -4,7 +4,7 @@
  * @namespace UnderpostCluster
  */
 
-import { clusterTypeFactory, gatewayApiEnabledFactory, getNpmRootPath } from '../server/conf.js';
+import { clusterTypeFactory, gatewayApiEnabledFactory, getNpmRootPath, resolveReplicaCount } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
@@ -277,7 +277,7 @@ class UnderpostCluster {
           Underpost.cluster.natSetup({ underpostRoot });
           // Kind cluster initialization (default for development)
           logger.info('Initializing Kind cluster...');
-          const devReplicaCount = Math.max(Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT, 3);
+          const devReplicaCount = resolveReplicaCount(options.replicas, MONGODB_DEFAULT_REPLICA_COUNT);
           shellExec(`sudo mkdir -p /data/mongodb`);
           for (let index = 0; index < devReplicaCount; index++) {
             shellExec(`sudo mkdir -p /data/mongodb/v${index}`);
@@ -470,7 +470,7 @@ EOF
         const clusterType = clusterTypeFactory(options);
         await MongoBootstrap.initReplicaSet({
           namespace: options.namespace,
-          replicaCount: Number(options.replicas) || MONGODB_DEFAULT_REPLICA_COUNT,
+          replicaCount: resolveReplicaCount(options.replicas, MONGODB_DEFAULT_REPLICA_COUNT),
           hostList: serviceHostInput,
           pullImage: options.pullImage,
           reset: options.resetMongodb === true,

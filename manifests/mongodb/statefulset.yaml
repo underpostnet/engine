@@ -105,6 +105,10 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: mongodb-storage
+        # Without this label `kubectl delete pvc -l app=mongodb` matches nothing, leaving stale
+        # claims bound to retained PVs across redeploys.
+        labels:
+          app: mongodb
       spec:
         accessModes: ['ReadWriteOnce']
         storageClassName: mongodb-storage-class

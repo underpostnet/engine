@@ -16,8 +16,29 @@ const MONGODB_DEFAULT_AUTH_SOURCE = 'admin';
 const MONGODB_DEFAULT_REPLICA_SET = 'rs0';
 const MONGODB_DEFAULT_REPLICA_COUNT = 3;
 // Node-local base path backing the hostPath PVs (`<root>/v<replica index>`),
-// as declared in manifests/mongodb/pv-pvc.yaml.
+// generated one-per-replica by MongoBootstrap.applyReplicaVolumes().
 const MONGODB_DATA_ROOT = '/data/mongodb';
+// Replica volumes are hostPath PVs generated one per member, each pinned by `claimRef`. The class
+// must stay static: a dynamic provisioner competes with the static binder and makes
+// member-to-directory assignment non-deterministic.
+const MONGODB_STORAGE_CLASS_NAME = 'mongodb-storage-class';
+const MONGODB_STORAGE_CLASS_PROVISIONER = 'kubernetes.io/no-provisioner';
+/**
+ * Mongoose connection options for MongoDB, with sensible defaults for production and development environments.
+ * @type {import('mongoose').ConnectOptions}
+ */
+const MONGODB_CONNECTION_OPTIONS = {
+  autoIndex: process.env.NODE_ENV !== 'production',
+  heartbeatFrequencyMS: 10000,
+  maxConnecting: 2,
+  maxPoolSize: 10,
+  minPoolSize: 0,
+  retryReads: true,
+  retryWrites: true,
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 120000,
+  waitQueueTimeoutMS: 10000,
+};
 
 /**
  * Resolves MongoDB replica hosts from explicit input or StatefulSet defaults.
@@ -52,6 +73,26 @@ const resolveMongoReplicaHosts = ({ hostList = '', replicaCount = MONGODB_DEFAUL
  * 3. No built-in defaults — both `host` and `name` are required from the caller or environment.
  */
 class MongooseDBService {
+  /**
+   * Establishes a Mongoose connection to the specified MongoDB instance.
+   *
+   * @async
+   * @param {object|string} configOrHost - Either a db config object or a legacy host string.
+   * @param {string} [configOrHost.host] - Legacy single host or comma-separated host list.
+   * @param {string} [configOrHost.name] - The database name.
+   * @param {string} [configOrHost.replicaSet] - The MongoDB replica set name.
+   * @param {string} [configOrHost.authSource] - The authentication database.
+   * @param {string} [configOrHost.user] - The MongoDB username.
+   * @param {string} [configOrHost.password] - The MongoDB password.
+   * @param {string} [name] - Legacy database name when a host string is passed.
+   * @returns {Promise<mongoose.Connection>} A promise that resolves to the established Mongoose connection object.
+   * @throws {Error} If neither the argument nor the corresponding environment variable supplies a value.
+   */
+  async connect(configOrHost, name) {
+    const uri = this.buildUri(configOrHost, name);
+    // if (process.env.NODE_ENV === 'development') logger.info(`Connecting to MongoDB with URI`, uri);
+    return await mongoose.createConnection(uri, MONGODB_CONNECTION_OPTIONS).asPromise();
+  }
   /**
    * Normalizes Mongo host inputs into plain host:port entries.
    * @param {Array<string>|string} hosts - Host input as list or comma-separated string.
@@ -129,40 +170,6 @@ class MongooseDBService {
   }
 
   /**
-   * Establishes a Mongoose connection to the specified MongoDB instance.
-   *
-   * @async
-   * @param {object|string} configOrHost - Either a db config object or a legacy host string.
-   * @param {string} [configOrHost.host] - Legacy single host or comma-separated host list.
-   * @param {string} [configOrHost.name] - The database name.
-   * @param {string} [configOrHost.replicaSet] - The MongoDB replica set name.
-   * @param {string} [configOrHost.authSource] - The authentication database.
-   * @param {string} [configOrHost.user] - The MongoDB username.
-   * @param {string} [configOrHost.password] - The MongoDB password.
-   * @param {string} [name] - Legacy database name when a host string is passed.
-   * @returns {Promise<mongoose.Connection>} A promise that resolves to the established Mongoose connection object.
-   * @throws {Error} If neither the argument nor the corresponding environment variable supplies a value.
-   */
-  async connect(configOrHost, name) {
-    const uri = this.buildUri(configOrHost, name);
-    // if (process.env.NODE_ENV === 'development') logger.info(`Connecting to MongoDB with URI`, uri);
-    return await mongoose
-      .createConnection(uri, {
-        autoIndex: process.env.NODE_ENV !== 'production',
-        heartbeatFrequencyMS: 10000,
-        maxConnecting: 2,
-        maxPoolSize: 10,
-        minPoolSize: 0,
-        retryReads: true,
-        retryWrites: true,
-        serverSelectionTimeoutMS: 30000,
-        socketTimeoutMS: 120000,
-        waitQueueTimeoutMS: 10000,
-      })
-      .asPromise();
-  }
-
-  /**
    * Dynamically loads Mongoose models for a list of APIs and binds them to the given connection.
    *
    * @async
@@ -201,5 +208,7 @@ export {
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,
   MONGODB_STATEFULSET_NAME,
+  MONGODB_STORAGE_CLASS_NAME,
+  MONGODB_STORAGE_CLASS_PROVISIONER,
   resolveMongoReplicaHosts,
 };

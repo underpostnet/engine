@@ -3,7 +3,14 @@ kind: StorageClass
 metadata:
   name: mongodb-storage-class
   annotations:
-    storageclass.kubernetes.io/is-default-class: "false"
-provisioner: rancher.io/local-path
+    storageclass.kubernetes.io/is-default-class: 'false'
+# Static class: the replica volumes are hostPath PVs generated one per member by
+# MongoBootstrap.applyReplicaVolumes(), each pinned to one member via `claimRef`. It must NOT name a dynamic provisioner — with
+# `rancher.io/local-path` the local-path controller also provisions for these PVCs, racing the
+# static binder, so which volume a member ends up on is not deterministic. Two members landing
+# on one directory is fatal: mongod dies on `WiredTiger.lock: fcntl: Resource temporarily
+# unavailable`, since kind bind-mounts /data/mongodb from the host into every node.
+provisioner: kubernetes.io/no-provisioner
 reclaimPolicy: Retain
+# Static hostPath PVs carry no nodeAffinity, so binding can safely wait for the scheduler.
 volumeBindingMode: WaitForFirstConsumer
