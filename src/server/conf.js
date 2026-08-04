@@ -19,6 +19,7 @@ import {
 } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
 import net from 'net';
+import crypto from 'crypto';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
@@ -1378,6 +1379,56 @@ const splitFileFactory = async (name, _path) => {
     });
   }
   return false;
+};
+
+/**
+ * @method resolveReplicaCount
+ * @description Normalizes a CLI `--replicas` value to a positive integer, falling back to the
+ * caller's default when unset or invalid. Deliberately does not clamp upward: a floor would
+ * silently override an explicit, lower request, which is what made `--replicas 2` deploy three
+ * MongoDB members. Single source of truth so every statefulset reads the flag the same way.
+ * @param {string|number} input - Raw `--replicas` value.
+ * @param {number} [fallback=1] - Count to use when input is absent or not a positive integer.
+ * @returns {number} Effective replica count.
+ * @memberof ServerConfBuilder
+ */
+const resolveReplicaCount = (input, fallback = 1) => {
+  const parsed = Number.parseInt(input, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+/**
+ * @method generateSecurePassword
+ * @description Generates a cryptographically secure password satisfying every validatePassword
+ * constraint (lowercase, uppercase, digit, special character). Backed by `crypto.randomBytes`,
+ * never `Math.random`, because these values become long-lived service credentials.
+ * @param {number} [length=16] - Password length; values below 8 are raised to 8.
+ * @returns {string} The generated password.
+ * @memberof ServerConfBuilder
+ */
+const generateSecurePassword = (length = 16) => {
+  const size = Math.max(8, length);
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  const special = '@#$%^&*()_+';
+  const all = lower + upper + digits + special;
+  const buf = crypto.randomBytes(size + 4);
+  // Guarantee at least one character from each required class
+  const chars = [
+    lower[buf[0] % lower.length],
+    upper[buf[1] % upper.length],
+    digits[buf[2] % digits.length],
+    special[buf[3] % special.length],
+  ];
+  for (let i = 4; i < size; i++) chars.push(all[buf[i] % all.length]);
+  // Fisher-Yates shuffle using an independent random buffer
+  const shuf = crypto.randomBytes(size);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = shuf[i % shuf.length] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
 };
 
 /**
@@ -3329,6 +3380,8 @@ export {
   buildKindPorts,
   buildPortProxyRouter,
   splitFileFactory,
+  generateSecurePassword,
+  resolveReplicaCount,
   getNpmRootPath,
   getUnderpostRootPath,
   writeEnv,
