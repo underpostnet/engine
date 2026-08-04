@@ -20,6 +20,11 @@ const logger = loggerFactory(import.meta);
 // ciphertext is committed; the Age private key never enters this tree.
 const SOPS_SECRETS_DIR = './engine-private/secrets';
 const SOPS_MANIFEST_EXT = '.enc.yaml';
+// `creation_rules[].path_regex` is matched against the manifest path **relative to the directory
+// holding .sops.yaml**, not the repo root. Since .sops.yaml lives at the store root, an
+// `engine-private/secrets/` prefix here can never match — sops sees `<namespace>/<name>.enc.yaml`
+// and reports "no matching creation rules found".
+const SOPS_MANIFEST_PATH_REGEX = `.*${SOPS_MANIFEST_EXT.replace(/\./g, '\\.')}$`;
 // Purged manifests are moved here rather than deleted, so an emergency purge stays
 // reversible. Dot-prefixed so it is never mistaken for a namespace directory.
 const SOPS_ARCHIVE_DIR = `${SOPS_SECRETS_DIR}/.archive`;
@@ -33,12 +38,40 @@ const SOPS_VERSION = 'v3.10.2';
 const AGE_VERSION = 'v1.2.1';
 // Origin seed paths: the plaintext credential files a secret is seeded from before SOPS/Age
 // onboarding, and the path cluster init falls back to when no encrypted manifest exists.
-// Mirrors the seed-fallback branches in UnderpostCluster.API.init(); kept here so a purge can
-// report whether the cluster still has a working seed path for that secret.
+// Keyed by Secret name, then by the Secret data key each file supplies — stated explicitly
+// rather than derived from the filename, because `mongodb-keyfile` supplies a key of that same
+// full name while `postgresql-password` supplies `password`.
+// Mirrors the seed-fallback branches in UnderpostCluster.API.init() and
+// MongoBootstrap.ensureMongoSecrets(); kept here so a purge can report whether the cluster
+// still has a working seed path for that secret.
+// Every Secret whose creation goes through `applyIfPresent` — i.e. the encrypted store is
+// consulted first and the origin seed path is the fallback. Single source of truth for coverage
+// reporting; keep in step with the call sites in UnderpostCluster.API.init(),
+// MongoBootstrap.ensureMongoSecrets(), and UnderpostIPFS.applySecrets().
+const MANAGED_SECRETS = [
+  'postgres-secret',
+  'mariadb-secret',
+  'mysql-secret',
+  'mongodb-secret',
+  'mongodb-keyfile',
+  'ipfs-cluster-secret',
+];
 const ORIGIN_SEED_SOURCES = {
-  'mariadb-secret': ['./engine-private/mariadb-username', './engine-private/mariadb-password'],
-  'mysql-secret': ['./engine-private/mysql-username', './engine-private/mysql-password'],
-  'postgres-secret': ['./engine-private/postgresql-password'],
+  'mariadb-secret': {
+    username: './engine-private/mariadb-username',
+    password: './engine-private/mariadb-password',
+  },
+  'mysql-secret': {
+    username: './engine-private/mysql-username',
+    password: './engine-private/mysql-password',
+  },
+  'postgres-secret': { password: './engine-private/postgresql-password' },
+  'mongodb-secret': {
+    username: './engine-private/mongodb-username',
+    password: './engine-private/mongodb-password',
+  },
+  // Shared replica-set auth keyfile, mounted as a volume rather than injected as env.
+  'mongodb-keyfile': { 'mongodb-keyfile': './engine-private/mongodb-keyfile' },
 };
 
 // Shell/runtime-critical and Kubernetes-injected env keys that must never be persisted as
@@ -217,6 +250,31 @@ class UnderpostSecret {
       },
 
       /**
+       * @method managedSecrets
+       * @description Names of every Secret wired to prefer the encrypted store, with the origin
+       * seed path as fallback. Used for coverage reporting.
+       * @returns {Array<string>} Managed Secret names.
+       * @memberof UnderpostSecret
+       */
+      managedSecrets() {
+        return [...MANAGED_SECRETS];
+      },
+
+      /**
+       * @method seedSources
+       * @description Origin seed files a secret can be onboarded from, as `{ dataKey: path }`.
+       * The mapping is the contract between the plaintext seeding in cluster init
+       * (`--from-file=<key>=<path>`) and the keys a workload's `secretKeyRef` expects, so an
+       * onboarded manifest carries exactly the keys the workload already reads.
+       * @param {string} name - Secret name (e.g. 'postgres-secret').
+       * @returns {Object<string, string>} Data key to seed file path; empty for unknown secrets.
+       * @memberof UnderpostSecret
+       */
+      seedSources(name) {
+        return { ...(ORIGIN_SEED_SOURCES[name] || {}) };
+      },
+
+      /**
        * @method manifestPath
        * @description Builds the canonical store path for an encrypted Secret manifest.
        * @param {string} name - Secret name (e.g. 'postgres-secret').
@@ -330,13 +388,15 @@ class UnderpostSecret {
 
         const recipient = Underpost.secret.sops.recipient();
         const sopsConfPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
-        if (fs.existsSync(sopsConfPath)) logger.info(`Creation rules already present; leaving ${sopsConfPath} intact`);
-        else {
+        if (fs.existsSync(sopsConfPath)) {
+          logger.info(`Creation rules already present; leaving ${sopsConfPath} intact`);
+          Underpost.secret.sops.repairCreationRules();
+        } else {
           fs.outputFileSync(
             sopsConfPath,
             [
               'creation_rules:',
-              `  - path_regex: engine-private/secrets/.*\\${SOPS_MANIFEST_EXT}$`,
+              `  - path_regex: ${SOPS_MANIFEST_PATH_REGEX}`,
               `    encrypted_regex: '${SOPS_ENCRYPTED_REGEX}'`,
               `    age: ${recipient}`,
               '',
@@ -347,6 +407,38 @@ class UnderpostSecret {
         }
         logger.info(`Age recipient: ${recipient}`);
         logger.warn(`Back up ${keyFile} offline. Without it every encrypted manifest is unrecoverable.`);
+      },
+
+      /**
+       * @method repairCreationRules
+       * @description Rewrites a `path_regex` that can never match, in place, preserving recipients
+       * and every other setting. Configs written before the relative-path semantics were understood
+       * carry an `engine-private/secrets/` prefix; because sops matches relative to the directory
+       * holding `.sops.yaml`, that rule matches nothing and every encrypt fails with
+       * "no matching creation rules found". Repairs only that known-broken form, so a deliberately
+       * customized rule is left alone.
+       * @returns {boolean} True when the file was rewritten.
+       * @memberof UnderpostSecret
+       */
+      repairCreationRules() {
+        const confPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
+        if (!fs.existsSync(confPath)) return false;
+        const lines = fs.readFileSync(confPath, 'utf8').split('\n');
+        // The rule is the first key of a YAML list item, so the line carries a `- ` marker that
+        // has to be preserved: `  - path_regex: …`.
+        const brokenRule = /^(\s*(?:-\s*)?)path_regex:\s*.*engine-private\/secrets\//;
+        const index = lines.findIndex((line) => brokenRule.test(line));
+        if (index === -1) return false;
+        const prefix = lines[index].match(brokenRule)[1];
+        const previous = lines[index].trim();
+        lines[index] = `${prefix}path_regex: ${SOPS_MANIFEST_PATH_REGEX}`;
+        fs.writeFileSync(confPath, lines.join('\n'), 'utf8');
+        logger.warn(
+          `Repaired an unmatchable creation rule in ${confPath}: sops matches path_regex relative to ` +
+            `that file's own directory, so the store prefix never matched.`,
+          { from: previous, to: `path_regex: ${SOPS_MANIFEST_PATH_REGEX}` },
+        );
+        return true;
       },
 
       /**
@@ -394,7 +486,13 @@ class UnderpostSecret {
         // already there and leaves an empty file the apply path would happily skip over.
         const stagePath = `${outPath}.staged`;
         try {
-          shellExec(`sops --config "${sopsConfPath}" --encrypt "${plaintextPath}" > "${stagePath}"`);
+          // `--filename-override` makes sops match creation_rules against the destination path
+          // rather than the tmpfs source. Without it the rule never matches, because the plaintext
+          // deliberately lives outside the store (in /dev/shm) and is not named `*.enc.yaml`.
+          shellExec(
+            `sops --config "${sopsConfPath}" --filename-override "${outPath}" ` +
+              `--encrypt "${plaintextPath}" > "${stagePath}"`,
+          );
           Underpost.secret.sops.assertManifest(stagePath, { name });
           fs.moveSync(stagePath, outPath, { overwrite: true });
         } finally {
@@ -642,7 +740,7 @@ class UnderpostSecret {
         if (!name) throw new Error('Purge requires a secret name');
         const namespace = options.namespace || 'default';
         const manifestPath = Underpost.secret.sops.manifestPath(name, namespace);
-        const seedSources = ORIGIN_SEED_SOURCES[name] || [];
+        const seedSources = Object.values(Underpost.secret.sops.seedSources(name));
         const seedFallback = seedSources.length > 0 && seedSources.every((source) => fs.existsSync(source));
 
         if (options.dryRun) {
