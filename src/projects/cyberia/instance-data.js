@@ -343,6 +343,11 @@ function toActionMsg(a) {
       questCode: qd.questCode || '',
       dialogCode: qd.dialogCode || '',
     })),
+    shopItems: (a.shopItems || []).map((si) => ({
+      itemId: si.itemId || '',
+      priceItemId: si.priceItemId || 'coin',
+      priceQty: si.priceQty ?? 1,
+    })),
   };
 }
 

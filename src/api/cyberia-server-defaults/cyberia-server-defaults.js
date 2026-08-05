@@ -592,6 +592,18 @@ export const DefaultCyberiaActions = [
     questDialogueCodes: [{ questCode: 'bounty-quest-alpha', dialogCode: 'quest-talk-agent' }],
   },
   {
+    // Shop capability: an action carrying shopItems is a vendor. The client
+    // surfaces a Shop tab for it and the simulation validates every purchase
+    // against this catalog (price item + quantity).
+    code: 'loc-fallback-map-0-18-16',
+    label: 'Punk',
+    sourceMapCode: 'fallback-map-0',
+    sourceCellX: 18,
+    sourceCellY: 16,
+    dialogCode: 'default-punk',
+    shopItems: [{ itemId: 'tim-knife', priceItemId: 'coin', priceQty: 10 }],
+  },
+  {
     code: 'loc-fallback-map-0-15-22',
     label: 'Lain',
     sourceMapCode: 'fallback-map-0',
@@ -868,6 +880,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['wason'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['punk'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   {
     entityType: ENTITY_TYPES.bot,
     liveItemIds: ['lain'],

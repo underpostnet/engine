@@ -39,6 +39,7 @@ import {
   DEFAULT_PLAYER_SPAWN,
   ENTITY_TYPE_DEFAULTS,
   RESOURCE_ENTITY_TYPE_DEFAULTS,
+  DefaultCyberiaActions,
   DefaultSkillConfig,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import {
@@ -91,6 +92,14 @@ function collectReferencedItemIds() {
       if (typeof s.summonedEntityItemId === 'string' && !s.summonedEntityItemId.startsWith('$')) {
         push(s.summonedEntityItemId);
       }
+    }
+  }
+  // Vendor catalogs: the interact modal draws an icon for the sold item AND
+  // for its price item, so both must resolve to an ObjectLayer.
+  for (const action of DefaultCyberiaActions) {
+    for (const shopItem of action.shopItems || []) {
+      push(shopItem.itemId);
+      push(shopItem.priceItemId);
     }
   }
   return ids;
