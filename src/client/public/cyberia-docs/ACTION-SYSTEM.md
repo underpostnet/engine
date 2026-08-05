@@ -8,7 +8,7 @@
 
 The Action System defines how NPC entities interact with players. An **Action** is a spatial, typed payload attached to a map entity that the player activates by tapping the NPC. Actions drive dialogue, shops, crafting, storage, and quest grant events.
 
-> **Implementation status — Alpha (talk / quest-talk):** The CyberiaAction and CyberiaDialogue MongoDB schemas and Engine REST API (`src/api/cyberia-action`, `src/api/cyberia-dialogue`) are defined. The `talk` and `quest-talk` paths are wired end-to-end: the Go server binds actions to entities at instance init, validates dialogue completion, grants quests, and advances `talk` objectives (see **Dialogue Interaction Protocol** below). Shop / craft / storage transaction processing remains planned for a later Alpha increment. The `freeze_start`/`freeze_end` WS messages for modal protection are implemented; dialogue freeze now rides on the `dlg_*` frames.
+> **Implementation status — Alpha (talk / quest-talk / shop):** The CyberiaAction and CyberiaDialogue MongoDB schemas and Engine REST API (`src/api/cyberia-action`, `src/api/cyberia-dialogue`) are defined. The `talk` and `quest-talk` paths are wired end-to-end: the Go server binds actions to entities at instance init, validates dialogue completion, grants quests, and advances `talk` objectives (see **Dialogue Interaction Protocol** below). The `shop` path is wired end-to-end as well (see **Shop Transaction Flow**). Craft / storage transaction processing remains planned for a later Alpha increment. The `freeze_start`/`freeze_end` WS messages for modal protection are implemented; dialogue freeze now rides on the `dlg_*` frames.
 
 ---
 
@@ -18,9 +18,9 @@ The Action System defines how NPC entities interact with players. An **Action** 
 
 ```
 CyberiaAction {
-  code:         String  // stable unique slug
-  type:         String  // see Action Types below
-  label:        String  // display label on interaction button
+  code:         String  // stable unique, location-scoped slug
+  label:        String  // NPC overhead nameplate (there is no `type` field —
+                        // see Action Capabilities below)
 
   // Spatial origin — NPC entity cell providing this action
   sourceMapCode: String
@@ -70,15 +70,19 @@ A single `code` groups many ordered dialogue lines. The C client fetches all lin
 
 ---
 
-## Action Types
+## Action Capabilities
 
-| Type         | Description                                                    | Active Payload                                       |
-| ------------ | -------------------------------------------------------------- | ---------------------------------------------------- |
-| `quest-talk` | Awards the quest bound to its cell (via Take Quest), shows dialogue | quests bound by cell, `dialogCode`, `questDialogueCodes` |
-| `talk`       | NPC dialogue only — satisfies `talk` quest objectives          | `dialogCode`, `questDialogueCodes`                   |
-| `shop`       | Item shop — player buys items with in-game currency            | `shopItems[]`                                        |
-| `craft`      | Crafting station — consume ingredients to produce output items | `craftRecipes[]`                                     |
-| `storage`    | Personal item storage vault                                    | `storageSlots`                                       |
+An action has **no type**. Its capabilities are whatever payloads are populated,
+resolved per player at interaction time — one action can be a shop and a
+quest-talk giver at once.
+
+| Capability   | Active when                                                     | Payload                                              |
+| ------------ | --------------------------------------------------------------- | ---------------------------------------------------- |
+| `quest-talk` | CyberiaQuests are bound to this action's cell                   | quests bound by cell, `dialogCode`, `questDialogueCodes` |
+| `talk`       | always — satisfies `talk` quest objectives                      | `dialogCode`, `questDialogueCodes`                   |
+| `shop`       | `shopItems[]` is non-empty — player buys items with a currency  | `shopItems[]`                                        |
+| `craft`      | `craftRecipes[]` is non-empty (reference-only for now)          | `craftRecipes[]`                                     |
+| `storage`    | `storageSlots > 0` (reference-only for now)                     | `storageSlots`                                       |
 
 ---
 
@@ -109,25 +113,57 @@ graph LR
 
 ## Shop Transaction Flow
 
+An action carrying a non-empty `shopItems[]` is a **vendor** — there is no type
+flag. The catalog reaches the two runtimes on their own transports: the Go
+server receives it with the world over gRPC (`CyberiaActionMessage.shop_items`),
+the C client fetches it by action code over REST and renders the **Shop** tab.
+Only the server prices a purchase.
+
+A live vendor also lights the **action-provider** capability bit
+(`InteractionFlagAction`), so it carries the same overhead attention icon,
+orbiting particles, and coloured interaction-column border as a pending
+action-talk — the player can see there is something to do before tapping.
+
 ```mermaid
 sequenceDiagram
-    participant P as Player
+    participant P as Player (C client)
     participant G as Go Server
     participant E as Engine (Node.js)
 
-    P->>G: Tap shop NPC
-    G->>E: GET /api/cyberia-action?sourceMapCode=...&sourceCellX=...
-    E-->>G: CyberiaAction { type: 'shop', shopItems: [...] }
-    G-->>P: init_data → shop payload (item list + prices)
-    P-->>G: FrozenInteractionState (modal open)
+    E-->>G: getFullInstance → CyberiaAction { shopItems: [...] } (world build)
+    G-->>P: AOI bot block → actionCode + action-provider capability bit
+    P->>E: GET /api/cyberia-action/code/:code (interaction modal opens)
+    E-->>P: CyberiaAction { label, dialogCode, questDialogueCodes, shopItems }
+    Note over P: Shop tab leads the strip and opens active.<br/>Two columns of cards: item slot, name,<br/>price icon + qty, Buy (wallet icon)
 
-    P->>G: Buy request { itemId, quantity }
-    G->>E: GET player coin balance
-    Note over G: balance >= price * quantity?
-    G->>E: Deduct coins + grant item to inventory
-    G-->>P: FCT: CoinLoss + ItemGain events
-    G-->>P: ThawPlayer (modal close allowed)
+    P->>P: Buy → quantity picker (◀ / ▶ #N, 1..10, capped by what the player<br/>can pay) with a running total, then Cancel or Buy
+    P->>G: shop_buy { entityId, itemId, quantity }
+    Note over G: vendor bound to entity? row on sale?<br/>entity inside the player's AOI?<br/>held(priceItemId) >= priceQty × quantity?
+    G->>G: FreezePlayer("interact") — no kill mid-trade
+    G->>G: removePlayerItem(priceItemId, priceQty × quantity)
+    G->>G: addPlayerItem(itemId, quantity) + collect-objective reconcile
+    G-->>P: shop_ack { entityId, itemId, quantity, ok, reason }
+    G-->>P: AOI self-player block → authoritative inventory
+    Note over P: the card holds until the grant lands, then the<br/>currency's "-N" pop + expend spray play, and the<br/>item flies from the picker's slot into its<br/>inventory slot ("+N" pop)
 ```
+
+The picker deliberately waits for the grant before animating: a first copy has
+no inventory slot until the server delivers it, so launching the flight on the
+button press would aim at the bar's fallback centre instead of the item's own
+slot. Waiting also fixes the ordering — the spend is seen leaving before the
+goods arrive.
+
+Binary uplink opcode: `shop_buy` `0x1C` — `[u8 kind][str entityId][str itemId][u8 quantity]`.
+The quantity is clamped server-side to `[1, shopBuyMaxQty]` (10); a client that
+sends 0 means one unit. A purchase is all-or-nothing: an unaffordable total is
+rejected rather than partially filled.
+
+Rejection reasons on `shop_ack`: `no_vendor`, `not_for_sale`, `out_of_range`,
+`insufficient_funds`.
+
+`shop_ack` is notify-only, and only a rejection is surfaced (as a toast). The
+inventory itself always arrives through the AOI self-player block, so a dropped
+ack costs the player nothing.
 
 ---
 
@@ -159,11 +195,18 @@ sequenceDiagram
 ## Dialogue Interaction Protocol (talk / quest-talk)
 
 Tapping an interaction bubble opens the Raylib-native **`modal_interact`** modal
-(top half of the screen). It has a tab strip — **stack** (active item slots),
-**stats** (six-stat stack totals), and **action** (mission interface, shown only
-for action-provider entities, ESI 8) — over a fixed bottom bar of right-aligned
+(top half of the screen). It has a tab strip — **shop** (vendor catalog, shown
+only when its action carries `shopItems`), **quest** (mission interface, shown
+only when the entity provides quest codes), **stack** (active item slots), and
+**stats** (six-stat stack totals) — over a fixed bottom bar of right-aligned
 integration buttons (**Chat**, **Integration**) that open the JS overlay. The
-action tab's **Talk / Take mission** opens `modal_dialogue` (bottom half).
+paired `modal_dialogue` (bottom half) carries the talk flow.
+
+Capability tabs lead the strip, and the leading one opens active — Shop for a
+vendor, else Quest. Because the catalog resolves through an async REST fetch
+after the modal is already open, the active tab keeps tracking the leading
+capability until the player picks a tab themselves. Switching tabs plays a
+pop-in transition, during which content taps are ignored.
 
 The client is identical for `talk` and `quest-talk`; the **server** branches after
 `dlg_complete`. The client never declares the action type, quest code, or quest
@@ -185,6 +228,25 @@ Binary uplink opcodes: `dlg_start` `0x17`, `dlg_complete` `0x18`, `dlg_cancel`
 `dlg_ack` is notify-only — it carries the affected quest snapshot entries the
 client upserts into its local `quest_store` (Quest Journal); it never gates
 simulation state.
+
+### Provider freeze
+
+A dialogue is one step of a provider session, not the whole of it: the interact
+modal stays open afterwards with its shop and quest tabs live. So when the
+talked-to entity has a bound `CyberiaAction`, `dlg_complete` / `dlg_cancel`
+re-bridge the freeze to `"interact"` instead of thawing, and `shop_buy` asserts
+the same freeze before it mutates anything. The player therefore cannot be
+killed anywhere inside a provider session, whether or not the client
+re-asserted the freeze itself.
+
+The client half holds up its end for as long as a modal is open. `modal_interact`,
+`inventory_modal` and `modal_instance_map` each own a freeze reason
+(`"interact"`, `"inventory"`, `"instance-map"`) and call
+`local_player_keep_freeze()` every frame they stay open — without that renewal
+the 30-second freeze watchdog auto-sends `freeze_end`, and a player browsing a
+shop longer than that would silently become killable. A modal closing over
+another one that still owns a freeze re-bridges to it rather than ending the
+freeze, so there is never a thawed frame between them.
 
 ### Server `dlg_complete` handling
 
@@ -292,16 +354,21 @@ The C client fetches the full `code` group sorted by `order`, then renders lines
 
 ```json
 {
-  "code": "wason-npc",
-  "type": "quest-talk",
-  "label": "Talk",
-  "sourceMapCode": "cyberia-village",
-  "sourceCellX": 12,
-  "sourceCellY": 8,
-  "dialogCode": "default-wason",
-  "questDialogueCodes": ["default-wason"],
-  "shopItems": [],
+  "code": "loc-fallback-map-0-18-16",
+  "label": "Punk",
+  "sourceMapCode": "fallback-map-0",
+  "sourceCellX": 18,
+  "sourceCellY": 16,
+  "dialogCode": "default-punk",
+  "questDialogueCodes": [],
+  "shopItems": [{ "itemId": "tim-knife", "priceItemId": "coin", "priceQty": 10 }],
   "craftRecipes": [],
   "storageSlots": 0
 }
 ```
+
+This is the vendor shipped in the canonical defaults
+(`DefaultCyberiaActions`): the `punk`-skinned NPC on `fallback-map-0` at
+(18, 16) sells `tim-knife` for 10 coins. `bin/cyberia run-workflow
+seed-actions-quests` upserts it; the procedural fallback world serves it
+unpersisted.
