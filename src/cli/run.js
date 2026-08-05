@@ -565,7 +565,10 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'ipfs-expose': (path, options = DEFAULT_OPTION) => {
-      shellExec(`node bin run expose ipfs --expose-host-ports 5002,5001,8081,8080,9094,9095,9096`);
+      // 5001 Kubo RPC API / WebUI: Kubo/IPFS HTTP API + IPFS WebUI (e.g., http://localhost:5001/webui).
+      // 9094 IPFS Cluster HTTP API: IPFS Cluster REST API consumed by ipfs-cluster-ctl and WebUI clients (e.g., http://localhost:9094/).
+      // 8080 (or 8081) IPFS Gateway: Public HTTP Gateway for accessing pinned content by CID (e.g., http://localhost:8080/ipfs/Qm...).
+      shellExec(`node bin run expose ipfs --expose-host-ports 5001,9094,8080`);
     },
 
     /**
