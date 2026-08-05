@@ -2844,11 +2844,18 @@ const exposePortPlanFactory = ({
     throw new Error(`--expose-host-ports requires ${resourceCount} ports for ${resourceCount} resources`);
 
   const portGroups = resources.map((resource, resourceIndex) => {
-    const remotePorts = containerPorts.length
-      ? multipleResources
-        ? [containerPorts[resourceIndex]]
-        : [...containerPorts]
-      : [...new Set(portsOf(resource))];
+    const declaredPorts = [...new Set(portsOf(resource))];
+    let remotePorts = [];
+    if (containerPorts.length > 0) {
+      remotePorts = multipleResources ? [containerPorts[resourceIndex]] : [...containerPorts];
+    } else if (hostPorts.length > 0 && !multipleResources) {
+      remotePorts = hostPorts.map((hp) => (declaredPorts.includes(hp) ? hp : null)).filter(Boolean);
+      if (remotePorts.length !== hostPorts.length) {
+        remotePorts = declaredPorts.slice(0, hostPorts.length);
+      }
+    } else {
+      remotePorts = declaredPorts;
+    }
     if (remotePorts.length === 0)
       throw new Error(`No declared TCP port for ${kindType}/${resource.NAME}; pass --expose-container-ports <ports>`);
     const localPorts = hostPorts.length ? (multipleResources ? [hostPorts[resourceIndex]] : [...hostPorts]) : [];
@@ -2874,7 +2881,6 @@ const exposePortPlanFactory = ({
     }
   return plan;
 };
-
 /**
  * @method gatewayApiEnabledFactory
  * @description Whether a workflow routes through the Gateway API stack.
