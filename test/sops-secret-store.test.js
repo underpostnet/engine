@@ -404,6 +404,166 @@ describe('sops encrypted secret store', () => {
     });
   });
 
+  describe('store adoption by a host that did not create it', () => {
+    // The production trap: a host pulls engine-private, generates its own Age key, and every
+    // inherited manifest is sealed to somebody else's recipient. sops reports that from inside a
+    // decrypt pipe as "no identity matched any of the recipients", naming neither file nor remedy.
+    const storeRoot = './engine-private/secrets';
+    const NS = 'sops-adoption-ns';
+    const dir = `${storeRoot}/${NS}`;
+    const FOREIGN = 'age1mq5jhnym3w2cgexypl5law8my77uvqt2pxaxdqfs8gs0eqcltseq27nquw';
+    const LOCAL = 'age1myykjrfvjg55hddhetqxs4kkpe9mzjd8yae87c8d2c335kghgquqsgrl8q';
+    const originalKeyFile = process.env.SOPS_AGE_KEY_FILE;
+    // A present, correctly permissioned key file carrying no usable identity: assertKeyFile passes,
+    // so the adoption check is what the caller actually hits, exactly as on the production host.
+    const keyPath = `${os.tmpdir()}/underpost-adoption-test-key.txt`;
+    let createdStoreRoot = false;
+
+    const sealedTo = (name, recipient) =>
+      [
+        'apiVersion: v1',
+        'kind: Secret',
+        'metadata:',
+        `    name: ${name}`,
+        `    namespace: ${NS}`,
+        'type: Opaque',
+        'stringData:',
+        '    password: ENC[AES256_GCM,data:Lm8x,iv:3fB7,tag:2cF5,type:str]',
+        'sops:',
+        '    age:',
+        `        - recipient: ${recipient}`,
+        '',
+      ].join('\n');
+
+    before(() => {
+      createdStoreRoot = !fs.existsSync(storeRoot);
+      fs.ensureDirSync(dir);
+      fs.writeFileSync(`${dir}/mariadb-secret.enc.yaml`, sealedTo('mariadb-secret', FOREIGN), 'utf8');
+      fs.writeFileSync(keyPath, '# no identity here\n', 'utf8');
+      fs.chmodSync(keyPath, 0o600);
+      process.env.SOPS_AGE_KEY_FILE = keyPath;
+    });
+
+    after(() => {
+      if (originalKeyFile === undefined) delete process.env.SOPS_AGE_KEY_FILE;
+      else process.env.SOPS_AGE_KEY_FILE = originalKeyFile;
+      fs.removeSync(keyPath);
+      fs.removeSync(dir);
+      if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
+        fs.removeSync(storeRoot);
+    });
+
+    it('holds no recipients when the key file is absent or carries no identity', () => {
+      expect(sops().localRecipients()).to.deep.equal([]);
+      process.env.SOPS_AGE_KEY_FILE = '/nonexistent/underpost-adoption-test/keys.txt';
+      try {
+        expect(sops().localRecipients()).to.deep.equal([]);
+      } finally {
+        process.env.SOPS_AGE_KEY_FILE = keyPath;
+      }
+    });
+
+    it('decides decryptability by recipient-set intersection, without a decrypt attempt', () => {
+      const path = `${dir}/mariadb-secret.enc.yaml`;
+      expect(sops().decryptable(path, [FOREIGN])).to.equal(true);
+      expect(sops().decryptable(path, [LOCAL])).to.equal(false);
+      expect(sops().decryptable(path, [LOCAL, FOREIGN])).to.equal(true);
+      expect(sops().decryptable(path, [])).to.equal(false);
+    });
+
+    it('names the manifest, its recipients, and every remedy instead of failing inside sops', () => {
+      let error;
+      try {
+        sops().assertDecryptable(sops().manifests(NS));
+      } catch (thrown) {
+        error = thrown;
+      }
+      expect(error, 'expected assertDecryptable to throw').to.be.an('error');
+      expect(error.message).to.include(`${NS}/mariadb-secret`);
+      expect(error.message).to.include(FOREIGN);
+      expect(error.message).to.include('underpost secret sops --rotate');
+      expect(error.message).to.include('underpost run sops-setup --force');
+    });
+
+    it('raises the adoption error before any manifest reaches kubectl', () => {
+      expect(() => sops().apply(NS)).to.throw(/sealed to Age recipients this host does not hold/);
+    });
+
+    it('raises rather than sliding back to the origin seed path for a present-but-unreadable manifest', () => {
+      expect(() => sops().applyIfPresent('mariadb-secret', NS)).to.throw(/does not hold/);
+      expect(sops().applyIfPresent('absent-secret', NS)).to.equal(false);
+    });
+  });
+
+  describe('creation-rule recipient registration', () => {
+    const storeRoot = './engine-private/secrets';
+    const confPath = `${storeRoot}/.sops.yaml`;
+    const LOCAL = 'age1myykjrfvjg55hddhetqxs4kkpe9mzjd8yae87c8d2c335kghgquqsgrl8q';
+    let createdStoreRoot = false;
+    let savedConf = null;
+
+    before(() => {
+      createdStoreRoot = !fs.existsSync(storeRoot);
+      fs.ensureDirSync(storeRoot);
+      if (fs.existsSync(confPath)) savedConf = fs.readFileSync(confPath, 'utf8');
+    });
+
+    after(() => {
+      if (savedConf !== null) fs.writeFileSync(confPath, savedConf, 'utf8');
+      else fs.removeSync(confPath);
+      if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
+        fs.removeSync(storeRoot);
+    });
+
+    it('adds the local recipient to an inherited rule without revoking anyone', () => {
+      fs.writeFileSync(
+        confPath,
+        ['creation_rules:', '  - path_regex: .*\\.enc\\.yaml$', '    age: age1foreign', ''].join('\n'),
+        'utf8',
+      );
+      expect(sops().ensureCreationRecipient(LOCAL)).to.equal(true);
+      expect(sops().creationRecipients()).to.deep.equal(['age1foreign', LOCAL]);
+    });
+
+    it('is a no-op once the recipient is listed', () => {
+      expect(sops().ensureCreationRecipient(LOCAL)).to.equal(false);
+      expect(sops().creationRecipients()).to.deep.equal(['age1foreign', LOCAL]);
+    });
+
+    it('leaves a rule that declares no age recipients alone', () => {
+      fs.writeFileSync(
+        confPath,
+        ['creation_rules:', '  - path_regex: .*\\.enc\\.yaml$', '    pgp: ABCDEF', ''].join('\n'),
+        'utf8',
+      );
+      expect(sops().ensureCreationRecipient(LOCAL)).to.equal(false);
+      expect(fs.readFileSync(confPath, 'utf8')).to.include('pgp: ABCDEF');
+    });
+
+    it('registers the host during init so a pulled store cannot be encrypted to write-only', () => {
+      const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+      const start = secretsSource.indexOf('      init() {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      expect(body).to.include('ensureCreationRecipient(recipient)');
+    });
+  });
+
+  describe('sops-setup onboarding reports', () => {
+    const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+    const start = runSource.indexOf("    'sops-setup': (path = '', options = DEFAULT_OPTION) => {");
+    const body = runSource.slice(start, runSource.indexOf('\n    /**', start));
+
+    it('does not report a manifest it cannot decrypt as onboarded', () => {
+      expect(start, 'sops-setup runner not found').to.be.greaterThan(-1);
+      expect(body).to.include('Underpost.secret.sops.decryptable(');
+      expect(body).to.include('sealed to an Age recipient this host does not hold');
+    });
+
+    it('warns when --force replaces a stored credential with a generated one', () => {
+      expect(body).to.include('generated while replacing the stored manifest');
+    });
+  });
+
   describe('rotation safeguards', () => {
     const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
 
@@ -418,6 +578,15 @@ describe('sops encrypted secret store', () => {
 
     it('supports retaining named recipients through a prune', () => {
       expect(secretsSource).to.include('options.keepRecipients');
+    });
+
+    it('refuses to plan a rotation the local key could never perform', () => {
+      // updatekeys has to decrypt each data key first, so a host that cannot read the store cannot
+      // rotate it — including on a dry run, where a reported plan would be pure misdirection.
+      const start = secretsSource.indexOf('      rotate(recipient, options = {}) {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      expect(body).to.include('assertDecryptable(manifests)');
+      expect(body.indexOf('assertDecryptable(manifests)')).to.be.lessThan(body.indexOf('if (options.dryRun)'));
     });
   });
 
