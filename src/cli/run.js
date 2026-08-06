@@ -4248,6 +4248,12 @@ EOF`);
      * overwrites an existing key, which would orphan every manifest already encrypted to the
      * previous recipient with no way to recover them.
      *
+     * On a host that pulled a store created elsewhere, the freshly generated key is not a recipient
+     * of the inherited manifests. `init()` registers this host in the creation rules so what it
+     * encrypts from here on stays readable, but existing manifests can only be re-keyed from a host
+     * that still holds a decrypting key. That case is reported per secret and then raised by the
+     * apply pre-flight with the available remedies, rather than surfacing as a sops decrypt error.
+     *
      * Onboards the whole self-hosted data tier by default — PostgreSQL, MariaDB, and MongoDB
      * (`postgres-secret`, `mariadb-secret`, `mongodb-secret`, `mongodb-keyfile`). The MongoDB
      * keyfile is included because the StatefulSet mounts it for intra-replica-set auth and will
@@ -4312,12 +4318,23 @@ UNDERPOST_SOPS_ENV_EOF`,
 
       // 3. Build and encrypt each requested Secret.
       const stageDir = '/dev/shm/underpost-secrets';
+      const held = Underpost.secret.sops.localRecipients();
       fs.ensureDirSync(stageDir);
       fs.chmodSync(stageDir, 0o700);
       try {
         for (const name of secretNames) {
-          if (Underpost.secret.sops.has(name, namespace) && !options.force) {
-            logger.info(`${name} is already onboarded in ns/${namespace}; skipping (use --force to replace)`);
+          const stored = Underpost.secret.sops.has(name, namespace);
+          if (stored && !options.force) {
+            // A stored manifest this host cannot open is present but unusable here, so reporting it
+            // as onboarded would send the operator on to an apply that is guaranteed to fail.
+            if (Underpost.secret.sops.decryptable(Underpost.secret.sops.manifestPath(name, namespace), held))
+              logger.info(`${name} is already onboarded in ns/${namespace}; skipping (use --force to replace)`);
+            else
+              logger.warn(
+                `${name} is stored in ns/${namespace} but is sealed to an Age recipient this host does not hold; ` +
+                  `skipping. Adopt the store's key, re-key it from a host that holds one, or re-onboard from the ` +
+                  `origin seed files with --force.`,
+              );
             continue;
           }
 
@@ -4336,7 +4353,16 @@ UNDERPOST_SOPS_ENV_EOF`,
               logger.info(`${name}.${key} taken from --args`);
             } else {
               stringData[key] = generateSeedValue(key);
-              logger.info(`${name}.${key} generated`);
+              // Replacing a stored manifest with a value nothing seeded means the credential the
+              // running datastore still authenticates against is being thrown away.
+              if (stored)
+                logger.warn(
+                  `${name}.${key} generated while replacing the stored manifest — no seed file at ` +
+                    `${seedPath || '(unmapped)'} and no --args override. The running datastore keeps its old ` +
+                    `credential until this value is applied to it; pass --args "${key}=<value>" to keep the ` +
+                    `existing one.`,
+                );
+              else logger.info(`${name}.${key} generated`);
             }
           }
 
@@ -4429,21 +4455,15 @@ UNDERPOST_SOPS_ENV_EOF`,
       // ── Age key ────────────────────────────────────────────────────────────
       const keyFile = sops.keyFile();
       const keyExists = fs.existsSync(keyFile);
-      let localRecipient = '';
-      let keyMode = '';
-      if (keyExists) {
-        keyMode = (fs.statSync(keyFile).mode & 0o777).toString(8);
-        try {
-          localRecipient = sops.recipient();
-        } catch (error) {
-          localRecipient = `(unreadable: ${error.message})`;
-        }
-      }
+      // A key file may hold several identities — that is how a host joins a store it did not
+      // create — so every check below works against the whole held set, not one recipient.
+      const held = sops.localRecipients();
+      const keyMode = keyExists ? (fs.statSync(keyFile).mode & 0o777).toString(8) : '';
       logger.info(
         '[sops-status] Age key\n' +
           `  path        ${keyFile}\n` +
           `  present     ${mark(keyExists)}${keyExists ? `  (mode ${keyMode}${keyMode === '600' || keyMode === '400' ? '' : ' — INSECURE, run chmod 600'})` : ''}\n` +
-          `  recipient   ${localRecipient || '(none)'}` +
+          `  recipients  ${held.join(', ') || (keyExists ? '(none — unreadable key file)' : '(none)')}` +
           (keyExists ? '' : `\n  searched    ${sops.keyFileCandidates().join(', ')}`),
       );
 
@@ -4454,7 +4474,7 @@ UNDERPOST_SOPS_ENV_EOF`,
         '[sops-status] Creation rules\n' +
           `  config      ${confPath} ${fs.existsSync(confPath) ? '' : '(missing — run: underpost secret sops --init)'}\n` +
           `  recipients  ${ruleRecipients.length > 0 ? ruleRecipients.join(', ') : '(none)'}\n` +
-          `  local key listed  ${mark(!!localRecipient && ruleRecipients.includes(localRecipient))}`,
+          `  local key listed  ${mark(held.some((recipient) => ruleRecipients.includes(recipient)))}`,
       );
 
       // ── Stored manifests ───────────────────────────────────────────────────
@@ -4469,7 +4489,7 @@ UNDERPOST_SOPS_ENV_EOF`,
         const rows = manifests.map((manifest) => {
           onboarded.add(manifest.name);
           const recipients = sops.manifestRecipients(manifest.path);
-          const decryptable = !!localRecipient && recipients.includes(localRecipient);
+          const decryptable = sops.decryptable(manifest.path, held);
           const live = shellExec(
             `kubectl get secret ${manifest.name} -n ${manifest.namespace} --ignore-not-found -o name 2>/dev/null || true`,
             { stdout: true, silent: true, silentOnError: true, disableLog: true },
