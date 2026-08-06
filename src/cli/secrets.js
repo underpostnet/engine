@@ -357,16 +357,99 @@ class UnderpostSecret {
       },
 
       /**
+       * @method localRecipients
+       * @description Every Age recipient this host holds a private key for. A key file may carry
+       * more than one identity — that is exactly how a host joins a store it did not create, by
+       * appending the origin host's key alongside its own — so this returns all of them rather
+       * than assuming one. Never throws: an absent or unreadable key file is a legitimate state
+       * for a host that has not been onboarded yet, reported as an empty set.
+       * @returns {Array<string>} The `age1…` recipients derived from the local key file.
+       * @memberof UnderpostSecret
+       */
+      localRecipients() {
+        const keyFile = Underpost.secret.sops.keyFile();
+        if (!fs.existsSync(keyFile)) return [];
+        const output = shellExec(`age-keygen -y "${keyFile}"`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+          disableLog: true,
+        });
+        return [...new Set(`${output || ''}`.match(/age1[0-9a-z]+/g) || [])];
+      },
+
+      /**
        * @method recipient
-       * @description Derives the Age public recipient from the private key. The reverse is not
-       * possible, so this is safe to log and to commit into `.sops.yaml`.
+       * @description Derives the primary Age public recipient from the private key — the one new
+       * manifests are encrypted to. The reverse is not possible, so this is safe to log and to
+       * commit into `.sops.yaml`.
        * @returns {string} The `age1…` public recipient.
        * @memberof UnderpostSecret
        */
       recipient() {
         const keyFile = Underpost.secret.sops.keyFile();
         if (!fs.existsSync(keyFile)) throw new Error(`Age private key not found: ${keyFile}`);
-        return shellExec(`age-keygen -y "${keyFile}"`, { stdout: true, silent: true, disableLog: true }).trim();
+        const recipients = Underpost.secret.sops.localRecipients();
+        if (recipients.length === 0)
+          throw new Error(`No Age identity could be read from ${keyFile}. Run: underpost secret sops --init`);
+        return recipients[0];
+      },
+
+      /**
+       * @method decryptable
+       * @description Reports whether the local key can open a stored manifest, by set-intersecting
+       * the manifest's plaintext `sops:` recipients with the identities this host holds. Needs no
+       * decrypt attempt and no private key material, so it is safe to call as a pre-flight on every
+       * manifest before the first mutation.
+       * @param {string} manifestPath - Path to the `.enc.yaml` manifest.
+       * @param {Array<string>} [held] - Locally held recipients; resolved from the key file when omitted.
+       * @returns {boolean} True when at least one recipient of the manifest is held locally.
+       * @memberof UnderpostSecret
+       */
+      decryptable(manifestPath, held = Underpost.secret.sops.localRecipients()) {
+        if (held.length === 0) return false;
+        return Underpost.secret.sops.manifestRecipients(manifestPath).some((recipient) => held.includes(recipient));
+      },
+
+      /**
+       * @method assertDecryptable
+       * @description Fails closed, and legibly, on the store-adoption trap: a host that pulled an
+       * encrypted store created elsewhere holds a key that is not among the manifests' recipients.
+       * sops reports that as "no identity matched any of the recipients" from inside a decrypt
+       * pipe, which names neither the manifest nor a way out; this raises first, listing every
+       * unreadable manifest, the recipients it is sealed to, the identities this host actually
+       * holds, and the three ways to resolve it.
+       * @param {Array<{namespace: string, name: string, path: string}>} manifests - Manifests to check.
+       * @memberof UnderpostSecret
+       */
+      assertDecryptable(manifests) {
+        const held = Underpost.secret.sops.localRecipients();
+        const unreadable = manifests.filter((manifest) => !Underpost.secret.sops.decryptable(manifest.path, held));
+        if (unreadable.length === 0) return;
+        const local =
+          held.length > 0 ? held.join(', ') : `(none — no readable Age identity at ${Underpost.secret.sops.keyFile()})`;
+        throw new Error(
+          `${unreadable.length} encrypted manifest(s) are sealed to Age recipients this host does not hold, ` +
+            `so they cannot be decrypted here:\n` +
+            unreadable
+              .map(
+                (manifest) =>
+                  `  ${manifest.namespace}/${manifest.name} -> ` +
+                  `${Underpost.secret.sops.manifestRecipients(manifest.path).join(', ') || 'no age recipients'}`,
+              )
+              .join('\n') +
+            `\n  this host holds: ${local}\n` +
+            `Resolve with exactly one of:\n` +
+            `  1. Install the key that already opens them — append the origin host's ` +
+            `${Underpost.secret.sops.keyFile()} to this host's own (one file may hold several identities), ` +
+            `chmod 600 it, then re-run.\n` +
+            `  2. Re-key the store from a host that still holds that key: ` +
+            `underpost secret sops --rotate --recipient <this host's recipient>, commit engine-private/secrets, ` +
+            `pull here, then re-run.\n` +
+            `  3. Re-onboard from this host's origin seed files, replacing the stored manifests: ` +
+            `underpost run sops-setup --force. Valid only when those seed files carry the credentials the ` +
+            `cluster already runs on — any regenerated value must also be applied to the running datastore.`,
+        );
       },
 
       /**
@@ -391,6 +474,7 @@ class UnderpostSecret {
         if (fs.existsSync(sopsConfPath)) {
           logger.info(`Creation rules already present; leaving ${sopsConfPath} intact`);
           Underpost.secret.sops.repairCreationRules();
+          Underpost.secret.sops.ensureCreationRecipient(recipient);
         } else {
           fs.outputFileSync(
             sopsConfPath,
@@ -407,6 +491,43 @@ class UnderpostSecret {
         }
         logger.info(`Age recipient: ${recipient}`);
         logger.warn(`Back up ${keyFile} offline. Without it every encrypted manifest is unrecoverable.`);
+      },
+
+      /**
+       * @method ensureCreationRecipient
+       * @description Registers this host's recipient in an inherited `.sops.yaml` so anything it
+       * encrypts from now on, it can also decrypt. Without this, a host that pulled a store created
+       * elsewhere encrypts to the *other* host's recipient only, producing manifests it cannot read
+       * back — a failure that surfaces later as an opaque decrypt error rather than at write time.
+       *
+       * Strictly additive: no existing recipient loses access, and existing manifests are left
+       * untouched, since re-keying them requires a private key that can still decrypt (see
+       * {@link rotate}). Left alone when the rule lists no `age:` recipients at all, which means a
+       * deliberately non-Age rule rather than a store this host should join.
+       * @param {string} recipient - This host's `age1…` public recipient.
+       * @returns {boolean} True when the creation rule was rewritten.
+       * @memberof UnderpostSecret
+       */
+      ensureCreationRecipient(recipient) {
+        const confPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
+        if (!fs.existsSync(confPath) || !recipient) return false;
+        const current = Underpost.secret.sops.creationRecipients();
+        if (current.includes(recipient)) return false;
+        if (current.length === 0) {
+          logger.warn(
+            `${confPath} declares no age recipients; leaving it untouched. Add ${recipient} manually if this ` +
+              `host is meant to encrypt into this store.`,
+          );
+          return false;
+        }
+        Underpost.secret.sops.writeCreationRecipients([...current, recipient]);
+        logger.warn(
+          `Registered this host's recipient in ${confPath} so manifests it encrypts stay readable here. ` +
+            `Existing manifests are NOT re-keyed by this — run \`underpost secret sops --rotate --recipient ` +
+            `${recipient}\` from a host that can still decrypt them, then commit ${SOPS_SECRETS_DIR}.`,
+          { added: recipient, recipients: [...current, recipient] },
+        );
+        return true;
       },
 
       /**
@@ -494,6 +615,15 @@ class UnderpostSecret {
               `--encrypt "${plaintextPath}" > "${stagePath}"`,
           );
           Underpost.secret.sops.assertManifest(stagePath, { name });
+          // Sealing to a recipient held elsewhere is legitimate (encrypting *for* another host),
+          // so this warns rather than fails — but it is also the shape of the store-adoption trap,
+          // where it would otherwise only surface at the next apply.
+          if (!Underpost.secret.sops.decryptable(stagePath))
+            logger.warn(
+              `${outPath} is sealed to ${Underpost.secret.sops.manifestRecipients(stagePath).join(', ')}, none of ` +
+                `which this host holds a private key for — it cannot be decrypted here. Add this host's recipient ` +
+                `to ${sopsConfPath} and re-encrypt if that is not intended.`,
+            );
           fs.moveSync(stagePath, outPath, { overwrite: true });
         } finally {
           fs.removeSync(stagePath);
@@ -526,6 +656,7 @@ class UnderpostSecret {
         // and RBAC failures before the first mutation.
         for (const manifest of manifests)
           Underpost.secret.sops.assertManifest(manifest.path, { name: manifest.name, namespace });
+        Underpost.secret.sops.assertDecryptable(manifests);
         if (!options.dryRun)
           for (const manifest of manifests)
             Underpost.secret.sops.applyManifest(manifest.path, namespace, { ...options, dryRun: true, quiet: true });
@@ -555,6 +686,11 @@ class UnderpostSecret {
         // as such even on a host whose key is missing or wrongly permissioned.
         Underpost.secret.sops.assertManifest(manifestPath, { name: options.expectName, namespace });
         const keyFile = Underpost.secret.sops.assertKeyFile();
+        // Recipient set next: a manifest sealed to a key this host does not hold fails inside the
+        // decrypt pipe with an error that names neither the file nor a remedy.
+        Underpost.secret.sops.assertDecryptable([
+          { namespace, name: options.expectName || manifestPath.split('/').pop(), path: manifestPath },
+        ]);
         const dryRun = options.dryRun ? ' --dry-run=server' : '';
         shellExec(
           `bash -c 'set -o pipefail; SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt "${manifestPath}" ` +
@@ -665,6 +801,10 @@ class UnderpostSecret {
           : [...new Set([...current, recipient])];
         const revoked = current.filter((existing) => !next.includes(existing));
         const manifests = Underpost.secret.sops.manifests();
+        // `updatekeys` re-wraps each data key, which means decrypting it first. A host that cannot
+        // read the store cannot rotate it, dry run included — reporting a plan that can never run
+        // is what sends an operator down the wrong remedy.
+        Underpost.secret.sops.assertDecryptable(manifests);
 
         if (options.dryRun) {
           logger.info('Rotation plan (dry run)', { from: current, to: next, revoked, manifests: manifests.length });
