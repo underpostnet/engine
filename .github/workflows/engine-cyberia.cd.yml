@@ -97,6 +97,7 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin/deploy cyberia"
             sudo -n -- /bin/bash -lc "underpost run clean"
+            sudo -n -- /bin/bash -lc "node bin env dd-cyberia production"
             sudo -n -- /bin/bash -lc "node bin/cyberia run-workflow build-manifest"
             sudo -n -- /bin/bash -lc "node bin run sync 'dd-cyberia,1,,underpost/engine-cyberia:latest' \
               --kubeadm \
