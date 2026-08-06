@@ -94,12 +94,17 @@ function collectReferencedItemIds() {
       }
     }
   }
-  // Vendor catalogs: the interact modal draws an icon for the sold item AND
-  // for its price item, so both must resolve to an ObjectLayer.
+  // Provider catalogs: the interact modal draws an icon for every item a
+  // vendor sells and every ingredient/output an assembler recipe names, so all
+  // of them must resolve to an ObjectLayer.
   for (const action of DefaultCyberiaActions) {
     for (const shopItem of action.shopItems || []) {
       push(shopItem.itemId);
       push(shopItem.priceItemId);
+    }
+    for (const recipe of action.craftRecipes || []) {
+      (recipe.ingredients || []).forEach((i) => push(i.itemId));
+      (recipe.outputItems || []).forEach((o) => push(o.itemId));
     }
   }
   return ids;

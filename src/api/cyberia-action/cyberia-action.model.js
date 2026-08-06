@@ -60,6 +60,7 @@ const CyberiaActionSchema = new Schema(
             qty: { type: Number, default: 1, min: 1 },
           },
         ],
+        craftTimeMs: { type: Number, default: 0, min: 0 },
       },
     ],
 

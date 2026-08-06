@@ -604,6 +604,52 @@ export const DefaultCyberiaActions = [
     shopItems: [{ itemId: 'tim-knife', priceItemId: 'coin', priceQty: 10 }],
   },
   {
+    // Assembler capability: an action carrying craftRecipes is a fabrication
+    // terminal. The client surfaces an Assembly tab for it and the simulation
+    // validates every synthesis against these recipes (ingredients → outputs).
+    // Every id here is obtainable inside the fallback world — wood from the
+    // resource nodes, coin from field drops — so the loop is playable on a
+    // fresh spawn with no seeding.
+    code: 'loc-fallback-map-0-15-16',
+    label: 'Eiri',
+    sourceMapCode: 'fallback-map-0',
+    sourceCellX: 15,
+    sourceCellY: 16,
+    dialogCode: 'default-eiri',
+    craftRecipes: [
+      {
+        outputItems: [{ itemId: 'hatchet', qty: 1 }],
+        ingredients: [
+          { itemId: 'wood-drop-1', qty: 2 },
+          { itemId: 'coin', qty: 5 },
+        ],
+        craftTimeMs: 3000,
+      },
+      {
+        outputItems: [{ itemId: 'tim-knife', qty: 1 }],
+        ingredients: [
+          { itemId: 'wood-drop-2', qty: 1 },
+          { itemId: 'wood-drop-1', qty: 1 },
+          { itemId: 'coin', qty: 10 },
+        ],
+        craftTimeMs: 5000,
+      },
+      {
+        // Multi-output: one blade breaks down into three component stacks, so
+        // the assembly UI and the arrival flights are exercised with more than
+        // a single result slot. Closes the loop with Punk's shop — buy a knife,
+        // salvage it back into parts.
+        outputItems: [
+          { itemId: 'wood-drop-1', qty: 2 },
+          { itemId: 'wood-drop-2', qty: 1 },
+          { itemId: 'coin', qty: 5 },
+        ],
+        ingredients: [{ itemId: 'tim-knife', qty: 1 }],
+        craftTimeMs: 2000,
+      },
+    ],
+  },
+  {
     code: 'loc-fallback-map-0-15-22',
     label: 'Lain',
     sourceMapCode: 'fallback-map-0',
@@ -881,6 +927,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['punk'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['eiri'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
   {
     entityType: ENTITY_TYPES.bot,
     liveItemIds: ['lain'],

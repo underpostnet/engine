@@ -330,6 +330,8 @@ function toInstanceMsg(doc) {
   };
 }
 
+const toCraftItemMsg = (i) => ({ itemId: i.itemId || '', qty: i.qty ?? 1 });
+
 // CyberiaAction → CyberiaActionMessage (proto camelCase fields).
 function toActionMsg(a) {
   return {
@@ -347,6 +349,11 @@ function toActionMsg(a) {
       itemId: si.itemId || '',
       priceItemId: si.priceItemId || 'coin',
       priceQty: si.priceQty ?? 1,
+    })),
+    craftRecipes: (a.craftRecipes || []).map((r) => ({
+      outputItems: (r.outputItems || []).map(toCraftItemMsg),
+      ingredients: (r.ingredients || []).map(toCraftItemMsg),
+      craftTimeMs: r.craftTimeMs ?? 0,
     })),
   };
 }
