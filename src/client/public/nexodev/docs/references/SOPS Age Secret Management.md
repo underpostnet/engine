@@ -14,6 +14,7 @@ Git-native encrypted Kubernetes secrets for 100% self-hosted bare-metal `kubeadm
 - [2. Secret Encryption Workflow](#2-secret-encryption-workflow)
 - [3. Underpost CLI / Production Bash Workflow](#3-underpost-cli--production-bash-workflow)
 - [4. Bare-Metal Disaster Recovery Protocol](#4-bare-metal-disaster-recovery-protocol)
+- [5. Joining a Store Created on Another Host](#5-joining-a-store-created-on-another-host)
 - [Key Rotation](#key-rotation)
 - [Emergency Purge](#emergency-purge)
 - [Operational Invariants](#operational-invariants)
@@ -632,6 +633,77 @@ kubectl get pods -A -o wide
 
 ---
 
+## 5. Joining a Store Created on Another Host
+
+The common production case is not disaster recovery but a second host — a new control plane, a replica, a CI runner — that pulls `engine-private/` and finds an encrypted store it had no part in creating. Its own Age key is **not** a recipient of those manifests, and no amount of re-running setup changes that: only a holder of a decrypting key can grant access.
+
+```bash
+underpost pull engine-private/ <github-user>/engine-private
+node bin run sops-setup
+```
+
+`sops-setup` generates a keypair when the host has none, registers that recipient in `.sops.yaml` so anything this host encrypts from here on stays readable **here**, then reports every inherited manifest it cannot open and stops before the apply:
+
+```
+N encrypted manifest(s) are sealed to Age recipients this host does not hold, so they cannot be decrypted here:
+  default/mariadb-secret -> age1mq5jhnym3w2cgexypl5law8my77uvqt2pxaxdqfs8gs0eqcltseq27nquw
+  this host holds: age1myykjrfvjg55hddhetqxs4kkpe9mzjd8yae87c8d2c335kghgquqsgrl8q
+```
+
+Registering the recipient does **not** re-key existing manifests — `sops updatekeys` has to decrypt each data key first. Pick one of three remedies.
+
+### 5.1 Install the key that already opens them
+
+The normal path for a production host joining a store it should have full access to. A key file may hold several identities, so the origin key is appended rather than replacing whatever the host generated.
+
+```bash
+umask 077
+cat /mnt/offline-backup/underpost-age-key.txt >> /root/.config/sops/age/keys.txt
+chmod 600 /root/.config/sops/age/keys.txt
+
+# Every identity this host now holds; one of them must appear in --list output.
+age-keygen -y /root/.config/sops/age/keys.txt
+node bin secret sops --list
+node bin run sops-setup
+```
+
+### 5.2 Re-key the store from a host that can still decrypt
+
+Preferred when the new host should get its own identity rather than a copy of the original — the private key never leaves its origin host. Run **on the host that holds the decrypting key**, with the new host's recipient:
+
+```bash
+# On the origin host. Additive: every existing recipient keeps working.
+node bin secret sops --rotate --recipient age1myykjrf… --dry-run
+node bin secret sops --rotate --recipient age1myykjrf…
+git -C engine-private add secrets && git -C engine-private commit -m "sops: add <host> recipient" && git -C engine-private push
+
+# Back on the new host.
+underpost pull engine-private/ <github-user>/engine-private
+node bin run sops-setup
+```
+
+### 5.3 Re-onboard from the origin seed files
+
+Last resort, and only valid when this host's origin seed files (`engine-private/postgresql-password`, `engine-private/mongodb-username`, …) carry the credentials the cluster **already runs on**. `--force` replaces the stored manifests:
+
+```bash
+node bin run sops-setup --force
+```
+
+Any data key with no seed file and no `--args` override is **regenerated**. The running datastore keeps authenticating against its old credential until the new one is applied to it, so `sops-setup` warns per key when this happens. Pass the existing value explicitly to avoid it:
+
+```bash
+node bin run sops-setup postgres-secret --force --args "password=<current-password>"
+```
+
+Verify the outcome either way:
+
+```bash
+node bin run sops-status          # decryptable=yes for every manifest, live/in-sync per secret
+```
+
+---
+
 ## Key Rotation
 
 `--rotate` re-wraps each manifest's data key onto a new recipient. Secret **values** are untouched, so no workload restart is needed. It must run while a private key that can still decrypt is present — rotate _before_ destroying the outgoing key, never after.
@@ -754,25 +826,27 @@ node bin secret sops --apply --namespace default
 
 ## Operational Invariants
 
-| Invariant                                                               | Enforced by                                                                 |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Plaintext secrets never reach persistent storage                        | Authoring in `/dev/shm`; `sops --decrypt \| kubectl apply -f -`             |
-| A decrypt failure never applies an empty manifest                       | `set -o pipefail` around every decrypt/apply pipe                           |
-| A failed encrypt never destroys the manifest it was replacing           | Staged temp file + validate + `moveSync`, never a bare `>` redirect         |
-| A manifest is never double-encrypted                                    | `encrypt()` refuses a source that already carries sops metadata             |
-| An unencrypted or mismatched manifest is never applied                  | `assertManifest()` envelope check, before any decrypt, needs no key         |
-| The seed fallback triggers on absence only, never on corruption         | `applyIfPresent()` returns `false` only for a missing file; else it raises  |
-| A namespace is never left half-applied by a mid-loop failure            | Validate-then-commit: envelope + server dry run of all, then apply          |
-| The Age private key never enters Git, a manifest, or a container        | `.gitignore` on `keys.txt`; `SOPS_AGE_KEY_FILE` path-only pointer           |
-| The private key is never exposed in process listings                    | `SOPS_AGE_KEY_FILE`, never `SOPS_AGE_KEY`; `disableLog` on every sops call  |
-| A group/world-readable private key is never used                        | `assertKeyFile()` rejects any mode with `0o077` bits set                    |
-| A key-path mismatch is diagnosable, not a mystery decrypt failure       | `keyFileCandidates()` names every path tried, including the `sudo` case     |
-| A manifest cannot be encrypted to an unlisted recipient                 | Committed `.sops.yaml` `creation_rules`                                     |
-| Recipients are never revoked by accident                                | Prune refuses without `--force`; `--dry-run` lists the revoked set first    |
-| A rotation is never reported complete while a file stays on the old key | Post-`updatekeys` re-read asserts the new recipient is in the `sops:` block |
-| Secrets exist before the workloads that mount them                      | `sops.apply()` ahead of `kubectl apply -k` in `cluster.init()`              |
-| Re-running apply, rotate, or purge is safe                              | `kubectl apply` and `updatekeys` are idempotent; purge archives by default  |
-| Losing the key is recoverable                                           | Second break-glass recipient + verified offline backup                      |
+| Invariant                                                                | Enforced by                                                                 |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Plaintext secrets never reach persistent storage                         | Authoring in `/dev/shm`; `sops --decrypt \| kubectl apply -f -`             |
+| A decrypt failure never applies an empty manifest                        | `set -o pipefail` around every decrypt/apply pipe                           |
+| A failed encrypt never destroys the manifest it was replacing            | Staged temp file + validate + `moveSync`, never a bare `>` redirect         |
+| A manifest is never double-encrypted                                     | `encrypt()` refuses a source that already carries sops metadata             |
+| An unencrypted or mismatched manifest is never applied                   | `assertManifest()` envelope check, before any decrypt, needs no key         |
+| The seed fallback triggers on absence only, never on corruption          | `applyIfPresent()` returns `false` only for a missing file; else it raises  |
+| A namespace is never left half-applied by a mid-loop failure             | Validate-then-commit: envelope + server dry run of all, then apply          |
+| The Age private key never enters Git, a manifest, or a container         | `.gitignore` on `keys.txt`; `SOPS_AGE_KEY_FILE` path-only pointer           |
+| The private key is never exposed in process listings                     | `SOPS_AGE_KEY_FILE`, never `SOPS_AGE_KEY`; `disableLog` on every sops call  |
+| A group/world-readable private key is never used                         | `assertKeyFile()` rejects any mode with `0o077` bits set                    |
+| A key-path mismatch is diagnosable, not a mystery decrypt failure        | `keyFileCandidates()` names every path tried, including the `sudo` case     |
+| A host never encrypts into a store it cannot read back                   | `init()` registers the local recipient in an inherited `.sops.yaml`         |
+| A foreign-sealed manifest is named and explained, not failed inside sops | `assertDecryptable()` pre-flight before apply, rotate, and the decrypt pipe |
+| A manifest cannot be encrypted to an unlisted recipient                  | Committed `.sops.yaml` `creation_rules`                                     |
+| Recipients are never revoked by accident                                 | Prune refuses without `--force`; `--dry-run` lists the revoked set first    |
+| A rotation is never reported complete while a file stays on the old key  | Post-`updatekeys` re-read asserts the new recipient is in the `sops:` block |
+| Secrets exist before the workloads that mount them                       | `sops.apply()` ahead of `kubectl apply -k` in `cluster.init()`              |
+| Re-running apply, rotate, or purge is safe                               | `kubectl apply` and `updatekeys` are idempotent; purge archives by default  |
+| Losing the key is recoverable                                            | Second break-glass recipient + verified offline backup                      |
 
 Add to `.gitignore` before the first `git add`:
 
