@@ -50,7 +50,7 @@ CyberiaAction {
     ingredients: [{ itemId: String, qty: Number }]
   }]
 
-  storageSlots: Number  // storage capacity (type='storage' only)
+  storageSlots: Number  // vault capacity in slots; 0 disables the capability
 }
 ```
 
@@ -81,8 +81,8 @@ quest-talk giver at once.
 | `quest-talk` | CyberiaQuests are bound to this action's cell                   | quests bound by cell, `dialogCode`, `questDialogueCodes` |
 | `talk`       | always — satisfies `talk` quest objectives                      | `dialogCode`, `questDialogueCodes`                   |
 | `shop`       | `shopItems[]` is non-empty — player buys items with a currency  | `shopItems[]`                                        |
-| `craft`      | `craftRecipes[]` is non-empty (reference-only for now)          | `craftRecipes[]`                                     |
-| `storage`    | `storageSlots > 0` (reference-only for now)                     | `storageSlots`                                       |
+| `craft`      | `craftRecipes[]` is non-empty — player assembles outputs        | `craftRecipes[]`                                     |
+| `storage`    | `storageSlots > 0` — player banks items in a personal vault     | `storageSlots`                                       |
 
 ---
 

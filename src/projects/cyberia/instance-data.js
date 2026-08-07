@@ -355,6 +355,7 @@ function toActionMsg(a) {
       ingredients: (r.ingredients || []).map(toCraftItemMsg),
       craftTimeMs: r.craftTimeMs ?? 0,
     })),
+    storageSlots: a.storageSlots ?? 0,
   };
 }
 
