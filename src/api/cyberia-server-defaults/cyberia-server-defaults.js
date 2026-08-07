@@ -650,6 +650,18 @@ export const DefaultCyberiaActions = [
     ],
   },
   {
+    // Storage capability: an action carrying storageSlots is a personal vault.
+    // The client surfaces a Storage tab whose square grid is sized from the
+    // capacity (25 → 5x5) and the simulation owns the contents.
+    code: 'loc-fallback-map-0-12-22',
+    label: 'Kaneki',
+    sourceMapCode: 'fallback-map-0',
+    sourceCellX: 12,
+    sourceCellY: 22,
+    dialogCode: 'default-kaneki',
+    storageSlots: 25,
+  },
+  {
     code: 'loc-fallback-map-0-15-22',
     label: 'Lain',
     sourceMapCode: 'fallback-map-0',
@@ -928,6 +940,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['punk'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['eiri'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
+  { entityType: ENTITY_TYPES.bot, liveItemIds: ['kaneki'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
   {
     entityType: ENTITY_TYPES.bot,
     liveItemIds: ['lain'],
