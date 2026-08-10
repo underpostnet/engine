@@ -681,16 +681,16 @@ class UnderpostSecret {
        * @memberof UnderpostSecret
        */
       applyManifest(manifestPath, namespace = 'default', options = {}) {
-        Underpost.secret.sops.assertTooling(['sops']);
         // Envelope first: it needs no private key, so a malformed or unencrypted store is reported
         // as such even on a host whose key is missing or wrongly permissioned.
         Underpost.secret.sops.assertManifest(manifestPath, { name: options.expectName, namespace });
-        const keyFile = Underpost.secret.sops.assertKeyFile();
         // Recipient set next: a manifest sealed to a key this host does not hold fails inside the
         // decrypt pipe with an error that names neither the file nor a remedy.
         Underpost.secret.sops.assertDecryptable([
           { namespace, name: options.expectName || manifestPath.split('/').pop(), path: manifestPath },
         ]);
+        Underpost.secret.sops.assertTooling(['sops']);
+        const keyFile = Underpost.secret.sops.assertKeyFile();
         const dryRun = options.dryRun ? ' --dry-run=server' : '';
         shellExec(
           `bash -c 'set -o pipefail; SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt "${manifestPath}" ` +
@@ -779,11 +779,11 @@ class UnderpostSecret {
        * @memberof UnderpostSecret
        */
       rotate(recipient, options = {}) {
-        Underpost.secret.sops.assertTooling(['sops']);
         if (!recipient) throw new Error('Rotation requires --recipient <age-public-key>');
         if (!/^age1[0-9a-z]{20,}$/.test(recipient))
           throw new Error(`Not a valid Age public recipient: ${recipient} (expected age1…)`);
 
+        Underpost.secret.sops.assertTooling(['sops']);
         const keyFile = Underpost.secret.sops.assertKeyFile();
 
         const confPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
