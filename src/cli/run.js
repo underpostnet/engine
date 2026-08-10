@@ -3090,7 +3090,7 @@ EOF`);
         const hostListenResult = etcHostFactory(hosts);
         logger.info(hostListenResult.renderHosts);
       }
-
+      const version = 'v3.2.80';
       const instanceOptionsFactory = (deployId, instanceId) => ({
         ...options,
         ...clusterContextFactory(clusterType),
@@ -3102,9 +3102,9 @@ EOF`);
         namespace: options.namespace || 'default',
         imageName:
           deployId === 'dd-cyberia' && env === 'development' && instanceId === 'mmo-server'
-            ? 'underpost/cyberia-server-dev:v3.2.80'
+            ? `underpost/cyberia-server-dev:${version}`
             : deployId === 'dd-cyberia' && env === 'development' && instanceId === 'mmo-client'
-              ? 'underpost/cyberia-client-dev:v3.2.80'
+              ? `underpost/cyberia-client-dev:${version}`
               : undefined,
       });
       const deployFlagsById = {};
@@ -3120,7 +3120,7 @@ EOF`);
           `--${clusterType}${env === 'production' ? ' --cert' : ' --self-signed'}${gatewayApiFlags}` +
           `${options.namespace ? ` --namespace ${options.namespace}` : ''}` +
           (deployId === 'dd-cyberia'
-            ? ` --image 'underpost/engine-cyberia:v3.2.80'  \
+            ? ` --image 'underpost/engine-cyberia:${version}'  \
                 --versions blue \
                 --image-pull-policy Always \
                 --cmd 'cd /home/dd/engine, \
