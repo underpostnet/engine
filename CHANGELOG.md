@@ -1,6 +1,187 @@
 # Changelog
 
-## 2026-07-23
+## 2026-08-11
+
+### cli-run
+
+- Add version parameter in cluster runner cmd lines ([bd909bc0](https://github.com/underpostnet/engine/commit/bd909bc046f77f5c36d601116d2f94291ca6aa0a))
+- Handle multi-recipient keys in sops runners ([92ecdc15](https://github.com/underpostnet/engine/commit/92ecdc1518d645faa913d0897288a5f6e27e075d))
+- Trim ipfs expose to core host ports ([dc473d4f](https://github.com/underpostnet/engine/commit/dc473d4faa1221f0102ce88ee6fff866941d0f3b))
+- Add sops setup and status runners ([a29fd394](https://github.com/underpostnet/engine/commit/a29fd3947637ca64398040deaea30d0fab624263))
+- Fix sub path handling probes in get-traffic runner ([b65d0fe4](https://github.com/underpostnet/engine/commit/b65d0fe4e73b370a627efbb8b2e23386deff7f74))
+- Add restore mongo statefulset runner ([e9e1b224](https://github.com/underpostnet/engine/commit/e9e1b224b964a713f5d6aedbf05d11b41e15a98c))
+- In get-traffic runner retains every configured host row matching the input ([a1654225](https://github.com/underpostnet/engine/commit/a16542254c92f9d1564a9a817b990ecbe061459d))
+- Rework get-traffic runner with CURRENT and OPPOSITE color state deployment ([34e4a723](https://github.com/underpostnet/engine/commit/34e4a7234784dec5ac6af20bd785a830f9f238bf))
+- Rework expose runner to port list options ([b6fe9cfe](https://github.com/underpostnet/engine/commit/b6fe9cfe46e07cf8776157e66d6006341902b616))
+- Add status and expose runners ([0d383e7d](https://github.com/underpostnet/engine/commit/0d383e7d9a6bdbc062060635c279821e559a6473))
+- Drop redundant rollout restart after node-move patch ([b5399b13](https://github.com/underpostnet/engine/commit/b5399b1342b6c3932b065eb4d6c6b01f7f361e10))
+- Load project instance env builder by convention ([8b226d07](https://github.com/underpostnet/engine/commit/8b226d07367e1f5e7a93ffc3ced17c0ebd953f99))
+- Route instances through stable traffic Service ([65c674e0](https://github.com/underpostnet/engine/commit/65c674e05c280bba50e6ab6c6bfdda0480e72d67))
+- Refactor stop runner logic introduce stopPlanFactory method ([aa972f12](https://github.com/underpostnet/engine/commit/aa972f12008ceb49e3ee3cd053f47b525c344fbd))
+- Remove direct ssh remote  runners ([79ecee89](https://github.com/underpostnet/engine/commit/79ecee8926e4ccf63f1d8a8fc023e359e750072f))
+- Integrate underpost gateway into run ([ce02c328](https://github.com/underpostnet/engine/commit/ce02c3282721f02d89e6af76380ace95a8bfa424))
+- Add Gateway API HTTPRoute rules for instance runners ([c85c48e4](https://github.com/underpostnet/engine/commit/c85c48e434c65437bb9704a019c4945c1620e317))
+
+### test-secrets
+
+- Fix rotate and apply manifest test workflow ([5f0be40c](https://github.com/underpostnet/engine/commit/5f0be40c51440bf6496a7da66a5d9edb78d6de0d))
+
+### hardhat
+
+- Update transitive dependencies ([59f18f31](https://github.com/underpostnet/engine/commit/59f18f31bd2490904c4ead85ca8a0dd9d50d1459))
+
+### engine-cyberia
+
+- Implement storageSlots capability workload in fallback world ([c6bceef0](https://github.com/underpostnet/engine/commit/c6bceef0b6d8c4d64e8f02f87ed2fb20abf3e287))
+- Implement storageSlots capability workload in fallback world ([e5f4d1c9](https://github.com/underpostnet/engine/commit/e5f4d1c9a979f87d53cbc9c7ddef4dd2d6e747e3))
+- Add assembler craft recipes to cyberia action system ([c5072452](https://github.com/underpostnet/engine/commit/c5072452309a51882283568650098eebf87620ff))
+- Add vendor shop catalog to cyberia action system ([748533a0](https://github.com/underpostnet/engine/commit/748533a0c68e57c25f9f9c5844fc27f545c2cae6))
+- Preserve variant base path through ingress ([3daa9a18](https://github.com/underpostnet/engine/commit/3daa9a18190f41bef20b9a590b04ae51f150a7fc))
+- Normalize instance topology and dispatch env builders ([cd0309ae](https://github.com/underpostnet/engine/commit/cd0309ae425c59c957eed5357cabdbc27ad3ffe6))
+- Refactor gateway static to underpost gateway ([9f35a007](https://github.com/underpostnet/engine/commit/9f35a007d5cf444f4d84c7eccf446d46b4208e0f))
+- Fix minor besu genesis generator update ([6680d5a1](https://github.com/underpostnet/engine/commit/6680d5a16b9936c6995812b3b9f99415d72636c0))
+- Fix sum stat response in fall back world static instance map endpoint ([84ea1e4c](https://github.com/underpostnet/engine/commit/84ea1e4ca39bf8046736703951857ba3f91b6965))
+- Add seeded random source for deterministic fallback world generation ([74741187](https://github.com/underpostnet/engine/commit/7474118721a446a53077a2a4aa243eefc95abb96))
+
+### dependencies
+
+- Update transitive dependencies ([9c12f8fd](https://github.com/underpostnet/engine/commit/9c12f8fde0739131fa9dc42ccf142e7351ab4295))
+
+### github-actions
+
+- Set dd-cyberia env before build manifest ([3ec1c8e4](https://github.com/underpostnet/engine/commit/3ec1c8e46bca4d31097f7d80b62c7276ef5974bd))
+- Update build and deployment manifests ([b8aad935](https://github.com/underpostnet/engine/commit/b8aad9359dafaf0c6aea08b6e9925e3b0425592f))
+- Wait for underpost-gateway rollout ([57fc7c22](https://github.com/underpostnet/engine/commit/57fc7c22ff1bbc4f45f042e11d86d73348746915))
+- Update engine-test CD deploy workflow ([712cc9e1](https://github.com/underpostnet/engine/commit/712cc9e17a581ed20a27923b169405824f05e759))
+- Update build and deployment manifests ([14965333](https://github.com/underpostnet/engine/commit/149653332980e66ab8d49f9bc496f5b32f89c211))
+- Update engine-cyberia docker-compose build and deployment manifests ([8dcb10ab](https://github.com/underpostnet/engine/commit/8dcb10ab22c7942d51fa6b94d5a1d09b62fc1930))
+- Update engine-cyberia docker-compose build and deployment manifests ([1cf4f753](https://github.com/underpostnet/engine/commit/1cf4f753f899fa995b5b25aba74792f39da6055f))
+- Update build and deployment manifests ([ba4f4a17](https://github.com/underpostnet/engine/commit/ba4f4a17321771873f04f2782ff43bce9811bd9e))
+- Update build and deployment manifests ([9874b895](https://github.com/underpostnet/engine/commit/9874b895df5f4904b6b5ab6c016a6f8487e24ef9))
+- Update build and deployment manifests ([c3a4ec9f](https://github.com/underpostnet/engine/commit/c3a4ec9f154be351d4fffec78d31f55b8119ba94))
+- Update build and deployment manifests ([a8bdbf05](https://github.com/underpostnet/engine/commit/a8bdbf0503e437237750bb1257c50aca9b92bfe5))
+- Update engine-cyberia CD add prebuild manifest workflow ([a1f4954f](https://github.com/underpostnet/engine/commit/a1f4954f7accfdcf354afcf2c602960bedeca1c5))
+- Fix 404 page location in cyber ua-client docker image workflow ([b52bdf89](https://github.com/underpostnet/engine/commit/b52bdf89e50597bb03f325e6f1bec127005af406))
+- Disable publish branch and sha docker images versions ([12a37a46](https://github.com/underpostnet/engine/commit/12a37a468a39083e07c13406d1882905eb3d05da))
+
+### test
+
+- Cover store adoption and recipient registration ([e570d647](https://github.com/underpostnet/engine/commit/e570d6472c2f9e87613d109bc88ddabb2acefd38))
+- Cover sops encrypted secret store ([7c41910b](https://github.com/underpostnet/engine/commit/7c41910bd48d4ddbee5ff1698fd678e9c03f0606))
+- Cover expose and curl status chain ([c19471ae](https://github.com/underpostnet/engine/commit/c19471ae2dc3c38df89a911708679ed12cb13812))
+- Add deployment node placement tests ([390e0aa7](https://github.com/underpostnet/engine/commit/390e0aa7d0b05e4410d7c62da2990bac3546bb29))
+- Fix test/cluster-instances.test.js ([481740db](https://github.com/underpostnet/engine/commit/481740db8cd24108bc4a599180626d8e3f23c118))
+- Remove buildCyberiaMmoInstanceEnv tests in test/cluster-instances.test.js ([46afd8ae](https://github.com/underpostnet/engine/commit/46afd8aed83a023cbc8e3153d7123aee748079e9))
+
+### docs
+
+- Document joining a store created on another host ([25a85b6c](https://github.com/underpostnet/engine/commit/25a85b6cee4b04dec73016782f61ba9ab7d84e49))
+- Document shop transaction flow in action system ([7091a506](https://github.com/underpostnet/engine/commit/7091a506a644f7c1a8c0a62526ced91ed568af0c))
+- Document sops age secret management ([6b538a2f](https://github.com/underpostnet/engine/commit/6b538a2f6241f47a1ff2e039e8593bddc3328216))
+- Document expose port list examples ([f9ba1808](https://github.com/underpostnet/engine/commit/f9ba18083ebd013fa83ef660e5150dbd9934ff03))
+- Document run status and expose runners ([bf9a83b4](https://github.com/underpostnet/engine/commit/bf9a83b423834ed7647b5d84ff2bee53b55cd66e))
+- Update node-move mechanics for template patch rollout ([fb8d36f8](https://github.com/underpostnet/engine/commit/fb8d36f8974c9f5079a3cce373e0634dbc3bf0e4))
+
+### cli-secret
+
+- Add store adoption pre-flight and recipient registration ([2d634dbb](https://github.com/underpostnet/engine/commit/2d634dbbb503ec00db3df61a1925a888b8c83288))
+- Add managed secrets and repair creation rules ([4661114a](https://github.com/underpostnet/engine/commit/4661114a03836074ab3cad51559b660a88a55290))
+- Add sops age encrypted secret store ([8de77fdd](https://github.com/underpostnet/engine/commit/8de77fdd6b2e82fcbeabcedba9305bb15f881418))
+
+### server-conf
+
+- Derive remote ports from host ports in expose plan ([45bec1ad](https://github.com/underpostnet/engine/commit/45bec1ad9735794ad57c672a43e76ac2fc9861d2))
+- Add replica count and secure password factories ([83320d06](https://github.com/underpostnet/engine/commit/83320d061b192dc883ab8b6ccadd171989c9659e))
+- Add expose port list and plan factories ([928ad835](https://github.com/underpostnet/engine/commit/928ad8350426a93d0d8c84f0eee7b8730a538d97))
+- Add curl status chain factory ([dfeef123](https://github.com/underpostnet/engine/commit/dfeef123b33253205c70f0a437323179e590a229))
+- Support idempotent hosts blocks in etcHostFactory ([aa45f40a](https://github.com/underpostnet/engine/commit/aa45f40ace07b6508e0f7a09f2de4ba8a82b3bb9))
+
+### ipfs
+
+- Prefer sops store for cluster credentials ([62f40264](https://github.com/underpostnet/engine/commit/62f402649454e5fbb049dde070a3f392d55b1963))
+
+### engine
+
+- Generate per-replica mongo volumes with static storage class ([703b8bba](https://github.com/underpostnet/engine/commit/703b8bbacc16c73d0fb96586ea71406d8c723afb))
+
+### cli-cluster
+
+- Prefer sops store in cluster secret seeding ([7be50059](https://github.com/underpostnet/engine/commit/7be50059a724b5fad9cb600cf540e69141dd30da))
+- Hot-reload shared ingress host table ([d6328a5e](https://github.com/underpostnet/engine/commit/d6328a5e06237232f492777eca680cf8afd839f7))
+- Add shared underpost ingress front for dual ingress stacks ([041debe9](https://github.com/underpostnet/engine/commit/041debe99e0082412798960ec0be3be3229144c2))
+- Update Gateway API versions and integrate underpost gateway ([12eefb86](https://github.com/underpostnet/engine/commit/12eefb86e6434da8b55a16ffeb28ac267fe62d05))
+- Add Gateway API control plane and CRI socket resolution ([97565eea](https://github.com/underpostnet/engine/commit/97565eea7d4bab91838321a3a96cd058d8496249))
+
+### underpost-gateway
+
+- Fix path replicas handling in deploy pwa workfloads ([702f48e4](https://github.com/underpostnet/engine/commit/702f48e4b04c1a9b4458361ed0d33f0b72815c08))
+- Validate and rollback gateway config on reload failure ([4f7ce879](https://github.com/underpostnet/engine/commit/4f7ce8795ef2a46a47bd6d0f49fd0a941cadcca8))
+
+### cli-deploy
+
+- Add resolveSchedulableNode method ([c62ee86d](https://github.com/underpostnet/engine/commit/c62ee86d024e9797f279396d647431a97a399f50))
+- Fix merged Gateway listener isolation ([a34f0b93](https://github.com/underpostnet/engine/commit/a34f0b9363a7b16f7d1bf704f27617f7411f2087))
+- Remove expose and status options ([e55227eb](https://github.com/underpostnet/engine/commit/e55227eb0ce75fd308cd72a0f3331a62a08ae0ab))
+- Add node placement to deployment manifest ([9487ad16](https://github.com/underpostnet/engine/commit/9487ad169e79c1ed4c2d1eb05b1e36ff46defe8d))
+- Add stable traffic Service for blue/green routing ([838d1ec0](https://github.com/underpostnet/engine/commit/838d1ec0c1d9d2d9ff35c529180593efcf341203))
+- Fall back to other ingress stack for traffic colour ([3115cc84](https://github.com/underpostnet/engine/commit/3115cc84b02aa091927b25ae09de41879bf012d3))
+- Fix deploy status workflow logic ([35e1af02](https://github.com/underpostnet/engine/commit/35e1af02484e9d6abeb6f031b33589534fe77665))
+- Integrate underpost gateway into deploy ([e95a46d6](https://github.com/underpostnet/engine/commit/e95a46d64897fc92ba2fbb3b5da07c51a0abb729))
+- Add gateway.yaml and httproute.yaml to build manifest mirror ([afb7bcf9](https://github.com/underpostnet/engine/commit/afb7bcf9d8a902d744d6030c72c07d1814f45940))
+- Add Gateway API deploy manifests and gateway static utility ([073231ca](https://github.com/underpostnet/engine/commit/073231ca5a44b860420373035628ad22cc0435d8))
+
+### scripts
+
+- Use run expose in test monitor ([b19c4931](https://github.com/underpostnet/engine/commit/b19c49318728b92a8fcf6f7e50e90b5b0e808b0d))
+- Add firewall UDP range for QUIC/HTTP3 to nat-iptables ([3bdacec3](https://github.com/underpostnet/engine/commit/3bdacec350caa1776b418ac44dd3b1e95e259196))
+
+### cli
+
+- Update run and deploy option flags ([0dfb9ce6](https://github.com/underpostnet/engine/commit/0dfb9ce6cbfef8f5d990a6fa8287902de20500f2))
+
+### underpost-ingress
+
+- Add multi node work load handling ([3dccb3de](https://github.com/underpostnet/engine/commit/3dccb3de3c9a795096613adcca56389c71291c8b))
+
+### cli-cyberia
+
+- Add testPaths in dev-env runner ([b087f4af](https://github.com/underpostnet/engine/commit/b087f4afd226a2fefd0cb344a60ac3b945073a40))
+- Install Docker host aliases in compose workflows ([a9fb7507](https://github.com/underpostnet/engine/commit/a9fb750709a4e94f9dd299ff7b62784bb728ad2a))
+
+### docker-compose
+
+- Implement project-agnostic docker-compose workflow ([e0d07689](https://github.com/underpostnet/engine/commit/e0d07689ceb9cf34a930c5f4120d8d5ab05f6ae8))
+- Update subpath handling logic ([69fb72fc](https://github.com/underpostnet/engine/commit/69fb72fcb7f7ac87f67f71314d0580ec6a8052f8))
+
+### bin-deploy
+
+- Fix add --ignore-not-found in 'pw-conf' runner ([2f14d2ab](https://github.com/underpostnet/engine/commit/2f14d2ab66357eb032266487e2dee5b614d1b697))
+
+### cyberia-docs
+
+- Update docs for gateway and CLI changes ([c064f82a](https://github.com/underpostnet/engine/commit/c064f82ad3c315fec5ad7cbdd322d577bc311abf))
+- Document edge tier architecture and CLI updates ([72760e40](https://github.com/underpostnet/engine/commit/72760e40eb9ea96999b94b5c7d916a21c04ac8ef))
+
+### cyberia-cli
+
+- Refactor SSH port wait to shared utility ([cdf4c4f9](https://github.com/underpostnet/engine/commit/cdf4c4f922ee7980cf43111db1ef1c81578ad2a3))
+- Add status page build and instance project resolution ([b1b0a840](https://github.com/underpostnet/engine/commit/b1b0a840e5cd7f7edf084bf86323dfdee7d56fd7))
+- Fix SSR html views locations path ([1bf2843c](https://github.com/underpostnet/engine/commit/1bf2843c87607e5b9648f8ec98b35efca5d79b4a))
+- Remove redundant logs ([3adba85f](https://github.com/underpostnet/engine/commit/3adba85fe5199972a8a0cd49f6be005c989f2145))
+
+### cli-image
+
+- Implement crictlCommandFactory in image build ([69d24d66](https://github.com/underpostnet/engine/commit/69d24d66848fc27a2503193f82a31ef84435252f))
+
+### db
+
+- Fix MongoDB replica set orphan recovery and improve bootstrap ([71b5f1a3](https://github.com/underpostnet/engine/commit/71b5f1a3e032f34c29a9a6b9251aac328c951872))
+
+### cyberia-client
+
+- Fix instance selection play URL for default instance code ([efec4a34](https://github.com/underpostnet/engine/commit/efec4a34edbfb3aae780a42b02ad64d4d93791a1))
+
+## New release v:3.2.80 (2026-07-23)
 
 ### engine-cyberia
 

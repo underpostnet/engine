@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.80
+> underpost ci/cd cli v3.2.90
 
 **Usage:** `underpost [options] [command]`
 
@@ -411,7 +411,7 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 | Option | Description |
 | --- | --- |
 | `--reset` | Deletes all clusters and prunes all related data and caches. |
-| `--reset-mongodb` | Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node. |
+| `--reset-mongodb` | Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node. Combined with --mongodb it instead wipes the retained hostPath volumes as part of that deploy, so the replica set starts from empty data. |
 | `--mariadb` | Initializes the cluster with a MariaDB statefulset. |
 | `--mysql` | Initializes the cluster with a MySQL statefulset. |
 | `--mongodb` | Initializes the cluster with a MongoDB statefulset. |
@@ -421,6 +421,9 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 | `--valkey` | Initializes the cluster with a Valkey service. |
 | `--ipfs` | Initializes the cluster with an ipfs-cluster statefulset. |
 | `--contour` | Initializes the cluster with Project Contour base HTTPProxy and Envoy. |
+| `--gateway-api` | Initializes the cluster with the Gateway API control plane (CRDs, Envoy Gateway, GatewayClass) used by generated HTTPRoute + QUIC/HTTP3 manifests. With --dev the data plane binds the listener ports on the host network for direct browser access. |
+| `--gateway-class <name>` | GatewayClass name to provision (default "eg"). |
+| `--ingress-node <node-name>` | Dedicated node for underpost-ingress when both routing stacks coexist. Workload placement flags do not move it. |
 | `--node-port` | Exposes enabled ready services (e.g. MongoDB 4.4, Valkey) to the host/public network via their NodePort Service manifest. |
 | `--node-selector <k8s-node-name>` | Pins the just-deployed StatefulSet (MongoDB 4.4 / Valkey) to the given Kubernetes node once it is ready (via a kubernetes.io/hostname nodeSelector). |
 | `--cert-manager` | Initializes the cluster with a Let's Encrypt production ClusterIssuer. |
@@ -472,8 +475,10 @@ Manages application deployments, defaulting to deploying development pods.
 | `--cert-hosts <hosts>` | Resets TLS/SSL certificate secrets for specified hosts. |
 | `--self-signed` | Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. The secret must already exist in the namespace with the same name as the host. Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer. |
 | `--node <node>` | Sets optional node for deployment operations. |
+| `--ingress-node <node-name>` | Explicitly relocates the shared host-network ingress; ordinary --node placement never moves it. |
 | `--ssh-key-path <path>` | Private key path for node SSH operations. Currently used when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa. |
 | `--build-manifest` | Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets. |
+| `--sync-static` | Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready. |
 | `--replicas <replicas>` | Sets a custom number of replicas for deployments. |
 | `--image <image>` | Sets a custom image for deployments. |
 | `--versions <deployment-versions>` | A comma-separated list of custom deployment versions. |
@@ -483,10 +488,14 @@ Manages application deployments, defaulting to deploying development pods.
 | `--retry-count <count>` | Sets HTTPProxy per-route retry count (e.g., 3). |
 | `--retry-per-try-timeout <duration>` | Sets HTTPProxy retry per-try timeout (e.g., "150ms"). |
 | `--disable-update-deployment` | Disables updates to deployments. |
-| `--disable-runtime-probes` | Omits the internal-status HTTP probes from generated deployment manifests. |
+| `--disable-runtime-probes` | Deprecated compatibility flag; readiness probes remain mandatory. Use --tcp-probes for legacy workloads. |
 | `--tcp-probes` | Generates legacy TCP socket probes instead of HTTP internal-status probes (migration). |
 | `--disable-update-proxy` | Disables updates to proxies. |
 | `--disable-deployment-proxy` | Disables proxies of deployments. |
+| `--gateway-api` | Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. Both manifest sets are always generated; this selects which one is applied. |
+| `--gateway-class <name>` | GatewayClass name for generated Gateway manifests (default "eg"). |
+| `--disable-http3` | Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests. |
+| `--quic-port <port>` | UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443). |
 | `--disable-update-volume` | Disables updates to volume mounts during deployment. |
 | `--kubeadm` | Enables the kubeadm context for deployment operations. |
 | `--k3s` | Enables the k3s context for deployment operations. |
@@ -506,13 +515,13 @@ Manages application deployments, defaulting to deploying development pods.
 
 Manages secrets for various platforms.
 
-**Usage:** `underpost secret [options] <platform>`
+**Usage:** `underpost secret [options] [platform]`
 
 #### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `platform` | The secret management platform. Options: underpost, sanitizeSecretEnvFile, globalSecretClean. |
+| `platform` | The secret management platform. Options: underpost, sops, sanitizeSecretEnvFile, globalSecretClean. Defaults to "sops". (default: "sops") |
 
 #### Options
 
@@ -523,6 +532,17 @@ Manages secrets for various platforms.
 | `--create-from-env` | Creates secrets from container environment variables (envFrom: secretRef). |
 | `--global-clean` | Removes all filesystem traces of secrets (engine-private, .env, conf cache). |
 | `--list` | Lists all available secrets for the platform. |
+| `--encrypt <plaintext-path>` | Encrypts a plaintext Secret manifest into the Git-tracked SOPS store and shreds the source (sops platform). |
+| `--apply` | Decrypts stored SOPS manifests and streams them into kubectl apply, without writing plaintext to disk (sops platform). |
+| `--namespace <namespace>` | Kubernetes namespace for secret operations (defaults to "default"). |
+| `--install-tools` | Installs the sops and age host binaries only, without running a full cluster host initialization. |
+| `--rotate` | Re-keys every stored SOPS manifest onto --recipient. Secret values are unchanged, so no workload restart is needed. |
+| `--recipient <age-public-key>` | Incoming Age public recipient for --rotate. |
+| `--prune-recipients` | With --rotate, makes --recipient the only recipient, revoking every previous key (use after a key compromise). Requires --force, and revokes CI/CD keys too unless they are named in --keep-recipients. |
+| `--keep-recipients <age-public-keys>` | Comma-separated recipients to retain while --prune-recipients revokes the rest (e.g. the CI/CD key). |
+| `--purge <secret-name>` | Emergency removal: deletes the live Kubernetes Secret and takes its encrypted manifest out of the store. |
+| `--force` | Confirms the irreversible variant: deletes the manifest instead of archiving it (--purge), revokes recipients (--rotate --prune-recipients), or replaces an existing manifest (--encrypt). |
+| `--dry-run` | Reports what --apply, --rotate, or --purge would do without changing anything. |
 | `-h, --help` | display help for command |
 
 ---
@@ -817,7 +837,7 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options include: status,expose,dev-cluster,get-traffic,instance,sync,cluster and the remaining registered runners. |
+| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,sops-setup,sops-status,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
 | `path` | The input value, identifier, or path for the operation. |
 
 #### Options
@@ -831,10 +851,11 @@ Runs specified scripts using various runners.
 | `--replicas <replicas>` | Sets a custom number of replicas for deployment. |
 | `--pod-name <pod-name>` | Optional: Specifies the pod name for execution. |
 | `--node-name <node-name>` | Optional: Specifies the node name for execution. |
+| `--ingress-node <node-name>` | Dedicated node for the host-network underpost-ingress listener. Workload --node-name never relocates it. |
 | `--ssh-key-path <path>` | Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa. |
 | `--port <port>` | Optional: Specifies the port for execution. |
-| `--expose-port <port>` | Remote Service or Pod port selected by the expose runner. |
-| `--expose-local-port <port>` | First local port used by the expose runner; additional matches use subsequent available ports. |
+| `--expose-container-ports <ports>` | Comma-separated Service/container ports; multiple matched resources consume values by resource index. |
+| `--expose-host-ports <ports>` | Comma-separated host ports paired with container ports by resource/port index. |
 | `--local-proxy` | Starts the development path proxy after the expose runner creates its port-forwards. |
 | `--etc-hosts` | Enables etc-hosts context for the runner execution. |
 | `--volume-host-path <volume-host-path>` | Optional: Specifies the volume host path for test execution. |
@@ -871,7 +892,7 @@ Runs specified scripts using various runners.
 | `--kubeadm` | Sets the kubeadm cluster context for the runner execution. |
 | `--k3s` | Sets the k3s cluster context for the runner execution. |
 | `--kind` | Sets the kind cluster context for the runner execution. |
-| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue). |
+| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue). `stop` accepts a comma list, e.g. blue,green. |
 | `--git-clean` | Runs git clean on volume mount paths before copying. |
 | `--deploy-id <deploy-id>` | Sets deploy id context for the runner execution. |
 | `--user <user>` | Sets user context for the runner execution. |
@@ -882,6 +903,11 @@ Runs specified scripts using various runners.
 | `--timeout-idle <duration>` | Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity"). |
 | `--retry-count <count>` | Sets HTTPProxy per-route retry count (e.g., 3). |
 | `--retry-per-try-timeout <duration>` | Sets HTTPProxy retry per-try timeout (e.g., "150ms"). |
+| `--gateway-api` | Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. Both manifest sets are always generated; this selects which one is applied. |
+| `--disable-gateway-api` | Falls back to the Contour HTTPProxy stack in runners where the Gateway API is the default (cluster). |
+| `--gateway-class <name>` | GatewayClass name for generated Gateway manifests (default "eg"). |
+| `--disable-http3` | Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests. |
+| `--quic-port <port>` | UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443). |
 | `--disable-private-conf-update` | Disables updates to private configuration during execution. |
 | `--logs` | Streams logs during the runner execution. |
 | `--monitor-status <status>` | Sets the status to monitor for pod/resource (default: "Running"). |

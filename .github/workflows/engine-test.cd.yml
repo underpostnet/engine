@@ -77,7 +77,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'underpost secret underpost --create-from-env,underpost start --build --run dd-test production' dd-test,1,,underpost/wp:v3.2.80"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'underpost secret underpost --create-from-env,underpost start --build --run dd-test production' dd-test,1,,underpost/wp:v3.2.90"
   init:
     if: github.event.inputs.job == 'init'
     name: Remote SSH init deployment
@@ -111,6 +111,6 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin/build dd-test --conf"
             sudo -n -- /bin/bash -lc "kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.2.80' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production'"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.2.90' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production'"
             sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --disable-update-proxy --cert"
             sudo -n -- /bin/bash -lc "node bin monitor dd-test production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"

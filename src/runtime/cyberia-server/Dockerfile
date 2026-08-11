@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o server ./cmd/cyberia-se
 
 # --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
-ARG UNDERPOST_VERSION=3.2.80
+ARG UNDERPOST_VERSION=3.2.90
 ARG NODE_VERSION=24.15.0
 
 RUN set -eux; \

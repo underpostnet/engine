@@ -5033,7 +5033,7 @@ try {
       // no funca
       if (options.loadTar) {
         for (const imageId of dockerImageIds)
-          if (imageId === id || id === '.') shellExec(`docker load -i ./${imageId}-dev_v3.2.80.tar`);
+          if (imageId === id || id === '.') shellExec(`docker load -i ./${imageId}-dev_v3.2.90.tar`);
         return;
       }
       switch (id) {
@@ -5044,7 +5044,7 @@ node bin/build dd-cyberia --update-private
 node bin image --path src/runtime/engine-cyberia \
   --docker-compose --pull-base --build \
   --dockerfile-name Dockerfile.dev \
-  --image-name engine-cyberia-dev:v3.2.80 \
+  --image-name engine-cyberia-dev:v3.2.90 \
   --image-out-path .
 `);
           break;
@@ -5055,7 +5055,7 @@ cp -f src/runtime/cyberia-server/Dockerfile.dev cyberia-server/Dockerfile.dev
 node bin image --path cyberia-server \
   --docker-compose --pull-base --build \
   --dockerfile-name Dockerfile.dev \
-  --image-name cyberia-server-dev:v3.2.80 \
+  --image-name cyberia-server-dev:v3.2.90 \
   --image-out-path .
 `);
           break;
@@ -5065,7 +5065,7 @@ cp -f src/runtime/cyberia-client/Dockerfile.dev cyberia-client/Dockerfile.dev
 node bin image --path cyberia-client \
   --docker-compose --pull-base --build \
   --dockerfile-name Dockerfile.dev \
-  --image-name cyberia-client-dev:v3.2.80 \
+  --image-name cyberia-client-dev:v3.2.90 \
   --image-out-path .
 `);
           break;
