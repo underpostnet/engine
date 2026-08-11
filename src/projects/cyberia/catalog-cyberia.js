@@ -56,6 +56,7 @@ export default {
     './src/runtime/cyberia-client',
     './src/runtime/engine-cyberia',
     './test/cyberia-instance-conf-defaults.test.js',
+    './test/cyberia-load.test.js',
     './test/shape-generator.test.js',
     './src/client/public/cyberia-docs',
     'bin/cyberia.js',
