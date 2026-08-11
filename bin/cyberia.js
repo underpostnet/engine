@@ -5027,6 +5027,19 @@ try {
   });
 
   runner
+    .command('test')
+    .option('--n-con <connections>', 'Number of concurrent WebSocket connections')
+    .option('--duration <ms>', 'Load test duration in milliseconds')
+    .option('--tap-freq <seconds>', 'Frequency of tap events in seconds')
+    .action((options) => {
+      shellExec(`CYBERIA_LOAD_WS_URL=ws://localhost:8081/ws \
+CYBERIA_LOAD_CONNECTIONS=${options.nCon ?? 40} \
+CYBERIA_LOAD_TAP_FREQUENCY=${options.tapFreq ?? 5} \
+CYBERIA_LOAD_DURATION_MS=${options.duration ?? 1000 * 60 * 30} \
+c8 mocha test/cyberia-load.test.js`);
+    });
+
+  runner
     .command('docker-image [id]')
     .option('--load-tar', 'Load a pre-built image tar archive into the enabled target(s) without building.')
     .action((id, options) => {
