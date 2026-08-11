@@ -4,36 +4,6 @@
 # (MongoDB + Valkey + IPFS), then the Cyberia content-authority engine and its
 # per-instance server/client tiers, fronted by an nginx reverse proxy.
 #
-# Canonical location (custom docker-compose workflow):
-#   engine-private/conf/dd-cyberia/docker-compose/cyberia/
-#     ├── docker-compose.yml     (this file — the ENTIRE stack, single source)
-#     ├── compose.env            (working env-file, used as-is — not generated)
-#     ├── nginx.conf             (custom per-variant sub-path routing)
-#     └── mongodb/entrypoint.sh  (replica-set bootstrap)
-# All bind mounts below are relative to this directory: the CLI runs compose with
-# `--project-directory` pinned here (see src/cli/docker-compose.js).
-#
-# Multi-instance: one engine-cyberia (content + asset authority) feeds three
-# cyberia-server + three cyberia-client tiers, one per conf.instances.json
-# multiInstance variant (amethyst-strata-expansion "/", FOREST "/FOREST",
-# TEST "/TEST"). This custom workflow owns nginx.conf and the services below;
-# keep both in sync when its instance topology changes.
-#
-# Startup is a strict health-gated chain: the stable gateway starts after the
-# engine, then each server/client pipeline advances independently:
-#   mongodb + valkey -> engine runtime -> proxy -> 3x server -> 3x client
-#
-# Architecture boundaries (see CLAUDE.md "Cyberia architecture boundaries"):
-#   engine-cyberia  — content, validation, persistence, gRPC(:50051)+REST(:4005)
-#                     data services, asset metadata. The authority layer.
-#   cyberia-server  — authoritative real-time simulation / tick processing (Go).
-#   cyberia-client  — rendering, input, prediction, presentation (WASM bundle).
-#
-# Usage:
-#   underpost docker-compose --up --deploy-id dd-cyberia --docker-compose-id cyberia
-#   (or the docker:cyberia:* npm scripts). The engine-cyberia image bakes the
-#   dd-cyberia build at image-build time, so no private-repo credentials are
-#   required at container start.
 
 name: dd-cyberia
 
@@ -232,6 +202,14 @@ services:
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
       APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
       LOG_LEVEL: ${CYBERIA_SERVER_LOG_LEVEL:-}
+      CYBERIA_DISABLE_CONNECTION_LIMITS: ${CYBERIA_DISABLE_CONNECTION_LIMITS:-}
+      CYBERIA_MAX_CONNECTIONS: ${CYBERIA_MAX_CONNECTIONS:-}
+      CYBERIA_MAX_CONNECTIONS_PER_IP: ${CYBERIA_MAX_CONNECTIONS_PER_IP:-}
+      CYBERIA_CONNECT_RATE_PER_IP: ${CYBERIA_CONNECT_RATE_PER_IP:-}
+      CYBERIA_CONNECT_BURST_PER_IP: ${CYBERIA_CONNECT_BURST_PER_IP:-}
+      CYBERIA_MESSAGE_RATE: ${CYBERIA_MESSAGE_RATE:-}
+      CYBERIA_MESSAGE_BURST: ${CYBERIA_MESSAGE_BURST:-}
+      CYBERIA_MAX_STRIKES: ${CYBERIA_MAX_STRIKES:-}
     networks:
       - dd-cyberia-internal
     expose:
@@ -260,6 +238,14 @@ services:
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
       APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
       LOG_LEVEL: ${CYBERIA_SERVER_LOG_LEVEL:-}
+      CYBERIA_DISABLE_CONNECTION_LIMITS: ${CYBERIA_DISABLE_CONNECTION_LIMITS:-}
+      CYBERIA_MAX_CONNECTIONS: ${CYBERIA_MAX_CONNECTIONS:-}
+      CYBERIA_MAX_CONNECTIONS_PER_IP: ${CYBERIA_MAX_CONNECTIONS_PER_IP:-}
+      CYBERIA_CONNECT_RATE_PER_IP: ${CYBERIA_CONNECT_RATE_PER_IP:-}
+      CYBERIA_CONNECT_BURST_PER_IP: ${CYBERIA_CONNECT_BURST_PER_IP:-}
+      CYBERIA_MESSAGE_RATE: ${CYBERIA_MESSAGE_RATE:-}
+      CYBERIA_MESSAGE_BURST: ${CYBERIA_MESSAGE_BURST:-}
+      CYBERIA_MAX_STRIKES: ${CYBERIA_MAX_STRIKES:-}
     networks:
       - dd-cyberia-internal
     expose:
@@ -288,6 +274,14 @@ services:
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
       APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
       LOG_LEVEL: ${CYBERIA_SERVER_LOG_LEVEL:-}
+      CYBERIA_DISABLE_CONNECTION_LIMITS: ${CYBERIA_DISABLE_CONNECTION_LIMITS:-}
+      CYBERIA_MAX_CONNECTIONS: ${CYBERIA_MAX_CONNECTIONS:-}
+      CYBERIA_MAX_CONNECTIONS_PER_IP: ${CYBERIA_MAX_CONNECTIONS_PER_IP:-}
+      CYBERIA_CONNECT_RATE_PER_IP: ${CYBERIA_CONNECT_RATE_PER_IP:-}
+      CYBERIA_CONNECT_BURST_PER_IP: ${CYBERIA_CONNECT_BURST_PER_IP:-}
+      CYBERIA_MESSAGE_RATE: ${CYBERIA_MESSAGE_RATE:-}
+      CYBERIA_MESSAGE_BURST: ${CYBERIA_MESSAGE_BURST:-}
+      CYBERIA_MAX_STRIKES: ${CYBERIA_MAX_STRIKES:-}
     networks:
       - dd-cyberia-internal
     expose:
