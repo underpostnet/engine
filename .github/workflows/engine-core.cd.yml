@@ -74,11 +74,12 @@ jobs:
             set -o pipefail
             echo "Starting remote sync and deploy"
             INGRESS_NODE=localhost.localdomain
+            TARGET_NODE=hp-envy-iso-ram-rocky9
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} dd-core"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9 dd-core"
   init:
     if: github.event.inputs.job == 'init'
     name: Remote SSH init deployment
