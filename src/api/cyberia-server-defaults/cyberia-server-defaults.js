@@ -909,7 +909,6 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
       { itemId: 'anon', active: true, quantity: 1 },
       { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
       { itemId: 'coin', active: false, quantity: 0 },
-      { itemId: 'eiri', active: false, quantity: 1 },
     ],
   },
   {
