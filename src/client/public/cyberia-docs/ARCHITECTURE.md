@@ -193,7 +193,7 @@ The render frame runs at vsync. Inside one render frame, `cyberia-client` perfor
 
 1. Poll any pending optional client-hints fetch.
 2. Capture raw input → build typed input command (`kind`, `clientTick`, `sequence`, payload) → apply to prediction → send on the wire.
-3. Reconcile against the latest snapshot: drop input commands ≤ `lastAckedSequence`, rewind self to authoritative position, replay unacked commands.
+3. Reconcile against the latest snapshot: difference the authoritative position against the position this client predicted for that same tick, shift the prediction trail by that error, and — once `moveAck` covers the newest command — adopt the server's own `targetPos` and route as the walk destination.
 4. Fixed-timestep simulation: while accumulator ≥ `tickDuration`, advance prediction one tick.
 5. Interpolation: compute remote-entity view positions at `renderTick`.
 6. Render. Read view models; never mutate world state.
@@ -236,7 +236,20 @@ WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequen
                        authoritative world state
 ```
 
-`InputCommand.Sequence` is monotonic per client. The server tracks the highest applied sequence per player; `phaseReplication` writes it into every snapshot header. The client drops acknowledged input commands from its prediction replay buffer using this value.
+`InputCommand.Sequence` is monotonic per client. Every snapshot carries two acknowledgements of it, and they are not interchangeable:
+
+| Field     | Meaning                                                       | Client use                                                                       |
+| --------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ack`     | Highest sequence **received** for this player.                 | Retires commands from the prediction buffer.                                      |
+| `moveAck` | Highest `PlayerAction` sequence that **re-planned movement**.  | Gates adoption of the authoritative `targetPos` / `path`.                         |
+
+**Movement re-plans once per player per tick, and nothing else throttles it.** Handlers record the tap's destination; `phaseInput` runs one A* per player after the queue is drained. Taps that land in the same tick describe the same instant, so only the newest is planned — the rest were superseded before they could mean anything. That coalescing is the only bound on pathfinder cost.
+
+This is why the two acknowledgements diverge: a superseded tap is acked on arrival and never planned, so `self.path` and `self.targetPos` can still describe an earlier command. A client that adopted the route on `ack` alone would turn back toward the abandoned target — worst during rapid changes of direction, where it reads as input lag and as a walk that sets off the wrong way.
+
+Skills are not coalesced: they fire on every accepted tap, so the uplink carries every tap and the inbound rate limiter (`DefaultMessageRate`, 30/s) is what bounds the stream.
+
+The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; keyboard steering paces its *refresh* by it, while a change of heading emits at once.
 
 ---
 
@@ -271,7 +284,8 @@ Every Cyberia document uses the same terms. Aliases are not permitted.
 | **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                                                         |
 | **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                                                        |
 | **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                                                     |
-| **reconciliation**        | Drop acknowledged inputs, rewind self to authoritative position, replay unacked inputs.                                                                                                                                                                                                                    |
+| **reconciliation**        | Correct prediction by the error measured at one tick: authoritative position minus the position predicted for that tick. Input is a destination, not a per-tick impulse, so the client keeps walking toward the `targetPos` that `moveAck` confirms, rather than replaying a command log.                   |
+| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost, and the reason `moveAck` trails `ack`.                                                                                                                                                       |
 | **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries.                                                                                                                                |
 | **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                                                   |
 | **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                                                           |

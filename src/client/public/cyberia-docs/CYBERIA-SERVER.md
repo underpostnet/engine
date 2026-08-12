@@ -157,7 +157,7 @@ Per player:
 [9..10]  u16  entityCount entity blocks that follow
 ```
 
-The `tick` and `lastAcked` fields are how the client reconciles its predicted self with authoritative state. The client drops input commands with `sequence ≤ lastAcked` from its replay buffer, then rewinds and replays the rest.
+The `tick` and `lastAcked` fields are how the client reconciles its predicted self with authoritative state. `lastAcked` proves arrival, not acceptance: movement re-plans once per player per tick from the newest tap of that tick, so a tap superseded within its own tick is acknowledged and never planned. The snapshot therefore carries a second acknowledgement, `moveAck` — the highest `PlayerAction` sequence that actually re-planned movement — and the client adopts the authoritative `targetPos` / `path` only once `moveAck` covers its newest command. See ARCHITECTURE.md § Input replication.
 
 Other message types (init data, FCT) carry their own headers and are not part of the per-tick replication stream.
 
