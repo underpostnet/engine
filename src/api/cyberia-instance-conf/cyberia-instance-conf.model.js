@@ -148,6 +148,7 @@ const CyberiaInstanceConfSchema = new Schema(
     // ── Player defaults ──────────────────────────────────────────────
     defaultPlayerWidth: { type: Number, default: D.defaultPlayerWidth },
     defaultPlayerHeight: { type: Number, default: D.defaultPlayerHeight },
+    playerBaseSpeed: { type: Number, default: D.playerBaseSpeed },
     playerBaseLifeRegenMin: { type: Number, default: D.playerBaseLifeRegenMin },
     playerBaseLifeRegenMax: { type: Number, default: D.playerBaseLifeRegenMax },
     sumStatsLimit: { type: Number, default: D.sumStatsLimit },

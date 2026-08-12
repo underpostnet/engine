@@ -22,6 +22,7 @@ const SCHEMA_FIELDS = [
   'botAggroRange',
   'defaultPlayerWidth',
   'defaultPlayerHeight',
+  'playerBaseSpeed',
   'playerBaseLifeRegenMin',
   'playerBaseLifeRegenMax',
   'sumStatsLimit',

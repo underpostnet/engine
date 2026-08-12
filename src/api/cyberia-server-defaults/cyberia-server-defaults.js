@@ -939,8 +939,18 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['alex'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['agent'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
   { entityType: ENTITY_TYPES.bot, liveItemIds: ['punk'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider' },
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['eiri'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
-  { entityType: ENTITY_TYPES.bot, liveItemIds: ['kaneki'], deadItemIds: [DEFAULT_DEAD_ITEM_ID], behavior: 'provider-static' },
+  {
+    entityType: ENTITY_TYPES.bot,
+    liveItemIds: ['eiri'],
+    deadItemIds: [DEFAULT_DEAD_ITEM_ID],
+    behavior: 'provider-static',
+  },
+  {
+    entityType: ENTITY_TYPES.bot,
+    liveItemIds: ['kaneki'],
+    deadItemIds: [DEFAULT_DEAD_ITEM_ID],
+    behavior: 'provider-static',
+  },
   {
     entityType: ENTITY_TYPES.bot,
     liveItemIds: ['lain'],
@@ -1027,6 +1037,10 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   defaultPlayerHeight: 2,
   playerBaseLifeRegenMin: 0.5,
   playerBaseLifeRegenMax: 1.5,
+  // Movement speed for the player entity only, in grid cells per second. Bots,
+  // projectiles and every other entity keep entityBaseSpeed. 0 falls back to
+  // entityBaseSpeed.
+  playerBaseSpeed: 8,
   sumStatsLimit: 500,
   maxActiveLayers: 4,
   initialLifeFraction: 1.0,

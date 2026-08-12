@@ -421,6 +421,7 @@ function toInstanceConfig(gc) {
     botAggroRange: gc.botAggroRange ?? fb.botAggroRange,
     defaultPlayerWidth: gc.defaultPlayerWidth ?? fb.defaultPlayerWidth,
     defaultPlayerHeight: gc.defaultPlayerHeight ?? fb.defaultPlayerHeight,
+    playerBaseSpeed: gc.playerBaseSpeed ?? fb.playerBaseSpeed,
     playerBaseLifeRegenMin: gc.playerBaseLifeRegenMin ?? fb.playerBaseLifeRegenMin,
     playerBaseLifeRegenMax: gc.playerBaseLifeRegenMax ?? fb.playerBaseLifeRegenMax,
     sumStatsLimit: gc.sumStatsLimit ?? fb.sumStatsLimit,
