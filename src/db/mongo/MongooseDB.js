@@ -186,6 +186,10 @@ class MongooseDBService {
       const { ProviderSchema } = await import(`../../api/${api}/${api}.model.js`);
       const keyModel = getCapVariableName(api); // Assuming this returns a capitalized model name
       models[keyModel] = conn.model(keyModel, ProviderSchema);
+      // Mongoose emits 'error' on the model when an autoIndex build fails; with no
+      // listener attached EventEmitter rethrows and takes the whole process down.
+      // A stale or conflicting index must degrade to a log, not kill startup.
+      models[keyModel].on('error', (error) => logger.error(`${keyModel} index build failed: ${error.message}`));
     }
 
     return models;

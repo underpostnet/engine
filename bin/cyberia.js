@@ -256,6 +256,17 @@ try {
         /** @type {import('mongoose').Model} */
         const Ipfs = DataBaseProviderService.getModel('ipfs', { host, path });
 
+        // Idempotent repair, run only before flows that write: collapses legacy
+        // duplicates and upgrades the data.item.id index to unique so every
+        // later write has exactly one document to land on. Read-only
+        // subcommands stay side-effect free — findByItemId already resolves the
+        // same canonical document whether or not duplicates are still present.
+        if (options.import || options.importTypes || options.drop || options.generate) {
+          const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
+          if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
+          if (indexUpgraded) logger.info('Upgraded data.item.id index to unique');
+        }
+
         if (options.drop) {
           // Parse comma-separated item IDs for targeted drop; if none provided, drop everything
           const dropItemIds = itemId
@@ -439,7 +450,7 @@ try {
             });
 
             // Check if an ObjectLayer with the same item.id already exists (upsert by item ID)
-            const existingOL = await ObjectLayer.findOne({ 'data.item.id': currentItemId });
+            const existingOL = await ObjectLayer.findByItemId(currentItemId);
             let objectLayer;
 
             if (existingOL) {
@@ -457,7 +468,6 @@ try {
               let stagingFileDoc = null;
               let stagingAtlasDoc = null;
               let stagingCid = '';
-              let stagingSha256 = '';
               try {
                 const itemKey = currentItemId;
 
@@ -546,8 +556,7 @@ try {
                 stagingData.render.cid = importItemCid;
                 stagingData.render.metadataCid = importItemMetadataCid;
 
-                // Pin data JSON to IPFS (compute final SHA-256 in memory)
-                stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
+                // Pin data JSON to IPFS
                 try {
                   const ipfsDataResult = await IpfsClient.addJsonToIpfs(
                     stagingData,
@@ -585,10 +594,9 @@ try {
                 // Create the new RenderFrames doc (only now touches DB)
                 const newRenderFrames = await ObjectLayerRenderFrames.create(objectLayerRenderFramesData);
 
-                // Single atomic update of the live document
-                await ObjectLayer.findByIdAndUpdate(existingOL._id, {
+                // Single atomic upsert on the natural key; empty staged CIDs keep their stored value
+                objectLayer = await ObjectLayer.upsertByItemId({
                   data: stagingData,
-                  sha256: stagingSha256,
                   cid: stagingCid,
                   objectLayerRenderFramesId: newRenderFrames._id,
                   atlasSpriteSheetId: stagingAtlasDoc._id,
@@ -599,14 +607,13 @@ try {
                   await ObjectLayerRenderFrames.findByIdAndDelete(oldRenderFramesId);
                 }
 
-                logger.info(`[cut-over] Live document ${existingOL._id} updated atomically`);
+                logger.info(`[cut-over] Live document ${objectLayer._id} updated atomically`);
               } else {
                 // Rollback: only File/AtlasSpriteSheet were written, clean those up
                 if (stagingFileDoc) await File.findByIdAndDelete(stagingFileDoc._id);
                 logger.warn(`[cut-over] Staging rolled back for ${currentItemId}, live document preserved`);
+                objectLayer = await ObjectLayer.findByItemId(currentItemId);
               }
-
-              objectLayer = await ObjectLayer.findById(existingOL._id);
             } else {
               // ── New item: stage everything before creating (same cut-over pattern) ──
               logger.info(`ObjectLayer '${currentItemId}' is new, staging creation...`);
@@ -621,7 +628,6 @@ try {
               let stagingFileDoc = null;
               let stagingAtlasDoc = null;
               let stagingCid = '';
-              let stagingSha256 = '';
               try {
                 const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
                   objectLayerRenderFramesData,
@@ -705,7 +711,6 @@ try {
                 stagingData.render.cid = importItemCid;
                 stagingData.render.metadataCid = importItemMetadataCid;
 
-                stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
                 try {
                   const ipfsDataResult = await IpfsClient.addJsonToIpfs(
                     stagingData,
@@ -738,9 +743,8 @@ try {
 
               if (cutoverReady) {
                 const newRenderFrames = await ObjectLayerRenderFrames.create(objectLayerRenderFramesData);
-                objectLayer = await ObjectLayer.create({
+                objectLayer = await ObjectLayer.upsertByItemId({
                   data: stagingData,
-                  sha256: stagingSha256,
                   cid: stagingCid,
                   objectLayerRenderFramesId: newRenderFrames._id,
                   atlasSpriteSheetId: stagingAtlasDoc._id,
@@ -842,7 +846,7 @@ try {
 
             if (shouldGenerateAtlas) {
               // Check if an ObjectLayer with the same item.id already exists (upsert by item ID)
-              const existingOL = await ObjectLayer.findOne({ 'data.item.id': objectLayerId });
+              const existingOL = await ObjectLayer.findByItemId(objectLayerId);
               let objectLayer;
 
               if (existingOL) {
@@ -860,7 +864,6 @@ try {
                 let stagingFileDoc = null;
                 let stagingAtlasDoc = null;
                 let stagingCid = '';
-                let stagingSha256 = '';
                 try {
                   const itemKey = objectLayerId;
 
@@ -948,8 +951,7 @@ try {
                   stagingData.render.cid = importAtlasCid;
                   stagingData.render.metadataCid = importAtlasMetadataCid;
 
-                  // Pin data JSON to IPFS (compute final SHA-256 in memory)
-                  stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
+                  // Pin data JSON to IPFS
                   try {
                     const ipfsDataResult = await IpfsClient.addJsonToIpfs(
                       stagingData,
@@ -985,9 +987,8 @@ try {
                   const oldRenderFramesId = existingOL.objectLayerRenderFramesId;
                   const newRenderFrames = await ObjectLayerRenderFrames.create(entry.objectLayerRenderFramesData);
 
-                  await ObjectLayer.findByIdAndUpdate(existingOL._id, {
+                  objectLayer = await ObjectLayer.upsertByItemId({
                     data: stagingData,
-                    sha256: stagingSha256,
                     cid: stagingCid,
                     objectLayerRenderFramesId: newRenderFrames._id,
                     atlasSpriteSheetId: stagingAtlasDoc._id,
@@ -996,13 +997,12 @@ try {
                   if (oldRenderFramesId) {
                     await ObjectLayerRenderFrames.findByIdAndDelete(oldRenderFramesId);
                   }
-                  logger.info(`[cut-over] Live document ${existingOL._id} updated atomically`);
+                  logger.info(`[cut-over] Live document ${objectLayer._id} updated atomically`);
                 } else {
                   if (stagingFileDoc) await File.findByIdAndDelete(stagingFileDoc._id);
                   logger.warn(`[cut-over] Staging rolled back for ${objectLayerId}, live document preserved`);
+                  objectLayer = await ObjectLayer.findByItemId(objectLayerId);
                 }
-
-                objectLayer = await ObjectLayer.findById(existingOL._id);
               } else {
                 // ── New item: stage everything before creating (same cut-over pattern) ──
                 logger.info(`ObjectLayer '${objectLayerId}' is new, staging creation...`);
@@ -1017,7 +1017,6 @@ try {
                 let stagingFileDoc = null;
                 let stagingAtlasDoc = null;
                 let stagingCid = '';
-                let stagingSha256 = '';
                 try {
                   const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
                     entry.objectLayerRenderFramesData,
@@ -1101,7 +1100,6 @@ try {
                   stagingData.render.cid = importAtlasCid;
                   stagingData.render.metadataCid = importAtlasMetadataCid;
 
-                  stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
                   try {
                     const ipfsDataResult = await IpfsClient.addJsonToIpfs(
                       stagingData,
@@ -1134,9 +1132,8 @@ try {
 
                 if (cutoverReady) {
                   const newRenderFrames = await ObjectLayerRenderFrames.create(entry.objectLayerRenderFramesData);
-                  objectLayer = await ObjectLayer.create({
+                  objectLayer = await ObjectLayer.upsertByItemId({
                     data: stagingData,
-                    sha256: stagingSha256,
                     cid: stagingCid,
                     objectLayerRenderFramesId: newRenderFrames._id,
                     atlasSpriteSheetId: stagingAtlasDoc._id,
@@ -1159,7 +1156,7 @@ try {
               if (existingItemIds.has(objectLayerId)) continue;
 
               // --import all: create documents without atlas generation
-              const existingOL = await ObjectLayer.findOne({ 'data.item.id': objectLayerId });
+              const existingOL = await ObjectLayer.findByItemId(objectLayerId);
               let objectLayer;
 
               if (existingOL) {
@@ -1172,15 +1169,13 @@ try {
                 if (!stagingData.render) stagingData.render = {};
                 stagingData.render.cid = '';
                 stagingData.render.metadataCid = '';
-                const stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
 
                 // Atomic cut-over: create new RenderFrames, swap live doc, delete old
                 const newRenderFrames = await ObjectLayerRenderFrames.create(entry.objectLayerRenderFramesData);
                 const oldRenderFramesId = existingOL.objectLayerRenderFramesId;
 
-                await ObjectLayer.findByIdAndUpdate(existingOL._id, {
+                objectLayer = await ObjectLayer.upsertByItemId({
                   data: stagingData,
-                  sha256: stagingSha256,
                   objectLayerRenderFramesId: newRenderFrames._id,
                 });
 
@@ -1188,20 +1183,17 @@ try {
                   await ObjectLayerRenderFrames.findByIdAndDelete(oldRenderFramesId);
                 }
 
-                objectLayer = await ObjectLayer.findById(existingOL._id);
-                logger.info(`[cut-over] Live document ${existingOL._id} updated atomically (atlas skipped)`);
+                logger.info(`[cut-over] Live document ${objectLayer._id} updated atomically (atlas skipped)`);
               } else {
-                // New item: create with sha256 populated (no atlas for bulk import)
+                // New item (no atlas for bulk import)
                 const stagingData = JSON.parse(JSON.stringify(entry.data));
                 if (!stagingData.render) stagingData.render = {};
                 stagingData.render.cid = '';
                 stagingData.render.metadataCid = '';
-                const stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
 
                 const newRenderFrames = await ObjectLayerRenderFrames.create(entry.objectLayerRenderFramesData);
-                objectLayer = await ObjectLayer.create({
+                objectLayer = await ObjectLayer.upsertByItemId({
                   data: stagingData,
-                  sha256: stagingSha256,
                   objectLayerRenderFramesId: newRenderFrames._id,
                 });
               }
@@ -1231,9 +1223,7 @@ try {
           logger.info(`Showing frame for item: ${itemId}, direction: ${direction}, frame: ${frameIndexNum}`);
 
           // Find ObjectLayer by item-id
-          const objectLayer = await ObjectLayer.findOne({ 'data.item.id': itemId }).populate(
-            'objectLayerRenderFramesId',
-          );
+          const objectLayer = await ObjectLayer.findByItemId(itemId).populate('objectLayerRenderFramesId');
 
           if (!objectLayer) {
             logger.error(`ObjectLayer not found for item-id: ${itemId}`);
@@ -1317,9 +1307,7 @@ try {
           }
 
           // Find ObjectLayer by item-id
-          const objectLayer = await ObjectLayer.findOne({ 'data.item.id': itemId }).populate(
-            'objectLayerRenderFramesId',
-          );
+          const objectLayer = await ObjectLayer.findByItemId(itemId).populate('objectLayerRenderFramesId');
 
           if (!objectLayer) {
             logger.error(`ObjectLayer not found for item-id: ${itemId}`);
@@ -1453,7 +1441,7 @@ try {
           logger.info(`Looking up atlas sprite sheet for item: ${itemId}`);
 
           // Find ObjectLayer by item-id
-          const objectLayer = await ObjectLayer.findOne({ 'data.item.id': itemId });
+          const objectLayer = await ObjectLayer.findByItemId(itemId);
 
           if (!objectLayer) {
             logger.error(`ObjectLayer not found for item-id: ${itemId}`);
@@ -2695,6 +2683,12 @@ try {
 
         logger.info('Importing instance', { code: instanceCode, backupDir });
 
+        // Idempotent: a backup restore writes object layers, so collapse any
+        // legacy duplicates and make the data.item.id index unique first.
+        const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
+        if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
+        if (indexUpgraded) logger.info('Upgraded data.item.id index to unique');
+
         // Item ids belonging to this instance (collected from imported object
         // layers + the instance doc) — used to backfill missing skills from the
         // canonical DefaultSkillConfig when the backup predates the skill model.
@@ -3029,12 +3023,21 @@ try {
           let olCount = 0;
           for (const file of olFiles) {
             const olData = fs.readJsonSync(`${olDir}/${file}`);
-            await ObjectLayer.deleteOne({ _id: olData._id });
-            if (olData.sha256) {
-              await ObjectLayer.deleteOne({ sha256: olData.sha256 });
+            const olItemId = olData.data?.item?.id;
+            if (!olItemId) {
+              logger.warn(`Skipping object-layer file '${file}' — missing data.item.id`);
+              continue;
             }
-            await ObjectLayer.create(olData);
-            if (olData.data?.item?.id) importedItemIds.add(olData.data.item.id);
+            // preserveUUID only applies to items this database does not have yet.
+            // An item that already exists keeps its own _id and simply absorbs the
+            // backup's attribute values, so a restore can never fork data.item.id
+            // into two documents. sha256 needs no separate cleanup: it is derived
+            // from data, so an identical hash implies the same item id.
+            const existingOL = await ObjectLayer.findByItemId(olItemId);
+            if (!existingOL && olData._id) await ObjectLayer.deleteOne({ _id: olData._id });
+
+            await ObjectLayer.upsertByItemId(olData);
+            importedItemIds.add(olItemId);
             olCount++;
           }
           logger.info(`Imported ${olCount} ObjectLayer document(s)`);

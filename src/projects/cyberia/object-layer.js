@@ -10,9 +10,7 @@ import path from 'path';
 import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import { Jimp, intToRGBA, rgbaToInt } from 'jimp';
-import crypto from 'crypto';
-import stringify from 'fast-json-stable-stringify';
-
+import { computeObjectLayerSha256 } from '../../api/object-layer/object-layer.model.js';
 import { range } from '../../client/components/core/CommonJs.js';
 import {
   generateRandomStats,
@@ -450,7 +448,7 @@ export class ObjectLayerEngine {
    * @memberof CyberiaObjectLayer
    */
   static computeSha256(data) {
-    return crypto.createHash('sha256').update(stringify(data)).digest('hex');
+    return computeObjectLayerSha256(data);
   }
 
   /**
@@ -642,23 +640,15 @@ export class ObjectLayerEngine {
     }
 
     // 4. Atomic create/upsert - ObjectLayer is fully populated with all CIDs
-    let objectLayer;
-    const existingByItemId = await ObjectLayer.findOne({ 'data.item.id': objectLayerData.data.item.id });
-    if (existingByItemId) {
-      const oldRenderFramesId = existingByItemId.objectLayerRenderFramesId;
-      logger.info(
-        `ObjectLayer for item "${objectLayerData.data.item.id}" exists (${existingByItemId._id}), replacing atomically...`,
-      );
-      objectLayer = await ObjectLayer.findByIdAndUpdate(existingByItemId._id, objectLayerData, {
-        returnDocument: 'after',
-      }).populate('objectLayerRenderFramesId');
-      if (oldRenderFramesId && !oldRenderFramesId.equals(objectLayerRenderFramesDoc._id)) {
-        await ObjectLayerRenderFrames.findByIdAndDelete(oldRenderFramesId);
-      }
-    } else {
-      objectLayer = await (await ObjectLayer.create(objectLayerData)).populate('objectLayerRenderFramesId');
-      logger.info(`ObjectLayer created successfully with id: ${objectLayer._id}`);
+    const existingByItemId = await ObjectLayer.findByItemId(objectLayerData.data.item.id);
+    const oldRenderFramesId = existingByItemId?.objectLayerRenderFramesId;
+
+    const objectLayer = await (await ObjectLayer.upsertByItemId(objectLayerData)).populate('objectLayerRenderFramesId');
+
+    if (oldRenderFramesId && !oldRenderFramesId.equals(objectLayerRenderFramesDoc._id)) {
+      await ObjectLayerRenderFrames.findByIdAndDelete(oldRenderFramesId);
     }
+    logger.info(`ObjectLayer for item "${objectLayerData.data.item.id}" persisted with id: ${objectLayer._id}`);
 
     return { objectLayer, objectLayerRenderFramesDoc };
   }
@@ -848,7 +838,7 @@ export class ObjectLayerEngine {
    * @memberof CyberiaObjectLayer
    */
   static async resolveCanonicalCid({ itemId, ObjectLayer, ipfsClient = null, options }) {
-    const objectLayer = await ObjectLayer.findOne({ 'data.item.id': itemId });
+    const objectLayer = await ObjectLayer.findByItemId(itemId);
     if (!objectLayer) {
       throw new Error(`ObjectLayer "${itemId}" not found in database`);
     }

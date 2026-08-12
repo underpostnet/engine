@@ -18,7 +18,6 @@ import fs from 'fs-extra';
 import nodePath from 'path';
 import crypto from 'crypto';
 import { GeminiClient } from './gemini-client.js';
-import { computeSha256 } from './object-layer.js';
 import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -1632,13 +1631,13 @@ function normalizeSagaPayload(raw, { theme }) {
 
 /**
  * Persist normalized object-layer items into the ObjectLayer collection so they
- * are editable in the viewer. Items are created with an empty (`null`) render
- * and an `OFF_CHAIN` ledger; a render/ledger can be set later from
+ * are editable in the viewer. New items get an empty render and an `OFF_CHAIN`
+ * ledger; both can be set later from the object-layer import or from
  * `src/client/components/cyberia/ObjectLayerEngineViewer.js`.
  *
- * Upserts by `data.item.id`. An existing item's render and ledger are PRESERVED
- * (never clobbered back to null) — only the textual stats/item fields are
- * refreshed. `sha256` is recomputed over the resulting data.
+ * Upserts through `ObjectLayer.upsertByItemId`, so `data.item.id` stays unique
+ * and an existing item's render, ledger and CIDs are PRESERVED — only the
+ * textual stats/item fields are refreshed, and `sha256` is recomputed.
  *
  * @async
  * @param {Object} params
@@ -1647,28 +1646,20 @@ function normalizeSagaPayload(raw, { theme }) {
  * @returns {Promise<number>} Count of items created or updated.
  */
 async function persistObjectLayers({ objectLayers, ObjectLayer }) {
+  await ObjectLayer.ensureUniqueItemIdIndex();
+
   let count = 0;
   for (const ol of objectLayers) {
     const itemId = ol.item?.id;
     if (!itemId) continue;
 
-    const existing = await ObjectLayer.findOne({ 'data.item.id': itemId });
-
-    // Preserve any render already set via the viewer; default to empty render.
-    const hasRender = existing?.data?.render?.cid || existing?.data?.render?.metadataCid;
-    const render = hasRender ? existing.data.render : { cid: null, metadataCid: null };
-    const ledger = existing?.data?.ledger?.type ? existing.data.ledger : { type: 'OFF_CHAIN', tokenId: '' };
-
-    const data = { stats: ol.stats, item: ol.item, ledger, render };
-    const sha256 = computeSha256(data);
-
-    if (existing) {
-      existing.data = data;
-      existing.sha256 = sha256;
-      await existing.save();
-    } else {
-      await ObjectLayer.create({ data, sha256, cid: null });
-    }
+    // The saga only owns the textual/statistical fields. Ledger and render are
+    // seeded on insert and never refreshed, so a re-import cannot clobber an
+    // on-chain registration or a render produced by the object-layer import.
+    await ObjectLayer.upsertByItemId(
+      { data: { stats: ol.stats, item: ol.item } },
+      { setOnInsert: { cid: null, data: { ledger: { type: 'OFF_CHAIN', tokenId: '' }, render: {} } } },
+    );
     count++;
   }
   return count;

@@ -215,9 +215,6 @@ class ObjectLayerService {
       }
     }
 
-    // Compute final SHA-256 with all CIDs
-    bodyData.sha256 = ObjectLayerEngine.computeSha256(bodyData.data);
-
     // Pin data JSON to IPFS
     try {
       const itemId = bodyData.data.item.id;
@@ -232,17 +229,7 @@ class ObjectLayerService {
     }
 
     // Atomic create/replace – ObjectLayer is fully populated with all CIDs
-    let newObjectLayer;
-    const existingByItemId = await ObjectLayer.findOne({ 'data.item.id': bodyData.data.item.id });
-    if (existingByItemId) {
-      newObjectLayer = await ObjectLayer.findByIdAndUpdate(existingByItemId._id, bodyData, {
-        returnDocument: 'after',
-      }).populate('objectLayerRenderFramesId');
-    } else {
-      newObjectLayer = await (await new ObjectLayer(bodyData).save()).populate('objectLayerRenderFramesId');
-    }
-
-    return newObjectLayer;
+    return await (await ObjectLayer.upsertByItemId(bodyData)).populate('objectLayerRenderFramesId');
   };
 
   /**
