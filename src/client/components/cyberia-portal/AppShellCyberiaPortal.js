@@ -34,6 +34,7 @@ import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
+import { FallbackWorldEngineCyberia } from '../cyberia/FallbackWorldEngineCyberia.js';
 
 class AppShellCyberiaPortal {
   static Data = {};
@@ -287,6 +288,18 @@ class AppShellCyberiaPortal {
             tabHref: `${getProxyPath()}cyberia-entity-engine`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cyberia-entity-engine')),
+          })}
+          ${await BtnIcon.instance({
+            class: 'in wfa main-btn-menu main-btn-fallback-world-engine',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+              text: html`<span class="menu-label-text">${Translate.instance('fallback-world-engine')}</span>`,
+            }),
+            attrs: `data-id="fallback-world-engine"`,
+            tabHref: `${getProxyPath()}fallback-world-engine`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('fallback-world-engine')),
           })}
         </div>
       `,
@@ -753,6 +766,26 @@ class AppShellCyberiaPortal {
           text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('cyberia-entity-engine')}</span>`,
         }),
         html: async () => await EntityEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-fallback-world-engine`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-fallback-world-engine',
+        route: 'fallback-world-engine',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('fallback-world-engine')}</span>`,
+        }),
+        html: async () => await FallbackWorldEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

@@ -96,6 +96,46 @@ class CyberiaInstanceService {
           return reject(error);
         }),
     );
+  /** Fallback-world default items currently staged on the engine process. */
+  static getFallbackDefaultItems = () =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: 'fallback-world/default-items', endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => res.json())
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  /**
+   * Stage the fallback world's default items and reload a running cyberia-server
+   * (moderator/admin). The items ride along with the trigger — nothing is persisted.
+   */
+  static fallbackHotReload = (options = { body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: 'fallback-world/hot-reload', endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: JSON.stringify(options.body ?? {}),
+      })
+        .then(async (res) => res.json())
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static portalConnect = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `${options.id}/portal-connect`, endpoint }), {
