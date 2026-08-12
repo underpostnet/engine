@@ -38,6 +38,19 @@ class CyberiaInstanceRouter {
       async (req, res) => await CyberiaInstanceController.bootFullInstance(req, res, options),
     );
     router.get(`/fallback-world`, async (req, res) => await CyberiaInstanceController.fallbackWorld(req, res, options));
+    // Fallback-world default items — volatile, process-local (never persisted).
+    // The read is open (same as /fallback-world); staging them and triggering a
+    // rebuild is elevated privilege, like every other hot-reload path.
+    router.get(
+      `/fallback-world/default-items`,
+      async (req, res) => await CyberiaInstanceController.fallbackDefaultItems(req, res, options),
+    );
+    router.post(
+      `/fallback-world/hot-reload`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaInstanceController.fallbackHotReload(req, res, options),
+    );
     // Instance Map — static topology/presence plus dynamic player capability activity.
     router.get(
       `/instance-map/:instanceCode/static`,

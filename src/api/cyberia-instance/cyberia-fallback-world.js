@@ -179,7 +179,7 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
   const portalEntities = generatePortalEntities(mapDims, colors, { grid });
 
   // 6. Bots — placed on walkable cells (avoids obstacles, portals, NPCs)
-  const bots = generateBots(mapDims, colors, { count: opts.botCount, grid });
+  const bots = mapCode === 'fallback-map-0' ? [] : generateBots(mapDims, colors, { count: opts.botCount, grid });
 
   // 7. Resources — static exploitable entities placed on walkable cells
   const resources = generateResources(mapDims, colors, { count: opts.resourceCount, grid });
@@ -232,6 +232,11 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
  * @param {number} [opts.resourceCount]        Resources per map (random if omitted).
  * @param {number} [opts.staticCount]          Static decorators per map (random if omitted).
  * @param {Array}  [opts.colors]              Override palette.
+ * @param {Array<{id: string, defaultPlayerInventory: boolean}>} [opts.itemIds=[]]
+ *   Instance-level default items, mirroring `CyberiaInstance.itemIds`. Entries
+ *   flagged `defaultPlayerInventory` are merged into the player entity default
+ *   by `applyInstanceDefaultPlayerInventory`; every id is also resolved to an
+ *   atlas at boot. Layout is unaffected, so this stays outside the world seed.
  * @returns {{
  *   instance: object,
  *   maps: object[],
@@ -256,6 +261,7 @@ function generateFallbackWorld(opts = {}) {
     // fallback before atlases load. The C client resolves real colours
     // through domain/presentation_runtime — it does not read this value.
     colors = PALETTE,
+    itemIds = [],
   } = opts;
 
   // Surface item-id drift loudly on the very first build, so a missing
@@ -314,6 +320,7 @@ function generateFallbackWorld(opts = {}) {
     portals,
     topologyMode: 'procedural',
     playerSpawn: { ...DEFAULT_PLAYER_SPAWN },
+    itemIds: itemIds.map((entry) => ({ ...entry })),
   };
 
   return {

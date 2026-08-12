@@ -7,6 +7,8 @@ import {
   fallbackListInstance,
   DEFAULT_FALLBACK_INSTANCE_CODE,
 } from './cyberia-fallback-world.js';
+import { getFallbackDefaultItems, setFallbackDefaultItems } from './cyberia-fallback-default-items.js';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
 
 const logger = loggerFactory(import.meta);
@@ -183,7 +185,48 @@ class CyberiaInstanceService {
       botCount: q.botCount ? parseInt(q.botCount, 10) : undefined,
       obstacleCount: q.obstacleCount ? parseInt(q.obstacleCount, 10) : undefined,
       foregroundCount: q.foregroundCount ? parseInt(q.foregroundCount, 10) : undefined,
+      itemIds: getFallbackDefaultItems(),
     });
+  };
+
+  /**
+   * Current fallback-world default items — the volatile set the
+   * FallbackWorldEngine view last pushed, or `[]` when the engine is running on
+   * pure code defaults. Lets the view reopen showing what this process serves.
+   *
+   * `entityDefaultItemIds` are the ids the code defaults already ship in an
+   * entity's `defaultObjectLayers`. Selecting one of them and leaving
+   * `defaultPlayerInventory` unchecked REMOVES it (see
+   * applyInstanceDefaultPlayerInventory), so the editor needs to be able to warn
+   * before an operator silently strips the player's starting skin or weapon.
+   */
+  static fallbackDefaultItems = async () => {
+    const entityDefaultItemIds = new Set();
+    for (const entityDefault of CYBERIA_INSTANCE_CONF_DEFAULTS.entityDefaults || []) {
+      for (const layer of entityDefault.defaultObjectLayers || []) {
+        if (layer.itemId) entityDefaultItemIds.add(layer.itemId);
+      }
+    }
+    return { itemIds: getFallbackDefaultItems(), entityDefaultItemIds: [...entityDefaultItemIds].sort() };
+  };
+
+  /**
+   * Stage the fallback world's default items, then ask a running cyberia-server
+   * to rebuild. The items are not persisted (see cyberia-fallback-default-items):
+   * they are staged here first so the rebuild's `getFullInstance` re-fetch picks
+   * them up, which is what makes them reach the server at all.
+   *
+   * `instanceCode` is intentionally left empty — the target world is addressed by
+   * `serverUrl` (origin, or origin + variant sub-path), and naming the synthetic
+   * `fallback` code would be rejected by any server serving a real instance code.
+   */
+  static fallbackHotReload = async (req) => {
+    const { serverUrl, mode, itemIds } = req.body || {};
+    if (!serverUrl) throw new Error('serverUrl is required');
+
+    const staged = setFallbackDefaultItems(itemIds || []);
+    const { transport, result, grpcError } = await triggerHotReload({ serverUrl, instanceCode: '', mode });
+    return { transport, itemIds: staged, grpcError, ...result };
   };
 }
 

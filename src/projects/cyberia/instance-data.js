@@ -29,6 +29,7 @@ import {
   DefaultCyberiaItems,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
+import { getFallbackDefaultItems } from '../../api/cyberia-instance/cyberia-fallback-default-items.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -554,7 +555,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
   // ── Fallback: instance not found → return a multi-map procedural world ──
   if (!inst) {
     logger.info(`Instance "${instanceCode}" not found — returning fallback world.`);
-    const world = generateFallbackWorld();
+    const world = generateFallbackWorld({ itemIds: getFallbackDefaultItems() });
     const fallbackConf = buildFallbackConfig();
 
     // Collect all objectLayerItemIds from the generated maps so the
@@ -600,6 +601,23 @@ async function fetchFullInstance(models, requestedInstanceCode) {
 
     const fallbackConfig = buildFallbackInstanceConfig(fallbackConf, world.instance.itemIds);
 
+    // Opaque version over everything mutable in this payload, mirroring the
+    // persisted path below. A constant here would make hot reload a silent
+    // no-op: WorldBuilder.ReloadWorld skips the rebuild — and therefore
+    // ApplyInstanceConfig — whenever the version is unchanged. The world
+    // geometry itself is deterministic (code defaults + seed), so the inputs
+    // that can actually differ are the staged default items and the
+    // ObjectLayer docs, which are the only things read from the DB here.
+    const fallbackVersionParts = ['fallback'];
+    for (const entry of world.instance.itemIds || []) {
+      fallbackVersionParts.push(`${entry.id}:${entry.defaultPlayerInventory ? 1 : 0}`);
+    }
+    for (const doc of fallbackOlDocs) fallbackVersionParts.push(String(doc.sha256 || doc._id));
+    const fallbackVersion = `fallback-${crypto
+      .createHash('sha256')
+      .update(fallbackVersionParts.join('|'))
+      .digest('hex')}`;
+
     return {
       instance: toInstanceMsg({ ...world.instance, _id: '', seed: instanceCode }),
       maps: world.maps.map((m) => ({
@@ -614,7 +632,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
       })),
       objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
       config: fallbackConfig,
-      version: 'fallback',
+      version: fallbackVersion,
       // Mission content for the procedural fallback comes straight from
       // the canonical defaults — no DB, fully self-contained.
       actions: DefaultCyberiaActions.map(toActionMsg),

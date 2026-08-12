@@ -30,6 +30,9 @@ const CyberiaInstanceController = buildCrudController(CyberiaInstanceService, {
   portalConnect: serviceHandler(CyberiaInstanceService.portalConnect),
   // Moderator/admin-triggered world reload on a running cyberia-server.
   hotReload: serviceHandler(CyberiaInstanceService.hotReload, { errorStatus: 502 }),
+  // Fallback-world default items (volatile) + its own reload trigger.
+  fallbackDefaultItems: serviceHandler(CyberiaInstanceService.fallbackDefaultItems),
+  fallbackHotReload: serviceHandler(CyberiaInstanceService.fallbackHotReload, { errorStatus: 502 }),
   // Boot transport (REST fallback of the gRPC CyberiaDataService).
   bootPing: serviceHandler(CyberiaInstanceBootService.ping),
   bootObjectLayerBatch: serviceHandler(CyberiaInstanceBootService.objectLayerBatch, { errorStatus: 500 }),
