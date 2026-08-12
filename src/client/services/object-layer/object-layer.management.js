@@ -293,7 +293,7 @@ class ObjectLayerManagement {
         width: 160,
         editable: false,
         sortable: false,
-        filter: false,
+        filter: 'agTextColumnFilter',
       },
       {
         field: 'cid',
@@ -302,7 +302,7 @@ class ObjectLayerManagement {
         cellRenderer: CidRenderer,
         editable: false,
         sortable: false,
-        filter: false,
+        filter: 'agTextColumnFilter',
       },
       {
         field: 'data.render.cid',
@@ -311,7 +311,7 @@ class ObjectLayerManagement {
         cellRenderer: AtlasCidRenderer,
         editable: false,
         sortable: false,
-        filter: false,
+        filter: 'agTextColumnFilter',
       },
       {
         field: 'data.render.metadataCid',
@@ -320,7 +320,7 @@ class ObjectLayerManagement {
         cellRenderer: MetadataCidRenderer,
         editable: false,
         sortable: false,
-        filter: false,
+        filter: 'agTextColumnFilter',
       },
       {
         field: 'frame08',
