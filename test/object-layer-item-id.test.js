@@ -7,7 +7,6 @@ import {
   computeObjectLayerSha256,
   mergeObjectLayerData,
 } from '../src/api/object-layer/object-layer.model.js';
-import { ObjectLayerEngine } from '../src/projects/cyberia/object-layer.js';
 
 const storedData = () => ({
   stats: { effect: 5, resistance: 4, agility: 6, range: 2, intelligence: 0, utility: 1 },
@@ -103,7 +102,18 @@ describe('object layer sha256', () => {
     expect(computeObjectLayerSha256(a)).to.match(/^[a-f0-9]{64}$/);
   });
 
-  it('is the single implementation shared with ObjectLayerEngine', () => {
+  it('is the single implementation shared with ObjectLayerEngine', async function () {
+    // object-layer.js pulls in pngjs/sharp/jimp, which external engine projects
+    // may not have installed; dynamic import keeps a missing optional
+    // dependency from aborting mocha's file-loading phase for the whole suite.
+    let ObjectLayerEngine;
+    try {
+      ({ ObjectLayerEngine } = await import('../src/projects/cyberia/object-layer.js'));
+    } catch (err) {
+      if (err.code === 'ERR_MODULE_NOT_FOUND') return this.skip();
+      throw err;
+    }
+
     const data = storedData();
     expect(ObjectLayerEngine.computeSha256(data)).to.equal(computeObjectLayerSha256(data));
   });
