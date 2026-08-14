@@ -26,6 +26,7 @@ import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
 import UnderpostRelease from './cli/release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
+import UnderpostWireguard from './cli/wireguard.js';
 
 import UnderpostDns from './server/dns.js';
 import UnderpostBackup from './server/backup.js';
@@ -253,6 +254,16 @@ class Underpost {
   }
 
   /**
+   * Edge hub WireGuard/HAProxy cli API
+   * @static
+   * @type {UnderpostWireguard.API}
+   * @memberof Underpost
+   */
+  static get wireguard() {
+    return UnderpostWireguard.API;
+  }
+
+  /**
    * Dns server API
    * @static
    * @type {UnderpostDns.API}
@@ -352,6 +363,7 @@ export {
   UnderpostStartUp,
   UnderpostRelease,
   UnderpostTLS,
+  UnderpostWireguard,
 };
 
 export default Underpost;

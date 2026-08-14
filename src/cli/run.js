@@ -4907,6 +4907,26 @@ EOF`;
     },
 
     /**
+     * @method kubeadm-wireguard
+     * @description
+     * Configures Calico to keep using the Kubernetes NodeInternalIP after WireGuard
+     * is added to the node. This prevents the WireGuard interface (for example
+     * 10.0.0.2) from being selected as the Calico/BGP node address.
+     *
+     * @param {string} path - Unused.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options.
+     * @memberof UnderpostRun
+     */
+    'kubeadm-wireguard': (path, options = DEFAULT_OPTION) => {
+      shellExec(`kubectl patch installation.operator.tigera.io default --type='json' \
+-p='[
+  {"op":"replace","path":"/spec/calicoNetwork/nodeAddressAutodetectionV4","value":{"kubernetes":"NodeInternalIP"}}
+]'`);
+
+      shellExec(`kubectl rollout restart daemonset/calico-node -n calico-system`);
+    },
+
+    /**
      * @method build-cluster-deployment-manifests
      * @description Builds deployment manifests for both production and development environments using `node bin deploy --build-manifest`, syncing them, and setting replicas to 1 for the `dd` deployment.
      * @param {string} path - Unused.

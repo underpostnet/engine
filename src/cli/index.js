@@ -143,7 +143,7 @@ program
     '--switch-repo <url>',
     'Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo".',
   )
-  .option('--target-branch <branch>', 'Target branch for --switch-repo (default: master).')
+  .option('--target-branch <branch>', 'Target branch for --switch-repo (default: remote default branch).')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 
@@ -695,6 +695,68 @@ program
   .option('--copy', 'Copies the connection URI to clipboard.')
   .description('Manages SSH credentials and sessions for remote access to cluster nodes or services.')
   .action(Underpost.ssh.callback);
+
+// `underpost wireguard` and `underpost haproxy` are two entrypoints onto one
+// subsystem: the L3 transport and the gateway in front of it are configured from
+// the same deploy state, so they share a single option set and a single action
+// rather than drifting into two half-overlapping command surfaces.
+const edgeCommandFactory = (name, description) =>
+  program
+    .command(name)
+    .requiredOption(
+      '--deploy-id <deploy-id>',
+      'Deploy IDs whose conf.server.json/conf.instances.json define the routes. ' +
+        'Accepts one id, a comma-separated list, or "dd" for every deploy in dd.router.',
+    )
+    .option('--interface <name>', 'WireGuard interface name (default: "wg0").')
+    .option('--wireguard-install', 'Installs the wireguard-tools, haproxy and iptables host packages.')
+    .option('--wireguard-setup', 'Generates keys, builds the interface config, and applies local network rules.')
+    .option('--server', 'Configures this node as the hub endpoint accepting inbound tunnel traffic.')
+    .option('--client', 'Configures this node as a spoke endpoint maintaining an outbound tunnel.')
+    .option('--port <port>', 'WireGuard UDP listening port (default: 51820).')
+    .option(
+      '--cidr <cidr>',
+      'Hub interface address with prefix when used with --server (e.g. "10.0.0.1/24"); ' +
+        'the overlay subnet a spoke routes back through the hub when used with --client (default: "10.0.0.0/24").',
+    )
+    .option('--peer-ip <ip>', 'Tunnel address of the target spoke. Required with --client and --peer-add.')
+    .option('--endpoint <host:port>', 'Hub host and port a spoke dials. Required with --client.')
+    .option('--public-key <key>', 'Hub public key with --client; spoke public key with --peer-add.')
+    .option('--peer-add <peer-id>', 'Registers a spoke and applies it to the running hub without a restart.')
+    .option('--peer-remove <peer-id>', 'Removes a spoke from the registry and from the running hub.')
+    .option('--allowed-ips <cidrs>', 'Comma-separated CIDRs routed to the spoke (e.g. "10.0.0.2/32,192.168.10.0/24").')
+    .option('--hosts <hosts>', 'Comma-separated hostnames bound to the spoke, overriding instance resolution.')
+    .option('--instances <instances>', 'Comma-separated conf.instances.json ids bound to the spoke.')
+    .option('--default', 'Marks the spoke as the fallback for hostnames that match no other binding.')
+    .option('--haproxy-setup', 'Installs HAProxy, publishes the current routes, and enables the daemon.')
+    .option('--haproxy-sync', 'Recompiles the SNI/Host maps from deploy config and hot-reloads HAProxy.')
+    .option(
+      '--status',
+      'Prints the whole edge context without changing anything: role, interface, tunnel address, ' +
+        'public key, daemon states, peers with their bindings and link health, and the resolved routing.',
+    )
+    .option(
+      '--build-conf',
+      'Writes only engine-private/deploy/conf.wireguard.json and touches no host state. ' +
+        'Combine with --wireguard-setup / --peer-add / --peer-remove to author the topology off-box; ' +
+        'alone it normalizes and validates the existing registry.',
+    )
+    .option('--wireguard-start', 'Enables and starts wg-quick@<interface> and the QUIC forward.')
+    .option('--wireguard-stop', 'Tears down the interface and removes its transient packet rules.')
+    .option('--wireguard-reset', 'Removes generated configs and packet rules, keeping the key pair and registry.')
+    .option('--wireguard-reinstall', 'Full purge, package reinstall and re-key; every spoke must re-register.')
+    .option('--dry-run', 'Prints the files and commands the run would apply, without touching the host.')
+    .description(description)
+    .action(Underpost.wireguard.callback);
+
+edgeCommandFactory(
+  'wireguard',
+  'Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it.',
+);
+edgeCommandFactory(
+  'haproxy',
+  'Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`).',
+);
 
 program
   .command('run')
