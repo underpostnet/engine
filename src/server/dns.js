@@ -272,6 +272,83 @@ class Dns {
   }
 
   /**
+   * Blocks all outbound traffic from this host, except for established/related connections.
+   * This is useful for security purposes, especially in a dynamic DNS context where you want to prevent
+   * any new outbound connections while still allowing existing ones (like SSH) to continue.
+   * @static
+   * @memberof UnderpostDns
+   */
+  static blockAllEgress() {
+    // Clear any existing egress rules.
+    shellExec(`sudo nft flush chain inet filter output`, { silent: true });
+    shellExec(`sudo nft flush chain inet filter forward`, { silent: true });
+
+    // Allow return traffic for established/related connections.
+    //    This keeps existing inbound connections such as SSH alive.
+    shellExec(`sudo nft add rule inet filter output ct state established,related counter accept`, { silent: true });
+
+    // Block all new outbound connections from this host and forwarded traffic.
+    shellExec(`sudo nft chain inet filter output '{ policy drop; }'`, { silent: true });
+    shellExec(`sudo nft chain inet filter forward '{ policy drop; }'`, { silent: true });
+
+    logger.info('All outbound traffic blocked.');
+  }
+
+  /**
+   * Unblocks all outbound traffic from this host and forwarded interfaces.
+   * Restores default output and forward chain policies to ACCEPT and clears egress rules.
+   * @static
+   * @memberof UnderpostDns
+   */
+  static unblockAllEgress() {
+    // Restore default chain policies to accept all traffic.
+    shellExec(`sudo nft chain inet filter output '{ policy accept; }'`, { silent: true });
+    shellExec(`sudo nft chain inet filter forward '{ policy accept; }'`, { silent: true });
+
+    // Clear any existing egress blocking rules.
+    shellExec(`sudo nft flush chain inet filter output`, { silent: true });
+    shellExec(`sudo nft flush chain inet filter forward`, { silent: true });
+
+    logger.info('All outbound traffic unblocked and restored to default ACCEPT policy.');
+  }
+
+  /**
+   * Blocks all new inbound traffic to this host, except for established/related connections.
+   * This prevents any new incoming connections while keeping existing sessions (like SSH) alive.
+   * @static
+   * @memberof UnderpostDns
+   */
+  static blockAllIngress() {
+    // Clear any existing ingress rules.
+    shellExec(`sudo nft flush chain inet filter input`, { silent: true });
+
+    // Allow return traffic for established/related connections.
+    // This keeps active inbound/outbound sessions alive.
+    shellExec(`sudo nft add rule inet filter input ct state established,related counter accept`, { silent: true });
+
+    // Block all new inbound connections to this host.
+    shellExec(`sudo nft chain inet filter input '{ policy drop; }'`, { silent: true });
+
+    logger.info('All new inbound traffic blocked.');
+  }
+
+  /**
+   * Unblocks all inbound traffic to this host.
+   * Restores default input chain policy to ACCEPT and clears ingress rules.
+   * @static
+   * @memberof UnderpostDns
+   */
+  static unblockAllIngress() {
+    // Restore default chain policy to accept all incoming traffic.
+    shellExec(`sudo nft chain inet filter input '{ policy accept; }'`, { silent: true });
+
+    // Clear any existing ingress blocking rules.
+    shellExec(`sudo nft flush chain inet filter input`, { silent: true });
+
+    logger.info('All inbound traffic unblocked and restored to default ACCEPT policy.');
+  }
+
+  /**
    * Performs the dynamic DNS update logic.
    * It checks if the public IP has changed and, if so, updates the configured DNS records.
    * @async
@@ -440,6 +517,10 @@ class Dns {
    * @property {boolean} [options.banEgressClear=false] - Clear all banned egress IPs.
    * @property {boolean} [options.banBothAdd=false] - Ban IPs from both ingress and egress.
    * @property {boolean} [options.banBothRemove=false] - Unban IPs from both ingress and egress.
+   * @property {boolean} [options.blockAllEgress=false] - Block all outbound traffic from this host.
+   * @property {boolean} [options.unblockAllEgress=false] - Unblock all outbound traffic.
+   * @property {boolean} [options.blockAllIngress=false] - Block all new inbound traffic to this host.
+   * @property {boolean} [options.unblockAllIngress=false] - Unblock all inbound traffic.
    * @property {boolean} [options.dhcp=false] - Get local DHCP IP instead of public IP.
    * @property {boolean} [options.copy=false] - Copy the public IP to clipboard.
    * @return {Promise<string|void>} The public IP if no ban/unban action is taken.
@@ -457,6 +538,10 @@ class Dns {
       banEgressClear: false,
       banBothAdd: false,
       banBothRemove: false,
+      blockAllEgress: false,
+      unblockAllEgress: false,
+      blockAllIngress: false,
+      unblockAllIngress: false,
       copy: false,
       dhcp: false,
     },
@@ -505,6 +590,19 @@ class Dns {
         Dns.unbanIngress(ip);
         Dns.unbanEgress(ip);
       });
+    }
+
+    if (options.blockAllEgress) {
+      return Dns.blockAllEgress();
+    }
+    if (options.unblockAllEgress) {
+      return Dns.unblockAllEgress();
+    }
+    if (options.blockAllIngress) {
+      return Dns.blockAllIngress();
+    }
+    if (options.unblockAllIngress) {
+      return Dns.unblockAllIngress();
     }
 
     if (options.mac) {

@@ -254,6 +254,10 @@ program
   .option('--ban-egress-clear', 'Clears all banned egress IP addresses.')
   .option('--ban-both-add', 'Adds IP addresses to both banned ingress and egress lists.')
   .option('--ban-both-remove', 'Removes IP addresses from both banned ingress and egress lists.')
+  .option('--block-all-egress', 'Blocks all outbound traffic from this host (keeps established/related connections).')
+  .option('--unblock-all-egress', 'Unblocks all outbound traffic and restores default ACCEPT policy.')
+  .option('--block-all-ingress', 'Blocks all new inbound traffic to this host (keeps established/related connections).')
+  .option('--unblock-all-ingress', 'Unblocks all inbound traffic and restores default ACCEPT policy.')
   .option('--mac', 'Prints the MAC address of the main network interface.')
   .description('Displays the current public machine IP addresses.')
   .action(Underpost.dns.ipDispatcher);
