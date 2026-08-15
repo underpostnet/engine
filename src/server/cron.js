@@ -8,7 +8,7 @@ import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
-import { getUnderpostRootPath, loadCronDeployEnv } from './conf.js';
+import { cronDeployIdResolve, getUnderpostRootPath, loadCronDeployEnv } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -64,9 +64,11 @@ const cronJobYamlFactory = ({
     .replace(/^-|-$/g, '')
     .substring(0, 52);
 
+  const cronDeployId = cronDeployIdResolve();
+
   const cronBin = 'node bin'; // dev ? 'node bin' : 'underpost';
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
-  const commands = [`cd ${enginePath}`]; // `node bin run secret`
+  const commands = [`cd ${enginePath}`, `node bin env ${cronDeployId} ${dev ? `development` : `production`}`]; // `node bin run secret`
   if (cmd) commands.push(cmd);
   commands.push(`${cronBin} cron ${deployList} ${jobList} ${flags}`);
   const fullCommand = commands.join(' &&\n                  ');
@@ -165,6 +167,7 @@ class UnderpostCron {
     return {
       dns: Underpost.dns,
       backup: Underpost.backup,
+      vultr: Underpost.vultr,
     };
   }
 

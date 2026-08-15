@@ -763,6 +763,28 @@ edgeCommandFactory(
 );
 
 program
+  .command('vultr')
+  .argument('[deploy-list]', 'A comma-separated list of deployment IDs, logged for attribution.')
+  .option('--instance-id <instance-id>', 'Vultr instance id to meter (default: VULTR_INSTANCE_ID).')
+  .option('--api-key <api-key>', 'Vultr API key (default: VULTR_API_KEY). Prefer the environment over this flag.')
+  .option(
+    '--threshold <ratio>',
+    'Fraction of the plan quota that triggers the egress block; "0.80" and "80" are both accepted (default: 0.80).',
+  )
+  .option('--metric <metric>', '"total" (incoming + outgoing, default) or "outgoing" for egress alone.')
+  .option('--month <yyyy-mm>', 'Billing month to sum (default: the current UTC month).')
+  .option('--all-dates', 'Sum every daily bucket the API returns instead of scoping to one month.')
+  .option('--host <ip>', 'Edge VPS to block (default: VULTR_VPS_IP, then DEFAULT_SSH_HOST).')
+  .option('--user <user>', 'SSH user on the edge VPS (default: VULTR_SSH_USER, then DEFAULT_SSH_USER, then "root").')
+  .option('--key-path <path>', 'SSH private key (default: VULTR_SSH_KEY_PATH, then DEFAULT_SSH_KEY_PATH).')
+  .option('--port <port>', 'SSH port on the edge VPS (default: VULTR_SSH_PORT, then DEFAULT_SSH_PORT, then 22).')
+  .option('--force', 'Re-apply the egress block even if it was already applied for this cycle.')
+  .option('--auto-unblock', 'Restore egress automatically once consumption falls back under the threshold.')
+  .option('--dry-run', 'Reports the consumption and the action it would take, without touching the edge VPS.')
+  .description('Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues.')
+  .action(Underpost.vultr.callback);
+
+program
   .command('run')
   .argument('<runner-id>', `The runner ID to run. Options: ${Underpost.run.RUNNERS}.`)
   .argument('[path]', 'The input value, identifier, or path for the operation.')

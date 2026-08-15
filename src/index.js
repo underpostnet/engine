@@ -26,6 +26,7 @@ import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
 import UnderpostRelease from './cli/release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
+import UnderpostVultr from './cli/vultr.js';
 import UnderpostWireguard from './cli/wireguard.js';
 
 import UnderpostDns from './server/dns.js';
@@ -264,6 +265,16 @@ class Underpost {
   }
 
   /**
+   * Vultr bandwidth guard cli API
+   * @static
+   * @type {UnderpostVultr.API}
+   * @memberof Underpost
+   */
+  static get vultr() {
+    return UnderpostVultr.API;
+  }
+
+  /**
    * Dns server API
    * @static
    * @type {UnderpostDns.API}
@@ -363,6 +374,7 @@ export {
   UnderpostStartUp,
   UnderpostRelease,
   UnderpostTLS,
+  UnderpostVultr,
   UnderpostWireguard,
 };
 
