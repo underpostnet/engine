@@ -24,7 +24,8 @@ WireGuard carries packets. It is not a router of hostnames and never sees one. E
 7. [Runbook: from a newly created Rocky Linux 9 VPS](#runbook-from-a-newly-created-rocky-linux-9-vps)
 8. [Adding a spoke without downtime](#adding-a-spoke-without-downtime)
 9. [Lifecycle and idempotency](#lifecycle-and-idempotency)
-10. [Relationship to `underpost-ingress` and `underpost-gateway`](#relationship-to-underpost-ingress-and-underpost-gateway)
+10. [Response compression and egress](#response-compression-and-egress)
+11. [Relationship to `underpost-ingress` and `underpost-gateway`](#relationship-to-underpost-ingress-and-underpost-gateway)
 
 ---
 
@@ -628,6 +629,54 @@ Every lifecycle command produces the same outcome regardless of the host's start
 `--wireguard-reset` deliberately **keeps** the key pair and the registry: destroying the key invalidates every spoke's peer entry, and a reset is for reconfiguring an edge, not for re-establishing trust with all of them. Re-keying is what `--wireguard-reinstall` is for, and it warns that every spoke must re-register.
 
 Use `--dry-run` on any of them to see the exact files and commands first.
+
+---
+
+## Response compression and egress
+
+Egress is metered at the VPS, so a byte reaching a client is a byte billed. The thing to understand before tuning anything is **where a response body can still be compressed** — and the answer follows directly from the port split above.
+
+The `:443` path is encrypted end to end from the client to the cluster's own ingress. HAProxy reads the SNI without decrypting, `underpost-ingress` forwards the stream with `ssl_preread`, and the tunnel carries ciphertext. **Nothing on that path can compress anything**, because nothing on it can see a body. Compression has to happen at or behind TLS termination, and what leaves through the tunnel is then whatever that produced — the data plane re-encrypts the body it was handed, it does not re-encode it.
+
+| Hop | Sees a body? | Compresses |
+| ----- | ----- | ----- |
+| HAProxy `fe_https` (`:443` TCP) | No — SNI preread only | — |
+| HAProxy `fe_http` (`:80` HTTP) | Yes | Not enabled; carries redirects and ACME only |
+| `underpost-ingress` `:443` / `:443/udp` | No — L4 passthrough and DNAT | — |
+| `underpost-ingress` `:80` | Yes | gzip (brotli when declared) |
+| `underpost-gateway` | Yes | gzip + `gzip_static` (brotli when declared) |
+| Application runtime (API paths) | Yes | Express `compression` middleware |
+
+`underpost-gateway` is where nearly all of it is recovered. Every host that declares a status page is routed through it for its whole site path — not only for the intercepted documents — so the HTML, CSS and JS of those hosts already pass through the one hop that holds them in the clear. API sub-paths are routed straight to the workload and are compressed by the runtime instead.
+
+Both Nginx configs are rendered from one policy in `src/server/underpost-compression.js`: `gzip_vary` is always on, `gzip_proxied any` is set (Nginx's default of `off` would otherwise skip exactly the proxied responses these workloads forward), and the type list excludes already-compressed media, along with `text/html`, which Nginx compresses whether it is listed or not.
+
+Three environment variables control it, read wherever the manifests are rendered:
+
+| Variable | Default | Effect |
+| ----- | ----- | ----- |
+| `UNDERPOST_NGINX_COMPRESSION` | on | `off` / `0` / `false` / `no` renders no compression directive at all |
+| `UNDERPOST_NGINX_IMAGE` | `nginx:alpine` | Image for both Nginx workloads |
+| `UNDERPOST_NGINX_BROTLI_MODULES` | unset | Directory holding `ngx_http_brotli_*_module.so` |
+
+**Brotli is off unless you supply an image that carries it.** It is not part of the stock Nginx build — `gzip_static` is, brotli is not — and `brotli on;` in an image without the module is an unknown directive, which is a start-up failure rather than a degraded mode. On `underpost-ingress` that pod holds the node's 80/443, so the failure would be the whole edge. Setting `UNDERPOST_NGINX_BROTLI_MODULES` is the declaration that the image has them; it renders the `load_module` lines and the `brotli` directives together, and nothing without it.
+
+To turn brotli on:
+
+```bash
+export UNDERPOST_NGINX_IMAGE=<registry>/nginx-brotli:<tag>
+export UNDERPOST_NGINX_BROTLI_MODULES=/usr/lib/nginx/modules
+```
+
+then re-run the cluster and deploy commands that render the two workloads. The ingress path is safe by construction: the candidate config is validated with `nginx -t` inside the running pod before the live one is replaced, so a wrong module path fails the run and leaves the serving config untouched. The gateway rolls via its pod-template hash, so a wrong path surfaces as a failed rollout.
+
+Verify what a client actually receives — the response headers, not the config:
+
+```bash
+curl -sI -H 'Accept-Encoding: gzip, br' https://<host>/ | grep -i 'content-encoding\|vary'
+```
+
+`Content-Encoding: gzip` (or `br`) with `Vary: Accept-Encoding` is the whole contract. A missing `Vary` is the one failure worth watching for, because a cache in front will hand a compressed body to a client that asked for none.
 
 ---
 

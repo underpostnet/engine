@@ -119,6 +119,47 @@ describe('underpost gateway edge tier', () => {
       expect(conf).to.include('map $http_upgrade $connection_upgrade');
     });
 
+    // For every host whose errors are intercepted, this workload is the hop the
+    // site path already passes through — and the last one holding the body in
+    // the clear. Compressing anywhere further out is compressing ciphertext.
+    describe('response compression', () => {
+      it('compresses what it serves and what it proxies', () => {
+        expect(conf).to.include('gzip on;');
+        expect(conf).to.include('gzip_vary on;');
+        // Nginx's default is `off`, which skips the proxied responses that carry
+        // most of the bytes this workload forwards.
+        expect(conf).to.include('gzip_proxied any;');
+        expect(conf).to.match(/gzip_types [^;]*application\/javascript[^;]*;/);
+        expect(conf).to.match(/gzip_types [^;]*text\/css[^;]*;/);
+      });
+
+      // Documents are served from a volume, so an operator who places a `.gz`
+      // beside one gets it sent with no compression pass at all.
+      it('prefers a pre-compressed sibling from the static root', () => {
+        expect(conf).to.include('gzip_static on;');
+      });
+
+      it('renders brotli and its modules only when the image is declared to carry them', () => {
+        expect(conf).to.not.include('brotli');
+        expect(conf).to.not.include('load_module');
+        const declared = nginxConfFactory({ compression: { brotliModuleDir: '/usr/lib/nginx/modules' } });
+        expect(declared).to.include('load_module /usr/lib/nginx/modules/ngx_http_brotli_static_module.so;');
+        expect(declared).to.include('brotli on;');
+        expect(declared).to.include('brotli_static on;');
+        // Main context: nginx rejects `load_module` anywhere else.
+        expect(declared.indexOf('load_module')).to.be.lessThan(declared.indexOf('events {'));
+      });
+
+      // The config is mounted with `subPath`, which Kubernetes never refreshes,
+      // so only a changed pod template rolls the workload onto a new policy.
+      it('rolls the deployment when the policy changes', () => {
+        const hash = (docs) => kind(docs, 'Deployment').match(/nginx-conf-hash: '([0-9a-f]+)'/)[1];
+        expect(hash(manifests({ compression: { brotliModuleDir: '/usr/lib/nginx/modules' } }))).to.not.equal(
+          hash(manifests()),
+        );
+      });
+    });
+
     // A 200 would let the PWA service worker store the shared page as the
     // host's own and keep serving it after the real document lands.
     it('serves the shared fallback as a 404 that is never stored', () => {

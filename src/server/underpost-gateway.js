@@ -32,6 +32,7 @@ import fs from 'fs-extra';
 import nodePath from 'node:path';
 import { timer } from '../client/components/core/CommonJs.js';
 import { instanceStatusPageEntriesFactory, loadConfServerJson, loadReplicas } from './conf.js';
+import { compressionConfFactory, compressionModulesConfFactory, nginxImageFactory } from './underpost-compression.js';
 import Underpost from '../index.js';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
@@ -51,7 +52,7 @@ const UNDERPOST_GATEWAY = {
   configMapName: 'underpost-gateway-nginx',
   claimName: 'pvc-underpost-gateway',
   volumeName: 'pv-underpost-gateway',
-  image: 'nginx:alpine',
+  image: nginxImageFactory(),
   root: '/var/www/static',
   port: 80,
   healthPath: '/healthz',
@@ -189,13 +190,24 @@ const defaultStatusPagePath = (status = 404) => `${UNDERPOST_GATEWAY.defaultHost
  * 200. That status is what stops the document being stored: the PWA service
  * worker caches navigations for hours and would otherwise keep serving the
  * fallback long after the host's real page landed in the tree.
+ *
+ * Compression is applied here rather than further out because this is the last
+ * hop that holds a response body in the clear — and, for every host whose
+ * errors are intercepted, the hop every site path already passes through. See
+ * {@link module:src/server/underpost-compression.js}.
+ * @param {string} [resolver] - Cluster DNS ClusterIP.
+ * @param {object} [compression] - Overrides for the compression policy.
  * @returns {string} nginx.conf contents.
  * @memberof UnderpostGateway
  */
-const nginxConfFactory = ({ resolver = UNDERPOST_GATEWAY.resolver } = {}) => `worker_processes auto;
+const nginxConfFactory = ({ resolver = UNDERPOST_GATEWAY.resolver, compression = {} } = {}) => {
+  const policy = { ...compression, staticRoot: true };
+  const modules = compressionModulesConfFactory(policy);
+  const compress = compressionConfFactory(policy);
+  return `worker_processes auto;
 error_log /dev/stderr warn;
 pid /tmp/nginx.pid;
-
+${modules ? `${modules}\n` : ''}
 events {
   worker_connections 1024;
 }
@@ -206,12 +218,7 @@ http {
   sendfile on;
   tcp_nopush on;
   server_tokens off;
-
-  gzip on;
-  gzip_vary on;
-  gzip_min_length 512;
-  gzip_types text/html text/css text/plain application/javascript application/json image/svg+xml;
-
+${compress ? `\n${compress}\n` : ''}
   log_format concise '$remote_addr "$request" $status $body_bytes_sent "$host"';
   access_log /dev/stdout concise;
 
@@ -259,6 +266,7 @@ http {
   }
 }
 `;
+};
 
 /**
  * @method statusPageLocationsFactory
@@ -388,6 +396,7 @@ ${blocks
  * @param {string} hostPath - Node directory backing the static root.
  * @param {string} [nodeName] - Node the hostPath volume is pinned to.
  * @param {string} [storage] - Volume size.
+ * @param {object} [compression] - Overrides for the compression policy.
  * @returns {string} Multi-document YAML.
  * @memberof UnderpostGateway
  */
@@ -397,8 +406,9 @@ const underpostGatewayManifestsFactory = ({
   nodeName = '',
   storage = '1Gi',
   resolver,
+  compression = {},
 } = {}) => {
-  const nginxConf = nginxConfFactory({ resolver });
+  const nginxConf = nginxConfFactory({ resolver, compression });
   // The config is mounted with `subPath`, which Kubernetes never refreshes in
   // place, and the pod template is otherwise identical across rebuilds — so
   // without this annotation an edited nginx.conf reaches the ConfigMap and

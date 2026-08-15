@@ -123,6 +123,58 @@ describe('shared ingress front', () => {
       const out = conf({ entries: [], resolver: '10.43.0.10' });
       expect(out.match(/resolver 10\.43\.0\.10 valid=10s ipv6=off;/g)).to.have.lengthOf(2);
     });
+
+    describe('response compression', () => {
+      const halves = (input) => {
+        const out = conf({ entries: [], ...input });
+        const split = out.indexOf('\nstream {');
+        return { http: out.slice(0, split), stream: out.slice(split) };
+      };
+
+      it('compresses the cleartext hop it proxies at L7', () => {
+        const { http } = halves({ compression: { brotliModuleDir: '' } });
+        expect(http).to.include('gzip on;');
+        expect(http).to.include('gzip_proxied any;');
+        expect(http).to.include('gzip_vary on;');
+      });
+
+      // `:443` is forwarded by SNI without being decrypted, so there is no body
+      // in this context to encode — and no compression directive is even valid
+      // in `stream`.
+      it('leaves the L4 contexts alone', () => {
+        const { stream } = halves({ compression: { brotliModuleDir: '/usr/lib/nginx/modules' } });
+        expect(stream).to.not.include('gzip');
+        expect(stream).to.not.include('brotli');
+      });
+
+      // This workload proxies every byte and serves no documents, so there is
+      // never a pre-compressed sibling on disk to look for.
+      it('does not look for pre-compressed files it can never have', () => {
+        const { http } = halves({ compression: { brotliModuleDir: '/usr/lib/nginx/modules' } });
+        expect(http).to.not.include('_static');
+      });
+
+      // `brotli on;` in an image without the module is an unknown directive, and
+      // this workload holds the node's 80/443 — a start-up failure here is the
+      // whole edge, so brotli is rendered only where it is declared to exist.
+      it('renders brotli and its modules only when the image is declared to carry them', () => {
+        const stock = conf({ entries: [], compression: { brotliModuleDir: '' } });
+        expect(stock).to.not.include('brotli');
+        expect(stock).to.not.include('load_module');
+        const declared = conf({ entries: [], compression: { brotliModuleDir: '/usr/lib/nginx/modules' } });
+        expect(declared).to.include('load_module /usr/lib/nginx/modules/ngx_http_brotli_filter_module.so;');
+        expect(declared).to.include('brotli on;');
+        // Main context: nginx rejects `load_module` anywhere else.
+        expect(declared.indexOf('load_module')).to.be.lessThan(declared.indexOf('events {'));
+      });
+
+      it('renders no compression directive when compression is switched off', () => {
+        const out = conf({ entries: [], compression: { enabled: false, brotliModuleDir: '/usr/lib/nginx/modules' } });
+        expect(out).to.not.include('gzip');
+        expect(out).to.not.include('brotli');
+        expect(out).to.not.include('load_module');
+      });
+    });
   });
 
   describe('underpostIngressManifestsFactory', () => {

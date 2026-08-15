@@ -24,6 +24,8 @@
  * @namespace UnderpostIngress
  */
 
+import { compressionConfFactory, compressionModulesConfFactory, nginxImageFactory } from './underpost-compression.js';
+
 /**
  * @constant UNDERPOST_INGRESS
  * @description Identity of the underpost ingress workload. One deployment fronts every
@@ -33,7 +35,7 @@
 const UNDERPOST_INGRESS = {
   name: 'underpost-ingress',
   configMapName: 'underpost-ingress-nginx',
-  image: 'nginx:alpine',
+  image: nginxImageFactory(),
   httpPort: 80,
   httpsPort: 443,
   healthPort: 8090,
@@ -100,10 +102,17 @@ const underpostIngressHostMapFactory = ({ contourHosts = [], gatewayHosts = [], 
  * that owns most of the routing rather than a rejection, so a host whose route
  * object has not been applied yet still reaches a data plane that can answer it
  * — including with its own 404.
+ *
+ * Compression is rendered for `:80` alone, and that asymmetry is the same split
+ * the module makes everywhere else: an L7 hop holds a body it can encode, while
+ * `:443` carries bytes this process never decrypts. Whatever leaves through the
+ * tunnel on that port was compressed where TLS terminates — see
+ * {@link module:src/server/underpost-compression.js}.
  * @param {Array<object>} [entries] - Host table from {@link UnderpostIngress.underpostIngressHostMapFactory}.
  * @param {object} backends - `{contour: {http, tls}, gateway: {http, tls}}`; a missing stack is omitted.
  * @param {string} [defaultBackend] - Backend for an unmatched hostname.
  * @param {string} [resolver] - Cluster DNS ClusterIP.
+ * @param {object} [compression] - Overrides for the compression policy.
  * @returns {string} nginx.conf contents.
  * @memberof UnderpostIngress
  */
@@ -112,6 +121,7 @@ const underpostIngressConfFactory = ({
   backends = {},
   defaultBackend = 'gateway',
   resolver = UNDERPOST_INGRESS.resolver,
+  compression = {},
 } = {}) => {
   const available = Object.keys(backends).filter((name) => backends[name]?.http && backends[name]?.tls);
   // With one stack installed the map still renders, so the same workload serves
@@ -121,17 +131,23 @@ const underpostIngressConfFactory = ({
   const routable = entries.filter((entry) => entry?.host && available.includes(entry.backend));
   const mapEntries = (kind) =>
     routable.map((entry) => `    ${entry.host} ${backends[entry.backend][kind]};`).join('\n') || '';
+  // No `staticRoot`: this workload proxies every byte and serves no documents,
+  // so there is never a pre-compressed sibling on disk to prefer.
+  const policy = { ...compression, staticRoot: false };
+  const modules = compressionModulesConfFactory(policy);
+  const compress = compressionConfFactory(policy);
 
   return `worker_processes auto;
 error_log /dev/stderr warn;
 pid /tmp/nginx.pid;
-
+${modules ? `${modules}\n` : ''}
 events {
   worker_connections 4096;
 }
 
 http {
   server_tokens off;
+${compress ? `\n${compress}\n` : ''}
   log_format underpost_ingress '$remote_addr "$request" $status "$host" -> $underpost_ingress_http_upstream';
   access_log /dev/stdout underpost_ingress;
 
