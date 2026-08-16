@@ -185,6 +185,12 @@ const defaultPeerFactory = (peers = []) =>
  * @method edgeStateFactory
  * @description Normalizes the registry as a whole, so every consumer reads one
  * shape whether the file exists, is partial, or is absent.
+ *
+ * `endpoint` and `hubPublicKey` are the pair a spoke needs to rebuild its own
+ * interface: the hub it dials, and the identity it expects there. Both are
+ * recorded so re-running the setup does not require re-supplying them, which is
+ * what makes a spoke's bring-up repeatable and `--wireguard-reinstall` possible
+ * on a spoke at all. Neither is secret — a public key is public.
  * @param {object} [state] - Raw registry contents.
  * @returns {object} Normalized registry.
  * @memberof UnderpostWireguard
@@ -195,6 +201,7 @@ const edgeStateFactory = (state = {}) => ({
   listenPort: Number(state.listenPort) > 0 ? Number(state.listenPort) : UNDERPOST_EDGE.listenPort,
   address: `${state.address || ''}`.trim(),
   endpoint: `${state.endpoint || ''}`.trim(),
+  hubPublicKey: `${state.hubPublicKey || ''}`.trim(),
   publicKey: `${state.publicKey || ''}`.trim(),
   peers: (Array.isArray(state.peers) ? state.peers : []).map(peerFactory).filter((peer) => peer.id),
 });
@@ -750,9 +757,13 @@ const quicForwardCommandsFactory = ({
  * A spoke opens nothing publicly — it dials out — but its tunnel interface has
  * to land in a zone that permits forwarded traffic, or the cluster ingress is
  * unreachable over a tunnel that is otherwise perfectly healthy.
+ * The same list drives the teardown, flipped to `--remove-*`, so a reset cannot
+ * leave behind a permanent rule the setup added — the two directions are one
+ * declaration rather than two that drift.
  * @param {string} role - `server` or `client`.
  * @param {string} [interfaceName] - Tunnel interface.
  * @param {number} [listenPort] - UDP listen port.
+ * @param {boolean} [remove] - Withdraw the rules instead of adding them.
  * @returns {Array<string>} Shell commands, each a no-op when firewalld is absent.
  * @memberof UnderpostWireguard
  */
@@ -760,17 +771,19 @@ const firewallCommandsFactory = ({
   role,
   interfaceName = UNDERPOST_EDGE.interfaceName,
   listenPort = UNDERPOST_EDGE.listenPort,
+  remove = false,
 } = {}) => {
+  const verb = remove ? 'remove' : 'add';
   const rules =
     role === 'server'
       ? [
-          `--add-port=${UNDERPOST_EDGE.httpPort}/tcp`,
-          `--add-port=${UNDERPOST_EDGE.httpsPort}/tcp`,
-          `--add-port=${UNDERPOST_EDGE.httpsPort}/udp`,
-          `--add-port=${listenPort}/udp`,
-          `--add-masquerade`,
+          `--${verb}-port=${UNDERPOST_EDGE.httpPort}/tcp`,
+          `--${verb}-port=${UNDERPOST_EDGE.httpsPort}/tcp`,
+          `--${verb}-port=${UNDERPOST_EDGE.httpsPort}/udp`,
+          `--${verb}-port=${listenPort}/udp`,
+          `--${verb}-masquerade`,
         ]
-      : [`--zone=trusted --add-interface=${interfaceName}`];
+      : [`--zone=trusted --${verb}-interface=${interfaceName}`];
   const guard = 'command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld';
   return [
     ...rules.map((rule) => `sudo sh -c '${guard} && firewall-cmd --permanent ${rule} >/dev/null || true'`),
@@ -1120,23 +1133,24 @@ class UnderpostWireguard {
       } else {
         const address = `${options.peerIp || state.address || ''}`.trim();
         const endpoint = `${options.endpoint || state.endpoint || ''}`.trim();
-        const hubKey = `${options.publicKey || ''}`.trim();
+        const hubPublicKey = `${options.publicKey || state.hubPublicKey || ''}`.trim();
         if (!address) throw new Error('[wireguard] --client requires --peer-ip');
         if (!endpoint) throw new Error('[wireguard] --client requires --endpoint (e.g. vps.example.com:51820)');
-        if (!hubKey) throw new Error('[wireguard] --client requires --public-key (the hub public key)');
+        if (!hubPublicKey) throw new Error('[wireguard] --client requires --public-key (the hub public key)');
         conf = wireguardClientConfFactory({
           address,
           keyPath: privateKeyPath,
-          publicKey: hubKey,
+          publicKey: hubPublicKey,
           endpoint,
           cidr: options.cidr || UNDERPOST_EDGE.tunnelCidr,
           keepalive: UNDERPOST_EDGE.keepalive,
         });
-        next = { ...state, interfaceName, role, listenPort, address, endpoint, publicKey };
+        next = { ...state, interfaceName, role, listenPort, address, endpoint, hubPublicKey, publicKey };
       }
 
+      let confChanged = false;
       if (!buildConf) {
-        writeRootFile({
+        confChanged = writeRootFile({
           target: `${UNDERPOST_EDGE.wireguardDir}/${interfaceName}.conf`,
           content: conf,
           mode: '0600',
@@ -1153,13 +1167,26 @@ class UnderpostWireguard {
         );
       }
       if (!options.dryRun) writeEdgeState(next);
+      // Writing the config is idempotent; the *running* interface is not. wg-quick
+      // reads the file only at start, so a changed config under a live unit is a
+      // divergence that stays silent until the next reboot re-reads it.
+      const restartRequired =
+        confChanged &&
+        !options.dryRun &&
+        shellExec(`systemctl is-active --quiet wg-quick@${interfaceName}`, { silent: true, silentOnError: true })
+          .code === 0;
       logger.info(buildConf ? 'Registry updated; host untouched' : 'WireGuard interface configured', {
         interfaceName,
         role,
         address: next.address,
         publicKey: next.publicKey,
         peers: next.peers.length,
+        restartRequired,
       });
+      if (restartRequired)
+        logger.warn('Interface config changed while the tunnel is up; the live interface still runs the old one', {
+          apply: `--wireguard-stop --wireguard-start --interface ${interfaceName}`,
+        });
       return next;
     },
 
@@ -1170,6 +1197,13 @@ class UnderpostWireguard {
      * `wg set` installs the peer on the live interface, so an existing tunnel is
      * never interrupted to admit a new one — the registry and the config file
      * are updated in the same pass so the peer also survives a restart.
+     *
+     * A spoke that re-keys is registered under the same id with a new public key.
+     * WireGuard identifies a peer *by its key*, not by any name, so admitting the
+     * new one does not replace the old: the superseded key would stay on the live
+     * interface still claiming the same `AllowedIPs`, and longest-prefix match
+     * could keep handing that traffic to an identity the spoke no longer holds.
+     * It is dropped first, which is what makes a reconnect leave no trace.
      * @param {object} options - CLI options.
      * @returns {object} The updated registry.
      * @memberof UnderpostWireguard
@@ -1193,18 +1227,17 @@ class UnderpostWireguard {
           ['default', options.default === true ? true : undefined],
         ].filter(([, value]) => value !== undefined),
       );
-      const peer = peerFactory({
-        ...(state.peers.find((entry) => entry.id === id) || {}),
-        id,
-        address,
-        publicKey,
-        ...overrides,
-      });
+      const current = state.peers.find((entry) => entry.id === id) || {};
+      const peer = peerFactory({ ...current, id, address, publicKey, ...overrides });
+      const supersededKey = current.publicKey && current.publicKey !== publicKey ? current.publicKey : '';
       const peers = [...state.peers.filter((entry) => entry.id !== id), peer].sort((a, b) => a.id.localeCompare(b.id));
       const next = { ...state, peers };
       if (options.buildConf !== true) {
         runHostCommands(
-          [liveWireguardCommand(next.interfaceName, `peer ${publicKey} allowed-ips ${peer.allowedIPs.join(',')}`)],
+          [
+            ...(supersededKey ? [liveWireguardCommand(next.interfaceName, `peer ${supersededKey} remove`)] : []),
+            liveWireguardCommand(next.interfaceName, `peer ${publicKey} allowed-ips ${peer.allowedIPs.join(',')}`),
+          ],
           options.dryRun,
         );
         writeServerInterfaceConf({ state: next, peers, dryRun: options.dryRun });
@@ -1214,6 +1247,7 @@ class UnderpostWireguard {
         id,
         address,
         allowedIPs: peer.allowedIPs,
+        rekeyed: supersededKey !== '',
       });
       warnRegistryHazards(peers);
       return next;
@@ -1290,13 +1324,17 @@ class UnderpostWireguard {
      * locally is skipped with a warning rather than failing the run: the private
      * conf of an unrelated deploy is not a precondition for publishing the ones
      * that are present.
-     * @param {string} deployId - Deploy id, comma-separated list, or `dd`.
+     *
+     * Omitting the id means `dd` — the whole of `dd.router`. The edge holds one
+     * pair of map files for the cluster, so a complete table is the only default
+     * that publishes a working edge; narrowing it is the deliberate act.
+     * @param {string} [deployId] - Deploy id, comma-separated list, or `dd` (the default).
      * @returns {{routes: Array<object>, unresolved: Array<object>, conflicts: Array<object>, peers: Array<object>, deployList: Array<string>, missing: Array<string>}} Merged table.
      * @throws {Error} When no requested deploy has a readable configuration.
      * @memberof UnderpostWireguard
      */
     routeTable(deployId) {
-      const deployList = deployListFactory(deployId);
+      const deployList = deployListFactory(deployId || 'dd');
       if (deployList.length === 0) throw new Error('[wireguard] --deploy-id resolved to no deploys');
       const state = readEdgeState();
       const tables = [];
@@ -1549,12 +1587,20 @@ class UnderpostWireguard {
 
     /**
      * @method reset
-     * @description Stops the daemons and removes the generated configuration and
-     * packet rules.
+     * @description Returns the host to zero: stops the daemons and withdraws
+     * every artifact the setup installed.
      *
-     * The key pair is deliberately kept: destroying it invalidates every spoke's
-     * peer entry, and a reset is for reconfiguring an edge rather than for
-     * re-establishing trust with all of them. Re-keying is what
+     * Everything this subsystem writes outside the repo is removed — interface
+     * config, sysctl drop-in, both HAProxy map files *and* the generated
+     * `haproxy.cfg`, the NAT chains, and the firewalld rules opened for the
+     * recorded role. Leaving `haproxy.cfg` behind while deleting the maps it
+     * reads is worse than leaving both: the daemon then fails to start on a
+     * config that references files that no longer exist.
+     *
+     * The key pair and the registry are deliberately kept: destroying the key
+     * invalidates every spoke's peer entry, and the registry is authored source
+     * that nothing can regenerate. A reset is for reconfiguring an edge rather
+     * than for re-establishing trust with all of them; re-keying is what
      * {@link UnderpostWireguard.reinstall} is for.
      * @param {object} options - CLI options.
      * @returns {void}
@@ -1571,10 +1617,27 @@ class UnderpostWireguard {
           `sudo systemctl disable --now haproxy 2>/dev/null || true`,
           `sudo rm -f ${UNDERPOST_EDGE.haproxyDir}/${UNDERPOST_EDGE.sniMapName}`,
           `sudo rm -f ${UNDERPOST_EDGE.haproxyDir}/${UNDERPOST_EDGE.httpMapName}`,
+          `sudo rm -f ${UNDERPOST_EDGE.haproxyDir}/${UNDERPOST_EDGE.haproxyConfName}`,
+          ...(state.role
+            ? firewallCommandsFactory({
+                role: state.role,
+                interfaceName,
+                listenPort: state.listenPort,
+                remove: true,
+              })
+            : []),
         ],
         options.dryRun,
       );
-      logger.info('Edge configuration reset; key pair and peer registry retained', { interfaceName });
+      logger.info('Edge host state removed; key pair and peer registry retained', {
+        interfaceName,
+        role: state.role || '(unset)',
+        firewallWithdrawn: state.role !== '',
+      });
+      if (!state.role)
+        logger.warn('Registry records no role, so no firewalld rules were withdrawn', {
+          fix: `--wireguard-reset --interface ${interfaceName} after the role is recorded, or withdraw them by hand`,
+        });
     },
 
     /**
@@ -1601,8 +1664,19 @@ class UnderpostWireguard {
         ],
         options.dryRun,
       );
-      UnderpostWireguard.API.setup({ ...options, interface: interfaceName });
-      logger.warn('Edge re-keyed; every spoke must be re-registered with the new hub public key', { interfaceName });
+      const next = UnderpostWireguard.API.setup({ ...options, interface: interfaceName });
+      logger.warn('Re-keyed: this machine now presents a new identity, and the far end still expects the old one', {
+        interfaceName,
+        publicKey: next.publicKey,
+        onEverySpoke:
+          next.role === 'server'
+            ? `--wireguard-setup --client --public-key '${next.publicKey}'   (peer-ip and endpoint are remembered)`
+            : 'none',
+        onTheHub:
+          next.role === 'client'
+            ? `--peer-add <this spoke id> --peer-ip ${next.address} --public-key '${next.publicKey}'`
+            : 'none',
+      });
     },
 
     /**
@@ -1621,34 +1695,30 @@ class UnderpostWireguard {
      * @memberof UnderpostWireguard
      */
     async callback(options = {}) {
-      const deployId = deployIdFactory(options.deployId);
-      if (!deployId) throw new Error('[wireguard] --deploy-id is required (e.g. --deploy-id dd-cyberia)');
-      const resolved = { ...options, deployId };
-
       // `--build-conf` is a hard promise, not a modifier: it short-circuits
       // every host action so the run cannot touch /etc, iptables, systemd or a
       // live interface even when other lifecycle flags are also present.
       if (options.buildConf === true) {
-        if (options.wireguardSetup === true) UnderpostWireguard.API.setup(resolved);
-        if (options.peerAdd) UnderpostWireguard.API.peerAdd(resolved);
-        if (options.peerRemove) UnderpostWireguard.API.peerRemove(resolved);
+        if (options.wireguardSetup === true) UnderpostWireguard.API.setup(options);
+        if (options.peerAdd) UnderpostWireguard.API.peerAdd(options);
+        if (options.peerRemove) UnderpostWireguard.API.peerRemove(options);
         if (!options.wireguardSetup && !options.peerAdd && !options.peerRemove)
-          UnderpostWireguard.API.buildConf(resolved);
-        if (options.status === true) UnderpostWireguard.API.status(resolved);
+          UnderpostWireguard.API.buildConf(options);
+        if (options.status === true) UnderpostWireguard.API.status(options);
         return;
       }
 
-      if (options.wireguardReinstall === true) return void UnderpostWireguard.API.reinstall(resolved);
-      if (options.wireguardReset === true) return void UnderpostWireguard.API.reset(resolved);
-      if (options.wireguardInstall === true) UnderpostWireguard.API.install(resolved);
-      if (options.wireguardSetup === true) UnderpostWireguard.API.setup(resolved);
-      if (options.peerAdd) UnderpostWireguard.API.peerAdd(resolved);
-      if (options.peerRemove) UnderpostWireguard.API.peerRemove(resolved);
-      if (options.haproxySetup === true) UnderpostWireguard.API.haproxySetup(resolved);
-      else if (options.haproxySync === true) UnderpostWireguard.API.haproxySync(resolved);
-      if (options.wireguardStop === true) UnderpostWireguard.API.stop(resolved);
-      if (options.wireguardStart === true) UnderpostWireguard.API.start(resolved);
-      if (options.status === true) UnderpostWireguard.API.status(resolved);
+      if (options.wireguardReinstall === true) return void UnderpostWireguard.API.reinstall(options);
+      if (options.wireguardReset === true) return void UnderpostWireguard.API.reset(options);
+      if (options.wireguardInstall === true) UnderpostWireguard.API.install(options);
+      if (options.wireguardSetup === true) UnderpostWireguard.API.setup(options);
+      if (options.peerAdd) UnderpostWireguard.API.peerAdd(options);
+      if (options.peerRemove) UnderpostWireguard.API.peerRemove(options);
+      if (options.haproxySetup === true) UnderpostWireguard.API.haproxySetup(options);
+      else if (options.haproxySync === true) UnderpostWireguard.API.haproxySync(options);
+      if (options.wireguardStop === true) UnderpostWireguard.API.stop(options);
+      if (options.wireguardStart === true) UnderpostWireguard.API.start(options);
+      if (options.status === true) UnderpostWireguard.API.status(options);
     },
   };
 }

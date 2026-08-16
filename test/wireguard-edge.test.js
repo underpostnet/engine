@@ -547,6 +547,18 @@ describe('edge hub routing', () => {
       for (const command of firewallCommandsFactory({ role: 'server' }))
         expect(command).to.include('systemctl is-active --quiet firewalld');
     });
+
+    // A reset that leaves the ports open has not returned the host to zero, and
+    // the only way the two directions cannot drift is sharing one rule list.
+    it('withdraws exactly the rules it opens, for either role', () => {
+      const opened = firewallCommandsFactory({ role: 'server', listenPort: 51821 });
+      const withdrawn = firewallCommandsFactory({ role: 'server', listenPort: 51821, remove: true });
+      expect(withdrawn).to.have.lengthOf(opened.length);
+      expect(withdrawn.join('\n')).to.equal(opened.join('\n').replace(/--add-/g, '--remove-'));
+      expect(firewallCommandsFactory({ role: 'client', remove: true }).join('\n')).to.include(
+        '--zone=trusted --remove-interface=wg0',
+      );
+    });
   });
 
   describe('wireguardStatusFactory', () => {
@@ -634,6 +646,16 @@ describe('edge hub routing', () => {
     it('drops registry entries with no id', () => {
       const state = edgeStateFactory({ peers: [{ address: '10.0.0.2' }, { id: 'ok', address: '10.0.0.3' }] });
       expect(state.peers.map((peer) => peer.id)).to.deep.equal(['ok']);
+    });
+
+    // A spoke rebuilds its interface from `endpoint` + `hubPublicKey`. Without
+    // the second one recorded, re-running the setup — and every --wireguard-
+    // reinstall, which ends in one — fails on a flag the operator already gave.
+    it('records the hub identity a spoke dials, so its setup is repeatable', () => {
+      const state = edgeStateFactory({ role: 'client', endpoint: 'vps.example.com:51820', hubPublicKey: 'HUB=' });
+      expect(state.endpoint).to.equal('vps.example.com:51820');
+      expect(state.hubPublicKey).to.equal('HUB=');
+      expect(edgeStateFactory().hubPublicKey).to.equal('');
     });
 
     it('falls back to the subsystem defaults for an empty registry', () => {

@@ -707,10 +707,11 @@ program
 const edgeCommandFactory = (name, description) =>
   program
     .command(name)
-    .requiredOption(
+    .option(
       '--deploy-id <deploy-id>',
       'Deploy IDs whose conf.server.json/conf.instances.json define the routes. ' +
-        'Accepts one id, a comma-separated list, or "dd" for every deploy in dd.router.',
+        'Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.router, ' +
+        'because the edge holds one pair of map files for the whole cluster.',
     )
     .option('--interface <name>', 'WireGuard interface name (default: "wg0").')
     .option('--wireguard-install', 'Installs the wireguard-tools, haproxy and iptables host packages.')
