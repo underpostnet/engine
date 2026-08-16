@@ -30,6 +30,12 @@ node bin cron [deploy-list] [job-list] [options]    # dev mode
 | `deploy-list` | Comma-separated deploy IDs (`dd-<conf-id>`)        | `default`          |
 | `job-list`    | Comma-separated job IDs (`dns`, `backup`, `vultr`) | All available jobs |
 
+Both arguments change meaning with the mode. In **direct execution** `deploy-list` is the
+deploy-id list handed to each job callback and `job-list` selects the callbacks to run. In the
+**manifest modes** the first entry of `deploy-list` is the deploy-id that owns
+`conf.cron.json` (falling back to `dd.cron`), and `job-list` **scopes** which of that file's
+jobs are generated, deleted, and applied — everything else in the file is left untouched.
+
 > **⚠️** `job-list` defaults to **every** job in `UnderpostCron.JOB`. `underpost cron dd-cron`
 > with no second argument runs `vultr` too — and `vultr` can block the edge VPS. Name the
 > jobs explicitly when you do not want all of them.
@@ -40,11 +46,18 @@ node bin cron [deploy-list] [job-list] [options]    # dev mode
 
 The cron command operates in three modes:
 
-| Mode                   | Trigger                     | Description                                                                         |
-| ---------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| **Direct execution**   | No manifest flags           | Runs job callbacks immediately in the current process                               |
-| **Generate + Apply**   | `--generate-k8s-cronjobs`   | Generates K8s CronJob YAML manifests; optionally applies with `--apply`             |
-| **Setup deploy start** | `--setup-start [deploy-id]` | Updates `package.json` start script and generates+applies manifests for a deploy-id |
+| Mode                   | Trigger                                                     | Description                                                                         |
+| ---------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Direct execution**   | No manifest flags                                           | Runs job callbacks immediately in the current process                               |
+| **Generate + Apply**   | `--generate-k8s-cronjobs`, `--apply`, or `--create-job-now` | Generates K8s CronJob YAML manifests; publishes them to the cluster with `--apply`  |
+| **Setup deploy start** | `--setup-start`                                             | Updates `package.json` start script and generates+applies manifests for a deploy-id |
+
+> **The manifest modes never run a job in the calling process.** `--generate-k8s-cronjobs`,
+> `--apply`, `--create-job-now`, and `--setup-start` write and publish manifests and hand the
+> work to the cluster; it happens in a pod, either when the CronJob next fires or immediately
+> under `--create-job-now`. `node bin cron dd-cron vultr --apply --kubeadm` publishes the
+> `vultr` CronJob — it does not meter bandwidth in the calling process. Drop the manifest flags
+> to run it here and now.
 
 ---
 
@@ -75,27 +88,89 @@ node bin cron --generate-k8s-cronjobs --namespace production --dev
 Generate and deploy CronJob manifests to a running cluster:
 
 ```bash
+node bin cron --apply --kubeadm                                 # every job in conf.cron.json
 node bin cron --generate-k8s-cronjobs --apply --kind --dev
-node bin cron --generate-k8s-cronjobs --apply --kubeadm
 node bin cron --generate-k8s-cronjobs --apply --k3s --image custom:latest
 ```
 
-### Immediate Job Creation
-
-After applying, create a one-off Job from each CronJob:
+Name a `deploy-list` and a `job-list` to publish one job of one deploy-id, leaving every other
+CronJob in the cluster alone:
 
 ```bash
+node bin cron dd-cron vultr --apply --kubeadm
+node bin cron dd-cron dns,vultr --apply --kubeadm
+```
+
+Only the named jobs are deleted and re-applied — `dd-cron-backup` keeps its existing schedule
+and history.
+
+### Immediate Job Creation
+
+`--create-job-now` clones a one-off Job from the CronJob, so the work runs **in a cluster pod**,
+under the CronJob's own image, mounts, and environment — not in the calling shell:
+
+```bash
+node bin cron dd-cron vultr --create-job-now --kubeadm          # run the published CronJob now
+node bin cron dd-cron vultr --apply --create-job-now --kubeadm  # republish, then run it now
 node bin cron --generate-k8s-cronjobs --apply --create-job-now --kind --dev
 ```
 
-### Setup Deploy Start
+The order is fixed: `--apply` publishes first, then the Job is cloned — so the pod always runs
+the manifest this invocation just wrote. Without `--apply` the Job is cloned from whatever is
+already on the cluster; if that CronJob does not exist, the job is skipped with a warning
+rather than a `kubectl` failure.
 
-Update a deploy-id's `package.json` start script and generate its manifests:
+To watch it:
 
 ```bash
-node bin cron --setup-start dd-cron
-node bin cron --setup-start dd-my-app --namespace staging
+kubectl get jobs -l managed-by=underpost
+kubectl logs -l app=dd-cron-vultr --tail=100
 ```
+
+### Node Placement
+
+`--node-name` pins the generated CronJob's pod to one node, as a `kubernetes.io/hostname`
+nodeSelector on the pod template — the same field and path `run node-move` patches, so the two
+do not fight each other:
+
+```bash
+node bin cron dd-cron vultr --apply --kubeadm --node-name localhost.localdomain
+node bin cron --setup-start --apply --kubeadm --node-name worker-1
+```
+
+```yaml
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          nodeSelector:
+            kubernetes.io/hostname: worker-1
+```
+
+This matters because the CronJob mounts `/home/dd/engine` and the underpost root as **hostPath**
+volumes. Those paths exist only on nodes that carry the engine checkout, so on a multi-node
+cluster an unpinned Job scheduled onto any other node fails to mount and never runs the job.
+Pinning it to the node that holds the engine is what makes the mount deterministic.
+
+The flag applies to the manifest modes only. In direct execution nothing is scheduled, so
+passing it there logs a warning and is otherwise ignored. Under `--apply` the node is checked
+against the cluster; an unknown node is a warning, not a failure, since the node may join before
+the schedule next fires — but until it does, every Job stays Pending.
+
+### Setup Deploy Start
+
+Update a deploy-id's `package.json` start script and generate its manifests. The deploy-id is
+the `deploy-list` argument — `--setup-start` is a plain flag and takes no value:
+
+```bash
+node bin cron --setup-start                              # deploy-id from dd.cron
+node bin cron dd-cron --setup-start --git --apply
+node bin cron dd-my-app --setup-start --namespace staging
+```
+
+The generated start script lists exactly the manifests that were generated — enabled jobs,
+narrowed by `job-list` when one is given.
 
 ### Dry Run
 
@@ -118,21 +193,27 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 
 ## Options
 
-| Option                      | Description                                                     |
-| --------------------------- | --------------------------------------------------------------- |
-| `--generate-k8s-cronjobs`   | Generate K8s CronJob YAML manifests from `conf.cron.json`       |
-| `--apply`                   | Apply generated manifests to the cluster via `kubectl`          |
-| `--setup-start [deploy-id]` | Update `package.json` start script and generate+apply manifests |
-| `--namespace <name>`        | Kubernetes namespace (default: `default`)                       |
-| `--image <name>`            | Custom container image for CronJob pods                         |
-| `--git`                     | Pass `--git` flag to job execution                              |
-| `--cmd <command>`           | Pre-script commands before cron execution                       |
-| `--dev`                     | Development mode (`node bin` instead of `underpost`)            |
-| `--kind`                    | Kind cluster context                                            |
-| `--k3s`                     | K3s cluster context                                             |
-| `--kubeadm`                 | Kubeadm cluster context                                         |
-| `--dry-run`                 | Preview jobs without executing                                  |
-| `--create-job-now`          | Create an immediate Job from each CronJob after applying        |
+| Option                    | Description                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `--generate-k8s-cronjobs` | Generate K8s CronJob YAML manifests from `conf.cron.json`                    |
+| `--apply`                 | Generate **and** apply manifests via `kubectl`; implies manifest mode        |
+| `--setup-start`           | Update `package.json` start script and generate+apply manifests              |
+| `--namespace <name>`      | Kubernetes namespace (default: `default`)                                    |
+| `--image <name>`          | Custom container image for CronJob pods                                      |
+| `--node-name <node>`      | Pin the CronJob pods to one node (manifest modes only)                       |
+| `--git`                   | Pass `--git` flag to job execution                                           |
+| `--cmd <command>`         | Pre-script commands before cron execution                                    |
+| `--dev`                   | Development mode (`node bin` instead of `underpost`)                         |
+| `--kind`                  | Kind cluster context                                                         |
+| `--k3s`                   | K3s cluster context                                                          |
+| `--kubeadm`               | Kubeadm cluster context                                                      |
+| `--dry-run`               | Preview jobs without executing (direct mode); `--dry-run` inside the CronJob |
+| `--create-job-now`        | Run each CronJob now as a cluster Job; implies manifest mode                 |
+
+> `--setup-start` used to accept an optional `[deploy-id]` value. That was a second source of
+> truth for something `deploy-list` already carries, so it is now a boolean — pass the deploy-id
+> as the positional argument. Existing `--setup-start dd-cron` invocations keep working, because
+> `dd-cron` now parses as `deploy-list`.
 
 ---
 
@@ -191,7 +272,16 @@ underpost vultr --metric outgoing  # count egress alone instead of both directio
 
 ### DD Cron File
 
-`./engine-private/deploy/dd.cron` — stores the default cron deploy-id (e.g. `dd-cron`). Used when no deploy-id argument is provided.
+`./engine-private/deploy/dd.cron` — stores the default cron deploy-id (e.g. `dd-cron`). Used when
+no deploy-id argument is provided.
+
+Every consumer reads it through one helper, `cronDeployIdResolve()` in `src/server/conf.js`: the
+`deploy-list` fallback in `--setup-start` and `--generate-k8s-cronjobs`, the deploy-list baked
+into each generated manifest (`getRelatedDeployIdList`, except `backup`, which reads
+`dd.router`), the env loaded by `loadCronDeployEnv()`, and the `sync` runner's cron step. A
+missing or empty file resolves to `null`, and the command says so rather than guessing — the one
+exception is `getRelatedDeployIdList`, which warns and falls back to the literal `dd-cron` so
+manifest generation still produces a runnable command.
 
 ### Conf Cron JSON
 
@@ -281,8 +371,8 @@ The paths resolve inside the CronJob container because it mounts `/home/dd/engin
 # 2. prove the reading is right before anything can act on it
 node bin cron dd-cron vultr --dry-run
 
-# 3. flip "enabled": true in conf.cron.json, then publish the CronJob
-node bin cron --generate-k8s-cronjobs --apply --kubeadm
+# 3. flip "enabled": true in conf.cron.json, then publish just this CronJob
+node bin cron dd-cron vultr --apply --kubeadm
 ```
 
 Step 2 matters: a job enabled without credentials fails on every fire, and a job enabled with the wrong `VULTR_VPS_IP` succeeds at blocking the wrong host. Keep the entry at `"enabled": false` until the dry run reads back the numbers you expect.
@@ -302,21 +392,29 @@ Step 2 matters: a job enabled without credentials fails on every fire, and a job
 
 ### Manifest Generation + Apply Flow
 
-1. **Resolve deploy-id** — argument or `./engine-private/deploy/dd.cron`
+1. **Resolve deploy-id** — first entry of `deploy-list`, or `./engine-private/deploy/dd.cron`
 2. **Read `conf.cron.json`** — load job definitions from `./engine-private/conf/dd-<conf-id>/conf.cron.json`
-3. **Generate YAML** — for each enabled job, produce a CronJob manifest at `./manifests/cronjobs/dd-<conf-id>/dd-<conf-id>-<job>.yaml`
-4. **Delete existing** — `kubectl delete cronjob <name> --ignore-not-found`
-5. **Load image** — ensure the container image is available on the cluster
-6. **Sync engine** — if `--kind`, copy engine directory into `kind-worker` container
-7. **Apply** — `kubectl apply -f` on each generated manifest
-8. **Create immediate jobs** — if `--create-job-now`, run `kubectl create job <name>-now --from=cronjob/<name>`
+3. **Scope jobs** — keep only the jobs named in `job-list`; all of them when it is omitted
+4. **Generate YAML** — for each scoped, enabled job, produce a CronJob manifest at `./manifests/cronjobs/dd-<conf-id>/dd-<conf-id>-<job>.yaml`, carrying a `kubernetes.io/hostname` nodeSelector when `--node-name` is set
+5. **Check placement** — `--apply` with `--node-name`: warn when the target node is not registered on the cluster
+6. **Delete existing** — `--apply` only: `kubectl delete cronjob <name> --ignore-not-found`, scoped jobs only
+7. **Load image** — `--apply` only: ensure the container image is available on the cluster
+8. **Sync engine** — `--apply` with `--kind`: copy engine directory into `kind-worker` container
+9. **Apply** — `--apply` only: `kubectl apply -f` on each generated manifest
+10. **Create immediate jobs** — `--create-job-now`: for each scoped CronJob present on the cluster, run `kubectl create job <name>-now-<ts> --from=cronjob/<name>`; missing CronJobs are warned and skipped
+
+Steps 5–9 are the `--apply` block and always precede step 10, so `--apply --create-job-now`
+runs the pod against the manifest it just published.
+
+A `job-list` naming nothing present in `conf.cron.json` is a warning and a no-op: nothing is
+generated, and nothing already in the cluster is deleted.
 
 ### Setup Deploy Start Flow
 
-1. Resolve deploy-id (argument or `dd.cron` file)
-2. Read `conf.cron.json` and validate enabled jobs exist
-3. Update `package.json` start script with `kubectl apply -f` commands for each job manifest
-4. Call `generateK8sCronJobs` with hardcoded production defaults (`--git`, `--dev`, `--kubeadm`)
+1. Resolve deploy-id (first entry of `deploy-list`, or the `dd.cron` file)
+2. Read `conf.cron.json` and validate that enabled jobs exist within the `job-list` scope
+3. Update `package.json` start script with one `kubectl apply -f` per generated manifest
+4. Call `generateK8sCronJobs` with the forwarded flags and a default `--cmd` of `node bin env <deploy-id> production`
 
 ---
 
@@ -426,7 +524,24 @@ This ensures that **no plaintext secret ever appears** in source-controlled JS f
 The `sync` command triggers cron setup automatically unless `--deploy-id-cron-jobs` is set to `none`:
 
 ```bash
-node bin run sync dd-my-app --dev --kind --create-job-now
+node bin run sync dd-my-app --dev --kind                        # cron deploy-id from dd.cron
+node bin run sync dd-my-app --kubeadm --deploy-id-cron-jobs dd-other
+node bin run sync dd-my-app --kubeadm --deploy-id-cron-jobs none # no cron setup at all
 ```
 
-This calls the cron runner internally with resolved cluster flags, applying cron manifests as part of the deployment sync cycle. The `--cmd-cron-jobs` option on `sync` forwards pre-script commands to the cron generator.
+It runs `node bin cron <cron-deploy-id> --setup-start --git --apply` with the resolved cluster
+flags, applying cron manifests as part of the deployment sync cycle.
+
+The cron deploy-id it passes is **not** the deploy-id being synced — a sync of `dd-my-app` still
+sets up the cron deploy's jobs. It resolves in one order, shared with the cron CLI itself:
+
+1. `--deploy-id-cron-jobs <id>` when given (`none` skips cron setup entirely)
+2. otherwise `cronDeployIdResolve()` — `engine-private/deploy/dd.cron`
+
+Both paths land on the same value, since `cron --setup-start` with no `deploy-list` resolves
+`dd.cron` through that same helper. Passing it explicitly only makes the executed command
+self-describing in the sync log.
+
+> **Not yet forwarded:** `--cmd-cron-jobs` is accepted by `sync` but is not passed to the cron
+> generator; the CronJob's pre-script stays the default `node bin env <deploy-id> production`.
+> Set `--cmd` on a direct `node bin cron … --setup-start` call when you need a custom one.

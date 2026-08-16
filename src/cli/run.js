@@ -127,7 +127,7 @@ const logger = loggerFactory(import.meta);
  * @property {string} confServerPath - The configuration server path.
  * @property {string} underpostRoot - The root path of the Underpost installation.
  * @property {string} cmdCronJobs - Pre-script commands to run before cron job execution.
- * @property {string} deployIdCronJobs - The deployment ID for cron jobs.
+ * @property {string} deployIdCronJobs - Cron deploy-id passed to `cron --setup-start`; unset resolves dd.cron, `none` skips cron setup.
  * @property {string} timezone - The timezone to set.
  * @property {boolean} kubeadm - Whether to run in kubeadm mode.
  * @property {boolean} kind - Whether to run in kind mode.
@@ -1172,8 +1172,16 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           if (!validVersion) throw new Error('Version mismatch');
         }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
-        if (options.deployIdCronJobs !== 'none')
-          shellExec(`node bin cron${baseClusterCommand}${clusterFlag} --setup-start --git --apply`);
+        if (options.deployIdCronJobs !== 'none') {
+          // --deploy-id-cron-jobs overrides the cron deploy-id; unset falls back to
+          // dd.cron, the same source `cron --setup-start` resolves against on its own.
+          const cronDeployId = options.deployIdCronJobs || cronDeployIdResolve() || '';
+          if (cronDeployId && !/^[a-zA-Z0-9._,-]+$/.test(cronDeployId))
+            throw new Error(`Invalid cron deploy-id: ${cronDeployId}`);
+          shellExec(
+            `node bin cron${cronDeployId ? ` ${cronDeployId}` : ''}${baseClusterCommand}${clusterFlag} --setup-start --git --apply`,
+          );
+        }
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)

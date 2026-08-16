@@ -14,6 +14,10 @@ spec:
   failedJobsHistoryLimit: 1
   suspend: false
   jobTemplate:
+    metadata:
+      labels:
+        app: dd-cron-backup
+        managed-by: underpost
     spec:
       template:
         metadata:
@@ -21,6 +25,8 @@ spec:
             app: dd-cron-backup
             managed-by: underpost
         spec:
+          nodeSelector:
+            kubernetes.io/hostname: hp-envy-iso-ram-rocky9
           containers:
             - name: dd-cron-backup
               image: underpost/underpost-engine:v3.2.90

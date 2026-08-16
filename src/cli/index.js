@@ -596,19 +596,23 @@ program
 
 program
   .command('cron')
-  .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
+  .argument(
+    '[deploy-list]',
+    'A comma-separated list of deployment IDs (e.g., "default-a,default-b"). In manifest modes its first entry is the manifest owner deploy-id.',
+  )
   .argument(
     '[job-list]',
-    `A comma-separated list of job IDs. Options: ${Underpost.cron.getJobsIDs()}. Defaults to all available jobs.`,
+    `A comma-separated list of job IDs. Options: ${Underpost.cron.getJobsIDs()}. Defaults to all available jobs, and restricts which jobs are generated in manifest modes.`,
   )
   .option('--generate-k8s-cronjobs', 'Generates Kubernetes CronJob YAML manifests from cron configuration.')
-  .option('--apply', 'Applies generated K8s CronJob manifests to the cluster via kubectl.')
+  .option('--apply', 'Generates and applies K8s CronJob manifests to the cluster via kubectl (never runs jobs).')
   .option(
-    '--setup-start [deploy-id]',
-    'Updates deploy-id package.json start script and generates+applies its K8s CronJob manifests.',
+    '--setup-start',
+    'Updates deploy-list package.json start script and generates+applies its K8s CronJob manifests.',
   )
   .option('--namespace <namespace>', 'Kubernetes namespace for the CronJob resources (default: "default").')
   .option('--image <image>', 'Custom container image for the CronJob pods.')
+  .option('--node-name <node-name>', 'Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector.')
   .option('--git', 'Pass --git flag to cron job execution.')
   .option('--cmd <cmd>', 'Optional pre-script commands to run before cron execution.')
   .option('--dev', 'Use local ./ base path instead of global underpost installation.')
@@ -618,7 +622,7 @@ program
   .option('--dry-run', 'Preview cron jobs without executing them.')
   .option(
     '--create-job-now',
-    'After applying manifests, immediately create a Job from each CronJob (requires --apply).',
+    'Creates a Job from each CronJob on the cluster now (implies manifest mode; combine with --apply to publish first).',
   )
   .description('Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.')
   .action(Underpost.cron.callback);
@@ -858,7 +862,7 @@ program
   .option('--cmd-cron-jobs <cmd-cron-jobs>', 'Pre-script commands to run before cron job execution.')
   .option(
     '--deploy-id-cron-jobs <deploy-id-cron-jobs>',
-    'Specifies deployment IDs to synchronize cron jobs with during execution.',
+    'Cron deploy-id to set up during sync; defaults to dd.cron, "none" skips cron setup entirely.',
   )
   .option('--timezone <timezone>', 'Sets the timezone for the runner execution.')
   .option('--kubeadm', 'Sets the kubeadm cluster context for the runner execution.')

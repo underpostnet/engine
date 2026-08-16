@@ -563,11 +563,11 @@ The file `./engine-private/deploy/dd.cron` stores the default cron deploy-id (e.
 
 ### Cron Command Cycle
 
-1. **Resolve deploy-id** — uses the argument if provided, otherwise reads `./engine-private/deploy/dd.cron`
-2. **Read conf.cron.json** — loads job definitions from `./engine-private/conf/dd-<conf-id>/conf.cron.json`
+1. **Resolve deploy-id** — first entry of the `deploy-list` argument if provided, otherwise reads `./engine-private/deploy/dd.cron`
+2. **Read conf.cron.json** — loads job definitions from `./engine-private/conf/dd-<conf-id>/conf.cron.json`, narrowed to the `job-list` argument when one is given
 3. **Setup deploy start** — updates `package.json` start script and generates K8s CronJob YAML manifests into `./manifests/cronjobs/dd-<conf-id>/`
-4. **Apply to cluster** — deletes existing CronJobs, ensures the container image is loaded on the cluster, syncs engine to kind-worker if using `--kind`, then runs `kubectl apply -f` on all generated manifests
-5. **Create immediate jobs** — when `--create-job-now` is set, creates a one-off Job from each CronJob via `kubectl create job <name>-now --from=cronjob/<name>`
+4. **Apply to cluster** — deletes the targeted CronJobs, ensures the container image is loaded on the cluster, syncs engine to kind-worker if using `--kind`, then runs `kubectl apply -f` on each generated manifest
+5. **Create immediate jobs** — when `--create-job-now` is set, creates a one-off Job from each targeted CronJob via `kubectl create job <name>-now --from=cronjob/<name>`, always after the apply step. A CronJob missing from the cluster is warned and skipped
 
 ### Usage
 
@@ -582,17 +582,28 @@ node bin cron dd-cron dns --dev
 node bin cron --generate-k8s-cronjobs --dev
 node bin cron --generate-k8s-cronjobs --namespace production --dev
 
-# Generate + apply to cluster
+# Generate + apply to cluster (--apply alone implies manifest mode; it never runs a job)
 node bin cron --generate-k8s-cronjobs --apply --kind --dev
-node bin cron --generate-k8s-cronjobs --apply --kubeadm
+node bin cron --apply --kubeadm
 node bin cron --generate-k8s-cronjobs --apply --k3s --image custom:latest
 
-# Apply + create immediate jobs
+# Apply one job of one deploy-id, leaving the other CronJobs untouched
+node bin cron dd-cron vultr --apply --kubeadm
+
+# Apply + create immediate jobs — the work runs in a cluster pod, not in this shell
 node bin cron --generate-k8s-cronjobs --apply --create-job-now --kind --dev
 
+# Run an already-published CronJob now, without republishing it
+node bin cron dd-cron vultr --create-job-now --kubeadm
+
+# Pin the CronJob pods to the node that carries the /home/dd/engine hostPath
+node bin cron dd-cron --setup-start --apply --kubeadm --node-name localhost.localdomain
+
 # Setup deploy start (update package.json + generate manifests)
-node bin cron --setup-start dd-cron
-node bin cron --setup-start dd-my-app --namespace staging
+# --setup-start is a flag; the deploy-id is the deploy-list argument
+node bin cron --setup-start
+node bin cron dd-cron --setup-start --git --apply
+node bin cron dd-my-app --setup-start --namespace staging
 
 # Dry run
 node bin cron dd-cron dns --dry-run
@@ -604,18 +615,21 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 
 ### Options
 
-| Option               | Description                                              |
-| -------------------- | -------------------------------------------------------- |
-| `--dev`              | Development mode (`node bin` instead of `underpost`)     |
-| `--kind`             | Kind cluster context                                     |
-| `--k3s`              | K3s cluster context                                      |
-| `--kubeadm`          | Kubeadm cluster context                                  |
-| `--git`              | Pass `--git` flag to job execution                       |
-| `--namespace <name>` | Kubernetes namespace (default: `default`)                |
-| `--image <name>`     | Custom container image                                   |
-| `--cmd <command>`    | Pre-script commands before cron execution                |
-| `--create-job-now`   | Create an immediate Job from each CronJob after applying |
-| `--dry-run`          | Preview jobs without executing                           |
+| Option               | Description                                             |
+| -------------------- | ------------------------------------------------------- |
+| `--dev`              | Development mode (`node bin` instead of `underpost`)    |
+| `--kind`             | Kind cluster context                                    |
+| `--k3s`              | K3s cluster context                                     |
+| `--kubeadm`          | Kubeadm cluster context                                 |
+| `--git`              | Pass `--git` flag to job execution                      |
+| `--namespace <name>` | Kubernetes namespace (default: `default`)               |
+| `--image <name>`     | Custom container image                                  |
+| `--node-name <node>` | Pin CronJob pods to one node (`kubernetes.io/hostname`) |
+| `--cmd <command>`    | Pre-script commands before cron execution               |
+| `--create-job-now`   | Run each CronJob now as a cluster Job (after `--apply`) |
+| `--dry-run`          | Preview jobs without executing                          |
+| `--apply`            | Generate and apply manifests via `kubectl`              |
+| `--setup-start`      | Update `package.json` start script, then generate+apply |
 
 ### Available Job Types
 
@@ -653,7 +667,9 @@ The `sync` command automatically triggers cron setup when `--deploy-id-cron-jobs
 node bin run sync dd-my-app --dev --kind --create-job-now
 ```
 
-This calls the cron runner internally with the resolved cluster flags, applying cron manifests as part of the full deployment sync cycle.
+This runs `node bin cron <cron-deploy-id> --setup-start --git --apply` with the resolved cluster flags, applying cron manifests as part of the full deployment sync cycle.
+
+The cron deploy-id is independent of the deploy-id being synced: `--deploy-id-cron-jobs <id>` when given, otherwise `cronDeployIdResolve()` (`engine-private/deploy/dd.cron`) — the same helper `cron --setup-start` falls back to on its own, so both paths resolve identically.
 
 ---
 
@@ -691,8 +707,8 @@ Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/
 | `--kind` / `--kubeadm` / `--k3s`    | Cluster type                                                                                                                                                                                                                                                              |
 | `--namespace <name>`                | Kubernetes namespace (default: `default`)                                                                                                                                                                                                                                 |
 | `--replicas <n>`                    | Number of replicas                                                                                                                                                                                                                                                        |
-| `--deploy-id-cron-jobs <deploy-id>` | Deploy ID for cron job synchronization (set to `none` to skip)                                                                                                                                                                                                            |
-| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution                                                                                                                                                                                                                                 |
+| `--deploy-id-cron-jobs <deploy-id>` | Cron deploy-id to set up (defaults to `dd.cron`; `none` skips cron setup)                                                                                                                                                                                                 |
+| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution (accepted, not yet forwarded)                                                                                                                                                                                                   |
 | `--create-job-now`                  | Create immediate Job from each CronJob after applying                                                                                                                                                                                                                     |
 | `--timezone <tz>`                   | Set timezone for the deployment                                                                                                                                                                                                                                           |
 | `--disable-private-conf-update`     | Prevent private configuration updates during execution                                                                                                                                                                                                                    |
@@ -774,7 +790,7 @@ node bin run node-move deployment/dd-cyberia-production-blue --remove
 | `--node-name <node>` | Target node (required unless `--remove`). Verified to exist before patching.                                                                                  |
 | `--namespace <name>` | Namespace to operate in (default: `default`).                                                                                                                 |
 | `--labels <k=v,...>` | Label the target node with these pairs and use them as the `nodeSelector` (reusable pool). Default placement is the built-in `kubernetes.io/hostname=<node>`. |
-| `--dry-run`          | Print the exact `kubectl patch` command without applying it.                                                                                                   |
+| `--dry-run`          | Print the exact `kubectl patch` command without applying it.                                                                                                  |
 | `--remove`           | Clear the `nodeSelector` (unpin placement) instead of moving.                                                                                                 |
 
 **Mechanics:** for templated controllers it applies `kubectl patch <kind> <name> --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":{…}}}}}'` (CronJobs use `spec.jobTemplate…`). Changing the pod template starts the controller rollout itself; no second `rollout restart` is issued.
@@ -823,31 +839,31 @@ The join command is retrieved live from the control-plane over SSH (`kubeadm tok
 
 ## Common Options
 
-| Option                           | Scope     | Description                                  |
-| -------------------------------- | --------- | -------------------------------------------- |
-| `--dev`                          | All       | Development mode                             |
-| `--kind` / `--kubeadm` / `--k3s` | Cluster   | Cluster type                                 |
-| `--namespace <name>`             | Cluster   | Kubernetes namespace                         |
-| `--node-name <name>`             | Cluster   | Target node                                  |
-| `--labels <k=v,...>`             | Cluster   | Node/workload labels (node-move, deploy-job) |
-| `--dry-run`                      | Cluster   | Preview commands without applying            |
-| `--remove`                       | Cluster   | Clear/teardown resources or placement        |
-| `--worker` / `--control <ip>`    | Baremetal | Post-install role + control-plane IP         |
-| `--resume-join`                  | Baremetal | Skip setup; run only kubeadm join            |
-| `--replicas <n>`                 | Deploy    | Replica count                                |
-| `--force`                        | Git       | Force push                                   |
-| `--pod-name <name>`              | Container | Pod name                                     |
-| `--image-name <name>`            | Container | Docker image                                 |
-| `--volume-host-path <path>`      | Container | Host directory                               |
-| `--volume-mount-path <path>`     | Container | Container mount path                         |
-| `--claim-name <name>`            | Container | PVC name                                     |
-| `--host-network`                 | Container | Use host networking                          |
-| `--tls`                          | Deploy    | Enable TLS                                   |
+| Option                           | Scope     | Description                                         |
+| -------------------------------- | --------- | --------------------------------------------------- |
+| `--dev`                          | All       | Development mode                                    |
+| `--kind` / `--kubeadm` / `--k3s` | Cluster   | Cluster type                                        |
+| `--namespace <name>`             | Cluster   | Kubernetes namespace                                |
+| `--node-name <name>`             | Cluster   | Target node                                         |
+| `--labels <k=v,...>`             | Cluster   | Node/workload labels (node-move, deploy-job)        |
+| `--dry-run`                      | Cluster   | Preview commands without applying                   |
+| `--remove`                       | Cluster   | Clear/teardown resources or placement               |
+| `--worker` / `--control <ip>`    | Baremetal | Post-install role + control-plane IP                |
+| `--resume-join`                  | Baremetal | Skip setup; run only kubeadm join                   |
+| `--replicas <n>`                 | Deploy    | Replica count                                       |
+| `--force`                        | Git       | Force push                                          |
+| `--pod-name <name>`              | Container | Pod name                                            |
+| `--image-name <name>`            | Container | Docker image                                        |
+| `--volume-host-path <path>`      | Container | Host directory                                      |
+| `--volume-mount-path <path>`     | Container | Container mount path                                |
+| `--claim-name <name>`            | Container | PVC name                                            |
+| `--host-network`                 | Container | Use host networking                                 |
+| `--tls`                          | Deploy    | Enable TLS                                          |
 | `run status [deploy-list]`       | Run       | Inspect production status (`--dev` for development) |
-| `run expose <partial-name>`      | Run       | Expose matching Services, falling back to Pods |
-| `--etc-hosts`                    | Deploy    | Modify /etc/hosts for local DNS              |
-| `--build`                        | Build     | Trigger build                                |
-| `--reset`                        | Cluster   | Reset cluster state                          |
+| `run expose <partial-name>`      | Run       | Expose matching Services, falling back to Pods      |
+| `--etc-hosts`                    | Deploy    | Modify /etc/hosts for local DNS                     |
+| `--build`                        | Build     | Trigger build                                       |
+| `--reset`                        | Cluster   | Reset cluster state                                 |
 
 ## Prerequisites
 

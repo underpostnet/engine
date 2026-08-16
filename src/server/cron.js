@@ -17,6 +17,7 @@ const enginePath = '/home/dd/engine';
 const cronVolumeName = 'underpost-cron-container-volume';
 const shareEnvVolumeName = 'underpost-share-env';
 const underpostContainerEnvDir = '/usr/lib/node_modules/underpost';
+const DEFAULT_CRON_ID = 'dd-cron';
 
 /**
  * Generates a Kubernetes CronJob YAML manifest string.
@@ -36,6 +37,8 @@ const underpostContainerEnvDir = '/usr/lib/node_modules/underpost';
  * @param {boolean} [params.k3s=false] - Pass --k3s flag to the cron command inside the container
  * @param {boolean} [params.kind=false] - Pass --kind flag to the cron command inside the container
  * @param {boolean} [params.kubeadm=false] - Pass --kubeadm flag to the cron command inside the container
+ * @param {string} [params.nodeName] - Pin the Job pod to this node via a `kubernetes.io/hostname` nodeSelector.
+ *   Placement is a manifest concern only, so it is never forwarded to the cron command inside the container.
  * @returns {string} Kubernetes CronJob YAML manifest
  * @memberof UnderpostCron
  */
@@ -54,6 +57,7 @@ const cronJobYamlFactory = ({
   k3s = false,
   kind = false,
   kubeadm = false,
+  nodeName = '',
 }) => {
   const containerImage = image || `underpost/underpost-engine:${Underpost.version}`;
 
@@ -89,6 +93,10 @@ spec:
   failedJobsHistoryLimit: 1
   suspend: ${suspend}
   jobTemplate:
+    metadata:
+      labels:
+        app: ${sanitizedName}
+        managed-by: underpost
     spec:
       template:
         metadata:
@@ -96,7 +104,13 @@ spec:
             app: ${sanitizedName}
             managed-by: underpost
         spec:
-          containers:
+${
+  nodeName
+    ? `          nodeSelector:
+            kubernetes.io/hostname: ${nodeName}
+`
+    : ''
+}          containers:
             - name: ${sanitizedName}
               image: ${containerImage}
               command:
@@ -140,20 +154,92 @@ const syncEngineToKindWorker = () => {
 
 /**
  * Resolves the deploy-id to use for cron job generation.
- * When deployId is provided directly, uses it. Otherwise reads from dd.cron file.
+ * When deployId is provided directly, uses it. Otherwise defers to the shared
+ * `cronDeployIdResolve()` (engine-private/deploy/dd.cron), the single source of
+ * truth every caller of the cron CLI resolves against.
  *
  * @param {string} [deployId] - Explicit deploy-id override
  * @memberof UnderpostCron
  * @returns {string|null} Resolved deploy-id or null if not found
  */
-const resolveDeployId = (deployId) => {
-  if (deployId) return deployId;
+const resolveDeployId = (deployId) => deployId || cronDeployIdResolve();
 
-  const cronDeployFilePath = './engine-private/deploy/dd.cron';
-  if (!fs.existsSync(cronDeployFilePath)) {
-    return null;
-  }
-  return fs.readFileSync(cronDeployFilePath, 'utf8').trim();
+/**
+ * Parses a comma-separated CLI list into a trimmed, non-empty array.
+ *
+ * @param {string|string[]} [value] - Raw CLI value
+ * @memberof UnderpostCron
+ * @returns {string[]} Parsed entries
+ */
+const parseList = (value) => {
+  if (Array.isArray(value)) return value.map((entry) => `${entry}`.trim()).filter(Boolean);
+  if (typeof value !== 'string') return [];
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+};
+
+/**
+ * Normalizes and validates a `--node-name` value before it reaches a manifest or a shell.
+ *
+ * @param {string} [nodeName] - Raw CLI value
+ * @memberof UnderpostCron
+ * @returns {string} Trimmed node name, or '' when unset
+ * @throws {Error} When the value is not a valid Kubernetes node name
+ */
+const resolveNodeName = (nodeName) => {
+  const node = `${nodeName || ''}`.trim();
+  if (node && !/^[a-zA-Z0-9._-]+$/.test(node)) throw new Error(`Invalid Kubernetes node name: ${node}`);
+  return node;
+};
+
+/**
+ * Checks whether a node is registered on the cluster.
+ *
+ * @param {string} nodeName - Node name
+ * @memberof UnderpostCron
+ * @returns {boolean} True when the node exists
+ */
+const nodeExists = (nodeName) => {
+  const stdout = shellExec(`kubectl get node ${nodeName} -o name`, {
+    silent: true,
+    stdout: true,
+    silentOnError: true,
+    disableLog: true,
+  });
+  return `${stdout || ''}`.trim().length > 0;
+};
+
+/**
+ * Checks whether a CronJob is already published on the cluster.
+ *
+ * @param {string} cronJobName - Sanitized CronJob name
+ * @param {string} namespace - Kubernetes namespace
+ * @memberof UnderpostCron
+ * @returns {boolean} True when the CronJob exists
+ */
+const cronJobExists = (cronJobName, namespace) => {
+  const stdout = shellExec(`kubectl get cronjob ${cronJobName} -n ${namespace} --ignore-not-found -o name`, {
+    silent: true,
+    stdout: true,
+    silentOnError: true,
+    disableLog: true,
+  });
+  return `${stdout || ''}`.trim().length > 0;
+};
+
+/**
+ * Resolves the manifest owner deploy-id from the `deploy-list` positional argument.
+ * The `default` sentinel means "not provided", deferring to the dd.cron file.
+ *
+ * @param {string} [deployList] - Comma-separated deploy IDs from the CLI
+ * @memberof UnderpostCron
+ * @returns {string|undefined} Owner deploy-id, or undefined when unspecified
+ */
+const deployIdFromList = (deployList) => {
+  const [deployId] = parseList(deployList);
+  return !deployId || deployId === 'default' ? undefined : deployId;
 };
 
 /**
@@ -175,8 +261,12 @@ class UnderpostCron {
     /**
      * CLI entry point for the `underpost cron` command.
      *
-     * @param {string} deployList - Comma-separated deploy IDs
-     * @param {string} jobList - Comma-separated job IDs
+     * Manifest modes (`--setup-start`, `--generate-k8s-cronjobs`, `--apply`, `--create-job-now`)
+     * never run job callbacks in this process: they write and publish manifests, and hand the
+     * work to the cluster. All of them are scoped to `job-list` when given.
+     *
+     * @param {string} deployList - Comma-separated deploy IDs; in manifest modes its first entry is the manifest owner deploy-id
+     * @param {string} jobList - Comma-separated job IDs; in manifest modes it restricts which conf.cron.json jobs are generated
      * @param {Object} options - CLI flags
      * @param {boolean} [options.generateK8sCronjobs] - Generate K8s CronJob YAML manifests
      * @param {boolean} [options.apply] - Apply manifests to the cluster
@@ -185,32 +275,44 @@ class UnderpostCron {
      * @param {string}  [options.cmd] - Optional pre-script commands to run before cron execution
      * @param {string}  [options.namespace] - Kubernetes namespace
      * @param {string}  [options.image] - Custom container image
-     * @param {string}  [options.setupStart] - Deploy-id to setup: updates its package.json start and generates+applies cron jobs
+     * @param {boolean} [options.setupStart] - Update the deploy-id package.json start script and generate+apply its cron jobs
      * @param {boolean} [options.k3s] - Use k3s cluster context (apply directly on host)
      * @param {boolean} [options.kind] - Use kind cluster context (apply via kind-worker container)
      * @param {boolean} [options.kubeadm] - Use kubeadm cluster context (apply directly on host)
      * @param {boolean} [options.dryRun] - Preview cron jobs without executing them
      * @param {boolean} [options.createJobNow] - After applying, immediately create a Job from each CronJob (requires --apply)
+     * @param {string}  [options.nodeName] - Pin generated CronJob pods to this node (manifest modes only)
      * @memberof UnderpostCron
      */
-    callback: async function (
-      deployList = 'default',
-      jobList = Object.keys(Underpost.cron.JOB).join(','),
-      options = {},
-    ) {
+    callback: async function (deployList, jobList, options = {}) {
       loadCronDeployEnv();
-      if (options.setupStart) return await Underpost.cron.setupDeployStart(options.setupStart, options);
 
-      if (options.generateK8sCronjobs) return await Underpost.cron.generateK8sCronJobs(options);
+      const jobFilter = parseList(jobList);
 
-      for (const _jobId of jobList.split(',')) {
-        const jobId = _jobId.trim();
+      if (options.setupStart) return await Underpost.cron.setupDeployStart(deployList, { ...options, jobFilter });
+
+      if (options.generateK8sCronjobs || options.apply || options.createJobNow)
+        return await Underpost.cron.generateK8sCronJobs({
+          ...options,
+          deployId: deployIdFromList(deployList),
+          jobFilter,
+        });
+
+      const resolvedDeployList = deployList || 'default';
+      const resolvedJobList = jobFilter.length > 0 ? jobFilter : Object.keys(Underpost.cron.JOB);
+
+      if (options.nodeName)
+        logger.warn(`--node-name is a manifest placement flag and has no effect on direct execution`, {
+          nodeName: options.nodeName,
+        });
+
+      for (const jobId of resolvedJobList) {
         if (Underpost.cron.JOB[jobId]) {
           if (options.dryRun) {
-            logger.info(`[dry-run] Would execute cron job`, { jobId, deployList, options });
+            logger.info(`[dry-run] Would execute cron job`, { jobId, deployList: resolvedDeployList, options });
           } else {
-            logger.info(`Executing cron job`, { jobId, deployList, options });
-            await Underpost.cron.JOB[jobId].callback(deployList, options);
+            logger.info(`Executing cron job`, { jobId, deployList: resolvedDeployList, options });
+            await Underpost.cron.JOB[jobId].callback(resolvedDeployList, options);
           }
         } else {
           logger.warn(`Unknown cron job: ${jobId}`);
@@ -221,14 +323,16 @@ class UnderpostCron {
     /**
      * Update the package.json start script for the given deploy-id and generate+apply its K8s CronJob manifests.
      *
-     * @param {string} deployId - The deploy-id whose package.json will be updated
+     * @param {string} [deployList] - Comma-separated deploy IDs; its first entry is the deploy-id whose package.json is updated. Falls back to the dd.cron file
      * @param {Object} [options] - Additional options forwarded to generateK8sCronJobs
+     * @param {string[]} [options.jobFilter] - Restrict the setup to these job IDs
      * @param {boolean} [options.createJobNow] - After applying, immediately create a Job from each CronJob
      * @param {boolean} [options.dryRun] - Pass --dry-run=client to kubectl commands
      * @param {boolean} [options.apply] - Whether to apply generated manifests to the cluster
      * @param {boolean} [options.git] - Pass --git flag to cron CLI commands
      * @param {boolean} [options.dev] - Use local ./ base path instead of global underpost installation
      * @param {string}  [options.cmd] - Optional pre-script commands to run before cron execution
+     * @param {string}  [options.nodeName] - Pin every generated CronJob's pod to this node
      * @param {string}  [options.namespace] - Kubernetes namespace for the CronJobs
      * @param {string}  [options.image] - Custom container image override for the CronJobs
      * @param {boolean} [options.k3s] - k3s cluster context (apply directly on host)
@@ -236,8 +340,18 @@ class UnderpostCron {
      * @param {boolean} [options.kubeadm] - kubeadm cluster context (apply directly on host)
      * @memberof UnderpostCron
      */
-    setupDeployStart: async function (deployId, options = {}) {
-      if (!deployId || deployId === true) deployId = resolveDeployId();
+    setupDeployStart: async function (deployList, options = {}) {
+      // Validated up front: an invalid node name must not leave a rewritten package.json behind.
+      const nodeName = resolveNodeName(options.nodeName);
+      const requestedDeployId = deployIdFromList(deployList);
+      const deployId = resolveDeployId(requestedDeployId);
+      if (!deployId) {
+        logger.warn(
+          'Could not resolve deploy-id. Provide it as the deploy-list argument or create engine-private/deploy/dd.cron',
+        );
+        return;
+      }
+      if (!requestedDeployId) logger.info(`Resolved cron deploy-id from dd.cron`, { deployId });
       const confDir = `./engine-private/conf/${deployId}`;
       const packageJsonPath = `${confDir}/package.json`;
       const confCronPath = `${confDir}/conf.cron.json`;
@@ -254,17 +368,23 @@ class UnderpostCron {
         return;
       }
 
-      const hasEnabledJobs = Object.values(confCron.jobs).some((job) => job.enabled !== false);
-      if (!hasEnabledJobs) {
-        logger.warn(`No enabled cron jobs for deploy-id: ${deployId}`);
+      const jobFilter = parseList(options.jobFilter);
+      const enabledJobs = Object.keys(confCron.jobs).filter(
+        (job) => confCron.jobs[job].enabled !== false && (jobFilter.length === 0 || jobFilter.includes(job)),
+      );
+      if (enabledJobs.length === 0) {
+        logger.warn(
+          `No enabled cron jobs for deploy-id: ${deployId}`,
+          jobFilter.length > 0 ? { jobFilter } : undefined,
+        );
         return;
       }
 
-      // Update package.json start script
+      // Start script only references manifests generateK8sCronJobs actually writes
       if (fs.existsSync(packageJsonPath)) {
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
         let startCommand = 'echo "Starting cron jobs..."';
-        for (const job of Object.keys(confCron.jobs))
+        for (const job of enabledJobs)
           startCommand += ` && kubectl apply -f ./manifests/cronjobs/${deployId}/${deployId}-${job}.yaml`;
         if (!packageJson.scripts) packageJson.scripts = {};
         packageJson.scripts.start = startCommand;
@@ -277,6 +397,8 @@ class UnderpostCron {
 
       await Underpost.cron.generateK8sCronJobs({
         deployId,
+        jobFilter,
+        nodeName,
         namespace: options.namespace,
         image: options.image,
         apply: options.apply,
@@ -284,7 +406,7 @@ class UnderpostCron {
         git: !!options.git,
         dev: !!options.dev,
         kubeadm: !!options.kubeadm,
-        cmd: options.cmd || `node bin env ${deployId} production`,
+        cmd: options.cmd,
         k3s: !!options.k3s,
         kind: !!options.kind,
         dryRun: !!options.dryRun,
@@ -298,6 +420,7 @@ class UnderpostCron {
      *
      * @param {Object} options
      * @param {string}  [options.deployId] - Explicit deploy-id (overrides dd.cron file lookup)
+     * @param {string|string[]} [options.jobFilter] - Restrict generation/apply to these job IDs (empty means all)
      * @param {boolean} [options.git=false] - Pass --git flag to cron CLI commands
      * @param {boolean} [options.dev=false] - Use local ./ base path instead of global underpost
      * @param {string}  [options.cmd] - Optional pre-script commands
@@ -309,15 +432,17 @@ class UnderpostCron {
      * @param {boolean} [options.kubeadm=false] - kubeadm cluster context (apply directly on host)
      * @param {boolean} [options.createJobNow=false] - After applying, create a Job from each CronJob immediately
      * @param {boolean} [options.dryRun=false] - Pass --dry-run=client to kubectl commands
+     * @param {string}  [options.nodeName] - Pin every generated CronJob's pod to this node
      * @memberof UnderpostCron
      */
     generateK8sCronJobs: async function (options = {}) {
       const namespace = options.namespace || 'default';
+      const nodeName = resolveNodeName(options.nodeName);
       const jobDeployId = resolveDeployId(options.deployId);
 
       if (!jobDeployId) {
         logger.warn(
-          'Could not resolve deploy-id. Provide --setup-start <deploy-id> or create engine-private/deploy/dd.cron',
+          'Could not resolve deploy-id. Provide it as the deploy-list argument or create engine-private/deploy/dd.cron',
         );
         return;
       }
@@ -336,12 +461,26 @@ class UnderpostCron {
         return;
       }
 
+      const jobFilter = parseList(options.jobFilter);
+      const targetJobs = Object.keys(confCronConfig.jobs).filter(
+        (job) => jobFilter.length === 0 || jobFilter.includes(job),
+      );
+
+      if (targetJobs.length === 0) {
+        logger.warn(`No cron jobs matched the requested job list`, {
+          deployId: jobDeployId,
+          jobFilter,
+          available: Object.keys(confCronConfig.jobs),
+        });
+        return;
+      }
+
       const outputDir = `./manifests/cronjobs/${jobDeployId}`;
       fs.mkdirSync(outputDir, { recursive: true });
 
       const generatedFiles = [];
 
-      for (const job of Object.keys(confCronConfig.jobs)) {
+      for (const job of targetJobs) {
         const jobConfig = confCronConfig.jobs[job];
 
         if (jobConfig.enabled === false) {
@@ -368,18 +507,29 @@ class UnderpostCron {
           k3s: !!options.k3s,
           kind: !!options.kind,
           kubeadm: !!options.kubeadm,
+          nodeName,
         });
 
         const yamlFilePath = `${outputDir}/${cronJobName}.yaml`;
         fs.writeFileSync(yamlFilePath, yamlContent, 'utf8');
         generatedFiles.push(yamlFilePath);
 
-        logger.info(`Generated CronJob manifest: ${yamlFilePath}`, { job, expression, namespace });
+        logger.info(`Generated CronJob manifest: ${yamlFilePath}`, {
+          job,
+          expression,
+          namespace,
+          ...(nodeName ? { nodeName } : {}),
+        });
       }
 
       if (options.apply) {
+        // A nodeSelector naming a node that is not registered leaves every Job Pending at its
+        // next fire, silently. Warn rather than throw: the node may join before the schedule.
+        if (nodeName && !nodeExists(nodeName))
+          logger.warn(`Target node not found on the cluster; pods will stay Pending until it joins`, { nodeName });
+
         // Delete existing CronJobs before applying new ones
-        for (const job of Object.keys(confCronConfig.jobs)) {
+        for (const job of targetJobs) {
           const cronJobName = `${jobDeployId}-${job}`;
           shellExec(`kubectl delete cronjob ${cronJobName} --namespace=${namespace} --ignore-not-found`);
         }
@@ -409,9 +559,10 @@ class UnderpostCron {
       } else {
         logger.info(`Manifests generated in ${outputDir}. Use --apply to deploy to the cluster.`);
       }
-      // Create an immediate Job from each CronJob if requested
+      // Create an immediate Job from each CronJob if requested. Runs after --apply so the
+      // Job is always cloned from the manifest this invocation just published.
       if (options.createJobNow) {
-        for (const job of Object.keys(confCronConfig.jobs)) {
+        for (const job of targetJobs) {
           const jobConfig = confCronConfig.jobs[job];
           if (jobConfig.enabled === false) continue;
 
@@ -421,6 +572,15 @@ class UnderpostCron {
             .replace(/--+/g, '-')
             .replace(/^-|-$/g, '')
             .substring(0, 52);
+
+          if (!cronJobExists(cronJobName, namespace)) {
+            logger.warn(`CronJob not found on the cluster, skipping immediate Job`, {
+              cronJobName,
+              namespace,
+              hint: 'add --apply to publish the manifest first',
+            });
+            continue;
+          }
 
           const immediateJobName = `${cronJobName}-now-${Date.now()}`.substring(0, 63);
           logger.info(`Creating immediate Job from CronJob: ${cronJobName}`, { jobName: immediateJobName });
@@ -439,17 +599,15 @@ class UnderpostCron {
      * @memberof UnderpostCron
      */
     getRelatedDeployIdList(jobId) {
-      const deployFilePath =
-        jobId === 'backup' ? './engine-private/deploy/dd.router' : './engine-private/deploy/dd.cron';
-
-      if (!fs.existsSync(deployFilePath)) {
-        logger.warn(`Deploy file not found: ${deployFilePath}, using default`);
-        return fs.existsSync('./engine-private/deploy/dd.cron')
-          ? fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim()
-          : 'dd-cron';
+      if (jobId === 'backup') {
+        const routerFilePath = './engine-private/deploy/dd.router';
+        if (fs.existsSync(routerFilePath)) return fs.readFileSync(routerFilePath, 'utf8').trim();
+        logger.warn(`Deploy file not found: ${routerFilePath}, falling back to the cron deploy-id`);
       }
 
-      return fs.readFileSync(deployFilePath, 'utf8').trim();
+      const cronDeployId = cronDeployIdResolve();
+      if (!cronDeployId) logger.warn(`Cron deploy-id not resolved, using default`, { jobId, default: DEFAULT_CRON_ID });
+      return cronDeployId || DEFAULT_CRON_ID;
     },
 
     /**
