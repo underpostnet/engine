@@ -109,7 +109,7 @@ class UnderpostRepository {
      * @param {boolean} [options.changelogNoHash=false] - If true, omits commit hashes from the changelog entries.
      * @param {boolean} [options.remoteUrl=false] - If true, prints the current git remote URL (origin) in plain text and returns.
      * @param {string} [options.switchRepo=''] - If set, switches the remote `origin` to this URL and force-pulls the target branch, overwriting the current working tree.
-     * @param {string} [options.targetBranch=''] - Target branch for `switchRepo` (defaults to `master`).
+     * @param {string} [options.targetBranch=''] - Target branch for `switchRepo` (defaults to the remote's default branch).
      * @memberof UnderpostRepository
      */
     commit(
@@ -181,7 +181,7 @@ class UnderpostRepository {
         Underpost.repo.switchRemote({
           path: repoPath,
           url: options.switchRepo,
-          branch: options.targetBranch || 'master',
+          branch: options.targetBranch,
         });
         return;
       }
@@ -1428,14 +1428,15 @@ Prevent build private config repo.`,
      * @param {object} opts
      * @param {string} opts.url - New remote URL (full URL or "owner/repo" short form).
      * @param {string} [opts.path='.'] - Path to the git repository.
-     * @param {string} [opts.branch='master'] - Target branch to overwrite the current tree with.
+     * @param {string} [opts.branch] - Target branch to overwrite the current tree with. Defaults to the remote's default branch.
      * @param {string} [opts.remote='origin'] - Remote name to set and fetch from.
      * @returns {void}
      * @memberof UnderpostRepository
      */
-    switchRemote({ url, path: repoPath = '.', branch = 'master', remote = 'origin' }) {
+    switchRemote({ url, path: repoPath = '.', branch = '', remote = 'origin' }) {
       if (!url) throw new Error('switchRemote requires a target remote url');
       if (!fs.existsSync(`${repoPath}/.git`)) throw new Error(`switchRemote: not a git repository: ${repoPath}`);
+      const targetBranch = branch || Underpost.repo.getDefaultBranch(url);
       // Token-free URL for the stored remote; auth-injected URL only for the fetch.
       let normalized = url;
       if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('git@')) {
@@ -1445,12 +1446,12 @@ Prevent build private config repo.`,
       const current = Underpost.repo.getRemoteUrl({ path: repoPath, remote });
       if (!current) shellExec(`cd "${repoPath}" && git remote add ${remote} "${normalized}"`);
       else shellExec(`cd "${repoPath}" && git remote set-url ${remote} "${normalized}"`);
-      logger.info('switchRemote', { path: repoPath, remote, branch, url: normalized });
-      shellExec(`cd "${repoPath}" && GIT_TERMINAL_PROMPT=0 git fetch --force "${authUrl}" ${branch}`);
+      logger.info('switchRemote', { path: repoPath, remote, branch: targetBranch, url: normalized });
+      shellExec(`cd "${repoPath}" && GIT_TERMINAL_PROMPT=0 git fetch --force "${authUrl}" ${targetBranch}`);
       // reset --hard first clears the worktree so the checkout cannot be blocked
       // by conflicting local changes; -B points the target branch at the fetched tip.
       shellExec(`cd "${repoPath}" && git reset --hard FETCH_HEAD`);
-      shellExec(`cd "${repoPath}" && git checkout -B ${branch} FETCH_HEAD`);
+      shellExec(`cd "${repoPath}" && git checkout -B ${targetBranch} FETCH_HEAD`);
     },
 
     /**
