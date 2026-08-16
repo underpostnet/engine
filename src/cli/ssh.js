@@ -188,6 +188,50 @@ EOF`);
     },
 
     /**
+     * Initializes the default SSH files and credentials for a local SSH service.
+     * @method
+     * @function initializeDefaultSshConfig
+     * @memberof UnderpostSSH
+     * @param {object} params - SSH configuration values.
+     * @param {string} params.userHome - Home directory of the SSH user.
+     * @param {string} params.user - SSH user name.
+     * @param {string} params.password - SSH key passphrase and user password.
+     * @param {string} params.host - Host used in the SSH key comment.
+     * @param {number} params.port - SSH port.
+     * @param {boolean} params.disablePassword - Whether to configure passwordless sudo.
+     * @param {string} [params.controllerPubKeyPath='./engine-private/deploy/id_rsa.pub'] - Preferred controller public key to authorize.
+     * @returns {void}
+     */
+    initializeDefaultSshConfig: ({
+      userHome,
+      user,
+      password,
+      host,
+      port,
+      disablePassword,
+      controllerPubKeyPath = './engine-private/deploy/id_rsa.pub',
+    }) => {
+      const sshDir = `${userHome}/.ssh`;
+      const keyPath = `${sshDir}/id_rsa`;
+      const pubKeyPath = `${sshDir}/id_rsa.pub`;
+
+      Underpost.ssh.ensureSSHDirectory(sshDir);
+      fs.ensureFileSync(`${sshDir}/authorized_keys`);
+      fs.ensureFileSync(`${sshDir}/known_hosts`);
+
+      if (!fs.existsSync(keyPath)) {
+        shellExec(`ssh-keygen -t ed25519 -f ${keyPath} -N "${password}" -q -C "${user}@${host}"`);
+      }
+      if (!fs.existsSync(pubKeyPath)) shellExec(`ssh-keygen -y -f ${keyPath} -P "${password}" > ${pubKeyPath}`);
+
+      const authorizedKeyPath = fs.existsSync(controllerPubKeyPath) ? controllerPubKeyPath : pubKeyPath;
+      Underpost.ssh.configureAuthorizedKeys(sshDir, authorizedKeyPath, disablePassword);
+      Underpost.ssh.configureKnownHosts(sshDir, port, host);
+      Underpost.ssh.configureSudoAccess(user, password, disablePassword);
+      Underpost.ssh.setSSHFilePermissions(sshDir, user, keyPath, pubKeyPath);
+    },
+
+    /**
      * Main callback function for SSH operations including user management, key import/export, and SSH service configuration.
      * @async
      * @function callback
@@ -489,7 +533,16 @@ EOF`);
 
       // Handle start server
       if (options.start) {
-        Underpost.ssh.chmod({ user: options.user });
+        if (!options.deployId) {
+          Underpost.ssh.initializeDefaultSshConfig({
+            userHome,
+            user: options.user,
+            password: options.password,
+            host: options.host,
+            port: options.port,
+            disablePassword: options.disablePassword,
+          });
+        } else Underpost.ssh.chmod({ user: options.user });
         Underpost.ssh.initService({ port: options.port });
       }
 
@@ -866,7 +919,7 @@ EOF
      * @description
      * Configures SSH daemon with hardened security settings:
      * - Disables password authentication (key-only)
-     * - Disables root login
+     * - Allows key-only root login
      * - Enables ED25519 host key
      * - Disables X11 forwarding and TCP forwarding
      * - Sets client alive intervals to prevent ghost connections
@@ -906,9 +959,9 @@ PasswordAuthentication no
 ChallengeResponseAuthentication no
 PermitEmptyPasswords no
 
-# PREVENT ROOT LOGIN
-# Administrators should log in as a standard user and use 'sudo'
-PermitRootLogin no
+# ALLOW KEY-ONLY ROOT LOGIN
+# Password and keyboard-interactive authentication remain disabled above.
+PermitRootLogin prohibit-password
 
 # Security checks on ownership of ~/.ssh/ files
 StrictModes yes
