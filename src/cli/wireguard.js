@@ -29,6 +29,13 @@
  *              hostname; a client that tries QUIC against another spoke's
  *              hostname gets no answer and falls back to TCP.
  *
+ * Those three carry traffic *inbound*. The forward proxy is the one path in the
+ * other direction: a spoke that has to appear on the internet as the VPS — an
+ * API keyed to the edge's address, a provider endpoint that must not see a
+ * residential IP — sends the request to `10.0.0.1:1080` and the hub makes it.
+ * It binds the tunnel address alone and authenticates every request, so it is
+ * an open relay to nothing.
+ *
  * Routing is derived, never hand-written: `conf.server.json` and
  * `conf.instances.json` say which hostnames exist, and `conf.wireguard.json`
  * says which spoke each one lives behind, through three bindings resolved most
@@ -46,13 +53,28 @@
  * @namespace UnderpostWireguard
  */
 
+import dotenv from 'dotenv';
 import fs from 'fs-extra';
+import http from 'node:http';
+import https from 'node:https';
+import net from 'node:net';
+import os from 'node:os';
 import nodePath from 'node:path';
-import { getConfFilePath, loadConfInstances, loadConfServerJson, resolveDeployList } from '../server/conf.js';
-import { loggerFactory } from '../server/logger.js';
+import {
+  getConfFilePath,
+  getUnderpostRootPath,
+  loadConfInstances,
+  loadConfServerJson,
+  resolveDeployList,
+} from '../server/conf.js';
+import { loggerFactory, loggerMiddleware } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 
 const logger = loggerFactory(import.meta);
+// Proxied traffic is reported at `http`, the level morgan's stream writes to, so
+// the forward path and the CONNECT path appear at one verbosity — and neither is
+// suppressed by the module logger's default `info` level.
+const proxyLogger = loggerFactory(import.meta, 'debug');
 
 /**
  * @constant UNDERPOST_EDGE
@@ -82,6 +104,24 @@ const UNDERPOST_EDGE = {
   packages: ['wireguard-tools', 'haproxy', 'iptables'],
   httpPort: 80,
   httpsPort: 443,
+  // The forward proxy a spoke borrows the hub's public address through. It binds
+  // the tunnel address only, so the port is unreachable from the internet even
+  // when a firewall would allow it.
+  forwardProxyPort: 1080,
+  forwardProxyTimeoutMs: 30000,
+  forwardProxyEnv: {
+    apiKey: 'FORWARD_PROXY_API_KEY',
+    host: 'FORWARD_PROXY_HOST',
+    port: 'FORWARD_PROXY_PORT',
+  },
+  // One fixed unit name, which is what makes re-running the command converge on
+  // a single service rather than accumulate one per invocation.
+  forwardProxyServiceName: 'underpost-forward-proxy',
+  forwardProxyUnitPath: '/etc/systemd/system/underpost-forward-proxy.service',
+  // Set by the unit alone: it tells the same command it is the supervised process
+  // and should bind the socket rather than reconcile the service again.
+  forwardProxySupervisedEnv: 'UNDERPOST_FORWARD_PROXY_SUPERVISED',
+  forwardProxyRestartSeconds: 5,
   // A peer is considered live within this window: WireGuard re-handshakes at
   // least every 120s while traffic flows, so a longer gap means the link is
   // down rather than merely idle.
@@ -781,6 +821,10 @@ const firewallCommandsFactory = ({
           `--${verb}-port=${UNDERPOST_EDGE.httpsPort}/tcp`,
           `--${verb}-port=${UNDERPOST_EDGE.httpsPort}/udp`,
           `--${verb}-port=${listenPort}/udp`,
+          // The forward proxy is admitted from the tunnel only. The listener
+          // already binds the tunnel address alone, so this rule narrows a port
+          // that is unreachable from anywhere else rather than opening one.
+          `--${verb}-rich-rule="rule family=ipv4 source address=${UNDERPOST_EDGE.tunnelCidr} port port=${UNDERPOST_EDGE.forwardProxyPort} protocol=tcp accept"`,
           `--${verb}-masquerade`,
         ]
       : [`--zone=trusted --${verb}-interface=${interfaceName}`];
@@ -1002,6 +1046,535 @@ const warnRegistryHazards = (peers = []) => {
       fix: 'give each spoke a distinct tunnel address, and re-number or omit colliding LAN subnets',
     });
 };
+
+/**
+ * @constant FORWARD_PROXY_HOP_HEADERS
+ * @description Headers that describe one hop and must not be relayed to the
+ * next. `proxy-authorization` is in the list for a second reason: it carries the
+ * key that authenticated the request to the hub, and forwarding it would hand
+ * that key to every origin the spoke talks to.
+ * @memberof UnderpostWireguard
+ */
+const FORWARD_PROXY_HOP_HEADERS = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'proxy-connection',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
+
+/**
+ * @method tunnelAddressFactory
+ * @description The bare address of an interface address, with any prefix length
+ * dropped — `10.0.0.1/24` is what the registry stores, `10.0.0.1` is what a
+ * socket binds.
+ * @param {string} [address] - Address, with or without a prefix.
+ * @returns {string} Address alone.
+ * @memberof UnderpostWireguard
+ */
+const tunnelAddressFactory = (address) => `${address || ''}`.trim().split('/')[0];
+
+/**
+ * @method secretEqual
+ * @description Constant-time string comparison, for the one comparison in this
+ * module whose timing an attacker could measure.
+ * @param {string} a - First value.
+ * @param {string} b - Second value.
+ * @returns {boolean} True when the two are identical.
+ * @memberof UnderpostWireguard
+ */
+const secretEqual = (a, b) => {
+  const left = `${a ?? ''}`;
+  const right = `${b ?? ''}`;
+  if (left.length !== right.length || left.length === 0) return false;
+  let diff = 0;
+  for (let index = 0; index < left.length; index++) diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return diff === 0;
+};
+
+/**
+ * @method forwardProxyAuthorizedFactory
+ * @description Whether a request carries the configured proxy key.
+ *
+ * One scheme, `Proxy-Authorization: Bearer <key>`, on both the forward and the
+ * `CONNECT` path — a proxy that accepted several ways of presenting the same
+ * secret would have several places to get the comparison wrong. An unset key
+ * authorizes nothing, so a misconfigured server refuses every request rather
+ * than relaying for anyone.
+ * @param {string} [header] - Raw `Proxy-Authorization` header.
+ * @param {string} [apiKey] - Configured key.
+ * @returns {boolean} True when the request may be relayed.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyAuthorizedFactory = ({ header = '', apiKey = '' } = {}) => {
+  const expected = `${apiKey || ''}`.trim();
+  if (!expected) return false;
+  const match = /^Bearer\s+(.+)$/i.exec(`${header || ''}`.trim());
+  return match ? secretEqual(match[1].trim(), expected) : false;
+};
+
+/**
+ * @method forwardProxyTargetFactory
+ * @description The origin a forward request names.
+ *
+ * A proxy request carries an absolute URI in its request line, which is what
+ * distinguishes it from a request meant for the proxy itself. Only `http:` is
+ * accepted here: an `https:` origin arrives as `CONNECT`, and answering one over
+ * the forward path would mean terminating TLS on the hub, which is exactly what
+ * the rest of this subsystem exists to avoid.
+ * @param {string} [requestUrl] - Request line target.
+ * @returns {?{hostname: string, port: number, path: string, host: string}} Origin, or null when the URI is not a proxyable absolute `http:` URI.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyTargetFactory = (requestUrl) => {
+  const value = `${requestUrl || ''}`.trim();
+  if (!/^http:\/\//i.test(value)) return null;
+  try {
+    const url = new URL(value);
+    if (!url.hostname) return null;
+    const port = Number(url.port) || UNDERPOST_EDGE.httpPort;
+    return { hostname: url.hostname, port, path: `${url.pathname}${url.search}`, host: url.host };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * @method forwardProxyTunnelTargetFactory
+ * @description The origin a `CONNECT` authority names, defaulting to `:443`.
+ * @param {string} [authority] - `host` or `host:port` from the request line.
+ * @returns {?{hostname: string, port: number}} Origin, or null when the authority is malformed.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyTunnelTargetFactory = (authority) => {
+  const value = `${authority || ''}`.trim();
+  if (!value || value.includes('/') || value.includes('@')) return null;
+  const separator = value.lastIndexOf(':');
+  const hostname = separator > 0 ? value.slice(0, separator) : value;
+  const port = separator > 0 ? Number(value.slice(separator + 1)) : UNDERPOST_EDGE.httpsPort;
+  if (!hostname || !Number.isInteger(port) || port <= 0 || port > 65535) return null;
+  return { hostname, port };
+};
+
+/**
+ * @method forwardProxyHeadersFactory
+ * @description A header set with the hop-by-hop entries removed, for relaying in
+ * either direction.
+ * @param {object} [headers] - Node header object.
+ * @returns {object} Relayable headers.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyHeadersFactory = (headers = {}) =>
+  Object.fromEntries(
+    Object.entries(headers || {}).filter(([name]) => !FORWARD_PROXY_HOP_HEADERS.has(`${name}`.toLowerCase())),
+  );
+
+/**
+ * @constant envFileCache
+ * @description Parsed contents of the env files consulted below, read at most
+ * once per process. The root env path is resolved by shelling out to npm, so it
+ * is memoized too — and an empty string when that is not available at all.
+ * @memberof UnderpostWireguard
+ */
+const envFileCache = new Map();
+let underpostRootEnvPath;
+
+/**
+ * @method envFileFactory
+ * @description One env file as an object; a missing or unreadable file is an
+ * empty one.
+ * @param {string} path - Env file path.
+ * @returns {object} Parsed variables.
+ * @memberof UnderpostWireguard
+ */
+const envFileFactory = (path) => {
+  if (!envFileCache.has(path)) {
+    let parsed = {};
+    try {
+      if (path && fs.existsSync(path)) parsed = dotenv.parse(fs.readFileSync(path, 'utf8'));
+    } catch (error) {
+      logger.warn('Ignoring unreadable env file', { target: path, message: error.message });
+    }
+    envFileCache.set(path, parsed);
+  }
+  return envFileCache.get(path);
+};
+
+/**
+ * @method edgeEnvFactory
+ * @description One configuration value, resolved the three ways an operator can
+ * have set it.
+ *
+ * A CLI run is not a deploy: nothing has loaded an env file into `process.env`
+ * for it. `underpost env <deploy-id> <environment>` selects a deploy's env into
+ * `./.env`, and `underpost env set` writes the root env — reading only
+ * `process.env` would silently ignore both and report a key the operator had
+ * plainly set as missing.
+ *
+ * Precedence is most explicit first: an exported variable overrides the selected
+ * deploy env, which overrides the root env.
+ * @param {string} key - Variable name.
+ * @returns {string} The resolved value, or an empty string. Never logged — one of the keys this resolves is a credential.
+ * @memberof UnderpostWireguard
+ */
+const edgeEnvFactory = (key) => {
+  const fromProcess = `${process.env[key] ?? ''}`.trim();
+  if (fromProcess) return fromProcess;
+  if (underpostRootEnvPath === undefined) {
+    try {
+      const root = `${getUnderpostRootPath() || ''}`.trim();
+      underpostRootEnvPath = root ? `${root}/.env` : '';
+    } catch {
+      underpostRootEnvPath = '';
+    }
+  }
+  for (const path of ['./.env', underpostRootEnvPath]) {
+    const value = `${envFileFactory(path)[key] ?? ''}`.trim();
+    if (value) return value;
+  }
+  return '';
+};
+
+/**
+ * @method forwardProxyConfigFactory
+ * @description Where the proxy is, and the key that opens it.
+ *
+ * The default address is the hub's own tunnel address, because that is the only
+ * place the server binds. Every value is resolved through
+ * {@link UnderpostWireguard.edgeEnvFactory}, so the endpoint is configured the
+ * same way whether the caller exported the variables, selected a deploy env, or
+ * set the root env; a caller that resolves them from somewhere richer still — a
+ * cron container reading its deploy env — passes them in.
+ * @param {string} [host] - Proxy address.
+ * @param {number|string} [port] - Proxy port.
+ * @param {string} [apiKey] - Proxy key.
+ * @returns {{host: string, port: number, apiKey: string}} Resolved endpoint; `apiKey` must never be logged.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyConfigFactory = ({ host, port, apiKey } = {}) => ({
+  host:
+    `${host || edgeEnvFactory(UNDERPOST_EDGE.forwardProxyEnv.host)}`.trim() ||
+    tunnelAddressFactory(UNDERPOST_EDGE.cidr),
+  port: Number(port || edgeEnvFactory(UNDERPOST_EDGE.forwardProxyEnv.port)) || UNDERPOST_EDGE.forwardProxyPort,
+  apiKey: `${apiKey || edgeEnvFactory(UNDERPOST_EDGE.forwardProxyEnv.apiKey)}`.trim(),
+});
+
+/**
+ * @method forwardProxyCommandFactory
+ * @description The command line the unit runs: this CLI, this subcommand, with
+ * the endpoint resolved.
+ *
+ * Built from `process.execPath` and `process.argv[1]` so the service runs the
+ * same entry point the operator did — a global `underpost` install and a
+ * `node bin` checkout both produce a unit that works, without either being
+ * hard-coded. The host and port are passed explicitly because the unit must not
+ * re-resolve them: a service that read the registry at start could bind somewhere
+ * other than where it was installed to.
+ * @param {string} host - Bind address.
+ * @param {number} port - Bind port.
+ * @param {string} [execPath] - Node binary.
+ * @param {string} [scriptPath] - CLI entry point.
+ * @returns {string} `ExecStart` command.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyCommandFactory = ({ host, port, execPath = process.execPath, scriptPath = process.argv[1] }) =>
+  [
+    execPath,
+    scriptPath,
+    'wireguard',
+    '--forward-proxy-server',
+    `--forward-proxy-server-host ${host}`,
+    `--forward-proxy-server-port ${port}`,
+  ].join(' ');
+
+/**
+ * @method forwardProxyUnitFactory
+ * @description The systemd unit that supervises the proxy.
+ *
+ * Tied to the tunnel rather than merely ordered after it: the address the proxy
+ * binds exists only while the interface is up, so `Requires` makes the dependency
+ * real, `PartOf` propagates the tunnel's stop and restart to the proxy, and the
+ * `WantedBy` on the same unit brings the proxy back when the tunnel returns.
+ * Together they make the pair one lifecycle — which is what `--wireguard-stop
+ * --wireguard-start` needs in order to leave a working proxy behind.
+ *
+ * `Restart=always` with no start-limit window covers the rest: a bind that fails
+ * because the tunnel is still coming up retries instead of latching failed.
+ * @param {string} host - Bind address.
+ * @param {number} port - Bind port.
+ * @param {string} apiKey - Proxy key, passed to the process through the unit.
+ * @param {string} [interfaceName] - Tunnel interface the proxy's address belongs to.
+ * @param {string} [workingDirectory] - Directory the service runs from, so `./.env` resolves as it does for the CLI.
+ * @param {string} [user] - Account the listener runs as.
+ * @param {string} [command] - `ExecStart` command.
+ * @returns {string} Unit file contents.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyUnitFactory = ({
+  host,
+  port,
+  apiKey,
+  interfaceName = UNDERPOST_EDGE.interfaceName,
+  workingDirectory = process.cwd(),
+  user = os.userInfo().username,
+  command,
+} = {}) => {
+  const tunnelUnit = `wg-quick@${interfaceName}.service`;
+  return `# Generated by \`underpost wireguard --forward-proxy-server\`. Do not edit by
+# hand: the next run rewrites the file and restarts the service.
+[Unit]
+Description=Underpost edge forward proxy on ${host}:${port}
+Documentation=https://www.nexodev.org/docs
+After=network-online.target ${tunnelUnit}
+Wants=network-online.target
+Requires=${tunnelUnit}
+PartOf=${tunnelUnit}
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=${user}
+WorkingDirectory=${workingDirectory}
+Environment=${UNDERPOST_EDGE.forwardProxySupervisedEnv}=1
+Environment=${UNDERPOST_EDGE.forwardProxyEnv.apiKey}=${apiKey}
+ExecStart=${command || forwardProxyCommandFactory({ host, port })}
+Restart=always
+RestartSec=${UNDERPOST_EDGE.forwardProxyRestartSeconds}
+
+[Install]
+WantedBy=multi-user.target ${tunnelUnit}
+`;
+};
+
+/**
+ * @method forwardProxyServiceCommandsFactory
+ * @description The commands that bring the service to its declared state, and the
+ * ones that withdraw it.
+ *
+ * Every one of them is a no-op on a host already in that state: `enable` is
+ * idempotent, and `start` on an active unit does nothing. Only a unit whose file
+ * changed is reloaded and restarted — reconciling an unchanged service must not
+ * drop the connections it is carrying.
+ *
+ * The two that can legitimately fail carry `|| true`, so a service that will not
+ * come up is reported from the unit's own state afterwards rather than as a raw
+ * shell failure with no context.
+ * @param {boolean} [changed] - Whether the unit file was rewritten.
+ * @param {string} [name] - Service name.
+ * @param {string} [unitPath] - Unit file path.
+ * @returns {{ensure: Array<string>, remove: Array<string>}} Shell commands.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyServiceCommandsFactory = ({
+  changed = false,
+  name = UNDERPOST_EDGE.forwardProxyServiceName,
+  unitPath = UNDERPOST_EDGE.forwardProxyUnitPath,
+} = {}) => ({
+  ensure: [
+    ...(changed ? ['sudo systemctl daemon-reload'] : []),
+    `sudo systemctl enable ${name} || true`,
+    `sudo systemctl ${changed ? 'restart' : 'start'} ${name} || true`,
+  ],
+  remove: [
+    `sudo systemctl disable --now ${name} 2>/dev/null || true`,
+    `sudo rm -f ${unitPath}`,
+    `sudo systemctl daemon-reload`,
+  ],
+});
+
+/**
+ * @method forwardProxyRefuse
+ * @description Ends a forward request without relaying it.
+ * @param {object} res - Server response.
+ * @param {number} status - Status code.
+ * @param {string} message - Plain-text body.
+ * @returns {void}
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyRefuse = (res, status, message) => {
+  res.writeHead(status, {
+    'content-type': 'text/plain',
+    // Named on a 407 so a client knows which scheme to present.
+    ...(status === 407 ? { 'proxy-authenticate': 'Bearer realm="underpost-forward-proxy"' } : {}),
+  });
+  res.end(`${message}\n`);
+};
+
+/**
+ * @method forwardProxyRequestHandlerFactory
+ * @description The `http` forward path: authenticate, relay the request to the
+ * origin, stream the answer back.
+ *
+ * Both directions are piped rather than buffered, so a large body costs the hub
+ * a socket pair and no memory — the hub is a 1 GB VPS whose whole job is passing
+ * bytes it does not read.
+ * @param {string} apiKey - Configured proxy key.
+ * @returns {Function} `(req, res)` handler.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyRequestHandlerFactory = ({ apiKey }) =>
+  function forwardProxyRequestHandler(req, res) {
+    if (!forwardProxyAuthorizedFactory({ header: req.headers['proxy-authorization'], apiKey }))
+      return void forwardProxyRefuse(res, 407, 'proxy authentication required');
+    const target = forwardProxyTargetFactory(req.url);
+    if (!target)
+      return void forwardProxyRefuse(res, 400, 'an absolute http:// request-URI is required; use CONNECT for https');
+
+    const upstream = http.request(
+      {
+        host: target.hostname,
+        port: target.port,
+        method: req.method,
+        path: target.path,
+        headers: { ...forwardProxyHeadersFactory(req.headers), host: target.host },
+        timeout: UNDERPOST_EDGE.forwardProxyTimeoutMs,
+      },
+      (upstreamRes) => {
+        res.writeHead(upstreamRes.statusCode, forwardProxyHeadersFactory(upstreamRes.headers));
+        upstreamRes.pipe(res);
+      },
+    );
+    upstream.on('timeout', () => upstream.destroy(new Error('upstream timed out')));
+    upstream.on('error', (error) => {
+      logger.warn('Forward proxy upstream failed', { target: `${target.host}${target.path}`, message: error.message });
+      if (res.headersSent) res.destroy();
+      else forwardProxyRefuse(res, 502, 'upstream request failed');
+    });
+    res.on('close', () => upstream.destroy());
+    req.pipe(upstream);
+  };
+
+/**
+ * @method forwardProxyConnectHandlerFactory
+ * @description The `CONNECT` path: authenticate, open a TCP socket to the origin,
+ * then splice the two sockets and stop looking.
+ *
+ * The hub relays ciphertext it cannot read, exactly as `fe_https` does inbound,
+ * so a spoke's TLS session terminates at the origin and no certificate or key
+ * for it exists on the VPS.
+ * @param {string} apiKey - Configured proxy key.
+ * @returns {Function} `(req, clientSocket, head)` handler.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyConnectHandlerFactory = ({ apiKey }) =>
+  function forwardProxyConnectHandler(req, clientSocket, head) {
+    const startedAt = Date.now();
+    // The same shape morgan writes on the forward path, so one log reads alike
+    // for both: <client> CONNECT <authority> <status> <bytes> - <ms> ms. A
+    // tunnel is logged when it closes, because that is when its size is known.
+    const log = (status, bytes = '-') =>
+      proxyLogger.http(
+        `${clientSocket.remoteAddress || '-'} CONNECT ${req.url} ${status} ${bytes} - ${Date.now() - startedAt} ms`,
+      );
+    const reject = (status, reason) => {
+      log(status);
+      clientSocket.end(`HTTP/1.1 ${status} ${reason}\r\n\r\n`);
+    };
+    if (!forwardProxyAuthorizedFactory({ header: req.headers['proxy-authorization'], apiKey }))
+      return void reject(407, 'Proxy Authentication Required');
+    const target = forwardProxyTunnelTargetFactory(req.url);
+    if (!target) return void reject(400, 'Bad Request');
+
+    let established = false;
+    const upstream = net.connect(target.port, target.hostname, () => {
+      established = true;
+      clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+      // The bytes the client sent before the tunnel existed — a ClientHello, in
+      // practice — are already in `head` and are not re-delivered by the stream.
+      if (head && head.length > 0) upstream.write(head);
+      upstream.pipe(clientSocket);
+      clientSocket.pipe(upstream);
+    });
+    upstream.setTimeout(UNDERPOST_EDGE.forwardProxyTimeoutMs, () => upstream.destroy());
+    upstream.on('error', (error) => {
+      logger.warn('Forward proxy tunnel failed', {
+        target: `${target.hostname}:${target.port}`,
+        message: error.message,
+      });
+      if (established || clientSocket.writableEnded || clientSocket.destroyed) clientSocket.destroy();
+      else reject(502, 'Bad Gateway');
+    });
+    upstream.on('close', () => {
+      if (established) log(200, upstream.bytesRead + upstream.bytesWritten);
+    });
+    clientSocket.on('error', () => upstream.destroy());
+    clientSocket.on('close', () => upstream.destroy());
+  };
+
+/**
+ * @method forwardProxyResponseFactory
+ * @description Drives one client request to completion and buffers its answer.
+ *
+ * Buffered rather than streamed because the caller is an API client — the cron's
+ * Vultr reads are JSON small enough to hold, and a string is what a caller can
+ * actually parse.
+ * @param {object} request - A `ClientRequest` that has not been ended.
+ * @param {?string} body - Request body.
+ * @param {number} timeoutMs - Timeout for the whole exchange.
+ * @returns {Promise<{status: number, headers: object, body: string}>} The origin's answer.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyResponseFactory = ({ request, body = null, timeoutMs }) =>
+  new Promise((resolve, reject) => {
+    request.once('response', (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.once('error', reject);
+      res.once('end', () =>
+        resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString('utf8') }),
+      );
+    });
+    request.once('error', reject);
+    request.setTimeout(timeoutMs, () => request.destroy(new Error(`request timed out after ${timeoutMs}ms`)));
+    if (body !== null) request.write(body);
+    request.end();
+  });
+
+/**
+ * @method forwardProxyTunnelFactory
+ * @description Opens a `CONNECT` tunnel through the proxy and hands back the raw
+ * socket, for a client that then speaks TLS over it.
+ * @param {object} proxy - Resolved endpoint from {@link UnderpostWireguard.forwardProxyConfigFactory}.
+ * @param {string} authority - `host:port` of the origin.
+ * @param {number} timeoutMs - Timeout for the handshake with the proxy.
+ * @returns {Promise<object>} Connected socket.
+ * @throws {Error} When the proxy refuses the tunnel.
+ * @memberof UnderpostWireguard
+ */
+const forwardProxyTunnelFactory = ({ proxy, authority, timeoutMs }) =>
+  new Promise((resolve, reject) => {
+    const request = http.request({
+      host: proxy.host,
+      port: proxy.port,
+      method: 'CONNECT',
+      path: authority,
+      headers: { host: authority, 'proxy-authorization': `Bearer ${proxy.apiKey}` },
+      agent: false,
+    });
+    const refused = (status) => reject(new Error(`[wireguard] forward proxy refused CONNECT ${authority} (${status})`));
+    request.once('connect', (res, socket) => {
+      if (res.statusCode !== 200) {
+        socket.destroy();
+        refused(res.statusCode);
+        return;
+      }
+      socket.setTimeout(0);
+      resolve(socket);
+    });
+    // A refusal may arrive as an ordinary response rather than as a tunnel that
+    // never opened; both mean the same thing to the caller.
+    request.once('response', (res) => {
+      res.resume();
+      refused(res.statusCode);
+    });
+    request.once('error', reject);
+    request.setTimeout(timeoutMs, () => request.destroy(new Error(`[wireguard] forward proxy CONNECT timed out`)));
+    request.end();
+  });
 
 /**
  * @class UnderpostWireguard
@@ -1400,6 +1973,7 @@ class UnderpostWireguard {
           ? {
               wireguard: read(`systemctl is-active wg-quick@${interfaceName}`),
               haproxy: read('systemctl is-active haproxy'),
+              forwardProxy: read(`systemctl is-active ${UNDERPOST_EDGE.forwardProxyServiceName}`),
               quicTarget: defaultPeerFactory(state.peers)?.address || '',
             }
           : {}),
@@ -1545,6 +2119,260 @@ class UnderpostWireguard {
     },
 
     /**
+     * @method forwardProxyConfig
+     * @description The endpoint the proxy runs on, and the guards that must hold
+     * for it to run at all.
+     *
+     * Shared by the two halves of the lifecycle, so the unit is written for
+     * exactly the endpoint the supervised process then binds — the flags resolve
+     * once, in one place, rather than once per half.
+     * @param {object} [options] - CLI options.
+     * @returns {{host: string, port: number, apiKey: string, address: string}} Resolved endpoint; `apiKey` must never be logged.
+     * @throws {Error} When run on a spoke, or with no key configured.
+     * @memberof UnderpostWireguard
+     */
+    forwardProxyConfig(options = {}) {
+      const state = readEdgeState();
+      if (state.role === 'client')
+        throw new Error(
+          '[wireguard] --forward-proxy-server runs on the hub: a spoke would relay through its own ISP address',
+        );
+      const config = forwardProxyConfigFactory({
+        // The flag wins over the registry, so a hub with a second address — or a
+        // bring-up before the tunnel is keyed — can be told where to listen.
+        host: `${options.forwardProxyServerHost || ''}`.trim() || tunnelAddressFactory(state.address),
+        port: options.forwardProxyServerPort,
+      });
+      if (!config.apiKey)
+        throw new Error(
+          `[wireguard] ${UNDERPOST_EDGE.forwardProxyEnv.apiKey} is not set; every proxied request is authenticated with it. ` +
+            `Export it, put it in the deploy env selected by \`underpost env <deploy-id> <environment>\` (./.env), ` +
+            `or set it with \`underpost env set ${UNDERPOST_EDGE.forwardProxyEnv.apiKey} <key>\``,
+        );
+      // The bind address is what keeps the proxy off the public interface, so a
+      // wildcard is worth saying out loud: it is legal, and it leaves the key as
+      // the only thing between the internet and an open relay.
+      if (['0.0.0.0', '::', '*'].includes(config.host))
+        logger.warn('Forward proxy is bound to a wildcard address, not the tunnel', {
+          host: config.host,
+          consequence: 'the proxy is reachable from every interface; only the API key refuses a request',
+          instead: `--forward-proxy-server-host ${tunnelAddressFactory(state.address) || tunnelAddressFactory(UNDERPOST_EDGE.cidr)}`,
+        });
+      return { ...config, address: `${config.host}:${config.port}`, interfaceName: state.interfaceName };
+    },
+
+    /**
+     * @method forwardProxyServer
+     * @description Ensures the forward proxy is running as a systemd service, and
+     * returns.
+     *
+     * The listener itself is a long-lived process, which a CLI invocation is not:
+     * a proxy held open by the shell that started it dies with that shell, does
+     * not survive a reboot, and gives an operator no way to ask whether it is
+     * running. So this reconciles a unit instead — write, enable, start — and the
+     * supervised process is the one that binds the socket, through
+     * {@link UnderpostWireguard.forwardProxyListen}.
+     *
+     * Re-running is a no-op by construction: the unit name is fixed, so there is
+     * one service to converge on rather than one per invocation; the file is
+     * compared before writing; and an already-active unit is `start`ed, which
+     * systemd ignores. Only a unit whose *content* changed — a new host, port or
+     * key — is reloaded and restarted, so repeating the command does not drop
+     * established tunnels.
+     * @param {object} [options] - CLI options.
+     * @returns {?object} What was reconciled, or null under `--dry-run`.
+     * @throws {Error} When run on a spoke, or with no key configured.
+     * @memberof UnderpostWireguard
+     */
+    forwardProxyServer(options = {}) {
+      // The unit runs this same command with the supervision marker set, which is
+      // what makes the service's ExecStart and the operator's command one thing
+      // rather than two that can drift.
+      if (`${process.env[UNDERPOST_EDGE.forwardProxySupervisedEnv] || ''}`.trim())
+        return UnderpostWireguard.API.forwardProxyListen(options);
+
+      const config = UnderpostWireguard.API.forwardProxyConfig(options);
+      const unit = forwardProxyUnitFactory({
+        host: config.host,
+        port: config.port,
+        apiKey: config.apiKey,
+        interfaceName: config.interfaceName,
+      });
+      const changed = writeRootFile({
+        target: UNDERPOST_EDGE.forwardProxyUnitPath,
+        content: unit,
+        // The unit carries the proxy key, so it is root-only like the interface
+        // config that carries a peer table. systemd reads it as root.
+        mode: '0600',
+        dryRun: options.dryRun,
+      });
+      runHostCommands(forwardProxyServiceCommandsFactory({ changed }).ensure, options.dryRun);
+      if (options.dryRun) {
+        logger.info('[dry-run] would reconcile the forward proxy service', {
+          service: UNDERPOST_EDGE.forwardProxyServiceName,
+          address: config.address,
+        });
+        return null;
+      }
+      const read = (command) => shellExec(command, { stdout: true, silent: true, silentOnError: true }).trim();
+      const state = read(`systemctl is-active ${UNDERPOST_EDGE.forwardProxyServiceName}`);
+      const enabled = read(`systemctl is-enabled ${UNDERPOST_EDGE.forwardProxyServiceName}`);
+      logger.info('Forward proxy service reconciled', {
+        service: UNDERPOST_EDGE.forwardProxyServiceName,
+        address: config.address,
+        tunnel: UNDERPOST_EDGE.tunnelCidr,
+        unitChanged: changed,
+        state,
+        enabled,
+        logs: `journalctl -u ${UNDERPOST_EDGE.forwardProxyServiceName} -f`,
+      });
+      // `activating` is the restart backoff, not a failure — the unit retries
+      // until the address it binds exists.
+      const running = state === 'active' || state === 'activating';
+      if (!running) {
+        logger.error('Forward proxy service did not come up', {
+          state: state || '(unknown)',
+          likely: `${config.host} does not exist yet, so the listener cannot bind — bring the tunnel up with --wireguard-start`,
+          check: `systemctl status ${UNDERPOST_EDGE.forwardProxyServiceName}`,
+        });
+        process.exitCode = 1;
+      }
+      return { service: UNDERPOST_EDGE.forwardProxyServiceName, address: config.address, changed, state, enabled };
+    },
+
+    /**
+     * @method forwardProxyListen
+     * @description Binds the proxy: `http` requests and `CONNECT` tunnels, relayed
+     * to the internet through the VPS. This is what the systemd unit runs.
+     *
+     * Bound to the hub's tunnel address alone — never `0.0.0.0` — so the only
+     * clients that can reach it are the spokes on the other side of an encrypted
+     * tunnel, and a firewall misconfiguration cannot expose it. Authentication is
+     * still required on every request: the tunnel establishes which machine is
+     * calling, the key establishes that it meant to.
+     * @param {object} [options] - CLI options.
+     * @returns {object} The listening server.
+     * @throws {Error} When run on a spoke, or with no key configured.
+     * @memberof UnderpostWireguard
+     */
+    forwardProxyListen(options = {}) {
+      const config = UnderpostWireguard.API.forwardProxyConfig(options);
+      const server = http.createServer();
+      // Every proxied request is logged, refusals included: this is the one hop
+      // where a spoke's traffic leaves the topology, so an unattributed request
+      // through it is the thing an operator must never have to guess about.
+      const requestLog = loggerMiddleware(import.meta, 'debug', () => false);
+      const relay = forwardProxyRequestHandlerFactory({ apiKey: config.apiKey });
+      server.on('request', (req, res) => requestLog(req, res, () => relay(req, res)));
+      server.on('connect', forwardProxyConnectHandlerFactory({ apiKey: config.apiKey }));
+      // A malformed request line must not take the listener down with it.
+      server.on('clientError', (error, socket) => {
+        if (!socket.destroyed) socket.destroy();
+      });
+      server.on('error', (error) => {
+        logger.error('Forward proxy listener failed', { address: config.address, message: error.message });
+        // Exit non-zero rather than linger without a socket: the usual cause is a
+        // bind address that does not exist yet, and the unit's restart is what
+        // makes that resolve itself once the tunnel is up.
+        process.exitCode = 1;
+        server.close(() => {});
+      });
+      server.listen(config.port, config.host, () =>
+        logger.info('Forward proxy listening', { address: config.address, tunnel: UNDERPOST_EDGE.tunnelCidr }),
+      );
+      return server;
+    },
+
+    /**
+     * @method fetchViaProxy
+     * @description Makes one request through the hub's forward proxy, so the
+     * origin sees the VPS address rather than the caller's.
+     *
+     * `http:` targets go over the forward path with an absolute request URI.
+     * `https:` targets open a `CONNECT` tunnel and negotiate TLS over it *here*,
+     * in this process — the certificate is verified against the origin by the
+     * caller, and the hub only ever sees ciphertext.
+     * @param {string} url - Absolute `http:` or `https:` URL.
+     * @param {string} [options.method] - HTTP method (default `GET`).
+     * @param {object} [options.headers] - Request headers.
+     * @param {string|object} [options.body] - Request body; an object is sent as JSON.
+     * @param {number} [options.timeout] - Timeout in ms.
+     * @param {object} [options.proxy] - `{host, port, apiKey}` overrides for the endpoint resolution.
+     * @returns {Promise<{status: number, headers: object, body: string}>} The origin's answer.
+     * @throws {Error} When no key is configured, the scheme is unsupported, or the proxy refuses.
+     * @memberof UnderpostWireguard
+     */
+    fetchViaProxy: async function (url, options = {}) {
+      const target = new URL(url);
+      const proxy = forwardProxyConfigFactory(options.proxy);
+      if (!proxy.apiKey)
+        throw new Error(
+          `[wireguard] ${UNDERPOST_EDGE.forwardProxyEnv.apiKey} is not set; the forward proxy cannot be used without it`,
+        );
+      const method = `${options.method || 'GET'}`.toUpperCase();
+      const timeoutMs = Number(options.timeout) > 0 ? Number(options.timeout) : UNDERPOST_EDGE.forwardProxyTimeoutMs;
+      const body =
+        options.body === undefined || options.body === null
+          ? null
+          : typeof options.body === 'string'
+            ? options.body
+            : JSON.stringify(options.body);
+      const headers = {
+        host: target.host,
+        ...(body === null ? {} : { 'content-length': `${Buffer.byteLength(body)}` }),
+        ...(options.headers || {}),
+      };
+
+      if (target.protocol === 'http:')
+        return await forwardProxyResponseFactory({
+          request: http.request({
+            host: proxy.host,
+            port: proxy.port,
+            method,
+            // The absolute URI is what makes this a proxy request rather than a
+            // request for the proxy itself.
+            path: target.href,
+            headers: { ...headers, 'proxy-authorization': `Bearer ${proxy.apiKey}` },
+            agent: false,
+          }),
+          body,
+          timeoutMs,
+        });
+      if (target.protocol !== 'https:')
+        throw new Error(`[wireguard] fetchViaProxy supports http: and https: targets only, not ${target.protocol}`);
+
+      const port = Number(target.port) || UNDERPOST_EDGE.httpsPort;
+      const socket = await forwardProxyTunnelFactory({
+        proxy,
+        authority: `${target.hostname}:${port}`,
+        timeoutMs,
+      });
+      // The agent's own `createConnection` is what performs the TLS handshake;
+      // handing it the tunnel makes it negotiate over that instead of dialling
+      // the origin directly, which is the whole of the CONNECT client side.
+      const agent = new https.Agent({ keepAlive: false, maxSockets: 1 });
+      const createConnection = agent.createConnection.bind(agent);
+      agent.createConnection = (connectOptions, callback) =>
+        createConnection({ ...connectOptions, socket, servername: target.hostname }, callback);
+      try {
+        return await forwardProxyResponseFactory({
+          request: https.request({
+            host: target.hostname,
+            port,
+            method,
+            path: `${target.pathname}${target.search}`,
+            headers,
+            agent,
+          }),
+          body,
+          timeoutMs,
+        });
+      } finally {
+        socket.destroy();
+      }
+    },
+
+    /**
      * @method start
      * @description Enables and starts the tunnel, and the QUIC forward with it.
      * @param {object} options - CLI options.
@@ -1592,10 +2420,10 @@ class UnderpostWireguard {
      *
      * Everything this subsystem writes outside the repo is removed — interface
      * config, sysctl drop-in, both HAProxy map files *and* the generated
-     * `haproxy.cfg`, the NAT chains, and the firewalld rules opened for the
-     * recorded role. Leaving `haproxy.cfg` behind while deleting the maps it
-     * reads is worse than leaving both: the daemon then fails to start on a
-     * config that references files that no longer exist.
+     * `haproxy.cfg`, the forward proxy unit, the NAT chains, and the firewalld
+     * rules opened for the recorded role. Leaving `haproxy.cfg` behind while
+     * deleting the maps it reads is worse than leaving both: the daemon then
+     * fails to start on a config that references files that no longer exist.
      *
      * The key pair and the registry are deliberately kept: destroying the key
      * invalidates every spoke's peer entry, and the registry is authored source
@@ -1618,6 +2446,7 @@ class UnderpostWireguard {
           `sudo rm -f ${UNDERPOST_EDGE.haproxyDir}/${UNDERPOST_EDGE.sniMapName}`,
           `sudo rm -f ${UNDERPOST_EDGE.haproxyDir}/${UNDERPOST_EDGE.httpMapName}`,
           `sudo rm -f ${UNDERPOST_EDGE.haproxyDir}/${UNDERPOST_EDGE.haproxyConfName}`,
+          ...forwardProxyServiceCommandsFactory().remove,
           ...(state.role
             ? firewallCommandsFactory({
                 role: state.role,
@@ -1718,6 +2547,10 @@ class UnderpostWireguard {
       else if (options.haproxySync === true) UnderpostWireguard.API.haproxySync(options);
       if (options.wireguardStop === true) UnderpostWireguard.API.stop(options);
       if (options.wireguardStart === true) UnderpostWireguard.API.start(options);
+      // After the tunnel, because the service requires it and its address only
+      // exists once the interface is up; before `--status`, so a run that
+      // reconciles the service also reports it.
+      if (options.forwardProxyServer === true) UnderpostWireguard.API.forwardProxyServer(options);
       if (options.status === true) UnderpostWireguard.API.status(options);
     },
   };
@@ -1730,9 +2563,20 @@ export {
   backendNameFactory,
   defaultPeerFactory,
   deployListFactory,
+  edgeEnvFactory,
   edgeRouteTableFactory,
   edgeStateFactory,
   firewallCommandsFactory,
+  forwardProxyAuthorizedFactory,
+  forwardProxyCommandFactory,
+  forwardProxyConfigFactory,
+  forwardProxyConnectHandlerFactory,
+  forwardProxyHeadersFactory,
+  forwardProxyRequestHandlerFactory,
+  forwardProxyServiceCommandsFactory,
+  forwardProxyTargetFactory,
+  forwardProxyTunnelTargetFactory,
+  forwardProxyUnitFactory,
   haproxyConfFactory,
   haproxyMapsFactory,
   hostProxyEntriesFactory,
@@ -1742,6 +2586,7 @@ export {
   quicForwardCommandsFactory,
   readEdgeState,
   redirectHostFactory,
+  tunnelAddressFactory,
   wireguardClientConfFactory,
   wireguardServerConfFactory,
   wireguardStatusFactory,

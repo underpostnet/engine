@@ -29,6 +29,7 @@
 
 import axios from 'axios';
 import { loggerFactory } from '../server/logger.js';
+import { UNDERPOST_EDGE, edgeEnvFactory, tunnelAddressFactory } from './wireguard.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -66,46 +67,34 @@ const UNDERPOST_VULTR = {
     user: ['VULTR_SSH_USER', 'DEFAULT_SSH_USER'],
     keyPath: ['VULTR_SSH_KEY_PATH', 'DEFAULT_SSH_KEY_PATH'],
     port: ['VULTR_SSH_PORT', 'DEFAULT_SSH_PORT'],
+    // The edge hub's forward proxy, named once in `UNDERPOST_EDGE` so the two
+    // ends of it cannot disagree about the variable that configures it.
+    forwardProxyApiKey: UNDERPOST_EDGE.forwardProxyEnv.apiKey,
+    forwardProxyHost: UNDERPOST_EDGE.forwardProxyEnv.host,
+    forwardProxyPort: UNDERPOST_EDGE.forwardProxyEnv.port,
   },
 };
 
 /**
- * @constant rootEnvCache
- * @description Per-key memo of the root env reads.
- *
- * `Underpost.env.get` resolves the npm global prefix by shelling out on every
- * call, and this module reads up to ten keys through it. Without the memo a
- * single run spawns `npm root -g` once per key it has to fall back for.
- *
- * Cleared at the start of every resolution pass, so it never outlives the read
- * it exists to batch — a second check in the same process sees the root env as
- * it is then, not as it was. The latch is read straight through
- * `Underpost.env.get` for the same reason: it is written during the same run.
- * @memberof UnderpostVultr
- */
-const rootEnvCache = new Map();
-
-/**
  * @method envFactory
- * @description First non-empty value among a list of keys, read from the
- * process environment and then from the underpost root env.
+ * @description First non-empty value among a list of keys.
  *
- * Both are consulted because the two callers differ: a CronJob container has the
- * deploy's `.env.<env>` loaded into `process.env` by `loadCronDeployEnv`, while
- * an operator running the command by hand has the root env and nothing else.
- * Never logged — one of the keys this resolves is an API key.
+ * Resolution is {@link UnderpostWireguard.edgeEnvFactory}'s — the process
+ * environment, then the deploy env `underpost env <deploy-id> <environment>`
+ * selects into `./.env`, then the underpost root env — rather than a second
+ * implementation of it, because the three callers differ: a CronJob container has
+ * its deploy env loaded into `process.env` by `loadCronDeployEnv`, an operator
+ * preparing a manual run has `./.env`, and an operator who ran `underpost env
+ * set` has the root env. Never logged — one of the keys this resolves is an API
+ * key.
  * @param {string|Array<string>} keys - Environment variable name, or names in precedence order.
  * @returns {string} The resolved value, or an empty string.
  * @memberof UnderpostVultr
  */
 const envFactory = (keys) => {
   for (const key of Array.isArray(keys) ? keys : [keys]) {
-    const fromProcess = `${process.env[key] ?? ''}`.trim();
-    if (fromProcess) return fromProcess;
-    if (!rootEnvCache.has(key))
-      rootEnvCache.set(key, `${Underpost.env.get(key, undefined, { disableLog: true }) ?? ''}`.trim());
-    const fromRoot = rootEnvCache.get(key);
-    if (fromRoot) return fromRoot;
+    const value = edgeEnvFactory(key);
+    if (value) return value;
   }
   return '';
 };
@@ -218,6 +207,67 @@ const quotaStateFactory = ({
 const formatBytes = (bytes) => `${((Number(bytes) || 0) / UNDERPOST_VULTR.bytesPerGB).toFixed(2)} GB`;
 
 /**
+ * @method vultrUrlFactory
+ * @description One absolute API URL, with its query already encoded.
+ *
+ * Built here rather than left to the transport because the two transports below
+ * take a query differently — axios takes `params`, the proxy client takes a URL —
+ * and a request that differs by transport is a bug waiting for the day the
+ * fallback is used.
+ * @param {string} path - Path below `/v2`.
+ * @param {object} [params] - Query parameters.
+ * @returns {string} Absolute URL.
+ * @memberof UnderpostVultr
+ */
+const vultrUrlFactory = ({ path, params = {} }) => {
+  const url = new URL(`${UNDERPOST_VULTR.apiBaseUrl}${path}`);
+  for (const [key, value] of Object.entries(params))
+    if (value !== undefined && value !== null && `${value}` !== '') url.searchParams.set(key, `${value}`);
+  return url.href;
+};
+
+/**
+ * @method vultrGet
+ * @description The transport: through the edge hub's forward proxy when one is
+ * configured, straight out otherwise.
+ *
+ * The proxy is the point of this indirection. Vultr's API sees the address the
+ * request came from, and this job usually runs in a CronJob inside a homelab
+ * cluster — so a direct call arrives from a residential ISP address, while a
+ * proxied one arrives from the very VPS the job is metering. An API key scoped to
+ * the edge's address only works over the proxy.
+ *
+ * Non-2xx answers are returned rather than thrown, so both transports report a
+ * status the same way; only a transport failure throws.
+ * @param {string} url - Absolute URL.
+ * @param {string} apiKey - Vultr API key.
+ * @param {object} [proxy] - Forward proxy endpoint; ignored when it carries no key.
+ * @returns {Promise<{status: number, data: object}>} Status and parsed body.
+ * @memberof UnderpostVultr
+ */
+const vultrGet = async ({ url, apiKey, proxy }) => {
+  const headers = { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' };
+  if (!proxy?.apiKey) {
+    const response = await axios.get(url, {
+      headers,
+      timeout: UNDERPOST_VULTR.requestTimeoutMs,
+      validateStatus: () => true,
+    });
+    return { status: response.status, data: response.data };
+  }
+  const { status, body } = await Underpost.wireguard.fetchViaProxy(url, {
+    headers,
+    timeout: UNDERPOST_VULTR.requestTimeoutMs,
+    proxy,
+  });
+  try {
+    return { status, data: body ? JSON.parse(body) : {} };
+  } catch {
+    return { status, data: {} };
+  }
+};
+
+/**
  * @method vultrRequest
  * @description One authenticated Vultr API call.
  *
@@ -227,23 +277,24 @@ const formatBytes = (bytes) => `${((Number(bytes) || 0) / UNDERPOST_VULTR.bytesP
  * @param {string} apiKey - Vultr API key.
  * @param {string} path - Path below `/v2`.
  * @param {object} [params] - Query parameters.
+ * @param {object} [proxy] - Forward proxy endpoint from {@link UnderpostVultr.resolveConfig}.
  * @returns {Promise<object>} Response body.
  * @throws {Error} With the API's status and message, never the credentials.
  * @memberof UnderpostVultr
  */
-const vultrRequest = async ({ apiKey, path, params = {} }) => {
+const vultrRequest = async ({ apiKey, path, params = {}, proxy = null }) => {
+  let status = 0;
+  let data = {};
   try {
-    const { data } = await axios.get(`${UNDERPOST_VULTR.apiBaseUrl}${path}`, {
-      params,
-      timeout: UNDERPOST_VULTR.requestTimeoutMs,
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
-    });
-    return data;
+    ({ status, data } = await vultrGet({ url: vultrUrlFactory({ path, params }), apiKey, proxy }));
   } catch (error) {
-    const status = error?.response?.status;
+    const responseStatus = error?.response?.status;
     const detail = error?.response?.data?.error || error?.message || 'request failed';
-    throw new Error(`[vultr] GET /v2${path} failed${status ? ` (${status})` : ''}: ${detail}`);
+    throw new Error(`[vultr] GET /v2${path} failed${responseStatus ? ` (${responseStatus})` : ''}: ${detail}`);
   }
+  if (status < 200 || status >= 300)
+    throw new Error(`[vultr] GET /v2${path} failed (${status}): ${data?.error || 'request failed'}`);
+  return data;
 };
 
 /**
@@ -256,17 +307,19 @@ const vultrRequest = async ({ apiKey, path, params = {} }) => {
  * naive implementation, as a quota of zero.
  * @param {string} apiKey - Vultr API key.
  * @param {string} planId - Plan id from the instance record.
+ * @param {object} [proxy] - Forward proxy endpoint.
  * @returns {Promise<number>} Quota in GB.
  * @throws {Error} When the plan is absent from the catalogue.
  * @memberof UnderpostVultr
  */
-const planBandwidthGBFactory = async ({ apiKey, planId }) => {
+const planBandwidthGBFactory = async ({ apiKey, planId, proxy = null }) => {
   let cursor = '';
   for (let page = 0; page < UNDERPOST_VULTR.maxPlanPages; page++) {
     const data = await vultrRequest({
       apiKey,
       path: '/plans',
       params: { type: 'all', per_page: UNDERPOST_VULTR.plansPerPage, ...(cursor ? { cursor } : {}) },
+      proxy,
     });
     const match = (data?.plans || []).find((plan) => plan?.id === planId);
     if (match) return Number(match.bandwidth) || 0;
@@ -315,7 +368,6 @@ class UnderpostVultr {
      * @memberof UnderpostVultr
      */
     resolveConfig(options = {}) {
-      rootEnvCache.clear();
       return {
         apiKey: `${options.apiKey || ''}`.trim() || envFactory(UNDERPOST_VULTR.env.apiKey),
         instanceId: `${options.instanceId || ''}`.trim() || envFactory(UNDERPOST_VULTR.env.instanceId),
@@ -334,6 +386,14 @@ class UnderpostVultr {
         dryRun: options.dryRun === true,
         force: options.force === true,
         autoUnblock: options.autoUnblock === true,
+        // Resolved through the same env precedence as everything else, so the
+        // cron's deploy env can enable the proxy without a flag. An unset key
+        // means no proxy, and the API is called directly.
+        forwardProxy: {
+          apiKey: envFactory(UNDERPOST_VULTR.env.forwardProxyApiKey),
+          host: envFactory(UNDERPOST_VULTR.env.forwardProxyHost),
+          port: envFactory(UNDERPOST_VULTR.env.forwardProxyPort),
+        },
       };
     },
 
@@ -357,15 +417,17 @@ class UnderpostVultr {
       if (!config.apiKey) throw new Error(`[vultr] ${UNDERPOST_VULTR.env.apiKey} is not set`);
       if (!config.instanceId) throw new Error(`[vultr] ${UNDERPOST_VULTR.env.instanceId} is not set`);
 
-      const instance = (await vultrRequest({ apiKey: config.apiKey, path: `/instances/${config.instanceId}` }))
+      const proxy = config.forwardProxy;
+      const instance = (await vultrRequest({ apiKey: config.apiKey, path: `/instances/${config.instanceId}`, proxy }))
         ?.instance;
       const planId = `${instance?.plan || ''}`.trim();
       if (!planId) throw new Error(`[vultr] Instance ${config.instanceId} returned no plan id`);
 
-      const planBandwidthGB = await planBandwidthGBFactory({ apiKey: config.apiKey, planId });
+      const planBandwidthGB = await planBandwidthGBFactory({ apiKey: config.apiKey, planId, proxy });
       const { bandwidth } = await vultrRequest({
         apiKey: config.apiKey,
         path: `/instances/${config.instanceId}/bandwidth`,
+        proxy,
       });
 
       const totals = bandwidthTotalsFactory({ bandwidth, month: config.month });
@@ -386,6 +448,9 @@ class UnderpostVultr {
         planQuota: formatBytes(state.maxBytes),
         usedPercent: `${(state.ratio * 100).toFixed(1)}%`,
         threshold: `${(config.threshold * 100).toFixed(0)}%`,
+        // Which address Vultr saw the reads come from, which is the difference
+        // between a key scoped to the edge VPS working and failing.
+        via: proxy.apiKey ? `forward-proxy ${proxy.host || tunnelAddressFactory(UNDERPOST_EDGE.cidr)}` : 'direct',
       };
 
       if (!state.metered) {
@@ -506,4 +571,5 @@ export {
   planBandwidthGBFactory,
   quotaStateFactory,
   thresholdFactory,
+  vultrUrlFactory,
 };

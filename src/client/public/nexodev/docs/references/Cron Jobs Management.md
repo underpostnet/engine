@@ -247,6 +247,8 @@ Each run:
 4. `limitInBytes = planBandwidthGB × 1024³ × VULTR_BANDWIDTH_THRESHOLD`.
 5. If consumption ≥ that limit, SSH to the edge VPS and run `underpost ip --block-all-egress` (falling back to `cd /home/dd/engine && node bin ip …` when the CLI is not installed globally).
 
+Those three reads go **through the edge hub's forward proxy** when `FORWARD_PROXY_API_KEY` resolves, and straight out otherwise. The job runs in a CronJob inside a spoke cluster, so a direct call reaches Vultr from a residential ISP address while a proxied one reaches it from the very VPS being metered — which is what an API key scoped to the edge's address requires. The path taken is reported in every run's summary as `via: 'forward-proxy 10.0.0.1'` or `via: 'direct'`. Set it up with [`underpost wireguard --forward-proxy-server`](<./Edge Hub WireGuard and HAProxy.md#outbound-forward-proxy>) on the hub.
+
 Guards, in the order they apply:
 
 | Guard                           | Behaviour                                                                                                                                                                                                           |
@@ -343,18 +345,21 @@ There is **no `records`-style block for `vultr`**, and none is needed. `dns` rea
 
 #### Vultr Environment Variables
 
-Set these in `engine-private/conf/<dd.cron deploy-id>/.env.production` — the file `loadCronDeployEnv()` loads into `process.env` at the top of every cron run. The underpost root env (`underpost env set …`) is the fallback for each key.
+Set these in `engine-private/conf/<dd.cron deploy-id>/.env.production` — the file `loadCronDeployEnv()` loads into `process.env` at the top of every cron run. Two fallbacks follow, in order, so a manual run resolves the same values: `./.env`, which `underpost env <deploy-id> <environment>` writes, and then the underpost root env (`underpost env set …`).
 
-| Variable                    | Required | Description                                                                    | Default                          |
-| --------------------------- | -------- | ------------------------------------------------------------------------------ | -------------------------------- |
-| `VULTR_API_KEY`             | **yes**  | Vultr API v2 key. Sent as a bearer token; never logged.                        | —                                |
-| `VULTR_INSTANCE_ID`         | **yes**  | Instance id of the edge VPS to meter.                                          | —                                |
-| `VULTR_BANDWIDTH_THRESHOLD` | no       | Fraction of the plan quota that triggers the block. `0.80` and `80` both work. | `0.80`                           |
-| `VULTR_VPS_IP`              | no\*     | Edge VPS to SSH into. Falls back to `DEFAULT_SSH_HOST`.                        | —                                |
-| `VULTR_SSH_USER`            | no       | Falls back to `DEFAULT_SSH_USER`.                                              | `root`                           |
-| `VULTR_SSH_KEY_PATH`        | no       | Falls back to `DEFAULT_SSH_KEY_PATH`.                                          | `./engine-private/deploy/id_rsa` |
-| `VULTR_SSH_PORT`            | no       | Falls back to `DEFAULT_SSH_PORT`.                                              | `22`                             |
-| `VULTR_EGRESS_BLOCKED_AT`   | —        | Written by the job, not by you. The latch that stops a repeat block each run.  | _(unset)_                        |
+| Variable                    | Required | Description                                                                                             | Default                          |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `VULTR_API_KEY`             | **yes**  | Vultr API v2 key. Sent as a bearer token; never logged.                                                 | —                                |
+| `VULTR_INSTANCE_ID`         | **yes**  | Instance id of the edge VPS to meter.                                                                   | —                                |
+| `VULTR_BANDWIDTH_THRESHOLD` | no       | Fraction of the plan quota that triggers the block. `0.80` and `80` both work.                          | `0.80`                           |
+| `VULTR_VPS_IP`              | no\*     | Edge VPS to SSH into. Falls back to `DEFAULT_SSH_HOST`.                                                 | —                                |
+| `VULTR_SSH_USER`            | no       | Falls back to `DEFAULT_SSH_USER`.                                                                       | `root`                           |
+| `VULTR_SSH_KEY_PATH`        | no       | Falls back to `DEFAULT_SSH_KEY_PATH`.                                                                   | `./engine-private/deploy/id_rsa` |
+| `VULTR_SSH_PORT`            | no       | Falls back to `DEFAULT_SSH_PORT`.                                                                       | `22`                             |
+| `VULTR_EGRESS_BLOCKED_AT`   | —        | Written by the job, not by you. The latch that stops a repeat block each run.                           | _(unset)_                        |
+| `FORWARD_PROXY_API_KEY`     | no       | Sends the API reads through the hub's forward proxy, so Vultr sees the VPS address. Unset means direct. | _(unset)_                        |
+| `FORWARD_PROXY_HOST`        | no       | Hub tunnel address the proxy listens on.                                                                | `10.0.0.1`                       |
+| `FORWARD_PROXY_PORT`        | no       | Proxy port.                                                                                             | `1080`                           |
 
 > **⚠️ Set `VULTR_VPS_IP` explicitly.** `DEFAULT_SSH_HOST` exists in `dd-cron/.env.production` for the `backup` job and points at whatever that deploy's default SSH target is. If it is not the Vultr edge VPS, the fallback will run `--block-all-egress` **on the wrong machine**. The guard has no way to tell the two apart.
 

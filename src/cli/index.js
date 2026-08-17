@@ -750,6 +750,18 @@ const edgeCommandFactory = (name, description) =>
         'Combine with --wireguard-setup / --peer-add / --peer-remove to author the topology off-box; ' +
         'alone it normalizes and validates the existing registry.',
     )
+    .option(
+      '--forward-proxy-server',
+      'Ensures the hub HTTP/CONNECT forward proxy runs as the underpost-forward-proxy systemd service, ' +
+        'bound to the tunnel address only (default port 1080), and returns. Authenticates every request with ' +
+        'FORWARD_PROXY_API_KEY, so spokes can reach the internet through the VPS public address. Idempotent: ' +
+        're-running converges on the one service and restarts it only when the unit actually changed.',
+    )
+    .option(
+      '--forward-proxy-server-host <host>',
+      'Address the forward proxy binds, overriding the hub tunnel address from the registry.',
+    )
+    .option('--forward-proxy-server-port <port>', 'Port the forward proxy binds (default: 1080).')
     .option('--wireguard-start', 'Enables and starts wg-quick@<interface> and the QUIC forward.')
     .option('--wireguard-stop', 'Tears down the interface and removes its transient packet rules.')
     .option('--wireguard-reset', 'Removes generated configs and packet rules, keeping the key pair and registry.')
