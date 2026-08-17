@@ -3186,6 +3186,7 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
   }
   shellExec(`rm -rf ${toPath}/.github`);
   shellExec(`rm -rf ${toPath}/manifests/deployment/dd-*`);
+  shellExec(`rm -rf ${toPath}/deploy`);
 
   fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
   for (const restorePath of TEMPLATE_RESTORE_PATHS) {

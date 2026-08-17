@@ -32,23 +32,8 @@ jobs:
       # - name: Checkout LFS objects
       #   run: git lfs checkout
 
-      - name: Install required packages
-        run: |
-          dnf install -y sudo tar gzip bzip2 git
-          dnf install -y curl --allowerasing
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
-          dnf install nodejs -y
-
       - name: Build the site
-        run: |
-          npm install
-          node bin new --default-conf --conf-workflow-id dd-github-pages
-          node bin new --deploy-id dd-github-pages
-          node bin env dd-github-pages production
-          NODE_ENV=production node bin client dd-github-pages '' underpostnet.github.io /pwa-microservices-template-ghpkg
+        run: bash deploy/pwa-microservices-template/deploy.sh
       # git lfs install
       # git lfs track
       # git lfs ls-files

@@ -15,7 +15,6 @@ import {
 } from '../src/server/conf.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
 import Underpost from '../src/index.js';
-import { DOCKER_SCRIPTS } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
 if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: true });
@@ -114,6 +113,9 @@ const buildDeployTemplate = async (confName) => {
 
   switch (confName) {
     case 'dd-cyberia': {
+      const { CyberiaDependencies, DOCKER_SCRIPTS } = await import(
+        `../src/api/cyberia-server-defaults/cyberia-server-defaults.js`
+      );
       fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
       fs.copyFileSync(
         `./.github/workflows/publish.cyberia.ci.yml`,
@@ -124,7 +126,6 @@ const buildDeployTemplate = async (confName) => {
       packageJson.bin.cyberia = 'bin/index.js';
       packageJson.keywords = catalog.keywords;
       packageJson.description = catalog.description;
-      const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
       packageJson.dependencies = {
         underpost: '^' + Underpost.version.replace('v', ''),
         'adm-zip': '^0.6.0',
@@ -155,9 +156,10 @@ const buildDeployTemplate = async (confName) => {
     JSON.stringify(packageJson, null, 4).replaceAll('pwa-microservices-template', repoName),
     'utf8',
   );
-
-  fs.copySync(`./src/cli`, `${basePath}/src/cli`);
-  if (!fs.existsSync(`${basePath}/images`)) fs.mkdirSync(`${basePath}/images`);
+  if (fs.existsSync(`./deploy/${confName}`))
+    fs.copySync(`./deploy/${confName}`, `${basePath}/deploy/${confName}`, {
+      overwrite: true,
+    });
 
   fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
   if (fs.existsSync(`./.github/workflows/docker-image.${repoName}.ci.yml`))

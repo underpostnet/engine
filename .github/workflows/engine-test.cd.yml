@@ -40,13 +40,7 @@ jobs:
           script: |
             set -e
             set -o pipefail
-            echo "Starting remote deploy"
-            INGRESS_NODE=localhost.localdomain
-            cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run deploy dd-test --gateway-api --ingress-node ${INGRESS_NODE}"
+            bash /home/dd/engine/deploy/dd-test/deploy.sh
   sync-and-deploy:
     if: github.event.inputs.job == 'sync-and-deploy'
     name: Remote SSH sync and deploy
@@ -71,14 +65,7 @@ jobs:
           script: |
             set -e
             set -o pipefail
-            echo "Starting remote sync and deploy"
-            INGRESS_NODE=localhost.localdomain
-            TARGET_NODE=hp-envy-iso-ram-rocky9
-            cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'underpost secret underpost --create-from-env,underpost start --build --run dd-test production' dd-test,1,,underpost/wp:v3.2.90"
+            bash /home/dd/engine/deploy/dd-test/sync-deploy.sh
   init:
     if: github.event.inputs.job == 'init'
     name: Remote SSH init deployment
@@ -103,15 +90,4 @@ jobs:
           script: |
             set -e
             set -o pipefail
-            echo "Starting init deploy"
-            TARGET_NODE=hp-envy-iso-ram-rocky9
-            INGRESS_NODE=localhost.localdomain
-            cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin/build dd-test --conf"
-            sudo -n -- /bin/bash -lc "kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.2.90' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production'"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --disable-update-proxy --cert"
-            sudo -n -- /bin/bash -lc "node bin monitor dd-test production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"
+            bash /home/dd/engine/deploy/dd-test/init.sh

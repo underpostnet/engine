@@ -40,13 +40,7 @@ jobs:
           script: |
             set -e
             set -o pipefail
-            echo "Starting remote deploy"
-            INGRESS_NODE=localhost.localdomain
-            cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run deploy dd-core --gateway-api --ingress-node ${INGRESS_NODE}"
+            bash /home/dd/engine/deploy/dd-core/deploy.sh
   sync-and-deploy:
     if: github.event.inputs.job == 'sync-and-deploy'
     name: Remote SSH sync and deploy
@@ -72,14 +66,7 @@ jobs:
           script: |
             set -e
             set -o pipefail
-            echo "Starting remote sync and deploy"
-            INGRESS_NODE=localhost.localdomain
-            TARGET_NODE=hp-envy-iso-ram-rocky9
-            cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9 dd-core"
+            bash /home/dd/engine/deploy/dd-core/sync-deploy.sh
   init:
     if: github.event.inputs.job == 'init'
     name: Remote SSH init deployment
@@ -104,13 +91,4 @@ jobs:
           script: |
             set -e
             set -o pipefail
-            echo "Starting init deploy"
-            INGRESS_NODE=localhost.localdomain
-            cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run secret"
-            sudo -n -- /bin/bash -lc "node bin/build dd-core --conf"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --sync --build-manifest --versions green --replicas 1"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --cert --disable-update-proxy"
-            sudo -n -- /bin/bash -lc "node bin monitor dd-core production --ready-deployment --promote --versions green --replicas 1"
+            bash /home/dd/engine/deploy/dd-core/init.sh
