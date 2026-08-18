@@ -97,7 +97,7 @@
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.5.3",
     "marked": "^18.0.9",
-    "mongoose": "^9.9.1",
+    "mongoose": "^9.9.2",
     "mocha": "^11.8.0",
     "morgan": "^1.11.0",
     "nodemailer": "^9.0.5",
