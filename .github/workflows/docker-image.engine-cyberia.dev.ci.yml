@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  UNDERPOST_VERSION: '3.2.90'
+  UNDERPOST_VERSION: '3.3.0'
 
 jobs:
   build-and-push:

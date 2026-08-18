@@ -25,11 +25,9 @@ spec:
             app: dd-cron-vultr
             managed-by: underpost
         spec:
-          nodeSelector:
-            kubernetes.io/hostname: hp-envy-iso-ram-rocky9
           containers:
             - name: dd-cron-vultr
-              image: underpost/underpost-engine:v3.2.90
+              image: underpost/underpost-engine:v3.3.0
               command:
                 - /bin/sh
                 - -c

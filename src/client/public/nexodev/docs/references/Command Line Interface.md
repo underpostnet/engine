@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.90
+> underpost ci/cd cli v3.3.0
 
 **Usage:** `underpost [options] [command]`
 
@@ -39,6 +39,9 @@
 | [`test`](#underpost-test) | Manages and runs tests, defaulting to the current Underpost default test suite. |
 | [`monitor`](#underpost-monitor) | Manages health server monitoring for specified deployments. |
 | [`ssh`](#underpost-ssh) | Manages SSH credentials and sessions for remote access to cluster nodes or services. |
+| [`wireguard`](#underpost-wireguard) | Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it. |
+| [`haproxy`](#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
+| [`vultr`](#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
 | [`run`](#underpost-run) | Runs specified scripts using various runners. |
 | [`docker-compose`](#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
 | [`lxd`](#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
@@ -106,6 +109,7 @@ Builds client assets, single replicas, and/or syncs environment ports.
 | `--merge-zip <build-prefix>` | Merge split ZIP parts back into a single ZIP file for the given build prefix |
 | `--lite-build` | Skip full build (default is full build) |
 | `--icons-build` | Build icons |
+| `--ssr` | Rebuild only SSR views defined in conf.ssr.json, leaving client assets untouched |
 | `-h, --help` | display help for command |
 
 ---
@@ -227,7 +231,7 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--has-changes` | Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise. |
 | `--remote-url` | Prints the current git remote URL (origin) in plain text. |
 | `--switch-repo <url>` | Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo". |
-| `--target-branch <branch>` | Target branch for --switch-repo (default: master). |
+| `--target-branch <branch>` | Target branch for --switch-repo (default: remote default branch). |
 | `-h, --help` | display help for command |
 
 ---
@@ -389,6 +393,10 @@ Displays the current public machine IP addresses.
 | `--ban-egress-clear` | Clears all banned egress IP addresses. |
 | `--ban-both-add` | Adds IP addresses to both banned ingress and egress lists. |
 | `--ban-both-remove` | Removes IP addresses from both banned ingress and egress lists. |
+| `--block-all-egress` | Blocks all outbound traffic from this host (keeps established/related connections). |
+| `--unblock-all-egress` | Unblocks all outbound traffic and restores default ACCEPT policy. |
+| `--block-all-ingress` | Blocks all new inbound traffic to this host (keeps established/related connections). |
+| `--unblock-all-ingress` | Unblocks all inbound traffic and restores default ACCEPT policy. |
 | `--mac` | Prints the MAC address of the main network interface. |
 | `-h, --help` | display help for command |
 
@@ -678,18 +686,19 @@ Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manif
 
 | Argument | Description |
 | --- | --- |
-| `deploy-list` | A comma-separated list of deployment IDs (e.g., "default-a,default-b"). |
-| `job-list` | A comma-separated list of job IDs. Options: dns,backup. Defaults to all available jobs. |
+| `deploy-list` | A comma-separated list of deployment IDs (e.g., "default-a,default-b"). In manifest modes its first entry is the manifest owner deploy-id. |
+| `job-list` | A comma-separated list of job IDs. Options: dns,backup,vultr. Defaults to all available jobs, and restricts which jobs are generated in manifest modes. |
 
 #### Options
 
 | Option | Description |
 | --- | --- |
 | `--generate-k8s-cronjobs` | Generates Kubernetes CronJob YAML manifests from cron configuration. |
-| `--apply` | Applies generated K8s CronJob manifests to the cluster via kubectl. |
-| `--setup-start [deploy-id]` | Updates deploy-id package.json start script and generates+applies its K8s CronJob manifests. |
+| `--apply` | Generates and applies K8s CronJob manifests to the cluster via kubectl (never runs jobs). |
+| `--setup-start` | Updates deploy-list package.json start script and generates+applies its K8s CronJob manifests. |
 | `--namespace <namespace>` | Kubernetes namespace for the CronJob resources (default: "default"). |
 | `--image <image>` | Custom container image for the CronJob pods. |
+| `--node-name <node-name>` | Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector. |
 | `--git` | Pass --git flag to cron job execution. |
 | `--cmd <cmd>` | Optional pre-script commands to run before cron execution. |
 | `--dev` | Use local ./ base path instead of global underpost installation. |
@@ -697,7 +706,7 @@ Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manif
 | `--kind` | Use kind cluster context (apply via kind-worker container). |
 | `--kubeadm` | Use kubeadm cluster context (apply directly on host). |
 | `--dry-run` | Preview cron jobs without executing them. |
-| `--create-job-now` | After applying manifests, immediately create a Job from each CronJob (requires --apply). |
+| `--create-job-now` | Creates a Job from each CronJob on the cluster now (implies manifest mode; combine with --apply to publish first). |
 | `-h, --help` | display help for command |
 
 ---
@@ -827,6 +836,127 @@ Manages SSH credentials and sessions for remote access to cluster nodes or servi
 
 ---
 
+### underpost wireguard
+
+Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it.
+
+**Usage:** `underpost wireguard [options]`
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--deploy-id <deploy-id>` | Deploy IDs whose conf.server.json/conf.instances.json define the routes. Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.router, because the edge holds one pair of map files for the whole cluster. |
+| `--interface <name>` | WireGuard interface name (default: "wg0"). |
+| `--wireguard-install` | Installs the wireguard-tools, haproxy and iptables host packages. |
+| `--wireguard-setup` | Generates keys, builds the interface config, and applies local network rules. |
+| `--server` | Configures this node as the hub endpoint accepting inbound tunnel traffic. |
+| `--client` | Configures this node as a spoke endpoint maintaining an outbound tunnel. |
+| `--port <port>` | WireGuard UDP listening port (default: 51820). |
+| `--cidr <cidr>` | Hub interface address with prefix when used with --server (e.g. "10.0.0.1/24"); the overlay subnet a spoke routes back through the hub when used with --client (default: "10.0.0.0/24"). |
+| `--peer-ip <ip>` | Tunnel address of the target spoke. Required with --client and --peer-add. |
+| `--endpoint <host:port>` | Hub host and port a spoke dials. Required with --client. |
+| `--public-key <key>` | Hub public key with --client; spoke public key with --peer-add. |
+| `--peer-add <peer-id>` | Registers a spoke and applies it to the running hub without a restart. |
+| `--peer-remove <peer-id>` | Removes a spoke from the registry and from the running hub. |
+| `--allowed-ips <cidrs>` | Comma-separated CIDRs routed to the spoke (e.g. "10.0.0.2/32,192.168.10.0/24"). |
+| `--hosts <hosts>` | Comma-separated hostnames bound to the spoke, overriding instance resolution. |
+| `--instances <instances>` | Comma-separated conf.instances.json ids bound to the spoke. |
+| `--default` | Marks the spoke as the fallback for hostnames that match no other binding. |
+| `--haproxy-setup` | Installs HAProxy, publishes the current routes, and enables the daemon. |
+| `--haproxy-sync` | Recompiles the SNI/Host maps from deploy config and hot-reloads HAProxy. |
+| `--status` | Prints the whole edge context without changing anything: role, interface, tunnel address, public key, daemon states, peers with their bindings and link health, and the resolved routing. |
+| `--build-conf` | Writes only engine-private/deploy/conf.wireguard.json and touches no host state. Combine with --wireguard-setup / --peer-add / --peer-remove to author the topology off-box; alone it normalizes and validates the existing registry. |
+| `--forward-proxy-server` | Ensures the hub HTTP/CONNECT forward proxy runs as the underpost-forward-proxy systemd service, bound to the tunnel address only (default port 1080), and returns. Authenticates every request with FORWARD_PROXY_API_KEY, so spokes can reach the internet through the VPS public address. Idempotent: re-running converges on the one service and restarts it only when the unit actually changed. |
+| `--forward-proxy-server-host <host>` | Address the forward proxy binds, overriding the hub tunnel address from the registry. |
+| `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
+| `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in the registry. |
+| `--wireguard-start` | Enables and starts wg-quick@<interface> and the QUIC forward. |
+| `--wireguard-stop` | Tears down the interface and removes its transient packet rules. |
+| `--wireguard-reset` | Removes generated configs and packet rules, keeping the key pair and registry. |
+| `--wireguard-reinstall` | Full purge, package reinstall and re-key; every spoke must re-register. |
+| `--dry-run` | Prints the files and commands the run would apply, without touching the host. |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost haproxy
+
+Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`).
+
+**Usage:** `underpost haproxy [options]`
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--deploy-id <deploy-id>` | Deploy IDs whose conf.server.json/conf.instances.json define the routes. Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.router, because the edge holds one pair of map files for the whole cluster. |
+| `--interface <name>` | WireGuard interface name (default: "wg0"). |
+| `--wireguard-install` | Installs the wireguard-tools, haproxy and iptables host packages. |
+| `--wireguard-setup` | Generates keys, builds the interface config, and applies local network rules. |
+| `--server` | Configures this node as the hub endpoint accepting inbound tunnel traffic. |
+| `--client` | Configures this node as a spoke endpoint maintaining an outbound tunnel. |
+| `--port <port>` | WireGuard UDP listening port (default: 51820). |
+| `--cidr <cidr>` | Hub interface address with prefix when used with --server (e.g. "10.0.0.1/24"); the overlay subnet a spoke routes back through the hub when used with --client (default: "10.0.0.0/24"). |
+| `--peer-ip <ip>` | Tunnel address of the target spoke. Required with --client and --peer-add. |
+| `--endpoint <host:port>` | Hub host and port a spoke dials. Required with --client. |
+| `--public-key <key>` | Hub public key with --client; spoke public key with --peer-add. |
+| `--peer-add <peer-id>` | Registers a spoke and applies it to the running hub without a restart. |
+| `--peer-remove <peer-id>` | Removes a spoke from the registry and from the running hub. |
+| `--allowed-ips <cidrs>` | Comma-separated CIDRs routed to the spoke (e.g. "10.0.0.2/32,192.168.10.0/24"). |
+| `--hosts <hosts>` | Comma-separated hostnames bound to the spoke, overriding instance resolution. |
+| `--instances <instances>` | Comma-separated conf.instances.json ids bound to the spoke. |
+| `--default` | Marks the spoke as the fallback for hostnames that match no other binding. |
+| `--haproxy-setup` | Installs HAProxy, publishes the current routes, and enables the daemon. |
+| `--haproxy-sync` | Recompiles the SNI/Host maps from deploy config and hot-reloads HAProxy. |
+| `--status` | Prints the whole edge context without changing anything: role, interface, tunnel address, public key, daemon states, peers with their bindings and link health, and the resolved routing. |
+| `--build-conf` | Writes only engine-private/deploy/conf.wireguard.json and touches no host state. Combine with --wireguard-setup / --peer-add / --peer-remove to author the topology off-box; alone it normalizes and validates the existing registry. |
+| `--forward-proxy-server` | Ensures the hub HTTP/CONNECT forward proxy runs as the underpost-forward-proxy systemd service, bound to the tunnel address only (default port 1080), and returns. Authenticates every request with FORWARD_PROXY_API_KEY, so spokes can reach the internet through the VPS public address. Idempotent: re-running converges on the one service and restarts it only when the unit actually changed. |
+| `--forward-proxy-server-host <host>` | Address the forward proxy binds, overriding the hub tunnel address from the registry. |
+| `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
+| `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in the registry. |
+| `--wireguard-start` | Enables and starts wg-quick@<interface> and the QUIC forward. |
+| `--wireguard-stop` | Tears down the interface and removes its transient packet rules. |
+| `--wireguard-reset` | Removes generated configs and packet rules, keeping the key pair and registry. |
+| `--wireguard-reinstall` | Full purge, package reinstall and re-key; every spoke must re-register. |
+| `--dry-run` | Prints the files and commands the run would apply, without touching the host. |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost vultr
+
+Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues.
+
+**Usage:** `underpost vultr [options] [deploy-list]`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `deploy-list` | A comma-separated list of deployment IDs, logged for attribution. |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--instance-id <instance-id>` | Vultr instance id to meter (default: VULTR_INSTANCE_ID). |
+| `--api-key <api-key>` | Vultr API key (default: VULTR_API_KEY). Prefer the environment over this flag. |
+| `--threshold <ratio>` | Fraction of the plan quota that triggers the egress block; "0.80" and "80" are both accepted (default: 0.80). |
+| `--metric <metric>` | "total" (incoming + outgoing, default) or "outgoing" for egress alone. |
+| `--month <yyyy-mm>` | Billing month to sum (default: the current UTC month). |
+| `--all-dates` | Sum every daily bucket the API returns instead of scoping to one month. |
+| `--host <ip>` | Edge VPS to block (default: VULTR_VPS_IP, then DEFAULT_SSH_HOST). |
+| `--user <user>` | SSH user on the edge VPS (default: VULTR_SSH_USER, then DEFAULT_SSH_USER, then "root"). |
+| `--key-path <path>` | SSH private key (default: VULTR_SSH_KEY_PATH, then DEFAULT_SSH_KEY_PATH). |
+| `--port <port>` | SSH port on the edge VPS (default: VULTR_SSH_PORT, then DEFAULT_SSH_PORT, then 22). |
+| `--force` | Re-apply the egress block even if it was already applied for this cycle. |
+| `--auto-unblock` | Restore egress automatically once consumption falls back under the threshold. |
+| `--dry-run` | Reports the consumption and the action it would take, without touching the edge VPS. |
+| `-h, --help` | display help for command |
+
+---
+
 ### underpost run
 
 Runs specified scripts using various runners.
@@ -837,7 +967,7 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,sops-setup,sops-status,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
+| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,sops-setup,sops-status,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
 | `path` | The input value, identifier, or path for the operation. |
 
 #### Options
@@ -887,7 +1017,7 @@ Runs specified scripts using various runners.
 | `--conf-server-path <conf-server-path>` | Sets a custom configuration server path. |
 | `--underpost-root <underpost-root>` | Sets a custom Underpost root path. |
 | `--cmd-cron-jobs <cmd-cron-jobs>` | Pre-script commands to run before cron job execution. |
-| `--deploy-id-cron-jobs <deploy-id-cron-jobs>` | Specifies deployment IDs to synchronize cron jobs with during execution. |
+| `--deploy-id-cron-jobs <deploy-id-cron-jobs>` | Cron deploy-id to set up during sync; defaults to dd.cron, "none" skips cron setup entirely. |
 | `--timezone <timezone>` | Sets the timezone for the runner execution. |
 | `--kubeadm` | Sets the kubeadm cluster context for the runner execution. |
 | `--k3s` | Sets the k3s cluster context for the runner execution. |

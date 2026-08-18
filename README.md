@@ -16,7 +16,7 @@
 
 <div align="center">
 
-[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![](https://data.jsdelivr.com/v1/package/npm/underpost/badge)](https://www.jsdelivr.com/package/npm/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.2.90)](https://socket.dev/npm/package/underpost/overview/3.2.90) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
+[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![](https://data.jsdelivr.com/v1/package/npm/underpost/badge)](https://www.jsdelivr.com/package/npm/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.3.0)](https://socket.dev/npm/package/underpost/overview/3.3.0) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
 
 </div>
 
@@ -88,7 +88,7 @@ npm run dev
 <!-- cli-index-start -->
 ## Underpost CLI
 
-> underpost ci/cd cli v3.2.90
+> underpost ci/cd cli v3.3.0
 
 **Usage:** `underpost [options] [command]`
 
@@ -127,6 +127,9 @@ npm run dev
 | [`test`](CLI-HELP.md#underpost-test) | Manages and runs tests, defaulting to the current Underpost default test suite. |
 | [`monitor`](CLI-HELP.md#underpost-monitor) | Manages health server monitoring for specified deployments. |
 | [`ssh`](CLI-HELP.md#underpost-ssh) | Manages SSH credentials and sessions for remote access to cluster nodes or services. |
+| [`wireguard`](CLI-HELP.md#underpost-wireguard) | Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it. |
+| [`haproxy`](CLI-HELP.md#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
+| [`vultr`](CLI-HELP.md#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
 | [`run`](CLI-HELP.md#underpost-run) | Runs specified scripts using various runners. |
 | [`docker-compose`](CLI-HELP.md#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
 | [`lxd`](CLI-HELP.md#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |

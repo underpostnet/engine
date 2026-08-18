@@ -37,7 +37,7 @@ main() {
     "Target pod:" \
     14 \
     sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'underpost secret underpost --create-from-env,underpost start --build --run dd-test production' dd-test,1,,underpost/wp:v3.2.90"
+    "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --deploy-id-cron-jobs none --timeout-response 300000ms --cmd 'underpost secret underpost --create-from-env,underpost start --build --run dd-test production' dd-test,1,,underpost/wp:v3.3.0"
 }
 
 main "$@"

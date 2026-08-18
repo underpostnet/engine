@@ -36,7 +36,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --timeout-response 300000ms --deploy-id-cron-jobs none 'dd-lampp,1,,underpost/wp:v3.2.90'"
+        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --timeout-response 300000ms --deploy-id-cron-jobs none 'dd-lampp,1,,underpost/wp:v3.3.0'"
 }
 
 main "$@"

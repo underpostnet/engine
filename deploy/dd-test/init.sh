@@ -51,7 +51,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.2.90' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production'"
+        "cd $ENGINE_ROOT && node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.3.0' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production'"
 
     run_quiet \
         "Issue dd-test certificates" \

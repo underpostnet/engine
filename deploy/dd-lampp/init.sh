@@ -43,7 +43,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-lampp production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --sync --build-manifest --image 'underpost/wp:v3.2.90' --versions green --replicas 1"
+        "cd $ENGINE_ROOT && node bin deploy dd-lampp production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --sync --build-manifest --image 'underpost/wp:v3.3.0' --versions green --replicas 1"
 
     run_quiet \
         "Issue dd-lampp certificates" \

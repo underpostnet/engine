@@ -1,6 +1,115 @@
 # Changelog
 
-## 2026-08-11
+## 2026-08-18
+
+### github-actions
+
+- Add workflow_dispatch trigger event handling in .github/workflows/ghpkg.ci.yml ([e21320cf](https://github.com/underpostnet/engine/commit/e21320cf7542680823758f331bd34d619ca185cd))
+- Reorder coverall test list ([eb20336b](https://github.com/underpostnet/engine/commit/eb20336b29e87f4371528f78099768e8ee36b586))
+- Replace default npm coverall test with scripts/coverall-test.sh ([3471f300](https://github.com/underpostnet/engine/commit/3471f3009391a3f8a1a66cedd1e4761fe5f76712))
+- Refactor move CD workflow commands into deployment scripts with run_quiet wrapper ([222a18d7](https://github.com/underpostnet/engine/commit/222a18d719f33fd678a72f9b05639f86ec4037cd))
+- Update .github/workflows/engine-test.cd.yml ([94e42e58](https://github.com/underpostnet/engine/commit/94e42e58ee4f9eb6542a010e96899000458f3a7b))
+- Add import-default-items steps to cyberia CD ([350444f9](https://github.com/underpostnet/engine/commit/350444f9fb4b34cd15541458c1897299fed7b287))
+- Update.github/workflows/engine-cyberia.cd.yml ([53e9da17](https://github.com/underpostnet/engine/commit/53e9da17127a850aebaa0e5e0e90b593ee0ac03d))
+- Update base node in engine-core CD pipeline ([fa039f25](https://github.com/underpostnet/engine/commit/fa039f25763bb719496b73dd8044af4570be859e))
+
+### cli-cyberia
+
+- Include deploy strategies in generated projects ([66bc733e](https://github.com/underpostnet/engine/commit/66bc733eb22bd74aff5ff249dade0959c876cdae))
+- Refactor make data.item.id is now a unique index for every case ([1391efce](https://github.com/underpostnet/engine/commit/1391efce32f96f56271a1060304bb7b26556b80d))
+- Add WebSocket load test runner command ([eebec67e](https://github.com/underpostnet/engine/commit/eebec67edd1bfda0bf6f8205305a90cd73441e4c))
+
+### engine
+
+- Expand server module JSDoc annotations ([213a5519](https://github.com/underpostnet/engine/commit/213a55191dc388d227315f07116148d5b731b883))
+- Move writeEnv helper into environment module ([9c57e362](https://github.com/underpostnet/engine/commit/9c57e3629a682da0c7aa45e0cb24d24d3af3cdab))
+- Fix SELinux host paths mounts logic and definition ([6cf8dda1](https://github.com/underpostnet/engine/commit/6cf8dda113b92fea011e3825035147ae33a1bc7f))
+- Extract environment and cron deploy helpers into dedicated modules ([6ba3fa4c](https://github.com/underpostnet/engine/commit/6ba3fa4c372a2eb1afe87c6fc5c0681209a96b07))
+- Enforce SELinux across cluster, SSH, and provisioning ([9d57a359](https://github.com/underpostnet/engine/commit/9d57a359dd94067dfb48fceab9006e3ef3d7d502))
+
+### cli-wireguard
+
+- Add SSH forwarding via VPS edge ([54de1e6e](https://github.com/underpostnet/engine/commit/54de1e6e5dddccad5c056da152cb32712ab3ba25))
+- Extract forward proxy and systemd helpers into server modules ([97be08d1](https://github.com/underpostnet/engine/commit/97be08d107e825c2ff5a97382ebb9367a6ad3523))
+- Implement HTTP/CONNECT forward proxy for WireGuard ([a95163df](https://github.com/underpostnet/engine/commit/a95163df2797bbfa86d3d1f422fe0afd224b72b3))
+- Implement idempotent in Restart, reconnect, and reset pipeline ([65710c3b](https://github.com/underpostnet/engine/commit/65710c3bd3056b1f2cc49e3b82517d081f7f25df))
+- Implement Edge Hub WireGuard and HAProxy CLI module ([2e293b87](https://github.com/underpostnet/engine/commit/2e293b87540a43489bb535e2ab731581809b1848))
+
+### catalog-cyberia
+
+- Add coverall cyberia trigger script ([c8e59eed](https://github.com/underpostnet/engine/commit/c8e59eed08c113d39a99f5151d8d6b4af96fb4e9))
+
+### scripts
+
+- Mark scripts as executable ([8f04cbc7](https://github.com/underpostnet/engine/commit/8f04cbc700e2bc17b917ea49450efabc766e27ed))
+
+### release
+
+- Fix missing file bump version scopes ([4aa983a5](https://github.com/underpostnet/engine/commit/4aa983a5d8aea7983295ee01799c358ed1b9c2bc))
+
+### deploy
+
+- Mark deploy scripts as executable ([b18151bf](https://github.com/underpostnet/engine/commit/b18151bfaa52c17b2540e0a2706b79a8850fee84))
+
+### hardhat
+
+- Update hardhat npm module version to sync current project scope v3.2.90 ([8fc717b9](https://github.com/underpostnet/engine/commit/8fc717b9913c69a41c2c9e88b2b7f720a4a7cb09))
+- Update undici override dependency to v6.28.0 ([fb2d2aa3](https://github.com/underpostnet/engine/commit/fb2d2aa3b502b5552212f63d9a01f23d2333b296))
+
+### dependabot
+
+- Disable typescript autoupdate ([8bd76183](https://github.com/underpostnet/engine/commit/8bd7618336423a1df1d4ca77cd138aef51902d6c))
+
+### cli-client
+
+- Add only ssr build workload flag option and logic ([92026a66](https://github.com/underpostnet/engine/commit/92026a66ec3c403219af62bfc5bcc78917d537ed))
+
+### cli-cron
+
+- Fix cron CLI setup flag and single job execution ([84eab73d](https://github.com/underpostnet/engine/commit/84eab73d9a618244b46e699ba65b469940d1a267))
+
+### cli-repository
+
+- Add getDefaultBranch resolve in switchRemote method ([04bc8743](https://github.com/underpostnet/engine/commit/04bc8743b6f4c5f9edd891276137183fa444d447))
+
+### cli-ssh
+
+- Add initializeDefaultSshConfig method ([84f5f869](https://github.com/underpostnet/engine/commit/84f5f8698810596f084e632487208ea909feddfd))
+
+### cli-vultr
+
+- Add Vultr Bandwidth Monitor cron job CLI Module ([22fb9249](https://github.com/underpostnet/engine/commit/22fb9249ad40ba24a8cd87da43d742b1972c4fbb))
+
+### cli-dns
+
+- Add blokc/unblock ingress/egress workflow handling ([980fab35](https://github.com/underpostnet/engine/commit/980fab35aba6a279b94701550edfd765c8b422a2))
+
+### underpost-ingress
+
+- Enable response compression in ingress and gateway ([7763f9da](https://github.com/underpostnet/engine/commit/7763f9da2b81128042cef2a73ca5570938dcd3f5))
+
+### test
+
+- Fix missing pngjs import in object-layer test pipeline ([20c1f24d](https://github.com/underpostnet/engine/commit/20c1f24d865d5cdeb70a365c93f8c797c28fe960))
+- Add WebSocket load test for cyberia-server ([e3ff2777](https://github.com/underpostnet/engine/commit/e3ff277725e33dace3ed3268e6f60299ea146f59))
+
+### engine-cyberia
+
+- Remove eiri from entity default inventory ([e8f8d03c](https://github.com/underpostnet/engine/commit/e8f8d03c7e326fac012722f659def7d7a7da882c))
+- Add fallback world default items staging and hot reload ([e646c430](https://github.com/underpostnet/engine/commit/e646c430d72ea7a319cf1640bd4c7505cbb40b87))
+- Add playerBaseSpeed field to instance config defaults ([7cdbd23d](https://github.com/underpostnet/engine/commit/7cdbd23d255bb47e253e60f7ec0cc6c3600d5678))
+- Add WebSocket connection limit env to cyberia-server ([c6f834c7](https://github.com/underpostnet/engine/commit/c6f834c7dc7bcae24d4f493a005cdb2d1b76a73d))
+
+### client-cyberia
+
+- Add Fallback World Engine editor view ([cf61dfe8](https://github.com/underpostnet/engine/commit/cf61dfe8e7eec7556f5bd07e445d6759d9b432e4))
+- Implement IPFS cid filters in ObjectLayerEngineViewer component ([93eb6992](https://github.com/underpostnet/engine/commit/93eb69928bf8ea6915f70b1ca4307fa582cc17b6))
+
+### docs
+
+- Document moveAck reconciliation and move coalescing in Cyberia replication ([24b14ca4](https://github.com/underpostnet/engine/commit/24b14ca4ee4c9ef0ce4dc9e3135e4990ed0a8274))
+
+## New release v:3.2.90 (2026-08-11)
 
 ### cli-run
 
