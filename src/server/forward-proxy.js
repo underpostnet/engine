@@ -1,4 +1,8 @@
-/** Authenticated HTTP/HTTPS forward-proxy primitives. */
+/**
+ * Authenticated HTTP/HTTPS forward-proxy primitives.
+ * @module src/server/forward-proxy.js
+ * @namespace ForwardProxy
+ */
 'use strict';
 
 import http from 'node:http';
@@ -17,6 +21,11 @@ import {
 const logger = loggerFactory(import.meta);
 const proxyLogger = loggerFactory(import.meta, 'debug');
 
+/**
+ * Forward-proxy defaults, service metadata, and environment variable names.
+ * @constant {object}
+ * @memberof ForwardProxy
+ */
 const FORWARD_PROXY = Object.freeze({
   port: 1080,
   timeoutMs: 30000,
@@ -33,6 +42,12 @@ const FORWARD_PROXY = Object.freeze({
   defaultHost: '10.0.0.1',
 });
 
+/**
+ * Hop-by-hop headers that must not be sent to an upstream server.
+ * @constant {Set<string>}
+ * @private
+ * @memberof ForwardProxy
+ */
 const FORWARD_PROXY_HOP_HEADERS = new Set([
   'connection',
   'keep-alive',
@@ -45,6 +60,15 @@ const FORWARD_PROXY_HOP_HEADERS = new Set([
   'upgrade',
 ]);
 
+/**
+ * Compares two non-empty values without returning early on a mismatched byte.
+ * @method secretEqual
+ * @param {*} a - First value.
+ * @param {*} b - Second value.
+ * @returns {boolean} Whether both values are equal and non-empty.
+ * @private
+ * @memberof ForwardProxy
+ */
 const secretEqual = (a, b) => {
   const left = `${a ?? ''}`;
   const right = `${b ?? ''}`;
@@ -54,6 +78,13 @@ const secretEqual = (a, b) => {
   return diff === 0;
 };
 
+/**
+ * Validates a bearer credential against a configured proxy API key.
+ * @method forwardProxyAuthorizedFactory
+ * @param {{header?: string, apiKey?: string}} [options={}] - Credential inputs.
+ * @returns {boolean} Whether the request is authorized.
+ * @memberof ForwardProxy
+ */
 const forwardProxyAuthorizedFactory = ({ header = '', apiKey = '' } = {}) => {
   const expected = `${apiKey || ''}`.trim();
   if (!expected) return false;
@@ -61,6 +92,13 @@ const forwardProxyAuthorizedFactory = ({ header = '', apiKey = '' } = {}) => {
   return match ? secretEqual(match[1].trim(), expected) : false;
 };
 
+/**
+ * Parses an absolute HTTP request URI into upstream request options.
+ * @method forwardProxyTargetFactory
+ * @param {string} requestUrl - Absolute HTTP request URI.
+ * @returns {{hostname: string, port: number, host: string, path: string}|null} Parsed target or `null` when invalid.
+ * @memberof ForwardProxy
+ */
 const forwardProxyTargetFactory = (requestUrl) => {
   try {
     const target = new URL(requestUrl);
@@ -76,6 +114,13 @@ const forwardProxyTargetFactory = (requestUrl) => {
   }
 };
 
+/**
+ * Parses a CONNECT authority into a hostname and TCP port.
+ * @method forwardProxyTunnelTargetFactory
+ * @param {string} authority - CONNECT authority, optionally including a port.
+ * @returns {{hostname: string, port: number}|null} Parsed target or `null` when invalid.
+ * @memberof ForwardProxy
+ */
 const forwardProxyTunnelTargetFactory = (authority) => {
   const match = /^(\[[^\]]+\]|[^:@/\s]+)(?::(\d+))?$/.exec(`${authority || ''}`.trim());
   if (!match) return null;
@@ -84,17 +129,38 @@ const forwardProxyTunnelTargetFactory = (authority) => {
   return { hostname: match[1].replace(/^\[|\]$/g, ''), port };
 };
 
+/**
+ * Removes hop-by-hop headers before forwarding a request or response.
+ * @method forwardProxyHeadersFactory
+ * @param {object} [headers={}] - Header map to filter.
+ * @returns {object} Header map safe to forward.
+ * @memberof ForwardProxy
+ */
 const forwardProxyHeadersFactory = (headers = {}) =>
   Object.fromEntries(
     Object.entries(headers || {}).filter(([name]) => !FORWARD_PROXY_HOP_HEADERS.has(`${name}`.toLowerCase())),
   );
 
+/**
+ * Resolves proxy connection settings from explicit values and environment variables.
+ * @method forwardProxyConfigFactory
+ * @param {{host?: string, port?: string|number, apiKey?: string}} [options={}] - Proxy overrides.
+ * @returns {{host: string, port: number, apiKey: string}} Resolved proxy configuration.
+ * @memberof ForwardProxy
+ */
 const forwardProxyConfigFactory = ({ host, port, apiKey } = {}) => ({
   host: `${host || environmentValueFactory(FORWARD_PROXY.env.host)}`.trim() || FORWARD_PROXY.defaultHost,
   port: Number(port || environmentValueFactory(FORWARD_PROXY.env.port)) || FORWARD_PROXY.port,
   apiKey: `${apiKey || environmentValueFactory(FORWARD_PROXY.env.apiKey)}`.trim(),
 });
 
+/**
+ * Builds the CLI command that starts the forward-proxy server.
+ * @method forwardProxyCommandFactory
+ * @param {{host?: string, port?: string|number, execPath?: string, scriptPath?: string}} options - Command inputs.
+ * @returns {string} Shell command.
+ * @memberof ForwardProxy
+ */
 const forwardProxyCommandFactory = ({ host, port, execPath = process.execPath, scriptPath = process.argv[1] }) =>
   [
     execPath,
@@ -105,6 +171,13 @@ const forwardProxyCommandFactory = ({ host, port, execPath = process.execPath, s
     `--forward-proxy-server-port ${port}`,
   ].join(' ');
 
+/**
+ * Orders Node executable candidates for a systemd service probe.
+ * @method forwardProxyNodeCandidatesFactory
+ * @param {{execPath?: string, systemPaths?: string[]}} [options={}] - Candidate sources.
+ * @returns {string[]} Ordered, unique executable paths.
+ * @memberof ForwardProxy
+ */
 const forwardProxyNodeCandidatesFactory = ({
   execPath = process.execPath,
   systemPaths = FORWARD_PROXY.nodePaths,
@@ -114,9 +187,24 @@ const forwardProxyNodeCandidatesFactory = ({
   return [...new Set([...(own && !inHome ? [own] : []), ...systemPaths, ...(own && inHome ? [own] : [])])];
 };
 
+/**
+ * Builds a transient systemd command that probes a Node executable.
+ * @method forwardProxyNodeProbeCommandFactory
+ * @param {string} nodePath - Candidate Node executable path.
+ * @param {string} [user] - User that will own the service.
+ * @returns {string} systemd-run command.
+ * @memberof ForwardProxy
+ */
 const forwardProxyNodeProbeCommandFactory = (nodePath, user = os.userInfo().username) =>
   systemdRunCommandFactory({ command: `${nodePath} --version`, user, properties: { Type: 'oneshot' } });
 
+/**
+ * Builds a transient systemd command that probes the proxy entry script.
+ * @method forwardProxyStartProbeCommandFactory
+ * @param {{nodePath: string, scriptPath?: string, user?: string, workingDirectory?: string}} options - Probe inputs.
+ * @returns {string} systemd-run command.
+ * @memberof ForwardProxy
+ */
 const forwardProxyStartProbeCommandFactory = ({
   nodePath,
   scriptPath = process.argv[1],
@@ -129,6 +217,13 @@ const forwardProxyStartProbeCommandFactory = ({
     properties: { Type: 'oneshot', WorkingDirectory: workingDirectory },
   });
 
+/**
+ * Renders the systemd unit used to supervise the forward proxy.
+ * @method forwardProxyUnitFactory
+ * @param {{host?: string, port?: string|number, apiKey?: string, interfaceName?: string, workingDirectory?: string, user?: string, command?: string}} [options={}] - Unit inputs.
+ * @returns {string} Rendered systemd unit file.
+ * @memberof ForwardProxy
+ */
 const forwardProxyUnitFactory = ({
   host,
   port,
@@ -167,12 +262,29 @@ const forwardProxyUnitFactory = ({
   });
 };
 
+/**
+ * Builds lifecycle commands for the forward-proxy systemd service.
+ * @method forwardProxyServiceCommandsFactory
+ * @param {{changed?: boolean, name?: string, unitPath?: string}} [options={}] - Service state inputs.
+ * @returns {{ensure: string[], remove: string[]}} Commands grouped by lifecycle operation.
+ * @memberof ForwardProxy
+ */
 const forwardProxyServiceCommandsFactory = ({
   changed = false,
   name = FORWARD_PROXY.serviceName,
   unitPath = FORWARD_PROXY.unitPath,
 } = {}) => systemdServiceCommandsFactory({ changed, name, unitPath });
 
+/**
+ * Sends a plain-text proxy refusal response.
+ * @method forwardProxyRefuse
+ * @param {import('node:http').ServerResponse} res - Response to close.
+ * @param {number} status - HTTP status code.
+ * @param {string} message - Response body message.
+ * @returns {void}
+ * @private
+ * @memberof ForwardProxy
+ */
 const forwardProxyRefuse = (res, status, message) => {
   res.writeHead(status, {
     'content-type': 'text/plain',
@@ -181,6 +293,13 @@ const forwardProxyRefuse = (res, status, message) => {
   res.end(`${message}\n`);
 };
 
+/**
+ * Creates an HTTP request handler that relays authenticated proxy traffic.
+ * @method forwardProxyRequestHandlerFactory
+ * @param {{apiKey: string, timeoutMs?: number}} options - Authentication and timeout settings.
+ * @returns {Function} Node HTTP request handler.
+ * @memberof ForwardProxy
+ */
 const forwardProxyRequestHandlerFactory = ({ apiKey, timeoutMs = FORWARD_PROXY.timeoutMs }) =>
   function forwardProxyRequestHandler(req, res) {
     if (!forwardProxyAuthorizedFactory({ header: req.headers['proxy-authorization'], apiKey }))
@@ -213,6 +332,13 @@ const forwardProxyRequestHandlerFactory = ({ apiKey, timeoutMs = FORWARD_PROXY.t
     req.pipe(upstream);
   };
 
+/**
+ * Creates a CONNECT handler that relays authenticated TLS tunnels.
+ * @method forwardProxyConnectHandlerFactory
+ * @param {{apiKey: string, timeoutMs?: number}} options - Authentication and timeout settings.
+ * @returns {Function} Node HTTP CONNECT handler.
+ * @memberof ForwardProxy
+ */
 const forwardProxyConnectHandlerFactory = ({ apiKey, timeoutMs = FORWARD_PROXY.timeoutMs }) =>
   function forwardProxyConnectHandler(req, clientSocket, head) {
     const startedAt = Date.now();
@@ -253,6 +379,14 @@ const forwardProxyConnectHandlerFactory = ({ apiKey, timeoutMs = FORWARD_PROXY.t
     clientSocket.on('close', () => upstream.destroy());
   };
 
+/**
+ * Resolves a completed client request to its buffered proxy response.
+ * @method forwardProxyResponseFactory
+ * @param {{request: import('node:http').ClientRequest, body?: string|null, timeoutMs: number}} options - Request inputs.
+ * @returns {Promise<{status: number|undefined, headers: object, body: string}>} Buffered response.
+ * @private
+ * @memberof ForwardProxy
+ */
 const forwardProxyResponseFactory = ({ request, body = null, timeoutMs }) =>
   new Promise((resolve, reject) => {
     request.once('response', (res) => {
@@ -269,6 +403,14 @@ const forwardProxyResponseFactory = ({ request, body = null, timeoutMs }) =>
     request.end();
   });
 
+/**
+ * Opens an authenticated CONNECT tunnel through the configured proxy.
+ * @method forwardProxyTunnelFactory
+ * @param {{proxy: {host: string, port: number, apiKey: string}, authority: string, timeoutMs: number}} options - Tunnel inputs.
+ * @returns {Promise<import('node:net').Socket>} Connected tunnel socket.
+ * @private
+ * @memberof ForwardProxy
+ */
 const forwardProxyTunnelFactory = ({ proxy, authority, timeoutMs }) =>
   new Promise((resolve, reject) => {
     const request = http.request({
@@ -279,8 +421,7 @@ const forwardProxyTunnelFactory = ({ proxy, authority, timeoutMs }) =>
       headers: { host: authority, 'proxy-authorization': `Bearer ${proxy.apiKey}` },
       agent: false,
     });
-    const refused = (status) =>
-      reject(new Error(`[forward-proxy] proxy refused CONNECT ${authority} (${status})`));
+    const refused = (status) => reject(new Error(`[forward-proxy] proxy refused CONNECT ${authority} (${status})`));
     request.once('connect', (res, socket) => {
       if (res.statusCode !== 200) {
         socket.destroy();
@@ -299,6 +440,13 @@ const forwardProxyTunnelFactory = ({ proxy, authority, timeoutMs }) =>
     request.end();
   });
 
+/**
+ * Starts an authenticated HTTP forward-proxy server.
+ * @method forwardProxyServerFactory
+ * @param {{config: {host: string, port: number, apiKey: string, timeoutMs?: number}, requestMiddleware?: Function, onError?: Function, onListen?: Function}} [options={}] - Server configuration and hooks.
+ * @returns {import('node:http').Server} Listening proxy server.
+ * @memberof ForwardProxy
+ */
 const forwardProxyServerFactory = ({ config, requestMiddleware, onError, onListen } = {}) => {
   const server = http.createServer();
   const relay = forwardProxyRequestHandlerFactory(config);
@@ -313,6 +461,15 @@ const forwardProxyServerFactory = ({ config, requestMiddleware, onError, onListe
   return server;
 };
 
+/**
+ * Fetches an HTTP or HTTPS resource through the authenticated forward proxy.
+ * @async
+ * @method fetchViaForwardProxy
+ * @param {string|URL} url - Target resource URL.
+ * @param {{proxy?: {host?: string, port?: string|number, apiKey?: string}, method?: string, timeout?: number, body?: *, headers?: object}} [options={}] - Request options.
+ * @returns {Promise<{status: number|undefined, headers: object, body: string}>} Buffered upstream response.
+ * @memberof ForwardProxy
+ */
 const fetchViaForwardProxy = async (url, options = {}) => {
   const target = new URL(url);
   const proxy = forwardProxyConfigFactory(options.proxy);

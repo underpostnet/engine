@@ -1,26 +1,6 @@
 /**
  * Response compression policy for the Nginx workloads on the request path.
  *
- * Egress is metered at the edge hub, so a byte reaching a client is a byte
- * billed. Only two hops in the whole path can shrink one, because only two ever
- * see a response body in the clear:
- *
- * - `underpost-gateway`, which serves every status/maintenance document from
- *   disk and reverse-proxies the site paths whose errors it intercepts.
- * - `underpost-ingress` on `:80`, the one port it proxies at L7.
- *
- * `:443` is forwarded at L4 by both `underpost-ingress` and the HAProxy edge
- * hub — the SNI is read, nothing is decrypted — so a compression directive
- * there would have no body to act on. Compressing further in still reaches the
- * wire: the data plane that terminates TLS re-encrypts the body it was handed,
- * it does not re-encode it, and the tunnel carries whatever that produced.
- *
- * Brotli is not part of the stock nginx build. It is a dynamic module an image
- * either carries or does not, and `brotli on;` in an image without it is an
- * unknown directive — a start-up failure, not a degraded mode, on the workload
- * that holds the node's ports. So it is declared rather than assumed: the image
- * and the directory its modules live in are one decision, made here.
- *
  * @module src/server/underpost-compression.js
  * @namespace UnderpostCompression
  */
