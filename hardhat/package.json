@@ -1,6 +1,6 @@
 {
   "name": "cyberia-hardhat",
-  "version": "1.0.0",
+  "version": "3.2.90",
   "type": "module",
   "description": "Hardhat project for Cyberia Online ObjectLayerToken (ERC-1155) on Hyperledger Besu",
   "private": true,
