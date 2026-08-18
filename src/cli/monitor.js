@@ -8,10 +8,10 @@ import {
   loadReplicas,
   pathPortAssignmentFactory,
   loadConfServerJson,
-  loadCronDeployEnv,
   etcHostFactory,
   deployRangePortFactory,
 } from '../server/conf.js';
+import { loadCronDeployEnv } from '../server/cron.js';
 import { loggerFactory } from '../server/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import {

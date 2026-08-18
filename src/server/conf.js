@@ -167,63 +167,6 @@ const getConfFolder = (deployId) => {
 };
 
 /**
- * Reads `engine-private/deploy/dd.cron` and returns the deploy-id string,
- * or `null` if the file does not exist or is empty.
- *
- * @method cronDeployIdResolve
- * @returns {string|null} The deploy-id from dd.cron, or null.
- * @memberof ServerConfBuilder
- */
-const cronDeployIdResolve = () => {
-  const cronDeployFile = './engine-private/deploy/dd.cron';
-  if (fs.existsSync(cronDeployFile)) {
-    const id = fs.readFileSync(cronDeployFile, 'utf8').trim();
-    return id || null;
-  }
-  return null;
-};
-
-/**
- * Loads the deployment-specific `.env` file referenced by `engine-private/deploy/dd.cron`
- * into `process.env`. Uses `NODE_ENV` to select the environment variant
- * (defaults to `production`).
- *
- * Safe to call multiple times; subsequent calls are no-ops once the env is loaded.
- *
- * @method loadCronDeployEnv
- * @memberof ServerConfBuilder
- */
-function loadCronDeployEnv() {
-  const envName = process.env.NODE_ENV || 'production';
-
-  // 1) Load dd.cron env (takes full precedence)
-  const cronDeployId = cronDeployIdResolve();
-  if (cronDeployId) {
-    const cronEnvPath = `./engine-private/conf/${cronDeployId}/.env.${envName}`;
-    if (fs.existsSync(cronEnvPath)) {
-      const cronEnv = dotenv.parse(fs.readFileSync(cronEnvPath, 'utf8'));
-      process.env = { ...process.env, ...cronEnv };
-    }
-  }
-
-  // 2) Load dd.router envs — only keys not already present
-  const routerDeployFile = './engine-private/deploy/dd.router';
-  if (fs.existsSync(routerDeployFile)) {
-    const routerIds = fs.readFileSync(routerDeployFile, 'utf8').trim().split(',');
-    for (const deployId of routerIds) {
-      const id = deployId.trim();
-      if (!id) continue;
-      const envPath = `./engine-private/conf/${id}/.env.${envName}`;
-      if (!fs.existsSync(envPath)) continue;
-      const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      for (const key of Object.keys(env)) {
-        if (!(key in process.env)) process.env[key] = env[key];
-      }
-    }
-  }
-}
-
-/**
  * Resolves the full path to a specific configuration JSON file for a deploy ID.
  * For `server` configs in development mode with a subConf, it will prefer the
  * dev-specific variant if it exists.
@@ -1430,27 +1373,6 @@ const generateSecurePassword = (length = 16) => {
   }
   return chars.join('');
 };
-
-/**
- * @method getNpmRootPath
- * @description Gets the npm root path.
- * @returns {string} - The npm root path.
- * @memberof ServerConfBuilder
- */
-const getNpmRootPath = () =>
-  shellExec(`npm root -g`, {
-    stdout: true,
-    disableLog: true,
-    silent: true,
-  }).trim();
-
-/**
- * @method getUnderpostRootPath
- * @description Gets the underpost root path.
- * @returns {string} - The underpost root path.
- * @memberof ServerConfBuilder
- */
-const getUnderpostRootPath = () => `${getNpmRootPath()}/underpost`;
 
 /**
  * @method writeEnv
@@ -3389,8 +3311,6 @@ export {
   splitFileFactory,
   generateSecurePassword,
   resolveReplicaCount,
-  getNpmRootPath,
-  getUnderpostRootPath,
   writeEnv,
   pathPortAssignmentFactory,
   deployRangePortFactory,
@@ -3411,8 +3331,6 @@ export {
   getConfFilePath,
   readConfJson,
   DEFAULT_DEPLOY_ID,
-  loadCronDeployEnv,
-  cronDeployIdResolve,
   clusterContextFactory,
   clusterTypeFactory,
   exposeTcpPortsFactory,

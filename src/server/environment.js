@@ -1,0 +1,71 @@
+/**
+ * Environment and global installation path resolution.
+ * @module src/server/environment.js
+ * @namespace ServerEnvironment
+ */
+'use strict';
+
+import dotenv from 'dotenv';
+import fs from 'fs-extra';
+import { execFileSync } from 'node:child_process';
+import { loggerFactory } from './logger.js';
+
+const logger = loggerFactory(import.meta);
+const envFileCache = new Map();
+let rootEnvPath;
+
+/**
+ * Resolves the global npm module directory.
+ * @returns {string}
+ * @memberof ServerEnvironment
+ */
+const getNpmRootPath = () => {
+  try {
+    return execFileSync('npm', ['root', '-g'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * Resolves the global Underpost installation directory.
+ * @returns {string}
+ * @memberof ServerEnvironment
+ */
+const getUnderpostRootPath = () => {
+  const npmRoot = getNpmRootPath();
+  return npmRoot ? `${npmRoot}/underpost` : '';
+};
+
+const readEnvFile = (path) => {
+  if (envFileCache.has(path)) return envFileCache.get(path);
+  let values = {};
+  try {
+    if (path && fs.existsSync(path)) values = dotenv.parse(fs.readFileSync(path, 'utf8'));
+  } catch (error) {
+    logger.warn('Ignoring unreadable env file', { target: path, message: error.message });
+  }
+  envFileCache.set(path, values);
+  return values;
+};
+
+const environmentValueFactory = (key) => {
+  const processValue = `${process.env[key] ?? ''}`.trim();
+  if (processValue) return processValue;
+
+  if (rootEnvPath === undefined) {
+    const underpostRoot = getUnderpostRootPath();
+    rootEnvPath = underpostRoot ? `${underpostRoot}/.env` : '';
+  }
+
+  for (const path of ['./.env', rootEnvPath]) {
+    const value = `${readEnvFile(path)[key] ?? ''}`.trim();
+    if (value) return value;
+  }
+  return '';
+};
+
+export { environmentValueFactory, getNpmRootPath, getUnderpostRootPath };

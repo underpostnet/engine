@@ -5,15 +5,13 @@
  * @namespace UnderpostDns
  */
 import axios from 'axios';
-import fs from 'fs';
 import validator from 'validator';
 import { loggerFactory } from './logger.js';
 import dns from 'node:dns';
 import os from 'node:os';
 import { shellExec, pbcopy } from './process.js';
 import Underpost from '../index.js';
-import { writeEnv, readConfJson, loadCronDeployEnv } from './conf.js';
-import { resolveDeployId } from './cron.js';
+import { readConfJson } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -356,10 +354,8 @@ class Dns {
    * @memberof UnderpostDns
    * @param {string} deployList Comma-separated string of deployment IDs to process.
    * @returns {Promise<void>}
-   */
+  */
   static async callback(deployList) {
-    // loadCronDeployEnv();
-
     const isOnline = await Dns.isInternetConnection();
 
     if (!isOnline) return;

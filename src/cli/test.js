@@ -7,7 +7,7 @@
 import fs from 'fs-extra';
 import { timer } from '../client/components/core/CommonJs.js';
 import { MariaDB } from '../db/mariadb/MariaDB.js';
-import { getNpmRootPath } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import { actionInitLog, loggerFactory, setUpInfo } from '../server/logger.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import Underpost from '../index.js';

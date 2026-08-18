@@ -11,7 +11,6 @@ import { actionInitLog, loggerFactory } from '../server/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
 import {
-  getNpmRootPath,
   Config,
   loadConf,
   readConfJson,
@@ -23,6 +22,7 @@ import {
   writeEnv,
   readConfInstances,
 } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../client-builder/client-build.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';

@@ -2,7 +2,8 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
 import { Command } from 'commander';
-import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.js';
+import { loadConf } from '../server/conf.js';
+import { getNpmRootPath, getUnderpostRootPath } from '../server/environment.js';
 import { commitData } from '../client/components/core/CommonJs.js';
 
 import Underpost from '../index.js';

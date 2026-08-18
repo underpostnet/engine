@@ -10,7 +10,6 @@ import nodePath from 'path';
 import crypto from 'crypto';
 import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
-import { getNpmRootPath } from '../server/conf.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory } from '../server/cri.js';
 

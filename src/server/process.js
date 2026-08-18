@@ -25,7 +25,6 @@ import shell from 'shelljs';
 import { loggerFactory } from './logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../index.js';
-import { getNpmRootPath } from './conf.js';
 const logger = loggerFactory(import.meta);
 /**
  * Gets the current working directory, replacing backslashes with forward slashes for consistency.

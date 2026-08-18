@@ -5,9 +5,8 @@
  */
 
 import { fileURLToPath } from 'url';
-import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import { pbcopy, shellExec } from '../server/process.js';
-import dotenv from 'dotenv';
 import { loggerFactory, loggerMiddleware } from '../server/logger.js';
 import fs from 'fs-extra';
 import path from 'path';

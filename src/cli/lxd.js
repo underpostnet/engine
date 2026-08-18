@@ -5,7 +5,7 @@
  *
  */
 
-import { getNpmRootPath } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import walk from 'ignore-walk';
 import fs from 'fs-extra';

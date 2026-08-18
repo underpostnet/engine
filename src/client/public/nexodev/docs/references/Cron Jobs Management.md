@@ -249,6 +249,8 @@ Each run:
 
 Those three reads go **through the edge hub's forward proxy** when `FORWARD_PROXY_API_KEY` resolves, and straight out otherwise. The job runs in a CronJob inside a spoke cluster, so a direct call reaches Vultr from a residential ISP address while a proxied one reaches it from the very VPS being metered — which is what an API key scoped to the edge's address requires. The path taken is reported in every run's summary as `via: 'forward-proxy 10.0.0.1'` or `via: 'direct'`. Set it up with [`underpost wireguard --forward-proxy-server`](<./Edge Hub WireGuard and HAProxy.md#outbound-forward-proxy>) on the hub.
 
+The spoke WireGuard setup also installs tunnel-scoped forwarding and masquerade rules so pod CIDRs do not have to be registered on the hub. After upgrading an existing spoke, run `node bin wireguard --wireguard-setup --client --wireguard-stop --wireguard-start` once before testing an immediate CronJob. Setup runs first, so invalid settings abort before the previous interface is stopped.
+
 Guards, in the order they apply:
 
 | Guard                           | Behaviour                                                                                                                                                                                                           |
@@ -277,7 +279,7 @@ underpost vultr --metric outgoing  # count egress alone instead of both directio
 `./engine-private/deploy/dd.cron` — stores the default cron deploy-id (e.g. `dd-cron`). Used when
 no deploy-id argument is provided.
 
-Every consumer reads it through one helper, `cronDeployIdResolve()` in `src/server/conf.js`: the
+Every consumer reads it through one helper, `cronDeployIdResolve()` in `src/server/cron.js`: the
 `deploy-list` fallback in `--setup-start` and `--generate-k8s-cronjobs`, the deploy-list baked
 into each generated manifest (`getRelatedDeployIdList`, except `backup`, which reads
 `dd.router`), the env loaded by `loadCronDeployEnv()`, and the `sync` runner's cron step. A

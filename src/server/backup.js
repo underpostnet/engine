@@ -7,7 +7,7 @@
 import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import Underpost from '../index.js';
-import { loadCronDeployEnv } from './conf.js';
+import { loadCronDeployEnv } from './cron.js';
 
 const logger = loggerFactory(import.meta);
 

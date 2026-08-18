@@ -10,7 +10,6 @@ import {
   buildProxyRouter,
   clusterTypeFactory,
   Config,
-  cronDeployIdResolve,
   deployHostsFactory,
   deployRangePortFactory,
   gatewayApiEnabledFactory,
@@ -24,6 +23,7 @@ import {
   schedulableNodeFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
+import { cronDeployIdResolve } from '../server/cron.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime-status.js';

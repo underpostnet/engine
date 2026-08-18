@@ -7,8 +7,9 @@
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
+import dotenv from 'dotenv';
 import Underpost from '../index.js';
-import { cronDeployIdResolve, getUnderpostRootPath, loadCronDeployEnv } from './conf.js';
+import { getUnderpostRootPath } from './environment.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -18,6 +19,44 @@ const cronVolumeName = 'underpost-cron-container-volume';
 const shareEnvVolumeName = 'underpost-share-env';
 const underpostContainerEnvDir = '/usr/lib/node_modules/underpost';
 const DEFAULT_CRON_ID = 'dd-cron';
+
+/**
+ * Resolves the deploy ID stored in `engine-private/deploy/dd.cron`.
+ * @returns {string|null}
+ * @memberof UnderpostCron
+ */
+const cronDeployIdResolve = () => {
+  const path = './engine-private/deploy/dd.cron';
+  if (!fs.existsSync(path)) return null;
+  return fs.readFileSync(path, 'utf8').trim() || null;
+};
+
+/**
+ * Loads cron and router deployment environment files into `process.env`.
+ * @returns {void}
+ * @memberof UnderpostCron
+ */
+const loadCronDeployEnv = () => {
+  const envName = process.env.NODE_ENV || 'production';
+  const cronDeployId = cronDeployIdResolve();
+
+  if (cronDeployId) {
+    const path = `./engine-private/conf/${cronDeployId}/.env.${envName}`;
+    if (fs.existsSync(path)) process.env = { ...process.env, ...dotenv.parse(fs.readFileSync(path, 'utf8')) };
+  }
+
+  const routerPath = './engine-private/deploy/dd.router';
+  if (!fs.existsSync(routerPath)) return;
+  for (const deployId of fs.readFileSync(routerPath, 'utf8').trim().split(',')) {
+    const id = deployId.trim();
+    const path = `./engine-private/conf/${id}/.env.${envName}`;
+    if (!id || !fs.existsSync(path)) continue;
+    const env = dotenv.parse(fs.readFileSync(path, 'utf8'));
+    for (const [key, value] of Object.entries(env)) {
+      if (!(key in process.env)) process.env[key] = value;
+    }
+  }
+};
 
 /**
  * Generates a Kubernetes CronJob YAML manifest string.
@@ -154,9 +193,7 @@ const syncEngineToKindWorker = () => {
 
 /**
  * Resolves the deploy-id to use for cron job generation.
- * When deployId is provided directly, uses it. Otherwise defers to the shared
- * `cronDeployIdResolve()` (engine-private/deploy/dd.cron), the single source of
- * truth every caller of the cron CLI resolves against.
+ * Uses the explicit value or the deploy ID stored in `dd.cron`.
  *
  * @param {string} [deployId] - Explicit deploy-id override
  * @memberof UnderpostCron
@@ -634,4 +671,4 @@ class UnderpostCron {
 
 export default UnderpostCron;
 
-export { cronJobYamlFactory, resolveDeployId };
+export { cronDeployIdResolve, cronJobYamlFactory, loadCronDeployEnv, resolveDeployId };

@@ -4,13 +4,12 @@
  * @namespace UnderpostRun
  */
 
-import { daemonProcess, getTerminalPid, pbcopy, shellCd, shellExec } from '../server/process.js';
+import { daemonProcess, pbcopy, shellCd, shellExec } from '../server/process.js';
 import {
   awaitDeployMonitor,
   buildKindPorts,
   clusterContextFactory,
   clusterTypeFactory,
-  cronDeployIdResolve,
   dispatchBuildInstanceEnv,
   deployHostsFactory,
   etcHostFactory,
@@ -21,7 +20,6 @@ import {
   exposeTcpPortsFactory,
   gatewayApiEnabledFactory,
   generateSecurePassword,
-  getNpmRootPath,
   instanceHttpRouteRulesFactory,
   instanceInterceptStatusesFactory,
   instancePortFactory,
@@ -49,6 +47,8 @@ import {
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
+import { cronDeployIdResolve } from '../server/cron.js';
+import { getNpmRootPath } from '../server/environment.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 
 import fs from 'fs-extra';

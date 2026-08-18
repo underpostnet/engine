@@ -4,7 +4,8 @@
  * @namespace UnderpostEnv
  */
 
-import { getNpmRootPath, writeEnv } from '../server/conf.js';
+import { writeEnv } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/logger.js';
 import dotenv from 'dotenv';

@@ -8,7 +8,7 @@
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/logger.js';
-import { getNpmRootPath } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
