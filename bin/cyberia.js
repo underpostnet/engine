@@ -5642,8 +5642,12 @@ node bin image --path cyberia-client \
 
       // Copy canonical doc sources into the generated project READMEs.
       // Edit the canonical sources; never hand-edit these generated outputs.
+      fs.copySync('./deploy/lib', './cyberia-server/deploy/lib', { overwrite: true });
+      fs.copySync('./deploy/lib', './cyberia-client/deploy/lib', { overwrite: true });
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
+      fs.copySync('./deploy/cyberia-client', './cyberia-client/deploy');
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md');
+      fs.copySync('./deploy/cyberia-server', './cyberia-server/deploy');
       fs.copyFileSync(
         './.github/workflows/cyberia-client.cd.yml',
         './cyberia-client/.github/workflows/cyberia-client.cd.yml',
