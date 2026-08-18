@@ -67,7 +67,6 @@ updates:
           - 'swagger-autogen'
           - 'swagger-ui-express'
           - 'typedoc'
-          - 'typescript'
           - 'bumpp'
       testing:
         patterns:
