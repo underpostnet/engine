@@ -20,7 +20,13 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template-ghpk:
-    if: github.repository == 'underpostnet/pwa-microservices-template' && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')
+    if: >-
+      github.repository == 'underpostnet/pwa-microservices-template' &&
+       (
+         startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')
+         || 
+         github.event_name == 'workflow_dispatch'
+       )
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     container:
