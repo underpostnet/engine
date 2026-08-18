@@ -49,6 +49,7 @@ export default {
     '/.github/workflows/cyberia-client.cd.yml',
     '/.github/workflows/cyberia-server.cd.yml',
     '/.github/workflows/coverall.cyberia.ci.yml',
+    '/scripts/coverall-test-cyberia.sh',
   ],
   stripPaths: [
     './src/projects/cyberia',

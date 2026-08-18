@@ -2,7 +2,9 @@ name: CI | Coverall Cyberia
 
 on:
   push:
-    branches: ['master']
+    branches: ['master', 'main']
+  pull_request:
+    branches: ['master', 'main']
 
 jobs:
   test:
@@ -35,15 +37,15 @@ jobs:
       - name: Run tests and generate coverage
         run: scripts/coverall-test-cyberia.sh
 
-      - name: Upload coverage to Coveralls
-        run: coveralls < ./coverage/lcov.info
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_SERVICE_NAME: github
-          COVERALLS_GIT_BRANCH: ${{ github.ref_name }}
-          COVERALLS_FLAG_NAME: cyberia
+      - name: Store coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverall-cyberia-lcov
+          path: ./coverage/lcov.info
+          if-no-files-found: error
 
-  finish:
+  upload:
+    name: Upload Cyberia Coverage to Coveralls
     needs: test
     if: |
       github.actor != 'dependabot[bot]' &&
@@ -51,15 +53,35 @@ jobs:
        github.repository == 'underpostnet/engine-cyberia' ||
        github.repository == 'underpostnet/engine-ghpkg-cyberia')
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/rockylinux/rockylinux:9
     steps:
       - name: Clone repository
         uses: actions/checkout@v7
 
+      - name: Restore coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverall-cyberia-lcov
+          path: ./coverage
+
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./coverage/lcov.info
+          flag-name: cyberia
+          parallel: true
+
+  finish:
+    needs: upload
+    if: |
+      github.actor != 'dependabot[bot]' &&
+      (github.repository == 'underpostnet/engine' ||
+       github.repository == 'underpostnet/engine-cyberia' ||
+       github.repository == 'underpostnet/engine-ghpkg-cyberia')
+    runs-on: ubuntu-latest
+    steps:
       - name: Notify Coveralls Finished
-        run: |
-          curl -s -X POST -d 'payload[build_num]=${{ github.run_id }}&payload[status]=done' \
-            "https://coveralls.io/webhook?repo_token=${{ secrets.COVERALLS_REPO_TOKEN }}"
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
