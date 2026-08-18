@@ -1228,7 +1228,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       // runner. Build the host-side SSR documents before generating routes unless
       // the caller explicitly selected a pre-built bundle workflow.
       if (isDeployRunnerContext(path, options) && !options.skipFullBuild)
-        shellExec(`${baseCommand} client ${deployId} ${env}`);
+        shellExec(`${baseCommand} client ${deployId} ${env} --ssr`);
 
       shellExec(
         `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${

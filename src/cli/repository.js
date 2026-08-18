@@ -906,6 +906,7 @@ class UnderpostRepository {
               split: options.split || '',
               fullBuild: options.liteBuild ? false : true,
               iconsBuild: options.iconsBuild || false,
+              ssrOnly: options.ssr || false,
             });
             for (const replicaDeployId of deployIdSingleReplicas) {
               if (!fs.existsSync(`./engine-private/replica/${replicaDeployId}`)) {
@@ -917,6 +918,7 @@ class UnderpostRepository {
                 split: options.split || '',
                 liteBuild: options.liteBuild || false,
                 iconsBuild: options.iconsBuild || false,
+                ssr: options.ssr || false,
               });
             }
 

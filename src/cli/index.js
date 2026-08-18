@@ -52,6 +52,7 @@ program
   .option('--merge-zip <build-prefix>', 'Merge split ZIP parts back into a single ZIP file for the given build prefix')
   .option('--lite-build', 'Skip full build (default is full build)')
   .option('--icons-build', 'Build icons')
+  .option('--ssr', 'Rebuild only SSR views defined in conf.ssr.json, leaving client assets untouched')
   .description('Builds client assets, single replicas, and/or syncs environment ports.')
   .action(Underpost.repo.client);
 

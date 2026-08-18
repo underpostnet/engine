@@ -525,6 +525,7 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
  * @param {string|number} options.split - Optional zip split size in MB.
  * @param {boolean} options.fullBuild - Whether to perform a full build.
  * @param {boolean} options.iconsBuild - Whether to build icons.
+ * @param {boolean} options.ssrOnly - Whether to rebuild only views defined in `conf.ssr.json`.
  * @returns {Promise<void>} - Promise that resolves when the build is complete.
  * @throws {Error} - If the build fails.
  * @memberof clientBuild
@@ -548,6 +549,7 @@ const buildClient = async (
   const packageData = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
+  const ssrOnly = options.ssrOnly === true;
 
   /**
    * @async
@@ -691,11 +693,11 @@ const buildClient = async (
         ? `${directory}${acmeChallengePath}`
         : `${publicPath}/${host}${acmeChallengePath}`;
 
-      if (!enableLiveRebuild) buildAcmeChallengePath(acmeChallengeFullPath);
+      if (!enableLiveRebuild && !ssrOnly) buildAcmeChallengePath(acmeChallengeFullPath);
 
       if (redirect || disabledRebuild) continue;
 
-      if (fullBuildEnabled)
+      if (fullBuildEnabled && !ssrOnly)
         await fullBuild({
           path,
           logger,
@@ -710,7 +712,7 @@ const buildClient = async (
           publicCopyNonExistingFiles,
         });
 
-      if (components)
+      if (!ssrOnly && components)
         for (const module of Object.keys(components)) {
           if (!fs.existsSync(`${rootClientPath}/components/${module}`))
             fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
@@ -733,7 +735,7 @@ const buildClient = async (
           }
         }
 
-      if (services) {
+      if (!ssrOnly && services) {
         for (const module of services) {
           if (!fs.existsSync(`${rootClientPath}/services/${module}`))
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
@@ -796,7 +798,9 @@ const buildClient = async (
       const swSrcPath = `./src/client/sw/core.sw.js`;
       const swPublicPath = `${rootClientPath}/sw.js`;
       const swShouldRebuild =
-        views && !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
+        !ssrOnly &&
+        views &&
+        !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
       // Transformed SW JS is held in memory; it gets prepended with renderPayload
       // and written once below, after PRE_CACHED_RESOURCES are known.
       let swTransformedJs = '';
@@ -810,13 +814,15 @@ const buildClient = async (
         });
       }
 
-      if (views) {
-        if (!(
-          enableLiveRebuild &&
-          !options.liveClientBuildPaths.find(
-            (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+      if (!ssrOnly && views) {
+        if (
+          !(
+            enableLiveRebuild &&
+            !options.liveClientBuildPaths.find(
+              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+            )
           )
-        ))
+        )
           for (const view of views) {
             const buildPath = `${
               rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -983,7 +989,7 @@ const buildClient = async (
             );
           }
       }
-      if (!enableLiveRebuild && siteMapLinks.length > 0) {
+      if (!ssrOnly && !enableLiveRebuild && siteMapLinks.length > 0) {
         const hasSitemapTemplate = fs.existsSync(`${rootClientPath}/sitemap`);
         const sitemapBaseUrl = `https://${host}${path === '/' ? '' : path}`;
         // Create a stream to write to — omit xslUrl so we can inject a relative href below
@@ -1020,7 +1026,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
         );
       }
 
-      if (fullBuildEnabled && docs) {
+      if (!ssrOnly && fullBuildEnabled && docs) {
         await buildDocs({
           host,
           path,
@@ -1128,7 +1134,7 @@ ${swTransformedJs}`,
           );
         }
       }
-      if (!enableLiveRebuild && options.buildZip) {
+      if (!ssrOnly && !enableLiveRebuild && options.buildZip) {
         logger.warn('build zip', rootClientPath);
 
         if (!fs.existsSync('./build')) fs.mkdirSync('./build');
