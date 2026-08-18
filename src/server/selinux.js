@@ -12,6 +12,9 @@
  * @memberof SELinuxService
  */
 class SELinuxService {
+  /** Shared container label every unprivileged container domain can read and write. */
+  static SHARED_CONTAINER_TYPE = 'container_file_t';
+
   /**
    * Quotes one shell argument used by generated SELinux commands.
    * @param {*} value - Value to quote.
@@ -39,6 +42,11 @@ class SELinuxService {
     const prefix = sudo ? 'sudo ' : '';
     return [
       `if [ -f /etc/selinux/config ]; then ${prefix}sed -i -E 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config; fi`,
+      // A host running with SELinux Disabled has an unlabeled filesystem, so the
+      // config flip alone would boot it into Enforcing with nothing labeled.
+      // `setenforce` cannot activate the mode from Disabled either: the switch
+      // completes on the next boot, and only after this relabel pass.
+      `if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Disabled" ]; then ${prefix}touch /.autorelabel; fi`,
       ...(restorePaths.length > 0
         ? [SELinuxService.selinuxRestoreconCommandFactory(restorePaths, { sudo })]
         : []),
@@ -63,6 +71,42 @@ class SELinuxService {
       )
       .join(' && ');
     return `if command -v restorecon >/dev/null 2>&1; then ${operations}; fi`;
+  }
+
+  /**
+   * Builds an idempotent persistent file context mapping.
+   * @param {string} path - Directory or file prefix to map.
+   * @param {{type: string, sudo?: boolean}} options
+   * @returns {string}
+   */
+  static selinuxFileContextCommandFactory(path, { type, sudo = true } = {}) {
+    if (!path) throw new TypeError('selinuxFileContextCommandFactory requires a path');
+    if (!type) throw new TypeError('selinuxFileContextCommandFactory requires a type');
+    const prefix = sudo ? 'sudo ' : '';
+    const expression = SELinuxService.shellArgumentFactory(`${path}(/.*)?`);
+    return `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for persistent file contexts' >&2; exit 1; }; ${prefix}semanage fcontext -a -t ${type} ${expression} 2>/dev/null || ${prefix}semanage fcontext -m -t ${type} ${expression}; fi`;
+  }
+
+  /**
+   * Builds persistent labeling commands for host paths bind-mounted into
+   * unprivileged containers. `container_t` cannot read the policy defaults of
+   * those trees (`kubernetes_file_t`, `var_lib_t`), and the mapping is
+   * registered before the files exist so entries created later inherit the
+   * shared label instead of requiring another relabel pass.
+   * @param {string|string[]} paths - Files or directories to share.
+   * @param {{sudo?: boolean}} [options]
+   * @returns {string[]}
+   */
+  static selinuxContainerSharedContextCommandsFactory(paths, { sudo = true } = {}) {
+    const values = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
+    if (values.length === 0)
+      throw new TypeError('selinuxContainerSharedContextCommandsFactory requires at least one path');
+    return [
+      ...values.map((path) =>
+        SELinuxService.selinuxFileContextCommandFactory(path, { type: SELinuxService.SHARED_CONTAINER_TYPE, sudo }),
+      ),
+      SELinuxService.selinuxRestoreconCommandFactory(values, { sudo }),
+    ];
   }
 
   /**
@@ -116,7 +160,9 @@ class SELinuxService {
 
 const {
   runSELinuxCommands,
+  selinuxContainerSharedContextCommandsFactory,
   selinuxEnforcingCommandsFactory,
+  selinuxFileContextCommandFactory,
   selinuxPackagesCommandFactory,
   selinuxRestoreconCommandFactory,
   selinuxSshContextCommandsFactory,
@@ -128,7 +174,9 @@ export default SELinuxService;
 
 export {
   runSELinuxCommands,
+  selinuxContainerSharedContextCommandsFactory,
   selinuxEnforcingCommandsFactory,
+  selinuxFileContextCommandFactory,
   selinuxPackagesCommandFactory,
   selinuxRestoreconCommandFactory,
   selinuxSshContextCommandsFactory,

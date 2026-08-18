@@ -42,12 +42,14 @@ echo "[INFO] Opening Kubernetes control plane ports..."
 
 # Kubernetes API Server
 sudo firewall-cmd --permanent --zone=public --add-port=6443/tcp
+sudo firewall-cmd --permanent --zone=public --add-port=6443/udp
 
 # etcd
 sudo firewall-cmd --permanent --zone=public --add-port=2379-2380/tcp
 
 # kubelet API
 sudo firewall-cmd --permanent --zone=public --add-port=10250/tcp
+sudo firewall-cmd --permanent --zone=public --add-port=10250/udp
 
 # kube-scheduler
 sudo firewall-cmd --permanent --zone=public --add-port=10259/tcp

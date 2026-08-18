@@ -5,12 +5,13 @@
  */
 
 import { clusterTypeFactory, gatewayApiEnabledFactory, resolveReplicaCount } from '../server/conf.js';
-import { getNpmRootPath } from '../server/environment.js';
+import { getNpmRootPath, HOST_VOLUME_ROOT } from '../server/environment.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
 import {
   runSELinuxCommands,
+  selinuxContainerSharedContextCommandsFactory,
   selinuxEnforcingCommandsFactory,
   selinuxPackagesCommandFactory,
   selinuxRestoreconCommandFactory,
@@ -31,17 +32,23 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
-// Pinned Gateway API control plane. The CRD release and the implementation are
-// upgraded together, and the pairing is not free choice: Envoy Gateway builds
-// against one `sigs.k8s.io/gateway-api` version (v1.8.3 -> v1.5.1) and reads
-// fields the older CRD schemas do not define, which the API
-// server silently strips. Check the implementation's go.mod before moving
-// either pin.
 const GATEWAY_API_RELEASE = 'v1.5.1';
 const ENVOY_GATEWAY_VERSION = 'v1.8.3';
-// Namespace the upstream Contour render deploys into, and the only one where an
-// `app=envoy` selector resolves to its DaemonSet.
 const CONTOUR_NAMESPACE = 'projectcontour';
+const KUBEADM_CONTAINER_MOUNT_PATHS = ['/etc/kubernetes', '/var/lib/etcd', '/var/lib/calico'];
+const HOST_VOLUME_PATHS = ['/data', '/opt/local-path-provisioner', HOST_VOLUME_ROOT];
+const K3S_SELINUX_PATHS = [
+  '/usr/local/bin/k3s',
+  '/etc/rancher',
+  '/var/lib/rancher',
+  '/var/lib/kubelet',
+  '/var/lib/cni',
+];
+
+const shareWithContainers = (paths = []) => {
+  for (const path of paths) shellExec(`sudo mkdir -p ${path}`);
+  runSELinuxCommands(selinuxContainerSharedContextCommandsFactory(paths), { execute: shellExec });
+};
 
 const enforceSELinux = (paths = []) => {
   shellExec(
@@ -246,6 +253,7 @@ class UnderpostCluster {
             `curl -sfL https://get.k3s.io | sh -s - $(if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then printf '%s' '--selinux'; fi) --disable=traefik --disable=servicelb`,
           );
           logger.info('K3s installation completed.');
+          runSELinuxCommands([selinuxRestoreconCommandFactory(K3S_SELINUX_PATHS)], { execute: shellExec });
 
           Underpost.cluster.chown('k3s');
 
@@ -257,6 +265,7 @@ class UnderpostCluster {
         } else if (options.kubeadm) {
           Underpost.cluster.config();
           Underpost.cluster.natSetup({ underpostRoot });
+          shareWithContainers([...KUBEADM_CONTAINER_MOUNT_PATHS, ...HOST_VOLUME_PATHS]);
           logger.info('Initializing Kubeadm control plane...');
           // Set default values if not provided
           const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
@@ -289,6 +298,13 @@ class UnderpostCluster {
           shellExec(
             `kubectl apply -f https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml`,
           );
+
+          // The CNI lands asynchronously, and the node stays NotReady until it
+          // does. Block here so the deploy steps that follow (MongoDB and the
+          // application workloads) schedule onto a node that can actually run
+          // them, instead of racing the Calico rollout.
+          logger.info('Waiting for the node to become Ready (Calico rollout)...');
+          shellExec(`kubectl wait --for=condition=Ready node --all --timeout=300s`);
         } else {
           Underpost.cluster.config();
           Underpost.cluster.natSetup({ underpostRoot });
@@ -1215,11 +1231,13 @@ EOF
         }
       }
       const liveConf = canHotReload
-        ? `${execIngress('cat /tmp/nginx.conf', {
-            stdout: true,
-            silent: true,
-            silentOnError: true,
-          }) || ''}`
+        ? `${
+            execIngress('cat /tmp/nginx.conf', {
+              stdout: true,
+              silent: true,
+              silentOnError: true,
+            }) || ''
+          }`
         : '';
       const shouldHotReload = canHotReload && liveConf.trimEnd() !== `${conf}`.trimEnd();
 
@@ -1239,10 +1257,10 @@ EOF
             { silent: true },
           );
         } catch (error) {
-          execIngress(
-            `sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`,
-            { silent: true, silentOnError: true },
-          );
+          execIngress(`sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`, {
+            silent: true,
+            silentOnError: true,
+          });
           throw error;
         }
       }
@@ -1258,10 +1276,10 @@ EOF
 `);
       } catch (error) {
         if (shouldHotReload)
-          execIngress(
-            `sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`,
-            { silent: true, silentOnError: true },
-          );
+          execIngress(`sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`, {
+            silent: true,
+            silentOnError: true,
+          });
         throw error;
       }
       if (shouldHotReload)
@@ -1274,18 +1292,16 @@ EOF
       // ready replica that made canHotReload true. Do not let the caller delete
       // the old route kind until the replacement edge is actually Available.
       if (!canHotReload || changesNode)
-        shellExec(
-          `kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${namespace} --timeout=5m`,
-          { silent: true },
-        );
+        shellExec(`kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${namespace} --timeout=5m`, {
+          silent: true,
+        });
       else if (shouldHotReload)
         // `nginx -s reload` returns after signalling the master. Give it one
         // scheduling turn to start the new workers before the caller removes
         // the old stack's route object.
         shellExec('sleep 1', { silent: true });
       shellExec(
-        `kubectl wait --for=condition=Available deployment/${UNDERPOST_INGRESS.name} ` +
-          `-n ${namespace} --timeout=5m`,
+        `kubectl wait --for=condition=Available deployment/${UNDERPOST_INGRESS.name} ` + `-n ${namespace} --timeout=5m`,
         { silent: true },
       );
       execIngress('nginx -t -c /tmp/nginx.conf', { silent: true });
@@ -1423,7 +1439,8 @@ EOF
       // forever (the upstream unit ships TimeoutStartSec=0).
       shellExec(`if systemctl is-active --quiet firewalld; then sudo systemctl disable --now firewalld; fi`);
 
-      enforceSELinux(['/var/lib/rancher']);
+      enforceSELinux(K3S_SELINUX_PATHS);
+      shareWithContainers(HOST_VOLUME_PATHS);
 
       // Disable swap. `swapoff -a` is a no-op without swap; the sed only edits
       // fstab when a swap line is present.

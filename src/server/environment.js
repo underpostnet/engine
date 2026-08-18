@@ -11,6 +11,16 @@ import { execFileSync } from 'node:child_process';
 import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * Node directory backing every hostPath PersistentVolume the deploy flow
+ * materializes (`<root>/<pv id>`), including the shared gateway's static tree.
+ * Cluster bring-up gives it the shared container label, because the pods that
+ * read these documents are unprivileged.
+ * @constant {string}
+ * @memberof EnvironmentService
+ */
+const HOST_VOLUME_ROOT = '/home/dd/engine/volume';
 const envFileCache = new Map();
 let rootEnvPath;
 
@@ -68,4 +78,4 @@ const environmentValueFactory = (key) => {
   return '';
 };
 
-export { environmentValueFactory, getNpmRootPath, getUnderpostRootPath };
+export { environmentValueFactory, getNpmRootPath, getUnderpostRootPath, HOST_VOLUME_ROOT };

@@ -3,7 +3,9 @@
 import { expect } from 'chai';
 import SELinuxService, {
   runSELinuxCommands,
+  selinuxContainerSharedContextCommandsFactory,
   selinuxEnforcingCommandsFactory,
+  selinuxFileContextCommandFactory,
   selinuxRestoreconCommandFactory,
   selinuxSshContextCommandsFactory,
   selinuxSshPortCommandsFactory,
@@ -24,6 +26,21 @@ describe('SELinux utilities', () => {
     expect(command).to.include("restorecon -RF '/etc/sudoers.d/90_admin'");
   });
 
+  it('shares container-mounted host paths with a persistent container_file_t mapping', () => {
+    const commands = selinuxContainerSharedContextCommandsFactory(['/etc/kubernetes', '/var/lib/etcd']);
+    expect(commands).to.have.length(3);
+    expect(commands[0]).to.include("semanage fcontext -a -t container_file_t '/etc/kubernetes(/.*)?'");
+    expect(commands[0]).to.include("semanage fcontext -m -t container_file_t '/etc/kubernetes(/.*)?'");
+    expect(commands[1]).to.include("container_file_t '/var/lib/etcd(/.*)?'");
+    expect(commands[2]).to.include("restorecon -RF '/etc/kubernetes'");
+    expect(() => selinuxContainerSharedContextCommandsFactory([])).to.throw(TypeError);
+  });
+
+  it('requires both a path and a type for file context mappings', () => {
+    expect(() => selinuxFileContextCommandFactory('', { type: 'container_file_t' })).to.throw(TypeError);
+    expect(() => selinuxFileContextCommandFactory('/var/lib/etcd', {})).to.throw(TypeError);
+  });
+
   it('adds persistent mappings only for non-standard SSH homes', () => {
     expect(selinuxSshContextCommandsFactory({ sshDirectory: '/home/admin/.ssh' })).to.have.length(1);
     expect(selinuxSshContextCommandsFactory({ sshDirectory: '/srv/admin/.ssh' })[0]).to.include(
@@ -33,8 +50,9 @@ describe('SELinux utilities', () => {
 
   it('restores requested contexts before activating Enforcing mode', () => {
     const commands = selinuxEnforcingCommandsFactory({ restorePaths: ['/var/lib/containerd'] });
-    expect(commands[1]).to.include('restorecon');
-    expect(commands[2]).to.include('setenforce 1');
+    expect(commands[1]).to.include('touch /.autorelabel');
+    expect(commands[2]).to.include('restorecon');
+    expect(commands[3]).to.include('setenforce 1');
   });
 
   it('maps only custom SSH ports and validates the port range', () => {

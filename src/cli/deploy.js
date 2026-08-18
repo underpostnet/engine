@@ -25,7 +25,9 @@ import {
 } from '../server/conf.js';
 import { cronDeployIdResolve } from '../server/cron.js';
 import { loggerFactory } from '../server/logger.js';
+import { HOST_VOLUME_ROOT } from '../server/environment.js';
 import { shellExec } from '../server/process.js';
+import { runSELinuxCommands, selinuxRestoreconCommandFactory } from '../server/selinux.js';
 import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime-status.js';
 import { staticContextRoutesFactory, statusPageRoutesFactory } from '../client-builder/client-build.js';
 import {
@@ -151,6 +153,13 @@ const gatewayDurationFactory = (value) => {
 };
 
 const logger = loggerFactory(import.meta);
+
+// hostPath volume trees are written under the operator's home directory, which
+// carries a label no unprivileged container can read. Cluster bring-up registers
+// the persistent mapping for HOST_VOLUME_ROOT; this applies it to what a deploy
+// just wrote. A no-op where SELinux or its userspace is absent.
+const restoreContainerContext = (path) =>
+  runSELinuxCommands([selinuxRestoreconCommandFactory(path)], { execute: shellExec });
 
 /**
  * @class UnderpostDeploy
@@ -724,7 +733,7 @@ ${Underpost.deploy
               if (!volume.claimName) continue;
               const pvcId = `${volume.claimName}-${deployId}-${env}-${deploymentVersion}`;
               const pvId = pvcId.replace(/^pvc-/, 'pv-');
-              const hostPath = `/home/dd/engine/volume/${pvId}`;
+              const hostPath = `${HOST_VOLUME_ROOT}/${pvId}`;
               volumeYaml += `---\n${Underpost.deploy.persistentVolumeFactory({
                 pvcId,
                 namespace: options.namespace,
@@ -1697,13 +1706,13 @@ ${rules}`;
 
     /**
      * Node directory backing the static utility's volume, following the same
-     * `/home/dd/engine/volume/<pv>` convention as every other hostPath volume.
+     * `HOST_VOLUME_ROOT/<pv>` convention as every other hostPath volume.
      * @param {object} [options] - Deploy/run options.
      * @returns {string} Absolute host path.
      * @memberof UnderpostDeploy
      */
     underpostGatewayRootFactory(options = {}) {
-      return options.underpostGatewayRoot || `/home/dd/engine/volume/${UNDERPOST_GATEWAY.volumeName}`;
+      return options.underpostGatewayRoot || `${HOST_VOLUME_ROOT}/${UNDERPOST_GATEWAY.volumeName}`;
     },
 
     /**
@@ -1881,6 +1890,12 @@ ${rules}`;
               ? 'project'
               : null,
           });
+      // The documents were just written under the operator's home tree, whose
+      // policy label (user_home_t) the unprivileged gateway container cannot
+      // read — it would answer 403 for every one of them. The persistent
+      // mapping is registered at cluster bring-up; restore it here so files
+      // this pass created carry it too.
+      restoreContainerContext(hostRoot);
       logger.info('Static edge documents placed', {
         deployId,
         podName: podName || '(no running workload; placed from this checkout)',
@@ -2632,7 +2647,7 @@ EOF`);
       const clusterContext = options.clusterContext || 'kind';
       const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
       const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
-      const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
+      const rootVolumeHostPath = `${HOST_VOLUME_ROOT}/${pvId}`;
       if (options.gitClean && volume.volumeMountPath) {
         Underpost.repo.clean({ paths: [volume.volumeMountPath] });
       }
@@ -2656,6 +2671,7 @@ EOF`);
           // Target node is the control plane / current host: write directly.
           if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
           fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
+          restoreContainerContext(rootVolumeHostPath);
         } else {
           // Target node is remote: fs.copySync would only write the control-plane
           // filesystem, leaving the real node's hostPath empty. Ship the folder to
