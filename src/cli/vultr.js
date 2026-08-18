@@ -28,8 +28,9 @@
  */
 
 import axios from 'axios';
+import { environmentValueFactory } from '../server/environment.js';
+import { FORWARD_PROXY, fetchViaForwardProxy } from '../server/forward-proxy.js';
 import { loggerFactory } from '../server/logger.js';
-import { UNDERPOST_EDGE, edgeEnvFactory, tunnelAddressFactory } from './wireguard.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -67,11 +68,11 @@ const UNDERPOST_VULTR = {
     user: ['VULTR_SSH_USER', 'DEFAULT_SSH_USER'],
     keyPath: ['VULTR_SSH_KEY_PATH', 'DEFAULT_SSH_KEY_PATH'],
     port: ['VULTR_SSH_PORT', 'DEFAULT_SSH_PORT'],
-    // The edge hub's forward proxy, named once in `UNDERPOST_EDGE` so the two
+    // The edge hub's forward proxy, named once in its canonical module so the two
     // ends of it cannot disagree about the variable that configures it.
-    forwardProxyApiKey: UNDERPOST_EDGE.forwardProxyEnv.apiKey,
-    forwardProxyHost: UNDERPOST_EDGE.forwardProxyEnv.host,
-    forwardProxyPort: UNDERPOST_EDGE.forwardProxyEnv.port,
+    forwardProxyApiKey: FORWARD_PROXY.env.apiKey,
+    forwardProxyHost: FORWARD_PROXY.env.host,
+    forwardProxyPort: FORWARD_PROXY.env.port,
   },
 };
 
@@ -79,7 +80,7 @@ const UNDERPOST_VULTR = {
  * @method envFactory
  * @description First non-empty value among a list of keys.
  *
- * Resolution is {@link UnderpostWireguard.edgeEnvFactory}'s — the process
+ * Resolution is {@link module:src/server/environment.js.environmentValueFactory}'s — the process
  * environment, then the deploy env `underpost env <deploy-id> <environment>`
  * selects into `./.env`, then the underpost root env — rather than a second
  * implementation of it, because the three callers differ: a CronJob container has
@@ -93,7 +94,7 @@ const UNDERPOST_VULTR = {
  */
 const envFactory = (keys) => {
   for (const key of Array.isArray(keys) ? keys : [keys]) {
-    const value = edgeEnvFactory(key);
+    const value = environmentValueFactory(key);
     if (value) return value;
   }
   return '';
@@ -255,7 +256,7 @@ const vultrGet = async ({ url, apiKey, proxy }) => {
     });
     return { status: response.status, data: response.data };
   }
-  const { status, body } = await Underpost.wireguard.fetchViaProxy(url, {
+  const { status, body } = await fetchViaForwardProxy(url, {
     headers,
     timeout: UNDERPOST_VULTR.requestTimeoutMs,
     proxy,
@@ -290,7 +291,14 @@ const vultrRequest = async ({ apiKey, path, params = {}, proxy = null }) => {
   } catch (error) {
     const responseStatus = error?.response?.status;
     const detail = error?.response?.data?.error || error?.message || 'request failed';
-    throw new Error(`[vultr] GET /v2${path} failed${responseStatus ? ` (${responseStatus})` : ''}: ${detail}`);
+    const code = error?.code || error?.cause?.code;
+    const proxyHint =
+      proxy?.apiKey && ['EHOSTUNREACH', 'ENETUNREACH', 'ECONNREFUSED', 'ETIMEDOUT'].includes(code)
+        ? '; verify wg0 on the spoke; if only pods fail, re-run --wireguard-setup --client and restart wg0; if the host also fails, re-run --forward-proxy-server on the hub'
+        : '';
+    throw new Error(
+      `[vultr] GET /v2${path} failed${responseStatus ? ` (${responseStatus})` : ''}: ${detail}${proxyHint}`,
+    );
   }
   if (status < 200 || status >= 300)
     throw new Error(`[vultr] GET /v2${path} failed (${status}): ${data?.error || 'request failed'}`);
@@ -450,7 +458,7 @@ class UnderpostVultr {
         threshold: `${(config.threshold * 100).toFixed(0)}%`,
         // Which address Vultr saw the reads come from, which is the difference
         // between a key scoped to the edge VPS working and failing.
-        via: proxy.apiKey ? `forward-proxy ${proxy.host || tunnelAddressFactory(UNDERPOST_EDGE.cidr)}` : 'direct',
+        via: proxy.apiKey ? `forward-proxy ${proxy.host || FORWARD_PROXY.defaultHost}` : 'direct',
       };
 
       if (!state.metered) {

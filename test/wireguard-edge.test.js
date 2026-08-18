@@ -3,7 +3,25 @@
 import { expect } from 'chai';
 import http from 'node:http';
 import net from 'node:net';
-import UnderpostWireguard, {
+import {
+  FORWARD_PROXY,
+  fetchViaForwardProxy,
+  forwardProxyAuthorizedFactory,
+  forwardProxyCommandFactory,
+  forwardProxyConfigFactory,
+  forwardProxyConnectHandlerFactory,
+  forwardProxyHeadersFactory,
+  forwardProxyNodeCandidatesFactory,
+  forwardProxyNodeProbeCommandFactory,
+  forwardProxyRequestHandlerFactory,
+  forwardProxyServiceCommandsFactory,
+  forwardProxyStartProbeCommandFactory,
+  forwardProxyTargetFactory,
+  forwardProxyTunnelTargetFactory,
+  forwardProxyUnitFactory,
+} from '../src/server/forward-proxy.js';
+import { homeDirectoryPathFactory } from '../src/server/systemd.js';
+import {
   UNDERPOST_EDGE,
   allowedIpsConflictsFactory,
   backendNameFactory,
@@ -12,17 +30,6 @@ import UnderpostWireguard, {
   edgeRouteTableFactory,
   edgeStateFactory,
   firewallCommandsFactory,
-  forwardProxyAuthorizedFactory,
-  forwardProxyCommandFactory,
-  forwardProxyConfigFactory,
-  forwardProxyConnectHandlerFactory,
-  forwardProxyHeadersFactory,
-  forwardProxyRequestHandlerFactory,
-  forwardProxyServiceCommandsFactory,
-  forwardProxyTargetFactory,
-  forwardProxyTunnelTargetFactory,
-  forwardProxyUnitFactory,
-  tunnelAddressFactory,
   haproxyConfFactory,
   haproxyMapsFactory,
   hostProxyEntriesFactory,
@@ -31,7 +38,10 @@ import UnderpostWireguard, {
   peerFactory,
   quicForwardCommandsFactory,
   redirectHostFactory,
+  tunnelAddressFactory,
+  tunnelNetworkCidrFactory,
   wireguardClientConfFactory,
+  wireguardClientSettingsFactory,
   wireguardServerConfFactory,
   wireguardStatusFactory,
 } from '../src/cli/wireguard.js';
@@ -506,6 +516,36 @@ describe('edge hub routing', () => {
     it('gives a bare spoke address a host prefix', () => {
       expect(client).to.include('Address = 10.0.0.2/32');
     });
+
+    it('masquerades pod traffic only when it enters the tunnel', () => {
+      expect(client).to.include(
+        'PostUp = iptables -t nat -C POSTROUTING -o %i -d 10.0.0.0/24 -j MASQUERADE',
+      );
+      expect(client).to.not.include('POSTROUTING -o %i -j MASQUERADE');
+    });
+
+    it('forwards tunnel requests and established replies for spoke workloads', () => {
+      expect(client).to.include('PostUp = iptables -C FORWARD -o %i -d 10.0.0.0/24 -j ACCEPT');
+      expect(client).to.include(
+        'PostUp = iptables -C FORWARD -i %i -s 10.0.0.0/24 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT',
+      );
+    });
+
+    it('withdraws every spoke forwarding rule with the interface', () => {
+      expect(client).to.include(
+        'PostDown = iptables -t nat -D POSTROUTING -o %i -d 10.0.0.0/24 -j MASQUERADE 2>/dev/null || true',
+      );
+      expect(client).to.include('PostDown = iptables -D FORWARD -o %i -d 10.0.0.0/24 -j ACCEPT');
+    });
+
+    it('recovers repeatable client settings from an installed config without reading a private key', () => {
+      expect(wireguardClientSettingsFactory(client)).to.deep.equal({
+        address: '10.0.0.2/32',
+        hubPublicKey: 'HUB=',
+        endpoint: 'vps.example.com:51820',
+        cidr: '10.0.0.0/24',
+      });
+    });
   });
 
   describe('quicForwardCommandsFactory', () => {
@@ -771,7 +811,7 @@ describe('edge hub forward proxy', () => {
   describe('forwardProxyConfigFactory', () => {
     const saved = { ...process.env };
     afterEach(() => {
-      for (const key of Object.values(UNDERPOST_EDGE.forwardProxyEnv))
+      for (const key of Object.values(FORWARD_PROXY.env))
         if (saved[key] === undefined) delete process.env[key];
         else process.env[key] = saved[key];
     });
@@ -783,13 +823,13 @@ describe('edge hub forward proxy', () => {
     it('falls back to the hub tunnel address and the subsystem port', () => {
       expect(tunnelAddressFactory(UNDERPOST_EDGE.cidr)).to.equal('10.0.0.1');
       expect(tunnelAddressFactory('10.0.0.1')).to.equal('10.0.0.1');
-      expect(UNDERPOST_EDGE.forwardProxyPort).to.equal(1080);
+      expect(FORWARD_PROXY.port).to.equal(1080);
     });
 
     it('reads the environment, and lets an explicit endpoint win over it', () => {
-      process.env[UNDERPOST_EDGE.forwardProxyEnv.host] = '10.0.0.9';
-      process.env[UNDERPOST_EDGE.forwardProxyEnv.port] = '3128';
-      process.env[UNDERPOST_EDGE.forwardProxyEnv.apiKey] = API_KEY;
+      process.env[FORWARD_PROXY.env.host] = '10.0.0.9';
+      process.env[FORWARD_PROXY.env.port] = '3128';
+      process.env[FORWARD_PROXY.env.apiKey] = API_KEY;
       expect(forwardProxyConfigFactory()).to.deep.equal({ host: '10.0.0.9', port: 3128, apiKey: API_KEY });
       expect(forwardProxyConfigFactory({ host: '10.0.0.1', port: 1080, apiKey: 'other' })).to.deep.equal({
         host: '10.0.0.1',
@@ -805,10 +845,17 @@ describe('edge hub forward proxy', () => {
     it('admits the proxy port from the tunnel only, on the hub only', () => {
       const hub = firewallCommandsFactory({ role: 'server' }).join('\n');
       expect(hub).to.include(
-        `--add-rich-rule="rule family=ipv4 source address=${UNDERPOST_EDGE.tunnelCidr} port port=${UNDERPOST_EDGE.forwardProxyPort} protocol=tcp accept"`,
+        `--add-rich-rule="rule family=ipv4 source address=${UNDERPOST_EDGE.tunnelCidr} port port=${FORWARD_PROXY.port} protocol=tcp accept"`,
       );
-      expect(hub).to.not.include(`--add-port=${UNDERPOST_EDGE.forwardProxyPort}`);
+      expect(hub).to.not.include(`--add-port=${FORWARD_PROXY.port}`);
       expect(firewallCommandsFactory({ role: 'client' }).join('\n')).to.not.include('rich-rule');
+    });
+
+    it('admits a custom recorded tunnel subnet instead of the default', () => {
+      expect(firewallCommandsFactory({ role: 'server', tunnelCidr: '10.23.0.0/24' }).join('\n')).to.include(
+        `source address=10.23.0.0/24 port port=${FORWARD_PROXY.port} protocol=tcp accept`,
+      );
+      expect(tunnelNetworkCidrFactory('10.23.7.9/20')).to.equal('10.23.0.0/20');
     });
   });
 
@@ -836,8 +883,8 @@ describe('edge hub forward proxy', () => {
         'ExecStart=/usr/bin/node /home/dd/engine/bin/index.js wireguard --forward-proxy-server ' +
           '--forward-proxy-server-host 10.0.0.1 --forward-proxy-server-port 1080',
       );
-      expect(unit()).to.include(`Environment=${UNDERPOST_EDGE.forwardProxySupervisedEnv}=1`);
-      expect(unit()).to.include(`Environment=${UNDERPOST_EDGE.forwardProxyEnv.apiKey}=${API_KEY}`);
+      expect(unit()).to.include(`Environment=${FORWARD_PROXY.supervisedEnv}=1`);
+      expect(unit()).to.include(`Environment=${FORWARD_PROXY.env.apiKey}=${API_KEY}`);
       expect(unit()).to.include('WorkingDirectory=/home/dd/engine');
       expect(unit()).to.include('User=dd');
     });
@@ -862,10 +909,68 @@ describe('edge hub forward proxy', () => {
       expect(rendered).to.include('PartOf=wg-quick@wg1.service');
       expect(rendered).to.include('WantedBy=multi-user.target wg-quick@wg1.service');
       expect(rendered).to.include('Restart=always');
-      expect(rendered).to.include(`RestartSec=${UNDERPOST_EDGE.forwardProxyRestartSeconds}`);
+      expect(rendered).to.include(`RestartSec=${FORWARD_PROXY.restartSeconds}`);
       // No start-limit window, so a bind that fails while the tunnel comes up
       // retries instead of latching failed.
       expect(rendered).to.include('StartLimitIntervalSec=0');
+    });
+  });
+
+  describe('forwardProxyNodeCandidatesFactory', () => {
+    // The failure this ordering exists for: systemd cannot enter /root, so a unit
+    // pointed at an nvm install there restarts on 203/EXEC forever while every
+    // ordinary permission check on the binary passes.
+    it('prefers a system Node and keeps one under a home directory for last', () => {
+      expect(
+        forwardProxyNodeCandidatesFactory({ execPath: '/root/.nvm/versions/node/v24.15.0/bin/node' }),
+      ).to.deep.equal([...FORWARD_PROXY.nodePaths, '/root/.nvm/versions/node/v24.15.0/bin/node']);
+      expect(forwardProxyNodeCandidatesFactory({ execPath: '/home/dd/.nvm/x/bin/node' })).to.deep.equal([
+        ...FORWARD_PROXY.nodePaths,
+        '/home/dd/.nvm/x/bin/node',
+      ]);
+    });
+
+    it('puts the running interpreter first when it is not in a home directory, without duplicating it', () => {
+      expect(forwardProxyNodeCandidatesFactory({ execPath: '/opt/node/bin/node' })).to.deep.equal([
+        '/opt/node/bin/node',
+        ...FORWARD_PROXY.nodePaths,
+      ]);
+      expect(forwardProxyNodeCandidatesFactory({ execPath: '/usr/bin/node' })).to.deep.equal(
+        FORWARD_PROXY.nodePaths,
+      );
+    });
+
+    it('recognises a home directory path without mistaking a lookalike for one', () => {
+      expect(homeDirectoryPathFactory('/root/.nvm/x/node')).to.equal(true);
+      expect(homeDirectoryPathFactory('/root')).to.equal(true);
+      expect(homeDirectoryPathFactory('/home/dd/engine')).to.equal(true);
+      expect(homeDirectoryPathFactory('/usr/bin/node')).to.equal(false);
+      expect(homeDirectoryPathFactory('/rootfs/bin/node')).to.equal(false);
+      expect(homeDirectoryPathFactory('')).to.equal(false);
+    });
+  });
+
+  describe('forward proxy start probes', () => {
+    // `test -x` passes on a binary systemd still refuses, so the only reliable
+    // test is running it through systemd itself, as the unit's own user.
+    it('asks systemd whether it can execute the interpreter', () => {
+      expect(forwardProxyNodeProbeCommandFactory('/usr/bin/node', 'root')).to.equal(
+        'sudo systemd-run --quiet --collect --wait --uid=root --property=Type=oneshot /usr/bin/node --version',
+      );
+    });
+
+    it('asks the same of the whole entry point, from the working directory the service will use', () => {
+      expect(
+        forwardProxyStartProbeCommandFactory({
+          nodePath: '/usr/bin/node',
+          scriptPath: '/opt/underpost/engine/bin',
+          user: 'dd',
+          workingDirectory: '/opt/underpost/engine',
+        }),
+      ).to.equal(
+        'sudo systemd-run --quiet --collect --wait --uid=dd --property=Type=oneshot ' +
+          '--property=WorkingDirectory=/opt/underpost/engine /usr/bin/node /opt/underpost/engine/bin --version',
+      );
     });
   });
 
@@ -875,8 +980,8 @@ describe('edge hub forward proxy', () => {
     it('starts an unchanged service without reloading or restarting it', () => {
       const { ensure } = forwardProxyServiceCommandsFactory({ changed: false });
       expect(ensure).to.deep.equal([
-        `sudo systemctl enable ${UNDERPOST_EDGE.forwardProxyServiceName} || true`,
-        `sudo systemctl start ${UNDERPOST_EDGE.forwardProxyServiceName} || true`,
+        `sudo systemctl enable ${FORWARD_PROXY.serviceName} || true`,
+        `sudo systemctl start ${FORWARD_PROXY.serviceName} || true`,
       ]);
       expect(ensure.join('\n')).to.not.include('restart');
       expect(ensure.join('\n')).to.not.include('daemon-reload');
@@ -885,15 +990,15 @@ describe('edge hub forward proxy', () => {
     it('reloads and restarts only when the unit file changed', () => {
       expect(forwardProxyServiceCommandsFactory({ changed: true }).ensure).to.deep.equal([
         'sudo systemctl daemon-reload',
-        `sudo systemctl enable ${UNDERPOST_EDGE.forwardProxyServiceName} || true`,
-        `sudo systemctl restart ${UNDERPOST_EDGE.forwardProxyServiceName} || true`,
+        `sudo systemctl enable ${FORWARD_PROXY.serviceName} || true`,
+        `sudo systemctl restart ${FORWARD_PROXY.serviceName} || true`,
       ]);
     });
 
     it('withdraws the unit it installed, reloading after the removal', () => {
       expect(forwardProxyServiceCommandsFactory().remove).to.deep.equal([
-        `sudo systemctl disable --now ${UNDERPOST_EDGE.forwardProxyServiceName} 2>/dev/null || true`,
-        `sudo rm -f ${UNDERPOST_EDGE.forwardProxyUnitPath}`,
+        `sudo systemctl disable --now ${FORWARD_PROXY.serviceName} 2>/dev/null || true`,
+        `sudo rm -f ${FORWARD_PROXY.unitPath}`,
         'sudo systemctl daemon-reload',
       ]);
     });
@@ -930,7 +1035,7 @@ describe('edge hub forward proxy', () => {
     });
 
     it('relays an http request and returns the origin answer', async () => {
-      const response = await UnderpostWireguard.API.fetchViaProxy(
+      const response = await fetchViaForwardProxy(
         `http://127.0.0.1:${port(origin)}/v2/instances?per_page=500`,
         { proxy: proxyConfig, headers: { authorization: 'Bearer vultr-key' } },
       );
@@ -942,7 +1047,7 @@ describe('edge hub forward proxy', () => {
     });
 
     it('answers 407 to a request with the wrong key, without reaching the origin', async () => {
-      const response = await UnderpostWireguard.API.fetchViaProxy(`http://127.0.0.1:${port(origin)}/v2/instances`, {
+      const response = await fetchViaForwardProxy(`http://127.0.0.1:${port(origin)}/v2/instances`, {
         proxy: { ...proxyConfig, apiKey: 'wrong-key' },
       });
       expect(response.status).to.equal(407);
@@ -950,13 +1055,13 @@ describe('edge hub forward proxy', () => {
     });
 
     it('answers 502 when the origin cannot be reached', async () => {
-      const response = await UnderpostWireguard.API.fetchViaProxy('http://127.0.0.1:1/dead', { proxy: proxyConfig });
+      const response = await fetchViaForwardProxy('http://127.0.0.1:1/dead', { proxy: proxyConfig });
       expect(response.status).to.equal(502);
     });
 
     it('rejects an unsupported target scheme before opening any socket', async () => {
       try {
-        await UnderpostWireguard.API.fetchViaProxy('ftp://origin.test/file', { proxy: proxyConfig });
+        await fetchViaForwardProxy('ftp://origin.test/file', { proxy: proxyConfig });
         expect.fail('only http: and https: targets are proxyable');
       } catch (error) {
         expect(error.message).to.include('http: and https:');
