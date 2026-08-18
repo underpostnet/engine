@@ -46,6 +46,13 @@ const logger = loggerFactory(import.meta);
 const ENV_REF_PREFIX = 'env:';
 
 /**
+ * Default deploy ID used when no deploy ID is specified.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const DEFAULT_DEPLOY_ID = 'dd-default';
+
+/**
  * Resolves a standardized context key from host/path descriptors.
  * The key is used across DB, WS, mailer, and cache registries.
  *
@@ -222,13 +229,6 @@ const readConfJson = (deployId, confType, options = {}) => {
   if (options.resolve) parsed = resolveConfSecrets(parsed);
   return parsed;
 };
-
-/**
- * Default deploy ID used when no deploy ID is specified.
- * @constant {string}
- * @memberof ServerConfBuilder
- */
-const DEFAULT_DEPLOY_ID = 'dd-default';
 
 /**
  * @class Config
@@ -2950,7 +2950,9 @@ ${renderHosts}`,
  * Resolves the concrete deploy ids a build or conf-sync run should iterate over.
  *
  * The meta deploy id `dd` fans out to the comma separated ids declared in
- * `engine-private/deploy/dd.router`; any other value is parsed as a comma separated list.
+ * `engine-private/deploy/dd.router`; when that file is absent (e.g. the private
+ * repository is not checked out) it falls back to {@link ServerConfBuilder.DEFAULT_DEPLOY_ID}.
+ * Any other value is parsed as a comma separated list.
  * Entries are trimmed and empties dropped.
  *
  * @method resolveDeployList
@@ -2959,7 +2961,12 @@ ${renderHosts}`,
  * @memberof ServerConfBuilder
  */
 const resolveDeployList = (deployId) =>
-  (deployId === 'dd' ? fs.readFileSync('./engine-private/deploy/dd.router', 'utf8') : deployId)
+  (deployId === 'dd'
+    ? fs.existsSync('./engine-private/deploy/dd.router')
+      ? fs.readFileSync('./engine-private/deploy/dd.router', 'utf8')
+      : DEFAULT_DEPLOY_ID
+    : deployId
+  )
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean);

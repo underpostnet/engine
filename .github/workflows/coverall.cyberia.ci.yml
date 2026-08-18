@@ -1,19 +1,17 @@
-name: CI | Coverall
+name: CI | Coverall Cyberia
 
 on:
   push:
     branches: ['master']
-  pull_request:
-    branches: ['master']
 
 jobs:
   test:
-    name: Coverall Test
+    name: Coverall Cyberia Test
     if: |
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
-       github.repository == 'underpostnet/pwa-microservices-template' ||
-       github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
+       github.repository == 'underpostnet/engine-cyberia' ||
+       github.repository == 'underpostnet/engine-ghpkg-cyberia')
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -35,7 +33,7 @@ jobs:
         run: npm install
 
       - name: Run tests and generate coverage
-        run: scripts/coverall-test.sh
+        run: scripts/coverall-test-cyberia.sh
 
       - name: Upload coverage to Coveralls
         run: coveralls < ./coverage/lcov.info
@@ -43,15 +41,15 @@ jobs:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
           COVERALLS_SERVICE_NAME: github
           COVERALLS_GIT_BRANCH: ${{ github.ref_name }}
-          COVERALLS_FLAG_NAME: core
+          COVERALLS_FLAG_NAME: cyberia
 
   finish:
     needs: test
     if: |
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
-       github.repository == 'underpostnet/pwa-microservices-template' ||
-       github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
+       github.repository == 'underpostnet/engine-cyberia' ||
+       github.repository == 'underpostnet/engine-ghpkg-cyberia')
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9

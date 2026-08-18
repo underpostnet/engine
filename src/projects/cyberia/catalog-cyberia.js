@@ -48,6 +48,7 @@ export default {
     '/.github/workflows/docker-image.cyberia-server.dev.ci.yml',
     '/.github/workflows/cyberia-client.cd.yml',
     '/.github/workflows/cyberia-server.cd.yml',
+    '/.github/workflows/coverall.cyberia.ci.yml',
   ],
   stripPaths: [
     './src/projects/cyberia',
@@ -60,6 +61,7 @@ export default {
     './test/object-layer-item-id.test.js',
     './test/shape-generator.test.js',
     './src/client/public/cyberia-docs',
+    './scripts/coverall-test-cyberia.sh',
     'bin/cyberia.js',
     './hardhat',
   ],
