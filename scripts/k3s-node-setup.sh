@@ -49,22 +49,25 @@ if [ -z "$(ls -A "$ENGINE_ROOT")" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# NVM and Node.js — required for `node bin ...` entrypoints
+# System-wide Node.js is required by service units under SELinux.
 # ---------------------------------------------------------------------------
-echo "Installing NVM and Node.js v24.15.0..."
+if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit
+fi
 
-curl -o- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
-
-export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-# shellcheck disable=SC1090
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-nvm install 24.15.0
-nvm use 24.15.0
-nvm alias default 24.15.0
-ln -sf "$(command -v node)" /usr/local/bin/node
-ln -sf "$(command -v npm)" /usr/local/bin/npm
-ln -sf "$(command -v npx)" /usr/local/bin/npx
+if ! command -v node >/dev/null 2>&1 || ! node --version 2>/dev/null | grep -q '^v24'; then
+    echo "Installing system-wide Node.js 24..."
+    if command -v dnf >/dev/null 2>&1; then
+        curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
+        sudo dnf install -y nodejs
+    elif command -v apt-get >/dev/null 2>&1; then
+        curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -
+        sudo apt-get install -y nodejs
+    else
+        echo "ERROR: a supported system package manager is required for Node.js 24" >&2
+        exit 1
+    fi
+fi
 
 echo "
 ██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
@@ -116,7 +119,7 @@ if [ "$ROLE" = "control" ]; then
     curl -sfL https://get.k3s.io | \
     K3S_URL="https://${CONTROL_IP}:6443" \
     K3S_TOKEN="${K3S_TOKEN}" \
-    sh -s - agent
+    sh -s - agent $(if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then printf '%s' '--selinux'; fi)
     
     echo ""
     echo "K3s worker joined https://${CONTROL_IP}:6443 successfully."

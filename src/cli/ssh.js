@@ -8,6 +8,14 @@ import { generateRandomPasswordSelection } from '../client/components/core/Commo
 import { pbcopy, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
 import { waitForPort } from '../server/conf.js';
+import {
+  runSELinuxCommands,
+  selinuxPackagesCommandFactory,
+  selinuxRestoreconCommandFactory,
+  selinuxSshContextCommandsFactory,
+  selinuxSshPortCommandsFactory,
+  shellArgumentFactory,
+} from '../server/selinux.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 
@@ -57,7 +65,7 @@ class UnderpostSSH {
      * @returns {boolean} True if user exists, false otherwise
      */
     checkUserExists: (username) => {
-      const result = shellExec(`id -u ${username} 2>/dev/null || echo "not_found"`, {
+      const result = shellExec(`id -u ${shellArgumentFactory(username)} 2>/dev/null || echo "not_found"`, {
         silent: true,
         stdout: true,
       }).trim();
@@ -73,7 +81,7 @@ class UnderpostSSH {
      * @returns {string} User's home directory path
      */
     getUserHome: (username) => {
-      return shellExec(`getent passwd ${username} | cut -d: -f6`, {
+      return shellExec(`getent passwd ${shellArgumentFactory(username)} | cut -d: -f6`, {
         silent: true,
         stdout: true,
       }).trim();
@@ -90,11 +98,13 @@ class UnderpostSSH {
      * @returns {void}
      */
     createSystemUser: (username, password, groups) => {
-      shellExec(`useradd -m -s /bin/bash ${username}`);
-      shellExec(`echo "${username}:${password}" | chpasswd`);
+      if (!/^[a-z_][a-z0-9_-]*[$]?$/i.test(username)) throw new TypeError('Invalid system username');
+      shellExec(`useradd -m -s /bin/bash ${shellArgumentFactory(username)}`);
+      shellExec(`printf '%s\n' ${shellArgumentFactory(`${username}:${password}`)} | chpasswd`, { disableLog: true });
       if (groups) {
         for (const group of groups.split(',').map((g) => g.trim())) {
-          shellExec(`usermod -aG "${group}" "${username}"`);
+          if (!/^[a-z_][a-z0-9_-]*[$]?$/i.test(group)) throw new TypeError('Invalid system group');
+          shellExec(`usermod -aG ${shellArgumentFactory(group)} ${shellArgumentFactory(username)}`);
         }
       }
     },
@@ -109,8 +119,8 @@ class UnderpostSSH {
      */
     ensureSSHDirectory: (sshDir) => {
       if (!fs.existsSync(sshDir)) {
-        shellExec(`mkdir -p ${sshDir}`);
-        shellExec(`chmod 700 ${sshDir}`);
+        shellExec(`mkdir -p ${shellArgumentFactory(sshDir)}`);
+        shellExec(`chmod 700 ${shellArgumentFactory(sshDir)}`);
       }
     },
 
@@ -126,11 +136,14 @@ class UnderpostSSH {
      * @returns {void}
      */
     setSSHFilePermissions: (sshDir, username, keyPath, pubKeyPath) => {
-      shellExec(`chmod 600 ${sshDir}/authorized_keys`);
-      shellExec(`chmod 644 ${sshDir}/known_hosts`);
-      if (keyPath) shellExec(`chmod 600 ${keyPath}`);
-      if (pubKeyPath) shellExec(`chmod 644 ${pubKeyPath}`);
-      shellExec(`chown -R ${username}:${username} ${sshDir}`);
+      shellExec(`chmod 600 ${shellArgumentFactory(`${sshDir}/authorized_keys`)}`);
+      shellExec(`chmod 644 ${shellArgumentFactory(`${sshDir}/known_hosts`)}`);
+      if (keyPath) shellExec(`chmod 600 ${shellArgumentFactory(keyPath)}`);
+      if (pubKeyPath) shellExec(`chmod 644 ${shellArgumentFactory(pubKeyPath)}`);
+      shellExec(
+        `chown -R ${shellArgumentFactory(`${username}:${username}`)} ${shellArgumentFactory(sshDir)}`,
+      );
+      runSELinuxCommands(selinuxSshContextCommandsFactory({ sshDirectory: sshDir }), { execute: shellExec });
     },
 
     /**
@@ -144,13 +157,12 @@ class UnderpostSSH {
      * @returns {void}
      */
     configureAuthorizedKeys: (sshDir, pubKeyPath, disablePassword) => {
-      if (disablePassword) {
-        shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
-no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
-EOF`);
-      } else {
-        shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
-      }
+      const key = fs.readFileSync(pubKeyPath, 'utf8').trim();
+      const entry = disablePassword ? `no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${key}` : key;
+      const authorizedKeysPath = `${sshDir}/authorized_keys`;
+      shellExec(
+        `grep -qxF ${shellArgumentFactory(entry)} ${shellArgumentFactory(authorizedKeysPath)} || printf '%s\n' ${shellArgumentFactory(entry)} >> ${shellArgumentFactory(authorizedKeysPath)}`,
+      );
     },
 
     /**
@@ -164,9 +176,12 @@ EOF`);
      * @returns {void}
      */
     configureKnownHosts: (sshDir, port, host) => {
-      shellExec(`ssh-keyscan -p ${port} -H localhost >> ${sshDir}/known_hosts`);
-      shellExec(`ssh-keyscan -p ${port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
-      if (host) shellExec(`ssh-keyscan -p ${port} -H ${host} >> ${sshDir}/known_hosts`);
+      const sshPort = Number(port);
+      if (!Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535) throw new RangeError('SSH port must be 1-65535');
+      const knownHostsPath = shellArgumentFactory(`${sshDir}/known_hosts`);
+      shellExec(`ssh-keyscan -p ${sshPort} -H localhost >> ${knownHostsPath}`);
+      shellExec(`ssh-keyscan -p ${sshPort} -H 127.0.0.1 >> ${knownHostsPath}`);
+      if (host) shellExec(`ssh-keyscan -p ${sshPort} -H ${shellArgumentFactory(host)} >> ${knownHostsPath}`);
     },
 
     /**
@@ -181,9 +196,26 @@ EOF`);
      */
     configureSudoAccess: (username, password, disablePassword) => {
       if (disablePassword) {
-        shellExec(`echo '${username} ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/90_${username}`);
+        if (!/^[a-z_][a-z0-9_-]*[$]?$/i.test(username)) throw new TypeError('Invalid sudo username');
+        const sudoersPath = `/etc/sudoers.d/90_${username}`;
+        const temporaryPath = `/tmp/underpost-sudoers-${process.pid}-${username}`;
+        const rule = `${username} ALL=(ALL) NOPASSWD: ALL`;
+        try {
+          shellExec(`printf '%s\n' ${shellArgumentFactory(rule)} > ${shellArgumentFactory(temporaryPath)}`);
+          shellExec(`sudo visudo -cf ${shellArgumentFactory(temporaryPath)}`);
+          shellExec(
+            `sudo install -m 0440 -o root -g root ${shellArgumentFactory(temporaryPath)} ${shellArgumentFactory(sudoersPath)}`,
+          );
+          runSELinuxCommands([selinuxRestoreconCommandFactory(sudoersPath, { recursive: false })], {
+            execute: shellExec,
+          });
+        } finally {
+          fs.removeSync(temporaryPath);
+        }
       } else {
-        shellExec(`echo "${username}:${password}" | sudo chpasswd`);
+        shellExec(`printf '%s\n' ${shellArgumentFactory(`${username}:${password}`)} | sudo chpasswd`, {
+          disableLog: true,
+        });
       }
     },
 
@@ -220,9 +252,16 @@ EOF`);
       fs.ensureFileSync(`${sshDir}/known_hosts`);
 
       if (!fs.existsSync(keyPath)) {
-        shellExec(`ssh-keygen -t ed25519 -f ${keyPath} -N "${password}" -q -C "${user}@${host}"`);
+        shellExec(
+          `ssh-keygen -t ed25519 -f ${shellArgumentFactory(keyPath)} -N ${shellArgumentFactory(password)} -q -C ${shellArgumentFactory(`${user}@${host}`)}`,
+          { disableLog: true },
+        );
       }
-      if (!fs.existsSync(pubKeyPath)) shellExec(`ssh-keygen -y -f ${keyPath} -P "${password}" > ${pubKeyPath}`);
+      if (!fs.existsSync(pubKeyPath))
+        shellExec(
+          `ssh-keygen -y -f ${shellArgumentFactory(keyPath)} -P ${shellArgumentFactory(password)} > ${shellArgumentFactory(pubKeyPath)}`,
+          { disableLog: true },
+        );
 
       const authorizedKeyPath = fs.existsSync(controllerPubKeyPath) ? controllerPubKeyPath : pubKeyPath;
       Underpost.ssh.configureAuthorizedKeys(sshDir, authorizedKeyPath, disablePassword);
@@ -901,12 +940,28 @@ EOF
      * Sets ownership to specified user for ~/.ssh/ and contents.
      */
     chmod: ({ user }) => {
-      shellExec(`sudo chmod 700 ~/.ssh/`);
-      shellExec(`sudo chmod 600 ~/.ssh/authorized_keys`);
-      shellExec(`sudo chmod 644 ~/.ssh/known_hosts`);
-      shellExec(`sudo chmod 600 ~/.ssh/id_rsa`);
+      const sshDirectory = `${Underpost.ssh.getUserHome(user)}/.ssh`;
+      shellExec(`sudo chmod 700 ${shellArgumentFactory(sshDirectory)}`);
+      shellExec(
+        `if [ -f ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)} ]; then sudo chmod 600 ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}; fi`,
+      );
+      shellExec(
+        `if [ -f ${shellArgumentFactory(`${sshDirectory}/known_hosts`)} ]; then sudo chmod 644 ${shellArgumentFactory(`${sshDirectory}/known_hosts`)}; fi`,
+      );
+      shellExec(
+        `if [ -f ${shellArgumentFactory(`${sshDirectory}/id_rsa`)} ]; then sudo chmod 600 ${shellArgumentFactory(`${sshDirectory}/id_rsa`)}; fi`,
+      );
       shellExec(`sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`);
-      shellExec(`chown -R ${user}:${user} ~/.ssh`);
+      shellExec(
+        `sudo chown -R ${shellArgumentFactory(`${user}:${user}`)} ${shellArgumentFactory(sshDirectory)}`,
+      );
+      runSELinuxCommands(
+        [
+          ...selinuxSshContextCommandsFactory({ sshDirectory }),
+          selinuxRestoreconCommandFactory('/etc/ssh/ssh_host_ed25519_key', { recursive: false }),
+        ],
+        { execute: shellExec },
+      );
     },
 
     /**
@@ -931,69 +986,59 @@ EOF
      * - Displays service status with colored output
      */
     initService: ({ port }) => {
-      shellExec(
-        `sudo tee /etc/ssh/sshd_config <<EOF
-# ==============================================================
-# RHEL Hardened SSHD Configuration
-# ==============================================================
-
-# --- Network Settings ---
-Port ${port ? port : '22'}
-# Explicitly listen on all interfaces (IPv4 and IPv6)
-
-# --- Host Keys ---
-# ED25519 is the modern standard (Fast & Secure)
+      const sshPort = Number(port || 22);
+      const portCommands = selinuxSshPortCommandsFactory({ port: sshPort });
+      const temporaryPath = `/tmp/underpost-sshd-config-${process.pid}`;
+      const configuration = `Port ${sshPort}
 HostKey /etc/ssh/ssh_host_ed25519_key
-# RSA is kept for compatibility with older clients (Optional)
-# HostKey /etc/ssh/ssh_host_rsa_key
-
-# --- Logging ---
 SyslogFacility AUTHPRIV
-# VERBOSE logs the key fingerprint used for login (Audit trail)
 LogLevel VERBOSE
-
-# --- Authentication & Security ---
-# STRICTLY KEY-BASED AUTHENTICATION
 PubkeyAuthentication yes
 PasswordAuthentication no
-ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
 PermitEmptyPasswords no
-
-# ALLOW KEY-ONLY ROOT LOGIN
-# Password and keyboard-interactive authentication remain disabled above.
 PermitRootLogin prohibit-password
-
-# Security checks on ownership of ~/.ssh/ files
 StrictModes yes
 MaxAuthTries 3
 LoginGraceTime 60
-
-# --- PAM (Pluggable Authentication Modules) ---
-# REQUIRED: Must be 'yes' on RHEL for proper session/SELinux handling.
-# Since PasswordAuthentication is 'no', PAM will not ask for passwords.
 UsePAM yes
-
-# --- Session & Network Health ---
-# Disconnect idle sessions after 5 minutes (300s * 0) to prevent ghost connections
 ClientAliveInterval 300
 ClientAliveCountMax 0
-
-# --- Feature Restrictions ---
-# Disable GUI forwarding unless explicitly needed
 X11Forwarding no
-# Disable DNS checks for faster logins (unless you use Host based auth)
 UseDNS no
-# Disable tunneling unless needed
 PermitTunnel no
 AllowTcpForwarding no
-
-# --- Subsystem ---
+Include /etc/ssh/sshd_config.d/*.conf
 Subsystem sftp /usr/libexec/openssh/sftp-server
-EOF`,
-        { disableLog: true },
-      );
-      shellExec(`sudo systemctl enable sshd`);
-      shellExec(`sudo systemctl restart sshd`);
+`;
+
+      fs.writeFileSync(temporaryPath, configuration, { mode: 0o600 });
+      try {
+        if (sshPort !== 22) {
+          shellExec(
+            `if command -v dnf >/dev/null 2>&1 && ! command -v semanage >/dev/null 2>&1; then ${selinuxPackagesCommandFactory()}; fi`,
+          );
+        }
+        runSELinuxCommands(portCommands, { execute: shellExec });
+        shellExec(`sudo ssh-keygen -A`);
+        shellExec(`sudo /usr/sbin/sshd -t -f ${shellArgumentFactory(temporaryPath)}`);
+        shellExec(
+          `sudo install -m 0600 -o root -g root ${shellArgumentFactory(temporaryPath)} /etc/ssh/sshd_config`,
+        );
+        runSELinuxCommands(
+          [selinuxRestoreconCommandFactory(['/etc/ssh/sshd_config', '/etc/ssh/ssh_host_ed25519_key'])],
+          { execute: shellExec },
+        );
+        if (sshPort !== 22) {
+          shellExec(
+            `if command -v firewall-cmd >/dev/null 2>&1 && sudo firewall-cmd --state >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=${sshPort}/tcp && sudo firewall-cmd --reload; fi`,
+          );
+        }
+        shellExec(`sudo systemctl enable sshd`);
+        shellExec(`sudo systemctl restart sshd`);
+      } finally {
+        fs.removeSync(temporaryPath);
+      }
 
       const status = shellExec(`sudo systemctl status sshd`, { silent: true, stdout: true });
       if (status.match('running')) console.log(status.replaceAll(`running`, `running`.green));

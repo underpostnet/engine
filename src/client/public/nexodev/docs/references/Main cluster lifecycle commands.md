@@ -298,6 +298,13 @@ node bin run cluster --k3s
 | `--disable-gateway-api` | Fall back to the Contour HTTPProxy stack (Gateway API + HTTP/3 is the default) |
 | `--disable-http3`       | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` header                   |
 
+On RHEL and Rocky Linux, host configuration keeps SELinux in Enforcing mode. Kubeadm enables containerd SELinux labeling, while K3s installs its policy package and starts with `--selinux`. Diagnose deployment denials with:
+
+```bash
+sudo scripts/audit-selinux.sh --since boot
+sudo ausearch -m AVC,USER_AVC,SELINUX_ERR -ts recent -i
+```
+
 ### What `--dev` sets up on its own
 
 The dev cluster is a single command — there are no extra flags to remember, because everything the browser needs is derived from `conf.server.json` and applied by the runner itself:
@@ -834,6 +841,8 @@ node bin baremetal machine-node-hostname --dev --worker \
 | `--resume-join`               | Skip everything except the kubeadm join — assumes engine, Node.js, CRI-O, kubelet, and kubeadm are already installed. Retrieves a fresh token and joins directly.  |
 
 The join command is retrieved live from the control-plane over SSH (`kubeadm token create --print-join-command`) — no manual token paste. A failed `kubeadm join` aborts with a non-zero exit (no false-positive success).
+
+Rocky bare-metal images persist `SELINUX=enforcing`, restore SSH and sudoers contexts in the install root, and request a complete first-boot relabel. The initial boot can take longer and may reboot once before SSH becomes reachable. Custom SSH ports are registered as `ssh_port_t` before `sshd` starts. Node.js is installed system-wide; an NVM binary below `/root` or `/home` is not used by systemd services.
 
 ---
 

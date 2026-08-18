@@ -5,8 +5,8 @@ set -euo pipefail
 # Underpost Kubeadm Node Setup (bare-metal physical node)
 #
 # Mirrors scripts/k3s-node-setup.sh but for kubeadm on real hardware: it runs on
-# the freshly deployed OS (disk-installed Rocky) after first boot, installs NVM +
-# Node.js, ensures the engine source is present, and drives the cluster bring-up
+# the freshly deployed OS (disk-installed Rocky) after first boot, installs
+# system-wide Node.js, ensures the engine source is present, and drives the cluster bring-up
 # through the local engine entrypoint `node bin cluster` (src/cli/cluster.js) —
 # reusing its kubeadm + Contour + host-init logic instead of reimplementing it.
 #
@@ -146,33 +146,22 @@ if [ "$JOIN_ONLY" = "1" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 0. Base prerequisites — a minimal @core Rocky install lacks tar/xz/git, which
-#    NVM needs to extract Node.js and the engine clone needs. Install them first.
+# 0. Base prerequisites.
 # ---------------------------------------------------------------------------
-log "Installing base prerequisites (tar, xz, gzip, git, curl)..."
-sudo dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils 2>/dev/null \
-|| dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils
+log "Installing base prerequisites..."
+sudo dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils policycoreutils policycoreutils-python-utils selinux-policy-targeted audit 2>/dev/null \
+|| dnf install -y tar xz gzip bzip2 git curl ca-certificates which findutils policycoreutils policycoreutils-python-utils selinux-policy-targeted audit
 
 # ---------------------------------------------------------------------------
-# 1. NVM and Node.js — required for the `node bin ...` entrypoints. Idempotent so
-#    a retried run does not reinstall Node from scratch.
+# 1. System-wide Node.js. Home-directory runtimes cannot be used by hardened
+#    systemd services under SELinux.
 # ---------------------------------------------------------------------------
 if command -v node >/dev/null 2>&1 && node --version 2>/dev/null | grep -q '^v24'; then
-    log "Node.js $(node --version) already installed; skipping NVM setup"
+    log "Node.js $(node --version) already installed"
 else
-    log "Installing NVM and Node.js v24.15.0..."
-    curl -o- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
-    
-    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-    # shellcheck disable=SC1090
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    
-    nvm install 24.15.0
-    nvm use 24.15.0
-    nvm alias default 24.15.0
-    ln -sf "$(command -v node)" /usr/local/bin/node
-    ln -sf "$(command -v npm)" /usr/local/bin/npm
-    ln -sf "$(command -v npx)" /usr/local/bin/npx
+    log "Installing system-wide Node.js 24..."
+    curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
+    sudo dnf install -y nodejs
 fi
 
 echo "

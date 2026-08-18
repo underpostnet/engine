@@ -8,6 +8,12 @@
  */
 
 import fs from 'fs-extra';
+import {
+  selinuxEnforcingCommandsFactory,
+  selinuxPackagesCommandFactory,
+  selinuxSshContextCommandsFactory,
+  shellArgumentFactory,
+} from '../server/selinux.js';
 
 /**
  * @class UnderpostSystemProvisionig
@@ -196,6 +202,8 @@ logdir /var/log/chrony
 
           // Install essential system tools (avoiding duplicates from container packages)
           `dnf -y install --allowerasing bzip2 openssh-server nano vim-enhanced less openssl-devel git gnupg2 libnsl perl`,
+          selinuxPackagesCommandFactory({ sudo: false }),
+          ...selinuxEnforcingCommandsFactory({ sudo: false }),
           `dnf clean all`,
 
           // Install Node.js
@@ -218,19 +226,24 @@ logdir /var/log/chrony
          * @memberof UnderpostSystemProvisionig
          * @returns {string[]} An array of shell commands.
          */
-        user: () => [
-          `useradd -m -s /bin/bash -G wheel root`, // Create a root user with bash shell and wheel group (sudo on RHEL)
-          `echo 'root:root' | chpasswd`, // Set a default password for the root user
-          `mkdir -p /home/root/.ssh`, // Create .ssh directory for authorized keys
-          // Add the public SSH key to authorized_keys for passwordless login
-          `echo '${fs.readFileSync(
-            `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-            'utf8',
-          )}' > /home/root/.ssh/authorized_keys`,
-          `chown -R root:root /home/root/.ssh`, // Set ownership for security
-          `chmod 700 /home/root/.ssh`, // Set permissions for the .ssh directory
-          `chmod 600 /home/root/.ssh/authorized_keys`, // Set permissions for authorized_keys
-        ],
+        user: ({ username = 'root', publicKeyPath = '/home/dd/engine/engine-private/deploy/id_rsa.pub' } = {}) => {
+          if (!/^[a-z_][a-z0-9_-]*[$]?$/i.test(username)) throw new TypeError('Invalid Rocky Linux username');
+          const home = username === 'root' ? '/root' : `/home/${username}`;
+          const sshDirectory = `${home}/.ssh`;
+          const publicKey = fs.readFileSync(publicKeyPath, 'utf8').trim();
+          const userCommand =
+            username === 'root'
+              ? `usermod -s /bin/bash root`
+              : `id -u ${shellArgumentFactory(username)} >/dev/null 2>&1 || useradd -m -s /bin/bash -G wheel ${shellArgumentFactory(username)}`;
+          return [
+            userCommand,
+            `install -d -m 0700 -o ${shellArgumentFactory(username)} -g ${shellArgumentFactory(username)} ${shellArgumentFactory(sshDirectory)}`,
+            `printf '%s\n' ${shellArgumentFactory(publicKey)} > ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}`,
+            `chown ${shellArgumentFactory(`${username}:${username}`)} ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}`,
+            `chmod 0600 ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}`,
+            ...selinuxSshContextCommandsFactory({ sshDirectory, sudo: false }),
+          ];
+        },
         /**
          * @method timezone
          * @description Generates shell commands for configuring the system timezone on Rocky Linux.

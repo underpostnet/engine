@@ -168,7 +168,7 @@ PermitEmptyPasswords no
 PasswordAuthentication ${SSHD_PASSWORD_AUTH}
 ChallengeResponseAuthentication ${SSHD_KBD_INTERACTIVE}
 KbdInteractiveAuthentication ${SSHD_KBD_INTERACTIVE}
-UsePAM no
+UsePAM yes
 X11Forwarding no
 PrintMotd no
 TCPKeepAlive yes
@@ -585,7 +585,7 @@ fi
 post_status "installing" "\"detail\":\"installing packages\",\"disk\":\"\$REAL_DISK\""
 
 ilog "Installing base packages with dnf --installroot ..."
-PKGS="@core kernel grub2-tools openssh-server NetworkManager chrony dracut-config-generic rocky-release"
+PKGS="@core kernel grub2-tools openssh-server NetworkManager chrony dracut-config-generic rocky-release policycoreutils policycoreutils-python-utils selinux-policy-targeted audit sudo"
 if [ "\$FW" = "uefi" ]; then
     PKGS="\$PKGS grub2-efi-x64 shim-x64 efibootmgr"
 else
@@ -622,15 +622,10 @@ ilog "Configuring installed system (hostname, network, ssh, users) ..."
 echo "\${TARGET_HOSTNAME:-rocky9}" > "\$TARGET_MNT/etc/hostname"
 
 chroot "\$TARGET_MNT" /bin/bash -s << CHROOTEOF >> "\$KS_LOG" 2>&1
-set +e
+set -e
 systemctl enable sshd NetworkManager chronyd 2>/dev/null
 
-# SELinux -> permissive in the DEPLOYED OS. Critical: with SELinux enforcing on
-# first boot, files written from this installer chroot (authorized_keys, home
-# dirs) carry the wrong security context, so sshd drops sessions ("Connection
-# reset by peer") and PAM can block console logins. Permissive ignores contexts
-# (no relabel reboot needed) and matches what kubeadm/cluster.js expect.
-sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config 2>/dev/null || true
+sed -i 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config
 
 # Ensure sshd host keys exist so sshd actually starts on first boot.
 ssh-keygen -A 2>/dev/null || true
@@ -708,10 +703,18 @@ fi
 # Key-only SSH on the installed system.
 mkdir -p /etc/ssh/sshd_config.d
 cat > /etc/ssh/sshd_config.d/00-underpost.conf <<SSHDEOF
+Port ${SSH_PORT}
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
 PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM yes
 SSHDEOF
+
+if [ "${SSH_PORT}" != "22" ]; then
+    semanage port -a -t ssh_port_t -p tcp "${SSH_PORT}" 2>/dev/null || \
+        semanage port -m -t ssh_port_t -p tcp "${SSH_PORT}"
+fi
 
 # Create the admin login accounts. create_user <name> writes the authorized key,
 # wheel membership and passwordless sudo. Passwords are applied after the chroot.
@@ -738,10 +741,23 @@ chmod 600 /root/.ssh/authorized_keys
 create_user "\${ADMIN_USER}"
 create_user "\${DEPLOY_USER}"
 
+restorecon -RF /etc/ssh /etc/sudoers.d /root/.ssh /home 2>/dev/null
+touch /.autorelabel
+
 # Build initramfs for the installed kernel.
 KVER=\\\$(ls /lib/modules | head -1)
 [ -n "\\\$KVER" ] && dracut -f /boot/initramfs-\\\$KVER.img "\\\$KVER"
 CHROOTEOF
+
+CHROOT_RC=\$?
+if [ "\$CHROOT_RC" -ne 0 ]; then
+    ilog "FATAL: installed-system configuration failed (rc=\$CHROOT_RC)"
+    post_status "failed" "\"detail\":\"installed-system configuration rc=\$CHROOT_RC\""
+    for d in dev proc sys run; do umount -l "\$TARGET_MNT/\$d" 2>/dev/null; done
+    umount -R "\$TARGET_MNT" 2>/dev/null || true
+    rm -f "\$INSTALL_LOCK"
+    exit 1
+fi
 
 # Set console passwords AFTER the chroot heredoc, from decoded installer vars.
 # Primary path: pipe 'user:password' into 'chroot chpasswd' (keeps password

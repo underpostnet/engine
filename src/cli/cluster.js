@@ -4,10 +4,17 @@
  * @namespace UnderpostCluster
  */
 
-import { clusterTypeFactory, gatewayApiEnabledFactory, getNpmRootPath, resolveReplicaCount } from '../server/conf.js';
+import { clusterTypeFactory, gatewayApiEnabledFactory, resolveReplicaCount } from '../server/conf.js';
+import { getNpmRootPath } from '../server/environment.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
+import {
+  runSELinuxCommands,
+  selinuxEnforcingCommandsFactory,
+  selinuxPackagesCommandFactory,
+  selinuxRestoreconCommandFactory,
+} from '../server/selinux.js';
 import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/underpost-gateway.js';
 import {
   UNDERPOST_INGRESS,
@@ -35,6 +42,14 @@ const ENVOY_GATEWAY_VERSION = 'v1.8.3';
 // Namespace the upstream Contour render deploys into, and the only one where an
 // `app=envoy` selector resolves to its DaemonSet.
 const CONTOUR_NAMESPACE = 'projectcontour';
+
+const enforceSELinux = (paths = []) => {
+  shellExec(
+    `if [ -f /etc/redhat-release ] && command -v dnf >/dev/null 2>&1 && { ! command -v restorecon >/dev/null 2>&1 || ! command -v semanage >/dev/null 2>&1; }; then ${selinuxPackagesCommandFactory()}; fi`,
+  );
+  const commands = selinuxEnforcingCommandsFactory({ restorePaths: paths });
+  runSELinuxCommands(commands, { execute: shellExec });
+};
 
 /**
  * @class UnderpostCluster
@@ -227,7 +242,9 @@ class UnderpostCluster {
           // balancer. The platform exposes services explicitly via Project
           // Contour / Envoy and NodePort services (see --node-port); leaving the
           // K3s built-ins enabled would bind the same host ports and conflict.
-          shellExec(`curl -sfL https://get.k3s.io | sh -s - --disable=traefik --disable=servicelb`);
+          shellExec(
+            `curl -sfL https://get.k3s.io | sh -s - $(if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then printf '%s' '--selinux'; fi) --disable=traefik --disable=servicelb`,
+          );
           logger.info('K3s installation completed.');
 
           Underpost.cluster.chown('k3s');
@@ -1350,26 +1367,17 @@ EOF
     config(options = { underpostRoot: '.' }) {
       const { underpostRoot } = options;
       console.log('Applying host configuration: SELinux, Docker, Containerd, and Sysctl settings.');
-      // Disable SELinux (permissive mode)
-      shellExec(`sudo setenforce 0`, {
-        silentOnError: true,
-      });
-      shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`, {
-        silentOnError: true,
-      });
+      enforceSELinux(['/var/lib/kubelet', '/var/lib/containerd']);
 
       // Enable and start Docker and Kubelet services
       shellExec(`sudo systemctl enable --now docker`); // Docker might not be needed for K3s
       shellExec(`sudo systemctl enable --now kubelet`); // Kubelet might not be needed for K3s (K3s uses its own agent)
 
-      // Configure containerd for SystemdCgroup and explicitly disable SELinux
-      // This is crucial for kubelet/k3s to interact correctly with containerd
+      // Configure containerd for systemd cgroups and SELinux labeling.
       shellExec(`containerd config default | sudo tee /etc/containerd/config.toml > /dev/null`);
       shellExec(`sudo sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
-      // Add a new line to disable SELinux for the runc runtime
-      // shellExec(
-      //   `sudo sed -i '/SystemdCgroup = true/a       selinux_disabled = true' /etc/containerd/config.toml`,
-      // );
+      shellExec(`sudo sed -i -e "s/enable_selinux = false/enable_selinux = true/g" /etc/containerd/config.toml`);
+      runSELinuxCommands([selinuxRestoreconCommandFactory('/etc/containerd')], { execute: shellExec });
       // Restart docker after containerd config changes. Rocky 9 uses systemctl,
       // not the legacy service command.
       shellExec(`sudo systemctl restart docker || sudo service docker restart || true`);
@@ -1400,7 +1408,7 @@ EOF
      * This applies only what K3s genuinely requires, and every step is guarded
      * so it is a no-op when the relevant tooling is absent (e.g. minimal images
      * without SELinux userspace):
-     *   - SELinux → permissive (only if SELinux tooling is present).
+     *   - SELinux remains Enforcing.
      *   - swap off (Kubernetes best practice).
      *   - br_netfilter + bridge/forward sysctls (pod networking).
      *   - inotify limits.
@@ -1415,16 +1423,7 @@ EOF
       // forever (the upstream unit ships TimeoutStartSec=0).
       shellExec(`if systemctl is-active --quiet firewalld; then sudo systemctl disable --now firewalld; fi`);
 
-      // SELinux → permissive, but only when the tooling exists. Rocky has it;
-      // minimal LXD images may not. K3s also installs k3s-selinux for enforcing
-      // mode, so this is a best-effort dev convenience, not a hard requirement.
-      shellExec(`if command -v setenforce >/dev/null 2>&1; then sudo setenforce 0; fi`, {
-        silentOnError: true,
-      });
-      shellExec(
-        `if [ -f /etc/selinux/config ]; then sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config; fi`,
-        { silentOnError: true },
-      );
+      enforceSELinux(['/var/lib/rancher']);
 
       // Disable swap. `swapoff -a` is a no-op without swap; the sed only edits
       // fstab when a swap line is present.
@@ -1697,17 +1696,8 @@ fi`);
       if (options.removeVolumeHostPaths) Underpost.cluster._cleanHostPathPvs();
       else logger.info('  -> Skipping (pass --remove-volume-host-paths to enable).');
 
-      logger.info('Phase 2/7: SELinux permissive + restore contexts (when present)...');
-      shellExec(`if command -v setenforce >/dev/null 2>&1; then sudo setenforce 0; fi`);
-      shellExec(
-        `if [ -f /etc/selinux/config ]; then sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config; fi`,
-      );
-      shellExec(
-        `if command -v restorecon >/dev/null 2>&1 && [ -d /var/lib/kubelet ]; then sudo restorecon -Rv /var/lib/kubelet; fi`,
-      );
-      shellExec(
-        `if command -v restorecon >/dev/null 2>&1 && [ -d /var/lib/containerd ]; then sudo restorecon -Rv /var/lib/containerd; fi`,
-      );
+      logger.info('Phase 2/7: Enforcing SELinux and restoring runtime contexts...');
+      enforceSELinux(['/var/lib/kubelet', '/var/lib/containerd']);
 
       logger.info('Phase 3/7: Stopping host kubelet and container runtimes (kubeadm-scope only)...');
       shellExec(`if systemctl is-active --quiet kubelet; then sudo systemctl stop kubelet; fi`);
@@ -1981,10 +1971,8 @@ EOF`);
       shellExec(`sudo rm -f /etc/sysctl.d/99-k8s-ipforward.conf`);
       shellExec(`sudo rm -f /etc/sysctl.d/99-k8s.conf`);
 
-      // Restore SELinux to enforcing
-      console.log('Restoring SELinux to enforcing mode...');
-      // shellExec(`sudo setenforce 1`);
-      // shellExec(`sudo sed -i 's/^SELINUX=permissive$/SELINUX=enforcing/' /etc/selinux/config`);
+      console.log('Keeping SELinux in enforcing mode...');
+      enforceSELinux();
 
       console.log('Uninstall process completed.');
     },
