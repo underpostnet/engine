@@ -34,7 +34,6 @@ import {
   resolveEnvScoped,
   selectConfInstances,
   waitForPort,
-  writeEnv,
   clusterInstancesFactory,
   deployTrafficEntriesFactory,
   curlStatusChainFactory,
@@ -48,7 +47,7 @@ import {
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
 import { cronDeployIdResolve } from '../server/cron.js';
-import { getNpmRootPath } from '../server/environment.js';
+import { getNpmRootPath, writeEnv } from '../server/environment.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 
 import fs from 'fs-extra';

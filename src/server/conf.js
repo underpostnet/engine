@@ -22,6 +22,7 @@ import net from 'net';
 import crypto from 'crypto';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
+import { writeEnv } from './environment.js';
 import { shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from './underpost-gateway.js';
 import { DefaultConf } from '../../conf.js';
@@ -1373,22 +1374,6 @@ const generateSecurePassword = (length = 16) => {
   }
   return chars.join('');
 };
-
-/**
- * @method writeEnv
- * @description Writes the environment variables.
- * @param {string} envPath - The environment path.
- * @param {object} envObj - The environment object.
- * @memberof ServerConfBuilder
- */
-const writeEnv = (envPath, envObj) =>
-  fs.writeFileSync(
-    envPath,
-    Object.keys(envObj)
-      .map((key) => `${key}=${envObj[key]}`)
-      .join(`\n`),
-    'utf8',
-  );
 
 /**
  * @method buildCliDoc
@@ -3318,7 +3303,6 @@ export {
   splitFileFactory,
   generateSecurePassword,
   resolveReplicaCount,
-  writeEnv,
   pathPortAssignmentFactory,
   deployRangePortFactory,
   awaitDeployMonitor,

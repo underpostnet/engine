@@ -18,7 +18,7 @@ const logger = loggerFactory(import.meta);
  * Cluster bring-up gives it the shared container label, because the pods that
  * read these documents are unprivileged.
  * @constant {string}
- * @memberof EnvironmentService
+ * @memberof ServerEnvironment
  */
 const HOST_VOLUME_ROOT = '/home/dd/engine/volume';
 const envFileCache = new Map();
@@ -78,4 +78,21 @@ const environmentValueFactory = (key) => {
   return '';
 };
 
-export { environmentValueFactory, getNpmRootPath, getUnderpostRootPath, HOST_VOLUME_ROOT };
+/**
+ * Writes environment values as a dotenv file.
+ * @method writeEnv
+ * @param {string} envPath - Destination file path.
+ * @param {Object<string, *>} envObj - Environment values keyed by variable name.
+ * @returns {void}
+ * @memberof ServerEnvironment
+ */
+const writeEnv = (envPath, envObj) =>
+  fs.writeFileSync(
+    envPath,
+    Object.keys(envObj)
+      .map((key) => `${key}=${envObj[key]}`)
+      .join('\n'),
+    'utf8',
+  );
+
+export { environmentValueFactory, getNpmRootPath, getUnderpostRootPath, HOST_VOLUME_ROOT, writeEnv };

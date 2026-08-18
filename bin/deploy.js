@@ -14,10 +14,10 @@ import {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
-  writeEnv,
   buildCliDoc,
   loadConf,
 } from '../src/server/conf.js';
+import { writeEnv } from '../src/server/environment.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer, getCapVariableName } from '../src/client/components/core/CommonJs.js';

@@ -19,10 +19,9 @@ import {
   loadConfServerJson,
   getDataDeploy,
   buildReplicaId,
-  writeEnv,
   readConfInstances,
 } from '../server/conf.js';
-import { getNpmRootPath } from '../server/environment.js';
+import { getNpmRootPath, writeEnv } from '../server/environment.js';
 import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../client-builder/client-build.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';
