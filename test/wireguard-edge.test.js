@@ -518,9 +518,7 @@ describe('edge hub routing', () => {
     });
 
     it('masquerades pod traffic only when it enters the tunnel', () => {
-      expect(client).to.include(
-        'PostUp = iptables -t nat -C POSTROUTING -o %i -d 10.0.0.0/24 -j MASQUERADE',
-      );
+      expect(client).to.include('PostUp = iptables -t nat -C POSTROUTING -o %i -d 10.0.0.0/24 -j MASQUERADE');
       expect(client).to.not.include('POSTROUTING -o %i -j MASQUERADE');
     });
 
@@ -935,9 +933,7 @@ describe('edge hub forward proxy', () => {
         '/opt/node/bin/node',
         ...FORWARD_PROXY.nodePaths,
       ]);
-      expect(forwardProxyNodeCandidatesFactory({ execPath: '/usr/bin/node' })).to.deep.equal(
-        FORWARD_PROXY.nodePaths,
-      );
+      expect(forwardProxyNodeCandidatesFactory({ execPath: '/usr/bin/node' })).to.deep.equal(FORWARD_PROXY.nodePaths);
     });
 
     it('recognises a home directory path without mistaking a lookalike for one', () => {
@@ -1035,10 +1031,10 @@ describe('edge hub forward proxy', () => {
     });
 
     it('relays an http request and returns the origin answer', async () => {
-      const response = await fetchViaForwardProxy(
-        `http://127.0.0.1:${port(origin)}/v2/instances?per_page=500`,
-        { proxy: proxyConfig, headers: { authorization: 'Bearer vultr-key' } },
-      );
+      const response = await fetchViaForwardProxy(`http://127.0.0.1:${port(origin)}/v2/instances?per_page=500`, {
+        proxy: proxyConfig,
+        headers: { authorization: 'Bearer vultr-key' },
+      });
       expect(response.status).to.equal(200);
       const body = JSON.parse(response.body);
       expect(body.url).to.equal('/v2/instances?per_page=500');
@@ -1122,6 +1118,60 @@ describe('edge hub forward proxy', () => {
         request.end();
       });
       expect(status).to.equal(407);
+    });
+  });
+
+  // SSH carries no SNI and no Host, so there is nothing to route it on. The port
+  // goes whole to the fallback spoke, exactly as UDP/443 does — it exists so CI,
+  // which has no fixed address, can reach a cluster node behind CGNAT.
+  describe('ssh forward', () => {
+    const SPOKE = [peerFactory({ id: 'homelab-a', address: '10.0.0.2', publicKey: 'AAA=', default: true })];
+
+    it('is closed by default, so no edge exposes SSH it was not told to', () => {
+      expect(edgeStateFactory({}).sshForwardPort).to.equal(0);
+      expect(edgeStateFactory({ sshForwardPort: 'nonsense' }).sshForwardPort).to.equal(0);
+      expect(edgeStateFactory({ sshForwardPort: 2222 }).sshForwardPort).to.equal(2222);
+      expect(haproxyConfFactory({ peers: SPOKE, defaultPeerId: 'homelab-a' })).to.not.include('fe_ssh');
+    });
+
+    it('binds the public port and sends it whole to the fallback spoke', () => {
+      const conf = haproxyConfFactory({ peers: SPOKE, defaultPeerId: 'homelab-a', sshForwardPort: 2222 });
+      expect(conf).to.include('frontend fe_ssh');
+      expect(conf).to.include('bind :2222');
+      expect(conf).to.include('default_backend be_ssh_default');
+      expect(conf).to.include(`server homelab-a 10.0.0.2:${UNDERPOST_EDGE.sshPort} check`);
+    });
+
+    // The server speaks first in SSH, so waiting on client bytes would stall
+    // every connection until the inspect timeout expired.
+    it('does not wait for client bytes the way the SNI frontend does', () => {
+      const conf = haproxyConfFactory({ peers: SPOKE, defaultPeerId: 'homelab-a', sshForwardPort: 2222 });
+      const directives = conf
+        .split('frontend fe_ssh')[1]
+        .split('\n\n')[0]
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'));
+      expect(directives).to.include('mode tcp');
+      expect(directives.some((line) => line.startsWith('tcp-request'))).to.equal(false);
+    });
+
+    // Binding a port with nothing behind it would accept connections only to
+    // drop them, which reads as a broken host rather than a closed door.
+    it('emits nothing when there is no spoke to forward to', () => {
+      expect(haproxyConfFactory({ peers: [], sshForwardPort: 2222 })).to.not.include('fe_ssh');
+    });
+
+    it('opens the port publicly, and withdraws it on teardown', () => {
+      const opened = firewallCommandsFactory({ role: 'server', sshForwardPort: 2222 }).join('\n');
+      expect(opened).to.include('--add-port=2222/tcp');
+      const closed = firewallCommandsFactory({ role: 'server', sshForwardPort: 2222, remove: true }).join('\n');
+      expect(closed).to.include('--remove-port=2222/tcp');
+    });
+
+    it('opens no SSH port when none is configured, and never on a spoke', () => {
+      expect(firewallCommandsFactory({ role: 'server' }).join('\n')).to.not.include('2222');
+      expect(firewallCommandsFactory({ role: 'client', sshForwardPort: 2222 }).join('\n')).to.not.include('2222');
     });
   });
 });

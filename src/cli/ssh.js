@@ -140,9 +140,7 @@ class UnderpostSSH {
       shellExec(`chmod 644 ${shellArgumentFactory(`${sshDir}/known_hosts`)}`);
       if (keyPath) shellExec(`chmod 600 ${shellArgumentFactory(keyPath)}`);
       if (pubKeyPath) shellExec(`chmod 644 ${shellArgumentFactory(pubKeyPath)}`);
-      shellExec(
-        `chown -R ${shellArgumentFactory(`${username}:${username}`)} ${shellArgumentFactory(sshDir)}`,
-      );
+      shellExec(`chown -R ${shellArgumentFactory(`${username}:${username}`)} ${shellArgumentFactory(sshDir)}`);
       runSELinuxCommands(selinuxSshContextCommandsFactory({ sshDirectory: sshDir }), { execute: shellExec });
     },
 
@@ -177,7 +175,8 @@ class UnderpostSSH {
      */
     configureKnownHosts: (sshDir, port, host) => {
       const sshPort = Number(port);
-      if (!Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535) throw new RangeError('SSH port must be 1-65535');
+      if (!Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535)
+        throw new RangeError('SSH port must be 1-65535');
       const knownHostsPath = shellArgumentFactory(`${sshDir}/known_hosts`);
       shellExec(`ssh-keyscan -p ${sshPort} -H localhost >> ${knownHostsPath}`);
       shellExec(`ssh-keyscan -p ${sshPort} -H 127.0.0.1 >> ${knownHostsPath}`);
@@ -581,7 +580,35 @@ class UnderpostSSH {
             port: options.port,
             disablePassword: options.disablePassword,
           });
-        } else Underpost.ssh.chmod({ user: options.user });
+        } else {
+          // Hardening sshd on a host where the account does not exist produces a
+          // daemon that starts cleanly and refuses the only user it was meant to
+          // admit. Nothing downstream reports that, so the run has to.
+          if (!Underpost.ssh.checkUserExists(options.user))
+            throw new Error(
+              `[ssh] user '${options.user}' does not exist on this host; ` +
+                `run: node bin ssh --deploy-id ${options.deployId} --user ${options.user} --user-add`,
+            );
+          Underpost.ssh.chmod({ user: options.user });
+          // The registry records the key pair this deploy authenticates with, so
+          // a box whose authorized_keys was lost converges here rather than
+          // needing the key re-issued — which would invalidate every other host
+          // holding it.
+          const recordedPubKey = confNode?.users?.[options.user]?.publicKeyCopyPath;
+          if (recordedPubKey && fs.existsSync(recordedPubKey)) {
+            const sshDir = `${userHome}/.ssh`;
+            Underpost.ssh.ensureSSHDirectory(sshDir);
+            fs.ensureFileSync(`${sshDir}/authorized_keys`);
+            Underpost.ssh.configureAuthorizedKeys(sshDir, recordedPubKey, options.disablePassword);
+            Underpost.ssh.chmod({ user: options.user });
+            logger.info(`Authorized key present for ${options.user}`, { source: recordedPubKey });
+          } else if (recordedPubKey) {
+            logger.warn('Recorded public key is missing; authorized_keys left untouched', {
+              user: options.user,
+              expected: recordedPubKey,
+            });
+          }
+        }
         Underpost.ssh.initService({ port: options.port });
       }
 
@@ -952,9 +979,7 @@ EOF
         `if [ -f ${shellArgumentFactory(`${sshDirectory}/id_rsa`)} ]; then sudo chmod 600 ${shellArgumentFactory(`${sshDirectory}/id_rsa`)}; fi`,
       );
       shellExec(`sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`);
-      shellExec(
-        `sudo chown -R ${shellArgumentFactory(`${user}:${user}`)} ${shellArgumentFactory(sshDirectory)}`,
-      );
+      shellExec(`sudo chown -R ${shellArgumentFactory(`${user}:${user}`)} ${shellArgumentFactory(sshDirectory)}`);
       runSELinuxCommands(
         [
           ...selinuxSshContextCommandsFactory({ sshDirectory }),
@@ -1022,9 +1047,7 @@ Subsystem sftp /usr/libexec/openssh/sftp-server
         runSELinuxCommands(portCommands, { execute: shellExec });
         shellExec(`sudo ssh-keygen -A`);
         shellExec(`sudo /usr/sbin/sshd -t -f ${shellArgumentFactory(temporaryPath)}`);
-        shellExec(
-          `sudo install -m 0600 -o root -g root ${shellArgumentFactory(temporaryPath)} /etc/ssh/sshd_config`,
-        );
+        shellExec(`sudo install -m 0600 -o root -g root ${shellArgumentFactory(temporaryPath)} /etc/ssh/sshd_config`);
         runSELinuxCommands(
           [selinuxRestoreconCommandFactory(['/etc/ssh/sshd_config', '/etc/ssh/ssh_host_ed25519_key'])],
           { execute: shellExec },

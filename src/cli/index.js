@@ -764,6 +764,11 @@ const edgeCommandFactory = (name, description) =>
       'Address the forward proxy binds, overriding the hub tunnel address from the registry.',
     )
     .option('--forward-proxy-server-port <port>', 'Port the forward proxy binds (default: 1080).')
+    .option(
+      '--ssh-forward-port <port>',
+      'Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed ' +
+        'address can reach the cluster node (e.g. 2222). "0" closes it. Stored in the registry.',
+    )
     .option('--wireguard-start', 'Enables and starts wg-quick@<interface> and the QUIC forward.')
     .option('--wireguard-stop', 'Tears down the interface and removes its transient packet rules.')
     .option('--wireguard-reset', 'Removes generated configs and packet rules, keeping the key pair and registry.')
