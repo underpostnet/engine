@@ -276,7 +276,50 @@ class Dns {
    * @static
    * @memberof UnderpostDns
    */
+  static ensureFilterChains(chains = ['output', 'forward']) {
+    // A stock RHEL 9 host with firewalld keeps its rules in `inet firewalld`;
+    // there is no `inet filter` table, so every policy command below fails with
+    // "No such file or directory". They used to fail silently, which is the
+    // worst possible outcome for this subsystem: the caller logged a successful
+    // block, the bandwidth guard latched, and the overage it exists to stop
+    // kept accruing against a host that was never blocked.
+    //
+    // Creating our own base chains is additive rather than a firewalld
+    // takeover — nftables evaluates every table, so a drop here still wins.
+    const ran = (command) => shellExec(command, { silent: true, silentOnError: true })?.code === 0;
+    const chainExists = (chain) => ran(`sudo nft list chain inet filter ${chain}`);
+    const missing = chains.filter((chain) => !chainExists(chain));
+    if (missing.length === 0) return true;
+    if (!ran(`sudo nft add table inet filter`)) return false;
+    for (const chain of missing) {
+      const hook = chain === 'input' ? 'input' : chain;
+      if (!ran(`sudo nft add chain inet filter ${chain} '{ type filter hook ${hook} priority 0; policy accept; }'`))
+        return false;
+    }
+    return chains.every(chainExists);
+  }
+
+  /**
+   * Whether a chain currently carries the given policy.
+   * @static
+   * @param {string} chain - Chain name in `inet filter`.
+   * @param {string} policy - `accept` or `drop`.
+   * @returns {boolean} True when the chain reports that policy.
+   * @memberof UnderpostDns
+   */
+  static chainPolicyIs(chain, policy) {
+    const listing = shellExec(`sudo nft list chain inet filter ${chain}`, {
+      silent: true,
+      stdout: true,
+      silentOnError: true,
+    });
+    return `${listing || ''}`.includes(`policy ${policy}`);
+  }
+
   static blockAllEgress() {
+    if (!Dns.ensureFilterChains(['output', 'forward']))
+      throw new Error('[dns] could not create the inet filter chains; egress is NOT blocked');
+
     // Clear any existing egress rules.
     shellExec(`sudo nft flush chain inet filter output`, { silent: true });
     shellExec(`sudo nft flush chain inet filter forward`, { silent: true });
@@ -289,6 +332,12 @@ class Dns {
     shellExec(`sudo nft chain inet filter output '{ policy drop; }'`, { silent: true });
     shellExec(`sudo nft chain inet filter forward '{ policy drop; }'`, { silent: true });
 
+    // Read the policy back. The caller latches on this command's exit code, so
+    // reporting a block that did not land is what lets an overage run unbounded.
+    for (const chain of ['output', 'forward'])
+      if (!Dns.chainPolicyIs(chain, 'drop'))
+        throw new Error(`[dns] inet filter ${chain} is not 'policy drop'; egress is NOT blocked`);
+
     logger.info('All outbound traffic blocked.');
   }
 
@@ -299,6 +348,13 @@ class Dns {
    * @memberof UnderpostDns
    */
   static unblockAllEgress() {
+    // Nothing to restore when the chains were never created — that host was
+    // never blocked, and saying so beats failing on a missing table.
+    if (!Dns.ensureFilterChains(['output', 'forward'])) {
+      logger.info('No inet filter chains on this host; egress was never blocked.');
+      return;
+    }
+
     // Restore default chain policies to accept all traffic.
     shellExec(`sudo nft chain inet filter output '{ policy accept; }'`, { silent: true });
     shellExec(`sudo nft chain inet filter forward '{ policy accept; }'`, { silent: true });
@@ -306,6 +362,10 @@ class Dns {
     // Clear any existing egress blocking rules.
     shellExec(`sudo nft flush chain inet filter output`, { silent: true });
     shellExec(`sudo nft flush chain inet filter forward`, { silent: true });
+
+    for (const chain of ['output', 'forward'])
+      if (!Dns.chainPolicyIs(chain, 'accept'))
+        throw new Error(`[dns] inet filter ${chain} is still not 'policy accept'; egress remains blocked`);
 
     logger.info('All outbound traffic unblocked and restored to default ACCEPT policy.');
   }
@@ -354,7 +414,7 @@ class Dns {
    * @memberof UnderpostDns
    * @param {string} deployList Comma-separated string of deployment IDs to process.
    * @returns {Promise<void>}
-  */
+   */
   static async callback(deployList) {
     const isOnline = await Dns.isInternetConnection();
 
