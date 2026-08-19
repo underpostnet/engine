@@ -878,11 +878,51 @@ const firewallCommandsFactory = ({
 const peerSummaryFactory = (peer) => ({
   id: peer.id,
   address: peer.address,
+  // The identity the far end actually presents. Registry-only fields say what a
+  // spoke is *called*; this is what `wg` matches on, so it is the one field that
+  // settles "is the hub expecting the key this machine holds". Public by
+  // definition — the private half never leaves the host that generated it.
+  publicKey: peer.publicKey,
   allowedIPs: peer.allowedIPs,
   hosts: peer.hosts,
   instances: peer.instances,
   default: peer.default,
 });
+
+/**
+ * @method unregisteredPeersFactory
+ * @description Public keys the live interface carries that the registry does not.
+ *
+ * `wg set` adds a peer and never removes the one it supersedes, so re-keying a
+ * spoke or re-running `--peer-add` with a corrected key leaves the previous
+ * identity on the interface, still holding its old handshake. Every other view
+ * here is keyed by the registry, which makes those leftovers invisible — and an
+ * invisible peer that still claims an address is exactly what makes a tunnel
+ * "configured correctly" and dead at the same time.
+ * @param {Array<object>} [peers] - Registry entries.
+ * @param {string} [latestHandshakes] - `wg show <iface> latest-handshakes` output.
+ * @param {number} [now] - Current time in epoch seconds.
+ * @returns {Array<{publicKey: string, handshakeAgeSeconds: ?number}>} Peers on the wire but not in the registry.
+ * @memberof UnderpostWireguard
+ */
+const unregisteredPeersFactory = ({ peers = [], latestHandshakes = '', now = Math.floor(Date.now() / 1000) } = {}) => {
+  const known = new Set(
+    peers
+      .map(peerFactory)
+      .map((peer) => peer.publicKey)
+      .filter(Boolean),
+  );
+  return `${latestHandshakes || ''}`
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/))
+    .filter(([publicKey]) => publicKey && !known.has(publicKey))
+    .map(([publicKey, seconds]) => ({
+      publicKey,
+      handshakeAgeSeconds: Number(seconds) > 0 ? now - Number(seconds) : null,
+    }));
+};
 
 /**
  * @method wireguardStatusFactory
@@ -1514,6 +1554,9 @@ class UnderpostWireguard {
       const probeHost = options.buildConf !== true;
       const read = (command) => shellExec(command, { stdout: true, silent: true, silentOnError: true }).trim();
       const show = (subCommand) => (probeHost ? read(`sudo wg show ${interfaceName} ${subCommand}`) : '');
+      // Sampled once: the registry view and the leftover-peer view must describe
+      // the same instant, or a peer can appear in neither.
+      const handshakes = show('latest-handshakes');
 
       let table = null;
       try {
@@ -1530,6 +1573,10 @@ class UnderpostWireguard {
         address: state.address,
         endpoint: state.endpoint,
         publicKey: state.publicKey,
+        // What this machine dials, next to what it presents. A spoke that cannot
+        // handshake is usually holding one of these two wrong, and reading them
+        // off the same report is what makes that a five-second check.
+        ...(state.role === 'client' ? { hubPublicKey: state.hubPublicKey || '(unset)' } : {}),
         ...(probeHost
           ? {
               wireguard: read(systemdStatusCommandsFactory(`wg-quick@${interfaceName}`).active),
@@ -1544,11 +1591,14 @@ class UnderpostWireguard {
         peers: probeHost
           ? wireguardStatusFactory({
               peers: state.peers,
-              latestHandshakes: show('latest-handshakes'),
+              latestHandshakes: handshakes,
               transfer: show('transfer'),
               endpoints: show('endpoints'),
             })
           : state.peers.map(peerSummaryFactory),
+        ...(probeHost
+          ? { unregisteredPeers: unregisteredPeersFactory({ peers: state.peers, latestHandshakes: handshakes }) }
+          : {}),
         routing: table
           ? {
               deployList: table.deployList,
@@ -2113,6 +2163,7 @@ export {
   quicForwardCommandsFactory,
   readEdgeState,
   redirectHostFactory,
+  unregisteredPeersFactory,
   tunnelAddressFactory,
   tunnelNetworkCidrFactory,
   wireguardClientConfFactory,

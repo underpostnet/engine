@@ -38,6 +38,7 @@ import {
   peerFactory,
   quicForwardCommandsFactory,
   redirectHostFactory,
+  unregisteredPeersFactory,
   tunnelAddressFactory,
   tunnelNetworkCidrFactory,
   wireguardClientConfFactory,
@@ -628,6 +629,7 @@ describe('edge hub routing', () => {
         {
           id: 'homelab-a',
           address: '10.0.0.2',
+          publicKey: 'AAA=',
           allowedIPs: ['10.0.0.2/32', '192.168.10.0/24'],
           hosts: ['www.dogmadual.com'],
           instances: [],
@@ -641,6 +643,7 @@ describe('edge hub routing', () => {
         {
           id: 'homelab-b',
           address: '10.0.0.3',
+          publicKey: 'BBB=',
           allowedIPs: ['10.0.0.3/32'],
           hosts: ['www.nexodev.org'],
           instances: ['mmo-server'],
@@ -1172,6 +1175,55 @@ describe('edge hub forward proxy', () => {
     it('opens no SSH port when none is configured, and never on a spoke', () => {
       expect(firewallCommandsFactory({ role: 'server' }).join('\n')).to.not.include('2222');
       expect(firewallCommandsFactory({ role: 'client', sshForwardPort: 2222 }).join('\n')).to.not.include('2222');
+    });
+  });
+
+  // A spoke is identified by the key it presents, not by the name the registry
+  // gives it. Reporting the name without the key is what turns "the hub has the
+  // wrong key for this machine" into an unanswerable question.
+  describe('peer identity in --status', () => {
+    it('reports the public key alongside the registry name', () => {
+      const [row] = wireguardStatusFactory({
+        peers: [{ id: 'homelab-a', address: '10.0.0.2', publicKey: 'w1M+9VHZ=' }],
+        latestHandshakes: 'w1M+9VHZ=\t1000',
+        now: 1030,
+      });
+      expect(row.publicKey).to.equal('w1M+9VHZ=');
+      expect(row.id).to.equal('homelab-a');
+    });
+
+    it('carries the key through the off-box view too', () => {
+      const state = edgeStateFactory({ peers: [{ id: 'a', address: '10.0.0.2', publicKey: 'KEY=' }] });
+      expect(state.peers[0].publicKey).to.equal('KEY=');
+    });
+  });
+
+  // `wg set` adds a peer and never removes the one it supersedes, so a corrected
+  // --peer-add leaves the previous identity on the wire holding its old
+  // handshake — invisible to every view that is keyed by the registry.
+  describe('unregisteredPeersFactory', () => {
+    const PEER = { id: 'homelab-a', address: '10.0.0.2', publicKey: 'CURRENT=' };
+
+    it('reports an identity on the wire that the registry does not name', () => {
+      expect(
+        unregisteredPeersFactory({
+          peers: [PEER],
+          latestHandshakes: 'CURRENT=\t900\nSUPERSEDED=\t500',
+          now: 1000,
+        }),
+      ).to.deep.equal([{ publicKey: 'SUPERSEDED=', handshakeAgeSeconds: 500 }]);
+    });
+
+    it('reports a leftover that never handshaked as an unknown age, not as fresh', () => {
+      const [row] = unregisteredPeersFactory({ peers: [PEER], latestHandshakes: 'GHOST=\t0', now: 1000 });
+      expect(row).to.deep.equal({ publicKey: 'GHOST=', handshakeAgeSeconds: null });
+    });
+
+    it('is quiet when the wire matches the registry', () => {
+      expect(unregisteredPeersFactory({ peers: [PEER], latestHandshakes: 'CURRENT=\t900', now: 1000 })).to.deep.equal(
+        [],
+      );
+      expect(unregisteredPeersFactory({ peers: [PEER], latestHandshakes: '' })).to.deep.equal([]);
     });
   });
 });
