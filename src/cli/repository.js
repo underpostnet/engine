@@ -1598,6 +1598,18 @@ Prevent build private config repo.`,
           case 'commit':
             if (fs.existsSync(repoPath)) {
               shellExec(`cd ${repoPath} && git add .`);
+              // A backup run that produced no new bytes is a normal outcome, not a
+              // failure: committing anyway exits non-zero and buries real errors.
+              const pending = shellExec(`cd ${repoPath} && git status --porcelain`, {
+                stdout: true,
+                silent: true,
+                disableLog: true,
+                silentOnError: true,
+              });
+              if (!`${pending || ''}`.trim()) {
+                logger.info(`No changes to commit: ${repoName}`, { message });
+                break;
+              }
               shellExec(`underpost cmt ${repoPath} backup '' '${message}'`);
               logger.info(`Committed to repository: ${repoName}`, { message });
             }
