@@ -200,7 +200,7 @@ const shellExec = (cmd, options = {}) => {
     try {
       process.chdir(options.cwd);
     } catch (err) {
-      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error')
+      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
       throw new ShellExecError(cmd, -1, '', `chdir(${options.cwd}) failed: ${err.message}`);
     }
   }
@@ -214,7 +214,7 @@ const shellExec = (cmd, options = {}) => {
     const result = shell.exec(cmd, shellOpts);
 
     if (!options.silentOnError && result && typeof result.code === 'number' && result.code !== 0) {
-      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error')
+      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
       throw new ShellExecError(cmd, result.code, result.stdout || '', result.stderr || '');
     }
 
@@ -228,6 +228,21 @@ const shellExec = (cmd, options = {}) => {
       }
     }
   }
+};
+/**
+ * Blocks the calling thread for `ms` milliseconds.
+ *
+ * Retry backoff around the synchronous `shellExec` chains (kubectl exec, pod
+ * readiness polling) has no async boundary to await on, so the wait has to
+ * block. `Atomics.wait` keeps the CPU idle instead of spinning.
+ *
+ * @memberof Process
+ * @param {number} ms - Milliseconds to block for. Non-positive values are a no-op.
+ * @returns {void}
+ */
+const sleepSync = (ms) => {
+  if (!(typeof ms === 'number') || !(ms > 0)) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 };
 /**
  * Changes the current working directory using shelljs.
@@ -292,6 +307,7 @@ export {
   getRootDirectory,
   shellExec,
   shellCd,
+  sleepSync,
   pbcopy,
   getTerminalPid,
   daemonProcess,

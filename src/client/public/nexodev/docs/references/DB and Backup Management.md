@@ -418,6 +418,102 @@ Ensure you have proper Kubernetes RBAC permissions:
 kubectl auth can-i get pods -n <namespace>
 ```
 
+### Pod Connection Errors During Export
+
+`unable to upgrade connection: container not found ("mongodb")` means the container
+restarted underneath a pod the API server still reports as `Ready`. Exports and imports
+handle this themselves:
+
+- **Exec-readiness gate** — before any dump, restore, or `kubectl cp`, the pod is probed
+  with a no-op exec. A pod that only _looks_ ready is waited out instead of being dumped.
+- **Bounded retry** — a failed dump, restore, or copy is replayed with exponential
+  backoff (2s, 4s, 8s) up to a fixed attempt limit, then fails for good. Each retry waits
+  for the pod to accept an exec stream again, so a replay never lands on a container that
+  is still restarting. Operations that are not safe to replay — a `mongorestore` without
+  `--drop`, a MariaDB SQL import — opt out and run exactly once.
+- **Honest exit** — a run where any database failed logs
+  `Database operation completed with failures` and exits non-zero. Whatever succeeded is
+  still committed; the run is never reported as a success.
+
+### `command terminated with exit code 137`
+
+Exit 137 is SIGKILL from the kernel's OOM killer: `mongodump` runs **inside** the mongod
+container and shares its memory limit, so a dump can push the container past that limit and
+take mongod down with it. The restart then triggers a replica-set election, and the next
+dump fails with `(NotPrimaryOrSecondary) node is not in primary or recovering state`.
+
+Two things keep the dump inside the budget:
+
+- `mongodump` runs with `--numParallelCollections=1`. The default of 4 quadruples the
+  buffers held at once, and that is what crosses the limit.
+- `manifests/mongodb/statefulset.yaml` pins `--wiredTigerCacheSizeGB 0.25` and gives the
+  container a 1536Mi limit. Left to itself, mongod sizes its cache from the cgroup limit and
+  lands on the 256MB floor, leaving nothing for the dump.
+
+Confirm an OOM kill and check the restart count with:
+
+```bash
+kubectl get pod mongodb-0 -n <namespace> -o wide
+kubectl describe pod mongodb-0 -n <namespace> | grep -A5 'Last State'
+```
+
+`Last State: Terminated, Reason: OOMKilled` confirms it. Raise the container's memory limit
+in the StatefulSet if a growing database outgrows the current one.
+
+### Runtime Reconnect After a StatefulSet Change
+
+Node runtimes rebuild their own MongoDB connection — reconfiguring or restarting the
+StatefulSet no longer requires redeploying every consumer.
+
+This is **provider-scoped**: liveness probes and rebuild semantics differ per database client,
+so each provider supplies its own, and only `mongoose` is implemented today. A provider without
+one (MariaDB, PostgreSQL) is simply left unwatched — never probed with the wrong call.
+
+The driver reconnects sockets on its own, but it cannot recover from a _reconfigured_ replica
+set: it records the highest `setVersion`/`electionId` it has seen and rejects any primary
+reporting lower values for the rest of the process. That is what leaves pods stuck on
+`MongoServerSelectionError … ReplicaSetNoPrimary` until they are redeployed. Only a new client
+clears it, so the provider builds one:
+
+- **Health watch** — every loaded mongoose provider is pinged on an interval (bounded, so a
+  hung server does not stall the check).
+- **Rebuild** — a tick that finds the connection down rebuilds it: a new connection, models
+  re-bound to it, then the old connection closed. Services resolve models through the provider
+  bucket on every call, so nothing has to re-register.
+- **Retry until restored** — there is no attempt budget. Every tick retries while the database
+  is unreachable, because giving up would leave the runtime permanently unable to reach it.
+  Ticks that land mid-attempt are skipped, so attempts never stack.
+- **Fail-safe** — a rebuild that cannot connect keeps the existing connection rather than
+  tearing it down, so a run never ends up with no connection at all.
+
+| Variable                | Meaning                                        | Default |
+| ----------------------- | ---------------------------------------------- | ------- |
+| `DB_HEALTH_INTERVAL_MS` | Ping interval; `0` disables the watch entirely | `15000` |
+
+`DataBaseProviderService.reconnect(context)` triggers the same rebuild on demand, for a
+maintenance route or a one-off from a REPL.
+
+### Slow or Hanging Primary Detection
+
+`--primary-pod` resolves the replica-set primary over a **direct** connection
+(`directConnection=true`) with explicit server-selection timeouts, and the whole probe runs
+under a wall-clock budget. Without the direct connection the driver tries to reach the other
+members by their StatefulSet DNS names, which turns one unreachable member into a
+multi-minute stall.
+
+Detection order, cheapest first:
+
+1. `db.hello().primary` **without credentials** — the server answers `hello` before
+   authentication, so this resolves even with an app user that has no cluster-monitor role.
+2. The same probe with credentials, then `rs.status()` with credentials.
+3. Every `Running` MongoDB pod is tried in turn — one member mid-restart does not end the
+   search. The primary is resolved again for **every** database rather than cached across the
+   run, because a member that restarts mid-backup re-elects and a stale answer sends every
+   later dump to a node that no longer accepts them.
+
+When no member answers, the export falls back to the first pod and logs
+`Could not detect primary pod, using first pod`.
+
 ---
 
 ## Advanced Examples
@@ -566,7 +662,8 @@ This ensures that **no plaintext secret ever appears** in source-controlled JS f
 ## Notes
 
 - **Backup Retention**: System automatically maintains the last `MAX_BACKUP_RETENTION` backups
-- **MongoDB Primary Detection**: `--primary-pod` automatically identifies the primary pod in replica sets
+- **MongoDB Primary Detection**: `--primary-pod` automatically identifies the primary pod in replica sets, probing every `Running` member over a bounded direct connection
+- **Pod Contact Resilience**: Every dump/restore/copy waits for the pod to accept an exec stream and retries with exponential backoff
 - **Wildcard Support**: Pod names support wildcards (e.g., `mariadb-*`, `mongo-*`)
 - **Git Requirements**: Git integration requires properly configured GitHub credentials
 - **Kubernetes Context**: Ensure `kubectl` is configured with correct cluster context

@@ -233,6 +233,8 @@ Checks if the host's public IP has changed. When a new IP is detected, iterates 
 
 Iterates through the comma-separated deploy-id list and runs a database export for each. Supports `--git` to commit exports to the cron-backups repository. Backup commands are always executed via SSH on the remote node.
 
+One deploy-id failing does not abort the rest — each phase is caught per deploy-id, and the run ends with a `Backup completed with failures` summary naming every deploy-id and phase that failed. See [DB and Backup Management](<./DB and Backup Management.md>) for how pod contact errors and primary detection are handled inside each export.
+
 ### Vultr Bandwidth Job
 
 Meters the edge VPS against its Vultr plan quota and cuts its egress before an overage accrues. See [Edge Hub WireGuard and HAProxy](<./Edge Hub WireGuard and HAProxy.md>) for the topology it protects.

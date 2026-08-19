@@ -127,6 +127,11 @@ class UnderpostDB {
 
         logger.info('Importing MariaDB database', { podName, dbName });
 
+        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
+          logger.error('Pod is not accepting exec streams, skipping import', { podName, dbName });
+          return false;
+        }
+
         // Always ensure the database exists first — required for WP even when no backup is available
         Underpost.kubectl.run(
           `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
@@ -158,9 +163,10 @@ class UnderpostDB {
           return false;
         }
 
-        // Import SQL file
+        // Import SQL file. No retry: a replayed import would re-apply whatever the
+        // first attempt already wrote.
         const importCmd = `mariadb -u ${user} -p${password} ${dbName} < ${containerSqlPath}`;
-        Underpost.kubectl.exec({ podName, namespace, command: importCmd });
+        Underpost.kubectl.exec({ podName, namespace, command: importCmd, retries: 0 });
 
         logger.info('Successfully imported MariaDB database', { podName, dbName });
         return true;
@@ -189,6 +195,11 @@ class UnderpostDB {
         const containerSqlPath = `/home/${dbName}.sql`;
 
         logger.info('Exporting MariaDB database', { podName, dbName });
+
+        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
+          logger.error('Pod is not accepting exec streams, skipping export', { podName, dbName });
+          return false;
+        }
 
         // Remove existing SQL file in container
         Underpost.kubectl.exec({
@@ -237,12 +248,22 @@ class UnderpostDB {
      * @param {string} params.bsonPath - BSON directory path.
      * @param {boolean} params.drop - Whether to drop existing database.
      * @param {boolean} params.preserveUUID - Whether to preserve UUIDs.
-      * @param {string} [params.user=''] - MongoDB username for authenticated restore.
-      * @param {string} [params.password=''] - MongoDB password for authenticated restore.
-      * @param {string} [params.authDatabase='admin'] - Auth database for restore command.
+     * @param {string} [params.user=''] - MongoDB username for authenticated restore.
+     * @param {string} [params.password=''] - MongoDB password for authenticated restore.
+     * @param {string} [params.authDatabase='admin'] - Auth database for restore command.
      * @return {boolean} Success status.
      */
-    _importMongoDB({ pod, namespace, dbName, bsonPath, drop, preserveUUID, user = '', password = '', authDatabase = 'admin' }) {
+    _importMongoDB({
+      pod,
+      namespace,
+      dbName,
+      bsonPath,
+      drop,
+      preserveUUID,
+      user = '',
+      password = '',
+      authDatabase = 'admin',
+    }) {
       try {
         const podName = pod.NAME;
         const containerBsonPath = `/${dbName}`;
@@ -257,6 +278,11 @@ class UnderpostDB {
             bsonPath,
           });
           return true;
+        }
+
+        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
+          logger.error('Pod is not accepting exec streams, skipping import', { podName, dbName });
+          return false;
         }
 
         // Remove existing BSON directory in container
@@ -279,11 +305,14 @@ class UnderpostDB {
         }
 
         // Restore database
-        const authFlags = user && password
-          ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
-          : '';
+        const authFlags =
+          user && password
+            ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
+            : '';
         const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath} --numParallelCollections=1 --numInsertionWorkersPerCollection=1 --batchSize=100 --stopOnError${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
-        Underpost.kubectl.exec({ podName, namespace, command: restoreCmd });
+        // Only a `--drop` restore is idempotent; without it a replay would re-apply
+        // whatever the interrupted attempt already inserted, so it runs exactly once.
+        Underpost.kubectl.exec({ podName, namespace, command: restoreCmd, retries: drop ? undefined : 0 });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
         return true;
@@ -303,17 +332,31 @@ class UnderpostDB {
      * @param {string} params.dbName - Database name.
      * @param {string} params.outputPath - Output directory path.
      * @param {string} [params.collections=''] - Comma-separated collection list.
-      * @param {string} [params.user=''] - MongoDB username for authenticated dump.
-      * @param {string} [params.password=''] - MongoDB password for authenticated dump.
-      * @param {string} [params.authDatabase='admin'] - Auth database for dump command.
+     * @param {string} [params.user=''] - MongoDB username for authenticated dump.
+     * @param {string} [params.password=''] - MongoDB password for authenticated dump.
+     * @param {string} [params.authDatabase='admin'] - Auth database for dump command.
      * @return {boolean} Success status.
      */
-    _exportMongoDB({ pod, namespace, dbName, outputPath, collections = '', user = '', password = '', authDatabase = 'admin' }) {
+    _exportMongoDB({
+      pod,
+      namespace,
+      dbName,
+      outputPath,
+      collections = '',
+      user = '',
+      password = '',
+      authDatabase = 'admin',
+    }) {
       try {
         const podName = pod.NAME;
         const containerBsonPath = `/${dbName}`;
 
         logger.info('Exporting MongoDB database', { podName, dbName, collections });
+
+        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
+          logger.error('Pod is not accepting exec streams, skipping export', { podName, dbName });
+          return false;
+        }
 
         // Remove existing BSON directory in container
         Underpost.kubectl.exec({
@@ -323,19 +366,26 @@ class UnderpostDB {
         });
 
         // Dump database or specific collections
-        const authFlags = user && password
-          ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
-          : '';
+        const authFlags =
+          user && password
+            ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
+            : '';
+
+        // Serial dump: mongodump defaults to 4 collections at once, and its buffers share the
+        // mongod container's memory limit. Parallel dumping is what pushes the container over
+        // that limit and gets it OOM-killed mid-backup.
+        const dumpFlags = ` -o / --numParallelCollections=1${authFlags}`;
 
         if (collections) {
-          const collectionList = collections.split(',').map((c) => c.trim());
-          for (const collection of collectionList) {
-            const dumpCmd = `mongodump -d ${dbName} --collection ${collection} -o /${authFlags}`;
-            Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
+          for (const collection of collections.split(',').map((c) => c.trim())) {
+            Underpost.kubectl.exec({
+              podName,
+              namespace,
+              command: `mongodump -d ${dbName} --collection ${collection}${dumpFlags}`,
+            });
           }
         } else {
-          const dumpCmd = `mongodump -d ${dbName} -o /${authFlags}`;
-          Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
+          Underpost.kubectl.exec({ podName, namespace, command: `mongodump -d ${dbName}${dumpFlags}` });
         }
 
         // Copy BSON directory from pod
@@ -366,9 +416,9 @@ class UnderpostDB {
      * @param {string} params.podName - Pod name.
      * @param {string} params.namespace - Namespace.
      * @param {string} params.dbName - Database name.
-      * @param {string} [params.user=''] - MongoDB username for authenticated stats query.
-      * @param {string} [params.password=''] - MongoDB password for authenticated stats query.
-      * @param {string} [params.authDatabase='admin'] - Auth database for stats query.
+     * @param {string} [params.user=''] - MongoDB username for authenticated stats query.
+     * @param {string} [params.password=''] - MongoDB password for authenticated stats query.
+     * @param {string} [params.authDatabase='admin'] - Auth database for stats query.
      * @return {Object|null} Collection statistics or null on error.
      */
     _getMongoStats({ podName, namespace, dbName, user = '', password = '', authDatabase = 'admin' }) {
@@ -379,9 +429,10 @@ class UnderpostDB {
         const script = `db.getSiblingDB('${dbName}').getCollectionNames().map(function(c) { return { collection: c, count: db.getSiblingDB('${dbName}')[c].countDocuments() }; })`;
 
         // Execute the script
-        const authFlags = user && password
-          ? ` --authenticationDatabase ${JSON.stringify(authDatabase)} -u ${JSON.stringify(user)} -p ${JSON.stringify(password)}`
-          : '';
+        const authFlags =
+          user && password
+            ? ` --authenticationDatabase ${JSON.stringify(authDatabase)} -u ${JSON.stringify(user)} -p ${JSON.stringify(password)}`
+            : '';
         const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet${authFlags} --eval "${script}"`;
         const output = shellExec(command, { stdout: true, silent: true, silentOnError: true });
 
@@ -499,8 +550,6 @@ class UnderpostDB {
       console.log(`${'TOTAL'.padEnd(50)} ${totalCount.toString().padStart(18)}`);
       console.log('='.repeat(70) + '\n');
     },
-
-
 
     /**
      * Main callback: Initiates database backup workflow.
@@ -631,6 +680,9 @@ class UnderpostDB {
         const processedRepos = new Set();
         // Track processed host+path combinations to avoid duplicates
         const processedHostPaths = new Set();
+        // Every database that could not be exported/imported, reported at the end so a
+        // partial run is never logged as a success.
+        const failedOperations = [];
 
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
@@ -803,10 +855,12 @@ class UnderpostDB {
                   logger.warn('No MongoDB pods available to check for primary');
                   podsToProcess = [];
                 } else {
-                  const firstPod = targetPods[0].NAME;
+                  // Resolved per database, never cached across them: a member that restarts
+                  // mid-run triggers a re-election, and a stale primary makes every later
+                  // dump fail with NotPrimaryOrSecondary.
                   const primaryPodName = MongoBootstrap.getPrimaryPodName({
                     namespace,
-                    podName: firstPod,
+                    podName: targetPods[0].NAME,
                     username: user,
                     password,
                     authDatabase: 'admin',
@@ -858,7 +912,7 @@ class UnderpostDB {
                     }
 
                     if (options.import === true) {
-                      Underpost.db._importMariaDB({
+                      const success = Underpost.db._importMariaDB({
                         pod,
                         namespace,
                         dbName,
@@ -866,6 +920,7 @@ class UnderpostDB {
                         password,
                         sqlPath: toSqlPath,
                       });
+                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'import' });
                     }
 
                     if (options.export === true) {
@@ -879,6 +934,7 @@ class UnderpostDB {
                         outputPath,
                       });
                       exportSucceeded = exportSucceeded || success;
+                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'export' });
                     }
                     break;
                   }
@@ -900,7 +956,7 @@ class UnderpostDB {
 
                     if (options.import === true) {
                       const bsonPath = options.outPath || toBsonPath;
-                      Underpost.db._importMongoDB({
+                      const success = Underpost.db._importMongoDB({
                         pod,
                         namespace,
                         dbName,
@@ -911,6 +967,7 @@ class UnderpostDB {
                         password,
                         authDatabase: 'admin',
                       });
+                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'import' });
                     }
 
                     if (options.export === true) {
@@ -926,6 +983,7 @@ class UnderpostDB {
                         authDatabase: 'admin',
                       });
                       exportSucceeded = exportSucceeded || success;
+                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'export' });
                     }
                     break;
                   }
@@ -954,6 +1012,20 @@ class UnderpostDB {
             Underpost.repo.manageBackupRepo({ repoName, operation: 'push' });
             processedRepos.add(`${repoName}-committed`);
           }
+        }
+
+        // Whatever succeeded is already committed above — a partial backup still has
+        // value — but the run must not report success, or a silently empty backup set
+        // looks identical to a healthy one.
+        if (failedOperations.length > 0) {
+          logger.error('Database operation completed with failures', {
+            failed: failedOperations.length,
+            operations: failedOperations,
+          });
+          throw new Error(
+            `Database operation failed for ${failedOperations.length} database(s): ` +
+              failedOperations.map(({ deployId, dbName, op }) => `${deployId}/${dbName} (${op})`).join(', '),
+          );
         }
 
         logger.info('Database operation completed successfully');

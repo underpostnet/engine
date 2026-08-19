@@ -29,6 +29,72 @@ import {
 
 const logger = loggerFactory(import.meta);
 
+// Probe connection string. `directConnection=true` keeps the driver from discovering
+// the other replica-set members and dialing them by their StatefulSet DNS names — that
+// discovery is what turned a status query into a multi-minute stall when a sibling pod
+// was unreachable. The timeouts bound every remaining wait.
+const MONGODB_PRIMARY_PROBE_URI =
+  'mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=8000' +
+  '&connectTimeoutMS=8000&socketTimeoutMS=15000';
+
+const MONGODB_PRIMARY_PROBE_TIMEOUT_SECONDS = 45;
+
+const MONGODB_PRIMARY_EVAL = {
+  hello: 'db.hello().primary',
+  isMaster: 'rs.isMaster().primary',
+  rsStatus: 'rs.status().members.filter(m=>m.stateStr=="PRIMARY").map(m=>m.name)[0]',
+};
+
+// Rejected verbatim probe results: a shell that answered but knows no primary.
+const MONGODB_EMPTY_PRIMARY_TOKENS = ['null', 'undefined', '[]', '[ ]', 'false', ''];
+
+/**
+ * Extracts a pod name from a primary-host probe result.
+ *
+ * Normalises the two shapes the shells emit — a bare `host:port` string from
+ * `hello`, a quoted element from the `rs.status()` projection — and ignores any
+ * banner or warning lines printed alongside them.
+ *
+ * @param {string} output - Raw probe stdout.
+ * @returns {string|null} Pod name (`mongodb-0`), or null when no host was reported.
+ * @memberof MongoBootstrap
+ */
+const parsePrimaryHost = (output) => {
+  if (!output) return null;
+  const lines = `${output}`
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines.reverse()) {
+    const quoted = line.match(/['"]([^'"]+)['"]/);
+    const candidate = (quoted ? quoted[1] : line).trim();
+    if (MONGODB_EMPTY_PRIMARY_TOKENS.includes(candidate.toLowerCase())) continue;
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*(:\d+)?$/.test(candidate)) continue;
+    return candidate.split(':')[0].split('.')[0];
+  }
+  return null;
+};
+
+/**
+ * Extracts the two replica set identities from a heartbeat rejection.
+ *
+ * mongod reports `Our replica set ID did not match that of our request target` when two
+ * members carry different set IDs — the signature of one member having been re-initiated on
+ * an empty volume while the others kept the original set.
+ *
+ * @param {string} output - Combined stdout/stderr of a mongosh bootstrap attempt.
+ * @returns {{selfSetId: string, target: string, targetSetId: string}|null} Parsed identities, or null.
+ * @memberof MongoBootstrap
+ */
+const parseDivergentSetIds = (output) => {
+  const match = `${output || ''}`.match(
+    /replSetId:\s*([0-9a-f]+),\s*requestTarget:\s*([^,]+),\s*requestTargetReplSetId:\s*([0-9a-f]+)/,
+  );
+  if (!match) return null;
+  return { selfSetId: match[1], target: match[2].trim(), targetSetId: match[3] };
+};
+
 // Teardown sweeps ordinals rather than a live replica count: the deployed count is not knowable
 // during a reset, and a member left behind from a larger previous deployment keeps its volume and
 // stale replica-set config, which a later deploy then trips over.
@@ -102,8 +168,13 @@ class MongoBootstrap {
     };
 
     return [
-      `const mePort = "27017";`,
       `const desiredConfig = ${JSON.stringify(desiredConfig)};`,
+      // Single-member bootstrap and recovery configs name this node by the same host it
+      // advertises in the final config, never `localhost`. A client that connects while the
+      // set is still one member long copies that member into its topology, and inside any
+      // other pod `localhost:27017` is that pod itself — the client then sits on an
+      // unreachable member and never recovers.
+      `const selfHost = desiredConfig.members[0].host;`,
       `const rootUser = ${JSON.stringify(rootUser)};`,
       `const rootPassword = ${JSON.stringify(rootPassword)};`,
 
@@ -166,7 +237,7 @@ class MongoBootstrap {
       `  const soloConfig = {`,
       `    _id: desiredConfig._id,`,
       `    version: currentConfigVersion() + 1,`,
-      `    members: [{ _id: 0, host: "localhost:" + mePort }],`,
+      `    members: [{ _id: 0, host: selfHost }],`,
       `  };`,
       `  rs.reconfig(soloConfig, { force: true });`,
       `  print("SUCCESS_FORCE_RECONFIGURED");`,
@@ -178,7 +249,12 @@ class MongoBootstrap {
       `  const curHosts = cur.members.map(m => m.host).sort().join(",");`,
       `  const nextHosts = desiredConfig.members.map(m => m.host).sort().join(",");`,
       `  if (curHosts !== nextHosts || cur._id !== desiredConfig._id) {`,
-      `    rs.reconfig({...desiredConfig, version: (cur.version || 1) + 1}, { force: true });`,
+      // Not forced: this runs on a node waitPrimary() just confirmed is writable, so an
+      // ordinary reconfig applies and bumps the version by one. A forced reconfig instead
+      // jumps the config version and election id by a random amount, and drivers that
+      // recorded the higher values reject the legitimate primary as stale for the rest of
+      // the process lifetime — pods come back as `ReplicaSetNoPrimary` and stay there.
+      `    rs.reconfig({...desiredConfig, version: (cur.version || 1) + 1});`,
       `    print("SUCCESS_RECONFIGURED");`,
       `  } else {`,
       `    print("SUCCESS_ALREADY_MATCHES");`,
@@ -212,7 +288,7 @@ class MongoBootstrap {
 
       `if (state === "pristine") {`,
       `  try {`,
-      `    rs.initiate({ _id: desiredConfig._id, members: [{ _id: 0, host: "localhost:" + mePort }] });`,
+      `    rs.initiate({ _id: desiredConfig._id, members: [{ _id: 0, host: selfHost }] });`,
       `  } catch(e) {`,
       `    const msg = String(e);`,
       `    if (!msg.includes("already initialized") && !msg.includes("AlreadyInitialized")) throw e;`,
@@ -485,25 +561,6 @@ class MongoBootstrap {
   }
 
   /**
-   * Waits for all MongoDB statefulset pods to reach Running state.
-   * @param {string} namespace - Target namespace.
-   * @param {number} replicaCount - Expected number of pods.
-   * @returns {Promise<number>} Number of pods that failed to become ready (0 = all good).
-   */
-  static async waitForPods(namespace, replicaCount) {
-    let failedCount = 0;
-    for (let i = 0; i < replicaCount; i++) {
-      const podName = `${MONGODB_STATEFULSET_NAME}-${i}`;
-      const result = shellExec(`kubectl wait --for=condition=Ready pod/${podName} -n ${namespace} --timeout=60s`);
-      if (result.code !== 0) {
-        logger.error(`Pod ${podName} did not become ready`);
-        failedCount++;
-      }
-    }
-    return failedCount;
-  }
-
-  /**
    * Full MongoDB replica set initialization.
    *
    * Handles secret creation, PVC/hostPath cleanup, statefulset rollout, pod readiness
@@ -647,13 +704,16 @@ class MongoBootstrap {
     );
 
     // Wait for all pods
-    const failedCount = await MongoBootstrap.waitForPods(namespace, effectiveReplicaCount);
-    if (failedCount > 0) {
+    const failedPods = await Underpost.kubectl.waitForPodsReady({
+      namespace,
+      podNames: Array.from({ length: effectiveReplicaCount }, (_, i) => `${MONGODB_STATEFULSET_NAME}-${i}`),
+    });
+    if (failedPods.length > 0) {
       // Surface the volume topology before failing: a stalled rollout is far more often a binding
       // problem than a MongoDB one, and the mapping names it immediately.
       MongoBootstrap.reportReplicaVolumeBindings(namespace, effectiveReplicaCount);
       throw new Error(
-        `MongoDB replica pods did not reach Running state in time. ` +
+        `MongoDB replica pods did not reach Running state in time: ${failedPods.join(', ')}. ` +
           `Ensure podManagementPolicy is set to OrderedReady in statefulset.yaml.`,
       );
     }
@@ -697,31 +757,45 @@ class MongoBootstrap {
       );
     };
 
+    // Two members holding different replica set IDs cannot be merged — every heartbeat
+    // between them is rejected — so retrying only repeats the same failure. Diagnose it once
+    // and stop: choosing which identity survives means discarding the other member's data,
+    // which is never safe to decide automatically.
+    const assertSetIdentityMatch = (result) => {
+      const divergent = parseDivergentSetIds(`${result.stdout || ''}${result.stderr || ''}`);
+      if (!divergent) return;
+      throw new Error(
+        `MongoDB members belong to different replica sets: ${MONGODB_STATEFULSET_NAME}-0 holds replSetId ` +
+          `${divergent.selfSetId}, ${divergent.target} holds ${divergent.targetSetId}. A set cannot merge two ` +
+          `identities. Find which volume under ${MONGODB_DATA_ROOT} holds the data to keep, back it up, then ` +
+          `wipe the other members' volumes so they resync from the survivor.`,
+      );
+    };
+
     let success = false;
     const maxAttempts = 5;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const noAuthResult = execMongoCmd(false);
-      if (noAuthResult.code === 0) {
-        if (mongoRootUsername && mongoRootPassword) {
-          const authResult = execMongoCmd(true);
-          if (authResult.code === 0) {
-            success = true;
-            break;
-          }
-          logger.warn('No-auth bootstrap succeeded but auth verify failed, retrying...', { attempt });
-        } else {
-          success = true;
-          break;
-        }
-      } else {
-        const authResult = execMongoCmd(true);
-        if (authResult.code === 0) {
-          success = true;
-          break;
-        }
-        logger.warn('Both bootstrap paths failed, retrying...', { attempt });
+      assertSetIdentityMatch(noAuthResult);
+
+      if (noAuthResult.code === 0 && !(mongoRootUsername && mongoRootPassword)) {
+        success = true;
+        break;
       }
+
+      const authResult = execMongoCmd(true);
+      assertSetIdentityMatch(authResult);
+      if (authResult.code === 0) {
+        success = true;
+        break;
+      }
+      logger.warn(
+        noAuthResult.code === 0
+          ? 'No-auth bootstrap succeeded but auth verify failed, retrying...'
+          : 'Both bootstrap paths failed, retrying...',
+        { attempt },
+      );
 
       if (attempt < maxAttempts) {
         await new Promise((r) => setTimeout(r, 3000));
@@ -780,7 +854,7 @@ class MongoBootstrap {
       // Also catch any remaining PVs with the app=mongodb label
       shellExec(`kubectl delete pv -l app=mongodb --ignore-not-found`);
       // Wait for PVs to be fully deleted to avoid "object modified" conflict on re-apply
-      shellExec(`kubectl wait --for=delete pv mongodb-pv-0 mongodb-pv-1 mongodb-pv-2 mongodb-pv --timeout=60s`, {
+      shellExec(`kubectl wait --for=delete pv mongodb-pv-0 mongodb-pv-1 mongodb-pv-2 mongodb-pv --timeout=180s`, {
         silentOnError: true,
       });
 
@@ -819,13 +893,22 @@ class MongoBootstrap {
 
   /**
    * Gets the primary MongoDB pod name from replica set status.
+   *
+   * Probing is bounded on every axis, because an unbounded probe is what makes the
+   * backup pipeline stall: the driver connects `directConnection` so it never tries
+   * to reach sibling members by DNS, each shell call carries explicit server-selection
+   * timeouts, and the whole `kubectl exec` is wrapped in a wall-clock budget. The
+   * cheapest probe (`hello`, which the server answers before authentication) runs
+   * first, so a healthy replica set resolves without credentials at all.
+   *
    * @param {object} [options] - Query options.
    * @param {string} [options.namespace='default'] - Kubernetes namespace.
-   * @param {string} [options.podName='mongodb-0'] - Any MongoDB pod to query.
+   * @param {string} [options.podName='mongodb-0'] - Preferred MongoDB pod to query first.
    * @param {string} [options.username] - MongoDB admin username.
    * @param {string} [options.password] - MongoDB admin password.
    * @param {string} [options.authDatabase='admin'] - Auth database.
    * @param {boolean} [options.disableAuth=false] - Whether to disable auth in the query (for testing).
+   * @param {number} [options.probeTimeoutSeconds=45] - Wall-clock budget per shell probe.
    * @returns {string|null} Primary pod name, or null if not found.
    */
   static getPrimaryPodName(options = {}) {
@@ -836,6 +919,7 @@ class MongoBootstrap {
       password,
       authDatabase = 'admin',
       disableAuth = false,
+      probeTimeoutSeconds = MONGODB_PRIMARY_PROBE_TIMEOUT_SECONDS,
     } = options;
 
     const readTrimmedFile = (filePath) => {
@@ -858,41 +942,97 @@ class MongoBootstrap {
       process.env.DB_PASSWORD ||
       readTrimmedFile('./engine-private/mongodb-password');
 
-    // Ensure the pod is ready before querying
-    shellExec(`kubectl wait --for=condition=Ready pod/${podName} -n ${namespace} --timeout=60s`);
-
-    const evalExpr = 'rs.status().members.filter(m=>m.stateStr=="PRIMARY").map(m=>m.name)';
-
-    const cli = disableAuth ? 'mongo' : 'mongosh';
-
-    let output = shellExec(`sudo kubectl exec -n ${namespace} -i ${podName} -- ${cli} --quiet --eval '${evalExpr}'`, {
-      stdout: true,
-      silent: true,
-      silentOnError: true,
+    const candidates = MongoBootstrap.resolvePrimaryProbeCandidates({ namespace, podName });
+    const probes = MongoBootstrap.primaryProbeFactory({
+      disableAuth,
+      username: mongoUser,
+      password: mongoPass,
+      authDatabase,
     });
 
-    if (!disableAuth && (!output || output.trim() === '') && mongoUser && mongoPass) {
-      output = shellExec(
-        `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet ` +
-          `--authenticationDatabase ${JSON.stringify(authDatabase)} ` +
-          `-u ${JSON.stringify(mongoUser)} -p ${JSON.stringify(mongoPass)} --eval '${evalExpr}'`,
-        { stdout: true, silent: true, silentOnError: true },
-      );
+    for (const candidate of candidates) {
+      if (!Underpost.kubectl.ensureExecReady({ podName: candidate, namespace })) continue;
+
+      for (const probe of probes) {
+        const output = shellExec(
+          `timeout --kill-after=10s ${probeTimeoutSeconds}s ` +
+            `sudo kubectl exec -n ${namespace} -i ${candidate} -- ${probe.command}`,
+          { stdout: true, silent: true, silentOnError: true, disableLog: true },
+        );
+        const primary = parsePrimaryHost(output);
+        if (primary) {
+          logger.info('Found MongoDB primary pod', { primary, probedFrom: candidate, probe: probe.id });
+          return primary;
+        }
+      }
+
+      logger.warn('MongoDB pod answered no primary', { podName: candidate, namespace });
     }
 
-    if (!output || output.trim() === '') {
-      logger.warn('No MongoDB primary pod found.');
-      return null;
-    }
-
-    const match = output.match(/['"]([^'"]+)['"]/);
-    if (match && match[1]) {
-      const primary = match[1].split(':')[0].split('.')[0];
-      logger.info('Found MongoDB primary pod', { primary });
-      return primary;
-    }
+    logger.warn('No MongoDB primary pod found.', { namespace, candidates });
     return null;
+  }
+
+  /**
+   * Resolves which pods to interrogate for the replica-set primary, preferred pod first.
+   *
+   * Any reachable member knows who the primary is, so a member that is mid-restart
+   * must not end the search — the caller would otherwise fall back to a pod that is
+   * merely first in the list rather than the one accepting writes.
+   *
+   * @param {object} params
+   * @param {string} params.namespace - Kubernetes namespace.
+   * @param {string} params.podName - Preferred pod to probe first.
+   * @returns {string[]} Ordered, de-duplicated pod names.
+   */
+  static resolvePrimaryProbeCandidates({ namespace, podName }) {
+    const candidates = podName ? [podName] : [];
+    try {
+      for (const pod of Underpost.kubectl.get(MONGODB_STATEFULSET_NAME, 'pods', namespace)) {
+        if (!pod.NAME || pod.STATUS !== 'Running') continue;
+        if (!candidates.includes(pod.NAME)) candidates.push(pod.NAME);
+      }
+    } catch (error) {
+      logger.warn('Could not list MongoDB pods, probing the requested pod only', {
+        namespace,
+        error: error.message,
+      });
+    }
+    return candidates;
+  }
+
+  /**
+   * Builds the ordered probe list used to resolve the replica-set primary.
+   * @param {object} params
+   * @param {boolean} params.disableAuth - Legacy `mongo` shell without credentials.
+   * @param {string} params.username - MongoDB username, when available.
+   * @param {string} params.password - MongoDB password, when available.
+   * @param {string} params.authDatabase - Auth database for credentialed probes.
+   * @returns {Array<{id: string, command: string}>} Probes in cheapest-first order.
+   */
+  static primaryProbeFactory({ disableAuth, username, password, authDatabase }) {
+    if (disableAuth)
+      return [
+        { id: 'legacy-isMaster', command: `mongo --quiet --eval '${MONGODB_PRIMARY_EVAL.isMaster}'` },
+        { id: 'legacy-rs-status', command: `mongo --quiet --eval '${MONGODB_PRIMARY_EVAL.rsStatus}'` },
+      ];
+
+    const shell = `mongosh ${JSON.stringify(MONGODB_PRIMARY_PROBE_URI)} --quiet`;
+    const authFlags =
+      username && password
+        ? ` --authenticationDatabase ${JSON.stringify(authDatabase)} -u ${JSON.stringify(username)} -p ${JSON.stringify(password)}`
+        : '';
+
+    // `hello` is answered before authentication, so it resolves the primary even when
+    // the credentials at hand are an app user without cluster-monitor rights.
+    const probes = [{ id: 'hello', command: `${shell} --eval '${MONGODB_PRIMARY_EVAL.hello}'` }];
+    if (authFlags) {
+      probes.push({ id: 'hello-auth', command: `${shell}${authFlags} --eval '${MONGODB_PRIMARY_EVAL.hello}'` });
+      probes.push({ id: 'rs-status-auth', command: `${shell}${authFlags} --eval '${MONGODB_PRIMARY_EVAL.rsStatus}'` });
+    }
+    probes.push({ id: 'rs-status', command: `${shell} --eval '${MONGODB_PRIMARY_EVAL.rsStatus}'` });
+    return probes;
   }
 }
 
-export { MongoBootstrap };
+export { MongoBootstrap, parsePrimaryHost, parseDivergentSetIds, MONGODB_PRIMARY_PROBE_URI };

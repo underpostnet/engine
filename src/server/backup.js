@@ -46,6 +46,7 @@ class BackUp {
     await logger.setUpInfo();
 
     const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : options.kubeadm ? ' --kubeadm' : '';
+    const failures = [];
 
     for (const _deployId of deployList.split(',')) {
       const deployId = _deployId.trim();
@@ -71,7 +72,8 @@ class BackUp {
           cd: '/home/dd/engine',
         });
       } catch (err) {
-        logger.error(`Error during database export for ${deployId}:`, err);
+        failures.push({ deployId, phase: 'database-export', error: err.message });
+        logger.error(`Error during database export for ${deployId}`, { error: err.message });
       }
 
       // Repository backup: Cron container → SSH to host → host finds pod → kubectl exec git backup
@@ -83,9 +85,16 @@ class BackUp {
           cd: '/home/dd/engine',
         });
       } catch (err) {
-        logger.error(`Error during repository backup for ${deployId}:`, err);
+        failures.push({ deployId, phase: 'repository-backup', error: err.message });
+        logger.error(`Error during repository backup for ${deployId}`, { error: err.message });
       }
     }
+
+    // One deploy-id failing must not abort the remaining ones, so the loop swallows
+    // per-phase errors — this summary is the only place the run's real outcome shows up.
+    // The failing `shellExec` has already latched `container-status=error` for monitoring.
+    if (failures.length > 0) logger.error('Backup completed with failures', { count: failures.length, failures });
+    else logger.info('Backup completed for all deploy-ids', { deployList });
   };
 }
 /**
