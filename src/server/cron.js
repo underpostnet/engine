@@ -199,7 +199,7 @@ const syncEngineToKindWorker = () => {
  * @memberof UnderpostCron
  * @returns {string|null} Resolved deploy-id or null if not found
  */
-const resolveDeployId = (deployId) => deployId || cronDeployIdResolve();
+const resolveDeployId = (deployId) => (deployId && deployId !== 'dd' ? deployId : cronDeployIdResolve());
 
 /**
  * Parses a comma-separated CLI list into a trimmed, non-empty array.
@@ -218,18 +218,19 @@ const parseList = (value) => {
 };
 
 /**
- * Normalizes and validates a `--node-name` value before it reaches a manifest or a shell.
+ * Resolves the deploy-id list a job callback receives.
  *
- * @param {string} [nodeName] - Raw CLI value
+ * Always a comma-separated string: every job callback splits it on `,`, and
+ * `getRelatedDeployIdList` already returns that shape, so an explicit list is
+ * normalized to match rather than handed over as a parsed array.
+ *
+ * @param {string} jobId - Job identifier, used to pick the default source file
+ * @param {string|string[]} [deployList] - Explicit deploy-list CLI value
  * @memberof UnderpostCron
- * @returns {string} Trimmed node name, or '' when unset
- * @throws {Error} When the value is not a valid Kubernetes node name
+ * @returns {string} Comma-separated deploy IDs
  */
-const resolveNodeName = (nodeName) => {
-  const node = `${nodeName || ''}`.trim();
-  if (node && !/^[a-zA-Z0-9._-]+$/.test(node)) throw new Error(`Invalid Kubernetes node name: ${node}`);
-  return node;
-};
+const resolveJobDeployList = (jobId, deployList) =>
+  !deployList || deployList === 'dd' ? Underpost.cron.getRelatedDeployIdList(jobId) : parseList(deployList).join(',');
 
 /**
  * Checks whether a node is registered on the cluster.
@@ -264,19 +265,6 @@ const cronJobExists = (cronJobName, namespace) => {
     disableLog: true,
   });
   return `${stdout || ''}`.trim().length > 0;
-};
-
-/**
- * Resolves the manifest owner deploy-id from the `deploy-list` positional argument.
- * The `default` sentinel means "not provided", deferring to the dd.cron file.
- *
- * @param {string} [deployList] - Comma-separated deploy IDs from the CLI
- * @memberof UnderpostCron
- * @returns {string|undefined} Owner deploy-id, or undefined when unspecified
- */
-const deployIdFromList = (deployList) => {
-  const [deployId] = parseList(deployList);
-  return !deployId || deployId === 'default' ? undefined : deployId;
 };
 
 /**
@@ -331,25 +319,24 @@ class UnderpostCron {
       if (options.generateK8sCronjobs || options.apply || options.createJobNow)
         return await Underpost.cron.generateK8sCronJobs({
           ...options,
-          deployId: deployIdFromList(deployList),
+          deployId: deployList,
           jobFilter,
         });
-
-      const resolvedDeployList = deployList || 'default';
-      const resolvedJobList = jobFilter.length > 0 ? jobFilter : Object.keys(Underpost.cron.JOB);
 
       if (options.nodeName)
         logger.warn(`--node-name is a manifest placement flag and has no effect on direct execution`, {
           nodeName: options.nodeName,
         });
 
-      for (const jobId of resolvedJobList) {
+      for (const jobId of jobFilter) {
+        const resolvedDeployIdList = resolveJobDeployList(jobId, deployList);
+
         if (Underpost.cron.JOB[jobId]) {
           if (options.dryRun) {
-            logger.info(`[dry-run] Would execute cron job`, { jobId, deployList: resolvedDeployList, options });
+            logger.info(`[dry-run] Would execute cron job`, { jobId, deployList: resolvedDeployIdList, options });
           } else {
-            logger.info(`Executing cron job`, { jobId, deployList: resolvedDeployList, options });
-            await Underpost.cron.JOB[jobId].callback(resolvedDeployList, options);
+            logger.info(`Executing cron job`, { jobId, deployList: resolvedDeployIdList, options });
+            await Underpost.cron.JOB[jobId].callback(resolvedDeployIdList, options);
           }
         } else {
           logger.warn(`Unknown cron job: ${jobId}`);
@@ -379,8 +366,8 @@ class UnderpostCron {
      */
     setupDeployStart: async function (deployList, options = {}) {
       // Validated up front: an invalid node name must not leave a rewritten package.json behind.
-      const nodeName = resolveNodeName(options.nodeName);
-      const requestedDeployId = deployIdFromList(deployList);
+      const nodeName = options.nodeName;
+      const requestedDeployId = deployList;
       const deployId = resolveDeployId(requestedDeployId);
       if (!deployId) {
         logger.warn(
@@ -474,7 +461,7 @@ class UnderpostCron {
      */
     generateK8sCronJobs: async function (options = {}) {
       const namespace = options.namespace || 'default';
-      const nodeName = resolveNodeName(options.nodeName);
+      const nodeName = options.nodeName;
       const jobDeployId = resolveDeployId(options.deployId);
 
       if (!jobDeployId) {
@@ -671,4 +658,4 @@ class UnderpostCron {
 
 export default UnderpostCron;
 
-export { cronDeployIdResolve, cronJobYamlFactory, loadCronDeployEnv, resolveDeployId };
+export { cronDeployIdResolve, cronJobYamlFactory, loadCronDeployEnv, resolveDeployId, resolveJobDeployList };
