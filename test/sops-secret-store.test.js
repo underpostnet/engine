@@ -67,6 +67,14 @@ describe('sops encrypted secret store', () => {
         './engine-private/secrets/default/mariadb-secret.enc.yaml',
       );
     });
+
+    it('maps Grafana credentials to the dedicated Secret keys', () => {
+      expect(sops().managedSecrets()).to.include('grafana-admin');
+      expect(sops().seedEnvKeys('grafana-admin')).to.deep.equal({
+        'admin-user': 'GF_SECURITY_ADMIN_USER',
+        'admin-password': 'GF_SECURITY_ADMIN_PASSWORD',
+      });
+    });
   });
 
   describe('presence detection and origin seed fallback', () => {
@@ -482,7 +490,7 @@ describe('sops encrypted secret store', () => {
       expect(error.message).to.include(`${NS}/mariadb-secret`);
       expect(error.message).to.include(FOREIGN);
       expect(error.message).to.include('underpost secret sops --rotate');
-      expect(error.message).to.include('underpost run sops-setup --force');
+      expect(error.message).to.include('underpost secret --setup --force');
     });
 
     it('raises the adoption error before any manifest reaches kubectl', () => {
@@ -548,19 +556,24 @@ describe('sops encrypted secret store', () => {
     });
   });
 
-  describe('sops-setup onboarding reports', () => {
-    const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
-    const start = runSource.indexOf("    'sops-setup': (path = '', options = DEFAULT_OPTION) => {");
-    const body = runSource.slice(start, runSource.indexOf('\n    /**', start));
+  describe('secret --setup onboarding reports', () => {
+    const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+    const start = secretsSource.indexOf("      setup(names = '', options = {}) {");
+    const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
 
     it('does not report a manifest it cannot decrypt as onboarded', () => {
-      expect(start, 'sops-setup runner not found').to.be.greaterThan(-1);
+      expect(start, 'secret --setup implementation not found').to.be.greaterThan(-1);
       expect(body).to.include('Underpost.secret.sops.decryptable(');
       expect(body).to.include('sealed to an Age recipient this host does not hold');
     });
 
     it('warns when --force replaces a stored credential with a generated one', () => {
       expect(body).to.include('generated while replacing the stored manifest');
+    });
+
+    it('validates and applies only the explicitly requested manifests', () => {
+      expect(body).to.include('applySelected(secretNames, namespace');
+      expect(body).to.not.include('sops.apply(namespace');
     });
   });
 
