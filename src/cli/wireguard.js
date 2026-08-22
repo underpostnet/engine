@@ -94,6 +94,13 @@ const ENGINE_SYNC_STEPS = [
   // { command: 'npm run fix', halt: false },
   // { command: 'npm install', halt: true },
   // { command: 'node bin secret --from-cron-env .', halt: true },
+  // A supervised dispatcher holds the code it started with: after the checkout
+  // moves, the running process still answers webhooks from the old registry and
+  // silently drops events it has never heard of. Nodes without the unit skip it.
+  {
+    command: 'systemctl is-active --quiet underpost-event.service && systemctl restart underpost-event.service',
+    halt: false,
+  },
 ];
 
 /**

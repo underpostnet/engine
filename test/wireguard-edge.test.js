@@ -1383,7 +1383,7 @@ describe('engine sync', () => {
     process.env.GITHUB_USERNAME = 'someone';
     const script = UnderpostWireguard.API.syncScript();
     const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
-    expect(script.split(' && ')).to.have.lengthOf(commands.length * 2);
+    expect(script.match(/echo '\[sync\] /g) || []).to.have.lengthOf(commands.length);
     expect(script).to.not.include(';\n');
     let cursor = -1;
     for (const command of commands) {
@@ -1391,6 +1391,15 @@ describe('engine sync', () => {
       expect(at, command).to.be.greaterThan(cursor);
       cursor = at;
     }
+  });
+
+  it('restarts a running dispatcher, so it stops answering with the code it started with', () => {
+    const restart = ENGINE_SYNC_STEPS[ENGINE_SYNC_STEPS.length - 1];
+    expect(restart.command).to.include('systemctl restart underpost-event.service');
+    expect(restart.command).to.include('is-active --quiet');
+    // A node that does not run the dispatcher must not fail its sync over it.
+    expect(restart.halt).to.equal(false);
+    expect(UnderpostWireguard.API.syncScript()).to.include(`{ ${restart.command} || true; }`);
   });
 
   it('neutralizes advisory steps in place and chains the rest', () => {
