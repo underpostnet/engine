@@ -28,7 +28,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run secret"
+        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
 
     run_quiet \
         "Install underpost CLI" \
@@ -42,7 +42,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run secret"
+        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
 
     run_quiet \
         "Configure git" \
