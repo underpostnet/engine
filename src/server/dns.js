@@ -371,12 +371,30 @@ class Dns {
   }
 
   /**
+   * Ensures the chain every ingress rule is installed into exists.
+   *
+   * `inet filter` can be present with no `input` chain — a firewalld host keeps
+   * its rules in `inet firewalld` and never creates one — and every ingress
+   * command below then fails on a table that looks like it is there. Creating it
+   * with an accept policy and no rules changes nothing by itself.
+   * @static
+   * @memberof UnderpostDns
+   */
+  static ensureIngressChain() {
+    shellExec(`sudo nft add table inet filter`, { silent: true });
+    shellExec(`sudo nft add chain inet filter input '{ type filter hook input priority 0; policy accept; }'`, {
+      silent: true,
+    });
+  }
+
+  /**
    * Blocks all new inbound traffic to this host, except for established/related connections.
    * This prevents any new incoming connections while keeping existing sessions (like SSH) alive.
    * @static
    * @memberof UnderpostDns
    */
   static blockAllIngress() {
+    Dns.ensureIngressChain();
     // Clear any existing ingress rules.
     shellExec(`sudo nft flush chain inet filter input`, { silent: true });
 
@@ -391,12 +409,57 @@ class Dns {
   }
 
   /**
+   * Blocks new inbound traffic to specific TCP ports, leaving every other port
+   * reachable.
+   *
+   * Unlike {@link UnderpostDns.blockAllIngress}, the management path survives:
+   * blocking the public edge ports takes published services down while the host
+   * can still be reached to put them back. That is the only form of induced
+   * ingress outage a remote operator can recover from.
+   * @static
+   * @param {string} ports - Comma-separated TCP ports.
+   * @memberof UnderpostDns
+   */
+  static blockIngressPort(ports) {
+    Dns.ensureIngressChain();
+    for (const port of Dns.portListFactory(ports))
+      shellExec(`sudo nft insert rule inet filter input tcp dport ${port} counter drop`, { silent: true });
+    logger.info('Inbound traffic blocked on ports', { ports: Dns.portListFactory(ports) });
+  }
+
+  /**
+   * Withdraws the port rules {@link UnderpostDns.blockIngressPort} installed.
+   * @static
+   * @param {string} ports - Comma-separated TCP ports.
+   * @memberof UnderpostDns
+   */
+  static unblockIngressPort(ports) {
+    Dns.ensureIngressChain();
+    for (const port of Dns.portListFactory(ports))
+      shellExec(
+        `sudo sh -c "nft -a list chain inet filter input | awk '/tcp dport ${port} .*drop/ {print \\$NF}' | ` +
+          `xargs -r -n1 nft delete rule inet filter input handle"`,
+        { silent: true },
+      );
+    logger.info('Inbound traffic unblocked on ports', { ports: Dns.portListFactory(ports) });
+  }
+
+  /** Parses a comma-separated port list, keeping only valid TCP ports. */
+  static portListFactory(ports = '') {
+    return `${ports || ''}`
+      .split(',')
+      .map((port) => Number(`${port}`.trim()))
+      .filter((port) => Number.isInteger(port) && port > 0 && port <= 65535);
+  }
+
+  /**
    * Unblocks all inbound traffic to this host.
    * Restores default input chain policy to ACCEPT and clears ingress rules.
    * @static
    * @memberof UnderpostDns
    */
   static unblockAllIngress() {
+    Dns.ensureIngressChain();
     // Restore default chain policy to accept all incoming traffic.
     shellExec(`sudo nft chain inet filter input '{ policy accept; }'`, { silent: true });
 
@@ -577,6 +640,8 @@ class Dns {
    * @property {boolean} [options.unblockAllEgress=false] - Unblock all outbound traffic.
    * @property {boolean} [options.blockAllIngress=false] - Block all new inbound traffic to this host.
    * @property {boolean} [options.unblockAllIngress=false] - Unblock all inbound traffic.
+   * @property {string} [options.blockIngressPort=''] - Comma-separated TCP ports to block inbound.
+   * @property {string} [options.unblockIngressPort=''] - Comma-separated TCP ports to unblock inbound.
    * @property {boolean} [options.dhcp=false] - Get local DHCP IP instead of public IP.
    * @property {boolean} [options.copy=false] - Copy the public IP to clipboard.
    * @return {Promise<string|void>} The public IP if no ban/unban action is taken.
@@ -598,6 +663,8 @@ class Dns {
       unblockAllEgress: false,
       blockAllIngress: false,
       unblockAllIngress: false,
+      blockIngressPort: '',
+      unblockIngressPort: '',
       copy: false,
       dhcp: false,
     },
@@ -653,6 +720,12 @@ class Dns {
     }
     if (options.unblockAllEgress) {
       return Dns.unblockAllEgress();
+    }
+    if (options.blockIngressPort) {
+      return Dns.blockIngressPort(options.blockIngressPort);
+    }
+    if (options.unblockIngressPort) {
+      return Dns.unblockIngressPort(options.unblockIngressPort);
     }
     if (options.blockAllIngress) {
       return Dns.blockAllIngress();
