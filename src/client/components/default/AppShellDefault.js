@@ -239,7 +239,7 @@ class AppShellDefault {
           `,
         );
       } else {
-        const backgroundImage = `${getProxyPath()}assets/background/white0-min.jpg`;
+        const backgroundImage = `${getProxyPath()}assets/background/white.jpg`;
         htmls(
           `.style-ssr-background-image`,
           css`
