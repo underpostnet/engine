@@ -18,6 +18,7 @@ import {
   loadConf,
 } from '../src/server/conf.js';
 import { writeEnv } from '../src/server/environment.js';
+import { readDeployRoutes, resolveDeployList } from '../src/server/router.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer, getCapVariableName } from '../src/client/components/core/CommonJs.js';
@@ -219,10 +220,7 @@ try {
     }
 
     case 'build-default-confs': {
-      for (const deployId of fs
-        .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
-        .split(`,`)
-        .concat(['dd-cron'])) {
+      for (const deployId of readDeployRoutes().concat(['dd-cron'])) {
         // The same set `deploy --build-manifest` mirrors. Anything missing here
         // is a manifest the project repo silently stops carrying while the
         // private build dir still has it.
@@ -659,10 +657,7 @@ nvidia/gpu-operator \
 
     case 'sync-start': {
       const targetDeployId = process.argv[3] || 'dd';
-      const deployIds =
-        targetDeployId === 'dd'
-          ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')
-          : [targetDeployId];
+      const deployIds = resolveDeployList(targetDeployId);
       const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
       for (const deployId of deployIds) {
         const packageJsonPath = `./engine-private/conf/${deployId}/package.json`;
@@ -675,9 +670,7 @@ nvidia/gpu-operator \
     }
 
     case 'sync-envs': {
-      for (const deployId of ['dd-cron'].concat(
-        fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','),
-      )) {
+      for (const deployId of ['dd-cron'].concat(readDeployRoutes())) {
         for (const env of ['production', 'development', 'test']) {
           const _envObj = dotenv.parse(fs.readFileSync(`./engine-private/conf/${deployId}/.env.${env}`, 'utf8'));
           for (const env of []) {
@@ -691,9 +684,7 @@ nvidia/gpu-operator \
 
     case 'sync-conf': {
       const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-      for (const deployId of ['dd-cron'].concat(
-        fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','),
-      )) {
+      for (const deployId of ['dd-cron'].concat(readDeployRoutes())) {
         for (const file of fs.readdirSync(`./engine-private/conf/${deployId}/`)) {
           const deployPackage = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));
           deployPackage.overrides = originPackageJson.overrides;
@@ -1378,7 +1369,7 @@ nvidia/gpu-operator \
       // Example: node bin/deploy add-component ColorPaletteElement dd-cyberia
       // Example: node bin/deploy add-component ColorPaletteElement
       // Adds a component to client conf.main and related replicas.
-      // - if deployId is omitted: iterates deploys in engine-private/deploy/dd.router
+      // - if deployId is omitted: iterates deploys in engine-private/deploy/dd.routes
       // - if clientId is omitted: iterates all clients in each conf.client.json
       // - if submoduleId is omitted: iterates all available components.<submoduleId> arrays per client
       // - validates src/client/components/<submoduleId>/<componentId>.js exists before adding
@@ -1396,13 +1387,7 @@ nvidia/gpu-operator \
         process.exit(1);
       }
 
-      const deployIds = deployIdArg
-        ? [deployIdArg]
-        : fs
-            .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
-            .split(',')
-            .map((d) => d.trim())
-            .filter(Boolean);
+      const deployIds = deployIdArg ? [deployIdArg] : readDeployRoutes();
 
       const addComponentToClientConf = ({ filePath, label, targetClientId, targetSubmoduleId }) => {
         if (!fs.existsSync(filePath)) return { added: 0, checked: 0, hasComponentFile: false };

@@ -6,14 +6,8 @@
  * Supports MariaDB and MongoDB with import/export capabilities, Git integration, and multi-pod operations.
  */
 
-import {
-  loadConfInstances,
-  loadConfServerJson,
-  loadReplicas,
-  mergeFile,
-  pathPortAssignmentFactory,
-  splitFileFactory,
-} from '../server/conf.js';
+import { loadConfInstances, loadConfServerJson, loadReplicas, mergeFile, splitFileFactory } from '../server/conf.js';
+import { pathPortAssignmentFactory } from '../server/router.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
@@ -623,7 +617,7 @@ class UnderpostDB {
         const newBackupTimestamp = new Date().getTime();
         const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
 
-        if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+        if (deployList === 'dd') deployList = readDeployRoutes().join(',');
 
         // Handle repository backup (git commit+push inside deployment pod)
         if (options.repoBackup) {
@@ -1101,14 +1095,12 @@ class UnderpostDB {
         logger.info('Creating cluster metadata', { deployId, host, path });
 
         const env = 'production';
-        const deployListPath = './engine-private/deploy/dd.router';
+        const deployList = readDeployRoutes();
 
-        if (!fs.existsSync(deployListPath)) {
-          logger.error('Deploy router file not found', { path: deployListPath });
-          throw new Error(`Deploy router file not found: ${deployListPath}`);
+        if (deployList.length === 0) {
+          logger.error('Deploy route table not found', { path: DEPLOY_ROUTES_PATH });
+          throw new Error(`Deploy route table not found: ${DEPLOY_ROUTES_PATH}`);
         }
-
-        const deployList = fs.readFileSync(deployListPath, 'utf8').split(',');
 
         const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
         if (!fs.existsSync(confServerPath)) {
@@ -1295,7 +1287,7 @@ class UnderpostDB {
       const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
       try {
         loadCronDeployEnv();
-        if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+        if (deployList === 'dd') deployList = readDeployRoutes().join(',');
 
         logger.info('Starting File collection cleanup', { deployList, options });
 

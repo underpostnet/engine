@@ -7,7 +7,6 @@
 import { daemonProcess, pbcopy, shellCd, shellExec } from '../server/process.js';
 import {
   awaitDeployMonitor,
-  buildKindPorts,
   clusterContextFactory,
   clusterTypeFactory,
   dispatchBuildInstanceEnv,
@@ -30,13 +29,12 @@ import {
   loadProjectInstanceEnvBuilder,
   loadConfServerJson,
   loadReplicas,
-  resolveDeployList,
   resolveEnvScoped,
   selectConfInstances,
   waitForPort,
   clusterInstancesFactory,
   deployTrafficEntriesFactory,
-  curlStatusChainFactory,
+  publicIngressProbeFactory,
   hostIngressFactsFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
@@ -46,6 +44,7 @@ import {
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
+import { buildKindPorts, resolveDeployList } from '../server/router.js';
 import { cronDeployIdResolve } from '../server/cron.js';
 import { getNpmRootPath, writeEnv } from '../server/environment.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
@@ -271,33 +270,6 @@ const DEFAULT_OPTION = {
  * @memberof UnderpostRun
  */
 
-// Secrets `sops-setup` onboards when no explicit list is passed: the full self-hosted data tier.
-// `mongodb-keyfile` is listed alongside `mongodb-secret` because the MongoDB StatefulSet mounts
-// it as a volume for intra-replica-set auth and will not start without it, so onboarding the
-// credentials alone would leave Mongo broken.
-const SOPS_SETUP_DEFAULT_SECRETS = ['postgres-secret', 'mariadb-secret', 'mongodb-secret', 'mongodb-keyfile'];
-
-/**
- * Produces a value for a Secret data key that has no origin seed file and no `--args` override.
- * Key-aware because the data tier does not want one shape of secret: a replica-set keyfile is a
- * long base64 blob, a username is an identifier, and everything else is a password.
- * @param {string} key - Secret data key (e.g. 'password', 'username', 'mongodb-keyfile').
- * @returns {string} Generated value.
- * @memberof UnderpostRun
- */
-const generateSeedValue = (key) => {
-  if (key === 'username') return 'admin';
-  // MongoDB keyfile: 6-1024 base64 characters shared by every replica-set member. Newlines are
-  // stripped so the value round-trips identically through YAML and through
-  // MongoBootstrap.readCredential, which strips them too.
-  if (key === 'mongodb-keyfile')
-    return shellExec(`openssl rand -base64 756`, { stdout: true, silent: true, disableLog: true }).replace(
-      /\r?\n/g,
-      '',
-    );
-  return generateSecurePassword(24);
-};
-
 class UnderpostRun {
   /**
    * @static
@@ -326,13 +298,12 @@ class UnderpostRun {
         throw new Error(`Invalid Kubernetes node name: ${options.nodeName}`);
       const env = options.dev ? 'development' : 'production';
       const requestedDeploys = `${path || options.deployId || ''}`.trim();
-      const routerPath = './engine-private/deploy/dd.router';
       const confRoot = './engine-private/conf';
       const deployIds = [
         ...new Set(
           requestedDeploys
             ? resolveDeployList(requestedDeploys)
-            : fs.existsSync(routerPath)
+            : deployRoutesExists()
               ? resolveDeployList('dd')
               : fs.existsSync(confRoot)
                 ? fs
@@ -827,35 +798,6 @@ class UnderpostRun {
     },
 
     /**
-     * @method dev-hosts-expose
-     * @description Deploys a specified service in development mode with `/etc/hosts` modification for local access.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'dev-hosts-expose': async (path, options = DEFAULT_OPTION) => {
-      shellExec(`node bin deploy ${path} development --disable-update-deployment --disable-update-proxy --kubeadm`);
-      // /etc/hosts is written here, not by `deploy`: that command has no
-      // --etc-hosts option, and the `etc-hosts` runner already resolves a
-      // deploy's hosts from its conf.server.json.
-      await UnderpostRun.RUNNERS['etc-hosts']('', { ...options, deployId: path });
-    },
-
-    /**
-     * @method dev-hosts-restore
-     * @description Restores the `/etc/hosts` file to its original state after modifications made during development deployments.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'dev-hosts-restore': (path, options = DEFAULT_OPTION) => {
-      // Rewrite /etc/hosts with the loopback block alone, dropping the deploy
-      // host entries `dev-hosts-expose` (and the `cluster` runner) added.
-      const hostListenResult = etcHostFactory([]);
-      logger.info(hostListenResult.renderHosts);
-    },
-
-    /**
      * @method cluster-build
      * @description Build configuration for cluster deployment.
      * @param {string} path - The input value, identifier, or path for the operation.
@@ -870,8 +812,7 @@ class UnderpostRun {
       shellExec(`node bin run --dev sync-replica template-deploy${nodeOptions}`);
       shellExec(`node bin run sync-replica template-deploy${nodeOptions}`);
       shellExec(`node bin env clean`);
-      for (const deployId of fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').split(','))
-        shellExec(`node bin new --default-conf --deploy-id ${deployId.trim()}`);
+      for (const deployId of readDeployRoutes()) shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
       if (path === 'cmt') {
         shellExec(`git add . && underpost cmt . build cluster-build`);
         shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);
@@ -1040,22 +981,7 @@ class UnderpostRun {
           { silent: true },
         );
     },
-    /**
-     * @method release-deploy
-     * @description Executes deployment (`underpost run deploy`) for all deployment IDs listed in `./engine-private/deploy/dd.router`.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'release-deploy': (path, options = DEFAULT_OPTION) => {
-      actionInitLog();
-      shellExec(`underpost --version`);
-      shellCd(`/home/dd/engine`);
-      for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
-        const deployId = _deployId.trim();
-        shellExec(`underpost run deploy ${deployId}`, { async: true });
-      }
-    },
+
     /**
      * @method ssh-deploy
      * @description Dispatches the corresponding CD workflow for SSH-based deployment, replacing empty commits with workflow_dispatch.
@@ -1563,7 +1489,6 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       // Probe the exact public URL represented by each host/path row. PWA rows
       // can carry several configured paths in one cell, while instance rows
       // carry one; cache by URL so shared rows never repeat network work.
-      const shellArg = (value) => `'${`${value}`.replaceAll("'", "'\\''")}'`;
       const probeCache = new Map();
       const probePath = (host, routePath, tls) => {
         const normalizedPath = `${routePath || '/'}`.startsWith('/') ? `${routePath || '/'}` : `/${routePath}`;
@@ -1573,18 +1498,8 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         } catch {
           return { path: normalizedPath, url: '', statuses: ['000'] };
         }
-        if (!probeCache.has(url)) {
-          // -L follows the real redirect chain, -v supplies one response line
-          // per hop, -i keeps full response headers available, and -s removes
-          // only the progress meter. The body is discarded to keep a status
-          // report bounded even when a host returns a large application page.
-          const raw = shellExec(
-            `curl -L -v -i -s --connect-timeout 3 --max-time 12 --max-redirs 10 ` +
-              `-o /dev/null -w '\nUNDERPOST_CURL_FINAL=%{http_code}\n' ${shellArg(url)} 2>&1 || true`,
-            { stdout: true, silent: true, silentOnError: true, disableLog: true },
-          );
-          probeCache.set(url, curlStatusChainFactory(raw));
-        }
+        // Cache by URL so rows that share one never repeat network work.
+        if (!probeCache.has(url)) probeCache.set(url, publicIngressProbeFactory(url));
         return { path: normalizedPath, url, statuses: probeCache.get(url) };
       };
 
@@ -2219,11 +2134,10 @@ EOF
 
     /**
      * @method deploy-key
-     * @description Copies the deploy key for a specific user and deployId to a temporary location on the local machine.
+     * @description Copies the cluster scoped deploy key for a specific user to a temporary location on the local machine.
      * @param {string} path - The input value, identifier, or path for the operation (not used in this method).
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @param {string} options.user - The user for which to copy the deploy key.
-     * @param {string} options.deployId - The deployment identifier associated with the deploy key.
      * @memberof UnderpostRun
      */
     'deploy-key': (path, options = DEFAULT_OPTION) => {
@@ -2232,13 +2146,18 @@ EOF
         shellExec(`rm -rf /home/dd/tmp/${prefix}_*`);
         return;
       }
-      if (!options.user || !options.deployId) {
-        logger.error('Both --user and --deploy-id options are required to copy the deploy key.');
+      if (!options.user) {
+        logger.error('The --user option is required to copy the deploy key.');
+        return;
+      }
+      const sourcePath = `${Underpost.ssh.userKeyDir(options.user)}/id_rsa`;
+      if (!fs.existsSync(sourcePath)) {
+        logger.error(`No deploy key found at ${sourcePath}; run: node bin ssh --user ${options.user} --user-add`);
         return;
       }
       const targetPath = `/home/dd/tmp/${prefix}_${s4()}${s4()}`;
       fs.mkdirSync('/home/dd/tmp', { recursive: true });
-      fs.copyFileSync(`./engine-private/conf/${options.deployId}/users/${options.user}/id_rsa`, targetPath);
+      fs.copyFileSync(sourcePath, targetPath);
       logger.info(`Copied deploy key to ${targetPath}`);
       if (options.copy) pbcopy(targetPath);
     },
@@ -2870,7 +2789,7 @@ EOF`);
 
     /**
      * @method promote
-     * @description Switches traffic between blue/green deployments for a specified deployment ID(s) (uses `dd.router` for 'dd', or a specific ID).
+     * @description Switches traffic between blue/green deployments for a specified deployment ID(s) (uses `dd.routes` for 'dd', or a specific ID).
      * When `--tls` is set, rebuilds the proxy manifest with `--cert` so the HTTPProxy includes
      * TLS config, deletes stale Certificate resources, then reapplies the proxy and secret.yaml
      * (cert-manager Certificate resources) for each affected deployment.
@@ -2906,7 +2825,7 @@ EOF`);
       };
 
       if (inputDeployId === 'dd') {
-        for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
+        for (const deployId of readDeployRoutes()) {
           const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
             namespace: options.namespace,
             env: inputEnv,
@@ -2931,44 +2850,6 @@ EOF`);
         );
         applyCerts(inputDeployId, targetTraffic);
       }
-    },
-    /**
-     * @method metrics
-     * @description Deploys Prometheus and Grafana for metrics monitoring, targeting the hosts defined in the deployment configuration files.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    metrics: async (path, options = DEFAULT_OPTION) => {
-      if (path === 'server') {
-        shellExec(
-          `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/high-availability-1.21+.yaml`,
-        );
-        await timer(2000);
-
-        shellExec(`kubectl patch deployment metrics-server -n kube-system \
-  --type='json' \
-  -p='[
-    {
-      "op":"add",
-      "path":"/spec/template/spec/containers/0/args/-",
-      "value":"--kubelet-insecure-tls"
-    }
-  ]'`);
-        shellExec(`kubectl scale deployment metrics-server \
-  -n kube-system \
-  --replicas=1`);
-
-        return;
-      }
-      const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
-      let hosts = [];
-      for (const deployId of deployList) {
-        const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
-        hosts = hosts.concat(Object.keys(confServer));
-      }
-      shellExec(`node bin cluster --prom ${hosts.join(',')}`);
-      shellExec(`node bin cluster --grafana`);
     },
     /**
      * @method cluster
@@ -3005,13 +2886,7 @@ EOF`);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType}`);
       await timer(5000);
       let [runtimeImage, deployList, instanceListId] =
-        path && path.trim() && path.split(',')
-          ? path.split(',')
-          : [
-              'express',
-              fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+'),
-              '',
-            ];
+        path && path.trim() && path.split(',') ? path.split(',') : ['express', readDeployRoutes().join('+'), ''];
       // shellExec(
       //   `${baseCommand} image${baseClusterCommand} --build ${
       //     runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
@@ -3893,26 +3768,6 @@ EOF`);
     },
 
     /**
-     * @method sh
-     * @description Enables remote control for the Kitty terminal emulator.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    sh: async (path = '', options = DEFAULT_OPTION) => {
-      let [operator, arg0, arg1] = path.split(',');
-      if (operator == 'copy') {
-        shellExec(
-          `kitty @ get-text ${arg0 === 'all' ? '--match all' : '--self'} --extent all${
-            arg1 === 'ansi' ? ' --ansi yes' : ''
-          } | kitty +kitten clipboard`,
-        );
-        return;
-      }
-      shellExec(`kitty -o allow_remote_control=yes`);
-    },
-
-    /**
      * @method log
      * @description Searches and highlights keywords in a specified log file, optionally showing surrounding lines.
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `filePath,keywords,lines`).
@@ -3970,28 +3825,44 @@ EOF`);
 
       // Services
       logger.info('Process info');
-      shellExec(`sudo ps -p ${pid} -o pid,ppid,user,stime,etime,cmd`);
+      shellExec(`sudo ps -p ${pid} -o pid,ppid,user,stime,etime,cmd`, {
+        silentOnError: true,
+      });
       logger.info('Command line');
-      shellExec(`sudo cat /proc/${pid}/cmdline | tr '\\0' ' ' ; echo`);
+      shellExec(`sudo cat /proc/${pid}/cmdline | tr '\\0' ' ' ; echo`, {
+        silentOnError: true,
+      });
       logger.info('Executable path');
       shellExec(`sudo readlink -f /proc/${pid}/exe`);
       logger.info('Working directory');
-      shellExec(`sudo readlink -f /proc/${pid}/cwd`);
+      shellExec(`sudo readlink -f /proc/${pid}/cwd`, {
+        silentOnError: true,
+      });
       logger.info('Environment variables (first 200)');
-      shellExec(`sudo tr '\\0' '\\n' </proc/${pid}/environ | head -200`);
+      shellExec(`sudo tr '\\0' '\\n' </proc/${pid}/environ | head -200`, {
+        silentOnError: true,
+      });
 
       // Parent
       logger.info('Parent process');
-      const parentInfo = shellExec(`sudo ps -o pid,ppid,user,cmd -p ${pid}`, { stdout: true, silent: true });
+      const parentInfo = shellExec(`sudo ps -o pid,ppid,user,cmd -p ${pid}`, {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+      });
       console.log(parentInfo);
       const ppidMatch = parentInfo.split('\n').find((l) => l.trim().startsWith(pid));
       if (ppidMatch) {
         const ppid = ppidMatch.trim().split(/\s+/)[1];
         logger.info(`Parent PID: ${ppid}`);
-        shellExec(`ps -fp ${ppid}`);
+        shellExec(`ps -fp ${ppid}`, {
+          silentOnError: true,
+        });
       }
       logger.info('Process tree');
-      shellExec(`pstree -s ${pid}`);
+      shellExec(`pstree -s ${pid}`, {
+        silentOnError: true,
+      });
     },
 
     /**
@@ -4179,26 +4050,7 @@ EOF`);
 
       shellCd('/home/dd/engine');
     },
-    /**
-     * @method pull-rocky-image
-     * @description Pulls the base `rockylinux:9` image from Docker Hub via Podman.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'pull-rocky-image': (path, options = DEFAULT_OPTION) => {
-      shellExec(`sudo podman pull docker.io/library/rockylinux:9`);
-    },
-    /**
-     * @method rmi
-     * @description Forces the removal of all local Podman images (`podman rmi $(podman images -qa) --force`).
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    rmi: (path, options = DEFAULT_OPTION) => {
-      shellExec(`podman rmi $(podman images -qa) --force`);
-    },
+
     /**
      * @method kill
      * @description Kills processes listening on the specified port(s). If the `path` contains a `+`, it treats it as a range of ports to kill.
@@ -4243,333 +4095,6 @@ EOF`);
       const password = generateSecurePassword(path && parseInt(path) > 0 ? parseInt(path) : 16);
       if (options.copy) pbcopy(password);
       else console.log(password);
-    },
-    /**
-     * @method sops-setup
-     * @description End-to-end SOPS/Age onboarding for a host: installs tooling, generates the Age
-     * keypair and creation rules, pins the key path for non-interactive runs, encrypts the
-     * requested Secrets into the Git-tracked store, then validates and applies them.
-     *
-     * Every step is idempotent and re-runnable. Notably it delegates key generation to
-     * `secret sops --init` rather than calling `age-keygen` directly: a bare `age-keygen -o`
-     * overwrites an existing key, which would orphan every manifest already encrypted to the
-     * previous recipient with no way to recover them.
-     *
-     * On a host that pulled a store created elsewhere, the freshly generated key is not a recipient
-     * of the inherited manifests. `init()` registers this host in the creation rules so what it
-     * encrypts from here on stays readable, but existing manifests can only be re-keyed from a host
-     * that still holds a decrypting key. That case is reported per secret and then raised by the
-     * apply pre-flight with the available remedies, rather than surfacing as a sops decrypt error.
-     *
-     * Onboards the whole self-hosted data tier by default — PostgreSQL, MariaDB, and MongoDB
-     * (`postgres-secret`, `mariadb-secret`, `mongodb-secret`, `mongodb-keyfile`). The MongoDB
-     * keyfile is included because the StatefulSet mounts it for intra-replica-set auth and will
-     * not start without it. Pass an explicit comma-separated list to narrow the set.
-     *
-     * Secret values are resolved per data key, in order:
-     *   1. the origin seed file, when one exists (`engine-private/postgresql-password`) — this is
-     *      the real onboarding path, carrying the credential the cluster already runs on;
-     *   2. `--args` as `key=value` pairs, for a value supplied by the operator;
-     *   3. a freshly generated value: a base64 keyfile for `mongodb-keyfile`, `admin` for a
-     *      `username`, otherwise a 24-character secure password.
-     *
-     * Plaintext manifests are written by Node under `/dev/shm` at mode 600 and shredded by
-     * `encrypt()`. They are never emitted through a shell heredoc, which would place the
-     * credential in the command string and therefore in the process table and the command log.
-     *
-     * Usage:
-     *   underpost run sops-setup                                   # postgres + mariadb + mongo
-     *   underpost run sops-setup mongodb-secret,mongodb-keyfile --namespace prod
-     *   underpost run sops-setup postgres-secret --args "password=s3cr3t"
-     *   underpost run sops-setup --dry-run                         # stop before mutating cluster
-     *   underpost run sops-setup --force                           # replace stored manifests
-     * @param {string} path - Comma-separated Secret names to onboard. Defaults to the full data
-     *   tier: postgres-secret, mariadb-secret, mongodb-secret, mongodb-keyfile.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @param {string} options.namespace - Target namespace for the store and the apply (default: 'default').
-     * @param {string} options.args - Comma-separated `key=value` overrides for Secret data keys.
-     * @param {boolean} options.dryRun - Validate and server-dry-run only; never apply.
-     * @param {boolean} options.force - Replace encrypted manifests that already exist.
-     * @memberof UnderpostRun
-     */
-    'sops-setup': (path = '', options = DEFAULT_OPTION) => {
-      const namespace = options.namespace || 'default';
-      const secretNames = (path || SOPS_SETUP_DEFAULT_SECRETS.join(','))
-        .split(',')
-        .map((name) => name.trim())
-        .filter(Boolean);
-
-      // `--args key=value,key2=value2` overrides, applied to any secret that declares that key.
-      const overrides = `${options.args || ''}`.split(',').reduce((acc, pair) => {
-        const separator = pair.indexOf('=');
-        if (separator > 0) acc[pair.slice(0, separator).trim()] = pair.slice(separator + 1).trim();
-        return acc;
-      }, {});
-
-      logger.info('sops-setup', { secretNames, namespace, dryRun: !!options.dryRun, force: !!options.force });
-
-      // 1. Host tooling, then keypair + creation rules. Both no-op when already present.
-      Underpost.secret.sops.installTooling();
-      Underpost.secret.sops.init();
-
-      // 2. Pin the resolved key path for non-interactive runs (systemd units, CronJobs, sudo).
-      //    Written with the concrete path rather than a guessed default, because `sudo` resets
-      //    HOME and a wrong guess surfaces later as an opaque decrypt failure.
-      const keyFile = Underpost.secret.sops.keyFile();
-      shellExec(
-        `sudo tee /etc/profile.d/underpost-sops.sh >/dev/null <<'UNDERPOST_SOPS_ENV_EOF'
-export SOPS_AGE_KEY_FILE="\${SOPS_AGE_KEY_FILE:-${keyFile}}"
-UNDERPOST_SOPS_ENV_EOF`,
-      );
-      shellExec(`sudo chmod 644 /etc/profile.d/underpost-sops.sh`);
-
-      // 3. Build and encrypt each requested Secret.
-      const stageDir = '/dev/shm/underpost-secrets';
-      const held = Underpost.secret.sops.localRecipients();
-      fs.ensureDirSync(stageDir);
-      fs.chmodSync(stageDir, 0o700);
-      try {
-        for (const name of secretNames) {
-          const stored = Underpost.secret.sops.has(name, namespace);
-          if (stored && !options.force) {
-            // A stored manifest this host cannot open is present but unusable here, so reporting it
-            // as onboarded would send the operator on to an apply that is guaranteed to fail.
-            if (Underpost.secret.sops.decryptable(Underpost.secret.sops.manifestPath(name, namespace), held))
-              logger.info(`${name} is already onboarded in ns/${namespace}; skipping (use --force to replace)`);
-            else
-              logger.warn(
-                `${name} is stored in ns/${namespace} but is sealed to an Age recipient this host does not hold; ` +
-                  `skipping. Adopt the store's key, re-key it from a host that holds one, or re-onboard from the ` +
-                  `origin seed files with --force.`,
-              );
-            continue;
-          }
-
-          // Data keys come from the secret's origin seed contract, so an onboarded manifest
-          // carries exactly the keys the workload's secretKeyRef already expects.
-          const seedSources = Underpost.secret.sops.seedSources(name);
-          const dataKeys = Object.keys(seedSources).length > 0 ? Object.keys(seedSources) : ['password'];
-          const stringData = {};
-          for (const key of dataKeys) {
-            const seedPath = seedSources[key];
-            if (seedPath && fs.existsSync(seedPath)) {
-              stringData[key] = fs.readFileSync(seedPath, 'utf8').trim();
-              logger.info(`${name}.${key} seeded from ${seedPath}`);
-            } else if (overrides[key] !== undefined) {
-              stringData[key] = overrides[key];
-              logger.info(`${name}.${key} taken from --args`);
-            } else {
-              stringData[key] = generateSeedValue(key);
-              // Replacing a stored manifest with a value nothing seeded means the credential the
-              // running datastore still authenticates against is being thrown away.
-              if (stored)
-                logger.warn(
-                  `${name}.${key} generated while replacing the stored manifest — no seed file at ` +
-                    `${seedPath || '(unmapped)'} and no --args override. The running datastore keeps its old ` +
-                    `credential until this value is applied to it; pass --args "${key}=<value>" to keep the ` +
-                    `existing one.`,
-                );
-              else logger.info(`${name}.${key} generated`);
-            }
-          }
-
-          const stagePath = `${stageDir}/${name}.yaml`;
-          fs.outputFileSync(
-            stagePath,
-            [
-              'apiVersion: v1',
-              'kind: Secret',
-              'metadata:',
-              `  name: ${name}`,
-              `  namespace: ${namespace}`,
-              '  labels:',
-              '    app.kubernetes.io/managed-by: underpost',
-              'type: Opaque',
-              'stringData:',
-              // Single-quoted YAML scalars with doubled internal quotes: values are generated or
-              // operator-supplied and may contain characters YAML would otherwise interpret.
-              ...Object.entries(stringData).map(([key, value]) => `  ${key}: '${`${value}`.replace(/'/g, "''")}'`),
-              '',
-            ].join('\n'),
-            'utf8',
-          );
-          fs.chmodSync(stagePath, 0o600);
-          // encrypt() stages, validates, moves into place, and shreds the plaintext source.
-          Underpost.secret.sops.encrypt(stagePath, namespace, options);
-        }
-      } finally {
-        // Defense in depth: encrypt() shreds each source, but a throw mid-loop must not leave a
-        // plaintext manifest sitting in shared memory.
-        fs.removeSync(stageDir);
-      }
-
-      Underpost.secret.sops.list();
-
-      // 4. Validate every manifest in the namespace, then apply unless this is a dry run.
-      Underpost.secret.sops.apply(namespace, { dryRun: true });
-      if (options.dryRun) return logger.info('--dry-run: validated only, cluster left unchanged');
-      Underpost.secret.sops.apply(namespace);
-    },
-    /**
-     * @method sops-status
-     * @description Reports the live state of the SOPS/Age secret system: host tooling, the Age
-     * key and its recipient, the committed creation rules, every stored manifest with whether the
-     * local key can open it and whether the cluster still matches, and which managed Secrets are
-     * onboarded versus still seeding from their origin path.
-     *
-     * Read-only and safe to run anywhere. Decryption happens only for the drift check, only for
-     * manifests the local key is a recipient of, and only into `kubectl diff` with its output
-     * discarded — no secret value is ever printed or written to disk.
-     *
-     * Usage:
-     *   underpost run sops-status                                   # every managed key, ns default
-     *   underpost run sops-status mongo                             # partial match: both mongo keys
-     *   underpost run sops-status --namespace prod                  # every managed key in ns prod
-     * @param {string} path - Comma-separated managed Secret keys to report on; empty reports all.
-     *   Matched as case-insensitive substrings (`mongo` selects mongodb-secret and mongodb-keyfile).
-     *   Filters both the stored-manifest listing and the coverage table.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @param {string} options.namespace - Namespace to inspect (DEFAULT_OPTION scheme, default 'default').
-     * @memberof UnderpostRun
-     */
-    'sops-status': (path = '', options = DEFAULT_OPTION) => {
-      const sops = Underpost.secret.sops;
-      // `--namespace` selects the namespace (DEFAULT_OPTION scheme); `path` narrows which managed
-      // Secret keys to report on, so the two axes stay independent.
-      const namespace = options.namespace || 'default';
-      const manageSecretKeyFilter = path
-        .split(',')
-        .map((key) => key.trim().toLowerCase())
-        .filter(Boolean);
-      // Partial, case-insensitive substring match, so `mongo` reaches both `mongodb-secret` and
-      // `mongodb-keyfile` without having to spell either out.
-      const matchesKeyFilter = (name) =>
-        manageSecretKeyFilter.length === 0 || manageSecretKeyFilter.some((key) => name.toLowerCase().includes(key));
-      const mark = (ok) => (ok ? 'yes' : 'no');
-
-      // ── Tooling ────────────────────────────────────────────────────────────
-      const version = (bin, flag) =>
-        sops.hasBinary(bin)
-          ? shellExec(`${bin} ${flag} 2>/dev/null | head -1`, { stdout: true, silent: true, disableLog: true }).trim()
-          : '(not installed)';
-      logger.info(
-        '[sops-status] Tooling\n' +
-          `  sops        ${version('sops', '--version')}\n` +
-          `  age         ${version('age', '--version')}\n` +
-          `  age-keygen  ${sops.hasBinary('age-keygen') ? 'installed' : '(not installed)'}`,
-      );
-
-      // ── Age key ────────────────────────────────────────────────────────────
-      const keyFile = sops.keyFile();
-      const keyExists = fs.existsSync(keyFile);
-      // A key file may hold several identities — that is how a host joins a store it did not
-      // create — so every check below works against the whole held set, not one recipient.
-      const held = sops.localRecipients();
-      const keyMode = keyExists ? (fs.statSync(keyFile).mode & 0o777).toString(8) : '';
-      logger.info(
-        '[sops-status] Age key\n' +
-          `  path        ${keyFile}\n` +
-          `  present     ${mark(keyExists)}${keyExists ? `  (mode ${keyMode}${keyMode === '600' || keyMode === '400' ? '' : ' — INSECURE, run chmod 600'})` : ''}\n` +
-          `  recipients  ${held.join(', ') || (keyExists ? '(none — unreadable key file)' : '(none)')}` +
-          (keyExists ? '' : `\n  searched    ${sops.keyFileCandidates().join(', ')}`),
-      );
-
-      // ── Creation rules ─────────────────────────────────────────────────────
-      const confPath = './engine-private/secrets/.sops.yaml';
-      const ruleRecipients = sops.creationRecipients();
-      logger.info(
-        '[sops-status] Creation rules\n' +
-          `  config      ${confPath} ${fs.existsSync(confPath) ? '' : '(missing — run: underpost secret sops --init)'}\n` +
-          `  recipients  ${ruleRecipients.length > 0 ? ruleRecipients.join(', ') : '(none)'}\n` +
-          `  local key listed  ${mark(held.some((recipient) => ruleRecipients.includes(recipient)))}`,
-      );
-
-      // ── Stored manifests ───────────────────────────────────────────────────
-      const manifests = sops.manifests(namespace).filter((manifest) => matchesKeyFilter(manifest.name));
-      const onboarded = new Set();
-      if (manifests.length === 0)
-        logger.warn(
-          `[sops-status] Store\n  no encrypted manifests in ns/${namespace}` +
-            (manageSecretKeyFilter.length > 0 ? ` matching ${manageSecretKeyFilter.join(', ')}` : ''),
-        );
-      else {
-        const rows = manifests.map((manifest) => {
-          onboarded.add(manifest.name);
-          const recipients = sops.manifestRecipients(manifest.path);
-          const decryptable = sops.decryptable(manifest.path, held);
-          const live = shellExec(
-            `kubectl get secret ${manifest.name} -n ${manifest.namespace} --ignore-not-found -o name 2>/dev/null || true`,
-            { stdout: true, silent: true, silentOnError: true, disableLog: true },
-          ).trim();
-          // Drift is decided by kubectl's exit code; its stdout would contain the decrypted
-          // values, so it is discarded rather than captured.
-          let sync = 'n/a';
-          if (live && decryptable) {
-            const result = shellExec(
-              `bash -c 'set -o pipefail; SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt "${manifest.path}" ` +
-                `| kubectl diff -f - -n "${manifest.namespace}" >/dev/null 2>&1'`,
-              { silentOnError: true, disableLog: true, stdout: false },
-            );
-            sync = result.code === 0 ? 'in-sync' : result.code === 1 ? 'DRIFT' : 'error';
-          } else if (!live) sync = 'not applied';
-          else if (!decryptable) sync = 'no local key';
-          return (
-            `  ${`${manifest.namespace}/${manifest.name}`.padEnd(34)} ` +
-            `recipients=${String(recipients.length).padEnd(3)} ` +
-            `decryptable=${mark(decryptable).padEnd(4)} ` +
-            `live=${mark(!!live).padEnd(4)} ` +
-            `${sync}`
-          );
-        });
-        logger.info(`[sops-status] Store — ns/${namespace} (${manifests.length} manifest(s))\n` + rows.join('\n'));
-      }
-
-      // ── Coverage ───────────────────────────────────────────────────────────
-      const coverage = sops
-        .managedSecrets()
-        .filter(matchesKeyFilter)
-        .map((name) => {
-          const seeds = Object.values(sops.seedSources(name));
-          const seedPresent = seeds.length > 0 && seeds.every((seed) => fs.existsSync(seed));
-          const source = onboarded.has(name)
-            ? 'sops'
-            : seedPresent
-              ? 'origin seed'
-              : seeds.length
-                ? 'MISSING'
-                : 'unmapped';
-          return `  ${name.padEnd(24)} ${source.padEnd(12)} ${seeds.length ? `seed=${mark(seedPresent)}` : ''}`;
-        });
-      if (coverage.length === 0)
-        logger.warn(
-          `[sops-status] Coverage\n  no managed Secret matches ${manageSecretKeyFilter.join(', ')}\n` +
-            `  known keys: ${sops.managedSecrets().join(', ')}`,
-        );
-      else
-        logger.info('[sops-status] Coverage (which source each managed Secret deploys from)\n' + coverage.join('\n'));
-    },
-    /**
-     * @method secret
-     * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    secret: (path, options = DEFAULT_OPTION) => {
-      const cronDeployId = cronDeployIdResolve() || 'dd-cron';
-      Underpost.secret.underpost.createFromEnvFile(
-        `/home/dd/engine/engine-private/conf/${cronDeployId}/.env.${options.dev ? 'development' : 'production'}`,
-      );
-    },
-    /**
-     * @method underpost-config
-     * @description Calls `Underpost.deploy.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the optional configuration name/environment).
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'underpost-config': (path = '', options = DEFAULT_OPTION) => {
-      Underpost.deploy.configMap(path ? path : 'production', options.namespace);
     },
     /**
      * @method gpu-env

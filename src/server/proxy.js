@@ -9,14 +9,8 @@
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import {
-  buildPortProxyRouter,
-  buildProxyRouter,
-  etcHostFactory,
-  getTlsHosts,
-  isDevProxyContext,
-  isTlsDevProxy,
-} from './conf.js';
+import { etcHostFactory, getTlsHosts, isDevProxyContext, isTlsDevProxy } from './conf.js';
+import { buildPortProxyRouter, buildProxyRouter } from './router.js';
 
 import { shellExec } from './process.js';
 import fs from 'fs-extra';

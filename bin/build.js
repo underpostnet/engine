@@ -7,12 +7,12 @@ import { loggerFactory } from '../src/server/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import {
   getPathsSSR,
-  resolveDeployList,
   syncPrivateConf,
   syncDeployIdSources,
   buildTemplate,
   updatePrivateEngineTestRepo,
 } from '../src/server/conf.js';
+import { resolveDeployList } from '../src/server/router.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
 import Underpost from '../src/index.js';
 
@@ -224,7 +224,7 @@ const program = new Command();
 program
   .name('build')
   .description('Assemble deploy id public templates and sync their private configuration repos.')
-  .argument('<conf-name>', 'Deploy id, comma-separated list, or the "dd" meta id (fans out via dd.router).')
+  .argument('<conf-name>', 'Deploy id, comma-separated list, or the "dd" meta id (fans out via dd.routes).')
   .argument('[env]', 'Environment label (informational; kept for CI invocation compatibility).')
   .option('--conf', 'Sync each deploy id private configuration repo and exit (no template assembly).')
   .option(

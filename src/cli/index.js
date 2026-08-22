@@ -29,7 +29,7 @@ program
   .option('--sync-conf', 'Sync configuration to private repositories (requires --deploy-id)')
   .option(
     '--sync-start',
-    "Sync start scripts in deploy ID package.json with root package.json (use 'dd' as --deploy-id to sync all dd.router)",
+    "Sync start scripts in deploy ID package.json with root package.json (use 'dd' as --deploy-id to sync all dd.routes)",
   )
   .option('--purge', 'Remove deploy ID conf and all related repositories (requires --deploy-id)')
   .option('--dev', 'Sets the development cli context')
@@ -117,7 +117,7 @@ program
   .option('--hashes <hashes>', 'Comma-separated list of specific file hashes of commits.')
   .option('--extension <extension>', 'specific file extensions of commits.')
   .option('--changelog', 'Print the plain changelog of the last N commits (see --from-n-commit, default 1).')
-  .option('--changelog-build', 'Builds a CHANGELOG.md file based on the commit history')
+  .option('--changelog-build', 'Builds a CHANGELOG.md from the latest five versions')
   .option('--changelog-min-version <version>', 'Sets the minimum version limit for --changelog-build (default: 2.85.0)')
   .option(
     '--changelog-no-hash',
@@ -260,6 +260,11 @@ program
   .option('--unblock-all-egress', 'Unblocks all outbound traffic and restores default ACCEPT policy.')
   .option('--block-all-ingress', 'Blocks all new inbound traffic to this host (keeps established/related connections).')
   .option('--unblock-all-ingress', 'Unblocks all inbound traffic and restores default ACCEPT policy.')
+  .option(
+    '--block-ingress-port <ports>',
+    'Blocks new inbound traffic on comma-separated TCP ports, leaving the management path reachable.',
+  )
+  .option('--unblock-ingress-port <ports>', 'Withdraws the port rules --block-ingress-port installed.')
   .option('--mac', 'Prints the MAC address of the main network interface.')
   .description('Displays the current public machine IP addresses.')
   .action(Underpost.dns.ipDispatcher);
@@ -297,8 +302,9 @@ program
     'Exposes enabled ready services (e.g. MongoDB 4.4, Valkey) to the host/public network via their NodePort Service manifest.',
   )
   .option(
-    '--node-selector <k8s-node-name>',
-    'Pins the just-deployed StatefulSet (MongoDB 4.4 / Valkey) to the given Kubernetes node once it is ready (via a kubernetes.io/hostname nodeSelector).',
+    '--node-name <k8s-node-name>',
+    'Pins the just-deployed workload (MongoDB 4.4 / Valkey StatefulSets, the observability Deployments) ' +
+      'to the given Kubernetes node once it is ready, via a kubernetes.io/hostname nodeSelector.',
   )
   .option('--cert-manager', "Initializes the cluster with a Let's Encrypt production ClusterIssuer.")
   .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
@@ -315,10 +321,15 @@ program
     '--control-plane-endpoint <endpoint>',
     'Sets custom control plane endpoint for kubeadm cluster initialization (defaults to "localhost:6443").',
   )
-  .option('--grafana', 'Initializes the cluster with a Grafana deployment.')
+  .option(
+    '--grafana',
+    'Initializes the cluster with the observability stack (Prometheus, Alertmanager, Blackbox Exporter, Grafana). ' +
+      'Equivalent to --prom; both converge the one stack.',
+  )
   .option(
     '--prom [hosts]',
-    'Initializes the cluster with a Prometheus Operator deployment and monitor scrap for specified hosts.',
+    'Initializes the cluster with the observability stack. Scrape targets are derived from each deploy conf.server.json; ' +
+      'the optional comma-separated hosts are scraped at /metrics in addition to them.',
   )
   .option('--dev', 'Initializes a development-specific cluster configuration.')
   .option('--list-pods', 'Displays detailed information about all pods.')
@@ -476,11 +487,44 @@ program
       'revokes recipients (--rotate --prune-recipients), or replaces an existing manifest (--encrypt).',
   )
   .option('--dry-run', 'Reports what --apply, --rotate, or --purge would do without changing anything.')
+  .option(
+    '--setup [secret-names]',
+    'End-to-end SOPS/Age onboarding: installs tooling, generates the key and creation rules, encrypts the ' +
+      'named Secrets into the Git-tracked store, then validates and applies them. ' +
+      'Defaults to the whole self-hosted data tier (postgres, mariadb, mongodb + keyfile).',
+  )
+  .option(
+    '--status [secret-keys]',
+    'Read-only report of the SOPS/Age system: tooling, key and recipients, creation rules, stored manifests ' +
+      'with decryptability and cluster drift, and which source each managed Secret deploys from. ' +
+      'Optional comma-separated keys narrow it by case-insensitive substring.',
+  )
+  .option('--args <key=value-list>', 'Comma-separated `key=value` overrides for Secret data keys during --setup.')
+  .option(
+    '--from-cron-env',
+    'Loads the underpost root env store from the cron deploy env file resolved through engine-private/deploy/dd.cron.',
+  )
+  .option(
+    '--underpost-config [env]',
+    'Publishes the cron deploy environment as the underpost-config Kubernetes Secret injected with envFrom ' +
+      '(default env: production).',
+  )
+  .option('--dev', 'Sets the development cli context (reads .env.development for --from-cron-env).')
   .description(`Manages secrets for various platforms.`)
   .action((platform, options) => {
     // Host tooling install is platform-independent, so it resolves before any platform lookup.
     if (options.installTools) return Underpost.secret.sops.installTooling();
     if (options.globalClean) return Underpost.secret.globalSecretClean();
+    // SOPS onboarding and reporting act on the store itself, not on one platform's
+    // client, so they resolve ahead of the platform lookup like the two above.
+    if (options.setup) return Underpost.secret.sops.setup(options.setup === true ? '' : options.setup, options);
+    if (options.status) return Underpost.secret.sops.status(options.status === true ? '' : options.status, options);
+    if (options.fromCronEnv) return Underpost.secret.underpost.createFromCronEnv(options);
+    if (options.underpostConfig)
+      return Underpost.secret.underpostConfig(
+        options.underpostConfig === true ? 'production' : options.underpostConfig,
+        options.namespace,
+      );
     if (options.rotate) return Underpost.secret[platform].rotate(options.recipient, options);
     if (options.purge) return Underpost.secret[platform].purge(options.purge, options);
     if (options.encrypt) return Underpost.secret[platform].encrypt(options.encrypt, options.namespace, options);
@@ -644,20 +688,13 @@ program
   .action(Underpost.fs.callback);
 
 program
-  .command('test')
-  .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
-  .description('Manages and runs tests, defaulting to the current Underpost default test suite.')
-  .option('--itc', 'Executes tests within the container execution context.')
-  .option('--sh', 'Copies the container entrypoint shell command to the clipboard.')
-  .option('--logs', 'Displays container logs for test debugging.')
-  .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for test execution.')
-  .option('--pod-status <pod-status>', 'Optional: Filters tests by pod status.')
-  .option('--kind-type <kind-type>', 'Optional: Specifies the Kind cluster type for tests.')
-  .action(Underpost.test.callback);
-
-program
   .command('monitor')
-  .argument('<deploy-id>', 'The deployment configuration ID to monitor.')
+  .argument(
+    '[deploy-id]',
+    'The deployment configuration ID to monitor. With the observability flags it selects which deploys are scraped; ' +
+      '"dd" covers every deploy in dd.routes.',
+    'dd',
+  )
   .argument(
     '[env]',
     'Optional: The environment to monitor (e.g., "development", "production"). Defaults to "development".',
@@ -677,12 +714,96 @@ program
   .option('--versions <deployment-versions>', 'Specifies the deployment versions to monitor. eg. "blue,green", "green"')
   .option('--ready-deployment', 'Run in ready deployment monitor mode.')
   .option('--promote', 'Promotes the deployment after monitoring.')
-  .description('Manages health server monitoring for specified deployments.')
+  .option(
+    '--observability',
+    'Deploys or converges the cluster observability stack (Prometheus, Alertmanager, Blackbox Exporter, Grafana), ' +
+      'ensuring the Gateway API metrics source and local-path storage provisioner are ready.',
+  )
+  .option(
+    '--sync-prom',
+    'Regenerates the scrape configuration, alert rules and Alertmanager route from the live deploy configuration ' +
+      'and event registry, applies Grafana admin credentials, then reloads or rolls only the affected component.',
+  )
+  .option('--events <event-ids>', 'Comma-separated event ids to provision; empty provisions every registered event.')
+  .option(
+    '--webhook-url <url>',
+    'URL Alertmanager delivers events to (defaults to the node address of `event --serve`).',
+  )
+  .option('--extra-targets <targets>', 'Comma-separated additional "host:port" scrape targets.')
+  .option(
+    '--metrics-server',
+    'Installs the Kubernetes metrics-server (kubectl top / HPA resource API). Skipped on K3s, which bundles its own, unless --force.',
+  )
+  .option(
+    '--cockpit',
+    'Installs and enables the Cockpit KVM dashboard on this host (cockpit, cockpit-machines, libvirt) and opens its firewall service.',
+  )
+  .option('--cockpit-stop', 'Stops and disables the Cockpit KVM dashboard and closes its firewall service.')
+  .option(
+    '--grafana-host <host>',
+    'Publishes Grafana at https://<host>/grafana through the edge Gateway that already serves that hostname.',
+  )
+  .option('--node-port', "Publishes Grafana on the node's LAN address (port 32300).")
+  .option('--expose-grafana', 'Republishes Grafana with --grafana-host / --node-port without redeploying the stack.')
+  .option(
+    '--webhook-token',
+    'Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the cron deploy env.',
+  )
+  .option(
+    '--node-name <k8s-node-name>',
+    'Pins every monitoring workload to this node; moving Grafana deletes and recreates its node-local data.',
+  )
+  .option('--kubeadm', 'Treats the cluster as kubeadm when resolving node and host addresses.')
+  .option('--kind', 'Treats the cluster as Kind (Docker nodes) when resolving node and host addresses.')
+  .option('--k3s', 'Treats the cluster as K3s when resolving node and host addresses.')
+  .option('--force', 'Confirms an install that would replace a bundled component (e.g. --metrics-server on K3s).')
+  .option('--dev', 'Sets the development cli context (scrapes over HTTP, defaults the cluster type to Kind).')
+  .description('Manages health server monitoring, the cluster observability stack, and host dashboards.')
   .action(Underpost.monitor.callback);
 
 program
+  .command('event')
+  .argument('[event-id]', `The operational event to dispatch. Options: ${Object.keys(Underpost.event.EVENTS)}.`)
+  .option(
+    '--deploy',
+    'Merges the event into the set already deployed in the cluster and republishes the monitoring configuration.',
+  )
+  .option('--undeploy', 'Removes the event from the deployed set and republishes without it.')
+  .option('--serve', 'Runs the Alertmanager webhook receiver in the foreground (use --service to supervise it).')
+  .option(
+    '--service',
+    'Installs the receiver on a WireGuard control node as the underpost-event systemd unit. ' +
+      'It remains available while the tunnel is down.',
+  )
+  .option('--service-stop', 'Stops, disables and removes the underpost-event systemd unit.')
+  .option('--service-status', 'Reports whether the underpost-event unit is active and enabled.')
+  .option('--list', 'Lists the registered events with their resolved probe targets.')
+  .option('--port <port>', 'Listening port for --serve and the generated unit (default: 39099).')
+  .option('--cooldown-ms <ms>', 'Minimum interval between two dispatches of one event in --serve (default: 300000).')
+  .option(
+    '--spoke <spoke-id>',
+    'Spoke to remediate when dispatching wireguard-spoke-down by hand; a webhook takes it from the alert labels.',
+  )
+  .option(
+    '--nodes <node-names>',
+    'Comma-separated node documents to act on — hubs for wireguard-server-down, peers for wireguard-spoke-down. ' +
+      'Empty covers every registered hub, or every peer of this node hub.',
+  )
+  .option('--namespace <namespace>', 'Kubernetes namespace holding the observability stack. Defaults to "default".')
+  .option('--webhook-url <url>', 'URL Alertmanager delivers to, written into the generated route with --deploy.')
+  .option('--dev', 'Sets the development cli context.')
+  .option('--dry-run', 'Reports the remediation the event would run without executing it.')
+  .option('--no-notify', 'Skips the operational alert declared in engine-private/deploy/conf.event.json.')
+  .option(
+    '--e2e-test',
+    'Rehearses the event against the live edge: breaks the real subject, waits for the probe to fail, ' +
+      'runs the remediation, and verifies the notification was actually sent.',
+  )
+  .description('Dispatches operational events and provisions the monitoring rules that trigger them.')
+  .action(Underpost.event.callback);
+
+program
   .command('ssh')
-  .option('--deploy-id <deploy-id>', 'Sets deploy id context for ssh operations.')
   .option('--generate', 'Generates new ssh credential and stores it in current private keys file storage.')
   .option('--user <user>', 'Sets custom ssh user')
   .option('--password <password>', 'Sets custom ssh password')
@@ -703,7 +824,10 @@ program
   .option('--status', 'Checks the status of the SSH service.')
   .option('--connect-uri', 'Displays the connection URI.')
   .option('--copy', 'Copies the connection URI to clipboard.')
-  .description('Manages SSH credentials and sessions for remote access to cluster nodes or services.')
+  .description(
+    'Manages cluster scoped SSH credentials and sessions for remote access to cluster nodes or services. ' +
+      'Users are registered in engine-private/deploy/conf.users.json and keys are stored in engine-private/deploy/users/<user>.',
+  )
   .action(Underpost.ssh.callback);
 
 // `underpost wireguard` and `underpost haproxy` are two entrypoints onto one
@@ -716,28 +840,36 @@ const edgeCommandFactory = (name, description) =>
     .option(
       '--deploy-id <deploy-id>',
       'Deploy IDs whose conf.server.json/conf.instances.json define the routes. ' +
-        'Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.router, ' +
+        'Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.routes, ' +
         'because the edge holds one pair of map files for the whole cluster.',
     )
     .option('--interface <name>', 'WireGuard interface name (default: "wg0").')
     .option('--wireguard-install', 'Installs the wireguard-tools, haproxy and iptables host packages.')
     .option('--wireguard-setup', 'Generates keys, builds the interface config, and applies local network rules.')
-    .option('--server', 'Configures this node as the hub endpoint accepting inbound tunnel traffic.')
-    .option('--client', 'Configures this node as a spoke endpoint maintaining an outbound tunnel.')
+    .option('--node-config', 'Writes a node identity under deploy/nodes, named after the machine it describes.')
+    .option(
+      '--node-name <node-name>',
+      'Node record to write; defaults to this hostname, which is what runtime commands resolve their identity by.',
+    )
+    .option('--node-role <role>', 'Machine role: control, worker, or hub.')
+    .option('--hub-host <ipv4>', 'Static public IPv4 key of the hub topology this node belongs to.')
     .option('--port <port>', 'WireGuard UDP listening port (default: 51820).')
     .option(
       '--cidr <cidr>',
-      'Hub interface address with prefix when used with --server (e.g. "10.0.0.1/24"); ' +
-        'the overlay subnet a spoke routes back through the hub when used with --client (default: "10.0.0.0/24").',
+      'Hub interface address on a hub; overlay subnet routed through the hub on control and worker nodes.',
     )
-    .option('--peer-ip <ip>', 'Tunnel address of the target spoke. Required with --client and --peer-add.')
-    .option('--endpoint <host:port>', 'Hub host and port a spoke dials. Required with --client.')
-    .option('--public-key <key>', 'Hub public key with --client; spoke public key with --peer-add.')
+    .option('--peer-ip <ip>', 'Tunnel address used by --peer-add or to update the selected node during setup.')
+    .option('--peer-id <peer-id>', 'Topology peer represented by a control or worker node identity.')
+    .option('--public-key <key>', 'Public key used by off-host topology authoring or --peer-add.')
     .option('--peer-add <peer-id>', 'Registers a spoke and applies it to the running hub without a restart.')
-    .option('--peer-remove <peer-id>', 'Removes a spoke from the registry and from the running hub.')
+    .option('--peer-remove <peer-id>', 'Removes a peer from the selected topology and running hub.')
     .option('--allowed-ips <cidrs>', 'Comma-separated CIDRs routed to the spoke (e.g. "10.0.0.2/32,192.168.10.0/24").')
     .option('--hosts <hosts>', 'Comma-separated hostnames bound to the spoke, overriding instance resolution.')
     .option('--instances <instances>', 'Comma-separated conf.instances.json ids bound to the spoke.')
+    .option(
+      '--management-host <host>',
+      'Stable LAN or management address used to repair this peer when its tunnel address is unavailable.',
+    )
     .option('--default', 'Marks the spoke as the fallback for hostnames that match no other binding.')
     .option('--haproxy-setup', 'Installs HAProxy, publishes the current routes, and enables the daemon.')
     .option('--haproxy-sync', 'Recompiles the SNI/Host maps from deploy config and hot-reloads HAProxy.')
@@ -750,7 +882,7 @@ const edgeCommandFactory = (name, description) =>
       '--build-conf',
       'Writes only engine-private/deploy/conf.wireguard.json and touches no host state. ' +
         'Combine with --wireguard-setup / --peer-add / --peer-remove to author the topology off-box; ' +
-        'alone it normalizes and validates the existing registry.',
+        'alone it normalizes and validates the existing topology.',
     )
     .option(
       '--forward-proxy-server',
@@ -761,18 +893,35 @@ const edgeCommandFactory = (name, description) =>
     )
     .option(
       '--forward-proxy-server-host <host>',
-      'Address the forward proxy binds, overriding the hub tunnel address from the registry.',
+      'Address the forward proxy binds, overriding the selected hub tunnel address.',
     )
     .option('--forward-proxy-server-port <port>', 'Port the forward proxy binds (default: 1080).')
     .option(
       '--ssh-forward-port <port>',
       'Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed ' +
-        'address can reach the cluster node (e.g. 2222). "0" closes it. Stored in the registry.',
+        'address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology.',
+    )
+    .option(
+      '--sync',
+      'Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install.',
+    )
+    .option(
+      '--nodes <node-names>',
+      'Comma-separated node documents --sync acts on. Empty covers every hub and every peer of this node hub.',
+    )
+    .option(
+      '--repo-engine <repo>',
+      'Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine.',
     )
     .option('--wireguard-start', 'Enables and starts wg-quick@<interface> and the QUIC forward.')
+    .option('--wireguard-restart', 'Restarts wg-quick@<interface> and restores the hub QUIC forward.')
     .option('--wireguard-stop', 'Tears down the interface and removes its transient packet rules.')
-    .option('--wireguard-reset', 'Removes generated configs and packet rules, keeping the key pair and registry.')
-    .option('--wireguard-reinstall', 'Full purge, package reinstall and re-key; every spoke must re-register.')
+    .option('--check', 'Waits for an active interface and a fresh handshake with its required peer.')
+    .option('--check-timeout <seconds>', 'Maximum wait for --check (default: 30).')
+    .option('--expected-role <role>', 'Refuses restart/check unless this host has the expected node role.')
+    .option('--expected-id <peer-id>', 'Refuses restart/check unless this node represents the expected peer id.')
+    .option('--wireguard-reset', 'Removes generated host state, keeping keys, topology and node identity.')
+    .option('--wireguard-reinstall', 'Full purge, package reinstall and re-key; updates the selected topology key.')
     .option('--dry-run', 'Prints the files and commands the run would apply, without touching the host.')
     .description(description)
     .action(Underpost.wireguard.callback);
@@ -1138,15 +1287,15 @@ program
   .option('--control <ip>', 'Control-plane IP the worker node joins (used with --worker for kubeadm infra setup).')
   .option(
     '--ssh-key-dir <dir>',
-    'Directory holding the SSH key pair used for commissioning/orchestration (expects <dir>/id_rsa and <dir>/id_rsa.pub). Overrides the workflow "sshKeyDir"; defaults to engine-private/deploy. Supports a leading ~.',
+    'Directory holding the SSH key pair used for commissioning/orchestration (expects <dir>/id_rsa and <dir>/id_rsa.pub). Overrides the workflow "sshKeyDir"; defaults to engine-private/deploy/users/<user> for a non-root --user, otherwise engine-private/deploy. Supports a leading ~.',
   )
   .option(
     '--deploy-id <deploy-id>',
-    'Deployment ID whose user key pair is used for SSH (key from engine-private/conf/<deploy-id>/users/<user>/id_rsa). Same user↔deployId↔key convention as the ssh command.',
+    'Deployment ID used to resolve the private engine repo cloned onto the node (engine-<suffix>-private.',
   )
   .option(
     '--user <user>',
-    'SSH user paired with --deploy-id for key resolution and the login user on an existing control-plane (defaults to root). Mirrors the ssh command --user.',
+    'SSH user whose cluster scoped key pair is used (engine-private/deploy/users/<user>/id_rsa) and the login user on an existing control-plane (defaults to root, whose key is engine-private/deploy/id_rsa). Mirrors the ssh command --user.',
   )
   .option(
     '--engine-repo <url>',

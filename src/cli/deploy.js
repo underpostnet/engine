@@ -5,13 +5,9 @@
  */
 
 import {
-  buildKindPorts,
-  buildPortProxyRouter,
-  buildProxyRouter,
   clusterTypeFactory,
   Config,
   deployHostsFactory,
-  deployRangePortFactory,
   gatewayApiEnabledFactory,
   getDataDeploy,
   instanceStatusPageEntriesFactory,
@@ -19,10 +15,17 @@ import {
   loadConfServerJson,
   loadReplicas,
   nextTrafficFactory,
-  pathPortAssignmentFactory,
   schedulableNodeFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/conf.js';
+import {
+  buildKindPorts,
+  buildPortProxyRouter,
+  buildProxyRouter,
+  deployRangePortFactory,
+  pathPortAssignmentFactory,
+  readDeployRoutes,
+} from '../server/router.js';
 import { cronDeployIdResolve } from '../server/cron.js';
 import { loggerFactory } from '../server/logger.js';
 import { HOST_VOLUME_ROOT } from '../server/environment.js';
@@ -2157,8 +2160,7 @@ ${Underpost.deploy.buildCertManagerCertificate({ host, namespace })}
 EOF`);
         }
         return;
-      } else if (!deployList || deployList === 'dd')
-        deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+      } else if (!deployList || deployList === 'dd') deployList = readDeployRoutes().join(',');
       const deployIds = deployList
         .split(',')
         .map((id) => id.trim())

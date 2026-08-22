@@ -13,8 +13,6 @@ import {
   getDirname,
   newInstance,
   orderAbc,
-  orderArrayFromAttrInt,
-  range,
   timer,
 } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
@@ -27,6 +25,7 @@ import { shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from './underpost-gateway.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
+import { readDeployRoutes, registerDeployRoute } from './router.js';
 import Underpost from '../index.js';
 
 colors.enable();
@@ -343,14 +342,7 @@ const Config = {
       );
       shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
 
-      if (!fs.existsSync(`./engine-private/deploy/dd.router`))
-        fs.writeFileSync(`./engine-private/deploy/dd.router`, deployId, 'utf8');
-      else
-        fs.writeFileSync(
-          `./engine-private/deploy/dd.router`,
-          fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim() + `,${deployId}`,
-          'utf8',
-        );
+      registerDeployRoute(deployId);
     }
 
     return { deployIdFolder: folder, deployId };
@@ -831,247 +823,6 @@ const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
 };
 
 /**
- * @method buildProxyRouter
- * @description Builds the proxy router.
- * @memberof ServerConfBuilder
- */
-const buildProxyRouter = () => {
-  const confServer = newInstance(Config.default.server);
-  let currentPort = parseInt(process.env.PORT) + 1;
-  const proxyRouter = {};
-  for (const host of Object.keys(confServer)) {
-    for (const path of Object.keys(confServer[host])) {
-      if (confServer[host][path].singleReplica) continue;
-
-      if (isDevProxyContext()) confServer[host][path].proxy = [isTlsDevProxy() ? 443 : 80];
-
-      confServer[host][path].port = newInstance(currentPort);
-      for (const port of confServer[host][path].proxy) {
-        if (!(port in proxyRouter)) proxyRouter[port] = {};
-        proxyRouter[port][`${host}${path}`] = {
-          // target: `http://${host}:${confServer[host][path].port}${path}`,
-          target: `http://localhost:${confServer[host][path].port}`,
-          // target: `http://127.0.0.1:${confServer[host][path].port}`,
-          proxy: confServer[host][path].proxy,
-          redirect: confServer[host][path].redirect,
-          host,
-          path,
-        };
-      }
-      currentPort++;
-      if (confServer[host][path].peer) {
-        const peerPath = path === '/' ? `/peer` : `${path}/peer`;
-        confServer[host][peerPath] = newInstance(confServer[host][path]);
-        confServer[host][peerPath].port = newInstance(currentPort);
-        for (const port of confServer[host][path].proxy) {
-          if (!(port in proxyRouter)) proxyRouter[port] = {};
-          proxyRouter[port][`${host}${peerPath}`] = {
-            // target: `http://${host}:${confServer[host][peerPath].port}${peerPath}`,
-            target: `http://localhost:${confServer[host][peerPath].port}`,
-            // target: `http://127.0.0.1:${confServer[host][peerPath].port}`,
-            proxy: confServer[host][peerPath].proxy,
-            host,
-            path: peerPath,
-          };
-        }
-        currentPort++;
-      }
-    }
-  }
-
-  return proxyRouter;
-};
-
-/**
- * @method pathPortAssignmentFactory
- * @description Creates the path port assignment.
- * @param {string} deployId - The deploy ID.
- * @param {object} router - The router.
- * @param {object} confServer - The server configuration.
- * @memberof ServerConfBuilder
- */
-const pathPortAssignmentFactory = async (deployId, router, confServer) => {
-  const pathPortAssignmentData = {};
-  for (const host of Object.keys(confServer)) {
-    const pathPortAssignment = [];
-    for (const path of Object.keys(confServer[host])) {
-      const { peer } = confServer[host][path];
-      if (!router[`${host}${path === '/' ? '' : path}`]) continue;
-      const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
-      // logger.info('', { host, port, path });
-      pathPortAssignment.push({
-        port,
-        path,
-      });
-
-      if (peer) {
-        //  logger.info('', { host, port: port + 1, path: '/peer' });
-        pathPortAssignment.push({
-          port: port + 1,
-          path: `${path === '/' ? '' : path}/peer`,
-        });
-      }
-    }
-    pathPortAssignmentData[host] = pathPortAssignment;
-  }
-  if (fs.existsSync(`./engine-private/replica`)) {
-    const singleReplicas = await fs.readdir(`./engine-private/replica`);
-    for (let replica of singleReplicas) {
-      if (replica.startsWith(deployId)) {
-        const replicaServerConf = loadConfServerJson(`./engine-private/replica/${replica}/conf.server.json`);
-        for (const host of Object.keys(replicaServerConf)) {
-          const pathPortAssignment = [];
-          for (const path of Object.keys(replicaServerConf[host])) {
-            const { peer } = replicaServerConf[host][path];
-            if (!router[`${host}${path === '/' ? '' : path}`]) continue;
-            const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
-            // logger.info('', { host, port, path });
-            pathPortAssignment.push({
-              port,
-              path,
-            });
-
-            if (peer) {
-              //  logger.info('', { host, port: port + 1, path: '/peer' });
-              pathPortAssignment.push({
-                port: port + 1,
-                path: `${path === '/' ? '' : path}/peer`,
-              });
-            }
-          }
-          pathPortAssignmentData[host] = pathPortAssignmentData[host].concat(pathPortAssignment);
-        }
-      }
-    }
-  }
-  return pathPortAssignmentData;
-};
-
-/**
- * @method deployRangePortFactory
- * @description Creates the deploy range port factory.
- * @param {object} router - The router.
- * @returns {object} - The deploy range port factory.
- * @memberof ServerConfBuilder
- */
-const deployRangePortFactory = (router) => {
-  const ports = Object.values(router).map((p) => parseInt(p.split(':')[2]));
-  const fromPort = Math.min(...ports);
-  const toPort = Math.max(...ports);
-  return { ports, fromPort, toPort };
-};
-
-/**
- * @method buildKindPorts
- * @description Builds the kind ports.
- * @param {number} from - The from port.
- * @param {number} to - The to port.
- * @returns {string} - The kind ports.
- * @memberof ServerConfBuilder
- */
-const buildKindPorts = (from, to) =>
-  range(parseInt(from), parseInt(to))
-    .map(
-      (port) => `    - name: 'tcp-${port}'
-      protocol: TCP
-      port: ${port}
-      targetPort: ${port}
-    - name: 'udp-${port}'
-      protocol: UDP
-      port: ${port}
-      targetPort: ${port}
-`,
-    )
-    .join('\n');
-
-/**
- * @method buildPortProxyRouter
- * @description Builds the port proxy router.
- * @param {object} options - The options.
- * @param {number} [options.port=4000] - The port.
- * @param {object} options.proxyRouter - The proxy router.
- * @param {object} [options.hosts] - The hosts.
- * @param {boolean} [options.orderByPathLength=false] - Whether to order by path length.
- * @param {boolean} [options.devProxyContext=false] - Whether to use dev proxy context.
- * @returns {object} - The port proxy router.
- * @memberof ServerConfBuilder
- */
-const buildPortProxyRouter = (
-  options = { port: 4000, proxyRouter, hosts, orderByPathLength: false, devProxyContext: false },
-) => {
-  let { port, proxyRouter, hosts, orderByPathLength } = options;
-  hosts = hosts || proxyRouter[port] || {};
-
-  const router = {};
-  // build router
-  Object.keys(hosts).map((hostKey) => {
-    let { host, path, target, proxy, peer } = hosts[hostKey];
-
-    if (!proxy.includes(port)) {
-      logger.warn('Proxy port not set on conf', { port, host, path, proxy, target });
-      if (process.env.NODE_ENV === 'production') {
-        logger.warn('Omitting host', { host, path, target });
-        return;
-      }
-    }
-    // ${process.env.NODE_ENV === 'development' && !isDevProxyContext() ? `:${port}` : ''}
-    const absoluteHost = [80, 443].includes(port)
-      ? `${host}${path === '/' ? '' : path}`
-      : `${host}:${port}${path === '/' ? '' : path}`;
-
-    if (absoluteHost in router)
-      logger.warn('Overwrite: Absolute host already exists on router', { absoluteHost, target });
-
-    if (options.devProxyContext === true) {
-      const appDevPort = parseInt(target.split(':')[2]) - process.env.DEV_PROXY_PORT_OFFSET;
-      router[absoluteHost] = `http://localhost:${appDevPort}`;
-    } else router[absoluteHost] = target;
-  }); // order router
-
-  if (Object.keys(router).length === 0) return router;
-
-  const devApiConfPath = `./engine-private/conf/${process.argv[3]}/conf.server.dev.${process.argv[4]}-dev-api.json`;
-  if (options.devProxyContext === true && process.env.NODE_ENV === 'development' && fs.existsSync(devApiConfPath)) {
-    const confDevApiServer = JSON.parse(fs.readFileSync(devApiConfPath, 'utf8'));
-    let devApiHosts = [];
-    let origins = [];
-    for (const _host of Object.keys(confDevApiServer))
-      for (const _path of Object.keys(confDevApiServer[_host])) {
-        if (confDevApiServer[_host][_path].origins && confDevApiServer[_host][_path].origins.length) {
-          origins.push(...confDevApiServer[_host][_path].origins);
-          if (_path !== 'peer' && devApiHosts.length === 0)
-            devApiHosts.push(
-              `${_host}${[80, 443].includes(port) && isDevProxyContext() ? '' : `:${port}`}${_path == '/' ? '' : _path}`,
-            );
-        }
-      }
-    origins = Array.from(new Set(origins));
-    console.log({
-      origins,
-      devApiHosts,
-    });
-    for (const devApiHost of devApiHosts) {
-      if (devApiHost in router) {
-        const target = router[devApiHost];
-        delete router[devApiHost];
-        router[`${devApiHost}/${process.env.BASE_API}`] = target;
-        router[`${devApiHost}/socket.io`] = target;
-        for (const origin of origins) router[devApiHost] = origin;
-      }
-    }
-  }
-
-  if (orderByPathLength === true) {
-    const reOrderRouter = {};
-    for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
-      reOrderRouter[absoluteHostKey] = router[absoluteHostKey];
-    return reOrderRouter;
-  }
-
-  return router;
-};
-
-/**
  * @method buildReplicaId
  * @description Builds the replica ID.
  * @param {object} options - The options.
@@ -1098,17 +849,7 @@ const getDataDeploy = async (
     disableSyncEnvPort: false,
   },
 ) => {
-  let dataDeploy = fs
-    .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
-    .split(',')
-    .map((deployId) => deployId.trim())
-    .filter((deployId) => deployId);
-
-  dataDeploy = dataDeploy.map((deployId) => {
-    return {
-      deployId,
-    };
-  });
+  let dataDeploy = readDeployRoutes().map((deployId) => ({ deployId }));
 
   if (options && options.buildSingleReplica && fs.existsSync(`./engine-private/replica`))
     fs.removeSync(`./engine-private/replica`);
@@ -2383,6 +2124,56 @@ const curlStatusChainFactory = (raw = '') => {
 };
 
 /**
+ * @method publicIngressProbeFactory
+ * @description Probes one public URL the way the traffic report does.
+ *
+ * `-L` follows the real redirect chain, `-v` supplies one response line per hop,
+ * `-i` keeps full response headers available, and `-s` removes only the progress
+ * meter. The body is discarded so a report stays bounded even when a host
+ * returns a large application page. One implementation, because the traffic
+ * table and the ingress event have to agree on what "reachable" means.
+ * @param {string} url - Absolute URL to probe.
+ * @returns {Array<string>} Ordered response codes; `['000']` when nothing answered.
+ * @memberof ServerConfBuilder
+ */
+const publicIngressProbeFactory = (url) => {
+  if (!url) return ['000'];
+  const argument = `'${`${url}`.replaceAll("'", "'\\''")}'`;
+  return curlStatusChainFactory(
+    shellExec(
+      `curl -L -v -i -s --connect-timeout 3 --max-time 12 --max-redirs 10 ` +
+        `-o /dev/null -w '\nUNDERPOST_CURL_FINAL=%{http_code}\n' ${argument} 2>&1 || true`,
+      { stdout: true, silent: true, silentOnError: true, disableLog: true },
+    ),
+  );
+};
+
+/**
+ * @method publicIngressUrlsFactory
+ * @description Every public URL a deploy list publishes, from the same conf the
+ * traffic report reads.
+ * @param {string[]} [deployList] - Deploy ids.
+ * @param {string} [env='production'] - Environment whose routes are published.
+ * @returns {Array<{host: string, path: string, url: string}>} Distinct routable URLs.
+ * @memberof ServerConfBuilder
+ */
+const publicIngressUrlsFactory = (deployList = [], env = 'production') => {
+  const urls = new Map();
+  for (const deployId of deployList)
+    for (const entry of deployTrafficEntriesFactory({ deployId, env }))
+      for (const routePath of `${entry.path || '/'}`.split(' ').filter(Boolean)) {
+        const path = routePath.startsWith('/') ? routePath : `/${routePath}`;
+        try {
+          const url = new URL(path, `https://${entry.host}`).href;
+          if (!urls.has(url)) urls.set(url, { host: entry.host, path, url });
+        } catch {
+          /* a host the conf cannot turn into a URL is not routable */
+        }
+      }
+  return [...urls.values()];
+};
+
+/**
  * @method trafficTableRowsFactory
  * @description Resolves the live colour of each routable deployment, optionally
  * narrowed to a set of hosts.
@@ -2932,31 +2723,6 @@ ${renderHosts}`,
 };
 
 /**
- * Resolves the concrete deploy ids a build or conf-sync run should iterate over.
- *
- * The meta deploy id `dd` fans out to the comma separated ids declared in
- * `engine-private/deploy/dd.router`; when that file is absent (e.g. the private
- * repository is not checked out) it falls back to {@link ServerConfBuilder.DEFAULT_DEPLOY_ID}.
- * Any other value is parsed as a comma separated list.
- * Entries are trimmed and empties dropped.
- *
- * @method resolveDeployList
- * @param {string} deployId - A deploy id, a comma separated list, or the `dd` meta id.
- * @returns {string[]} Ordered list of concrete deploy ids.
- * @memberof ServerConfBuilder
- */
-const resolveDeployList = (deployId) =>
-  (deployId === 'dd'
-    ? fs.existsSync('./engine-private/deploy/dd.router')
-      ? fs.readFileSync('./engine-private/deploy/dd.router', 'utf8')
-      : DEFAULT_DEPLOY_ID
-    : deployId
-  )
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-
-/**
  * Syncs a single deploy id's private configuration into its dedicated
  * `engine-<suffix>-private` repository and pushes the result.
  *
@@ -3048,10 +2814,11 @@ const syncDeployIdSources = (sourceMoves = []) => {
  * @param {object} [options]
  * @param {string} [options.srcPath='./'] - Engine source root to sync from.
  * @param {string} [options.toPath='../pwa-microservices-template'] - Template output path.
+ * @param {boolean} [options.noClone=false] - Skip the clone step and reset the template repo instead.
  * @returns {Promise<void>}
  * @memberof ServerConfBuilder
  */
-const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-template' } = {}) => {
+const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-template', noClone = false } = {}) => {
   const walk = (await import('ignore-walk')).default;
   const { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } =
     await import('../projects/underpost/catalog-underpost.js');
@@ -3068,9 +2835,10 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
     )
   ).filter((p) => !p.startsWith('.git'));
 
-  fs.removeSync(`${githubUsername}/pwa-microservices-template`);
-  shellExec(`cd .. && node engine/bin clone ${githubUsername}/pwa-microservices-template`);
-
+  if (noClone) {
+    fs.removeSync(`${githubUsername}/pwa-microservices-template`);
+    shellExec(`cd .. && node engine/bin clone ${githubUsername}/pwa-microservices-template`);
+  }
   shellExec(`cd ${toPath} && git config core.filemode false`);
 
   for (const copyPath of sourceFiles) {
@@ -3292,19 +3060,14 @@ export {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
-  buildProxyRouter,
   getDataDeploy,
   validateTemplatePath,
   buildReplicaId,
   mergeFile,
   getPathsSSR,
-  buildKindPorts,
-  buildPortProxyRouter,
   splitFileFactory,
   generateSecurePassword,
   resolveReplicaCount,
-  pathPortAssignmentFactory,
-  deployRangePortFactory,
   awaitDeployMonitor,
   buildCliDoc,
   getInstanceContext,
@@ -3344,6 +3107,8 @@ export {
   trafficProbePathsFactory,
   hostIngressFactsFactory,
   curlStatusChainFactory,
+  publicIngressProbeFactory,
+  publicIngressUrlsFactory,
   hostRenderInstancesFactory,
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
@@ -3355,7 +3120,6 @@ export {
   resolveEnvScoped,
   sortInstancesByPath,
   waitForPort,
-  resolveDeployList,
   syncPrivateConf,
   syncDeployIdSources,
   buildTemplate,

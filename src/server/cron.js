@@ -10,6 +10,7 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import Underpost from '../index.js';
 import { getUnderpostRootPath } from './environment.js';
+import { DEPLOY_ROUTES_PATH, readDeployRoutes } from './router.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -45,10 +46,7 @@ const loadCronDeployEnv = () => {
     if (fs.existsSync(path)) process.env = { ...process.env, ...dotenv.parse(fs.readFileSync(path, 'utf8')) };
   }
 
-  const routerPath = './engine-private/deploy/dd.router';
-  if (!fs.existsSync(routerPath)) return;
-  for (const deployId of fs.readFileSync(routerPath, 'utf8').trim().split(',')) {
-    const id = deployId.trim();
+  for (const id of readDeployRoutes()) {
     const path = `./engine-private/conf/${id}/.env.${envName}`;
     if (!id || !fs.existsSync(path)) continue;
     const env = dotenv.parse(fs.readFileSync(path, 'utf8'));
@@ -111,7 +109,7 @@ const cronJobYamlFactory = ({
 
   const cronBin = 'node bin'; // dev ? 'node bin' : 'underpost';
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
-  const commands = [`cd ${enginePath}`, `node bin env ${cronDeployId} ${dev ? `development` : `production`}`]; // `node bin run secret`
+  const commands = [`cd ${enginePath}`, `node bin env ${cronDeployId} ${dev ? `development` : `production`}`];
   if (cmd) commands.push(cmd);
   commands.push(`${cronBin} cron ${deployList} ${jobList} ${flags}`);
   const fullCommand = commands.join(' &&\n                  ');
@@ -616,7 +614,7 @@ class UnderpostCron {
 
     /**
      * Resolve the deploy-id list associated with a given job.
-     * Backup jobs read from dd.router (multiple deploy-ids); others from dd.cron.
+     * Backup jobs read from dd.routes (multiple deploy-ids); others from dd.cron.
      *
      * @param {string} jobId - Job identifier (e.g., 'dns', 'backup')
      * @returns {string} Comma-separated deploy IDs
@@ -624,9 +622,9 @@ class UnderpostCron {
      */
     getRelatedDeployIdList(jobId) {
       if (jobId === 'backup') {
-        const routerFilePath = './engine-private/deploy/dd.router';
-        if (fs.existsSync(routerFilePath)) return fs.readFileSync(routerFilePath, 'utf8').trim();
-        logger.warn(`Deploy file not found: ${routerFilePath}, falling back to the cron deploy-id`);
+        const routes = readDeployRoutes();
+        if (routes.length > 0) return routes.join(',');
+        logger.warn(`Deploy route table not found: ${DEPLOY_ROUTES_PATH}, falling back to the cron deploy-id`);
       }
 
       const cronDeployId = cronDeployIdResolve();
@@ -658,4 +656,4 @@ class UnderpostCron {
 
 export default UnderpostCron;
 
-export { cronDeployIdResolve, cronJobYamlFactory, loadCronDeployEnv, resolveDeployId, resolveJobDeployList };
+export { cronDeployIdResolve, cronJobYamlFactory, loadCronDeployEnv, parseList, resolveDeployId, resolveJobDeployList };

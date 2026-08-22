@@ -687,7 +687,11 @@ describe('blue/green traffic plan', () => {
       const start = runSource.indexOf("    'get-traffic': async");
       const end = runSource.indexOf("    'instance-promote': async", start);
       const getTraffic = runSource.slice(start, end);
-      expect(getTraffic).to.include('curl -L -v -i -s');
+      // The probe itself moved to one implementation the ingress event shares;
+      // what matters here is that the report still goes through it.
+      expect(getTraffic).to.include('publicIngressProbeFactory(url)');
+      const confSource = fs.readFileSync(new URL('../src/server/conf.js', import.meta.url), 'utf8');
+      expect(confSource).to.include('curl -L -v -i -s');
       expect(getTraffic).to.include("'OPPOSITE'");
       expect(getTraffic).not.to.include('showOpposite');
       expect(getTraffic).to.include("'CURRENT'");
