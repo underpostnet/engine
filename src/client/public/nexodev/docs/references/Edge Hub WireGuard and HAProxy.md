@@ -1,42 +1,128 @@
-# Edge Hub: WireGuard and HAProxy
+# Edge Hub WireGuard and HAProxy
 
-Reference for `underpost wireguard` / `underpost haproxy` — the hub-and-spoke edge that publishes homelab Kubernetes clusters on the public internet without terminating TLS outside them.
-
-Two layers, kept apart:
-
-| Layer         | Is                                  | Knows about                            |
-| ------------- | ----------------------------------- | -------------------------------------- |
-| **WireGuard** | L3 encrypted site-to-site transport | Interfaces, peers, routed networks     |
-| **HAProxy**   | Public edge gateway                 | Hostnames, and which spoke serves each |
-
-WireGuard carries packets. It is not a router of hostnames and never sees one. Every hostname decision is HAProxy's, taken from three routing bindings — `hosts`, `instances`, `default`.
-
----
+Underpost exposes private cluster ingress through a static VPS. WireGuard carries traffic between the VPS hub and cluster nodes; HAProxy on the hub routes TCP `:80` and `:443`, while UDP `:443` and the optional SSH forwarding port go to the default peer.
 
 ## Table of Contents
 
-1. [Why this exists](#why-this-exists)
+1. [Configuration model](#configuration-model)
 2. [Architecture](#architecture)
-3. [Command](#command)
-4. [Peer registry (`conf.wireguard.json`)](#peer-registry-confwireguardjson)
-5. [Route resolution](#route-resolution)
-6. [Generated host artifacts](#generated-host-artifacts)
-7. [Reaching a spoke over SSH (CI deploys)](#reaching-a-spoke-over-ssh-ci-deploys)
-8. [Runbook: from a newly created Rocky Linux 9 VPS](#runbook-from-a-newly-created-rocky-linux-9-vps)
-9. [Restart, reconnect, reset](#restart-reconnect-reset)
-10. [Adding a spoke without downtime](#adding-a-spoke-without-downtime)
-11. [Lifecycle and idempotency](#lifecycle-and-idempotency)
-12. [Response compression and egress](#response-compression-and-egress)
-13. [Outbound forward proxy](#outbound-forward-proxy)
-14. [Relationship to `underpost-ingress` and `underpost-gateway`](#relationship-to-underpost-ingress-and-underpost-gateway)
+3. [Lifecycle](#lifecycle)
+4. [Lifecycle and idempotency](#lifecycle-and-idempotency)
+5. [Status](#status)
+6. [Routing](#routing)
+7. [Route resolution](#route-resolution)
+8. [Generated host artifacts](#generated-host-artifacts)
+9. [Adding a spoke without downtime](#adding-a-spoke-without-downtime)
+10. [SSH forwarding and remediation credentials](#ssh-forwarding-and-remediation-credentials)
+11. [Syncing the fleet](#syncing-the-fleet)
+12. [Resyncing a node](#resyncing-a-node)
+13. [Forward proxy](#forward-proxy)
+14. [Response compression and egress](#response-compression-and-egress)
+15. [Relationship to `underpost-ingress` and `underpost-gateway`](#relationship-to-underpost-ingress-and-underpost-gateway)
+16. [Command reference](#command-reference)
+17. [Verification](#verification)
 
 ---
 
-## Why this exists
+## Configuration model
 
-Homelab clusters sit behind dynamic ISP addresses, double-NAT and CGNAT, so nothing on the public internet can dial them. A cloud VPS with a static address holds the hostnames and every spoke keeps an outbound UDP session open to it — the only direction a CGNAT boundary lets a session start.
+WireGuard uses three independent sources. None duplicates another.
 
-The alternative — a full reverse proxy terminating TLS on the VPS — spreads private keys across machines the cluster does not own, and adds certificate synchronisation to every renewal. This subsystem avoids both: the edge reads the SNI out of the ClientHello and forwards the still-encrypted stream, so **certificates and private keys never leave the cluster that issued them**.
+| Source                                         | Scope      | Content                                                                                                |
+| ---------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `engine-private/deploy/conf.wireguard.json`    | deployment | Hubs keyed by static public IPv4, public keys, tunnel addresses, peer routing and management addresses |
+| `engine-private/deploy/nodes/<node-name>.json` | deployment | Node role and its hub/peer association                                                                 |
+| `engine-private/deploy/conf.users.json`        | deployment | SSH users, ports and key paths matched by management host                                              |
+
+The topology never contains a current-machine role. Pulling `engine-private` onto another machine therefore cannot turn a control node into a hub.
+
+Identity is the machine's own: a node document is named after the host it describes, so the hostname resolves it and nothing has to be selected. There is no host-local record of which node this is to install, pull, or drift out of date after a rename. The full hostname is matched first and its short name second, because an FQDN belongs to the resolver domain rather than to the node — `vultr.guest` and `vultr` are one host, and `vultr.json` serves both.
+
+### Hub topology
+
+The top-level key is the static public IPv4 used both as the WireGuard endpoint and the hub remediation address.
+
+```json
+{
+  "64.176.25.136": {
+    "interfaceName": "wg0",
+    "listenPort": 51820,
+    "address": "10.0.0.1/24",
+    "publicKey": "<hub-public-key>",
+    "sshForwardPort": 2222,
+    "peers": [
+      {
+        "id": "homelab-a",
+        "address": "10.0.0.2",
+        "managementHost": "192.168.1.85",
+        "publicKey": "<control-public-key>",
+        "allowedIPs": ["10.0.0.2/32"],
+        "hosts": [],
+        "instances": [],
+        "default": true
+      },
+      {
+        "id": "homelab-a-hp-envy-iso-ram-rocky9",
+        "address": "10.0.0.3",
+        "managementHost": "192.168.1.191",
+        "publicKey": "<worker-public-key>",
+        "allowedIPs": ["10.0.0.3/32"],
+        "hosts": [],
+        "instances": [],
+        "default": false
+      }
+    ]
+  }
+}
+```
+
+Private keys exist only at `/etc/wireguard/<interface>.key`. Generated configuration loads that file at interface startup and never renders private key material.
+
+### Node records
+
+The filename is the node name, so it is not repeated in the document.
+
+`deploy/nodes/vultr.json`:
+
+```json
+{ "role": "hub", "hubHost": "64.176.25.136" }
+```
+
+`deploy/nodes/localhost.localdomain.json`:
+
+```json
+{ "role": "control", "hubHost": "64.176.25.136", "peerId": "homelab-a" }
+```
+
+`deploy/nodes/hp-envy-iso-ram-rocky9.json`:
+
+```json
+{ "role": "worker", "hubHost": "64.176.25.136", "peerId": "homelab-a-hp-envy-iso-ram-rocky9" }
+```
+
+Roles are exactly `hub`, `control`, and `worker`. A hub has no `peerId`; control and worker nodes must reference one peer in their selected hub.
+
+### Node records for each machine
+
+A machine whose document was already pulled with `engine-private` is ready — `node bin wireguard --status` reports it. To create or change a record, run `--node-config` from anywhere; `--node-name` defaults to the current hostname:
+
+```bash
+# VPS
+node bin wireguard --node-config \
+  --node-name vultr --node-role hub --hub-host 64.176.25.136
+
+# Control plane
+node bin wireguard --node-config \
+  --node-name localhost.localdomain --node-role control \
+  --hub-host 64.176.25.136 --peer-id homelab-a
+
+# Worker
+node bin wireguard --node-config \
+  --node-name hp-envy-iso-ram-rocky9 --node-role worker \
+  --hub-host 64.176.25.136 --peer-id homelab-a-hp-envy-iso-ram-rocky9
+```
+
+`--node-config` writes the tracked node document and nothing else. Runtime commands read `deploy/nodes/$(hostname).json` and join it with topology; a machine with no document of its own has no role, so the topology file pulled last cannot give it one.
 
 ---
 
@@ -92,781 +178,68 @@ Why the split by port — the same reasoning `underpost-ingress` applies inside 
 
 ---
 
-## Command
+## Lifecycle
 
-**Command:** `underpost wireguard [options]`
+### Author topology without touching a host
 
-`underpost haproxy` is the same subsystem under a second name — identical options and behaviour, because the transport and the gateway in front of it are configured from the same deploy state.
-
-| Option                               | Type    | Scope                                   | Action                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------ | ------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--deploy-id <id>`                   | string  | Optional                                | Deploys whose `conf.server.json` / `conf.instances.json` define the routes. One id or a comma-separated list. **Defaults to `dd`** — every deploy in `dd.router` — because the edge holds one pair of map files for the whole cluster. Pass it only to narrow the table deliberately.                                                                                                                 |
-| `--interface <name>`                 | string  | Optional                                | WireGuard interface (default `wg0`).                                                                                                                                                                                                                                                                                                                                                                  |
-| `--wireguard-install`                | boolean | Optional                                | Installs `wireguard-tools`, `haproxy`, `iptables`; sets the SELinux boolean HAProxy needs to dial backends.                                                                                                                                                                                                                                                                                           |
-| `--wireguard-setup`                  | boolean | Optional                                | Generates the key pair, builds the interface config, applies sysctl/firewalld rules.                                                                                                                                                                                                                                                                                                                  |
-| `--server`                           | boolean | Conditional                             | Configures this node as the hub.                                                                                                                                                                                                                                                                                                                                                                      |
-| `--client`                           | boolean | Conditional                             | Configures this node as a spoke.                                                                                                                                                                                                                                                                                                                                                                      |
-| `--port <n>`                         | number  | Optional                                | WireGuard UDP listen port (default `51820`).                                                                                                                                                                                                                                                                                                                                                          |
-| `--cidr <cidr>`                      | string  | Required with `--server`                | Hub interface address with prefix (`10.0.0.1/24`). With `--client`, the overlay subnet routed back through the hub (default `10.0.0.0/24`).                                                                                                                                                                                                                                                           |
-| `--peer-ip <ip>`                     | string  | Required with `--client` / `--peer-add` | Tunnel address of the spoke.                                                                                                                                                                                                                                                                                                                                                                          |
-| `--endpoint <host:port>`             | string  | Required with `--client`                | Hub address a spoke dials (`vps.example.com:51820`).                                                                                                                                                                                                                                                                                                                                                  |
-| `--public-key <key>`                 | string  | Conditional                             | Hub public key with `--client`; spoke public key with `--peer-add`.                                                                                                                                                                                                                                                                                                                                   |
-| `--peer-add <peer-id>`               | string  | Optional                                | Registers a spoke and applies it to the running hub.                                                                                                                                                                                                                                                                                                                                                  |
-| `--peer-remove <peer-id>`            | string  | Optional                                | Removes a spoke from the registry and the running hub.                                                                                                                                                                                                                                                                                                                                                |
-| `--allowed-ips <cidrs>`              | string  | Optional                                | Comma-separated CIDRs routed to the spoke. **Defaults to the spoke's own `/32`, which is all the edge needs** — add LAN subnets only to reach machines _behind_ the spoke.                                                                                                                                                                                                                            |
-| `--hosts <hosts>`                    | string  | Optional                                | **Routing binding.** Hostnames bound directly to the spoke.                                                                                                                                                                                                                                                                                                                                           |
-| `--instances <instances>`            | string  | Optional                                | **Routing binding.** `conf.instances.json` ids bound to the spoke.                                                                                                                                                                                                                                                                                                                                    |
-| `--default`                          | boolean | Optional                                | **Routing binding.** Marks the spoke as the catch-all for unmatched hostnames, and as the QUIC target.                                                                                                                                                                                                                                                                                                |
-| `--haproxy-setup`                    | boolean | Optional                                | Installs HAProxy, publishes the routes, enables the daemon.                                                                                                                                                                                                                                                                                                                                           |
-| `--haproxy-sync`                     | boolean | Optional                                | Recompiles the maps from deploy config and hot-reloads HAProxy.                                                                                                                                                                                                                                                                                                                                       |
-| `--ssh-forward-port <n>`             | number  | Optional                                | Publishes the default spoke's SSH on this **public** TCP port of the hub, so CI with no fixed address can reach the cluster node. `0` closes it. Stored in the registry; closed by default.                                                                                                                                                                                                           |
-| `--status`                           | boolean | Optional                                | **The one read-only command.** Prints the whole edge context; changes nothing.                                                                                                                                                                                                                                                                                                                        |
-| `--build-conf`                       | boolean | Optional                                | Writes **only** the registry; touches no host state. Combine with `--wireguard-setup` / `--peer-add` / `--peer-remove` to author the topology off-box; alone it normalizes and validates the existing file.                                                                                                                                                                                           |
-| `--forward-proxy-server`             | boolean | Optional                                | 🟦 HUB only. Ensures the outbound HTTP/`CONNECT` forward proxy runs as the `underpost-forward-proxy` systemd service on `<tunnel address>:1080`, then **returns** — the CLI does not stay attached. Idempotent: re-running restarts the service only when the unit actually changed. Authenticates every request with `FORWARD_PROXY_API_KEY`. See [Outbound forward proxy](#outbound-forward-proxy). |
-| `--forward-proxy-server-host <host>` | string  | Optional                                | Address the forward proxy binds, overriding the hub tunnel address from the registry.                                                                                                                                                                                                                                                                                                                 |
-| `--forward-proxy-server-port <port>` | number  | Optional                                | Port the forward proxy binds (default `1080`).                                                                                                                                                                                                                                                                                                                                                        |
-| `--wireguard-start`                  | boolean | Optional                                | Enables and starts `wg-quick@<interface>` and the QUIC forward.                                                                                                                                                                                                                                                                                                                                       |
-| `--wireguard-stop`                   | boolean | Optional                                | Tears the interface down and removes its transient packet rules.                                                                                                                                                                                                                                                                                                                                      |
-| `--wireguard-reset`                  | boolean | Optional                                | Removes generated configs and packet rules; **keeps** the key pair and registry.                                                                                                                                                                                                                                                                                                                      |
-| `--wireguard-reinstall`              | boolean | Optional                                | Full purge, package reinstall and re-key. Every spoke must re-register.                                                                                                                                                                                                                                                                                                                               |
-| `--dry-run`                          | boolean | Optional                                | Prints the files and commands the run would apply, without touching the host.                                                                                                                                                                                                                                                                                                                         |
-
-Flags are evaluated in lifecycle order — install, setup, peer changes, route publication, then daemon control, and `--status` last — so a whole bring-up fits in one invocation, still executes in the only order that works, and can report what it left behind. `--forward-proxy-server` runs after the tunnel is up, because the service requires it and binds an address that only exists then, and before `--status`, so one invocation can reconcile the service and report it.
-
-### `--status` is the whole read-only surface
-
-There is one information command, not one per kind of state. `--status` reports, in a single structure:
-
-```
-role                interface           tunnel address      public key
-WireGuard state     HAProxy state       forward proxy state    QUIC target
-peers               bindings per peer   handshake age / rx / tx / link state
-routing summary     resolved routes with the binding each matched
-unresolved hostnames and cross-deploy conflicts, when there are any
-```
+`--build-conf` changes only `conf.wireguard.json`. Supply `--hub-host` when more than one hub exists or no local identity is selected.
 
 ```bash
-node bin wireguard --status
-```
+node bin wireguard --build-conf --hub-host 64.176.25.136 \
+  --peer-add homelab-a --peer-ip 10.0.0.2 \
+  --management-host 192.168.1.85 --public-key '<control-public-key>' --default
 
-Under `--build-conf` it skips the host probes — no `wg show`, no `systemctl` — and reports registry and routing alone, so it runs on a workstation with no interface to query.
+node bin wireguard --build-conf --hub-host 64.176.25.136 \
+  --peer-add homelab-a-hp-envy-iso-ram-rocky9 --peer-ip 10.0.0.3 \
+  --management-host 192.168.1.191 --public-key '<worker-public-key>'
 
----
-
-## Peer registry (`conf.wireguard.json`)
-
-Stored at `./engine-private/deploy/conf.wireguard.json`, beside `dd.router` and `dd.cron`.
-
-**Cluster-wide, not per deploy.** The hub has one interface, one address and one peer table, and those are properties of the machine — a copy per deploy would be several records of one fact, free to disagree. `--deploy-id` selects which _hostnames_ are routed across the tunnel, never which tunnel exists, which is why every lifecycle command runs without it.
-
-```json
-{
-  "interfaceName": "wg0",
-  "role": "server",
-  "listenPort": 51820,
-  "address": "10.0.0.1/24",
-  "publicKey": "<hub public key>",
-  "peers": [
-    {
-      "id": "homelab-a",
-      "address": "10.0.0.2",
-      "publicKey": "<spoke public key>",
-      "allowedIPs": ["10.0.0.2/32", "192.168.10.0/24"],
-      "hosts": ["www.dogmadual.com"],
-      "instances": [],
-      "default": true
-    }
-  ]
-}
-```
-
-A peer carries exactly three routing bindings — `hosts`, `instances`, `default` — plus its transport fields. Any other key in a hand-edited file is not a binding the edge honours and is dropped on the next normalization.
-
-**On a spoke the same file looks different**, because a spoke has no peer table — it has one hub it dials:
-
-```json
-{
-  "interfaceName": "wg0",
-  "role": "client",
-  "listenPort": 51820,
-  "address": "10.0.0.2",
-  "endpoint": "203.0.113.10:51820",
-  "hubPublicKey": "<hub public key>",
-  "publicKey": "<this spoke's own public key>",
-  "peers": []
-}
-```
-
-`endpoint` and `hubPublicKey` are the pair that makes a spoke's setup repeatable: **which hub to dial, and which identity to expect there**. Both are recorded, so re-running `--wireguard-setup --client` — and `--wireguard-reinstall`, which ends in one — needs no flags at all. Pass `--public-key` only when the hub's identity actually changed.
-
-> **Public keys only.** The private half is generated under `umask 077` directly into `/etc/wireguard/<iface>.key` (mode `0600`, root-owned) and is never read back into the CLI process. The generated interface config carries no `PrivateKey` line at all — it loads the key with `PostUp = wg set %i private-key …` — so no rendered config, dry-run print, diff or log line can ever carry it.
-
-### `--allowed-ips` is optional
-
-`allowedIPs` defaults to the peer's own `/32`, and **that default is sufficient for the edge to work**. HAProxy dials `10.0.0.2:443` and `10.0.0.2:80`; `10.0.0.2/32` is exactly the route that carries it. Omitting the flag is the normal case:
-
-```bash
-# Enough for a working spoke
-node bin wireguard \
-  --peer-add homelab-a --peer-ip 10.0.0.2 --public-key '<spoke-a key>'
-```
-
-```
-AllowedIPs = 10.0.0.2/32        # what lands in /etc/wireguard/wg0.conf
-```
-
-Add CIDRs only when the hub must reach machines **behind** the spoke on its LAN — other worker nodes by LAN address, a NAS, a management interface. Publishing the cluster does not need it: `underpost-ingress` binds the host network on the spoke node, so it answers on the tunnel address itself.
-
-> **Overlapping subnets break routing.** WireGuard resolves an outbound packet by longest-prefix match across _every_ peer's `AllowedIPs`, so a CIDR two spokes both claim is not shared — one wins and the other silently never receives that traffic. Homelabs routinely sit on the same `192.168.1.0/24`, which makes this the likeliest way a multi-spoke registry breaks. `--peer-add` warns when it detects a contested CIDR (duplicate tunnel addresses included, since an address contributes its own `/32`).
-
-A spoke routes its LAN only when the registry says so, so a mistyped entry cannot silently claim a subnet another spoke already answers for.
-
-### It is authored, not generated
-
-Unlike `conf.dd-*.js` — which is derived from `conf.server.json` and can always be rebuilt — **nothing can regenerate `conf.wireguard.json`**. The peer bindings and public keys exist in no other file. Delete it and every hostname becomes unresolved; the routes cannot be recovered from the deploy configs. Keep it in `engine-private` and treat it as source.
-
-Three flags write it, always as a side effect of the work they do:
-
-| Flag                | Writes                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `--wireguard-setup` | this machine's `interfaceName`, `role`, `listenPort`, `address`, `publicKey`, and on a spoke `endpoint` + `hubPublicKey` |
-| `--peer-add`        | one entry in `peers[]`, merged over any existing entry with that id                                                      |
-| `--peer-remove`     | drops one entry from `peers[]`                                                                                           |
-
-Nothing else creates it. `--status` and `--haproxy-sync` only read, and a missing file reads as an empty registry rather than an error — which is why a fresh host works before the first `--wireguard-setup`. `--dry-run` suppresses the write entirely.
-
-### Building the conf without touching the host
-
-`--build-conf` writes the registry and nothing else — no key generation, no `/etc/wireguard`, no `sysctl`, no `firewalld`, no `iptables`, no `wg set`, no `systemctl`. It runs anywhere, including a workstation with no WireGuard installed:
-
-```bash
-# Author the whole topology off-box, then commit it to engine-private
-node bin wireguard --build-conf --wireguard-setup --server --cidr 10.0.0.1/24
-
-node bin wireguard --build-conf \
-  --peer-add homelab-a --peer-ip 10.0.0.2 --public-key '<spoke-a key>' \
-  --allowed-ips 10.0.0.2/32,192.168.10.0/24 --default
-
-# Check what it resolves to before any machine exists
-node bin wireguard --build-conf --status
-
-# Alone: normalize and validate a hand-edited file
 node bin wireguard --build-conf
 ```
 
-`--build-conf` is a hard promise rather than a modifier: it short-circuits every host action, so a run that also carries `--haproxy-setup` or `--wireguard-start` still touches nothing.
+`allowedIPs` defaults to the peer tunnel `/32`. Add a LAN subnet only when the hub must route through that peer to additional machines. Never assign overlapping CIDRs to different peers.
 
-The one field it leaves empty is this machine's own `publicKey`, because no key exists off-box. Running `--wireguard-setup` on the real host fills it in, keeps every peer already recorded, and applies them.
-
-Use `--dry-run` when you want to change nothing at all — including the registry.
-
-On a machine that has no registry yet, `--build-conf` with no authoring flags writes the empty skeleton and says so:
-
-```
-info  Registry normalized  { peers: [], role: '', changed: true }
-warn  Registry has no peers: no hostname can resolve until at least one is registered
-warn  Registry records no role for this machine
-```
-
-That is a valid starting point — a file to fill in — but it routes nothing. Two guards keep an empty registry from reaching production:
-
-- `--status` warns **No hostname resolved to a spoke: the edge would refuse every request** instead of printing an empty table as if it were healthy.
-- `--haproxy-sync` and `--haproxy-setup` **refuse to publish** a table with zero routes, before writing any file or touching any daemon. Publishing empty maps would answer `421` to every hostname on the box.
-
----
-
-## Route resolution
-
-Routing is derived, never hand-written. `--haproxy-sync` reads the deploy's own configuration and resolves every published hostname to a spoke.
-
-0. **Deploy expansion** — the default `dd` reads `engine-private/deploy/dd.router` through the same helper every other runner uses, so the edge routes exactly the set the cluster deploys. A listed deploy whose private conf is not checked out locally is skipped with a warning rather than failing the run.
-1. **Domain extraction** — top-level keys of each deploy's `conf.server.json`, plus every `conf.instances.json` host (all variants of a family included).
-2. **Proxy filter** — a hostname is published only when one of its sub-paths declares a `proxy` array. Ports are unioned across sub-paths, because the edge routes a hostname, not a path.
-3. **Peer resolution**, most specific first. Three bindings, and one derived hop:
-
-   ```
-   host → instance → redirect → default
-   ```
-
-   | Order | Match                                                    | Example                               |
-   | ----- | -------------------------------------------------------- | ------------------------------------- |
-   | 1     | `peer.hosts` contains the hostname                       | `"hosts": ["www.nexodev.org"]`        |
-   | 2     | `peer.instances` contains the instance id or template id | `"instances": ["mmo-server"]`         |
-   | 3     | the hostname its `redirect` points at resolves           | `dogmadual.com` → `www.dogmadual.com` |
-   | 4     | the peer marked `"default": true`, or a lone peer        | —                                     |
-
-   A peer with no `hosts` and no `instances` claims nothing at steps 1–2. It answers everything only while it is the sole peer, via the lone-peer fallback in step 4.
-
-   `redirect` is not a fourth binding — it is derived from `conf.server.json`, not written in the registry. It exists because a redirect host publishes nothing of its own: `dogmadual.com` only says "go to `www.dogmadual.com`", and the spoke that answers the target has to answer the redirect too. Redirect chains are cycle-guarded, and a redirect only inherits a _specific_ match — never the target's fallback.
-
-4. **Merge** — the per-deploy tables are unioned into the single table the edge publishes, each route carrying the deploy that contributed it. This step is not optional: the edge holds **one** pair of map files, so compiling a single deploy alone would overwrite them and take every other deploy's hostname off the internet. A hostname two deploys both claim is reported as a conflict; the first is served, deterministically.
-5. **Compilation** — one line per hostname and transport into the map files.
-
-A hostname that resolves to nothing is **reported**, not dropped: a silently missing route is a hostname that answers nothing at all, which is invisible until someone reports the outage. Use `--status` to see the resolved table before publishing it.
-
----
-
-## Generated host artifacts
-
-```
-/etc/wireguard/<iface>.conf              interface + peer table          0600
-/etc/wireguard/<iface>.key               private key                     0600
-/etc/wireguard/<iface>.pub               public key                      0644
-/etc/haproxy/haproxy.cfg                 generated edge gateway
-/etc/haproxy/domain2backend.map          SNI  -> be_tls_<peer>
-/etc/haproxy/domain2backend-http.map     Host -> be_http_<peer>
-/etc/sysctl.d/99-underpost-wireguard.conf  net.ipv4.ip_forward=1  (both roles)
-/etc/systemd/system/underpost-forward-proxy.service  forward proxy unit   0600
-engine-private/deploy/conf.wireguard.json  peer registry (public keys only)
-iptables nat chains UNDERPOST_WG_PRE / UNDERPOST_WG_POST   QUIC DNAT
-firewalld permanent rules             80,443/tcp 443,51820/udp masquerade (hub)
-                                      rich rule 1080/tcp from 10.0.0.0/24   (hub)
-                                      zone=trusted interface=<iface>        (spoke)
-```
-
-All of these are outputs. Editing them by hand is overwritten by the next sync — change `conf.wireguard.json` or the deploy's `conf.server.json` instead.
-
-`--wireguard-reset` removes every one of them except the key pair and the registry — see [Restart, reconnect, reset](#restart-reconnect-reset).
-
-There is no `bind … ssl` line anywhere in the generated `haproxy.cfg`, and that absence is the design.
-
----
-
-## Reaching a spoke over SSH (CI deploys)
-
-`80`, `443` and the QUIC port carry _traffic to published hostnames_. CI is a different problem: GitHub Actions has to open a shell **on the cluster node** to run `deploy/<deploy-id>/sync-deploy.sh`, and that node is behind CGNAT with no address a runner can dial.
-
-The failure this solves looks like a key problem and is not one:
-
-```
-$ ssh user_name@underpost.net -i .../users/user_name/id_rsa
-user_name@underpost.net: Permission denied (publickey)
-
-# GitHub Actions, same cause
-ssh: handshake failed: ssh: unable to authenticate, attempted methods [none publickey]
-```
-
-`underpost.net` resolves to the **hub**, and nothing forwards port 22, so the connection lands on the _hub's own_ sshd — a machine that has never heard of the deploy user. The key is fine; it is being offered to the wrong host.
-
-### The forward
-
-```
-GitHub Actions ──► underpost.net:2222 ──► HAProxy fe_ssh ──(wg0)──► 10.0.0.2:22
-                   (hub, static IP)                                  (cluster node)
-```
-
-Like UDP `:443`, this is **whole-port forwarding to the default spoke** — SSH carries no SNI and no `Host`, so there is nothing to route it on. One public port reaches one spoke.
-
-The hub's own sshd keeps `:22`. The forward uses a separate port so administering the hub and reaching the spoke never contend for the same listener.
+### Configure the hub
 
 ```bash
-# 🟦 HUB — open it, then republish
-node bin wireguard --ssh-forward-port 2222 --wireguard-setup --server
-node bin wireguard --haproxy-sync
-```
-
-`--ssh-forward-port 0` closes it again. The setting lives in `conf.wireguard.json`, so every later `--haproxy-sync` renders the same frontend rather than dropping it.
-
-Open `2222/tcp` in the **provider** firewall too — `firewalld` is handled, the cloud firewall is not.
-
-Verify:
-
-```bash
-node bin wireguard --status        # sshForward: ':2222 -> 10.0.0.2:22'
-ssh -p 2222 user_name@underpost.net -i engine-private/conf/dd-core/users/user_name/id_rsa
-```
-
-### The two ports are not the same port
-
-This is the part that bites:
-
-| Setting                                | Value                             | Which port                                          |
-| -------------------------------------- | --------------------------------- | --------------------------------------------------- |
-| `conf.node.json` → `users.<user>.port` | `22`                              | The **spoke's** sshd, behind the tunnel. Unchanged. |
-| GitHub secret `SSH_PORT`               | `2222`                            | The **hub's** public forward.                       |
-| GitHub secret `SSH_HOST`               | `underpost.net`                   | The hub.                                            |
-| GitHub secret `SSH_PRIV_KEY`           | contents of `users/<user>/id_rsa` | The spoke's user key.                               |
-
-Only `SSH_PORT` changes. The workflow itself needs no edit — it already reads all four from secrets.
-
-### The account has to exist on the spoke
-
-A network path is half of it. The other half is that `--start` hardens sshd but does **not** create users:
-
-```bash
-# 🟩 SPOKE — create the account and authorize its key, once
-node bin ssh --deploy-id dd-core --user user_name --user-add
-
-# then harden the daemon
-node bin ssh --deploy-id dd-core --user user_name --start
-```
-
-`--start` now refuses to run when the account is missing, instead of hardening a daemon that would reject the only user it exists for. When the account is present it also re-installs the public key recorded in `conf.node.json`, so a node whose `authorized_keys` was lost converges without re-issuing a key every other host already trusts.
-
----
-
-## Runbook: from a newly created Rocky Linux 9 VPS
-
-End to end, on a stock image with nothing configured. Every phase is idempotent — a phase that was already applied can be re-run without harm, so an interrupted bring-up resumes by repeating the phase it stopped in.
-
-**Every command below is tagged with the machine it runs on.** The two roles never share a command:
-
-| Tag          | Machine                               | Role                                               |
-| ------------ | ------------------------------------- | -------------------------------------------------- |
-| 🟦 **HUB**   | the edge VPS, public static IP        | WireGuard hub + HAProxy edge gateway               |
-| 🟩 **SPOKE** | each homelab Kubernetes control-plane | WireGuard client + the cluster that terminates TLS |
-| ⬜ **ANY**   | a workstation, or either of the above | read-only or registry-only; touches no host state  |
-
-A command run on the wrong machine is not silently wrong — `--server` and `--client` write different interface configs, and `--haproxy-*` only means anything where HAProxy holds the public ports.
-
-### Phase 0 — What you need before you start
-
-| Item                               | Example                                          | Notes                                                |
-| ---------------------------------- | ------------------------------------------------ | ---------------------------------------------------- |
-| Edge VPS                           | Rocky Linux 9, 1 vCPU / 1 GB is enough           | Passthrough is cheap; no TLS work happens here       |
-| Static public IPv4                 | `203.0.113.10`                                   | The address every hostname's A record will point at  |
-| Provider firewall / security group | 80/tcp, 443/tcp, 443/udp, 51820/udp              | **Opened separately from `firewalld`** — see Phase 1 |
-| One or more homelab clusters       | already running `underpost-ingress`              | Each becomes a spoke                                 |
-| `engine-private` access            | git credentials or a deploy key                  | Supplies `dd.router` and every `conf.server.json`    |
-| Tunnel address plan                | hub `10.0.0.1`, spokes `10.0.0.2`, `10.0.0.3`, … | Inside `10.0.0.0/24` by default                      |
-
-The edge is **not** a cluster node. Do not run `underpost cluster --init-host` on it — that installs Docker, CRI-O, kubeadm and Helm for a machine that runs neither pods nor a kubelet.
-
-### Phase 1 — 🟦 HUB — First login on the new VPS
-
-```bash
-# Update the base image and set an identity
-sudo dnf -y update
-sudo hostnamectl set-hostname edge-hub-01
-sudo timedatectl set-timezone UTC
-
-# A non-root account with passwordless sudo. Every host mutation the CLI makes
-# — dnf, install into /etc, iptables, systemctl — goes through sudo, so an
-# account that prompts for a password will stall a non-interactive run.
-sudo useradd -m -G wheel dd
-sudo install -d -m 0700 -o dd -g dd /home/dd/.ssh
-sudo cp ~/.ssh/authorized_keys /home/dd/.ssh/authorized_keys
-sudo chown dd:dd /home/dd/.ssh/authorized_keys && sudo chmod 600 /home/dd/.ssh/authorized_keys
-echo 'dd ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/dd
-sudo chmod 440 /etc/sudoers.d/dd
-```
-
-Log back in as `dd` from here on.
-
-**Firewalld is active on a stock Rocky 9 image**, and `--wireguard-setup` opens the ports it needs there automatically (80/tcp, 443/tcp, 443/udp, 51820/udp, masquerade). What it cannot reach is your **provider's** firewall — DigitalOcean cloud firewalls, Hetzner firewalls, AWS security groups, OVH edge rules. Open the same four ports there before Phase 3, or the tunnel will never complete a handshake and every diagnostic will look healthy from inside the box.
-
-SELinux is enforcing by default and should stay that way: `--wireguard-install` sets the one boolean HAProxy needs (`haproxy_connect_any`) rather than asking you to disable it.
-
-### Phase 2 — 🟦 HUB + 🟩 SPOKE — Node 24, engine, engine-private
-
-> Run this on the **hub** and on **every spoke**. Both ends drive their own tunnel through the same CLI, from their own checkout.
-
-```bash
-sudo dnf -y install git curl
-
-# Node 24 — the version the engine requires; the dnf module stream is older
-curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
-sudo dnf install -y nodejs
-node --version        # must report v24.x
-
-# The engine and its private configuration
-sudo mkdir -p /home/dd && sudo chown dd:dd /home/dd
-git clone https://github.com/underpostnet/engine.git /home/dd/engine
-cd /home/dd/engine
-git clone https://github.com/<owner>/engine-private.git engine-private
-npm install
-
-# Optional: the repo's Rocky base package set (vim, rsync, tcpdump, chrony …)
-node bin run host-update
-```
-
-Every command below is run from `/home/dd/engine`.
-
-`engine-private` is what supplies `deploy/dd.router`, every `conf/<deploy-id>/conf.server.json`, and the peer registry the edge writes back. Without it the edge has no hostnames to route.
-
-> **The peer registry is per-machine state.** Each host — hub and every spoke — keeps its own `engine-private/deploy/conf.wireguard.json` recording _that machine's_ role, address and public key. Only the hub's copy drives routing. If you sync `engine-private` between machines, expect this file to differ per host: treat the hub's as authoritative and never propagate a spoke's copy over it.
-
-### Phase 3 — 🟦 HUB — Bring up the hub tunnel
-
-```bash
+node bin wireguard --node-config --node-name vultr
 node bin wireguard \
-  --wireguard-install --wireguard-setup --server --cidr 10.0.0.1/24 --wireguard-start
+  --wireguard-install --wireguard-setup --cidr 10.0.0.1/24 \
+  --wireguard-start --haproxy-setup --forward-proxy-server --status
 ```
 
-That single invocation installs the packages, generates the key pair, writes `/etc/wireguard/wg0.conf`, enables IP forwarding, opens firewalld, and enables `wg-quick@wg0` for reboot survival — in that order, because it is the only order that works.
+Setup generates or reads the local key pair, updates the selected hub public key in topology, writes `/etc/wireguard/wg0.conf`, and applies hub firewall rules.
 
-Read back the hub public key the spokes will need:
+During first bootstrap, configure the control node after starting the hub, then run `node bin wireguard --check --status` on the hub. Hub health requires a fresh handshake with the default routing peer; an active `wg-quick` unit with every HAProxy backend down is not reported as healthy.
+
+### Configure control and worker nodes
 
 ```bash
-node bin wireguard --status
+node bin wireguard --node-config --node-name localhost.localdomain
+node bin wireguard --wireguard-install --wireguard-setup --wireguard-start --check --status
+
+node bin wireguard --node-config --node-name hp-envy-iso-ram-rocky9
+node bin wireguard --wireguard-install --wireguard-setup --wireguard-start --check --status
 ```
 
-Confirm the listener is actually bound before moving on:
+The endpoint, tunnel address and hub public key are derived from the selected node and topology. Setup updates only that peer's public key; it cannot overwrite hub or another node identity.
+
+### Reconcile after a pull
 
 ```bash
-sudo wg show wg0                      # interface exists, listening port 51820
-ss -lunp | grep 51820                 # UDP socket is open
-systemctl is-enabled wg-quick@wg0     # enabled
+node bin wireguard --node-config --node-name "$(hostname)"
+node bin wireguard --wireguard-setup --wireguard-restart --check --status
 ```
 
-### Phase 4 — 🟩 SPOKE — Bring up each spoke
-
-On every homelab control-plane, using the hub public key from Phase 3 and a distinct tunnel address per spoke:
+### Reset and re-key
 
 ```bash
-node bin wireguard \
-  --wireguard-install --wireguard-setup --client \
-  --peer-ip 10.0.0.2 --endpoint 203.0.113.10:51820 --public-key '<hub public key>' \
-  --wireguard-start
-
-node bin wireguard --status   # this spoke's own public key
-```
-
-Nothing else is needed on the spoke. `underpost-ingress` already binds `0.0.0.0:80/443` on the host network, so it answers on `10.0.0.2` the moment the tunnel is up. `AllowedIPs` is the tunnel subnet alone, never `0.0.0.0/0` — the spoke publishes services through the hub, it does not route its own egress through it.
-
-Collect each spoke's public key; Phase 5 needs them.
-
-### Phase 5 — 🟦 HUB — Register the spokes and bind the deploys
-
-Bindings decide which spoke answers which hostname. There are three, and only three:
-
-| Binding     | Flag          | Matches                                                                                   |
-| ----------- | ------------- | ----------------------------------------------------------------------------------------- |
-| `hosts`     | `--hosts`     | An explicit hostname. Beats everything.                                                   |
-| `instances` | `--instances` | A `conf.instances.json` id or template id, so a whole variant family binds with one name. |
-| `default`   | `--default`   | Everything the first two did not claim, plus all of UDP :443.                             |
-
-`--status` shows the hostnames and instance ids in play before you bind anything:
-
-```bash
-node bin wireguard --build-conf --status
-```
-
-Now pick a strategy.
-
-#### Strategy A — one homelab: bind nothing (the default)
-
-**If every deploy in `dd.router` runs on a single cluster, you do not write bindings at all.** Register the one spoke and it answers everything:
-
-```bash
-node bin wireguard \
-  --peer-add homelab-a --peer-ip 10.0.0.2 --public-key '<spoke-a key>'
-```
-
-`--allowed-ips` is omitted deliberately: it defaults to `10.0.0.2/32`, which is the only route the edge needs. Add it only to reach machines behind the spoke's LAN.
-
-All 26 hostnames from all five deploys route to it, reported as `via: default`. A lone peer is its own fallback, so `--default` is not even required.
-
-This is the answer to "how do I use all of `dd.router` by default": **that is already the default.** Every run compiles every deploy unless `--deploy-id` narrows it, and with one spoke every hostname lands on it. Bindings only become necessary when there is more than one place a hostname could go.
-
-> ### ⚠️ Empty flags do not mean "everything"
->
-> Omitting `--hosts` and `--instances` does **not** make a peer claim all hostnames. It claims _nothing_. It serves everything only for as long as it is the **only** peer, because a lone peer is the implicit fallback.
->
-> Registering a second peer removes that implicit fallback, and every hostname the bindings do not name goes unresolved in the same instant — and UDP :443 stops being forwarded at all, because there is no spoke to send it to:
->
-> ```
-> 1 bare peer                      ->  routes 26 | unresolved  0   {default: 26}   quic -> 10.0.0.2
-> + 2nd peer, neither --default    ->  routes  0 | unresolved 26                   quic -> (none)
-> mark one peer --default          ->  routes 26 | unresolved  0   {default: 26}   quic -> 10.0.0.2
-> ```
->
-> `--peer-add`, `--peer-remove` and `--status` warn the moment a registry holds two or more peers with no `--default` among them. **Set `--default` on one peer as soon as you have two**, or bind every hostname explicitly.
-
-#### Strategy B — several homelabs: bind by hostname and instance
-
-Name the hostnames and instances each spoke serves, and mark exactly one spoke `--default` to catch the rest:
-
-```bash
-# Spoke A: dd-core + dd-prototype, and everything unbound (dd-lampp, dd-test)
-node bin wireguard \
-  --peer-add homelab-a --peer-ip 10.0.0.2 --public-key '<spoke-a key>' \
-  --allowed-ips 10.0.0.2/32,192.168.10.0/24 \
-  --hosts www.dogmadual.com,www.nexodev.org,healthcare.nexodev.org,vitaintegral.nexodev.org,www.bymyelectrics.com,www.cecinasmarcelina.com \
-  --default
-
-# Spoke B: dd-cyberia, including its MMO instances
-node bin wireguard \
-  --peer-add homelab-b --peer-ip 10.0.0.3 --public-key '<spoke-b key>' \
-  --allowed-ips 10.0.0.3/32,192.168.20.0/24 \
-  --hosts www.underpost.net,www.cyberiaonline.com,cryptokoyn.net,itemledger.com \
-  --instances mmo-server,mmo-client
-```
-
-Naming a template id (`mmo-server`) binds its whole variant family, so `mmo-server-forest` and `mmo-server-test` follow without being listed.
-
-#### What the real config forces you to know
-
-- **Bind the `www` host, not the bare domain.** A redirect host inherits its target's spoke: `giancarlobertini.com` → `www.giancarlobertini.com`, `cyberiaonline.com` → `www.cyberiaonline.com`. The redirect hop only inherits a _specific_ match, so binding the target is what makes both resolve.
-- **Instance hosts bind by id, everything else by hostname.** `--instances` is the one shorthand that covers several hostnames at once, because a template id names a whole variant family.
-- **Exactly one peer should carry `--default`.** It catches every unbound hostname _and_ receives all UDP :443, since QUIC cannot be routed by hostname. With no `--default` and more than one peer, UDP :443 is forwarded nowhere.
-
-Bindings are edited by re-running `--peer-add` with the same id: flags you pass are updated, flags you omit keep their stored value.
-
-### Phase 6 — 🟦 HUB — Publish the routes for every deploy
-
-Inspect before you publish — `--status` changes nothing:
-
-```bash
-node bin wireguard --status
-```
-
-With the bindings above, all five deploys resolve cleanly — 26 hostnames, nothing unresolved, no conflicts:
-
-```
-"via": { "host": 10, "instance": 2, "redirect": 8, "default": 6 }
-
-client.cyberiaonline.com -> homelab-b (instance, dd-cyberia)
-cryptokoyn.net           -> homelab-b (host,     dd-cyberia)
-cyberiaonline.com        -> homelab-b (redirect, dd-cyberia)
-dogmadual.com            -> homelab-a (redirect, dd-core)
-giancarlobertini.com     -> homelab-a (default,  dd-lampp)
-healthcare.nexodev.org   -> homelab-a (host,     dd-prototype)
-server.cyberiaonline.com -> homelab-b (instance, dd-cyberia)
-test.nexodev.org         -> homelab-a (default,  dd-test)
-www.dogmadual.com        -> homelab-a (host,     dd-core)
-www.nexodev.org          -> homelab-a (host,     dd-core)
-…
-```
-
-The parenthesised binding is how each hostname found its spoke. A row reading `default` for a host you meant to bind explicitly is a missing binding, not a working route — fix it now rather than after DNS moves.
-
-Then publish:
-
-```bash
-node bin wireguard --haproxy-setup
-```
-
-Do not narrow this with `--deploy-id`. The edge holds **one** pair of map files, so publishing a single deploy would overwrite them and take the other four deploys' hostnames off the internet — which is exactly why the whole of `dd.router` is the default.
-
-### Phase 7 — Verify before DNS
-
-⬜ **From a machine outside the VPS** — override DNS so the real records stay untouched:
-
-```bash
-# TCP + TLS through the edge, terminated at the spoke
-curl -sSI --resolve www.nexodev.org:443:203.0.113.10 https://www.nexodev.org
-
-# The certificate must be the spoke's own — the edge holds none
-openssl s_client -connect 203.0.113.10:443 -servername www.nexodev.org </dev/null 2>/dev/null \
-  | openssl x509 -noout -subject -issuer
-
-# Cleartext path (redirects and ACME)
-curl -sSI --resolve www.nexodev.org:80:203.0.113.10 http://www.nexodev.org
-```
-
-🟦 **On the hub:**
-
-```bash
-node bin wireguard --status                            # every spoke online, recent handshake
-sudo wc -l /etc/haproxy/domain2backend.map             # 26 with the config above
-systemctl is-active haproxy wg-quick@wg0
-sudo iptables -t nat -S UNDERPOST_WG_PRE               # QUIC DNAT to the default spoke
-```
-
-### Phase 8 — ⬜ Off-box — DNS cutover
-
-Point every routed hostname's A record at the VPS public IPv4. Lower the TTL a day beforehand if you need a fast rollback.
-
-TLS is unaffected by the cutover: cert-manager continues to issue and renew inside each cluster, and ACME `http-01` challenges reach it over the `:80` HTTP path. Nothing about certificates changes on the edge, because the edge has never held any.
-
-### Day-2 operations
-
-| Task                                                             | Command                                          |
-| ---------------------------------------------------------------- | ------------------------------------------------ |
-| A deploy's `conf.server.json` changed                            | `node bin wireguard --haproxy-sync`              |
-| Add a spoke                                                      | `--peer-add …` then `--haproxy-sync` (see below) |
-| Retire a spoke                                                   | `--peer-remove <id>` then `--haproxy-sync`       |
-| Inspect anything read-only — routes, peers, link health, daemons | `node bin wireguard --status`                    |
-| Author or repair the registry off-box                            | `node bin wireguard --build-conf …`              |
-| Preview any of the above                                         | append `--dry-run`                               |
-
-### Troubleshooting
-
-| Symptom                                                           | Likely cause                                                                                      | Check                                                                                             |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Spoke never handshakes                                            | UDP 51820 blocked by the **provider** firewall                                                    | `sudo wg show wg0 latest-handshakes` on the hub — a `0` means no packet ever arrived              |
-| Spoke handshakes, then goes stale and never recovers               | Hub holds a different key than the spoke presents, or a superseded identity is still on the wire   | Compare `publicKey` per peer in `--status` with `sudo wg show wg0` on the spoke; check `unregisteredPeers` |
-| `--status` lists `unregisteredPeers`                               | `wg set` never removes the identity it supersedes                                                  | `sudo wg set wg0 peer <old-key> remove` on the hub                                                |
-| `--wireguard-start` changes nothing on a live tunnel               | It runs `systemctl enable --now`, a no-op on an active unit                                        | `sudo systemctl restart wg-quick@wg0` on the spoke                                                |
-| Handshake fine, hostname times out                                | Spoke ingress not listening on the tunnel address                                                 | From the hub: `curl -sI --resolve <host>:443:10.0.0.2 https://<host>`                             |
-| Every hostname answers `421`                                      | No `--default` peer and the hostname is unbound                                                   | `--status`, look for it under `unresolved`                                                        |
-| Most hostnames stopped routing right after adding a spoke         | The first peer was the implicit fallback; a second peer removed it                                | `--status` — if two or more peers and none has `"default": true`, set one                         |
-| One spoke's LAN is unreachable while another's works              | Both peers claim the same LAN CIDR; longest-prefix match gave it to one                           | `--status` — look for the same CIDR under two peers                                               |
-| TLS connects then `503`                                           | SELinux blocking HAProxy's backend connection                                                     | `sudo getsebool haproxy_connect_any` — must be `on`                                               |
-| One deploy's hostnames absent                                     | Its private conf is not checked out                                                               | `--status` reports it under `missing`                                                             |
-| CI or `ssh` to the hostname gives `Permission denied (publickey)` | Port 22 reaches the **hub**, which has no deploy user; the spoke is behind CGNAT                  | `--status` — `sshForward` must not read `(closed)`; then set `SSH_PORT` to the forwarded port     |
-| SSH forward set but the port refuses                              | Provider firewall still closed, or `--haproxy-sync` not re-run after opening it                   | `sudo ss -ltn sport = :2222` on the hub                                                           |
-| `--start` throws that the user does not exist                     | The account was never created on that node                                                        | `node bin ssh --deploy-id <id> --user <user> --user-add`                                          |
-| HTTP/3 fails on any non-default spoke's hostname                  | Expected — UDP :443 goes whole to the default spoke, never per hostname                           | Clients fall back to TCP automatically                                                            |
-| HTTP/3 fails everywhere                                           | No `--default` peer, so nothing receives UDP :443                                                 | `--status` — check `quicTarget` is not empty                                                      |
-| `--haproxy-sync` throws                                           | HAProxy rejected the candidate config                                                             | Previous files were already restored; read the logged `detail`                                    |
-| Config edited, but nothing changed on the wire                    | `wg-quick` reads its config only at start                                                         | `--wireguard-setup` logs `restartRequired: true`; apply with `--wireguard-stop --wireguard-start` |
-| A re-keyed spoke connects but its traffic goes nowhere            | Superseded key still on the live interface claiming the same `AllowedIPs`                         | `sudo wg show wg0 peers` — re-register under the **same** id, which withdraws the old key         |
-| `haproxy` will not start after a reset                            | Fixed: reset now removes `haproxy.cfg` alongside the maps it reads                                | If an old `haproxy.cfg` survives, `sudo rm -f /etc/haproxy/haproxy.cfg` then `--haproxy-setup`    |
-| Ports still open after a reset                                    | Reset withdraws firewalld rules for the **recorded role**; a registry with no role withdraws none | `--status` for the role, then `sudo firewall-cmd --permanent --list-all`                          |
-
-### Rolling back
-
-```bash
-node bin wireguard --wireguard-stop      # drop the tunnel and its packet rules
-node bin wireguard --wireguard-reset     # remove all host state, keep keys + registry
-node bin wireguard --wireguard-reinstall # reset + re-key + reinstall packages
-```
-
-`--wireguard-reset` deliberately keeps the key pair: destroying it invalidates every spoke's peer entry. Only `--wireguard-reinstall` re-keys, and it prints exactly which command has to run on the other end afterwards.
-
----
-
-## Restart, reconnect, reset
-
-Four operations, each with one correct composition. All of them are safe to repeat.
-
-### Restart everything on the VPS
-
-The interface config is read by `wg-quick` **only at start**, so writing a new one does not move a running tunnel onto it. `--wireguard-start` is `systemctl enable --now`, which no-ops on an already-active unit — it will not pick the change up either. A restart is `--wireguard-stop --wireguard-start` in one invocation; the flags are evaluated stop-before-start for exactly this reason:
-
-```bash
-# 🟦 HUB — restart the tunnel, republish the routes, restart HAProxy
-node bin wireguard --wireguard-stop --wireguard-start
-sudo systemctl restart haproxy
-node bin wireguard --haproxy-sync
-node bin wireguard --status
-```
-
-`--haproxy-sync` reloads only when the generated files actually changed, so it is not a restart — it is the _right_ thing after a config change and a no-op otherwise. `systemctl restart haproxy` is the blunt instrument for the daemon itself; use it only when you mean it, since a restart drops connections that a reload would have kept.
-
-**The tunnel restart disconnects every spoke for a few seconds.** Each one re-dials within its 25s keepalive, and `--status` shows the handshake ages recovering.
-
-If you want the whole edge rebuilt from the registry rather than restarted, that is the reset path below — it converges to the same state from any starting point.
-
-> `--wireguard-setup` now tells you when this is needed. If it rewrote the interface config while the unit was active, it warns **Interface config changed while the tunnel is up; the live interface still runs the old one** and prints the flags that apply it.
-
-### Reconnect a control-plane spoke, leaving no trace
-
-The trace that matters is on the **hub**, not the spoke: WireGuard identifies a peer by its public key, never by a name. If the spoke re-keys, the hub's old key entry does not go away by itself — and while it lingers it still claims the same `AllowedIPs`, so longest-prefix match can keep routing that traffic to an identity the spoke no longer holds.
-
-**If the spoke keeps its key** (an ordinary reconnect — link flap, reboot, maintenance), there is nothing to clean up. Bounce it:
-
-```bash
-# 🟩 SPOKE
-node bin wireguard --wireguard-stop --wireguard-start
-node bin wireguard --status     # handshake age should reset to a few seconds
-```
-
-**If the spoke re-keys** (`--wireguard-reinstall`, or a rebuilt node), re-register it on the hub under the **same peer id**. `--peer-add` drops the superseded key from the live interface before admitting the new one, so no stale identity survives:
-
-```bash
-# 🟩 SPOKE — re-key, then read the new public key
-node bin wireguard --wireguard-reinstall
-node bin wireguard --status
-
-# 🟦 HUB — same id, new key. Bindings you omit keep their stored value.
-node bin wireguard \
-  --peer-add homelab-a --peer-ip 10.0.0.2 --public-key '<new spoke key>'
-```
-
-It logs `rekeyed: true` when it withdrew a superseded key. Confirm nothing lingers:
-
-```bash
-# 🟦 HUB — one [Peer] block per registered spoke, and no key you do not recognise
-sudo wg show wg0 peers
-sudo grep PublicKey /etc/wireguard/wg0.conf
-```
-
-Reusing the peer id is the whole trick. A _new_ id would leave the old entry in the registry, in the interface config and on the live interface — three traces instead of none.
-
-### Reset the VPS to zero
-
-`--wireguard-reset` withdraws every artifact this subsystem puts on the host:
-
-| Removed                                        |                                                                                |
-| ---------------------------------------------- | ------------------------------------------------------------------------------ |
-| `/etc/wireguard/<iface>.conf`                  | interface config                                                               |
-| `/etc/sysctl.d/99-underpost-wireguard.conf`    | IP forwarding drop-in                                                          |
-| `/etc/haproxy/haproxy.cfg` + both `.map` files | the generated gateway, config and maps together                                |
-| `underpost-forward-proxy.service`              | the forward proxy unit, disabled and removed                                   |
-| `UNDERPOST_WG_PRE` / `UNDERPOST_WG_POST`       | the QUIC NAT chains                                                            |
-| firewalld ports and masquerade                 | withdrawn for the **recorded role**, using the same rule list that opened them |
-| `wg-quick@<iface>`, `haproxy`                  | stopped and disabled                                                           |
-
-| Kept                                        | Why                                                     |
-| ------------------------------------------- | ------------------------------------------------------- |
-| `/etc/wireguard/<iface>.key` / `.pub`       | destroying the key invalidates every spoke's peer entry |
-| `engine-private/deploy/conf.wireguard.json` | authored source; nothing can regenerate it              |
-
-```bash
-# 🟦 HUB — see exactly what it would do first
-node bin wireguard --wireguard-reset --dry-run
 node bin wireguard --wireguard-reset
+node bin wireguard --wireguard-setup --wireguard-start --check
 
-# Rebuild from the registry — same registry, same result, from any starting state
-node bin wireguard \
-  --wireguard-setup --server --cidr 10.0.0.1/24 --haproxy-setup --wireguard-start
+node bin wireguard --wireguard-reinstall --check --status
 ```
 
-The rebuild needs no spoke to do anything: the hub key is unchanged, so every peer entry is still valid and the tunnels re-form on their own.
-
-**Three deeper levels, in order:**
-
-| Level                 | Command                                                    | Costs you                                         |
-| --------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
-| Host state            | `--wireguard-reset`                                        | nothing — spokes reconnect by themselves          |
-| Host state + identity | `--wireguard-reinstall`                                    | every spoke must be handed the new hub key        |
-| Everything            | `--wireguard-reinstall`, then delete `conf.wireguard.json` | the whole topology; it is authored, so it is gone |
-
-`--wireguard-reinstall` is reset + drop the key pair + reinstall the packages + re-key + re-apply. It prints the exact follow-up for the other end:
-
-```
-warn  Re-keyed: this machine now presents a new identity, and the far end still expects the old one
-      publicKey:    <new hub key>
-      onEverySpoke: --wireguard-setup --client --public-key '<new hub key>'   (peer-ip and endpoint are remembered)
-```
-
-To go all the way to nothing, remove the registry by hand after the reinstall — that is deliberate friction, because the peer bindings and public keys exist in no other file:
-
-```bash
-rm engine-private/deploy/conf.wireguard.json
-node bin wireguard --build-conf     # writes the empty skeleton, warns that it routes nothing
-```
-
-### Reconnect the homelab spokes cleanly
-
-After the hub re-keys, every spoke needs the new hub identity — and only that. `--peer-ip` and `--endpoint` are remembered in each spoke's own registry, so the reconnect is one flag:
-
-```bash
-# 🟩 SPOKE — on each homelab control-plane
-node bin wireguard \
-  --wireguard-setup --client --public-key '<new hub key>' \
-  --wireguard-stop --wireguard-start
-
-node bin wireguard --status
-```
-
-`--wireguard-stop --wireguard-start` is what makes the new config live; without it the spoke keeps dialling with the identity it had. Then, on the hub:
-
-```bash
-# 🟦 HUB — every spoke online, recent handshake, routes unchanged
-node bin wireguard --status
-```
-
-Spoke public keys did **not** change, so no `--peer-add` is needed and the routing table is untouched.
-
-A spoke you are retiring for good is `--peer-remove <id>` on the hub — which drops it from the registry, from the interface config and from the live interface in one pass — followed by `--wireguard-reset` on the spoke itself.
-
----
-
-## Adding a spoke without downtime
-
-`--peer-add` installs the peer on the live interface with `wg set`, so established tunnels keep their sessions, and rewrites the interface config in the same pass so the peer survives a restart. `--haproxy-sync` then validates the candidate config with `haproxy -c` **before** signalling the running process, and restores the previous files if it fails — a config that does not parse would otherwise take the whole edge down on reload.
-
-The reload itself hands the listening sockets to the incoming process (`expose-fd listeners`), so no connection is refused while the routes change.
-
-```bash
-node bin wireguard \
-  --peer-add homelab-c --peer-ip 10.0.0.4 --public-key '<key>' --hosts www.giancarlobertini.com
-node bin wireguard --haproxy-sync
-```
+Reset removes generated host state but retains the key pair, topology and selected identity. Reinstall replaces the local key pair and updates either the hub key or the selected peer key.
 
 ---
 
@@ -908,6 +281,218 @@ Everything else — peer add, peer remove, route publication — applies to the 
 `--wireguard-reset` deliberately **keeps** the key pair and the registry: destroying the key invalidates every spoke's peer entry, and a reset is for reconfiguring an edge, not for re-establishing trust with all of them. Re-keying is what `--wireguard-reinstall` is for.
 
 Use `--dry-run` on any of them to see the exact files and commands first.
+
+---
+
+## Status
+
+```bash
+node bin wireguard --status
+```
+
+Every report starts with `nodeName`, `role`, `hubHost`, and `peerId`. On the hub, `peers` contains live handshake, endpoint and transfer information. On control and worker nodes, `hub` contains the one live WireGuard peer and `topologyPeers` is the deployment inventory. This separation prevents a spoke from reporting the hub as unregistered or other spokes as locally offline.
+
+`unregisteredPeers` compares the live interface with the correct expected identities: all peer keys on the hub, and only the hub key elsewhere.
+
+## Routing
+
+HAProxy runs only on the selected `hub` role.
+
+```bash
+node bin wireguard --haproxy-sync
+node bin wireguard --haproxy-setup
+```
+
+Bindings resolve in this order:
+
+1. `hosts`: explicit hostname.
+2. `instances`: deployment instance or template id.
+3. `default`: unmatched TCP traffic, UDP `:443`, and optional SSH forwarding.
+
+With only one peer, that peer is the implicit default. With multiple peers, select one explicitly with `--default`.
+
+---
+
+## Route resolution
+
+Routing is derived, never hand-written. `--haproxy-sync` reads the deploy's own configuration and resolves every published hostname to a spoke.
+
+0. **Deploy expansion** — the default `dd` reads `engine-private/deploy/dd.router` through the same helper every other runner uses, so the edge routes exactly the set the cluster deploys. A listed deploy whose private conf is not checked out locally is skipped with a warning rather than failing the run.
+1. **Domain extraction** — top-level keys of each deploy's `conf.server.json`, plus every `conf.instances.json` host (all variants of a family included).
+2. **Proxy filter** — a hostname is published only when one of its sub-paths declares a `proxy` array. Ports are unioned across sub-paths, because the edge routes a hostname, not a path.
+3. **Peer resolution**, most specific first. Three bindings, and one derived hop:
+
+   ```
+   host → instance → redirect → default
+   ```
+
+   | Order | Match                                                    | Example                               |
+   | ----- | -------------------------------------------------------- | ------------------------------------- |
+   | 1     | `peer.hosts` contains the hostname                       | `"hosts": ["www.nexodev.org"]`        |
+   | 2     | `peer.instances` contains the instance id or template id | `"instances": ["mmo-server"]`         |
+   | 3     | the hostname its `redirect` points at resolves           | `dogmadual.com` → `www.dogmadual.com` |
+   | 4     | the peer marked `"default": true`, or a lone peer        | —                                     |
+
+   A peer with no `hosts` and no `instances` claims nothing at steps 1–2. It answers everything only while it is the sole peer, via the lone-peer fallback in step 4.
+
+   `redirect` is not a fourth binding — it is derived from `conf.server.json`, not written in the registry. It exists because a redirect host publishes nothing of its own: `dogmadual.com` only says "go to `www.dogmadual.com`", and the spoke that answers the target has to answer the redirect too. Redirect chains are cycle-guarded, and a redirect only inherits a _specific_ match — never the target's fallback.
+
+4. **Merge** — the per-deploy tables are unioned into the single table the edge publishes, each route carrying the deploy that contributed it. This step is not optional: the edge holds **one** pair of map files, so compiling a single deploy alone would overwrite them and take every other deploy's hostname off the internet. A hostname two deploys both claim is reported as a conflict; the first is served, deterministically.
+5. **Compilation** — one line per hostname and transport into the map files.
+
+A hostname that resolves to nothing is **reported**, not dropped: a silently missing route is a hostname that answers nothing at all, which is invisible until someone reports the outage. Use `--status` to see the resolved table before publishing it.
+
+---
+
+---
+
+## Generated host artifacts
+
+```
+/etc/wireguard/<iface>.conf              interface + peer table          0600
+/etc/wireguard/<iface>.key               private key                     0600
+/etc/wireguard/<iface>.pub               public key                      0644
+/etc/haproxy/haproxy.cfg                 generated edge gateway
+/etc/haproxy/domain2backend.map          SNI  -> be_tls_<peer>
+/etc/haproxy/domain2backend-http.map     Host -> be_http_<peer>
+/etc/sysctl.d/99-underpost-wireguard.conf  net.ipv4.ip_forward=1  (both roles)
+/etc/systemd/system/underpost-forward-proxy.service  forward proxy unit   0600
+engine-private/deploy/conf.wireguard.json  peer registry (public keys only)
+iptables nat chains UNDERPOST_WG_PRE / UNDERPOST_WG_POST   QUIC DNAT
+firewalld permanent rules             80,443/tcp 443,51820/udp masquerade (hub)
+                                      rich rule 1080/tcp from 10.0.0.0/24   (hub)
+                                      zone=trusted interface=<iface>        (spoke)
+```
+
+All of these are outputs. Editing them by hand is overwritten by the next sync — change `conf.wireguard.json` or the deploy's `conf.server.json` instead.
+
+`--wireguard-reset` removes every one of them except the key pair and the registry — see [Restart, reconnect, reset](#restart-reconnect-reset).
+
+There is no `bind … ssl` line anywhere in the generated `haproxy.cfg`, and that absence is the design.
+
+---
+
+---
+
+## Adding a spoke without downtime
+
+`--peer-add` installs the peer on the live interface with `wg set`, so established tunnels keep their sessions, and rewrites the interface config in the same pass so the peer survives a restart. `--haproxy-sync` then validates the candidate config with `haproxy -c` **before** signalling the running process, and restores the previous files if it fails — a config that does not parse would otherwise take the whole edge down on reload.
+
+The reload itself hands the listening sockets to the incoming process (`expose-fd listeners`), so no connection is refused while the routes change.
+
+```bash
+node bin wireguard \
+  --peer-add homelab-c --peer-ip 10.0.0.4 --public-key '<key>' --hosts www.giancarlobertini.com
+node bin wireguard --haproxy-sync
+```
+
+---
+
+## SSH forwarding and remediation credentials
+
+`sshForwardPort` publishes the default peer's SSH service through the hub. It is not the VPS management port. If `2222` forwards to `10.0.0.2:22`, hub remediation must use the VPS's actual `sshd` port instead.
+
+```bash
+# On the VPS
+sudo sshd -T | awk '$1 == "port" {print $2}'
+
+# On the control plane
+node bin ssh --user root --host 64.176.25.136 --port '<vps-sshd-port>' --user-add
+node bin ssh --user admin --host 192.168.1.85 --port 22 --user-add
+node bin ssh --user admin --host 192.168.1.191 --port 22 --user-add
+```
+
+Event remediation joins the topology management address to `conf.users.json` exactly: the matched host is what supplies the account, port and key path. A named host with no registered connection is refused rather than falling back to whatever `DEFAULT_SSH_*` was last set to — an ambient credential would repair a different machine than the one that failed. Credentials and key paths never enter WireGuard topology, node records, monitoring ConfigMaps, or logs.
+
+Whether a peer is _this_ machine is settled the same way: its `managementHost` has to be one of this host's own interface addresses. A node document is named after a hostname, and a default one like `localhost.localdomain` names every machine that kept it, so concluding locality from the document would run a repair — or a checkout switch — on whichever host loaded the config rather than on the peer. An address that cannot be matched is treated as remote, so the check only ever fails towards SSH.
+
+Commands are logged with any credential in a URL masked to `***`, and the error a failed command throws carries the same masking, so a token cannot reach a terminal or a CI log through them.
+
+The same registered accounts are what `node bin event <event-id> --e2e-test` uses to take a subject down before repairing it, so an account that can break a peer but not repair it fails the rehearsal instead of an outage. See [Observability and Events](<./Observability and Events.md>).
+
+## Syncing the fleet
+
+```bash
+node bin wireguard --sync
+node bin wireguard --sync --nodes vultr,hp-envy-iso-ram-rocky9
+node bin wireguard --sync --repo-engine underpostnet/engine
+node bin wireguard --sync --repo-engine https://github.com/underpostnet/engine.git
+node bin wireguard --sync --dry-run
+```
+
+The nodes a fault can be repaired on are exactly the nodes the engine runs on, so `--sync` reaches them through the same registries and SSH identities event remediation resolves — hubs through their external endpoint, the selected control node locally, workers over LAN SSH. A second host list would be free to disagree with the one that gets repaired.
+
+Per node, in the checkout at `/home/dd/engine`, as **one** SSH session:
+
+```bash
+underpost run clean .
+underpost run clean ./engine-private
+underpost cmt --switch-repo <repo-engine> --target-branch <default-branch>
+underpost pull ./engine-private <account>/engine-private
+npm run fix
+npm install
+```
+
+A node is reached once, not once per step: each session re-reads the credential store, re-authenticates and re-enters the checkout, and a step could otherwise land on a different session than the one before it. The steps are chained with `&&`, and each echoes a `[sync]` line first, so the last one printed names the step a failed run stopped at.
+
+The engine's default branch is resolved **on the controller** and named explicitly. The node is about to replace its own checkout, so asking it to work that out would depend on the very tooling and credentials the step exists to renew — and a wrong guess fetches a ref that does not exist after `origin` has already been repointed. Resolution reads the cron deploy environment, because the engine repositories are private.
+
+`--repo-engine` takes `owner/repo` or a clone URL and defaults to the configured account's `engine`; `engine-private` follows `GITHUB_USERNAME`, because the two are one checkout on the node. The engine step switches the remote rather than pulling into whatever it already tracked, so pointing a fleet at a fork is the same command as keeping it on the current one.
+
+The sequence halts at the first failing step the later ones depend on — installing over a checkout whose pull failed would deploy stale sources under a fresh version. `npm run fix` is the one exception: `npm audit` exits non-zero while any advisory remains, which is a finding to report rather than a reason to skip the install. One node failing never stops the others; each is reported with the identity it ran as, and the command exits non-zero if any failed.
+
+---
+
+## Resyncing a node
+
+Every node's state comes from four files, and each one has exactly one command that reapplies it. Nothing here is destructive; all of it is idempotent.
+
+| Source | Reapplied by | Where it runs |
+| --- | --- | --- |
+| `deploy/nodes/<hostname>.json` | `node bin wireguard --node-config` | the node itself |
+| `conf.wireguard.json` | `node bin wireguard --wireguard-setup --wireguard-restart` | the node itself |
+| `conf.users.json` | `node bin ssh --user <u> --host <h> --user-add` | the control plane |
+| `conf.event.json` | `node bin monitor --sync-prom` | the control plane |
+
+A full fleet reconcile, in dependency order:
+
+```bash
+# 1. Hub — interface, routing, and the firewall zone its forwarding depends on
+node bin wireguard --wireguard-setup --wireguard-restart --haproxy-sync
+
+# 2. Each spoke — control plane and workers
+node bin wireguard --wireguard-setup --wireguard-restart
+
+# 3. Control plane — probes, rules, routes and notification gates
+node bin monitor --sync-prom
+node bin event --list          # every repair and notify route must resolve
+node bin event wireguard-spoke-down --e2e-test --dry-run=false
+```
+
+`--wireguard-setup` rewrites the interface from topology and reapplies the host rules, including placing the tunnel interface in the `trusted` firewalld zone. **That zone is what makes spoke-to-spoke traffic work at all**: firewalld's forward chain ends in `reject with icmpx admin-prohibited`, so an unzoned `wg0` has its *forwarded* packets dropped while the hub still answers on its own tunnel address. The symptom is a tunnel that passes every health check while one spoke cannot reach another — and it is what the `wireguard-spoke-down` probe measures.
+
+Verify the property directly, from the control plane:
+
+```bash
+ping -c1 10.0.0.1    # the hub
+ping -c1 10.0.0.3    # another spoke — this is the one the zone governs
+```
+
+Step 3 is not optional after a topology change: probe targets are rendered from `conf.wireguard.json` when the monitoring config is generated, so until `--sync-prom` runs, Prometheus is still probing the previous set.
+
+---
+
+## Forward proxy
+
+The authenticated HTTP/CONNECT proxy runs only on the hub tunnel address. Configure `FORWARD_PROXY_API_KEY`, then reconcile it:
+
+```bash
+node bin wireguard --forward-proxy-server
+systemctl status underpost-forward-proxy
+journalctl -u underpost-forward-proxy -n 50 --no-pager
+```
+
+Its firewalld rule admits only the configured tunnel subnet. `--wireguard-reset` removes the unit and firewall rule.
 
 ---
 
@@ -959,218 +544,6 @@ curl -sI -H 'Accept-Encoding: gzip, br' https://<host>/ | grep -i 'content-encod
 
 ---
 
-## Outbound forward proxy
-
-Everything above carries traffic **inbound** — the internet reaching a spoke. The forward proxy is the one path in the other direction: a request made _by_ a spoke that has to leave from the VPS public IP rather than from the homelab's ISP address.
-
-The case that motivates it is the bandwidth guard. `underpost cron … vultr` runs in a CronJob inside a spoke cluster and calls the Vultr API about the edge VPS, so a direct call arrives at Vultr from a residential address. An API key scoped to the edge's address — which is the whole point of scoping one — rejects it. Proxied, the same call arrives from the machine it is asking about.
-
-```
-┌─ SPOKE (10.0.0.2) ─────────┐         ┌─ HUB (10.0.0.1) ────────────┐
-│ CronJob / any Node process │         │ underpost wireguard         │
-│  fetchViaForwardProxy(url) │──wg──►  │  --forward-proxy-server     │──► INTERNET
-│  Proxy-Authorization: …    │  :1080  │  binds 10.0.0.1 only        │    from the
-└────────────────────────────┘         └─────────────────────────────┘    VPS IP
-```
-
-Two paths, and only two:
-
-| Client request     | Wire protocol                                               | What the hub does                                            |
-| ------------------ | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| `http://…` target  | Forward request with an **absolute** request-URI            | Relays the request to the origin and streams the answer back |
-| `https://…` target | `CONNECT host:443`, then TLS **inside the calling process** | Splices two TCP sockets and relays bytes it cannot read      |
-
-The `https` split matters for the same reason `fe_https` does: the hub sees ciphertext. TLS is negotiated end to end between the caller and the origin, the certificate is verified there, and the VPS holds no key material for anything it proxies — the inbound design, applied outbound.
-
-### Security properties
-
-- **Bound to the tunnel address alone**, never `0.0.0.0`. There is no socket on the public IP to reach, so port `1080` is not exposed even where a firewall would allow it. `--forward-proxy-server-host` can name another address — a hub with a second tunnel, say — and warns when given a wildcard, which would leave the key as the only thing between the internet and an open relay.
-- **Authenticated on every request**, forward and `CONNECT` alike, with `Proxy-Authorization: Bearer $FORWARD_PROXY_API_KEY`. The tunnel establishes _which_ machine is calling; the key establishes that it meant to. The comparison is constant-time, and an **unset key authorizes nothing** — the server refuses to start rather than relay for anyone.
-- **The proxy credential is never relayed onward.** `proxy-authorization` is dropped with the other hop-by-hop headers, so no origin ever sees the hub's key.
-- **Hub only.** `--forward-proxy-server` refuses to run where the registry records `role: client`. A proxy on a spoke would relay through the homelab's own ISP address — the exact thing a caller uses it to avoid — and the request would still succeed, so the failure would be silent.
-- **firewalld** admits the port from the recorded tunnel subnet only. Both `--wireguard-setup --server` and `--forward-proxy-server` reconcile the rich rule, and `--wireguard-reset` withdraws it from the same rule list.
-
-It is **not** a default route. Nothing is redirected into it, and `AllowedIPs` on every spoke is still the tunnel subnet alone. Only a caller that asks for the proxy uses it.
-
-Pods and other containers keep their normal network namespace. The spoke masquerades only traffic whose destination is the tunnel CIDR as its WireGuard address; the hub therefore sees the registered spoke address instead of an unknown Kubernetes pod CIDR. Existing spokes must regenerate and restart the interface once to install these lifecycle rules:
-
-```bash
-# 🟩 SPOKE
-node bin wireguard --wireguard-setup --client --wireguard-stop --wireguard-start
-```
-
-### Running it on the hub
-
-```bash
-# 🟦 HUB — any one of these three; the key both ends authenticate with
-export FORWARD_PROXY_API_KEY="$(openssl rand -hex 32)"          # this shell
-underpost env set FORWARD_PROXY_API_KEY "$(openssl rand -hex 32)" # the root env
-node bin env dd-cron production                                  # a deploy env, into ./.env
-
-# Installs and starts the underpost-forward-proxy service, then returns
-node bin wireguard --forward-proxy-server
-```
-
-**All three places are read, most explicit first:** the process environment, then the deploy env `underpost env <deploy-id> <environment>` selects into `./.env`, then the underpost root env. A CLI run is not a deploy — nothing loads an env file into `process.env` for it — so reading only the environment would ignore both files and report a key you had plainly set as missing. The bandwidth guard resolves every variable it reads the same way, its own `VULTR_*` keys included.
-
-```
-info  Forward proxy service reconciled  { service: 'underpost-forward-proxy', address: '10.0.0.1:1080',
-                                          tunnel: '10.0.0.0/24', unitChanged: true, state: 'active',
-                                          enabled: 'enabled', logs: 'journalctl -u underpost-forward-proxy -f' }
-```
-
-**The CLI does not stay attached.** The listener is a long-lived process, which a CLI invocation is not: a proxy held open by the shell that started it dies with that shell, does not survive a reboot, and gives you no way to ask whether it is running. So the command reconciles a unit — write, enable, start — and returns; the service is what binds the socket, by running this same command with a supervision marker set. One code path to the listener, not a second one only systemd takes.
-
-```bash
-node bin wireguard --forward-proxy-server --forward-proxy-server-host 10.0.0.1 --forward-proxy-server-port 1080
-systemctl status underpost-forward-proxy
-journalctl -u underpost-forward-proxy -f
-node bin wireguard --status          # reports the service alongside wg-quick and haproxy
-```
-
-#### It is idempotent
-
-Re-running the command is safe and cheap, which is what makes it usable from a bring-up script or a deploy job:
-
-| Run                              | What happens                                                                                                            |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| First                            | Unit written, `daemon-reload`, `enable`, `restart`                                                                      |
-| Again, nothing changed           | `enable`, `start` — both no-ops on a running service. **No reload, no restart**, so established tunnels are not dropped |
-| Again, host, port or key changed | Unit rewritten, `daemon-reload`, `enable`, `restart`                                                                    |
-
-There is exactly one service — the unit name is fixed at `underpost-forward-proxy`, so repeated runs converge on it rather than accumulating one per invocation, and a single active instance owns the port. Nothing fails because the service is already up.
-
-#### The generated unit
-
-Written to `/etc/systemd/system/underpost-forward-proxy.service`, root-owned and `0600` because it carries the proxy key. It is an output: the next run overwrites it.
-
-```ini
-[Unit]
-Description=Underpost edge forward proxy on 10.0.0.1:1080
-After=network-online.target wg-quick@wg0.service
-Wants=network-online.target
-Requires=wg-quick@wg0.service
-PartOf=wg-quick@wg0.service
-StartLimitIntervalSec=0
-
-[Service]
-Type=simple
-User=dd
-WorkingDirectory=/home/dd/engine
-Environment=UNDERPOST_FORWARD_PROXY_SUPERVISED=1
-Environment=FORWARD_PROXY_API_KEY=<key>
-ExecStart=/usr/bin/node /home/dd/engine/bin wireguard --forward-proxy-server --forward-proxy-server-host 10.0.0.1 --forward-proxy-server-port 1080
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target wg-quick@wg0.service
-```
-
-Four directives make the proxy and the tunnel **one lifecycle**, which is what `--wireguard-stop --wireguard-start` needs in order to leave a working proxy behind:
-
-- `Requires` — the address the proxy binds exists only while the interface is up, so the dependency is real rather than merely an ordering.
-- `PartOf` — stopping or restarting the tunnel stops or restarts the proxy with it.
-- `WantedBy=… wg-quick@wg0.service` — starting the tunnel brings the proxy back.
-- `Restart=always` with `StartLimitIntervalSec=0` — a bind that fails while the tunnel is still coming up retries every 5s instead of latching `failed`.
-
-`ExecStart` is built from the CLI entry point that was invoked and a Node binary the service can actually execute, so a global `underpost` install and a `node bin` checkout each produce a unit that works without either being hard-coded. The host and port are passed explicitly rather than re-resolved at start, so the service cannot bind somewhere other than where it was installed to.
-
-#### The Node binary a unit can run
-
-**systemd cannot execute a binary under `/root` or `/home`.** Those paths carry SELinux labels (`admin_home_t`, `user_home_t`) a unit cannot enter, so a perfectly good `nvm` install — the normal way Node lands on a root-administered VPS — produces a service that fails with `203/EXEC` and restarts forever, while `ls -l` and `test -x` on the binary look fine:
-
-```
-systemd[39285]: Failed to locate executable /root/.nvm/versions/node/v24.15.0/bin/node: Permission denied
-systemd[1]: underpost-forward-proxy.service: Main process exited, code=exited, status=203/EXEC
-```
-
-So the interpreter is chosen rather than assumed, before anything is written:
-
-1. **Candidates**, in order — the interpreter running the CLI, then `/usr/bin/node`, `/usr/local/bin/node`, `/bin/node`. One under a home directory goes **last**, not first, since it is the one systemd is likely to refuse.
-2. **It must exist** (`test -x`) and **run the engine's own major version**, so a leftover Node 16 in `/usr/bin` is passed over rather than started and failed on syntax.
-3. **systemd must be able to exec it**, asked of systemd itself with a transient unit — `systemd-run --uid=<service user> … node --version`. Nothing else reveals the SELinux refusal.
-4. **The unit's whole `ExecStart` must start**, probed the same way with `WorkingDirectory` set, because an interpreter systemd can exec still has to _read_ the checkout it is pointed at.
-
-If no candidate passes, **no unit is installed** — and a unit an earlier run left behind is stopped and removed, so the host is not left in a restart loop by this tooling. The command fails with what it tried and why:
-
-```
-error  No Node binary the forward proxy service can execute
-       requires: Node v24
-       rejected: [ { candidate: '/usr/bin/node', reason: 'not present' },
-                   { candidate: '/root/.nvm/versions/node/v24.15.0/bin/node',
-                     reason: 'systemd cannot execute it: it is under a home directory, …' } ]
-       fix:      curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash - && sudo dnf install -y nodejs
-```
-
-That is Phase 2's NodeSource install, which puts Node at `/usr/bin/node` where a unit can run it. A checkout under a home directory has the same hazard one step further along; if the second probe fails, move it somewhere a service can read (`/opt/underpost/engine`). `--dry-run` skips both probes, since they start transient units.
-
-`--wireguard-reset` withdraws the unit along with every other host artifact. To stop the proxy alone, `sudo systemctl disable --now underpost-forward-proxy` — the next `--forward-proxy-server` brings it back.
-
-#### Every proxied request is logged
-
-```
-http  10.0.0.2 GET api.vultr.com/v2/instances 200 1876 - 214.019 ms
-http  10.0.0.2 CONNECT api.vultr.com:443 200 5312 - 268.442 ms
-http  10.0.0.2 GET api.vultr.com/v2/plans 407 - - 0.203 ms
-```
-
-Refusals included — this is the one hop where a spoke's traffic leaves the topology, so an unattributed request through it is not something an operator should have to guess about. The forward path is logged by the engine's own `loggerMiddleware` (morgan, `skip: () => false`, so production logs too) and the `CONNECT` path in the same shape when the tunnel closes, where the byte count is the total relayed in both directions. All of it lands in the journal.
-
-### Calling it from a spoke
-
-```js
-import { fetchViaForwardProxy } from './src/server/forward-proxy.js';
-
-const { status, headers, body } = await fetchViaForwardProxy('https://api.vultr.com/v2/instances', {
-  headers: { Authorization: `Bearer ${process.env.VULTR_API_KEY}` },
-});
-```
-
-| Option    | Default     | Notes                                                  |
-| --------- | ----------- | ------------------------------------------------------ |
-| `method`  | `GET`       |                                                        |
-| `headers` | `{}`        | `host` and `content-length` are filled in              |
-| `body`    | —           | A string is sent as-is; an object is sent as JSON      |
-| `timeout` | `30000`     | Milliseconds, for the whole exchange                   |
-| `proxy`   | environment | `{host, port, apiKey}`, overriding the variables below |
-
-It resolves to `{status, headers, body}` with `body` as a string — the caller parses it. Only `http:` and `https:` targets are supported; anything else throws before a socket is opened.
-
-| Variable                | Default    | Effect                                                                                                                                                               |
-| ----------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FORWARD_PROXY_API_KEY` | —          | **Required on both ends.** Unset on the server means it refuses to start; unset on the client means `fetchViaForwardProxy` throws rather than calling out unproxied. |
-| `FORWARD_PROXY_HOST`    | `10.0.0.1` | Where the client dials. The server always binds its own tunnel address.                                                                                              |
-| `FORWARD_PROXY_PORT`    | `1080`     | Both ends.                                                                                                                                                           |
-
-Each is resolved from the process environment, then `./.env`, then the underpost root env — the same three places as on the hub. `fetchViaForwardProxy` uses the canonical proxy configuration factory unless its caller passes an endpoint; the bandwidth guard passes its resolved deploy configuration. With no key resolved, the guard calls the API directly, and every run reports which path it took: `via: 'forward-proxy 10.0.0.1'` or `via: 'direct'`.
-
-### Verifying it
-
-From a spoke, with `curl` rather than the client, so a failure is the proxy's and not the caller's:
-
-```bash
-# 🟩 SPOKE — the address the origin sees must be the VPS public IPv4
-curl -sS -x http://10.0.0.1:1080 \
-  --proxy-header "Proxy-Authorization: Bearer $FORWARD_PROXY_API_KEY" \
-  https://api.ipify.org
-```
-
-| Symptom                                                             | Likely cause                                                                                                                       | Check                                                                                                                                                                           |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `407` on every request                                              | Key mismatch between the two ends                                                                                                  | Compare `FORWARD_PROXY_API_KEY` on hub and spoke; only `Bearer` is accepted                                                                                                     |
-| `EHOSTUNREACH` / connection refused from a spoke                    | Tunnel down, service not listening, or firewalld rejected the port                                                                 | Check `wg show wg0`, `systemctl status underpost-forward-proxy`, and `ss -lntp \| grep 1080`; re-run `--forward-proxy-server` on the hub to reconcile the service and rich rule |
-| Pod times out but the same command works on the spoke host          | The spoke config predates tunnel-scoped masquerading, so the hub rejects the pod CIDR                                              | On the spoke, run `--wireguard-setup --client`, then `--wireguard-stop --wireguard-start`; pod `hostNetwork` is not required                                                    |
-| The command reports `state: 'failed'`                               | Tunnel down, so the bind address does not exist yet                                                                                | `sudo wg show wg0`, then `--wireguard-start` — the unit retries every 5s and comes up on its own                                                                                |
-| `203/EXEC` in the journal, restart loop                             | A Node binary systemd cannot exec — an nvm install under `/root`                                                                   | Re-run `--forward-proxy-server`: it now probes and refuses instead, and prints the NodeSource remedy. See [The Node binary a unit can run](#the-node-binary-a-unit-can-run)     |
-| Refuses with "No Node binary the forward proxy service can execute" | No system Node of the engine's major version                                                                                       | `curl -fsSL https://rpm.nodesource.com/setup_24.x \| sudo bash - && sudo dnf install -y nodejs`                                                                                 |
-| Refuses with "cannot start this checkout"                           | The engine checkout is somewhere a unit cannot read                                                                                | Move it out of `/root` or `/home` — `/opt/underpost/engine` — and re-run                                                                                                        |
-| `state: 'activating'`                                               | Restart backoff, not a failure                                                                                                     | `journalctl -u underpost-forward-proxy -n 20` for the bind error it is retrying                                                                                                 |
-| Service stopped after a tunnel restart                              | Expected only if the unit was never enabled: `PartOf` stops it with the tunnel and the `WantedBy` on `wg-quick@wg0` brings it back | `systemctl is-enabled underpost-forward-proxy`, then re-run `--forward-proxy-server`                                                                                            |
-| Refuses to run, says it runs on the hub                             | Run on a spoke                                                                                                                     | The registry records `role: client`; run it on the VPS                                                                                                                          |
-| Origin still sees the homelab IP                                    | The caller never used the proxy                                                                                                    | The guard logs `via`; every other caller has to use `fetchViaForwardProxy` explicitly                                                                                           |
-| `502` from the proxy                                                | The origin refused the hub's connection                                                                                            | Reachability is the VPS's, not the spoke's — try the same URL on the hub                                                                                                        |
-
 ---
 
 ## Relationship to `underpost-ingress` and `underpost-gateway`
@@ -1184,3 +557,43 @@ Three distinct layers, each one hop apart:
 | `underpost-gateway`             | Inside the cluster  | Status pages, intercepted contexts; a backend the data planes route to |
 
 TLS is terminated exactly once, at the cluster's own ingress. See [Main cluster lifecycle commands](<./Main cluster lifecycle commands.md>) for the two inner layers.
+
+## Command reference
+
+| Option                                                           | Purpose                                                                                                  |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `--node-config`                                                  | Write/select the current machine identity                                                                |
+| `--node-name <name>`                                             | Tracked node document name                                                                               |
+| `--node-role <role>`                                             | `control`, `worker`, or `hub`                                                                            |
+| `--hub-host <ipv4>`                                              | Select a topology by static hub IPv4                                                                     |
+| `--peer-id <id>`                                                 | Associate control/worker node with one topology peer                                                     |
+| `--wireguard-install`                                            | Install host packages                                                                                    |
+| `--wireguard-setup`                                              | Generate keys, update selected topology public key, and write host configuration                         |
+| `--peer-add <id>` / `--peer-remove <id>`                         | Change one selected hub peer                                                                             |
+| `--build-conf`                                                   | Change topology only; no host actions                                                                    |
+| `--wireguard-start` / `--wireguard-stop` / `--wireguard-restart` | Control the local interface                                                                              |
+| `--check`                                                        | Require an active interface and a fresh handshake with the hub's default peer or the selected node's hub |
+| `--expected-role` / `--expected-id`                              | Guard remote remediation against the wrong node                                                          |
+| `--status`                                                       | Report current identity, live link state, topology and routing                                           |
+| `--haproxy-setup` / `--haproxy-sync`                             | Reconcile hub routing                                                                                    |
+| `--forward-proxy-server`                                         | Reconcile the hub outbound proxy                                                                         |
+| `--wireguard-reset` / `--wireguard-reinstall`                    | Remove host state or re-key it                                                                           |
+| `--sync`                                                         | Bring every registered node's engine checkout up to date                                                 |
+| `--nodes <names>`                                                | Comma-separated node documents `--sync` acts on                                                          |
+| `--repo-engine <repo>`                                           | Engine repository `--sync` switches to, as `owner/repo` or a clone URL                                   |
+
+## Verification
+
+```bash
+node bin wireguard --status
+sudo wg show wg0
+systemctl is-enabled wg-quick@wg0
+systemctl is-active wg-quick@wg0
+```
+
+On the hub also verify:
+
+```bash
+systemctl is-active haproxy
+sudo haproxy -c -f /etc/haproxy/haproxy.cfg
+```

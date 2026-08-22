@@ -23,7 +23,8 @@ Minimalist reference for Underpost engine cluster lifecycle commands.
 15. [Sync](#sync)
 16. [Deploy Job](#deploy-job)
 17. [Node Move](#node-move)
-18. [Baremetal Node Commissioning & Join](#baremetal-node-commissioning--join)
+18. [Observability and Events](#observability-and-events)
+19. [Baremetal Node Commissioning & Join](#baremetal-node-commissioning--join)
 
 ---
 
@@ -33,7 +34,7 @@ The project uses two correlated naming patterns for identifying deployments and 
 
 | Pattern       | Format             | Example                                         | Usage                                                                           |
 | ------------- | ------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Deploy ID** | `dd-<conf-id>`     | `dd-core`, `dd-cyberia`, `dd-lampp`             | Configuration directories, `dd.router`, deploy/sync/promote commands, env files |
+| **Deploy ID** | `dd-<conf-id>`     | `dd-core`, `dd-cyberia`, `dd-lampp`             | Configuration directories, `dd.routes`, deploy/sync/promote commands, env files |
 | **Repo Name** | `engine-<conf-id>` | `engine-core`, `engine-cyberia`, `engine-lampp` | GitHub repositories, CI/CD workflows, template-deploy, ssh-deploy commit tags   |
 
 The `<conf-id>` suffix (e.g. `core`, `cyberia`, `lampp`, `test`) is the shared identifier that links both patterns:
@@ -94,7 +95,7 @@ node bin new --deploy-id dd-my-app --purge
 | `--build-repos`           | Create deployment ID repositories (`engine-<conf-id>`, `engine-<conf-id>-private`, `engine-<conf-id>-cron-backups`)         |
 | `--clean-template`        | Clean the build directory                                                                                                   |
 | `--sync-conf`             | Sync configuration to private repositories                                                                                  |
-| `--sync-start`            | Sync start scripts in deploy ID `package.json` with root `package.json` (use `dd` as `--deploy-id` to sync all `dd.router`) |
+| `--sync-start`            | Sync start scripts in deploy ID `package.json` with root `package.json` (use `dd` as `--deploy-id` to sync all `dd.routes`) |
 | `--purge`                 | Remove deploy ID and all related files                                                                                      |
 | `--dev`                   | Development CLI context                                                                                                     |
 | `--default-conf`          | Create default deploy ID configuration                                                                                      |
@@ -105,7 +106,7 @@ When `--deploy-id dd-my-app` is used with `--cluster`, the engine creates:
 - Config directory: `./engine-private/conf/dd-my-app/`
 - CI workflow: `.github/workflows/engine-my-app.ci.yml`
 - CD workflow: `.github/workflows/engine-my-app.cd.yml`
-- Appends `dd-my-app` to `./engine-private/deploy/dd.router`
+- Appends `dd-my-app` to `./engine-private/deploy/dd.routes`
 
 When `--build-repos` is used, the engine creates three repositories:
 
@@ -215,7 +216,7 @@ separate processes.
 
 **Command:** `node bin run cluster-build [path] [options]`
 
-Full cluster build: clean → template-deploy → env clean → update default configs for all deployments in `dd.router`.
+Full cluster build: clean → template-deploy → env clean → update default configs for all deployments in `dd.routes`.
 
 ```bash
 node bin run cluster-build
@@ -286,7 +287,7 @@ node bin run cluster --dev
 node bin run cluster --k3s
 ```
 
-**Path format:** `<runtime-image>,<deploy-list>[,<instance-list>]` — runtime defaults to `express` (valid values: `express`, `lampp`), deploy-list defaults to `dd.router` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format. When runtime is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB. The optional third segment names custom instances to deploy — see [Custom instances](#custom-instances).
+**Path format:** `<runtime-image>,<deploy-list>[,<instance-list>]` — runtime defaults to `express` (valid values: `express`, `lampp`), deploy-list defaults to `dd.routes` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format. When runtime is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB. The optional third segment names custom instances to deploy — see [Custom instances](#custom-instances).
 
 | Option                  | Description                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------ |
@@ -554,7 +555,7 @@ node bin run promote dd-cyberia
 node bin run promote dd-my-app,development
 ```
 
-**Config format:** `<deploy-id>,<environment>,<replicas>` — environment defaults to `production`, replicas to `1`. Deploy IDs use the `dd-<conf-id>` format. Use `dd` as deploy-id to promote all deployments listed in `dd.router`.
+**Config format:** `<deploy-id>,<environment>,<replicas>` — environment defaults to `production`, replicas to `1`. Deploy IDs use the `dd-<conf-id>` format. Use `dd` as deploy-id to promote all deployments listed in `dd.routes`.
 
 ---
 
@@ -643,7 +644,7 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 | Job ID   | Description        | Deploy ID Source             |
 | -------- | ------------------ | ---------------------------- |
 | `dns`    | DNS record updates | `dd.cron`                    |
-| `backup` | Database backups   | `dd.router` (all deploy-ids) |
+| `backup` | Database backups   | `dd.routes` (all deploy-ids) |
 
 ### Conf Cron JSON Format
 
@@ -684,7 +685,7 @@ The cron deploy-id is independent of the deploy-id being synced: `--deploy-id-cr
 
 **Command:** `node bin run sync <deploy-id> [options]`
 
-Synchronizes deployment replicas, configurations, and traffic across the cluster. Reads deployment IDs from `./engine-private/deploy/dd.router`, validates version states, updates cron jobs, and handles blue-green traffic switching.
+Synchronizes deployment replicas, configurations, and traffic across the cluster. Reads deployment IDs from `./engine-private/deploy/dd.routes`, validates version states, updates cron jobs, and handles blue-green traffic switching.
 
 ```bash
 node bin run sync dd-core --dev --kind
@@ -706,7 +707,7 @@ The re-deploy ordering is therefore:
 3. Readiness is monitored on the target colour.
 4. `switchTraffic` regenerates the routes against the target colour and applies them in place — the single, atomic hand-over.
 
-Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/deploy/dd.router`.
+Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/deploy/dd.routes`.
 
 | Option                              | Description                                                                                                                                                                                                                                                               |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -809,6 +810,61 @@ node bin run node-move deployment/dd-cyberia-production-blue --remove
 
 ---
 
+## Observability and Events
+
+**Commands:** `node bin monitor --observability`, `node bin event [event-id] [options]`
+
+One cluster-scoped stack — Prometheus, Alertmanager, the Blackbox Exporter and Grafana — provisioned entirely from configuration that already exists. Scrape targets come from each deploy's `conf.server.json`; probe targets, alert rules and the Alertmanager route come from the event registry in `src/cli/event.js`, which also holds the remediation handler each alert triggers.
+
+Two WireGuard events ship with it: `wireguard-server-down` (one probe per registered hub, each repaired through the hub's external SSH endpoint so the failed tunnel is not in the repair path) and `wireguard-spoke-down` (one probe per peer of this node's hub, each repaired locally or over its own LAN SSH). Both also carry the notification routes declared in `engine-private/deploy/conf.event.json`.
+
+```bash
+# Deploy or converge the whole stack (idempotent)
+node bin monitor --observability
+
+# Refresh scrape config + alert rules and reload the running components in place
+node bin monitor --sync-prom
+
+# Same stack, through the cluster command
+node bin cluster --prom
+node bin cluster --grafana
+
+# Pin every stack workload to one node, and name the cluster runtime
+node bin monitor --observability --node-name kind-worker --kind
+node bin monitor --observability --k3s
+
+# Kubernetes metrics-server (kubectl top / HPA); bundled on K3s, so skipped there
+node bin monitor --metrics-server
+
+# Cockpit KVM dashboard on this host (port 9090)
+node bin monitor --cockpit
+node bin monitor --cockpit-stop
+
+# Events
+node bin event --list
+node bin event wireguard-server-down --deploy   # provision its probes, rule and route
+node bin event wireguard-spoke-down --dry-run  # rehearse the repair of every registered spoke
+node bin event wireguard-spoke-down --e2e-test # break, detect, repair and verify the notification for real
+node bin event wireguard-server-down --e2e-test --nodes vultr
+node bin event --serve                      # run the Alertmanager webhook receiver on this node
+```
+
+| Piece                  | Where it runs                                                      |
+| ---------------------- | ------------------------------------------------------------------ |
+| Prometheus 9090        | Cluster — scrapes runtimes, Envoy 19001, probes                    |
+| Alertmanager 9093      | Cluster — routes `underpost_event` alerts                          |
+| Blackbox Exporter 9115 | Cluster — ICMP / TCP / HTTP probes                                 |
+| Grafana 3000           | Cluster — provisioned datasource and dashboards                    |
+| Event dispatcher 39099 | Host — remediation needs the engine checkout and the SSH key store |
+
+Only `nodejs` paths are scraped: they are the ones that serve a `prom-client` registry. Which deploys those come from defaults to the cron deploy in `dd.cron` **plus** every deploy in `dd.routes` — the set `loadCronDeployEnv()` loads — so the cron deploy is not the one unmonitored runtime on the cluster. The Envoy data plane is discovered by pod label rather than named, because Envoy Gateway generates its Deployment name per GatewayClass. The webhook always carries a bearer token, minted on first provisioning into the underpost root env store and projected into the cluster as the `alertmanager-webhook` Secret.
+
+The stack runs on kubeadm, Kind and K3s. The one runtime-dependent value is the host address Alertmanager delivers to: on kubeadm and K3s the node's `InternalIP` is the machine, while on Kind it is a Docker container, so the bridge gateway is used instead.
+
+Full reference: [Observability and Events](<./Observability and Events.md>).
+
+---
+
 ## Baremetal Node Commissioning & Join
 
 **Command:** `node bin baremetal <workflow-id> [options]`
@@ -830,15 +886,15 @@ node bin baremetal machine-node-hostname --dev --worker \
   --control 192.168.1.85 --deploy-id dd-core --user admin --resume-join
 ```
 
-| Option                        | Description                                                                                                                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--worker`                    | Post-install role: join the node as a Kubernetes worker (requires `--control <ip>`). Without it the node is set up as a control-plane.                             |
-| `--control <ip>`              | Control-plane IP the worker joins. The retrieved join command's endpoint host is auto-mapped to this IP on the worker so it never dials `localhost.localdomain`.   |
-| `--deploy-id <id>` / `--user` | Resolve the SSH key for orchestration (`engine-private/conf/<id>/users/<user>/id_rsa`) and the login user on an existing control-plane. Mirrors the `ssh` command. |
-| `--engine-repo <url>`         | Engine repo cloned + normalized to `/home/dd/engine` on the node (default: `<GITHUB_USERNAME>/engine`).                                                            |
-| `--engine-private-repo <url>` | Private repo cloned + normalized to `/home/dd/engine/engine-private` on the node (default: `<GITHUB_USERNAME>/engine-<id>-private`).                               |
-| `--resume-infra-setup`        | Skip commissioning + OS install + bootstrapping; resume only the SSH-based infra setup (kubeadm join/init) on a reachable, already-installed node.                 |
-| `--resume-join`               | Skip everything except the kubeadm join — assumes engine, Node.js, CRI-O, kubelet, and kubeadm are already installed. Retrieves a fresh token and joins directly.  |
+| Option                        | Description                                                                                                                                                                                                                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--worker`                    | Post-install role: join the node as a Kubernetes worker (requires `--control <ip>`). Without it the node is set up as a control-plane.                                                                                                                                                   |
+| `--control <ip>`              | Control-plane IP the worker joins. The retrieved join command's endpoint host is auto-mapped to this IP on the worker so it never dials `localhost.localdomain`.                                                                                                                         |
+| `--deploy-id <id>` / `--user` | `--user` resolves the cluster scoped SSH key for orchestration (`engine-private/deploy/users/<user>/id_rsa`, or `engine-private/deploy/id_rsa` for root) and the login user on an existing control-plane; `--deploy-id` only selects the private engine repo. Mirrors the `ssh` command. |
+| `--engine-repo <url>`         | Engine repo cloned + normalized to `/home/dd/engine` on the node (default: `<GITHUB_USERNAME>/engine`).                                                                                                                                                                                  |
+| `--engine-private-repo <url>` | Private repo cloned + normalized to `/home/dd/engine/engine-private` on the node (default: `<GITHUB_USERNAME>/engine-<id>-private`).                                                                                                                                                     |
+| `--resume-infra-setup`        | Skip commissioning + OS install + bootstrapping; resume only the SSH-based infra setup (kubeadm join/init) on a reachable, already-installed node.                                                                                                                                       |
+| `--resume-join`               | Skip everything except the kubeadm join — assumes engine, Node.js, CRI-O, kubelet, and kubeadm are already installed. Retrieves a fresh token and joins directly.                                                                                                                        |
 
 The join command is retrieved live from the control-plane over SSH (`kubeadm token create --print-join-command`) — no manual token paste. A failed `kubeadm join` aborts with a non-zero exit (no false-positive success).
 
@@ -880,7 +936,7 @@ Rocky bare-metal images persist `SELINUX=enforcing`, restore SSH and sudoers con
 - `kubectl` configured
 - Docker available
 - `GITHUB_USERNAME` environment variable set
-- `./engine-private/deploy/dd.router` populated with deploy-ids (format: `dd-<conf-id>,dd-<conf-id>,...`)
+- `./engine-private/deploy/dd.routes` populated with deploy-ids (format: `dd-<conf-id>,dd-<conf-id>,...`)
 - `./engine-private/deploy/dd.cron` populated with cron deploy-id (format: `dd-<conf-id>`)
 - Per-deploy `.env.*` files in `./engine-private/conf/dd-<conf-id>/` with required secret values (see [Credential Security](#credential-security))
 

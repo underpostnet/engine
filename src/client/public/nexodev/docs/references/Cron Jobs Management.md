@@ -222,7 +222,7 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 | Job ID   | Description                | Deploy ID Source             | Callback                                                              |
 | -------- | -------------------------- | ---------------------------- | --------------------------------------------------------------------- |
 | `dns`    | Dynamic DNS record updates | `dd.cron`                    | Detects public IP changes and updates configured DNS provider records |
-| `backup` | Database exports           | `dd.router` (all deploy-ids) | Runs `node bin db --export --primary-pod` for each deploy-id          |
+| `backup` | Database exports           | `dd.routes` (all deploy-ids) | Runs `node bin db --export --primary-pod` for each deploy-id          |
 | `vultr`  | Edge VPS bandwidth guard   | `dd.cron` (logged only)      | Meters the Vultr plan quota and blocks edge egress before overage     |
 
 ### DNS Job
@@ -239,7 +239,7 @@ One deploy-id failing does not abort the rest — each phase is caught per deplo
 
 Meters the edge VPS against its Vultr plan quota and cuts its egress before an overage accrues. See [Edge Hub WireGuard and HAProxy](<./Edge Hub WireGuard and HAProxy.md>) for the topology it protects.
 
-Unlike `dns` and `backup`, this job **ignores the deploy-list**. The edge hub is one machine for the whole cluster — the same reason its WireGuard peer registry is cluster-wide rather than per-deploy — so the deploy-list is logged for attribution and nothing else. All of its configuration is environment, not JSON.
+Unlike `dns` and `backup`, this job **ignores the deploy-list**. The edge hub is one machine for the whole cluster, so its WireGuard topology is cluster-wide rather than per-deploy; the deploy-list is logged for attribution and nothing else. All of its configuration is environment, not JSON.
 
 Each run:
 
@@ -251,7 +251,7 @@ Each run:
 
 Those three reads go **through the edge hub's forward proxy** when `FORWARD_PROXY_API_KEY` resolves, and straight out otherwise. The job runs in a CronJob inside a spoke cluster, so a direct call reaches Vultr from a residential ISP address while a proxied one reaches it from the very VPS being metered — which is what an API key scoped to the edge's address requires. The path taken is reported in every run's summary as `via: 'forward-proxy 10.0.0.1'` or `via: 'direct'`. Set it up with [`underpost wireguard --forward-proxy-server`](<./Edge Hub WireGuard and HAProxy.md#outbound-forward-proxy>) on the hub.
 
-The spoke WireGuard setup also installs tunnel-scoped forwarding and masquerade rules so pod CIDRs do not have to be registered on the hub. After upgrading an existing spoke, run `node bin wireguard --wireguard-setup --client --wireguard-stop --wireguard-start` once before testing an immediate CronJob. Setup runs first, so invalid settings abort before the previous interface is stopped.
+Control and worker WireGuard setup also installs tunnel-scoped forwarding and masquerade rules so pod CIDRs do not have to be registered on the hub. After upgrading, select the tracked node with `--node-config`, then run `node bin wireguard --wireguard-setup --wireguard-stop --wireguard-start` before testing an immediate CronJob.
 
 Guards, in the order they apply:
 
@@ -284,7 +284,7 @@ no deploy-id argument is provided.
 Every consumer reads it through one helper, `cronDeployIdResolve()` in `src/server/cron.js`: the
 `deploy-list` fallback in `--setup-start` and `--generate-k8s-cronjobs`, the deploy-list baked
 into each generated manifest (`getRelatedDeployIdList`, except `backup`, which reads
-`dd.router`), the env loaded by `loadCronDeployEnv()`, and the `sync` runner's cron step. A
+`dd.routes`), the env loaded by `loadCronDeployEnv()`, and the `sync` runner's cron step. A
 missing or empty file resolves to `null`, and the command says so rather than guessing — the one
 exception is `getRelatedDeployIdList`, which warns and falls back to the literal `dd-cron` so
 manifest generation still produces a runnable command.
@@ -433,7 +433,7 @@ generated, and nothing already in the cluster is deleted.
 engine-private/
 ├── deploy/
 │   ├── dd.cron              # Default cron deploy-id (e.g. dd-cron)
-│   └── dd.router            # Deploy-id list for backup jobs
+│   └── dd.routes            # Deploy-id list for backup jobs
 └── conf/
     └── dd-<conf-id>/
         ├── conf.cron.json   # Job definitions and DNS records

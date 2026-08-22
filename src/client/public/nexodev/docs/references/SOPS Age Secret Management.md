@@ -33,7 +33,7 @@ Single source of truth per concern:
 | Age **private** key    | `~/.config/sops/age/keys.txt` (mode `0600`)             | **Never**   |
 | Offline private backup | Encrypted USB / paper / HSM, off-cluster                | **Never**   |
 
-`engine-private/` is a per-deploy private repository (`engine-<conf-id>-private`) — the encrypted manifests version alongside the deploy config they belong to. This supersedes the plaintext credential files read at [cluster.js:401-414](src/cli/cluster.js#L401-L414) (`--from-file=password=/home/dd/engine/engine-private/postgresql-password`), which store credentials unencrypted on disk. Onboarding is per-secret: the encrypted store wins whenever a manifest exists, and the **origin seed path** — the plaintext credential file the secret was originally seeded from — remains in place until it does. See [§3.3](#33-cluster-initialization-hook).
+`engine-private/` is a per-deploy private repository (`engine-<conf-id>-private`) — the encrypted manifests version alongside the deploy config they belong to. This supersedes the plaintext credential files `UnderpostCluster.API.init` falls back to in [cluster.js](src/cli/cluster.js) (`--from-file=password=/home/dd/engine/engine-private/postgresql-password`), which store credentials unencrypted on disk. Onboarding is per-secret: the encrypted store wins whenever a manifest exists, and the **origin seed path** — the plaintext credential file the secret was originally seeded from — remains in place until it does. See [§3.3](#33-cluster-initialization-hook).
 
 ```
 engine-private/
@@ -42,7 +42,8 @@ engine-private/
     └── default/
         ├── postgres-secret.enc.yaml
         ├── mariadb-secret.enc.yaml
-        └── mongodb-secret.enc.yaml
+        ├── mongodb-secret.enc.yaml
+        └── grafana-admin.enc.yaml
 ```
 
 ---
@@ -483,6 +484,8 @@ The `secret` command dispatches on `Underpost.secret[<platform>]` ([index.js:424
 | `hasBinary(bin)`                          | Shared PATH probe behind `assertTooling` and `installTooling`                            |
 | `assertTooling(bins)`                     | Fails fast with an actionable message when `sops`/`age-keygen` are missing               |
 | `installTooling()`                        | Idempotent install of the pinned `sops` and `age` binaries; owns both version pins       |
+| `setup(names, options)`                   | End-to-end onboarding: tooling, keypair, creation rules, encrypt, validate, apply        |
+| `status(filter, options)`                 | Read-only report of tooling, key, rules, stored manifests, drift, and coverage           |
 
 `installTooling()` is the single source of truth for host provisioning — `underpost cluster --init-host` calls it rather than carrying its own copy of the download logic.
 
@@ -513,7 +516,34 @@ node bin secret sops --rotate --recipient age1…
 # Emergency purge (see Emergency Purge).
 node bin secret sops --purge postgres-secret --namespace default --dry-run
 node bin secret sops --purge postgres-secret --namespace default
+
+# End-to-end onboarding, and the read-only report of what it produced.
+# Both act on the store itself, so they resolve ahead of the platform argument.
+node bin secret --setup                                   # whole data tier
+node bin secret --setup mongodb-secret,mongodb-keyfile --namespace prod
+node bin secret --setup postgres-secret --args "password=s3cr3t"
+node bin secret --setup grafana-admin --namespace default
+node bin secret --setup --dry-run                         # validate, leave the cluster alone
+node bin secret --setup --force                           # replace stored manifests
+node bin secret --status                                  # every managed key, ns default
+node bin secret --status mongo                            # partial match: both mongo keys
+
+# Load the underpost root env store from the cron deploy env file (dd.cron).
+# This is what the kubeadm and K3s node bootstrap scripts run.
+node bin secret --from-cron-env
+
+# Publish the cron deploy environment as the underpost-config Secret (envFrom).
+node bin secret --underpost-config production
+
+# Seed secrets from a file or from the container environment, and withdraw every
+# filesystem trace afterwards. --global-clean keeps the Age key: the node needs
+# it to re-apply secrets on restart.
+node bin secret --create-from-file ./engine-private/conf/dd-core/.env.production
+node bin secret --create-from-env
+node bin secret --global-clean
 ```
+
+An explicit setup list is isolated: `--setup grafana-admin` validates and applies only `grafana-admin`. Unrelated manifests sealed to another host's recipient do not block that targeted operation. Omitting the list retains the full data-tier setup behavior.
 
 ### 3.3 Cluster initialization hook
 
@@ -639,10 +669,10 @@ The common production case is not disaster recovery but a second host — a new 
 
 ```bash
 underpost pull engine-private/ <github-user>/engine-private
-node bin run sops-setup
+node bin secret --setup
 ```
 
-`sops-setup` generates a keypair when the host has none, registers that recipient in `.sops.yaml` so anything this host encrypts from here on stays readable **here**, then reports every inherited manifest it cannot open and stops before the apply:
+`secret --setup` generates a keypair when the host has none, registers that recipient in `.sops.yaml` so anything this host encrypts from here on stays readable **here**, then reports every inherited manifest it cannot open and stops before the apply:
 
 ```
 N encrypted manifest(s) are sealed to Age recipients this host does not hold, so they cannot be decrypted here:
@@ -664,7 +694,7 @@ chmod 600 /root/.config/sops/age/keys.txt
 # Every identity this host now holds; one of them must appear in --list output.
 age-keygen -y /root/.config/sops/age/keys.txt
 node bin secret sops --list
-node bin run sops-setup
+node bin secret --setup
 ```
 
 ### 5.2 Re-key the store from a host that can still decrypt
@@ -679,7 +709,7 @@ git -C engine-private add secrets && git -C engine-private commit -m "sops: add 
 
 # Back on the new host.
 underpost pull engine-private/ <github-user>/engine-private
-node bin run sops-setup
+node bin secret --setup
 ```
 
 ### 5.3 Re-onboard from the origin seed files
@@ -687,19 +717,19 @@ node bin run sops-setup
 Last resort, and only valid when this host's origin seed files (`engine-private/postgresql-password`, `engine-private/mongodb-username`, …) carry the credentials the cluster **already runs on**. `--force` replaces the stored manifests:
 
 ```bash
-node bin run sops-setup --force
+node bin secret --setup --force
 ```
 
-Any data key with no seed file and no `--args` override is **regenerated**. The running datastore keeps authenticating against its old credential until the new one is applied to it, so `sops-setup` warns per key when this happens. Pass the existing value explicitly to avoid it:
+Any data key with no seed file and no `--args` override is **regenerated**. The running datastore keeps authenticating against its old credential until the new one is applied to it, so `secret --setup` warns per key when this happens. Pass the existing value explicitly to avoid it:
 
 ```bash
-node bin run sops-setup postgres-secret --force --args "password=<current-password>"
+node bin secret --setup postgres-secret --force --args "password=<current-password>"
 ```
 
 Verify the outcome either way:
 
 ```bash
-node bin run sops-status          # decryptable=yes for every manifest, live/in-sync per secret
+node bin secret --status          # decryptable=yes for every manifest, live/in-sync per secret
 ```
 
 ---
@@ -858,4 +888,4 @@ Add to `.gitignore` before the first `git add`:
 .sops-plaintext/
 ```
 
-Post-deploy filesystem cleanup already exists as `UnderpostSecret.API.globalSecretClean()` ([secrets.js:140](src/cli/secrets.js#L140)) — it clears `engine-private`, `.env`, and the conf cache. It intentionally does **not** touch `~/.config/sops/age/keys.txt`: the key must survive so the node can re-apply secrets on restart. Container images must never receive it — pods consume the resulting Kubernetes Secret, never the Age key.
+Post-deploy filesystem cleanup already exists as `UnderpostSecret.API.globalSecretClean()` in [secrets.js](src/cli/secrets.js) — it clears `engine-private`, `.env`, and the conf cache. It intentionally does **not** touch `~/.config/sops/age/keys.txt`: the key must survive so the node can re-apply secrets on restart. Container images must never receive it — pods consume the resulting Kubernetes Secret, never the Age key.
