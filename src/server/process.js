@@ -22,6 +22,8 @@
  */
 // https://nodejs.org/api/process
 import shell from 'shelljs';
+import fs from 'fs-extra';
+import nodePath from 'node:path';
 import { loggerFactory } from './logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../index.js';
@@ -145,11 +147,23 @@ class ProcessController {
  * the exit code, stdout, and stderr for inspection by callers / CI
  * pipelines that need structured failure data.
  */
+/**
+ * Masks credentials embedded in a URL's userinfo.
+ *
+ * Commands carrying a token reach a terminal, a CI log and an operator's paste
+ * buffer, and a token that appears in any of those has to be rotated. The
+ * command stays readable; only the secret is removed.
+ * @memberof Process
+ * @param {string} [value] - Command or message that may embed credentials.
+ * @returns {string} The same text with any `scheme://user:secret@` reduced to `scheme://***@`.
+ */
+const redactCredentials = (value = '') => `${value ?? ''}`.replace(/\/\/[^/\s@]+@/g, '//***@');
+
 class ShellExecError extends Error {
   constructor(cmd, code, stdout, stderr) {
-    super(`shellExec failed (exit=${code}): ${cmd}`);
+    super(`shellExec failed (exit=${code}): ${redactCredentials(cmd)}`);
     this.name = 'ShellExecError';
-    this.cmd = cmd;
+    this.cmd = redactCredentials(cmd);
     this.code = code;
     this.stdout = stdout;
     this.stderr = stderr;
@@ -181,7 +195,7 @@ class ShellExecError extends Error {
  * @throws {ShellExecError} On non-zero exit when `silentOnError` is not set.
  */
 const shellExec = (cmd, options = {}) => {
-  if (!options.disableLog) logger.info(`cmd`, cmd);
+  if (!options.disableLog) logger.info(`cmd`, redactCredentials(cmd));
 
   // Whitelist exactly the keys `shelljs.exec` understands. Passing our own
   // bookkeeping keys through (or a literal `cwd: undefined`) makes shelljs
@@ -273,6 +287,38 @@ const shellCd = (cd, options = { disableLog: false }) => {
  * @returns {string} The shell command string for the daemon process.
  */
 const daemonProcess = (cmd) => `exec bash -c '${cmd}; exec tail -f /dev/null'`;
+
+/**
+ * Installs a root-owned host file at an explicit mode, reporting whether it changed.
+ *
+ * Staged then installed rather than written in place: the caller may run
+ * unprivileged while the destination is root-owned, and `install -m` sets the
+ * mode as it copies, so a 0600 file is never briefly readable at the default
+ * umask. Returning the changed flag is what lets callers restart a service only
+ * when its unit actually differs.
+ *
+ * @param {object} params
+ * @param {string} params.target - Destination path.
+ * @param {string} params.content - File contents.
+ * @param {string} [params.mode] - Octal mode.
+ * @param {boolean} [params.dryRun] - Report the destination instead of writing.
+ * @returns {boolean} True when the file changed.
+ * @memberof ProcessService
+ */
+const installRootFile = ({ target, content, mode = '0644', dryRun = false }) => {
+  const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+  if (current === content) return false;
+  if (dryRun) {
+    logger.info(`[dry-run] write ${target} (mode ${mode})`, { bytes: content.length });
+    return true;
+  }
+  const staged = nodePath.join('/tmp', `underpost-root-file-${nodePath.basename(target)}-${process.pid}`);
+  fs.writeFileSync(staged, content, { mode: 0o600 });
+  shellExec(`sudo mkdir -p ${nodePath.dirname(target)}`, { silent: true });
+  shellExec(`sudo install -m ${mode} -o root -g root ${staged} ${target}`, { silent: true });
+  fs.removeSync(staged);
+  return true;
+};
 /**
  * Retrieves the process ID (PID) of the most recently created gnome-terminal instance.
  * Note: This function is environment-specific (GNOME/Linux) and uses `pgrep -n`.
@@ -302,9 +348,11 @@ function pbcopy(data) {
   logger.info(`copied to clipboard`, clipboard.readSync());
 }
 export {
+  installRootFile,
   ProcessController,
   ShellExecError,
   getRootDirectory,
+  redactCredentials,
   shellExec,
   shellCd,
   sleepSync,

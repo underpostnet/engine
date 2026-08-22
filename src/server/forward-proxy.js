@@ -12,8 +12,9 @@ import os from 'node:os';
 import { environmentValueFactory } from './environment.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import {
-  homeDirectoryPathFactory,
-  systemdRunCommandFactory,
+  nodeCandidatesFactory,
+  nodeProbeCommandFactory,
+  scriptProbeCommandFactory,
   systemdServiceCommandsFactory,
   systemdUnitFactory,
 } from './systemd.js';
@@ -181,11 +182,7 @@ const forwardProxyCommandFactory = ({ host, port, execPath = process.execPath, s
 const forwardProxyNodeCandidatesFactory = ({
   execPath = process.execPath,
   systemPaths = FORWARD_PROXY.nodePaths,
-} = {}) => {
-  const own = `${execPath || ''}`.trim();
-  const inHome = homeDirectoryPathFactory(own);
-  return [...new Set([...(own && !inHome ? [own] : []), ...systemPaths, ...(own && inHome ? [own] : [])])];
-};
+} = {}) => nodeCandidatesFactory({ execPath, systemPaths });
 
 /**
  * Builds a transient systemd command that probes a Node executable.
@@ -196,7 +193,7 @@ const forwardProxyNodeCandidatesFactory = ({
  * @memberof ForwardProxy
  */
 const forwardProxyNodeProbeCommandFactory = (nodePath, user = os.userInfo().username) =>
-  systemdRunCommandFactory({ command: `${nodePath} --version`, user, properties: { Type: 'oneshot' } });
+  nodeProbeCommandFactory(nodePath, user);
 
 /**
  * Builds a transient systemd command that probes the proxy entry script.
@@ -210,12 +207,7 @@ const forwardProxyStartProbeCommandFactory = ({
   scriptPath = process.argv[1],
   user = os.userInfo().username,
   workingDirectory = process.cwd(),
-}) =>
-  systemdRunCommandFactory({
-    command: `${nodePath} ${scriptPath} --version`,
-    user,
-    properties: { Type: 'oneshot', WorkingDirectory: workingDirectory },
-  });
+}) => scriptProbeCommandFactory({ nodePath, scriptPath, user, workingDirectory });
 
 /**
  * Renders the systemd unit used to supervise the forward proxy.

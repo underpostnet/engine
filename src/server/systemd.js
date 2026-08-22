@@ -15,6 +15,12 @@
  * @memberof SystemdService
  */
 class SystemdService {
+  /**
+   * System-wide Node locations a unit can execute, in preference order.
+   * @type {ReadonlyArray<string>}
+   */
+  static NODE_PATHS = Object.freeze(['/usr/bin/node', '/usr/local/bin/node', '/bin/node']);
+
   static #valuesFactory(value) {
     return Array.isArray(value) ? value : [value];
   }
@@ -165,6 +171,48 @@ class SystemdService {
   }
 
   /**
+   * Orders Node executable candidates for a service probe.
+   *
+   * A binary under `/root` or `/home` is tried last: systemd refuses to execute
+   * one on an SELinux host, so a unit pointing at it restarts on 203/EXEC.
+   * @param {{execPath?: string, systemPaths?: string[]}} [options]
+   * @returns {string[]} Ordered, unique executable paths.
+   */
+  static nodeCandidatesFactory({ execPath = process.execPath, systemPaths = SystemdService.NODE_PATHS } = {}) {
+    const own = `${execPath || ''}`.trim();
+    const inHome = SystemdService.homeDirectoryPathFactory(own);
+    return [...new Set([...(own && !inHome ? [own] : []), ...systemPaths, ...(own && inHome ? [own] : [])])];
+  }
+
+  /**
+   * Builds a transient command that probes a Node executable.
+   * @param {string} nodePath - Candidate Node executable path.
+   * @param {string} [user] - User that will own the service.
+   * @returns {string} systemd-run command.
+   */
+  static nodeProbeCommandFactory(nodePath, user) {
+    return SystemdService.systemdRunCommandFactory({
+      command: `${nodePath} --version`,
+      user,
+      properties: { Type: 'oneshot' },
+    });
+  }
+
+  /**
+   * Builds a transient command that probes a script under the unit's own
+   * constraints, which is what catches a checkout a unit cannot read.
+   * @param {{nodePath: string, scriptPath?: string, user?: string, workingDirectory?: string}} options
+   * @returns {string} systemd-run command.
+   */
+  static scriptProbeCommandFactory({ nodePath, scriptPath, user, workingDirectory }) {
+    return SystemdService.systemdRunCommandFactory({
+      command: `${nodePath} ${scriptPath} --version`,
+      user,
+      properties: { Type: 'oneshot', WorkingDirectory: workingDirectory },
+    });
+  }
+
+  /**
    * Executes or reports a sequence of generated commands.
    * @param {string[]} [commands]
    * @param {{dryRun?: boolean, execute?: Function, onDryRun?: Function}} [options]
@@ -179,7 +227,10 @@ class SystemdService {
 const {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
+  nodeCandidatesFactory,
+  nodeProbeCommandFactory,
   runSystemdCommands,
+  scriptProbeCommandFactory,
   systemctlCommandFactory,
   systemdAvailableCommandFactory,
   systemdReloadIfActiveCommandFactory,
@@ -194,7 +245,10 @@ export default SystemdService;
 export {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
+  nodeCandidatesFactory,
+  nodeProbeCommandFactory,
   runSystemdCommands,
+  scriptProbeCommandFactory,
   systemctlCommandFactory,
   systemdAvailableCommandFactory,
   systemdReloadIfActiveCommandFactory,
