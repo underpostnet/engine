@@ -97,7 +97,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.worker=false] - Flag to designate the machine as a worker node.
      * @param {string} [options.control=''] - Specifies the control node for the baremetal machine.
      * @param {string} [options.sshKeyDir=''] - Specifies the directory containing SSH keys for the baremetal machine.
-     * @param {string} [options.deployId=''] - Specifies the deployment ID for SSH key resolution.
+     * @param {string} [options.deployId=''] - Specifies the deployment ID used to resolve the private engine repo cloned onto the node.
      * @param {string} [options.engineRepo=''] - Specifies the custom engine repository URL.
      * @param {string} [options.engineBranch=''] - Specifies the custom engine repository branch.
      * @param {string} [options.enginePrivateRepo=''] - Specifies the custom private engine repository URL.
@@ -943,7 +943,7 @@ rm -rf ${artifacts.join(' ')}`);
               `id root`,
               `ls -la /home/root/.ssh/`,
               `cat /home/root/.ssh/authorized_keys`,
-              'underpost test',
+              '/home/dd/engine/scripts/coverall-test.sh',
             ],
           });
       }
@@ -1490,7 +1490,7 @@ rm -rf ${artifacts.join(' ')}`);
         if (!joinResult.ok || !joinCommand) {
           throw new Error(
             `Failed to retrieve kubeadm join command from control-plane ${controlUser}@${controlIp} using key "${keyPath}" (code ${joinResult.code}). ` +
-              `Ensure that key authorizes ${controlUser}@${controlIp} — pass --deploy-id <id> --user <user> (key from engine-private/conf/<id>/users/<user>) ` +
+              `Ensure that key authorizes ${controlUser}@${controlIp} — pass --user <user> (key from engine-private/deploy/users/<user>) ` +
               `or --ssh-key-dir <dir> to use the key/user the control-plane accepts. stderr: ${joinResult.stderr.slice(-300)}`,
           );
         }
@@ -1514,7 +1514,6 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       // Secrets needed on the node to clone the private engine-private repo
-      // (engine-private/conf/.../.env.production for `node bin run secret`).
       const githubUsername = Underpost.baremetal.readEngineConfig('GITHUB_USERNAME') || 'underpostnet';
       const githubEnv = {
         GITHUB_TOKEN: Underpost.baremetal.readEngineConfig('GITHUB_TOKEN'),
@@ -2597,11 +2596,10 @@ shell
      *
      * Key-dir precedence:
      *   1. `--ssh-key-dir <dir>` (explicit path)
-     *   2. `--deploy-id <id>` (+ `--user <user>`) → `engine-private/conf/<id>/users/<user>`
-     *      (the same user↔deployId↔key convention `src/cli/ssh.js` writes; no key path needed)
-     *   3. workflow `sshKeyDir`
-     *   4. workflow `deployId` (+ `user`)
-     *   5. default `engine-private/deploy`
+     *   2. workflow `sshKeyDir`
+     *   3. a non-root user → `engine-private/deploy/users/<user>`
+     *      (the cluster scoped key store `src/cli/ssh.js` writes; no key path needed)
+     *   4. default `engine-private/deploy` (the controller key, i.e. root)
      *
      * User precedence: `--user` > workflow `user` > `root`. A leading `~` in the
      * resolved dir is expanded to the user's home.
@@ -2615,13 +2613,13 @@ shell
     resolveSshKeyPaths({ options = {}, workflowsConfig = {}, workflowId = '' } = {}) {
       const wf = workflowsConfig?.[workflowId] || {};
       const user = options.user || wf.user || 'root';
+      // Kept for the private engine repo naming only; SSH keys are cluster scoped.
       const deployId = options.deployId || wf.deployId || '';
 
       let dir;
       if (options.sshKeyDir) dir = options.sshKeyDir;
-      else if (options.deployId) dir = `engine-private/conf/${options.deployId}/users/${user}`;
       else if (wf.sshKeyDir) dir = wf.sshKeyDir;
-      else if (deployId) dir = `engine-private/conf/${deployId}/users/${user}`;
+      else if (user !== 'root') dir = path.normalize(Underpost.ssh.userKeyDir(user));
       else dir = 'engine-private/deploy';
 
       if (dir.startsWith('~')) dir = path.join(process.env.HOME || '', dir.slice(1));
@@ -2633,10 +2631,10 @@ shell
      * @description Resolves the login accounts baked into the deployed OS. Always
      * creates TWO admin accounts so a console login is guaranteed:
      *   1. the MAAS admin (MAAS_ADMIN_USERNAME / MAAS_ADMIN_PASS) — password login,
-     *   2. the deploy user (`--user`, e.g. admin) — its conf.node.json
-     *      password (or MAAS_ADMIN_PASS), plus the SSH key.
-     * root always gets MAAS_ADMIN_PASS. The deploy user/password come from
-     * `engine-private/conf/<deployId>/conf.node.json` (`users[user]`).
+     *   2. the deploy user (`--user`, e.g. admin) — its cluster config password
+     *      (or MAAS_ADMIN_PASS), plus the SSH key.
+     * root always gets MAAS_ADMIN_PASS. The deploy user/password come from the
+     * cluster users registry `engine-private/deploy/conf.users.json`.
      * @param {object} params
      * @param {object} [params.options={}] - CLI options.
      * @param {object} [params.workflowsConfig={}] - Loaded workflows config.
@@ -2645,21 +2643,18 @@ shell
      * @memberof UnderpostBaremetal
      */
     resolveInstallCredentials({ options = {}, workflowsConfig = {}, workflowId = '' } = {}) {
-      const { user, deployId } = Underpost.baremetal.resolveSshKeyPaths({ options, workflowsConfig, workflowId });
+      const { user } = Underpost.baremetal.resolveSshKeyPaths({ options, workflowsConfig, workflowId });
 
       let confUser = {};
-      if (deployId) {
-        const confPath = `engine-private/conf/${deployId}/conf.node.json`;
-        if (fs.existsSync(confPath)) {
-          try {
-            confUser = JSON.parse(fs.readFileSync(confPath, 'utf8'))?.users?.[user] || {};
-          } catch (error) {
-            logger.warn(`Failed to parse ${confPath}: ${error.message}`);
-          }
-        } else {
-          logger.warn(`conf.node.json not found at ${confPath}; using MAAS_ADMIN_* defaults`);
-        }
+      try {
+        confUser = Underpost.ssh.findUser(user) || {};
+      } catch (error) {
+        logger.warn(`Failed to parse ${Underpost.ssh.usersConfPath()}: ${error.message}`);
       }
+      if (!confUser.user)
+        logger.warn(
+          `User '${user}' is not registered in ${Underpost.ssh.usersConfPath()}; using MAAS_ADMIN_* defaults`,
+        );
 
       const maasPass = process.env.MAAS_ADMIN_PASS || '';
       const rootPassword = maasPass;
@@ -2667,7 +2662,7 @@ shell
       const adminUsername = process.env.MAAS_ADMIN_USERNAME || 'maas';
       const adminPassword = maasPass;
       // User 2: the deploy user (only when distinct from root/maas admin).
-      const deployUsername = deployId && user && user !== 'root' && user !== adminUsername ? user : '';
+      const deployUsername = user && user !== 'root' && user !== adminUsername ? user : '';
       const deployPassword = deployUsername ? confUser.password || maasPass : '';
 
       if (!rootPassword) {

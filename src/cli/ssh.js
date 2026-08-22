@@ -22,6 +22,90 @@ import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 /**
+ * SSH users are cluster scoped: one registry and one key store serve every
+ * deploy id running on the cluster, so an account is provisioned once instead
+ * of once per app.
+ *
+ * A record is `{ user, password, groups, keyPath, pubKeyPath, hosts }`, where an
+ * empty password means key-only and `hosts` carries one connection per host:
+ *
+ *   hosts: [{ host: '10.0.0.2', port: 22 }, { host: '10.0.0.3', port: 22 }]
+ *
+ * One account reaches many hosts — the same operator account on every WireGuard
+ * spoke is the normal case — so the host cannot be a field of the record. It was,
+ * and registering that account for a second host silently replaced the first,
+ * leaving remediation unable to resolve a spoke it had just been given.
+ *
+ * The port belongs to the connection for the same reason: two hosts of one
+ * account can listen on different ports, and a single record-level port could
+ * only describe one of them.
+ */
+const USERS_CONF_PATH = './engine-private/deploy/conf.users.json';
+const USERS_KEYS_PATH = './engine-private/deploy/users';
+const DEFAULT_SSH_PORT = 22;
+
+/**
+ * @method hostNameFactory
+ * @description A host as the registry compares it: the bare address, so a value
+ * written with a prefix (`10.0.0.2/32`) matches one without.
+ * @param {string} host - Host or IP, with or without a CIDR suffix.
+ * @returns {string} Normalized host.
+ * @memberof UnderpostSSH
+ */
+const hostNameFactory = (host) => `${host || ''}`.trim().split('/')[0];
+
+/**
+ * @method connectionFactory
+ * @description Normalizes one connection entry.
+ * @param {object} [connection] - Raw connection entry.
+ * @returns {?{host: string, port: number}} Normalized connection, or null without a host.
+ * @memberof UnderpostSSH
+ */
+const connectionFactory = (connection = {}) => {
+  const host = hostNameFactory(connection.host);
+  return host ? { host, port: Number(connection.port) || DEFAULT_SSH_PORT } : null;
+};
+
+/**
+ * @method upsertConnection
+ * @description Adds a connection to a host list, replacing the entry for that
+ * host when one is already present.
+ *
+ * The one write path for `hosts`, so re-registering an account for a host it
+ * already reaches updates that connection instead of appending a duplicate the
+ * reverse lookup would then have to choose between.
+ * @param {Array<{host: string, port: number}>} [hosts] - Existing connections.
+ * @param {object} connection - Connection to add.
+ * @returns {Array<{host: string, port: number}>} Updated connections.
+ * @memberof UnderpostSSH
+ */
+const upsertConnection = (hosts = [], connection) => {
+  const entry = connectionFactory(connection);
+  if (!entry) return hosts;
+  return [...hosts.filter((existing) => existing.host !== entry.host), entry];
+};
+
+/**
+ * @method userRecordFactory
+ * @description Normalizes one registry entry, so every consumer reads one shape
+ * whether the file was written by hand, partially, or not at all.
+ * @param {object} [entry] - Raw registry entry.
+ * @returns {object} Normalized record.
+ * @memberof UnderpostSSH
+ */
+const userRecordFactory = (entry = {}) => ({
+  user: `${entry.user || ''}`.trim(),
+  password: `${entry.password ?? ''}`,
+  groups: `${entry.groups || ''}`,
+  keyPath: `${entry.keyPath || ''}`,
+  pubKeyPath: `${entry.pubKeyPath || ''}`,
+  hosts: (Array.isArray(entry.hosts) ? entry.hosts : []).reduce(
+    (hosts, connection) => upsertConnection(hosts, connection),
+    [],
+  ),
+});
+
+/**
  * @class UnderpostSSH
  * @description Manages SSH key generation and connection setup.
  * @memberof UnderpostSSH
@@ -29,32 +113,102 @@ const logger = loggerFactory(import.meta);
 class UnderpostSSH {
   static API = {
     /**
-     * Loads configuration node from disk or returns default empty config.
+     * Path of the cluster users registry.
      * @method
-     * @function loadConfigNode
+     * @function usersConfPath
      * @memberof UnderpostSSH
-     * @param {string} deployId - Deployment ID for the config path
-     * @returns {{confNode: Object, confNodePath: string}} Configuration node and its file path
-     * @description Loads or creates a config node with users object structure
+     * @returns {string} Path to the users configuration file
      */
-    loadConfigNode: (deployId) => {
-      const confNodePath = `./engine-private/conf/${deployId}/conf.node.json`;
-      const confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
-      return { confNode, confNodePath };
+    usersConfPath: () => USERS_CONF_PATH,
+
+    /**
+     * Key store directory for a user.
+     * @method
+     * @function userKeyDir
+     * @memberof UnderpostSSH
+     * @param {string} user - SSH user name
+     * @returns {string} Directory holding `<dir>/id_rsa` and `<dir>/id_rsa.pub`
+     */
+    userKeyDir: (user) => `${USERS_KEYS_PATH}/${user}`,
+
+    /**
+     * Loads the cluster users registry from disk.
+     * @method
+     * @function loadUsers
+     * @memberof UnderpostSSH
+     * @returns {Array<Object>} Registered user records, empty when unregistered
+     */
+    loadUsers: () =>
+      (fs.existsSync(USERS_CONF_PATH) ? JSON.parse(fs.readFileSync(USERS_CONF_PATH, 'utf8')) : [])
+        .map(userRecordFactory)
+        .filter((entry) => entry.user),
+
+    /**
+     * Saves the cluster users registry to disk.
+     * @method
+     * @function saveUsers
+     * @memberof UnderpostSSH
+     * @param {Array<Object>} users - User records to persist
+     * @returns {void}
+     */
+    saveUsers: (users) => {
+      fs.outputFileSync(USERS_CONF_PATH, JSON.stringify(users.map(userRecordFactory), null, 2), 'utf8');
     },
 
     /**
-     * Saves configuration node to disk.
+     * Looks up a registered user record.
      * @method
-     * @function saveConfigNode
+     * @function findUser
      * @memberof UnderpostSSH
-     * @param {string} confNodePath - Path to the configuration file
-     * @param {Object} confNode - Configuration object to save
-     * @returns {void}
+     * @param {string} user - SSH user name
+     * @returns {Object|undefined} The record, or undefined when unregistered
      */
-    saveConfigNode: (confNodePath, confNode) => {
-      fs.outputFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
+    findUser: (user) => Underpost.ssh.loadUsers().find((entry) => entry.user === user),
+
+    /**
+     * Resolves the connection an account uses to reach one host.
+     * @method
+     * @function resolveConnection
+     * @memberof UnderpostSSH
+     * @param {object} params
+     * @param {string} params.host - Host or IP the account was registered against.
+     * @param {string} [params.user] - Restrict the lookup to this account.
+     * @returns {Object|undefined} Flat connection `{ user, host, port, password, keyPath, pubKeyPath }`, or undefined
+     * @description
+     * The reverse of {@link UnderpostSSH.findUser}, for callers that know where
+     * they must act but not who acts there — remediation resolving a WireGuard
+     * spoke's tunnel address to the account that can repair it. Returns the flat
+     * view every SSH caller needs, so no consumer has to know the registry is
+     * keyed by host.
+     */
+    resolveConnection: ({ host, user = '' } = {}) => {
+      const target = hostNameFactory(host);
+      if (!target) return undefined;
+      for (const record of Underpost.ssh.loadUsers()) {
+        if (user && record.user !== user) continue;
+        const connection = record.hosts.find((entry) => entry.host === target);
+        if (!connection) continue;
+        return {
+          user: record.user,
+          host: connection.host,
+          port: connection.port,
+          password: record.password,
+          keyPath: record.keyPath,
+          pubKeyPath: record.pubKeyPath,
+        };
+      }
+      return undefined;
     },
+
+    /**
+     * Lists every host an account is registered for.
+     * @method
+     * @function userHosts
+     * @memberof UnderpostSSH
+     * @param {string} user - SSH user name
+     * @returns {Array<{host: string, port: number}>} Connection metadata per host
+     */
+    userHosts: (user) => Underpost.ssh.findUser(user)?.hosts || [],
 
     /**
      * Checks if a system user exists.
@@ -151,12 +305,12 @@ class UnderpostSSH {
      * @memberof UnderpostSSH
      * @param {string} sshDir - SSH directory path
      * @param {string} pubKeyPath - Public key file path
-     * @param {boolean} disablePassword - Whether to add no-forwarding restrictions
+     * @param {boolean} restrictForwarding - Whether to add no-forwarding restrictions
      * @returns {void}
      */
-    configureAuthorizedKeys: (sshDir, pubKeyPath, disablePassword) => {
+    configureAuthorizedKeys: (sshDir, pubKeyPath, restrictForwarding) => {
       const key = fs.readFileSync(pubKeyPath, 'utf8').trim();
-      const entry = disablePassword ? `no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${key}` : key;
+      const entry = restrictForwarding ? `no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${key}` : key;
       const authorizedKeysPath = `${sshDir}/authorized_keys`;
       shellExec(
         `grep -qxF ${shellArgumentFactory(entry)} ${shellArgumentFactory(authorizedKeysPath)} || printf '%s\n' ${shellArgumentFactory(entry)} >> ${shellArgumentFactory(authorizedKeysPath)}`,
@@ -184,17 +338,16 @@ class UnderpostSSH {
     },
 
     /**
-     * Configures sudoers for passwordless sudo or sets user password.
+     * Grants passwordless sudo to a key-only account, or sets the user password.
      * @method
      * @function configureSudoAccess
      * @memberof UnderpostSSH
      * @param {string} username - Username to configure
-     * @param {string} password - User password
-     * @param {boolean} disablePassword - Whether to enable passwordless sudo
+     * @param {string} password - User password; empty means key-only
      * @returns {void}
      */
-    configureSudoAccess: (username, password, disablePassword) => {
-      if (disablePassword) {
+    configureSudoAccess: (username, password) => {
+      if (!password) {
         if (!/^[a-z_][a-z0-9_-]*[$]?$/i.test(username)) throw new TypeError('Invalid sudo username');
         const sudoersPath = `/etc/sudoers.d/90_${username}`;
         const temporaryPath = `/tmp/underpost-sudoers-${process.pid}-${username}`;
@@ -224,25 +377,21 @@ class UnderpostSSH {
      * @function initializeDefaultSshConfig
      * @memberof UnderpostSSH
      * @param {object} params - SSH configuration values.
-     * @param {string} params.userHome - Home directory of the SSH user.
      * @param {string} params.user - SSH user name.
-     * @param {string} params.password - SSH key passphrase and user password.
+     * @param {string} params.password - SSH key passphrase and user password; empty means key-only.
      * @param {string} params.host - Host used in the SSH key comment.
      * @param {number} params.port - SSH port.
-     * @param {boolean} params.disablePassword - Whether to configure passwordless sudo.
      * @param {string} [params.controllerPubKeyPath='./engine-private/deploy/id_rsa.pub'] - Preferred controller public key to authorize.
      * @returns {void}
      */
     initializeDefaultSshConfig: ({
-      userHome,
       user,
       password,
       host,
       port,
-      disablePassword,
       controllerPubKeyPath = './engine-private/deploy/id_rsa.pub',
     }) => {
-      const sshDir = `${userHome}/.ssh`;
+      const sshDir = `${Underpost.ssh.getUserHome(user)}/.ssh`;
       const keyPath = `${sshDir}/id_rsa`;
       const pubKeyPath = `${sshDir}/id_rsa.pub`;
 
@@ -263,9 +412,9 @@ class UnderpostSSH {
         );
 
       const authorizedKeyPath = fs.existsSync(controllerPubKeyPath) ? controllerPubKeyPath : pubKeyPath;
-      Underpost.ssh.configureAuthorizedKeys(sshDir, authorizedKeyPath, disablePassword);
+      Underpost.ssh.configureAuthorizedKeys(sshDir, authorizedKeyPath, !password);
       Underpost.ssh.configureKnownHosts(sshDir, port, host);
-      Underpost.ssh.configureSudoAccess(user, password, disablePassword);
+      Underpost.ssh.configureSudoAccess(user, password);
       Underpost.ssh.setSSHFilePermissions(sshDir, user, keyPath, pubKeyPath);
     },
 
@@ -275,11 +424,10 @@ class UnderpostSSH {
      * @function callback
      * @memberof UnderpostSSH
      * @param {Object} options - Configuration options for SSH operations
-     * @param {string} [options.deployId=''] - Deployment ID context for SSH operations
      * @param {boolean} [options.generate=false] - Generate new SSH credentials
      * @param {string} [options.user=''] - SSH user name (defaults to 'root')
-     * @param {string} [options.password=''] - SSH user password (auto-generated if not provided, overridden by saved config if user exists)
-     * @param {string} [options.host=''] - SSH host address (defaults to public IP, overridden by saved config if user exists)
+     * @param {string} [options.password=''] - SSH user password (taken from the registry, else generated unless --disable-password)
+     * @param {string} [options.host=''] - SSH host address (taken from the registry, else the public IP)
      * @param {string} [options.filter=''] - Filter for user/group listings
      * @param {string} [options.groups=''] - Comma-separated list of groups for the user (defaults to 'wheel')
      * @param {number} [options.port=22] - SSH port number
@@ -290,7 +438,7 @@ class UnderpostSSH {
      * @param {boolean} [options.reset=false] - Reset SSH configuration (clear authorized_keys and known_hosts)
      * @param {boolean} [options.keysList=false] - List authorized SSH keys
      * @param {boolean} [options.hostsList=false] - List known SSH hosts
-     * @param {boolean} [options.disablePassword=false] - If true, enable passwordless sudo and add SSH restrictions
+     * @param {boolean} [options.disablePassword=false] - Create the account key-only instead of generating a password
      * @param {boolean} [options.keyTest=false] - Test SSH key generation
      * @param {boolean} [options.stop=false] - Stop SSH service
      * @param {boolean} [options.status=false] - Check SSH service status
@@ -298,16 +446,17 @@ class UnderpostSSH {
      * @param {boolean} [options.copy=false] - Copy SSH connection URI to clipboard
      * @returns {Promise<void>}
      * @description
-     * Handles various SSH operations:
+     * Handles SSH operations against the cluster users registry
+     * (`engine-private/deploy/conf.users.json`) and key store
+     * (`engine-private/deploy/users/<user>`):
      * - User creation with automatic key generation and backup
      * - User removal with key cleanup
-     * - Key import/export between SSH directory and private backup location
+     * - Key import/export between SSH directory and the key store
      * - SSH service initialization and hardening
      * - User and group listing with optional filtering
      */
     callback: async (
       options = {
-        deployId: '',
         generate: false,
         user: '',
         password: '',
@@ -330,58 +479,54 @@ class UnderpostSSH {
         copy: false,
       },
     ) => {
-      let confNode, confNodePath;
-
-      // Set defaults
       if (!options.user) options.user = 'root';
-      if (!options.host) options.host = await Underpost.dns.getPublicIp();
-      if (!options.password) options.password = options.disablePassword ? '' : generateRandomPasswordSelection(16);
-      if (!options.groups) options.groups = 'wheel';
-      if (!options.port) options.port = 22; // Handle connect uri
 
-      const userHome = Underpost.ssh.getUserHome(options.user);
-      options.userHome = userHome;
+      const users = Underpost.ssh.loadUsers();
+      const confUserIndex = users.findIndex((entry) => entry.user === options.user);
+      const confUser = users[confUserIndex];
+      const registeredHosts = confUser?.hosts || [];
 
-      // Load config and override password and host if user exists in config
-      if (options.deployId) {
-        const config = Underpost.ssh.loadConfigNode(options.deployId);
-        confNode = config.confNode;
-        confNodePath = config.confNodePath;
-
-        if (confNode.users && confNode.users[options.user]) {
-          if (confNode.users[options.user].host) {
-            options.host = confNode.users[options.user].host;
-            logger.info(`Using saved host for user ${options.user}: ${options.host}`);
-          }
-          if (confNode.users[options.user].password === '') {
-            options.disablePassword = true;
-            options.password = '';
-            logger.info(`Using saved empty password for user ${options.user}`);
-          } else if (confNode.users[options.user].password) {
-            options.disablePassword = false;
-            options.password = confNode.users[options.user].password;
-            logger.info(`Using saved password for user ${options.user}`);
-          }
-          options.port = options.port || confNode.users[options.user].port || 22;
-        }
+      // Explicit flags win; the registry fills in what was omitted, but only for
+      // the operations that act on one host. A single registered host is
+      // unambiguous and several are not — an account on many spokes must be told
+      // which one is meant rather than acting on whichever the registry lists
+      // first. Listing and removal are account-scoped and need no host at all.
+      const hostScoped = options.connectUri || options.userAdd || options.start || options.keyTest || options.hostsList;
+      if (!options.host && hostScoped) {
+        if (registeredHosts.length > 1)
+          throw new Error(
+            `[ssh] user '${options.user}' is registered for several hosts ` +
+              `(${registeredHosts.map((entry) => entry.host).join(', ')}); pass --host to select one`,
+          );
+        options.host = registeredHosts[0]?.host || (await Underpost.dns.getPublicIp());
       }
+      if (!options.port)
+        options.port =
+          registeredHosts.find((entry) => entry.host === hostNameFactory(options.host))?.port || DEFAULT_SSH_PORT;
+      if (!options.groups) options.groups = 'wheel';
+      if (!options.password) {
+        const generatePassword = !confUser && !options.disablePassword;
+        options.password = generatePassword ? generateRandomPasswordSelection(16) : confUser?.password || '';
+      }
+
+      const keyDir = Underpost.ssh.userKeyDir(options.user);
+      const keyPath = confUser?.keyPath || `${keyDir}/id_rsa`;
+      const pubKeyPath = confUser?.pubKeyPath || `${keyDir}/id_rsa.pub`;
+      const sshDirFactory = () => `${Underpost.ssh.getUserHome(options.user)}/.ssh`;
 
       logger.info('options', options);
 
-      // Handle connect uri
       if (options.connectUri) {
-        const keyPath = `${userHome}/.ssh/id_rsa`;
         const uri = `ssh ${options.user}@${options.host} -i ${keyPath} -p ${options.port}`;
-        if (options.copy) {
-          pbcopy(uri);
-        } else console.log(uri);
+        if (options.copy) pbcopy(uri);
+        else console.log(uri);
         return;
       }
 
-      // Handle reset operation
       if (options.reset) {
-        shellExec(`> ${userHome}/.ssh/authorized_keys`);
-        shellExec(`> ${userHome}/.ssh/known_hosts`);
+        const sshDir = sshDirFactory();
+        shellExec(`> ${sshDir}/authorized_keys`);
+        shellExec(`> ${sshDir}/known_hosts`);
       }
 
       if (options.userLs) {
@@ -400,36 +545,30 @@ class UnderpostSSH {
         console.log('Users'.bold.blue);
         console.log(`user : x : UID : GID : GECOS : home_dir : shell`.blue);
         console.log(filter ? usersOut.replaceAll(filter, filter.red) : usersOut);
+        console.log('Registered cluster users'.bold.blue);
+        users.forEach((entry) =>
+          entry.hosts.forEach((connection) => console.log(`${entry.user}@${connection.host}:${connection.port}`)),
+        );
       }
 
-      // Handle user removal (works with or without deployId)
       if (options.userRemove) {
         const groups = shellExec(`id -Gn ${options.user}`, { silent: true, stdout: true }).trim().replace(/ /g, ', ');
         shellExec(`userdel -r ${options.user}`);
 
-        // Remove sudoers file if it exists
         const sudoersFile = `/etc/sudoers.d/90_${options.user}`;
         if (fs.existsSync(sudoersFile)) {
           shellExec(`sudo rm -f ${sudoersFile}`);
           logger.info(`Sudoers file removed: ${sudoersFile}`);
         }
 
-        // Remove the private key copy folder and update config only if deployId is provided
-        if (options.deployId) {
-          if (!confNode) {
-            const config = Underpost.ssh.loadConfigNode(options.deployId);
-            confNode = config.confNode;
-            confNodePath = config.confNodePath;
-          }
+        if (fs.existsSync(keyDir)) {
+          fs.removeSync(keyDir);
+          logger.info(`Key store removed from ${keyDir}`);
+        }
 
-          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
-          if (fs.existsSync(privateCopyDir)) {
-            fs.removeSync(privateCopyDir);
-            logger.info(`Private key copy removed from ${privateCopyDir}`);
-          }
-
-          delete confNode.users[options.user];
-          Underpost.ssh.saveConfigNode(confNodePath, confNode);
+        if (confUser) {
+          users.splice(confUserIndex, 1);
+          Underpost.ssh.saveUsers(users);
         }
 
         logger.info(`User removed`);
@@ -437,148 +576,83 @@ class UnderpostSSH {
         return;
       }
 
-      // Handle user addition (works with or without deployId)
       if (options.userAdd) {
-        let privateCopyDir, privateKeyPath, publicKeyPath, keysExistInBackup, userExistsInConfig;
+        if (!Underpost.ssh.checkUserExists(options.user))
+          Underpost.ssh.createSystemUser(options.user, options.password, options.groups);
 
-        // If deployId is provided, check for existing config and backup keys
-        if (options.deployId) {
-          if (!confNode) {
-            const config = Underpost.ssh.loadConfigNode(options.deployId);
-            confNode = config.confNode;
-            confNodePath = config.confNodePath;
-          }
-
-          userExistsInConfig = confNode.users && confNode.users[options.user];
-          privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
-          privateKeyPath = `${privateCopyDir}/id_rsa`;
-          publicKeyPath = `${privateCopyDir}/id_rsa.pub`;
-          keysExistInBackup = fs.existsSync(privateKeyPath) && fs.existsSync(publicKeyPath);
-
-          // If user exists in config AND keys exist in backup, import those keys
-          if (userExistsInConfig && keysExistInBackup) {
-            logger.info(`User ${options.user} already exists in config. Importing existing keys...`);
-
-            // Create system user if it doesn't exist
-            const userExists = Underpost.ssh.checkUserExists(options.user);
-            if (!userExists) {
-              Underpost.ssh.createSystemUser(options.user, options.password, options.groups);
-            }
-
-            const userHome = Underpost.ssh.getUserHome(options.user);
-            const sshDir = `${userHome}/.ssh`;
-            Underpost.ssh.ensureSSHDirectory(sshDir);
-
-            const userKeyPath = `${sshDir}/id_rsa`;
-            const userPubKeyPath = `${sshDir}/id_rsa.pub`;
-
-            // Import keys from backup
-            fs.copyFileSync(privateKeyPath, userKeyPath);
-            fs.copyFileSync(publicKeyPath, userPubKeyPath);
-
-            Underpost.ssh.configureAuthorizedKeys(sshDir, userPubKeyPath, options.disablePassword);
-            Underpost.ssh.configureSudoAccess(options.user, options.password, options.disablePassword);
-            Underpost.ssh.configureKnownHosts(sshDir, options.port, options.host);
-            Underpost.ssh.setSSHFilePermissions(sshDir, options.user, userKeyPath, userPubKeyPath);
-
-            logger.info(`Keys imported from ${privateCopyDir} to ${sshDir}`);
-            logger.info(`User added with existing keys`);
-            return;
-          }
-        }
-
-        // New user or no existing keys - create new user and generate keys
-        Underpost.ssh.createSystemUser(options.user, options.password, options.groups);
-
-        const userHome = Underpost.ssh.getUserHome(options.user);
-        const sshDir = `${userHome}/.ssh`;
+        const sshDir = sshDirFactory();
         Underpost.ssh.ensureSSHDirectory(sshDir);
+        const hostKeyPath = `${sshDir}/id_rsa`;
+        const hostPubKeyPath = `${sshDir}/id_rsa.pub`;
 
-        const keyPath = `${sshDir}/id_rsa`;
-        const pubKeyPath = `${sshDir}/id_rsa.pub`;
-
-        if (!fs.existsSync(keyPath)) {
+        // A key already trusted cluster wide is reinstalled, never re-issued:
+        // regenerating it would invalidate every host that already holds it.
+        const storedKeys = fs.existsSync(keyPath) && fs.existsSync(pubKeyPath);
+        if (storedKeys) {
+          fs.copyFileSync(keyPath, hostKeyPath);
+          fs.copyFileSync(pubKeyPath, hostPubKeyPath);
+          logger.info(`Keys imported from ${keyDir} to ${sshDir}`);
+        } else if (!fs.existsSync(hostKeyPath)) {
           shellExec(
-            `ssh-keygen -t ed25519 -f ${keyPath} -N "${options.password}" -q -C "${options.user}@${options.host}"`,
+            `ssh-keygen -t ed25519 -f ${hostKeyPath} -N "${options.password}" -q -C "${options.user}@${options.host}"`,
+            { disableLog: true },
           );
+        } else if (!fs.existsSync(hostPubKeyPath)) {
+          shellExec(`ssh-keygen -y -f ${hostKeyPath} -P "${options.password}" > ${hostPubKeyPath}`, {
+            disableLog: true,
+          });
         }
 
-        Underpost.ssh.configureAuthorizedKeys(sshDir, pubKeyPath, options.disablePassword);
-        Underpost.ssh.configureSudoAccess(options.user, options.password, options.disablePassword);
+        Underpost.ssh.configureAuthorizedKeys(sshDir, hostPubKeyPath, !options.password);
+        Underpost.ssh.configureSudoAccess(options.user, options.password);
         Underpost.ssh.configureKnownHosts(sshDir, options.port, options.host);
-        Underpost.ssh.setSSHFilePermissions(sshDir, options.user, keyPath, pubKeyPath);
+        Underpost.ssh.setSSHFilePermissions(sshDir, options.user, hostKeyPath, hostPubKeyPath);
 
-        // Save a copy of the keys to the private folder only if deployId is provided
-        if (options.deployId) {
-          if (!privateCopyDir) privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
-          fs.ensureDirSync(privateCopyDir);
-
-          const privateKeyCopyPath = `${privateCopyDir}/id_rsa`;
-          const publicKeyCopyPath = `${privateCopyDir}/id_rsa.pub`;
-
-          fs.copyFileSync(keyPath, privateKeyCopyPath);
-          fs.copyFileSync(pubKeyPath, publicKeyCopyPath);
-
-          logger.info(`Keys backed up to ${privateCopyDir}`);
-
-          confNode.users[options.user] = {
-            ...confNode.users[options.user],
-            ...options,
-            keyPath,
-            pubKeyPath,
-            privateKeyCopyPath,
-            publicKeyCopyPath,
-          };
-          Underpost.ssh.saveConfigNode(confNodePath, confNode);
+        if (!storedKeys) {
+          fs.ensureDirSync(keyDir);
+          fs.copyFileSync(hostKeyPath, keyPath);
+          fs.copyFileSync(hostPubKeyPath, pubKeyPath);
+          logger.info(`Keys backed up to ${keyDir}`);
         }
 
-        logger.info(`User added`);
+        // Additive: registering the account for another host adds that host,
+        // it does not replace the record. One operator account across several
+        // spokes is the normal case, and replacing here is what previously left
+        // remediation unable to resolve a spoke that had just been registered.
+        const record = {
+          ...(confUser || {}),
+          user: options.user,
+          password: options.password,
+          groups: options.groups,
+          keyPath,
+          pubKeyPath,
+          hosts: upsertConnection(registeredHosts, { host: options.host, port: options.port }),
+        };
+        if (confUser) users[confUserIndex] = record;
+        else users.push(record);
+        Underpost.ssh.saveUsers(users);
+
+        logger.info(`User added`, { user: options.user, hosts: record.hosts });
         return;
       }
 
-      // Handle config user listing (only with deployId)
-      if (options.deployId) {
-        if (!confNode) {
-          const config = Underpost.ssh.loadConfigNode(options.deployId);
-          confNode = config.confNode;
-          confNodePath = config.confNodePath;
-        }
-
-        if (options.userLs && confNode && confNode.users) {
-          logger.info(`Users in config:`);
-          Object.keys(confNode.users).forEach((user) => {
-            logger.info(`- ${user}`);
-          });
-        }
-      }
-
-      // Handle generate root keys
       if (options.generate)
         Underpost.ssh.generateKeys({ user: options.user, password: options.password, host: options.host });
 
-      // Handle list operations
-      if (options.keysList) shellExec(`cat ${userHome}/.ssh/authorized_keys`);
-      if (options.hostsList) shellExec(`cat ${userHome}/.ssh/known_hosts`);
+      if (options.keysList) shellExec(`cat ${sshDirFactory()}/authorized_keys`);
+      if (options.hostsList) shellExec(`cat ${sshDirFactory()}/known_hosts`);
 
-      // Handle key test
-      if (options.keyTest) {
-        const keyPath = `${userHome}/.ssh/id_rsa`;
-        shellExec(`ssh-keygen -y -f ${keyPath} -P "${options.password}"`);
-      }
+      if (options.keyTest) shellExec(`ssh-keygen -y -f ${keyPath} -P "${options.password}"`);
 
-      // Handle stop server
       if (options.stop) shellExec('service sshd stop');
 
-      // Handle start server
       if (options.start) {
-        if (!options.deployId) {
+        if (!confUser) {
           Underpost.ssh.initializeDefaultSshConfig({
-            userHome,
             user: options.user,
             password: options.password,
             host: options.host,
             port: options.port,
-            disablePassword: options.disablePassword,
           });
         } else {
           // Hardening sshd on a host where the account does not exist produces a
@@ -587,32 +661,29 @@ class UnderpostSSH {
           if (!Underpost.ssh.checkUserExists(options.user))
             throw new Error(
               `[ssh] user '${options.user}' does not exist on this host; ` +
-                `run: node bin ssh --deploy-id ${options.deployId} --user ${options.user} --user-add`,
+                `run: node bin ssh --user ${options.user} --user-add`,
             );
-          Underpost.ssh.chmod({ user: options.user });
-          // The registry records the key pair this deploy authenticates with, so
+          // The registry records the key pair this cluster authenticates with, so
           // a box whose authorized_keys was lost converges here rather than
           // needing the key re-issued — which would invalidate every other host
           // holding it.
-          const recordedPubKey = confNode?.users?.[options.user]?.publicKeyCopyPath;
-          if (recordedPubKey && fs.existsSync(recordedPubKey)) {
-            const sshDir = `${userHome}/.ssh`;
+          if (fs.existsSync(pubKeyPath)) {
+            const sshDir = sshDirFactory();
             Underpost.ssh.ensureSSHDirectory(sshDir);
             fs.ensureFileSync(`${sshDir}/authorized_keys`);
-            Underpost.ssh.configureAuthorizedKeys(sshDir, recordedPubKey, options.disablePassword);
-            Underpost.ssh.chmod({ user: options.user });
-            logger.info(`Authorized key present for ${options.user}`, { source: recordedPubKey });
-          } else if (recordedPubKey) {
-            logger.warn('Recorded public key is missing; authorized_keys left untouched', {
+            Underpost.ssh.configureAuthorizedKeys(sshDir, pubKeyPath, !options.password);
+            logger.info(`Authorized key present for ${options.user}`, { source: pubKeyPath });
+          } else {
+            logger.warn('Registered public key is missing; authorized_keys left untouched', {
               user: options.user,
-              expected: recordedPubKey,
+              expected: pubKeyPath,
             });
           }
+          Underpost.ssh.chmod({ user: options.user });
         }
         Underpost.ssh.initService({ port: options.port });
       }
 
-      // Handle status server
       if (options.status) shellExec('service sshd status');
     },
 
@@ -683,27 +754,37 @@ class UnderpostSSH {
      * @function sshRemoteRunner
      * @param {string} remoteCommand - The command to execute on the remote server
      * @param {Object} options - Configuration options for SSH execution
-     * @param {string} [options.deployId] - Deployment ID for credential lookup
-     * @param {string} [options.user] - SSH user for credential lookup
+     * @param {string} [options.user] - SSH user for cluster credential lookup
+     * @param {string} [options.host] - Host to reach; selects the connection when the user has several
      * @param {boolean} [options.dev=false] - Development mode flag
      * @param {string} [options.cd='/home/dd/engine'] - Working directory on remote server
      * @param {boolean} [options.useSudo=true] - Whether to use sudo for command execution
-     * @param {boolean} [options.remote=true] - Whether to execute as remote command (if false, runs locally)
+     * @param {boolean} [options.remote=true] - Whether to execute as remote command (if false, runs locally in `cd`)
+     * @param {boolean} [options.silent=false] - Suppress the command's output; it is still returned to the caller
      * @returns {Promise<string>} Output from the shell execution
      * @memberof UnderpostSSH
      */
     sshRemoteRunner: async (remoteCommand, options = {}) => {
-      const { deployId = '', user = '', dev = false, cd = '/home/dd/engine', useSudo = true, remote = true } = options;
+      const {
+        user = '',
+        host = '',
+        dev = false,
+        cd = '/home/dd/engine',
+        useSudo = true,
+        remote = true,
+        silent = false,
+      } = options;
 
-      // If not executing remotely, just run locally
-      if (!remote) {
-        return shellExec(remoteCommand);
-      }
+      // Local execution still honours `cd`: the underpost CLI resolves its deploy
+      // configuration relative to the working directory, so running it from
+      // wherever the caller happened to start would act on a different cluster's
+      // config, or none.
+      // The generated wrapper is transport, not information: echoing it buries
+      // whatever the command actually said under a page of boilerplate.
+      if (!remote) return shellExec(remoteCommand, { ...(cd ? { cwd: cd } : {}), silent, disableLog: true });
 
-      // Set up SSH credentials from config
-      if (deployId && user) {
-        await Underpost.ssh.setDefautlSshCredentials({ deployId, user });
-      }
+      // Set up SSH credentials from the cluster config
+      if (user) await Underpost.ssh.setDefautlSshCredentials({ user, host });
 
       // Build the complete SSH command
       const sshScript = `#!/usr/bin/env bash
@@ -716,13 +797,13 @@ SSH_KEY=$(node bin config get --plain DEFAULT_SSH_KEY_PATH)
 
 chmod 600 "$SSH_KEY"
 
-ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
+ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
 ${cd ? `cd ${cd}` : ''}
 ${useSudo ? `sudo -n -- /bin/bash -lc "${remoteCommand}"` : remoteCommand}
 EOF
 `;
 
-      return shellExec(sshScript, { stdout: true });
+      return shellExec(sshScript, { stdout: true, silent, disableLog: true });
     },
 
     /**
@@ -898,25 +979,73 @@ EOF
     },
 
     /**
-     * Loads saved SSH credentials from config and sets them in the UnderpostRootEnv API.
+     * Loads a user's SSH credentials for one host and sets them in the
+     * UnderpostRootEnv API.
+     *
+     * `host` is what selects the connection: an account registered for several
+     * hosts has several, and picking one without being told would send a repair
+     * to the wrong machine. Omitting it is only unambiguous for an account with
+     * exactly one registered host.
+     *
+     * A named host is resolved against the registry and nowhere else. The root
+     * env store is ambient — whatever the previous command left there — so
+     * substituting it for a host the registry does not know would silently point
+     * an operation at a different machine, which for remediation means repairing
+     * one host because another was unreachable. Its `DEFAULT_SSH_*` values are
+     * promoted only when no host was named, for a controller that dispatches
+     * work but was never itself provisioned by `--user-add`.
      * @async
      * @function setDefautlSshCredentials
      * @memberof UnderpostSSH
      * @param {Object} options - Options for setting default SSH credentials
-     * @param {string} options.deployId - Deployment ID for the config path
-     * @param {string} options.user - SSH user name
+     * @param {string} options.user - SSH user name registered at cluster scope
+     * @param {string} [options.host] - Host to connect to; required when the account has several
      * @returns {Promise<void>}
+     * @throws {Error} When a named host has no connection registered for that account.
      */
-    setDefautlSshCredentials: async (options = { deployId: '', user: '' }) => {
-      const confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
-      if (fs.existsSync(confNodePath)) {
-        const { users } = JSON.parse(fs.readFileSync(confNodePath, 'utf8'));
-        const { user, host, keyPath, port } = users[options.user];
-        Underpost.env.set('DEFAULT_SSH_USER', user);
-        Underpost.env.set('DEFAULT_SSH_HOST', host);
-        Underpost.env.set('DEFAULT_SSH_KEY_PATH', keyPath);
-        Underpost.env.set('DEFAULT_SSH_PORT', port);
-      } else logger.warn(`No SSH config found at ${confNodePath}`);
+    setDefautlSshCredentials: async (options = { user: '', host: '' }) => {
+      const hosts = Underpost.ssh.userHosts(options.user);
+      if (!options.host && hosts.length > 1)
+        throw new Error(
+          `[ssh] user '${options.user}' is registered for several hosts ` +
+            `(${hosts.map((entry) => entry.host).join(', ')}); the caller must name one`,
+        );
+
+      const registered = Underpost.ssh.resolveConnection({
+        user: options.user,
+        host: options.host || hosts[0]?.host,
+      });
+
+      if (!registered && options.host)
+        throw new Error(
+          `[ssh] no connection is registered for '${options.user}@${options.host}' in ${USERS_CONF_PATH}; ` +
+            `run: node bin ssh --user ${options.user} --host ${options.host} --user-add`,
+        );
+
+      const connection =
+        registered ||
+        (process.env.DEFAULT_SSH_USER && process.env.DEFAULT_SSH_HOST && process.env.DEFAULT_SSH_KEY_PATH
+          ? {
+              user: process.env.DEFAULT_SSH_USER,
+              host: process.env.DEFAULT_SSH_HOST,
+              keyPath: process.env.DEFAULT_SSH_KEY_PATH,
+              port: process.env.DEFAULT_SSH_PORT || DEFAULT_SSH_PORT,
+            }
+          : undefined);
+
+      if (!connection) {
+        logger.warn(`No SSH credentials for '${options.user}'`, {
+          host: options.host || '(unspecified)',
+          registry: USERS_CONF_PATH,
+        });
+        return;
+      }
+      if (!registered) logger.warn(`Using the deploy environment DEFAULT_SSH_* values`, { requested: options.user });
+
+      Underpost.env.set('DEFAULT_SSH_USER', connection.user);
+      Underpost.env.set('DEFAULT_SSH_HOST', connection.host);
+      Underpost.env.set('DEFAULT_SSH_KEY_PATH', connection.keyPath);
+      Underpost.env.set('DEFAULT_SSH_PORT', connection.port);
     },
 
     /**
@@ -1072,5 +1201,7 @@ Subsystem sftp /usr/libexec/openssh/sftp-server
     },
   };
 }
+
+export { connectionFactory, hostNameFactory, upsertConnection, userRecordFactory };
 
 export default UnderpostSSH;
