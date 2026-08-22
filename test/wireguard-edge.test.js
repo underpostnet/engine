@@ -3,6 +3,7 @@
 import { expect } from 'chai';
 import http from 'node:http';
 import net from 'node:net';
+import Underpost from '../src/index.js';
 import {
   FORWARD_PROXY,
   fetchViaForwardProxy,
@@ -20,29 +21,41 @@ import {
   forwardProxyTunnelTargetFactory,
   forwardProxyUnitFactory,
 } from '../src/server/forward-proxy.js';
+import { ShellExecError, redactCredentials } from '../src/server/process.js';
+import { probeGroupsFactory, prometheusConfFactory } from '../src/server/monitoring.js';
+import fs from 'node:fs';
+import { Dns } from '../src/server/dns.js';
 import { homeDirectoryPathFactory } from '../src/server/systemd.js';
-import {
+import UnderpostWireguard, {
+  ENGINE_SYNC_STEPS,
   UNDERPOST_EDGE,
+  localPeerFactory,
   allowedIpsConflictsFactory,
+  assertEdgeIdentity,
   backendNameFactory,
   defaultPeerFactory,
   deployListFactory,
+  edgeContextFactory,
   edgeRouteTableFactory,
-  edgeStateFactory,
+  endpointHostFactory,
   firewallCommandsFactory,
   haproxyConfFactory,
   haproxyMapsFactory,
   hostProxyEntriesFactory,
+  hubFactory,
   instanceProxyEntriesFactory,
   mergeRouteTablesFactory,
+  nodeIdentityFactory,
+  nodeNameCandidatesFactory,
   peerFactory,
   quicForwardCommandsFactory,
   redirectHostFactory,
-  unregisteredPeersFactory,
+  topologyFactory,
   tunnelAddressFactory,
   tunnelNetworkCidrFactory,
+  unregisteredPeersFactory,
   wireguardClientConfFactory,
-  wireguardClientSettingsFactory,
+  wireguardHealthFactory,
   wireguardServerConfFactory,
   wireguardStatusFactory,
 } from '../src/cli/wireguard.js';
@@ -290,7 +303,7 @@ describe('edge hub routing', () => {
   });
 
   describe('deployListFactory', () => {
-    it('expands the dd meta id through dd.router', () => {
+    it('expands the dd meta id through dd.routes', () => {
       const list = deployListFactory('dd');
       expect(list.length).to.be.above(0);
       for (const id of list) expect(id.startsWith('dd-')).to.equal(true);
@@ -536,15 +549,6 @@ describe('edge hub routing', () => {
       );
       expect(client).to.include('PostDown = iptables -D FORWARD -o %i -d 10.0.0.0/24 -j ACCEPT');
     });
-
-    it('recovers repeatable client settings from an installed config without reading a private key', () => {
-      expect(wireguardClientSettingsFactory(client)).to.deep.equal({
-        address: '10.0.0.2/32',
-        hubPublicKey: 'HUB=',
-        endpoint: 'vps.example.com:51820',
-        cidr: '10.0.0.0/24',
-      });
-    });
   });
 
   describe('quicForwardCommandsFactory', () => {
@@ -583,41 +587,41 @@ describe('edge hub routing', () => {
 
   describe('firewallCommandsFactory', () => {
     it('opens both transports and the tunnel port on the hub', () => {
-      const commands = firewallCommandsFactory({ role: 'server' }).join('\n');
+      const commands = firewallCommandsFactory({ role: 'hub' }).join('\n');
       for (const port of ['80/tcp', '443/tcp', '443/udp', '51820/udp']) expect(commands).to.include(port);
     });
 
     // A spoke dials out; it publishes nothing. What it does need is for the
     // tunnel interface to sit in a zone that permits the forwarded traffic.
     it('opens nothing on a spoke beyond trusting the tunnel interface', () => {
-      const commands = firewallCommandsFactory({ role: 'client' }).join('\n');
+      const commands = firewallCommandsFactory({ role: 'control' }).join('\n');
       expect(commands).to.include('--zone=trusted --add-interface=wg0');
       expect(commands).to.not.include('--add-port');
     });
 
     it('is a no-op where firewalld is not running', () => {
-      for (const command of firewallCommandsFactory({ role: 'server' }))
+      for (const command of firewallCommandsFactory({ role: 'hub' }))
         expect(command).to.include('systemctl is-active --quiet firewalld');
     });
 
     // A reset that leaves the ports open has not returned the host to zero, and
     // the only way the two directions cannot drift is sharing one rule list.
     it('withdraws exactly the rules it opens, for either role', () => {
-      const opened = firewallCommandsFactory({ role: 'server', listenPort: 51821 });
-      const withdrawn = firewallCommandsFactory({ role: 'server', listenPort: 51821, remove: true });
+      const opened = firewallCommandsFactory({ role: 'hub', listenPort: 51821 });
+      const withdrawn = firewallCommandsFactory({ role: 'hub', listenPort: 51821, remove: true });
       expect(withdrawn).to.have.lengthOf(opened.length);
       expect(withdrawn.join('\n')).to.equal(opened.join('\n').replace(/--add-/g, '--remove-'));
-      expect(firewallCommandsFactory({ role: 'client', remove: true }).join('\n')).to.include(
+      expect(firewallCommandsFactory({ role: 'worker', remove: true }).join('\n')).to.include(
         '--zone=trusted --remove-interface=wg0',
       );
     });
   });
 
   describe('wireguardStatusFactory', () => {
-    // One row per spoke carries both halves of its state: what the registry
+    // One row per spoke carries both halves of its state: what topology
     // binds to it, and what the live interface reports — so there is no second
     // command to list peers.
-    it('folds link state onto the registry bindings', () => {
+    it('folds link state onto topology bindings', () => {
       const rows = wireguardStatusFactory({
         peers: PEERS,
         latestHandshakes: 'AAA=\t1000\nBBB=\t0',
@@ -629,6 +633,7 @@ describe('edge hub routing', () => {
         {
           id: 'homelab-a',
           address: '10.0.0.2',
+          managementHost: '',
           publicKey: 'AAA=',
           allowedIPs: ['10.0.0.2/32', '192.168.10.0/24'],
           hosts: ['www.dogmadual.com'],
@@ -643,6 +648,7 @@ describe('edge hub routing', () => {
         {
           id: 'homelab-b',
           address: '10.0.0.3',
+          managementHost: '',
           publicKey: 'BBB=',
           allowedIPs: ['10.0.0.3/32'],
           hosts: ['www.nexodev.org'],
@@ -667,8 +673,8 @@ describe('edge hub routing', () => {
     });
   });
 
-  describe('registry normalization', () => {
-    it('fills the defaults a hand-written registry may omit', () => {
+  describe('topology normalization', () => {
+    it('fills the defaults hand-written topology may omit', () => {
       const peer = peerFactory({ id: 'homelab-a', address: '10.0.0.2' });
       expect(peer.allowedIPs).to.deep.equal(['10.0.0.2/32']);
       expect(peer.hosts).to.deep.equal([]);
@@ -676,13 +682,14 @@ describe('edge hub routing', () => {
       expect(peer.default).to.equal(false);
     });
 
-    // The three routing bindings are the whole registry surface; anything else
+    // The three routing bindings are the whole topology surface; anything else
     // a hand-edited file carries is not a binding the edge honours.
     it('keeps only the three routing bindings on a peer', () => {
       const peer = peerFactory({ id: 'a', address: '10.0.0.2', clients: ['legacy'], keepalive: 15 });
       expect(Object.keys(peer)).to.deep.equal([
         'id',
         'address',
+        'managementHost',
         'publicKey',
         'allowedIPs',
         'hosts',
@@ -697,26 +704,101 @@ describe('edge hub routing', () => {
       ]);
     });
 
-    it('drops registry entries with no id', () => {
-      const state = edgeStateFactory({ peers: [{ address: '10.0.0.2' }, { id: 'ok', address: '10.0.0.3' }] });
-      expect(state.peers.map((peer) => peer.id)).to.deep.equal(['ok']);
+    it('drops topology peers with no id', () => {
+      const hub = hubFactory({ peers: [{ address: '10.0.0.2' }, { id: 'ok', address: '10.0.0.3' }] });
+      expect(hub.peers.map((peer) => peer.id)).to.deep.equal(['ok']);
     });
 
-    // A spoke rebuilds its interface from `endpoint` + `hubPublicKey`. Without
-    // the second one recorded, re-running the setup — and every --wireguard-
-    // reinstall, which ends in one — fails on a flag the operator already gave.
-    it('records the hub identity a spoke dials, so its setup is repeatable', () => {
-      const state = edgeStateFactory({ role: 'client', endpoint: 'vps.example.com:51820', hubPublicKey: 'HUB=' });
-      expect(state.endpoint).to.equal('vps.example.com:51820');
-      expect(state.hubPublicKey).to.equal('HUB=');
-      expect(edgeStateFactory().hubPublicKey).to.equal('');
+    it('keeps machine identity fields out of deployment topology', () => {
+      const topology = topologyFactory({
+        '64.176.25.136': {
+          role: 'hub',
+          nodeName: 'vultr',
+          peerId: 'wrong',
+          peers: [],
+        },
+      });
+      expect(topology['64.176.25.136']).to.not.have.keys('role', 'nodeName', 'peerId');
     });
 
-    it('falls back to the subsystem defaults for an empty registry', () => {
-      const state = edgeStateFactory();
-      expect(state.interfaceName).to.equal(UNDERPOST_EDGE.interfaceName);
-      expect(state.listenPort).to.equal(UNDERPOST_EDGE.listenPort);
-      expect(state.peers).to.deep.equal([]);
+    it('derives a node runtime context without storing host identity in topology', () => {
+      const context = edgeContextFactory({
+        topology: {
+          '64.176.25.136': {
+            publicKey: 'HUB=',
+            peers: [{ id: 'homelab-a', address: '10.0.0.2', publicKey: 'SPOKE=' }],
+          },
+        },
+        identity: { nodeName: 'localhost.localdomain', role: 'control', hubHost: '64.176.25.136', peerId: 'homelab-a' },
+      });
+      expect(context.role).to.equal('control');
+      expect(context.peerId).to.equal('homelab-a');
+      expect(context.endpoint).to.equal('64.176.25.136:51820');
+      expect(context.hubPublicKey).to.equal('HUB=');
+    });
+
+    it('keeps management routing separate from tunnel routing', () => {
+      const peer = peerFactory({
+        id: 'worker-a',
+        address: '10.0.0.3',
+        managementHost: '192.168.1.191',
+      });
+      expect(peer.managementHost).to.equal('192.168.1.191');
+      expect(peer.allowedIPs).to.deep.equal(['10.0.0.3/32']);
+    });
+
+    it('extracts the public host from IPv4, DNS, and IPv6 endpoints', () => {
+      expect(endpointHostFactory('64.176.25.136:51820')).to.equal('64.176.25.136');
+      expect(endpointHostFactory('edge.example.com:51820')).to.equal('edge.example.com');
+      expect(endpointHostFactory('[2001:db8::1]:51820')).to.equal('2001:db8::1');
+    });
+
+    it('requires a fresh hub handshake off the hub', () => {
+      const context = {
+        role: 'control',
+        peerId: 'homelab-a',
+        address: '10.0.0.2',
+        hubPublicKey: 'HUB=',
+      };
+      expect(
+        wireguardHealthFactory({ context, active: 'active', latestHandshakes: 'HUB=\t1000', now: 1030 }).ok,
+      ).to.equal(true);
+      expect(
+        wireguardHealthFactory({ context, active: 'active', latestHandshakes: 'HUB=\t1000', now: 1200 }).ok,
+      ).to.equal(false);
+    });
+
+    it('requires the default routing peer to reconnect on the hub', () => {
+      const context = {
+        role: 'hub',
+        peers: [
+          { id: 'homelab-a', address: '10.0.0.2', publicKey: 'DEFAULT=', default: true },
+          { id: 'worker-a', address: '10.0.0.3', publicKey: 'WORKER=' },
+        ],
+      };
+      const disconnected = wireguardHealthFactory({ context, active: 'active', latestHandshakes: '', now: 1030 });
+      expect(disconnected).to.include({ ok: false, peerId: 'homelab-a', handshakeAgeSeconds: null });
+      const connected = wireguardHealthFactory({
+        context,
+        active: 'active',
+        latestHandshakes: 'DEFAULT=\t1000',
+        now: 1030,
+      });
+      expect(connected).to.include({ ok: true, peerId: 'homelab-a', handshakeAgeSeconds: 30 });
+    });
+
+    it('refuses remediation on a different role or peer identity', () => {
+      const state = { role: 'control', peerId: 'homelab-a' };
+      expect(() => assertEdgeIdentity(state, { expectedRole: 'hub' })).to.throw("expected role 'hub'");
+      expect(() => assertEdgeIdentity(state, { expectedRole: 'control', expectedId: 'worker-a' })).to.throw(
+        "expected peer 'worker-a'",
+      );
+      expect(assertEdgeIdentity(state, { expectedRole: 'control', expectedId: 'homelab-a' })).to.deep.equal(state);
+    });
+
+    it('normalizes only supported node roles', () => {
+      expect(nodeIdentityFactory({ role: 'control' }).role).to.equal('control');
+      expect(nodeIdentityFactory({ role: 'invalid' }).role).to.equal('');
     });
   });
 });
@@ -844,16 +926,16 @@ describe('edge hub forward proxy', () => {
     // The listener binds the tunnel address alone, and the rule narrows the port
     // to the tunnel CIDR on top of that — the port is reachable from nowhere else.
     it('admits the proxy port from the tunnel only, on the hub only', () => {
-      const hub = firewallCommandsFactory({ role: 'server' }).join('\n');
+      const hub = firewallCommandsFactory({ role: 'hub' }).join('\n');
       expect(hub).to.include(
         `--add-rich-rule="rule family=ipv4 source address=${UNDERPOST_EDGE.tunnelCidr} port port=${FORWARD_PROXY.port} protocol=tcp accept"`,
       );
       expect(hub).to.not.include(`--add-port=${FORWARD_PROXY.port}`);
-      expect(firewallCommandsFactory({ role: 'client' }).join('\n')).to.not.include('rich-rule');
+      expect(firewallCommandsFactory({ role: 'control' }).join('\n')).to.not.include('rich-rule');
     });
 
     it('admits a custom recorded tunnel subnet instead of the default', () => {
-      expect(firewallCommandsFactory({ role: 'server', tunnelCidr: '10.23.0.0/24' }).join('\n')).to.include(
+      expect(firewallCommandsFactory({ role: 'hub', tunnelCidr: '10.23.0.0/24' }).join('\n')).to.include(
         `source address=10.23.0.0/24 port port=${FORWARD_PROXY.port} protocol=tcp accept`,
       );
       expect(tunnelNetworkCidrFactory('10.23.7.9/20')).to.equal('10.23.0.0/20');
@@ -1131,9 +1213,9 @@ describe('edge hub forward proxy', () => {
     const SPOKE = [peerFactory({ id: 'homelab-a', address: '10.0.0.2', publicKey: 'AAA=', default: true })];
 
     it('is closed by default, so no edge exposes SSH it was not told to', () => {
-      expect(edgeStateFactory({}).sshForwardPort).to.equal(0);
-      expect(edgeStateFactory({ sshForwardPort: 'nonsense' }).sshForwardPort).to.equal(0);
-      expect(edgeStateFactory({ sshForwardPort: 2222 }).sshForwardPort).to.equal(2222);
+      expect(hubFactory({}).sshForwardPort).to.equal(0);
+      expect(hubFactory({ sshForwardPort: 'nonsense' }).sshForwardPort).to.equal(0);
+      expect(hubFactory({ sshForwardPort: 2222 }).sshForwardPort).to.equal(2222);
       expect(haproxyConfFactory({ peers: SPOKE, defaultPeerId: 'homelab-a' })).to.not.include('fe_ssh');
     });
 
@@ -1166,23 +1248,23 @@ describe('edge hub forward proxy', () => {
     });
 
     it('opens the port publicly, and withdraws it on teardown', () => {
-      const opened = firewallCommandsFactory({ role: 'server', sshForwardPort: 2222 }).join('\n');
+      const opened = firewallCommandsFactory({ role: 'hub', sshForwardPort: 2222 }).join('\n');
       expect(opened).to.include('--add-port=2222/tcp');
-      const closed = firewallCommandsFactory({ role: 'server', sshForwardPort: 2222, remove: true }).join('\n');
+      const closed = firewallCommandsFactory({ role: 'hub', sshForwardPort: 2222, remove: true }).join('\n');
       expect(closed).to.include('--remove-port=2222/tcp');
     });
 
     it('opens no SSH port when none is configured, and never on a spoke', () => {
-      expect(firewallCommandsFactory({ role: 'server' }).join('\n')).to.not.include('2222');
-      expect(firewallCommandsFactory({ role: 'client', sshForwardPort: 2222 }).join('\n')).to.not.include('2222');
+      expect(firewallCommandsFactory({ role: 'hub' }).join('\n')).to.not.include('2222');
+      expect(firewallCommandsFactory({ role: 'worker', sshForwardPort: 2222 }).join('\n')).to.not.include('2222');
     });
   });
 
-  // A spoke is identified by the key it presents, not by the name the registry
+  // A spoke is identified by the key it presents, not by the name topology
   // gives it. Reporting the name without the key is what turns "the hub has the
   // wrong key for this machine" into an unanswerable question.
   describe('peer identity in --status', () => {
-    it('reports the public key alongside the registry name', () => {
+    it('reports the public key alongside the topology name', () => {
       const [row] = wireguardStatusFactory({
         peers: [{ id: 'homelab-a', address: '10.0.0.2', publicKey: 'w1M+9VHZ=' }],
         latestHandshakes: 'w1M+9VHZ=\t1000',
@@ -1193,18 +1275,18 @@ describe('edge hub forward proxy', () => {
     });
 
     it('carries the key through the off-box view too', () => {
-      const state = edgeStateFactory({ peers: [{ id: 'a', address: '10.0.0.2', publicKey: 'KEY=' }] });
-      expect(state.peers[0].publicKey).to.equal('KEY=');
+      const hub = hubFactory({ peers: [{ id: 'a', address: '10.0.0.2', publicKey: 'KEY=' }] });
+      expect(hub.peers[0].publicKey).to.equal('KEY=');
     });
   });
 
   // `wg set` adds a peer and never removes the one it supersedes, so a corrected
   // --peer-add leaves the previous identity on the wire holding its old
-  // handshake — invisible to every view that is keyed by the registry.
+  // handshake — invisible to every view that is keyed by topology.
   describe('unregisteredPeersFactory', () => {
     const PEER = { id: 'homelab-a', address: '10.0.0.2', publicKey: 'CURRENT=' };
 
-    it('reports an identity on the wire that the registry does not name', () => {
+    it('reports an identity on the wire that topology does not name', () => {
       expect(
         unregisteredPeersFactory({
           peers: [PEER],
@@ -1219,11 +1301,219 @@ describe('edge hub forward proxy', () => {
       expect(row).to.deep.equal({ publicKey: 'GHOST=', handshakeAgeSeconds: null });
     });
 
-    it('is quiet when the wire matches the registry', () => {
+    it('is quiet when the wire matches topology', () => {
       expect(unregisteredPeersFactory({ peers: [PEER], latestHandshakes: 'CURRENT=\t900', now: 1000 })).to.deep.equal(
         [],
       );
       expect(unregisteredPeersFactory({ peers: [PEER], latestHandshakes: '' })).to.deep.equal([]);
     });
+  });
+});
+
+describe('node document resolution', () => {
+  it('prefers the full hostname, then its short name', () => {
+    expect(nodeNameCandidatesFactory('vultr.guest')).to.deep.equal(['vultr.guest', 'vultr']);
+    expect(nodeNameCandidatesFactory('localhost.localdomain')).to.deep.equal(['localhost.localdomain', 'localhost']);
+  });
+
+  it('offers one candidate when the hostname carries no domain', () => {
+    expect(nodeNameCandidatesFactory('vultr')).to.deep.equal(['vultr']);
+  });
+
+  it('rejects a hostname a node document could not be named after', () => {
+    expect(() => nodeNameCandidatesFactory('bad/name')).to.throw('node names may contain only');
+  });
+});
+
+describe('engine sync', () => {
+  const account = process.env.GITHUB_USERNAME;
+  let getDefaultBranch;
+
+  beforeEach(() => {
+    getDefaultBranch = Underpost.repo.getDefaultBranch;
+    Underpost.repo.getDefaultBranch = (repo) => (repo.endsWith('/engine') ? 'master' : 'main');
+  });
+  afterEach(() => {
+    Underpost.repo.getDefaultBranch = getDefaultBranch;
+    if (account === undefined) delete process.env.GITHUB_USERNAME;
+    else process.env.GITHUB_USERNAME = account;
+  });
+
+  it('accepts a slug or a clone URL for the same repository', () => {
+    for (const reference of [
+      'underpostnet/engine',
+      'https://github.com/underpostnet/engine',
+      'https://github.com/underpostnet/engine.git',
+      'git@github.com:underpostnet/engine.git',
+    ])
+      expect(Underpost.repo.repoSlugFactory(reference), reference).to.equal('underpostnet/engine');
+  });
+
+  it('refuses a reference that names no owner', () => {
+    expect(() => Underpost.repo.repoSlugFactory('engine')).to.throw('is not an owner/repo reference');
+  });
+
+  it('binds every repository placeholder to the configured account', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
+    expect(commands).to.have.lengthOf(ENGINE_SYNC_STEPS.length);
+    expect(commands.join('\n')).to.not.match(/<[a-z-]+>/);
+    expect(commands).to.include('underpost cmt --switch-repo someone/engine --target-branch master');
+    expect(commands).to.include('underpost pull ./engine-private someone/engine-private');
+  });
+
+  it('pulls the named engine while the private repository follows the account', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const commands = UnderpostWireguard.API.syncCommands({
+      repoEngine: 'https://github.com/underpostnet/engine.git',
+    }).map((step) => step.command);
+    expect(commands).to.include('underpost cmt --switch-repo underpostnet/engine --target-branch master');
+    expect(commands).to.include('underpost pull ./engine-private someone/engine-private');
+  });
+
+  it('names the branch the node must fetch instead of letting it guess', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    Underpost.repo.getDefaultBranch = () => 'trunk';
+    expect(UnderpostWireguard.API.syncCommands().map((step) => step.command)).to.include(
+      'underpost cmt --switch-repo someone/engine --target-branch trunk',
+    );
+  });
+
+  it('reaches a node once, chaining every declared step in order', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const script = UnderpostWireguard.API.syncScript();
+    const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
+    expect(script.split(' && ')).to.have.lengthOf(commands.length * 2);
+    expect(script).to.not.include(';\n');
+    let cursor = -1;
+    for (const command of commands) {
+      const at = script.indexOf(`echo '[sync] ${command}'`);
+      expect(at, command).to.be.greaterThan(cursor);
+      cursor = at;
+    }
+  });
+
+  it('neutralizes advisory steps in place and chains the rest', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const script = UnderpostWireguard.API.syncScript();
+    for (const step of UnderpostWireguard.API.syncCommands())
+      expect(script, step.command).to.include(step.halt ? `' && ${step.command}` : `' && { ${step.command} || true; }`);
+  });
+});
+
+describe('peer locality', () => {
+  const addresses = new Set(['192.168.1.85', '10.0.0.2']);
+
+  it('is this machine only when the peer management address is one of its own', () => {
+    expect(localPeerFactory('192.168.1.85', addresses)).to.equal(true);
+    expect(localPeerFactory(' 192.168.1.85 ', addresses)).to.equal(true);
+  });
+
+  it('is remote for a peer that lives on another host sharing this hostname', () => {
+    expect(localPeerFactory('192.168.1.191', addresses)).to.equal(false);
+  });
+
+  it('fails towards SSH when the peer has no verifiable management address', () => {
+    expect(localPeerFactory('', addresses)).to.equal(false);
+    expect(localPeerFactory('control-plane.lan', addresses)).to.equal(false);
+  });
+});
+
+describe('command credential redaction', () => {
+  it('masks a token embedded in a clone URL', () => {
+    expect(redactCredentials('git fetch --force "https://x-access-token:ghp_secret@github.com/o/r" main')).to.equal(
+      'git fetch --force "https://***@github.com/o/r" main',
+    );
+  });
+
+  it('leaves a URL that carries no credential alone', () => {
+    expect(redactCredentials('git remote set-url origin "https://github.com/o/r"')).to.equal(
+      'git remote set-url origin "https://github.com/o/r"',
+    );
+  });
+
+  it('keeps the secret out of the error a failed command throws', () => {
+    const error = new ShellExecError('git push https://ghp_secret@github.com/o/r', 128, '', '');
+    expect(error.message).to.not.include('ghp_secret');
+    expect(error.cmd).to.not.include('ghp_secret');
+  });
+});
+
+describe('tunnel firewall zone', () => {
+  const zoneRule = (role, remove = false) =>
+    firewallCommandsFactory({ role, remove }).find((command) => command.includes('-interface=wg0'));
+
+  it('zones the tunnel interface for every role, the hub included', () => {
+    for (const role of ['hub', 'control', 'worker'])
+      expect(zoneRule(role), role).to.include('--zone=trusted --add-interface=wg0');
+  });
+
+  it('withdraws the same interface it added', () => {
+    expect(zoneRule('hub', true)).to.include('--zone=trusted --remove-interface=wg0');
+  });
+
+  it('keeps the hub public ports without losing the zone', () => {
+    const rules = firewallCommandsFactory({ role: 'hub' }).join('\n');
+    expect(rules).to.include('--add-port=51820/udp');
+    expect(rules).to.include('--add-masquerade');
+    expect(rules).to.include('--add-interface=wg0');
+  });
+});
+
+describe('probe scheduling', () => {
+  it('gives each interval its own scrape job so cadences do not merge', () => {
+    const groups = probeGroupsFactory([
+      { eventId: 'a', module: 'icmp', interval: '30s', targets: ['10.0.0.1'], labels: {} },
+      { eventId: 'b', module: 'icmp', interval: '30s', targets: ['10.0.0.3'], labels: {} },
+      { eventId: 'c', module: 'http_2xx', interval: '10m', targets: ['https://x/'], labels: {} },
+    ]);
+    expect(groups.map((group) => `${group.module}@${group.interval}`)).to.deep.equal(['icmp@30s', 'http_2xx@10m']);
+    expect(groups[0].groups).to.have.lengthOf(2);
+  });
+
+  it('renders the declared interval as the job scrape period', () => {
+    const conf = prometheusConfFactory({
+      probes: [{ eventId: 'c', module: 'http_2xx', interval: '10m', targets: ['https://x/'], labels: {} }],
+    });
+    expect(conf).to.include("job_name: 'blackbox-http_2xx'");
+    expect(conf).to.include('scrape_interval: 10m');
+  });
+
+  it('omits the period when an event declares none, leaving the global default', () => {
+    const conf = prometheusConfFactory({
+      probes: [{ eventId: 'c', module: 'icmp', interval: '', targets: ['10.0.0.1'], labels: {} }],
+    });
+    expect(conf).to.not.include('scrape_interval: \n');
+  });
+});
+
+describe('port-scoped ingress blocking', () => {
+  it('keeps only well-formed TCP ports', () => {
+    expect(Dns.portListFactory('80,443')).to.deep.equal([80, 443]);
+    expect(Dns.portListFactory(' 80 , bad , 443 , 99999 , 0 ')).to.deep.equal([80, 443]);
+    expect(Dns.portListFactory('')).to.deep.equal([]);
+  });
+
+  it('exposes the block and withdraw entry points the scenario calls', () => {
+    for (const method of ['blockIngressPort', 'unblockIngressPort', 'portListFactory'])
+      expect(Dns[method], method).to.be.a('function');
+  });
+
+  it('creates the chain its rules live in before touching it', () => {
+    // `inet filter` exists on a firewalld host with no `input` chain, so every
+    // ingress command fails on a table that looks present.
+    const source = fs.readFileSync(new URL('../src/server/dns.js', import.meta.url), 'utf8');
+    for (const method of ['blockAllIngress', 'unblockAllIngress', 'blockIngressPort', 'unblockIngressPort']) {
+      const body = source.slice(source.indexOf(`static ${method}(`));
+      expect(body.slice(0, body.indexOf('\n  }')), method).to.include('Dns.ensureIngressChain()');
+    }
+    expect(Dns.ensureIngressChain).to.be.a('function');
+  });
+
+  it('calls the helper on the class that declares it', () => {
+    // The class is `Dns`; `UnderpostDns` is the CLI wrapper and carries no such
+    // static, so naming it here fails only once the command runs on a host.
+    const source = fs.readFileSync(new URL('../src/server/dns.js', import.meta.url), 'utf8');
+    expect(source).to.not.include('UnderpostDns.portListFactory');
   });
 });
