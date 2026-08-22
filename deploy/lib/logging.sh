@@ -30,7 +30,7 @@ run_quiet() {
     local stderr_pid
     local status=0
     
-    echo "$(date -Is) $RUN_QUIET_NODE_TAG ▶ $label"
+    echo "$RUN_QUIET_NODE_TAG $(date -Is) ▶ $label"
     
     debug_log=$(mktemp --suffix=.debug.log)
     error_log=$(mktemp --suffix=.error.log)

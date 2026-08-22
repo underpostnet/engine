@@ -6,6 +6,7 @@
 
 import { getNpmRootPath, writeEnv } from '../server/environment.js';
 import fs from 'fs-extra';
+import { resolveDeployList } from '../server/router.js';
 import { loggerFactory } from '../server/logger.js';
 import dotenv from 'dotenv';
 import { pbcopy } from '../server/process.js';
@@ -39,7 +40,7 @@ class UnderpostRootEnv {
      * @param {string} value - The value of the environment variable to set.
      * @param {object} options - Options for setting the environment variable.
      * @param {string} [options.deployId=''] - Deployment ID associated with the environment variable.
-     * @param {boolean} [options.build=false] - If true, sets the environment variable using custom --deploy-id or all dd.router deploy ids configured.
+     * @param {boolean} [options.build=false] - If true, sets the environment variable using custom --deploy-id or all dd.routes deploy ids configured.
      * @memberof UnderpostEnv
      */
     set(key, value, options = { deployId: '', build: false }) {
@@ -51,11 +52,7 @@ class UnderpostRootEnv {
         writeEnv(envPath, env);
       };
       if (options.build) {
-        const deployIdList = options.deployId
-          ? [options.deployId]
-          : fs.existsSync(`./engine-private/deploy/dd.router`)
-            ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')
-            : [DEFAULT_DEPLOY_ID];
+        const deployIdList = options.deployId ? [options.deployId] : resolveDeployList('dd');
         for (const deployId of deployIdList)
           for (const envFile of ['test', 'development', 'production'])
             _set(`./engine-private/conf/${deployId}/.env.${envFile}`, key, value);

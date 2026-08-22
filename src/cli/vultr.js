@@ -294,7 +294,7 @@ const vultrRequest = async ({ apiKey, path, params = {}, proxy = null }) => {
     const code = error?.code || error?.cause?.code;
     const proxyHint =
       proxy?.apiKey && ['EHOSTUNREACH', 'ENETUNREACH', 'ECONNREFUSED', 'ETIMEDOUT'].includes(code)
-        ? '; verify wg0 on the spoke; if only pods fail, re-run --wireguard-setup --client and restart wg0; if the host also fails, re-run --forward-proxy-server on the hub'
+        ? '; verify wg0 on the node; if only pods fail, re-run --wireguard-setup and restart wg0; if the host also fails, re-run --forward-proxy-server on the hub'
         : '';
     throw new Error(
       `[vultr] GET /v2${path} failed${responseStatus ? ` (${responseStatus})` : ''}: ${detail}${proxyHint}`,
@@ -353,7 +353,7 @@ class UnderpostVultr {
      * {@link UnderpostCron} job does, so `underpost cron default vultr` dispatches
      * to it unchanged. The deploy list is not used to select an instance — the
      * edge hub is one machine for the whole cluster, exactly as its WireGuard
-     * peer registry is — but it is logged so a run is attributable.
+     * WireGuard topology is — but it is logged so a run is attributable.
      * @param {string} [deployList] - Comma-separated deploy ids, from the cron dispatcher.
      * @param {object} [options] - CLI flags.
      * @returns {Promise<object>} Result from {@link UnderpostVultr.checkBandwidth}.

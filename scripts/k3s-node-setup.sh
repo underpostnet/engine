@@ -84,7 +84,7 @@ cd "$ENGINE_ROOT"
 
 # Install JS deps and generate secrets using the local engine entrypoint only.
 npm install
-node bin run secret
+node bin secret --from-cron-env
 
 if [ "$ROLE" = "control" ]; then
     echo "Installing underpost CLI..."

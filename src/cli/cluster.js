@@ -35,6 +35,8 @@ const logger = loggerFactory(import.meta);
 const GATEWAY_API_RELEASE = 'v1.5.1';
 const ENVOY_GATEWAY_VERSION = 'v1.8.3';
 const CONTOUR_NAMESPACE = 'projectcontour';
+const LOCAL_PATH_PROVISIONER_MANIFEST =
+  'https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml';
 const KUBEADM_CONTAINER_MOUNT_PATHS = ['/etc/kubernetes', '/var/lib/etcd', '/var/lib/calico'];
 const HOST_VOLUME_PATHS = ['/data', '/opt/local-path-provisioner', HOST_VOLUME_ROOT];
 const K3S_SELINUX_PATHS = [
@@ -112,9 +114,10 @@ class UnderpostCluster {
      * @param {boolean} [options.nodePort=false] - Expose enabled ready services (e.g. MongoDB 4.4, Valkey)
      *   to the host/public network via their NodePort Service manifest. The node port value lives directly
      *   in each manifest (mongodb-4.4/mongodb-nodeport.yaml, valkey/valkey-nodeport.yaml).
-     * @param {string} [options.nodeSelector=''] - Pin the just-deployed StatefulSet (MongoDB 4.4 / Valkey)
-     *   to a specific Kubernetes node by name (e.g. 'localhost.localdomain'). Applied via a
-     *   `kubernetes.io/hostname` nodeSelector patch once the workload reports Ready.
+     * @param {string} [options.nodeName=''] - Pin the just-deployed StatefulSet (MongoDB 4.4 / Valkey)
+     *   and the observability workloads to a specific Kubernetes node by name (e.g.
+     *   'localhost.localdomain'). Applied via a `kubernetes.io/hostname` nodeSelector patch once
+     *   the workload reports Ready.
      * @memberof UnderpostCluster
      */
     async init(
@@ -154,7 +157,7 @@ class UnderpostCluster {
         hosts: '',
         replicas: '',
         nodePort: false,
-        nodeSelector: '',
+        nodeName: '',
       },
     ) {
       if (options.initHost) return Underpost.cluster.initHost();
@@ -293,18 +296,13 @@ class UnderpostCluster {
           // Untaint control plane node to allow scheduling pods
           const nodeName = os.hostname();
           shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
-          // Install local-path-provisioner for dynamic PVCs
-          logger.info('Installing local-path-provisioner...');
-          shellExec(
-            `kubectl apply -f https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml`,
-          );
-
           // The CNI lands asynchronously, and the node stays NotReady until it
           // does. Block here so the deploy steps that follow (MongoDB and the
           // application workloads) schedule onto a node that can actually run
           // them, instead of racing the Calico rollout.
           logger.info('Waiting for the node to become Ready (Calico rollout)...');
           shellExec(`kubectl wait --for=condition=Ready node --all --timeout=300s`);
+          Underpost.cluster.ensureLocalPathProvisioner();
         } else {
           Underpost.cluster.config();
           Underpost.cluster.natSetup({ underpostRoot });
@@ -355,36 +353,19 @@ class UnderpostCluster {
         shellExec(`node ${underpostRoot}/bin/deploy kubeflow-spark-operator${options.kubeadm ? ' kubeadm' : ''}`);
       }
 
-      if (options.grafana) {
-        shellExec(`kubectl delete deployment grafana -n ${options.namespace} --ignore-not-found`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana -n ${options.namespace}`);
-        const yaml = `${fs
-          .readFileSync(`${underpostRoot}/manifests/grafana/deployment.yaml`, 'utf8')
-          .replace('{{GF_SERVER_ROOT_URL}}', options.hosts.split(',')[0])}`;
-        console.log(yaml);
-        shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
-${yaml}
-EOF
-`);
-      }
-
-      if (options.prom) {
-        shellExec(`kubectl delete deployment prometheus --ignore-not-found`);
-        shellExec(`kubectl delete configmap prometheus-config --ignore-not-found`);
-        shellExec(`kubectl delete service prometheus --ignore-not-found`);
-        // Prometheus server host: http://<prometheus-cluster-ip>:9090
-        const yaml = `${fs.readFileSync(`${underpostRoot}/manifests/prometheus/deployment.yaml`, 'utf8').replace(
-          '- targets: []',
-          `- targets: [${options.prom
-            .split(',')
-            .map((host) => `'${host}'`)
-            .join(',')}]`,
-        )}`;
-        console.log(yaml);
-        shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
-${yaml}
-EOF
-`);
+      // Grafana and Prometheus are two faces of one stack, so either flag
+      // converges the whole of it — including Alertmanager and the Blackbox
+      // Exporter, which the alert rules and probes are useless without. The
+      // scrape configuration is rendered from the deploy configuration and the
+      // event registry by the monitor CLI; `--prom [hosts]` only adds hosts
+      // that configuration does not name.
+      if (options.grafana || options.prom) {
+        await Underpost.monitor.deployObservability({
+          namespace: options.namespace,
+          dev: options.dev,
+          nodeName: options.nodeName,
+          hosts: typeof options.prom === 'string' ? options.prom : options.hosts,
+        });
       }
 
       if (options.valkey) {
@@ -396,11 +377,11 @@ EOF
         // The node port (32079) is set directly in the manifest.
         if (valkeyReady && options.nodePort)
           shellExec(`kubectl apply -f ${underpostRoot}/manifests/valkey/valkey-nodeport.yaml -n ${options.namespace}`);
-        if (valkeyReady && options.nodeSelector)
+        if (valkeyReady && options.nodeName)
           Underpost.cluster.pinToNode({
             name: 'valkey-service',
             namespace: options.namespace,
-            node: options.nodeSelector,
+            node: options.nodeName,
           });
         if (valkeyReady && serviceHost)
           Underpost.cluster.syncServiceConnectionEnv({
@@ -486,11 +467,11 @@ EOF
             shellExec(
               `kubectl apply -f ${underpostRoot}/manifests/mongodb-4.4/mongodb-nodeport.yaml -n ${options.namespace}`,
             );
-          if (options.nodeSelector)
+          if (options.nodeName)
             Underpost.cluster.pinToNode({
               name: statefulSetName,
               namespace: options.namespace,
-              node: options.nodeSelector,
+              node: options.nodeName,
             });
           if (serviceHost)
             Underpost.cluster.syncServiceConnectionEnv({
@@ -725,12 +706,40 @@ EOF
     },
 
     /**
+     * @method ensureLocalPathProvisioner
+     * @description Ensures dynamic local-path PVC provisioning is available.
+     * @returns {string} Namespace containing the ready provisioner.
+     * @memberof UnderpostCluster
+     */
+    ensureLocalPathProvisioner() {
+      const locations = ['local-path-storage', 'kube-system'];
+      let namespace = locations.find((candidate) =>
+        `${
+          shellExec(`kubectl get deployment local-path-provisioner -n ${candidate} -o name`, {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+            disableLog: true,
+          }) || ''
+        }`.trim(),
+      );
+
+      if (!namespace) {
+        logger.info('Installing local-path-provisioner');
+        shellExec(`kubectl apply -f ${LOCAL_PATH_PROVISIONER_MANIFEST}`);
+        namespace = 'local-path-storage';
+      }
+      shellExec(`kubectl rollout status deployment/local-path-provisioner -n ${namespace} --timeout=5m`);
+      return namespace;
+    },
+
+    /**
      * @method pinToNode
      * @description Pins a workload to a specific Kubernetes node by patching its
      * pod template with a `kubernetes.io/hostname` nodeSelector. General-purpose;
-     * currently used to place the MongoDB 4.4 / Valkey StatefulSets on a chosen
-     * node (`--node-selector`). The patch triggers a rolling reschedule onto the
-     * target node.
+     * currently used to place the MongoDB 4.4 / Valkey StatefulSets and the
+     * observability Deployments on a chosen node (`--node-name`). The patch
+     * triggers a rolling reschedule onto the target node.
      * @param {object} params
      * @param {string} [params.kind='statefulset'] - Workload kind to patch.
      * @param {string} params.name - Workload name.

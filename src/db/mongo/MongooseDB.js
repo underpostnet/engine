@@ -13,16 +13,13 @@ const logger = loggerFactory(import.meta);
 const MONGODB_SERVICE_NAME = 'mongodb-service';
 const MONGODB_STATEFULSET_NAME = 'mongodb';
 const MONGODB_DEFAULT_AUTH_SOURCE = 'admin';
+const MONGODB_DEFAULT_PORT = 27017;
 const MONGODB_DEFAULT_REPLICA_SET = 'rs0';
 const MONGODB_DEFAULT_REPLICA_COUNT = 3;
-// Node-local base path backing the hostPath PVs (`<root>/v<replica index>`),
-// generated one-per-replica by MongoBootstrap.applyReplicaVolumes().
 const MONGODB_DATA_ROOT = '/data/mongodb';
-// Replica volumes are hostPath PVs generated one per member, each pinned by `claimRef`. The class
-// must stay static: a dynamic provisioner competes with the static binder and makes
-// member-to-directory assignment non-deterministic.
 const MONGODB_STORAGE_CLASS_NAME = 'mongodb-storage-class';
 const MONGODB_STORAGE_CLASS_PROVISIONER = 'kubernetes.io/no-provisioner';
+
 /**
  * Mongoose connection options for MongoDB, with sensible defaults for production and development environments.
  * @type {import('mongoose').ConnectOptions}
@@ -51,12 +48,12 @@ const resolveMongoReplicaHosts = ({ hostList = '', replicaCount = MONGODB_DEFAUL
       .split(',')
       .map((host) => host.trim())
       .filter(Boolean)
-      .map((host) => (host.includes(':') ? host : `${host}:27017`));
+      .map((host) => (host.includes(':') ? host : `${host}:${MONGODB_DEFAULT_PORT}`));
   }
 
   return Array.from(
     { length: replicaCount },
-    (_, index) => `${MONGODB_STATEFULSET_NAME}-${index}.${MONGODB_SERVICE_NAME}:27017`,
+    (_, index) => `${MONGODB_STATEFULSET_NAME}-${index}.${MONGODB_SERVICE_NAME}:${MONGODB_DEFAULT_PORT}`,
   );
 };
 
@@ -208,6 +205,8 @@ export {
   MongooseDB,
   MongooseDBService as MongooseDBClass,
   MONGODB_DATA_ROOT,
+  MONGODB_DEFAULT_AUTH_SOURCE,
+  MONGODB_DEFAULT_PORT,
   MONGODB_DEFAULT_REPLICA_COUNT,
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,

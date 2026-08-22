@@ -18,6 +18,8 @@ import { resolveReplicaCount } from '../../server/conf.js';
 import Underpost from '../../index.js';
 import {
   MONGODB_DATA_ROOT,
+  MONGODB_DEFAULT_AUTH_SOURCE,
+  MONGODB_DEFAULT_PORT,
   MONGODB_DEFAULT_REPLICA_COUNT,
   MONGODB_DEFAULT_REPLICA_SET,
   MONGODB_SERVICE_NAME,
@@ -29,13 +31,9 @@ import {
 
 const logger = loggerFactory(import.meta);
 
-// Probe connection string. `directConnection=true` keeps the driver from discovering
-// the other replica-set members and dialing them by their StatefulSet DNS names — that
-// discovery is what turned a status query into a multi-minute stall when a sibling pod
-// was unreachable. The timeouts bound every remaining wait.
 const MONGODB_PRIMARY_PROBE_URI =
-  'mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=8000' +
-  '&connectTimeoutMS=8000&socketTimeoutMS=15000';
+  `mongodb://127.0.0.1:${MONGODB_DEFAULT_PORT}/${MONGODB_DEFAULT_AUTH_SOURCE}` +
+  `?directConnection=true&serverSelectionTimeoutMS=8000&connectTimeoutMS=8000&socketTimeoutMS=15000`;
 
 const MONGODB_PRIMARY_PROBE_TIMEOUT_SECONDS = 45;
 
@@ -156,7 +154,7 @@ class MongoBootstrap {
     rootUser,
     rootPassword,
   }) {
-    const mePort = '27017';
+    const mePort = MONGODB_DEFAULT_PORT;
     const defaultShortHosts = Array.from(
       { length: replicaCount },
       (_, i) => `${statefulSetName}-${i}.${serviceName}:${mePort}`,
@@ -723,7 +721,7 @@ class MongoBootstrap {
     // Build the bootstrap script
     const defaultHosts = Array.from(
       { length: effectiveReplicaCount },
-      (_, i) => `${MONGODB_STATEFULSET_NAME}-${i}.${MONGODB_SERVICE_NAME}:27017`,
+      (_, i) => `${MONGODB_STATEFULSET_NAME}-${i}.${MONGODB_SERVICE_NAME}:${MONGODB_DEFAULT_PORT}`,
     );
     const desiredHosts = useExplicitHosts ? mongoReplicaHosts : defaultHosts;
 

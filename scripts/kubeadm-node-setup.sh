@@ -249,7 +249,7 @@ fi
 cd "$ENGINE_ROOT"
 
 # Clone + normalize the private secrets repo into $ENGINE_ROOT/engine-private
-# (where `node bin run secret` reads engine-private/conf/.../.env.production),
+# (where `node bin secret --from-cron-env` reads engine-private/conf/.../.env.production),
 # regardless of the private repo's name. The token is masked in logs and then
 # stripped from the saved remote URL.
 if [ -n "$GITHUB_TOKEN" ]; then
@@ -267,7 +267,7 @@ fi
 # Install JS deps and generate secrets using the local engine entrypoint.
 npm install
 npm install -g underpost
-node bin run secret
+node bin secret --from-cron-env
 
 # ---------------------------------------------------------------------------
 # 3. Host prerequisites (Docker, CRI-O, kubelet/kubeadm/kubectl, ...) via cluster.js

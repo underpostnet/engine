@@ -3,14 +3,16 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
+import dotenv from 'dotenv';
 import { loggerFactory } from './server/logger.js';
+import { buildClient } from './server/client-build.js';
 import { buildRuntime } from './server/runtime.js';
 import { ProcessController } from './server/process.js';
-import { Config, buildApiConf } from './server/conf.js';
+import { Config } from './server/conf.js';
 
-await buildApiConf();
+dotenv.config();
 
-await Config.build(undefined, undefined, process.argv[3] + '-dev-api');
+await Config.build();
 
 const logger = loggerFactory(import.meta);
 
