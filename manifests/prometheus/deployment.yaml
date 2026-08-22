@@ -1,26 +1,4 @@
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-config
-  labels:
-    app: prometheus
-data:
-  prometheus.yml: |
-    global:
-      scrape_interval: 30s
-      evaluation_interval: 30s
-
-    scrape_configs:
-      - job_name: 'scraper'
-        metrics_path: /metrics
-        scheme: https
-        static_configs:
-          - targets: []
-        # tls_config:
-        #   insecure_skip_verify: true
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,6 +15,7 @@ spec:
       labels:
         app: prometheus
     spec:
+      serviceAccountName: prometheus
       containers:
         - name: prometheus
           image: prom/prometheus:latest
@@ -51,8 +30,22 @@ spec:
           volumeMounts:
             - name: prometheus-config
               mountPath: /etc/prometheus/
+            - name: prometheus-rules
+              mountPath: /etc/prometheus/rules/
             - name: prometheus-data
               mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 20
           resources:
             requests:
               memory: '200Mi'
@@ -61,6 +54,9 @@ spec:
         - name: prometheus-config
           configMap:
             name: prometheus-config
+        - name: prometheus-rules
+          configMap:
+            name: prometheus-rules
         - name: prometheus-data
           emptyDir: {}
 

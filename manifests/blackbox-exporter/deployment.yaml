@@ -1,0 +1,75 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox-exporter
+  labels:
+    app: blackbox-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app: blackbox-exporter
+    spec:
+      containers:
+        - name: blackbox-exporter
+          image: prom/blackbox-exporter:latest
+          args:
+            - '--config.file=/etc/blackbox_exporter/blackbox.yml'
+          ports:
+            - containerPort: 9115
+              name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              # The icmp prober opens a raw socket. Without NET_RAW the module
+              # loads and every probe fails at send time, which reads as the
+              # target being down rather than as a misconfigured exporter.
+              add:
+                - NET_RAW
+          volumeMounts:
+            - name: blackbox-exporter-config
+              mountPath: /etc/blackbox_exporter/
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9115
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9115
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: '32Mi'
+              cpu: '25m'
+      volumes:
+        - name: blackbox-exporter-config
+          configMap:
+            name: blackbox-exporter-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blackbox-exporter
+  labels:
+    app: blackbox-exporter
+spec:
+  ports:
+    - port: 9115
+      targetPort: 9115
+      protocol: TCP
+      name: http
+  selector:
+    app: blackbox-exporter
+  type: ClusterIP

@@ -11,6 +11,7 @@ import UnderpostCluster from './cli/cluster.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
 import UnderpostDockerCompose from './cli/docker-compose.js';
+import UnderpostEvent from './cli/event.js';
 import UnderpostKubectl from './cli/kubectl.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
@@ -23,7 +24,6 @@ import UnderpostRun from './cli/run.js';
 import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostStatic from './cli/static.js';
-import UnderpostTest from './cli/test.js';
 import UnderpostRelease from './cli/release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
 import UnderpostVultr from './cli/vultr.js';
@@ -74,15 +74,6 @@ class Underpost {
    */
   static get env() {
     return UnderpostRootEnv.API;
-  }
-  /**
-   * Test cli API
-   * @static
-   * @type {UnderpostTest.API}
-   * @memberof Underpost
-   */
-  static get test() {
-    return UnderpostTest.API;
   }
 
   /**
@@ -184,6 +175,15 @@ class Underpost {
    */
   static get monitor() {
     return UnderpostMonitor.API;
+  }
+  /**
+   * Operational event dispatcher cli API
+   * @static
+   * @type {UnderpostEvent.API}
+   * @memberof Underpost
+   */
+  static get event() {
+    return UnderpostEvent.API;
   }
   /**
    * SSH cli API
@@ -354,6 +354,7 @@ export {
   UnderpostDB,
   UnderpostDeploy,
   UnderpostDockerCompose,
+  UnderpostEvent,
   UnderpostKubectl,
   UnderpostRootEnv,
   UnderpostFileStorage,
@@ -367,7 +368,6 @@ export {
   UnderpostRun,
   UnderpostSecret,
   UnderpostSSH,
-  UnderpostTest,
   UnderpostDns,
   UnderpostBackup,
   UnderpostCron,

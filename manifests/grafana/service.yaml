@@ -11,4 +11,9 @@ spec:
   selector:
     app: grafana
   sessionAffinity: None
-  type: LoadBalancer
+  # ClusterIP: this Service is what Prometheus' provisioned datasource and the
+  # edge route resolve. Browser access is a separate decision, published by
+  # `monitor --grafana-host` (edge route) or `--node-port` (LAN), so a cluster
+  # with no LoadBalancer controller does not sit on a Service that never gets an
+  # address.
+  type: ClusterIP

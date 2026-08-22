@@ -24,6 +24,7 @@ import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js
 
 import { shellExec } from '../../server/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/conf.js';
+import { metricsPathFactory } from '../../server/monitoring.js';
 
 import Underpost from '../../index.js';
 
@@ -113,8 +114,9 @@ class ExpressService {
       return next();
     });
 
-    // Metrics endpoint
-    app.get(`${path === '/' ? '' : path}/metrics`, async (req, res) => {
+    // Metrics endpoint. The route is shared with the Prometheus scrape config
+    // so a target can never point at a path this server does not serve.
+    app.get(metricsPathFactory(path), async (req, res) => {
       res.set('Content-Type', promRegister.contentType);
       return res.end(await promRegister.metrics());
     });

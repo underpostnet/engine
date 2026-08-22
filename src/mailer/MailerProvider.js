@@ -46,11 +46,39 @@ class MailerProviderService {
   #instance = {};
 
   /**
+   * Registered send middlewares, in the order they wrap a delivery.
+   * @type {Array<function(object, function(): Promise<object|undefined>): Promise<object|undefined>>}
+   */
+  #middlewares = [];
+
+  /**
    * Retrieves the internal instance storage for direct access (used for backward compatibility).
    * @returns {object.<string, object>} The internal mailer instance map.
    */
   get instance() {
     return this.#instance;
+  }
+
+  /**
+   * Registers a send middleware.
+   *
+   * Middlewares wrap every {@link MailerProviderService#send}, in registration
+   * order, and receive the delivery context plus the `next` continuation that
+   * yields the transport result. A middleware that never calls `next` suppresses
+   * the delivery, which is what makes this usable both for cross-cutting
+   * concerns (auditing, rate limiting) and for capturing mail in a test run.
+   *
+   * @param {function(object, function(): Promise<object|undefined>): Promise<object|undefined>} middleware -
+   * Receives `({ id, sendOptions, sender }, next)`.
+   * @returns {function(): void} Disposer that unregisters the middleware.
+   */
+  use(middleware) {
+    if (typeof middleware !== 'function') throw new Error('[mailer] a send middleware must be a function');
+    this.#middlewares.push(middleware);
+    return () => {
+      const index = this.#middlewares.indexOf(middleware);
+      if (index !== -1) this.#middlewares.splice(index, 1);
+    };
   }
 
   /**
@@ -146,6 +174,24 @@ class MailerProviderService {
   }
 
   /**
+   * Closes a loaded instance's transport and forgets it.
+   *
+   * A transport holds an open socket, which keeps a one-shot process alive long
+   * after its work is done. Callers that load an instance for a single delivery
+   * release it here; a long-running server keeps its instances loaded instead.
+   *
+   * @param {string} id - Mailer instance id.
+   * @returns {boolean} True when an instance was closed.
+   */
+  close(id) {
+    const instance = this.#instance[id];
+    if (!instance) return false;
+    if (typeof instance.transporter?.close === 'function') instance.transporter.close();
+    delete this.#instance[id];
+    return true;
+  }
+
+  /**
    * Sends an email using a previously loaded transporter instance.
    *
    * @async
@@ -189,12 +235,10 @@ class MailerProviderService {
 
       if (!sendOptions.from) sendOptions.from = `${instance.sender.name} <${instance.sender.email}>`;
 
-      // send mail with defined transport object
-      const info = await instance.transporter.sendMail(sendOptions);
+      const context = { id, sendOptions, sender: instance.sender };
+      const deliver = () => instance.transporter.sendMail(sendOptions);
 
-      // logger.info('Message sent', info);
-
-      return info;
+      return await this.#middlewares.reduceRight((next, middleware) => () => middleware(context, next), deliver)();
     } catch (error) {
       logger.error(error, error.stack);
       return undefined;
