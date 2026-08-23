@@ -746,7 +746,9 @@ Downstream 5xx is read as `envoy_http_downstream_rq_xx{envoy_response_code_class
 
 **Underpost · Events and Probes** — probe success and duration by event, Express request rate, and target availability.
 
-**Underpost · Node Metrics** — CPU and memory percentage per node, RX/TX throughput on `wg0` and the external interfaces, root filesystem usage with disk I/O rates, and the hub's monthly bandwidth against its quota. Every panel groups by `instance`, which is the same address the node events resolve a target from, so a spike names a machine an operator can reach.
+**Underpost · Node Metrics** — CPU and memory percentage per node, RX/TX throughput on `wg0` and whatever a host calls its own NIC, root filesystem usage with disk I/O rates, and the hub's monthly bandwidth against its quota over time. Every panel groups by `instance`, which is the same address the node events resolve a target from, so a spike names a machine an operator can reach, and every legend carries the `underpost_role` — `hub`, `control` or `worker` — that Prometheus relabels on from the node registry.
+
+The hub appears in all four hardware panels once its collector is provisioned with `wireguard --node-exporter`; see [Host metrics outside the cluster](<./Edge Hub WireGuard and HAProxy.md#host-metrics-outside-the-cluster>).
 
 Dashboards are file-provisioned and re-read every 30 seconds, so a dashboard change lands without a restart. Datasources are provisioned at start only, which is why a sync rolls Grafana and not the other three components.
 
