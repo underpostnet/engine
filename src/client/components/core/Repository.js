@@ -1,7 +1,7 @@
 /**
  * Repository identity on the client.
  *
- * The owner is resolved at build time by `src/server/repository.js` and travels
+ * The owner is resolved at build time by `src/server/storage/repository.js` and travels
  * in `renderPayload.repository`. Composing every GitHub, Pages and Coveralls URL
  * from it is what keeps a fork's links pointing at the fork instead of upstream.
  *

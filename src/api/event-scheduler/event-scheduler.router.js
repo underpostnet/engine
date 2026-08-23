@@ -1,6 +1,6 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
-import { moderatorGuard } from '../../server/auth.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
+import { moderatorGuard } from '../../server/security/auth.js';
 import { EventSchedulerController } from './event-scheduler.controller.js';
 
 class EventSchedulerRouter {

@@ -9,10 +9,10 @@
  */
 
 import fs from 'fs-extra';
-import { loggerFactory } from '../../server/logger.js';
-import { shellExec } from '../../server/process.js';
-import { crictlCommandFactory } from '../../server/cri.js';
-import { resolveReplicaCount } from '../../server/conf.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { shellExec } from '../../server/runtime/process.js';
+import { crictlCommandFactory } from '../../server/ops/cri.js';
+import { resolveReplicaCount } from '../../server/runtime/conf.js';
 // Cyclic by construction (index -> cluster -> MongoBootstrap -> index), same as cluster.js.
 // Safe because the binding is only dereferenced inside method bodies, never at module scope.
 import Underpost from '../../index.js';

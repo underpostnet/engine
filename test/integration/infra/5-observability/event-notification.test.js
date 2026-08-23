@@ -7,7 +7,7 @@ import {
   EVENT_CONF_PATH,
   assertNotificationRoutes,
   eventNotificationRoutes,
-} from '../../../../src/server/event-notification.js';
+} from '../../../../src/server/ops/event-notification.js';
 
 const CONF = {
   'notification-providers': {

@@ -29,7 +29,7 @@ import {
   scrapeDeployListFactory,
   serviceDnsFactory,
   webhookSecretFactory,
-} from '../../../../src/server/monitoring.js';
+} from '../../../../src/server/ops/monitoring.js';
 import { hubTunnelAddressFactory } from '../../../../src/cli/wireguard.js';
 
 // A deploy that mixes every runtime shape the router can carry: two scrapeable

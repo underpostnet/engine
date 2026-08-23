@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 import { program } from '../src/cli/index.js';
-import { loggerFactory } from '../src/server/logger.js';
+import { loggerFactory } from '../src/server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

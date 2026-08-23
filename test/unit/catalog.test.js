@@ -2,8 +2,8 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import { EMPTY_CATALOG, loadProductCatalogs } from '../../src/server/catalog.js';
-import { TEST_TIERS } from '../../src/server/testing.js';
+import { EMPTY_CATALOG, loadProductCatalogs } from '../../src/server/build/catalog.js';
+import { TEST_TIERS } from '../../src/server/build/testing.js';
 
 // A broken catalog path fails during template assembly, long after the commit
 // that broke it, so the tree is asserted here instead.

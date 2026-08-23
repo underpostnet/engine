@@ -30,11 +30,11 @@ import UnderpostSystemProvisionig from './cli/system.js';
 import UnderpostVultr from './cli/vultr.js';
 import UnderpostWireguard from './cli/wireguard.js';
 
-import UnderpostDns from './server/dns.js';
-import UnderpostBackup from './server/backup.js';
-import UnderpostCron from './server/cron.js';
-import UnderpostStartUp from './server/start.js';
-import UnderpostTLS from './server/tls.js';
+import UnderpostDns from './server/network/dns.js';
+import UnderpostBackup from './server/storage/backup.js';
+import UnderpostCron from './server/ops/cron.js';
+import UnderpostStartUp from './server/runtime/start.js';
+import UnderpostTLS from './server/network/tls.js';
 
 /**
  * Underpost main module methods

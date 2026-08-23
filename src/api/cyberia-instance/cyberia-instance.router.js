@@ -1,6 +1,6 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
-import { userGuard, moderatorGuard } from '../../server/auth.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
+import { userGuard, moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaInstanceController } from './cyberia-instance.controller.js';
 
 class CyberiaInstanceRouter {

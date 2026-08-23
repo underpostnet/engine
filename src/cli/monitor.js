@@ -4,23 +4,23 @@
  * @namespace UnderpostMonitor
  */
 
-import { loadReplicas, loadConfServerJson, etcHostFactory, clusterTypeFactory } from '../server/conf.js';
+import { loadReplicas, loadConfServerJson, etcHostFactory, clusterTypeFactory } from '../server/runtime/conf.js';
 import {
   deployRangePortFactory,
   deployRoutesExists,
   pathPortAssignmentFactory,
   readDeployRoutes,
   resolveDeployList,
-} from '../server/router.js';
-import { cronDeployIdResolve, loadCronDeployEnv } from '../server/cron.js';
-import { loggerFactory } from '../server/logger.js';
+} from '../server/network/router.js';
+import { cronDeployIdResolve, loadCronDeployEnv } from '../server/ops/cron.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { timer, generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
 import {
   RUNTIME_STATUS,
   INTERNAL_STATUS_PATH,
   normalizeContainerStatus,
   deployStatusPort,
-} from '../server/runtime-status.js';
+} from '../server/runtime/runtime-status.js';
 import {
   UNDERPOST_MONITORING,
   alertRulesFactory,
@@ -39,13 +39,13 @@ import {
   prometheusConfFactory,
   scrapeDeployListFactory,
   webhookSecretFactory,
-} from '../server/monitoring.js';
+} from '../server/ops/monitoring.js';
 import axios from 'axios';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import fs from 'fs-extra';
 import net from 'node:net';
-import { shellExec } from '../server/process.js';
+import { shellExec } from '../server/runtime/process.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

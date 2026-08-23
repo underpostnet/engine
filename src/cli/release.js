@@ -12,9 +12,9 @@
 import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
-import { pbcopy, shellCd, shellExec } from '../server/process.js';
-import { Dns } from '../server/dns.js';
-import { loggerFactory } from '../server/logger.js';
+import { pbcopy, shellCd, shellExec } from '../server/runtime/process.js';
+import { Dns } from '../server/network/dns.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
 

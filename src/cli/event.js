@@ -21,9 +21,9 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { loadCronDeployEnv, parseList } from '../server/cron.js';
+import { loadCronDeployEnv, parseList } from '../server/ops/cron.js';
 import { timer } from '../client/components/core/CommonJs.js';
-import { installRootFile, shellExec, sleepSync } from '../server/process.js';
+import { installRootFile, shellExec, sleepSync } from '../server/runtime/process.js';
 import {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
@@ -34,9 +34,9 @@ import {
   systemdServiceCommandsFactory,
   systemdStatusCommandsFactory,
   systemdUnitFactory,
-} from '../server/systemd.js';
-import { loggerFactory } from '../server/logger.js';
-import { shellArgumentFactory } from '../server/selinux.js';
+} from '../server/ops/systemd.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { shellArgumentFactory } from '../server/security/selinux.js';
 import { mailerInterceptorFactory } from '../mailer/MailerInterceptor.js';
 import {
   EVENT_CONF_PATH,
@@ -47,10 +47,10 @@ import {
   eventSchedule,
   THRESHOLD_TOKEN,
   readEventConf,
-} from '../server/event-notification.js';
-import { publicIngressProbeFactory, publicIngressUrlsFactory } from '../server/conf.js';
-import { resolveDeployList } from '../server/router.js';
-import { UNDERPOST_MONITORING } from '../server/monitoring.js';
+} from '../server/ops/event-notification.js';
+import { publicIngressProbeFactory, publicIngressUrlsFactory } from '../server/runtime/conf.js';
+import { resolveDeployList } from '../server/network/router.js';
+import { UNDERPOST_MONITORING } from '../server/ops/monitoring.js';
 import {
   EDGE_TOPOLOGY_PATH,
   hostAddressesFactory,

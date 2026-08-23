@@ -1,7 +1,7 @@
 'use strict';
 
 import { expect } from 'chai';
-import { TEST_TIERS, resolveTestSelection, testProjectsFactory, testSuiteNames } from '../../src/server/testing.js';
+import { TEST_TIERS, resolveTestSelection, testProjectsFactory, testSuiteNames } from '../../src/server/build/testing.js';
 
 // The table declares every tier the platform ships. A product build slices the
 // tree, so whether a tier's directory is present here is a catalog question,

@@ -10,7 +10,7 @@ import vm from 'node:vm';
 import Underpost from '../index.js';
 
 import { srcFormatted } from './client-formatted.js';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

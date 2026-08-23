@@ -11,7 +11,7 @@
  * @namespace IpfsClient
  */
 import stringify from 'fast-json-stable-stringify';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import Underpost from '../../index.js';
 const logger = loggerFactory(import.meta);
 const DEFAULT_IPFS_HTTP_TIMEOUT_MS = Number(process.env.IPFS_HTTP_TIMEOUT_MS || 10000);

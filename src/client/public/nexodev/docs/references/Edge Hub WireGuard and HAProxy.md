@@ -525,7 +525,7 @@ The `:443` path is encrypted end to end from the client to the cluster's own ing
 
 `underpost-gateway` is where nearly all of it is recovered. Every host that declares a status page is routed through it for its whole site path — not only for the intercepted documents — so the HTML, CSS and JS of those hosts already pass through the one hop that holds them in the clear. API sub-paths are routed straight to the workload and are compressed by the runtime instead.
 
-Both Nginx configs are rendered from one policy in `src/server/underpost-compression.js`: `gzip_vary` is always on, `gzip_proxied any` is set (Nginx's default of `off` would otherwise skip exactly the proxied responses these workloads forward), and the type list excludes already-compressed media, along with `text/html`, which Nginx compresses whether it is listed or not.
+Both Nginx configs are rendered from one policy in `src/server/network/underpost-compression.js`: `gzip_vary` is always on, `gzip_proxied any` is set (Nginx's default of `off` would otherwise skip exactly the proxied responses these workloads forward), and the type list excludes already-compressed media, along with `text/html`, which Nginx compresses whether it is listed or not.
 
 Three environment variables control it, read wherever the manifests are rendered:
 

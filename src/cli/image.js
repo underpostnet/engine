@@ -8,10 +8,10 @@ import fs from 'fs-extra';
 import os from 'os';
 import nodePath from 'path';
 import crypto from 'crypto';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import Underpost from '../index.js';
-import { shellExec } from '../server/process.js';
-import { crictlCommandFactory } from '../server/cri.js';
+import { shellExec } from '../server/runtime/process.js';
+import { crictlCommandFactory } from '../server/ops/cri.js';
 
 const logger = loggerFactory(import.meta);
 

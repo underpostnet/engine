@@ -3,8 +3,8 @@ import axios from 'axios';
 
 import dotenv from 'dotenv';
 
-import { pbcopy, shellExec } from '../src/server/process.js';
-import { loggerFactory } from '../src/server/logger.js';
+import { pbcopy, shellExec } from '../src/server/runtime/process.js';
+import { loggerFactory } from '../src/server/ops/logger.js';
 import {
   addApiConf,
   addClientConf,
@@ -16,9 +16,9 @@ import {
   cloneSrcComponents,
   buildCliDoc,
   loadConf,
-} from '../src/server/conf.js';
-import { writeEnv } from '../src/server/environment.js';
-import { readDeployRoutes, resolveDeployList } from '../src/server/router.js';
+} from '../src/server/runtime/conf.js';
+import { writeEnv } from '../src/server/runtime/environment.js';
+import { readDeployRoutes, resolveDeployList } from '../src/server/network/router.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer, getCapVariableName } from '../src/client/components/core/CommonJs.js';

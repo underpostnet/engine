@@ -19,7 +19,7 @@
 import crypto from 'crypto';
 
 import { createRng, seedToInt, createNoise2D, generateShape, listShapes } from './shape-generator.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 import { registerFloorSemantics } from './semantic-layer-generator-floor.js';
 import { registerSkinSemantics } from './semantic-layer-generator-skin.js';

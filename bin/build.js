@@ -3,7 +3,7 @@
 import { Command } from 'commander';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { loggerFactory } from '../src/server/logger.js';
+import { loggerFactory } from '../src/server/ops/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import {
   getPathsSSR,
@@ -11,10 +11,10 @@ import {
   syncDeployIdSources,
   buildTemplate,
   updatePrivateEngineTestRepo,
-} from '../src/server/conf.js';
-import { resolveDeployList } from '../src/server/router.js';
-import { loadDeployCatalog } from '../src/server/catalog.js';
-import { buildProductPackageJson } from '../src/server/package.js';
+} from '../src/server/runtime/conf.js';
+import { resolveDeployList } from '../src/server/network/router.js';
+import { loadDeployCatalog } from '../src/server/build/catalog.js';
+import { buildProductPackageJson } from '../src/server/build/package.js';
 import Underpost from '../src/index.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';

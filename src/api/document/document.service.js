@@ -7,11 +7,11 @@
  * @namespace DocumentService
  */
 
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
 import { uniqueArray } from '../../client/components/core/CommonJs.js';
-import { getBearerToken, verifyJWT } from '../../server/auth.js';
+import { getBearerToken, verifyJWT } from '../../server/security/auth.js';
 import { isValidObjectId } from 'mongoose';
 import { FileCleanup } from '../file/file.service.js';
 

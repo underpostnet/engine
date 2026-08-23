@@ -1,5 +1,5 @@
 import validator from 'validator';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { TestModel } from './test.model.js';
 import { getYouTubeID, validatePassword } from '../../client/components/core/CommonJs.js';
 

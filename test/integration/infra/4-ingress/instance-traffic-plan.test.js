@@ -14,7 +14,7 @@ import {
   trafficFromRoutingInfoFactory,
   trafficProbePathsFactory,
   trafficTableRowsFactory,
-} from '../../../../src/server/conf.js';
+} from '../../../../src/server/runtime/conf.js';
 
 // Pure resolution over the conf: the cluster lookups are injected, so every case
 // here fixes the routed colour and the endpoint readiness explicitly.
@@ -690,7 +690,7 @@ describe('blue/green traffic plan', () => {
       // The probe itself moved to one implementation the ingress event shares;
       // what matters here is that the report still goes through it.
       expect(getTraffic).to.include('publicIngressProbeFactory(url)');
-      const confSource = fs.readFileSync(new URL('../../../../src/server/conf.js', import.meta.url), 'utf8');
+      const confSource = fs.readFileSync(new URL('../../../../src/server/runtime/conf.js', import.meta.url), 'utf8');
       expect(confSource).to.include('curl -L -v -i -s');
       expect(getTraffic).to.include("'OPPOSITE'");
       expect(getTraffic).not.to.include('showOpposite');

@@ -1,6 +1,6 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/logger.js';
-import { DataQuery } from '../../server/data-query.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { DataQuery } from '../../server/storage/data-query.js';
 import { IpfsClient } from '../../projects/cyberia/ipfs-client.js';
 import { IpfsDto } from './ipfs.model.js';
 const logger = loggerFactory(import.meta);

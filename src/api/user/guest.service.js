@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { UserDto } from './user.model.js';
-import { ValkeyAPI } from '../../server/valkey.js';
-import { hashPassword, getBearerToken, jwtSign } from '../../server/auth.js';
+import { ValkeyAPI } from '../../server/storage/valkey.js';
+import { hashPassword, getBearerToken, jwtSign } from '../../server/security/auth.js';
 
 // ─── TTL ──────────────────────────────────────────────────────────────────────
 

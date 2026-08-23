@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaEntityTypeDefaultController } from './cyberia-entity-type-default.controller.js';
 
 class CyberiaEntityTypeDefaultRouter {

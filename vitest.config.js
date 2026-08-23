@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { UNDERPOST_TESTING, testProjectsFactory } from './src/server/testing.js';
+import { UNDERPOST_TESTING, testProjectsFactory } from './src/server/build/testing.js';
 
 const allureResultsDirectory = process.env[UNDERPOST_TESTING.allureResultsEnvKey];
 

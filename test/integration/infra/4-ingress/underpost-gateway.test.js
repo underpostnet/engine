@@ -13,7 +13,7 @@ import {
   staticPathSegmentFactory,
   statusPageAssetPathFactory,
   statusPageBuildSegment,
-} from '../../../../src/server/underpost-gateway.js';
+} from '../../../../src/server/network/underpost-gateway.js';
 import { staticContextRoutesFactory, statusPageRoutesFactory } from '../../../../src/client-builder/client-build.js';
 
 // A `conf.ssr.json` client entry: two intercepted contexts, one status page,
@@ -380,7 +380,7 @@ describe('underpost gateway edge tier', () => {
   // on a running gateway to validate against, and cannot mutate the host either.
   // Installing and reloading is the apply path's job.
   describe('build/apply separation', () => {
-    const source = fs.readFileSync(new URL('../../../../src/server/underpost-gateway.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/server/network/underpost-gateway.js', import.meta.url), 'utf8');
     const bodyOf = (name) => {
       const start = source.indexOf(`const ${name} = `);
       const next = source.slice(start + 1).search(/\nconst \w+ = |\nexport \{/);

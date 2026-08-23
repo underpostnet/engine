@@ -7,8 +7,8 @@
  */
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { getBearerToken, jwtVerify } from '../../server/auth.js';
-import { loggerFactory } from '../../server/logger.js';
+import { getBearerToken, jwtVerify } from '../../server/security/auth.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import crypto from 'crypto';
 import { Types } from 'mongoose';
 

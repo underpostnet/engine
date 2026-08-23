@@ -4,7 +4,7 @@
  * @namespace clientIcons
  */
 import { favicons } from 'favicons';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import fs from 'fs-extra';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 

@@ -38,7 +38,7 @@
  */
 
 import express from 'express';
-import { crossOriginMiddleware } from '../../server/middlewares.js';
+import { crossOriginMiddleware } from '../../server/network/middlewares.js';
 import { CyberiaClientHintsController } from './cyberia-client-hints.controller.js';
 
 class CyberiaClientHintsRouter {

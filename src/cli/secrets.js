@@ -4,15 +4,15 @@
  * @namespace UnderpostSecret
  */
 
-import { shellExec } from '../server/process.js';
+import { shellExec } from '../server/runtime/process.js';
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
-import { cronDeployIdResolve } from '../server/cron.js';
+import { cronDeployIdResolve } from '../server/ops/cron.js';
 import fs from 'fs-extra';
 import os from 'os';
 import dotenv from 'dotenv';
 import Underpost from '../index.js';
-import { loadConf } from '../server/conf.js';
-import { loggerFactory } from '../server/logger.js';
+import { loadConf } from '../server/runtime/conf.js';
+import { loggerFactory } from '../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

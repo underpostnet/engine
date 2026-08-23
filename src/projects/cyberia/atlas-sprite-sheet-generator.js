@@ -9,7 +9,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import sharp from 'sharp';
 import { Jimp, rgbaToInt } from 'jimp';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

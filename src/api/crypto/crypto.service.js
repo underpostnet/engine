@@ -1,4 +1,4 @@
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import crypto from 'crypto';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 const logger = loggerFactory(import.meta);

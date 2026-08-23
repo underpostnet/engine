@@ -1,4 +1,4 @@
-import { buildCrudController, controllerHandler, sendBlob, serviceHandler } from '../../server/middlewares.js';
+import { buildCrudController, controllerHandler, sendBlob, serviceHandler } from '../../server/network/middlewares.js';
 import { ObjectLayerService } from './object-layer.service.js';
 
 const ObjectLayerController = buildCrudController(ObjectLayerService, {

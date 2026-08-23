@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaGlobalMapCodeRegistryController } from './cyberia-global-map-code-registry.controller.js';
 
 class CyberiaGlobalMapCodeRegistryRouter {

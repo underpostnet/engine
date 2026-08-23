@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaDialogueController } from './cyberia-dialogue.controller.js';
 
 class CyberiaDialogueRouter {

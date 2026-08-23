@@ -12,19 +12,19 @@ import swaggerUi from 'swagger-ui-express';
 import compression from 'compression';
 import { createServer } from 'http';
 
-import { loggerFactory, loggerMiddleware } from '../../server/logger.js';
+import { loggerFactory, loggerMiddleware } from '../../server/ops/logger.js';
 import { getCapVariableName, newInstance } from '../../client/components/core/CommonJs.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { createPeerServer } from '../../server/peer.js';
-import { createValkeyConnection } from '../../server/valkey.js';
-import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
+import { createPeerServer } from '../../server/network/peer.js';
+import { createValkeyConnection } from '../../server/storage/valkey.js';
+import { applySecurity, authMiddlewareFactory } from '../../server/security/auth.js';
 import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
 import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js';
 
-import { shellExec } from '../../server/process.js';
-import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/conf.js';
-import { metricsPathFactory } from '../../server/monitoring.js';
+import { shellExec } from '../../server/runtime/process.js';
+import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
+import { metricsPathFactory } from '../../server/ops/monitoring.js';
 
 import Underpost from '../../index.js';
 

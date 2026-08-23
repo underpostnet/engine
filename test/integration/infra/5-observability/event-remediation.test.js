@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import Underpost from '../../../../src/index.js';
-import { assertEventSchedules, eventSchedule } from '../../../../src/server/event-notification.js';
+import { assertEventSchedules, eventSchedule } from '../../../../src/server/ops/event-notification.js';
 import UnderpostEvent, {
   EVENT_E2E,
   assertHubManagementConnection,
@@ -14,7 +14,7 @@ import UnderpostEvent, {
   eventFirewallCommandsFactory,
   eventServicePortFactory,
 } from '../../../../src/cli/event.js';
-import { UNDERPOST_MONITORING } from '../../../../src/server/monitoring.js';
+import { UNDERPOST_MONITORING } from '../../../../src/server/ops/monitoring.js';
 
 describe('event remediation', () => {
   it('keeps the dispatcher available when WireGuard is down', () => {

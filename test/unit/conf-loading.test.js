@@ -2,7 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import { Config, getConfFilePath, loadConf } from '../../src/server/conf.js';
+import { Config, getConfFilePath, loadConf } from '../../src/server/runtime/conf.js';
 
 const restoreEnv = (name, value) => {
   if (value === undefined) delete process.env[name];

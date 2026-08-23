@@ -7,8 +7,8 @@
  * @namespace UserService
  */
 
-import { loggerFactory } from '../../server/logger.js';
-import { DataQuery } from '../../server/data-query.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { DataQuery } from '../../server/storage/data-query.js';
 import {
   hashPassword,
   verifyPassword,
@@ -19,7 +19,7 @@ import {
   logoutSession,
   jwtSign,
   validatePasswordMiddleware,
-} from '../../server/auth.js';
+} from '../../server/security/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsEmitter } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
@@ -29,7 +29,7 @@ import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { timer } from '../../client/components/core/CommonJs.js';
 import { GuestService } from './guest.service.js';
-import { resolveHostKeyContext } from '../../server/conf.js';
+import { resolveHostKeyContext } from '../../server/runtime/conf.js';
 
 const logger = loggerFactory(import.meta);
 

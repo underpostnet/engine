@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { EmailRender } from './EmailRender.js';
 
 /**

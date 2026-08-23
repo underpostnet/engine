@@ -6,8 +6,8 @@
 import fs from 'fs-extra';
 import nodemon from 'nodemon';
 import dotenv from 'dotenv';
-import { shellExec } from '../server/process.js';
-import { loggerFactory } from '../server/logger.js';
+import { shellExec } from '../server/runtime/process.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

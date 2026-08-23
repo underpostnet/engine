@@ -18,7 +18,7 @@ import fs from 'fs-extra';
 import nodePath from 'path';
 import crypto from 'crypto';
 import { GeminiClient } from './gemini-client.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

@@ -1,4 +1,4 @@
-import { controllerHandler, sendSuccess, serviceHandler, setCrossOriginHeaders } from '../../server/middlewares.js';
+import { controllerHandler, sendSuccess, serviceHandler, setCrossOriginHeaders } from '../../server/network/middlewares.js';
 import { FileService } from './file.service.js';
 
 class FileController {

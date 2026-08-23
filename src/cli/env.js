@@ -4,12 +4,12 @@
  * @namespace UnderpostEnv
  */
 
-import { getUnderpostRootPath, writeEnv } from '../server/environment.js';
+import { getUnderpostRootPath, writeEnv } from '../server/runtime/environment.js';
 import fs from 'fs-extra';
-import { resolveDeployList } from '../server/router.js';
-import { loggerFactory } from '../server/logger.js';
+import { resolveDeployList } from '../server/network/router.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import dotenv from 'dotenv';
-import { pbcopy } from '../server/process.js';
+import { pbcopy } from '../server/runtime/process.js';
 
 const logger = loggerFactory(import.meta);
 

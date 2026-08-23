@@ -1,4 +1,4 @@
-import { buildCrudController, serviceHandler } from '../../server/middlewares.js';
+import { buildCrudController, serviceHandler } from '../../server/network/middlewares.js';
 import { DocumentService } from './document.service.js';
 
 const DocumentController = buildCrudController(DocumentService, {

@@ -4,26 +4,26 @@
  * @namespace UnderpostCluster
  */
 
-import { clusterTypeFactory, gatewayApiEnabledFactory, resolveReplicaCount } from '../server/conf.js';
-import { getNpmRootPath, HOST_VOLUME_ROOT } from '../server/environment.js';
-import { loggerFactory } from '../server/logger.js';
-import { shellExec } from '../server/process.js';
-import { crictlCommandFactory, resolveCriSocket } from '../server/cri.js';
+import { clusterTypeFactory, gatewayApiEnabledFactory, resolveReplicaCount } from '../server/runtime/conf.js';
+import { getNpmRootPath, HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { shellExec } from '../server/runtime/process.js';
+import { crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
 import {
   runSELinuxCommands,
   selinuxContainerSharedContextCommandsFactory,
   selinuxEnforcingCommandsFactory,
   selinuxPackagesCommandFactory,
   selinuxRestoreconCommandFactory,
-} from '../server/selinux.js';
-import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/underpost-gateway.js';
+} from '../server/security/selinux.js';
+import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/network/underpost-gateway.js';
 import {
   UNDERPOST_INGRESS,
   gatewayBackendFactory,
   underpostIngressConfFactory,
   underpostIngressHostMapFactory,
   underpostIngressManifestsFactory,
-} from '../server/underpost-ingress.js';
+} from '../server/network/underpost-ingress.js';
 import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/MongooseDB.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 import os from 'os';

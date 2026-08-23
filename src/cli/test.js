@@ -3,7 +3,7 @@
  * deployment's containers, or as a Job on the cluster.
  *
  * One entrypoint, one runner. Selecting suites, ordering tiers and rendering
- * the reporting surfaces belong to `src/server/testing.js`; this module resolves
+ * the reporting surfaces belong to `src/server/build/testing.js`; this module resolves
  * where the run happens and drives it.
  *
  * @module src/cli/test.js
@@ -13,16 +13,16 @@
 import fs from 'fs-extra';
 import nodePath from 'node:path';
 import { timer } from '../client/components/core/CommonJs.js';
-import { getUnderpostRootPath } from '../server/environment.js';
-import { actionInitLog, loggerFactory, setUpInfo } from '../server/logger.js';
-import { shellExec } from '../server/process.js';
+import { getUnderpostRootPath } from '../server/runtime/environment.js';
+import { actionInitLog, loggerFactory, setUpInfo } from '../server/ops/logger.js';
+import { shellExec } from '../server/runtime/process.js';
 import {
   UNDERPOST_TESTING,
   allureManifestsFactory,
   resolveTestSelection,
   testJobManifestFactory,
   vitestArgsFactory,
-} from '../server/testing.js';
+} from '../server/build/testing.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

@@ -4,7 +4,7 @@
  * @namespace SocketIoInterface
  */
 
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { Socket } from 'socket.io';
 
 const logger = loggerFactory(import.meta);

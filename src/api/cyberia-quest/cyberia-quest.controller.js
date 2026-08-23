@@ -1,4 +1,4 @@
-import { buildCrudController, serviceHandler } from '../../server/middlewares.js';
+import { buildCrudController, serviceHandler } from '../../server/network/middlewares.js';
 import { CyberiaQuestService } from './cyberia-quest.service.js';
 
 const CyberiaQuestController = buildCrudController(CyberiaQuestService, {

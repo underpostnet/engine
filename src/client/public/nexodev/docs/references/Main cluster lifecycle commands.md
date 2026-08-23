@@ -962,12 +962,12 @@ See Deploy custom instance to K8S for the full contract.
 
 ## Process execution model (`shellExec` / `shellCd`)
 
-The CLI executes shell commands through `src/server/process.js`. The module ships a backward-compatible, hardened wrapper around `shelljs.exec` plus a process-wide signal-forwarding controller. Code paths that need deterministic CI behavior should opt into the strict modes.
+The CLI executes shell commands through `src/server/runtime/process.js`. The module ships a backward-compatible, hardened wrapper around `shelljs.exec` plus a process-wide signal-forwarding controller. Code paths that need deterministic CI behavior should opt into the strict modes.
 
 ### `shellExec(cmd, options)`
 
 ```js
-import { shellExec, ShellExecError } from '../server/process.js';
+import { shellExec, ShellExecError } from '../server/runtime/process.js';
 
 // 1. Default: FAIL-FAST. A non-zero exit throws ShellExecError carrying
 //    cmd, code, stdout, stderr. The uncaught throw propagates to the

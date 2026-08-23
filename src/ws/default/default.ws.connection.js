@@ -3,7 +3,7 @@
  * @module ws/default/default.ws.connection
  */
 
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { DefaultWsMainChannel } from './channels/default.ws.main.js';
 
 const logger = loggerFactory(import.meta);

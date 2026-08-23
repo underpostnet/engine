@@ -1,6 +1,6 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
-import { adminGuard } from '../../server/auth.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
+import { adminGuard } from '../../server/security/auth.js';
 import { CoreController } from './core.controller.js';
 
 class CoreRouter {

@@ -4,9 +4,9 @@
  * @namespace UnderpostIPFS
  */
 
-import { loggerFactory } from '../server/logger.js';
-import { shellExec } from '../server/process.js';
-import { resolveReplicaCount } from '../server/conf.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { shellExec } from '../server/runtime/process.js';
+import { resolveReplicaCount } from '../server/runtime/conf.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 

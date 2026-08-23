@@ -1,7 +1,7 @@
 import { MongooseDB } from './mongo/MongooseDB.js';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
-import { resolveHostKeyContext } from '../server/conf.js';
+import { resolveHostKeyContext } from '../server/runtime/conf.js';
 import Underpost from '../index.js';
 
 /**

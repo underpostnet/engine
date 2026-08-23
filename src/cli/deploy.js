@@ -17,7 +17,7 @@ import {
   nextTrafficFactory,
   schedulableNodeFactory,
   trafficFromRoutingInfoFactory,
-} from '../server/conf.js';
+} from '../server/runtime/conf.js';
 import {
   buildKindPorts,
   buildPortProxyRouter,
@@ -25,13 +25,13 @@ import {
   deployRangePortFactory,
   pathPortAssignmentFactory,
   readDeployRoutes,
-} from '../server/router.js';
-import { cronDeployIdResolve } from '../server/cron.js';
-import { loggerFactory } from '../server/logger.js';
-import { HOST_VOLUME_ROOT } from '../server/environment.js';
-import { shellExec } from '../server/process.js';
-import { runSELinuxCommands, selinuxRestoreconCommandFactory } from '../server/selinux.js';
-import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime-status.js';
+} from '../server/network/router.js';
+import { cronDeployIdResolve } from '../server/ops/cron.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
+import { shellExec } from '../server/runtime/process.js';
+import { runSELinuxCommands, selinuxRestoreconCommandFactory } from '../server/security/selinux.js';
+import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime/runtime-status.js';
 import { staticContextRoutesFactory, statusPageRoutesFactory } from '../client-builder/client-build.js';
 import {
   UNDERPOST_GATEWAY,
@@ -44,7 +44,7 @@ import {
   syncStaticAssetFromPod,
   writeHostServerConf,
   writeStaticAsset,
-} from '../server/underpost-gateway.js';
+} from '../server/network/underpost-gateway.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import fs from 'fs-extra';
 import nodePath from 'node:path';

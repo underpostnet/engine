@@ -1,4 +1,4 @@
-import { buildCrudController, serviceHandler } from '../../server/middlewares.js';
+import { buildCrudController, serviceHandler } from '../../server/network/middlewares.js';
 import { CyberiaDialogueService } from './cyberia-dialogue.service.js';
 
 const CyberiaDialogueController = buildCrudController(CyberiaDialogueService, {

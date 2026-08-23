@@ -4,7 +4,7 @@ import {
   sendBlob,
   serviceHandler,
   setCrossOriginHeaders,
-} from '../../server/middlewares.js';
+} from '../../server/network/middlewares.js';
 import { CyberiaInstanceService } from './cyberia-instance.service.js';
 import { CyberiaInstanceMapService } from './cyberia-instance-map.service.js';
 import { CyberiaInstanceBootService } from './cyberia-instance-boot.service.js';

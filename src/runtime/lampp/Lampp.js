@@ -6,8 +6,8 @@
  */
 
 import fs from 'fs-extra';
-import { getRootDirectory, shellCd, shellExec } from '../../server/process.js';
-import { loggerFactory } from '../../server/logger.js';
+import { getRootDirectory, shellCd, shellExec } from '../../server/runtime/process.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

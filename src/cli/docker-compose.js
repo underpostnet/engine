@@ -10,8 +10,8 @@
 
 import fs from 'fs-extra';
 import nodePath from 'path';
-import { getRootDirectory, shellExec } from '../server/process.js';
-import { loggerFactory } from '../server/logger.js';
+import { getRootDirectory, shellExec } from '../server/runtime/process.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import Nginx from '../runtime/nginx/Nginx.js';
 
 const logger = loggerFactory(import.meta);
@@ -143,7 +143,7 @@ class UnderpostDockerCompose {
         // Point the template .env.example at the Docker service-discovery hosts
         // before `new engine` copies it. The generated dd-engine/.env.development
         // is seeded from this file and is applied over the process env by
-        // loadConf (src/server/conf.js), so without this the engine would fall
+        // loadConf (src/server/runtime/conf.js), so without this the engine would fall
         // back to the .env.example localhost defaults for DB_HOST/VALKEY_HOST.
         'sed -i "s#^DB_HOST=.*#DB_HOST=$${DB_HOST}#" .env.example',
         'sed -i "s#^VALKEY_HOST=.*#VALKEY_HOST=$${VALKEY_HOST}#" .env.example',

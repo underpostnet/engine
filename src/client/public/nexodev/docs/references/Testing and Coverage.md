@@ -2,7 +2,7 @@
 
 Every test run — a laptop, a CI container, a pod on the cluster — goes through
 `underpost test`. There is one runner (Vitest), one tier table
-(`src/server/testing.js`), and one coverage output (`coverage/lcov.info`).
+(`src/server/build/testing.js`), and one coverage output (`coverage/lcov.info`).
 
 ---
 

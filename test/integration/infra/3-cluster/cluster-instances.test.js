@@ -15,8 +15,8 @@ import {
   loadConfInstances,
   loadProjectInstanceEnvBuilder,
   normalizeInstanceTopology,
-} from '../../../../src/server/conf.js';
-import { statusPageAssetPathFactory } from '../../../../src/server/underpost-gateway.js';
+} from '../../../../src/server/runtime/conf.js';
+import { statusPageAssetPathFactory } from '../../../../src/server/network/underpost-gateway.js';
 import UnderpostDockerCompose from '../../../../src/cli/docker-compose.js';
 
 // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`

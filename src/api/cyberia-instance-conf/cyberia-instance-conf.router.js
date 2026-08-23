@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/middlewares.js';
+import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaInstanceConfController } from './cyberia-instance-conf.controller.js';
 
 class CyberiaInstanceConfRouter {

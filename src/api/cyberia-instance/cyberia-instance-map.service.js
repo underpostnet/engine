@@ -25,7 +25,7 @@ import {
   renderMapPreviewPng,
 } from '../../projects/cyberia/map-preview-generator.js';
 import { FileFactory } from '../file/file.service.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   DefaultCyberiaActions,

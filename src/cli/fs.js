@@ -5,12 +5,12 @@
  */
 
 import { v2 as cloudinary } from 'cloudinary';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import fs from 'fs-extra';
-import Downloader from '../server/downloader.js';
-import { shellExec } from '../server/process.js';
+import Downloader from '../server/storage/downloader.js';
+import { shellExec } from '../server/runtime/process.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

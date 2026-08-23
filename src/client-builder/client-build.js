@@ -8,23 +8,23 @@
 
 import fs from 'fs-extra';
 import { transformClientJs, JSONweb } from './client-formatted.js';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import {
   getCapVariableName,
   newInstance,
   orderArrayFromAttrInt,
   uniqueArray,
 } from '../client/components/core/CommonJs.js';
-import { readConfJson } from '../server/conf.js';
+import { readConfJson } from '../server/runtime/conf.js';
 import { minify } from 'html-minifier-terser';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
-import { shellExec } from '../server/process.js';
+import { shellExec } from '../server/runtime/process.js';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
 import { buildIcons } from './client-icons.js';
-import { statusPageBuildSegment } from '../server/underpost-gateway.js';
-import { repositoryIdentityFactory } from '../server/repository.js';
+import { statusPageBuildSegment } from '../server/network/underpost-gateway.js';
+import { repositoryIdentityFactory } from '../server/storage/repository.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 import { ssrFactory } from './ssr.js';

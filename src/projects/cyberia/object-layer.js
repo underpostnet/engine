@@ -17,7 +17,7 @@ import {
   getKeyframeDirectionsByCode,
   OBJECT_LAYER_DIRECTION_NAME_TO_CODE,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

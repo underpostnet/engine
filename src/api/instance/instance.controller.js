@@ -1,4 +1,4 @@
-import { buildCrudController, serviceHandler } from '../../server/middlewares.js';
+import { buildCrudController, serviceHandler } from '../../server/network/middlewares.js';
 import { InstanceService } from './instance.service.js';
 
 const InstanceController = buildCrudController(InstanceService, {

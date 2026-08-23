@@ -13,8 +13,8 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { shellExec } from '../../server/process.js';
-import { loggerFactory } from '../../server/logger.js';
+import { shellExec } from '../../server/runtime/process.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { Lampp } from '../lampp/Lampp.js';
 import Underpost from '../../index.js';
 

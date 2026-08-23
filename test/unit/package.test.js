@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { buildProductPackageJson, productDevDependenciesFactory } from '../../src/server/package.js';
+import { buildProductPackageJson, productDevDependenciesFactory } from '../../src/server/build/package.js';
 
 describe('generated product package dependencies', () => {
   it('keeps the engine toolchain for checkout tests without duplicating runtime dependencies', () => {

@@ -5,12 +5,12 @@
  */
 
 import { fileURLToPath } from 'url';
-import { getNpmRootPath } from '../server/environment.js';
-import { pbcopy, shellExec } from '../server/process.js';
-import { loggerFactory, loggerMiddleware } from '../server/logger.js';
+import { getNpmRootPath } from '../server/runtime/environment.js';
+import { pbcopy, shellExec } from '../server/runtime/process.js';
+import { loggerFactory, loggerMiddleware } from '../server/ops/logger.js';
 import fs from 'fs-extra';
 import path from 'path';
-import Downloader from '../server/downloader.js';
+import Downloader from '../server/storage/downloader.js';
 import { newInstance, range, s4, timer } from '../client/components/core/CommonJs.js';
 import { spawnSync } from 'child_process';
 import Underpost from '../index.js';

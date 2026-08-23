@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { getCapVariableName } from '../../client/components/core/CommonJs.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 /**
  * Module for connecting to and loading models for a MongoDB database using Mongoose.

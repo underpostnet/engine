@@ -4,11 +4,11 @@
 // https://expressjs.com/en/4x/api.html
 
 import dotenv from 'dotenv';
-import { loggerFactory } from './server/logger.js';
+import { loggerFactory } from './server/ops/logger.js';
 import { buildClient } from './client-builder/client-build.js';
-import { buildRuntime } from './server/runtime.js';
-import { ProcessController } from './server/process.js';
-import { Config } from './server/conf.js';
+import { buildRuntime } from './server/runtime/runtime.js';
+import { ProcessController } from './server/runtime/process.js';
+import { Config } from './server/runtime/conf.js';
 
 dotenv.config();
 

@@ -6,8 +6,8 @@
  * @namespace UnderpostKubectl
  */
 
-import { loggerFactory } from '../server/logger.js';
-import { shellExec, sleepSync } from '../server/process.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { shellExec, sleepSync } from '../server/runtime/process.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
 

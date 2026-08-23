@@ -5,11 +5,11 @@
  *
  */
 
-import { getNpmRootPath } from '../server/environment.js';
-import { pbcopy, shellExec } from '../server/process.js';
+import { getNpmRootPath } from '../server/runtime/environment.js';
+import { pbcopy, shellExec } from '../server/runtime/process.js';
 import walk from 'ignore-walk';
 import fs from 'fs-extra';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

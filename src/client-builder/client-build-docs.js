@@ -7,8 +7,8 @@
  */
 
 import fs from 'fs-extra';
-import { shellExec } from '../server/process.js';
-import { loggerFactory } from '../server/logger.js';
+import { shellExec } from '../server/runtime/process.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { JSONweb } from './client-formatted.js';
 import { ssrFactory } from './ssr.js';
 

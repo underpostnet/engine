@@ -20,12 +20,12 @@ import {
   forwardProxyTargetFactory,
   forwardProxyTunnelTargetFactory,
   forwardProxyUnitFactory,
-} from '../../../../src/server/forward-proxy.js';
-import { ShellExecError, redactCredentials } from '../../../../src/server/process.js';
-import { probeGroupsFactory, prometheusConfFactory } from '../../../../src/server/monitoring.js';
+} from '../../../../src/server/network/forward-proxy.js';
+import { ShellExecError, redactCredentials } from '../../../../src/server/runtime/process.js';
+import { probeGroupsFactory, prometheusConfFactory } from '../../../../src/server/ops/monitoring.js';
 import fs from 'node:fs';
-import { Dns } from '../../../../src/server/dns.js';
-import { homeDirectoryPathFactory } from '../../../../src/server/systemd.js';
+import { Dns } from '../../../../src/server/network/dns.js';
+import { homeDirectoryPathFactory } from '../../../../src/server/ops/systemd.js';
 import UnderpostWireguard, {
   ENGINE_SYNC_STEPS,
   UNDERPOST_EDGE,
@@ -1511,7 +1511,7 @@ describe('port-scoped ingress blocking', () => {
   it('creates the chain its rules live in before touching it', () => {
     // `inet filter` exists on a firewalld host with no `input` chain, so every
     // ingress command fails on a table that looks present.
-    const source = fs.readFileSync(new URL('../../../../src/server/dns.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/server/network/dns.js', import.meta.url), 'utf8');
     for (const method of ['blockAllIngress', 'unblockAllIngress', 'blockIngressPort', 'unblockIngressPort']) {
       const body = source.slice(source.indexOf(`static ${method}(`));
       expect(body.slice(0, body.indexOf('\n  }')), method).to.include('Dns.ensureIngressChain()');
@@ -1522,7 +1522,7 @@ describe('port-scoped ingress blocking', () => {
   it('calls the helper on the class that declares it', () => {
     // The class is `Dns`; `UnderpostDns` is the CLI wrapper and carries no such
     // static, so naming it here fails only once the command runs on a host.
-    const source = fs.readFileSync(new URL('../../../../src/server/dns.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/server/network/dns.js', import.meta.url), 'utf8');
     expect(source).to.not.include('UnderpostDns.portListFactory');
   });
 });

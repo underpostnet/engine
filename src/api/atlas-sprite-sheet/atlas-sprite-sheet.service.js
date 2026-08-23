@@ -1,6 +1,6 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/logger.js';
-import { DataQuery } from '../../server/data-query.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { DataQuery } from '../../server/storage/data-query.js';
 import { AtlasSpriteSheetGenerator } from '../../projects/cyberia/atlas-sprite-sheet-generator.js';
 import { FileFactory } from '../file/file.service.js';
 import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';

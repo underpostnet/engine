@@ -5,9 +5,9 @@
  */
 
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
-import { pbcopy, shellExec } from '../server/process.js';
-import { loggerFactory } from '../server/logger.js';
-import { waitForPort } from '../server/conf.js';
+import { pbcopy, shellExec } from '../server/runtime/process.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { waitForPort } from '../server/runtime/conf.js';
 import {
   runSELinuxCommands,
   selinuxPackagesCommandFactory,
@@ -15,7 +15,7 @@ import {
   selinuxSshContextCommandsFactory,
   selinuxSshPortCommandsFactory,
   shellArgumentFactory,
-} from '../server/selinux.js';
+} from '../server/security/selinux.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 

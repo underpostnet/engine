@@ -322,7 +322,7 @@ CYBERIA_WS_ORIGIN=wss://server.cyberiaonline.com
 CYBERIA_ENGINE_API_ORIGIN=https://www.cyberiaonline.com
 ```
 
-The generic `dispatchBuildInstanceEnv` hook in `src/server/conf.js` selects a
+The generic `dispatchBuildInstanceEnv` hook in `src/server/runtime/conf.js` selects a
 builder by deploy id. Cyberia registers `buildCyberiaMmoInstanceEnv` from
 `src/projects/cyberia/instance-data.js`. The generic root variant has an empty
 code and slug; Cyberia maps it to `DEFAULT_INSTANCE_CODE` from

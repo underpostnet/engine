@@ -8,9 +8,9 @@ import fs from 'fs-extra';
 import { isIP } from 'node:net';
 import os from 'node:os';
 import nodePath from 'node:path';
-import { getConfFilePath, loadConfInstances, loadConfServerJson } from '../server/conf.js';
-import { loadCronDeployEnv, parseList } from '../server/cron.js';
-import { resolveDeployList } from '../server/router.js';
+import { getConfFilePath, loadConfInstances, loadConfServerJson } from '../server/runtime/conf.js';
+import { loadCronDeployEnv, parseList } from '../server/ops/cron.js';
+import { resolveDeployList } from '../server/network/router.js';
 import {
   FORWARD_PROXY,
   forwardProxyCommandFactory,
@@ -21,10 +21,10 @@ import {
   forwardProxyServiceCommandsFactory,
   forwardProxyStartProbeCommandFactory,
   forwardProxyUnitFactory,
-} from '../server/forward-proxy.js';
-import { loggerFactory } from '../server/logger.js';
-import { nodeExporterServiceScriptFactory } from '../server/monitoring.js';
-import { installRootFile, shellExec, sleepSync } from '../server/process.js';
+} from '../server/network/forward-proxy.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { nodeExporterServiceScriptFactory } from '../server/ops/monitoring.js';
+import { installRootFile, shellExec, sleepSync } from '../server/runtime/process.js';
 import {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
@@ -33,7 +33,7 @@ import {
   systemdAvailableCommandFactory,
   systemdReloadIfActiveCommandFactory,
   systemdStatusCommandsFactory,
-} from '../server/systemd.js';
+} from '../server/ops/systemd.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

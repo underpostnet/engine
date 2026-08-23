@@ -9,7 +9,7 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

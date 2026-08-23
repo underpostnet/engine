@@ -5,8 +5,8 @@
  */
 
 import fs from 'fs-extra';
-import { Config, loadConf, readConfJson } from '../server/conf.js';
-import { loggerFactory } from '../server/logger.js';
+import { Config, loadConf, readConfJson } from '../server/runtime/conf.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import { buildClient } from './client-build.js';
 
 const logger = loggerFactory(import.meta);

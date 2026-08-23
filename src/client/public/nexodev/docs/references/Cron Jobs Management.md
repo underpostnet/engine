@@ -281,7 +281,7 @@ underpost vultr --metric outgoing  # count egress alone instead of both directio
 `./engine-private/deploy/dd.cron` — stores the default cron deploy-id (e.g. `dd-cron`). Used when
 no deploy-id argument is provided.
 
-Every consumer reads it through one helper, `cronDeployIdResolve()` in `src/server/cron.js`: the
+Every consumer reads it through one helper, `cronDeployIdResolve()` in `src/server/ops/cron.js`: the
 `deploy-list` fallback in `--setup-start` and `--generate-k8s-cronjobs`, the deploy-list baked
 into each generated manifest (`getRelatedDeployIdList`, except `backup`, which reads
 `dd.routes`), the env loaded by `loadCronDeployEnv()`, and the `sync` runner's cron step. A

@@ -6,7 +6,7 @@
 'use strict';
 
 import { Server } from 'socket.io';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory } from '../server/ops/logger.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

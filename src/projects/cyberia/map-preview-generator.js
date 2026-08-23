@@ -21,7 +21,7 @@
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import sharp from 'sharp';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import {
   ENTITY_TYPE_TO_ITEM_TYPES,
   getDefaultCyberiaItemById,

@@ -3,7 +3,7 @@
  * @module ws/core/core.ws.connection
  */
 
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { CoreWsChatChannel } from './channels/core.ws.chat.js';
 import { CoreWsMailerChannel } from './channels/core.ws.mailer.js';
 import { CoreWsStreamChannel } from './channels/core.ws.stream.js';

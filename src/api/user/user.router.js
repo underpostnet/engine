@@ -1,6 +1,6 @@
-import { hashPassword } from '../../server/auth.js';
+import { hashPassword } from '../../server/security/auth.js';
 import fs from 'fs-extra';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { UserController } from './user.controller.js';
 import express from 'express';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';

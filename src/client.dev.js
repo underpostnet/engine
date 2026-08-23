@@ -3,9 +3,9 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
-import { loggerFactory } from './server/logger.js';
-import { ProcessController } from './server/process.js';
-import { Config, buildClientStaticConf } from './server/conf.js';
+import { loggerFactory } from './server/ops/logger.js';
+import { ProcessController } from './server/runtime/process.js';
+import { Config, buildClientStaticConf } from './server/runtime/conf.js';
 import { createClientDevServer } from './client-builder/client-dev-server.js';
 
 const logger = loggerFactory(import.meta);

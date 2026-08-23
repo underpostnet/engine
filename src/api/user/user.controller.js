@@ -1,4 +1,4 @@
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { UserService } from './user.service.js';
 
 const logger = loggerFactory(import.meta);

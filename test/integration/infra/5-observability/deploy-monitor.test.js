@@ -37,8 +37,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Underpost from '../../../../src/index.js';
-import { shellExec } from '../../../../src/server/process.js';
-import { startInternalStatusServer, stopInternalStatusServer } from '../../../../src/server/runtime-status.js';
+import { shellExec } from '../../../../src/server/runtime/process.js';
+import { startInternalStatusServer, stopInternalStatusServer } from '../../../../src/server/runtime/runtime-status.js';
 
 const node = process.execPath;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');

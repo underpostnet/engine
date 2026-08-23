@@ -1,4 +1,4 @@
-import { controllerHandler, sendSuccess, serviceHandler } from '../../server/middlewares.js';
+import { controllerHandler, sendSuccess, serviceHandler } from '../../server/network/middlewares.js';
 import { TestService } from './test.service.js';
 
 class TestController {

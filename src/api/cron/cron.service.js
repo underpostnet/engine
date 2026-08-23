@@ -1,5 +1,5 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 

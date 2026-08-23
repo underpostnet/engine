@@ -2,7 +2,7 @@
  * Cyberia CLI content catalog.
  *
  * A per-deploy product catalog: pure data, loaded dynamically by deploy id via
- * {@link module:src/server/catalog} so the base build and template assembly never
+ * {@link module:src/server/build/catalog.js} so the base build and template assembly never
  * statically depend on it. Exports the uniform product-catalog shape:
  *
  *   - `sourceMoves`       — public `[src, dest]` pairs moved into the engine tree before a build.

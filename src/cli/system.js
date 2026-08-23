@@ -13,7 +13,7 @@ import {
   selinuxPackagesCommandFactory,
   selinuxSshContextCommandsFactory,
   shellArgumentFactory,
-} from '../server/selinux.js';
+} from '../server/security/selinux.js';
 
 /**
  * @class UnderpostSystemProvisionig

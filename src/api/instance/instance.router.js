@@ -1,5 +1,5 @@
 import express from 'express';
-import { adminGuard } from '../../server/auth.js';
+import { adminGuard } from '../../server/security/auth.js';
 import { InstanceController } from './instance.controller.js';
 
 class InstanceRouter {

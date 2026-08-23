@@ -16,7 +16,7 @@
 
 import crypto from 'crypto';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   DEFAULT_DEAD_ITEM_ID,

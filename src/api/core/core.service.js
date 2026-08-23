@@ -1,6 +1,6 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/logger.js';
-import { shellExec } from '../../server/process.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { shellExec } from '../../server/runtime/process.js';
 
 const logger = loggerFactory(import.meta);
 

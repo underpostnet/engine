@@ -22,8 +22,8 @@
  */
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/logger.js';
-import { resolveHostKeyContext } from '../../server/conf.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { resolveHostKeyContext } from '../../server/runtime/conf.js';
 import {
   buildClientHints,
   CYBERIA_CLIENT_HINTS_DEFAULTS,

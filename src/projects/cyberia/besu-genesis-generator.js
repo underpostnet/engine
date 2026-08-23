@@ -17,9 +17,9 @@ import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
 import { keccak256 as ethersKeccak256 } from 'ethers';
-import { loggerFactory } from '../../server/logger.js';
-import { shellExec } from '../../server/process.js';
-import { crictlCommandFactory } from '../../server/cri.js';
+import { loggerFactory } from '../../server/ops/logger.js';
+import { shellExec } from '../../server/runtime/process.js';
+import { crictlCommandFactory } from '../../server/ops/cri.js';
 
 const logger = loggerFactory(import.meta);
 

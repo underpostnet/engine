@@ -1,4 +1,4 @@
-import { controllerHandler, sendSuccess } from '../../server/middlewares.js';
+import { controllerHandler, sendSuccess } from '../../server/network/middlewares.js';
 import { CYBERIA_CLIENT_HINTS_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { resolveClientHints } from './cyberia-client-hints.service.js';
 

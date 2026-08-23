@@ -10,7 +10,7 @@
  * This module is that meter. It reads the instance's consumption from the Vultr
  * API, compares it against the plan's quota, and — once a configured fraction of
  * it is gone — reaches the VPS over SSH and drops its egress with
- * {@link module:src/server/dns.js}'s `blockAllEgress`.
+ * {@link module:src/server/network/dns.js}'s `blockAllEgress`.
  *
  * That last step is deliberately blunt: it takes every hostname behind the hub
  * offline. It is the cheaper failure. An overage accrues silently and without a
@@ -28,12 +28,12 @@
  */
 
 import axios from 'axios';
-import { environmentValueFactory } from '../server/environment.js';
-import { FORWARD_PROXY, fetchViaForwardProxy } from '../server/forward-proxy.js';
+import { environmentValueFactory } from '../server/runtime/environment.js';
+import { FORWARD_PROXY, fetchViaForwardProxy } from '../server/network/forward-proxy.js';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
-import { loggerFactory } from '../server/logger.js';
-import { UNDERPOST_MONITORING } from '../server/monitoring.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { UNDERPOST_MONITORING } from '../server/ops/monitoring.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -83,7 +83,7 @@ const UNDERPOST_VULTR = {
  * @method envFactory
  * @description First non-empty value among a list of keys.
  *
- * Resolution is {@link module:src/server/environment.js.environmentValueFactory}'s — the process
+ * Resolution is {@link module:src/server/runtime/environment.js.environmentValueFactory}'s — the process
  * environment, then the deploy env `underpost env <deploy-id> <environment>`
  * selects into `./.env`, then the underpost root env — rather than a second
  * implementation of it, because the three callers differ: a CronJob container has

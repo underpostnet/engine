@@ -3,8 +3,8 @@
 import { Command } from 'commander';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { loggerFactory } from '../src/server/logger.js';
-import { buildTemplate, updatePrivateTemplateRepo } from '../src/server/conf.js';
+import { loggerFactory } from '../src/server/ops/logger.js';
+import { buildTemplate, updatePrivateTemplateRepo } from '../src/server/runtime/conf.js';
 
 if (fs.existsSync('./engine-private/conf/dd-cron/.env.production'))
   dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });

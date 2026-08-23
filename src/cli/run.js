@@ -4,7 +4,7 @@
  * @namespace UnderpostRun
  */
 
-import { daemonProcess, pbcopy, shellCd, shellExec } from '../server/process.js';
+import { daemonProcess, pbcopy, shellCd, shellExec } from '../server/runtime/process.js';
 import {
   awaitDeployMonitor,
   clusterContextFactory,
@@ -43,11 +43,11 @@ import {
   nextTrafficFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
-} from '../server/conf.js';
-import { buildKindPorts, resolveDeployList } from '../server/router.js';
-import { cronDeployIdResolve } from '../server/cron.js';
-import { getNpmRootPath, writeEnv } from '../server/environment.js';
-import { actionInitLog, loggerFactory } from '../server/logger.js';
+} from '../server/runtime/conf.js';
+import { buildKindPorts, resolveDeployList } from '../server/network/router.js';
+import { cronDeployIdResolve } from '../server/ops/cron.js';
+import { getNpmRootPath, writeEnv } from '../server/runtime/environment.js';
+import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
 
 import fs from 'fs-extra';
 import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js';
@@ -68,7 +68,7 @@ import {
   readHostInstanceRegistry,
   writeHostInstanceRegistry,
   writeHostServerConf,
-} from '../server/underpost-gateway.js';
+} from '../server/network/underpost-gateway.js';
 const logger = loggerFactory(import.meta);
 
 /**

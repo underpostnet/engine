@@ -3,10 +3,10 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
-import { loggerFactory } from './server/logger.js';
-import { buildProxy } from './server/proxy.js';
-import { ProcessController } from './server/process.js';
-import { Config } from './server/conf.js';
+import { loggerFactory } from './server/ops/logger.js';
+import { buildProxy } from './server/network/proxy.js';
+import { ProcessController } from './server/runtime/process.js';
+import { Config } from './server/runtime/conf.js';
 
 await Config.build(process.argv[2], process.argv[3], process.argv[4]);
 

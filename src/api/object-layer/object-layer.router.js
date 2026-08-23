@@ -1,7 +1,7 @@
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerController } from './object-layer.controller.js';
 import express from 'express';
-import { moderatorGuard, adminGuard } from '../../server/auth.js';
+import { moderatorGuard, adminGuard } from '../../server/security/auth.js';
 
 const logger = loggerFactory(import.meta);
 

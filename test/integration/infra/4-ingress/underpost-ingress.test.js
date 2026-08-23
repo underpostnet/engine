@@ -10,7 +10,7 @@ import {
   underpostIngressConfFactory,
   underpostIngressHostMapFactory,
   underpostIngressManifestsFactory,
-} from '../../../../src/server/underpost-ingress.js';
+} from '../../../../src/server/network/underpost-ingress.js';
 
 const CONTOUR = UNDERPOST_INGRESS.backends.contour;
 const GATEWAY = gatewayBackendFactory('envoy-eg-d8c59e83');

@@ -5,10 +5,10 @@
  * @namespace UnderpostCloudInit
  */
 
-import { shellExec } from '../server/process.js';
+import { shellExec } from '../server/runtime/process.js';
 import fs from 'fs-extra';
-import { loggerFactory } from '../server/logger.js';
-import { getNpmRootPath } from '../server/environment.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { getNpmRootPath } from '../server/runtime/environment.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);

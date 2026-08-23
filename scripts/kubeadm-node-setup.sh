@@ -178,7 +178,7 @@ Bringing up underpost kubeadm node (role=$ROLE) from $ENGINE_ROOT
 # ---------------------------------------------------------------------------
 # 2. Engine source — required by `node bin cluster` (manifests + CLI).
 #    Normalizes any (custom-named) repo into the canonical paths, mirroring
-#    src/server/start.js: clone into a temp dir then copy the contents into the
+#    src/server/runtime/start.js: clone into a temp dir then copy the contents into the
 #    target, so the working tree is always $ENGINE_ROOT regardless of repo name.
 # ---------------------------------------------------------------------------
 command -v git >/dev/null 2>&1 || sudo dnf install -y git

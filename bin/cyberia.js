@@ -13,11 +13,11 @@ import dotenv from 'dotenv';
 import { Command } from 'commander';
 import fs from 'fs-extra';
 import stringify from 'fast-json-stable-stringify';
-import { shellExec } from '../src/server/process.js';
-import { loggerFactory } from '../src/server/logger.js';
+import { shellExec } from '../src/server/runtime/process.js';
+import { loggerFactory } from '../src/server/ops/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
-import { etcHostFactory, loadConfServerJson, normalizeInstanceTopology } from '../src/server/conf.js';
+import { etcHostFactory, loadConfServerJson, normalizeInstanceTopology } from '../src/server/runtime/conf.js';
 import {
   ObjectLayerEngine,
   resolveCanonicalCid,
@@ -55,7 +55,7 @@ import {
   ITEM_TYPES as itemTypes,
   DefaultCyberiaItems,
 } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
-import { loadDeployCatalog } from '../src/server/catalog.js';
+import { loadDeployCatalog } from '../src/server/build/catalog.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.

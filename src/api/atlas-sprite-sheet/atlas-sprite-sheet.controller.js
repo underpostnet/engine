@@ -4,7 +4,7 @@ import {
   sendBlob,
   serviceHandler,
   setCrossOriginHeaders,
-} from '../../server/middlewares.js';
+} from '../../server/network/middlewares.js';
 import { AtlasSpriteSheetService } from './atlas-sprite-sheet.service.js';
 
 const AtlasSpriteSheetController = buildCrudController(AtlasSpriteSheetService, {

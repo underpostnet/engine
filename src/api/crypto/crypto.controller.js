@@ -1,4 +1,4 @@
-import { serviceHandler } from '../../server/middlewares.js';
+import { serviceHandler } from '../../server/network/middlewares.js';
 import { CryptoService } from './crypto.service.js';
 
 class CryptoController {

@@ -1,6 +1,6 @@
 import { createPool } from 'mariadb';
 import Underpost from '../../index.js';
-import { loggerFactory } from '../../server/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 
 /**
  * Module for interacting with MariaDB/MySQL databases using the mariadb connector.
