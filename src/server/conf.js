@@ -198,7 +198,7 @@ const getConfFilePath = (deployId, confType, subConf = '') => {
   const folder = getConfFolder(deployId);
   // When no explicit subConf is given, fall back to the env var set by loadConf()
   const effectiveSubConf = subConf || process.env.DEPLOY_SUB_CONF || '';
-  if (confType === 'server' && effectiveSubConf) {
+  if (process.env.NODE_ENV === 'development' && confType === 'server' && effectiveSubConf) {
     const devConfPath = `${folder}/conf.${confType}.dev.${effectiveSubConf}.json`;
     if (fs.existsSync(devConfPath)) return devConfPath;
   }
@@ -407,7 +407,13 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   if (subConf) process.env.DEPLOY_SUB_CONF = subConf;
 
   for (const typeConf of Object.keys(Config.default)) {
-    let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
+    const confPath = `${folder}/conf.${typeConf}.json`;
+    let srcConf;
+    if (fs.existsSync(confPath)) srcConf = fs.readFileSync(confPath, 'utf8');
+    else {
+      Config.default[typeConf] = newInstance(DefaultConf[typeConf]);
+      continue;
+    }
     if (process.env.NODE_ENV === 'development' && typeConf === 'server' && subConf) {
       const devConfPath = `${folder}/conf.${typeConf}.dev${subConf ? `.${subConf}` : ''}.json`;
       if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
