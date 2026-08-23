@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDto } from './user.model.js';
-import { ValkeyAPI } from '../../server/storage/valkey.js';
+import { ValkeyAPI } from '../../db/valkey/Valkey.js';
 import { hashPassword, getBearerToken, jwtSign } from '../../server/security/auth.js';
 
 // ─── TTL ──────────────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ const _guestTtlMs = () => {
 /**
  * Constructs a new ephemeral guest user object.
  * This is domain logic specific to the guest lifecycle; it does not belong
- * in the generic Valkey storage module.
+ * in the Valkey database adapter.
  *
  * @param {{ host?: string }} options
  * @returns {object}

@@ -9,11 +9,11 @@
  * Out of scope: domain model factories, DTO projection — those belong in
  * their respective service modules (e.g. guest.service.js).
  *
- * @module src/server/storage/valkey.js
+ * @module src/db/valkey/Valkey.js
  * @namespace ValkeyService
  */
 import Valkey from 'iovalkey';
-import { loggerFactory } from '../ops/logger.js';
+import { loggerFactory } from '../../server/ops/logger.js';
 import Underpost from '../../index.js';
 
 const logger = loggerFactory(import.meta);

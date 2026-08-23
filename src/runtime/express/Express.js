@@ -17,7 +17,7 @@ import { getCapVariableName, newInstance } from '../../client/components/core/Co
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { createPeerServer } from '../../server/network/peer.js';
-import { createValkeyConnection } from '../../server/storage/valkey.js';
+import { createValkeyConnection } from '../../db/valkey/Valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/security/auth.js';
 import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
 import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js';
