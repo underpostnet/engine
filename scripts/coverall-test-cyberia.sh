@@ -10,6 +10,13 @@ EXCLUDES=(
     --exclude="test/underpost-gateway.test.js"
     --exclude="test/underpost-ingress.test.js"
     --exclude="test/wireguard-edge.test.js"
+    --exclude="test/deploy-routes.test.js"
+    --exclude="test/event-notification.test.js"
+    --exclude="test/event-remediation.test.js"
+    --exclude="test/monitoring-stack.test.js"
+    --exclude="test/selinux.test.js"
+    --exclude="test/systemd-service.test.js"
+    
 )
 
 TESTS=(
