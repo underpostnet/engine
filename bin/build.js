@@ -259,11 +259,11 @@ program
       return;
     }
 
-    // Reconstruct the base template from 0 before assembly so no src from a previous
-    // build run leaks into this one. Opt out with --no-template-rebuild.
-    if (options.templateRebuild) await buildTemplate({ toPath: basePath });
-
     for (const deployId of deployList) {
+      // Reconstruct the base template from 0 before each deploy id so neither a previous
+      // build run nor the deploy id assembled before this one leaks into it. Opt out with
+      // --no-template-rebuild.
+      if (options.templateRebuild) await buildTemplate({ toPath: basePath });
       await buildDeployTemplate(deployId);
       // Publish the just-assembled tree to the deploy id's private test repo so a
       // pod started with `--private-test-repo` clones this work-in-progress source.

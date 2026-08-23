@@ -20,14 +20,14 @@ program
   .argument('[src-path]', 'Engine source root to sync from.', './')
   .argument('[to-path]', 'Template output path.', '../pwa-microservices-template')
   .option('--update-private', 'Update private template repository', false)
-  .option('--no-clone', 'Skip the clone step and reset the template repo instead.', false)
+  .option('--no-clone', 'Fail instead of cloning when the template checkout is missing or foreign.')
   .action(async (srcPath, toPath, options) => {
     try {
       if (options.updatePrivate) return await updatePrivateTemplateRepo();
       await buildTemplate({
         srcPath: srcPath.replaceAll(`'`, ''),
         toPath: toPath.replaceAll(`'`, ''),
-        noClone: options.noClone,
+        noClone: options.clone === false,
       });
     } catch (error) {
       logger.error(error, error.stack);
