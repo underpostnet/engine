@@ -29,6 +29,14 @@ const TEMPLATE_RESTORE_PATHS = [
 ];
 
 /**
+ * Template checkout entries a rebuild keeps. Everything else is reconstructed from
+ * the engine tree, so a file the engine no longer produces cannot survive a build.
+ * @constant {string[]}
+ * @memberof UnderpostCatalog
+ */
+const TEMPLATE_PRESERVED_ENTRIES = ['.git', 'node_modules'];
+
+/**
  * npm keywords for the standalone Underpost platform / template package.
  * @constant {string[]}
  * @memberof UnderpostCatalog
@@ -60,4 +68,4 @@ const TEMPLATE_KEYWORDS = [
 const TEMPLATE_DESCRIPTION =
   'Underpost Platform — end-to-end CI/CD and application-delivery toolchain CLI. Covers bare metal, Kubernetes, K3s, kubeadm, LXD, container/image orchestration, secrets, databases, cron jobs, monitoring, SSH, runners, PWA + Workbox delivery, and release orchestration. Extensible via downstream CLIs.';
 
-export { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION };
+export { TEMPLATE_RESTORE_PATHS, TEMPLATE_PRESERVED_ENTRIES, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION };

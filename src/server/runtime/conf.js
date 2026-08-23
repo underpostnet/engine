@@ -898,7 +898,7 @@ const validateTemplatePath = (absolutePath = '') => {
   const clients = DefaultConf.client.default.services;
 
   if (
-    absolutePath.match('src/api') &&
+    absolutePath.match('src/api/') &&
     !absolutePath.match('src/api/types.js') &&
     !confServer.apis.find((p) => absolutePath.match(`src/api/${p}/`))
   ) {
@@ -2786,12 +2786,91 @@ const syncDeployIdSources = (sourceMoves = []) => {
   return true;
 };
 
+const TEMPLATE_REPOSITORY_NAME = 'pwa-microservices-template';
+
+/**
+ * @method gitOriginRepositoryName
+ * @description Repository name a checkout's `origin` points at, without the `.git`
+ * suffix, or `null` when the path is not a work tree or declares no origin.
+ * @param {string} repoPath - Local repository path.
+ * @returns {string|null}
+ * @memberof ServerConfBuilder
+ */
+const gitOriginRepositoryName = (repoPath) => {
+  if (!fs.existsSync(`${repoPath}/.git`)) return null;
+  const url = shellExec(`cd ${repoPath} && git config --get remote.origin.url`, {
+    stdout: true,
+    silent: true,
+    disableLog: true,
+    silentOnError: true,
+  });
+  const name = typeof url === 'string' ? url.trim().split('/').pop() : '';
+  return name ? name.replace(/\.git$/, '') : null;
+};
+
+/**
+ * @method ensureTemplateCheckout
+ * @description Guarantees `toPath` is a checkout of the template repository, cloning it
+ * when it is missing or belongs to another repository.
+ *
+ * Publishing steps swap the checkout's `.git` for a product repository's history, so an
+ * assembly that trusted whatever `.git` it found would read another product's identity
+ * back into the base template `package.json`.
+ *
+ * @param {object} params
+ * @param {string} params.toPath - Template checkout path.
+ * @param {string} [params.githubUsername] - Owner of the template repository.
+ * @param {boolean} [params.noClone=false] - Fail instead of cloning a missing/foreign checkout.
+ * @returns {boolean} `true` when the checkout was restored.
+ * @memberof ServerConfBuilder
+ */
+const ensureTemplateCheckout = ({ toPath, githubUsername, noClone = false }) => {
+  const owner = githubUsername || 'underpostnet';
+  const repository = `${owner}/${TEMPLATE_REPOSITORY_NAME}`;
+  if (gitOriginRepositoryName(toPath) === TEMPLATE_REPOSITORY_NAME) return false;
+  if (noClone) throw new Error(`buildTemplate: ${toPath} is not a ${repository} checkout (--no-clone)`);
+  logger.warn('Restoring template checkout', { toPath, repository });
+
+  // Swap in the clone only once it is complete, so a failed one leaves the checkout as is.
+  const templatePath = dir.resolve(toPath);
+  const stagePath = fs.mkdtempSync(`${dir.dirname(templatePath)}/.${TEMPLATE_REPOSITORY_NAME}-`);
+  try {
+    shellExec(`cd ${stagePath} && node ${dir.resolve('./bin')} clone ${repository}`);
+    const clonePath = `${stagePath}/${TEMPLATE_REPOSITORY_NAME}`;
+    if (gitOriginRepositoryName(clonePath) !== TEMPLATE_REPOSITORY_NAME)
+      throw new Error(`buildTemplate: could not clone ${repository}`);
+    fs.removeSync(templatePath);
+    fs.moveSync(clonePath, templatePath);
+  } finally {
+    fs.removeSync(stagePath);
+  }
+  return true;
+};
+
+/**
+ * @method pruneTemplateWorkTree
+ * @description Empties the template checkout of everything a build reconstructs, so a
+ * source renamed or deleted in the engine — or a client bundle belonging to another
+ * deploy id — cannot survive from a previous run into the assembled output.
+ * @param {string} toPath - Template checkout path.
+ * @param {string[]} preservedEntries - Top level entries to keep (git history, installed modules).
+ * @returns {void}
+ * @memberof ServerConfBuilder
+ */
+const pruneTemplateWorkTree = (toPath, preservedEntries = []) => {
+  for (const entry of fs.readdirSync(toPath)) {
+    if (preservedEntries.includes(entry)) continue;
+    fs.removeSync(`${toPath}/${entry}`);
+  }
+};
+
 /**
  * Rebuilds the standalone `pwa-microservices-template` from scratch out of the current
  * engine source tree.
  *
- * Clones the template repo next to the engine when missing, otherwise resets it to a clean
- * pristine checkout, then syncs every engine-tracked file the template is allowed to carry
+ * Clones the template repo next to the engine when the checkout is missing or belongs to
+ * another repository, empties it so the result cannot inherit anything from a previous run,
+ * then syncs every engine-tracked file the template is allowed to carry
  * ({@link validateTemplatePath}), strips engine-only + product modules, restores the template's
  * own CI workflows + guest services, and rewrites `package.json` / `package-lock.json` / `README`
  * so the result is a standalone, installable project. Throws on failure; callers own exit codes.
@@ -2803,13 +2882,13 @@ const syncDeployIdSources = (sourceMoves = []) => {
  * @param {object} [options]
  * @param {string} [options.srcPath='./'] - Engine source root to sync from.
  * @param {string} [options.toPath='../pwa-microservices-template'] - Template output path.
- * @param {boolean} [options.noClone=false] - Skip the clone step and reset the template repo instead.
+ * @param {boolean} [options.noClone=false] - Fail instead of cloning when the checkout is missing or foreign.
  * @returns {Promise<void>}
  * @memberof ServerConfBuilder
  */
 const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-template', noClone = false } = {}) => {
   const walk = (await import('ignore-walk')).default;
-  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } =
+  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_PRESERVED_ENTRIES, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } =
     await import('../../projects/underpost/catalog-underpost.js');
   const { loadProductCatalogs } = await import('../build/catalog.js');
   const githubUsername = process.env.GITHUB_USERNAME;
@@ -2824,12 +2903,9 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
     )
   ).filter((p) => !p.startsWith('.git'));
 
-  if (noClone) {
-    fs.removeSync(`${githubUsername}/pwa-microservices-template`);
-    shellExec(`cd .. && node engine/bin clone ${githubUsername}/pwa-microservices-template`);
-  }
+  ensureTemplateCheckout({ toPath, githubUsername, noClone });
   shellExec(`cd ${toPath} && git config core.filemode false`);
-  fs.removeSync(`${toPath}/src/server`);
+  pruneTemplateWorkTree(toPath, TEMPLATE_PRESERVED_ENTRIES);
 
   for (const copyPath of sourceFiles) {
     if (copyPath === 'NaN') continue;
@@ -2938,7 +3014,8 @@ git add .`);
  * `engine-<idPart>`). A pod started with `underpost start --build --private-test-repo`
  * clones this repo, so work-in-progress engine source can be tested end to end
  * without touching the production source. Mirrors {@link updatePrivateTemplateRepo}
- * but per-deploy-id and against the test repo.
+ * but per-deploy-id and against the test repo, publishing from its own work tree
+ * (`<template parent>/engine-test-<idPart>`) so the template checkout keeps its identity.
  *
  * Assumes the deploy id template has already been assembled at the template path
  * (run `node bin/build <deployId>` first, or use `node bin/build <deployId> --update-private`).
@@ -2953,34 +3030,43 @@ const updatePrivateEngineTestRepo = async (deployId) => {
   if (!fs.existsSync(templatePath))
     throw new Error(`updatePrivateEngineTestRepo: assemble the template first (node bin/build ${deployId})`);
 
-  // Detach the assembled working tree from any engine-build git history.
-  shellExec(`sudo rm -rf ${templatePath}/.git`);
-
   // Adopt the test repo's existing history when present (so the push is a delta);
   // otherwise publish a fresh history on first push.
-  shellExec(`cd /home/dd && sudo rm -rf ./${repoName}.git && underpost clone --bare ${username}/${repoName}`, {
+  const parentPath = dir.dirname(templatePath);
+  shellExec(`cd ${parentPath} && sudo rm -rf ./${repoName}.git && underpost clone --bare ${username}/${repoName}`, {
     silent: true,
     disableLog: true,
     silentOnError: true,
   });
-  if (fs.existsSync(`/home/dd/${repoName}.git`)) shellExec(`mv /home/dd/${repoName}.git ${templatePath}/.git`);
+
+  // Publishing from a work tree of its own leaves the template checkout its own git
+  // history, and copying that tree from 0 keeps a stale file out of the published one.
+  const publishPath = `${parentPath}/${repoName}`;
+  shellExec(`sudo rm -rf ${publishPath}`);
+  fs.copySync(templatePath, publishPath, {
+    filter: (src) => {
+      const entries = dir.relative(templatePath, src).split(dir.sep);
+      return !entries.includes('.git') && !entries.includes('node_modules');
+    },
+  });
+  if (fs.existsSync(`${parentPath}/${repoName}.git`)) shellExec(`mv ${parentPath}/${repoName}.git ${publishPath}/.git`);
 
   // `git init` converts the moved bare repo into a normal work-tree repo (bare
   // clones have no work tree, so `git add` would fail), and bootstraps a fresh
   // repo on first publish. Idempotent — mirrors updatePrivateTemplateRepo.
-  shellExec(`cd ${templatePath}
+  shellExec(`cd ${publishPath}
 git init
 git config user.name '${username}'
 git config user.email 'development@underpost.net'
-git add .`);
+git add -A .`);
 
-  const hasChanges = shellExec(`node bin cmt ${templatePath} --has-changes`, {
+  const hasChanges = shellExec(`node bin cmt ${publishPath} --has-changes`, {
     stdout: true,
     silent: true,
     disableLog: true,
   }).trim();
   if (hasChanges === '1')
-    shellExec(`cd ${templatePath} && git commit -m 'Update ${repoName}' && underpost push . ${username}/${repoName}`);
+    shellExec(`cd ${publishPath} && git commit -m 'Update ${repoName}' && underpost push . ${username}/${repoName}`);
   else logger.info('No changes to publish', { repoName });
 };
 
@@ -3112,6 +3198,9 @@ export {
   waitForPort,
   syncPrivateConf,
   syncDeployIdSources,
+  gitOriginRepositoryName,
+  ensureTemplateCheckout,
+  pruneTemplateWorkTree,
   buildTemplate,
   updatePrivateTemplateRepo,
   updatePrivateEngineTestRepo,
