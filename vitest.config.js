@@ -1,7 +1,14 @@
 import { defineConfig } from 'vitest/config';
-import { UNDERPOST_TESTING, testProjectsFactory } from './src/server/build/testing.js';
+import {
+  UNDERPOST_TESTING,
+  coverageIncludeFactory,
+  coverageThresholdFactory,
+  testProjectsFactory,
+} from './src/server/build/testing.js';
 
 const allureResultsDirectory = process.env[UNDERPOST_TESTING.allureResultsEnvKey];
+const coverageThreshold = coverageThresholdFactory(process.env);
+const coverageInclude = coverageIncludeFactory(process.argv);
 
 // Spread into every tier: a Vitest project inherits nothing from the root
 // `test` block, and only `coverage` and `reporters` are read from it.
@@ -29,12 +36,18 @@ export default defineConfig({
       // `lcov` is what Coveralls ingests, `json` is what a merged multi-job
       // report is assembled from, `text` is what a local run reads.
       reporter: ['text', 'lcov', 'json'],
-      // Left to the loaded set rather than all of `src`: the client bundles and
-      // generated assets under it are shipped, not executed by any suite, and
-      // instrumenting them would report a coverage floor no test can move.
-      // Keep `test` segment-bound: a checkout named `engine-test-test` must not
-      // make the pattern match the repository directory and exclude all source.
-      exclude: ['src/client/public/**', 'src/client/sw/**', '**/test/**'],
+      // The tiers in the selection decide what is measured, so a partial run
+      // reports the slice it drives and the whole run reports the whole of it —
+      // rather than every module the CLI barrel drags into a worker on import.
+      include: coverageInclude,
+      // Only the suites themselves: an `include` whitelist already keeps
+      // dependencies, bundles and generated assets out, and a directory pattern
+      // here is not anchored to the root — `test/**` also excluded the API
+      // surfaces named `test`, so the tier covering them reported nothing.
+      exclude: ['**/*.{test,spec}.js'],
+      // Absent unless the run opted in, so a single-tier run reports its slice
+      // instead of failing against a number it never measured.
+      ...(coverageThreshold === null ? {} : { thresholds: { lines: coverageThreshold } }),
     },
     projects: testProjectsFactory(projectDefaults),
   },

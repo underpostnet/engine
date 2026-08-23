@@ -13,7 +13,8 @@ jobs:
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
        github.repository == 'underpostnet/pwa-microservices-template' ||
-       github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
+       github.repository == 'underpostnet/pwa-microservices-template-ghpkg' ||
+       github.repository == 'underpostnet/engine-test-test')
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -34,34 +35,73 @@ jobs:
       - name: Install project dependencies
         run: npm install
 
-      - name: Run tests and generate coverage
-        run: node bin test unit,infra
-
-      - name: Upload coverage to Coveralls
-        run: coveralls < ./coverage/lcov.info
+      # Set the COVERAGE_MIN repository variable to gate below the shipped
+      # default while the suite is catching up to it.
+      - name: Run tests and enforce coverage threshold
+        run: COVERAGE_ENFORCE=1 node bin test unit,infra,app
         env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_SERVICE_NAME: github
-          COVERALLS_GIT_BRANCH: ${{ github.ref_name }}
-          COVERALLS_FLAG_NAME: core
+          COVERAGE_MIN: ${{ vars.COVERAGE_MIN }}
 
-  finish:
+      # Stored even when the threshold step failed — that step still fails the
+      # job, but without the report the badge freezes at the last passing build.
+      - name: Store coverage report
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverall-lcov
+          path: ./coverage/lcov.info
+          if-no-files-found: error
+
+  upload:
+    name: Upload Coverage to Coveralls
     needs: test
+    # Host runner, not the Rocky container the suite runs in: every step of the
+    # Coveralls action declares `shell: bash`, which the runner execs inside the
+    # job container and cannot resolve there.
     if: |
+      !cancelled() &&
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
        github.repository == 'underpostnet/pwa-microservices-template' ||
-       github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
+       github.repository == 'underpostnet/pwa-microservices-template-ghpkg' ||
+       github.repository == 'underpostnet/engine-test-test')
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/rockylinux/rockylinux:9
     steps:
+      # Coveralls reads the commit and branch metadata from the checkout.
       - name: Clone repository
         uses: actions/checkout@v7
 
+      - name: Restore coverage report
+        uses: actions/download-artifact@v8
+        with:
+          name: coverall-lcov
+          path: ./coverage
+
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./coverage/lcov.info
+          format: lcov
+          parallel: true
+          fail-on-error: true
+
+  finish:
+    name: Finish Coveralls build
+    needs: upload
+    # The build stays open until this webhook lands, so it runs on any upload
+    # outcome rather than leaving a half-reported build behind.
+    if: |
+      !cancelled() &&
+      github.actor != 'dependabot[bot]' &&
+      (github.repository == 'underpostnet/engine' ||
+       github.repository == 'underpostnet/pwa-microservices-template' ||
+       github.repository == 'underpostnet/pwa-microservices-template-ghpkg' ||
+       github.repository == 'underpostnet/engine-test-test')
+    runs-on: ubuntu-latest
+    steps:
       - name: Notify Coveralls Finished
-        run: |
-          curl -s -X POST -d 'payload[build_num]=${{ github.run_id }}&payload[status]=done' \
-            "https://coveralls.io/webhook?repo_token=${{ secrets.COVERALLS_REPO_TOKEN }}"
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true

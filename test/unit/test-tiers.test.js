@@ -1,7 +1,16 @@
 'use strict';
 
 import { expect } from 'chai';
-import { TEST_TIERS, resolveTestSelection, testProjectsFactory, testSuiteNames } from '../../src/server/build/testing.js';
+import fs from 'node:fs';
+import {
+  TEST_TIERS,
+  UNDERPOST_TESTING,
+  coverageIncludeFactory,
+  coverageThresholdFactory,
+  resolveTestSelection,
+  testProjectsFactory,
+  testSuiteNames,
+} from '../../src/server/build/testing.js';
 
 // The table declares every tier the platform ships. A product build slices the
 // tree, so whether a tier's directory is present here is a catalog question,
@@ -88,5 +97,80 @@ describe('delegated tier commands', () => {
 
   it('passes a name filter through to its runner', () => {
     for (const { name, delegate } of delegated) expect(delegate({ grep: 'Burning' }), name).to.include('Burning');
+  });
+});
+
+describe('coverage threshold', () => {
+  it('reports without gating until a run opts in', () => {
+    // A tier selection measures a slice of the tree, so the whole-suite number is
+    // not the bar it should be held to.
+    expect(coverageThresholdFactory({})).to.equal(null);
+    expect(coverageThresholdFactory({ COVERAGE_ENFORCE: '0' })).to.equal(null);
+  });
+
+  it('gates an opted-in run on the shipped threshold', () => {
+    for (const COVERAGE_ENFORCE of ['1', 'true'])
+      expect(coverageThresholdFactory({ COVERAGE_ENFORCE }), COVERAGE_ENFORCE).to.equal(
+        UNDERPOST_TESTING.coverageThreshold,
+      );
+  });
+
+  it('lets a repository ratchet its own bar', () => {
+    expect(coverageThresholdFactory({ COVERAGE_MIN: '25' })).to.equal(25);
+    // An unset repository variable arrives as an empty string, not as absent.
+    expect(coverageThresholdFactory({ COVERAGE_ENFORCE: '1', COVERAGE_MIN: '' })).to.equal(
+      UNDERPOST_TESTING.coverageThreshold,
+    );
+  });
+
+  it('refuses a bar that is not a percentage', () => {
+    for (const COVERAGE_MIN of ['eighty', '-1', '101'])
+      expect(() => coverageThresholdFactory({ COVERAGE_MIN }), COVERAGE_MIN).to.throw('COVERAGE_MIN');
+  });
+});
+
+describe('coverage scope', () => {
+  const vitestTiers = TEST_TIERS.filter(({ delegate }) => !delegate);
+
+  it('makes every Vitest tier accountable for the sources it drives', () => {
+    for (const { name, sources } of vitestTiers) expect(sources, name).to.not.be.empty;
+  });
+
+  it('leaves a delegated tier out of the Vitest report', () => {
+    // Its runner measures its own coverage, and this table only feeds Vitest.
+    for (const { name, sources, delegate } of TEST_TIERS) if (delegate) expect(sources, name).to.equal(undefined);
+  });
+
+  it('points every glob at something this tree ships', () => {
+    // A source that moved leaves the tier silently measuring nothing, which
+    // reads as coverage rather than as the missing measurement it is. A product
+    // build slices the tree, so only tiers it kept are asserted.
+    for (const { name, directory, sources } of vitestTiers) {
+      if (!fs.existsSync(directory)) continue;
+      for (const glob of sources) expect(fs.globSync(glob), `${name}: ${glob}`).to.not.be.empty;
+    }
+  });
+
+  it('measures every tier when the run selects none', () => {
+    const everySource = new Set(vitestTiers.flatMap(({ sources }) => sources));
+    expect(coverageIncludeFactory([])).to.have.members([...everySource]);
+  });
+
+  it('measures only the selected tiers', () => {
+    const unit = TEST_TIERS.find(({ name }) => name === 'unit').sources;
+    for (const argv of [['--project', 'unit'], ['--project=unit']])
+      expect(coverageIncludeFactory(['npx', 'vitest', 'run', ...argv, '--coverage']), argv.join(' ')).to.deep.equal(
+        unit,
+      );
+  });
+
+  it('counts a source two tiers drive once', () => {
+    const include = coverageIncludeFactory(['--project', 'infra:3-cluster', '--project', 'infra:4-ingress']);
+    expect(new Set(include).size).to.equal(include.length);
+    expect(include).to.include('src/server/runtime/conf.js');
+  });
+
+  it('rejects a selection that matches no tier', () => {
+    expect(() => coverageIncludeFactory(['--project', 'not-a-tier'])).to.throw(/unknown suite/);
   });
 });
