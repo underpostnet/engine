@@ -661,7 +661,7 @@ The exporter is read directly rather than through Prometheus' `for:` window, so 
 
 ### Scenario modules
 
-The registry describes production behaviour, and nothing in it should be able to take a host down, so scenarios live beside the tests. `node bin event <event-id> --e2e-test` loads `test/event-e2e-<event-id>.js` and expects one default export:
+The registry describes production behaviour, and nothing in it should be able to take a host down, so scenarios live beside the tests. `node bin event <event-id> --e2e-test` loads `test/e2e/event-e2e-<event-id>.js` and expects one default export:
 
 ```js
 export default {
@@ -692,7 +692,7 @@ export default {
 
 `public-ingress-down` blocks the hub's published ports (`80,443`) rather than all inbound traffic. Remediation reaches the hub over SSH, so a total ingress block would drop the very connection that repairs it and leave the edge recoverable only from the provider console; the scoped block reproduces the same observable outage — every host down — while `--unblock-all-ingress`, which the handler runs, clears it along with any other ingress rule.
 
-Every shipped scenario breaks its subject through the **same identity chain the remediation resolves** — locally for the selected control node, LAN SSH for a worker, the hub's registered external SSH for the VPS. A subject that can be broken but not repaired therefore fails the rehearsal rather than an outage. They are run by `node bin event`, not by `npm test`: mocha collects `test/*.test.js` only.
+Every shipped scenario breaks its subject through the **same identity chain the remediation resolves** — locally for the selected control node, LAN SSH for a worker, the hub's registered external SSH for the VPS. A subject that can be broken but not repaired therefore fails the rehearsal rather than an outage. They are run by `node bin event`, not by `underpost test`: the scenarios live in `test/e2e/` and no tier collects them.
 
 ---
 
@@ -725,7 +725,7 @@ Add one object to `EVENTS` in `src/cli/event.js`:
 
 `probes` and `remediation` are functions, not values: both join the selected identity, node collection and topology at call time. Modules are `icmp`, `tcp_connect` and `http_2xx`.
 
-Then declare who hears it, in `conf.event.json` under `events.my-event.notifications` — without a route, `--list`, `event --service` and `monitor --sync-prom` all refuse to publish the rule. Optionally add `test/event-e2e-my-event.js` to make the whole loop rehearsable.
+Then declare who hears it, in `conf.event.json` under `events.my-event.notifications` — without a route, `--list`, `event --service` and `monitor --sync-prom` all refuse to publish the rule. Optionally add `test/e2e/event-e2e-my-event.js` to make the whole loop rehearsable.
 
 An event that fans out over many subjects emits one probe per subject with a distinguishing label, and the handler reads that label back off `alerts` to know which subject to act on. `remediation()` is what `--list` prints, so it should resolve the same identities the handler will use. The handler returns `{ ok, role, condition, targets[], health }`; the notification is rendered from that, which is what makes an alert say _which_ subject failed. Then re-provision:
 

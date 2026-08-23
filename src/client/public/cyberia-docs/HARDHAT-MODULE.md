@@ -20,7 +20,7 @@ hardhat/
     ObjectLayerToken.sol  ERC-1155 multi-token contract
   scripts/
     deployObjectLayerToken.js  Deployment script
-  test/                   Contract tests (Mocha + ethers v6)
+  test/                   Contract tests (node:test + viem)
   deployments/            Deployment artifacts (auto-generated)
   ignition/               Hardhat Ignition modules (optional)
   networks/               Network-specific genesis configs
@@ -199,15 +199,32 @@ The artifact is consumed by:
 
 ## Running Tests
 
-```bash
-cd hardhat
-npx hardhat test
+Contract tests are the `contracts` tier of the platform runner, so they run
+alongside every other suite and report to the same dashboard:
 
-# With gas report
-REPORT_GAS=true npx hardhat test
+```bash
+underpost test contracts             # this tier only
+underpost test contracts --allure    # also write results for the dashboard
+underpost test contracts --grep Burning
+underpost test                       # every tier, contracts last
 ```
 
-Tests use **Mocha + ethers v6** via `@nomicfoundation/hardhat-toolbox-mocha-ethers`. The `hardhat` in-process network simulates Besu behavior.
+Hardhat's own tasks stay available for contract-only work:
+
+```bash
+cd hardhat
+npm test                             # hardhat test
+npm run coverage                     # Solidity line/statement coverage
+REPORT_GAS=true npm test
+```
+
+Tests use **node:test + viem** via `@nomicfoundation/hardhat-toolbox-viem`. The
+`hardhat` in-process network simulates Besu behavior.
+
+The tier runs the suites on Node's test runner rather than through `hardhat
+test`: Hardhat pins its own reporter, and Node's can emit the JUnit results the
+Allure dashboard ingests while still printing a readable run. Compilation still
+goes through `hardhat build` first, so artifacts and the EVM are identical.
 
 ---
 

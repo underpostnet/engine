@@ -43,6 +43,7 @@
 | [`haproxy`](#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
 | [`vultr`](#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
 | [`run`](#underpost-run) | Runs specified scripts using various runners. |
+| [`test`](#underpost-test) | Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting. |
 | [`docker-compose`](#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
 | [`lxd`](#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
@@ -68,7 +69,7 @@ Initializes a new Underpost project, service, or configuration.
 | --- | --- |
 | `--deploy-id <deploy-id>` | Create deploy ID conf env files |
 | `--sub-conf <sub-conf>` | Create sub conf env files |
-| `--cluster` | Create deploy ID cluster files and sync to current cluster |
+| `--cluster` | Initialize the base cluster deploy folder engine-private/deploy from ./conf.js |
 | `--build-repos` | Create deploy ID repositories |
 | `--build` | Build the deployment to pwa-microservices-template (requires --deploy-id) |
 | `--clean-template` | Clean the build directory (pwa-microservices-template) |
@@ -218,7 +219,7 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--hashes <hashes>` | Comma-separated list of specific file hashes of commits. |
 | `--extension <extension>` | specific file extensions of commits. |
 | `--changelog` | Print the plain changelog of the last N commits (see --from-n-commit, default 1). |
-| `--changelog-build` | Builds a CHANGELOG.md file based on the commit history |
+| `--changelog-build` | Builds a CHANGELOG.md from the latest five versions |
 | `--changelog-min-version <version>` | Sets the minimum version limit for --changelog-build (default: 2.85.0) |
 | `--changelog-no-hash` | Excludes commit hashes from the generated changelog entries (used with --changelog-build). |
 | `--changelog-msg` | Print the sanitized, commit-ready changelog message of the last N commits (see --from-n-commit, default 1). Empty when there are no tagged entries. |
@@ -397,6 +398,8 @@ Displays the current public machine IP addresses.
 | `--unblock-all-egress` | Unblocks all outbound traffic and restores default ACCEPT policy. |
 | `--block-all-ingress` | Blocks all new inbound traffic to this host (keeps established/related connections). |
 | `--unblock-all-ingress` | Unblocks all inbound traffic and restores default ACCEPT policy. |
+| `--block-ingress-port <ports>` | Blocks new inbound traffic on comma-separated TCP ports, leaving the management path reachable. |
+| `--unblock-ingress-port <ports>` | Withdraws the port rules --block-ingress-port installed. |
 | `--mac` | Prints the MAC address of the main network interface. |
 | `-h, --help` | display help for command |
 
@@ -809,13 +812,14 @@ Dispatches operational events and provisions the monitoring rules that trigger t
 
 | Argument | Description |
 | --- | --- |
-| `event-id` | The operational event to dispatch. Options: wireguard-server-down,wireguard-spoke-down. |
+| `event-id` | The operational event to dispatch. Options: wireguard-server-down,wireguard-spoke-down,public-ingress-down,node-cpu-limit-exceeded,node-memory-limit-exceeded,hub-bandwidth-limit-exceeded,node-disk-limit-exceeded,node-network-traffic-exceeded. |
 
 #### Options
 
 | Option | Description |
 | --- | --- |
-| `--deploy` | Provisions the Prometheus probes, alert rules and Alertmanager route for the event. |
+| `--deploy` | Merges the event into the set already deployed in the cluster and republishes the monitoring configuration. |
+| `--undeploy` | Removes the event from the deployed set and republishes without it. |
 | `--serve` | Runs the Alertmanager webhook receiver in the foreground (use --service to supervise it). |
 | `--service` | Installs the receiver on a WireGuard control node as the underpost-event systemd unit. It remains available while the tunnel is down. |
 | `--service-stop` | Stops, disables and removes the underpost-event systemd unit. |
@@ -908,7 +912,8 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 | `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
 | `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology. |
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
-| `--nodes <node-names>` | Comma-separated node documents --sync acts on. Empty covers every hub and every peer of this node hub. |
+| `--nodes <node-names>` | Comma-separated node documents --sync and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
 | `--wireguard-start` | Enables and starts wg-quick@<interface> and the QUIC forward. |
 | `--wireguard-restart` | Restarts wg-quick@<interface> and restores the hub QUIC forward. |
@@ -963,7 +968,8 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 | `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
 | `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology. |
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
-| `--nodes <node-names>` | Comma-separated node documents --sync acts on. Empty covers every hub and every peer of this node hub. |
+| `--nodes <node-names>` | Comma-separated node documents --sync and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
 | `--wireguard-start` | Enables and starts wg-quick@<interface> and the QUIC forward. |
 | `--wireguard-restart` | Restarts wg-quick@<interface> and restores the hub QUIC forward. |
@@ -1109,6 +1115,42 @@ Runs specified scripts using various runners.
 | `--remove` | Remove/teardown resources |
 | `--test` | Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager). |
 | `--branch <branch>` | Sets the branch for git operations (default: current branch). |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost test
+
+Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting.
+
+**Usage:** `underpost test [options] [suite]`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `suite` | A comma-separated list of suites or tiers to run. Suites: unit, infra, app, cyberia, contracts, all. Tiers: unit, infra:1-security, infra:2-network, infra:3-cluster, infra:4-ingress, infra:5-observability, app, cyberia, contracts. Defaults to every tier, in tier order. (default: "") |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--itc` | Runs in this execution context instead of dispatching into deployment pods. |
+| `--deploy-list <deploy-list>` | A comma-separated list of deployment IDs to run the suite inside. |
+| `--grep <pattern>` | Runs only tests whose name matches the pattern. |
+| `--watch` | Keeps the runner open and re-runs affected suites on change. |
+| `--no-coverage` | Skips coverage instrumentation and reporters. |
+| `--allure` | Writes Allure results for the cluster dashboard alongside the run. |
+| `--dashboard` | Applies the Allure dashboard to the cluster and exits. |
+| `--job` | Runs the selected suite on the cluster as a Kubernetes Job (requires --image). |
+| `--image <image>` | Image carrying the engine and its dependencies, for --job. |
+| `--node-name <node-name>` | Pins the --job pod to this node. |
+| `--host <host>` | Hostname to route the --dashboard sub-path on. |
+| `--namespace <namespace>` | Kubernetes namespace for --dashboard, --job and --deploy-list. |
+| `--dry-run` | Renders the --dashboard or --job manifests without applying them. |
+| `--pod-name <pod-name>` | Waits for this cluster object to reach --pod-status instead of running tests. |
+| `--pod-status <pod-status>` | Status --pod-name waits for (default: "Running"). |
+| `--kind-type <kind-type>` | Kind --pod-name queries (default: "pods"). |
 | `-h, --help` | display help for command |
 
 ---
