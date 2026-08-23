@@ -338,16 +338,16 @@ Envoy is **discovered**, not named: Envoy Gateway provisions its own Deployment 
 
 An event is one object in the registry at `src/cli/event.js` holding its probes, its alerting rule and its handler.
 
-| Event                   | Role  | Probe                                                  | Fires after | Remediation                                                      |
-| ----------------------- | ----- | ------------------------------------------------------ | ----------- | ---------------------------------------------------------------- |
-| `wireguard-spoke-down`  | spoke | hub tunnel for local spoke; tunnel address for workers | 2m          | restart + verified handshake locally or through LAN SSH          |
-| `wireguard-server-down` | hub   | hub tunnel, delayed behind local-spoke remediation     | 5m          | restart + health check through the hub's external registered SSH |
-| `public-ingress-down`   | ingress | every published host, from the same conf the traffic report reads | 10m         | unblock ingress + rebuild the tunnel on the hub, then re-probe   |
-| `node-cpu-limit-exceeded` | node | none — reads scraped host metrics | 5m | captures the top CPU consumers on the node the alert names |
-| `node-memory-limit-exceeded` | node | none — reads scraped host metrics | 3m | captures the top memory consumers |
-| `hub-bandwidth-limit-exceeded` | hub | none — reads the quota the Vultr cron publishes | 15m | reports the traffic breakdown |
-| `node-disk-limit-exceeded` | node | none — reads scraped host metrics | 5m | reports what is filling the root filesystem |
-| `node-network-traffic-exceeded` | node | none — reads scraped host metrics | 2m | reports the sockets carrying the burst |
+| Event                           | Role    | Probe                                                             | Fires after | Remediation                                                      |
+| ------------------------------- | ------- | ----------------------------------------------------------------- | ----------- | ---------------------------------------------------------------- |
+| `wireguard-spoke-down`          | spoke   | hub tunnel for local spoke; tunnel address for workers            | 2m          | restart + verified handshake locally or through LAN SSH          |
+| `wireguard-server-down`         | hub     | hub tunnel, delayed behind local-spoke remediation                | 5m          | restart + health check through the hub's external registered SSH |
+| `public-ingress-down`           | ingress | every published host, from the same conf the traffic report reads | 10m         | unblock ingress + rebuild the tunnel on the hub, then re-probe   |
+| `node-cpu-limit-exceeded`       | node    | none — reads scraped host metrics                                 | 5m          | captures the top CPU consumers on the node the alert names       |
+| `node-memory-limit-exceeded`    | node    | none — reads scraped host metrics                                 | 3m          | captures the top memory consumers                                |
+| `hub-bandwidth-limit-exceeded`  | hub     | none — reads the quota the Vultr cron publishes                   | 15m         | reports the traffic breakdown                                    |
+| `node-disk-limit-exceeded`      | node    | none — reads scraped host metrics                                 | 5m          | reports what is filling the root filesystem                      |
+| `node-network-traffic-exceeded` | node    | none — reads scraped host metrics                                 | 2m          | reports the sockets carrying the burst                           |
 
 The two-minute spoke rule runs first. If restarting the selected control node restores the tunnel, the five-minute hub rule never fires. If it remains down, hub repair uses the static topology key and does not depend on the failed tunnel.
 
@@ -434,16 +434,16 @@ node bin event public-ingress-down --undeploy   # withdraw it, leaving the rest
 
 The deployed set is extracted from the live `prometheus-rules` and `prometheus-config` ConfigMaps, whose every probe group and rule already carries an `underpost_event` label. There is no local file recording what should be running — such a file is wrong the moment anyone applies anything by hand, while the objects themselves cannot be.
 
-Two consequences worth knowing. An id the cluster runs that the registry no longer declares is **dropped** from the render rather than failing the publish of everything else; `--list` names it so it can be withdrawn deliberately. And withdrawing the last event renders *no* events — an empty selection is taken literally, where an empty `--events` on a full convergence still means "all".
+Two consequences worth knowing. An id the cluster runs that the registry no longer declares is **dropped** from the render rather than failing the publish of everything else; `--list` names it so it can be withdrawn deliberately. And withdrawing the last event renders _no_ events — an empty selection is taken literally, where an empty `--events` on a full convergence still means "all".
 
 `monitor --observability` and `--sync-prom` are unchanged: they converge every declared event, which is what a full sync is for.
 
 `--list` compares the two sides:
 
-| Status | Meaning |
-| --- | --- |
-| `DEPLOYED` | declared in the registry and running in the cluster |
-| `PENDING` | declared, not yet published |
+| Status        | Meaning                                                                    |
+| ------------- | -------------------------------------------------------------------------- |
+| `DEPLOYED`    | declared in the registry and running in the cluster                        |
+| `PENDING`     | declared, not yet published                                                |
 | `OUT_OF_SYNC` | running in the cluster, no longer declared — withdraw it with `--undeploy` |
 
 ---
@@ -525,7 +525,7 @@ A rule that compares against a number declares it as `threshold`, and the regist
 
 `probeInterval` becomes the job's `scrape_interval`, so probes are grouped by module **and** period: a tunnel ping every `30s` and a fan-out over every published host every `10m` do not have to share a cadence, and adding a cheap event never slows an expensive one. `alertFor` becomes the rule's `for`. Prometheus stays the only scheduler — these tell it the period and the window, nothing else runs a timer.
 
-Both are contract data, not registry data, because they are tuned per deployment. The registry declares *what* is probed and *what* fires; the contract declares *how often* and *for how long*. Neither number appears in `src/cli/event.js`, so there is no second answer to drift from — an event definition carries no `for`, and the rule renderer emits nothing for an event that has not declared one.
+Both are contract data, not registry data, because they are tuned per deployment. The registry declares _what_ is probed and _what_ fires; the contract declares _how often_ and _for how long_. Neither number appears in `src/cli/event.js`, so there is no second answer to drift from — an event definition carries no `for`, and the rule renderer emits nothing for an event that has not declared one.
 
 An undeclared cadence is refused where rules are published, alongside the repair and notification gates:
 
@@ -534,11 +534,11 @@ An undeclared cadence is refused where rules are published, alongside the repair
 - public-ingress-down: alertFor
 ```
 
-| Event | `probeInterval` | `alertFor` |
-| --- | --- | --- |
-| `wireguard-spoke-down` | `30s` | `2m` |
-| `wireguard-server-down` | `30s` | `5m` |
-| `public-ingress-down` | `10m` | `10m` |
+| Event                   | `probeInterval` | `alertFor` |
+| ----------------------- | --------------- | ---------- |
+| `wireguard-spoke-down`  | `30s`           | `2m`       |
+| `wireguard-server-down` | `30s`           | `5m`       |
+| `public-ingress-down`   | `10m`           | `10m`      |
 
 ---
 
@@ -651,7 +651,7 @@ node bin event wireguard-spoke-down  --e2e-test --nodes hp-envy-iso-ram-rocky9,l
 | `recover`  | The same probes, polled again                                             | Every probe reports `probe_success 1`          |
 | `notify`   | The mailer interceptor                                                    | The notification was accepted by the transport |
 
-Nothing is broken until `baseline` passes: what a probe reports is evidence only if it was answering to begin with, and a subject that is already down would make detection pass vacuously and recovery impossible. A probe that cannot be *read* is never counted as a subject that is down — an unreachable exporter is reported as itself, naming the transport error, because the two need opposite responses from whoever reads the line.
+Nothing is broken until `baseline` passes: what a probe reports is evidence only if it was answering to begin with, and a subject that is already down would make detection pass vacuously and recovery impossible. A probe that cannot be _read_ is never counted as a subject that is down — an unreachable exporter is reported as itself, naming the transport error, because the two need opposite responses from whoever reads the line.
 
 Probes are read where detection reads them — through the API server's service proxy on the node hosting the stack, resolved from `deploy/nodes` and reached with its registered SSH account. A rehearsal therefore runs from any machine holding the deploy configuration and the SSH registry, not only from the control plane, and needs no local kubeconfig or port-forward.
 
@@ -985,7 +985,7 @@ Cockpit and Prometheus both default to port 9090. They do not collide — Promet
 
 | Option                | Description                                                              |
 | --------------------- | ------------------------------------------------------------------------ |
-| `--deploy`            | Merge the event into the cluster's deployed set and republish             |
+| `--deploy`            | Merge the event into the cluster's deployed set and republish            |
 | `--undeploy`          | Remove the event from the deployed set and republish without it          |
 | `--serve`             | Run the webhook receiver in the foreground (ends with the session)       |
 | `--service`           | Install and start the receiver as the `underpost-event` systemd unit     |
