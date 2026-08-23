@@ -1213,7 +1213,18 @@ class UnderpostEvent {
      * @memberof UnderpostEvent
      */
     deployedEventIds(options = {}) {
-      return Underpost.monitor.readDeployedEventIds({ namespace: options.namespace || 'default' });
+      return Underpost.event.deployedEventState(options).ids;
+    },
+
+    /**
+     * @method deployedEventState
+     * @description The deployed event set together with whether the cluster answered.
+     * @param {object} [options] - CLI options (`namespace`).
+     * @returns {{readable: boolean, ids: string[], reason: string}} Deployed set and its readability.
+     * @memberof UnderpostEvent
+     */
+    deployedEventState(options = {}) {
+      return Underpost.monitor.readDeployedEventState({ namespace: options.namespace || 'default' });
     },
 
     /**
@@ -1232,7 +1243,15 @@ class UnderpostEvent {
      * @memberof UnderpostEvent
      */
     deploySelection(eventId, options = {}, remove = false) {
-      const deployed = new Set(Underpost.event.deployedEventIds(options));
+      const state = Underpost.event.deployedEventState(options);
+      // The render is whole: merging into a set the cluster never reported would
+      // publish this event alone and withdraw every other deployed one.
+      if (!state.readable)
+        throw new Error(
+          `[event] the deployed event set is unreadable, so ${eventId} cannot be merged into it without ` +
+            `withdrawing the rest; resolve cluster access and retry${state.reason ? ` (${state.reason})` : ''}`,
+        );
+      const deployed = new Set(state.ids);
       if (remove) deployed.delete(eventId);
       else deployed.add(eventId);
       // An event the registry no longer declares cannot be rendered; withdrawing
@@ -1245,15 +1264,24 @@ class UnderpostEvent {
      * @method deploymentStatus
      * @description Declared events against deployed events.
      * @param {object} [options] - CLI options (`namespace`).
-     * @returns {Array<{id: string, status: string}>} One row per declared or deployed event.
+     * @returns {Array<{id: string, status: string, reason: string}>} One row per declared or
+     * deployed event; `UNKNOWN` when the cluster did not answer.
      * @memberof UnderpostEvent
      */
     deploymentStatus(options = {}) {
-      const deployed = new Set(Underpost.event.deployedEventIds(options));
+      const state = Underpost.event.deployedEventState(options);
+      const deployed = new Set(state.ids);
       const declared = new Set(Object.keys(EVENTS));
       return [...new Set([...declared, ...deployed])].sort().map((id) => ({
         id,
-        status: declared.has(id) ? (deployed.has(id) ? 'DEPLOYED' : 'PENDING') : 'OUT_OF_SYNC',
+        status: !state.readable
+          ? 'UNKNOWN'
+          : declared.has(id)
+            ? deployed.has(id)
+              ? 'DEPLOYED'
+              : 'PENDING'
+            : 'OUT_OF_SYNC',
+        reason: state.reason,
       }));
     },
 
@@ -1959,15 +1987,20 @@ class UnderpostEvent {
       loadCronDeployEnv();
 
       if (options.list) {
-        const status = Object.fromEntries(
-          Underpost.event.deploymentStatus(options).map((entry) => [entry.id, entry.status]),
-        );
+        const rows = Underpost.event.deploymentStatus(options);
+        const status = Object.fromEntries(rows.map((entry) => [entry.id, entry.status]));
+        const unreadable = rows.find((entry) => entry.status === 'UNKNOWN');
+        if (unreadable)
+          console.log(
+            `\n${'the cluster did not report its deployed events; the state column below is unknown, not empty'.yellow}` +
+              `${unreadable.reason ? `\n${`  reason: ${unreadable.reason}`.yellow}` : ''}`,
+          );
         for (const [id, state] of Object.entries(status).filter(([, state]) => state === 'OUT_OF_SYNC'))
           console.log(
             `\n${id.bold.red}  [${state}] — running in the cluster but no longer declared; withdraw it with --undeploy`,
           );
         for (const definition of Underpost.event.definitions(eventId)) {
-          const state = status[definition.id] || 'PENDING';
+          const state = status[definition.id] || 'UNKNOWN';
           console.log(
             `\n${definition.id.bold.green}  [${definition.role}] [${state === 'DEPLOYED' ? state.green : state.yellow}] — ${definition.description}`,
           );

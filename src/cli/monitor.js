@@ -767,7 +767,16 @@ EOF
         .hubs()
         .map((hub) => hub.address)
         .filter(Boolean);
-      const prometheusConf = stamp(prometheusConfFactory({ appTargets, extraTargets, probes, hostTargets, namespace }));
+      const prometheusConf = stamp(
+        prometheusConfFactory({
+          appTargets,
+          extraTargets,
+          probes,
+          hostTargets,
+          nodeRoles: Underpost.event.clusterNodes(),
+          namespace,
+        }),
+      );
       const alertmanagerConf = stamp(alertmanagerConfFactory({ webhookUrl }));
 
       // disableLog: shellExec echoes the command, and this heredoc carries the
@@ -1491,31 +1500,66 @@ EOF
       });
     },
     /**
-     * @method readDeployedEventIds
+     * @method readDeployedEventState
      * @description The events the cluster is currently running, read from the
-     * ConfigMaps it serves them from.
+     * ConfigMaps it serves them from, with whether the cluster actually answered.
      *
      * The cluster is the state. Asking it what is deployed is what makes a
      * scoped `--deploy` additive instead of a replacement: the alternative is a
      * local file that claims what should be running and is wrong the moment
      * anyone applies anything by hand.
+     *
+     * A cluster that does not answer is not an empty cluster. Reporting the two
+     * the same way makes an unreachable API server look like a stack with
+     * nothing deployed, which reads as `PENDING` everywhere and renders a
+     * `--deploy` set that withdraws every event it does not name.
      * @param {object} [params]
      * @param {string} [params.namespace='default'] - Namespace holding the stack.
-     * @returns {string[]} Distinct event ids, sorted; empty when the stack is absent.
+     * @returns {{readable: boolean, ids: string[], reason: string}} Deployed set, empty and
+     * unreadable when the cluster did not answer.
+     * @memberof UnderpostMonitor
+     */
+    readDeployedEventState({ namespace = 'default' } = {}) {
+      const { prometheus } = UNDERPOST_MONITORING;
+      const read = (name) => {
+        const result = shellExec(`kubectl get configmap ${name} -n ${namespace} -o jsonpath='{.data}'`, {
+          silent: true,
+          silentOnError: true,
+          disableLog: true,
+        });
+        // kubectl repeats its discovery failure once per API group; the last
+        // line is the one that names what actually went wrong.
+        const reason =
+          `${result?.stderr || ''}`
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .pop() || '';
+        // A ConfigMap the cluster answered for and does not hold is an empty
+        // set; every other failure leaves the deployed set unknown.
+        const absent = /notfound|not found/i.test(reason);
+        return { readable: result?.code === 0 || absent, data: `${result?.stdout || ''}`, reason };
+      };
+      const rules = read(prometheus.rulesConfigMapName);
+      const conf = read(prometheus.configMapName);
+      const readable = rules.readable && conf.readable;
+      return {
+        readable,
+        ids: readable ? deployedEventIdsFactory(rules.data, conf.data) : [],
+        reason: readable ? '' : rules.reason || conf.reason,
+      };
+    },
+
+    /**
+     * @method readDeployedEventIds
+     * @description The deployed event ids alone; an unreadable cluster reads as empty.
+     * @param {object} [params]
+     * @param {string} [params.namespace='default'] - Namespace holding the stack.
+     * @returns {string[]} Distinct event ids, sorted.
      * @memberof UnderpostMonitor
      */
     readDeployedEventIds({ namespace = 'default' } = {}) {
-      const { prometheus } = UNDERPOST_MONITORING;
-      const read = (name) =>
-        `${
-          shellExec(`kubectl get configmap ${name} -n ${namespace} -o jsonpath='{.data}' 2>/dev/null`, {
-            stdout: true,
-            silent: true,
-            silentOnError: true,
-            disableLog: true,
-          }) || ''
-        }`;
-      return deployedEventIdsFactory(read(prometheus.rulesConfigMapName), read(prometheus.configMapName));
+      return Underpost.monitor.readDeployedEventState({ namespace }).ids;
     },
 
     /**

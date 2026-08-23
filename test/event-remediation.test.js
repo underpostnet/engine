@@ -270,16 +270,19 @@ describe('event schedule contract', () => {
 });
 
 describe('incremental deployment against cluster state', () => {
-  let readDeployedEventIds;
+  let readDeployedEventState;
   const cluster = (ids) => {
-    Underpost.monitor.readDeployedEventIds = () => ids;
+    Underpost.monitor.readDeployedEventState = () => ({ readable: true, ids, reason: '' });
+  };
+  const unreachableCluster = (reason = 'connection refused') => {
+    Underpost.monitor.readDeployedEventState = () => ({ readable: false, ids: [], reason });
   };
 
   beforeEach(() => {
-    readDeployedEventIds = Underpost.monitor.readDeployedEventIds;
+    readDeployedEventState = Underpost.monitor.readDeployedEventState;
   });
   afterEach(() => {
-    Underpost.monitor.readDeployedEventIds = readDeployedEventIds;
+    Underpost.monitor.readDeployedEventState = readDeployedEventState;
   });
 
   it('merges the named event into what the cluster already runs', () => {
@@ -311,6 +314,24 @@ describe('incremental deployment against cluster state', () => {
     expect(status['public-ingress-down']).to.equal('DEPLOYED');
     expect(status['wireguard-spoke-down']).to.equal('PENDING');
     expect(status['retired-event']).to.equal('OUT_OF_SYNC');
+  });
+
+  it('refuses to publish a set an unreadable cluster would silently reduce to one event', () => {
+    unreachableCluster('The connection to the server 127.0.0.1:6443 was refused');
+    expect(() => UnderpostEvent.API.deploySelection('wireguard-spoke-down', {})).to.throw(/unreadable/);
+  });
+
+  it('reports an unreadable cluster as unknown rather than as nothing deployed', () => {
+    unreachableCluster();
+    const status = Object.fromEntries(UnderpostEvent.API.deploymentStatus({}).map((row) => [row.id, row.status]));
+    expect(status['public-ingress-down']).to.equal('UNKNOWN');
+    expect(status['wireguard-spoke-down']).to.equal('UNKNOWN');
+  });
+
+  it('reads an absent stack as an empty deployed set, not as an unreadable one', () => {
+    cluster([]);
+    const status = Object.fromEntries(UnderpostEvent.API.deploymentStatus({}).map((row) => [row.id, row.status]));
+    expect(status['public-ingress-down']).to.equal('PENDING');
   });
 });
 
