@@ -618,7 +618,7 @@ function applySecurity(app, opts = {}) {
 
   // Other helpful Helmet policies
   app.use(helmet.noSniff()); // X-Content-Type-Options: nosniff
-  app.use(helmet.frameguard({ action: 'deny' })); // X-Frame-Options: DENY
+  app.use(helmet.frameguard({ action: 'sameorigin' }));
   app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
 
   // Content-Security-Policy: include nonce from res.locals
@@ -630,7 +630,6 @@ function applySecurity(app, opts = {}) {
       directives: {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
-        blockAllMixedContent: [],
         fontSrc: ["'self'", httpDirective, 'data:'],
         frameAncestors: frameAncestors,
         imgSrc: ["'self'", 'data:', httpDirective, 'https:', 'blob:'],
