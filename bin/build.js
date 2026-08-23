@@ -14,6 +14,7 @@ import {
 } from '../src/server/conf.js';
 import { resolveDeployList } from '../src/server/router.js';
 import { loadDeployCatalog } from '../src/server/catalog.js';
+import { buildProductPackageJson } from '../src/server/package.js';
 import Underpost from '../src/index.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
@@ -107,9 +108,9 @@ const buildDeployTemplate = async (confName) => {
   if (!fs.existsSync(`${basePath}/.github/workflows`))
     fs.mkdirSync(`${basePath}/.github/workflows`, { recursive: true });
 
-  const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-  const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
-  packageJson.name = repoName.replace('engine-', '');
+  const sourcePackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+  const basePackageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
+  let packageOptions = {};
 
   // A packaged path may be a nested project with its own installed tree; the
   // product resolves dependencies from its own lockfile, never from a copy.
@@ -129,19 +130,14 @@ const buildDeployTemplate = async (confName) => {
         `./.github/workflows/publish.cyberia.ci.yml`,
         `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
       );
-      if (packageJson.bin) delete packageJson.bin.underpost;
-      if (!packageJson.bin) packageJson.bin = {};
-      packageJson.bin.cyberia = 'bin/index.js';
-      packageJson.keywords = catalog.keywords;
-      packageJson.description = catalog.description;
-      packageJson.dependencies = {
-        underpost: '^' + Underpost.version.replace('v', ''),
-        'adm-zip': '^0.6.0',
-        ...CyberiaDependencies,
-      };
-      packageJson.scripts = {
-        ...packageJson.scripts,
-        ...DOCKER_SCRIPTS,
+      packageOptions = {
+        customDependencies: {
+          underpost: '^' + Underpost.version.replace('v', ''),
+          'adm-zip': '^0.6.0',
+          ...CyberiaDependencies,
+        },
+        customScripts: DOCKER_SCRIPTS,
+        customBin: { cyberia: 'bin/index.js' },
       };
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       // Canonical Cyberia doc; engine-cyberia/README.md is a generated copy — never hand-edited.
@@ -158,9 +154,17 @@ const buildDeployTemplate = async (confName) => {
       break;
   }
 
+  const packageJson = buildProductPackageJson({
+    basePackageJson,
+    sourcePackageJson,
+    catalog,
+    confName,
+    repositoryName: repoName,
+    ...packageOptions,
+  });
   fs.writeFileSync(
     `${basePath}/package.json`,
-    JSON.stringify(packageJson, null, 4).replaceAll('pwa-microservices-template', repoName),
+    JSON.stringify(packageJson, null, 4),
     'utf8',
   );
   if (fs.existsSync(`./deploy/${confName}`))
