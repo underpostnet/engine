@@ -1,5 +1,4 @@
 import { CryptoService } from '../../services/crypto/crypto.service.js';
-import { UserService } from '../../services/user/user.service.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getId } from './CommonJs.js';
@@ -21,16 +20,6 @@ class Wallet {
           hash: 'SHA-256',
         };
         const format = 'jwk';
-        (async () => {
-          return;
-          const { data: payload } = await UserService.get({ id: 'public-key-sign-token' });
-          const signature = await window.crypto.subtle.sign(
-            algorithm,
-            keyPair.privateKey,
-            new TextEncoder().encode(payload),
-          );
-          const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
-        })();
         const keyPair = await window.crypto.subtle.generateKey(algorithm, true, ['sign', 'verify']);
         const privateKey = await window.crypto.subtle.exportKey(format, keyPair.privateKey);
         const publicKey = await window.crypto.subtle.exportKey(format, keyPair.publicKey);

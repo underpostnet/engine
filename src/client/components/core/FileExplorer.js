@@ -1231,27 +1231,6 @@ class FileExplorer {
                     { headerName: '', width: 60, cellRenderer: LoadFolderActionsRenderer },
                   ],
                   rowSelection: 'single',
-                  onSelectionChanged: (event) => {
-                    return;
-                    const selectedRows = AgGrid.grids[gridFolderId].getSelectedRows();
-                    console.log('selectedRows', { event, selectedRows });
-                    if (selectedRows[0]) {
-                      const newLocation = selectedRows[0].location;
-                      if (newLocation === location) return;
-                      location = newLocation;
-                      setPath(`${window.location.pathname}?location=${location}`);
-                      s(`.file-explorer-query-nav`).value = location;
-                      const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
-                      files = format.files;
-                      folders = format.folders;
-                      applySearchFilter();
-                      currentPage = 0;
-                      displayedFiles = getPagedFiles();
-                      AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-                      AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-                      updatePaginationUI();
-                    }
-                  },
                 },
               })}
             </div>
