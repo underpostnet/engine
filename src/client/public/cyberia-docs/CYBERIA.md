@@ -8,9 +8,29 @@
 
 _Stackable Rendering Layers as a Unified Tokenized Reality_
 
-[![Version](https://img.shields.io/npm/v/cyberia.svg)](https://www.npmjs.org/package/cyberia)
+</div>
+
+<!-- Tech stack -->
+<div align="center">
+
+<a target="_top" href='https://download.rockylinux.org/pub/rocky/9/'><img alt='rockylinux' src='https://img.shields.io/badge/Rocky Linux v9.8-100000?style=flat&logo=rockylinux&logoColor=white&labelColor=10b981&color=727273'/></a> <a target="_top" href='https://www.npmjs.com/package/npm?activeTab=versions'><img alt='npm' src='https://img.shields.io/badge/npm v11.6.2-100000?style=flat&logo=npm&logoColor=white&labelColor=CB3837&color=727273'/></a> <a target="_top" href='https://nodejs.org/download/release'><img alt='nodedotjs' src='https://img.shields.io/badge/node v24.15.0-100000?style=flat&logo=nodedotjs&logoColor=white&labelColor=5FA04E&color=727273'/></a> <a target="_top" href='https://pgp.mongodb.com/'><img alt='mongodb' src='https://img.shields.io/badge/mongodb_server v7.0-100000?style=flat&logo=mongodb&logoColor=white&labelColor=47A248&color=727273'/></a>
 
 </div>
+
+<!-- CI/CD and health -->
+<div align="center">
+
+[![Node.js CI](https://img.shields.io/github/actions/workflow/status/underpostnet/engine-cyberia/docker-image.engine-cyberia.ci.yml?branch=main&label=Node.js%20CI)](https://github.com/underpostnet/engine-cyberia/actions/workflows/docker-image.engine-cyberia.ci.yml) [![Test](https://img.shields.io/github/actions/workflow/status/underpostnet/engine-cyberia/coverall.cyberia.ci.yml?branch=main&label=Test)](https://github.com/underpostnet/engine-cyberia/actions/workflows/coverall.cyberia.ci.yml) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine-cyberia/badge.svg?branch=main)](https://coveralls.io/github/underpostnet/engine-cyberia?branch=main) [![Socket Badge](https://socket.dev/api/badge/npm/package/cyberia/3.3.0)](https://socket.dev/npm/package/cyberia/overview/3.3.0)
+
+</div>
+
+<!-- Distribution and package -->
+<div align="center">
+
+[![Version](https://img.shields.io/npm/v/cyberia.svg)](https://www.npmjs.com/package/cyberia) [![Downloads](https://img.shields.io/npm/dm/cyberia.svg)](https://www.npmjs.com/package/cyberia) [![jsDelivr](https://data.jsdelivr.com/v1/package/npm/cyberia/badge)](https://www.jsdelivr.com/package/npm/cyberia) [![License](https://img.shields.io/npm/l/cyberia.svg)](https://www.npmjs.com/package/cyberia)
+
+</div>
+
 Cyberia is an MMORPG extension built on the Underpost Platform. The platform owns the
 toolchain, deployment surface, PWA delivery, and base infrastructure. Cyberia adds a three-service MMO
 runtime: `engine-cyberia`, `cyberia-server`, and `cyberia-client`.

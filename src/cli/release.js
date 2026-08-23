@@ -81,7 +81,12 @@ const buildVersionBumpTargets = () => [
   {
     dir: 'src/client/public/cyberia-docs',
     match: /\.md$/,
-    patterns: [/(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g, /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g],
+    patterns: [
+      /(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g,
+      /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
+      /(socket\.dev\/api\/badge\/npm\/package\/[a-z0-9-]+\/)\d+\.\d+\.\d+/g,
+      /(socket\.dev\/npm\/package\/[a-z0-9-]+\/overview\/)\d+\.\d+\.\d+/g,
+    ],
     recursive: true,
   },
   {
