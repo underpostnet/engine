@@ -1554,7 +1554,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         const facts = ingressFacts[row.host] || {};
         const pathStatus = row.probes.map((probe) => `${probe.path} [${probe.statuses.join('→')}]`).join(' ');
         return [
-          `${index + 1}`,
+          `${index + 1}(${row.probes.length})`,
           row.host,
           pathStatus,
           row.kind,
