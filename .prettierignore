@@ -6,6 +6,7 @@
 /build
 /.env
 /coverage
+/allure-results
 /prometheus_data
 /grafana_data
 .nyc_output

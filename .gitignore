@@ -8,7 +8,9 @@
 /logs
 /build
 /coverage
+/allure-results
 /.env
+/.underpost
 .env.production
 .env.development
 .env.test
