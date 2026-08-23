@@ -6,6 +6,8 @@ import {
   UNDERPOST_MONITORING,
   alertRulesFactory,
   deployedEventIdsFactory,
+  nodeExporterManifestFactory,
+  nodeMetricsDashboardFactory,
   alertmanagerConfFactory,
   appScrapeEntriesFactory,
   blackboxConfFactory,
@@ -604,5 +606,84 @@ describe('envoy scrape hygiene', () => {
       'envoy_http_downstream_rq_xx',
     ])
       expect(job, metric).to.not.include(metric);
+  });
+});
+
+describe('nodeMetricsDashboardFactory', () => {
+  const dashboard = JSON.parse(nodeMetricsDashboardFactory());
+
+  it('is published under its own identity', () => {
+    expect(dashboard.uid).to.equal('underpost-node-metrics');
+    expect(dashboard.title).to.equal('Underpost · Node Metrics');
+    expect(dashboard.tags).to.deep.equal(['underpost', 'nodes', 'hardware']);
+  });
+
+  it('graphs cpu, memory, network, disk and the hub quota', () => {
+    expect(dashboard.panels.map((panel) => panel.title)).to.deep.equal([
+      'Node CPU Usage %',
+      'Node Memory Usage %',
+      'Network Throughput (RX/TX Bps)',
+      'Disk Usage % & I/O Rates',
+      'Vultr Hub Monthly Bandwidth Usage',
+    ]);
+    expect(dashboard.panels.map((panel) => panel.type)).to.deep.equal([
+      'timeseries',
+      'timeseries',
+      'timeseries',
+      'timeseries',
+      'stat',
+    ]);
+  });
+
+  it('reads the hub quota from the scraped metric, never from the Vultr API', () => {
+    const quota = dashboard.panels.at(-1);
+    expect(quota.targets[0].expr).to.equal('(vultr_bandwidth_used_bytes / vultr_bandwidth_limit_bytes) * 100');
+  });
+});
+
+describe('nodeExporterManifestFactory', () => {
+  const manifest = nodeExporterManifestFactory({ namespace: 'default' });
+
+  it('measures the host, not the pod', () => {
+    expect(manifest).to.include('kind: DaemonSet');
+    expect(manifest).to.include('hostNetwork: true');
+    expect(manifest).to.include('hostPID: true');
+    expect(manifest).to.include('--path.rootfs=/host/root');
+  });
+
+  it('never writes to what it measures', () => {
+    const mounts = manifest.slice(manifest.indexOf('volumeMounts:'), manifest.indexOf('volumes:'));
+    expect(mounts.match(/readOnly: true/g) || []).to.have.lengthOf(4);
+  });
+
+  it('reads the textfile directory the bandwidth guard writes', () => {
+    expect(manifest).to.include(
+      `--collector.textfile.directory=${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}`,
+    );
+  });
+
+  it('runs on every node, control plane included', () => {
+    expect(manifest).to.include('tolerations:');
+    expect(manifest).to.include('operator: Exists');
+  });
+});
+
+describe('host metric scrape jobs', () => {
+  it('discovers cluster nodes at the collector port', () => {
+    const conf = prometheusConfFactory({});
+    expect(conf).to.include("job_name: 'node-exporter'");
+    expect(conf).to.include('role: node');
+    expect(conf).to.include(`replacement: '$1:${UNDERPOST_MONITORING.nodeExporter.port}'`);
+  });
+
+  it('scrapes the hub statically, because discovery cannot see a VPS', () => {
+    const conf = prometheusConfFactory({ hostTargets: ['10.0.0.1'] });
+    expect(conf).to.include("job_name: 'node-exporter-hub'");
+    expect(conf).to.include("targets: ['10.0.0.1:9100']");
+    expect(conf).to.include("underpost_role: 'hub'");
+  });
+
+  it('emits no hub job when no hub is registered', () => {
+    expect(prometheusConfFactory({})).to.not.include('node-exporter-hub');
   });
 });

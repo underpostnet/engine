@@ -71,6 +71,16 @@ const UNDERPOST_MONITORING = {
     metricsPort: 19001,
     metricsPath: '/stats/prometheus',
   },
+  // Host metrics. `hostPort` on a DaemonSet rather than a Service: Prometheus
+  // discovers nodes, not endpoints, so the address it scrapes is the node's own
+  // and the series carry the node identity the alerts act on.
+  nodeExporter: {
+    name: 'node-exporter',
+    port: 9100,
+    // Read by the collector and written by anything that has a number the
+    // cluster cannot scrape for itself, the Vultr quota above all.
+    textfileDirectory: '/var/lib/node_exporter/textfile',
+  },
   // Where Alertmanager delivers, and where `underpost event --serve` listens.
   eventWebhook: {
     port: 39099,
@@ -238,10 +248,11 @@ const prometheusConfFactory = ({
   appTargets = [],
   extraTargets = [],
   probes = [],
+  hostTargets = [],
   namespace = 'default',
   scrapeInterval = UNDERPOST_MONITORING.scrapeInterval,
 } = {}) => {
-  const { prometheus, alertmanager, blackbox, envoy } = UNDERPOST_MONITORING;
+  const { prometheus, alertmanager, blackbox, envoy, nodeExporter } = UNDERPOST_MONITORING;
 
   const appGroups = new Map();
   for (const target of appTargets) {
@@ -270,6 +281,33 @@ const prometheusConfFactory = ({
     static_configs:
       - targets: ${yamlList([...new Set(extraTargets)])}`
       : '';
+
+  // Cluster nodes are discovered; the hub is a VPS that discovery cannot see, so
+  // it is scraped across the tunnel at the address the WireGuard events probe.
+  const hostJobs = [
+    `
+  - job_name: '${nodeExporter.name}'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_address_InternalIP]
+        target_label: __address__
+        replacement: '\$1:${nodeExporter.port}'
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+      - target_label: underpost_role
+        replacement: 'cluster'`,
+    ...(hostTargets.length > 0
+      ? [
+          `
+  - job_name: '${nodeExporter.name}-hub'
+    static_configs:
+      - targets: ${yamlList(hostTargets.map((target) => `${target}:${nodeExporter.port}`))}
+        labels:
+          underpost_role: 'hub'`,
+        ]
+      : []),
+  ];
 
   const probeJobs = probeGroupsFactory(probes).map(
     ({ module, interval, groups }, index) => `
@@ -339,7 +377,7 @@ scrape_configs:
       - source_labels: [__name__]
         regex: envoy_cluster_total_match_count
         action: drop
-${[...appJobs, extraJob, ...probeJobs].filter(Boolean).join('\n')}
+${[...appJobs, extraJob, ...hostJobs, ...probeJobs].filter(Boolean).join('\n')}
 `;
 };
 
@@ -494,6 +532,92 @@ datasources:
     editable: false
     jsonData:
       timeInterval: ${UNDERPOST_MONITORING.scrapeInterval}
+`;
+};
+
+/**
+ * @method nodeExporterManifestFactory
+ * @description Renders the host-metrics collector as a DaemonSet.
+ *
+ * `hostNetwork` and `hostPID` because the point is the host, not the pod: CPU,
+ * memory, filesystem and interface counters have to describe the machine the
+ * workloads run on. The root filesystem is mounted read-only so a collector can
+ * never write to what it measures, and the textfile directory is the one path
+ * anything else may drop a `.prom` file into.
+ * @param {object} [params]
+ * @param {string} [params.namespace='default'] - Namespace holding the stack.
+ * @returns {string} DaemonSet manifest.
+ * @memberof UnderpostMonitoring
+ */
+const nodeExporterManifestFactory = ({ namespace = 'default' } = {}) => {
+  const { nodeExporter } = UNDERPOST_MONITORING;
+  return `---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ${nodeExporter.name}
+  namespace: ${namespace}
+  labels:
+    app: ${nodeExporter.name}
+spec:
+  selector:
+    matchLabels:
+      app: ${nodeExporter.name}
+  template:
+    metadata:
+      labels:
+        app: ${nodeExporter.name}
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: ${nodeExporter.name}
+          image: prom/node-exporter:latest
+          args:
+            - --path.rootfs=/host/root
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --collector.textfile.directory=${nodeExporter.textfileDirectory}
+            - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/(docker|containers|kubelet)|run)($|/)
+          ports:
+            - name: metrics
+              containerPort: ${nodeExporter.port}
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: root
+              mountPath: /host/root
+              mountPropagation: HostToContainer
+              readOnly: true
+            - name: textfile
+              mountPath: ${nodeExporter.textfileDirectory}
+              readOnly: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: root
+          hostPath:
+            path: /
+        - name: textfile
+          hostPath:
+            path: ${nodeExporter.textfileDirectory}
+            type: DirectoryOrCreate
 `;
 };
 
@@ -902,6 +1026,102 @@ spec:
 };
 
 /**
+ * @method nodeMetricsDashboardFactory
+ * @description The host-metrics dashboard.
+ *
+ * Every panel is grouped by `instance`, which for a discovered node is its
+ * InternalIP and for the hub its tunnel address — the same identity the node
+ * events resolve a repair target from, so a spike here names a machine an
+ * operator can act on.
+ * @returns {string} Dashboard JSON.
+ * @memberof UnderpostMonitoring
+ */
+const nodeMetricsDashboardFactory = () =>
+  `${JSON.stringify(
+    {
+      uid: 'underpost-node-metrics',
+      title: 'Underpost · Node Metrics',
+      tags: ['underpost', 'nodes', 'hardware'],
+      timezone: 'browser',
+      schemaVersion: 39,
+      refresh: '30s',
+      time: { from: 'now-6h', to: 'now' },
+      panels: [
+        timeSeriesPanel({
+          id: 1,
+          title: 'Node CPU Usage %',
+          unit: 'percent',
+          gridPos: { h: 8, w: 12, x: 0, y: 0 },
+          targets: [
+            {
+              expr: '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)',
+              legendFormat: '{{instance}}',
+            },
+          ],
+        }),
+        timeSeriesPanel({
+          id: 2,
+          title: 'Node Memory Usage %',
+          unit: 'percent',
+          gridPos: { h: 8, w: 12, x: 12, y: 0 },
+          targets: [
+            {
+              expr: '100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))',
+              legendFormat: '{{instance}}',
+            },
+          ],
+        }),
+        timeSeriesPanel({
+          id: 3,
+          title: 'Network Throughput (RX/TX Bps)',
+          unit: 'Bps',
+          gridPos: { h: 8, w: 12, x: 0, y: 8 },
+          targets: [
+            {
+              expr: 'rate(node_network_receive_bytes_total{device=~"wg0|eth0|enp.*"}[2m])',
+              legendFormat: '{{instance}} {{device}} rx',
+            },
+            {
+              expr: 'rate(node_network_transmit_bytes_total{device=~"wg0|eth0|enp.*"}[2m])',
+              legendFormat: '{{instance}} {{device}} tx',
+            },
+          ],
+        }),
+        timeSeriesPanel({
+          id: 4,
+          title: 'Disk Usage % & I/O Rates',
+          unit: 'percent',
+          gridPos: { h: 8, w: 12, x: 12, y: 8 },
+          targets: [
+            {
+              expr:
+                '100 - ((node_filesystem_avail_bytes{mountpoint="/"} * 100) / ' +
+                'node_filesystem_size_bytes{mountpoint="/"})',
+              legendFormat: '{{instance}} used %',
+            },
+            { expr: 'rate(node_disk_read_bytes_total[2m])', legendFormat: '{{instance}} {{device}} read Bps' },
+            { expr: 'rate(node_disk_written_bytes_total[2m])', legendFormat: '{{instance}} {{device}} write Bps' },
+          ],
+        }),
+        statPanel({
+          id: 5,
+          title: 'Vultr Hub Monthly Bandwidth Usage',
+          unit: 'percent',
+          gridPos: { h: 6, w: 24, x: 0, y: 16 },
+          targets: [
+            {
+              expr: '(vultr_bandwidth_used_bytes / vultr_bandwidth_limit_bytes) * 100',
+              legendFormat: 'monthly quota used',
+            },
+          ],
+        }),
+      ],
+    },
+    null,
+    2,
+  )}\n`;
+
+/**
  * @method monitoringConfigFactory
  * @description Renders the namespace-dependent half of the stack: the RBAC that
  * lets Prometheus discover pods, and every ConfigMap the four components mount.
@@ -930,7 +1150,7 @@ const monitoringConfigFactory = ({
   blackboxConf,
 } = {}) => {
   const { prometheus, alertmanager, blackbox, grafana } = UNDERPOST_MONITORING;
-  return `
+  return `${nodeExporterManifestFactory({ namespace })}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -1046,6 +1266,8 @@ data:
 ${indentBlock(envoyDashboardFactory(), 4)}
   underpost-events.json: |
 ${indentBlock(eventsDashboardFactory(), 4)}
+  underpost-node-metrics.json: |
+${indentBlock(nodeMetricsDashboardFactory(), 4)}
 `;
 };
 
@@ -1089,6 +1311,8 @@ export {
   deployedEventIdsFactory,
   envoyDashboardFactory,
   eventsDashboardFactory,
+  nodeExporterManifestFactory,
+  nodeMetricsDashboardFactory,
   grafanaAdminSecretFactory,
   grafanaDeploymentFactory,
   grafanaDeploymentPatchFactory,

@@ -17,19 +17,20 @@ Nothing in this stack is hand-configured. Scrape targets are derived from the sa
 7. [Events](#events)
 8. [The event dispatcher](#the-event-dispatcher)
 9. [Probe scheduling](#probe-scheduling)
-10. [Notifications](#notifications)
-11. [End-to-end rehearsal](#end-to-end-rehearsal)
-12. [Adding an event](#adding-an-event)
-13. [Grafana dashboards](#grafana-dashboards)
-14. [Grafana administrator credentials](#grafana-administrator-credentials)
-15. [Reaching Grafana from a browser](#reaching-grafana-from-a-browser)
-16. [Cluster prerequisites](#cluster-prerequisites)
-17. [Cluster runtimes and node placement](#cluster-runtimes-and-node-placement)
-18. [Recovering Grafana](#recovering-grafana)
-19. [metrics-server](#metrics-server)
-20. [Cockpit KVM dashboard](#cockpit-kvm-dashboard)
-21. [Options](#options)
-22. [See also](#see-also)
+10. [Host metrics](#host-metrics)
+11. [Notifications](#notifications)
+12. [End-to-end rehearsal](#end-to-end-rehearsal)
+13. [Adding an event](#adding-an-event)
+14. [Grafana dashboards](#grafana-dashboards)
+15. [Grafana administrator credentials](#grafana-administrator-credentials)
+16. [Reaching Grafana from a browser](#reaching-grafana-from-a-browser)
+17. [Cluster prerequisites](#cluster-prerequisites)
+18. [Cluster runtimes and node placement](#cluster-runtimes-and-node-placement)
+19. [Recovering Grafana](#recovering-grafana)
+20. [metrics-server](#metrics-server)
+21. [Cockpit KVM dashboard](#cockpit-kvm-dashboard)
+22. [Options](#options)
+23. [See also](#see-also)
 
 ---
 
@@ -342,6 +343,11 @@ An event is one object in the registry at `src/cli/event.js` holding its probes,
 | `wireguard-spoke-down`  | spoke | hub tunnel for local spoke; tunnel address for workers | 2m          | restart + verified handshake locally or through LAN SSH          |
 | `wireguard-server-down` | hub   | hub tunnel, delayed behind local-spoke remediation     | 5m          | restart + health check through the hub's external registered SSH |
 | `public-ingress-down`   | ingress | every published host, from the same conf the traffic report reads | 10m         | unblock ingress + rebuild the tunnel on the hub, then re-probe   |
+| `node-cpu-limit-exceeded` | node | none — reads scraped host metrics | 5m | captures the top CPU consumers on the node the alert names |
+| `node-memory-limit-exceeded` | node | none — reads scraped host metrics | 3m | captures the top memory consumers |
+| `hub-bandwidth-limit-exceeded` | hub | none — reads the quota the Vultr cron publishes | 15m | reports the traffic breakdown |
+| `node-disk-limit-exceeded` | node | none — reads scraped host metrics | 5m | reports what is filling the root filesystem |
+| `node-network-traffic-exceeded` | node | none — reads scraped host metrics | 2m | reports the sockets carrying the burst |
 
 The two-minute spoke rule runs first. If restarting the selected control node restores the tunnel, the five-minute hub rule never fires. If it remains down, hub repair uses the static topology key and does not depend on the failed tunnel.
 
@@ -509,10 +515,13 @@ Each event declares its cadence in `conf.event.json` — how often its probes ru
 ```json
 {
   "events": {
-    "public-ingress-down": { "probeInterval": "10m", "alertFor": "10m" }
+    "public-ingress-down": { "probeInterval": "10m", "alertFor": "10m" },
+    "node-cpu-limit-exceeded": { "probeInterval": "1m", "alertFor": "5m", "threshold": 85 }
   }
 }
 ```
+
+A rule that compares against a number declares it as `threshold`, and the registry writes `<threshold>` where it belongs. Tuning when an alert fires is then a configuration change, and the same gate refuses a rule whose threshold the contract never declared.
 
 `probeInterval` becomes the job's `scrape_interval`, so probes are grouped by module **and** period: a tunnel ping every `30s` and a fan-out over every published host every `10m` do not have to share a cadence, and adding a cheap event never slows an expensive one. `alertFor` becomes the rule's `for`. Prometheus stays the only scheduler — these tell it the period and the window, nothing else runs a timer.
 
@@ -530,6 +539,28 @@ An undeclared cadence is refused where rules are published, alongside the repair
 | `wireguard-spoke-down` | `30s` | `2m` |
 | `wireguard-server-down` | `30s` | `5m` |
 | `public-ingress-down` | `10m` | `10m` |
+
+---
+
+## Host metrics
+
+Node Exporter runs as a DaemonSet with `hostNetwork` and `hostPID`, so what it reports is the machine rather than the pod: CPU, memory, filesystem and interface counters for the nodes the workloads run on. The root filesystem is mounted read-only — a collector must never write to what it measures.
+
+Prometheus discovers cluster nodes and scrapes each at its own InternalIP. The hub is a VPS, not a cluster node, so discovery cannot see it; it is scraped statically at the tunnel address the WireGuard events already probe, and its series carry `underpost_role: hub`.
+
+**The Vultr quota is published, not polled.** The API is rate limited and needs a credential, neither of which belongs on an alert evaluation path, so the bandwidth guard — which already holds the numbers — writes them where the collector picks them up:
+
+```
+/var/lib/node_exporter/textfile/vultr_bandwidth.prom
+  vultr_bandwidth_used_bytes
+  vultr_bandwidth_limit_bytes
+```
+
+It renames the file into place, because the collector may read it mid-write, and mirrors both values into the root env store as `VULTR_BANDWIDTH_USAGE_BYTES` and `VULTR_BANDWIDTH_LIMIT_BYTES` for anything that reads configuration rather than metrics.
+
+Threshold events declare no probe: their rules read these series, so `--list` reports no probe row for them and the "no resolvable probe targets" warning applies only to rules that actually read `probe_success`.
+
+Their handlers do not remediate. A threshold crossing says a machine is under pressure, not what to do about it, so each gathers the evidence an operator would collect by hand — `ps aux --sort=-%cpu`, `df -h`, `ss -tunp` — on the node the alert's `instance` label names, and reports it.
 
 ---
 
@@ -714,6 +745,8 @@ Two dashboards are provisioned into the `Underpost` folder, with the Prometheus 
 Downstream 5xx is read as `envoy_http_downstream_rq_xx{envoy_response_code_class="5"}`. Envoy exposes response classes as one labelled family, not as a `..._rq_5xx` series, so selecting the label is what actually yields the 5xx rate.
 
 **Underpost · Events and Probes** — probe success and duration by event, Express request rate, and target availability.
+
+**Underpost · Node Metrics** — CPU and memory percentage per node, RX/TX throughput on `wg0` and the external interfaces, root filesystem usage with disk I/O rates, and the hub's monthly bandwidth against its quota. Every panel groups by `instance`, which is the same address the node events resolve a target from, so a spike names a machine an operator can reach.
 
 Dashboards are file-provisioned and re-read every 30 seconds, so a dashboard change lands without a restart. Datasources are provisioned at start only, which is why a sync rolls Grafana and not the other three components.
 

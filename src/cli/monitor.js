@@ -761,7 +761,13 @@ EOF
 
       const stamp = (conf) =>
         `# generated: ${crypto.createHash('sha1').update(conf).digest('hex').slice(0, 12)}\n${conf}`;
-      const prometheusConf = stamp(prometheusConfFactory({ appTargets, extraTargets, probes, namespace }));
+      // The hub runs the collector but is not a cluster node, so node discovery
+      // cannot find it; it is scraped at the tunnel address topology records.
+      const hostTargets = Underpost.event
+        .hubs()
+        .map((hub) => hub.address)
+        .filter(Boolean);
+      const prometheusConf = stamp(prometheusConfFactory({ appTargets, extraTargets, probes, hostTargets, namespace }));
       const alertmanagerConf = stamp(alertmanagerConfFactory({ webhookUrl }));
 
       // disableLog: shellExec echoes the command, and this heredoc carries the

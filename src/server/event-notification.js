@@ -29,6 +29,9 @@ const EVENT_CONF_PATH = './engine-private/deploy/conf.event.json';
 
 const EMPTY_CONF = { 'notification-providers': {}, events: {} };
 
+/** What a rule writes where its declared threshold belongs. */
+const THRESHOLD_TOKEN = '<threshold>';
+
 /**
  * @method readEventConf
  * @description Parses the contract without resolving `env:` references.
@@ -232,7 +235,7 @@ const deliverEventNotification = async ({ eventId, subject, text }) => {
  * place is what stops a probe period and its alert window from drifting apart.
  * @param {string} eventId - Registered event id.
  * @param {object} [conf] - Parsed contract; read from disk when omitted.
- * @returns {{probeInterval: string, alertFor: string}} Declared schedule; empty strings when undeclared.
+ * @returns {{probeInterval: string, alertFor: string, threshold: string}} Declared schedule; empty when undeclared.
  * @memberof UnderpostEventNotification
  */
 const eventSchedule = (eventId, conf = readEventConf()) => {
@@ -240,6 +243,9 @@ const eventSchedule = (eventId, conf = readEventConf()) => {
   return {
     probeInterval: `${event.probeInterval || ''}`.trim(),
     alertFor: `${event.alertFor || ''}`.trim(),
+    // A number the rule compares against: it belongs beside the cadence, not in
+    // an expression, because tuning it is a deployment decision.
+    threshold: `${event.threshold ?? ''}`.trim(),
   };
 };
 
@@ -256,8 +262,10 @@ const eventSchedule = (eventId, conf = readEventConf()) => {
  * @memberof UnderpostEventNotification
  */
 const assertEventSchedules = (definitions = []) => {
-  const missing = definitions.flatMap(({ id, schedule = {} }) =>
-    ['probeInterval', 'alertFor'].filter((key) => !schedule[key]).map((key) => `- ${id}: ${key}`),
+  const missing = definitions.flatMap(({ id, alert = {}, schedule = {} }) =>
+    ['probeInterval', 'alertFor', ...(`${alert.expr || ''}`.includes(THRESHOLD_TOKEN) ? ['threshold'] : [])]
+      .filter((key) => !schedule[key])
+      .map((key) => `- ${id}: ${key}`),
   );
   if (missing.length > 0) throw new Error(`[event] undeclared in ${EVENT_CONF_PATH}:\n${missing.join('\n')}`);
   return definitions;
@@ -265,6 +273,7 @@ const assertEventSchedules = (definitions = []) => {
 
 export {
   EVENT_CONF_PATH,
+  THRESHOLD_TOKEN,
   assertEventSchedules,
   eventSchedule,
   NOTIFICATION_PROVIDER_TYPES,

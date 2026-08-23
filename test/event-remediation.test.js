@@ -108,8 +108,16 @@ describe('event remediation', () => {
 });
 
 describe('event end-to-end rehearsal', () => {
-  it('loads a scenario per registered event id, each implementing the contract', async () => {
-    for (const eventId of Object.keys(UnderpostEvent.API.EVENTS)) {
+  it('loads every shipped scenario, each implementing the contract', async () => {
+    // Not every event is rehearsable: a threshold alert has no fault that can be
+    // induced on a production node without causing the outage it warns about.
+    const shipped = fs
+      .readdirSync(new URL('.', import.meta.url))
+      .filter((name) => name.startsWith('event-e2e-') && name.endsWith('.js'))
+      .map((name) => name.slice('event-e2e-'.length, -'.js'.length));
+    expect(shipped).to.not.be.empty;
+    for (const eventId of shipped) {
+      expect(UnderpostEvent.API.EVENTS, eventId).to.have.property(eventId);
       const scenario = await UnderpostEvent.API.e2eScenario(eventId);
       expect(scenario.description, eventId).to.be.a('string');
       for (const method of ['subjects', 'break', 'restore'])
@@ -211,15 +219,37 @@ describe('event schedule contract', () => {
     events: {
       'wireguard-spoke-down': { probeInterval: '30s', alertFor: '2m' },
       'public-ingress-down': { probeInterval: '10m' },
+      'node-cpu-limit-exceeded': { probeInterval: '1m', alertFor: '5m', threshold: 85 },
     },
   };
 
-  it('reads both cadences from the one declaration', () => {
-    expect(eventSchedule('wireguard-spoke-down', conf)).to.deep.equal({ probeInterval: '30s', alertFor: '2m' });
+  it('reads every cadence from the one declaration', () => {
+    expect(eventSchedule('wireguard-spoke-down', conf)).to.deep.equal({
+      probeInterval: '30s',
+      alertFor: '2m',
+      threshold: '',
+    });
+    expect(eventSchedule('node-cpu-limit-exceeded', conf)).to.deep.equal({
+      probeInterval: '1m',
+      alertFor: '5m',
+      threshold: '85',
+    });
   });
 
   it('reports an undeclared event rather than inventing a cadence', () => {
-    expect(eventSchedule('absent', conf)).to.deep.equal({ probeInterval: '', alertFor: '' });
+    expect(eventSchedule('absent', conf)).to.deep.equal({ probeInterval: '', alertFor: '', threshold: '' });
+  });
+
+  it('refuses a rule that compares against a threshold the contract never declared', () => {
+    expect(() =>
+      assertEventSchedules([
+        {
+          id: 'node-cpu-limit-exceeded',
+          alert: { expr: 'cpu > <threshold>' },
+          schedule: { probeInterval: '1m', alertFor: '5m', threshold: '' },
+        },
+      ]),
+    ).to.throw('node-cpu-limit-exceeded: threshold');
   });
 
   it('refuses to publish a rule whose window the contract never declared', () => {
@@ -297,5 +327,60 @@ describe('public ingress recovery wait', () => {
     const source = fs.readFileSync(new URL('../src/cli/event.js', import.meta.url), 'utf8');
     const match = /PUBLIC_INGRESS_RECOVERY = \{ timeoutMs: (\d+)/.exec(source);
     expect(Number(match?.[1])).to.be.greaterThan(60000);
+  });
+});
+
+describe('node threshold events', () => {
+  const ids = [
+    'node-cpu-limit-exceeded',
+    'node-memory-limit-exceeded',
+    'hub-bandwidth-limit-exceeded',
+    'node-disk-limit-exceeded',
+    'node-network-traffic-exceeded',
+  ];
+
+  it('registers each with a rule the contract supplies the threshold for', () => {
+    for (const id of ids) {
+      const event = UnderpostEvent.API.EVENTS[id];
+      expect(event, id).to.be.an('object');
+      expect(event.alert.expr, id).to.include('<threshold>');
+      expect(event.alert.for, id).to.equal(undefined);
+    }
+  });
+
+  it('runs no probe, because the rule reads scraped host metrics', () => {
+    for (const id of ids) expect(UnderpostEvent.API.EVENTS[id].probes(), id).to.deep.equal([]);
+  });
+
+  it('reads the hub quota from a metric rather than the Vultr API', () => {
+    const event = UnderpostEvent.API.EVENTS['hub-bandwidth-limit-exceeded'];
+    expect(event.alert.expr).to.include('vultr_bandwidth_used_bytes');
+    expect(event.alert.severity).to.equal('critical');
+  });
+
+  it('gathers evidence rather than acting blindly on a threshold', async () => {
+    const runCommand = UnderpostEvent.API.runCommand;
+    const nodeTargets = UnderpostEvent.API.nodeTargets;
+    const calls = [];
+    UnderpostEvent.API.nodeTargets = () => [
+      { instance: '192.168.1.85', via: 'local', user: '', host: '', nodeName: 'control' },
+      { instance: '192.168.1.191', via: 'admin@192.168.1.191:22', user: 'admin', host: '192.168.1.191' },
+    ];
+    UnderpostEvent.API.runCommand = async (command, options) => {
+      calls.push({ command, host: options.host });
+      return { ok: true, output: 'evidence' };
+    };
+    try {
+      const result = await UnderpostEvent.API.EVENTS['node-cpu-limit-exceeded'].handler({}, [
+        { labels: { instance: '192.168.1.191:9100' } },
+      ]);
+      expect(result.ok).to.equal(true);
+      expect(calls).to.have.lengthOf(1);
+      expect(calls[0].host).to.equal('192.168.1.191');
+      expect(calls[0].command).to.include('ps aux --sort=-%cpu');
+    } finally {
+      UnderpostEvent.API.runCommand = runCommand;
+      UnderpostEvent.API.nodeTargets = nodeTargets;
+    }
   });
 });

@@ -45,6 +45,7 @@ import {
   eventNotificationRoutes,
   assertEventSchedules,
   eventSchedule,
+  THRESHOLD_TOKEN,
   readEventConf,
 } from '../server/event-notification.js';
 import { publicIngressProbeFactory, publicIngressUrlsFactory } from '../server/conf.js';
@@ -327,6 +328,125 @@ const EVENTS = {
         }
       }),
     handler: async (options = {}) => Underpost.event.repairPublicIngress(options),
+  },
+
+  'node-cpu-limit-exceeded': {
+    role: 'node',
+    description: 'CPU usage on a cluster node stayed above its declared threshold.',
+    alert: {
+      name: 'UnderpostNodeCpuLimitExceeded',
+      expr: '(100 - (avg by (instance, underpost_spoke) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)) > <threshold>',
+      severity: 'warning',
+      summary: 'High CPU usage on {{ $labels.instance }}',
+      description: 'Sustained CPU pressure; the handler captures the processes responsible.',
+    },
+    probes: () => [],
+    remediation: () => Underpost.event.nodeTargets(),
+    handler: async (options = {}, alerts = []) =>
+      Underpost.event.inspectNodes({
+        role: 'node',
+        command: 'ps aux --sort=-%cpu | head -n 10',
+        condition: 'CPU usage stayed above the declared threshold',
+        options,
+        alerts,
+      }),
+  },
+
+  'node-memory-limit-exceeded': {
+    role: 'node',
+    description: 'Available memory on a cluster node fell below its declared threshold.',
+    alert: {
+      name: 'UnderpostNodeMemoryLimitExceeded',
+      expr: '(100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))) > <threshold>',
+      severity: 'warning',
+      summary: 'High RAM usage on {{ $labels.instance }}',
+      description: 'Sustained memory pressure; the handler captures the processes responsible.',
+    },
+    probes: () => [],
+    remediation: () => Underpost.event.nodeTargets(),
+    handler: async (options = {}, alerts = []) =>
+      Underpost.event.inspectNodes({
+        role: 'node',
+        command: 'ps aux --sort=-%mem | head -n 10',
+        condition: 'memory usage stayed above the declared threshold',
+        options,
+        alerts,
+      }),
+  },
+
+  'hub-bandwidth-limit-exceeded': {
+    role: 'hub',
+    description: 'The hub consumed the declared share of its monthly bandwidth quota.',
+    alert: {
+      name: 'UnderpostHubBandwidthLimitExceeded',
+      expr: '(vultr_bandwidth_used_bytes / vultr_bandwidth_limit_bytes) * 100 > <threshold>',
+      severity: 'critical',
+      summary: 'Hub bandwidth limit threshold reached',
+      description: 'Monthly quota consumption crossed the declared share; the handler reports the breakdown.',
+    },
+    // The quota is read by the Vultr cron and published as a textfile metric,
+    // so nothing here probes an external API on the alert path.
+    probes: () => [],
+    remediation: () =>
+      Underpost.event.hubs().map((hub) => {
+        try {
+          return Underpost.event.hubTarget(hub.hubHost);
+        } catch (error) {
+          return { role: 'hub', nodeName: hub.nodeName, address: hub.address, via: 'unresolved', error: error.message };
+        }
+      }),
+    handler: async (options = {}, alerts = []) =>
+      Underpost.event.inspectNodes({
+        role: 'hub',
+        command: 'node bin vultr --bandwidth --dry-run',
+        condition: 'monthly bandwidth consumption crossed the declared share of the quota',
+        options,
+        alerts,
+      }),
+  },
+
+  'node-disk-limit-exceeded': {
+    role: 'node',
+    description: 'Root filesystem usage on a cluster node exceeded its declared threshold.',
+    alert: {
+      name: 'UnderpostNodeDiskLimitExceeded',
+      expr: '(100 - ((node_filesystem_avail_bytes{mountpoint="/"} * 100) / node_filesystem_size_bytes{mountpoint="/"})) > <threshold>',
+      severity: 'warning',
+      summary: 'High disk utilization on {{ $labels.instance }}',
+      description: 'The root filesystem is filling; the handler reports what is consuming it.',
+    },
+    probes: () => [],
+    remediation: () => Underpost.event.nodeTargets(),
+    handler: async (options = {}, alerts = []) =>
+      Underpost.event.inspectNodes({
+        role: 'node',
+        command: 'df -h / && du -sh /var/log/* 2>/dev/null | sort -rh | head -n 10',
+        condition: 'root filesystem usage stayed above the declared threshold',
+        options,
+        alerts,
+      }),
+  },
+
+  'node-network-traffic-exceeded': {
+    role: 'node',
+    description: 'Interface throughput on a cluster node exceeded its declared rate.',
+    alert: {
+      name: 'UnderpostNodeNetworkTrafficExceeded',
+      expr: '((rate(node_network_receive_bytes_total{device=~"wg0|eth0|enp.*"}[2m]) + rate(node_network_transmit_bytes_total{device=~"wg0|eth0|enp.*"}[2m])) * 8 / 1000000) > <threshold>',
+      severity: 'warning',
+      summary: 'High network traffic burst on {{ $labels.instance }} ({{ $labels.device }})',
+      description: 'Sustained throughput above the declared rate; the handler reports the sockets carrying it.',
+    },
+    probes: () => [],
+    remediation: () => Underpost.event.nodeTargets(),
+    handler: async (options = {}, alerts = []) =>
+      Underpost.event.inspectNodes({
+        role: 'node',
+        command: 'ss -tunp state established | head -n 20 && cat /proc/net/dev',
+        condition: 'interface throughput stayed above the declared rate',
+        options,
+        alerts,
+      }),
   },
 };
 
@@ -870,6 +990,103 @@ class UnderpostEvent {
     },
 
     /**
+     * @method nodeTargets
+     * @description Every machine host metrics are collected from, keyed by the
+     * address Prometheus labels its series with.
+     *
+     * A discovered node reports its InternalIP, which is the management address
+     * topology already records; the hub reports its tunnel address. Both resolve
+     * to the identity that can run a command there, so a threshold alert names a
+     * machine an operator can reach.
+     * @returns {Array<object>} Execution targets with the `instance` they answer to.
+     * @memberof UnderpostEvent
+     */
+    nodeTargets() {
+      const targets = [];
+      for (const hub of Underpost.event.hubs())
+        try {
+          targets.push({ ...Underpost.event.hubTarget(hub.hubHost), instance: hub.address });
+        } catch (error) {
+          targets.push({ role: 'hub', instance: hub.address, via: 'unresolved', error: error.message });
+        }
+      for (const spoke of Underpost.event.spokes())
+        try {
+          const target = Underpost.event.spokeTarget(spoke.id);
+          targets.push({ ...target, instance: spoke.managementHost || spoke.address });
+        } catch (error) {
+          targets.push({ role: 'spoke', instance: spoke.managementHost, via: 'unresolved', error: error.message });
+        }
+      return targets;
+    },
+
+    /**
+     * @method inspectNodes
+     * @description Runs one diagnostic on every node an alert names, or on all
+     * of them when it names none.
+     *
+     * The diagnostic is read-only: a threshold crossing says a machine is under
+     * pressure, not what to do about it, and the useful response is the evidence
+     * an operator would gather by hand.
+     * @param {object} params
+     * @param {string} params.role - Reported role for the notification.
+     * @param {string} params.command - Diagnostic to run on each node.
+     * @param {string} params.condition - What the rule observed.
+     * @param {object} [params.options] - Dispatch options.
+     * @param {Array<object>} [params.alerts] - Originating alerts; their `instance` selects the nodes.
+     * @returns {Promise<object>} Structured result.
+     * @memberof UnderpostEvent
+     */
+    async inspectNodes({ role, command, condition, options = {}, alerts = [] }) {
+      const named = [
+        ...new Set(alerts.map((alert) => `${alert?.labels?.instance || ''}`.split(':')[0]).filter(Boolean)),
+      ];
+      const nodes = Underpost.event.nodeTargets();
+      const selected = named.length > 0 ? nodes.filter((node) => named.includes(node.instance)) : nodes;
+
+      if (selected.length === 0)
+        return {
+          ok: false,
+          role,
+          condition,
+          health: '',
+          targets: [],
+          error: `no registered node matches ${named.join(', ') || 'the alert'}`,
+        };
+
+      const targets = [];
+      for (const node of selected) {
+        if (node.via === 'unresolved') {
+          targets.push({
+            role,
+            address: node.instance,
+            via: 'unresolved',
+            commands: [],
+            ok: false,
+            output: node.error,
+          });
+          continue;
+        }
+        const result = await Underpost.event.runCommand(command, {
+          ...options,
+          user: node.user,
+          host: node.host,
+          silent: true,
+        });
+        targets.push({
+          role,
+          nodeName: node.nodeName || node.spokeId || '',
+          address: node.instance,
+          via: node.via,
+          commands: [command],
+          ok: result.ok,
+          output: `${result.output || result.error || ''}`.trim().slice(-1500),
+        });
+      }
+
+      return { ok: targets.every((target) => target.ok), role, condition, health: '', targets };
+    },
+
+    /**
      * @method definitions
      * @description Resolves event definitions, with probes and remediation
      * identities expanded from live host state. This is the shape the monitoring
@@ -891,13 +1108,19 @@ class UnderpostEvent {
         if (!event) throw new Error(`[event] unknown event id: ${id}`);
         const schedule = eventSchedule(id, conf);
         const probes = event.probes().map((probe) => ({ ...probe, eventId: id, interval: schedule.probeInterval }));
-        if (probes.length === 0)
+        // Only a rule that reads `probe_success` depends on them; a threshold
+        // rule reads scraped host metrics and declares no probe by design.
+        if (probes.length === 0 && `${event.alert.expr}`.includes('probe_success'))
           logger.warn(`Event has no resolvable probe targets; its rule will never fire`, { eventId: id });
         return {
           ...event,
           id,
           schedule,
-          alert: { ...event.alert, for: schedule.alertFor },
+          alert: {
+            ...event.alert,
+            for: schedule.alertFor,
+            expr: `${event.alert.expr}`.replaceAll(THRESHOLD_TOKEN, schedule.threshold),
+          },
           probes,
           remediation: event.remediation(),
           notifications: eventNotificationRoutes(id, conf),
