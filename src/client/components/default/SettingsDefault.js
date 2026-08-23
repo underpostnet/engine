@@ -1,11 +1,11 @@
 import { Css } from '../core/Css.js';
-import { FullScreen } from '../core/FullScreen.js';
+import { ViewModeController } from '../core/ViewModeController.js';
 import { Translate } from '../core/Translate.js';
 import { Worker } from '../core/Worker.js';
 
 class SettingsDefault {
   static async instance() {
-    let render = await FullScreen.RenderSetting();
+    let render = await ViewModeController.RenderSetting();
     render += await Css.RenderSetting();
     render += await Translate.RenderSetting();
     render += await Worker.RenderSetting();

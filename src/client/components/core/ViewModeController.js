@@ -1,20 +1,20 @@
 /**
  * Utility module for fullscreen mode management with cross-browser and PWA compatibility.
  * Provides robust fullscreen detection, event handling, and UI synchronization.
- * @module src/client/components/core/FullScreen.js
- * @namespace FullScreenClient
+ * @module src/client/components/core/ViewModeController.js
+ * @namespace ViewModeControllerClient
  */
 import { Responsive } from './Responsive.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
-import { checkFullScreen, fullScreenIn, fullScreenOut, s } from './VanillaJs.js';
+import { fullScreenIn, fullScreenOut, s } from './VanillaJs.js';
 /**
  * Manages fullscreen mode state, event handling, and UI synchronization.
  * Supports all major browsers and PWA/Nativefier environments with comprehensive
  * vendor-prefixed API detection.
- * @memberof FullScreenClient
+ * @memberof ViewModeControllerClient
  */
-class FullScreen {
+class ViewModeController {
   /**
    * Internal state flag tracking the intended fullscreen mode.
    * @type {boolean}
@@ -43,7 +43,7 @@ class FullScreen {
    * - Mozilla (Firefox)
    * - Microsoft (IE/Edge)
    * @private
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {boolean} True if currently in fullscreen mode, false otherwise.
    */
   static _isFullScreen() {
@@ -62,16 +62,16 @@ class FullScreen {
    * Prevents race conditions using the _syncInProgress flag.
    * Updates the toggle switch only if there's a mismatch between UI and actual state.
    * @private
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {void}
    */
   static _syncToggleState() {
-    if (FullScreen._syncInProgress) return;
-    FullScreen._syncInProgress = true;
-    const actualFullScreen = FullScreen._isFullScreen();
+    if (ViewModeController._syncInProgress) return;
+    ViewModeController._syncInProgress = true;
+    const actualFullScreen = ViewModeController._isFullScreen();
     // Only update if there's a mismatch
-    if (FullScreen._fullScreenSwitch !== actualFullScreen) {
-      FullScreen._fullScreenSwitch = actualFullScreen;
+    if (ViewModeController._fullScreenSwitch !== actualFullScreen) {
+      ViewModeController._fullScreenSwitch = actualFullScreen;
       // Update toggle switch UI if it exists
       const toggle = s('.fullscreen');
       if (toggle && ToggleSwitch.Tokens[`fullscreen`]) {
@@ -82,18 +82,18 @@ class FullScreen {
       }
     }
     setTimeout(() => {
-      FullScreen._syncInProgress = false;
+      ViewModeController._syncInProgress = false;
     }, 100);
   }
   /**
    * Event handler for fullscreen change events.
    * Triggers UI state synchronization when fullscreen mode changes.
    * @private
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {void}
    */
   static _handleFullScreenChange() {
-    FullScreen._syncToggleState();
+    ViewModeController._syncToggleState();
   }
   /**
    * Attaches all necessary event listeners for fullscreen mode detection.
@@ -103,20 +103,20 @@ class FullScreen {
    * - ESC key detection (fallback for manual fullscreen exit)
    * Only attaches listeners once to prevent duplicates.
    * @private
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {void}
    */
   static _addEventListeners() {
-    if (FullScreen._eventListenersAdded) return;
+    if (ViewModeController._eventListenersAdded) return;
     const events = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
     events.forEach((eventName) => {
-      document.addEventListener(eventName, () => FullScreen._handleFullScreenChange(), false);
+      document.addEventListener(eventName, () => ViewModeController._handleFullScreenChange(), false);
     });
     // Additional check for PWA/Nativefier window resize events
     window.addEventListener(
       'resize',
       () => {
-        setTimeout(() => FullScreen._syncToggleState(), 150);
+        setTimeout(() => ViewModeController._syncToggleState(), 150);
       },
       false,
     );
@@ -125,77 +125,80 @@ class FullScreen {
       'keydown',
       (e) => {
         if (e.key === 'Escape' || e.keyCode === 27) {
-          setTimeout(() => FullScreen._syncToggleState(), 100);
+          setTimeout(() => ViewModeController._syncToggleState(), 100);
         }
       },
       false,
     );
-    FullScreen._eventListenersAdded = true;
+    ViewModeController._eventListenersAdded = true;
   }
   /**
    * Enters fullscreen mode if not already in fullscreen.
    * Updates internal state and triggers fullscreen API.
    * Verifies the state change after a delay to ensure synchronization.
    * @private
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {void}
    */
   static _enterFullScreen() {
-    if (FullScreen._isFullScreen()) return;
-    FullScreen._fullScreenSwitch = true;
+    if (ViewModeController._isFullScreen()) return;
+    ViewModeController._fullScreenSwitch = true;
     fullScreenIn();
     // Verify after attempt
-    setTimeout(() => FullScreen._syncToggleState(), 300);
+    setTimeout(() => ViewModeController._syncToggleState(), 300);
   }
   /**
    * Exits fullscreen mode if currently in fullscreen.
    * Updates internal state and triggers fullscreen exit API.
    * Verifies the state change after a delay to ensure synchronization.
    * @private
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {void}
    */
   static _exitFullScreen() {
-    if (!FullScreen._isFullScreen()) return;
-    FullScreen._fullScreenSwitch = false;
+    if (!ViewModeController._isFullScreen()) return;
+    ViewModeController._fullScreenSwitch = false;
     fullScreenOut();
     // Verify after attempt
-    setTimeout(() => FullScreen._syncToggleState(), 300);
+    setTimeout(() => ViewModeController._syncToggleState(), 300);
   }
   /**
    * Renders the fullscreen toggle setting UI component.
    * Initializes fullscreen state detection, sets up event listeners,
    * and creates a toggle switch for user interaction.
    * Integrates with the Responsive system for dynamic updates.
-   * @memberof FullScreenClient.FullScreen
+   * @memberof ViewModeControllerClient.ViewModeController
    * @returns {Promise<string>} A promise resolving to the HTML string for the fullscreen setting component.
    */
   static async RenderSetting() {
     // Initialize state from actual fullscreen status
-    FullScreen._fullScreenSwitch = FullScreen._isFullScreen();
+    ViewModeController._fullScreenSwitch = ViewModeController._isFullScreen();
     // Setup event listeners once
-    FullScreen._addEventListeners();
+    ViewModeController._addEventListeners();
     // Update responsive event
-    Responsive.onChanged(() => {
-      FullScreen._syncToggleState();
-    }, { key: 'full-screen-settings' });
+    Responsive.onChanged(
+      () => {
+        ViewModeController._syncToggleState();
+      },
+      { key: 'full-screen-settings' },
+    );
     return html`<div class="in section-mp">
       ${await ToggleSwitch.instance({
         wrapper: true,
         wrapperLabel: html`<i class="fa-solid fa-expand"></i> ${Translate.instance('fullscreen')}`,
         id: 'fullscreen',
         disabledOnClick: true,
-        checked: FullScreen._fullScreenSwitch,
+        checked: ViewModeController._fullScreenSwitch,
         on: {
           unchecked: () => {
-            FullScreen._exitFullScreen();
+            ViewModeController._exitFullScreen();
           },
           checked: () => {
-            FullScreen._enterFullScreen();
+            ViewModeController._enterFullScreen();
           },
         },
       })}
     </div>`;
   }
 }
-export { FullScreen };
+export { ViewModeController };

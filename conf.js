@@ -37,7 +37,7 @@ const DefaultConf = /**/ {
           'Account',
           'PublicProfile',
           'Auth',
-          'FullScreen',
+          'ViewModeController',
           'RichText',
           'CalendarCore',
           'D3Chart',
