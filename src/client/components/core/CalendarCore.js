@@ -9,12 +9,12 @@ import { Panel } from './Panel.js';
 import { Responsive } from './Responsive.js';
 import { listenQueryPathInstance, RouterEvents, setQueryPath, getQueryParams } from './Router.js';
 import { Translate } from './Translate.js';
-import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
+import { append, getTimeZone, htmls, s } from './VanillaJs.js';
 // https://fullcalendar.io/docs/event-object
 const daysOfWeekOptions = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const eventDateFactory = (event) =>
   newInstance({
-    event: { ...event.extendedProps, title: event._def.title },
+    event: { ...event.extendedProps, title: event.title },
     start: event.start,
     end: event.end,
   });
@@ -68,23 +68,23 @@ class CalendarCore {
         });
       }
     };
+    const calendarLocaleOptions = () => ({
+      todayText: Translate.text('today'),
+      monthText: Translate.text('month'),
+      weekTextLong: Translate.text('week'),
+      listText: Translate.text('summary'),
+    });
     const renderCalendar = (events) => {
       const calendarEl = s(`.calendar-${idPanel}`);
+      if (!calendarEl) return;
+      CalendarCore.Data[options.idModal].calendar?.destroy?.();
       CalendarCore.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
         allDaySlot: false,
-        plugins: [
-          FullCalendar.DayGrid.default,
-          FullCalendar.TimeGrid.default,
-          FullCalendar.List.default,
-          // https://fullcalendar.io/docs/rrule-plugin
-          FullCalendar.RRule.default,
-        ],
         // initialView: 'dayGridWeek',
         timeZone: getTimeZone(),
-        dateClick: function (arg) {
-          console.error('calendar dateClick', arg.date.toString());
-        },
-        events: events ?? [{ title: 'Meeting', start: new Date() }],
+        locale: s('html')?.lang || 'en',
+        ...calendarLocaleOptions(),
+        events: events ?? [],
         initialView: 'dayGridMonth',
         headerToolbar: {
           left: 'prev,next today',
@@ -92,15 +92,22 @@ class CalendarCore {
           right: 'dayGridMonth,timeGridWeek,listWeek',
         },
         eventClick: async function (args) {
+          args.jsEvent?.preventDefault();
           const dateData = eventDateFactory(args.event);
           // element -> args.el
           // remove all events associated ->  args.event.remove();
           // console.error('eventClick', JSON.stringify(dateData, null, 4));
-          if (options.eventClick) await options.eventClick(dateData, args);
+          if (options.eventClick) return await options.eventClick(dateData, args);
+          const eventId = dateData.event._id || args.event.id;
+          if (!eventId || !options.route) return;
+          setQueryPath({ path: options.route, queryPath: eventId });
+          if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
+          s(`.calendar-container-${options.idModal}`)?.classList.add('hide');
+          s(`.main-body-calendar-${options.idModal}`)?.classList.remove('hide');
+          await CalendarCore.Data[options.idModal].updatePanel();
         },
-        eventClassNames: function (args) {
-          // console.error('eventClassNames', JSON.stringify(dateData, null, 4));
-          if (!args.event.extendedProps._id) return args.event.remove();
+        eventClass: function (args) {
+          if (!args.event.extendedProps._id) return 'hide';
           const dateData = eventDateFactory(args.event);
           if (
             new Date(dateData.start).getTime() <= new Date().getTime() ||
@@ -108,7 +115,8 @@ class CalendarCore {
               (d) => d.eventSchedulerId === dateData.event._id && d.date === dateData.start,
             )
           )
-            return ['hide'];
+            return 'hide';
+          return '';
         },
       });
       CalendarCore.Data[options.idModal].calendar.render();
@@ -116,36 +124,13 @@ class CalendarCore {
     setTimeout(() => {
       renderCalendar();
       const applyFullCalendarLang = () => {
-        CalendarCore.Data[options.idModal].calendar.setOption('locale', s(`html`).lang);
-        if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.instance('all-day'));
-        if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.instance('month'));
-        if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.instance('week'));
-        if (s(`.fc-listWeek-button`)) htmls(`.fc-listWeek-button`, Translate.instance('summary'));
-        if (s(`.fc-today-button`)) htmls(`.fc-today-button`, Translate.instance('today'));
+        const calendar = CalendarCore.Data[options.idModal].calendar;
+        if (!calendar?.setOption) return;
+        calendar.setOption('locale', s('html')?.lang || 'en');
+        for (const [name, value] of Object.entries(calendarLocaleOptions())) calendar.setOption(name, value);
       };
       Translate.onChanged(applyFullCalendarLang, { key: 'fullcalendar-lang' });
-      setTimeout(() => {
-        applyFullCalendarLang();
-        s(`.fc-dayGridMonth-button`).onclick = () => {
-          applyFullCalendarLang();
-        };
-        s(`.fc-listWeek-button`).onclick = () => {
-          applyFullCalendarLang();
-        };
-        s(`.fc-timeGridWeek-button`).onclick = () => {
-          applyFullCalendarLang();
-        };
-        s(`.fc-next-button`).onclick = () => {
-          applyFullCalendarLang();
-        };
-        s(`.fc-prev-button`).onclick = () => {
-          applyFullCalendarLang();
-        };
-        s(`.fc-today-button`).onclick = () => {
-          applyFullCalendarLang();
-        };
-      });
-      sa(`.fc-button-group`)[1].style.float = 'right';
+      applyFullCalendarLang();
     });
     const idPanel = `calendar-panel-${options.idModal}`;
     const formData = [
@@ -207,9 +192,11 @@ class CalendarCore {
       },
     ];
     setTimeout(() => {
-      s(`.close-calendar-container`).onclick = () => {
-        s(`.calendar-container`).classList.add('hide');
-        s(`.main-body-calendar-${options.idModal}`).classList.remove('hide');
+      const closeButton = s(`.close-calendar-container-${options.idModal}`);
+      if (!closeButton) return;
+      closeButton.onclick = () => {
+        s(`.calendar-container-${options.idModal}`)?.classList.add('hide');
+        s(`.main-body-calendar-${options.idModal}`)?.classList.remove('hide');
       };
     });
     const panelRender = async () => {
@@ -243,10 +230,10 @@ class CalendarCore {
             {
               label: html`<i class="fa-regular fa-calendar-days"></i> ${Translate.instance('calendar')}`,
               onClick: function () {
-                s(`.calendar-container`).classList.remove('hide');
-                s(`.main-body-calendar-${options.idModal}`).classList.add('hide');
-                // renderCalendar();
+                s(`.calendar-container-${options.idModal}`)?.classList.remove('hide');
+                s(`.main-body-calendar-${options.idModal}`)?.classList.add('hide');
                 CalendarCore.Data[options.idModal].calendar.setOption('height', 700);
+                CalendarCore.Data[options.idModal].calendar.render();
                 Translate.emitChanged({ lang: s('html').lang });
               },
             },
@@ -363,57 +350,27 @@ class CalendarCore {
     return html`
       <div class="in main-body-calendar-${options.idModal}">${await panelRender()}</div>
       <style>
-        .calendar-container {
+        .calendar-container-${options.idModal} {
           color: black;
           background: #fcfcfc;
+          --fc-classic-background: #fcfcfc;
+          --fc-classic-button: #b1b1b1;
+          --fc-classic-button-border: transparent;
+          --fc-classic-button-strong: #4a4a4a;
+          --fc-classic-button-strong-border: transparent;
         }
 
-        .calendar-container a {
+        .calendar-container-${options.idModal} a {
           color: #4a4a4a;
           cursor: pointer;
         }
-        .calendar-container a:hover {
+        .calendar-container-${options.idModal} a:hover {
           color: #8a8a8a;
         }
 
-        .fc-toolbar-title {
-          font-size: 20px !important;
-          margin: 0px !important;
-          text-transform: uppercase;
-          color: #8a8a8a;
-          padding: 10px 5px 5px 5px;
-        }
-
-        .fc-button,
-        .fc-button-primary {
-          border: none !important;
-          border-radius: 0px !important;
-          background: #b1b1b1 !important;
-          margin: 3px !important;
-          /* color: #4a4a4a; */
-        }
-
-        .fc-button-primary:hover,
-        .fc-button:hover {
-          background: #4a4a4a !important;
-          /* background: #b1b1b1 !important; */
-          /* box-shadow: none !important;
-  border-radius: 0px !important;
-  border: none !important; */
-        }
-
-        .fc-button-primary:active .fc-button:active {
-          /* box-shadow: none !important;
-  border-radius: 0px !important;
-  border: none !important; */
-        }
-
-        .fc-toolbar {
-          display: block !important;
-        }
-
-        .fc-toolbar-chunk {
-          padding: 5px;
+        .calendar-${idPanel} {
+          min-height: 700px;
+          padding: 0 10px 10px;
         }
 
         .calendar-buttons-container {
@@ -421,10 +378,10 @@ class CalendarCore {
           height: 60px;
         }
       </style>
-      <div class="in calendar-container hide">
+      <div class="in calendar-container calendar-container-${options.idModal} hide">
         <div class="in modal calendar-buttons-container">
           ${await BtnIcon.instance({
-            class: `inl section-mp btn-custom close-calendar-container flr`,
+            class: `inl section-mp btn-custom close-calendar-container-${options.idModal} flr`,
             label: html`<i class="fa-solid fa-xmark"></i> ${Translate.instance('close')}`,
             type: 'button',
           })}

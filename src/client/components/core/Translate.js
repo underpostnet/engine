@@ -42,6 +42,13 @@ class Translate {
   static hasChangedListener(key) {
     return translateEvents.has(key);
   }
+  static text(keyLang, options = { disableTextFormat: false }) {
+    const translations = Translate.Data[keyLang];
+    if (!translations) return options.disableTextFormat ? keyLang : textFormatted(keyLang);
+    const lang = s('html')?.lang || 'en';
+    const value = translations[lang] ?? translations.en ?? keyLang;
+    return options.disableTextFormat ? value : textFormatted(value);
+  }
   static async emitChanged(detail) {
     await translateEvents.emit(TranslateEventType.changed, detail);
   }
