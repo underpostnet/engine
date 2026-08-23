@@ -56,7 +56,7 @@ export class CyberiaDependencies {
   static 'maxrects-packer' = '^2.7.3';
   static pngjs = '^7.0.0';
   static jimp = '^1.6.0';
-  static sharp = '^0.34.5';
+  static sharp = '^0.35.3';
   static ethers = '~6.16.0';
 }
 
