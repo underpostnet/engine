@@ -21,7 +21,7 @@ import {
   buildReplicaId,
   readConfInstances,
 } from '../server/conf.js';
-import { readDeployRoutes } from '../server/router.js';
+import { readDeployRoutes, registerDeployRoute } from '../server/router.js';
 import { getNpmRootPath, writeEnv } from '../server/environment.js';
 import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../client-builder/client-build.js';
 import { DefaultConf } from '../../conf.js';
@@ -497,12 +497,91 @@ class UnderpostRepository {
     },
 
     /**
+     * Initializes the base cluster deploy folder `engine-private/deploy` from `./conf.js` (DefaultConf).
+     *
+     * Writes the minimum set required by the cluster runtime:
+     * `conf.event.json`, `conf.users.json`, `conf.wireguard.json`, `dd.cron`, `dd.routes`, `id_rsa`, `id_rsa.pub`.
+     *
+     * When a deploy ID is explicitly provided, it also generates the deploy CI/CD workflows and its default conf.
+     *
+     * Idempotent: existing files are never overwritten, so it is safe to rerun over a provisioned cluster.
+     * @param {string} [deployId=''] - Deploy ID registered in the route table and used as default cron deploy ID (defaults to `dd-default`, `dd-` prefix is normalized).
+     * @returns {{ deployPath: string, created: string[] }} The deploy folder and the files created by this run.
+     * @memberof UnderpostRepository
+     */
+    clusterDeployFactory(deployId = '') {
+      const deployPath = './engine-private/deploy';
+      const created = [];
+
+      const hasDeployId = `${deployId || ''}`.trim().length > 0;
+      deployId = `${deployId || ''}`.trim() || 'dd-default';
+      if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
+
+      fs.mkdirSync(deployPath, { recursive: true });
+
+      const confFiles = {
+        'conf.event.json': DefaultConf.event,
+        'conf.users.json': DefaultConf.users,
+        'conf.wireguard.json': DefaultConf.wireguard,
+      };
+
+      for (const [fileName, conf] of Object.entries(confFiles)) {
+        const confPath = `${deployPath}/${fileName}`;
+        if (fs.existsSync(confPath)) continue;
+        fs.writeFileSync(confPath, JSON.stringify(conf, null, 4), 'utf8');
+        created.push(confPath);
+      }
+
+      const cronPath = `${deployPath}/dd.cron`;
+      if (!fs.existsSync(cronPath)) {
+        fs.writeFileSync(cronPath, deployId, 'utf8');
+        created.push(cronPath);
+      }
+
+      const routesPath = `${deployPath}/dd.routes`;
+      const routesExists = fs.existsSync(routesPath);
+      registerDeployRoute(deployId);
+      if (!routesExists) created.push(routesPath);
+
+      const keyPath = `${deployPath}/id_rsa`;
+      const pubKeyPath = `${deployPath}/id_rsa.pub`;
+      if (!fs.existsSync(keyPath)) {
+        shellExec(`ssh-keygen -t ed25519 -f ${keyPath} -N "" -q -C "root@${deployId}"`, { disableLog: true });
+        fs.chmodSync(keyPath, 0o600);
+        created.push(keyPath);
+        created.push(pubKeyPath);
+      } else if (!fs.existsSync(pubKeyPath)) {
+        shellExec(`ssh-keygen -y -f ${keyPath} -P "" > ${pubKeyPath}`, { disableLog: true });
+        created.push(pubKeyPath);
+      }
+
+      if (hasDeployId) {
+        const repoName = `engine-${deployId.split('dd-')[1]}`;
+        fs.writeFileSync(
+          `./.github/workflows/${repoName}.cd.yml`,
+          fs.readFileSync(`./.github/workflows/engine-test.cd.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
+          'utf8',
+        );
+        fs.writeFileSync(
+          `./.github/workflows/${repoName}.ci.yml`,
+          fs.readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
+          'utf8',
+        );
+        shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
+      }
+
+      logger.info('Cluster deploy base', { deployPath, created });
+
+      return { deployPath, created };
+    },
+
+    /**
      * Initializes a new Underpost repository, optionally setting up a deploy ID or sub-configuration.
      * @param {string} [projectName=''] - The name of the project to create.
      * @param {object} [options] - Initialization options.
      * @param {string} [options.deployId=''] - The deployment ID to set up.
      * @param {string} [options.subConf=''] - The sub-configuration to create.
-     * @param {boolean} [options.cluster=false] - If true, sets up a clustered configuration.
+     * @param {boolean} [options.cluster=false] - If true, initializes only the base cluster deploy folder (`engine-private/deploy`) from `./conf.js` and returns; no project or deploy ID scaffolding runs.
      * @param {boolean} [options.dev=false] - If true, uses development settings.
      * @param {boolean} [options.buildRepos=false] - If true, creates the deployment repositories (engine-*, engine-*-private, engine-*-cron-backups).
      * @param {boolean} [options.purge=false] - If true, removes the deploy ID conf and all related repositories (requires deployId).
@@ -536,6 +615,12 @@ class UnderpostRepository {
         try {
           await logger.setUpInfo();
           actionInitLog();
+
+          // Handle cluster deploy base operation (standalone: never scaffolds a project)
+          if (options.cluster === true) {
+            UnderpostRepository.API.clusterDeployFactory(options.deployId || projectName);
+            return resolve(true);
+          }
 
           // Handle cleanTemplate operation
           if (options.cleanTemplate) {

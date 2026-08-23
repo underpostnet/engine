@@ -22,7 +22,7 @@ program
   .argument('[app-name]', 'The name of the new project.')
   .option('--deploy-id <deploy-id>', 'Create deploy ID conf env files')
   .option('--sub-conf <sub-conf>', 'Create sub conf env files')
-  .option('--cluster', 'Create deploy ID cluster files and sync to current cluster')
+  .option('--cluster', 'Initialize the base cluster deploy folder engine-private/deploy from ./conf.js')
   .option('--build-repos', 'Create deploy ID repositories')
   .option('--build', 'Build the deployment to pwa-microservices-template (requires --deploy-id)')
   .option('--clean-template', 'Clean the build directory (pwa-microservices-template)')

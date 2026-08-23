@@ -25,7 +25,7 @@ import { shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from './underpost-gateway.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
-import { readDeployRoutes, registerDeployRoute } from './router.js';
+import { readDeployRoutes } from './router.js';
 import Underpost from '../index.js';
 
 colors.enable();
@@ -268,16 +268,15 @@ const Config = {
    * @method deployIdFactory
    * @description Creates a new deploy ID.
    * @param {string} [deployId='dd-default']
-   * @param {object} [options={ subConf: '', cluster: false }] - The options.
+   * @param {object} [options={ subConf: '' }] - The options.
    * @memberof ServerConfBuilder
    */
-  deployIdFactory: function (deployId = DEFAULT_DEPLOY_ID, options = { subConf: '', cluster: false }) {
+  deployIdFactory: function (deployId = DEFAULT_DEPLOY_ID, options = { subConf: '' }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
 
     logger.info('Build deployId', deployId);
 
     const folder = `./engine-private/conf/${deployId}`;
-    const repoName = `engine-${deployId.split('dd-')[1]}`;
 
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
 
@@ -327,22 +326,6 @@ const Config = {
         `./engine-private/conf/${deployId}/conf.server.json`,
         `./engine-private/conf/${deployId}/conf.server.dev.${options.subConf}.json`,
       );
-    }
-
-    if (options.cluster === true) {
-      fs.writeFileSync(
-        `./.github/workflows/${repoName}.cd.yml`,
-        fs.readFileSync(`./.github/workflows/engine-test.cd.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
-        'utf8',
-      );
-      fs.writeFileSync(
-        `./.github/workflows/${repoName}.ci.yml`,
-        fs.readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
-        'utf8',
-      );
-      shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
-
-      registerDeployRoute(deployId);
     }
 
     return { deployIdFolder: folder, deployId };
