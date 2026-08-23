@@ -6,6 +6,7 @@
 /logs
 /build
 /.env
+/.underpost
 /coverage
 /prometheus_data
 /grafana_data
