@@ -88,6 +88,7 @@ const buildVersionBumpTargets = () => [
     dir: 'src/client/public/nexodev/docs/references',
     match: /\.md$/,
     patterns: [
+      /(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g,
       /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
       /(UNDERPOST_VERSION=)\d+\.\d+\.\d+/g,
       /(ci\/cd cli v)\d+\.\d+\.\d+/gi,
@@ -626,5 +627,5 @@ class UnderpostRelease {
   };
 }
 
-export { UnderpostRelease };
+export { UnderpostRelease, bumpAuxiliaryFiles };
 export default UnderpostRelease;
