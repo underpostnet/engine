@@ -14,7 +14,6 @@ import {
   Config,
   loadConf,
   readConfJson,
-  getConfFilePath,
   loadReplicas,
   loadConfServerJson,
   getDataDeploy,
@@ -22,7 +21,8 @@ import {
   readConfInstances,
 } from '../server/conf.js';
 import { readDeployRoutes, registerDeployRoute } from '../server/router.js';
-import { getNpmRootPath, writeEnv } from '../server/environment.js';
+import { getUnderpostRootPath, writeEnv } from '../server/environment.js';
+import { githubCommitUrlFactory, repositoryIdentityFactory } from '../server/repository.js';
 import { buildClient, unzipClientBuild, mergeClientBuildZip } from '../client-builder/client-build.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';
@@ -280,9 +280,7 @@ class UnderpostRepository {
             .filter((c) => c.hash);
         };
 
-        const githubUser = process.env.GITHUB_USERNAME || 'underpostnet';
-        const commitUrl = (shortHash, fullHash) =>
-          `[${shortHash}](https://github.com/${githubUser}/engine/commit/${fullHash})`;
+        const commitUrl = (shortHash, hash) => githubCommitUrlFactory({ shortHash, hash });
 
         // Helper: extract version from commit message containing 'New release v:'
         const extractVersion = (message) => {
@@ -959,36 +957,39 @@ class UnderpostRepository {
           {
             const { deployId: resolvedDeployId } = loadConf(deployId, subConf ?? '');
 
-            let argHost = host ? host.split(',') : [];
-            let argPath = path ? path.split(',') : [];
+            const argHost = host ? host.split(',') : [];
+            const argPath = path ? path.split(',') : [];
+            const selectedInstances =
+              argHost.length > 0 && argPath.length > 0
+                ? argHost.flatMap((selectedHost) =>
+                    argPath.map((selectedPath) => ({ host: selectedHost, path: selectedPath })),
+                  )
+                : [];
             let deployIdSingleReplicas = [];
-            let singleReplicaHosts = [];
             const isReplicaContext = resolvedDeployId
               ? fs.existsSync(`./engine-private/replica/${resolvedDeployId}`)
               : false;
             const serverConf = resolvedDeployId
               ? readConfJson(resolvedDeployId, 'server', { loadReplicas: true })
               : Config.default.server;
-            const confFilePath = resolvedDeployId ? getConfFilePath(resolvedDeployId, 'server') : null;
-            const originalConfBackup = confFilePath ? fs.readFileSync(confFilePath, 'utf8') : null;
             for (const host of Object.keys(serverConf)) {
               for (const path of Object.keys(serverConf[host])) {
-                if (argHost.length && argPath.length && (!argHost.includes(host) || !argPath.includes(path))) {
-                  delete serverConf[host][path];
-                } else {
-                  if (!isReplicaContext && serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
-                    singleReplicaHosts.push({ host, path });
-                    deployIdSingleReplicas = deployIdSingleReplicas.concat(
-                      serverConf[host][path].replicas.map((replica) =>
-                        buildReplicaId({ deployId: resolvedDeployId, replica }),
-                      ),
-                    );
-                  }
-                }
+                if (
+                  selectedInstances.length > 0 &&
+                  !selectedInstances.some((instance) => instance.host === host && instance.path === path)
+                )
+                  continue;
+                if (!isReplicaContext && serverConf[host][path].singleReplica && serverConf[host][path].replicas)
+                  deployIdSingleReplicas = deployIdSingleReplicas.concat(
+                    serverConf[host][path].replicas.map((replica) =>
+                      buildReplicaId({ deployId: resolvedDeployId, replica }),
+                    ),
+                  );
               }
             }
             await buildClient({
               deployId: resolvedDeployId,
+              instances: selectedInstances,
               buildZip: options.buildZip || false,
               split: options.split || '',
               fullBuild: options.liteBuild ? false : true,
@@ -1418,7 +1419,7 @@ Prevent build private config repo.`,
       } else {
         let token = process.env.GITHUB_TOKEN;
         if (!token) {
-          const envPath = `${getNpmRootPath()}/underpost/.env`;
+          const envPath = `${getUnderpostRootPath()}/.env`;
           if (fs.existsSync(envPath) && fs.statSync(envPath).isFile()) {
             const envVars = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
             token = envVars.GITHUB_TOKEN;
@@ -1652,7 +1653,7 @@ Prevent build private config repo.`,
      * @memberof UnderpostRepository
      */
     initLocalRepo({ path: repoPath, origin }) {
-      const gitUsername = process.env.GITHUB_USERNAME || 'underpostnet';
+      const gitUsername = repositoryIdentityFactory().owner;
       const gitEmail = process.env.GITHUB_EMAIL || `development@underpost.net`;
 
       if (!fs.existsSync(`${repoPath}/.git`)) {
@@ -1835,7 +1836,7 @@ Prevent build private config repo.`,
     backupPodRepositories({ deployId, namespace = 'default', env = 'production' }) {
       const confServer = readConfJson(deployId, 'server', { resolve: true });
       const githubToken = process.env.GITHUB_TOKEN || '';
-      const githubUsername = process.env.GITHUB_USERNAME || 'underpostnet';
+      const githubUsername = repositoryIdentityFactory().owner;
 
       if (!githubToken) {
         logger.warn('backupPodRepositories: GITHUB_TOKEN not available — git push will fail');
