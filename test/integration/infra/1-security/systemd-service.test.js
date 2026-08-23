@@ -7,7 +7,7 @@ import SystemdService, {
   nodeCandidatesFactory,
   nodeProbeCommandFactory,
   scriptProbeCommandFactory,
-} from '../src/server/systemd.js';
+} from '../../../../src/server/systemd.js';
 
 describe('nodeCandidatesFactory', () => {
   // systemd cannot enter /root or /home on an SELinux host, so a unit pointed at

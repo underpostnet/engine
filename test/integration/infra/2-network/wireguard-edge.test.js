@@ -3,7 +3,7 @@
 import { expect } from 'chai';
 import http from 'node:http';
 import net from 'node:net';
-import Underpost from '../src/index.js';
+import Underpost from '../../../../src/index.js';
 import {
   FORWARD_PROXY,
   fetchViaForwardProxy,
@@ -20,12 +20,12 @@ import {
   forwardProxyTargetFactory,
   forwardProxyTunnelTargetFactory,
   forwardProxyUnitFactory,
-} from '../src/server/forward-proxy.js';
-import { ShellExecError, redactCredentials } from '../src/server/process.js';
-import { probeGroupsFactory, prometheusConfFactory } from '../src/server/monitoring.js';
+} from '../../../../src/server/forward-proxy.js';
+import { ShellExecError, redactCredentials } from '../../../../src/server/process.js';
+import { probeGroupsFactory, prometheusConfFactory } from '../../../../src/server/monitoring.js';
 import fs from 'node:fs';
-import { Dns } from '../src/server/dns.js';
-import { homeDirectoryPathFactory } from '../src/server/systemd.js';
+import { Dns } from '../../../../src/server/dns.js';
+import { homeDirectoryPathFactory } from '../../../../src/server/systemd.js';
 import UnderpostWireguard, {
   ENGINE_SYNC_STEPS,
   UNDERPOST_EDGE,
@@ -58,7 +58,7 @@ import UnderpostWireguard, {
   wireguardHealthFactory,
   wireguardServerConfFactory,
   wireguardStatusFactory,
-} from '../src/cli/wireguard.js';
+} from '../../../../src/cli/wireguard.js';
 
 // The conf shape the PRD names: two published sites, each fronted by a bare
 // domain that only redirects to its `www` host.
@@ -1095,7 +1095,7 @@ describe('edge hub forward proxy', () => {
     let proxy;
     let proxyConfig;
 
-    before(async () => {
+    beforeAll(async () => {
       origin = await listen(
         http.createServer((req, res) => {
           res.writeHead(200, { 'content-type': 'application/json' });
@@ -1111,7 +1111,7 @@ describe('edge hub forward proxy', () => {
       proxyConfig = { host: '127.0.0.1', port: port(proxy), apiKey: API_KEY };
     });
 
-    after(() => {
+    afterAll(() => {
       for (const server of servers) server.close();
     });
 
@@ -1511,7 +1511,7 @@ describe('port-scoped ingress blocking', () => {
   it('creates the chain its rules live in before touching it', () => {
     // `inet filter` exists on a firewalld host with no `input` chain, so every
     // ingress command fails on a table that looks present.
-    const source = fs.readFileSync(new URL('../src/server/dns.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/server/dns.js', import.meta.url), 'utf8');
     for (const method of ['blockAllIngress', 'unblockAllIngress', 'blockIngressPort', 'unblockIngressPort']) {
       const body = source.slice(source.indexOf(`static ${method}(`));
       expect(body.slice(0, body.indexOf('\n  }')), method).to.include('Dns.ensureIngressChain()');
@@ -1522,7 +1522,7 @@ describe('port-scoped ingress blocking', () => {
   it('calls the helper on the class that declares it', () => {
     // The class is `Dns`; `UnderpostDns` is the CLI wrapper and carries no such
     // static, so naming it here fails only once the command runs on a host.
-    const source = fs.readFileSync(new URL('../src/server/dns.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/server/dns.js', import.meta.url), 'utf8');
     expect(source).to.not.include('UnderpostDns.portListFactory');
   });
 });

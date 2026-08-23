@@ -3,7 +3,7 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
 import os from 'os';
-import Underpost from '../src/index.js';
+import Underpost from '../../../../src/index.js';
 
 const sops = () => Underpost.secret.sops;
 // Unique namespace so the fixture can never collide with (or clean up) a real
@@ -81,13 +81,13 @@ describe('sops encrypted secret store', () => {
     const storeRoot = './engine-private/secrets';
     let createdStoreRoot = false;
 
-    before(() => {
+    beforeAll(() => {
       createdStoreRoot = !fs.existsSync(storeRoot);
       fs.ensureDirSync(TEST_DIR);
       fs.writeFileSync(`${TEST_DIR}/fixture-secret.enc.yaml`, encryptedFixture, 'utf8');
     });
 
-    after(() => {
+    afterAll(() => {
       fs.removeSync(TEST_DIR);
       // Only reclaim the store root when this suite created it, so a real
       // encrypted store is never touched.
@@ -134,7 +134,7 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('cluster initialization wiring', () => {
-    const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+    const clusterSource = fs.readFileSync(new URL('../../../../src/cli/cluster.js', import.meta.url), 'utf8');
 
     for (const [flag, secretName] of [
       ['mariadb', 'mariadb-secret'],
@@ -166,14 +166,14 @@ describe('sops encrypted secret store', () => {
     });
 
     it('pins the sops and age versions in the secrets module', () => {
-      const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+      const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
       expect(secretsSource).to.match(/const SOPS_VERSION = 'v\d+\.\d+\.\d+';/);
       expect(secretsSource).to.match(/const AGE_VERSION = 'v\d+\.\d+\.\d+';/);
     });
   });
 
   describe('decrypt-to-apply pipeline', () => {
-    const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+    const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
 
     it('streams decrypted output into kubectl without writing plaintext to disk', () => {
       expect(secretsSource).to.include('sops --decrypt "${manifestPath}" ');
@@ -211,13 +211,13 @@ describe('sops encrypted secret store', () => {
         '\n',
       );
 
-    before(() => {
+    beforeAll(() => {
       createdStoreRoot = !fs.existsSync(storeRoot);
       fs.ensureDirSync(storeRoot);
       if (fs.existsSync(confPath)) savedConf = fs.readFileSync(confPath, 'utf8');
     });
 
-    after(() => {
+    afterAll(() => {
       if (savedConf !== null) fs.writeFileSync(confPath, savedConf, 'utf8');
       else fs.removeSync(confPath);
       if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
@@ -253,7 +253,7 @@ describe('sops encrypted secret store', () => {
 
   describe('emergency purge', () => {
     it('archives rather than deletes unless forced', () => {
-      const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+      const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
       const start = secretsSource.indexOf('      purge(name, options = {}) {');
       expect(start, 'purge() not found').to.be.greaterThan(-1);
       const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
@@ -274,7 +274,7 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('CLI surface', () => {
-    const cliSource = fs.readFileSync(new URL('../src/cli/index.js', import.meta.url), 'utf8');
+    const cliSource = fs.readFileSync(new URL('../../../../src/cli/index.js', import.meta.url), 'utf8');
 
     it('makes the platform argument optional so --install-tools needs no platform', () => {
       expect(cliSource).to.include("argument(\n    '[platform]'");
@@ -315,12 +315,12 @@ describe('sops encrypted secret store', () => {
         '',
       ].join('\n');
 
-    before(() => {
+    beforeAll(() => {
       createdStoreRoot = !fs.existsSync(storeRoot);
       fs.ensureDirSync(dir);
     });
 
-    after(() => {
+    afterAll(() => {
       fs.removeSync(dir);
       if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
         fs.removeSync(storeRoot);
@@ -443,7 +443,7 @@ describe('sops encrypted secret store', () => {
         '',
       ].join('\n');
 
-    before(() => {
+    beforeAll(() => {
       createdStoreRoot = !fs.existsSync(storeRoot);
       fs.ensureDirSync(dir);
       fs.writeFileSync(`${dir}/mariadb-secret.enc.yaml`, sealedTo('mariadb-secret', FOREIGN), 'utf8');
@@ -452,7 +452,7 @@ describe('sops encrypted secret store', () => {
       process.env.SOPS_AGE_KEY_FILE = keyPath;
     });
 
-    after(() => {
+    afterAll(() => {
       if (originalKeyFile === undefined) delete process.env.SOPS_AGE_KEY_FILE;
       else process.env.SOPS_AGE_KEY_FILE = originalKeyFile;
       fs.removeSync(keyPath);
@@ -510,13 +510,13 @@ describe('sops encrypted secret store', () => {
     let createdStoreRoot = false;
     let savedConf = null;
 
-    before(() => {
+    beforeAll(() => {
       createdStoreRoot = !fs.existsSync(storeRoot);
       fs.ensureDirSync(storeRoot);
       if (fs.existsSync(confPath)) savedConf = fs.readFileSync(confPath, 'utf8');
     });
 
-    after(() => {
+    afterAll(() => {
       if (savedConf !== null) fs.writeFileSync(confPath, savedConf, 'utf8');
       else fs.removeSync(confPath);
       if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
@@ -549,7 +549,7 @@ describe('sops encrypted secret store', () => {
     });
 
     it('registers the host during init so a pulled store cannot be encrypted to write-only', () => {
-      const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+      const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
       const start = secretsSource.indexOf('      init() {');
       const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
       expect(body).to.include('ensureCreationRecipient(recipient)');
@@ -557,7 +557,7 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('secret --setup onboarding reports', () => {
-    const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+    const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
     const start = secretsSource.indexOf("      setup(names = '', options = {}) {");
     const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
 
@@ -578,7 +578,7 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('rotation safeguards', () => {
-    const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+    const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
 
     it('refuses to revoke recipients without an explicit confirmation', () => {
       expect(secretsSource).to.include('Refusing to revoke ');
@@ -604,7 +604,7 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('encrypt write safety', () => {
-    const secretsSource = fs.readFileSync(new URL('../src/cli/secrets.js', import.meta.url), 'utf8');
+    const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
 
     it('stages and moves rather than redirecting straight onto the target', () => {
       const start = secretsSource.indexOf('      encrypt(plaintextPath, namespace');

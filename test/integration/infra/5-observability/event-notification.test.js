@@ -1,13 +1,13 @@
 'use strict';
 
 import { expect } from 'chai';
-import { MailerProviderClass } from '../src/mailer/MailerProvider.js';
-import { mailerInterceptorFactory } from '../src/mailer/MailerInterceptor.js';
+import { MailerProviderClass } from '../../../../src/mailer/MailerProvider.js';
+import { mailerInterceptorFactory } from '../../../../src/mailer/MailerInterceptor.js';
 import {
   EVENT_CONF_PATH,
   assertNotificationRoutes,
   eventNotificationRoutes,
-} from '../src/server/event-notification.js';
+} from '../../../../src/server/event-notification.js';
 
 const CONF = {
   'notification-providers': {

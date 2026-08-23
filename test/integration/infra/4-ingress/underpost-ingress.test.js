@@ -10,7 +10,7 @@ import {
   underpostIngressConfFactory,
   underpostIngressHostMapFactory,
   underpostIngressManifestsFactory,
-} from '../src/server/underpost-ingress.js';
+} from '../../../../src/server/underpost-ingress.js';
 
 const CONTOUR = UNDERPOST_INGRESS.backends.contour;
 const GATEWAY = gatewayBackendFactory('envoy-eg-d8c59e83');
@@ -256,7 +256,7 @@ describe('shared ingress front', () => {
     });
 
     it('validates and reloads a live config before persisting it', () => {
-      const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+      const clusterSource = fs.readFileSync(new URL('../../../../src/cli/cluster.js', import.meta.url), 'utf8');
       const install = clusterSource.slice(
         clusterSource.indexOf('    installUnderpostIngress('),
         clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),
@@ -270,7 +270,7 @@ describe('shared ingress front', () => {
     });
 
     it('never inherits an application node flag during a route-table refresh', () => {
-      const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+      const clusterSource = fs.readFileSync(new URL('../../../../src/cli/cluster.js', import.meta.url), 'utf8');
       const install = clusterSource.slice(
         clusterSource.indexOf('    installUnderpostIngress('),
         clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),
@@ -281,7 +281,7 @@ describe('shared ingress front', () => {
     });
 
     it('waits for an explicit ingress-node replacement before reporting refresh success', () => {
-      const clusterSource = fs.readFileSync(new URL('../src/cli/cluster.js', import.meta.url), 'utf8');
+      const clusterSource = fs.readFileSync(new URL('../../../../src/cli/cluster.js', import.meta.url), 'utf8');
       const install = clusterSource.slice(
         clusterSource.indexOf('    installUnderpostIngress('),
         clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),

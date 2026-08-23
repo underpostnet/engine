@@ -1,7 +1,7 @@
 'use strict';
 
 import { expect } from 'chai';
-import { DEPLOY_ROUTES_PATH, parseDeployRoutes } from '../src/server/router.js';
+import { DEPLOY_ROUTES_PATH, parseDeployRoutes } from '../../../../src/server/router.js';
 
 describe('DEPLOY_ROUTES_PATH', () => {
   it('names the route table by what it holds — a list of routes', () => {

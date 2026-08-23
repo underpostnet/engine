@@ -15,9 +15,9 @@ import {
   loadConfInstances,
   loadProjectInstanceEnvBuilder,
   normalizeInstanceTopology,
-} from '../src/server/conf.js';
-import { statusPageAssetPathFactory } from '../src/server/underpost-gateway.js';
-import UnderpostDockerCompose from '../src/cli/docker-compose.js';
+} from '../../../../src/server/conf.js';
+import { statusPageAssetPathFactory } from '../../../../src/server/underpost-gateway.js';
+import UnderpostDockerCompose from '../../../../src/cli/docker-compose.js';
 
 // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
 // relative to the process cwd, mirroring every other conf loader. engine-private
@@ -61,7 +61,7 @@ const FIXTURES = {
 describe('cluster custom instances', () => {
   const created = [];
 
-  before(() => {
+  beforeAll(() => {
     for (const [deployId, entries] of Object.entries(FIXTURES)) {
       const dir = CONF_DIR(deployId);
       if (fs.existsSync(dir)) throw new Error(`Refusing to write fixtures into an existing deploy: ${dir}`);
@@ -75,7 +75,7 @@ describe('cluster custom instances', () => {
     fs.outputFileSync(`${customComposeDir}/project-router.conf`, 'project-owned\n');
   });
 
-  after(() => {
+  afterAll(() => {
     for (const dir of created) fs.removeSync(dir);
   });
 
@@ -311,7 +311,7 @@ describe('cluster custom instances', () => {
   });
 
   describe('cluster gateway bootstrap order', () => {
-    const source = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
     const clusterRunner = source.slice(source.indexOf('cluster: async'), source.indexOf("'gateway-status': async"));
 
     it('tests the ingress-only fallback before applying any workload Deployment', () => {

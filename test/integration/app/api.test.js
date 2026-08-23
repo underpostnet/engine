@@ -4,7 +4,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 
 import { expect } from 'chai';
-import { loggerFactory } from '../src/server/logger.js';
+import { loggerFactory } from '../../../src/server/logger.js';
 
 dotenv.config();
 

@@ -12,7 +12,7 @@ import {
   listShapes,
   toPixelCoords,
   renderGrid,
-} from '../src/projects/cyberia/shape-generator.js';
+} from '../../../../src/projects/cyberia/shape-generator.js';
 
 describe('Shape Generator Module Tests', () => {
   // --- Deterministic Seed Tests ---

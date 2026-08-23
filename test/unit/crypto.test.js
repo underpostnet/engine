@@ -9,7 +9,7 @@
 import { expect } from 'chai';
 
 // Import the cryptographic classes from the Canvas's refactored module
-import { SymmetricCrypto, AsymmetricCrypto } from '../src/server/crypto.js';
+import { SymmetricCrypto, AsymmetricCrypto } from '../../src/server/crypto.js';
 
 // Define a common plaintext message for testing
 const plaintext = 'This is a secret message for testing cryptographic operations.';

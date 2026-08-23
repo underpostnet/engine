@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import {
   fillInstanceConfDefaults,
   CYBERIA_INSTANCE_CONF_DEFAULTS,
-} from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+} from '../../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 // The CyberiaInstanceConfSchema fields that must always be present after a
 // backfill. Mirrors cyberia-instance-conf.model.js (minus instanceCode, which

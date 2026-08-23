@@ -2,16 +2,17 @@
 
 import { expect } from 'chai';
 import fs from 'node:fs';
-import Underpost from '../src/index.js';
-import { assertEventSchedules, eventSchedule } from '../src/server/event-notification.js';
+import Underpost from '../../../../src/index.js';
+import { assertEventSchedules, eventSchedule } from '../../../../src/server/event-notification.js';
 import UnderpostEvent, {
+  EVENT_E2E,
   assertHubManagementConnection,
   probeDetail,
   eventCooldownKeyFactory,
   eventFirewallCommandsFactory,
   eventServicePortFactory,
-} from '../src/cli/event.js';
-import { UNDERPOST_MONITORING } from '../src/server/monitoring.js';
+} from '../../../../src/cli/event.js';
+import { UNDERPOST_MONITORING } from '../../../../src/server/monitoring.js';
 
 describe('event remediation', () => {
   it('keeps the dispatcher available when WireGuard is down', () => {
@@ -112,7 +113,7 @@ describe('event end-to-end rehearsal', () => {
     // Not every event is rehearsable: a threshold alert has no fault that can be
     // induced on a production node without causing the outage it warns about.
     const shipped = fs
-      .readdirSync(new URL('.', import.meta.url))
+      .readdirSync(EVENT_E2E.scenarioDirectory)
       .filter((name) => name.startsWith('event-e2e-') && name.endsWith('.js'))
       .map((name) => name.slice('event-e2e-'.length, -'.js'.length));
     expect(shipped).to.not.be.empty;
@@ -130,7 +131,7 @@ describe('event end-to-end rehearsal', () => {
       await UnderpostEvent.API.e2eScenario('not-an-event');
       expect.fail('an unknown event id must not resolve a scenario');
     } catch (error) {
-      expect(error.message).to.include('test/event-e2e-not-an-event.js');
+      expect(error.message).to.include(`${EVENT_E2E.scenarioDirectory}/event-e2e-not-an-event.js`);
     }
   });
 
@@ -337,7 +338,7 @@ describe('incremental deployment against cluster state', () => {
 
 describe('public ingress recovery wait', () => {
   it('polls for the edge to carry traffic again instead of reading the verdict once', () => {
-    const source = fs.readFileSync(new URL('../src/cli/event.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/cli/event.js', import.meta.url), 'utf8');
     const body = source.slice(source.indexOf('async repairPublicIngress('));
     const method = body.slice(0, body.indexOf('\n    },'));
     expect(method).to.include('await Underpost.event.awaitPublicIngressHealth()');
@@ -345,7 +346,7 @@ describe('public ingress recovery wait', () => {
   });
 
   it('gives the edge longer than one probe pass to come back', () => {
-    const source = fs.readFileSync(new URL('../src/cli/event.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/cli/event.js', import.meta.url), 'utf8');
     const match = /PUBLIC_INGRESS_RECOVERY = \{ timeoutMs: (\d+)/.exec(source);
     expect(Number(match?.[1])).to.be.greaterThan(60000);
   });

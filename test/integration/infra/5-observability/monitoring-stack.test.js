@@ -29,8 +29,8 @@ import {
   scrapeDeployListFactory,
   serviceDnsFactory,
   webhookSecretFactory,
-} from '../src/server/monitoring.js';
-import { hubTunnelAddressFactory } from '../src/cli/wireguard.js';
+} from '../../../../src/server/monitoring.js';
+import { hubTunnelAddressFactory } from '../../../../src/cli/wireguard.js';
 
 // A deploy that mixes every runtime shape the router can carry: two scrapeable
 // Express paths, one non-Express runtime, and one redirect-only entry.
@@ -582,7 +582,7 @@ describe('deployedEventIdsFactory', () => {
 
 describe('event webhook host', () => {
   it('resolves the control plane, not whichever node the API server lists first', () => {
-    const source = fs.readFileSync(new URL('../src/cli/monitor.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/cli/monitor.js', import.meta.url), 'utf8');
     const body = source.slice(source.indexOf('nodeInternalIp(nodeName = '));
     const method = body.slice(0, body.indexOf('\n    },'));
     expect(method).to.include('node-role.kubernetes.io/control-plane');

@@ -10,7 +10,7 @@ import SELinuxService, {
   selinuxSshContextCommandsFactory,
   selinuxSshPortCommandsFactory,
   shellArgumentFactory,
-} from '../src/server/selinux.js';
+} from '../../../../src/server/selinux.js';
 
 describe('SELinux utilities', () => {
   it('provides one canonical class API with named factory aliases', () => {

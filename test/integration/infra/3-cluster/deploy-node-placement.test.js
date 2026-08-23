@@ -2,7 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import Underpost from '../src/index.js';
+import Underpost from '../../../../src/index.js';
 
 const deploymentManifest = (nodeName = '') =>
   Underpost.deploy.deploymentYamlPartsFactory({
@@ -29,7 +29,7 @@ describe('deployment node placement', () => {
   });
 
   it('does not restart a controller after node-move patches its pod template', () => {
-    const source = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
     const start = source.indexOf("    'node-move':");
     const end = source.indexOf('\n    /**', start);
     const runner = source.slice(start, end);
@@ -38,7 +38,7 @@ describe('deployment node placement', () => {
   });
 
   it('forwards --node-name into live and generated custom-instance manifests', () => {
-    const source = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
     const placements = source.match(/nodeName: options\.nodeName\s*\? Underpost\.deploy\.resolveDeployNode/g) || [];
     expect(placements).to.have.length(2);
   });

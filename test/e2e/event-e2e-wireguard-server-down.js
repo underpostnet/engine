@@ -1,4 +1,4 @@
-import Underpost from '../src/index.js';
+import Underpost from '../../src/index.js';
 
 /**
  * End-to-end rehearsal for `wireguard-server-down`.

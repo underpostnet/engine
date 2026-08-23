@@ -13,8 +13,8 @@ import {
   staticPathSegmentFactory,
   statusPageAssetPathFactory,
   statusPageBuildSegment,
-} from '../src/server/underpost-gateway.js';
-import { staticContextRoutesFactory, statusPageRoutesFactory } from '../src/client-builder/client-build.js';
+} from '../../../../src/server/underpost-gateway.js';
+import { staticContextRoutesFactory, statusPageRoutesFactory } from '../../../../src/client-builder/client-build.js';
 
 // A `conf.ssr.json` client entry: two intercepted contexts, one status page,
 // and one ordinary view that must stay with the workload.
@@ -380,7 +380,7 @@ describe('underpost gateway edge tier', () => {
   // on a running gateway to validate against, and cannot mutate the host either.
   // Installing and reloading is the apply path's job.
   describe('build/apply separation', () => {
-    const source = fs.readFileSync(new URL('../src/server/underpost-gateway.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(new URL('../../../../src/server/underpost-gateway.js', import.meta.url), 'utf8');
     const bodyOf = (name) => {
       const start = source.indexOf(`const ${name} = `);
       const next = source.slice(start + 1).search(/\nconst \w+ = |\nexport \{/);
@@ -430,7 +430,7 @@ describe('underpost gateway edge tier', () => {
     const applySites = () =>
       ['src/cli/cluster.js', 'src/cli/deploy.js', 'src/cli/run.js'].flatMap((file) =>
         fs
-          .readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+          .readFileSync(new URL(`../../../../${file}`, import.meta.url), 'utf8')
           .split('\n')
           .map((line, index) => ({ file, line: index + 1, text: line }))
           .filter((entry) => entry.text.includes('kubectl apply') && entry.text.includes('<<')),
@@ -448,7 +448,7 @@ describe('underpost gateway edge tier', () => {
   });
 
   describe('traffic switch publication order', () => {
-    const deploySource = fs.readFileSync(new URL('../src/cli/deploy.js', import.meta.url), 'utf8');
+    const deploySource = fs.readFileSync(new URL('../../../../src/cli/deploy.js', import.meta.url), 'utf8');
     const switchTraffic = deploySource.slice(
       deploySource.indexOf('    switchTraffic('),
       deploySource.indexOf('    resolveDeployNode(', deploySource.indexOf('    switchTraffic(')),
@@ -483,7 +483,7 @@ describe('underpost gateway edge tier', () => {
   });
 
   describe('merged Gateway listener isolation', () => {
-    const deploySource = fs.readFileSync(new URL('../src/cli/deploy.js', import.meta.url), 'utf8');
+    const deploySource = fs.readFileSync(new URL('../../../../src/cli/deploy.js', import.meta.url), 'utf8');
     const gatewayFactory = deploySource.slice(
       deploySource.indexOf('    gatewayYamlFactory('),
       deploySource.indexOf('    gatewayNameFactory(', deploySource.indexOf('    gatewayYamlFactory(')),

@@ -14,7 +14,7 @@ import {
   trafficFromRoutingInfoFactory,
   trafficProbePathsFactory,
   trafficTableRowsFactory,
-} from '../src/server/conf.js';
+} from '../../../../src/server/conf.js';
 
 // Pure resolution over the conf: the cluster lookups are injected, so every case
 // here fixes the routed colour and the endpoint readiness explicitly.
@@ -648,7 +648,7 @@ describe('blue/green traffic plan', () => {
     });
 
     it('keeps configured report rows when no Kubernetes deployments exist', () => {
-      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const runSource = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
       const start = runSource.indexOf("    'get-traffic': async");
       const end = runSource.indexOf("    'instance-promote': async", start);
       const getTraffic = runSource.slice(start, end);
@@ -670,7 +670,7 @@ describe('blue/green traffic plan', () => {
     });
 
     it('feeds the report from stable Service selectors before legacy route text', () => {
-      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const runSource = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
       const start = runSource.indexOf("    'get-traffic': async");
       const end = runSource.indexOf("    'instance-promote': async", start);
       const getTraffic = runSource.slice(start, end);
@@ -683,14 +683,14 @@ describe('blue/green traffic plan', () => {
     });
 
     it('uses real followed curl probes and reports current and opposite deployment status without ENV', () => {
-      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const runSource = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
       const start = runSource.indexOf("    'get-traffic': async");
       const end = runSource.indexOf("    'instance-promote': async", start);
       const getTraffic = runSource.slice(start, end);
       // The probe itself moved to one implementation the ingress event shares;
       // what matters here is that the report still goes through it.
       expect(getTraffic).to.include('publicIngressProbeFactory(url)');
-      const confSource = fs.readFileSync(new URL('../src/server/conf.js', import.meta.url), 'utf8');
+      const confSource = fs.readFileSync(new URL('../../../../src/server/conf.js', import.meta.url), 'utf8');
       expect(confSource).to.include('curl -L -v -i -s');
       expect(getTraffic).to.include("'OPPOSITE'");
       expect(getTraffic).not.to.include('showOpposite');
@@ -703,7 +703,7 @@ describe('blue/green traffic plan', () => {
     });
 
     it('caches stable Service readiness across hosts sharing the same deployment', () => {
-      const runSource = fs.readFileSync(new URL('../src/cli/run.js', import.meta.url), 'utf8');
+      const runSource = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
       const start = runSource.indexOf("    'get-traffic': async");
       const end = runSource.indexOf("    'instance-promote': async", start);
       const getTraffic = runSource.slice(start, end);

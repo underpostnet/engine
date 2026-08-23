@@ -36,12 +36,12 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import Underpost from '../src/index.js';
-import { shellExec } from '../src/server/process.js';
-import { startInternalStatusServer, stopInternalStatusServer } from '../src/server/runtime-status.js';
+import Underpost from '../../../../src/index.js';
+import { shellExec } from '../../../../src/server/process.js';
+import { startInternalStatusServer, stopInternalStatusServer } from '../../../../src/server/runtime-status.js';
 
 const node = process.execPath;
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 const DEPLOY_ID = 'dd-test';
 const ENV = 'production';
@@ -54,16 +54,14 @@ const BUILD_STATUS = `${DEPLOY_ID}-${ENV}-build-deployment`;
 const INTERNAL_PORT = 39517; // internal status endpoint (real server bound here)
 const CLOSED_PORT = 39518; // no server — used to force a transport failure
 
-describe('Deploy monitor — two-phase state machine (e2e, real HTTP transport)', function () {
-  this.timeout(60000);
-
+describe('Deploy monitor — two-phase state machine (e2e, real HTTP transport)', { timeout: 60000 }, () => {
   let prevPrefix;
   let tmpPrefix;
   let fakeBinDir;
   let envFile;
   let monitorScriptPath;
 
-  before(() => {
+  beforeAll(() => {
     prevPrefix = process.env.npm_config_prefix;
     tmpPrefix = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-e2e-'));
     process.env.npm_config_prefix = tmpPrefix;
@@ -135,7 +133,7 @@ try {
     );
   });
 
-  after(async () => {
+  afterAll(async () => {
     await stopInternalStatusServer();
     delete process.env.UNDERPOST_INTERNAL_PORT;
     if (prevPrefix === undefined) delete process.env.npm_config_prefix;

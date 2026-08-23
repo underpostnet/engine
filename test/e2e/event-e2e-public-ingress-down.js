@@ -1,4 +1,4 @@
-import Underpost from '../src/index.js';
+import Underpost from '../../src/index.js';
 
 /** The ports HAProxy publishes on the hub; blocking these takes every host down. */
 const EDGE_PORTS = '80,443';

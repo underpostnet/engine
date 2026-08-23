@@ -338,117 +338,123 @@ function startSimulatedClient(url, index, total) {
 
 const sum = (clients, field) => clients.reduce((total, client) => total + client.stats[field], 0);
 
-describe('Cyberia load — simulated tap clients against cyberia-server', function () {
-  this.timeout(
-    RAMP_WINDOW_MS +
-      TAP_WARMUP_MS +
-      TAP_PERIOD_MS +
-      DURATION_MS +
-      CONNECT_TIMEOUT_MS +
-      SETTLE_MS +
-      CLOSE_TIMEOUT_MS +
-      60000,
-  );
+const LOAD_TIMEOUT_MS =
+  RAMP_WINDOW_MS +
+  TAP_WARMUP_MS +
+  TAP_PERIOD_MS +
+  DURATION_MS +
+  CONNECT_TIMEOUT_MS +
+  SETTLE_MS +
+  CLOSE_TIMEOUT_MS +
+  60000;
 
-  const clients = [];
+// Without a reachable cyberia-server there is no subject to load, so the suite
+// is skipped at collection rather than failing on connect.
+describe.skipIf(!WS_URL)(
+  'Cyberia load — simulated tap clients against cyberia-server',
+  { timeout: LOAD_TIMEOUT_MS },
+  () => {
+    const clients = [];
 
-  before(function () {
-    if (!WS_URL) this.skip();
-    if (typeof WebSocket === 'undefined') throw new Error('global WebSocket requires Node >= 22');
-  });
+    beforeAll(() => {
+      if (typeof WebSocket === 'undefined') throw new Error('global WebSocket requires Node >= 22');
+    });
 
-  // Nothing this test opened may outlive it, on any exit path.
-  after(async () => {
-    await Promise.all(clients.map((client) => Promise.race([client.disconnect(), sleep(CLOSE_TIMEOUT_MS)])));
-  });
+    // Nothing this test opened may outlive it, on any exit path.
+    afterAll(async () => {
+      await Promise.all(clients.map((client) => Promise.race([client.disconnect(), sleep(CLOSE_TIMEOUT_MS)])));
+    });
 
-  it(`sustains ${CONNECTIONS} clients tapping at ${TAP_FREQUENCY} Hz for ${DURATION_MS} ms`, async () => {
-    // Ramp the joins. Arriving together puts the whole fleet on the spawn cell
-    // at once, and since every tap fires a skill, the pile kills itself before
-    // the run reaches steady state.
-    for (let i = 0; i < CONNECTIONS; i++) {
-      clients.push(startSimulatedClient(WS_URL, i, CONNECTIONS));
-      if (JOIN_GAP_MS > 0 && i < CONNECTIONS - 1) await sleep(JOIN_GAP_MS);
-      // Stop as soon as the server refuses one. The concurrent per-address cap
-      // cannot clear while the run holds its connections, so every later join
-      // would be refused too — dialing them out just delays the diagnosis.
-      if (clients.some((client) => client.stats.handshakeFailed)) break;
-    }
-    await Promise.all(clients.map((client) => client.ready));
-
-    const joinedCount = clients.filter((client) => client.stats.joined).length;
-    const refusedCount = clients.filter((client) => client.stats.handshakeFailed).length;
-    if (refusedCount > 0) {
-      // A partial success is decisive on its own: the server accepted some and
-      // turned the rest away, which only an admission limit does. Probing again
-      // would be misleading, because the connect-rate bucket refills within a
-      // second and then answers as if nothing was ever refused.
-      let cause;
-      if (joinedCount > 0) {
-        cause =
-          `the server admitted ${joinedCount} and refused the next one, so an admission limit is ` +
-          `capping the run — ${joinedCount} is almost certainly the effective ` +
-          'CYBERIA_MAX_CONNECTIONS_PER_IP, because every simulated client shares one address. ' +
-          'Start cyberia-server with CYBERIA_DISABLE_CONNECTION_LIMITS=1 for a load run (note: ' +
-          '0 leaves the limits ON), or raise CYBERIA_MAX_CONNECTIONS_PER_IP, ' +
-          'CYBERIA_CONNECT_BURST_PER_IP and CYBERIA_CONNECT_RATE_PER_IP';
-      } else {
-        const probe = await preflight(WS_URL);
-        cause =
-          probe.state === 'unreachable'
-            ? `the endpoint is unreachable (${probe.detail}) — is cyberia-server running?`
-            : probe.state === 'refused'
-              ? `the endpoint refuses connections (503 "${probe.detail}"). Start cyberia-server ` +
-                'with CYBERIA_DISABLE_CONNECTION_LIMITS=1 for a load run (0 leaves them ON)'
-              : `the endpoint answers (${probe.detail}) but every upgrade failed`;
+    it(`sustains ${CONNECTIONS} clients tapping at ${TAP_FREQUENCY} Hz for ${DURATION_MS} ms`, async () => {
+      // Ramp the joins. Arriving together puts the whole fleet on the spawn cell
+      // at once, and since every tap fires a skill, the pile kills itself before
+      // the run reaches steady state.
+      for (let i = 0; i < CONNECTIONS; i++) {
+        clients.push(startSimulatedClient(WS_URL, i, CONNECTIONS));
+        if (JOIN_GAP_MS > 0 && i < CONNECTIONS - 1) await sleep(JOIN_GAP_MS);
+        // Stop as soon as the server refuses one. The concurrent per-address cap
+        // cannot clear while the run holds its connections, so every later join
+        // would be refused too — dialing them out just delays the diagnosis.
+        if (clients.some((client) => client.stats.handshakeFailed)) break;
       }
-      expect.fail(`only ${joinedCount} of ${CONNECTIONS} clients joined: ${cause}`);
-    }
+      await Promise.all(clients.map((client) => client.ready));
 
-    const joinFailed = clients.filter((client) => !client.stats.joined);
-    expect(joinFailed.length, `clients that never joined: ${joinFailed[0]?.stats.failure ?? ''}`).to.equal(0);
+      const joinedCount = clients.filter((client) => client.stats.joined).length;
+      const refusedCount = clients.filter((client) => client.stats.handshakeFailed).length;
+      if (refusedCount > 0) {
+        // A partial success is decisive on its own: the server accepted some and
+        // turned the rest away, which only an admission limit does. Probing again
+        // would be misleading, because the connect-rate bucket refills within a
+        // second and then answers as if nothing was ever refused.
+        let cause;
+        if (joinedCount > 0) {
+          cause =
+            `the server admitted ${joinedCount} and refused the next one, so an admission limit is ` +
+            `capping the run — ${joinedCount} is almost certainly the effective ` +
+            'CYBERIA_MAX_CONNECTIONS_PER_IP, because every simulated client shares one address. ' +
+            'Start cyberia-server with CYBERIA_DISABLE_CONNECTION_LIMITS=1 for a load run (note: ' +
+            '0 leaves the limits ON), or raise CYBERIA_MAX_CONNECTIONS_PER_IP, ' +
+            'CYBERIA_CONNECT_BURST_PER_IP and CYBERIA_CONNECT_RATE_PER_IP';
+        } else {
+          const probe = await preflight(WS_URL);
+          cause =
+            probe.state === 'unreachable'
+              ? `the endpoint is unreachable (${probe.detail}) — is cyberia-server running?`
+              : probe.state === 'refused'
+                ? `the endpoint refuses connections (503 "${probe.detail}"). Start cyberia-server ` +
+                  'with CYBERIA_DISABLE_CONNECTION_LIMITS=1 for a load run (0 leaves them ON)'
+                : `the endpoint answers (${probe.detail}) but every upgrade failed`;
+        }
+        expect.fail(`only ${joinedCount} of ${CONNECTIONS} clients joined: ${cause}`);
+      }
 
-    // Every client is through its warm-up and tapping. Only now does the run
-    // window open, so durationMs measures steady-state load and the expected
-    // tap count is not diluted by the ramp.
-    await Promise.all(clients.map((client) => client.tapping));
-    const tapsAtSteadyState = sum(clients, 'taps');
+      const joinFailed = clients.filter((client) => !client.stats.joined);
+      expect(joinFailed.length, `clients that never joined: ${joinFailed[0]?.stats.failure ?? ''}`).to.equal(0);
 
-    await sleep(DURATION_MS);
+      // Every client is through its warm-up and tapping. Only now does the run
+      // window open, so durationMs measures steady-state load and the expected
+      // tap count is not diluted by the ramp.
+      await Promise.all(clients.map((client) => client.tapping));
+      const tapsAtSteadyState = sum(clients, 'taps');
 
-    // Stop the load, then keep reading so the final acks land before judging.
-    for (const client of clients) client.stopTapping();
-    const droppedMidRun = clients.filter((client) => client.stats.failure);
-    await sleep(SETTLE_MS);
+      await sleep(DURATION_MS);
 
-    const nominalTaps = CONNECTIONS * TAP_FREQUENCY * (DURATION_MS / 1000);
-    const steadyStateTaps = sum(clients, 'taps') - tapsAtSteadyState;
-    expect(steadyStateTaps, 'player_action commands sent during the run window').to.be.at.least(
-      nominalTaps * TAP_YIELD_FLOOR,
-    );
+      // Stop the load, then keep reading so the final acks land before judging.
+      for (const client of clients) client.stopTapping();
+      const droppedMidRun = clients.filter((client) => client.stats.failure);
+      await sleep(SETTLE_MS);
 
-    const starved = clients.filter((client) => client.stats.snapshots === 0);
-    expect(starved.length, 'clients that received no AOI snapshot').to.equal(0);
+      const nominalTaps = CONNECTIONS * TAP_FREQUENCY * (DURATION_MS / 1000);
+      const steadyStateTaps = sum(clients, 'taps') - tapsAtSteadyState;
+      expect(steadyStateTaps, 'player_action commands sent during the run window').to.be.at.least(
+        nominalTaps * TAP_YIELD_FLOOR,
+      );
 
-    // The ack is the highest input sequence the server took for this player —
-    // the same header field the real cyberia-client reconciles against. It must
-    // have caught up with what each client sent, not merely be non-zero.
-    const behind = clients.filter((client) => client.stats.lastAck < client.stats.sequence - ACK_LAG_TOLERANCE);
-    expect(
-      behind.length,
-      `clients whose input the server did not process: e.g. acked ${behind[0]?.stats.lastAck} of ` +
-        `${behind[0]?.stats.sequence} sent`,
-    ).to.equal(0);
+      const starved = clients.filter((client) => client.stats.snapshots === 0);
+      expect(starved.length, 'clients that received no AOI snapshot').to.equal(0);
 
-    expect(droppedMidRun.length, `clients that failed mid-run: ${droppedMidRun[0]?.stats.failure ?? ''}`).to.equal(0);
+      // The ack is the highest input sequence the server took for this player —
+      // the same header field the real cyberia-client reconciles against. It must
+      // have caught up with what each client sent, not merely be non-zero.
+      const behind = clients.filter((client) => client.stats.lastAck < client.stats.sequence - ACK_LAG_TOLERANCE);
+      expect(
+        behind.length,
+        `clients whose input the server did not process: e.g. acked ${behind[0]?.stats.lastAck} of ` +
+          `${behind[0]?.stats.sequence} sent`,
+      ).to.equal(0);
 
-    // Every client closes normally, and the run does not finish until they have.
-    await Promise.all(clients.map((client) => Promise.race([client.disconnect(), sleep(CLOSE_TIMEOUT_MS)])));
+      expect(droppedMidRun.length, `clients that failed mid-run: ${droppedMidRun[0]?.stats.failure ?? ''}`).to.equal(0);
 
-    const stillOpen = clients.filter((client) => !client.isClosed());
-    expect(stillOpen.length, 'connections still open after the run').to.equal(0);
+      // Every client closes normally, and the run does not finish until they have.
+      await Promise.all(clients.map((client) => Promise.race([client.disconnect(), sleep(CLOSE_TIMEOUT_MS)])));
 
-    const unclean = clients.filter((client) => client.stats.closeCode !== 1000);
-    expect(unclean.length, `clients that did not close cleanly: first code ${unclean[0]?.stats.closeCode}`).to.equal(0);
-  });
-});
+      const stillOpen = clients.filter((client) => !client.isClosed());
+      expect(stillOpen.length, 'connections still open after the run').to.equal(0);
+
+      const unclean = clients.filter((client) => client.stats.closeCode !== 1000);
+      expect(unclean.length, `clients that did not close cleanly: first code ${unclean[0]?.stats.closeCode}`).to.equal(
+        0,
+      );
+    });
+  },
+);
