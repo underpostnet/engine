@@ -802,12 +802,17 @@ EOF
 
       const { prometheus, alertmanager, blackbox } = UNDERPOST_MONITORING;
       const marker = (conf) => conf.split('\n')[0];
-      await Underpost.monitor.reloadMonitoringComponent({
+      const prometheusReloaded = await Underpost.monitor.reloadMonitoringComponent({
         name: prometheus.name,
         namespace,
         file: '/etc/prometheus/prometheus.yml',
         marker: marker(prometheusConf),
       });
+      // Planned-maintenance event suspension/resumption must not proceed while
+      // a running Prometheus still evaluates its previous rules. No pod is safe:
+      // the applied ConfigMap is what a future pod reads. A refused reload is not.
+      if (options.requireEventReload && prometheusReloaded === false)
+        throw new Error('[observability] running Prometheus did not accept the event configuration reload');
       await Underpost.monitor.reloadMonitoringComponent({
         name: alertmanager.name,
         namespace,
@@ -872,7 +877,9 @@ EOF
      * @param {string} [params.file] - Mounted config path to poll.
      * @param {string} [params.marker] - Line that must appear in that file.
      * @param {number} [params.timeoutMs=120000] - Maximum wait for projection.
-     * @returns {Promise<boolean>} True when the component reloaded.
+     * @returns {Promise<boolean|null>} True when reloaded, false on a failed
+     * reload, and null when no running pod exists (the next pod reads the
+     * already-applied ConfigMap at startup).
      * @memberof UnderpostMonitor
      */
     async reloadMonitoringComponent({ name, namespace = 'default', file = '', marker = '', timeoutMs = 120000 }) {
@@ -886,7 +893,7 @@ EOF
         .trim();
       if (!pod) {
         logger.warn('Component is not running; its configuration is applied and will be read at start', { name });
-        return false;
+        return null;
       }
 
       const exec = (command) =>

@@ -770,6 +770,14 @@ program
     'Merges the event into the set already deployed in the cluster and republishes the monitoring configuration.',
   )
   .option('--undeploy', 'Removes the event from the deployed set and republishes without it.')
+  .option(
+    '--suspend-events <state-file>',
+    'Saves the exact deployed event set and temporarily republishes observability without event probes or alerts.',
+  )
+  .option(
+    '--resume-events <state-file>',
+    'Restores and resynchronizes the exact event set saved by --suspend-events, then removes the state file.',
+  )
   .option('--serve', 'Runs the Alertmanager webhook receiver in the foreground (use --service to supervise it).')
   .option(
     '--service',

@@ -112,6 +112,9 @@ const EVENT_E2E = {
   probeIntervalMs: 5000,
 };
 
+/** Versioned on-disk contract used to restore alerting after planned maintenance. */
+const EVENT_SUSPENSION_VERSION = 1;
+
 /**
  * Renders what a probe wait actually observed.
  *
@@ -1228,6 +1231,136 @@ class UnderpostEvent {
     },
 
     /**
+     * @method suspendEvents
+     * @description Atomically records the exact deployed event set, then
+     * republishes observability with no event probes or alert rules. The state
+     * file is deliberately retained on every failure so maintenance rollback
+     * can converge the original set instead of guessing from local defaults.
+     * @param {string} stateFile - Root-owned maintenance state file.
+     * @param {object} [options] - Observability options (`namespace`).
+     * @returns {Promise<object>} The persisted suspension state.
+     * @memberof UnderpostEvent
+     */
+    async suspendEvents(stateFile, options = {}) {
+      const target = nodePath.resolve(`${stateFile || ''}`);
+      const namespace = options.namespace || 'default';
+      if (!stateFile) throw new Error('[event] --suspend-events requires a state-file path');
+      if (fs.existsSync(target))
+        throw new Error(`[event] suspension state already exists at ${target}; resume it before suspending again`);
+
+      const state = Underpost.event.deployedEventState({ namespace });
+      if (!state.readable)
+        throw new Error(
+          `[event] the deployed event set is unreadable and cannot be suspended safely${state.reason ? ` (${state.reason})` : ''}`,
+        );
+      const events = [...new Set(state.ids)].sort();
+      const unknown = events.filter((id) => !EVENTS[id]);
+      if (unknown.length > 0)
+        throw new Error(
+          `[event] cannot suspend and exactly restore undeclared deployed event(s): ${unknown.join(', ')}; undeploy them first`,
+        );
+
+      const suspension = {
+        version: EVENT_SUSPENSION_VERSION,
+        namespace,
+        events,
+        suspendedAt: new Date().toISOString(),
+      };
+      const temporary = `${target}.tmp-${process.pid}-${Date.now()}`;
+      fs.ensureDirSync(nodePath.dirname(target), { mode: 0o700 });
+      try {
+        fs.writeFileSync(temporary, `${JSON.stringify(suspension, null, 2)}\n`, {
+          encoding: 'utf8',
+          flag: 'wx',
+          mode: 0o600,
+        });
+        fs.renameSync(temporary, target);
+        fs.chmodSync(target, 0o600);
+      } finally {
+        fs.removeSync(temporary);
+      }
+
+      logger.warn('Suspending operational events for planned maintenance', { namespace, events, stateFile: target });
+      try {
+        await Underpost.monitor.syncObservability({
+          ...options,
+          namespace,
+          events: [],
+          requireEventReload: true,
+        });
+      } catch (error) {
+        logger.error('Event suspension failed; recovery state was retained', {
+          namespace,
+          events,
+          stateFile: target,
+          error: `${error?.message || error}`,
+        });
+        throw error;
+      }
+      logger.info('Operational events suspended', { namespace, events, stateFile: target });
+      return suspension;
+    },
+
+    /**
+     * @method resumeEvents
+     * @description Restores the exact event set saved by `suspendEvents` and
+     * removes the state file only after observability reconciliation succeeds.
+     * A failed resync is therefore safe to retry after boot or rollback.
+     * @param {string} stateFile - Suspension state created by `suspendEvents`.
+     * @param {object} [options] - Observability options.
+     * @returns {Promise<object>} The applied observability context.
+     * @memberof UnderpostEvent
+     */
+    async resumeEvents(stateFile, options = {}) {
+      const target = nodePath.resolve(`${stateFile || ''}`);
+      if (!stateFile) throw new Error('[event] --resume-events requires a state-file path');
+      if (!fs.existsSync(target)) throw new Error(`[event] suspension state does not exist: ${target}`);
+
+      let suspension;
+      try {
+        suspension = fs.readJsonSync(target);
+      } catch (error) {
+        throw new Error(`[event] suspension state is invalid JSON at ${target}: ${error.message}`);
+      }
+      if (suspension?.version !== EVENT_SUSPENSION_VERSION)
+        throw new Error(`[event] unsupported suspension state version at ${target}: ${suspension?.version}`);
+      const namespace = `${suspension.namespace || ''}`;
+      if (!/^[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?$/.test(namespace))
+        throw new Error(`[event] suspension state has an invalid namespace: ${namespace || '<empty>'}`);
+      if (!Array.isArray(suspension.events) || suspension.events.some((id) => typeof id !== 'string'))
+        throw new Error(`[event] suspension state has an invalid event list: ${target}`);
+      const events = [...new Set(suspension.events)].sort();
+      const unknown = events.filter((id) => !EVENTS[id]);
+      if (unknown.length > 0)
+        throw new Error(`[event] cannot restore event(s) no longer declared by this checkout: ${unknown.join(', ')}`);
+
+      logger.info('Resynchronizing operational events after planned maintenance', {
+        namespace,
+        events,
+        stateFile: target,
+      });
+      try {
+        const context = await Underpost.monitor.syncObservability({
+          ...options,
+          namespace,
+          events,
+          requireEventReload: true,
+        });
+        fs.removeSync(target);
+        logger.info('Operational events restored', { namespace, events });
+        return context;
+      } catch (error) {
+        logger.error('Event resynchronization failed; suspension state was retained for retry', {
+          namespace,
+          events,
+          stateFile: target,
+          error: `${error?.message || error}`,
+        });
+        throw error;
+      }
+    },
+
+    /**
      * @method deploySelection
      * @description The event set a scoped `--deploy` or `--undeploy` publishes.
      *
@@ -1967,6 +2100,8 @@ class UnderpostEvent {
      * @param {object} [options] - CLI options.
      * @param {boolean} [options.deploy=false] - Merge the event into the cluster's deployed set and publish.
      * @param {boolean} [options.undeploy=false] - Remove the event from the cluster's deployed set and publish.
+     * @param {string} [options.suspendEvents] - Save and temporarily undeploy every event for planned maintenance.
+     * @param {string} [options.resumeEvents] - Restore the exact event set from planned-maintenance state.
      * @param {boolean} [options.serve=false] - Run the Alertmanager webhook receiver in the foreground.
      * @param {boolean} [options.service=false] - Install and start the receiver as a supervised systemd unit.
      * @param {boolean} [options.serviceStop=false] - Stop, disable and remove that unit.
@@ -1985,6 +2120,9 @@ class UnderpostEvent {
      */
     async callback(eventId = '', options = {}) {
       loadCronDeployEnv();
+
+      if (options.suspendEvents) return await Underpost.event.suspendEvents(options.suspendEvents, options);
+      if (options.resumeEvents) return await Underpost.event.resumeEvents(options.resumeEvents, options);
 
       if (options.list) {
         const rows = Underpost.event.deploymentStatus(options);
@@ -2069,6 +2207,7 @@ export {
   ENGINE_REMOTE_PATH,
   EVENTS,
   EVENT_E2E,
+  EVENT_SUSPENSION_VERSION,
   assertHubManagementConnection,
   eventCooldownKeyFactory,
   eventFirewallCommandsFactory,

@@ -2,6 +2,8 @@
 
 import { expect } from 'chai';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import Underpost from '../../../../src/index.js';
 import { assertEventSchedules, eventSchedule } from '../../../../src/server/event-notification.js';
 import UnderpostEvent, {
@@ -333,6 +335,98 @@ describe('incremental deployment against cluster state', () => {
     cluster([]);
     const status = Object.fromEntries(UnderpostEvent.API.deploymentStatus({}).map((row) => [row.id, row.status]));
     expect(status['public-ingress-down']).to.equal('PENDING');
+  });
+});
+
+describe('planned-maintenance event suspension', () => {
+  let readDeployedEventState;
+  let syncObservability;
+  let directory;
+  let stateFile;
+  let syncCalls;
+
+  beforeEach(() => {
+    readDeployedEventState = Underpost.monitor.readDeployedEventState;
+    syncObservability = Underpost.monitor.syncObservability;
+    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-event-suspension-'));
+    stateFile = path.join(directory, 'events.json');
+    syncCalls = [];
+    Underpost.monitor.readDeployedEventState = () => ({
+      readable: true,
+      ids: ['wireguard-spoke-down', 'public-ingress-down'],
+      reason: '',
+    });
+    Underpost.monitor.syncObservability = async (options) => {
+      syncCalls.push(options);
+      return { events: options.events };
+    };
+  });
+
+  afterEach(() => {
+    Underpost.monitor.readDeployedEventState = readDeployedEventState;
+    Underpost.monitor.syncObservability = syncObservability;
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('persists the exact deployed set before publishing an empty event set', async () => {
+    const state = await UnderpostEvent.API.suspendEvents(stateFile, { namespace: 'default' });
+    expect(state.events).to.deep.equal(['public-ingress-down', 'wireguard-spoke-down']);
+    expect(JSON.parse(fs.readFileSync(stateFile, 'utf8')).events).to.deep.equal(state.events);
+    expect(fs.statSync(stateFile).mode & 0o777).to.equal(0o600);
+    expect(syncCalls).to.have.lengthOf(1);
+    expect(syncCalls[0].events).to.deep.equal([]);
+    expect(syncCalls[0].requireEventReload).to.equal(true);
+  });
+
+  it('restores the saved set and removes state only after resync succeeds', async () => {
+    await UnderpostEvent.API.suspendEvents(stateFile, { namespace: 'default' });
+    const context = await UnderpostEvent.API.resumeEvents(stateFile);
+    expect(context.events).to.deep.equal(['public-ingress-down', 'wireguard-spoke-down']);
+    expect(syncCalls[1].events).to.deep.equal(['public-ingress-down', 'wireguard-spoke-down']);
+    expect(syncCalls[1].requireEventReload).to.equal(true);
+    expect(fs.existsSync(stateFile)).to.equal(false);
+  });
+
+  it('retains recovery state when event resynchronization fails', async () => {
+    await UnderpostEvent.API.suspendEvents(stateFile, { namespace: 'default' });
+    Underpost.monitor.syncObservability = async () => {
+      throw new Error('prometheus unavailable');
+    };
+    try {
+      await UnderpostEvent.API.resumeEvents(stateFile);
+      expect.fail('resume should reject a failed observability resync');
+    } catch (error) {
+      expect(error.message).to.include('prometheus unavailable');
+    }
+    expect(fs.existsSync(stateFile)).to.equal(true);
+  });
+
+  it('retains the original event set when suspension reconciliation fails', async () => {
+    Underpost.monitor.syncObservability = async () => {
+      throw new Error('prometheus reload refused');
+    };
+    try {
+      await UnderpostEvent.API.suspendEvents(stateFile, { namespace: 'default' });
+      expect.fail('suspend should reject a failed observability reconciliation');
+    } catch (error) {
+      expect(error.message).to.include('prometheus reload refused');
+    }
+    expect(JSON.parse(fs.readFileSync(stateFile, 'utf8')).events).to.deep.equal([
+      'public-ingress-down',
+      'wireguard-spoke-down',
+    ]);
+  });
+
+  it('does not create state or withdraw alerts when cluster event state is unreadable', async () => {
+    Underpost.monitor.readDeployedEventState = () => ({ readable: false, ids: [], reason: 'connection refused' });
+    try {
+      await UnderpostEvent.API.suspendEvents(stateFile, { namespace: 'default' });
+      expect.fail('suspend should reject unreadable cluster state');
+    } catch (error) {
+      expect(error.message).to.include('unreadable');
+    }
+    expect(fs.existsSync(stateFile)).to.equal(false);
+    expect(syncCalls).to.be.empty;
   });
 });
 
