@@ -51,7 +51,10 @@ class UnderpostRepository {
     clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
-      if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
+      // A bare clone lands in `<repo>.git`: clearing `<repo>` instead would both leave the
+      // real target in place and delete an unrelated work tree that happens to share the name.
+      const clonePath = `./${repoName}${options?.bare === true ? gExtension : ''}`;
+      if (fs.existsSync(clonePath)) fs.removeSync(clonePath);
       shellExec(
         `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
           process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
