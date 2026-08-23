@@ -1540,7 +1540,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
       // Padded on the raw values, coloured afterwards: an ANSI escape counts
       // toward String.length and would skew every column right of it.
-      const columns = ['HOST', 'PATH', 'KIND', 'ROUTE', 'TLS', 'HTTP3', 'CURRENT', 'OPPOSITE'];
+      const columns = ['#', 'HOST', 'PATH', 'KIND', 'ROUTE', 'TLS', 'HTTP3', 'CURRENT', 'OPPOSITE'];
       const deploymentStatus = (status, includeServing = false) => {
         if (!status) return `unrouted - missing${includeServing ? ' not-serving' : ''}`;
         return [
@@ -1550,10 +1550,11 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           ...(includeServing ? [status.serving ? 'serving' : 'not-serving'] : []),
         ].join(' ');
       };
-      const cellOf = (row) => {
+      const cellOf = (row, index) => {
         const facts = ingressFacts[row.host] || {};
         const pathStatus = row.probes.map((probe) => `${probe.path} [${probe.statuses.join('→')}]`).join(' ');
         return [
+          `${index + 1}`,
           row.host,
           pathStatus,
           row.kind,
@@ -1608,7 +1609,8 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         for (const cell of cells) console.log(line(cell, true));
       };
       for (const env of envs) {
-        const envCells = reportRows.filter((row) => row.env === env).map(cellOf);
+        const envRows = reportRows.filter((row) => row.env === env);
+        const envCells = envRows.map((row, index) => cellOf(row, index));
         if (envCells.length > 0) printTable(envCells, `[${env.toUpperCase()}]`);
       }
       console.log('');
