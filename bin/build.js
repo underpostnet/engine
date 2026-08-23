@@ -111,12 +111,20 @@ const buildDeployTemplate = async (confName) => {
   const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
   packageJson.name = repoName.replace('engine-', '');
 
+  // A packaged path may be a nested project with its own installed tree; the
+  // product resolves dependencies from its own lockfile, never from a copy.
+  const copyTemplatePaths = () => {
+    for (const path of catalog.templatePaths)
+      fs.copySync(`.${path}`, `${basePath}${path}`, {
+        filter: (src) => !src.split('/').includes('node_modules'),
+      });
+  };
+
   switch (confName) {
     case 'dd-cyberia': {
       const { CyberiaDependencies, DOCKER_SCRIPTS } = await import(
         `../src/api/cyberia-server-defaults/cyberia-server-defaults.js`
       );
-      fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
       fs.copyFileSync(
         `./.github/workflows/publish.cyberia.ci.yml`,
         `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
@@ -142,12 +150,11 @@ const buildDeployTemplate = async (confName) => {
         fs.readFileSync(`./src/client/public/cyberia-docs/CYBERIA.md`, 'utf8'),
         'utf8',
       );
-      fs.copySync(`./hardhat`, `${basePath}/hardhat`);
-      for (const path of catalog.templatePaths) fs.copySync(`.${path}`, `${basePath}${path}`);
+      copyTemplatePaths();
       break;
     }
     default:
-      for (const path of catalog.templatePaths) fs.copySync(`.${path}`, `${basePath}${path}`);
+      copyTemplatePaths();
       break;
   }
 

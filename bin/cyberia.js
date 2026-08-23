@@ -4847,6 +4847,13 @@ try {
     fs.copyFileSync('./cyberia-client/Dockerfile', './src/runtime/cyberia-client/Dockerfile');
   });
 
+  runner.command('setup-workspace').action(() => {
+    shellExec(`node bin fs src/client/public/cyberia --git --recursive --pull --deploy-id dd-cyberia`);
+    shellExec(`node bin/deploy.js cyberia`);
+    if (!fs.existsSync('./cyberia-server')) shellExec(`underpost clone underpostnet/cyberia-server`);
+    if (!fs.existsSync('./cyberia-client')) shellExec(`underpost clone underpostnet/cyberia-client`);
+  });
+
   runner
     .command('dev-env')
     .option('--run', 'Run docker:reset, cluster --dev --reset, docker-image, and docker:up after updating compose.env')
@@ -5039,7 +5046,7 @@ try {
 CYBERIA_LOAD_CONNECTIONS=${options.nCon ?? 40} \
 CYBERIA_LOAD_TAP_FREQUENCY=${options.tapFreq ?? 5} \
 CYBERIA_LOAD_DURATION_MS=${options.duration ?? 1000 * 60 * 30} \
-c8 mocha test/cyberia-load.test.js`);
+node bin test cyberia --grep 'Cyberia load'`);
     });
 
   runner
