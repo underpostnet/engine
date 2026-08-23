@@ -38,7 +38,7 @@ jobs:
         run: node bin test app,cyberia
 
       - name: Store coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverall-cyberia-lcov
           path: ./coverage/lcov.info
