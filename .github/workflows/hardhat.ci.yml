@@ -59,18 +59,17 @@ jobs:
 
       # ── Compile ──────────────────────────────────────────────────────────
       - name: Compile Solidity contracts
-        run: npx hardhat compile
+        run: npm run compile
 
       # ── Test ─────────────────────────────────────────────────────────────
       - name: Run tests
-        run: npx hardhat test
+        run: npm test
         env:
           REPORT_GAS: 'true'
 
-      # ── Coverage (optional, only on primary Node version) ────────────────
+      # ── Coverage ─────────────────────────────────────────────────────────
       - name: Solidity coverage
-        if: matrix.node-version == '20'
-        run: npx hardhat coverage
+        run: npm run coverage
 
       # ── Lockfile integrity check ─────────────────────────────────────────
       # Fail if package-lock.json is out of sync with package.json

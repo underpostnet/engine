@@ -70,9 +70,10 @@ updates:
           - 'bumpp'
       testing:
         patterns:
-          - 'mocha'
+          - 'vitest'
+          - '@vitest/*'
+          - 'allure-vitest'
           - 'chai'
-          - 'c8'
       utilities:
         patterns:
           - 'axios'

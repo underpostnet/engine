@@ -35,7 +35,7 @@ jobs:
         run: npm install
 
       - name: Run tests and generate coverage
-        run: scripts/coverall-test.sh
+        run: node bin test unit,infra
 
       - name: Upload coverage to Coveralls
         run: coveralls < ./coverage/lcov.info

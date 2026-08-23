@@ -35,7 +35,7 @@ jobs:
         run: npm install
 
       - name: Run tests and generate coverage
-        run: scripts/coverall-test-cyberia.sh
+        run: node bin test app,cyberia
 
       - name: Store coverage report
         uses: actions/upload-artifact@v4
