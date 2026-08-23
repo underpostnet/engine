@@ -7,6 +7,8 @@ import {
   alertRulesFactory,
   deployedEventIdsFactory,
   nodeExporterManifestFactory,
+  nodeExporterServiceFactory,
+  nodeExporterServiceScriptFactory,
   nodeMetricsDashboardFactory,
   alertmanagerConfFactory,
   appScrapeEntriesFactory,
@@ -618,26 +620,59 @@ describe('nodeMetricsDashboardFactory', () => {
     expect(dashboard.tags).to.deep.equal(['underpost', 'nodes', 'hardware']);
   });
 
-  it('graphs cpu, memory, network, disk and the hub quota', () => {
+  it('graphs cpu, memory, network, disk and the hub quota over time', () => {
     expect(dashboard.panels.map((panel) => panel.title)).to.deep.equal([
       'Node CPU Usage %',
       'Node Memory Usage %',
-      'Network Throughput (RX/TX Bps)',
+      'Network Throughput (RX/TX)',
       'Disk Usage % & I/O Rates',
       'Vultr Hub Monthly Bandwidth Usage',
     ]);
-    expect(dashboard.panels.map((panel) => panel.type)).to.deep.equal([
-      'timeseries',
-      'timeseries',
-      'timeseries',
-      'timeseries',
-      'stat',
-    ]);
+    expect(dashboard.panels.every((panel) => panel.type === 'timeseries')).to.equal(true);
   });
 
   it('reads the hub quota from the scraped metric, never from the Vultr API', () => {
     const quota = dashboard.panels.at(-1);
     expect(quota.targets[0].expr).to.equal('(vultr_bandwidth_used_bytes / vultr_bandwidth_limit_bytes) * 100');
+    expect(quota.targets[0].legendFormat).to.equal('Hub Bandwidth Usage % (hub)');
+  });
+
+  it('never plots a byte rate under a percent axis', () => {
+    for (const panel of dashboard.panels.filter((panel) => panel.fieldConfig.defaults.unit === 'percent')) {
+      const byteRates = panel.targets.filter((target) => /rate\(\w*_bytes_total/.test(target.expr));
+      const reunited = new Set(
+        panel.fieldConfig.overrides
+          .filter((override) => override.properties.some((property) => property.id === 'unit'))
+          .map((override) => override.matcher.options),
+      );
+      for (const rate of byteRates) expect(reunited.has(rate.refId), `${panel.title} ${rate.refId}`).to.equal(true);
+    }
+  });
+
+  it('moves a re-united series onto its own axis', () => {
+    const disk = dashboard.panels.find((panel) => panel.title === 'Disk Usage % & I/O Rates');
+    expect(disk.fieldConfig.overrides).to.have.lengthOf(2);
+    for (const override of disk.fieldConfig.overrides)
+      expect(override.properties).to.deep.equal([
+        { id: 'unit', value: 'binBps' },
+        { id: 'custom.axisPlacement', value: 'right' },
+      ]);
+  });
+
+  it('names the role beside the host in every per-node legend', () => {
+    const perNode = dashboard.panels.filter((panel) => panel.targets.some((target) => target.expr.includes('node_')));
+    expect(perNode).to.have.lengthOf(4);
+    for (const panel of perNode)
+      for (const target of panel.targets)
+        expect(target.legendFormat, panel.title).to.include('{{instance}} ({{underpost_role}})');
+  });
+
+  it('measures whatever a host calls its interface, the hub included', () => {
+    const network = dashboard.panels.find((panel) => panel.title === 'Network Throughput (RX/TX)');
+    for (const target of network.targets) {
+      expect(target.expr).to.include('device!~');
+      expect(target.expr).to.not.include('enp.*');
+    }
   });
 });
 
@@ -685,5 +720,70 @@ describe('host metric scrape jobs', () => {
 
   it('emits no hub job when no hub is registered', () => {
     expect(prometheusConfFactory({})).to.not.include('node-exporter-hub');
+  });
+
+  it('relabels the role a discovered node carries only in the deploy registry', () => {
+    const conf = prometheusConfFactory({
+      nodeRoles: [
+        { nodeName: 'localhost.localdomain', role: 'control' },
+        { nodeName: 'worker-a', role: 'worker' },
+      ],
+    });
+    expect(conf).to.include("regex: 'localhost\\.localdomain'");
+    expect(conf).to.include("replacement: 'control'");
+    expect(conf).to.include("regex: 'worker-a'");
+    expect(conf).to.include("replacement: 'worker'");
+  });
+
+  it('leaves a node with no document labelled, so no series loses its role', () => {
+    expect(prometheusConfFactory({})).to.include("replacement: 'cluster'");
+  });
+});
+
+describe('nodeExporterServiceFactory', () => {
+  const { nodeExporter } = UNDERPOST_MONITORING;
+  const unit = nodeExporterServiceFactory({ host: '10.0.0.1' });
+
+  it('publishes the collector on the tunnel only, never on the public address', () => {
+    expect(unit).to.include(`--web.listen-address=10.0.0.1:${nodeExporter.port}`);
+    expect(unit).to.include('Requires=wg-quick@wg0.service');
+    expect(unit).to.include('PartOf=wg-quick@wg0.service');
+  });
+
+  it('collects what the cluster DaemonSet collects', () => {
+    expect(unit).to.include(`--collector.textfile.directory=${nodeExporter.textfileDirectory}`);
+    expect(unit).to.include(`--collector.filesystem.mount-points-exclude=${nodeExporter.filesystemExclude}`);
+    expect(nodeExporterManifestFactory({})).to.include(
+      `--collector.filesystem.mount-points-exclude=${nodeExporter.filesystemExclude}`,
+    );
+  });
+});
+
+describe('nodeExporterServiceScriptFactory', () => {
+  const command = nodeExporterServiceScriptFactory({ host: '10.0.0.1' });
+  const script = Buffer.from(command.split(' ')[1], 'base64').toString('utf8');
+
+  it('survives the remote runner, which interpolates into a double-quoted bash -lc', () => {
+    expect(command).to.not.include('"');
+    expect(command).to.not.include('$');
+    expect(command.split('\n')).to.have.lengthOf(1);
+  });
+
+  it('installs the pinned collector only when the host does not already run it', () => {
+    expect(script).to.include(`VERSION=${UNDERPOST_MONITORING.nodeExporter.version}`);
+    expect(script).to.include('grep -q "version $VERSION"');
+    expect(script).to.include('releases/download/v$VERSION/$RELEASE.tar.gz');
+  });
+
+  it('resolves the release for the architecture it lands on', () => {
+    expect(script).to.include('ARCH=$(uname -m)');
+    expect(script).to.include('x86_64) ARCH=amd64');
+    expect(script).to.include('aarch64) ARCH=arm64');
+  });
+
+  it('fails the run when the service did not come up', () => {
+    expect(script.trim().split('\n').at(-1)).to.equal(
+      `systemctl is-active --quiet ${UNDERPOST_MONITORING.nodeExporter.serviceName}`,
+    );
   });
 });

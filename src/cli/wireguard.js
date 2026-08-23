@@ -23,6 +23,7 @@ import {
   forwardProxyUnitFactory,
 } from '../server/forward-proxy.js';
 import { loggerFactory } from '../server/logger.js';
+import { nodeExporterServiceScriptFactory } from '../server/monitoring.js';
 import { installRootFile, shellExec, sleepSync } from '../server/process.js';
 import {
   homeDirectoryPathFactory,
@@ -73,6 +74,13 @@ const UNDERPOST_EDGE = {
   // least every 120s while traffic flows, so a longer gap means the link is
   // down rather than merely idle.
   handshakeStaleSeconds: 180,
+};
+
+/** Prints one line per node of a fleet-wide run and fails the process if any did. */
+const reportFleetOutcome = ({ ok, nodes }) => {
+  for (const node of nodes)
+    console.log(`  ${node.ok ? 'ok  '.green : 'FAIL'.red}  ${node.nodeName.padEnd(28)} ${node.via}`);
+  if (!ok) process.exitCode = 1;
 };
 
 /**
@@ -2436,6 +2444,46 @@ class UnderpostWireguard {
     },
 
     /**
+     * @method nodeExporter
+     * @description Provisions the host metrics collector on the nodes the
+     * cluster cannot schedule it onto.
+     *
+     * Only hubs: every cluster node already runs the collector as a DaemonSet
+     * pod, so a second copy there would bind a port the pod holds. The
+     * collector listens on the node's tunnel address, which is the address
+     * Prometheus already scrapes it at.
+     * @param {object} [options] - CLI options (`nodes`, `dryRun`).
+     * @returns {Promise<{ok: boolean, nodes: Array<object>}>} Per-node outcome.
+     * @memberof UnderpostWireguard
+     */
+    async nodeExporter(options = {}) {
+      const targets = Underpost.wireguard.syncTargets(options).filter((target) => target.role === 'hub');
+      if (targets.length === 0)
+        throw new Error(
+          `[wireguard] no hub node ${
+            parseList(options.nodes).length > 0 ? 'matches --nodes' : `is registered in ${EDGE_TOPOLOGY_PATH}`
+          }; cluster nodes run the collector as a DaemonSet, so only hubs are provisioned here`,
+        );
+      const nodes = [];
+
+      for (const target of targets) {
+        logger.info('Provisioning host metrics collector', { node: target.nodeName, address: target.address });
+        const result = await Underpost.event.runCommand(
+          nodeExporterServiceScriptFactory({ host: target.address, interfaceName: options.interface || 'wg0' }),
+          { ...options, user: target.user, host: target.host },
+        );
+        if (!result.ok)
+          logger.error('Collector provisioning failed', {
+            node: target.nodeName,
+            output: `${result.error || result.output || ''}`.trim().slice(-1500),
+          });
+        nodes.push({ nodeName: target.nodeName, via: target.via, ok: result.ok });
+      }
+
+      return { ok: nodes.every((node) => node.ok), nodes };
+    },
+
+    /**
      * @method syncCommands
      * @description The sync sequence, bound to the repositories it pulls from.
      *
@@ -2541,15 +2589,10 @@ class UnderpostWireguard {
      * @memberof UnderpostWireguard
      */
     async callback(options = {}) {
-      // Fleet-wide and identity-independent: it reaches other machines rather
-      // than reconciling this one, so it never falls through to a host action.
-      if (options.sync === true) {
-        const sync = await UnderpostWireguard.API.sync(options);
-        for (const node of sync.nodes)
-          console.log(`  ${node.ok ? 'ok  '.green : 'FAIL'.red}  ${node.nodeName.padEnd(28)} ${node.via}`);
-        if (!sync.ok) process.exitCode = 1;
-        return;
-      }
+      // Fleet-wide and identity-independent: they reach other machines rather
+      // than reconciling this one, so they never fall through to a host action.
+      if (options.sync === true) return reportFleetOutcome(await UnderpostWireguard.API.sync(options));
+      if (options.nodeExporter === true) return reportFleetOutcome(await UnderpostWireguard.API.nodeExporter(options));
 
       if (options.nodeConfig === true) UnderpostWireguard.API.nodeConfig(options);
       // `--build-conf` is a hard promise, not a modifier: it short-circuits

@@ -17,6 +17,8 @@
  * @namespace UnderpostMonitoring
  */
 
+import { systemdServiceCommandsFactory, systemdUnitFactory } from './systemd.js';
+
 /**
  * @constant UNDERPOST_MONITORING
  * @description Identity of the observability workloads. One stack serves every
@@ -80,6 +82,16 @@ const UNDERPOST_MONITORING = {
     // Read by the collector and written by anything that has a number the
     // cluster cannot scrape for itself, the Vultr quota above all.
     textfileDirectory: '/var/lib/node_exporter/textfile',
+    // The hub is a VPS, not a cluster node, so it runs the same collector as a
+    // systemd service instead of as a DaemonSet pod.
+    version: '1.9.1',
+    binaryPath: '/usr/local/bin/node_exporter',
+    serviceName: 'underpost-node-exporter.service',
+    unitPath: '/etc/systemd/system/underpost-node-exporter.service',
+    filesystemExclude: '^/(dev|proc|sys|var/lib/(docker|containers|kubelet)|run)($|/)',
+    // Physical and tunnel interfaces, named by what they are not: enumerating
+    // them misses whatever a given host calls its NIC (ens3 on the hub).
+    networkDeviceSelector: 'device!~"lo|veth.*|docker.*|br-.*|cni.*|flannel.*|cali.*|tunl.*|virbr.*"',
   },
   // Where Alertmanager delivers, and where `underpost event --serve` listens.
   eventWebhook: {
@@ -167,6 +179,9 @@ const appScrapeEntriesFactory = (confServer = {}, { scheme = 'https' } = {}) => 
 
 const yamlList = (values = []) => `[${values.map((value) => `'${value}'`).join(', ')}]`;
 
+/** Escapes a literal for a fully anchored Prometheus relabel regex. */
+const promRegexEscape = (value = '') => `${value}`.replace(/[\\^$.|?*+()[\]{}]/g, '\\$&');
+
 const indentBlock = (text, spaces) =>
   `${text}`
     .replace(/\n$/, '')
@@ -239,6 +254,8 @@ const deployedEventIdsFactory = (...documents) =>
  * @param {Array<{host: string, metricsPath: string, scheme: string}>} [params.appTargets] - Express runtime targets.
  * @param {string[]} [params.extraTargets] - Additional `host:port` targets scraped over HTTP at `/metrics`.
  * @param {Array<{eventId: string, module: string, targets: string[]}>} [params.probes] - Blackbox probes.
+ * @param {Array<{nodeName: string, role: string}>} [params.nodeRoles] - Registered cluster
+ * nodes, relabelled onto their discovered series as `underpost_role`.
  * @param {string} [params.namespace] - Namespace holding the stack.
  * @param {string} [params.scrapeInterval] - Global scrape/evaluation interval.
  * @returns {string} `prometheus.yml` contents.
@@ -249,6 +266,7 @@ const prometheusConfFactory = ({
   extraTargets = [],
   probes = [],
   hostTargets = [],
+  nodeRoles = [],
   namespace = 'default',
   scrapeInterval = UNDERPOST_MONITORING.scrapeInterval,
 } = {}) => {
@@ -284,6 +302,19 @@ const prometheusConfFactory = ({
 
   // Cluster nodes are discovered; the hub is a VPS that discovery cannot see, so
   // it is scraped across the tunnel at the address the WireGuard events probe.
+  // Discovery knows a node's name, not the role the deploy registry gives it, so
+  // the role every panel and alert groups by is relabelled on from that registry.
+  const roleRelabels = nodeRoles
+    .filter((entry) => entry?.nodeName && entry?.role)
+    .map(
+      (entry) => `
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: '${promRegexEscape(entry.nodeName)}'
+        target_label: underpost_role
+        replacement: '${entry.role}'`,
+    )
+    .join('');
+
   const hostJobs = [
     `
   - job_name: '${nodeExporter.name}'
@@ -296,7 +327,7 @@ const prometheusConfFactory = ({
       - source_labels: [__meta_kubernetes_node_name]
         target_label: node
       - target_label: underpost_role
-        replacement: 'cluster'`,
+        replacement: 'cluster'${roleRelabels}`,
     ...(hostTargets.length > 0
       ? [
           `
@@ -580,7 +611,7 @@ spec:
             - --path.procfs=/host/proc
             - --path.sysfs=/host/sys
             - --collector.textfile.directory=${nodeExporter.textfileDirectory}
-            - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/(docker|containers|kubelet)|run)($|/)
+            - --collector.filesystem.mount-points-exclude=${nodeExporter.filesystemExclude}
           ports:
             - name: metrics
               containerPort: ${nodeExporter.port}
@@ -622,6 +653,99 @@ spec:
 };
 
 /**
+ * @method nodeExporterServiceFactory
+ * @description Renders the same host collector as a systemd unit, for a machine
+ * the cluster cannot schedule a pod onto.
+ *
+ * Bound to the tunnel address rather than every interface: Prometheus scrapes
+ * the hub across WireGuard, and a listener on the VPS public address would
+ * publish the host's inventory to the internet. Binding it makes the unit
+ * depend on the interface, which is why it is tied to `wg-quick@`.
+ * @param {object} params
+ * @param {string} params.host - Tunnel address the collector binds.
+ * @param {string} [params.interfaceName='wg0'] - Tunnel interface carrying that address.
+ * @returns {string} Rendered unit file.
+ * @memberof UnderpostMonitoring
+ */
+const nodeExporterServiceFactory = ({ host, interfaceName = 'wg0' }) => {
+  const { nodeExporter } = UNDERPOST_MONITORING;
+  const tunnelUnit = `wg-quick@${interfaceName}.service`;
+  return systemdUnitFactory({
+    header:
+      '# Generated by `underpost wireguard --node-exporter`. Do not edit by hand:\n' +
+      '# the next run rewrites the file and restarts the service.',
+    sections: {
+      Unit: {
+        Description: `Underpost host metrics collector on ${host}:${nodeExporter.port}`,
+        Documentation: 'https://www.nexodev.org/docs',
+        After: `network-online.target ${tunnelUnit}`,
+        Wants: 'network-online.target',
+        Requires: tunnelUnit,
+        PartOf: tunnelUnit,
+      },
+      Service: {
+        Type: 'simple',
+        User: 'root',
+        ExecStart: [
+          nodeExporter.binaryPath,
+          `--web.listen-address=${host}:${nodeExporter.port}`,
+          `--collector.textfile.directory=${nodeExporter.textfileDirectory}`,
+          `--collector.filesystem.mount-points-exclude=${nodeExporter.filesystemExclude}`,
+        ].join(' '),
+        Restart: 'always',
+        RestartSec: 5,
+      },
+      Install: { WantedBy: `multi-user.target ${tunnelUnit}` },
+    },
+  });
+};
+
+/**
+ * @method nodeExporterServiceScriptFactory
+ * @description The single command that provisions the collector on a host.
+ *
+ * Base64 in, bash out: the remote runner interpolates its command into
+ * `bash -lc "..."`, which would eat the quotes, expansions and heredoc this
+ * needs. Encoding the script transports it intact and keeps one implementation
+ * for the local and the SSH path. The final state read is what makes a failed
+ * start a failed run rather than a silent one.
+ * @param {object} params
+ * @param {string} params.host - Tunnel address the collector binds.
+ * @param {string} [params.interfaceName='wg0'] - Tunnel interface carrying that address.
+ * @returns {string} Command to execute on the target host.
+ * @memberof UnderpostMonitoring
+ */
+const nodeExporterServiceScriptFactory = ({ host, interfaceName = 'wg0' }) => {
+  const { nodeExporter } = UNDERPOST_MONITORING;
+  const lifecycle = systemdServiceCommandsFactory({
+    changed: true,
+    name: nodeExporter.serviceName,
+    unitPath: nodeExporter.unitPath,
+  }).ensure;
+
+  const script = `set -e
+VERSION=${nodeExporter.version}
+ARCH=$(uname -m)
+case "$ARCH" in x86_64) ARCH=amd64 ;; aarch64) ARCH=arm64 ;; esac
+RELEASE=node_exporter-$VERSION.linux-$ARCH
+sudo install -d -m 0755 ${nodeExporter.textfileDirectory}
+if ! ${nodeExporter.binaryPath} --version 2>/dev/null | grep -q "version $VERSION"; then
+  TMP=$(mktemp -d)
+  curl -fsSL "https://github.com/prometheus/node_exporter/releases/download/v$VERSION/$RELEASE.tar.gz" -o "$TMP/$RELEASE.tar.gz"
+  tar -xzf "$TMP/$RELEASE.tar.gz" -C "$TMP"
+  sudo install -m 0755 "$TMP/$RELEASE/node_exporter" ${nodeExporter.binaryPath}
+  rm -rf "$TMP"
+fi
+sudo tee ${nodeExporter.unitPath} >/dev/null <<'UNIT'
+${nodeExporterServiceFactory({ host, interfaceName })}UNIT
+${lifecycle.join('\n')}
+systemctl is-active --quiet ${nodeExporter.serviceName}
+`;
+
+  return `echo ${Buffer.from(script, 'utf8').toString('base64')} | base64 -d | bash -s`;
+};
+
+/**
  * @method grafanaDashboardProviderFactory
  * @description Renders the file-based dashboard provider.
  * @returns {string} Dashboard provider provisioning file contents.
@@ -641,15 +765,27 @@ providers:
       foldersFromFilesStructure: false
 `;
 
-const timeSeriesPanel = ({ id, title, unit = 'short', gridPos, targets }) => ({
+const timeSeriesPanel = ({ id, title, unit = 'short', gridPos, targets, overrides = [] }) => ({
   id,
   type: 'timeseries',
   title,
   datasource: { type: 'prometheus', uid: 'underpost-prometheus' },
   gridPos,
-  fieldConfig: { defaults: { unit, custom: { fillOpacity: 8, lineWidth: 1 } }, overrides: [] },
+  fieldConfig: { defaults: { unit, custom: { fillOpacity: 8, lineWidth: 1 } }, overrides },
   options: { legend: { displayMode: 'list', placement: 'bottom' }, tooltip: { mode: 'multi' } },
   targets: targets.map((target, index) => ({ refId: String.fromCharCode(65 + index), ...target })),
+});
+
+/** Series identity every host panel groups and labels by. */
+const NODE_LEGEND = '{{instance}} ({{underpost_role}})';
+
+/** Re-units one query of a panel and moves it to the opposite axis. */
+const secondaryAxisOverride = (refId, unit) => ({
+  matcher: { id: 'byFrameRefID', options: refId },
+  properties: [
+    { id: 'unit', value: unit },
+    { id: 'custom.axisPlacement', value: 'right' },
+  ],
 });
 
 const statPanel = ({ id, title, unit = 'short', gridPos, targets }) => ({
@@ -1032,12 +1168,14 @@ spec:
  * Every panel is grouped by `instance`, which for a discovered node is its
  * InternalIP and for the hub its tunnel address — the same identity the node
  * events resolve a repair target from, so a spike here names a machine an
- * operator can act on.
+ * operator can act on, and legends carry the `underpost_role` Prometheus
+ * relabels onto it so hub, control and worker are told apart at a glance.
  * @returns {string} Dashboard JSON.
  * @memberof UnderpostMonitoring
  */
-const nodeMetricsDashboardFactory = () =>
-  `${JSON.stringify(
+const nodeMetricsDashboardFactory = () => {
+  const { networkDeviceSelector } = UNDERPOST_MONITORING.nodeExporter;
+  return `${JSON.stringify(
     {
       uid: 'underpost-node-metrics',
       title: 'Underpost · Node Metrics',
@@ -1054,8 +1192,9 @@ const nodeMetricsDashboardFactory = () =>
           gridPos: { h: 8, w: 12, x: 0, y: 0 },
           targets: [
             {
-              expr: '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)',
-              legendFormat: '{{instance}}',
+              expr:
+                '100 - (avg by (instance, underpost_role) ' + '(rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)',
+              legendFormat: NODE_LEGEND,
             },
           ],
         }),
@@ -1067,23 +1206,23 @@ const nodeMetricsDashboardFactory = () =>
           targets: [
             {
               expr: '100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))',
-              legendFormat: '{{instance}}',
+              legendFormat: NODE_LEGEND,
             },
           ],
         }),
         timeSeriesPanel({
           id: 3,
-          title: 'Network Throughput (RX/TX Bps)',
-          unit: 'Bps',
+          title: 'Network Throughput (RX/TX)',
+          unit: 'binBps',
           gridPos: { h: 8, w: 12, x: 0, y: 8 },
           targets: [
             {
-              expr: 'rate(node_network_receive_bytes_total{device=~"wg0|eth0|enp.*"}[2m])',
-              legendFormat: '{{instance}} {{device}} rx',
+              expr: `rate(node_network_receive_bytes_total{${networkDeviceSelector}}[2m])`,
+              legendFormat: `${NODE_LEGEND} {{device}} rx`,
             },
             {
-              expr: 'rate(node_network_transmit_bytes_total{device=~"wg0|eth0|enp.*"}[2m])',
-              legendFormat: '{{instance}} {{device}} tx',
+              expr: `rate(node_network_transmit_bytes_total{${networkDeviceSelector}}[2m])`,
+              legendFormat: `${NODE_LEGEND} {{device}} tx`,
             },
           ],
         }),
@@ -1092,18 +1231,19 @@ const nodeMetricsDashboardFactory = () =>
           title: 'Disk Usage % & I/O Rates',
           unit: 'percent',
           gridPos: { h: 8, w: 12, x: 12, y: 8 },
+          overrides: [secondaryAxisOverride('B', 'binBps'), secondaryAxisOverride('C', 'binBps')],
           targets: [
             {
               expr:
                 '100 - ((node_filesystem_avail_bytes{mountpoint="/"} * 100) / ' +
                 'node_filesystem_size_bytes{mountpoint="/"})',
-              legendFormat: '{{instance}} used %',
+              legendFormat: `${NODE_LEGEND} used %`,
             },
-            { expr: 'rate(node_disk_read_bytes_total[2m])', legendFormat: '{{instance}} {{device}} read Bps' },
-            { expr: 'rate(node_disk_written_bytes_total[2m])', legendFormat: '{{instance}} {{device}} write Bps' },
+            { expr: 'rate(node_disk_read_bytes_total[2m])', legendFormat: `${NODE_LEGEND} {{device}} read` },
+            { expr: 'rate(node_disk_written_bytes_total[2m])', legendFormat: `${NODE_LEGEND} {{device}} write` },
           ],
         }),
-        statPanel({
+        timeSeriesPanel({
           id: 5,
           title: 'Vultr Hub Monthly Bandwidth Usage',
           unit: 'percent',
@@ -1111,7 +1251,7 @@ const nodeMetricsDashboardFactory = () =>
           targets: [
             {
               expr: '(vultr_bandwidth_used_bytes / vultr_bandwidth_limit_bytes) * 100',
-              legendFormat: 'monthly quota used',
+              legendFormat: 'Hub Bandwidth Usage % (hub)',
             },
           ],
         }),
@@ -1120,6 +1260,7 @@ const nodeMetricsDashboardFactory = () =>
     null,
     2,
   )}\n`;
+};
 
 /**
  * @method monitoringConfigFactory
@@ -1312,6 +1453,8 @@ export {
   envoyDashboardFactory,
   eventsDashboardFactory,
   nodeExporterManifestFactory,
+  nodeExporterServiceFactory,
+  nodeExporterServiceScriptFactory,
   nodeMetricsDashboardFactory,
   grafanaAdminSecretFactory,
   grafanaDeploymentFactory,

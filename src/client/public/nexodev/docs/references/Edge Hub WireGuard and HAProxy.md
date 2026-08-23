@@ -410,6 +410,18 @@ Commands are logged with any credential in a URL masked to `***`, and the error 
 
 The same registered accounts are what `node bin event <event-id> --e2e-test` uses to take a subject down before repairing it, so an account that can break a peer but not repair it fails the rehearsal instead of an outage. See [Observability and Events](<./Observability and Events.md>).
 
+## Host metrics outside the cluster
+
+```bash
+node bin wireguard --node-exporter
+node bin wireguard --node-exporter --nodes vultr
+node bin wireguard --node-exporter --dry-run
+```
+
+A cluster node reports CPU, memory, disk and interface counters through the `node-exporter` DaemonSet. The hub is a VPS the cluster cannot schedule onto, so it runs the same collector as the `underpost-node-exporter` systemd service, installed over the SSH identity `--sync` uses and selected by the same `--nodes`. Only hubs are provisioned: a second collector on a cluster node would bind the port its pod already holds.
+
+The service listens on the node's tunnel address alone, which is where Prometheus already scrapes it (`node-exporter-hub`), so the counters never reach the public address. It is bound to `wg-quick@<interface>` and reads the same textfile directory the Vultr bandwidth guard writes to, so the hub's quota rides in with the rest of its metrics. Re-running is convergent: the pinned binary is downloaded only when the host is not already running that version, and the run fails if the service does not come up.
+
 ## Syncing the fleet
 
 ```bash
@@ -579,7 +591,8 @@ TLS is terminated exactly once, at the cluster's own ingress. See [Main cluster 
 | `--forward-proxy-server`                                         | Reconcile the hub outbound proxy                                                                         |
 | `--wireguard-reset` / `--wireguard-reinstall`                    | Remove host state or re-key it                                                                           |
 | `--sync`                                                         | Bring every registered node's engine checkout up to date                                                 |
-| `--nodes <names>`                                                | Comma-separated node documents `--sync` acts on                                                          |
+| `--node-exporter`                                                | Provision the host metrics collector as a systemd service on the selected hubs                           |
+| `--nodes <names>`                                                | Comma-separated node documents `--sync` and `--node-exporter` act on                                     |
 | `--repo-engine <repo>`                                           | Engine repository `--sync` switches to, as `owner/repo` or a clone URL                                   |
 
 ## Verification

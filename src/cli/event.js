@@ -65,6 +65,9 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
+/** Interfaces the node events measure, shared with the dashboard that plots them. */
+const NETWORK_DEVICE_SELECTOR = UNDERPOST_MONITORING.nodeExporter.networkDeviceSelector;
+
 /**
  * @constant ENGINE_REMOTE_PATH
  * @description Working directory every remediation runs from. The engine
@@ -220,6 +223,46 @@ const wireguardAlertFactory = ({ name, eventId, summary, description }) => ({
 });
 
 /**
+ * @constant warnedManagementDrift
+ * @description Peer ids already reported as no longer matching this machine.
+ * The check runs on every topology read; the warning is worth one line per
+ * process, not one per probe render.
+ * @memberof UnderpostEvent
+ */
+const warnedManagementDrift = new Set();
+
+/**
+ * @method warnManagementHostDrift
+ * @description Warns when this machine no longer answers to the management
+ * address its own peer is registered under.
+ *
+ * Locality is settled against the host's live interfaces, so a management
+ * address that drifts — a DHCP lease lost during an outage, a renumbered LAN —
+ * silently reclassifies this node as remote. Nothing fails: the spoke probe
+ * moves from the hub's tunnel address to this node's own, which answers locally
+ * whether or not the tunnel carries anything, and remediation routes over SSH
+ * to an address that is now someone else's. Both are quiet wrong answers, so
+ * the drift is reported where it is detected.
+ * @param {object} state - Edge context for this machine.
+ * @param {Array<object>} spokes - Resolved spokes.
+ * @param {Set<string>} addresses - This machine's addresses.
+ * @memberof UnderpostEvent
+ */
+const warnManagementHostDrift = (state, spokes, addresses) => {
+  if (!state.peerId || warnedManagementDrift.has(state.peerId)) return;
+  const self = spokes.find((spoke) => spoke.id === state.peerId);
+  if (!self || self.local) return;
+  warnedManagementDrift.add(state.peerId);
+  logger.warn('This host no longer answers to the management address its peer is registered under', {
+    peerId: state.peerId,
+    registered: self.managementHost,
+    addresses: [...addresses],
+    topology: EDGE_TOPOLOGY_PATH,
+    effect: 'probes and remediation for this node are resolved as remote',
+  });
+};
+
+/**
  * @constant EVENTS
  * @description The event registry.
  *
@@ -335,7 +378,7 @@ const EVENTS = {
     description: 'CPU usage on a cluster node stayed above its declared threshold.',
     alert: {
       name: 'UnderpostNodeCpuLimitExceeded',
-      expr: '(100 - (avg by (instance, underpost_spoke) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)) > <threshold>',
+      expr: `(100 - (avg by (instance, underpost_role) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)) > ${THRESHOLD_TOKEN}`,
       severity: 'warning',
       summary: 'High CPU usage on {{ $labels.instance }}',
       description: 'Sustained CPU pressure; the handler captures the processes responsible.',
@@ -432,7 +475,9 @@ const EVENTS = {
     description: 'Interface throughput on a cluster node exceeded its declared rate.',
     alert: {
       name: 'UnderpostNodeNetworkTrafficExceeded',
-      expr: '((rate(node_network_receive_bytes_total{device=~"wg0|eth0|enp.*"}[2m]) + rate(node_network_transmit_bytes_total{device=~"wg0|eth0|enp.*"}[2m])) * 8 / 1000000) > <threshold>',
+      expr:
+        `((rate(node_network_receive_bytes_total{${NETWORK_DEVICE_SELECTOR}}[2m]) + ` +
+        `rate(node_network_transmit_bytes_total{${NETWORK_DEVICE_SELECTOR}}[2m])) * 8 / 1000000) > ${THRESHOLD_TOKEN}`,
       severity: 'warning',
       summary: 'High network traffic burst on {{ $labels.instance }} ({{ $labels.device }})',
       description: 'Sustained throughput above the declared rate; the handler reports the sockets carrying it.',
@@ -493,7 +538,7 @@ class UnderpostEvent {
       const state = readEdgeContext();
       const nodes = readNodeConfigs().filter((node) => node.hubHost === state.hubHost);
       const addresses = hostAddressesFactory();
-      return state.peers
+      const spokes = state.peers
         .map((peer) => {
           const node = nodes.find((entry) => entry.peerId === peer.id);
           return {
@@ -506,6 +551,24 @@ class UnderpostEvent {
           };
         })
         .filter((spoke) => spoke.id && spoke.address);
+      warnManagementHostDrift(state, spokes, addresses);
+      return spokes;
+    },
+
+    /**
+     * @method clusterNodes
+     * @description Registered nodes the cluster schedules on, with their role.
+     *
+     * Node discovery knows a machine by the name the kubelet registered, which
+     * is the name its node document is filed under; the role only the document
+     * holds is what the dashboards group by.
+     * @returns {Array<{nodeName: string, role: string}>} Non-hub nodes.
+     * @memberof UnderpostEvent
+     */
+    clusterNodes() {
+      return readNodeConfigs()
+        .filter((node) => node.nodeName && node.role && node.role !== 'hub')
+        .map((node) => ({ nodeName: node.nodeName, role: node.role }));
     },
 
     /**

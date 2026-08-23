@@ -907,7 +907,13 @@ const edgeCommandFactory = (name, description) =>
     )
     .option(
       '--nodes <node-names>',
-      'Comma-separated node documents --sync acts on. Empty covers every hub and every peer of this node hub.',
+      'Comma-separated node documents --sync and --node-exporter act on. ' +
+        'Empty covers every hub and every peer of this node hub.',
+    )
+    .option(
+      '--node-exporter',
+      'Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their ' +
+        'tunnel address, so machines outside the cluster report hardware metrics like every cluster node.',
     )
     .option(
       '--repo-engine <repo>',
