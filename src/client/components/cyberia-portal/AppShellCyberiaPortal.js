@@ -3,6 +3,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance, random } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { Docs } from '../core/Docs.js';
+import { githubUrl } from '../core/Repository.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -567,7 +568,7 @@ class AppShellCyberiaPortal {
               html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/arrow-right.png" />`,
             coverageUrl: () => `${getProxyPath()}docs/hardhat-coverage`,
             demoUrl: () => `https://client.cyberiaonline.com/`,
-            lastReleaseUrl: () => `https://github.com/underpostnet/engine-cyberia.git`,
+            lastReleaseUrl: () => githubUrl('engine-cyberia'),
           }),
         handleType: 'bar',
         observer: true,

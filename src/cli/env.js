@@ -4,7 +4,7 @@
  * @namespace UnderpostEnv
  */
 
-import { getNpmRootPath, writeEnv } from '../server/environment.js';
+import { getUnderpostRootPath, writeEnv } from '../server/environment.js';
 import fs from 'fs-extra';
 import { resolveDeployList } from '../server/router.js';
 import { loggerFactory } from '../server/logger.js';
@@ -58,7 +58,7 @@ class UnderpostRootEnv {
             _set(`./engine-private/conf/${deployId}/.env.${envFile}`, key, value);
         return;
       }
-      const exeRootPath = `${getNpmRootPath()}/underpost`;
+      const exeRootPath = getUnderpostRootPath();
       fs.ensureDirSync(exeRootPath);
       const envPath = `${exeRootPath}/.env`;
       _set(envPath, key, value);
@@ -70,7 +70,7 @@ class UnderpostRootEnv {
      * @memberof UnderpostEnv
      */
     delete(key) {
-      const exeRootPath = `${getNpmRootPath()}/underpost`;
+      const exeRootPath = getUnderpostRootPath();
       const envPath = `${exeRootPath}/.env`;
       guardEnvPath(envPath);
       let env = {};
@@ -90,7 +90,7 @@ class UnderpostRootEnv {
      * @memberof UnderpostEnv
      */
     get(key, value, options = { plain: false, disableLog: false, copy: false }) {
-      const exeRootPath = `${getNpmRootPath()}/underpost`;
+      const exeRootPath = getUnderpostRootPath();
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath) || !fs.statSync(envPath).isFile()) return undefined;
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
@@ -109,7 +109,7 @@ class UnderpostRootEnv {
      * @memberof UnderpostEnv
      */
     list(key, value, options = {}) {
-      const exeRootPath = `${getNpmRootPath()}/underpost`;
+      const exeRootPath = getUnderpostRootPath();
       const envPath = `${exeRootPath}/.env`;
       guardEnvPath(envPath);
       if (!fs.existsSync(envPath)) {
@@ -146,7 +146,7 @@ class UnderpostRootEnv {
      */
     clean(options = { keepKeys: [] }) {
       const { keepKeys } = options;
-      const exeRootPath = `${getNpmRootPath()}/underpost`;
+      const exeRootPath = getUnderpostRootPath();
       const envPath = `${exeRootPath}/.env`;
       if (keepKeys && keepKeys.length > 0 && fs.existsSync(envPath)) {
         const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));

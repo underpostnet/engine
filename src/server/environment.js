@@ -8,6 +8,8 @@
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import { execFileSync } from 'node:child_process';
+import nodePath from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -21,6 +23,7 @@ const logger = loggerFactory(import.meta);
  * @memberof ServerEnvironment
  */
 const HOST_VOLUME_ROOT = '/home/dd/engine/volume';
+const packageRoot = nodePath.resolve(nodePath.dirname(fileURLToPath(import.meta.url)), '../..');
 const envFileCache = new Map();
 let rootEnvPath;
 
@@ -47,7 +50,7 @@ const getNpmRootPath = () => {
  */
 const getUnderpostRootPath = () => {
   const npmRoot = getNpmRootPath();
-  return npmRoot ? `${npmRoot}/underpost` : '';
+  return npmRoot ? `${npmRoot}/underpost` : `${packageRoot}/.underpost`;
 };
 
 const readEnvFile = (path) => {

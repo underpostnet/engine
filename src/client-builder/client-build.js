@@ -24,6 +24,7 @@ import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
 import { buildIcons } from './client-icons.js';
 import { statusPageBuildSegment } from '../server/underpost-gateway.js';
+import { repositoryIdentityFactory } from '../server/repository.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 import { ssrFactory } from './ssr.js';
@@ -689,6 +690,18 @@ const buildClient = async (
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       currentPort++;
 
+      // Every document this instance emits carries the same payload; the SSR
+      // views and the client index must never disagree about which repository
+      // published them.
+      const renderPayload = {
+        apiBaseProxyPath,
+        apiBaseHost,
+        apiBasePath: process.env.BASE_API,
+        version: Underpost.version,
+        repository: repositoryIdentityFactory(),
+        ...(isDevelopment ? { dev: true } : undefined),
+      };
+
       const acmeChallengeFullPath = directory
         ? `${directory}${acmeChallengePath}`
         : `${publicPath}/${host}${acmeChallengePath}`;
@@ -962,13 +975,7 @@ const buildClient = async (
               ssrPath,
               ssrHeadComponents,
               ssrBodyComponents,
-              renderPayload: {
-                apiBaseProxyPath,
-                apiBaseHost,
-                apiBasePath: process.env.BASE_API,
-                version: Underpost.version,
-                ...(isDevelopment ? { dev: true } : undefined),
-              },
+              renderPayload,
               renderApi: {
                 JSONweb,
               },
@@ -1064,13 +1071,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
             ssrPath,
             ssrHeadComponents: '<base target="_top">',
             ssrBodyComponents: SsrComponent(),
-            renderPayload: {
-              apiBaseProxyPath,
-              apiBaseHost,
-              apiBasePath: process.env.BASE_API,
-              version: Underpost.version,
-              ...(isDevelopment ? { dev: true } : undefined),
-            },
+            renderPayload,
             renderApi: { JSONweb },
           });
 
@@ -1116,7 +1117,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
 
         if (swShouldRebuild) {
           const cacheScope = path === '/' ? 'root' : path.replaceAll('/', '_');
-          const renderPayload = {
+          const swRenderPayload = {
             PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
             PROXY_PATH: path,
             CACHE_PREFIX: `engine-core-${cacheScope}`,
@@ -1127,7 +1128,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           // Single write: prepend the payload prelude to the transformed SW JS.
           fs.writeFileSync(
             swPublicPath,
-            `self.renderPayload = ${JSONweb(renderPayload)};
+            `self.renderPayload = ${JSONweb(swRenderPayload)};
 self.__WB_DISABLE_DEV_LOGS = true;
 ${swTransformedJs}`,
             'utf8',
