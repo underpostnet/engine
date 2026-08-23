@@ -24,6 +24,7 @@ import UnderpostRun from './cli/run.js';
 import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostStatic from './cli/static.js';
+import UnderpostTest from './cli/test.js';
 import UnderpostRelease from './cli/release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
 import UnderpostVultr from './cli/vultr.js';
@@ -333,6 +334,16 @@ class Underpost {
   static get release() {
     return UnderpostRelease.API;
   }
+
+  /**
+   * Test runner cli API
+   * @static
+   * @type {UnderpostTest.API}
+   * @memberof Underpost
+   */
+  static get test() {
+    return UnderpostTest.API;
+  }
 }
 
 if (!process.version || !process.version.startsWith(`${Underpost.majorNodejsVersion}.`))
@@ -360,6 +371,7 @@ export {
   UnderpostFileStorage,
   UnderpostImage,
   UnderpostStatic,
+  UnderpostTest,
   UnderpostLxd,
   UnderpostKickStart,
   UnderpostIPFS,

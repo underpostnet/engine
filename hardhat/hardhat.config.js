@@ -3,7 +3,7 @@
 // Supports deployment to Hyperledger Besu (IBFT2/QBFT) private networks
 // running on kubeadm-managed Kubernetes clusters (manifests/besu/).
 //
-// Compatible with: Hardhat 3.x + Ethers v6 + hardhat-toolbox-mocha-ethers
+// Compatible with: Hardhat 3.x + viem + hardhat-toolbox-viem
 
 import { defineConfig } from 'hardhat/config';
 import hardhatToolboxViem from '@nomicfoundation/hardhat-toolbox-viem';
@@ -125,11 +125,6 @@ const config = defineConfig({
     currency: 'USD',
     outputFile: process.env.GAS_REPORT_FILE || undefined,
     noColors: !!process.env.GAS_REPORT_FILE,
-  },
-
-  // ── Mocha (test runner) ─────────────────────────────────────────────────────
-  mocha: {
-    timeout: 60000,
   },
 });
 

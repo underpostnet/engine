@@ -5,6 +5,7 @@ import { Command } from 'commander';
 import { loadConf } from '../server/conf.js';
 import { getNpmRootPath, getUnderpostRootPath } from '../server/environment.js';
 import { commitData } from '../client/components/core/CommonJs.js';
+import { TEST_TIERS, testSuiteNames } from '../server/testing.js';
 
 import Underpost from '../index.js';
 
@@ -1121,6 +1122,33 @@ program
   .option('--branch <branch>', 'Sets the branch for git operations (default: current branch).')
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
+
+program
+  .command('test')
+  .argument(
+    '[suite]',
+    `A comma-separated list of suites or tiers to run. Suites: ${testSuiteNames().join(', ')}. ` +
+      `Tiers: ${TEST_TIERS.map(({ name }) => name).join(', ')}. Defaults to every tier, in tier order.`,
+    '',
+  )
+  .option('--itc', 'Runs in this execution context instead of dispatching into deployment pods.')
+  .option('--deploy-list <deploy-list>', 'A comma-separated list of deployment IDs to run the suite inside.')
+  .option('--grep <pattern>', 'Runs only tests whose name matches the pattern.')
+  .option('--watch', 'Keeps the runner open and re-runs affected suites on change.')
+  .option('--no-coverage', 'Skips coverage instrumentation and reporters.')
+  .option('--allure', 'Writes Allure results for the cluster dashboard alongside the run.')
+  .option('--dashboard', 'Applies the Allure dashboard to the cluster and exits.')
+  .option('--job', 'Runs the selected suite on the cluster as a Kubernetes Job (requires --image).')
+  .option('--image <image>', 'Image carrying the engine and its dependencies, for --job.')
+  .option('--node-name <node-name>', 'Pins the --job pod to this node.')
+  .option('--host <host>', 'Hostname to route the --dashboard sub-path on.')
+  .option('--namespace <namespace>', 'Kubernetes namespace for --dashboard, --job and --deploy-list.')
+  .option('--dry-run', 'Renders the --dashboard or --job manifests without applying them.')
+  .option('--pod-name <pod-name>', 'Waits for this cluster object to reach --pod-status instead of running tests.')
+  .option('--pod-status <pod-status>', 'Status --pod-name waits for (default: "Running").')
+  .option('--kind-type <kind-type>', 'Kind --pod-name queries (default: "pods").')
+  .description('Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting.')
+  .action(Underpost.test.callback);
 
 program
   .command('docker-compose')

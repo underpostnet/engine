@@ -943,7 +943,7 @@ rm -rf ${artifacts.join(' ')}`);
               `id root`,
               `ls -la /home/root/.ssh/`,
               `cat /home/root/.ssh/authorized_keys`,
-              '/home/dd/engine/scripts/coverall-test.sh',
+              'cd /home/dd/engine && node bin test unit,infra',
             ],
           });
       }

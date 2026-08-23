@@ -416,14 +416,15 @@ const buildCoverage = async ({ docs, docsDestination }) => {
 
   if (fs.existsSync(coverageOutputPath) && fs.readdirSync(coverageOutputPath).length > 0) {
     const coverageBuildPath = `${docsDestination}${coverageOutputDir}`;
-    fs.mkdirSync(coverageBuildPath, { recursive: true });
-    // Hardhat 3 outputs HTML to coverage/html/; Hardhat 2 / c8 output directly to coverage/
-    const coverageHtmlSubdir = `${coverageOutputPath}/html`;
-    if (fs.existsSync(coverageHtmlSubdir) && fs.existsSync(`${coverageHtmlSubdir}/index.html`)) {
-      fs.copySync(coverageHtmlSubdir, coverageBuildPath);
-    } else {
-      fs.copySync(coverageOutputPath, coverageBuildPath);
+    const reportPath = [`${coverageOutputPath}/html`, `${coverageOutputPath}/lcov-report`, coverageOutputPath].find(
+      (candidate) => fs.existsSync(`${candidate}/index.html`),
+    );
+    if (!reportPath) {
+      logger.warn('coverage HTML index not found, skipping', coverageOutputPath);
+      return;
     }
+    fs.emptyDirSync(coverageBuildPath);
+    fs.copySync(reportPath, coverageBuildPath);
     logger.warn('build coverage', coverageBuildPath);
   } else {
     logger.warn('no coverage output found, skipping', coverageOutputPath);
@@ -490,4 +491,4 @@ const buildSwaggerUiOptions = async () => {
   return { customCss: css, customJsStr: js };
 };
 
-export { buildDocs, buildSwaggerUiOptions };
+export { buildCoverage, buildDocs, buildSwaggerUiOptions };
