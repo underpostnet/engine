@@ -15,6 +15,12 @@ const CACHE_PREFIX = payload.CACHE_PREFIX || 'engine-core';
 const PRE_CACHED_RESOURCES = Array.isArray(payload.PRE_CACHED_RESOURCES) ? payload.PRE_CACHED_RESOURCES : [];
 const OFFLINE_URL = payload.OFFLINE_URL || '/offline/index.html';
 const MAINTENANCE_URL = payload.MAINTENANCE_URL || '/maintenance/index.html';
+const PROXY_ROOT = payload.PROXY_PATH && payload.PROXY_PATH !== '/' ? payload.PROXY_PATH.replace(/\/$/, '') : '';
+const isDocumentationPath = (pathname) =>
+  [`${PROXY_ROOT}/docs`, `${PROXY_ROOT}/api-docs`].some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+const isDistributionPath = (pathname) => pathname.startsWith(`${PROXY_ROOT}/dist/`);
 
 // Dedicated cache for fallback pages so they're available even if precacheAndRoute
 // fails (e.g. a precache manifest entry returns non-200 during install).
@@ -34,7 +40,7 @@ const inlineFallback = (kind) => {
   const msg =
     kind === 'offline'
       ? 'You are offline. Please check your internet connection and try again.'
-      : 'The server is under maintenance. We\'ll be back shortly.';
+      : "The server is under maintenance. We'll be back shortly.";
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${title}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;color:#333;padding:1rem;text-align:center}h1{font-size:2rem;margin-bottom:.5rem}p{font-size:1rem;color:#666;max-width:24rem}</style></head><body><h1>${icon} ${title}</h1><p>${msg}</p></body></html>`;
   return new Response(html, {
     status: 200,
@@ -74,17 +80,17 @@ const getFallback = async (kind) => {
     try {
       const fetchResp = await fetch(primary, { credentials: 'same-origin' });
       if (fetchResp.ok) {
-        cache.put(primary, fetchResp.clone()).catch(() => { });
+        cache.put(primary, fetchResp.clone()).catch(() => {});
         return fetchResp;
       }
-    } catch (_) { }
+    } catch (_) {}
     try {
       const fetchResp = await fetch(secondary, { credentials: 'same-origin' });
       if (fetchResp.ok) {
-        cache.put(secondary, fetchResp.clone()).catch(() => { });
+        cache.put(secondary, fetchResp.clone()).catch(() => {});
         return fetchResp;
       }
-    } catch (_) { }
+    } catch (_) {}
   }
 
   // ── 3. Ultimate inline fallback ────────────────────────────────────────
@@ -160,6 +166,8 @@ registerRoute(
   ({ request, url }) =>
     request.method === 'GET' &&
     url.origin === self.location.origin &&
+    !isDocumentationPath(url.pathname) &&
+    !isDistributionPath(url.pathname) &&
     ['style', 'script', 'font', 'image'].includes(request.destination),
   new StaleWhileRevalidate({
     cacheName: `${CACHE_PREFIX}-assets`,
@@ -212,7 +220,7 @@ registerRoute(
 // ─────────────────────────────────────────────────────────────────────────────
 
 registerRoute(
-  ({ request }) => request.mode === 'navigate',
+  ({ request, url }) => request.mode === 'navigate' && !isDocumentationPath(url.pathname),
   async ({ event }) => {
     // ── 1. Check browser offline state ────────────────────────────────────
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -225,7 +233,7 @@ registerRoute(
       if (preload && preload.status < 500) {
         // Fire-and-forget: eagerly cache fallback pages in the background
         // after a successful navigation so they're available when offline.
-        cacheFallbackPages().catch(() => { });
+        cacheFallbackPages().catch(() => {});
         return preload;
       }
     } catch (_) {
@@ -243,18 +251,17 @@ registerRoute(
       if (response.ok) {
         // Cache the successful response for future navigations
         const cache = await caches.open(`${CACHE_PREFIX}-pages`);
-        cache.put(event.request, response.clone()).catch(() => { });
+        cache.put(event.request, response.clone()).catch(() => {});
 
         // Eagerly cache fallback pages in the background
-        cacheFallbackPages().catch(() => { });
+        cacheFallbackPages().catch(() => {});
 
         return response;
       }
 
       return response;
     } catch (_) {
-      const reallyOffline =
-        typeof navigator !== 'undefined' && navigator.onLine === false;
+      const reallyOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
       return getFallback(reallyOffline ? 'offline' : 'maintenance');
     }
   },
@@ -263,8 +270,7 @@ registerRoute(
 // ─── Global catch handler (non-navigation failures) ──────────────────────────
 setCatchHandler(async ({ request }) => {
   if (request.mode === 'navigate') {
-    const reallyOffline =
-      typeof navigator !== 'undefined' && navigator.onLine === false;
+    const reallyOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
     return getFallback(reallyOffline ? 'offline' : 'maintenance');
   }
   return new Response(JSON.stringify({ status: 'error', message: 'request failed' }), {

@@ -150,7 +150,13 @@ class PwaWorker {
     }
     const run = async () => {
       const registration = await this.getRegistration();
-      if (!registration) await this.register();
+      if (registration) {
+        try {
+          await registration.update();
+        } catch (error) {
+          logger.error('Error updating service worker:', error);
+        }
+      } else await this.register();
     };
     if (document.readyState === 'complete') run();
     else window.addEventListener('load', run, { once: true });
