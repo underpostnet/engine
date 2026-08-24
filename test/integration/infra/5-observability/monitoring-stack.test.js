@@ -2,6 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import { cronJobYamlFactory } from '../../../../src/server/ops/cron.js';
 import {
   UNDERPOST_MONITORING,
   alertRulesFactory,
@@ -785,5 +786,26 @@ describe('nodeExporterServiceScriptFactory', () => {
     expect(script.trim().split('\n').at(-1)).to.equal(
       `systemctl is-active --quiet ${UNDERPOST_MONITORING.nodeExporter.serviceName}`,
     );
+  });
+});
+
+describe('cron job bandwidth publication', () => {
+  const manifest = cronJobYamlFactory({
+    name: 'dd-cron-vultr',
+    expression: '*/30 * * * *',
+    deployList: 'dd-cron',
+    jobList: 'vultr',
+    kubeadm: true,
+  });
+
+  it('mounts the host textfile directory the collector reads', () => {
+    const { textfileDirectory } = UNDERPOST_MONITORING.nodeExporter;
+    expect(manifest).to.include(`mountPath: ${textfileDirectory}`);
+    expect(manifest).to.include(`path: ${textfileDirectory}`);
+  });
+
+  it('creates the directory, so a node that never ran the collector still publishes', () => {
+    const volume = manifest.slice(manifest.indexOf(UNDERPOST_MONITORING.nodeExporter.textfileDirectory));
+    expect(volume).to.include('type: DirectoryOrCreate');
   });
 });

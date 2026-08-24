@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import Underpost from '../../index.js';
 import { getUnderpostRootPath } from '../runtime/environment.js';
 import { DEPLOY_ROUTES_PATH, readDeployRoutes } from '../network/router.js';
+import { UNDERPOST_MONITORING } from './monitoring.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -18,6 +19,7 @@ const volumeHostPath = '/home/dd';
 const enginePath = '/home/dd/engine';
 const cronVolumeName = 'underpost-cron-container-volume';
 const shareEnvVolumeName = 'underpost-share-env';
+const textfileVolumeName = 'underpost-node-exporter-textfile';
 const underpostContainerEnvDir = '/usr/lib/node_modules/underpost';
 const DEFAULT_CRON_ID = 'dd-cron';
 
@@ -160,6 +162,8 @@ ${
                   name: ${cronVolumeName}
                 - mountPath: ${underpostContainerEnvDir}
                   name: ${shareEnvVolumeName}
+                - mountPath: ${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}
+                  name: ${textfileVolumeName}
           volumes:
             - hostPath:
                 path: ${enginePath}
@@ -169,6 +173,10 @@ ${
                 path: ${getUnderpostRootPath()}
                 type: DirectoryOrCreate
               name: ${shareEnvVolumeName}
+            - hostPath:
+                path: ${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}
+                type: DirectoryOrCreate
+              name: ${textfileVolumeName}
           restartPolicy: OnFailure
 `;
 };
