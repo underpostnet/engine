@@ -806,7 +806,7 @@ class UnderpostRepository {
      */
     privateConfUpdate(deployId) {
       shellCd(`/home/dd/engine`);
-      const privateRepoName = `engine-${deployId.split('dd-')[1]}-private`;
+      const privateRepoName = Underpost.repo.privateRepoFactory(deployId);
       const privateRepoPath = `../${privateRepoName}`;
       if (fs.existsSync(privateRepoPath)) fs.removeSync(privateRepoPath);
       shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
