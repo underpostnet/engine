@@ -19,11 +19,11 @@ main() {
         "cd $ENGINE_ROOT && node bin run pull"
 
     run_quiet \
-        "Sync secrets" \
+        "Load host config" \
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
+        "cd $ENGINE_ROOT && node bin host load"
 
     run_quiet \
         "Build dd-cyberia configuration" \

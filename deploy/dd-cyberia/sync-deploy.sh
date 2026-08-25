@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/logging.sh"
+source "$SCRIPT_DIR/../lib/host.sh"
 
 ENGINE_ROOT=/home/dd/engine
 TARGET_NODE=localhost.localdomain
@@ -20,26 +21,7 @@ has_changes() {
 main() {
     echo "Starting remote sync and deploy"
 
-    run_quiet \
-        "Pull repository" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run pull"
-
-    run_quiet \
-        "Install dependencies" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && npm install"
-
-    run_quiet \
-        "Sync secrets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
+    prepare_host "$ENGINE_ROOT"
 
     run_quiet \
         "Run tests" \
@@ -141,7 +123,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin env dd-cyberia production"
+        "cd $ENGINE_ROOT && node bin app load --env production --args deploy-id=dd-cyberia"
 
     run_quiet \
         "Build cyberia manifests" \
@@ -181,12 +163,12 @@ main() {
             sudo rm -rf ./engine-private/, \
             node bin clone underpostnet/engine-cyberia-private, \
             sudo mv ./engine-cyberia-private ./engine-private, \
-            node bin env dd-cyberia production, \
+            node bin app load --env production --args deploy-id=dd-cyberia, \
             node ./engine-private/itc-scripts/dd-cyberia-0.js, \
             sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
             node bin/cyberia run-workflow import-default-items --clean, \
             node bin/cyberia run-workflow import-default-items, \
-            node bin env dd-cyberia production, \
+            node bin app load --env production --args deploy-id=dd-cyberia, \
             node bin client dd-cyberia, \
             node bin start dd-cyberia production --run'"
 }

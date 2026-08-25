@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/logging.sh"
+source "$SCRIPT_DIR/../lib/host.sh"
 
 ENGINE_ROOT=/home/dd/engine
 INGRESS_NODE=localhost.localdomain
@@ -11,26 +12,7 @@ TARGET_NODE=hp-envy-iso-ram-rocky9
 main() {
     echo "Starting init deploy"
 
-    run_quiet \
-        "Pull repository" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run pull"
-
-    run_quiet \
-        "Install dependencies" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && npm install"
-
-    run_quiet \
-        "Sync secrets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
+    prepare_host "$ENGINE_ROOT"
 
     run_quiet \
         "Build dd-test configuration" \
@@ -51,7 +33,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.3.0' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost secret underpost --create-from-env,underpost start --build --run --pull-bundle dd-test production'"
+        "cd $ENGINE_ROOT && node bin deploy dd-test production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node ${TARGET_NODE} --sync --build-manifest --image 'underpost/wp:v3.3.0' --timeout-response 300000ms --versions green --replicas 1 --cmd 'underpost start --build --run --pull-bundle dd-test production'"
 
     run_quiet \
         "Issue dd-test certificates" \

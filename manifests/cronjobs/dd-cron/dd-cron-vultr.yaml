@@ -33,7 +33,7 @@ spec:
                 - -c
                 - >
                   cd /home/dd/engine &&
-                  node bin env dd-cron production &&
+                  node bin app load --env production --args deploy-id=dd-cron &&
                   node bin cron dd-cron vultr --git --kubeadm 
               volumeMounts:
                 - mountPath: /home/dd/engine

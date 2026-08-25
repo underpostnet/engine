@@ -363,7 +363,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`cd .. && git clone https://github.com/fastapi/full-stack-fastapi-template.git`);
 
       shellExec(`cd ${path} && git checkout . && git clean -f -d`);
-      const password = fs.readFileSync(`/home/dd/engine/engine-private/postgresql-password`, 'utf8');
+      const password = fs.readFileSync(Underpost.secret.seedSources('postgres-secret').password, 'utf8');
 
       fs.writeFileSync(
         `${path}/.env`,
@@ -442,24 +442,26 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       if (process.argv.includes('secret')) {
         const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'default';
         {
+          const postgresPasswordPath = Underpost.secret.seedSources('postgres-secret').password;
           const secretSelector = `fastapi-postgres-credentials`;
           shellExec(`sudo kubectl delete secret ${secretSelector} -n ${namespace} --ignore-not-found`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-literal=POSTGRES_DB=postgresdb` +
               ` --from-literal=POSTGRES_USER=admin` +
-              ` --from-file=POSTGRES_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
+              ` --from-file=POSTGRES_PASSWORD=${postgresPasswordPath}` +
               ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );
         }
         {
+          const postgresPasswordPath = Underpost.secret.seedSources('postgres-secret').password;
           const secretSelector = `fastapi-backend-config-secret`;
           shellExec(`sudo kubectl delete secret ${secretSelector} -n ${namespace} --ignore-not-found`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
-              ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
+              ` --from-file=SECRET_KEY=${postgresPasswordPath}` +
               ` --from-literal=FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}` +
-              ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
+              ` --from-file=FIRST_SUPERUSER_PASSWORD=${postgresPasswordPath}` +
               ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );
         }
@@ -1524,7 +1526,7 @@ nvidia/gpu-operator \
         console.log('Cleaning up existing dd-default config for VM template environment setup');
         fs.removeSync('./engine-private/conf/dd-default');
       }
-      shellExec(`node bin env clean`);
+      shellExec(`node bin app clean`);
       shellExec(`sed -i "s/127.0.0.1/$(underpost ip --dhcp)/g" .env.example`);
       break;
     }

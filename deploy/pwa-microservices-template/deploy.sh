@@ -60,7 +60,7 @@ main() {
         "Load dd-github-pages production environment" \
         "Target pod:" \
         14 \
-        node bin env dd-github-pages production
+        node bin app load --env production --args deploy-id=dd-github-pages
 
     run_quiet \
         "Build dd-github-pages client" \

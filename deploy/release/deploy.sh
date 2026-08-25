@@ -3,32 +3,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/logging.sh"
+source "$SCRIPT_DIR/../lib/host.sh"
 
 ENGINE_ROOT=/home/dd/engine
 
 main() {
     echo "Starting remote release deploy"
 
-    run_quiet \
-        "Pull repository" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run pull"
-
-    run_quiet \
-        "Install dependencies" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && npm install"
-
-    run_quiet \
-        "Sync secrets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
+    prepare_host "$ENGINE_ROOT"
 
     run_quiet \
         "Install underpost CLI" \
@@ -42,7 +24,7 @@ main() {
         "Target pod:" \
         14 \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin secret --from-cron-env"
+        "cd $ENGINE_ROOT && node bin host load"
 
     run_quiet \
         "Configure git" \
