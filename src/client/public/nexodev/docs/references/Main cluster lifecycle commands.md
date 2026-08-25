@@ -65,7 +65,38 @@ Configuration files in `./engine-private/conf/dd-<conf-id>/` use `env:` referenc
 
 Actual secret values are stored in per-deploy `.env.*` files (`./engine-private/conf/dd-<conf-id>/.env.production`, `.env.development`, `.env.test`). At runtime, the engine's `resolveConfSecrets()` function replaces `"env:VAR_NAME"` with the corresponding `process.env.VAR_NAME` value. Generated `conf.dd-*.js` manifests emit `process.env.VAR || ''` expressions — no plaintext secret is ever written to source-controlled JS files.
 
-LAMPP deploy (`dd-lampp`) clients are `null` in the public project configuration. Client builds for LAMPP deployments are handled by private internal logic in `engine-private/itc-scripts/`.
+LAMPP deploy (`dd-lampp`) clients are `null` in the public project configuration, so no client bundle is built for it.
+
+### OCI runtime overlay
+
+Values that only hold when a deployment runs as a container image — cluster-internal service names, in-cluster database endpoints — live in a sibling overlay file rather than in the base env file:
+
+```
+./engine-private/conf/dd-<conf-id>/.env.<env>          # host-scoped base
+./engine-private/conf/dd-<conf-id>/.env.<env>.oci      # container-scoped overrides
+```
+
+The overlay declares only the keys it changes; every other key keeps the base value. It is applied automatically when the reader is a container runtime:
+
+| Caller                                        | Overlay applied                                    |
+| --------------------------------------------- | -------------------------------------------------- |
+| `node bin app load` / `node bin env`          | Only when the process is inside a container        |
+| `node bin app apply`                          | Always — the Secret is consumed by container pods  |
+| `node bin app status`                         | Reports the overlay path under `ociOverlay`        |
+
+Detection is Kubernetes service injection (`KUBERNETES_SERVICE_HOST`) or Docker's `/.dockerenv` marker, the same check `underpost state` uses. On a developer host the base file is read untouched, so a local run keeps its `127.0.0.1` endpoints while the same deploy id resolves cluster endpoints inside a pod.
+
+Example — `./engine-private/conf/dd-core/.env.production.oci`:
+
+```dotenv
+VALKEY_HOST=valkey-service.default.svc.cluster.local
+VALKEY_PORT=6379
+DB_HOST=mongodb://mongodb-0.mongodb-service:27017,mongodb-1.mongodb-service:27017,mongodb-2.mongodb-service:27017
+DB_REPLICA_SET=rs0
+DB_AUTH_SOURCE=admin
+```
+
+Overlays are mirrored into the deploy's private configuration repository along with the rest of `conf/dd-<conf-id>/`, so no extra sync step is needed.
 
 > **⚠️ Important:** Ensure `.env.*` files and `engine-private/` are listed in `.gitignore` and never committed to public repositories.
 
@@ -138,6 +169,9 @@ node bin app clean
 | `--env <env>`           | `production`, `development` or `test`. Defaults to `production`                  |
 | `--args deploy-id=<id>` | Overrides the deployment id resolved from the repository context                 |
 | `--args sub-conf=<name>`| Selects `.env.<env>.<name>` when that file exists                                |
+
+Inside a container, `app load` additionally applies the deploy's `.env.<env>.oci` overlay on top of
+the resolved file — see [OCI runtime overlay](#oci-runtime-overlay).
 
 `app load` reads `./engine-private/conf/dd-<conf-id>/` and materializes the working tree:
 

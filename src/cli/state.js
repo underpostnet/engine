@@ -12,8 +12,7 @@
  */
 
 import { dotenvStoreFactory } from './dotenv-store.js';
-import { getUnderpostRootPath } from '../server/runtime/environment.js';
-import fs from 'fs-extra';
+import { getUnderpostRootPath, isOciRuntime } from '../server/runtime/environment.js';
 
 /**
  * @class UnderpostState
@@ -29,13 +28,14 @@ class UnderpostState {
 
     /**
      * Whether this process runs inside a container, by Kubernetes service injection or Docker's
-     * marker file. Lives here because every caller uses it to decide whether container runtime
-     * state is worth recording.
+     * marker file. Kept on this class because every caller reaches it through the state domain;
+     * the detection itself is {@link ServerEnvironment.isOciRuntime}, shared with the OCI env
+     * overlay so both agree on what "inside a container" means.
      * @returns {boolean} True when running inside a container.
      * @memberof UnderpostState
      */
     isInsideContainer() {
-      return !!process.env.KUBERNETES_SERVICE_HOST || fs.existsSync('/.dockerenv');
+      return isOciRuntime();
     },
   };
 }

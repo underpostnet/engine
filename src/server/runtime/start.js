@@ -276,7 +276,11 @@ class UnderpostStartUp {
       return false;
     },
     /**
-     * Run itc-scripts and builds client bundle.
+     * Materializes the deployment environment and builds the client bundle.
+     *
+     * Container-specific values are not applied by a script here: `app load` resolves the
+     * deployment's `.env.<env>.oci` overlay when it runs inside a container, so the working tree
+     * this build renders from already carries the cluster endpoints.
      * @param {string} deployId - The ID of the deployment.
      * @param {string} env - The environment of the deployment.
      * @param {Object} options - Options for the build.
@@ -301,11 +305,6 @@ class UnderpostStartUp {
       // needs to boot stage 2, which is resolved before `engine-private` is on disk.
       shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
       shellExec(`node bin app load --env ${env} --args deploy-id=${deployId}`);
-      if (fs.existsSync('./engine-private/itc-scripts')) {
-        const itcScripts = await fs.readdir('./engine-private/itc-scripts');
-        for (const itcScript of itcScripts)
-          if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
-      }
       if (options.pullBundle === true) shellExec(`node bin run pull-bundle --deploy-id ${deployId}`);
       // `--env` is explicit rather than inherited: the container's ambient NODE_ENV comes from
       // the injected `underpost-config`, and a build that guesses it renders the wrong conf.

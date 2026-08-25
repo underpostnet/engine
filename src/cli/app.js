@@ -14,7 +14,14 @@
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
-import { cleanDeployEnvFiles, DEFAULT_DEPLOY_ID, deployEnvFilePath, loadConf } from '../server/runtime/conf.js';
+import {
+  cleanDeployEnvFiles,
+  DEFAULT_DEPLOY_ID,
+  deployEnvContentFactory,
+  deployEnvFilePath,
+  deployOciEnvFilePath,
+  loadConf,
+} from '../server/runtime/conf.js';
 import { domainContextFactory } from './domains.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { readDeployRoutes } from '../server/network/router.js';
@@ -71,6 +78,24 @@ class UnderpostApp {
         UnderpostApp.API.deployId(context),
         `${context.env ?? ''}`.trim() || 'production',
         `${context.args?.['sub-conf'] ?? process.env.DEPLOY_SUB_CONF ?? ''}`.trim(),
+      );
+    },
+
+    /**
+     * Resolves the environment for a container runtime: the durable source with its
+     * `.env.<env>.oci` overlay applied. Used wherever the consumer is a container image rather
+     * than this host — the cluster Secret projection above all.
+     * @param {object} [context] - Normalized domain context.
+     * @returns {{source: string, overlay: string|null, content: string, values: Object<string,string>}}
+     *   The resolved environment.
+     * @memberof UnderpostApp
+     */
+    ociEnv(context = {}) {
+      return deployEnvContentFactory(
+        UnderpostApp.API.deployId(context),
+        `${context.env ?? ''}`.trim() || 'production',
+        `${context.args?.['sub-conf'] ?? process.env.DEPLOY_SUB_CONF ?? ''}`.trim(),
+        { oci: true },
       );
     },
 
@@ -178,21 +203,24 @@ class UnderpostApp {
       const envFilePath = UnderpostApp.API.envPath(context);
       if (!fs.existsSync(envFilePath)) throw new Error(`[app] deployment environment not found: ${envFilePath}`);
       const secret = appSecretName(deployId, context.env);
+      // This Secret is consumed only by container workloads, so the OCI overlay is applied
+      // unconditionally here — the host projecting it is not the runtime that reads it.
+      const { overlay, content } = UnderpostApp.API.ociEnv(context);
       if (context.dryRun) {
         logger.info('[dry-run] app apply would publish the Secret', {
           secret,
           namespace: context.namespace,
           source: envFilePath,
+          overlay,
         });
-        return { secret, namespace: context.namespace, env: context.env };
+        return { secret, namespace: context.namespace, env: context.env, overlay };
       }
       // The same reserved-key filter the host domain applies: an injected PATH would override
       // the container image's own no matter which Secret carried it.
       const sanitizedEnvPath = `${envFilePath}.secret`;
       fs.writeFileSync(
         sanitizedEnvPath,
-        fs
-          .readFileSync(envFilePath, 'utf8')
+        content
           .split('\n')
           .filter((line) => {
             const trimmed = line.trimStart();
@@ -210,8 +238,13 @@ class UnderpostApp {
       } finally {
         fs.removeSync(sanitizedEnvPath);
       }
-      logger.info('Deployment environment applied', { secret, env: context.env, namespace: context.namespace });
-      return { secret, namespace: context.namespace, env: context.env };
+      logger.info('Deployment environment applied', {
+        secret,
+        env: context.env,
+        namespace: context.namespace,
+        overlay,
+      });
+      return { secret, namespace: context.namespace, env: context.env, overlay };
     },
 
     /**
@@ -233,6 +266,7 @@ class UnderpostApp {
         silentOnError: true,
         disableLog: true,
       });
+      const ociOverlay = deployOciEnvFilePath(deployId, context.env);
       const report = {
         domain: 'app',
         env: context.env,
@@ -240,6 +274,7 @@ class UnderpostApp {
         deployId,
         source,
         sourcePresent: present,
+        ociOverlay: fs.existsSync(ociOverlay) ? ociOverlay : null,
         keys: present ? Object.keys(UnderpostApp.API.read(context)).length : 0,
         clusterSecret: `${projected ?? ''}`.trim() ? secret : null,
       };

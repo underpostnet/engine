@@ -20,7 +20,7 @@ import net from 'net';
 import crypto from 'crypto';
 import colors from 'colors';
 import { loggerFactory } from '../ops/logger.js';
-import { writeEnv } from './environment.js';
+import { isOciRuntime, writeEnv } from './environment.js';
 import { shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from '../network/underpost-gateway.js';
 import { DefaultConf } from '../../../conf.js';
@@ -411,6 +411,97 @@ const deployEnvFilePath = (deployId, env = 'production', subConf = '') => {
 };
 
 /**
+ * Suffix marking a deployment env file's OCI (container) runtime overlay.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const OCI_ENV_SUFFIX = '.oci';
+
+/**
+ * @method deployOciEnvFilePath
+ * @description Resolves a deployment's OCI runtime env overlay for an environment.
+ *
+ * The overlay is per environment, not per sub-configuration: it carries the values that only
+ * hold when the deployment runs as a container image (cluster-internal service names, in-cluster
+ * database endpoints), which are the same whichever host sub-configuration is in effect.
+ * @param {string} deployId - Deployment id.
+ * @param {string} [env='production'] - Environment selector.
+ * @returns {string} Path to the deployment's OCI env overlay.
+ * @memberof ServerConfBuilder
+ */
+const deployOciEnvFilePath = (deployId, env = 'production') =>
+  `${getConfFolder(deployId)}/.env.${env || 'production'}${OCI_ENV_SUFFIX}`;
+
+/**
+ * @method envLineKey
+ * @description The variable name a dotenv line declares, or `''` for blanks and comments.
+ * @param {string} line - One dotenv line.
+ * @returns {string} Declared key, or `''`.
+ * @memberof ServerConfBuilder
+ */
+const envLineKey = (line) => {
+  const trimmed = `${line}`.trimStart();
+  if (!trimmed || trimmed.startsWith('#')) return '';
+  const assign = trimmed.indexOf('=');
+  return assign === -1 ? '' : trimmed.slice(0, assign).trim();
+};
+
+/**
+ * @method ociEnvContentFactory
+ * @description Applies an OCI overlay onto base env contents.
+ *
+ * Textual rather than parse-and-render: base lines the overlay does not redeclare survive
+ * verbatim — comments, ordering, and value quoting included — and the overlay is appended whole,
+ * so an overridden key appears exactly once with the container value.
+ * @param {string} baseContent - The deployment's `.env.<env>` contents.
+ * @param {string} overlayContent - The matching `.env.<env>.oci` contents.
+ * @returns {string} Overlay-applied env contents.
+ * @memberof ServerConfBuilder
+ */
+const ociEnvContentFactory = (baseContent, overlayContent) => {
+  const overlay = `${overlayContent ?? ''}`.trim();
+  if (!overlay) return baseContent;
+  const overridden = new Set(overlay.split('\n').map(envLineKey).filter(Boolean));
+  const kept = `${baseContent ?? ''}`
+    .split('\n')
+    .filter((line) => {
+      const key = envLineKey(line);
+      return !key || !overridden.has(key);
+    })
+    .join('\n')
+    .trimEnd();
+  return `${kept}${kept ? '\n' : ''}${overlay}\n`;
+};
+
+/**
+ * @method deployEnvContentFactory
+ * @description Reads a deployment's env file for an environment, with its OCI overlay applied
+ * when one exists and the caller is resolving for a container runtime.
+ *
+ * Single source of the overlay precedence: {@link loadConf} materializes the working tree from
+ * it and {@link UnderpostApp} projects the cluster Secret from it, so the file a container reads
+ * and the Secret injected into it always carry the same values. Outside a container the base
+ * file is returned untouched, which is what keeps a developer host on its local endpoints.
+ * @param {string} deployId - Deployment id.
+ * @param {string} [env='production'] - Environment selector.
+ * @param {string} [subConf=''] - Sub-configuration name.
+ * @param {object} [options] - Resolution options.
+ * @param {boolean} [options.oci] - Force the overlay on or off; defaults to container detection.
+ * @returns {{source: string, overlay: string|null, content: string, values: Object<string,string>}}
+ *   The base file used, the overlay applied (or `null`), and the resulting contents and values.
+ * @memberof ServerConfBuilder
+ */
+const deployEnvContentFactory = (deployId, env = 'production', subConf = '', options = {}) => {
+  const source = deployEnvFilePath(deployId, env, subConf);
+  const baseContent = fs.readFileSync(source, 'utf8');
+  const overlayPath = deployOciEnvFilePath(deployId, env);
+  const applyOverlay = (options.oci ?? isOciRuntime()) && fs.existsSync(overlayPath);
+  if (!applyOverlay) return { source, overlay: null, content: baseContent, values: dotenv.parse(baseContent) };
+  const content = ociEnvContentFactory(baseContent, fs.readFileSync(overlayPath, 'utf8'));
+  return { source, overlay: overlayPath, content, values: dotenv.parse(content) };
+};
+
+/**
  * @method cleanDeployEnvFiles
  * @description Removes the working-tree env files {@link loadConf} materializes.
  * Single source of the file list, shared with the app domain's `clean` action.
@@ -455,17 +546,17 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
     if (typeConf === 'server') parsed = loadReplicas(deployId, parsed);
     Config.default[typeConf] = parsed;
   }
-  fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
-  fs.writeFileSync(`./.env.development`, fs.readFileSync(`${folder}/.env.development`, 'utf8'), 'utf8');
-  fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
+  // Each materialized copy carries its own OCI overlay, so a container that later switches
+  // NODE_ENV still reads container values rather than the host endpoints of the base file.
+  for (const envName of ['production', 'development', 'test'])
+    fs.writeFileSync(`./.env.${envName}`, deployEnvContentFactory(deployId, envName).content, 'utf8');
   const NODE_ENV = process.env.NODE_ENV || 'development';
   if (NODE_ENV) {
-    const subPathEnv = deployEnvFilePath(deployId, NODE_ENV, subConf);
-    fs.writeFileSync(`./.env`, fs.readFileSync(subPathEnv, 'utf8'), 'utf8');
-    const env = dotenv.parse(fs.readFileSync(subPathEnv, 'utf8'));
+    const { content, values } = deployEnvContentFactory(deployId, NODE_ENV, subConf);
+    fs.writeFileSync(`./.env`, content, 'utf8');
     process.env = {
       ...process.env,
-      ...env,
+      ...values,
     };
   }
   const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
@@ -2762,9 +2853,9 @@ ${renderHosts}`,
  * `engine-<suffix>-private` repository and pushes the result.
  *
  * Idempotent and safe to rerun: the private repo is cloned when missing or reset to a clean
- * checkout when present, then the deploy id's `conf` folder, matching `replica` and
- * `itc-scripts` entries, and any caller-supplied `extraPaths` payloads are mirrored. The
- * commit/push step is a no-op when nothing changed (`silentOnError`).
+ * checkout when present, then the deploy id's `conf` folder (its `.env.<env>.oci` runtime
+ * overlays included), matching `replica` entries, and any caller-supplied `extraPaths` payloads
+ * are mirrored. The commit/push step is a no-op when nothing changed (`silentOnError`).
  *
  * @method syncPrivateConf
  * @param {string} deployId - A concrete deploy id (e.g. `dd-cyberia`), not the `dd` meta id.
@@ -2794,12 +2885,10 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   fs.copySync(`./engine-private/conf/${deployId}`, confDest);
 
   fs.removeSync(`${privateRepoPath}/replica`);
-  for (const payloadDir of ['replica', 'itc-scripts']) {
-    const srcDir = `./engine-private/${payloadDir}`;
-    if (!fs.existsSync(srcDir)) continue;
-    for (const entry of fs.readdirSync(srcDir))
-      if (entry.match(deployId)) fs.copySync(`${srcDir}/${entry}`, `${privateRepoPath}/${payloadDir}/${entry}`);
-  }
+  const replicaSrcDir = `./engine-private/replica`;
+  if (fs.existsSync(replicaSrcDir))
+    for (const entry of fs.readdirSync(replicaSrcDir))
+      if (entry.match(deployId)) fs.copySync(`${replicaSrcDir}/${entry}`, `${privateRepoPath}/replica/${entry}`);
 
   for (const extraPath of extraPaths) fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
 
@@ -3206,6 +3295,10 @@ export {
   loadConfServerJson,
   getConfFolder,
   getConfFilePath,
+  deployEnvContentFactory,
+  deployOciEnvFilePath,
+  ociEnvContentFactory,
+  OCI_ENV_SUFFIX,
   readConfJson,
   DEFAULT_DEPLOY_ID,
   clusterContextFactory,

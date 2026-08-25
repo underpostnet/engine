@@ -103,6 +103,18 @@ const deployEnvFactory = (options = {}, fallback = 'production') => {
 };
 
 /**
+ * Renders environment values as dotenv file contents.
+ * @method renderEnv
+ * @param {Object<string, *>} envObj - Environment values keyed by variable name.
+ * @returns {string} Dotenv text, one `KEY=value` per line.
+ * @memberof ServerEnvironment
+ */
+const renderEnv = (envObj) =>
+  Object.keys(envObj)
+    .map((key) => `${key}=${envObj[key]}`)
+    .join('\n');
+
+/**
  * Writes environment values as a dotenv file.
  * @method writeEnv
  * @param {string} envPath - Destination file path.
@@ -110,13 +122,28 @@ const deployEnvFactory = (options = {}, fallback = 'production') => {
  * @returns {void}
  * @memberof ServerEnvironment
  */
-const writeEnv = (envPath, envObj) =>
-  fs.writeFileSync(
-    envPath,
-    Object.keys(envObj)
-      .map((key) => `${key}=${envObj[key]}`)
-      .join('\n'),
-    'utf8',
-  );
+const writeEnv = (envPath, envObj) => fs.writeFileSync(envPath, renderEnv(envObj), 'utf8');
 
-export { deployEnvFactory, environmentValueFactory, getNpmRootPath, getUnderpostRootPath, HOST_VOLUME_ROOT, writeEnv };
+/**
+ * Whether this process runs inside an OCI container image, by Kubernetes service injection or
+ * Docker's marker file.
+ *
+ * Lives in this module because it is an environment fact two unrelated concerns read: the
+ * container runtime state store ({@link UnderpostState.isInsideContainer}, which re-exports it)
+ * and the OCI env overlay {@link ServerConfBuilder.deployEnvContentFactory} resolves.
+ * @method isOciRuntime
+ * @returns {boolean} True when running inside a container.
+ * @memberof ServerEnvironment
+ */
+const isOciRuntime = () => !!process.env.KUBERNETES_SERVICE_HOST || fs.existsSync('/.dockerenv');
+
+export {
+  deployEnvFactory,
+  environmentValueFactory,
+  getNpmRootPath,
+  getUnderpostRootPath,
+  HOST_VOLUME_ROOT,
+  isOciRuntime,
+  renderEnv,
+  writeEnv,
+};

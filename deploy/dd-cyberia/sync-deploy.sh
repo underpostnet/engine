@@ -164,7 +164,6 @@ main() {
             node bin clone underpostnet/engine-cyberia-private, \
             sudo mv ./engine-cyberia-private ./engine-private, \
             node bin env dd-cyberia production, \
-            node ./engine-private/itc-scripts/dd-cyberia-0.js, \
             sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
             node bin/cyberia run-workflow import-default-items --clean, \
             node bin/cyberia run-workflow import-default-items, \

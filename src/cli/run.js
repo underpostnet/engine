@@ -3038,7 +3038,6 @@ EOF`);
                 node bin clone underpostnet/engine-cyberia-private, \
                 sudo mv ./engine-cyberia-private ./engine-private, \
                 node bin env dd-cyberia ${env}, \
-                node ./engine-private/itc-scripts/dd-cyberia-0.js, \
                 sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
                 node bin env dd-cyberia ${env}, \
                 node bin client dd-cyberia ${env}, \
