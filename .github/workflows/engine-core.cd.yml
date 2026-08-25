@@ -60,9 +60,8 @@ jobs:
           # Optional: increase timeout for long-running commands
           command_timeout: 60m
           # Optional: if your private key has a passphrase, add:
-          # passphrase: ${{ secrets.SSH_PASSWORD }}
+          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
           # Commands to run on the remote VM
-          # TODO: optimize process and logs: node bin run metadata dd-core
           script: |
             set -e
             set -o pipefail
