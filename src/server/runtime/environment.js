@@ -82,6 +82,27 @@ const environmentValueFactory = (key) => {
 };
 
 /**
+ * Single source of truth for resolving a deployment environment name from CLI options.
+ * Explicit `--env` always wins; `--dev` is the development shorthand; otherwise the
+ * caller's `fallback` decides. Deliberately does not read `process.env.NODE_ENV`, so a
+ * developer shell that exports it cannot silently retarget a deploy — callers whose
+ * contract is ambient (the client build) pass it in as `fallback` themselves.
+ * @method deployEnvFactory
+ * @param {object} [options] - CLI options carrying the environment selection.
+ * @param {string} [options.env] - Explicit environment name.
+ * @param {boolean} [options.dev] - Development context shorthand.
+ * @param {string} [fallback='production'] - Value when no option selects an environment.
+ * @returns {string} `development` | `production` | `test` | custom env name.
+ * @memberof ServerEnvironment
+ */
+const deployEnvFactory = (options = {}, fallback = 'production') => {
+  const explicit = `${options?.env ?? ''}`.trim();
+  if (explicit) return explicit;
+  if (options?.dev === true) return 'development';
+  return fallback;
+};
+
+/**
  * Writes environment values as a dotenv file.
  * @method writeEnv
  * @param {string} envPath - Destination file path.
@@ -98,4 +119,4 @@ const writeEnv = (envPath, envObj) =>
     'utf8',
   );
 
-export { environmentValueFactory, getNpmRootPath, getUnderpostRootPath, HOST_VOLUME_ROOT, writeEnv };
+export { deployEnvFactory, environmentValueFactory, getNpmRootPath, getUnderpostRootPath, HOST_VOLUME_ROOT, writeEnv };
