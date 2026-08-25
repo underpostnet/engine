@@ -1400,6 +1400,10 @@ Prevent build private config repo.`,
       const gitUsername = repositoryIdentityFactory().owner;
       const gitEmail = process.env.GITHUB_EMAIL || `development@underpost.net`;
 
+      // Runtime document roots are chowned to the web server user, and git refuses to operate on
+      // a tree owned by someone else until it is declared safe.
+      Underpost.repo.declareSafeDirectory(repoPath);
+
       if (!fs.existsSync(`${repoPath}/.git`)) {
         shellExec(`mkdir -p "${repoPath}" && git init "${repoPath}"`);
       }
@@ -1499,6 +1503,67 @@ Prevent build private config repo.`,
         logger.error(`Git operation failed`, { repoName, operation, error: error.message });
         return false;
       }
+    },
+
+    /**
+     * Declares a path safe for git, skipping the write when it is already declared so repeated
+     * provisioning does not append duplicate global config entries.
+     * @param {string} repoPath - Absolute path to declare.
+     * @returns {void}
+     * @memberof UnderpostRepository
+     */
+    declareSafeDirectory(repoPath) {
+      const declared = shellExec(`git config --global --get-all safe.directory`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+      });
+      if (`${declared ?? ''}`.split('\n').some((entry) => entry.trim() === repoPath)) return;
+      shellExec(`git config --global --add safe.directory "${repoPath}"`, { silent: true });
+    },
+
+    /**
+     * Materializes a runtime's document root from the repository its conf route declares.
+     *
+     * Shared by every repository-backed runtime — {@link WpService} for WordPress site roots and
+     * {@link LamppService} for static Apache document roots — so one deployment can serve many
+     * repositories on the same host through a single provisioning contract.
+     *
+     * Idempotent: an existing directory is left alone, and the clone lands on a temporary path
+     * first so an interrupted run never leaves a partial tree at the document root.
+     *
+     * @param {object} opts
+     * @param {string} opts.host - Virtual-host name, for logging.
+     * @param {string} opts.siteRoot - Absolute path the checkout must occupy.
+     * @param {string} opts.repository - Repository URL or `owner/repo` short form.
+     * @param {string} [opts.owner='daemon:daemon'] - Filesystem owner of the served tree.
+     * @returns {{accessible: boolean, cloned: boolean}} Whether the remote answered, and whether
+     *   this call created the checkout.
+     * @memberof UnderpostRepository
+     */
+    provisionSiteRoot({ host, siteRoot, repository, owner = 'daemon:daemon' }) {
+      if (!process.env.GITHUB_TOKEN && Underpost.repo.repoUrlFactory(repository).startsWith('https://github.com/'))
+        logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
+
+      if (!Underpost.repo.isRemoteRepo(repository)) {
+        logger.warn(`${host}: remote repository not accessible (${repository})`);
+        return { accessible: false, cloned: false };
+      }
+      if (fs.existsSync(siteRoot)) {
+        logger.info(`${host}: repo already present at ${siteRoot}`);
+        return { accessible: true, cloned: false };
+      }
+
+      logger.info(`${host}: cloning ${repository} → ${siteRoot}`);
+      const tmp = `${siteRoot}.tmp`;
+      if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
+      fs.mkdirSync(path.dirname(siteRoot), { recursive: true });
+      shellExec(`git clone "${Underpost.repo.resolveAuthUrl(repository)}" "${tmp}"`);
+      shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
+      shellExec(`sudo chmod -R 755 "${siteRoot}"`);
+      shellExec(`sudo chown -R ${owner} "${siteRoot}"`);
+      return { accessible: true, cloned: true };
     },
 
     /**

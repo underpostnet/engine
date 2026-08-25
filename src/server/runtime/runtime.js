@@ -140,6 +140,7 @@ const buildRuntime = async () => {
               path,
               directory,
               rootHostPath,
+              repository,
               redirect,
               redirectTarget,
               resetRouter: currentPort === initPort,

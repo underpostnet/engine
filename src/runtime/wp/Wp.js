@@ -141,14 +141,7 @@ class WpService {
       ({ freshInstall } = WpService.provisionFresh({ host, siteRoot: wpDir, db, wp, subDir }));
     }
 
-    // Ensure git is initialized and linked to the backup repository.
-    // Mark the directory as safe before git operations — the site root is owned
-    // by daemon:daemon (Apache) and git 2.35+ refuses to run in directories owned
-    // by a different user unless explicitly declared safe.
-    if (repository) {
-      shellExec(`git config --global --add safe.directory "${wpDir}"`);
-      Underpost.repo.initLocalRepo({ path: wpDir, origin: repository });
-    }
+    if (repository) Underpost.repo.initLocalRepo({ path: wpDir, origin: repository });
 
     // Write a root .htaccess that rewrites / → /subDir/ when running in subdirectory mode
     if (subDir) {
@@ -187,9 +180,9 @@ class WpService {
   }
 
   /**
-   * Clone mode — clones `repository` into `siteRoot` if not present, then
-   * verifies `wp-config.php` exists.  If it is missing the site root is wiped
-   * and a fresh WordPress install is performed (requires `db` config).
+   * Clone mode — materializes `siteRoot` from `repository` via
+   * {@link UnderpostRepository.provisionSiteRoot}, then verifies `wp-config.php` exists.
+   * An unreachable remote or a checkout without `wp-config.php` falls back to a fresh install.
    * @param {object} opts
    * @param {string}      opts.host       - Virtual-host name (for logging).
    * @param {string}      opts.siteRoot   - Absolute path where the site should live.
@@ -197,37 +190,11 @@ class WpService {
    * @param {object|null} [opts.db]       - MariaDB config used as fallback for fresh install.
    */
   static provisionClone({ host, siteRoot, repository, db, wp, subDir = '' }) {
-    if (!process.env.GITHUB_TOKEN && repository && repository.startsWith('https://github.com/')) {
-      logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
-    }
+    const { accessible } = Underpost.repo.provisionSiteRoot({ host, siteRoot, repository });
+    if (!accessible) return WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
 
-    // Step 0 — verify the remote repository is reachable; fall back to fresh install if not.
-    // repository.js isRemoteRepo handles token injection internally.
-    const repoAccessible = Underpost.repo.isRemoteRepo(repository);
-    logger.info(`${host}: remote accessible = ${repoAccessible} (${repository})`);
-    if (!repoAccessible) {
-      logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);
-      return WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
-    }
-
-    // Step 1 — clone if the directory does not exist yet
-    if (!fs.existsSync(siteRoot)) {
-      logger.info(`${host}: cloning ${repository} → ${siteRoot}`);
-      const cloneUrl = Underpost.repo.resolveAuthUrl(repository);
-      const tmp = `${siteRoot}.tmp`;
-      if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
-      shellExec(`git clone "${cloneUrl}" "${tmp}"`);
-      shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
-      shellExec(`sudo chmod -R 755 "${siteRoot}"`);
-      shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);
-    } else {
-      logger.info(`${host}: repo already present at ${siteRoot}`);
-    }
-
-    // Step 2 — verify wp-config.php; if missing, wipe and do a fresh install.
-    // initLocalRepo is NOT called here — createApp always calls it after provisionClone
-    // returns (whether clone or fallback path) so we avoid a double-init and ensure
-    // safe.directory is declared before git runs.
+    // A checkout without wp-config.php is not a WordPress site: discard it and install fresh.
+    // initLocalRepo is left to createApp so both provisioning paths converge on one call.
     if (!fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
@@ -515,10 +482,9 @@ Thumbs.db
     const repoName = repository.split('/').pop().split('.')[0];
 
     logger.info(`${host}: persisting site to repository`);
-    shellExec(
-      `cd "${siteRoot}" && git add -A && git commit -m "wp provision ${host} $(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
-      { silentOnError: true },
-    );
+    shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp provision ${host} $(date -u +%Y-%m-%dT%H:%M:%SZ)"`, {
+      silentOnError: true,
+    });
     shellExec(`cd "${siteRoot}" && underpost push . ${githubOrg}/${repoName} -f`);
     logger.info(`${host}: initial commit pushed to ${githubOrg}/${repoName}`);
   }
@@ -630,7 +596,9 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 
     // MariaDB export is handled by the shared db.js backup flow — no duplicate dump here.
     if (fs.existsSync(path.join(siteRoot, '.git'))) {
-      shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"`, { silentOnError: true });
+      shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"`, {
+        silentOnError: true,
+      });
       shellExec(`cd "${siteRoot}" && underpost push . ${githubOrg}/${repository.split('/').pop().split('.')[0]}`);
       logger.info(`backup: git push done for ${siteRoot}`);
     } else {

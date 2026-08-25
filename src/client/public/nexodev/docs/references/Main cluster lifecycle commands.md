@@ -67,6 +67,26 @@ Actual secret values are stored in per-deploy `.env.*` files (`./engine-private/
 
 LAMPP deploy (`dd-lampp`) clients are `null` in the public project configuration, so no client bundle is built for it.
 
+### Repository-backed document roots
+
+A `conf.server.json` route whose runtime serves files from a checkout declares the source repository alongside its document root, so provisioning is part of the runtime rather than an out-of-band script:
+
+```json
+{
+  "www.example.com": {
+    "/": {
+      "runtime": "lampp",
+      "directory": "/home/dd/netlify_example",
+      "repository": "env:LAMPP_REPOSITORY_EXAMPLE"
+    }
+  }
+}
+```
+
+The `env:` pointer resolves from the deploy's `.env.<env>`, keeping repository URLs and their tokens out of source control. One deploy id can back as many repositories as it has routes — each route provisions its own document root independently.
+
+`lampp` clones the repository straight into `directory`; `wp` resolves its own site root under `/opt/lampp/htdocs/wp/<host>` and falls back to a fresh WordPress install when the remote is unreachable or the checkout has no `wp-config.php`. Both go through `UnderpostRepository.provisionSiteRoot`, which clones only when the directory is absent, so a restart never re-clones a provisioned host. The checkout keeps its `.git`, which is what lets `node bin db --backup` commit and push a site back to its repository; the generated vhost denies `.git` over HTTP.
+
 ### OCI runtime overlay
 
 Values that only hold when a deployment runs as a container image — cluster-internal service names, in-cluster database endpoints — live in a sibling overlay file rather than in the base env file:

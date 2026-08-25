@@ -8,6 +8,7 @@
 import fs from 'fs-extra';
 import { getRootDirectory, shellCd, shellExec } from '../../server/runtime/process.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import Underpost from '../../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -71,12 +72,8 @@ class LamppService {
    * @memberof LamppService
    */
   async initService(options = { daemon: false }) {
-    let cmd;
-
-    // 1. Write the current virtual host router configuration
     fs.writeFileSync(`/opt/lampp/etc/extra/httpd-vhosts.conf`, this.router || '', 'utf8');
 
-    // 2. Ensure the vhosts file is included in the main httpd.conf
     const httpdConfPath = `/opt/lampp/etc/httpd.conf`;
     fs.writeFileSync(
       httpdConfPath,
@@ -86,12 +83,9 @@ class LamppService {
       'utf8',
     );
 
-    // 3. Stop the service before making port changes
-    cmd = `sudo /opt/lampp/lampp stop`;
-    shellExec(cmd);
+    shellExec(`sudo /opt/lampp/lampp stop`);
 
-    // 4. Comment out default port Listen directives (80 and 443) to prevent conflicts
-    // Modify httpd.conf (port 80)
+    // Every vhost declares its own Listen, so the stock 80/443 directives would double-bind.
     if (!fs.readFileSync(httpdConfPath, 'utf8').match(/# Listen 80/))
       fs.writeFileSync(
         httpdConfPath,
@@ -99,7 +93,6 @@ class LamppService {
         'utf8',
       );
 
-    // Modify httpd-ssl.conf (port 443)
     const httpdSslConfPath = `/opt/lampp/etc/extra/httpd-ssl.conf`;
     if (fs.existsSync(httpdSslConfPath) && !fs.readFileSync(httpdSslConfPath, 'utf8').match(/# Listen 443/))
       fs.writeFileSync(
@@ -108,7 +101,8 @@ class LamppService {
         'utf8',
       );
 
-    // 5. Modify the lampp startup script to bypass port checking for 80 and 443
+    // The startup script aborts when 80/443 are already held by the ingress proxy; short-circuit
+    // its probes so the service still comes up behind one.
     const lamppScriptPath = `/opt/lampp/lampp`;
     if (!fs.readFileSync(lamppScriptPath, 'utf8').match(/testport 443 && false/))
       fs.writeFileSync(
@@ -123,9 +117,7 @@ class LamppService {
         'utf8',
       );
 
-    // 6. Start the service
-    cmd = `sudo /opt/lampp/lampp start`;
-    shellExec(cmd);
+    shellExec(`sudo /opt/lampp/lampp start`);
   }
 
   /**
@@ -217,13 +209,15 @@ class LamppService {
    * @param {string} options.path - The base path for error documents (e.g., '/app').
    * @param {string} [options.directory] - Optional absolute path to the document root.
    * @param {string} [options.rootHostPath] - Relative path from the root directory to the document root, used if `directory` is not provided.
+   * @param {string} [options.repository] - Repository backing the document root. Each conf route
+   *   declares its own, so one host serves as many repositories as it has routes.
    * @param {boolean} [options.redirect] - If true, enables RewriteEngine for redirection.
    * @param {string} [options.redirectTarget] - The target URL for redirection.
    * @param {boolean} [options.resetRouter] - If true, clears the existing router configuration before appending the new one.
    * @returns {{disabled: boolean}} An object indicating if the service is disabled.
    * @memberof LamppService
    */
-  createApp({ port, host, path, directory, rootHostPath, redirect, redirectTarget, resetRouter }) {
+  createApp({ port, host, path, directory, rootHostPath, repository, redirect, redirectTarget, resetRouter }) {
     if (!this.enabled()) return { disabled: true };
 
     if (!this.ports.includes(port)) this.ports.push(port);
@@ -231,7 +225,14 @@ class LamppService {
 
     const documentRoot = directory ? directory : `${getRootDirectory()}${rootHostPath}`;
 
-    // Append the new VirtualHost configuration
+    if (repository) {
+      const { accessible } = Underpost.repo.provisionSiteRoot({ host, siteRoot: documentRoot, repository });
+      // The checkout keeps its `.git` so the backup pipeline can commit and push it back; the
+      // vhost below denies it over HTTP.
+      if (accessible) Underpost.repo.initLocalRepo({ path: documentRoot, origin: repository });
+      else logger.warn(`${host}: serving ${documentRoot} unprovisioned`);
+    }
+
     this.appendRouter(`
 Listen ${port}
 
@@ -305,55 +306,3 @@ Listen ${port}
 const Lampp = new LamppService();
 
 export { Lampp };
-
-// -- helper info --
-
-// ERR too many redirects:
-// Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
-// Check: wp-config.php
-// if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-//   $_SERVER['HTTPS'] = 'on';
-// }
-// For plugins:
-// define( 'FS_METHOD', 'direct' );
-
-// ErrorDocument 404 /custom_404.html
-// ErrorDocument 500 /custom_50x.html
-// ErrorDocument 502 /custom_50x.html
-// ErrorDocument 503 /custom_50x.html
-// ErrorDocument 504 /custom_50x.html
-
-// Respond When Error Pages are Directly Requested
-
-// <Files "custom_404.html">
-//     <If "-z %{ENV:REDIRECT_STATUS}">
-//         RedirectMatch 404 ^/custom_404.html$
-//     </If>
-// </Files>
-
-// <Files "custom_50x.html">
-//     <If "-z %{ENV:REDIRECT_STATUS}">
-//         RedirectMatch 404 ^/custom_50x.html$
-//     </If>
-// </Files>
-
-// Add www or https with htaccess rewrite
-
-// Options +FollowSymLinks
-// RewriteEngine On
-// RewriteCond %{HTTP_HOST} ^example.com [NC]
-// RewriteRule ^(.*)$ http://example.com/$1 [R=301,L]
-
-// Redirect http to https with htaccess rewrite
-
-// RewriteEngine On
-// RewriteCond %{SERVER_PORT} 80
-// RewriteRule ^(.*)$ https://www.example.com/$1 [R,L]
-
-// Redirect to HTTPS with www subdomain
-
-// RewriteEngine On
-// RewriteCond %{HTTPS} off [OR]
-// RewriteCond %{HTTP_HOST} ^www\. [NC]
-// RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
-// RewriteRule ^ https://%1%{REQUEST_URI} [L,NE,R=301]
