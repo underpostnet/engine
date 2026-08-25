@@ -13,131 +13,131 @@ INGRESS_NODE=localhost.localdomain
 # status query stays outside run_quiet: its stdout is the value we branch on.
 has_changes() {
     local path="$1"
-
+    
     sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin cmt $path --has-changes" | tr -d '\n'
+    "cd $ENGINE_ROOT && node bin cmt $path --has-changes" | tr -d '\n'
 }
 
 main() {
     echo "Starting remote sync and deploy"
-
+    
     prepare_host "$ENGINE_ROOT"
-
+    
     run_quiet \
-        "Run tests" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && npm run test"
-
+    "Run tests" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && npm run test"
+    
     run_quiet \
-        "Clean cyberia public assets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run clean src/client/public/cyberia"
-
+    "Clean cyberia public assets" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin run clean src/client/public/cyberia"
+    
     run_quiet \
-        "Clean underpost public assets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run clean src/client/public/underpost"
-
+    "Clean underpost public assets" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin run clean src/client/public/underpost"
+    
     run_quiet \
-        "Initialize cyberia assets repository" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin cmt src/client/public/cyberia --init-repo"
-
+    "Initialize cyberia assets repository" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin cmt src/client/public/cyberia --init-repo"
+    
     run_quiet \
-        "Initialize underpost assets repository" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin cmt src/client/public/underpost --init-repo"
-
+    "Initialize underpost assets repository" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin cmt src/client/public/underpost --init-repo"
+    
     run_quiet \
-        "Pull cyberia public assets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin fs src/client/public/cyberia --pull --recursive --deploy-id dd-cyberia"
-
+    "Pull cyberia public assets" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin fs src/client/public/cyberia --pull --recursive --deploy-id dd-cyberia"
+    
     run_quiet \
-        "Pull underpost public assets" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin fs src/client/public/underpost --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
-
+    "Pull underpost public assets" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin fs src/client/public/underpost --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
+    
     if [ "$(has_changes src/client/public/cyberia)" = "1" ]; then
         run_quiet \
-            "Commit cyberia public assets" \
-            "Target pod:" \
-            14 \
-            sudo -n -- /bin/bash -lc \
-            "cd $ENGINE_ROOT && node bin cmt src/client/public/cyberia feat 'Update cyberia public assets'"
+        "Commit cyberia public assets" \
+        "Target pod:" \
+        14 \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin cmt src/client/public/cyberia feat 'Update cyberia public assets'"
     fi
-
+    
     if [ "$(has_changes src/client/public/underpost)" = "1" ]; then
         run_quiet \
-            "Commit underpost public assets" \
-            "Target pod:" \
-            14 \
-            sudo -n -- /bin/bash -lc \
-            "cd $ENGINE_ROOT && node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
+        "Commit underpost public assets" \
+        "Target pod:" \
+        14 \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
     fi
-
+    
     run_quiet \
-        "Apply format fixes" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && npm run fix"
-
+    "Apply format fixes" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && npm run fix"
+    
     run_quiet \
-        "Reinstall dependencies" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && npm install"
-
+    "Reinstall dependencies" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && npm install"
+    
     run_quiet \
-        "Build cyberia deployment bundle" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin/deploy cyberia"
-
+    "Build cyberia deployment bundle" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin/deploy cyberia"
+    
     run_quiet \
-        "Clean build artifacts" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && underpost run clean"
-
+    "Clean build artifacts" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && underpost run clean"
+    
     run_quiet \
-        "Load dd-cyberia production environment" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin app load --env production --args deploy-id=dd-cyberia"
-
+    "Load dd-cyberia production environment" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin app load --env production --args deploy-id=dd-cyberia"
+    
     run_quiet \
-        "Build cyberia manifests" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin/cyberia run-workflow build-manifest"
-
+    "Build cyberia manifests" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin/cyberia run-workflow build-manifest"
+    
     run_quiet \
-        "Sync dd-cyberia cluster" \
-        "Target pod:" \
-        14 \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync 'dd-cyberia,1,,underpost/engine-cyberia:latest' \
+    "Sync dd-cyberia cluster" \
+    "Target pod:" \
+    14 \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin run sync 'dd-cyberia,1,,underpost/engine-cyberia:latest' \
           --kubeadm \
           --deploy-id-cron-jobs none \
           --timeout-response 300000ms \
@@ -163,14 +163,15 @@ main() {
             sudo rm -rf ./engine-private/, \
             node bin clone underpostnet/engine-cyberia-private, \
             sudo mv ./engine-cyberia-private ./engine-private, \
-            node bin app load --env production --args deploy-id=dd-cyberia, \
+            node bin env dd-cyberia production, \
             node ./engine-private/itc-scripts/dd-cyberia-0.js, \
             sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
             node bin/cyberia run-workflow import-default-items --clean, \
             node bin/cyberia run-workflow import-default-items, \
-            node bin app load --env production --args deploy-id=dd-cyberia, \
+            npm link, \
+            node bin env dd-cyberia production, \
             node bin client dd-cyberia, \
-            node bin start dd-cyberia production --run'"
+    node bin start dd-cyberia production --run'"
 }
 
 main "$@"

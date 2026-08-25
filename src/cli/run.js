@@ -3037,11 +3037,11 @@ EOF`);
                 sudo rm -rf ./engine-private/, \
                 node bin clone underpostnet/engine-cyberia-private, \
                 sudo mv ./engine-cyberia-private ./engine-private, \
-                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
+                node bin env dd-cyberia ${env}, \
                 node ./engine-private/itc-scripts/dd-cyberia-0.js, \
                 sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
-                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
-                node bin client dd-cyberia --env ${env}, \
+                node bin env dd-cyberia ${env}, \
+                node bin client dd-cyberia ${env}, \
                 node bin start dd-cyberia ${env} --run'`
             : '');
         deployFlagsById[deployId] = deployFlags;
