@@ -22,14 +22,17 @@
 | [`pull`](#underpost-pull) | Pulls the latest changes from a specified GitHub repository. |
 | [`cmt`](#underpost-cmt) | Manages commits to a GitHub repository, supporting various commit types and options. |
 | [`push`](#underpost-push) | Pushes committed changes from a local repository to a remote GitHub repository. |
-| [`env`](#underpost-env) | Sets environment variables and configurations related to a specific deployment ID. |
+| [`env`](#underpost-env) | Deprecated alias of `underpost app load`, kept for images that predate it. |
 | [`static`](#underpost-static) | Manages static build of page, bundles, and documentation with comprehensive customization options. |
-| [`config`](#underpost-config) | Manages Underpost configurations using various operators. |
+| [`config`](#underpost-config) | Reads and writes single keys of the underpost root env store (see `underpost host` for its lifecycle). |
+| [`state`](#underpost-state) | Reads and writes the container runtime state store used by the deployment lifecycle. |
 | [`root`](#underpost-root) | Displays the root path of the npm installation. |
 | [`ip`](#underpost-ip) | Displays the current public machine IP addresses. |
 | [`cluster`](#underpost-cluster) | Manages Kubernetes clusters, defaulting to Kind cluster initialization. |
 | [`deploy`](#underpost-deploy) | Manages application deployments, defaulting to deploying development pods. |
-| [`secret`](#underpost-secret) | Manages secrets for various platforms. |
+| [`secret`](#underpost-secret) | Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets. |
+| [`host`](#underpost-host) | Host configuration: the node-level operational environment shared by the cluster. |
+| [`app`](#underpost-app) | Application environment: one deployment's runtime configuration. |
 | [`image`](#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
 | [`db`](#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |
@@ -111,6 +114,8 @@ Builds client assets, single replicas, and/or syncs environment ports.
 | `--lite-build` | Skip full build (default is full build) |
 | `--icons-build` | Build icons |
 | `--ssr` | Rebuild only SSR views defined in conf.ssr.json, leaving client assets untouched |
+| `--env <env>` | Target environment for the build (e.g. "production", "development"). Falls back to --dev, then NODE_ENV. |
+| `--dev` | Sets the development cli context (shorthand for --env development). |
 | `-h, --help` | display help for command |
 
 ---
@@ -262,17 +267,17 @@ Pushes committed changes from a local repository to a remote GitHub repository.
 
 ### underpost env
 
-Sets environment variables and configurations related to a specific deployment ID.
+Deprecated alias of `underpost app load`, kept for images that predate it.
 
-**Usage:** `underpost env [options] [deploy-id] [env] [subConf]`
+**Usage:** `underpost env [options] <deploy-id> [env] [sub-conf]`
 
 #### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `deploy-id` | The deployment configuration ID. Use 'clean' to restore default environment settings. Use 'root' to load underpost root env. Use 'current' to get plain current deploy Id. |
-| `env` | Optional: The environment to set (e.g., "production", "development"). Defaults to "production". |
-| `subConf` | Optional: The sub configuration to set. |
+| `deploy-id` | The deployment configuration ID. |
+| `env` | The environment to load. Defaults to production. |
+| `sub-conf` | Optional: the sub configuration to select. |
 
 #### Options
 
@@ -327,7 +332,7 @@ Manages static build of page, bundles, and documentation with comprehensive cust
 
 ### underpost config
 
-Manages Underpost configurations using various operators.
+Reads and writes single keys of the underpost root env store (see `underpost host` for its lifecycle).
 
 **Usage:** `underpost config [options] <operator> [key] [value]`
 
@@ -335,7 +340,7 @@ Manages Underpost configurations using various operators.
 
 | Argument | Description |
 | --- | --- |
-| `operator` | The configuration operation to perform. Options: set, delete, get, list, clean, isInsideContainer. |
+| `operator` | The configuration operation to perform. One of: get, set, delete, list. |
 | `key` | Optional: The specific configuration key to manage. |
 | `value` | Optional: The value to set for the configuration key. |
 
@@ -345,9 +350,31 @@ Manages Underpost configurations using various operators.
 | --- | --- |
 | `--plain` | Prints the configuration value in plain text. |
 | `--filter <keyword>` | Filters the list by matching key or value (only for list operation). |
-| `--deploy-id <deploy-id>` | Sets the deployment configuration ID for the operation context. |
-| `--build` | Sets the build context for the operation. |
 | `--copy` | Copies the configuration value to the clipboard (only for get operation). |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost state
+
+Reads and writes the container runtime state store used by the deployment lifecycle.
+
+**Usage:** `underpost state [options] <operator> [key] [value]`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `operator` | The state operation to perform. One of: get, set, delete, list. |
+| `key` | Optional: The state key to manage (e.g. container-status). |
+| `value` | Optional: The value to set for the state key. |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--plain` | Prints the state value in plain text. |
+| `--filter <keyword>` | Filters the list by matching key or value (only for list operation). |
 | `-h, --help` | display help for command |
 
 ---
@@ -524,42 +551,75 @@ Manages application deployments, defaulting to deploying development pods.
 
 ### underpost secret
 
-Manages secrets for various platforms.
+Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets.
 
-**Usage:** `underpost secret [options] [platform]`
+**Usage:** `underpost secret [options] <action>`
 
 #### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `platform` | The secret management platform. Options: grafanaAdmin, underpost, sops, sanitizeSecretEnvFile, underpostConfig, globalSecretClean. Defaults to "sops". (default: "sops") |
+| `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. |
 
 #### Options
 
 | Option | Description |
 | --- | --- |
-| `--init` | Initializes the secrets platform environment. |
-| `--create-from-file <path-env-file>` | Creates secrets from a specified environment file. |
-| `--create-from-env` | Creates secrets from container environment variables (envFrom: secretRef). |
-| `--global-clean` | Removes all filesystem traces of secrets (engine-private, .env, conf cache). |
-| `--list` | Lists all available secrets for the platform. |
-| `--encrypt <plaintext-path>` | Encrypts a plaintext Secret manifest into the Git-tracked SOPS store and shreds the source (sops platform). |
-| `--apply` | Decrypts stored SOPS manifests and streams them into kubectl apply, without writing plaintext to disk (sops platform). |
-| `--namespace <namespace>` | Kubernetes namespace for secret operations (defaults to "default"). |
-| `--install-tools` | Installs the sops and age host binaries only, without running a full cluster host initialization. |
-| `--rotate` | Re-keys every stored SOPS manifest onto --recipient. Secret values are unchanged, so no workload restart is needed. |
-| `--recipient <age-public-key>` | Incoming Age public recipient for --rotate. |
-| `--prune-recipients` | With --rotate, makes --recipient the only recipient, revoking every previous key (use after a key compromise). Requires --force, and revokes CI/CD keys too unless they are named in --keep-recipients. |
-| `--keep-recipients <age-public-keys>` | Comma-separated recipients to retain while --prune-recipients revokes the rest (e.g. the CI/CD key). |
-| `--purge <secret-name>` | Emergency removal: deletes the live Kubernetes Secret and takes its encrypted manifest out of the store. |
-| `--force` | Confirms the irreversible variant: deletes the manifest instead of archiving it (--purge), revokes recipients (--rotate --prune-recipients), or replaces an existing manifest (--encrypt). |
-| `--dry-run` | Reports what --apply, --rotate, or --purge would do without changing anything. |
-| `--setup [secret-names]` | End-to-end SOPS/Age onboarding: installs tooling, generates the key and creation rules, encrypts the named Secrets into the Git-tracked store, then validates and applies them. Defaults to the whole self-hosted data tier (postgres, mariadb, mongodb + keyfile). |
-| `--status [secret-keys]` | Read-only report of the SOPS/Age system: tooling, key and recipients, creation rules, stored manifests with decryptability and cluster drift, and which source each managed Secret deploys from. Optional comma-separated keys narrow it by case-insensitive substring. |
-| `--args <key=value-list>` | Comma-separated `key=value` overrides for Secret data keys during --setup. |
-| `--from-cron-env` | Loads the underpost root env store from the cron deploy env file resolved through engine-private/deploy/dd.cron. |
-| `--underpost-config [env]` | Publishes the cron deploy environment as the underpost-config Kubernetes Secret injected with envFrom (default env: production). |
-| `--dev` | Sets the development cli context (reads .env.development for --from-cron-env). |
+| `--env <env>` | Target environment: development \| production \| test (default: production). |
+| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
+| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--dry-run` | Reports what the action would change without changing anything. |
+| `--force` | Confirms the irreversible variant of the action. |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost host
+
+Host configuration: the node-level operational environment shared by the cluster.
+
+**Usage:** `underpost host [options] <action>`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--env <env>` | Target environment: development \| production \| test (default: production). |
+| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
+| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--dry-run` | Reports what the action would change without changing anything. |
+| `--force` | Confirms the irreversible variant of the action. |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost app
+
+Application environment: one deployment's runtime configuration.
+
+**Usage:** `underpost app [options] <action>`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--env <env>` | Target environment: development \| production \| test (default: production). |
+| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
+| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--dry-run` | Reports what the action would change without changing anything. |
+| `--force` | Confirms the irreversible variant of the action. |
 | `-h, --help` | display help for command |
 
 ---
@@ -820,6 +880,8 @@ Dispatches operational events and provisions the monitoring rules that trigger t
 | --- | --- |
 | `--deploy` | Merges the event into the set already deployed in the cluster and republishes the monitoring configuration. |
 | `--undeploy` | Removes the event from the deployed set and republishes without it. |
+| `--suspend-events <state-file>` | Saves the exact deployed event set and temporarily republishes observability without event probes or alerts. |
+| `--resume-events <state-file>` | Restores and resynchronizes the exact event set saved by --suspend-events, then removes the state file. |
 | `--serve` | Runs the Alertmanager webhook receiver in the foreground (use --service to supervise it). |
 | `--service` | Installs the receiver on a WireGuard control node as the underpost-event systemd unit. It remains available while the tunnel is down. |
 | `--service-stop` | Stops, disables and removes the underpost-event systemd unit. |

@@ -522,25 +522,40 @@ node bin secret sops --purge postgres-secret --namespace default
 node bin secret --setup                                   # whole data tier
 node bin secret --setup mongodb-secret,mongodb-keyfile --namespace prod
 node bin secret --setup postgres-secret --args "password=s3cr3t"
-node bin secret --setup grafana-admin --namespace default
-node bin secret --setup --dry-run                         # validate, leave the cluster alone
-node bin secret --setup --force                           # replace stored manifests
-node bin secret --status                                  # every managed key, ns default
-node bin secret --status mongo                            # partial match: both mongo keys
+# Every domain carries the identical action set and the identical five flags.
+#   actions: setup | load | publish | apply | status | rotate | clean
+#   flags:   --env <env> --namespace <ns> --args <k=v,...> --dry-run --force
 
-# Load the underpost root env store from the cron deploy env file (dd.cron).
-# This is what the kubeadm and K3s node bootstrap scripts run.
-node bin secret --from-cron-env
+# ── workload secrets (SOPS/Age encrypted store) ───────────────────────────────
+node bin secret setup                                     # tooling + key + rules + encrypt + apply
+node bin secret setup --args names=grafana-admin --namespace default
+node bin secret setup --dry-run                           # validate, leave the cluster alone
+node bin secret setup --force                             # replace stored manifests
+node bin secret status                                    # every managed key, ns default
+node bin secret status --args keys=mongo                  # partial match: both mongo keys
+node bin secret apply                                     # store -> cluster Secrets
+node bin secret load                                      # store -> local runtime env (npm run dev)
+node bin secret publish --args path=./plaintext.yaml      # plaintext -> encrypted store
+node bin secret rotate --args recipient=age1...           # re-key onto a new Age recipient
+node bin secret clean --args names=postgres-secret --force
 
-# Publish the cron deploy environment as the underpost-config Secret (envFrom).
-node bin secret --underpost-config production
+# ── host configuration (node-level operational environment) ───────────────────
+node bin host setup                                       # resolve, validate, load
+node bin host load                                        # source -> root env store
+node bin host load --env development
+node bin host apply --env production --namespace default  # -> underpost-config Secret
+node bin host status
+node bin host rotate                                      # re-project the Secret
+node bin host clean --force
 
-# Seed secrets from a file or from the container environment, and withdraw every
-# filesystem trace afterwards. --global-clean keeps the Age key: the node needs
-# it to re-apply secrets on restart.
-node bin secret --create-from-file ./engine-private/conf/dd-core/.env.production
-node bin secret --create-from-env
-node bin secret --global-clean
+# ── app environment (one deployment's runtime configuration) ──────────────────
+node bin app setup --env development
+node bin app load --env development
+node bin app load --env development --args sub-conf=nexodev-dev-api
+node bin app apply --env production --namespace default   # -> <deployId>-<env>-env Secret
+node bin app status --args deploy-id=dd-core
+node bin app rotate --env production
+node bin app clean --force
 ```
 
 An explicit setup list is isolated: `--setup grafana-admin` validates and applies only `grafana-admin`. Unrelated manifests sealed to another host's recipient do not block that targeted operation. Omitting the list retains the full data-tier setup behavior.

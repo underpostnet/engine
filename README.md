@@ -119,14 +119,17 @@ npm run dev
 | [`pull`](CLI-HELP.md#underpost-pull) | Pulls the latest changes from a specified GitHub repository. |
 | [`cmt`](CLI-HELP.md#underpost-cmt) | Manages commits to a GitHub repository, supporting various commit types and options. |
 | [`push`](CLI-HELP.md#underpost-push) | Pushes committed changes from a local repository to a remote GitHub repository. |
-| [`env`](CLI-HELP.md#underpost-env) | Sets environment variables and configurations related to a specific deployment ID. |
+| [`env`](CLI-HELP.md#underpost-env) | Deprecated alias of `underpost app load`, kept for images that predate it. |
 | [`static`](CLI-HELP.md#underpost-static) | Manages static build of page, bundles, and documentation with comprehensive customization options. |
-| [`config`](CLI-HELP.md#underpost-config) | Manages Underpost configurations using various operators. |
+| [`config`](CLI-HELP.md#underpost-config) | Reads and writes single keys of the underpost root env store (see `underpost host` for its lifecycle). |
+| [`state`](CLI-HELP.md#underpost-state) | Reads and writes the container runtime state store used by the deployment lifecycle. |
 | [`root`](CLI-HELP.md#underpost-root) | Displays the root path of the npm installation. |
 | [`ip`](CLI-HELP.md#underpost-ip) | Displays the current public machine IP addresses. |
 | [`cluster`](CLI-HELP.md#underpost-cluster) | Manages Kubernetes clusters, defaulting to Kind cluster initialization. |
 | [`deploy`](CLI-HELP.md#underpost-deploy) | Manages application deployments, defaulting to deploying development pods. |
-| [`secret`](CLI-HELP.md#underpost-secret) | Manages secrets for various platforms. |
+| [`secret`](CLI-HELP.md#underpost-secret) | Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets. |
+| [`host`](CLI-HELP.md#underpost-host) | Host configuration: the node-level operational environment shared by the cluster. |
+| [`app`](CLI-HELP.md#underpost-app) | Application environment: one deployment's runtime configuration. |
 | [`image`](CLI-HELP.md#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](CLI-HELP.md#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
 | [`db`](CLI-HELP.md#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |

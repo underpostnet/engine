@@ -116,34 +116,40 @@ When `--build-repos` is used, the engine creates three repositories:
 
 ---
 
-## Env
+## App environment
 
-**Command:** `node bin env [deploy-id] [env] [subConf]`
+**Command:** `node bin app <action> [--env <env>] [--args <key=value-list>]`
 
-Sets environment variables and configurations for a specific deployment ID. Copies the deploy's `.env.*` files to the project root and updates `package.json` with the deploy's start script.
+The `app` domain owns a deployment's runtime environment. It carries the same seven actions and
+the same five flags as `secret` and `host`; the deployment id is resolved from the repository
+context, so only the environment selector is normally passed.
 
 ```bash
-node bin env dd-core
-node bin env dd-core development
-node bin env dd-core production
-node bin env clean
-node bin env current
-node bin env root
+node bin app load --env development
+node bin app load --env production
+node bin app load --env development --args deploy-id=dd-core
+node bin app load --env development --args deploy-id=dd-core,sub-conf=nexodev-dev-api
+node bin app status
+node bin app clean
 ```
 
-| Argument    | Description                                                                                                                                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deploy-id` | The deployment ID (format: `dd-<conf-id>`). Special values: `clean` (restore defaults), `root` (load underpost root env), `current` (print current deploy ID) |
-| `env`       | Optional: The environment to set (`production`, `development`, `test`). Defaults to `production`                                                              |
-| `subConf`   | Optional: Sub-configuration identifier                                                                                                                        |
+| Flag                    | Description                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `--env <env>`           | `production`, `development` or `test`. Defaults to `production`                  |
+| `--args deploy-id=<id>` | Overrides the deployment id resolved from the repository context                 |
+| `--args sub-conf=<name>`| Selects `.env.<env>.<name>` when that file exists                                |
 
-The `env` command loads configuration from `./engine-private/conf/dd-<conf-id>/` and writes:
+`app load` reads `./engine-private/conf/dd-<conf-id>/` and materializes the working tree:
 
 - `.env.production`, `.env.development`, `.env.test` → project root
 - `.env` → project root (from the selected environment's file)
 - `package.json` → updated with the deploy's start script
+- the in-process `Config.default` the runtime reads
 
-The `clean` option removes all root `.env` files and restores `package.json` and related files from git.
+It deliberately does not write the underpost root env store — that store is host-scoped and holds
+the node's own configuration, which `node bin host load` owns.
+
+`app clean` removes the root `.env` files it materialized.
 
 ---
 
@@ -618,7 +624,7 @@ node bin cron dd-cron dns --dry-run
 underpost cron dd-cron backup --git
 
 # Pre-script commands
-node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin env dd-core production" --kind --dev
+node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin app load --env production --args deploy-id=dd-core" --kind --dev
 ```
 
 ### Options

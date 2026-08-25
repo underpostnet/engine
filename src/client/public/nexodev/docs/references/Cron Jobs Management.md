@@ -186,7 +186,7 @@ node bin cron dd-cron backup --dry-run --dev
 Inject commands before cron execution inside the container:
 
 ```bash
-node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin env dd-core production" --kind --dev
+node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin app load --env production --args deploy-id=dd-core" --kind --dev
 ```
 
 ---
@@ -423,7 +423,7 @@ generated, and nothing already in the cluster is deleted.
 1. Resolve deploy-id (first entry of `deploy-list`, or the `dd.cron` file)
 2. Read `conf.cron.json` and validate that enabled jobs exist within the `job-list` scope
 3. Update `package.json` start script with one `kubectl apply -f` per generated manifest
-4. Call `generateK8sCronJobs` with the forwarded flags and a default `--cmd` of `node bin env <deploy-id> production`
+4. Call `generateK8sCronJobs` with the forwarded flags and a default `--cmd` of `node bin app load --env production --args deploy-id=<deploy-id>`
 
 ---
 
@@ -552,5 +552,5 @@ Both paths land on the same value, since `cron --setup-start` with no `deploy-li
 self-describing in the sync log.
 
 > **Not yet forwarded:** `--cmd-cron-jobs` is accepted by `sync` but is not passed to the cron
-> generator; the CronJob's pre-script stays the default `node bin env <deploy-id> production`.
+> generator; the CronJob's pre-script stays the default `node bin app load --env production --args deploy-id=<deploy-id>`.
 > Set `--cmd` on a direct `node bin cron … --setup-start` call when you need a custom one.
