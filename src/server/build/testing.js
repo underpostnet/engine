@@ -28,10 +28,10 @@ const UNDERPOST_TESTING = {
   lcovPath: 'coverage/lcov.info',
   // Minimum total line coverage a gated run must reach — the same metric Coveralls
   // reports, so a green build and a green badge mean the same thing. It is a
-  // ratchet: the floor the measured surface already holds (38% for the platform
-  // tiers, 43% with cyberia), raised as suites land, never a target no run meets.
+  // ratchet: the floor the measured surface already holds (85% for the platform
+  // tiers, 85% with cyberia), raised as suites land, never a target no run meets.
   // `COVERAGE_MIN` moves it for one repository without moving it for every one.
-  coverageThreshold: 35,
+  coverageThreshold: 80,
   // Read by vitest.config.js to decide whether the Allure reporter is attached.
   // Absent means a plain local run, so no result files are written at all.
   allureResultsEnvKey: 'UNDERPOST_ALLURE_RESULTS',

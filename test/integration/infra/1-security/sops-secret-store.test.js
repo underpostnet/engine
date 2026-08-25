@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import os from 'os';
 import Underpost from '../../../../src/index.js';
 
-const sops = () => Underpost.secret.sops;
+const sops = () => Underpost.secret;
 // Unique namespace so the fixture can never collide with (or clean up) a real
 // encrypted store under the gitignored engine-private tree.
 const TEST_NAMESPACE = 'sops-store-test-ns';
@@ -129,7 +129,7 @@ describe('sops encrypted secret store', () => {
     });
 
     it('refuses to apply a namespace with no stored manifests', () => {
-      expect(() => sops().apply('namespace-without-a-store')).to.throw(/No encrypted secrets for namespace/);
+      expect(() => sops().applyStore('namespace-without-a-store')).to.throw(/No encrypted secrets for namespace/);
     });
   });
 
@@ -145,20 +145,22 @@ describe('sops encrypted secret store', () => {
         const start = clusterSource.indexOf(`if (options.${flag}) {`);
         expect(start, `options.${flag} branch not found`).to.be.greaterThan(-1);
         const branch = clusterSource.slice(start, start + 1200);
-        expect(branch).to.include(`Underpost.secret.sops.applyIfPresent('${secretName}', options.namespace)`);
-        expect(branch).to.include(`kubectl create secret generic ${secretName}`);
-        // The origin seed creation must stay guarded by the negated store lookup,
-        // never run unconditionally alongside the decrypted apply.
+        expect(branch).to.include(`Underpost.secret.applyIfPresent('${secretName}', options.namespace)`);
+        // The origin seed projection must stay guarded by the negated store lookup, never run
+        // unconditionally alongside the decrypted apply. Its paths come from the workload
+        // domain, so the branch names no credential path of its own.
         expect(branch).to.match(
           new RegExp(
-            `if \\(!Underpost\\.secret\\.sops\\.applyIfPresent\\('${secretName}'[\\s\\S]{0,80}kubectl create secret generic ${secretName}`,
+            `if \\(!Underpost\\.secret\\.applyIfPresent\\('${secretName}'[\\s\\S]{0,120}` +
+              `Underpost\\.secret\\.applyFromOriginSeed\\('${secretName}'`,
           ),
         );
+        expect(branch).to.not.include('engine-private/');
       });
     }
 
     it('delegates host tooling install to UnderpostSecret instead of duplicating it', () => {
-      expect(clusterSource).to.include('Underpost.secret.sops.installTooling()');
+      expect(clusterSource).to.include('Underpost.secret.installTooling()');
       // The binary install logic must live in exactly one place.
       expect(clusterSource).to.not.include('releases/download/${SOPS_VERSION}');
       expect(clusterSource).to.not.include('const SOPS_VERSION');
@@ -190,9 +192,9 @@ describe('sops encrypted secret store', () => {
     });
 
     it('re-keys under pipefail with logging suppressed', () => {
-      const start = secretsSource.indexOf('      rotate(recipient, options = {}) {');
+      const start = secretsSource.indexOf('    rotateRecipient(recipient, options = {}) {');
       expect(start, 'rotate() not found').to.be.greaterThan(-1);
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
       expect(body).to.include('set -o pipefail');
       expect(body).to.include('sops --config');
       expect(body).to.include('updatekeys --yes');
@@ -246,17 +248,17 @@ describe('sops encrypted secret store', () => {
 
     it('rejects a recipient that is not an age public key', () => {
       fs.writeFileSync(confPath, rule('age1aaa'), 'utf8');
-      expect(() => sops().rotate('/etc/passwd')).to.throw(/not a valid Age public recipient/i);
-      expect(() => sops().rotate('')).to.throw(/requires --recipient/);
+      expect(() => sops().rotateRecipient('/etc/passwd')).to.throw(/not a valid Age public recipient/i);
+      expect(() => sops().rotateRecipient('')).to.throw(/requires --recipient/);
     });
   });
 
   describe('emergency purge', () => {
     it('archives rather than deletes unless forced', () => {
       const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
-      const start = secretsSource.indexOf('      purge(name, options = {}) {');
+      const start = secretsSource.indexOf('    purge(name, options = {}) {');
       expect(start, 'purge() not found').to.be.greaterThan(-1);
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
       expect(body).to.include('kubectl delete secret ${name} -n ${namespace} --ignore-not-found');
       expect(body).to.include('options.force');
       expect(body).to.include('fs.moveSync');
@@ -275,21 +277,43 @@ describe('sops encrypted secret store', () => {
 
   describe('CLI surface', () => {
     const cliSource = fs.readFileSync(new URL('../../../../src/cli/index.js', import.meta.url), 'utf8');
+    const domainsSource = fs.readFileSync(new URL('../../../../src/cli/domains.js', import.meta.url), 'utf8');
 
-    it('makes the platform argument optional so --install-tools needs no platform', () => {
-      expect(cliSource).to.include("argument(\n    '[platform]'");
-      expect(cliSource).to.include('if (options.installTools) return Underpost.secret.sops.installTooling();');
+    it('registers all three domains from the one shared factory', () => {
+      // Symmetry is structural: there is no per-domain option or action registration to drift.
+      for (const name of ["name: 'secret'", "name: 'host'", "name: 'app'"]) expect(cliSource, name).to.include(name);
+      expect(cliSource).to.include('registerDomainCommand(program, domain)');
+      expect(cliSource.match(/registerDomainCommand\(/g)).to.have.lengthOf(1);
     });
 
-    it('exposes the emergency flags', () => {
-      for (const flag of ['--install-tools', '--rotate', '--recipient <age-public-key>', '--prune-recipients'])
-        expect(cliSource).to.include(flag);
-      expect(cliSource).to.include("'--purge <secret-name>'");
+    it('declares the canonical action and option sets exactly once', () => {
+      expect(domainsSource.match(/const DOMAIN_ACTIONS = \[/g)).to.have.lengthOf(1);
+      expect(domainsSource.match(/const DOMAIN_OPTIONS = \[/g)).to.have.lengthOf(1);
+      for (const action of ['setup', 'load', 'publish', 'apply', 'status', 'rotate', 'clean'])
+        expect(domainsSource, action).to.include(`name: '${action}'`);
+      for (const flag of ['--env <env>', '--namespace <namespace>', '--args <key=value-list>', '--dry-run', '--force'])
+        expect(domainsSource, flag).to.include(flag);
     });
 
-    it('routes rotate and purge through the selected platform', () => {
-      expect(cliSource).to.include('Underpost.secret[platform].rotate(options.recipient, options)');
-      expect(cliSource).to.include('Underpost.secret[platform].purge(options.purge, options)');
+    it('keeps every legacy single-purpose flag out of the domain surface', () => {
+      for (const legacy of [
+        '--install-tools',
+        '--recipient',
+        '--prune-recipients',
+        '--purge',
+        '--setup',
+        '--status',
+        '--create-from-env',
+        '--from-cron-env',
+        '--underpost-config',
+        '--global-clean',
+      ])
+        expect(domainsSource, legacy).to.not.include(legacy);
+    });
+
+    it('rejects an action outside the canonical set instead of silently doing nothing', () => {
+      expect(domainsSource).to.include('Unknown ${name} action');
+      expect(domainsSource).to.include("does not implement the '${action}' action");
     });
   });
 
@@ -494,7 +518,7 @@ describe('sops encrypted secret store', () => {
     });
 
     it('raises the adoption error before any manifest reaches kubectl', () => {
-      expect(() => sops().apply(NS)).to.throw(/sealed to Age recipients this host does not hold/);
+      expect(() => sops().applyStore(NS)).to.throw(/sealed to Age recipients this host does not hold/);
     });
 
     it('raises rather than sliding back to the origin seed path for a present-but-unreadable manifest', () => {
@@ -550,20 +574,20 @@ describe('sops encrypted secret store', () => {
 
     it('registers the host during init so a pulled store cannot be encrypted to write-only', () => {
       const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
-      const start = secretsSource.indexOf('      init() {');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      const start = secretsSource.indexOf('    init() {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
       expect(body).to.include('ensureCreationRecipient(recipient)');
     });
   });
 
   describe('secret --setup onboarding reports', () => {
     const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
-    const start = secretsSource.indexOf("      setup(names = '', options = {}) {");
-    const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+    const start = secretsSource.indexOf("    setupStore(names = '', options = {}) {");
+    const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
 
     it('does not report a manifest it cannot decrypt as onboarded', () => {
       expect(start, 'secret --setup implementation not found').to.be.greaterThan(-1);
-      expect(body).to.include('Underpost.secret.sops.decryptable(');
+      expect(body).to.include('Underpost.secret.decryptable(');
       expect(body).to.include('sealed to an Age recipient this host does not hold');
     });
 
@@ -596,8 +620,8 @@ describe('sops encrypted secret store', () => {
     it('refuses to plan a rotation the local key could never perform', () => {
       // updatekeys has to decrypt each data key first, so a host that cannot read the store cannot
       // rotate it — including on a dry run, where a reported plan would be pure misdirection.
-      const start = secretsSource.indexOf('      rotate(recipient, options = {}) {');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      const start = secretsSource.indexOf('    rotateRecipient(recipient, options = {}) {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
       expect(body).to.include('assertDecryptable(manifests)');
       expect(body.indexOf('assertDecryptable(manifests)')).to.be.lessThan(body.indexOf('if (options.dryRun)'));
     });
@@ -607,8 +631,8 @@ describe('sops encrypted secret store', () => {
     const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
 
     it('stages and moves rather than redirecting straight onto the target', () => {
-      const start = secretsSource.indexOf('      encrypt(plaintextPath, namespace');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n      /**', start));
+      const start = secretsSource.indexOf('    encrypt(plaintextPath, namespace');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
       expect(body).to.include('.staged');
       expect(body).to.include('fs.moveSync');
       expect(body).to.include('assertManifest');

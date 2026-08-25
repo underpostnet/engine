@@ -57,9 +57,7 @@ describe('SELinux utilities', () => {
 
   it('maps only custom SSH ports and validates the port range', () => {
     expect(selinuxSshPortCommandsFactory({ port: 22 })).to.deep.equal([]);
-    expect(selinuxSshPortCommandsFactory({ port: 2222 })[0]).to.include(
-      'semanage port -a -t ssh_port_t -p tcp 2222',
-    );
+    expect(selinuxSshPortCommandsFactory({ port: 2222 })[0]).to.include('semanage port -a -t ssh_port_t -p tcp 2222');
     expect(() => selinuxSshPortCommandsFactory({ port: 70000 })).to.throw(RangeError);
   });
 

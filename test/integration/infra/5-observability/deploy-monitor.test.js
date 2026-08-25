@@ -58,7 +58,7 @@ describe('Deploy monitor — two-phase state machine (e2e, real HTTP transport)'
   let prevPrefix;
   let tmpPrefix;
   let fakeBinDir;
-  let envFile;
+  let stateFile;
   let monitorScriptPath;
 
   beforeAll(() => {
@@ -66,10 +66,10 @@ describe('Deploy monitor — two-phase state machine (e2e, real HTTP transport)'
     tmpPrefix = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-e2e-'));
     process.env.npm_config_prefix = tmpPrefix;
 
-    Underpost.env.set('container-status', 'init');
-    Underpost.env.set('start-container-status', '');
+    Underpost.state.set('container-status', 'init');
+    Underpost.state.set('start-container-status', '');
     const npmRoot = shellExec('npm root -g', { stdout: true, silent: true, disableLog: true }).trim();
-    envFile = path.join(npmRoot, 'underpost', '.env');
+    stateFile = path.join(npmRoot, 'underpost', '.state');
 
     process.env.UNDERPOST_INTERNAL_PORT = String(INTERNAL_PORT);
     startInternalStatusServer(INTERNAL_PORT);
@@ -105,7 +105,7 @@ if [[ "$verb" == "port-forward" ]]; then
   exit 0
 fi
 if [[ "$verb" == "exec" ]]; then
-  grep -E '^container-status=' "$UNDERPOST_ENV_FILE" 2>/dev/null | tail -n1 | sed -E 's/^container-status=//'
+  grep -E '^container-status=' "$UNDERPOST_STATE_FILE" 2>/dev/null | tail -n1 | sed -E 's/^container-status=//'
   exit 0
 fi
 exit 0
@@ -143,17 +143,17 @@ try {
 
   beforeEach(() => {
     // Deploy in flight: app not yet reporting running.
-    Underpost.env.set('container-status', INIT_STATUS);
+    Underpost.state.set('container-status', INIT_STATUS);
     // start-container-status is unset (empty) — the readinessProbe
     // sees 503 until the start pipeline completes and stamps this key.
-    Underpost.env.set('start-container-status', '');
+    Underpost.state.set('start-container-status', '');
   });
 
   const spawnMonitor = (overrides = {}) =>
     new Promise((resolve) => {
       const envVars = {
         PATH: `${fakeBinDir}:${process.env.PATH}`,
-        UNDERPOST_ENV_FILE: envFile,
+        UNDERPOST_STATE_FILE: stateFile,
         POD_NAME,
         npm_config_prefix: tmpPrefix,
         UNDERPOST_INTERNAL_PORT: String(INTERNAL_PORT),
@@ -176,7 +176,7 @@ try {
     });
 
   it('success (default exec transport): both phases satisfied → monitor exits 0', async () => {
-    Underpost.env.set('container-status', RUNNING_STATUS);
+    Underpost.state.set('container-status', RUNNING_STATUS);
     // start-container-status not needed for monitor (reads container-status);
     // this test exercises the default exec transport path.
     const code = await spawnMonitor({ FAKE_POD_READY: 'True' });
@@ -184,21 +184,21 @@ try {
   });
 
   it('success (opt-in http transport): both phases satisfied → monitor exits 0', async () => {
-    Underpost.env.set('container-status', RUNNING_STATUS);
-    Underpost.env.set('start-container-status', RUNNING_STATUS);
+    Underpost.state.set('container-status', RUNNING_STATUS);
+    Underpost.state.set('start-container-status', RUNNING_STATUS);
     const code = await spawnMonitor({ FAKE_POD_READY: 'True', MON_TRANSPORT: 'http' });
     expect(code).to.equal(0);
   });
 
   it('runtime failure: container-status=error → monitor exits 1', async () => {
     const monitorExit = spawnMonitor({ FAKE_POD_READY: 'True' });
-    Underpost.env.set('container-status', 'error');
+    Underpost.state.set('container-status', 'error');
     expect(await monitorExit).to.equal(1);
   });
 
   it('readiness mismatch: runtime running but pod not Ready → never succeeds (exits 1)', async () => {
     // Phase 2 satisfied, Phase 1 not: success requires BOTH, so it must time out.
-    Underpost.env.set('container-status', RUNNING_STATUS);
+    Underpost.state.set('container-status', RUNNING_STATUS);
     // start-container-status is NOT set — the readinessProbe would fail,
     // but the monitor only checks container-status via exec/http transport.
     const code = await spawnMonitor({ FAKE_POD_READY: 'False', UNDERPOST_MONITOR_MAX_ITERATIONS: '4' });
@@ -206,7 +206,7 @@ try {
   });
 
   it('transport failure (http): endpoint unreachable is never success (exits 1)', async () => {
-    Underpost.env.set('container-status', RUNNING_STATUS);
+    Underpost.state.set('container-status', RUNNING_STATUS);
     const code = await spawnMonitor({
       MON_TRANSPORT: 'http',
       UNDERPOST_INTERNAL_PORT: String(CLOSED_PORT),
@@ -217,7 +217,7 @@ try {
   });
 
   it('timeout: runtime stuck initializing → monitor exits 1', async () => {
-    Underpost.env.set('container-status', INIT_STATUS);
+    Underpost.state.set('container-status', INIT_STATUS);
     // start-container-status remains unset — readinessProbe returns 503
     // (correct, since the runtime is still initializing).
     const code = await spawnMonitor({ FAKE_POD_READY: 'True', UNDERPOST_MONITOR_MAX_ITERATIONS: '4' });
@@ -227,15 +227,15 @@ try {
   it('regression: advanced pod whose runtime status falls back → monitor exits 1', async () => {
     // Pod advances past build, then its reported status regresses (pod restart);
     // the monitor must treat this as a failure rather than wait it out.
-    Underpost.env.set('container-status', INIT_STATUS);
+    Underpost.state.set('container-status', INIT_STATUS);
     const monitorExit = spawnMonitor({ FAKE_POD_READY: 'False', UNDERPOST_MONITOR_MAX_ITERATIONS: '120' });
     await new Promise((r) => setTimeout(r, 1500));
-    Underpost.env.set('container-status', BUILD_STATUS);
+    Underpost.state.set('container-status', BUILD_STATUS);
     expect(await monitorExit).to.equal(1);
   });
 
   it('readinessProbe: start-container-status set → returns 200 (probe passes)', async () => {
-    Underpost.env.set('start-container-status', RUNNING_STATUS);
+    Underpost.state.set('start-container-status', RUNNING_STATUS);
     const res = await fetch(`http://127.0.0.1:${INTERNAL_PORT}/_internal/ready`);
     expect(res.status).to.equal(200);
     const body = await res.json();
@@ -244,7 +244,7 @@ try {
 
   it('readinessProbe: start-container-status unset → returns 503 (probe fails)', async () => {
     // Unset from beforeEach re-stamp; clear it.
-    Underpost.env.set('start-container-status', '');
+    Underpost.state.set('start-container-status', '');
     const res = await fetch(`http://127.0.0.1:${INTERNAL_PORT}/_internal/ready`);
     expect(res.status).to.equal(503);
   });
@@ -252,14 +252,14 @@ try {
   // Custom instances (cyberia-*) gate on K8s Ready and read status via exec;
   // their runtime never stamps `running-deployment` (stays `initializing`).
   it('instance (kubernetes gate + exec): K8s Ready with initializing status → exits 0', async () => {
-    Underpost.env.set('container-status', INIT_STATUS);
+    Underpost.state.set('container-status', INIT_STATUS);
     const code = await spawnMonitor({ FAKE_POD_READY: 'True', MON_READY_GATE: 'kubernetes', MON_TRANSPORT: 'exec' });
     expect(code).to.equal(0);
   });
 
   it('instance (kubernetes gate + exec): container-status=error → exits 1', async () => {
     const monitorExit = spawnMonitor({ FAKE_POD_READY: 'True', MON_READY_GATE: 'kubernetes', MON_TRANSPORT: 'exec' });
-    Underpost.env.set('container-status', 'error');
+    Underpost.state.set('container-status', 'error');
     expect(await monitorExit).to.equal(1);
   });
 });
