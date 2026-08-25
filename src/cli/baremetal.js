@@ -1987,7 +1987,7 @@ rm -rf ${artifacts.join(' ')}`);
       try {
         return { machine };
       } catch (error) {
-        console.log(error);
+        console.error(error);
         logger.error(error);
         throw new Error(`Failed to create MAAS machine. Output:\n${machine}`);
       }

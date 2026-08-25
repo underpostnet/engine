@@ -4622,7 +4622,7 @@ EOF`;
         const result = await Underpost.run.CALL(runner, path, options);
         return result;
       } catch (error) {
-        console.log(error);
+        console.error(error);
         logger.error(error);
         process.exit(1);
       }

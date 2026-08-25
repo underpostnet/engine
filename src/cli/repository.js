@@ -757,7 +757,7 @@ class UnderpostRepository {
           }
           return resolve(true);
         } catch (error) {
-          console.log(error);
+          console.error(error);
           logger.error(error, error.stack);
           return reject(false);
         }
