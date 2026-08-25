@@ -8,16 +8,30 @@
 #
 # run_quiet hides normal output and returns the command's exit status so
 # `set -e` stops the deployment. Lines matching `patterns` that parse as a
-# deployment pod report are folded into a live table — one row per pod, redrawn
-# in place — instead of being streamed; the monitor's raw `deploy-monitor` JSON
-# emits are consumed into that table's cells rather than printed. Anything else
-# within `lines_after` lines of a match scrolls above the table. On failure it
-# keeps two temp files and prints their paths in red instead of their contents:
-# the command's own stderr (native error message and stack trace) and the full
+# deployment pod report are folded into a table — one row per pod — instead of
+# being streamed; the monitor's raw `deploy-monitor` JSON emits are consumed
+# into that table's cells rather than printed. Anything else within
+# `lines_after` lines of a match scrolls above the table. On failure it keeps
+# two temp files and prints their paths in red instead of their contents: the
+# command's own stderr (native error message and stack trace) and the full
 # unfiltered log up to the error.
+#
+# The table renders three ways, because a log viewer is not a terminal:
+# - terminal: redrawn in place, cursor relative, one frame at a time
+# - CI (GITHUB_ACTIONS/RUN_QUIET_CI): no cursor addressing exists there, so the
+#   changed rows stream inside a collapsed `::group::` and the final table is
+#   printed after it, expanded
+# - anywhere else: changed rows appended
+# Colour is ANSI SGR only and is emitted in all three (GitHub renders SGR in
+# step logs); NO_COLOR or RUN_QUIET_PLAIN turns it off.
 
-RUN_QUIET_RED=$'\033[0;31m'
-RUN_QUIET_RESET=$'\033[0m'
+if [ -n "${NO_COLOR:-}${RUN_QUIET_PLAIN:-}" ]; then
+    RUN_QUIET_RED=''
+    RUN_QUIET_RESET=''
+else
+    RUN_QUIET_RED=$'\033[0;31m'
+    RUN_QUIET_RESET=$'\033[0m'
+fi
 
 RUN_QUIET_NODE_NAME=$(hostname 2>/dev/null | tr '[:upper:]' '[:lower:]')
 RUN_QUIET_NODE_TAG=${RUN_QUIET_NODE_NAME:+ [$RUN_QUIET_NODE_NAME]}
@@ -33,12 +47,16 @@ run_quiet() {
     local fifo_dir
     local filter_pid
     local stderr_pid
+    local color=0
+    local groups=0
     local redraw=0
     local width=0
     local rows=0
     local status=0
     
     echo "$RUN_QUIET_NODE_TAG $(date -Is) ▶ $label"
+    
+    [ -n "${NO_COLOR:-}${RUN_QUIET_PLAIN:-}" ] || color=1
     
     if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${RUN_QUIET_PLAIN:-}" ]; then
         redraw=1
@@ -49,6 +67,10 @@ run_quiet() {
         # Without a known width a long row wraps, and the cursor-up count that
         # addresses the table no longer matches the lines it printed.
         [ "$width" -ge 20 ] || redraw=0
+    fi
+    
+    if [ "$redraw" -eq 0 ] && [ -z "${RUN_QUIET_PLAIN:-}" ] && [ -n "${GITHUB_ACTIONS:-}${RUN_QUIET_CI:-}" ]; then
+        groups=1
     fi
     
     debug_log=$(mktemp --suffix=.debug.log)
@@ -63,19 +85,24 @@ run_quiet() {
     # awk writes the debug log itself rather than piping through tee, so the
     # reader stays a single process that a kill can always release.
     #
-    # The table is the only live region and always sits at the bottom: rows are
-    # overwritten one by one (cursor up, then erase to end of line as each row
-    # is rewritten) so the section never blanks between frames, and a passthrough
-    # line is printed after erasing the table and before drawing it again. All of
-    # that is cursor relative, so every row must occupy exactly one terminal
-    # line: rows are cut to the terminal width, counting display columns rather
-    # than bytes so colour escapes neither inflate the measurement nor get
-    # sliced in half.
+    # On a terminal the table is the only live region and always sits at the
+    # bottom: rows are overwritten one by one (cursor up, then erase to end of
+    # line as each row is rewritten) so the section never blanks between frames,
+    # and a passthrough line is printed after erasing the table and before
+    # drawing it again. All of that is cursor relative, so every row must occupy
+    # exactly one terminal line: rows are cut to the terminal width, counting
+    # display columns rather than bytes so colour escapes neither inflate the
+    # measurement nor get sliced in half. Elsewhere nothing is cut and nothing
+    # is overwritten — the frames stream, folded into a CI group when there is
+    # one to fold them into.
     awk \
     -v pattern="$patterns" \
     -v lines_after="$lines_after" \
     -v debug_log="$debug_log" \
     -v redraw="$redraw" \
+    -v color="$color" \
+    -v groups="$groups" \
+    -v label="$label" \
     -v width="$width" \
     -v rows="$rows" \
     -v started="$(date +%H:%M:%S)" \
@@ -98,8 +125,8 @@ run_quiet() {
             while (n-- > 0) r = r "-"
             return r
         }
-        function paint(s, color) {
-            return redraw ? esc "[" color "m" s esc "[0m" : s
+        function paint(s, sgr) {
+            return color ? esc "[" sgr "m" s esc "[0m" : s
         }
         function fit(s,   out, visible) {
             if (!redraw) return s
@@ -121,6 +148,31 @@ run_quiet() {
         function put(line) {
             printf "%s%s\n", fit(line), redraw ? esc "[K" : ""
             fflush()
+        }
+        # GitHub renders no cursor motion, so the live region becomes a
+        # collapsed section: every frame streams into it and the settled table
+        # is reprinted outside it.
+        function open_group() {
+            if (!groups || group_open) return
+            group_open = 1
+            printf "::group::%s monitor frames\n", label
+            fflush()
+        }
+        function close_group() {
+            if (!group_open) return
+            group_open = 0
+            # The next run of rows opens its own section, and a section starts
+            # with its header.
+            appended_header = 0
+            printf "::endgroup::\n"
+            fflush()
+        }
+        function final_table(   i) {
+            if (!groups || pod_count == 0) return
+            close_group()
+            measure()
+            header_lines()
+            for (i = 1; i <= pod_count; i++) pod_line(pods[i])
         }
         function json_value(key,   found) {
             if (!match($0, "\"" key "\"[ ]*:[ ]*\"[^\"]*\"")) return ""
@@ -197,11 +249,13 @@ run_quiet() {
             remaining = 0
             drawn = 0
             last_pod_line = 0
+            final_table()
             put(handoff)
         }
         # A later monitor in the same command (a second colour, a rollback) opens
         # its own table below the one that was handed off.
         function reset_table() {
+            close_group()
             handed_off = 0
             events_seen = 0
             k8s_ready = 0
@@ -243,7 +297,14 @@ run_quiet() {
             w_pod_fit = w_pod
             w_runtime_fit = w_runtime
             w_k8s_fit = w_k8s
-            if (!redraw) return
+            # A streamed table cannot re-pad the rows it already printed, so the
+            # status columns start wide enough for the values the monitor is
+            # known to report and stop drifting under the header.
+            if (!redraw) {
+                if (w_k8s_fit < 17) w_k8s_fit = 17
+                if (w_runtime_fit < 28) w_runtime_fit = 28
+                return
+            }
             # fit() cuts the last column, so the row has to land inside it.
             budget = width - 1
             over = row_width() - budget
@@ -260,13 +321,7 @@ run_quiet() {
         function row_width() {
             return w_iteration + w_since + w_pod_fit + w_k8s_fit + w_runtime_fit + 16
         }
-        # Padding is alignment for the live table only; appended rows stay
-        # unpadded so a piped log keeps one predictable field layout.
         function header_lines() {
-            if (!redraw) {
-                put("| ITERATION | TIMESTAMP | POD NAME | K8S STATUS | RUNTIME STATUS |")
-                return
-            }
             put(paint(sprintf("| %s | %s | %s | %s | %s |", pad("ITERATION", w_iteration),
             pad("TIMESTAMP", w_since), pad("POD NAME", w_pod_fit), pad("K8S STATUS", w_k8s_fit),
             pad("RUNTIME STATUS", w_runtime_fit)), "1"))
@@ -275,11 +330,6 @@ run_quiet() {
         }
         function pod_line(pod,   runtime) {
             runtime = runtime_cell(pod)
-            if (!redraw) {
-                printf "| #%s | %s | %s | %s | %s |\n", cycles, pod_time[pod], pod, k8s_cell(pod), runtime
-                fflush()
-                return
-            }
             put(sprintf("| %s | %s | %s | %s | %s |",
             pad("#" cycles, w_iteration),
             paint(pad(pod_time[pod], w_since), "2"),
@@ -313,6 +363,7 @@ run_quiet() {
             if (cells == last_row[pod]) return
             last_row[pod] = cells
             measure()
+            open_group()
             if (!appended_header) {
                 header_lines()
                 appended_header = 1
@@ -325,6 +376,7 @@ run_quiet() {
             w_pod = length("POD NAME")
             w_k8s = length("K8S STATUS")
             w_runtime = length("RUNTIME STATUS")
+            group_open = 0
             esc = sprintf("%c", 27)
             esc_seq = esc "\\[[0-9;]*[A-Za-z]"
             clock = "[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"
@@ -382,6 +434,7 @@ run_quiet() {
             if ($0 ~ pattern) remaining = lines_after + 1
             if (remaining > 0) {
                 clear_table()
+                close_group()
                 put($0)
                 remaining--
                 draw_table()
@@ -389,6 +442,7 @@ run_quiet() {
         }
         END {
             if (!handed_off && ready_pending()) hand_off()
+            close_group()
         }
     ' <"$fifo_dir/merged" &
     filter_pid=$!

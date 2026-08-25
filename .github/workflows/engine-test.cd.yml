@@ -40,6 +40,7 @@ jobs:
           script: |
             set -e
             set -o pipefail
+            export RUN_QUIET_CI=github
             bash /home/dd/engine/deploy/dd-test/deploy.sh
   sync-and-deploy:
     if: github.event.inputs.job == 'sync-and-deploy'
@@ -65,6 +66,7 @@ jobs:
           script: |
             set -e
             set -o pipefail
+            export RUN_QUIET_CI=github
             bash /home/dd/engine/deploy/dd-test/sync-deploy.sh
   init:
     if: github.event.inputs.job == 'init'
@@ -90,4 +92,5 @@ jobs:
           script: |
             set -e
             set -o pipefail
+            export RUN_QUIET_CI=github
             bash /home/dd/engine/deploy/dd-test/init.sh

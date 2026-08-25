@@ -35,4 +35,5 @@ jobs:
           script: |
             set -e
             set -o pipefail
+            export RUN_QUIET_CI=github
             bash /home/dd/engine/deploy/release/deploy.sh
