@@ -186,10 +186,8 @@ const TEST_TIERS = [
     // dashboard ingests while still printing a readable run.
     delegate: ({ resultsPath = '', grep = '' } = {}) =>
       [
-        // A nested project with its own lockfile: resolve it where it is missing
-        // (a fresh clone, a Job pod) and skip the cost where it is not.
-        '[ -d node_modules ] || npm ci --no-audit --no-fund',
-        'npx hardhat build',
+        '[ -x node_modules/.bin/hardhat ] || npm ci --no-audit --no-fund',
+        './node_modules/.bin/hardhat build',
         [
           // Set by Hardhat's own test task; plugins branch on them.
           'HH_TEST=true NODE_ENV=test node --test',

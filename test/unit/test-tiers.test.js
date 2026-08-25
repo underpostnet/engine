@@ -98,6 +98,23 @@ describe('delegated tier commands', () => {
   it('passes a name filter through to its runner', () => {
     for (const { name, delegate } of delegated) expect(delegate({ grep: 'Burning' }), name).to.include('Burning');
   });
+
+  // Under an outer `npm`, npx resolves the root project as the local prefix and
+  // pulls its own copy of a nested tool from the registry, which Hardhat then
+  // refuses to run as a non-local installation.
+  it('runs nested tooling from the nested install rather than through npx', () => {
+    for (const { name, delegate } of delegated) {
+      expect(delegate({}), name).to.not.match(/\bnpx\b/);
+      expect(delegate({}), name).to.include('./node_modules/.bin/');
+    }
+  });
+
+  // A directory left behind by an interrupted install passes a `-d` probe while
+  // holding none of the binaries the tier runs.
+  it('probes the installed binary before skipping the install', () => {
+    for (const { name, delegate } of delegated)
+      expect(delegate({}), name).to.match(/\[ -x node_modules\/\.bin\/[\w.-]+ \] \|\| npm ci/);
+  });
 });
 
 describe('coverage threshold', () => {
