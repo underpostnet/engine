@@ -95,13 +95,11 @@ const reportFleetOutcome = ({ ok, nodes }) => {
  */
 const ENGINE_SYNC_STEPS = [
   // { command: 'npm install -g underpost', halt: true },
-  // { command: 'node bin secret --from-cron-env .', halt: true },
   { command: 'underpost run clean', halt: true },
   { command: 'underpost cmt --switch-repo <engine> --target-branch <engine-branch>', halt: true },
   { command: 'underpost pull ./engine-private <engine-private>', halt: true },
   // { command: 'npm run fix', halt: false },
   // { command: 'npm install', halt: true },
-  // { command: 'node bin secret --from-cron-env .', halt: true },
   // A supervised dispatcher holds the code it started with: after the checkout
   // moves, the running process still answers webhooks from the old registry and
   // silently drops events it has never heard of. Nodes without the unit skip it.
@@ -2021,8 +2019,8 @@ class UnderpostWireguard {
       if (!config.apiKey)
         throw new Error(
           `[wireguard] ${FORWARD_PROXY.env.apiKey} is not set; every proxied request is authenticated with it. ` +
-            `Export it, put it in the deploy env selected by \`underpost env <deploy-id> <environment>\` (./.env), ` +
-            `or set it with \`underpost env set ${FORWARD_PROXY.env.apiKey} <key>\``,
+            `Export it, put it in the deploy env selected by \`underpost app load --env <environment>\` (./.env), ` +
+            `or set it with \`underpost config set ${FORWARD_PROXY.env.apiKey} <key>\``,
         );
       if (['0.0.0.0', '::', '*'].includes(config.host))
         logger.warn('Forward proxy is bound to a wildcard address, not the tunnel', {

@@ -369,7 +369,7 @@ async function buildAndTestTemplate(opts = {}) {
   // fs.writeFileSync(`${TEMPLATE_PATH}/.env`, envContent, 'utf8');
   fs.writeFileSync(`${TEMPLATE_PATH}/.env.example`, envContent, 'utf8');
   shellExec(`cd ${TEMPLATE_PATH} && npm install`);
-  shellExec(`cd ${TEMPLATE_PATH} && node bin env clean`);
+  shellExec(`cd ${TEMPLATE_PATH} && node bin app clean`);
   // Build + run in an isolated env so the template resolves dd-default from its own .env and
   // never inherits the engine's dd-cron deploy selection. See ISOLATED_ENV above.
   //
@@ -619,9 +619,7 @@ class UnderpostRelease {
     async deploy(version, options) {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       killDevServers();
-      shellExec(
-        `node bin secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
-      );
+      shellExec(`node bin host load`);
       shellExec(`node bin/build dd --conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${version}'`);

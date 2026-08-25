@@ -550,12 +550,16 @@ class UnderpostRepository {
         const repoName = `engine-${deployId.split('dd-')[1]}`;
         fs.writeFileSync(
           `./.github/workflows/${repoName}.cd.yml`,
-          fs.readFileSync(`./.github/workflows/engine-test.cd.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
+          fs
+            .readFileSync(`./.github/workflows/engine-test.cd.yml`, 'utf8')
+            .replaceAll('test', deployId.split('dd-')[1]),
           'utf8',
         );
         fs.writeFileSync(
           `./.github/workflows/${repoName}.ci.yml`,
-          fs.readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
+          fs
+            .readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8')
+            .replaceAll('test', deployId.split('dd-')[1]),
           'utf8',
         );
         shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
@@ -1635,7 +1639,7 @@ Prevent build private config repo.`,
             `git config --global --add safe.directory '${siteRoot}' 2>/dev/null || true`,
             `cd '${siteRoot}' && git add -A && git commit -m 'backup $(date -u +%Y-%m-%dT%H:%M:%SZ)' || true`,
             `cd '${siteRoot}' && underpost push . ${githubUsername}/${repoName}`,
-            `cd /home/dd/engine && node bin secret underpost --global-clean`,
+            `cd /home/dd/engine && node bin host clean --force`,
           ].join(' && ');
 
           try {

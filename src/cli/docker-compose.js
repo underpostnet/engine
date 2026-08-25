@@ -151,7 +151,7 @@ class UnderpostDockerCompose {
         'cd /home/dd',
         'underpost new engine',
       ];
-    return ['underpost secret underpost --create-from-env', `underpost start --build --run ${deployId} ${env}`];
+    return [`underpost start --build --run ${deployId} ${env}`];
   }
 
   /**

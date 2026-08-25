@@ -5,7 +5,9 @@
  */
 
 import UnderpostBaremetal from './cli/baremetal.js';
+import UnderpostApp from './cli/app.js';
 import UnderpostClient from './cli/client.js';
+import UnderpostHost from './cli/host.js';
 import UnderpostCloudInit from './cli/cloud-init.js';
 import UnderpostKickStart from './cli/kickstart.js';
 import UnderpostCluster from './cli/cluster.js';
@@ -24,6 +26,7 @@ import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
 import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
+import UnderpostState from './cli/state.js';
 import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
 import UnderpostRelease from './cli/release.js';
@@ -117,6 +120,33 @@ class Underpost {
   }
   /**
    * Secrets cli API
+   * @static
+   * @type {UnderpostSecret.API}
+   * @memberof Underpost
+   */
+  static get host() {
+    return UnderpostHost.API;
+  }
+  /**
+   * App deployment environment domain cli API
+   * @static
+   * @type {UnderpostApp.API}
+   * @memberof Underpost
+   */
+  static get app() {
+    return UnderpostApp.API;
+  }
+  /**
+   * Workload secret store domain cli API
+   * @static
+   * @type {UnderpostSecret.API}
+   * @memberof Underpost
+   */
+  static get state() {
+    return UnderpostState.API;
+  }
+  /**
+   * Workload secret store domain cli API
    * @static
    * @type {UnderpostSecret.API}
    * @memberof Underpost
@@ -386,11 +416,14 @@ export {
   UnderpostKickStart,
   UnderpostIPFS,
   UnderpostMonitor,
+  UnderpostApp,
   UnderpostClient,
+  UnderpostHost,
   UnderpostRepository,
   UnderpostRun,
   UnderpostSecret,
   UnderpostSSH,
+  UnderpostState,
   UnderpostDns,
   UnderpostBackup,
   UnderpostCron,

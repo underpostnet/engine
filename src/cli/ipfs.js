@@ -8,9 +8,14 @@ import { loggerFactory } from '../server/ops/logger.js';
 import { shellExec } from '../server/runtime/process.js';
 import { resolveReplicaCount } from '../server/runtime/conf.js';
 import fs from 'fs-extra';
+import dir from 'node:path';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
+
+// The managed secret this module owns; its origin, its encrypted manifest and its Kubernetes
+// projection all resolve from this one name.
+const IPFS_SECRET_NAME = 'ipfs-cluster-secret';
 
 const IPFS_DEFAULT_REPLICA_COUNT = 3;
 
@@ -25,27 +30,32 @@ class UnderpostIPFS {
   static API = {
     /**
      * @method resolveCredentials
-     * @description Resolves the IPFS cluster credentials from engine-private/ if they
-     * already exist, otherwise generates new ones (hex cluster secret + peer identity
-     * via ipfs-cluster-service init) and persists them with mode 0o600.
+     * @description Resolves the IPFS cluster origin credentials, generating them when absent
+     * (hex cluster secret + peer identity via ipfs-cluster-service init) and persisting them
+     * with mode 0o600.
+     *
+     * Paths come from the workload secret domain, so this module names no credential path of its
+     * own and the pair sits in the deploy secret area with every other origin credential.
+     *
      * Idempotent and self-healing: an existing pair is reused untouched, and a missing or
      * unreadable one is regenerated. Both files are always rewritten together — the peer id and
      * the private key are two halves of one identity, so reusing one with a freshly minted other
      * would advertise a peer id that does not match the key.
-     * @param {string} privateDir - Absolute path to the engine-private directory.
      * @returns {{ CLUSTER_SECRET: string, IDENTITY_JSON: { id: string, private_key: string }, generated: boolean }}
      * @memberof UnderpostIPFS
      */
-    resolveCredentials(privateDir) {
-      const secretPath = `${privateDir}/ipfs-cluster-secret`;
-      const identityPath = `${privateDir}/ipfs-cluster-identity.json`;
+    resolveCredentials() {
+      const sources = Underpost.secret.seedSources(IPFS_SECRET_NAME);
+      const secretPath = sources['cluster-secret'];
+      const identityPath = sources['bootstrap-peer-priv-key'];
+      const privateDir = dir.dirname(secretPath);
 
       if (fs.existsSync(secretPath) && fs.existsSync(identityPath)) {
         try {
           const CLUSTER_SECRET = fs.readFileSync(secretPath, 'utf8').trim();
           const IDENTITY_JSON = JSON.parse(fs.readFileSync(identityPath, 'utf8'));
           if (CLUSTER_SECRET && IDENTITY_JSON?.id && IDENTITY_JSON?.private_key) {
-            logger.info('Reusing existing IPFS cluster credentials from engine-private/');
+            logger.info('Reusing existing IPFS cluster credentials', { secretPath, identityPath });
             return { CLUSTER_SECRET, IDENTITY_JSON, generated: false };
           }
           logger.warn('Existing IPFS cluster credentials are incomplete; regenerating');
@@ -54,7 +64,7 @@ class UnderpostIPFS {
         }
       }
 
-      logger.info('Generating new IPFS cluster credentials and persisting to engine-private/');
+      logger.info('Generating new IPFS cluster credentials', { secretPath, identityPath });
 
       // ipfs-cluster-service requires CLUSTER_SECRET as a 64-char hex string.
       // base64 (openssl rand -base64 32) contains '/', '+', '=' which are invalid hex bytes.
@@ -115,7 +125,7 @@ class UnderpostIPFS {
         );
         fs.chmodSync(stagePath, 0o600);
         // encrypt() stages, validates, moves into place, and shreds the plaintext source.
-        Underpost.secret.sops.encrypt(stagePath, options.namespace, { force: true });
+        Underpost.secret.encrypt(stagePath, options.namespace, { force: true });
         logger.info('Re-encrypted regenerated IPFS credentials into the SOPS store');
       } finally {
         fs.removeSync(stageDir);
@@ -148,28 +158,22 @@ class UnderpostIPFS {
      * @method applySecrets
      * @description Creates (or idempotently updates) the Kubernetes Secret and env ConfigMap
      * that the StatefulSet pods read at startup.
-     * - Secret `ipfs-cluster-secret`: cluster-secret + bootstrap-peer-priv-key
+     * - Secret `ipfs-cluster-secret`: cluster-secret + bootstrap-peer-priv-key, projected by the
+     *   secret domain from the encrypted store or, failing that, from the origin credentials
      * - ConfigMap `env-config`: bootstrap-peer-id + CLUSTER_SVC_NAME
-     * @param {{ CLUSTER_SECRET: string, IDENTITY_JSON: { id: string, private_key: string } }} credentials
+     * @param {{ IDENTITY_JSON: { id: string } }} credentials - Only the public peer id is read here; the Secret keys are projected by the secret domain.
      * @param {object} options
      * @param {string} options.namespace - Kubernetes namespace.
      * @memberof UnderpostIPFS
      */
-    applySecrets({ CLUSTER_SECRET, IDENTITY_JSON }, options) {
+    applySecrets({ IDENTITY_JSON }, options) {
       logger.info('Applying IPFS cluster Kubernetes Secret and env ConfigMap');
 
-      // Encrypted store first, origin generate/read logic only when no manifest is stored.
-      // `--from-literal` places the cluster secret and the peer private key in the command
-      // string, so the seed path is kept out of the command log; the encrypted path never
-      // exposes them at all.
-      if (!Underpost.secret.sops.applyIfPresent('ipfs-cluster-secret', options.namespace))
-        shellExec(
-          `kubectl create secret generic ipfs-cluster-secret \
---from-literal=cluster-secret=${CLUSTER_SECRET} \
---from-literal=bootstrap-peer-priv-key=${IDENTITY_JSON.private_key} \
---dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-          { disableLog: true },
-        );
+      // Encrypted store first; the origin projection runs only when no manifest is stored. Both
+      // paths keep the credentials out of the command string — the store streams a decrypt into
+      // kubectl, and the origin projection stages the values on tmpfs.
+      if (!Underpost.secret.applyIfPresent(IPFS_SECRET_NAME, options.namespace))
+        Underpost.secret.applyFromOriginSeed(IPFS_SECRET_NAME, options.namespace);
 
       shellExec(
         `kubectl create configmap env-config \
@@ -227,13 +231,13 @@ sudo sysctl -w net.core.wmem_max=7500000`,
         Underpost.cluster.pullImage('ipfs/ipfs-cluster:latest', options);
       }
 
-      const credentials = Underpost.ipfs.resolveCredentials(`${underpostRoot}/engine-private`);
+      const credentials = Underpost.ipfs.resolveCredentials();
 
       // `env-config` advertises `bootstrap-peer-id` from the local identity file — the peer id is
       // not carried in the Secret. So a regeneration invalidates any stored manifest: it would
       // pair the previous private key with the new id and the cluster would never form. Re-encrypt
       // the fresh pair so the store and the ConfigMap stay one identity.
-      if (credentials.generated && Underpost.secret.sops.has('ipfs-cluster-secret', options.namespace))
+      if (credentials.generated && Underpost.secret.has(IPFS_SECRET_NAME, options.namespace))
         Underpost.ipfs.storeCredentials(credentials, options);
 
       const ipfsReplicas = resolveReplicaCount(options.replicas, IPFS_DEFAULT_REPLICA_COUNT);

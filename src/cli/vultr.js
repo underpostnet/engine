@@ -84,7 +84,7 @@ const UNDERPOST_VULTR = {
  * @description First non-empty value among a list of keys.
  *
  * Resolution is {@link module:src/server/runtime/environment.js.environmentValueFactory}'s — the process
- * environment, then the deploy env `underpost env <deploy-id> <environment>`
+ * environment, then the deploy env `underpost app load --env <environment>`
  * selects into `./.env`, then the underpost root env — rather than a second
  * implementation of it, because the three callers differ: a CronJob container has
  * its deploy env loaded into `process.env` by `loadCronDeployEnv`, an operator

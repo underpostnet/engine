@@ -46,9 +46,24 @@ import os from 'node:os';
 import fs from 'fs-extra';
 import net from 'node:net';
 import { shellExec } from '../server/runtime/process.js';
+import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
+
+// Phase-2 status read, executed by whatever underpost the pod's image ships. `state` is where a
+// current runtime records container status; an image published before that command existed
+// records it in the root env store and answers `config`. Reading both, newest first, is what
+// lets one monitor follow a rollout across the two. Drop the fallback once every image in
+// service ships a CLI carrying `state`.
+// Falls through on an empty answer, not just on a failed one: an image without the command
+// exits non-zero, while one that has it but has not recorded a status yet exits zero with
+// nothing, and both mean "ask the older location".
+const CONTAINER_STATUS_READ =
+  `'s=$(underpost state get container-status --plain 2>/dev/null); ` +
+  `[ -n "$s" ] || s=$(underpost config get container-status --plain 2>/dev/null); ` +
+  `printf %s "$s"'`;
+
 const grafanaAdminSyncState = new WeakMap();
 
 /**
@@ -246,7 +261,7 @@ class UnderpostMonitor {
                       const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
 
                       const namespace = options.namespace;
-                      Underpost.secret.underpostConfig(env, namespace);
+                      Underpost.host.apply(domainContextFactory({ env, namespace }));
 
                       for (const host of Object.keys(confServer)) {
                         shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
@@ -509,10 +524,10 @@ class UnderpostMonitor {
     syncGrafanaAdminSecret(options = {}) {
       const namespace = options.namespace || 'default';
       const { grafana } = UNDERPOST_MONITORING;
-      const envCredentials = Underpost.secret.grafanaAdmin({ ...options, required: false });
-      const stored = Underpost.secret.sops.has(grafana.adminSecretName, namespace);
+      const envCredentials = Underpost.host.grafanaAdmin({ ...options, required: false });
+      const stored = Underpost.secret.has(grafana.adminSecretName, namespace);
       const data = stored
-        ? Underpost.secret.sops.readData(grafana.adminSecretName, namespace)
+        ? Underpost.secret.readData(grafana.adminSecretName, namespace)
         : {
             [grafana.adminUserKey]: envCredentials.username,
             [grafana.adminPasswordKey]: envCredentials.password,
@@ -552,7 +567,7 @@ EOF
           { silent: true, disableLog: true },
         );
 
-      if (stored) Underpost.secret.sops.applyIfPresent(grafana.adminSecretName, namespace, { quiet: true });
+      if (stored) Underpost.secret.applyIfPresent(grafana.adminSecretName, namespace, { quiet: true });
       else
         shellExec(
           `kubectl apply -f - <<'EOF'
@@ -1664,7 +1679,7 @@ EOF
     /**
      * Reads Phase-2 runtime status from a single pod using the selected transport.
      *
-     *   - `exec` (default): `kubectl exec … underpost config get container-status`
+     *   - `exec` (default): `kubectl exec … ` + {@link CONTAINER_STATUS_READ}
      *     reads the env-file value. Synchronous, no background process — required
      *     for custom instances (cyberia-server/client) and the safe choice for
      *     CI/SSH. See `Deploy custom instance to K8S.md`.
@@ -1697,12 +1712,19 @@ EOF
      */
     readRuntimeStatusViaExec(podName, namespace) {
       try {
-        const raw = shellExec(
-          `sudo kubectl exec ${podName} -n ${namespace} -- sh -c 'underpost config get container-status --plain'`,
-          { silent: true, disableLog: true, stdout: true, silentOnError: true },
-        );
-        const status = normalizeContainerStatus(raw ? raw.toString().trim() : '');
-        return status === undefined ? { ok: false, transportError: 'empty_status' } : { ok: true, status };
+        const result = shellExec(`sudo kubectl exec ${podName} -n ${namespace} -- sh -c ${CONTAINER_STATUS_READ}`, {
+          silent: true,
+          disableLog: true,
+          stdout: true,
+          silentOnError: true,
+        });
+        const status = normalizeContainerStatus(`${result ?? ''}`.trim());
+        if (status !== undefined) return { ok: true, status };
+        // Report what the pod actually said. Collapsing every unreadable answer to `empty_status`
+        // hid an `unknown command` from a pod whose CLI predates the one the read was written
+        // for, and the monitor polled that unchanged message until it timed out.
+        const stderr = `${result?.stderr ?? ''}`.trim().split('\n').filter(Boolean).pop();
+        return { ok: false, transportError: stderr ? `${stderr} (exit ${result?.code ?? '?'})` : 'empty_status' };
       } catch (error) {
         return { ok: false, transportError: error?.code || error?.message || 'exec_failed' };
       }
@@ -1928,7 +1950,6 @@ EOF
         }
 
         await timer(delayMs);
-        if ((i + 1) % 10 === 0) logger.info(`${tag} | In progress... iteration ${i + 1}`);
       }
 
       emit('timeout');

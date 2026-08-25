@@ -52,6 +52,7 @@ import fs from 'fs-extra';
 import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js';
 
 import os from 'os';
+import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
@@ -809,7 +810,7 @@ class UnderpostRun {
      */
     'cluster-build': (path, options = DEFAULT_OPTION) => {
       shellExec(`node bin run clean`);
-      shellExec(`node bin env clean`);
+      shellExec(`node bin app clean`);
       for (const deployId of readDeployRoutes()) shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
       if (path === 'cmt') {
         shellExec(`git add . && underpost cmt . build cluster-build`);
@@ -1153,9 +1154,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory(options);
 
       // Retarget `underpost-config` at this sync's environment before anything is
-      // deployed. `underpost secret underpost --create-from-env` reads it inside the
+      // deployed. `underpost host load` reads it back inside the
       // pod, so a stale Secret makes the container resolve the wrong NODE_ENV.
-      if (deploying) Underpost.secret.underpostConfig(env, options.namespace);
+      if (deploying) Underpost.host.apply(domainContextFactory({ env, namespace: options.namespace }));
 
       // A direct sync owns the same gateway-first contract as the full cluster
       // runner. Build the host-side SSR documents before generating routes unless
@@ -1921,9 +1922,9 @@ EOF
       if (!replicas) replicas = options.replicas;
       const confInstances = selectConfInstances(loadConfInstances(deployId), id);
       // Retarget `underpost-config` at this run's environment before any instance
-      // Deployment is submitted: it is what `--create-from-env` reads inside the pod,
+      // Deployment is submitted: it is what `underpost host load` reads inside the pod,
       // and a stale one makes the container resolve the wrong NODE_ENV.
-      if (!options.expose) Underpost.secret.underpostConfig(env, options.namespace);
+      if (!options.expose) Underpost.host.apply(domainContextFactory({ env, namespace: options.namespace }));
       const { liveTrafficById, targetTrafficById, serving } = instanceTrafficPlanFactory({
         instances: confInstances,
         requestedTraffic: options.traffic,
@@ -3036,10 +3037,10 @@ EOF`);
                 sudo rm -rf ./engine-private/, \
                 node bin clone underpostnet/engine-cyberia-private, \
                 sudo mv ./engine-cyberia-private ./engine-private, \
-                node bin env dd-cyberia ${env}, \
+                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
                 node ./engine-private/itc-scripts/dd-cyberia-0.js, \
                 sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
-                node bin env dd-cyberia ${env}, \
+                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
                 node bin client dd-cyberia --env ${env}, \
                 node bin start dd-cyberia ${env} --run'`
             : '');
@@ -3930,7 +3931,7 @@ EOF`);
         : [
             `npm install -g npm@11.2.0`,
             `npm install -g underpost`,
-            `${baseCommand} secret underpost --create-from-env`,
+            `${baseCommand} host load`,
             `${baseCommand} start --build --run ${deployId} ${env}`,
           ];
       shellExec(`node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none dd-test --cmd "${cmd}"`);

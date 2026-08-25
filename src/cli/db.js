@@ -610,7 +610,7 @@ class UnderpostDB {
       },
     ) {
       // Ensure engine-private is available (clone if inside a deployment
-      // container where globalSecretClean has already removed it).
+      // container where globalClean has already removed it).
       const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
       try {
         loadCronDeployEnv();

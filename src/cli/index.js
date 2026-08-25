@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
 import { Command } from 'commander';
-import { loadConf } from '../server/runtime/conf.js';
-import { getNpmRootPath, getUnderpostRootPath } from '../server/runtime/environment.js';
+import { deployEnvFactory, getNpmRootPath, getUnderpostRootPath } from '../server/runtime/environment.js';
 import { commitData } from '../client/components/core/CommonJs.js';
+import { registerDomainCommand } from './domains.js';
 import { TEST_TIERS, testSuiteNames } from '../server/build/testing.js';
 
 import Underpost from '../index.js';
@@ -164,23 +164,19 @@ program
   .description('Pushes committed changes from a local repository to a remote GitHub repository.')
   .action(Underpost.repo.push);
 
+// Bootstrap ABI. The `start` lifecycle baked into a deployed image drives the freshly pulled
+// source through `node bin env <deploy-id> <env>`, so the source must keep answering it for as
+// long as an image predating `underpost app` can be scheduled. It is a delegation, not a second
+// implementation. Delete it once every image in service ships a CLI carrying `app`.
 program
   .command('env')
-  .argument(
-    '[deploy-id]',
-    `The deployment configuration ID. Use 'clean' to restore default environment settings. Use 'root' to load underpost root env. Use 'current' to get plain current deploy Id.`,
-  )
-  .argument('[env]', 'Optional: The environment to set (e.g., "production", "development"). Defaults to "production".')
-  .argument('[subConf]', 'Optional: The sub configuration to set.')
-  .description('Sets environment variables and configurations related to a specific deployment ID.')
-  .action((deployId, env, subConf) => {
-    if (deployId === 'root') {
-      const underpostRootDeployId = Underpost.env.get('DEPLOY_ID');
-      if (underpostRootDeployId) deployId = underpostRootDeployId;
-    }
-    if (env) process.env.NODE_ENV = env;
-    loadConf(deployId, subConf);
-  });
+  .argument('<deploy-id>', 'The deployment configuration ID.')
+  .argument('[env]', 'The environment to load. Defaults to production.')
+  .argument('[sub-conf]', 'Optional: the sub configuration to select.')
+  .description('Deprecated alias of `underpost app load`, kept for images that predate it.')
+  .action((deployId, env, subConf) =>
+    Underpost.app.load({ env: env || 'production', args: { 'deploy-id': deployId, 'sub-conf': subConf } }),
+  );
 
 program
   .command('static')
@@ -229,18 +225,51 @@ program
   .description(`Manages static build of page, bundles, and documentation with comprehensive customization options.`)
   .action(Underpost.static.callback);
 
+// Key-level access to the host root env store. The `host` domain owns that store's bulk
+// lifecycle through the canonical actions; these four operators are the per-key CRUD that verb
+// set has no place for. Deliberately not a `host` subcommand: the three domains carry an
+// identical surface, and adding one there would break that.
+const CONFIG_OPERATORS = ['get', 'set', 'delete', 'list'];
+
 program
   .command('config')
-  .argument('operator', `The configuration operation to perform. Options: ${Object.keys(Underpost.env).join(', ')}.`)
+  .argument('<operator>', `The configuration operation to perform. One of: ${CONFIG_OPERATORS.join(', ')}.`)
   .argument('[key]', 'Optional: The specific configuration key to manage.')
   .argument('[value]', 'Optional: The value to set for the configuration key.')
   .option('--plain', 'Prints the configuration value in plain text.')
   .option('--filter <keyword>', 'Filters the list by matching key or value (only for list operation).')
-  .option('--deploy-id <deploy-id>', 'Sets the deployment configuration ID for the operation context.')
-  .option('--build', 'Sets the build context for the operation.')
   .option('--copy', 'Copies the configuration value to the clipboard (only for get operation).')
-  .description(`Manages Underpost configurations using various operators.`)
-  .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
+  .description('Reads and writes single keys of the underpost root env store (see `underpost host` for its lifecycle).')
+  .action((operator, key, value, options) => {
+    // Explicit allowlist: the previous dispatcher indexed the API with the raw argument, so any
+    // exported member was CLI-invocable and a typo surfaced as a raw TypeError.
+    if (!CONFIG_OPERATORS.includes(operator))
+      throw new Error(`Unknown config operator: ${operator} (expected ${CONFIG_OPERATORS.join(', ')})`);
+    if (['get', 'set', 'delete'].includes(operator) && !key) throw new Error(`config ${operator} requires a key`);
+    if (operator === 'set' && value === undefined) throw new Error('config set requires a value');
+    return Underpost.env[operator](key, value, options);
+  });
+
+// Container runtime state, written by the start lifecycle and by instance lifecycle hooks, read
+// back by the deployment monitor over `kubectl exec`. Its own store, never the host root env
+// store: the two have different owners and different lifetimes.
+const STATE_OPERATORS = ['get', 'set', 'delete', 'list'];
+
+program
+  .command('state')
+  .argument('<operator>', `The state operation to perform. One of: ${STATE_OPERATORS.join(', ')}.`)
+  .argument('[key]', 'Optional: The state key to manage (e.g. container-status).')
+  .argument('[value]', 'Optional: The value to set for the state key.')
+  .option('--plain', 'Prints the state value in plain text.')
+  .option('--filter <keyword>', 'Filters the list by matching key or value (only for list operation).')
+  .description('Reads and writes the container runtime state store used by the deployment lifecycle.')
+  .action((operator, key, value, options) => {
+    if (!STATE_OPERATORS.includes(operator))
+      throw new Error(`Unknown state operator: ${operator} (expected ${STATE_OPERATORS.join(', ')})`);
+    if (['get', 'set', 'delete'].includes(operator) && !key) throw new Error(`state ${operator} requires a key`);
+    if (operator === 'set' && value === undefined) throw new Error('state set requires a value');
+    return Underpost.state[operator](key, value, options);
+  });
 
 program
   .command('root')
@@ -444,106 +473,27 @@ program
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 
-program
-  .command('secret')
-  .argument(
-    '[platform]',
-    // Platforms are the namespaced sub-APIs only; the sibling keys of Underpost.secret are
-    // top-level operations reached through their own flags, not selectable platforms.
-    `The secret management platform. Options: ${Object.keys(Underpost.secret)
-      .filter((key) => typeof Underpost.secret[key] === 'object')
-      .join(', ')}. Defaults to "sops".`,
-    'sops',
-  )
-  .option('--init', 'Initializes the secrets platform environment.')
-  .option('--create-from-file <path-env-file>', 'Creates secrets from a specified environment file.')
-  .option('--create-from-env', 'Creates secrets from container environment variables (envFrom: secretRef).')
-  .option('--global-clean', 'Removes all filesystem traces of secrets (engine-private, .env, conf cache).')
-  .option('--list', 'Lists all available secrets for the platform.')
-  .option(
-    '--encrypt <plaintext-path>',
-    'Encrypts a plaintext Secret manifest into the Git-tracked SOPS store and shreds the source (sops platform).',
-  )
-  .option(
-    '--apply',
-    'Decrypts stored SOPS manifests and streams them into kubectl apply, without writing plaintext to disk (sops platform).',
-  )
-  .option('--namespace <namespace>', 'Kubernetes namespace for secret operations (defaults to "default").')
-  .option(
-    '--install-tools',
-    'Installs the sops and age host binaries only, without running a full cluster host initialization.',
-  )
-  .option(
-    '--rotate',
-    'Re-keys every stored SOPS manifest onto --recipient. Secret values are unchanged, so no workload restart is needed.',
-  )
-  .option('--recipient <age-public-key>', 'Incoming Age public recipient for --rotate.')
-  .option(
-    '--prune-recipients',
-    'With --rotate, makes --recipient the only recipient, revoking every previous key (use after a key compromise). ' +
-      'Requires --force, and revokes CI/CD keys too unless they are named in --keep-recipients.',
-  )
-  .option(
-    '--keep-recipients <age-public-keys>',
-    'Comma-separated recipients to retain while --prune-recipients revokes the rest (e.g. the CI/CD key).',
-  )
-  .option(
-    '--purge <secret-name>',
-    'Emergency removal: deletes the live Kubernetes Secret and takes its encrypted manifest out of the store.',
-  )
-  .option(
-    '--force',
-    'Confirms the irreversible variant: deletes the manifest instead of archiving it (--purge), ' +
-      'revokes recipients (--rotate --prune-recipients), or replaces an existing manifest (--encrypt).',
-  )
-  .option('--dry-run', 'Reports what --apply, --rotate, or --purge would do without changing anything.')
-  .option(
-    '--setup [secret-names]',
-    'End-to-end SOPS/Age onboarding: installs tooling, generates the key and creation rules, encrypts the ' +
-      'named Secrets into the Git-tracked store, then validates and applies them. ' +
-      'Defaults to the whole self-hosted data tier (postgres, mariadb, mongodb + keyfile).',
-  )
-  .option(
-    '--status [secret-keys]',
-    'Read-only report of the SOPS/Age system: tooling, key and recipients, creation rules, stored manifests ' +
-      'with decryptability and cluster drift, and which source each managed Secret deploys from. ' +
-      'Optional comma-separated keys narrow it by case-insensitive substring.',
-  )
-  .option('--args <key=value-list>', 'Comma-separated `key=value` overrides for Secret data keys during --setup.')
-  .option(
-    '--from-cron-env',
-    'Loads the underpost root env store from the cron deploy env file resolved through engine-private/deploy/dd.cron.',
-  )
-  .option(
-    '--underpost-config [env]',
-    'Publishes the cron deploy environment as the underpost-config Kubernetes Secret injected with envFrom ' +
-      '(default env: production).',
-  )
-  .option('--dev', 'Sets the development cli context (reads .env.development for --from-cron-env).')
-  .description(`Manages secrets for various platforms.`)
-  .action((platform, options) => {
-    // Host tooling install is platform-independent, so it resolves before any platform lookup.
-    if (options.installTools) return Underpost.secret.sops.installTooling();
-    if (options.globalClean) return Underpost.secret.globalSecretClean();
-    // SOPS onboarding and reporting act on the store itself, not on one platform's
-    // client, so they resolve ahead of the platform lookup like the two above.
-    if (options.setup) return Underpost.secret.sops.setup(options.setup === true ? '' : options.setup, options);
-    if (options.status) return Underpost.secret.sops.status(options.status === true ? '' : options.status, options);
-    if (options.fromCronEnv) return Underpost.secret.underpost.createFromCronEnv(options);
-    if (options.underpostConfig)
-      return Underpost.secret.underpostConfig(
-        options.underpostConfig === true ? 'production' : options.underpostConfig,
-        options.namespace,
-      );
-    if (options.rotate) return Underpost.secret[platform].rotate(options.recipient, options);
-    if (options.purge) return Underpost.secret[platform].purge(options.purge, options);
-    if (options.encrypt) return Underpost.secret[platform].encrypt(options.encrypt, options.namespace, options);
-    if (options.apply) return Underpost.secret[platform].apply(options.namespace, options);
-    if (options.createFromFile) return Underpost.secret[platform].createFromEnvFile(options.createFromFile);
-    if (options.createFromEnv) return Underpost.secret[platform].createFromContainerEnv();
-    if (options.list) return Underpost.secret[platform].list();
-    if (options.init) return Underpost.secret[platform].init();
-  });
+// The three configuration domains are registered from one factory, so their action list and
+// their option list exist exactly once. Adding a verb or a flag here adds it to all three;
+// there is no place to add one to a single domain.
+for (const domain of [
+  {
+    name: 'secret',
+    description: 'Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets.',
+    api: () => Underpost.secret,
+  },
+  {
+    name: 'host',
+    description: 'Host configuration: the node-level operational environment shared by the cluster.',
+    api: () => Underpost.host,
+  },
+  {
+    name: 'app',
+    description: "Application environment: one deployment's runtime configuration.",
+    api: () => Underpost.app,
+  },
+])
+  registerDomainCommand(program, domain);
 
 program
   .command('image')

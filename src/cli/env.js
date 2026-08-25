@@ -1,174 +1,24 @@
 /**
- * Environment module for managing the environment variables of the underpost root
+ * Per-key access to the underpost root env store: a single host-scoped dotenv file next to the
+ * global installation, holding this node's configuration values.
+ *
+ * Deliberately separate from the `host` domain rather than folded into it. `host` owns that
+ * store's bulk lifecycle through the seven canonical domain actions; this module is key-level
+ * CRUD on the same file, a different interaction shape with no place in that verb set.
+ *
+ * Container runtime status does not live here — see {@link UnderpostState}.
  * @module src/cli/env.js
  * @namespace UnderpostEnv
  */
 
-import { getUnderpostRootPath, writeEnv } from '../server/runtime/environment.js';
-import fs from 'fs-extra';
-import { resolveDeployList } from '../server/network/router.js';
-import { loggerFactory } from '../server/ops/logger.js';
-import dotenv from 'dotenv';
-import { pbcopy } from '../server/runtime/process.js';
+import { dotenvStoreFactory } from './dotenv-store.js';
+import { getUnderpostRootPath } from '../server/runtime/environment.js';
 
-const logger = loggerFactory(import.meta);
-
-/**
- * Guards an env file path against stale directory artifacts.
- * Removes the path if it exists as a directory (e.g. `.env/` created by a previous EISDIR bug).
- * @param {string} envPath - The path to the environment file.
- * @memberof UnderpostEnv
- */
-const guardEnvPath = (envPath) => {
-  if (fs.existsSync(envPath) && !fs.statSync(envPath).isFile()) {
-    logger.warn(`Removing stale directory at env path: ${envPath}`);
-    fs.removeSync(envPath);
-  }
-};
-
-/**
- * @class UnderpostRootEnv
- * @description Manages the environment variables of the underpost root.
- * @memberof UnderpostEnv
- */
 class UnderpostRootEnv {
-  static API = {
-    /**
-     * @method set
-     * @description Sets an environment variable in the underpost root environment.
-     * @param {string} key - The key of the environment variable to set.
-     * @param {string} value - The value of the environment variable to set.
-     * @param {object} options - Options for setting the environment variable.
-     * @param {string} [options.deployId=''] - Deployment ID associated with the environment variable.
-     * @param {boolean} [options.build=false] - If true, sets the environment variable using custom --deploy-id or all dd.routes deploy ids configured.
-     * @memberof UnderpostEnv
-     */
-    set(key, value, options = { deployId: '', build: false }) {
-      const _set = (envPath, key, value) => {
-        guardEnvPath(envPath);
-        let env = {};
-        if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-        env[key] = value;
-        writeEnv(envPath, env);
-      };
-      if (options.build) {
-        const deployIdList = options.deployId ? [options.deployId] : resolveDeployList('dd');
-        for (const deployId of deployIdList)
-          for (const envFile of ['test', 'development', 'production'])
-            _set(`./engine-private/conf/${deployId}/.env.${envFile}`, key, value);
-        return;
-      }
-      const exeRootPath = getUnderpostRootPath();
-      fs.ensureDirSync(exeRootPath);
-      const envPath = `${exeRootPath}/.env`;
-      _set(envPath, key, value);
-    },
-    /**
-     * @method delete
-     * @description Deletes an environment variable from the underpost root environment.
-     * @param {string} key - The key of the environment variable to delete.
-     * @memberof UnderpostEnv
-     */
-    delete(key) {
-      const exeRootPath = getUnderpostRootPath();
-      const envPath = `${exeRootPath}/.env`;
-      guardEnvPath(envPath);
-      let env = {};
-      if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      delete env[key];
-      writeEnv(envPath, env);
-    },
-    /**
-     * @method get
-     * @description Gets an environment variable from the underpost root environment.
-     * @param {string} key - The key of the environment variable to get.
-     * @param {string} value - The value of the environment variable to get.
-     * @param {object} options - Options for getting the environment variable.
-     * @param {boolean} [options.plain=false] - If true, returns the environment variable value as a string.
-     * @param {boolean} [options.disableLog=false] - If true, disables logging of the environment variable value.
-     * @param {boolean} [options.copy=false] - If true, copies the environment variable value to the clipboard.
-     * @memberof UnderpostEnv
-     */
-    get(key, value, options = { plain: false, disableLog: false, copy: false }) {
-      const exeRootPath = getUnderpostRootPath();
-      const envPath = `${exeRootPath}/.env`;
-      if (!fs.existsSync(envPath) || !fs.statSync(envPath).isFile()) return undefined;
-      const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      if (!options.disableLog)
-        options?.plain === true ? console.log(env[key]) : logger.info(`${key}(${typeof env[key]})`, env[key]);
-      if (options.copy === true) pbcopy(env[key]);
-      return env[key];
-    },
-    /**
-     * @method list
-     * @description Lists all environment variables in the underpost root environment.
-     * @param {string} key - Not used for list operation.
-     * @param {string} value - Not used for list operation.
-     * @param {object} options - Options for listing environment variables.
-     * @param {string} [options.filter] - Filter keyword to match against keys or values.
-     * @memberof UnderpostEnv
-     */
-    list(key, value, options = {}) {
-      const exeRootPath = getUnderpostRootPath();
-      const envPath = `${exeRootPath}/.env`;
-      guardEnvPath(envPath);
-      if (!fs.existsSync(envPath)) {
-        logger.warn(`Empty environment variables`);
-        return {};
-      }
-      let env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-
-      // Apply filter if provided
-      if (options.filter) {
-        const filterKeyword = options.filter.toLowerCase();
-        const filtered = {};
-        for (const [envKey, envValue] of Object.entries(env)) {
-          const keyMatch = envKey.toLowerCase().includes(filterKeyword);
-          const valueMatch = String(envValue).toLowerCase().includes(filterKeyword);
-          if (keyMatch || valueMatch) {
-            filtered[envKey] = envValue;
-          }
-        }
-        env = filtered;
-        logger.info(`underpost root (filtered by: ${options.filter})`, env);
-      } else {
-        logger.info('underpost root', env);
-      }
-
-      return env;
-    },
-    /**
-     * @method clean
-     * @description Cleans the underpost root environment by removing the environment file.
-     * @param {object} options - Options for cleaning the environment.
-     * @param {Array<string>} [options.keepKeys=[]] - List of keys to keep in the environment file. If provided, only these keys will be retained.
-     * @memberof UnderpostEnv
-     */
-    clean(options = { keepKeys: [] }) {
-      const { keepKeys } = options;
-      const exeRootPath = getUnderpostRootPath();
-      const envPath = `${exeRootPath}/.env`;
-      if (keepKeys && keepKeys.length > 0 && fs.existsSync(envPath)) {
-        const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-        const filteredEnv = Object.fromEntries(Object.entries(env).filter(([key]) => keepKeys.includes(key)));
-        writeEnv(envPath, filteredEnv);
-      } else {
-        fs.removeSync(envPath);
-      }
-    },
-    /**
-     * @method isInsideContainer
-     * @description Detects whether the current process is running inside a container.
-     * Checks for Kubernetes service injection or Docker's .dockerenv marker.
-     * @returns {boolean} True if running inside a container.
-     * @memberof UnderpostEnv
-     */
-    isInsideContainer() {
-      return !!process.env.KUBERNETES_SERVICE_HOST || fs.existsSync('/.dockerenv');
-    },
-  };
+  static API = dotenvStoreFactory({
+    path: () => `${getUnderpostRootPath()}/.env`,
+    label: 'underpost root',
+  });
 }
 
 export default UnderpostRootEnv;
-
-export { guardEnvPath };

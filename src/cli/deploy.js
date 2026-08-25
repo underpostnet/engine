@@ -50,6 +50,7 @@ import nodePath from 'node:path';
 import dotenv from 'dotenv';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 
 /**
@@ -451,20 +452,15 @@ EOF
     }) {
       if (!readinessProbe) throw new Error(`Refusing to build ${deployId}-${env}-${suffix} without a readiness probe`);
       if (!cmd)
-        cmd =
-          pullBundle || skipFullBuild
-            ? [
-                // When pullBundle (or skipFullBuild) is set the container pulls the pre-built client
-                // bundle from Cloudinary (push-bundle must have been run on the dev machine beforehand).
-                `underpost secret underpost --create-from-env`,
-                `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
-              ]
-            : [
-                // No global install step: the image already ships the CLI, and `start --build`
-                // relinks it to the source it pulls (see UnderpostStartUp.pullBase).
-                `underpost secret underpost --create-from-env`,
-                `underpost start --build --run ${deployId} ${env}`,
-              ];
+        // One command, and deliberately only `start`. This string is executed by whatever
+        // underpost the image happens to ship, which is as new as the last npm publish and no
+        // newer — so it may name only CLI surface that has always existed. Everything the
+        // deployment needs beyond that, host configuration included, is done inside the start
+        // lifecycle, where the code is the freshly pulled source rather than the image snapshot.
+        // `--pull-bundle` fetches the pre-built client bundle instead of building it in-pod.
+        cmd = [
+          `underpost start --build --run${pullBundle || skipFullBuild ? ' --pull-bundle --skip-full-build' : ''} ${deployId} ${env}`,
+        ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes) volumes = [];
       const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
@@ -2207,7 +2203,7 @@ EOF`);
         logger.info('router', await Underpost.deploy.routerFactory(deployList, env));
         return;
       }
-      if (!options.disableUpdateUnderpostConfig) Underpost.secret.underpostConfig(env, namespace);
+      if (!options.disableUpdateUnderpostConfig) Underpost.host.apply(domainContextFactory({ env, namespace }));
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
