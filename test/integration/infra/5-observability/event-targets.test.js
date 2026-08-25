@@ -880,7 +880,8 @@ describe('alertmanager webhook receiver', () => {
   });
 
   afterEach(async () => {
-    await new Promise((resolve) => server.close(resolve));
+    if (server?.listening) await new Promise((resolve) => server.close(resolve));
+    server = undefined;
     vi.restoreAllMocks();
   });
 

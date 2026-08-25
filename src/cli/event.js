@@ -2024,7 +2024,13 @@ class UnderpostEvent {
      * @memberof UnderpostEvent
      */
     async serve(options = {}) {
-      const port = Number(options.port) || UNDERPOST_MONITORING.eventWebhook.port;
+      // An explicit port 0 asks the OS for an ephemeral one, so it must not fall
+      // through to the default the way an absent option does.
+      const requestedPort = Number(options.port);
+      const port =
+        options.port === undefined || options.port === null || options.port === '' || !Number.isInteger(requestedPort)
+          ? UNDERPOST_MONITORING.eventWebhook.port
+          : requestedPort;
       const token = options.token || Underpost.monitor.eventWebhookTokenFactory();
       const cooldownMs = Number(options.cooldownMs) || 5 * 60 * 1000;
       const lastDispatch = new Map();
