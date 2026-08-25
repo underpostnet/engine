@@ -5,6 +5,7 @@
  */
 
 import UnderpostBaremetal from './cli/baremetal.js';
+import UnderpostClient from './cli/client.js';
 import UnderpostCloudInit from './cli/cloud-init.js';
 import UnderpostKickStart from './cli/kickstart.js';
 import UnderpostCluster from './cli/cluster.js';
@@ -66,6 +67,15 @@ class Underpost {
    */
   static get repo() {
     return UnderpostRepository.API;
+  }
+  /**
+   * Client build cli API
+   * @static
+   * @type {UnderpostClient.API}
+   * @memberof Underpost
+   */
+  static get client() {
+    return UnderpostClient.API;
   }
   /**
    * Root Env cli API
@@ -376,6 +386,7 @@ export {
   UnderpostKickStart,
   UnderpostIPFS,
   UnderpostMonitor,
+  UnderpostClient,
   UnderpostRepository,
   UnderpostRun,
   UnderpostSecret,

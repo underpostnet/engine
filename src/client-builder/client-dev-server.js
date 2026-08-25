@@ -32,7 +32,7 @@ const createClientDevServer = async (
   const devClientEnvPath = `./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`;
   if (fs.existsSync(devClientEnvPath)) dotenv.config({ path: devClientEnvPath, override: true });
 
-  await Underpost.repo.client(deployId, `${subConf}-dev-client`.trim(), host, path);
+  await Underpost.client.callback(deployId, `${subConf}-dev-client`.trim(), host, path);
 
   shellExec(`node src/server ${deployId} ${subConf}-dev-client`.trim(), {
     async: true,

@@ -54,8 +54,13 @@ program
   .option('--lite-build', 'Skip full build (default is full build)')
   .option('--icons-build', 'Build icons')
   .option('--ssr', 'Rebuild only SSR views defined in conf.ssr.json, leaving client assets untouched')
+  .option(
+    '--env <env>',
+    'Target environment for the build (e.g. "production", "development"). Falls back to --dev, then NODE_ENV.',
+  )
+  .option('--dev', 'Sets the development cli context (shorthand for --env development).')
   .description('Builds client assets, single replicas, and/or syncs environment ports.')
-  .action(Underpost.repo.client);
+  .action(Underpost.client.callback);
 
 program
   .command('start')
@@ -443,7 +448,11 @@ program
   .command('secret')
   .argument(
     '[platform]',
-    `The secret management platform. Options: ${Object.keys(Underpost.secret).join(', ')}. Defaults to "sops".`,
+    // Platforms are the namespaced sub-APIs only; the sibling keys of Underpost.secret are
+    // top-level operations reached through their own flags, not selectable platforms.
+    `The secret management platform. Options: ${Object.keys(Underpost.secret)
+      .filter((key) => typeof Underpost.secret[key] === 'object')
+      .join(', ')}. Defaults to "sops".`,
     'sops',
   )
   .option('--init', 'Initializes the secrets platform environment.')

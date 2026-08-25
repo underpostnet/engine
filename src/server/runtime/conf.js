@@ -441,6 +441,10 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   const packageJson = JSON.parse(fs.readFileSync(`${folder}/package.json`, 'utf8'));
   originPackageJson.scripts.start = packageJson.scripts.start;
   packageJson.scripts = originPackageJson.scripts;
+  // `bin` is engine identity, not deploy identity: it is what `npm link` publishes as the
+  // global `underpost` command. Deploy manifests do not carry one, so without this the
+  // checkout would stop being linkable the moment its environment was loaded.
+  if (originPackageJson.bin) packageJson.bin = originPackageJson.bin;
   fs.writeFileSync(`./package.json`, JSON.stringify(packageJson, null, 4), 'utf8');
   return { folder, deployId };
 };
@@ -855,7 +859,7 @@ const getDataDeploy = async (
       for (const path of Object.keys(serverConf[host])) {
         if (!isReplicaDeploy && serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
           if (options && options.buildSingleReplica)
-            await Underpost.repo.client(deployObj.deployId, '', host, path, {
+            await Underpost.client.callback(deployObj.deployId, '', host, path, {
               singleReplica: true,
             });
           replicaDataDeploy = replicaDataDeploy.concat(
@@ -873,7 +877,7 @@ const getDataDeploy = async (
   }
 
   if (!options.disableSyncEnvPort && options.buildSingleReplica)
-    await Underpost.repo.client(undefined, '', '', '', { syncEnvPort: true });
+    await Underpost.client.callback(undefined, '', '', '', { syncEnvPort: true });
 
   logger.info('Deployments configured', buildDataDeploy);
 
@@ -1369,16 +1373,6 @@ const buildClientStaticConf = async (
     'utf8',
   );
 };
-
-/**
- * @method isDeployRunnerContext
- * @description Checks if the deploy runner context is valid.
- * @param {string} path - The path.
- * @param {object} options - The options.
- * @returns {boolean} - The deploy runner context.
- * @memberof ServerConfBuilder
- */
-const isDeployRunnerContext = (path, options) => !options.build && path && path !== 'template-deploy';
 
 /**
  * @method isDevProxyContext
@@ -3149,7 +3143,6 @@ export {
   getInstanceContext,
   buildApiConf,
   buildClientStaticConf,
-  isDeployRunnerContext,
   isDevProxyContext,
   devProxyHostFactory,
   isTlsDevProxy,

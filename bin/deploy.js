@@ -125,7 +125,7 @@ try {
 
         shellExec(`node bin/deploy build-nodejs-src-app ${deployId} ${clientId}`);
 
-        await Underpost.repo.client(deployId);
+        await Underpost.client.callback(deployId);
 
         shellExec(`npm run dev ${deployId}`);
       }
