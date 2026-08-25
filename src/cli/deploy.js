@@ -26,7 +26,6 @@ import {
   pathPortAssignmentFactory,
   readDeployRoutes,
 } from '../server/network/router.js';
-import { cronDeployIdResolve } from '../server/ops/cron.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
 import { shellExec } from '../server/runtime/process.js';
@@ -82,7 +81,7 @@ const GATEWAY_CONTROLLER_NAME = `${GATEWAY_EXTENSION_GROUP}/gatewayclass-control
 // Gateway references: one name, resolved through gatewayApiConfigFactory, so an
 // override reaches the installer and the manifests together.
 const GATEWAY_CLASS_DEFAULT = 'eg';
-// Where `bin client <deployId> <env>` writes each host's bundle, including the
+// Where `bin client <deployId> --env <env>` writes each host's bundle, including the
 // SSR status views declared in conf.ssr.json (`<host><path>/<status>/index.html`).
 // Engine root inside the workload container; the built PWA artifacts live under
 // its `public/` tree, which is where the static edge documents are sourced from.
@@ -461,8 +460,8 @@ EOF
                 `underpost start --build --run --pull-bundle --skip-full-build ${deployId} ${env}`,
               ]
             : [
-                // `npm install -g npm@11.2.0`,
-                // `npm install -g underpost`,
+                // No global install step: the image already ships the CLI, and `start --build`
+                // relinks it to the source it pulls (see UnderpostStartUp.pullBase).
                 `underpost secret underpost --create-from-env`,
                 `underpost start --build --run ${deployId} ${env}`,
               ];
@@ -2208,7 +2207,7 @@ EOF`);
         logger.info('router', await Underpost.deploy.routerFactory(deployList, env));
         return;
       }
-      if (!options.disableUpdateUnderpostConfig) Underpost.deploy.configMap(env);
+      if (!options.disableUpdateUnderpostConfig) Underpost.secret.underpostConfig(env, namespace);
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -2393,27 +2392,6 @@ EOF`);
           }
         }
       }
-    },
-    /**
-     * Creates a Kubernetes Secret for a deployment (replaces configMap for secret data).
-     * Secrets are mounted as tmpfs (never written to node disk) and support RBAC restrictions.
-     * @param {string} env - Environment for which the secret is being created.
-     * @param {string} [namespace='default'] - Kubernetes namespace for the secret.
-     * @memberof UnderpostDeploy
-     */
-    configMap(env, namespace = 'default') {
-      const cronDeployId = cronDeployIdResolve() || 'dd-cron';
-      const envFilePath = `/home/dd/engine/engine-private/conf/${cronDeployId}/.env.${env}`;
-      // `--from-env-file` turns every KEY=VALUE into a secret key that the Deployment injects via
-      // `envFrom`. Strip shell/runtime-critical keys (notably PATH) first — an injected PATH
-      // overrides the image's own and breaks coreutils/sudo resolution inside the pod.
-      const sanitizedEnvPath = `${envFilePath}.secret`;
-      fs.writeFileSync(sanitizedEnvPath, Underpost.secret.sanitizeSecretEnvFile(fs.readFileSync(envFilePath, 'utf8')));
-      shellExec(`kubectl delete secret underpost-config -n ${namespace} --ignore-not-found`);
-      shellExec(
-        `kubectl create secret generic underpost-config --from-env-file=${sanitizedEnvPath} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
-      );
-      fs.removeSync(sanitizedEnvPath);
     },
     /**
      * Switches the traffic for a deployment.

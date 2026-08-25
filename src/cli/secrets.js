@@ -105,8 +105,14 @@ const RESERVED_ENV_KEYS = new Set([
   'which_declare',
 ]);
 const RESERVED_ENV_KEY_PREFIXES = ['KUBERNETES_', 'npm_', 'NODE_'];
+// `NODE_` covers the image's own NODE_VERSION/NODE_OPTIONS, but NODE_ENV is the deployment
+// environment itself: the value `underpost-config` exists to carry onto the node, and the one
+// `loadConf` reads to pick conf.*.json and .env.<env>. Stripping it made every deploy fall back
+// to `development` regardless of the requested environment.
+const PRESERVED_ENV_KEYS = new Set(['NODE_ENV']);
 const isReservedEnvKey = (key) =>
-  RESERVED_ENV_KEYS.has(key) || RESERVED_ENV_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
+  !PRESERVED_ENV_KEYS.has(key) &&
+  (RESERVED_ENV_KEYS.has(key) || RESERVED_ENV_KEY_PREFIXES.some((prefix) => key.startsWith(prefix)));
 
 // Secrets `--setup` onboards when no explicit list is passed: the full self-hosted data tier.
 // `mongodb-keyfile` is listed alongside `mongodb-secret` because the MongoDB StatefulSet mounts
@@ -1531,21 +1537,57 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method underpostConfig
-     * @description Publishes the cron deploy's environment as the `underpost-config`
-     * Kubernetes Secret that workloads inject with `envFrom`.
+     * @method underpostConfigEnvPath
+     * @description Resolves the env file published as `underpost-config`.
      *
-     * A Secret, despite {@link UnderpostDeploy.configMap}'s legacy name: the env file it
-     * publishes carries the cluster's operational credentials. It belongs to this module
-     * because it is built by running that file through
+     * The cron deploy is the one env file carrying the whole cluster's operational
+     * credentials, so every node reads it rather than any application deploy's. Its id comes
+     * from `engine-private/deploy/dd.cron`, the same resolution the cron jobs run against.
+     * @param {string} env - Environment whose env file is published.
+     * @returns {string} Absolute-or-relative path to the cron deploy's `.env.<env>`.
+     * @memberof UnderpostSecret
+     */
+    underpostConfigEnvPath(env) {
+      const cronDeployId = cronDeployIdResolve() || 'dd-cron';
+      return `./engine-private/conf/${cronDeployId}/.env.${env}`;
+    },
+
+    /**
+     * @method underpostConfig
+     * @description Publishes the cron deploy's environment for `env` as the `underpost-config`
+     * Kubernetes Secret that workloads inject with `envFrom`. Single source of truth for
+     * creating, refreshing, and retargeting that Secret.
+     *
+     * A Secret, not a ConfigMap: the env file it publishes carries the cluster's operational
+     * credentials. It lives here because it is built by running that file through
      * {@link UnderpostSecret.sanitizeSecretEnvFile}, which strips the shell- and
      * Kubernetes-critical keys that would otherwise override the image's own `PATH`.
+     *
+     * Refreshing it is what makes `underpost secret underpost --create-from-env` inside the pod
+     * see the requested `NODE_ENV`, so every deploy path must call this with its target
+     * environment before submitting a Deployment.
      * @param {string} [env='production'] - Environment whose env file is published.
      * @param {string} [namespace='default'] - Target namespace.
      * @memberof UnderpostSecret
      */
     underpostConfig(env = 'production', namespace = 'default') {
-      Underpost.deploy.configMap(env || 'production', namespace);
+      const targetEnv = env || 'production';
+      const targetNamespace = namespace || 'default';
+      const envFilePath = Underpost.secret.underpostConfigEnvPath(targetEnv);
+      if (!fs.existsSync(envFilePath)) throw new Error(`[underpost-config] env file not found: ${envFilePath}`);
+      // `--from-env-file` turns every KEY=VALUE into a secret key that the Deployment injects
+      // via `envFrom`, so the file is sanitized before it is handed to kubectl.
+      const sanitizedEnvPath = `${envFilePath}.secret`;
+      fs.writeFileSync(sanitizedEnvPath, Underpost.secret.sanitizeSecretEnvFile(fs.readFileSync(envFilePath, 'utf8')));
+      try {
+        shellExec(`kubectl delete secret underpost-config -n ${targetNamespace} --ignore-not-found`);
+        shellExec(
+          `kubectl create secret generic underpost-config --from-env-file=${sanitizedEnvPath} --dry-run=client -o yaml | kubectl apply -f - -n ${targetNamespace}`,
+        );
+      } finally {
+        fs.removeSync(sanitizedEnvPath);
+      }
+      logger.info('underpost-config published', { env: targetEnv, namespace: targetNamespace });
     },
 
     /**

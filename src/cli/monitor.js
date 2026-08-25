@@ -246,7 +246,7 @@ class UnderpostMonitor {
                       const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
 
                       const namespace = options.namespace;
-                      Underpost.deploy.configMap(env, namespace);
+                      Underpost.secret.underpostConfig(env, namespace);
 
                       for (const host of Object.keys(confServer)) {
                         shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
