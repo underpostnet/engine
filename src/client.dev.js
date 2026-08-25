@@ -1,8 +1,5 @@
 'use strict';
 
-// https://nodejs.org/api
-// https://expressjs.com/en/4x/api.html
-
 import { loggerFactory } from './server/ops/logger.js';
 import { ProcessController } from './server/runtime/process.js';
 import { Config, buildClientStaticConf } from './server/runtime/conf.js';

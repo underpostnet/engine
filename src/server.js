@@ -1,8 +1,5 @@
 'use strict';
 
-// https://nodejs.org/api
-// https://expressjs.com/en/4x/api.html
-
 import dotenv from 'dotenv';
 import { loggerFactory } from './server/ops/logger.js';
 import { buildClient } from './client-builder/client-build.js';
