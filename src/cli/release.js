@@ -525,8 +525,8 @@ class UnderpostRelease {
      */
     async ci(deployId, message, options) {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
-      const suffix = deployId.replace(/^(dd-|engine-)/, '');
-      const repoName = `engine-${suffix}`;
+      const suffix = Underpost.repo.confIdFactory(deployId);
+      const repoName = Underpost.repo.engineRepoFactory(deployId);
       const buildTarget = `dd-${suffix}`;
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
       shellCd('/home/dd');

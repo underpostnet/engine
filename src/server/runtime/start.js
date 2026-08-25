@@ -231,9 +231,7 @@ class UnderpostStartUp {
       const buildBasePath = `/home/dd`;
       // `--private-test-repo` clones the isolated test source repo published by
       // `node bin/build <deployId> --update-private`, instead of the production one.
-      const repoName = options?.privateTestRepo
-        ? `engine-test-${deployId.split('-')[1]}`
-        : `engine-${deployId.split('-')[1]}`;
+      const repoName = Underpost.repo.engineRepoFactory(deployId, { test: options?.privateTestRepo === true });
       shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
       shellExec(`mkdir -p ${ENGINE_PATH}`);
       shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName}/. ./engine`);

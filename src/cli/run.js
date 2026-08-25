@@ -955,30 +955,30 @@ class UnderpostRun {
     },
     /**
      * @method pull
-     * @description Clones or pulls updates for the `engine` and `engine-private` repositories into `/home/dd/engine` and `/home/dd/engine/engine-private`.
-     * @param {string} path - The input value, identifier, or path for the operation.
+     * @description Brings the node's engine checkout and its private configuration to the tip of
+     * their repositories, at `/home/dd/engine` and `/home/dd/engine/engine-private`.
+     *
+     * With no argument this is the monorepo pair, `engine` and `engine-private`. Naming a source
+     * repository deploys that source instead, and its private conf repository is derived from the
+     * conf id they share rather than passed separately — `underpostnet/engine-test-lampp` pairs
+     * with `underpostnet/engine-lampp-private`, as does `underpostnet/engine-lampp`. A checkout
+     * already holding a different repository is retargeted in place, so a node moves onto a test
+     * source repo and back without being reprovisioned.
+     * @param {string} path - Engine source repository, as `owner/repo` or a clone URL. Defaults to
+     *   the `GITHUB_USERNAME` monorepo.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    pull: (path, options = DEFAULT_OPTION) => {
+    pull: (path = '', options = DEFAULT_OPTION) => {
       // shellExec is fail-fast by default — any non-zero exit throws and
       // propagates up to the workflow step. No per-call flag required.
-      if (!fs.existsSync(`/home/dd`) || !fs.existsSync(`/home/dd/engine`)) {
-        fs.mkdirSync(`/home/dd`, { recursive: true });
-        shellExec(`cd /home/dd && underpost clone ${process.env.GITHUB_USERNAME}/engine`, { silent: true });
-      } else {
-        shellExec(`underpost run clean`);
-        shellExec(`cd /home/dd/engine && underpost pull . ${process.env.GITHUB_USERNAME}/engine`, { silent: true });
-      }
-      if (!fs.existsSync(`/home/dd/engine/engine-private`))
-        shellExec(`cd /home/dd/engine && underpost clone ${process.env.GITHUB_USERNAME}/engine-private`, {
-          silent: true,
-        });
-      else
-        shellExec(
-          `cd /home/dd/engine/engine-private && underpost pull . ${process.env.GITHUB_USERNAME}/engine-private`,
-          { silent: true },
-        );
+      const source = Underpost.repo.repoSlugFactory(path || `${process.env.GITHUB_USERNAME}/engine`);
+      const privateRepo = `${source.split('/')[0]}/${Underpost.repo.privateRepoFactory(source)}`;
+      logger.info('Pulling engine source', { source, privateRepo });
+
+      if (fs.existsSync(`/home/dd/engine`)) shellExec(`underpost run clean`);
+      Underpost.repo.syncCheckout({ path: `/home/dd/engine`, repo: source });
+      Underpost.repo.syncCheckout({ path: `/home/dd/engine/engine-private`, repo: privateRepo });
     },
 
     /**

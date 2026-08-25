@@ -2865,8 +2865,7 @@ ${renderHosts}`,
  * @memberof ServerConfBuilder
  */
 const syncPrivateConf = (deployId, extraPaths = []) => {
-  const suffix = deployId.split('dd-')[1];
-  const privateRepoName = `engine-${suffix}-private`;
+  const privateRepoName = Underpost.repo.privateRepoFactory(deployId);
   const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
   const privateRepoPath = `../${privateRepoName}`;
 
@@ -3160,7 +3159,7 @@ git add .`);
  */
 const updatePrivateEngineTestRepo = async (deployId) => {
   const username = process.env.GITHUB_USERNAME || 'underpostnet';
-  const repoName = `engine-test-${deployId.split('-')[1]}`;
+  const repoName = Underpost.repo.engineRepoFactory(deployId, { test: true });
   const templatePath = '/home/dd/pwa-microservices-template';
   if (!fs.existsSync(templatePath))
     throw new Error(`updatePrivateEngineTestRepo: assemble the template first (node bin/build ${deployId})`);

@@ -31,7 +31,7 @@ const basePath = '../pwa-microservices-template';
  * @param {string} confName - A concrete deploy id (e.g. `dd-prototype`).
  */
 const buildDeployTemplate = async (confName) => {
-  const repoName = `engine-${confName.split('dd-')[1]}`;
+  const repoName = Underpost.repo.engineRepoFactory(confName);
   const catalog = await loadDeployCatalog(confName);
 
   if (catalog.sourceMoves.length) {

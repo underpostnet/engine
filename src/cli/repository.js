@@ -1222,6 +1222,55 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Reduces any deploy-scoped reference to the conf id its repositories share.
+     *
+     * Single source of that parsing: deploy ids (`dd-lampp`), source repos (`engine-lampp`),
+     * test source repos (`engine-test-lampp`) and private conf repos (`engine-lampp-private`)
+     * all name the same deployment, and the monorepo (`engine` / `engine-private`) names none.
+     * @param {string} reference - Deploy id, repository name, `owner/repo` slug, or clone URL.
+     * @returns {string} Conf id, or `''` for the monorepo.
+     * @memberof UnderpostRepository
+     */
+    confIdFactory(reference = '') {
+      const name = `${reference || ''}`
+        .trim()
+        .split('/')
+        .pop()
+        .replace(/\.git$/, '');
+      const confId = name
+        .replace(/^dd-/, '')
+        .replace(/^engine-test-/, '')
+        .replace(/^engine-/, '')
+        .replace(/-private$/, '');
+      return confId === 'engine' || confId === 'private' ? '' : confId;
+    },
+
+    /**
+     * Names the engine source repository a reference deploys from.
+     * @param {string} reference - Deploy id or repository reference.
+     * @param {object} [options] - Naming options.
+     * @param {boolean} [options.test=false] - Name the private test source repo instead.
+     * @returns {string} Repository name, without owner.
+     * @memberof UnderpostRepository
+     */
+    engineRepoFactory(reference = '', options = { test: false }) {
+      const confId = Underpost.repo.confIdFactory(reference);
+      if (!confId) return 'engine';
+      return options?.test === true ? `engine-test-${confId}` : `engine-${confId}`;
+    },
+
+    /**
+     * Names the private configuration repository a reference's conf lives in.
+     * @param {string} reference - Deploy id or repository reference.
+     * @returns {string} Repository name, without owner.
+     * @memberof UnderpostRepository
+     */
+    privateRepoFactory(reference = '') {
+      const confId = Underpost.repo.confIdFactory(reference);
+      return confId ? `engine-${confId}-private` : 'engine-private';
+    },
+
+    /**
      * Resolves a Git remote URL, normalizing short-form owner/repo references to full
      * GitHub HTTPS URLs and injecting GITHUB_TOKEN when available.
      * @param {string} url - The repository URL or short-form (e.g. "owner/repo" or full HTTPS URL).
@@ -1320,6 +1369,44 @@ Prevent build private config repo.`,
       // by conflicting local changes; -B points the target branch at the fetched tip.
       shellExec(`cd "${repoPath}" && git reset --hard FETCH_HEAD`);
       shellExec(`cd "${repoPath}" && git checkout -B ${targetBranch} FETCH_HEAD`);
+    },
+
+    /**
+     * Brings a local checkout to the requested repository at its tip, whatever state it is in.
+     *
+     * Clones when the path is absent, retargets when it holds a different repository, and pulls
+     * when it already tracks the right one — so a node can be moved between an engine source
+     * repo and its test counterpart without being reprovisioned by hand.
+     *
+     * The clone lands under the repository's own name and is renamed into place, because the
+     * checkout path is fixed by the deployment layout while the repository name is not.
+     *
+     * @param {object} opts
+     * @param {string} opts.path - Absolute checkout path.
+     * @param {string} opts.repo - Repository `owner/repo` slug or clone URL.
+     * @returns {'cloned'|'switched'|'pulled'} What the call had to do.
+     * @memberof UnderpostRepository
+     */
+    syncCheckout({ path: checkoutPath, repo }) {
+      const slug = Underpost.repo.repoSlugFactory(repo);
+      const repoName = slug.split('/')[1];
+      const parent = path.dirname(checkoutPath);
+
+      if (!fs.existsSync(checkoutPath)) {
+        fs.mkdirSync(parent, { recursive: true });
+        shellExec(`cd ${parent} && underpost clone ${slug}`, { silent: true });
+        if (`${parent}/${repoName}` !== checkoutPath) shellExec(`sudo mv ${parent}/${repoName} ${checkoutPath}`);
+        return 'cloned';
+      }
+
+      const current = Underpost.repo.getRemoteUrl({ path: checkoutPath });
+      if (current && Underpost.repo.repoSlugFactory(current) !== slug) {
+        Underpost.repo.switchRemote({ url: slug, path: checkoutPath });
+        return 'switched';
+      }
+
+      shellExec(`cd ${checkoutPath} && underpost pull . ${slug}`, { silent: true });
+      return 'pulled';
     },
 
     /**
@@ -1749,7 +1836,7 @@ Prevent build private config repo.`,
         throw new Error('privateEngineRepoFactory: GITHUB_USERNAME not set');
       }
 
-      const repoName = effectiveDeployId ? `engine-${effectiveDeployId.split('-')[1]}-private` : 'engine-private';
+      const repoName = Underpost.repo.privateRepoFactory(effectiveDeployId);
       logger.info(`engine-private missing — cloning ${username}/${repoName}`);
       shellExec(`underpost clone ${username}/${repoName}`);
       if (!fs.existsSync(`./${repoName}`)) {

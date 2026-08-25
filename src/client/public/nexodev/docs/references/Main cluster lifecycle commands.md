@@ -13,18 +13,19 @@ Minimalist reference for Underpost engine cluster lifecycle commands.
 5. [Development Server](#development-server)
 6. [Cluster Build](#cluster-build)
 7. [Template Deploy](#template-deploy)
-8. [SSH Deploy](#ssh-deploy)
-9. [Cluster](#cluster)
-10. [DD Container](#dd-container)
-11. [Image](#image)
-12. [Default Configuration](#default-configuration)
-13. [Promote](#promote)
-14. [Cron](#cron)
-15. [Sync](#sync)
-16. [Deploy Job](#deploy-job)
-17. [Node Move](#node-move)
-18. [Observability and Events](#observability-and-events)
-19. [Baremetal Node Commissioning & Join](#baremetal-node-commissioning--join)
+8. [Node Source Pull](#node-source-pull)
+9. [SSH Deploy](#ssh-deploy)
+10. [Cluster](#cluster)
+11. [DD Container](#dd-container)
+12. [Image](#image)
+13. [Default Configuration](#default-configuration)
+14. [Promote](#promote)
+15. [Cron](#cron)
+16. [Sync](#sync)
+17. [Deploy Job](#deploy-job)
+18. [Node Move](#node-move)
+19. [Observability and Events](#observability-and-events)
+20. [Baremetal Node Commissioning & Join](#baremetal-node-commissioning--join)
 
 ---
 
@@ -309,6 +310,44 @@ When a `sync-engine-<conf-id>` path is provided, the commit tag becomes `ci pack
 | --------- | ---------------- |
 | `--dev`   | Development mode |
 | `--force` | Force push       |
+
+---
+
+## Node Source Pull
+
+**Command:** `node bin run pull [source-repo]`
+
+Brings a node's engine checkout and its private configuration to the tip of their repositories, at `/home/dd/engine` and `/home/dd/engine/engine-private`. This is the first step every deploy script runs, through `prepare_host` in `deploy/lib/host.sh`.
+
+```bash
+node bin run pull
+node bin run pull underpostnet/engine-lampp
+node bin run pull underpostnet/engine-test-lampp
+```
+
+Only the source repository is named. The private configuration repository is derived from the conf id the two share, so the pair can never drift apart:
+
+| `source-repo`                    | Engine checkout                  | Private configuration            |
+| -------------------------------- | -------------------------------- | -------------------------------- |
+| *(omitted)*                      | `<owner>/engine`                 | `<owner>/engine-private`         |
+| `underpostnet/engine-lampp`      | `underpostnet/engine-lampp`      | `underpostnet/engine-lampp-private` |
+| `underpostnet/engine-test-lampp` | `underpostnet/engine-test-lampp` | `underpostnet/engine-lampp-private` |
+
+The owner is taken from the reference, which may be an `owner/repo` slug or a full clone URL. A checkout already holding a different repository is retargeted in place rather than rejected, so a node moves onto a test source repo and back without being reprovisioned.
+
+### Selecting the source in a deploy script
+
+`deploy/lib/host.sh` exposes `ENGINE_SRC_REPO` for this. Set it before calling `prepare_host`, or pass the repository as its second argument:
+
+```bash
+ENGINE_SRC_REPO=underpostnet/engine-test-lampp
+prepare_host "$ENGINE_ROOT"
+
+# or, per call
+prepare_host "$ENGINE_ROOT" underpostnet/engine-test-lampp
+```
+
+Left unset, `prepare_host` pulls the monorepo pair — the behaviour every existing deploy script keeps.
 
 ---
 
