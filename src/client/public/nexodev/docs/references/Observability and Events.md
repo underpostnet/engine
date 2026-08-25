@@ -738,13 +738,27 @@ node bin event my-event --e2e-test   # when a scenario exists
 
 ## Grafana dashboards
 
-Two dashboards are provisioned into the `Underpost` folder, with the Prometheus datasource wired to the in-cluster Service.
+Three dashboards are provisioned into the `Underpost` folder, with the Prometheus datasource wired to the in-cluster Service.
 
 **Underpost · Envoy Gateway** — data plane uptime, allocated memory, active downstream connections, request rate, 5xx rate, and downstream throughput.
 
 Downstream 5xx is read as `envoy_http_downstream_rq_xx{envoy_response_code_class="5"}`. Envoy exposes response classes as one labelled family, not as a `..._rq_5xx` series, so selecting the label is what actually yields the 5xx rate.
 
-**Underpost · Events and Probes** — probe success and duration by event, Express request rate, and target availability.
+**Underpost · Events and Probes** — probe and target availability, probe duration by event, and Express request rate.
+
+`probe_success` and `up` only ever hold 0 or 1, so no panel here draws them on a numeric axis: dozens of targets that are almost always up collapse onto a single line at 1 with a legend nothing can be found in. The dashboard is laid out the way an outage is read instead.
+
+| Row               | Panels                                                                 | Answers                                  |
+| ----------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| **rollup**        | Probes failing now · availability · Targets failing now · availability | Is anything broken, and what has it cost |
+| **current state** | Probe status by event, Target status — one card per subject            | Which subject is broken                  |
+| **history**       | Probe success by event, Target availability — state timelines          | When it broke, and for how long          |
+
+Every availability field carries the same mapping and thresholds — `1` reads `UP` in green, `0` reads `DOWN` in red, absent samples read `NO DATA` — so a card and a timeline band always mean the same thing. The failure counts map `0` to `ALL UP` rather than showing a digit, and the two availability percentages are `avg_over_time` over the selected range, coloured against a 99.9 % / 99 % SLO.
+
+The timelines reduce each step with `min_over_time(...[$__rate_interval])`. Prometheus answers a range query step with its last sample, so on a week-long view a two-minute outage falls between steps and disappears; taking the minimum keeps any zero inside the step, and `$__rate_interval` is guaranteed wider than the scrape interval, so the reduction never sees an empty range.
+
+Both availability domains are narrowed by the dashboard's own `Event` and `Job` variables, which read their values from `label_values(probe_success, underpost_event)` and `label_values(up, job)` — a new event or scrape job appears in the picker without a dashboard change.
 
 **Underpost · Node Metrics** — CPU and memory percentage per node, RX/TX throughput on `wg0` and whatever a host calls its own NIC, root filesystem usage with disk I/O rates, and the hub's monthly bandwidth against its quota over time. Every panel groups by `instance`, which is the same address the node events resolve a target from, so a spike names a machine an operator can reach, and every legend carries the `underpost_role` — `hub`, `control` or `worker` — that Prometheus relabels on from the node registry.
 

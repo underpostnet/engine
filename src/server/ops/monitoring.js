@@ -788,15 +788,170 @@ const secondaryAxisOverride = (refId, unit) => ({
   ],
 });
 
-const statPanel = ({ id, title, unit = 'short', gridPos, targets }) => ({
+const statPanel = ({ id, title, description, unit = 'short', gridPos, targets, defaults = {}, options = {} }) => ({
   id,
   type: 'stat',
   title,
+  ...(description ? { description } : {}),
   datasource: { type: 'prometheus', uid: 'underpost-prometheus' },
   gridPos,
-  fieldConfig: { defaults: { unit }, overrides: [] },
-  options: { reduceOptions: { calcs: ['lastNotNull'], fields: '', values: false }, colorMode: 'value' },
+  fieldConfig: { defaults: { unit, ...defaults }, overrides: [] },
+  options: {
+    reduceOptions: { calcs: ['lastNotNull'], fields: '', values: false },
+    colorMode: 'value',
+    ...options,
+  },
   targets: targets.map((target, index) => ({ refId: String.fromCharCode(65 + index), ...target })),
+});
+
+/**
+ * The field config every boolean availability field carries: `probe_success`
+ * and `up` are only ever 0 or 1, so the number itself says nothing an operator
+ * reads faster than a word and a colour. The threshold step at 1 is what makes
+ * anything short of a full success red, and `noValue` separates a target that
+ * reports failure from one that stopped reporting at all.
+ */
+const availabilityDefaults = () => ({
+  min: 0,
+  max: 1,
+  decimals: 0,
+  noValue: 'NO DATA',
+  color: { mode: 'thresholds' },
+  mappings: [
+    {
+      type: 'value',
+      options: {
+        0: { text: 'DOWN', color: 'red', index: 0 },
+        1: { text: 'UP', color: 'green', index: 1 },
+      },
+    },
+  ],
+  thresholds: {
+    mode: 'absolute',
+    steps: [
+      { color: 'red', value: null },
+      { color: 'green', value: 1 },
+    ],
+  },
+});
+
+/**
+ * @method stateTimelinePanel
+ * @description A boolean availability series as coloured bands over time.
+ *
+ * A line chart of dozens of targets that are almost always 1 spends its whole
+ * vertical axis on two values and draws every target on top of the same line.
+ * A state timeline spends the axis on identity instead — one row per series —
+ * which is what makes a single red band among fifty green ones findable.
+ * Values are merged, so a target that never failed is one band rather than one
+ * rectangle per scrape, and nulls are not spanned, so a target that stopped
+ * reporting reads as a gap rather than as continued health.
+ * @param {object} params
+ * @param {number} params.id - Panel id.
+ * @param {string} params.title - Panel title.
+ * @param {string} [params.description] - Panel description.
+ * @param {object} params.gridPos - Grafana grid position.
+ * @param {Array<object>} params.targets - Panel queries.
+ * @returns {object} Panel model.
+ * @memberof UnderpostMonitoring
+ */
+const stateTimelinePanel = ({ id, title, description, gridPos, targets }) => ({
+  id,
+  type: 'state-timeline',
+  title,
+  ...(description ? { description } : {}),
+  datasource: { type: 'prometheus', uid: 'underpost-prometheus' },
+  gridPos,
+  fieldConfig: {
+    defaults: {
+      ...availabilityDefaults(),
+      custom: { fillOpacity: 85, lineWidth: 0, spanNulls: false },
+    },
+    overrides: [],
+  },
+  options: {
+    mergeValues: true,
+    showValue: 'never',
+    alignValue: 'left',
+    rowHeight: 0.9,
+    legend: { showLegend: false, displayMode: 'list', placement: 'bottom' },
+    tooltip: { mode: 'single', sort: 'none' },
+  },
+  targets: targets.map((target, index) => ({ refId: String.fromCharCode(65 + index), ...target })),
+});
+
+/** One background-coloured UP/DOWN card per series: the instant state, read at a glance. */
+const availabilityStatPanel = (panel) =>
+  statPanel({
+    ...panel,
+    defaults: availabilityDefaults(),
+    options: {
+      colorMode: 'background',
+      graphMode: 'none',
+      textMode: 'value_and_name',
+      justifyMode: 'center',
+      wideLayout: false,
+      text: { titleSize: 11, valueSize: 20 },
+    },
+  });
+
+/** Availability as a fraction of the selected range, coloured against an SLO. */
+const uptimeStatPanel = (panel) =>
+  statPanel({
+    ...panel,
+    unit: 'percentunit',
+    defaults: {
+      min: 0,
+      max: 1,
+      decimals: 3,
+      noValue: 'NO DATA',
+      color: { mode: 'thresholds' },
+      thresholds: {
+        mode: 'absolute',
+        steps: [
+          { color: 'red', value: null },
+          { color: 'orange', value: 0.99 },
+          { color: 'green', value: 0.999 },
+        ],
+      },
+    },
+    options: { colorMode: 'background', graphMode: 'area', textMode: 'value' },
+  });
+
+/** How many members of a fleet are failing right now; zero reads as a word, not a digit. */
+const outageCountPanel = (panel) =>
+  statPanel({
+    ...panel,
+    defaults: {
+      decimals: 0,
+      color: { mode: 'thresholds' },
+      mappings: [{ type: 'value', options: { 0: { text: 'ALL UP', color: 'green', index: 0 } } }],
+      thresholds: {
+        mode: 'absolute',
+        steps: [
+          { color: 'green', value: null },
+          { color: 'red', value: 1 },
+        ],
+      },
+    },
+    options: { colorMode: 'background', graphMode: 'area', textMode: 'value' },
+  });
+
+/** A label-values variable, so dozens of targets can be narrowed to the one under investigation. */
+const dashboardVariableFactory = ({ name, label, query }) => ({
+  name,
+  label,
+  type: 'query',
+  datasource: { type: 'prometheus', uid: 'underpost-prometheus' },
+  definition: query,
+  query: { query, refId: `${name}-variable` },
+  refresh: 2,
+  sort: 1,
+  multi: true,
+  includeAll: true,
+  allValue: '.+',
+  current: { selected: true, text: ['All'], value: ['$__all'] },
+  options: [],
 });
 
 /**
@@ -898,10 +1053,31 @@ const envoyDashboardFactory = () =>
     2,
   )}\n`;
 
+/** Series the availability panels read, narrowed by the dashboard's own variables. */
+const PROBE_SELECTOR = 'probe_success{underpost_event=~"$event"}';
+const TARGET_SELECTOR = 'up{job=~"$job"}';
+
+/**
+ * A step of a state timeline is wider than a scrape as soon as the range is,
+ * and Prometheus answers each step with its last sample — which is how a short
+ * outage disappears from a week-long view. Reducing the step with `min_over_time`
+ * keeps the failure: any zero inside the window colours the whole band red.
+ * `$__rate_interval` rather than `$__interval` because it is guaranteed to be
+ * wider than the scrape interval, so the reduction can never see an empty range.
+ */
+const timelineExpr = (selector) => `min_over_time(${selector}[$__rate_interval])`;
+
 /**
  * @method eventsDashboardFactory
  * @description The event/probe dashboard: what each registered event's probes
  * report, and what the Express runtimes are serving.
+ *
+ * Availability is boolean, and the dashboard is laid out the way an operator
+ * reads one: the top row answers "is anything broken right now, and how much
+ * has it cost", the card grids name which subject is broken, and the state
+ * timelines say when it broke and for how long. Nothing renders 0/1 on a
+ * numeric axis, because dozens of targets that are almost always up produce a
+ * single line and an unreadable legend.
  * @returns {string} Dashboard JSON.
  * @memberof UnderpostMonitoring
  */
@@ -915,37 +1091,100 @@ const eventsDashboardFactory = () =>
       schemaVersion: 39,
       refresh: '30s',
       time: { from: 'now-6h', to: 'now' },
+      templating: {
+        list: [
+          dashboardVariableFactory({
+            name: 'event',
+            label: 'Event',
+            query: 'label_values(probe_success, underpost_event)',
+          }),
+          dashboardVariableFactory({ name: 'job', label: 'Job', query: 'label_values(up, job)' }),
+        ],
+      },
       panels: [
-        timeSeriesPanel({
+        outageCountPanel({
+          id: 10,
+          title: 'Probes failing now',
+          description: 'Blackbox probes reporting 0 on their most recent scrape.',
+          gridPos: { h: 4, w: 6, x: 0, y: 0 },
+          targets: [{ expr: `count(${PROBE_SELECTOR} == 0) or vector(0)`, legendFormat: 'failing', instant: true }],
+        }),
+        uptimeStatPanel({
+          id: 11,
+          title: 'Probe availability · range',
+          description: 'Mean probe success over the selected time range, across every probe.',
+          gridPos: { h: 4, w: 6, x: 6, y: 0 },
+          targets: [
+            { expr: `avg(avg_over_time(${PROBE_SELECTOR}[$__range]))`, legendFormat: 'availability', instant: true },
+          ],
+        }),
+        outageCountPanel({
+          id: 12,
+          title: 'Targets failing now',
+          description: 'Scrape targets Prometheus could not reach on its most recent attempt.',
+          gridPos: { h: 4, w: 6, x: 12, y: 0 },
+          targets: [{ expr: `count(${TARGET_SELECTOR} == 0) or vector(0)`, legendFormat: 'failing', instant: true }],
+        }),
+        uptimeStatPanel({
+          id: 13,
+          title: 'Target availability · range',
+          description: 'Worst single target over the selected range, not the fleet average.',
+          gridPos: { h: 4, w: 6, x: 18, y: 0 },
+          targets: [
+            {
+              expr: `min(avg_over_time(${TARGET_SELECTOR}[$__range]))`,
+              legendFormat: 'worst target',
+              instant: true,
+            },
+          ],
+        }),
+        availabilityStatPanel({
+          id: 14,
+          title: 'Probe status by event',
+          gridPos: { h: 5, w: 24, x: 0, y: 4 },
+          targets: [{ expr: PROBE_SELECTOR, legendFormat: '{{underpost_event}} · {{instance}}', instant: true }],
+        }),
+        stateTimelinePanel({
           id: 1,
           title: 'Probe success by event',
-          gridPos: { h: 8, w: 12, x: 0, y: 0 },
-          targets: [{ expr: 'probe_success', legendFormat: '{{underpost_event}} · {{instance}}' }],
+          gridPos: { h: 9, w: 24, x: 0, y: 9 },
+          targets: [{ expr: timelineExpr(PROBE_SELECTOR), legendFormat: '{{underpost_event}} · {{instance}}' }],
+        }),
+        availabilityStatPanel({
+          id: 15,
+          title: 'Target status',
+          gridPos: { h: 5, w: 24, x: 0, y: 18 },
+          targets: [{ expr: TARGET_SELECTOR, legendFormat: '{{job}} · {{instance}}', instant: true }],
+        }),
+        stateTimelinePanel({
+          id: 4,
+          title: 'Target availability',
+          gridPos: { h: 9, w: 24, x: 0, y: 23 },
+          targets: [{ expr: timelineExpr(TARGET_SELECTOR), legendFormat: '{{job}} · {{instance}}' }],
         }),
         timeSeriesPanel({
           id: 2,
           title: 'Probe duration',
           unit: 's',
-          gridPos: { h: 8, w: 12, x: 12, y: 0 },
-          targets: [{ expr: 'probe_duration_seconds', legendFormat: '{{underpost_event}} · {{instance}}' }],
+          gridPos: { h: 8, w: 12, x: 0, y: 32 },
+          targets: [
+            {
+              expr: 'probe_duration_seconds{underpost_event=~"$event"}',
+              legendFormat: '{{underpost_event}} · {{instance}}',
+            },
+          ],
         }),
         timeSeriesPanel({
           id: 3,
           title: 'Express HTTP requests',
           unit: 'reqps',
-          gridPos: { h: 8, w: 12, x: 0, y: 8 },
+          gridPos: { h: 8, w: 12, x: 12, y: 32 },
           targets: [
             {
               expr: 'sum by (job, instance) (rate({__name__=~".+_http_requests_total"}[5m]))',
               legendFormat: '{{instance}}',
             },
           ],
-        }),
-        timeSeriesPanel({
-          id: 4,
-          title: 'Target availability',
-          gridPos: { h: 8, w: 12, x: 12, y: 8 },
-          targets: [{ expr: 'up', legendFormat: '{{job}} · {{instance}}' }],
         }),
       ],
     },

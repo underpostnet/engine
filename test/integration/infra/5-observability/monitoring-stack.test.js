@@ -538,6 +538,97 @@ describe('grafana dashboards', () => {
   });
 });
 
+describe('eventsDashboardFactory', () => {
+  const dashboard = JSON.parse(eventsDashboardFactory());
+  const panel = (title) => dashboard.panels.find((entry) => entry.title === title);
+  const booleanPanels = dashboard.panels.filter((entry) =>
+    entry.targets.some((target) => /\bprobe_success|\bup\{/.test(target.expr)),
+  );
+  const rollupTitles = new Set([
+    'Probes failing now',
+    'Probe availability · range',
+    'Targets failing now',
+    'Target availability · range',
+  ]);
+  const subjectPanels = booleanPanels.filter((entry) => !rollupTitles.has(entry.title));
+
+  it('renders no boolean availability series on a numeric axis', () => {
+    for (const entry of booleanPanels) expect(entry.type, entry.title).to.not.equal('timeseries');
+  });
+
+  it('tracks availability history as state timelines', () => {
+    for (const title of ['Probe success by event', 'Target availability'])
+      expect(panel(title).type, title).to.equal('state-timeline');
+  });
+
+  it('reduces each timeline step so a short outage survives a wide range', () => {
+    for (const title of ['Probe success by event', 'Target availability'])
+      for (const target of panel(title).targets)
+        expect(target.expr, title).to.match(/^min_over_time\(.+\[\$__rate_interval\]\)$/);
+  });
+
+  it('maps 0 and 1 to words and colours on every availability panel', () => {
+    for (const entry of subjectPanels) {
+      const { mappings, thresholds } = entry.fieldConfig.defaults;
+      const [mapping] = mappings;
+      expect(mapping.options['0'], entry.title).to.include({ text: 'DOWN', color: 'red' });
+      expect(mapping.options['1'], entry.title).to.include({ text: 'UP', color: 'green' });
+      expect(thresholds.steps, entry.title).to.deep.equal([
+        { color: 'red', value: null },
+        { color: 'green', value: 1 },
+      ]);
+    }
+  });
+
+  it('reads current state from instant queries and background-coloured cards', () => {
+    for (const title of ['Probe status by event', 'Target status']) {
+      const entry = panel(title);
+      expect(entry.type, title).to.equal('stat');
+      expect(entry.options.colorMode, title).to.equal('background');
+      expect(entry.options.textMode, title).to.equal('value_and_name');
+      for (const target of entry.targets) expect(target.instant, title).to.equal(true);
+    }
+  });
+
+  it('states uptime as a fraction of the selected range against an SLO', () => {
+    for (const title of ['Probe availability · range', 'Target availability · range']) {
+      const entry = panel(title);
+      expect(entry.fieldConfig.defaults.unit, title).to.equal('percentunit');
+      expect(
+        entry.fieldConfig.defaults.thresholds.steps.map((step) => step.value),
+        title,
+      ).to.deep.equal([null, 0.99, 0.999]);
+      for (const target of entry.targets) expect(target.expr, title).to.include('avg_over_time');
+    }
+  });
+
+  it('counts nothing down as a word rather than a zero', () => {
+    for (const title of ['Probes failing now', 'Targets failing now']) {
+      const entry = panel(title);
+      expect(entry.targets[0].expr, title).to.include('or vector(0)');
+      expect(entry.fieldConfig.defaults.mappings[0].options['0'], title).to.include({ text: 'ALL UP' });
+    }
+  });
+
+  it('narrows dozens of targets through dashboard variables', () => {
+    expect(dashboard.templating.list.map((variable) => variable.name)).to.deep.equal(['event', 'job']);
+    for (const variable of dashboard.templating.list) {
+      expect(variable.multi, variable.name).to.equal(true);
+      expect(variable.includeAll, variable.name).to.equal(true);
+      expect(variable.allValue, variable.name).to.equal('.+');
+    }
+    for (const entry of booleanPanels)
+      for (const target of entry.targets)
+        expect(target.expr, entry.title).to.match(/underpost_event=~"\$event"|job=~"\$job"/);
+  });
+
+  it('labels every series by the subject an operator acts on', () => {
+    for (const entry of subjectPanels)
+      for (const target of entry.targets)
+        expect(target.legendFormat, entry.title).to.match(/\{\{(underpost_event|job)\}\} · \{\{instance\}\}/);
+  });
+});
+
 describe('hubTunnelAddressFactory', () => {
   it('reads the hub address straight from topology on the hub itself', () => {
     expect(hubTunnelAddressFactory({ role: 'hub', address: '10.0.0.1/24' })).to.equal('10.0.0.1');
