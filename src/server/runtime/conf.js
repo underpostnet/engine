@@ -27,6 +27,7 @@ import { DefaultConf } from '../../../conf.js';
 import splitFile from 'split-file';
 import { readDeployRoutes } from '../network/router.js';
 import Underpost from '../../index.js';
+import { getRuntimeStatus, RUNTIME_STATUS } from './runtime-status.js';
 
 colors.enable();
 
@@ -387,17 +388,49 @@ const Config = {
  * @param {string} [subConf=''] - The sub configuration.
  * @memberof ServerConfBuilder
  */
+/**
+ * @method deployEnvFilePath
+ * @description Resolves a deployment's env file for an environment.
+ *
+ * A named sub-configuration selects `.env.<env>.<subConf>` when that file exists and degrades to
+ * the plain `.env.<env>` when it does not. Single source of this precedence: {@link loadConf}
+ * materializes the working tree from it and {@link UnderpostApp} addresses it from the CLI, so
+ * both always agree on which file is in effect.
+ * @param {string} deployId - Deployment id.
+ * @param {string} [env='production'] - Environment selector.
+ * @param {string} [subConf] - Sub-configuration name.
+ * @returns {string} Path to the deployment env file.
+ * @memberof ServerConfBuilder
+ */
+const deployEnvFilePath = (deployId, env = 'production', subConf = '') => {
+  const base = `${getConfFolder(deployId)}/.env.${env || 'production'}`;
+  const name = `${subConf ?? ''}`.trim();
+  if (!name) return base;
+  const scoped = `${base}.${name}`;
+  return fs.existsSync(scoped) ? scoped : base;
+};
+
+/**
+ * @method cleanDeployEnvFiles
+ * @description Removes the working-tree env files {@link loadConf} materializes.
+ * Single source of the file list, shared with the app domain's `clean` action.
+ * @returns {Array<string>} The paths that were present and removed.
+ * @memberof ServerConfBuilder
+ */
+const cleanDeployEnvFiles = () => {
+  const targets = ['./.env', './.env.production', './.env.development', './.env.test'];
+  const present = targets.filter((target) => fs.existsSync(target));
+  for (const target of present) fs.removeSync(target);
+  return present;
+};
+
 const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   if (deployId === 'current') {
     console.log(process.env.DEPLOY_ID);
     return;
   }
   if (deployId === 'clean') {
-    const path = '.';
-    fs.removeSync(`${path}/.env`);
-    fs.removeSync(`${path}/.env.production`);
-    fs.removeSync(`${path}/.env.development`);
-    fs.removeSync(`${path}/.env.test`);
+    cleanDeployEnvFiles();
     return;
   }
   const folder = getConfFolder(deployId);
@@ -427,9 +460,7 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
   const NODE_ENV = process.env.NODE_ENV || 'development';
   if (NODE_ENV) {
-    const subPathEnv = fs.existsSync(`${folder}/.env.${NODE_ENV}.${subConf}`)
-      ? `${folder}/.env.${NODE_ENV}.${subConf}`
-      : `${folder}/.env.${NODE_ENV}`;
+    const subPathEnv = deployEnvFilePath(deployId, NODE_ENV, subConf);
     fs.writeFileSync(`./.env`, fs.readFileSync(subPathEnv, 'utf8'), 'utf8');
     const env = dotenv.parse(fs.readFileSync(subPathEnv, 'utf8'));
     process.env = {
@@ -980,7 +1011,7 @@ const awaitDeployMonitor = async (isFinal = false, deltaMs = 1000, callback = fa
   if (!callback) Underpost.env.set('await-deploy', new Date().toISOString());
   if (isFinal) logger.info('Final deployment running (no replica)');
   await timer(deltaMs);
-  if (Underpost.env.get('container-status') === 'error') return false;
+  if (getRuntimeStatus() === RUNTIME_STATUS.ERROR) return false;
   if (Underpost.env.get('await-deploy')) return await awaitDeployMonitor(false, deltaMs, true);
   return true;
 };
@@ -3132,6 +3163,8 @@ const clusterInstancesFactory = (deployList = [], instanceList = '') => {
 };
 
 export {
+  cleanDeployEnvFiles,
+  deployEnvFilePath,
   Config,
   loadConf,
   loadConfInstances,

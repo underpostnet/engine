@@ -10,11 +10,10 @@ import { actionInitLog, loggerFactory } from '../ops/logger.js';
 import { shellCd, shellExec } from './process.js';
 import {
   RUNTIME_STATUS,
-  START_CONTAINER_STATUS_KEY,
   setRuntimeStatus,
   startInternalStatusServer,
   deployStatusPort,
-  containerStatusValue,
+  setStartContainerStatus,
 } from './runtime-status.js';
 import Underpost from '../../index.js';
 const logger = loggerFactory(import.meta);
@@ -180,6 +179,12 @@ class UnderpostStartUp {
         pullBundle: false,
       },
     ) {
+      // Host configuration first: the pod command names only `start`, so the container env the
+      // `underpost-config` Secret injects is folded into the root env store here rather than by
+      // a second command the image's CLI might not have. A direct call, not a shell-out, so it
+      // does not depend on CLI surface either.
+      if (Underpost.state.isInsideContainer()) Underpost.host.load({ env });
+
       // Stage 1. The `underpost` on PATH is the npm snapshot baked into the image, no newer
       // than the last publish — including this file. Pull the deployment's real source, point
       // the global CLI at it, and re-enter through that CLI, so every phase after this line
@@ -209,7 +214,7 @@ class UnderpostStartUp {
       } catch (error) {
         logger.error('Deployment build/init failed', { deployId, env, message: error?.message });
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
-        if (!Underpost.env.isInsideContainer()) throw error;
+        if (!Underpost.state.isInsideContainer()) throw error;
       }
     },
     /**
@@ -245,7 +250,7 @@ class UnderpostStartUp {
      * `--force` because the image already owns a global `underpost` from npm; without it npm
      * refuses the bin with `EEXIST`. Only the bin is repointed — the published package
      * directory stays in place, so `getUnderpostRootPath()` keeps resolving to it and both
-     * stages share the one root env store holding `container-status`.
+     * stages share the one container state store holding `container-status`.
      *
      * Failure is not fatal. A host that cannot write its global prefix falls back to the npm
      * snapshot, which is exactly the behaviour before this step existed, rather than losing
@@ -295,7 +300,7 @@ class UnderpostStartUp {
       // Installed again after the private repo lands: `pullBase` installs only what the CLI
       // needs to boot stage 2, which is resolved before `engine-private` is on disk.
       shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
-      shellExec(`node bin env ${deployId} ${env}`);
+      shellExec(`node bin app load --env ${env} --args deploy-id=${deployId}`);
       if (fs.existsSync('./engine-private/itc-scripts')) {
         const itcScripts = await fs.readdir('./engine-private/itc-scripts');
         for (const itcScript of itcScripts)
@@ -325,7 +330,7 @@ class UnderpostStartUp {
         const replicas = await fs.readdir(`./engine-private/replica`);
         for (const replica of replicas) {
           if (!replica.match(deployId)) continue;
-          shellExec(`node bin env ${replica} ${env}`);
+          shellExec(`node bin app load --env ${env} --args deploy-id=${replica}`);
           const replicaCmd = `npm ${runCmd} ${replica}`;
           shellExec(replicaCmd, { async: true, callback: makeDeployCallback(replicaCmd) });
           const result = await awaitDeployMonitor();
@@ -335,15 +340,19 @@ class UnderpostStartUp {
           }
         }
       }
-      shellExec(`node bin env ${deployId} ${env}`);
+      shellExec(`node bin app load --env ${env} --args deploy-id=${deployId}`);
       const deployCmd = `npm ${runCmd} ${deployId}`;
       shellExec(deployCmd, { async: true, callback: makeDeployCallback(deployCmd) });
       const result = await awaitDeployMonitor(true);
       if (result === true) {
-        if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
+        // Withdraw every domain's local traces once the deployment is serving. Three calls
+        // rather than one cross-domain sweep: each domain owns what it put on disk.
+        if (env === 'production' && Underpost.state.isInsideContainer())
+          for (const domain of [Underpost.secret, Underpost.host, Underpost.app])
+            domain.clean({ env, namespace: 'default', args: {}, dryRun: false, force: false });
         setTimeout(() => {
           setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING);
-          Underpost.env.set(START_CONTAINER_STATUS_KEY, containerStatusValue(deployId, env, RUNTIME_STATUS.RUNNING));
+          setStartContainerStatus(deployId, env);
         });
       } else {
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);

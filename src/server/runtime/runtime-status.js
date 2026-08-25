@@ -117,19 +117,18 @@ const normalizeContainerStatus = (raw) => {
  * @returns {string|undefined}
  */
 const getRuntimeStatus = () =>
-  normalizeContainerStatus(Underpost.env.get(CONTAINER_STATUS_KEY, undefined, { disableLog: true }));
+  normalizeContainerStatus(Underpost.state.get(CONTAINER_STATUS_KEY, undefined, { disableLog: true }));
 
 /**
- * Reads the start-container-status env key — an insulated marker set by the
- * start pipeline after it completes the running phase. Unlike container-status
- * (which external scripts / backup failures may clobber), this key is written
- * once and survives globalSecretClean. Used exclusively by the readinessProbe
- * endpoint so K8s pod readiness is never derailed by lifecycle noise.
+ * Reads the start-container-status key — an insulated marker the start pipeline writes once
+ * after completing the running phase. Unlike container-status, which lifecycle hooks and failure
+ * latches also write, this is only ever set by that pipeline, so the readinessProbe endpoint is
+ * never derailed by lifecycle noise.
  * @memberof RuntimeStatus
  * @returns {string|undefined}
  */
 const getStartContainerStatus = () => {
-  const raw = Underpost.env.get(START_CONTAINER_STATUS_KEY, undefined, { disableLog: true });
+  const raw = Underpost.state.get(START_CONTAINER_STATUS_KEY, undefined, { disableLog: true });
   return raw && typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
 };
 
@@ -167,8 +166,30 @@ const emitRuntimeEvent = ({ deployId, env, phase }) => {
  * @param {string} phase - One of {@link RUNTIME_STATUS}.
  */
 const setRuntimeStatus = (deployId, env, phase) => {
-  Underpost.env.set(CONTAINER_STATUS_KEY, containerStatusValue(deployId, env, phase));
+  Underpost.state.set(CONTAINER_STATUS_KEY, containerStatusValue(deployId, env, phase));
   emitRuntimeEvent({ deployId, env, phase });
+};
+
+/**
+ * Latches the container as failed, for a failure detected outside the lifecycle phases — a shell
+ * command, a database connection, a backup. A no-op outside a container, where there is no
+ * monitor reading it.
+ * @memberof RuntimeStatus
+ * @returns {void}
+ */
+const latchRuntimeError = () => {
+  if (Underpost.state.isInsideContainer()) Underpost.state.set(CONTAINER_STATUS_KEY, RUNTIME_STATUS.ERROR);
+};
+
+/**
+ * Marks the start pipeline's own completion. Written once, read only by the readinessProbe.
+ * @memberof RuntimeStatus
+ * @param {string} deployId
+ * @param {string} env
+ * @returns {void}
+ */
+const setStartContainerStatus = (deployId, env) => {
+  Underpost.state.set(START_CONTAINER_STATUS_KEY, containerStatusValue(deployId, env, RUNTIME_STATUS.RUNNING));
 };
 
 let internalServer;
@@ -245,6 +266,8 @@ export {
   normalizeContainerStatus,
   getRuntimeStatus,
   getStartContainerStatus,
+  latchRuntimeError,
+  setStartContainerStatus,
   runtimeStatusPayload,
   setRuntimeStatus,
   startInternalStatusServer,

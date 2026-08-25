@@ -111,7 +111,10 @@ const cronJobYamlFactory = ({
 
   const cronBin = 'node bin'; // dev ? 'node bin' : 'underpost';
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
-  const commands = [`cd ${enginePath}`, `node bin env ${cronDeployId} ${dev ? `development` : `production`}`];
+  const commands = [
+    `cd ${enginePath}`,
+    `node bin app load --env ${dev ? `development` : `production`} --args deploy-id=${cronDeployId}`,
+  ];
   if (cmd) commands.push(cmd);
   commands.push(`${cronBin} cron ${deployList} ${jobList} ${flags}`);
   const fullCommand = commands.join(' &&\n                  ');

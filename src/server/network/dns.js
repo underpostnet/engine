@@ -493,7 +493,7 @@ class Dns {
 
     const currentIp = Underpost.env.get('ip');
 
-    if (validator.isIP(testIp) && currentIp !== testIp) {
+    if (testIp && validator.isIP(testIp) && currentIp !== testIp) {
       logger.info(`New IP detected`, testIp);
       Underpost.env.set('monitor-input', 'pause');
 

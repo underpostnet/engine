@@ -3,6 +3,7 @@ import { loggerFactory } from '../server/ops/logger.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import { resolveHostKeyContext } from '../server/runtime/conf.js';
 import Underpost from '../index.js';
+import { latchRuntimeError } from '../server/runtime/runtime-status.js';
 
 /**
  * Module for managing and loading various database connections (e.g., Mongoose, MariaDB).
@@ -382,7 +383,7 @@ class DataBaseProviderService {
           : {},
       };
       logger.error(error.message, { safeOptions });
-      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
+      latchRuntimeError();
       return undefined;
     }
   }

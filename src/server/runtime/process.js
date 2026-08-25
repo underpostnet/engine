@@ -27,6 +27,7 @@ import nodePath from 'node:path';
 import { loggerFactory } from '../ops/logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../../index.js';
+import { latchRuntimeError } from './runtime-status.js';
 const logger = loggerFactory(import.meta);
 /**
  * Gets the current working directory, replacing backslashes with forward slashes for consistency.
@@ -214,7 +215,7 @@ const shellExec = (cmd, options = {}) => {
     try {
       process.chdir(options.cwd);
     } catch (err) {
-      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
+      latchRuntimeError();
       throw new ShellExecError(cmd, -1, '', `chdir(${options.cwd}) failed: ${err.message}`);
     }
   }
@@ -228,7 +229,7 @@ const shellExec = (cmd, options = {}) => {
     const result = shell.exec(cmd, shellOpts);
 
     if (!options.silentOnError && result && typeof result.code === 'number' && result.code !== 0) {
-      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
+      latchRuntimeError();
       throw new ShellExecError(cmd, result.code, result.stdout || '', result.stderr || '');
     }
 

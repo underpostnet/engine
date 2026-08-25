@@ -15,6 +15,7 @@
 import Valkey from 'iovalkey';
 import { loggerFactory } from '../../server/ops/logger.js';
 import Underpost from '../../index.js';
+import { latchRuntimeError } from '../../server/runtime/runtime-status.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -71,7 +72,7 @@ const createValkeyConnection = async (instance = {}, connectionOptions = {}) => 
   client.on('error', (err) => {
     ValkeyStatus[key] = 'error';
     logger.error('Valkey error', { err: err?.message, instance });
-    if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
+    latchRuntimeError();
   });
   client.on('reconnecting', () => {
     ValkeyStatus[key] = 'reconnecting';

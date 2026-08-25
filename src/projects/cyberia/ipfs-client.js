@@ -48,21 +48,21 @@ const fetchWithTimeout = async (url, options = {}, { kind = 'kubo', label = url 
  */
 const getIpfsApiUrl = () =>
   process.env.IPFS_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' && !Underpost.env.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:5001`;
+  `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:5001`;
 /**
  * Base URL of the IPFS Cluster REST API (port 9094).
  * @returns {string}
  */
 const getClusterApiUrl = () =>
   process.env.IPFS_CLUSTER_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' && !Underpost.env.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:9094`;
+  `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:9094`;
 /**
  * Base URL of the IPFS HTTP Gateway (port 8080).
  * @returns {string}
  */
 const getGatewayUrl = () =>
   process.env.IPFS_GATEWAY_URL ||
-  `http://${process.env.NODE_ENV === 'development' && !Underpost.env.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:8080`;
+  `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:8080`;
 // ─────────────────────────────────────────────────────────
 //  Core: add content
 // ─────────────────────────────────────────────────────────

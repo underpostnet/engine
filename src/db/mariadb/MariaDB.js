@@ -1,6 +1,7 @@
 import { createPool } from 'mariadb';
 import Underpost from '../../index.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { latchRuntimeError } from '../../server/runtime/runtime-status.js';
 
 /**
  * Module for interacting with MariaDB/MySQL databases using the mariadb connector.
@@ -51,7 +52,7 @@ class MariaDBService {
       console.log(result);
     } catch (error) {
       logger.error('MariaDB query failed', { error: error.message });
-      if (Underpost.env.isInsideContainer()) Underpost.env.set('container-status', 'error');
+      latchRuntimeError();
     } finally {
       if (conn) conn.release(); // release to pool
       await pool.end();

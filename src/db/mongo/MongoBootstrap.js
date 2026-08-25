@@ -375,14 +375,15 @@ class MongoBootstrap {
   }
 
   /**
-   * Reads MongoDB root credentials from engine-private.
-   * @param {string} enginePrivateRoot - Path to the engine-private directory.
+   * Reads MongoDB root credentials from their origin seed files.
+   * Paths come from the workload secret domain, so this never spells out a credential path.
    * @returns {{ username: string, password: string }}
    */
-  static readMongoCredentials(enginePrivateRoot) {
+  static readMongoCredentials() {
+    const sources = Underpost.secret.seedSources('mongodb-secret');
     return {
-      username: MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-username`),
-      password: MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-password`),
+      username: MongoBootstrap.readCredential(sources.username),
+      password: MongoBootstrap.readCredential(sources.password),
     };
   }
 
@@ -398,29 +399,29 @@ class MongoBootstrap {
    * in the process table and the command log; `disableLog` keeps it out of the log at least. The
    * encrypted path has no such exposure — the value only ever crosses an anonymous pipe.
    * @param {string} namespace - Target namespace.
-   * @param {string} enginePrivateRoot - Path to engine-private directory.
    */
-  static ensureMongoSecrets(namespace, enginePrivateRoot) {
-    if (!Underpost.secret.sops.applyIfPresent('mongodb-keyfile', namespace)) {
-      const keyfile = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-keyfile`);
+  static ensureMongoSecrets(namespace) {
+    const keyfilePath = Underpost.secret.seedSources('mongodb-keyfile')['mongodb-keyfile'];
+    if (!Underpost.secret.applyIfPresent('mongodb-keyfile', namespace)) {
+      const keyfile = MongoBootstrap.readCredential(keyfilePath);
       shellExec(
         `sudo kubectl create secret generic mongodb-keyfile` +
           ` --from-literal=mongodb-keyfile="${keyfile.replace(/'/g, "'\\''")}"` +
           ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
         { disableLog: true },
       );
-      logger.info(`Seeded mongodb-keyfile from ${enginePrivateRoot}/mongodb-keyfile`);
+      logger.info(`Seeded mongodb-keyfile from ${keyfilePath}`);
     }
 
-    if (!Underpost.secret.sops.applyIfPresent('mongodb-secret', namespace)) {
-      const { username, password } = MongoBootstrap.readMongoCredentials(enginePrivateRoot);
+    if (!Underpost.secret.applyIfPresent('mongodb-secret', namespace)) {
+      const { username, password } = MongoBootstrap.readMongoCredentials();
       shellExec(
         `sudo kubectl create secret generic mongodb-secret` +
           ` --from-literal=username="${username}" --from-literal=password="${password}"` +
           ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
         { disableLog: true },
       );
-      logger.info(`Seeded mongodb-secret from ${enginePrivateRoot}/mongodb-{username,password}`);
+      logger.info('Seeded mongodb-secret from origin seed files');
     }
   }
 
@@ -578,7 +579,6 @@ class MongoBootstrap {
       underpostRoot,
     } = options;
 
-    const enginePrivateRoot = `${process.cwd()}/engine-private`;
     // No upward clamp: an explicit `--replicas 2` must deploy two members, not be silently
     // raised to the default.
     const effectiveReplicaCount = resolveReplicaCount(replicaCount, MONGODB_DEFAULT_REPLICA_COUNT);
@@ -588,8 +588,7 @@ class MongoBootstrap {
           `majority when one member is down, so the set becomes read-only on a single failure. ` +
           `Odd counts (3, 5) are recommended.`,
       );
-    const mongoRootUsername = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-username`);
-    const mongoRootPassword = MongoBootstrap.readCredential(`${enginePrivateRoot}/mongodb-password`);
+    const { username: mongoRootUsername, password: mongoRootPassword } = MongoBootstrap.readMongoCredentials();
     const mongoReplicaHosts = resolveMongoReplicaHosts({
       hostList,
       replicaCount: effectiveReplicaCount,
@@ -633,7 +632,7 @@ class MongoBootstrap {
     }
 
     // Secrets
-    MongoBootstrap.ensureMongoSecrets(namespace, enginePrivateRoot);
+    MongoBootstrap.ensureMongoSecrets(namespace);
 
     // Tear down existing statefulset
     shellExec(`kubectl delete statefulset ${MONGODB_STATEFULSET_NAME} -n ${namespace} --ignore-not-found`);
@@ -933,12 +932,12 @@ class MongoBootstrap {
       username ||
       process.env.MONGODB_USERNAME ||
       process.env.DB_USER ||
-      readTrimmedFile('./engine-private/mongodb-username');
+      readTrimmedFile(Underpost.secret.seedSources('mongodb-secret').username);
     const mongoPass =
       password ||
       process.env.MONGODB_PASSWORD ||
       process.env.DB_PASSWORD ||
-      readTrimmedFile('./engine-private/mongodb-password');
+      readTrimmedFile(Underpost.secret.seedSources('mongodb-secret').password);
 
     const candidates = MongoBootstrap.resolvePrimaryProbeCandidates({ namespace, podName });
     const probes = MongoBootstrap.primaryProbeFactory({
