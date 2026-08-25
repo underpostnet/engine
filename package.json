@@ -1,6 +1,9 @@
 {
   "type": "module",
   "main": "src/index.js",
+  "bin": {
+    "underpost": "bin/index.js"
+  },
   "name": "underpost-engine",
   "version": "3.3.0",
   "description": "End to end cloud applications toolchain",

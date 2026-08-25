@@ -19,6 +19,31 @@ import {
 import Underpost from '../../index.js';
 const logger = loggerFactory(import.meta);
 
+// Every deployment builds and runs out of this path inside the workload container.
+const ENGINE_PATH = '/home/dd/engine';
+
+/**
+ * Renders the `underpost start` flags for the stage-2 re-entry.
+ *
+ * `--skip-pull-base` is always present: it is both the marker that the source is already in
+ * place and the guard that makes the stage-1 branch unreachable a second time.
+ * @param {object} [options] - Stage-1 options to carry across.
+ * @returns {string} Space-separated flags.
+ * @memberof UnderpostStartUp
+ */
+const startFlagsFactory = (options = {}) =>
+  [
+    options.build === true ? '--build' : '',
+    options.run === true ? '--run' : '',
+    options.underpostQuicklyInstall === true ? '--underpost-quickly-install' : '',
+    options.skipFullBuild === true ? '--skip-full-build' : '',
+    options.pullBundle === true ? '--pull-bundle' : '',
+    options.privateTestRepo === true ? '--private-test-repo' : '',
+    '--skip-pull-base',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
 /**
  * @class UnderpostStartUp
  * @description Manages the startup and runtime configuration of Underpost applications.
@@ -155,6 +180,23 @@ class UnderpostStartUp {
         pullBundle: false,
       },
     ) {
+      // Stage 1. The `underpost` on PATH is the npm snapshot baked into the image, no newer
+      // than the last publish — including this file. Pull the deployment's real source, point
+      // the global CLI at it, and re-enter through that CLI, so every phase after this line
+      // runs the code that was just pulled rather than the code that shipped in the image.
+      //
+      // Nothing is bound here: stage 2 owns the status server. The gap is safe because the
+      // startupProbe (180 x 10s) suspends readiness and liveness across the whole build
+      // window, and the monitor's default `exec` transport reads the file-backed
+      // `container-status` store rather than the HTTP endpoint — a store both stages resolve
+      // to the same path, since linking repoints only the bin and leaves the published
+      // package directory `getUnderpostRootPath()` returns untouched.
+      if (options.build === true && options.skipPullBase !== true) {
+        setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
+        Underpost.start.pullBase(deployId, options);
+        shellExec(`underpost start ${startFlagsFactory(options)} ${deployId} ${env}`);
+        return;
+      }
       // Bring the internal status endpoint up first so Phase-2 readiness is
       // observable through every lifecycle phase, including build and init. Bind
       // the deployment-resolved port so it always matches the monitor's target.
@@ -169,6 +211,64 @@ class UnderpostStartUp {
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
         if (!Underpost.env.isInsideContainer()) throw error;
       }
+    },
+    /**
+     * Replaces `/home/dd/engine` with the deployment's own source and points the global
+     * `underpost` command at it — the stage-1 bootstrap that makes the rest of the flow
+     * independent of how recently the npm package was published.
+     * @param {string} deployId - The ID of the deployment.
+     * @param {Object} [options] - Options for the pull.
+     * @param {boolean} [options.underpostQuicklyInstall] - Use `underpost install` instead of `npm install`.
+     * @param {boolean} [options.privateTestRepo] - Clone `engine-test-<id>` instead of `engine-<id>`.
+     * @memberof UnderpostStartUp
+     */
+    pullBase(deployId = 'dd-default', options = {}) {
+      const buildBasePath = `/home/dd`;
+      // `--private-test-repo` clones the isolated test source repo published by
+      // `node bin/build <deployId> --update-private`, instead of the production one.
+      const repoName = options?.privateTestRepo
+        ? `engine-test-${deployId.split('-')[1]}`
+        : `engine-${deployId.split('-')[1]}`;
+      shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
+      shellExec(`mkdir -p ${ENGINE_PATH}`);
+      shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName}/. ./engine`);
+      shellExec(`cd ${buildBasePath} && sudo rm -rf ./${repoName}`);
+      shellCd(ENGINE_PATH);
+      // Dependencies before the link: stage 2 boots through this checkout's `bin/index.js`
+      // and cannot start without its node_modules.
+      shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
+      Underpost.start.linkRuntimeCli();
+    },
+    /**
+     * Repoints the global `underpost` command at the engine checkout.
+     *
+     * `--force` because the image already owns a global `underpost` from npm; without it npm
+     * refuses the bin with `EEXIST`. Only the bin is repointed — the published package
+     * directory stays in place, so `getUnderpostRootPath()` keeps resolving to it and both
+     * stages share the one root env store holding `container-status`.
+     *
+     * Failure is not fatal. A host that cannot write its global prefix falls back to the npm
+     * snapshot, which is exactly the behaviour before this step existed, rather than losing
+     * the deployment over a link.
+     * @param {string} [enginePath] - Checkout to link.
+     * @returns {boolean} Whether the global command now resolves to the checkout.
+     * @memberof UnderpostStartUp
+     */
+    linkRuntimeCli(enginePath = ENGINE_PATH) {
+      const result = shellExec(`cd ${enginePath} && npm link --force`, {
+        silent: true,
+        silentOnError: true,
+      });
+      if (result?.code === 0) {
+        logger.info('Global underpost CLI linked to the engine checkout', { enginePath });
+        return true;
+      }
+      logger.warn('Could not link the global underpost CLI; continuing with the image snapshot', {
+        enginePath,
+        code: result?.code,
+        stderr: `${result?.stderr ?? ''}`.trim().split('\n').slice(-1)[0],
+      });
+      return false;
     },
     /**
      * Run itc-scripts and builds client bundle.
@@ -189,20 +289,11 @@ class UnderpostStartUp {
       env = 'development',
       options = { underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false, pullBundle: false },
     ) {
-      const buildBasePath = `/home/dd`;
-      // `--private-test-repo` clones the isolated test source repo published by
-      // `node bin/build <deployId> --update-private`, instead of the production one.
-      const repoName = options?.privateTestRepo
-        ? `engine-test-${deployId.split('-')[1]}`
-        : `engine-${deployId.split('-')[1]}`;
-      if (!options.skipPullBase) {
-        shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
-        shellExec(`mkdir -p ${buildBasePath}/engine`);
-        shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName}/. ./engine`);
-        shellExec(`cd ${buildBasePath} && sudo rm -rf ./${repoName}`);
-      }
-      shellCd(`${buildBasePath}/engine`);
+      if (options.skipPullBase !== true) Underpost.start.pullBase(deployId, options);
+      shellCd(ENGINE_PATH);
       Underpost.repo.privateEngineRepoFactory(deployId);
+      // Installed again after the private repo lands: `pullBase` installs only what the CLI
+      // needs to boot stage 2, which is resolved before `engine-private` is on disk.
       shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
       shellExec(`node bin env ${deployId} ${env}`);
       if (fs.existsSync('./engine-private/itc-scripts')) {
@@ -211,7 +302,9 @@ class UnderpostStartUp {
           if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
       }
       if (options.pullBundle === true) shellExec(`node bin run pull-bundle --deploy-id ${deployId}`);
-      else if (!options.skipFullBuild) shellExec(`node bin client ${deployId}`);
+      // `--env` is explicit rather than inherited: the container's ambient NODE_ENV comes from
+      // the injected `underpost-config`, and a build that guesses it renders the wrong conf.
+      else if (!options.skipFullBuild) shellExec(`node bin client ${deployId} --env ${env}`);
     },
     /**
      * Runs a deployment.
@@ -269,4 +362,4 @@ const createKeepAliveProcess = async () =>
 
 export default UnderpostStartUp;
 
-export { createKeepAliveProcess, UnderpostStartUp };
+export { createKeepAliveProcess, startFlagsFactory, UnderpostStartUp };
