@@ -24,7 +24,11 @@ And that you have a base development configuration for your `deployId`. For this
 - **`host`**: `default.net`
 - **`path`**: `/`
 - **Client** will run on `localhost:4004`
-- **API** will run on `localhost:4000`
+- **API** will run on `localhost:4001`
+
+The API port is `PORT + 1` from your `.env.development` (`PORT=4000` listens on `4001`); the runtime
+reserves the base port and assigns each instance the next one. The client server takes its port from
+the origin you pass to the API server, so the two ports are chosen in one place.
 
 ## Create a Local Sub-Configuration
 
@@ -44,6 +48,10 @@ This command copies the base configuration files for `dd-default` and creates ne
 
 Now that both configurations are ready, you can start the API and client servers in separate terminal windows.
 
+**Start the API server first.** It derives `conf.server.dev.local-dev-api.json` and
+`.env.development.local-dev-api` from your `local` sub-configuration, and the client server reads
+both of them. Starting the client first fails with a message naming the missing file.
+
 1.  **Run the API Server:**
     Open a new terminal and run:
 
@@ -52,8 +60,10 @@ Now that both configurations are ready, you can start the API and client servers
     ```
 
     - This command starts the API server using `src/api.js`.
-    - It will automatically load the `local-dev-api` configuration because `src/api.js` is set up to do so.
-    - The API server will run on `http://localhost:4000` (or the port in your `.env.development`).
+    - The last argument is the **client** origin. `src/api.js` calls `buildApiConf()`, which writes it
+      as the CORS origin of the `local-dev-api` configuration, and then loads that configuration —
+      passing no origin here leaves the API on its base `local` configuration instead.
+    - The API server will run on `http://localhost:4001` (`PORT + 1` from your `.env.development`).
 
 2.  **Run the Client Server:**
     Open another terminal and run:
@@ -63,8 +73,11 @@ Now that both configurations are ready, you can start the API and client servers
     ```
 
     - This command starts the client development server using `src/client.dev.js`.
-    - The script `createClientDevServer` is called, which uses the `local-dev-client` configuration.
+    - `buildClientStaticConf()` derives the `local-dev-client` configuration from the API server's:
+      `apiBaseHost` points at the API port, and the client's own port comes from the origin you gave
+      the API server.
+    - The script `createClientDevServer` is then called, which uses the `local-dev-client` configuration.
     - It will first build the client assets and then start a server on `http://localhost:4004`.
     - `nodemon` will watch for changes in `src/client` and automatically rebuild the client-side code.
 
-You should now have the API running on port 4000 and the client on port 4004, with the client correctly making API calls to the separate API server.
+You should now have the API running on port 4001 and the client on port 4004, with the client correctly making API calls to the separate API server.

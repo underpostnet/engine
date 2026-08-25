@@ -2,14 +2,13 @@
 
 import dotenv from 'dotenv';
 import { loggerFactory } from './server/ops/logger.js';
-import { buildClient } from './client-builder/client-build.js';
 import { buildRuntime } from './server/runtime/runtime.js';
 import { ProcessController } from './server/runtime/process.js';
-import { Config } from './server/runtime/conf.js';
+import { Config, buildApiConf } from './server/runtime/conf.js';
 
 dotenv.config();
 
-await Config.build();
+await Config.build(undefined, undefined, await buildApiConf());
 
 const logger = loggerFactory(import.meta);
 
