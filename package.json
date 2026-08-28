@@ -30,7 +30,7 @@
     "security:secrets:ci": "gitleaks detect --source . --config .gitleaks.toml --redact=1",
     "security:deps": "npm audit",
     "security": "npm run security:secrets:ci && npm run security:deps",
-    "clean": "node bin env clean && node bin run clean",
+    "clean": "node bin host clean && node bin run clean",
     "docker:generate": "node bin docker-compose --generate",
     "docker:up": "node bin docker-compose --up",
     "docker:up:build": "node bin docker-compose --up --build",

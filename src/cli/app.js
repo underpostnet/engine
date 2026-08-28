@@ -6,6 +6,11 @@
  * caller says `--env development` and gets `.env.development` — or its sub-configuration
  * variant when `--args sub-conf=<name>` names one.
  *
+ * A custom instance is a deployment too: `--args instance-id=<id>` addresses that instance's own
+ * `instances/<id>/env/<env>.env` and its own `<deployId>-<instanceId>-<env>-env` Secret, so an
+ * instance's runtime environment is managed through this domain rather than by reaching into the
+ * private conf tree by hand.
+ *
  * Implements the canonical domain action set; see {@link UnderpostDomains.DOMAIN_ACTIONS}.
  * @module src/cli/app.js
  * @namespace UnderpostApp
@@ -20,6 +25,7 @@ import {
   deployEnvContentFactory,
   deployEnvFilePath,
   deployOciEnvFilePath,
+  instanceEnvFilePath,
   loadConf,
 } from '../server/runtime/conf.js';
 import { domainContextFactory } from './domains.js';
@@ -32,8 +38,16 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
-/** Name of the Kubernetes Secret a deployment's environment is projected into. */
-const appSecretName = (deployId, env) => `${deployId}-${env}-env`;
+/**
+ * Name of the Kubernetes Secret a deployment's environment is projected into. An instance carries
+ * its own, under the `<deployId>-<instanceId>` prefix every other instance object already uses.
+ */
+const appSecretName = (deployId, env, instanceId = '') =>
+  `${instanceId ? `${deployId}-${instanceId}` : deployId}-${env}-env`;
+
+// This domain's local runtime: the working-tree file `loadConf` materializes and the server
+// reads. `publish` is the inverse of `load`, so both ends name the same file.
+const LOCAL_RUNTIME_ENV_PATH = './.env';
 
 /**
  * @class UnderpostApp
@@ -46,8 +60,8 @@ class UnderpostApp {
      * Resolves the deployment id from the repository/deployment context.
      *
      * Most specific first: an explicit `--args deploy-id=`, the ambient `DEPLOY_ID` a loaded
-     * environment exports, the root env store the node was bootstrapped with, then the first
-     * routed deploy. Falls back to the default deploy id, so resolution is total.
+     * environment exports, the host store the node was bootstrapped with, then the first routed
+     * deploy. Falls back to the default deploy id, so resolution is total.
      * @param {object} [context] - Normalized domain context, or `{ args }`.
      * @returns {string} Deployment id.
      * @memberof UnderpostApp
@@ -57,26 +71,40 @@ class UnderpostApp {
       return (
         `${context.args?.['deploy-id'] ?? context.deployId ?? ''}`.trim() ||
         `${process.env.DEPLOY_ID || ''}`.trim() ||
-        `${Underpost.env.get('DEPLOY_ID', undefined, { disableLog: true }) || ''}`.trim() ||
+        `${Underpost.host.store.get('DEPLOY_ID', undefined, { disableLog: true }) || ''}`.trim() ||
         (routed.length > 0 ? routed[0] : '') ||
         DEFAULT_DEPLOY_ID
       );
     },
 
     /**
+     * Resolves the custom instance this invocation addresses, if any.
+     * @param {object} [context] - Normalized domain context, or `{ args }`.
+     * @returns {string} Instance id, or the empty string for the deployment itself.
+     * @memberof UnderpostApp
+     */
+    instanceId(context = {}) {
+      return `${context.args?.['instance-id'] ?? context.instanceId ?? ''}`.trim();
+    },
+
+    /**
      * Resolves the durable source for an environment.
      *
-     * A named sub-configuration selects `.env.<env>.<subConf>` when that file exists and degrades
+     * `--args instance-id=` selects that instance's own env file. Otherwise a named
+     * sub-configuration selects `.env.<env>.<subConf>` when that file exists and degrades
      * to the plain `.env.<env>` when it does not — the same precedence
      * {@link ServerConfBuilder.loadConf} applies, so both agree on which file is in effect.
      * @param {object} [context] - Normalized domain context.
-     * @returns {string} Path to the deployment env file.
+     * @returns {string} Path to the deployment or instance env file.
      * @memberof UnderpostApp
      */
     envPath(context = {}) {
+      const env = `${context.env ?? ''}`.trim() || 'production';
+      const instanceId = UnderpostApp.API.instanceId(context);
+      if (instanceId) return instanceEnvFilePath(UnderpostApp.API.deployId(context), instanceId, env);
       return deployEnvFilePath(
         UnderpostApp.API.deployId(context),
-        `${context.env ?? ''}`.trim() || 'production',
+        env,
         `${context.args?.['sub-conf'] ?? process.env.DEPLOY_SUB_CONF ?? ''}`.trim(),
       );
     },
@@ -91,6 +119,16 @@ class UnderpostApp {
      * @memberof UnderpostApp
      */
     ociEnv(context = {}) {
+      // An instance env file is already the container's environment — `instance-build-manifest`
+      // derives it for that runtime — so there is no host/container split to overlay away.
+      const source = UnderpostApp.API.envPath(context);
+      if (UnderpostApp.API.instanceId(context))
+        return {
+          source,
+          overlay: null,
+          content: fs.existsSync(source) ? fs.readFileSync(source, 'utf8') : '',
+          values: UnderpostApp.API.read(context),
+        };
       return deployEnvContentFactory(
         UnderpostApp.API.deployId(context),
         `${context.env ?? ''}`.trim() || 'production',
@@ -133,10 +171,11 @@ class UnderpostApp {
     },
 
     /**
-     * Loads the deployment environment into the underpost root env store.
+     * Materializes the deployment environment into this domain's local runtime: the working-tree
+     * `./.env` copies and the in-process `Config.default` the server reads.
      *
      * Deterministic: the same environment selector and repository context always resolve the
-     * same file, and the store is rebuilt from it rather than merged into.
+     * same file, and the working tree is rebuilt from it rather than merged into.
      * @param {object} context - Normalized domain context.
      * @returns {{source: string, keys: number}} Which file was loaded and how much of it.
      * @memberof UnderpostApp
@@ -155,18 +194,29 @@ class UnderpostApp {
         });
         return { source: envPath, keys: Object.keys(values).length };
       }
-      // The working tree is this domain's local runtime: `./.env`, the per-environment copies,
-      // `package.json`, and the in-process `Config.default` the server reads. Deliberately NOT
-      // the underpost root env store — that store is host-scoped and holds the node's own
-      // configuration, so writing a deployment's environment there would erase it.
+      // Deliberately not the host configuration store: that store is host-scoped and holds the node's
+      // own configuration, so writing a deployment's environment there would erase it.
       process.env.NODE_ENV = context.env;
-      loadConf(deployId, `${context.args['sub-conf'] ?? ''}`.trim() || undefined);
-      logger.info('Deployment environment loaded', { deployId, source: envPath, keys: Object.keys(values).length });
+      const instanceId = UnderpostApp.API.instanceId(context);
+      // `loadConf` materializes a deployment's working tree from its own conf; an instance has no
+      // conf of its own, so its file is the local runtime env directly.
+      if (instanceId) writeEnv(LOCAL_RUNTIME_ENV_PATH, values);
+      else loadConf(deployId, `${context.args['sub-conf'] ?? ''}`.trim() || undefined);
+      logger.info('Deployment environment loaded', {
+        deployId,
+        instanceId: instanceId || null,
+        source: envPath,
+        keys: Object.keys(values).length,
+      });
       return { source: envPath, keys: Object.keys(values).length };
     },
 
     /**
-     * Writes the underpost root env store back into the deployment's durable source.
+     * Writes this domain's local runtime back into the deployment's durable source.
+     *
+     * The exact inverse of `load`, so it reads the working-tree `./.env` that `load` materialized
+     * — never the host configuration store, which belongs to the host domain and carries the node's
+     * configuration rather than this deployment's.
      * Refuses to overwrite an existing source without `--force`.
      * @param {object} context - Normalized domain context.
      * @returns {{target: string, keys: number}} What was written.
@@ -175,9 +225,12 @@ class UnderpostApp {
     publish(context = {}) {
       context = domainContextFactory(context);
       const target = UnderpostApp.API.envPath(context);
-      const values = Underpost.env.list(undefined, undefined, { disableLog: true });
+      const source = LOCAL_RUNTIME_ENV_PATH;
+      if (!fs.existsSync(source))
+        throw new Error(`[app] ${source} not found; run \`underpost app load\` before publishing`);
+      const values = dotenv.parse(fs.readFileSync(source, 'utf8'));
       const keys = Object.keys(values);
-      if (keys.length === 0) throw new Error('[app] the root env store is empty; nothing to publish');
+      if (keys.length === 0) throw new Error(`[app] ${source} is empty; nothing to publish`);
       if (fs.existsSync(target) && !context.force)
         throw new Error(`[app] ${target} already exists; re-run with --force to overwrite it`);
       if (context.dryRun) {
@@ -202,7 +255,7 @@ class UnderpostApp {
       const deployId = UnderpostApp.API.deployId(context);
       const envFilePath = UnderpostApp.API.envPath(context);
       if (!fs.existsSync(envFilePath)) throw new Error(`[app] deployment environment not found: ${envFilePath}`);
-      const secret = appSecretName(deployId, context.env);
+      const secret = appSecretName(deployId, context.env, UnderpostApp.API.instanceId(context));
       // This Secret is consumed only by container workloads, so the OCI overlay is applied
       // unconditionally here — the host projecting it is not the runtime that reads it.
       const { overlay, content } = UnderpostApp.API.ociEnv(context);
@@ -259,22 +312,24 @@ class UnderpostApp {
       const deployId = UnderpostApp.API.deployId(context);
       const source = UnderpostApp.API.envPath(context);
       const present = fs.existsSync(source);
-      const secret = appSecretName(deployId, context.env);
+      const secret = appSecretName(deployId, context.env, UnderpostApp.API.instanceId(context));
       const projected = shellExec(`kubectl get secret ${secret} -n ${context.namespace} -o name`, {
         silent: true,
         stdout: true,
         silentOnError: true,
         disableLog: true,
       });
-      const ociOverlay = deployOciEnvFilePath(deployId, context.env);
+      const instanceId = UnderpostApp.API.instanceId(context);
+      const ociOverlay = instanceId ? '' : deployOciEnvFilePath(deployId, context.env);
       const report = {
         domain: 'app',
         env: context.env,
         namespace: context.namespace,
         deployId,
+        instanceId: instanceId || null,
         source,
         sourcePresent: present,
-        ociOverlay: fs.existsSync(ociOverlay) ? ociOverlay : null,
+        ociOverlay: ociOverlay && fs.existsSync(ociOverlay) ? ociOverlay : null,
         keys: present ? Object.keys(UnderpostApp.API.read(context)).length : 0,
         clusterSecret: `${projected ?? ''}`.trim() ? secret : null,
       };
@@ -290,7 +345,11 @@ class UnderpostApp {
      */
     rotate(context = {}) {
       context = domainContextFactory(context);
-      const secret = appSecretName(UnderpostApp.API.deployId(context), context.env);
+      const secret = appSecretName(
+        UnderpostApp.API.deployId(context),
+        context.env,
+        UnderpostApp.API.instanceId(context),
+      );
       if (context.dryRun) {
         logger.info('[dry-run] app rotate would re-project the Secret', { secret, namespace: context.namespace });
         return { secret, namespace: context.namespace, env: context.env };
@@ -308,7 +367,9 @@ class UnderpostApp {
      */
     clean(context = {}) {
       context = domainContextFactory(context);
-      const secret = context.force ? appSecretName(UnderpostApp.API.deployId(context), context.env) : null;
+      const secret = context.force
+        ? appSecretName(UnderpostApp.API.deployId(context), context.env, UnderpostApp.API.instanceId(context))
+        : null;
       if (context.dryRun) {
         logger.info('[dry-run] app clean would remove the working-tree env files', { secret });
         return { removed: [], removedSecret: secret };

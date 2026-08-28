@@ -3,7 +3,8 @@
  *
  * Its durable source is the cron deploy's env file — SSH, registry, DNS, mail, cluster and
  * deployment settings — resolved through `engine-private/deploy/dd.cron`, the same id the cron
- * jobs run against, so this is the one configuration the whole cluster shares.
+ * jobs run against, so this is the one configuration the whole cluster shares. Its local runtime
+ * is {@link UnderpostHost.API.store}, the host configuration store this domain owns end to end.
  *
  * Implements the canonical domain action set; see {@link UnderpostDomains.DOMAIN_ACTIONS}.
  * @module src/cli/host.js
@@ -15,9 +16,10 @@ import fs from 'fs-extra';
 
 import { cronDeployIdResolve } from '../server/ops/cron.js';
 import { domainContextFactory } from './domains.js';
+import { dotenvStoreFactory } from './dotenv-store.js';
+import { getUnderpostRootPath, writeEnv } from '../server/runtime/environment.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { shellExec } from '../server/runtime/process.js';
-import { writeEnv } from '../server/runtime/environment.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -75,7 +77,7 @@ const RESERVED_ENV_KEY_PREFIXES = ['KUBERNETES_', 'npm_', 'NODE_'];
 const PRESERVED_ENV_KEYS = new Set(['NODE_ENV']);
 
 /**
- * Whether a key must be kept out of a published Secret and out of the root env store.
+ * Whether a key must be kept out of a published Secret and out of the host configuration store.
  * @param {string} key - Environment variable name.
  * @returns {boolean} True when the key is reserved.
  * @memberof UnderpostHost
@@ -91,6 +93,74 @@ const isReservedEnvKey = (key) =>
  */
 class UnderpostHost {
   static API = {
+    /**
+     * The host configuration store: a single host-scoped dotenv file next to the global installation,
+     * holding this node's resolved configuration.
+     *
+     * This domain's local runtime, so it lives here rather than in a module of its own: `load`
+     * rebuilds it from the durable source, `publish` reads it back out, `clean` withdraws it.
+     * Key-level access is `underpost host get|set|delete|list`, registered from
+     * {@link UnderpostDomains.DOMAIN_STORE_OPERATORS} — a different interaction shape than the
+     * canonical seven actions and deliberately outside them, but the same domain.
+     *
+     * Container runtime status is a different concern with a different lifetime — see
+     * {@link UnderpostState}.
+     * @type {ReturnType<typeof dotenvStoreFactory>}
+     * @memberof UnderpostHost
+     */
+    store: dotenvStoreFactory({
+      path: () => `${getUnderpostRootPath()}/.env`,
+      label: 'host configuration',
+    }),
+
+    // ── key-level store operators ───────────────────────────────────────────────────────────
+    // Delegates rather than aliases, so the command surface addresses this domain and never the
+    // store object directly. Container status is not among them: that key belongs to the state
+    // store, whose owner and lifetime are different — see {@link UnderpostState}.
+
+    /**
+     * Reads one host configuration key.
+     * @param {string} key - Key to read.
+     * @param {*} [value] - Unused; keeps the operator arity uniform.
+     * @param {object} [options] - `--plain`, `--copy`, `disableLog`.
+     * @returns {string|undefined} Stored value.
+     * @memberof UnderpostHost
+     */
+    get(key, value, options = {}) {
+      return UnderpostHost.API.store.get(key, value, options);
+    },
+
+    /**
+     * Writes one host configuration key.
+     * @param {string} key - Key to write.
+     * @param {string} value - Value to write.
+     * @memberof UnderpostHost
+     */
+    set(key, value) {
+      return UnderpostHost.API.store.set(key, value);
+    },
+
+    /**
+     * Removes one host configuration key.
+     * @param {string} key - Key to remove.
+     * @memberof UnderpostHost
+     */
+    delete(key) {
+      return UnderpostHost.API.store.delete(key);
+    },
+
+    /**
+     * Lists the host configuration store, optionally narrowed by `--filter`.
+     * @param {*} [key] - Unused; keeps the operator arity uniform.
+     * @param {*} [value] - Unused; keeps the operator arity uniform.
+     * @param {object} [options] - `--filter`, `disableLog`.
+     * @returns {Object<string, string>} Stored values.
+     * @memberof UnderpostHost
+     */
+    list(key, value, options = {}) {
+      return UnderpostHost.API.store.list(key, value, options);
+    },
+
     /**
      * Resolves the durable source for an environment.
      * @param {string} [env='production'] - Environment selector.
@@ -183,7 +253,7 @@ class UnderpostHost {
     },
 
     /**
-     * Loads the host configuration into the underpost root env store.
+     * Loads the host configuration into the host configuration store.
      *
      * Two sources, one meaning. On a node the env file is on disk. Inside a workload container it
      * is not — `engine-private` is not cloned yet at that point in the boot — and the same
@@ -204,23 +274,23 @@ class UnderpostHost {
         : Object.fromEntries(Object.entries(process.env).filter(([key]) => !isReservedEnvKey(key)));
       const source = fromFile ? envPath : 'container-env';
       if (context.dryRun) {
-        logger.info('[dry-run] host load would replace the root env store', {
+        logger.info('[dry-run] host load would replace the host configuration store', {
           source,
           keys: Object.keys(values).length,
         });
         return { source, keys: Object.keys(values).length };
       }
-      Underpost.env.clean();
-      for (const [key, value] of Object.entries(values)) Underpost.env.set(key, value);
+      UnderpostHost.API.store.clean();
+      for (const [key, value] of Object.entries(values)) UnderpostHost.API.store.set(key, value);
       logger.info('Host configuration loaded', { source, keys: Object.keys(values).length });
       return { source, keys: Object.keys(values).length };
     },
 
     /**
-     * Writes the underpost root env store back into the durable host configuration source.
+     * Writes the host configuration store back into the durable host configuration source.
      *
      * The inverse of `load`. Refuses to overwrite an existing source without `--force`, because
-     * the root env store on a node is a projection and can be narrower than the file it came from.
+     * the host configuration store on a node is a projection and can be narrower than the file it came from.
      * @param {object} context - Normalized domain context.
      * @returns {{target: string, keys: number}} What was written.
      * @memberof UnderpostHost
@@ -228,9 +298,9 @@ class UnderpostHost {
     publish(context = {}) {
       context = domainContextFactory(context);
       const target = UnderpostHost.API.envPath(context.env);
-      const values = Underpost.env.list(undefined, undefined, { disableLog: true });
+      const values = UnderpostHost.API.store.list(undefined, undefined, { disableLog: true });
       const keys = Object.keys(values);
-      if (keys.length === 0) throw new Error('[host] the root env store is empty; nothing to publish');
+      if (keys.length === 0) throw new Error('[host] the host configuration store is empty; nothing to publish');
       if (fs.existsSync(target) && !context.force)
         throw new Error(`[host] ${target} already exists; re-run with --force to overwrite it`);
       if (context.dryRun) {
@@ -330,7 +400,7 @@ class UnderpostHost {
     },
 
     /**
-     * Withdraws the host configuration from the local filesystem by clearing the root env store.
+     * Withdraws the host configuration from the local filesystem by clearing the host configuration store.
      * Container runtime state lives in its own store and is untouched. `--force` also removes the
      * ephemeral `engine-private` clone.
      * @param {object} context - Normalized domain context.
@@ -340,10 +410,10 @@ class UnderpostHost {
     clean(context = {}) {
       context = domainContextFactory(context);
       if (context.dryRun) {
-        logger.info('[dry-run] host clean would clear the root env store', { force: context.force });
+        logger.info('[dry-run] host clean would clear the host configuration store', { force: context.force });
         return { removedPrivateRepo: false };
       }
-      Underpost.env.clean();
+      UnderpostHost.API.store.clean();
       if (context.force) Underpost.repo.cleanupPrivateEngineRepo();
       logger.info('Host configuration withdrawn', { removedPrivateRepo: context.force });
       return { removedPrivateRepo: context.force };

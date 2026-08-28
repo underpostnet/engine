@@ -249,9 +249,7 @@ class UnderpostImage {
       // Outside kind, target the live CRI endpoint explicitly: /etc/crictl.yaml
       // may still point at a CRI-O socket the host no longer runs.
       const raw = shellExec(
-        node === 'kind-worker'
-          ? `docker exec -i ${node} crictl images`
-          : crictlCommandFactory('images', options || {}),
+        node === 'kind-worker' ? `docker exec -i ${node} crictl images` : crictlCommandFactory('images', options || {}),
         {
           stdout: true,
           silent: true,

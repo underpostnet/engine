@@ -60,7 +60,7 @@ const seedDescriptor = (entry) => (typeof entry === 'string' ? { file: entry, js
  * Resolves an origin seed file, preferring the deploy secret area and falling back to the
  * pre-move location.
  *
- * The fallback is what keeps `--setup` idempotent on a host onboarded before the move: without
+ * The fallback is what keeps `setup` idempotent on a host onboarded before the move: without
  * it the existing credential would look absent and a second one would be generated, encrypted
  * and applied over the password the running data tier is already using.
  * @param {string} fileName - Seed file basename.
@@ -138,7 +138,7 @@ const isReservedEnvKey = (key) =>
   !PRESERVED_ENV_KEYS.has(key) &&
   (RESERVED_ENV_KEYS.has(key) || RESERVED_ENV_KEY_PREFIXES.some((prefix) => key.startsWith(prefix)));
 
-// Secrets `--setup` onboards when no explicit list is passed: the full self-hosted data tier.
+// Secrets `setup` onboards when no explicit list is passed: the full self-hosted data tier.
 // `mongodb-keyfile` is listed alongside `mongodb-secret` because the MongoDB StatefulSet mounts
 // it as a volume for intra-replica-set auth and will not start without it, so onboarding the
 // credentials alone would leave Mongo broken.
@@ -203,12 +203,14 @@ class UnderpostSecret {
     },
 
     /**
-     * Loads decrypted secret values into the underpost root env store, so a local runtime can
-     * read a workload credential without a plaintext file ever touching disk.
+     * Loads decrypted secret values into the host store, so a local runtime can read a workload
+     * credential without a plaintext file ever touching disk.
      *
      * The local-development half of the propagation contract: production workloads receive these
      * same values through `envFrom` off the Secret `apply` projects, and `npm run dev` receives
-     * them here. `--args names=` narrows to one secret.
+     * them here. This domain has no local store of its own — a decrypted credential is node-local
+     * configuration, so it lands in the host domain's store rather than in a fourth one.
+     * `--args names=` narrows to one secret.
      * @param {object} context - Normalized domain context.
      * @returns {{loaded: Array<string>, keys: number}} Which secrets were loaded, and how many keys.
      * @memberof UnderpostSecret
@@ -224,13 +226,13 @@ class UnderpostSecret {
         for (const [key, value] of Object.entries(Underpost.secret.readData(name, context.namespace) ?? {}))
           values[`${name.replace(/-/g, '_').toUpperCase()}_${key.replace(/-/g, '_').toUpperCase()}`] = value;
       if (context.dryRun) {
-        logger.info('[dry-run] secret load would populate the root env store', {
+        logger.info('[dry-run] secret load would populate the host store', {
           loaded: names,
           keys: Object.keys(values).length,
         });
         return { loaded: names, keys: Object.keys(values).length };
       }
-      for (const [key, value] of Object.entries(values)) Underpost.env.set(key, value);
+      for (const [key, value] of Object.entries(values)) Underpost.host.store.set(key, value);
       logger.info('Workload secrets loaded', { loaded: names, keys: Object.keys(values).length });
       return { loaded: names, keys: Object.keys(values).length };
     },
@@ -301,8 +303,13 @@ class UnderpostSecret {
      * Withdraws local plaintext traces of workload secrets. The Age private key is kept: the node
      * needs it to re-apply the store on restart. `--args names=` with `--force` additionally
      * purges those secrets from the cluster and takes their manifests out of the store.
+     *
+     * A purge archives the manifest under `.archive/` by default, so it stays reversible;
+     * `--args delete=true` is the irreversible variant. `--force` gates the cluster deletion
+     * itself, so it cannot double as the disposition — that would make the archive path
+     * unreachable from the CLI and every purge permanent.
      * @param {object} context - Normalized domain context.
-     * @returns {{staged: number, purged: Array<string>}} What was withdrawn.
+     * @returns {{staged: number, purged: Array<string>, disposition: string}} What was withdrawn.
      * @memberof UnderpostSecret
      */
     clean(context = {}) {
@@ -310,15 +317,18 @@ class UnderpostSecret {
       const purge = `${context.args.names ?? ''}`.split(/[,\s]+/).filter(Boolean);
       if (purge.length > 0 && !context.force)
         throw new Error('[secret] clean --args names=<secret> removes cluster state; re-run with --force');
+      const deleteManifest = context.args.delete === true || `${context.args.delete}` === 'true';
+      const disposition = deleteManifest ? 'delete' : 'archive';
       const staged = fs.existsSync(SOPS_STAGE_DIR) ? fs.readdirSync(SOPS_STAGE_DIR).length : 0;
       if (context.dryRun) {
-        logger.info('[dry-run] secret clean would withdraw', { staged, purge });
-        return { staged, purged: purge };
+        logger.info('[dry-run] secret clean would withdraw', { staged, purge, disposition });
+        return { staged, purged: purge, disposition };
       }
       if (fs.existsSync(SOPS_STAGE_DIR)) fs.removeSync(SOPS_STAGE_DIR);
-      for (const name of purge) Underpost.secret.purge(name, { ...context, namespace: context.namespace });
-      logger.info('Workload secret traces withdrawn', { staged, purged: purge });
-      return { staged, purged: purge };
+      for (const name of purge)
+        Underpost.secret.purge(name, { namespace: context.namespace, dryRun: false, force: deleteManifest });
+      logger.info('Workload secret traces withdrawn', { staged, purged: purge, disposition });
+      return { staged, purged: purge, disposition };
     },
 
     /**
@@ -338,7 +348,7 @@ class UnderpostSecret {
      * requested Secrets into the Git-tracked store, then validates and applies them.
      *
      * Every step is idempotent and re-runnable. Notably it delegates key generation to
-     * `secret sops --init` rather than calling `age-keygen` directly: a bare `age-keygen -o`
+     * `secret setup` rather than calling `age-keygen` directly: a bare `age-keygen -o`
      * overwrites an existing key, which would orphan every manifest already encrypted to the
      * previous recipient with no way to recover them.
      *
@@ -365,11 +375,11 @@ class UnderpostSecret {
      * credential in the command string and therefore in the process table and the command log.
      *
      * Usage:
-     *   underpost secret --setup                                   # postgres + mariadb + mongo
-     *   underpost secret --setup mongodb-secret,mongodb-keyfile --namespace prod
-     *   underpost secret --setup postgres-secret --args "password=s3cr3t"
-     *   underpost secret --setup --dry-run                         # stop before mutating cluster
-     *   underpost secret --setup --force                           # replace stored manifests
+     *   underpost secret setup                                     # postgres + mariadb + mongo
+     *   underpost secret setup --args names=mongodb-secret,mongodb-keyfile --namespace prod
+     *   underpost secret setup --args "names=postgres-secret,password=s3cr3t"
+     *   underpost secret setup --dry-run                           # stop before mutating cluster
+     *   underpost secret setup --force                             # replace stored manifests
      * @param {string} names - Comma-separated Secret names to onboard. Defaults to the full data
      *   tier: postgres-secret, mariadb-secret, mongodb-secret, mongodb-keyfile.
      * @param {object} options - Onboarding options
@@ -393,7 +403,7 @@ class UnderpostSecret {
         return acc;
       }, {});
 
-      logger.info('[secret --setup]', { secretNames, namespace, dryRun: !!options.dryRun, force: !!options.force });
+      logger.info('[secret setup]', { secretNames, namespace, dryRun: !!options.dryRun, force: !!options.force });
 
       // 1. Host tooling, then keypair + creation rules. Both no-op when already present.
       Underpost.secret.installTooling();
@@ -515,9 +525,9 @@ UNDERPOST_SOPS_ENV_EOF`,
      * discarded — no secret value is ever printed or written to disk.
      *
      * Usage:
-     *   underpost secret --status                                   # every managed key, ns default
-     *   underpost secret --status mongo                             # partial match: both mongo keys
-     *   underpost secret --status --namespace prod                  # every managed key in ns prod
+     *   underpost secret status                                    # every managed key, ns default
+     *   underpost secret status --args keys=mongo                   # partial match: both mongo keys
+     *   underpost secret status --namespace prod                    # every managed key in ns prod
      * @param {string} filter - Comma-separated managed Secret keys to report on; empty reports all.
      *   Matched as case-insensitive substrings (`mongo` selects mongodb-secret and mongodb-keyfile).
      *   Filters both the stored-manifest listing and the coverage table.
@@ -546,7 +556,7 @@ UNDERPOST_SOPS_ENV_EOF`,
           ? shellExec(`${bin} ${flag} 2>/dev/null | head -1`, { stdout: true, silent: true, disableLog: true }).trim()
           : '(not installed)';
       logger.info(
-        '[secret --status] Tooling\n' +
+        '[secret status] Tooling\n' +
           `  sops        ${version('sops', '--version')}\n` +
           `  age         ${version('age', '--version')}\n` +
           `  age-keygen  ${sops.hasBinary('age-keygen') ? 'installed' : '(not installed)'}`,
@@ -560,7 +570,7 @@ UNDERPOST_SOPS_ENV_EOF`,
       const held = sops.localRecipients();
       const keyMode = keyExists ? (fs.statSync(keyFile).mode & 0o777).toString(8) : '';
       logger.info(
-        '[secret --status] Age key\n' +
+        '[secret status] Age key\n' +
           `  path        ${keyFile}\n` +
           `  present     ${mark(keyExists)}${keyExists ? `  (mode ${keyMode}${keyMode === '600' || keyMode === '400' ? '' : ' — INSECURE, run chmod 600'})` : ''}\n` +
           `  recipients  ${held.join(', ') || (keyExists ? '(none — unreadable key file)' : '(none)')}` +
@@ -571,8 +581,8 @@ UNDERPOST_SOPS_ENV_EOF`,
       const confPath = './engine-private/secrets/.sops.yaml';
       const ruleRecipients = sops.creationRecipients();
       logger.info(
-        '[secret --status] Creation rules\n' +
-          `  config      ${confPath} ${fs.existsSync(confPath) ? '' : '(missing — run: underpost secret sops --init)'}\n` +
+        '[secret status] Creation rules\n' +
+          `  config      ${confPath} ${fs.existsSync(confPath) ? '' : '(missing — run: underpost secret setup)'}\n` +
           `  recipients  ${ruleRecipients.length > 0 ? ruleRecipients.join(', ') : '(none)'}\n` +
           `  local key listed  ${mark(held.some((recipient) => ruleRecipients.includes(recipient)))}`,
       );
@@ -582,7 +592,7 @@ UNDERPOST_SOPS_ENV_EOF`,
       const onboarded = new Set();
       if (manifests.length === 0)
         logger.warn(
-          `[secret --status] Store\n  no encrypted manifests in ns/${namespace}` +
+          `[secret status] Store\n  no encrypted manifests in ns/${namespace}` +
             (manageSecretKeyFilter.length > 0 ? ` matching ${manageSecretKeyFilter.join(', ')}` : ''),
         );
       else {
@@ -614,7 +624,7 @@ UNDERPOST_SOPS_ENV_EOF`,
             `${sync}`
           );
         });
-        logger.info(`[secret --status] Store — ns/${namespace} (${manifests.length} manifest(s))\n` + rows.join('\n'));
+        logger.info(`[secret status] Store — ns/${namespace} (${manifests.length} manifest(s))\n` + rows.join('\n'));
       }
 
       // ── Coverage ───────────────────────────────────────────────────────────
@@ -638,13 +648,11 @@ UNDERPOST_SOPS_ENV_EOF`,
         });
       if (coverage.length === 0)
         logger.warn(
-          `[secret --status] Coverage\n  no managed Secret matches ${manageSecretKeyFilter.join(', ')}\n` +
+          `[secret status] Coverage\n  no managed Secret matches ${manageSecretKeyFilter.join(', ')}\n` +
             `  known keys: ${sops.managedSecrets().join(', ')}`,
         );
       else
-        logger.info(
-          '[secret --status] Coverage (which source each managed Secret deploys from)\n' + coverage.join('\n'),
-        );
+        logger.info('[secret status] Coverage (which source each managed Secret deploys from)\n' + coverage.join('\n'));
     },
     /**
      * @method keyFileCandidates
@@ -703,7 +711,7 @@ UNDERPOST_SOPS_ENV_EOF`,
             (alternatives.length
               ? `. A key does exist at ${alternatives.join(', ')} — re-run with ` +
                 `SOPS_AGE_KEY_FILE=<path>, or copy it to ${keyFile}.`
-              : `. Run: underpost secret sops --init`),
+              : `. Run: underpost secret setup`),
         );
       }
       const mode = fs.statSync(keyFile).mode & 0o777;
@@ -967,7 +975,7 @@ UNDERPOST_SOPS_ENV_EOF`,
       if (!fs.existsSync(keyFile)) throw new Error(`Age private key not found: ${keyFile}`);
       const recipients = Underpost.secret.localRecipients();
       if (recipients.length === 0)
-        throw new Error(`No Age identity could be read from ${keyFile}. Run: underpost secret sops --init`);
+        throw new Error(`No Age identity could be read from ${keyFile}. Run: underpost secret setup`);
       return recipients[0];
     },
 
@@ -1020,10 +1028,10 @@ UNDERPOST_SOPS_ENV_EOF`,
           `${Underpost.secret.keyFile()} to this host's own (one file may hold several identities), ` +
           `chmod 600 it, then re-run.\n` +
           `  2. Re-key the store from a host that still holds that key: ` +
-          `underpost secret sops --rotate --recipient <this host's recipient>, commit engine-private/secrets, ` +
+          `underpost secret rotate --args recipient=<this host's recipient>, commit engine-private/secrets, ` +
           `pull here, then re-run.\n` +
           `  3. Re-onboard from this host's origin seed files, replacing the stored manifests: ` +
-          `underpost secret --setup --force. Valid only when those seed files carry the credentials the ` +
+          `underpost secret setup --force. Valid only when those seed files carry the credentials the ` +
           `cluster already runs on — any regenerated value must also be applied to the running datastore.`,
       );
     },
@@ -1099,7 +1107,7 @@ UNDERPOST_SOPS_ENV_EOF`,
       Underpost.secret.writeCreationRecipients([...current, recipient]);
       logger.warn(
         `Registered this host's recipient in ${confPath} so manifests it encrypts stay readable here. ` +
-          `Existing manifests are NOT re-keyed by this — run \`underpost secret sops --rotate --recipient ` +
+          `Existing manifests are NOT re-keyed by this — run \`underpost secret rotate --args recipient=` +
           `${recipient}\` from a host that can still decrypt them, then commit ${SOPS_SECRETS_DIR}.`,
         { added: recipient, recipients: [...current, recipient] },
       );
@@ -1160,7 +1168,7 @@ UNDERPOST_SOPS_ENV_EOF`,
         throw new Error(`Plaintext manifest not found: ${plaintextPath}`);
       const sopsConfPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
       if (!fs.existsSync(sopsConfPath))
-        throw new Error(`Missing creation rules: ${sopsConfPath} (run: underpost secret sops --init)`);
+        throw new Error(`Missing creation rules: ${sopsConfPath} (run: underpost secret setup)`);
 
       const sourceMeta = Underpost.secret.manifestMeta(plaintextPath);
       if (sourceMeta.encrypted)
@@ -1406,7 +1414,7 @@ UNDERPOST_SOPS_ENV_EOF`,
      * @memberof UnderpostSecret
      */
     rotateRecipient(recipient, options = {}) {
-      if (!recipient) throw new Error('Rotation requires --recipient <age-public-key>');
+      if (!recipient) throw new Error('Rotation requires --args recipient=<age-public-key>');
       if (!/^age1[0-9a-z]{20,}$/.test(recipient))
         throw new Error(`Not a valid Age public recipient: ${recipient} (expected age1…)`);
 
@@ -1415,10 +1423,14 @@ UNDERPOST_SOPS_ENV_EOF`,
 
       const confPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
       if (!fs.existsSync(confPath))
-        throw new Error(`Missing creation rules: ${confPath} (run: underpost secret sops --init)`);
+        throw new Error(`Missing creation rules: ${confPath} (run: underpost secret setup)`);
 
+      // `--args` itself splits on commas, so a multi-recipient keep list cannot use one. Pipe,
+      // semicolon and whitespace all separate here, and a comma still works for a direct caller.
       const keep = (
-        Array.isArray(options.keepRecipients) ? options.keepRecipients : `${options.keepRecipients || ''}`.split(',')
+        Array.isArray(options.keepRecipients)
+          ? options.keepRecipients
+          : `${options.keepRecipients || ''}`.split(/[,|;\s]+/)
       )
         .map((value) => value.trim())
         .filter(Boolean);
@@ -1618,7 +1630,7 @@ UNDERPOST_SOPS_ENV_EOF`,
     writeCreationRecipients(recipients) {
       const confPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
       if (!fs.existsSync(confPath))
-        throw new Error(`Missing creation rules: ${confPath} (run: underpost secret sops --init)`);
+        throw new Error(`Missing creation rules: ${confPath} (run: underpost secret setup)`);
       const lines = fs.readFileSync(confPath, 'utf8').split('\n');
       const index = lines.findIndex((line) => /^\s*age:/.test(line));
       if (index === -1) throw new Error(`No 'age:' recipients entry in ${confPath}`);

@@ -19,7 +19,7 @@
  * inbound SSH session still completes its handshake and the host stays
  * reachable to undo it.
  *
- * The enforcement is latched in the root env rather than re-applied every run,
+ * The enforcement is latched in the host store rather than re-applied every run,
  * so a cron firing every ten minutes does not re-open an SSH session to a host
  * that is already blocked.
  *
@@ -60,7 +60,7 @@ const UNDERPOST_VULTR = {
   defaultSshPort: 22,
   defaultSshKeyPath: './engine-private/deploy/id_rsa',
   remoteEnginePath: '/home/dd/engine',
-  // Latched in the root env, which the CronJob mounts from the host, so the
+  // latched in the host store, which the CronJob mounts from the host, so the
   // decision survives the container that made it.
   latchKey: 'VULTR_EGRESS_BLOCKED_AT',
   env: {
@@ -85,11 +85,11 @@ const UNDERPOST_VULTR = {
  *
  * Resolution is {@link module:src/server/runtime/environment.js.environmentValueFactory}'s — the process
  * environment, then the deploy env `underpost app load --env <environment>`
- * selects into `./.env`, then the underpost root env — rather than a second
+ * selects into `./.env`, then the host store — rather than a second
  * implementation of it, because the three callers differ: a CronJob container has
  * its deploy env loaded into `process.env` by `loadCronDeployEnv`, an operator
- * preparing a manual run has `./.env`, and an operator who ran `underpost env
- * set` has the root env. Never logged — one of the keys this resolves is an API
+ * preparing a manual run has `./.env`, and an operator who ran `underpost host
+ * set` has the host store. Never logged — one of the keys this resolves is an API
  * key.
  * @param {string|Array<string>} keys - Environment variable name, or names in precedence order.
  * @returns {string} The resolved value, or an empty string.
@@ -374,15 +374,15 @@ class UnderpostVultr {
      * The API is rate limited and needs a credential, neither of which belongs
      * on an alert evaluation path, so the guard — which already holds the
      * numbers — writes them where the host collector picks them up, and to the
-     * root env store for anything that reads configuration rather than metrics.
+     * host configuration store for anything that reads configuration rather than metrics.
      * The file is renamed into place because the collector may read it mid-write.
      * @param {{consumedBytes: number, maxBytes: number}} state - Measured quota state.
      * @returns {boolean} True when the metrics file was written.
      * @memberof UnderpostVultr
      */
     publishBandwidthMetrics({ consumedBytes = 0, maxBytes = 0 } = {}) {
-      Underpost.env.set('VULTR_BANDWIDTH_USAGE_BYTES', `${consumedBytes}`);
-      Underpost.env.set('VULTR_BANDWIDTH_LIMIT_BYTES', `${maxBytes}`);
+      Underpost.host.store.set('VULTR_BANDWIDTH_USAGE_BYTES', `${consumedBytes}`);
+      Underpost.host.store.set('VULTR_BANDWIDTH_LIMIT_BYTES', `${maxBytes}`);
 
       const target = `${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}/vultr_bandwidth.prom`;
       const content =
@@ -482,7 +482,8 @@ class UnderpostVultr {
       const consumedBytes = config.metric === 'outgoing' ? totals.outgoingBytes : totals.totalBytes;
       const state = quotaStateFactory({ consumedBytes, planBandwidthGB, threshold: config.threshold });
       UnderpostVultr.API.publishBandwidthMetrics(state);
-      const latchedAt = `${Underpost.env.get(UNDERPOST_VULTR.latchKey, undefined, { disableLog: true }) ?? ''}`.trim();
+      const latchedAt =
+        `${Underpost.host.store.get(UNDERPOST_VULTR.latchKey, undefined, { disableLog: true }) ?? ''}`.trim();
 
       const summary = {
         instanceId: config.instanceId,
@@ -513,7 +514,7 @@ class UnderpostVultr {
         // real trigger, so it is cleared as soon as usage is back under the
         // threshold — but the host stays blocked until someone says otherwise.
         if (latchedAt) {
-          if (!config.dryRun) Underpost.env.delete(UNDERPOST_VULTR.latchKey);
+          if (!config.dryRun) Underpost.host.store.delete(UNDERPOST_VULTR.latchKey);
           if (config.autoUnblock) await UnderpostVultr.API.setEdgeEgress({ config, blocked: false });
           else
             logger.warn('Edge egress is still blocked from a previous cycle; unblock it when you are ready', {
@@ -537,7 +538,7 @@ class UnderpostVultr {
       }
 
       const enforced = await UnderpostVultr.API.setEdgeEgress({ config, blocked: true });
-      if (enforced && !config.dryRun) Underpost.env.set(UNDERPOST_VULTR.latchKey, new Date().toISOString());
+      if (enforced && !config.dryRun) Underpost.host.store.set(UNDERPOST_VULTR.latchKey, new Date().toISOString());
       return { ...state, ...summary, enforced, latched: enforced };
     },
 

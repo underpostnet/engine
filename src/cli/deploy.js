@@ -2528,7 +2528,7 @@ EOF`);
       const grpcServicePath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;
       if (fs.existsSync(grpcServicePath)) shellExec(`kubectl apply -f ${grpcServicePath} -n ${namespace}`);
 
-      Underpost.env.set(`${deployId}-${env}-traffic`, targetTraffic);
+      Underpost.host.store.set(`${deployId}-${env}-traffic`, targetTraffic);
     },
 
     /**
@@ -2538,9 +2538,8 @@ EOF`);
      * behaves identically everywhere:
      *
      *   1. **Explicit node** — `node` (the resolved `--node` value). Upstream
-     *      runners derive it from the comma-path field or `--node-name`
-     *      (`run sync`: `path.split(',')[4]` > `--node-name` > default) and from
-     *      `--node-name` directly (`run instance`).
+     *      runners derive it from `--node-name` (`run sync`: `--node-name` >
+     *      cluster-type default; `run instance`: `--node-name` directly).
      *   2. **`UNDERPOST_DEPLOY_NODE` env** — for kubeadm / k3s, the configured
      *      target node name. This makes hostPath PV `nodeAffinity` deterministic
      *      regardless of where the manifest is *built*: building inside a

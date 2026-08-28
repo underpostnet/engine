@@ -1,7 +1,7 @@
 /**
  * Key-level CRUD over a dotenv-backed store file.
  *
- * Two stores exist and must not share a file: the host root env store, holding this node's
+ * Two stores exist and must not share a file: the host configuration store, holding this node's
  * configuration, and the container state store, holding one workload's runtime status. They are
  * the same shape, so the operations live here once.
  * @module src/cli/dotenv-store.js

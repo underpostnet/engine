@@ -16,7 +16,6 @@ import UnderpostDeploy from './cli/deploy.js';
 import UnderpostDockerCompose from './cli/docker-compose.js';
 import UnderpostEvent from './cli/event.js';
 import UnderpostKubectl from './cli/kubectl.js';
-import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
 import UnderpostIPFS from './cli/ipfs.js';
 import UnderpostImage from './cli/image.js';
@@ -80,16 +79,6 @@ class Underpost {
   static get client() {
     return UnderpostClient.API;
   }
-  /**
-   * Root Env cli API
-   * @static
-   * @type {UnderpostRootEnv.API}
-   * @memberof Underpost
-   */
-  static get env() {
-    return UnderpostRootEnv.API;
-  }
-
   /**
    * Static cli API
    * @static
@@ -407,7 +396,6 @@ export {
   UnderpostDockerCompose,
   UnderpostEvent,
   UnderpostKubectl,
-  UnderpostRootEnv,
   UnderpostFileStorage,
   UnderpostImage,
   UnderpostStatic,

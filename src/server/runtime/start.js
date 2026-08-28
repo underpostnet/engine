@@ -180,7 +180,7 @@ class UnderpostStartUp {
       },
     ) {
       // Host configuration first: the pod command names only `start`, so the container env the
-      // `underpost-config` Secret injects is folded into the root env store here rather than by
+      // `underpost-config` Secret injects is folded into the host configuration store here rather than by
       // a second command the image's CLI might not have. A direct call, not a shell-out, so it
       // does not depend on CLI surface either.
       if (Underpost.state.isInsideContainer()) Underpost.host.load({ env });

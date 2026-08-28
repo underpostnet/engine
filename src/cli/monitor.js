@@ -51,18 +51,12 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
-// Phase-2 status read, executed by whatever underpost the pod's image ships. `state` is where a
-// current runtime records container status; an image published before that command existed
-// records it in the root env store and answers `config`. Reading both, newest first, is what
-// lets one monitor follow a rollout across the two. Drop the fallback once every image in
-// service ships a CLI carrying `state`.
-// Falls through on an empty answer, not just on a failed one: an image without the command
-// exits non-zero, while one that has it but has not recorded a status yet exits zero with
-// nothing, and both mean "ask the older location".
-const CONTAINER_STATUS_READ =
-  `'s=$(underpost state get container-status --plain 2>/dev/null); ` +
-  `[ -n "$s" ] || s=$(underpost config get container-status --plain 2>/dev/null); ` +
-  `printf %s "$s"'`;
+// Phase-2 status read, executed by whatever underpost the pod's image ships. Container status
+// belongs to the state domain and to nothing else: it is per-container and resets with the
+// container, so it is never read from the host configuration store, which is node-scoped and
+// survives. An image too old to carry `state` answers nothing here, which the caller reports as
+// an unreadable pod rather than as a status — a wrong status is worse than a missing one.
+const CONTAINER_STATUS_READ = `'underpost state get container-status --plain 2>/dev/null || true'`;
 
 const grafanaAdminSyncState = new WeakMap();
 
@@ -198,9 +192,9 @@ class UnderpostMonitor {
       let errorPayloads = [];
       if (options.sync === true) {
         const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env });
-        if (currentTraffic) Underpost.env.set(`${deployId}-${env}-traffic`, currentTraffic);
+        if (currentTraffic) Underpost.host.store.set(`${deployId}-${env}-traffic`, currentTraffic);
       }
-      let traffic = Underpost.env.get(`${deployId}-${env}-traffic`) ?? 'blue';
+      let traffic = Underpost.host.store.get(`${deployId}-${env}-traffic`) ?? 'blue';
       const maxAttempts = parseInt(
         Object.keys(pathPortAssignmentData)
           .map((host) => pathPortAssignmentData[host].length)
@@ -292,7 +286,7 @@ class UnderpostMonitor {
           const { renderHosts } = etcHostFactory([]);
           logger.info('renderHosts', renderHosts);
         }
-        const envMsTimeout = Underpost.env.get(`${deployId}-${env}-monitor-ms`);
+        const envMsTimeout = Underpost.host.store.get(`${deployId}-${env}-monitor-ms`);
         setTimeout(
           async () => {
             const isOnline = await Underpost.dns.isInternetConnection();
@@ -330,7 +324,7 @@ class UnderpostMonitor {
                 }
               }
             const monitorKey = `${deployId}-${env}-monitor-input`;
-            const monitorValue = Underpost.env.get(monitorKey);
+            const monitorValue = Underpost.host.store.get(monitorKey);
             switch (monitorValue) {
               case 'pause':
                 monitorCallBack(resolve, reject);
@@ -338,7 +332,7 @@ class UnderpostMonitor {
               case 'restart':
               case 'stop':
               case 'blue-green-switch':
-                Underpost.env.delete(monitorKey);
+                Underpost.host.store.delete(monitorKey);
               case 'restart':
                 return reject();
               case 'stop':
@@ -446,7 +440,7 @@ class UnderpostMonitor {
      *
      * Two machines have to agree on it: the cluster provisions the Alertmanager
      * Secret, and the hub runs the receiver that validates what Alertmanager
-     * sends. So the deploy environment wins over the machine-local root env
+     * sends. So the deploy environment wins over the machine-local host store
      * store — `engine-private` is shared, and a token written there reaches both
      * sides on the next pull. A token minted here is machine-local by
      * definition, which is why minting says so.
@@ -456,10 +450,10 @@ class UnderpostMonitor {
     eventWebhookTokenFactory() {
       const shared =
         process.env.UNDERPOST_EVENT_TOKEN ||
-        Underpost.env.get('UNDERPOST_EVENT_TOKEN', undefined, { disableLog: true });
+        Underpost.host.store.get('UNDERPOST_EVENT_TOKEN', undefined, { disableLog: true });
       if (shared) return shared;
       const token = generateRandomPasswordSelection(48);
-      Underpost.env.set('UNDERPOST_EVENT_TOKEN', token);
+      Underpost.host.store.set('UNDERPOST_EVENT_TOKEN', token);
       logger.warn('Minted a machine-local event webhook token', {
         hint: 'persist it as UNDERPOST_EVENT_TOKEN in the cron deploy env so the hub receiver shares it',
         read: 'node bin monitor --webhook-token',

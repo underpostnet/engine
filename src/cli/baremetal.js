@@ -2677,14 +2677,14 @@ shell
      * @method readEngineConfig
      * @description Reads an engine config/secret value (e.g. GITHUB_TOKEN) on the
      * controller. Prefers the loaded process env, falling back to
-     * `node bin config get --plain <key>`.
+     * `node bin host get --plain <key>`.
      * @param {string} key - Config/env key name.
      * @returns {string} The resolved value, or '' if unset.
      * @memberof UnderpostBaremetal
      */
     readEngineConfig(key) {
       if (process.env[key]) return process.env[key];
-      const out = shellExec(`node bin config get --plain ${key}`, {
+      const out = shellExec(`node bin host get --plain ${key}`, {
         stdout: true,
         silent: true,
         silentOnError: true,

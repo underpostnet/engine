@@ -491,11 +491,11 @@ class Dns {
       logger.error(error, { testIp, stack: error.stack });
     }
 
-    const currentIp = Underpost.env.get('ip');
+    const currentIp = Underpost.host.store.get('ip');
 
     if (testIp && validator.isIP(testIp) && currentIp !== testIp) {
       logger.info(`New IP detected`, testIp);
-      Underpost.env.set('monitor-input', 'pause');
+      Underpost.host.store.set('monitor-input', 'pause');
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -538,8 +538,8 @@ class Dns {
           logger.info(ipUrlTest + ' verify ip', verifyIp);
           if (verifyIp === testIp) {
             logger.info('IP updated successfully and verified', testIp);
-            Underpost.env.set('ip', testIp);
-            Underpost.env.delete('monitor-input');
+            Underpost.host.store.set('ip', testIp);
+            Underpost.host.store.delete('monitor-input');
           } else {
             logger.error('IP not updated or verification failed', { expected: testIp, received: verifyIp });
           }

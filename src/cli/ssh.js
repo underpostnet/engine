@@ -790,10 +790,10 @@ class UnderpostSSH {
       const sshScript = `#!/usr/bin/env bash
 set -euo pipefail
 
-REMOTE_USER=$(node bin config get --plain DEFAULT_SSH_USER)
-REMOTE_HOST=$(node bin config get --plain DEFAULT_SSH_HOST)
-REMOTE_PORT=$(node bin config get --plain DEFAULT_SSH_PORT)
-SSH_KEY=$(node bin config get --plain DEFAULT_SSH_KEY_PATH)
+REMOTE_USER=$(node bin host get --plain DEFAULT_SSH_USER)
+REMOTE_HOST=$(node bin host get --plain DEFAULT_SSH_HOST)
+REMOTE_PORT=$(node bin host get --plain DEFAULT_SSH_PORT)
+SSH_KEY=$(node bin host get --plain DEFAULT_SSH_KEY_PATH)
 
 chmod 600 "$SSH_KEY"
 
@@ -979,8 +979,8 @@ EOF
     },
 
     /**
-     * Loads a user's SSH credentials for one host and sets them in the
-     * UnderpostRootEnv API.
+     * Loads a user's SSH credentials for one host and sets them in the host
+     * configuration store.
      *
      * `host` is what selects the connection: an account registered for several
      * hosts has several, and picking one without being told would send a repair
@@ -1042,10 +1042,10 @@ EOF
       }
       if (!registered) logger.warn(`Using the deploy environment DEFAULT_SSH_* values`, { requested: options.user });
 
-      Underpost.env.set('DEFAULT_SSH_USER', connection.user);
-      Underpost.env.set('DEFAULT_SSH_HOST', connection.host);
-      Underpost.env.set('DEFAULT_SSH_KEY_PATH', connection.keyPath);
-      Underpost.env.set('DEFAULT_SSH_PORT', connection.port);
+      Underpost.host.store.set('DEFAULT_SSH_USER', connection.user);
+      Underpost.host.store.set('DEFAULT_SSH_HOST', connection.host);
+      Underpost.host.store.set('DEFAULT_SSH_KEY_PATH', connection.keyPath);
+      Underpost.host.store.set('DEFAULT_SSH_PORT', connection.port);
     },
 
     /**

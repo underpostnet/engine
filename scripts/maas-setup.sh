@@ -18,14 +18,14 @@ cd /home/dd/engine
 underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production
 
 # Extract configuration values from secrets
-DB_PG_MAAS_USER=$(node bin config get --plain DB_PG_MAAS_USER)
-DB_PG_MAAS_PASS=$(node bin config get --plain DB_PG_MAAS_PASS)
-DB_PG_MAAS_HOST=$(node bin config get --plain DB_PG_MAAS_HOST)
-DB_PG_MAAS_NAME=$(node bin config get --plain DB_PG_MAAS_NAME)
+DB_PG_MAAS_USER=$(node bin host get --plain DB_PG_MAAS_USER)
+DB_PG_MAAS_PASS=$(node bin host get --plain DB_PG_MAAS_PASS)
+DB_PG_MAAS_HOST=$(node bin host get --plain DB_PG_MAAS_HOST)
+DB_PG_MAAS_NAME=$(node bin host get --plain DB_PG_MAAS_NAME)
 
-MAAS_ADMIN_USERNAME=$(node bin config get --plain MAAS_ADMIN_USERNAME)
-MAAS_ADMIN_EMAIL=$(node bin config get --plain MAAS_ADMIN_EMAIL)
-MAAS_ADMIN_PASS=$(node bin config get --plain MAAS_ADMIN_PASS)
+MAAS_ADMIN_USERNAME=$(node bin host get --plain MAAS_ADMIN_USERNAME)
+MAAS_ADMIN_EMAIL=$(node bin host get --plain MAAS_ADMIN_EMAIL)
+MAAS_ADMIN_PASS=$(node bin host get --plain MAAS_ADMIN_PASS)
 
 # Initialize MAAS region+rack controller
 maas init region+rack \
