@@ -42,8 +42,8 @@ underpost ssh --user-add --user devuser
 # Remove the cluster user, its keys, and its registry entry
 underpost ssh --user-remove --user devuser
 
-# Connect using saved credentials
-underpost ssh --user devuser --connect-uri
+# Print the connection command for a registered node (see Edge Hub WireGuard and HAProxy)
+underpost wireguard --connect-uri --nodes hp-envy-iso-ram-rocky9
 ```
 
 ---
@@ -188,29 +188,9 @@ underpost ssh --key-test --user alice --password "mypass"
 
 ### Connection Management
 
-#### `--connect-uri`
-
-Displays SSH connection URI for the user.
-
-**Options:**
-
-- `--copy` - Copy URI to clipboard instead of displaying
-
-**Output format:**
-
-```
-ssh username@hostname -i /path/to/key -p port
-```
-
-**Example:**
-
-```bash
-# Display connection URI
-underpost ssh --connect-uri --user alice --host 192.168.1.10
-
-# Copy to clipboard
-underpost ssh --connect-uri --user alice --host 192.168.1.10 --copy
-```
+Connection URIs are built by node name, not by account: `underpost wireguard --connect-uri --nodes <node-name>`
+joins the node document under `./engine-private/deploy/nodes/` to the management address it is registered
+under in this registry. See [Edge Hub WireGuard and HAProxy](<Edge Hub WireGuard and HAProxy.md>).
 
 #### `--hosts-list`
 
@@ -254,8 +234,8 @@ underpost ssh \
   --groups "wheel,docker" \
   --disable-password
 
-# Get connection string
-underpost ssh --user apiuser --connect-uri --copy
+# Get the connection string for the node this account manages
+underpost wireguard --connect-uri --nodes hp-envy-iso-ram-rocky9 --copy
 ```
 
 **What happens:**
@@ -481,7 +461,7 @@ underpost ssh --user-ls
 
 Re-running for a host already registered updates that connection rather than appending a duplicate.
 
-Once an account has more than one host, the commands that act on **one** machine — `--connect-uri`, `--user-add`, `--start`, `--key-test`, `--hosts-list` — require `--host` and refuse to guess:
+Once an account has more than one host, the commands that act on **one** machine — `--user-add`, `--start`, `--key-test`, `--hosts-list` — require `--host` and refuse to guess:
 
 ```
 [ssh] user 'admin' is registered for several hosts (10.0.0.2, 10.0.0.3); pass --host to select one
@@ -571,8 +551,8 @@ underpost ssh --user-add --user myuser
 # Test key validity
 underpost ssh --user myuser --key-test --password "mypass"
 
-# Get connection command
-underpost ssh --user myuser --connect-uri
+# Get connection command for the node
+underpost wireguard --connect-uri --nodes hp-envy-iso-ram-rocky9
 
 # Check service status
 underpost ssh --status
@@ -594,10 +574,8 @@ underpost ssh --status
 | `--keys-list`        | List authorized keys  | No                           |
 | `--hosts-list`       | List known hosts      | No                           |
 | `--key-test`         | Test key validity     | No                           |
-| `--connect-uri`      | Get connection string | Reads                        |
 | `--reset`            | Clear SSH config      | No                           |
 | `--disable-password` | Disable password auth | No                           |
-| `--copy`             | Copy to clipboard     | No                           |
 
 ---
 

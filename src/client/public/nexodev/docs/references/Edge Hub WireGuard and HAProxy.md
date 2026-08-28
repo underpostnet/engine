@@ -14,13 +14,14 @@ Underpost exposes private cluster ingress through a static VPS. WireGuard carrie
 8. [Generated host artifacts](#generated-host-artifacts)
 9. [Adding a spoke without downtime](#adding-a-spoke-without-downtime)
 10. [SSH forwarding and remediation credentials](#ssh-forwarding-and-remediation-credentials)
-11. [Syncing the fleet](#syncing-the-fleet)
-12. [Resyncing a node](#resyncing-a-node)
-13. [Forward proxy](#forward-proxy)
-14. [Response compression and egress](#response-compression-and-egress)
-15. [Relationship to `underpost-ingress` and `underpost-gateway`](#relationship-to-underpost-ingress-and-underpost-gateway)
-16. [Command reference](#command-reference)
-17. [Verification](#verification)
+11. [Connecting to a node](#connecting-to-a-node)
+12. [Syncing the fleet](#syncing-the-fleet)
+13. [Resyncing a node](#resyncing-a-node)
+14. [Forward proxy](#forward-proxy)
+15. [Response compression and egress](#response-compression-and-egress)
+16. [Relationship to `underpost-ingress` and `underpost-gateway`](#relationship-to-underpost-ingress-and-underpost-gateway)
+17. [Command reference](#command-reference)
+18. [Verification](#verification)
 
 ---
 
@@ -422,6 +423,37 @@ A cluster node reports CPU, memory, disk and interface counters through the `nod
 
 The service listens on the node's tunnel address alone, which is where Prometheus already scrapes it (`node-exporter-hub`), so the counters never reach the public address. It is bound to `wg-quick@<interface>` and reads the same textfile directory the Vultr bandwidth guard writes to, so the hub's quota rides in with the rest of its metrics. Re-running is convergent: the pinned binary is downloaded only when the host is not already running that version, and the run fails if the service does not come up.
 
+## Connecting to a node
+
+```bash
+node bin wireguard --connect-uri --nodes hp-envy-iso-ram-rocky9
+node bin wireguard --connect-uri --nodes hp-envy-iso-ram-rocky9 --copy
+node bin wireguard --connect-uri
+```
+
+```
+ssh admin@192.168.1.191 -i ./engine-private/deploy/users/admin/id_rsa -p 22
+```
+
+A node is named by its document, so `hp-envy-iso-ram-rocky9` is
+`./engine-private/deploy/nodes/hp-envy-iso-ram-rocky9.json`. That document names the topology peer, the peer
+carries the `managementHost` the machine is reached at, and that address is the key
+`./engine-private/deploy/conf.users.json` registers an account, port and key path under — so the URI printed is
+the connection the cluster already holds rather than one composed by hand. Hubs resolve through their static
+public address instead, which no failed tunnel is part of.
+
+The join is the one `--sync`, `--cmd` and event remediation use, so a node you can be given a URI for is a node
+the fleet commands can reach. Empty `--nodes` lists the whole fleet, one line per node; `--copy` puts the output
+on the clipboard instead of printing it. A node that is the current machine has no hop to make and is reported as
+such rather than given a URI.
+
+An address with no entry in the registry is an error naming the command that fixes it:
+
+```
+[event] no SSH connection is registered for spoke 'homelab-a-hp-envy-iso-ram-rocky9' at 192.168.1.191;
+run: node bin ssh --user <user> --host 192.168.1.191 --user-add
+```
+
 ## Syncing the fleet
 
 ```bash
@@ -459,12 +491,12 @@ The sequence halts at the first failing step the later ones depend on — instal
 
 Every node's state comes from four files, and each one has exactly one command that reapplies it. Nothing here is destructive; all of it is idempotent.
 
-| Source | Reapplied by | Where it runs |
-| --- | --- | --- |
-| `deploy/nodes/<hostname>.json` | `node bin wireguard --node-config` | the node itself |
-| `conf.wireguard.json` | `node bin wireguard --wireguard-setup --wireguard-restart` | the node itself |
-| `conf.users.json` | `node bin ssh --user <u> --host <h> --user-add` | the control plane |
-| `conf.event.json` | `node bin monitor --sync-prom` | the control plane |
+| Source                         | Reapplied by                                               | Where it runs     |
+| ------------------------------ | ---------------------------------------------------------- | ----------------- |
+| `deploy/nodes/<hostname>.json` | `node bin wireguard --node-config`                         | the node itself   |
+| `conf.wireguard.json`          | `node bin wireguard --wireguard-setup --wireguard-restart` | the node itself   |
+| `conf.users.json`              | `node bin ssh --user <u> --host <h> --user-add`            | the control plane |
+| `conf.event.json`              | `node bin monitor --sync-prom`                             | the control plane |
 
 A full fleet reconcile, in dependency order:
 
@@ -481,7 +513,7 @@ node bin event --list          # every repair and notify route must resolve
 node bin event wireguard-spoke-down --e2e-test --dry-run=false
 ```
 
-`--wireguard-setup` rewrites the interface from topology and reapplies the host rules, including placing the tunnel interface in the `trusted` firewalld zone. **That zone is what makes spoke-to-spoke traffic work at all**: firewalld's forward chain ends in `reject with icmpx admin-prohibited`, so an unzoned `wg0` has its *forwarded* packets dropped while the hub still answers on its own tunnel address. The symptom is a tunnel that passes every health check while one spoke cannot reach another — and it is what the `wireguard-spoke-down` probe measures.
+`--wireguard-setup` rewrites the interface from topology and reapplies the host rules, including placing the tunnel interface in the `trusted` firewalld zone. **That zone is what makes spoke-to-spoke traffic work at all**: firewalld's forward chain ends in `reject with icmpx admin-prohibited`, so an unzoned `wg0` has its _forwarded_ packets dropped while the hub still answers on its own tunnel address. The symptom is a tunnel that passes every health check while one spoke cannot reach another — and it is what the `wireguard-spoke-down` probe measures.
 
 Verify the property directly, from the control plane:
 
@@ -592,7 +624,9 @@ TLS is terminated exactly once, at the cluster's own ingress. See [Main cluster 
 | `--wireguard-reset` / `--wireguard-reinstall`                    | Remove host state or re-key it                                                                           |
 | `--sync`                                                         | Bring every registered node's engine checkout up to date                                                 |
 | `--node-exporter`                                                | Provision the host metrics collector as a systemd service on the selected hubs                           |
-| `--nodes <names>`                                                | Comma-separated node documents `--sync` and `--node-exporter` act on                                     |
+| `--connect-uri`                                                  | Print the SSH command that reaches each node named by `--nodes`                                          |
+| `--copy`                                                         | Copy the `--connect-uri` output to the clipboard instead of printing it                                  |
+| `--nodes <names>`                                                | Comma-separated node documents `--sync`, `--node-exporter` and `--connect-uri` act on                    |
 | `--repo-engine <repo>`                                           | Engine repository `--sync` switches to, as `owner/repo` or a clone URL                                   |
 
 ## Verification

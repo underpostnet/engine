@@ -891,8 +891,6 @@ Manages cluster scoped SSH credentials and sessions for remote access to cluster
 | `--key-test` | Tests the SSH key using ssh-keygen. |
 | `--stop` | Stops the SSH service. |
 | `--status` | Checks the status of the SSH service. |
-| `--connect-uri` | Displays the connection URI. |
-| `--copy` | Copies the connection URI to clipboard. |
 | `-h, --help` | display help for command |
 
 ---
@@ -936,7 +934,9 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 | `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
 | `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology. |
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
-| `--nodes <node-names>` | Comma-separated node documents --sync, --cmd and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--nodes <node-names>` | Comma-separated node documents --sync, --cmd, --node-exporter and --connect-uri act on. Empty covers every hub and every peer of this node hub. |
+| `--connect-uri` | Prints the SSH command that reaches each node named by --nodes, joining the node document under engine-private/deploy/nodes to the management address it is registered under in engine-private/deploy/conf.users.json. Empty --nodes lists the whole fleet. |
+| `--copy` | Copies the --connect-uri output to the clipboard instead of printing it. |
 | `--cmd <command-list>` | Comma-separated custom commands to run on the selected nodes over their SSH identity. Given with --sync, only these run in place of the sync steps. |
 | `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
@@ -994,7 +994,9 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 | `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
 | `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology. |
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
-| `--nodes <node-names>` | Comma-separated node documents --sync, --cmd and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--nodes <node-names>` | Comma-separated node documents --sync, --cmd, --node-exporter and --connect-uri act on. Empty covers every hub and every peer of this node hub. |
+| `--connect-uri` | Prints the SSH command that reaches each node named by --nodes, joining the node document under engine-private/deploy/nodes to the management address it is registered under in engine-private/deploy/conf.users.json. Empty --nodes lists the whole fleet. |
+| `--copy` | Copies the --connect-uri output to the clipboard instead of printing it. |
 | `--cmd <command-list>` | Comma-separated custom commands to run on the selected nodes over their SSH identity. Given with --sync, only these run in place of the sync steps. |
 | `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
