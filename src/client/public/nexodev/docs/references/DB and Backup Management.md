@@ -49,31 +49,30 @@ underpost db <deploy-list> [options]
 
 ### Available Options
 
-| Option                            | Description                                                                   |
-| --------------------------------- | ----------------------------------------------------------------------------- |
-| `--import`                        | Import container backups from specified repositories                          |
-| `--export`                        | Export container backups to specified repositories                            |
-| `--pod-name <pod-name>`           | Comma-separated pod names or patterns (supports wildcards like `mariadb-*`)   |
-| `--all-pods`                      | Target all matching pods instead of just the first one                        |
-| `--primary-pod`                   | Automatically detect and use MongoDB primary pod (MongoDB only)               |
-| `--stats`                         | Display database statistics (collection/table names with document/row counts) |
-| `--collections <collections>`     | Comma-separated list of database collections to operate on                    |
-| `--out-path <out-path>`           | Custom output path for backups                                                |
-| `--drop`                          | Drop specified databases or collections before importing                      |
-| `--preserveUUID`                  | Preserve UUIDs during database import operations                              |
-| `--git`                           | Enable Git integration for backup version control                             |
-| `--force-clone`                   | Force clone Git repository, overwriting local changes                         |
-| `--hosts <hosts>`                 | Comma-separated list of database hosts to filter operations                   |
-| `--paths <paths>`                 | Comma-separated list of paths to filter database operations                   |
-| `--ns <ns-name>`                  | Kubernetes namespace context (defaults to `default`)                          |
-| `--macro-rollback-export <n>`     | Export macro rollback script that reverts the last n commits                  |
-| `--primary-pod-ensure <pod-name>` | Ensure setup of MongoDB replica set primary pod before operations             |
-| `--clean-fs-collection`           | Clean orphaned File documents not referenced by any models                    |
-| `--clean-fs-dry-run`              | Dry run mode for `--clean-fs-collection` (preview without deleting)           |
-| `--dev`                           | Development CLI context                                                       |
-| `--kubeadm`                       | Kubeadm cluster context for database operations                               |
-| `--kind`                          | Kind cluster context for database operations                                  |
-| `--k3s`                           | K3s cluster context for database operations                                   |
+| Option                        | Description                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------- |
+| `--import`                    | Import container backups from specified repositories                          |
+| `--export`                    | Export container backups to specified repositories                            |
+| `--pod-name <pod-name>`       | Comma-separated pod names or patterns (supports wildcards like `mariadb-*`)   |
+| `--all-pods`                  | Target all matching pods instead of just the first one                        |
+| `--primary-pod`               | Automatically detect and use MongoDB primary pod (MongoDB only)               |
+| `--stats`                     | Display database statistics (collection/table names with document/row counts) |
+| `--collections <collections>` | Comma-separated list of database collections to operate on                    |
+| `--out-path <out-path>`       | Custom output path for backups                                                |
+| `--drop`                      | Drop specified databases or collections before importing                      |
+| `--preserveUUID`              | Preserve UUIDs during database import operations                              |
+| `--git`                       | Enable Git integration for backup version control                             |
+| `--force-clone`               | Force clone Git repository, overwriting local changes                         |
+| `--hosts <hosts>`             | Comma-separated list of database hosts to filter operations                   |
+| `--paths <paths>`             | Comma-separated list of paths to filter database operations                   |
+| `--ns <ns-name>`              | Kubernetes namespace context (defaults to `default`)                          |
+| `--macro-rollback-export <n>` | Export macro rollback script that reverts the last n commits                  |
+| `--clean-fs-collection`       | Clean orphaned File documents not referenced by any models                    |
+| `--clean-fs-dry-run`          | Dry run mode for `--clean-fs-collection` (preview without deleting)           |
+| `--dev`                       | Development CLI context                                                       |
+| `--kubeadm`                   | Kubeadm cluster context for database operations                               |
+| `--kind`                      | Kind cluster context for database operations                                  |
+| `--k3s`                       | K3s cluster context for database operations                                   |
 
 ---
 
