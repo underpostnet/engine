@@ -9,16 +9,13 @@ ENGINE_ROOT=/home/dd/engine
 INGRESS_NODE=localhost.localdomain
 
 main() {
-    echo "Starting remote sync and deploy"
+    deploy_start "Starting remote sync and deploy"
 
     prepare_host "$ENGINE_ROOT"
 
-    run_quiet \
-        "Sync dd-lampp cluster" \
-        "Target pod:" \
-        14 \
+    deploy_step "Sync dd-lampp cluster" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --timeout-response 300000ms --deploy-id-cron-jobs none 'dd-lampp,1,,underpost/wp:v3.3.0'"
+        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --timeout-response 300000ms --deploy-id-cron-jobs none --deploy-id dd-lampp --replicas 1 --image underpost/wp:v3.3.0"
 }
 
 main "$@"

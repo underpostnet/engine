@@ -9,14 +9,11 @@ ENGINE_ROOT=/home/dd/engine
 INGRESS_NODE=localhost.localdomain
 
 main() {
-    echo "Starting remote deploy"
+    deploy_start "Starting remote deploy"
 
     prepare_host "$ENGINE_ROOT"
 
-    run_quiet \
-        "Deploy dd-test" \
-        "Target pod:" \
-        14 \
+    deploy_step "Deploy dd-test" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin run deploy dd-test --gateway-api --ingress-node ${INGRESS_NODE}"
 }

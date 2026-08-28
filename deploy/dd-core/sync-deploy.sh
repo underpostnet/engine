@@ -10,16 +10,13 @@ INGRESS_NODE=localhost.localdomain
 TARGET_NODE=hp-envy-iso-ram-rocky9
 
 main() {
-    echo "Starting remote sync and deploy"
+    deploy_start "Starting remote sync and deploy"
 
     prepare_host "$ENGINE_ROOT"
 
-    run_quiet \
-        "Sync dd-core cluster" \
-        "Target pod:" \
-        14 \
+    deploy_step "Sync dd-core cluster" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9 dd-core"
+        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --node-name ${TARGET_NODE} --ssh-key-path /home/dd/tmp/897as9dxhaskd9 --deploy-id dd-core"
 }
 
 main "$@"

@@ -9,16 +9,13 @@ ENGINE_ROOT=/home/dd/engine
 INGRESS_NODE=localhost.localdomain
 
 main() {
-    echo "Starting remote sync and deploy"
+    deploy_start "Starting remote sync and deploy"
 
     prepare_host "$ENGINE_ROOT"
 
-    run_quiet \
-        "Sync dd-prototype cluster" \
-        "Target pod:" \
-        14 \
+    deploy_step "Sync dd-prototype cluster" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} dd-prototype"
+        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --deploy-id dd-prototype"
 }
 
 main "$@"

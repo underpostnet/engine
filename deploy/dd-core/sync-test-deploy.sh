@@ -9,21 +9,18 @@ INGRESS_NODE=localhost.localdomain
 TARGET_NODE=hp-envy-iso-ram-rocky9
 
 main() {
-    echo "Starting remote sync and deploy"
+    deploy_start "Starting remote sync and deploy"
     
     # No pull: this flow deploys the tree already on the node.
-    run_quiet "Install dependencies" "Target pod:" 14 \
+    deploy_step "Install dependencies" \
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && npm install"
 
-    run_quiet "Load host config" "Target pod:" 14 \
+    deploy_step "Load host config" \
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin host load"
     
-    run_quiet \
-    "Sync dd-core cluster" \
-    "Target pod:" \
-    14 \
-    sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && node bin run sync dd-core \
+    deploy_step "Sync dd-core cluster" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin run sync --deploy-id dd-core \
     --kubeadm \
     --gateway-api \
     --ingress-node ${INGRESS_NODE} \

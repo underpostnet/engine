@@ -1,20 +1,28 @@
 # Logging helpers for deploy/<deploy-id>/*.sh. Sourced, never executed directly.
 #
 # Deploy script contract:
-# - prepare_host from lib/host.sh first, then one run_quiet call per remote
-#   command, each with its own label
+# - deploy_start once for the run's title, prepare_host from lib/host.sh next,
+#   then one deploy_step call per remote command, each with its own label
 # - the body lives in main(), invoked on the last line: the first remote command
 #   pulls this repository, rewriting the running script while bash reads it
 #
+# deploy_step is the entry point every deploy script uses. run_quiet stays the
+# mechanism underneath it, for the rare caller that needs a different report
+# pattern or passthrough window.
+#
 # run_quiet hides normal output and returns the command's exit status so
 # `set -e` stops the deployment. Lines matching `patterns` that parse as a
-# deployment pod report are folded into a table — one row per pod — instead of
-# being streamed; the monitor's raw `deploy-monitor` JSON emits are consumed
-# into that table's cells rather than printed. Anything else within
+# deployment pod report are folded into a table — one row per pod, three columns
+# wide — instead of being streamed; the monitor's raw `deploy-monitor` JSON emits
+# are consumed into that table's cells rather than printed. The monitor
+# iteration and its clock are per frame, not per pod, so they title the table
+# rather than repeating down a column of every row. Anything else within
 # `lines_after` lines of a match scrolls above the table. On failure it keeps
 # two temp files and prints their paths in red instead of their contents: the
-# command's own stderr (native error message and stack trace) and the full
-# unfiltered log up to the error.
+# error trace and the full unfiltered log up to the error. The trace is stderr
+# plus the failing tail of the merged log, because the engine CLI reports through
+# its logger and that writes to stdout — stderr alone routinely holds nothing but
+# git progress output.
 #
 # The table renders three ways, because a log viewer is not a terminal:
 # - terminal: redrawn in place, cursor relative, one frame at a time
@@ -36,6 +44,25 @@ fi
 RUN_QUIET_NODE_NAME=$(hostname 2>/dev/null | tr '[:upper:]' '[:lower:]')
 RUN_QUIET_NODE_TAG=${RUN_QUIET_NODE_NAME:+ [$RUN_QUIET_NODE_NAME]}
 
+# The report pattern and the passthrough window describe the deployment log
+# format, not any one step, so they are declared once here instead of being
+# repeated at every call site.
+DEPLOY_REPORT_PATTERN='Target pod:'
+DEPLOY_REPORT_LINES_AFTER=14
+
+# Titles a deploy run, in the same shape as the step lines below it.
+deploy_start() {
+    echo "$RUN_QUIET_NODE_TAG $(date -Is) ▶▶ $1"
+}
+
+# One deploy step: a label and the command that carries it.
+deploy_step() {
+    local label="$1"
+    shift
+
+    run_quiet "$label" "$DEPLOY_REPORT_PATTERN" "$DEPLOY_REPORT_LINES_AFTER" "$@"
+}
+
 run_quiet() {
     local label="$1"
     local patterns="$2"
@@ -44,6 +71,8 @@ run_quiet() {
     
     local debug_log
     local error_log
+    local fail_flag
+    local fatal
     local fifo_dir
     local filter_pid
     local stderr_pid
@@ -75,6 +104,8 @@ run_quiet() {
     
     debug_log=$(mktemp --suffix=.debug.log)
     error_log=$(mktemp --suffix=.error.log)
+    fail_flag=$(mktemp --suffix=.fatal)
+    : >"$fail_flag"
     fifo_dir=$(mktemp -d)
     mkfifo "$fifo_dir/merged" "$fifo_dir/stderr"
     
@@ -106,6 +137,7 @@ run_quiet() {
     -v width="$width" \
     -v rows="$rows" \
     -v started="$(date +%H:%M:%S)" \
+    -v fail_flag="$fail_flag" \
     -v handoff="$RUN_QUIET_NODE_TAG $(date -Is) ▶ Switch traffic" '
         function strip(s) {
             gsub(esc_seq, "", s)
@@ -162,8 +194,9 @@ run_quiet() {
             if (!group_open) return
             group_open = 0
             # The next run of rows opens its own section, and a section starts
-            # with its header.
+            # with its title and header.
             appended_header = 0
+            appended_cycle = 0
             printf "::endgroup::\n"
             fflush()
         }
@@ -171,6 +204,7 @@ run_quiet() {
             if (!groups || pod_count == 0) return
             close_group()
             measure()
+            title_line()
             header_lines()
             for (i = 1; i <= pod_count; i++) pod_line(pods[i])
         }
@@ -189,6 +223,7 @@ run_quiet() {
             else if (event_phase == "runtime") {
                 runtime_ready = (event_state == "runtime_ready")
                 if (event_status != "") last_runtime = event_status
+                if (is_fatal(event_status)) note_fatal("runtime event", "status=" event_status)
             }
             if (redraw) {
                 if (drawn > 0) {
@@ -217,29 +252,47 @@ run_quiet() {
             k8s = cell[2]; sub(/^Pod status:[ ]*/, "", k8s)
             runtime = cell[3]; sub(/^Runtime status:[ ]*/, "", runtime)
             if (pod == "") return 0
+            if (is_fatal(runtime)) note_fatal("pod " pod, "runtime status=" runtime)
             if (!(pod in pod_row)) {
                 pod_row[pod] = ++pod_count
                 pods[pod_count] = pod
             }
             # The report itself is unstamped: the clock is the one the monitor
-            # printed for this iteration, so the cell advances with the run.
-            pod_time[pod] = last_time != "" ? last_time : started
+            # printed for this iteration, so the title advances with the run.
+            cycle_time = last_time != "" ? last_time : started
             pod_k8s[pod] = k8s
             pod_runtime[pod] = runtime
             current_pod = pod
             return 1
         }
         # Every pod reporting its expected runtime status with no pending
-        # marker is what the deployment itself calls ready.
+        # marker is what the deployment itself calls ready. `error` is
+        # the fatal value in the RUNTIME_STATUS contract: a terminal state, not a
+        # ready one, and reading it as ready handed off to the traffic switch on
+        # a deployment that had already failed.
         function all_pods_running(   i, pod, runtime) {
             if (pod_count == 0) return 0
             for (i = 1; i <= pod_count; i++) {
                 pod = pods[i]
                 if (pod_k8s[pod] != "Running") return 0
                 runtime = runtime_cell(pod)
-                if (runtime == "" || runtime ~ /pending/) return 0
+                if (runtime == "" || runtime ~ /pending/ || is_fatal(runtime)) return 0
             }
             return 1
+        }
+        # The bare contract value, not a substring: a phase name that merely
+        # contains it (or a log line quoting it) is not a fatal latch.
+        function is_fatal(status) {
+            return status == "error"
+        }
+        # Records the fatal latch for run_quiet. A step can report this and still
+        # exit 0 — the in-pod lifecycle deliberately does not crash the container
+        # — so the exit status alone cannot be trusted to stop the deployment.
+        function note_fatal(source, detail) {
+            if (fatal_seen) return
+            fatal_seen = 1
+            printf "%s: %s\n", source, detail > fail_flag
+            close(fail_flag)
         }
         # The table stops being a live region here: the deployment is handing
         # over to the traffic switch, so the last frame stays on screen and the
@@ -262,13 +315,14 @@ run_quiet() {
             runtime_ready = 0
             pod_count = 0
             cycles = 0
+            cycle_time = ""
             appended_header = 0
+            appended_cycle = 0
             drawn = 0
             delete pods
             delete pod_row
             delete pod_k8s
             delete pod_runtime
-            delete pod_time
             delete last_row
         }
         # pod_ready is a deployment-wide event: it only annotates a pod whose
@@ -283,15 +337,13 @@ run_quiet() {
         # Columns only ever grow: a cell that shrinks must not reflow the table
         # under the reader between frames.
         function measure(   i, pod, over, budget) {
-            if (length("#" cycles) > w_iteration) w_iteration = length("#" cycles)
             for (i = 1; i <= pod_count; i++) {
                 pod = pods[i]
-                if (length(pod_time[pod]) > w_since) w_since = length(pod_time[pod])
                 if (length(pod) > w_pod) w_pod = length(pod)
                 if (length(k8s_cell(pod)) > w_k8s) w_k8s = length(k8s_cell(pod))
                 if (length(runtime_cell(pod)) > w_runtime) w_runtime = length(runtime_cell(pod))
             }
-            # 16 columns of borders and padding. On a narrow terminal the pod
+            # 10 columns of borders and padding. On a narrow terminal the pod
             # column gives up room first, then the status columns, before fit()
             # starts cutting cells off the right edge.
             w_pod_fit = w_pod
@@ -319,20 +371,23 @@ run_quiet() {
             if (over > 0) w_k8s_fit = w_k8s_fit - over < 12 ? 12 : w_k8s_fit - over
         }
         function row_width() {
-            return w_iteration + w_since + w_pod_fit + w_k8s_fit + w_runtime_fit + 16
+            return w_pod_fit + w_k8s_fit + w_runtime_fit + 10
+        }
+        # The iteration and the clock are one per frame, not one per pod: they
+        # title the table instead of repeating down two columns of it.
+        function title_line() {
+            put(paint(sprintf("%s (refresh #%d, %s)", label, cycles,
+            cycle_time != "" ? cycle_time : started), "1"))
         }
         function header_lines() {
-            put(paint(sprintf("| %s | %s | %s | %s | %s |", pad("ITERATION", w_iteration),
-            pad("TIMESTAMP", w_since), pad("POD NAME", w_pod_fit), pad("K8S STATUS", w_k8s_fit),
-            pad("RUNTIME STATUS", w_runtime_fit)), "1"))
-            put(paint(sprintf("|%s|%s|%s|%s|%s|", rule(w_iteration + 2), rule(w_since + 2),
-            rule(w_pod_fit + 2), rule(w_k8s_fit + 2), rule(w_runtime_fit + 2)), "2"))
+            put(paint(sprintf("| %s | %s | %s |", pad("POD NAME", w_pod_fit),
+            pad("K8S STATUS", w_k8s_fit), pad("RUNTIME STATUS", w_runtime_fit)), "1"))
+            put(paint(sprintf("|%s|%s|%s|", rule(w_pod_fit + 2), rule(w_k8s_fit + 2),
+            rule(w_runtime_fit + 2)), "2"))
         }
         function pod_line(pod,   runtime) {
             runtime = runtime_cell(pod)
-            put(sprintf("| %s | %s | %s | %s | %s |",
-            pad("#" cycles, w_iteration),
-            paint(pad(pod_time[pod], w_since), "2"),
+            put(sprintf("| %s | %s | %s |",
             paint(pad(trim(pod, w_pod_fit), w_pod_fit), "1"),
             paint(pad(trim(k8s_cell(pod), w_k8s_fit), w_k8s_fit), k8s_ready ? "32" : "33"),
             paint(pad(trim(runtime, w_runtime_fit), w_runtime_fit), (runtime ~ /pending/ || !runtime_ready) ? "36" : "32")))
@@ -346,24 +401,31 @@ run_quiet() {
             if (!redraw || pod_count == 0) return
             # A table taller than the screen scrolls, and the cursor-up count no
             # longer addresses the rows it drew; degrade to appended rows.
-            if (rows > 0 && pod_count + 2 >= rows) {
+            if (rows > 0 && pod_count + 3 >= rows) {
                 redraw = 0
                 drawn = 0
                 return
             }
             measure()
+            title_line()
             header_lines()
             for (i = 1; i <= pod_count; i++) pod_line(pods[i])
-            drawn = pod_count + 2
+            drawn = pod_count + 3
         }
         # Without a live table a row is only worth printing when its cells
-        # actually moved; the iteration count alone is not a change.
+        # actually moved; the iteration count alone is not a change. The title is
+        # reprinted whenever a later iteration is the one moving rows, so a
+        # streamed row is still dated without carrying its own clock column.
         function append_row(pod,   cells) {
             cells = pod "|" k8s_cell(pod) "|" runtime_cell(pod)
             if (cells == last_row[pod]) return
             last_row[pod] = cells
             measure()
             open_group()
+            if (appended_cycle != cycles) {
+                title_line()
+                appended_cycle = cycles
+            }
             if (!appended_header) {
                 header_lines()
                 appended_header = 1
@@ -371,8 +433,6 @@ run_quiet() {
             pod_line(pod)
         }
         BEGIN {
-            w_iteration = length("ITERATION")
-            w_since = length("TIMESTAMP")
             w_pod = length("POD NAME")
             w_k8s = length("K8S STATUS")
             w_runtime = length("RUNTIME STATUS")
@@ -462,7 +522,21 @@ run_quiet() {
     run_quiet_drain "$filter_pid"
     rm -rf "$fifo_dir"
     
+    # A deployment can fail without the command failing. The in-pod lifecycle latches
+    # `container-status=error` and deliberately does not crash the container, so a step that
+    # reported a fatal runtime state can still exit 0 — and a green step here is a green
+    # GitHub Actions job on a deployment that never came up. The latch the filter recorded is
+    # therefore promoted to a failure exit of its own.
+    fatal=$(cat "$fail_flag" 2>/dev/null) || true
+    rm -f "$fail_flag"
+    if [ "$status" -eq 0 ] && [ -n "$fatal" ]; then
+        status=1
+        printf '%s✖ %s reported a fatal runtime state but exited 0 (%s)%s\n' \
+        "$RUN_QUIET_RED" "$label" "$fatal" "$RUN_QUIET_RESET" >&2
+    fi
+    
     if [ "$status" -ne 0 ]; then
+        run_quiet_error_trace "$debug_log" "$error_log"
         printf '%s✖ %s failed (exit %s)\n  error trace: %s\n  debug log:   %s%s\n' \
         "$RUN_QUIET_RED" "$label" "$status" "$error_log" "$debug_log" "$RUN_QUIET_RESET" >&2
         return "$status"
@@ -471,6 +545,30 @@ run_quiet() {
     rm -f "$debug_log" "$error_log"
     
     return "$status"
+}
+
+# Appends the failing part of the merged log to the error trace, so the trace ends
+# with the error rather than with whatever last wrote to stderr. Cuts from the first
+# error marker; with no marker the tail stands in, which is where a logger-only
+# failure reports itself.
+run_quiet_error_trace() {
+    local debug_log="$1"
+    local error_log="$2"
+    local tail_lines="${3:-40}"
+    local first
+    
+    # grep exits 1 when it matches nothing, and every deploy script runs under `set -e` with
+    # `pipefail`: unguarded, a failing step whose log carries no marker aborted this function
+    # before run_quiet could print the exit code and the two log paths, and the tail fallback
+    # below was unreachable. The no-match case is the fallback's trigger, not an error.
+    first=$(grep -a -n -m1 -E 'Error:|Error \[|^[[:space:]]+at |✖' "$debug_log" 2>/dev/null | cut -d: -f1) || true
+    
+    printf -- '--- error trace (from merged log) ---\n' >>"$error_log"
+    if [ -n "$first" ]; then
+        tail -n "+$first" "$debug_log" >>"$error_log"
+    else
+        tail -n "$tail_lines" "$debug_log" >>"$error_log"
+    fi
 }
 
 run_quiet_drain() {

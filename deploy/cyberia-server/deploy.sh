@@ -9,54 +9,33 @@ TARGET_NODE=hp-envy-iso-ram-rocky9
 INGRESS_NODE=localhost.localdomain
 
 main() {
-    echo "Starting remote deploy"
+    deploy_start "Starting remote deploy"
 
-    run_quiet \
-        "Pull repository" \
-        "Target pod:" \
-        14 \
+    deploy_step "Pull repository" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin run pull"
 
-    run_quiet \
-        "Load host config" \
-        "Target pod:" \
-        14 \
+    deploy_step "Load host config" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin host load"
 
-    run_quiet \
-        "Build dd-cyberia configuration" \
-        "Target pod:" \
-        14 \
+    deploy_step "Build dd-cyberia configuration" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/build dd-cyberia --conf"
 
-    run_quiet \
-        "Wait for target node readiness" \
-        "Target pod:" \
-        14 \
+    deploy_step "Wait for target node readiness" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
 
-    run_quiet \
-        "Wait for ingress rollout" \
-        "Target pod:" \
-        14 \
+    deploy_step "Wait for ingress rollout" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-ingress -n default --timeout=5m"
 
-    run_quiet \
-        "Wait for gateway rollout" \
-        "Target pod:" \
-        14 \
+    deploy_step "Wait for gateway rollout" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-gateway -n default --timeout=5m"
 
-    run_quiet \
-        "Deploy cyberia mmo server instance" \
-        "Target pod:" \
-        14 \
+    deploy_step "Deploy cyberia mmo server instance" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin run instance \
           --kubeadm \
@@ -65,7 +44,17 @@ main() {
           --node-name ${TARGET_NODE} \
           --ingress-node ${INGRESS_NODE} \
           --ssh-key-path /home/dd/tmp/897as9dxhaskd9 \
-          'dd-cyberia,mmo-server'"
+          --deploy-id dd-cyberia \
+          --instance-id mmo-server"
+
+    # State domain: collect the instance's live execution state, health and metrics off the
+    # cluster and export them to the CD job. RUN_QUIET_CI, exported by the workflow, is what
+    # survives the SSH hop, so this reports as GitHub Actions annotations rather than plain JSON.
+    deploy_step "Export mmo-server runtime state" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
+          --env production \
+          --args deploy-id=dd-cyberia,instance-id=mmo-server"
 }
 
 main "$@"
