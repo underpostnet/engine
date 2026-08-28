@@ -71,7 +71,7 @@ RUN --mount=type=secret,id=github_token \
     \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
-    node bin env dd-cyberia development; \
+    node bin app load --env development --args deploy-id=dd-cyberia; \
     node bin fs --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.engine-cyberia.json'; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     ( cd /home/dd/engine && underpost clone underpostnet/cyberia-server ); \

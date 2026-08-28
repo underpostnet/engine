@@ -6,10 +6,31 @@
 /logs
 /build
 /coverage
-/.env
+# Real environment files. `/.env` alone left `.env.development`/`.env.production`/`.env.test`
+# in the tarball, and this package is installed into the runtime images — every one of them
+# would ship those credentials. `.env.example` is the documented template and stays.
+.env*
+!.env.example
+/.underpost
 /prometheus_data
 /grafana_data
 /quorum-kubernetes
+# External runtime repos cloned into the workspace by `run-workflow setup-workspace`. They are
+# separate packages with their own build, and letting them leak in makes the packed CLI differ
+# between a developer workspace and a clean CI checkout.
+/cyberia-server
+/cyberia-client
+# Staged CLI package for the runtime image builds; never part of the package itself.
+# Two build contexts stage it: the repo root (CI, context '.') and the engine-cyberia
+# image directory (local `run-workflow docker-image engine-cyberia`, context that dir).
+/underpost-cli.tgz
+/src/runtime/engine-cyberia/underpost-cli.tgz
+# Container image archives `node bin image --image-out-path .` writes into the repo root, at
+# multiple GB each. `.gitignore` already excludes them, but npm reads THIS file INSTEAD of
+# `.gitignore` once it exists, so every build-output rule has to be repeated here — otherwise
+# `npm pack` swallows the image tars and the staged CLI archive grows from ~80 MB to ~7 GB.
+*.tar
+*.tar.gz
 .cache
 .nyc_output
 .git

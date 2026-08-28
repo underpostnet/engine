@@ -37,6 +37,12 @@ jobs:
           node bin/deploy cyberia
           node bin/cyberia run-workflow build-cyberia-404 --output-path ../assets/404/index.html
 
+      - name: Stage underpost CLI package
+        working-directory: engine
+        # Bakes the CLI into the runtime image from this checkout instead of the registry, so a
+        # starting pod never fetches it. The Dockerfiles COPY ../underpost-cli.tgz.
+        run: node bin/cyberia run-workflow stage-cli --output-path ..
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -66,5 +72,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            UNDERPOST_VERSION=${{ env.UNDERPOST_VERSION }}
             BUILD_MODE=DEBUG

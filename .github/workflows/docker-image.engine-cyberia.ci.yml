@@ -16,6 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+
+      - name: Install engine dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Stage underpost CLI package
+        # Bakes the CLI into the image from this checkout instead of the registry, so a starting
+        # pod never fetches it. The Dockerfiles COPY underpost-cli.tgz from the build context,
+        # which for this workflow is the repository root.
+        run: node bin/cyberia run-workflow stage-cli --output-path .
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 

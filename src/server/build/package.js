@@ -1,9 +1,76 @@
 /**
- * Pure package-manifest builders.
+ * Package manifest and archive build utilities.
  *
  * @module src/server/build/package.js
  * @namespace PackageBuilder
  */
+
+import fs from 'fs-extra';
+import os from 'node:os';
+import nodePath from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loggerFactory } from '../ops/logger.js';
+import { shellArgumentFactory, shellExec } from '../runtime/process.js';
+
+const logger = loggerFactory(import.meta);
+const ENGINE_PACKAGE_PATH = fileURLToPath(new URL('../../../', import.meta.url));
+const STAGED_CLI_PACKAGE = 'underpost-cli.tgz';
+
+/**
+ * Packs an npm package into a build context under a stable file name.
+ *
+ * @param {object} params
+ * @param {string} params.stagedFileName
+ * @param {string} [params.outputPath]
+ * @param {string} [params.packagePath]
+ * @returns {string} Absolute path to the staged archive.
+ * @memberof PackageBuilder
+ */
+const stagePackageArchive = ({ stagedFileName, outputPath = '.', packagePath = '.' } = {}) => {
+  if (!stagedFileName || nodePath.basename(stagedFileName) !== stagedFileName)
+    throw new TypeError('stagePackageArchive requires a file name without a directory');
+
+  const sourcePath = nodePath.resolve(packagePath);
+  const destinationPath = nodePath.resolve(outputPath);
+  if (!fs.existsSync(nodePath.join(sourcePath, 'package.json')))
+    throw new Error(`Package manifest not found: ${nodePath.join(sourcePath, 'package.json')}`);
+
+  fs.ensureDirSync(destinationPath);
+  const temporaryPath = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-package-'));
+
+  try {
+    shellExec(
+      `npm pack --ignore-scripts --pack-destination ${shellArgumentFactory(temporaryPath)} ${shellArgumentFactory(sourcePath)}`,
+      { silent: true },
+    );
+    const archives = fs.readdirSync(temporaryPath).filter((entry) => entry.endsWith('.tgz'));
+    if (archives.length !== 1)
+      throw new Error(
+        `Expected exactly one package archive for ${sourcePath}, found ${archives.length}: ${archives.join(', ')}`,
+      );
+
+    const stagedPath = nodePath.join(destinationPath, stagedFileName);
+    fs.moveSync(nodePath.join(temporaryPath, archives[0]), stagedPath, { overwrite: true });
+    logger.info('Staged npm package archive', { source: archives[0], staged: stagedPath });
+    return stagedPath;
+  } finally {
+    fs.removeSync(temporaryPath);
+  }
+};
+
+/**
+ * Stages this engine checkout as the CLI archive consumed by runtime images.
+ *
+ * @param {string} [outputPath]
+ * @returns {string} Absolute path to the staged archive.
+ * @memberof PackageBuilder
+ */
+const stageCliPackage = (outputPath = '.') =>
+  stagePackageArchive({
+    stagedFileName: STAGED_CLI_PACKAGE,
+    outputPath,
+    packagePath: ENGINE_PACKAGE_PATH,
+  });
 
 const replaceTemplateReferences = (value, templateRepositoryName, repositoryName) => {
   if (!templateRepositoryName || !repositoryName) return value;
@@ -111,4 +178,10 @@ const buildProductPackageJson = ({
   };
 };
 
-export { buildProductPackageJson, productDevDependenciesFactory };
+export {
+  STAGED_CLI_PACKAGE,
+  buildProductPackageJson,
+  productDevDependenciesFactory,
+  stageCliPackage,
+  stagePackageArchive,
+};

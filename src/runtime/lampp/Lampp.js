@@ -230,7 +230,10 @@ class LamppService {
       // The checkout keeps its `.git` so the backup pipeline can commit and push it back; the
       // vhost below denies it over HTTP.
       if (accessible) Underpost.repo.initLocalRepo({ path: documentRoot, origin: repository });
-      else logger.warn(`${host}: serving ${documentRoot} unprovisioned`);
+      // The vhost is still emitted, so the host answers rather than vanishing from the router —
+      // but Apache cannot stat a DocumentRoot that was never created and turns every request into
+      // a blanket 403. Named here, because that 403 carries nothing pointing back at this step.
+      else logger.error(`${host}: ${documentRoot} not provisioned — this vhost will answer 403 until it is`);
     }
 
     this.appendRouter(`

@@ -43,7 +43,6 @@ RUN make -f Web.mk all BUILD_MODE=${BUILD_MODE} OUTPUT_DIR=bin/
 # --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
 
-ARG UNDERPOST_VERSION=3.3.0
 ARG NODE_VERSION=24.15.0
 RUN set -eux; \
     dnf -y update; \
@@ -60,8 +59,19 @@ RUN set -eux; \
     curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1; \
     node --version; npm --version; \
-    npm install -g underpost@${UNDERPOST_VERSION}; \
     dnf clean all
+
+# Underpost CLI, baked from the engine checkout that built this image. The package is staged
+# into this build context by `node bin/cyberia run-workflow stage-cli`, so the runtime state
+# layer — `underpost state set container-status ...` in the instance lifecycle hooks — is the
+# same engine that produced the image, and a starting pod makes no registry call, no clone and
+# no npm link to obtain it. Its own layer so the Node base above stays cached across CLI changes.
+COPY underpost-cli.tgz /tmp/underpost-cli.tgz
+RUN set -eux; \
+    npm install -g /tmp/underpost-cli.tgz --omit=dev; \
+    rm -f /tmp/underpost-cli.tgz; \
+    npm cache clean --force; \
+    underpost --version
 
 WORKDIR /home/dd/engine/cyberia-client
 

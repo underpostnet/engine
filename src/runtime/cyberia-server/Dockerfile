@@ -11,7 +11,6 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o server ./cmd/cyberia-se
 
 # --- Runtime Image ---
 FROM rockylinux/rockylinux:9 AS runtime
-ARG UNDERPOST_VERSION=3.3.0
 ARG NODE_VERSION=24.15.0
 
 RUN set -eux; \
@@ -25,9 +24,19 @@ RUN set -eux; \
     curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1; \
     node --version; npm --version; \
-    npm install -g underpost@${UNDERPOST_VERSION}; \
-    dnf clean all; rm -rf /var/cache/dnf; \
-    npm cache clean --force
+    dnf clean all; rm -rf /var/cache/dnf
+
+# Underpost CLI, baked from the engine checkout that built this image. The package is staged
+# into this build context by `node bin/cyberia run-workflow stage-cli`, so the runtime state
+# layer — `underpost state set container-status ...` in the instance lifecycle hooks — is the
+# same engine that produced the image, and a starting pod makes no registry call, no clone and
+# no npm link to obtain it. Its own layer so the Node base above stays cached across CLI changes.
+COPY underpost-cli.tgz /tmp/underpost-cli.tgz
+RUN set -eux; \
+    npm install -g /tmp/underpost-cli.tgz --omit=dev; \
+    rm -f /tmp/underpost-cli.tgz; \
+    npm cache clean --force; \
+    underpost --version
 
 # Path is the contract with conf.instances.json mmo-server cmd, which execs
 # /home/dd/engine/cyberia-server/server in both development and production.

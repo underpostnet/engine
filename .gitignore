@@ -66,3 +66,8 @@ gitleaks-report.json
 **/keys.txt
 **/*.agekey
 *.age.key
+
+# Underpost CLI package staged into a runtime image build context by
+# `node bin/cyberia run-workflow stage-cli`. Build output, never committed.
+/underpost-cli.tgz
+/src/runtime/engine-cyberia/underpost-cli.tgz
