@@ -160,6 +160,19 @@ class ProcessController {
  */
 const redactCredentials = (value = '') => `${value ?? ''}`.replace(/\/\/[^/\s@]+@/g, '//***@');
 
+/**
+ * Quotes one value as a single shell argument.
+ *
+ * Single source of that quoting: a composed command reaches `sh -c`, so any
+ * value carrying spaces, commas or quotes has to survive one more parse than
+ * the caller wrote it for. Single quotes are literal in POSIX shells, and an
+ * embedded single quote is closed, escaped and reopened.
+ * @memberof Process
+ * @param {*} value - Value to pass as one argument.
+ * @returns {string} The value, quoted.
+ */
+const shellArgumentFactory = (value) => `'${`${value ?? ''}`.replaceAll("'", `'\\''`)}'`;
+
 class ShellExecError extends Error {
   constructor(cmd, code, stdout, stderr) {
     super(`shellExec failed (exit=${code}): ${redactCredentials(cmd)}`);
@@ -354,6 +367,7 @@ export {
   ShellExecError,
   getRootDirectory,
   redactCredentials,
+  shellArgumentFactory,
   shellExec,
   shellCd,
   sleepSync,

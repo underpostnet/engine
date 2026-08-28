@@ -21,13 +21,20 @@ import crypto from 'crypto';
 import colors from 'colors';
 import { loggerFactory } from '../ops/logger.js';
 import { isOciRuntime, writeEnv } from './environment.js';
-import { shellExec } from './process.js';
+import { shellArgumentFactory, shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from '../network/underpost-gateway.js';
 import { DefaultConf } from '../../../conf.js';
 import splitFile from 'split-file';
 import { readDeployRoutes } from '../network/router.js';
 import Underpost from '../../index.js';
-import { getRuntimeStatus, RUNTIME_STATUS } from './runtime-status.js';
+import {
+  clearAwaitDeploy,
+  getRuntimeStatus,
+  isAwaitingDeploy,
+  latchAwaitDeploy,
+  RUNTIME_STATUS,
+} from './runtime-status.js';
+import { cronDeployIdResolve } from '../ops/cron.js';
 
 colors.enable();
 
@@ -176,8 +183,8 @@ const getConfFolder = (deployId) => {
 
 /**
  * Resolves the full path to a specific configuration JSON file for a deploy ID.
- * For `server` configs in development mode with a subConf, it will prefer the
- * dev-specific variant if it exists.
+ * For `server` configs it prefers the `dev.<subConf>` variant when one exists: always for a
+ * sub-conf the caller named, and only in development for one inherited from `DEPLOY_SUB_CONF`.
  *
  * @method getConfFilePath
  * @param {string} deployId - The deploy ID.
@@ -191,17 +198,28 @@ const getConfFolder = (deployId) => {
  * // => './engine-private/conf/dd-myapp/conf.server.json'
  *
  * @example
- * // In development with subConf 'local':
+ * // With an explicitly named subConf, in any environment:
  * getConfFilePath('dd-myapp', 'server', 'local');
  * // => './engine-private/conf/dd-myapp/conf.server.dev.local.json' (if it exists)
  */
 const getConfFilePath = (deployId, confType, subConf = '') => {
   const folder = getConfFolder(deployId);
-  // When no explicit subConf is given, fall back to the env var set by loadConf()
-  const effectiveSubConf = subConf || process.env.DEPLOY_SUB_CONF || '';
-  if (process.env.NODE_ENV === 'development' && confType === 'server' && effectiveSubConf) {
-    const devConfPath = `${folder}/conf.${confType}.dev.${effectiveSubConf}.json`;
-    if (fs.existsSync(devConfPath)) return devConfPath;
+  const explicit = `${subConf ?? ''}`.trim();
+  // Without an explicit sub-conf, fall back to the env var loadConf() exported.
+  const effectiveSubConf = explicit || process.env.DEPLOY_SUB_CONF || '';
+  if (confType === 'server' && effectiveSubConf) {
+    // An explicitly named sub-conf is a request, not a hint: honor it whatever the ambient
+    // environment says. Only the env-var fallback stays gated on development, so a production
+    // deploy that merely carries DEPLOY_SUB_CONF is unaffected.
+    //
+    // The gate used to apply to both, and every `underpost` invocation loads the host
+    // configuration store with `override: true` — on a provisioned node that store carries
+    // NODE_ENV=production, so the gate was false for every CLI call and a named sub-conf was
+    // silently discarded in favour of the base conf.
+    if (explicit || process.env.NODE_ENV === 'development') {
+      const devConfPath = `${folder}/conf.${confType}.dev.${effectiveSubConf}.json`;
+      if (fs.existsSync(devConfPath)) return devConfPath;
+    }
   }
   return `${folder}/conf.${confType}.json`;
 };
@@ -261,7 +279,7 @@ const Config = {
       deployContext = process.env.DEPLOY_ID;
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
 
-    Underpost.env.set('await-deploy', new Date().toISOString());
+    latchAwaitDeploy();
     if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
     if (deployContext === 'proxy') await Config.buildProxy(deployList, subConf);
   },
@@ -411,6 +429,22 @@ const deployEnvFilePath = (deployId, env = 'production', subConf = '') => {
 };
 
 /**
+ * Resolves a custom instance's env file for an environment.
+ *
+ * An instance's runtime environment is its own file, not a sub-configuration of the parent
+ * deployment's: `instance-build-manifest` writes it, the instance container sources it at boot,
+ * and {@link UnderpostApp} addresses it from the CLI through `--args instance-id=`. Single
+ * source of that path, so the three can never disagree.
+ * @param {string} deployId - Parent deployment id.
+ * @param {string} instanceId - Instance id, as declared in `conf.instances.json`.
+ * @param {string} [env='production'] - Environment selector.
+ * @returns {string} Path to the instance env file.
+ * @memberof ServerConfBuilder
+ */
+const instanceEnvFilePath = (deployId, instanceId, env = 'production') =>
+  `${getConfFolder(deployId)}/instances/${instanceId}/env/${env || 'production'}.env`;
+
+/**
  * Suffix marking a deployment env file's OCI (container) runtime overlay.
  * @constant {string}
  * @memberof ServerConfBuilder
@@ -538,8 +572,11 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
       Config.default[typeConf] = newInstance(DefaultConf[typeConf]);
       continue;
     }
-    if (process.env.NODE_ENV === 'development' && typeConf === 'server' && subConf) {
-      const devConfPath = `${folder}/conf.${typeConf}.dev${subConf ? `.${subConf}` : ''}.json`;
+    // Same precedence as getConfFilePath, so loadConf and every later read agree on which file
+    // is in effect: a sub-conf named here was named by the caller, so it is not gated on the
+    // ambient environment.
+    if (typeConf === 'server' && subConf) {
+      const devConfPath = getConfFilePath(deployId, typeConf, subConf);
       if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
     }
     let parsed = JSON.parse(srcConf);
@@ -1099,11 +1136,11 @@ const validateTemplatePath = (absolutePath = '') => {
  * @memberof ServerConfBuilder
  */
 const awaitDeployMonitor = async (isFinal = false, deltaMs = 1000, callback = false) => {
-  if (!callback) Underpost.env.set('await-deploy', new Date().toISOString());
+  if (!callback) latchAwaitDeploy();
   if (isFinal) logger.info('Final deployment running (no replica)');
   await timer(deltaMs);
   if (getRuntimeStatus() === RUNTIME_STATUS.ERROR) return false;
-  if (Underpost.env.get('await-deploy')) return await awaitDeployMonitor(false, deltaMs, true);
+  if (isAwaitingDeploy()) return await awaitDeployMonitor(false, deltaMs, true);
   return true;
 };
 
@@ -2264,7 +2301,7 @@ const curlStatusChainFactory = (raw = '') => {
  */
 const publicIngressProbeFactory = (url) => {
   if (!url) return ['000'];
-  const argument = `'${`${url}`.replaceAll("'", "'\\''")}'`;
+  const argument = shellArgumentFactory(url);
   return curlStatusChainFactory(
     shellExec(
       `curl -L -v -i -s --connect-timeout 3 --max-time 12 --max-redirs 10 ` +
@@ -2868,6 +2905,7 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   const privateRepoName = Underpost.repo.privateRepoFactory(deployId);
   const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
   const privateRepoPath = `../${privateRepoName}`;
+  const cronDeployId = cronDeployIdResolve();
 
   if (!fs.existsSync(privateRepoPath)) {
     shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
@@ -2882,8 +2920,12 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   fs.removeSync(confDest);
   fs.mkdirSync(confDest, { recursive: true });
   fs.copySync(`./engine-private/conf/${deployId}`, confDest);
-
+  fs.copySync(`./engine-private/deploy`, `${privateRepoPath}/deploy`);
+  // A checkout that declares no cron deploy has no `conf/<cron-id>` to mirror. Without this
+  // the path resolves to `conf/null` and the whole sync fails over an absent optional.
+  if (cronDeployId) fs.copySync(`./engine-private/conf/${cronDeployId}`, `${privateRepoPath}/conf/${cronDeployId}`);
   fs.removeSync(`${privateRepoPath}/replica`);
+  fs.removeSync(`${privateRepoPath}/logs`);
   const replicaSrcDir = `./engine-private/replica`;
   if (fs.existsSync(replicaSrcDir))
     for (const entry of fs.readdirSync(replicaSrcDir))
@@ -3221,12 +3263,15 @@ git add -A .`);
  * instance runs — `/etc/hosts` is written in one pass for every host the
  * gateway will serve.
  * @param {Array<string>} deployList - Deploy ids being brought up.
- * @param {string} [instanceList] - `+`-separated instance/template ids.
+ * @param {string} [instanceList] - Comma-separated instance/template ids, as `--instance-id` takes them.
  * @returns {{ byDeployId: Object<string,{ids: Array<string>, hosts: Array<string>}>, unmatched: Array<string> }}
  *   Per-deploy selection, and the requested ids no deploy declares.
  */
 const clusterInstancesFactory = (deployList = [], instanceList = '') => {
-  const requested = `${instanceList || ''}`.split('+').filter((id) => id.trim());
+  const requested = `${instanceList || ''}`
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
   const byDeployId = Object.fromEntries(
     deployList.map((deployId) => {
       const confPath = `./engine-private/conf/${deployId}/conf.instances.json`;
@@ -3253,6 +3298,7 @@ const clusterInstancesFactory = (deployList = [], instanceList = '') => {
 export {
   cleanDeployEnvFiles,
   deployEnvFilePath,
+  instanceEnvFilePath,
   Config,
   loadConf,
   loadConfInstances,

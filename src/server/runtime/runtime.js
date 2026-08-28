@@ -13,6 +13,7 @@ import { newInstance } from '../../client/components/core/CommonJs.js';
 import { Lampp } from '../../runtime/lampp/Lampp.js';
 import { WpService } from '../../runtime/wp/Wp.js';
 import { getInstanceContext, readConfJson } from './conf.js';
+import { clearAwaitDeploy } from './runtime-status.js';
 
 import ExpressService from '../../runtime/express/Express.js';
 
@@ -177,7 +178,9 @@ const buildRuntime = async () => {
   }
 
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
-  Underpost.env.delete('await-deploy');
+  // Container-scoped boot latch, not host configuration: this releases the runtime this
+  // container just brought up, so it belongs to the same store as `container-status`.
+  clearAwaitDeploy();
   Underpost.start.logRuntimeRouter();
 };
 
