@@ -18,8 +18,7 @@ main() {
         "cd $ENGINE_ROOT && node bin/build dd-cyberia --conf"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-cyberia), \
-        underpost start dd-cyberia production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-cyberia production), underpost start dd-cyberia production --build --run --skip-pull-base"
 
     deploy_step "Deploy dd-cyberia production" \
         sudo -n -- /bin/bash -lc \

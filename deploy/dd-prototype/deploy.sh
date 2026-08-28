@@ -17,14 +17,6 @@ main() {
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin run deploy dd-prototype --gateway-api --ingress-node ${INGRESS_NODE}"
 
-    # State domain: read the deployment's live execution state, health and metrics off the
-    # cluster and export them to the CD job. RUN_QUIET_CI, exported by the workflow, is what
-    # survives the SSH hop, so this reports as GitHub Actions annotations rather than plain JSON.
-    deploy_step "Export dd-prototype runtime state" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
-          --env production \
-          --args deploy-id=dd-prototype"
 }
 
 main "$@"

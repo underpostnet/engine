@@ -18,8 +18,7 @@ main() {
         "cd $ENGINE_ROOT && node bin/build dd-core --conf"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-core), \
-        underpost start dd-core production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-core production), underpost start dd-core production --build --run --skip-pull-base"
 
     deploy_step "Deploy dd-core production" \
         sudo -n -- /bin/bash -lc \

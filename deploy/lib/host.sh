@@ -36,11 +36,18 @@ prepare_host() {
 # Pair it with `--skip-pull-base` on the `underpost start` that follows: this *is* the pull
 # `start --build` performs, so leaving it on clones and installs the same tree twice.
 #
-# Usage: pod_bootstrap_cmd <owner/repo>   e.g. pod_bootstrap_cmd underpostnet/engine-test
+# In-pod bootstrap, emitted as a `--cmd` payload (comma-separated). Three stages, in order:
+# the deploy's own source replaces the image's engine and the global bin is repointed at it;
+# that CLI then stamps `container-status`, which is why the stamp cannot come first — an image
+# predating the state domain answers `unknown command 'state'`. The caller appends the start.
+#
+# Usage: pod_bootstrap_cmd <deploy-id> [env] [owner/repo]
 pod_bootstrap_cmd() {
-    local repo="$1"
+    local deploy_id="$1"
+    local env="${2:-production}"
+    local repo="${3:-underpostnet/engine-test-${deploy_id#dd-}}"
     local name="${repo##*/}"
-    
+
     printf '%s' "cd /home/dd, \
 underpost clone ${repo}, \
 mkdir -p /home/dd/engine, \
@@ -48,5 +55,6 @@ cp -a /home/dd/${name}/. /home/dd/engine/, \
 rm -rf /home/dd/${name}, \
 cd /home/dd/engine, \
 npm install, \
-    npm link --force"
+npm link --force, \
+underpost state set container-status ${deploy_id}-${env}-build-deployment"
 }

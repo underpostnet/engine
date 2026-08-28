@@ -15,8 +15,7 @@ main() {
     prepare_host "$ENGINE_ROOT"
     
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-test), \
-        underpost start dd-test production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-test production), underpost start dd-test production --build --run --skip-pull-base"
 
     deploy_step "Sync dd-test cluster" \
         sudo -n -- /bin/bash -lc \
@@ -32,14 +31,6 @@ main() {
           --ingress-node ${INGRESS_NODE} \
           --cmd '${pod_cmd}'"
 
-    # State domain: read the deployment's live execution state, health and metrics off the
-    # cluster and export them to the CD job. RUN_QUIET_CI, exported by the workflow, is what
-    # survives the SSH hop, so this reports as GitHub Actions annotations rather than plain JSON.
-    deploy_step "Export dd-test runtime state" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
-          --env production \
-          --args deploy-id=dd-test"
 }
 
 main "$@"

@@ -18,8 +18,7 @@ main() {
         "cd $ENGINE_ROOT && node bin/build dd-lampp --conf"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-lampp), \
-        underpost start dd-lampp production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-lampp production), underpost start dd-lampp production --build --run --skip-pull-base"
 
     deploy_step "Deploy dd-lampp production" \
         sudo -n -- /bin/bash -lc \

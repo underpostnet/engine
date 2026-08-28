@@ -42,14 +42,6 @@ main() {
           --deploy-id dd-cyberia \
           --instance-id mmo-client"
 
-    # State domain: collect the instance's live execution state, health and metrics off the
-    # cluster and export them to the CD job. RUN_QUIET_CI, exported by the workflow, is what
-    # survives the SSH hop, so this reports as GitHub Actions annotations rather than plain JSON.
-    deploy_step "Export mmo-client runtime state" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
-          --env production \
-          --args deploy-id=dd-cyberia,instance-id=mmo-client"
 }
 
 main "$@"
