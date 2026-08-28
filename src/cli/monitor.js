@@ -18,6 +18,7 @@ import { timer, generateRandomPasswordSelection } from '../client/components/cor
 import {
   RUNTIME_STATUS,
   INTERNAL_STATUS_PATH,
+  INTERNAL_TELEMETRY_PATH,
   normalizeContainerStatus,
   deployStatusPort,
 } from '../server/runtime/runtime-status.js';
@@ -45,7 +46,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import fs from 'fs-extra';
 import net from 'node:net';
-import { shellExec } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 
@@ -1704,6 +1705,38 @@ EOF
      * @returns {{ok: boolean, status?: (string|null), transportError?: string}}
      * @memberof UnderpostMonitor
      */
+    /**
+     * Full telemetry for one pod, read from the runtime's own internal endpoint.
+     *
+     * The endpoint is served by the long-lived server process, so its metrics describe that
+     * process. Running the CLI instead would report the metrics of the short-lived CLI — a
+     * constant ~2s uptime and its own heap, never the runtime's.
+     * @param {string} podName
+     * @param {string} namespace
+     * @param {number} internalPort
+     * @returns {{ok: boolean, telemetry?: object, transportError?: string}}
+     * @memberof UnderpostMonitor
+     */
+    readRuntimeTelemetryViaExec(podName, namespace, internalPort) {
+      if (!internalPort) return { ok: false, transportError: 'no_internal_port' };
+      const fetchScript = `fetch('http://127.0.0.1:${internalPort}${INTERNAL_TELEMETRY_PATH}').then(r=>r.text()).then(t=>process.stdout.write(t)).catch(()=>{})`;
+      try {
+        const result = shellExec(
+          `sudo kubectl exec ${podName} -n ${namespace} -- node -e ${shellArgumentFactory(fetchScript)}`,
+          { silent: true, disableLog: true, stdout: true, silentOnError: true },
+        );
+        const raw = `${result ?? ''}`.trim();
+        const start = raw.indexOf('{');
+        if (start === -1) return { ok: false, transportError: 'no_telemetry' };
+        try {
+          return { ok: true, telemetry: JSON.parse(raw.slice(start)) };
+        } catch {
+          return { ok: false, transportError: 'unparsable_telemetry' };
+        }
+      } catch (error) {
+        return { ok: false, transportError: error?.code || error?.message || 'exec_failed' };
+      }
+    },
     readRuntimeStatusViaExec(podName, namespace) {
       try {
         const result = shellExec(`sudo kubectl exec ${podName} -n ${namespace} -- sh -c ${CONTAINER_STATUS_READ}`, {

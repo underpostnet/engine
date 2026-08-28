@@ -33,6 +33,7 @@ import { loggerFactory } from '../server/ops/logger.js';
 import {
   CONTAINER_STATUS_KEY,
   containerStatusValue,
+  deployStatusPort,
   normalizeContainerStatus,
   RUNTIME_STATUS,
   runtimeTelemetryPayload,
@@ -54,18 +55,18 @@ const store = dotenvStoreFactory({
  * @returns {string} Workload id.
  * @memberof UnderpostState
  */
-const workloadId = (context = {}) => {
-  const deployId = `${context.args?.['deploy-id'] ?? ''}`.trim() || `${process.env.DEPLOY_ID || ''}`.trim();
-  const instanceId = `${context.args?.['instance-id'] ?? ''}`.trim();
-  return [deployId, instanceId].filter(Boolean).join('-');
-};
+const deployIdOf = (context = {}) =>
+  `${context.args?.['deploy-id'] ?? ''}`.trim() || `${process.env.DEPLOY_ID || ''}`.trim();
+
+const workloadId = (context = {}) =>
+  [deployIdOf(context), `${context.args?.['instance-id'] ?? ''}`.trim()].filter(Boolean).join('-');
 
 /**
  * Whether this process is reporting into a GitHub Actions job.
  *
  * `GITHUB_ACTIONS` exists on a runner but is not carried across the SSH hop a remote deploy
  * runs over, so `RUN_QUIET_CI` — which the deploy workflows export explicitly — is what actually
- * marks the far side. Both are honoured, and `deploy/lib/logging.sh` reads the same pair.
+ * marks the far side. Both are honoured, and `deploy/lib/github-actions-logging.sh` reads the same pair.
  * @returns {boolean} True when workflow commands will be interpreted.
  * @memberof UnderpostState
  */
@@ -145,10 +146,20 @@ class UnderpostState {
         .get(`${workload}-${context.env}`, 'pods', context.namespace)
         .map((pod) => pod.NAME)
         .filter(Boolean);
-      const readings = pods.map((pod) => ({
-        pod,
-        ...Underpost.monitor.readRuntimeStatusViaExec(pod, context.namespace),
-      }));
+      // Status gates the rollout and must stay total; telemetry adds the fields that exist only
+      // where the process is measured. A pod that cannot answer the second keeps the first.
+      const internalPort = deployStatusPort(deployIdOf(context), context.env);
+      const readings = pods.map((pod) => {
+        const status = Underpost.monitor.readRuntimeStatusViaExec(pod, context.namespace);
+        const telemetry = Underpost.monitor.readRuntimeTelemetryViaExec(pod, context.namespace, internalPort);
+        return {
+          pod,
+          ...status,
+          health: telemetry.ok ? (telemetry.telemetry?.health ?? null) : null,
+          metrics: telemetry.ok ? (telemetry.telemetry?.metrics ?? null) : null,
+          telemetryError: telemetry.ok ? undefined : telemetry.transportError,
+        };
+      });
       // The workload's phase is its worst reading: one pod latched `error` is the deployment's
       // state, not an outlier to be averaged away.
       const statuses = readings.filter((reading) => reading.ok).map((reading) => reading.status);
@@ -171,6 +182,51 @@ class UnderpostState {
     },
 
     // ── canonical domain actions ────────────────────────────────────────────────────────────
+
+    /**
+     * Renders an observation as a fixed-width table, one row per pod.
+     *
+     * The shape an operator actually watches: JSON is the export format, but a rollout is read
+     * by scanning columns. Absent metrics print as `-` rather than collapsing the row, so a pod
+     * that answers only the status read still occupies its line.
+     * @param {object} observation - The observation to render.
+     * @returns {string} The rendered table.
+     * @memberof UnderpostState
+     */
+    table(observation = {}, refresh = '') {
+      const mib = (bytes) => (typeof bytes === 'number' ? `${Math.round(bytes / 1048576)}Mi` : '-');
+      const columns = [
+        ['POD', 42],
+        ['PHASE', 26],
+        ['READY', 6],
+        ['UPTIME', 8],
+        ['RSS', 9],
+        ['HEAP', 9],
+        ['CPU', 10],
+        ['LOAD', 6],
+      ];
+      const pad = (value, width) => `${value ?? '-'}`.slice(0, width).padEnd(width);
+      const line = (cells) => `| ${cells.map(([v, w]) => pad(v, w)).join(' | ')} |`;
+      const rows = (observation.pods ?? []).map((reading) =>
+        line([
+          [reading.pod, 42],
+          [reading.status ?? reading.transportError ?? '-', 26],
+          [reading.health ? (reading.health.ready ? 'yes' : 'no') : '-', 6],
+          [reading.metrics ? `${reading.metrics.uptimeSeconds}s` : '-', 8],
+          [mib(reading.metrics?.rssBytes), 9],
+          [mib(reading.metrics?.heapUsedBytes), 9],
+          [reading.metrics ? `${Math.round((reading.metrics.cpuUserMicros ?? 0) / 1000)}ms` : '-', 10],
+          [reading.metrics ? `${reading.metrics.loadAverage1m?.toFixed?.(2) ?? '-'}` : '-', 6],
+        ]),
+      );
+      const header = line(columns.map(([name, width]) => [name, width]));
+      const rule = `|${columns.map(([, width]) => '-'.repeat(width + 2)).join('|')}|`;
+      const clock = new Date().toTimeString().slice(0, 8);
+      const title = `Runtime state ${observation.workload ?? 'workload'}${
+        refresh ? ` (refresh #${refresh}, ${clock})` : ''
+      } | phase=${observation.phase ?? '-'} | pods=${observation.metrics?.pods ?? (observation.pods ?? []).length}`;
+      return [title, header, rule, ...(rows.length > 0 ? rows : [line([['(no pods)', 42]])])].join('\n');
+    },
 
     /**
      * Onboards the agent: confirms the state store is writable, then takes a first observation.
@@ -292,7 +348,7 @@ class UnderpostState {
         source: UnderpostState.API.isInsideContainer() ? 'in-container' : 'cluster-exec',
         ...observation,
       };
-      logger.info('state status', report);
+      console.log(UnderpostState.API.table(observation, `${context.args.refresh ?? ''}`.trim()));
       return report;
     },
 
