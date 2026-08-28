@@ -56,6 +56,13 @@ class UnderpostRepository {
     },
     /**
      * Pulls updates from a GitHub repository.
+     *
+     * `--ff-only` because the reconcile strategy must not come from the host: without it git
+     * refuses a divergent pull outright on a node that configured neither `pull.rebase` nor
+     * `pull.ff`, and silently merges or rebases on one that did — the same command producing a
+     * different history per machine. Advancing to the remote is what every caller wants; a
+     * checkout that has drifted onto commits of its own is replaced through
+     * {@link UnderpostRepository.switchRemote}, not reconciled here.
      * @param {string} [repoPath='./'] - The local path to the repository.
      * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
      * @param {object} [options={ g8: false }] - Pulling options.
@@ -69,7 +76,7 @@ class UnderpostRepository {
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
-        `cd ${repoPath} && git pull https://${
+        `cd ${repoPath} && git pull --ff-only https://${
           process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
         }github.com/${gitUri}${gExtension}`,
         {
@@ -1107,7 +1114,6 @@ Prevent build private config repo.`,
     /**
      * Resolves the default branch for a remote GitHub repository by querying
      * `git ls-remote --symref` and extracting the HEAD ref target.
-     * Falls back to `main` when detection fails.
      * @param {string} repo - The GitHub repository (e.g., "owner/repo").
      * @returns {string} The default branch name (e.g. "main" or "master").
      * @memberof UnderpostRepository
@@ -1271,6 +1277,36 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Resolves the repository pair a node checks out: the engine source and the private
+     * configuration that belongs to it.
+     *
+     * One source of that pairing, because two callers compose it — `run pull` on the node
+     * itself and `edge --sync` composing the same pull for a fleet — and a node whose engine
+     * and conf came from two different resolutions reads a conf that does not describe it.
+     * The private repository is derived from the conf id the two share and takes the engine's
+     * owner, so naming only the source can never split the pair: `underpostnet/engine-test-lampp`
+     * pairs with `underpostnet/engine-lampp-private`, as does `underpostnet/engine-lampp`.
+     * Naming `enginePrivate` overrides that derivation with its own `owner/repo` or clone URL.
+     * @param {object} [options] - Pair options.
+     * @param {string} [options.engine] - Engine source, as `owner/repo` or a clone URL.
+     * @param {string} [options.enginePrivate] - Private configuration repository, overriding the derivation.
+     * @param {string} [options.account] - Owner the monorepo defaults to; `GITHUB_USERNAME` otherwise.
+     * @returns {{engine: string, enginePrivate: string}} Both slugs.
+     * @memberof UnderpostRepository
+     */
+    enginePairFactory({ engine = '', enginePrivate = '', account = '' } = {}) {
+      const owner = `${account || ''}`.trim() || process.env.GITHUB_USERNAME || 'underpostnet';
+      const source = Underpost.repo.repoSlugFactory(`${engine || ''}`.trim() || `${owner}/engine`);
+      const conf = `${enginePrivate || ''}`.trim();
+      return {
+        engine: source,
+        enginePrivate: conf
+          ? Underpost.repo.repoSlugFactory(conf)
+          : `${source.split('/')[0]}/${Underpost.repo.privateRepoFactory(source)}`,
+      };
+    },
+
+    /**
      * Resolves a Git remote URL, normalizing short-form owner/repo references to full
      * GitHub HTTPS URLs and injecting GITHUB_TOKEN when available.
      * @param {string} url - The repository URL or short-form (e.g. "owner/repo" or full HTTPS URL).
@@ -1374,9 +1410,16 @@ Prevent build private config repo.`,
     /**
      * Brings a local checkout to the requested repository at its tip, whatever state it is in.
      *
-     * Clones when the path is absent, retargets when it holds a different repository, and pulls
-     * when it already tracks the right one — so a node can be moved between an engine source
-     * repo and its test counterpart without being reprovisioned by hand.
+     * Clones when the path is absent, and otherwise replaces the checkout through
+     * {@link UnderpostRepository.switchRemote} — the same operation `underpost cmt --switch-repo`
+     * runs, so a node reached by `run pull` and a node reached by `edge --sync` end on the same
+     * commit by the same route.
+     *
+     * One operation covers both the retarget and the same-repository case, because they only
+     * look different: an `--ff-only` pull refuses a checkout that has drifted onto commits of
+     * its own, which is exactly the node that most needs bringing back. A deploy checkout is a
+     * projection of its remote, never a place work is authored, so it is replaced rather than
+     * reconciled.
      *
      * The clone lands under the repository's own name and is renamed into place, because the
      * checkout path is fixed by the deployment layout while the repository name is not.
@@ -1384,10 +1427,11 @@ Prevent build private config repo.`,
      * @param {object} opts
      * @param {string} opts.path - Absolute checkout path.
      * @param {string} opts.repo - Repository `owner/repo` slug or clone URL.
-     * @returns {'cloned'|'switched'|'pulled'} What the call had to do.
+     * @param {string} [opts.branch] - Branch to land on; the remote's default branch otherwise.
+     * @returns {'cloned'|'switched'} What the call had to do.
      * @memberof UnderpostRepository
      */
-    syncCheckout({ path: checkoutPath, repo }) {
+    syncCheckout({ path: checkoutPath, repo, branch = '' }) {
       const slug = Underpost.repo.repoSlugFactory(repo);
       const repoName = slug.split('/')[1];
       const parent = path.dirname(checkoutPath);
@@ -1399,14 +1443,8 @@ Prevent build private config repo.`,
         return 'cloned';
       }
 
-      const current = Underpost.repo.getRemoteUrl({ path: checkoutPath });
-      if (current && Underpost.repo.repoSlugFactory(current) !== slug) {
-        Underpost.repo.switchRemote({ url: slug, path: checkoutPath });
-        return 'switched';
-      }
-
-      shellExec(`cd ${checkoutPath} && underpost pull . ${slug}`, { silent: true });
-      return 'pulled';
+      Underpost.repo.switchRemote({ url: slug, path: checkoutPath, branch });
+      return 'switched';
     },
 
     /**
@@ -1630,24 +1668,47 @@ Prevent build private config repo.`,
      * @memberof UnderpostRepository
      */
     provisionSiteRoot({ host, siteRoot, repository, owner = 'daemon:daemon' }) {
-      if (!process.env.GITHUB_TOKEN && Underpost.repo.repoUrlFactory(repository).startsWith('https://github.com/'))
-        logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
-
-      if (!Underpost.repo.isRemoteRepo(repository)) {
-        logger.warn(`${host}: remote repository not accessible (${repository})`);
+      // An `env:` reference to a variable the process never received resolves to an empty string,
+      // so a conf fault and an unreachable remote arrive here as the same falsy value. Reported
+      // together they read as a GitHub problem and send the search to the wrong place.
+      const reference = `${repository ?? ''}`.trim();
+      if (!reference) {
+        logger.error(
+          `${host}: no repository resolved for ${siteRoot} — the conf route's reference is empty, ` +
+            `so its 'env:' variable is missing from this process's environment`,
+        );
         return { accessible: false, cloned: false };
       }
-      if (fs.existsSync(siteRoot)) {
+
+      if (!process.env.GITHUB_TOKEN && Underpost.repo.repoUrlFactory(reference).startsWith('https://github.com/'))
+        logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
+
+      if (!Underpost.repo.isRemoteRepo(reference)) {
+        logger.warn(`${host}: remote repository not accessible (${reference})`);
+        return { accessible: false, cloned: false };
+      }
+      // Provisioned means a checkout is there, not merely that the path is. The runtime image
+      // ships the document-root directories, so an existence test calls every fresh pod already
+      // provisioned, skips the clone, and leaves Apache serving 403 from a directory nothing
+      // populates. `.git` is the only mark that the declared repository actually landed here.
+      if (fs.existsSync(`${siteRoot}/.git`)) {
         logger.info(`${host}: repo already present at ${siteRoot}`);
         return { accessible: true, cloned: false };
       }
+      const populateInPlace = fs.existsSync(siteRoot);
+      if (populateInPlace) logger.warn(`${host}: ${siteRoot} holds no checkout; provisioning ${reference} into it`);
 
-      logger.info(`${host}: cloning ${repository} → ${siteRoot}`);
+      logger.info(`${host}: cloning ${reference} → ${siteRoot}`);
       const tmp = `${siteRoot}.tmp`;
       if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
       fs.mkdirSync(path.dirname(siteRoot), { recursive: true });
-      shellExec(`git clone "${Underpost.repo.resolveAuthUrl(repository)}" "${tmp}"`);
-      shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
+      shellExec(`git clone "${Underpost.repo.resolveAuthUrl(reference)}" "${tmp}"`);
+      // Copied into a directory that already exists rather than renamed over it: that directory
+      // can be image-provided or a mount point, and a rename onto one fails where a copy works.
+      if (populateInPlace) {
+        shellExec(`sudo cp -a "${tmp}/." "${siteRoot}/"`);
+        shellExec(`sudo rm -rf "${tmp}"`);
+      } else shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
       shellExec(`sudo chmod -R 755 "${siteRoot}"`);
       shellExec(`sudo chown -R ${owner} "${siteRoot}"`);
       return { accessible: true, cloned: true };

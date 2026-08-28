@@ -97,7 +97,13 @@ const ENGINE_SYNC_STEPS = [
   // { command: 'npm install -g underpost', halt: true },
   { command: 'underpost run clean', halt: true },
   { command: 'underpost cmt --switch-repo <engine> --target-branch <engine-branch>', halt: true },
-  { command: 'underpost pull ./engine-private <engine-private>', halt: true },
+  // Both checkouts are replaced, not merged: a node that has drifted onto commits of its own
+  // cannot be reconciled from here, and a pull would fail on exactly the nodes that need this
+  // most. The private checkout aligns the same way the engine one does.
+  {
+    command: 'underpost cmt ./engine-private --switch-repo <engine-private> --target-branch <engine-private-branch>',
+    halt: true,
+  },
   // { command: 'npm run fix', halt: false },
   // { command: 'npm install', halt: true },
   // A supervised dispatcher holds the code it started with: after the checkout
@@ -2020,7 +2026,7 @@ class UnderpostWireguard {
         throw new Error(
           `[wireguard] ${FORWARD_PROXY.env.apiKey} is not set; every proxied request is authenticated with it. ` +
             `Export it, put it in the deploy env selected by \`underpost app load --env <environment>\` (./.env), ` +
-            `or set it with \`underpost config set ${FORWARD_PROXY.env.apiKey} <key>\``,
+            `or set it with \`underpost host set ${FORWARD_PROXY.env.apiKey} <key>\``,
         );
       if (['0.0.0.0', '::', '*'].includes(config.host))
         logger.warn('Forward proxy is bound to a wildcard address, not the tunnel', {
@@ -2486,25 +2492,40 @@ class UnderpostWireguard {
      * @description The sync sequence, bound to the repositories it pulls from.
      *
      * `--repo-engine` accepts `owner/repo` or a clone URL and defaults to the
-     * configured GitHub account's `engine`; the private repository follows the
-     * same account, because the two are pulled onto the node as one checkout.
+     * configured GitHub account's `engine`. The private repository is derived
+     * from the conf id the two share rather than named separately, so syncing a
+     * node onto `engine-test-lampp` brings `engine-lampp-private` with it —
+     * the pair {@link UnderpostRun.pull} resolves, resolved the same way.
+     * `--repo-engine-private` overrides that derivation with its own
+     * `owner/repo` or clone URL.
      *
-     * The engine's default branch is resolved here, once, and named explicitly
-     * in the command: the node is about to replace its own checkout, so asking
-     * it to work out which branch to fetch would depend on the very tooling and
-     * credentials the step exists to renew.
-     * @param {object} [options] - CLI options (`repoEngine`).
+     * `--cmd` replaces the whole sequence with the given comma-separated
+     * commands, each running as a fail-fast step, so `--sync --cmd 'uptime'` is
+     * a fleet-wide shell over the same SSH identity rather than a sync.
+     *
+     * Both default branches are resolved here, once, and named explicitly in the
+     * commands. The node is about to replace the checkout it is running from, so
+     * asking it to work out which branch to fetch would depend on the very
+     * tooling the step exists to renew: a node carrying an older `underpost`
+     * resolves it differently, or not at all, and fetches a ref that does not
+     * exist — after origin has already been repointed.
+     * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`).
      * @returns {Array<{command: string, halt: boolean}>} Steps in execution order.
      * @memberof UnderpostWireguard
      */
     syncCommands(options = {}) {
-      const account = process.env.GITHUB_USERNAME || 'underpostnet';
-      const engine = Underpost.repo.repoSlugFactory(`${options.repoEngine || ''}`.trim() || `${account}/engine`);
-      const enginePrivate = `${process.env.GITHUB_USERNAME || engine.split('/')[0]}/engine-private`;
+      const custom = parseList(options.cmd);
+      if (custom.length > 0) return custom.map((command) => ({ command, halt: true }));
+      const { engine, enginePrivate } = Underpost.repo.enginePairFactory({
+        engine: options.repoEngine,
+        enginePrivate: options.repoEnginePrivate,
+      });
       const branch = Underpost.repo.getDefaultBranch(engine);
+      const privateBranch = Underpost.repo.getDefaultBranch(enginePrivate);
       return ENGINE_SYNC_STEPS.map((step) => ({
         ...step,
         command: step.command
+          .replace('<engine-private-branch>', privateBranch)
           .replace('<engine-private>', enginePrivate)
           .replace('<engine-branch>', branch)
           .replace('<engine>', engine),
@@ -2521,14 +2542,17 @@ class UnderpostWireguard {
      * a step could land on a different session than the one before it. `&&`
      * carries the halt order; the advisory step is neutralized in place so a
      * remaining audit finding cannot stop the install behind it.
-     * @param {object} [options] - CLI options (`repoEngine`).
+     * When `--cmd` is set the label becomes `[cmd]` so a fleet run reads as what
+     * it actually executed rather than a sync.
+     * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`).
      * @returns {string} Composed remote command.
      * @memberof UnderpostWireguard
      */
     syncScript(options = {}) {
-      return Underpost.wireguard
-        .syncCommands(options)
-        .map(({ command, halt }) => `echo '[sync] ${command}' && ${halt ? command : `{ ${command} || true; }`}`)
+      const commands = Underpost.wireguard.syncCommands(options);
+      const label = parseList(options.cmd).length > 0 ? 'cmd' : 'sync';
+      return commands
+        .map(({ command, halt }) => `echo '[${label}] ${command}' && ${halt ? command : `{ ${command} || true; }`}`)
         .join(' && ');
     },
 
@@ -2540,7 +2564,7 @@ class UnderpostWireguard {
      * One node failing does not stop the others: they are independent hosts, and
      * a partially synced fleet is reported rather than hidden. Each node is one
      * session, and the `[sync]` line it last echoed names the step it stopped at.
-     * @param {object} [options] - CLI options (`nodes`, `repoEngine`, `dryRun`).
+     * @param {object} [options] - CLI options (`cmd`, `nodes`, `repoEngine`, `repoEnginePrivate`, `dryRun`).
      * @returns {Promise<{ok: boolean, nodes: Array<object>}>} Per-node outcome.
      * @memberof UnderpostWireguard
      */
@@ -2551,10 +2575,14 @@ class UnderpostWireguard {
       const targets = Underpost.wireguard.syncTargets(options);
       if (targets.length === 0) throw new Error(`[wireguard] no node is registered in ${EDGE_TOPOLOGY_PATH}`);
       const script = Underpost.wireguard.syncScript(options);
+      const custom = parseList(options.cmd).length > 0;
       const nodes = [];
 
       for (const target of targets) {
-        logger.info('Syncing engine checkout', { node: target.nodeName, via: target.via });
+        logger.info(custom ? 'Running custom commands' : 'Syncing engine checkout', {
+          node: target.nodeName,
+          via: target.via,
+        });
         const result = await Underpost.event.runCommand(script, {
           ...options,
           user: target.user,
@@ -2589,7 +2617,9 @@ class UnderpostWireguard {
     async callback(options = {}) {
       // Fleet-wide and identity-independent: they reach other machines rather
       // than reconciling this one, so they never fall through to a host action.
-      if (options.sync === true) return reportFleetOutcome(await UnderpostWireguard.API.sync(options));
+      // `--cmd` alone is a fleet run too; given with `--sync` it replaces the
+      // sync steps inside the same `sync()` runner, so one dispatch covers both.
+      if (options.sync === true || options.cmd) return reportFleetOutcome(await UnderpostWireguard.API.sync(options));
       if (options.nodeExporter === true) return reportFleetOutcome(await UnderpostWireguard.API.nodeExporter(options));
 
       if (options.nodeConfig === true) UnderpostWireguard.API.nodeConfig(options);

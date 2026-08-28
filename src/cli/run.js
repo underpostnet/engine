@@ -4,7 +4,8 @@
  * @namespace UnderpostRun
  */
 
-import { daemonProcess, pbcopy, shellCd, shellExec } from '../server/runtime/process.js';
+import { daemonProcess, pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
+import { RUNTIME_STATUS } from '../server/runtime/runtime-status.js';
 import {
   awaitDeployMonitor,
   clusterContextFactory,
@@ -21,6 +22,7 @@ import {
   generateSecurePassword,
   instanceHttpRouteRulesFactory,
   instanceInterceptStatusesFactory,
+  instanceEnvFilePath,
   instancePortFactory,
   instanceProxyRoutesFactory,
   instanceStatusPageEntriesFactory,
@@ -43,7 +45,7 @@ import {
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/runtime/conf.js';
-import { buildKindPorts, resolveDeployList } from '../server/network/router.js';
+import { buildKindPorts, deployRoutesExists, readDeployRoutes, resolveDeployList } from '../server/network/router.js';
 import { cronDeployIdResolve } from '../server/ops/cron.js';
 import { deployEnvFactory, getNpmRootPath, writeEnv } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
@@ -52,6 +54,7 @@ import fs from 'fs-extra';
 import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js';
 
 import os from 'os';
+import nodePath from 'node:path';
 import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
@@ -88,6 +91,9 @@ const logger = loggerFactory(import.meta);
  * @property {string} volumeHostPath - The host path for the volume.
  * @property {string} volumeMountPath - The mount path for the volume.
  * @property {string} imageName - The name of the image to run.
+ * @property {string} runtimeImage - `src/runtime/<name>` image family the cluster runner brings up (`cluster`).
+ * @property {string} image - Container image the deployment pulls and runs (`sync`).
+ * @property {string} versions - Comma-separated blue/green deployment versions (`sync`).
  * @property {string} containerName - The name of the container to run.
  * @property {string} namespace - The namespace to run in.
  * @property {string} timeoutResponse - The response timeout duration.
@@ -136,6 +142,7 @@ const logger = loggerFactory(import.meta);
  * @property {string} user - The user to run as.
  * @property {string} group - The group to use.
  * @property {string} pid - The process ID.
+ * @property {string} repoEnginePrivate - Private configuration repository the pull runner checks out, overriding the pairing derived from the engine source.
  * @property {boolean} disablePrivateConfUpdate - Whether to disable private configuration updates.
  * @property {string} monitorStatus - The monitor status option.
  * @property {string} monitorStatusKindType - The monitor status kind type option.
@@ -182,6 +189,9 @@ const DEFAULT_OPTION = {
   volumeHostPath: '',
   volumeMountPath: '',
   imageName: '',
+  image: '',
+  runtimeImage: '',
+  versions: '',
   containerName: '',
   namespace: 'default',
   timeoutResponse: '',
@@ -230,6 +240,7 @@ const DEFAULT_OPTION = {
   user: '',
   group: '',
   pid: '',
+  repoEnginePrivate: '',
   disablePrivateConfUpdate: false,
   monitorStatus: '',
   monitorStatusKindType: '',
@@ -961,9 +972,13 @@ class UnderpostRun {
      * With no argument this is the monorepo pair, `engine` and `engine-private`. Naming a source
      * repository deploys that source instead, and its private conf repository is derived from the
      * conf id they share rather than passed separately — `underpostnet/engine-test-lampp` pairs
-     * with `underpostnet/engine-lampp-private`, as does `underpostnet/engine-lampp`. A checkout
-     * already holding a different repository is retargeted in place, so a node moves onto a test
-     * source repo and back without being reprovisioned.
+     * with `underpostnet/engine-lampp-private`, as does `underpostnet/engine-lampp`.
+     * `--repo-engine-private` overrides that derivation for a conf repository the pairing cannot
+     * name, and is the flag `deploy/lib/host.sh` forwards `ENGINE_SRC_PRIVATE_REPO` through.
+     *
+     * Both checkouts are replaced rather than merged, by the same `--switch-repo` route the fleet
+     * sync takes — so a node moves onto a test source repo and back without being reprovisioned,
+     * and one that has drifted onto commits of its own is brought back instead of refused.
      * @param {string} path - Engine source repository, as `owner/repo` or a clone URL. Defaults to
      *   the `GITHUB_USERNAME` monorepo.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
@@ -972,8 +987,10 @@ class UnderpostRun {
     pull: (path = '', options = DEFAULT_OPTION) => {
       // shellExec is fail-fast by default — any non-zero exit throws and
       // propagates up to the workflow step. No per-call flag required.
-      const source = Underpost.repo.repoSlugFactory(path || `${process.env.GITHUB_USERNAME}/engine`);
-      const privateRepo = `${source.split('/')[0]}/${Underpost.repo.privateRepoFactory(source)}`;
+      const { engine: source, enginePrivate: privateRepo } = Underpost.repo.enginePairFactory({
+        engine: path,
+        enginePrivate: options.repoEnginePrivate,
+      });
       logger.info('Pulling engine source', { source, privateRepo });
 
       if (fs.existsSync(`/home/dd/engine`)) shellExec(`underpost run clean`);
@@ -1050,18 +1067,20 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
     },
     /**
      * @method sync
-     * @description Cleans up, and then runs a deployment synchronization command (`underpost deploy --kubeadm --build-manifest --sync...`) using parameters parsed from `path` (deployId, replicas, versions, image, node).
+     * @description Cleans up, and then runs a deployment synchronization command (`underpost deploy --kubeadm --build-manifest --sync...`).
+     *
+     * Every input is a flag: `--deploy-id`, `--replicas`, `--versions`, `--image`, `--node-name`.
      *
      * Forwards `--image-pull-policy <policy>` to the underlying `deploy --build-manifest` invocation when `options.imagePullPolicy` is set,
      * which then plumbs through `buildManifest` and `deploymentYamlPartsFactory` to override the container `imagePullPolicy` in the generated
      * `deployment.yaml`. Useful when you want to force `Always` so the kubelet re-pulls a mutable tag on every rollout. Example:
-     *   `node bin run sync dd-core --kubeadm --image-pull-policy Always`
+     *   `node bin run sync --deploy-id dd-core --kubeadm --image-pull-policy Always`
      *
-     * Runs in one of two modes. Named a deploy, it deploys. Passed `--build`, or no `path` at
-     * all, it renders the manifests and the router table and stops before touching the cluster:
-     *   `node bin run --dev --build sync dd-default`
-     * @param {string} [path] - `<deployId>,<replicas>,<versions>,<image>,<node>`. Omitted selects
-     *   `dd-default` and the manifest-only mode.
+     * Runs in one of two modes. Given `--deploy-id`, it deploys. Passed `--build`, or no
+     * `--deploy-id` at all, it renders the manifests and the router table and stops before
+     * touching the cluster:
+     *   `node bin run --dev --build sync --deploy-id dd-default`
+     * @param {string} [path] - Unused; every input is a flag.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -1071,20 +1090,12 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
-      const defaultPath = [
-        'dd-default',
-        options.replicas,
-        ``,
-        ``,
-        !options.kubeadm && !options.k3s ? 'kind-control-plane' : os.hostname(),
-      ];
-      let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
-      const deploying = !options.build && !!path;
-      deployId = deployId ? deployId : defaultPath[0];
-      replicas = replicas ? replicas : defaultPath[1];
-      versions = versions ? versions.replaceAll('+', ',') : defaultPath[2];
-      image = image ? image : defaultPath[3];
-      node = node ? node : options.nodeName ? options.nodeName : defaultPath[4];
+      const deploying = !options.build && !!options.deployId;
+      const deployId = options.deployId || 'dd-default';
+      const replicas = options.replicas || 1;
+      const image = options.image || '';
+      const node = options.nodeName || (!options.kubeadm && !options.k3s ? 'kind-control-plane' : os.hostname());
+      let versions = options.versions || '';
       shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
 
       if (image && !image.startsWith('localhost'))
@@ -1142,9 +1153,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           : [];
 
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
-      const cmdString = options.cmd
-        ? ' --cmd ' + (options.cmd.find((c) => c.match('"')) ? '"' + options.cmd + '"' : "'" + options.cmd + "'")
-        : '';
+      const cmdString = options.cmd ? ` --cmd ${shellArgumentFactory(options.cmd)}` : '';
       const gitCleanFlag = options.gitClean ? ' --git-clean' : '';
 
       const skipFullBuildFlag = options.skipFullBuild ? ' --skip-full-build' : '';
@@ -1355,8 +1364,8 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           ? options.timezone
           : path
             ? path
-            : Underpost.env.get('TIME_ZONE', undefined, { disableLog: true })
-              ? Underpost.env.get('TIME_ZONE')
+            : Underpost.host.store.get('TIME_ZONE', undefined, { disableLog: true })
+              ? Underpost.host.store.get('TIME_ZONE')
               : process.env.TIME_ZONE
                 ? process.env.TIME_ZONE
                 : 'America/New_York';
@@ -1905,7 +1914,11 @@ EOF
 
     /**
      * @method instance
-     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing workflow parameters).
+     * @description Deploys the custom instances a deploy declares in `conf.instances.json`.
+     *
+     * Every input is a flag: `--deploy-id`, `--instance-id`, `--replicas`, `--node-name`.
+     * `--instance-id` naming a template id selects its whole variant family.
+     * @param {string} path - Unused; every input is a flag.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -1918,8 +1931,11 @@ EOF
       };
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      let [deployId, id, replicas] = path.split(',');
-      if (!replicas) replicas = options.replicas;
+      const deployId = options.deployId;
+      const id = options.instanceId;
+      const replicas = options.replicas || 1;
+      if (!deployId) throw new Error('The --deploy-id option is required by the instance runner');
+      if (!id) throw new Error('The --instance-id option is required by the instance runner');
       const confInstances = selectConfInstances(loadConfInstances(deployId), id);
       // Retarget `underpost-config` at this run's environment before any instance
       // Deployment is submitted: it is what `underpost host load` reads inside the pod,
@@ -2503,11 +2519,11 @@ EOF
       // mode this build ran. The default/template instance owns the committed
       // source files, so only its current-mode file is idempotently refreshed.
       if (instance.templateId) {
-        const instanceEnvDir = `./engine-private/conf/${deployId}/instances/${_id}/env`;
+        const instanceEnvDir = nodePath.dirname(instanceEnvFilePath(deployId, _id, env));
         fs.mkdirpSync(instanceEnvDir);
         const envsToWrite = isDefaultInstance ? [env] : ['development', 'production'];
         for (const targetEnv of envsToWrite) {
-          const templateEnvPath = `./engine-private/conf/${deployId}/instances/${instance.templateId}/env/${targetEnv}.env`;
+          const templateEnvPath = instanceEnvFilePath(deployId, instance.templateId, targetEnv);
           if (!fs.existsSync(templateEnvPath))
             throw new Error(`[instance-build-manifest] Missing canonical env file: ${templateEnvPath}`);
           const baseEnv = dotenv.parse(fs.readFileSync(templateEnvPath, 'utf8'));
@@ -2519,7 +2535,7 @@ EOF
             containerDeployId: `${_deployId}-${targetEnv}`,
             builders: instanceEnvBuilder ? { [deployId]: instanceEnvBuilder } : {},
           });
-          writeEnv(`${instanceEnvDir}/${targetEnv}.env`, builtEnv);
+          writeEnv(instanceEnvFilePath(deployId, _id, targetEnv), builtEnv);
         }
         logger.info('[instance-build-manifest] Instance env written', {
           dir: instanceEnvDir,
@@ -2765,15 +2781,15 @@ EOF`);
      * @memberof UnderpostRun
      */
     'git-conf': (path = '', options = DEFAULT_OPTION) => {
-      const defaultUsername = Underpost.env.get('GITHUB_USERNAME');
-      const defaultEmail = Underpost.env.get('GITHUB_EMAIL');
+      const defaultUsername = Underpost.host.store.get('GITHUB_USERNAME');
+      const defaultEmail = Underpost.host.store.get('GITHUB_EMAIL');
       const validPath = path && path.split(',').length;
       const [username, email] = validPath ? path.split(',') : [defaultUsername, defaultEmail];
       if (validPath) {
-        Underpost.env.set('GITHUB_USERNAME', username);
-        Underpost.env.set('GITHUB_EMAIL', email);
-        Underpost.env.get('GITHUB_USERNAME');
-        Underpost.env.get('GITHUB_EMAIL');
+        Underpost.host.store.set('GITHUB_USERNAME', username);
+        Underpost.host.store.set('GITHUB_EMAIL', email);
+        Underpost.host.store.get('GITHUB_USERNAME');
+        Underpost.host.store.get('GITHUB_EMAIL');
       }
       shellExec(
         `git config --global credential.helper "" && ` +
@@ -2878,14 +2894,17 @@ EOF`);
      * references, and every host is written to `/etc/hosts` so the operator's browser reaches the PWA at
      * `https://<host>` on the local machine.
      *
-     * Custom instances are the optional third segment of `path`. They are resolved per deploy against that deploy's
+     * Custom instances come from `--instance-id`. They are resolved per deploy against that deploy's
      * own `conf.instances.json`, so an id only runs where its deploy declares it, and each one is deployed after its
      * deploy's default workload is serving — an instance reads the parent's world configuration over the parent's
      * gRPC ClusterIP at boot. Instance hosts share the deploy's environment: the same self-signed certificates and
      * `/etc/hosts` pass in development, the same cert-manager issuance in production.
-     * @param {string} path - `<runtime-image>,<deploy-list>[,<instance-list>]` — `+`-separated lists, e.g.
-     *   `express,dd-cyberia,mmo-server` or `express,dd-cyberia+dd-core,mmo-server+mmo-client`. An instance list entry
-     *   may be a template id (`mmo-server`), which selects its whole variant family.
+     *
+     * Every input is a flag: `--runtime-image` (default `express`), `--deploy-id` (comma-separated, or the `dd` meta
+     * id; unset reads the route table) and `--instance-id` (comma-separated; a template id such as `mmo-server`
+     * selects its whole variant family):
+     *   `node bin run cluster --runtime-image express --deploy-id dd-cyberia --instance-id mmo-server --dev`
+     * @param {string} path - Unused; every input is a flag.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -2900,17 +2919,15 @@ EOF`);
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType}`);
       await timer(5000);
-      let [runtimeImage, deployList, instanceListId] =
-        path && path.trim() && path.split(',') ? path.split(',') : ['express', readDeployRoutes().join('+'), ''];
+      const runtimeImage = options.runtimeImage || 'express';
+      const instanceListId = options.instanceId || '';
       // shellExec(
       //   `${baseCommand} image${baseClusterCommand} --build ${
       //     runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
       //   } --${clusterType}`,
       // );
-      if (!deployList) {
-        deployList = [];
-        logger.warn('No deploy list provided');
-      } else deployList = deployList.split('+');
+      const deployList = options.deployId ? resolveDeployList(options.deployId) : readDeployRoutes();
+      if (deployList.length === 0) logger.warn('No deploy list provided');
       await timer(5000);
       // --reset-mongodb wipes the retained hostPath volumes before the rollout.
       // This workflow already tore the node down and re-imports every database
@@ -2991,6 +3008,9 @@ EOF`);
       const instanceOptionsFactory = (deployId, instanceId) => ({
         ...options,
         ...clusterContextFactory(clusterType),
+        deployId,
+        instanceId,
+        replicas: options.replicas || 1,
         gatewayApi,
         gatewayBootstrapComplete: true,
         tls: true,
@@ -3037,9 +3057,9 @@ EOF`);
                 sudo rm -rf ./engine-private/, \
                 node bin clone underpostnet/engine-cyberia-private, \
                 sudo mv ./engine-cyberia-private ./engine-private, \
-                node bin env dd-cyberia ${env}, \
+                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
                 sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
-                node bin env dd-cyberia ${env}, \
+                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
                 node bin client dd-cyberia ${env}, \
                 node bin start dd-cyberia ${env} --run'`
             : '');
@@ -3149,10 +3169,7 @@ EOF`);
         // keep serving the custom fallback until the atomic promotion completes.
         for (const instanceId of instancesByDeployId[deployId].ids) {
           logger.info('[cluster] Deploying custom instance', { deployId, instanceId, env, clusterType });
-          await UnderpostRun.RUNNERS.instance(
-            `${deployId},${instanceId},${options.replicas || 1}`,
-            instanceOptionsFactory(deployId, instanceId),
-          );
+          await UnderpostRun.RUNNERS.instance('', instanceOptionsFactory(deployId, instanceId));
         }
       }
       logger.info('[cluster] Ingress stack deployed', {
@@ -3653,7 +3670,10 @@ EOF`);
         }`;
         shellExec(cmd, { async: true });
       }
-      if ((await awaitDeployMonitor()) !== true) return;
+      // A bare `return` here exited 0, so a runtime that latched `container-status=error` looked
+      // like a clean start to everything upstream — the shell, and any CI job wrapping it.
+      if ((await awaitDeployMonitor()) !== true)
+        throw new Error(`[run dev] ${deployId} api runtime reported ${RUNTIME_STATUS.ERROR}; see the logs above`);
       {
         const cmd = `npm run dev:client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`;
 
@@ -3661,7 +3681,8 @@ EOF`);
           async: true,
         });
       }
-      if ((await awaitDeployMonitor()) !== true) return;
+      if ((await awaitDeployMonitor()) !== true)
+        throw new Error(`[run dev] ${deployId} client runtime reported ${RUNTIME_STATUS.ERROR}; see the logs above`);
       shellExec(
         `NODE_ENV=development node src/proxy proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`,
       );
@@ -3933,7 +3954,9 @@ EOF`);
             `${baseCommand} host load`,
             `${baseCommand} start --build --run ${deployId} ${env}`,
           ];
-      shellExec(`node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none dd-test --cmd "${cmd}"`);
+      shellExec(
+        `node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none --deploy-id dd-test --cmd ${shellArgumentFactory(cmd)}`,
+      );
     },
 
     /**
@@ -4205,7 +4228,7 @@ EOF`);
           ? 'Directory'
           : 'File';
 
-      const envs = Underpost.env.list();
+      const envs = Underpost.host.store.list();
 
       const cmd = `kubectl apply -f - <<'EOF'
 apiVersion: ${apiVersion}
