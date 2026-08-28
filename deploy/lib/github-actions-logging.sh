@@ -73,6 +73,7 @@ run_quiet() {
     local error_log
     local fail_flag
     local fatal
+    local reason
     local fifo_dir
     local filter_pid
     local stderr_pid
@@ -285,6 +286,11 @@ run_quiet() {
         function is_fatal(status) {
             return status == "error"
         }
+        # Stack frames and source URLs carry absolute host paths and module layout,
+        # which must not reach a CI transcript. Both log files still hold them.
+        function is_trace(line) {
+            return line ~ /^[ \t]*at [^ ]/ || line ~ /file:\/\/\// || line ~ /^[ \t]*at async / || line ~ /^[A-Za-z_]*Error: /
+        }
         # Records the fatal latch for run_quiet. A step can report this and still
         # exit 0 — the in-pod lifecycle deliberately does not crash the container
         # — so the exit status alone cannot be trusted to stop the deployment.
@@ -493,6 +499,10 @@ run_quiet() {
             last_pod_line = 0
             if ($0 ~ pattern) remaining = lines_after + 1
             if (remaining > 0) {
+                if (is_trace($0)) {
+                    remaining--
+                    next
+                }
                 clear_table()
                 close_group()
                 put($0)
@@ -537,8 +547,12 @@ run_quiet() {
     
     if [ "$status" -ne 0 ]; then
         run_quiet_error_trace "$debug_log" "$error_log"
-        printf '%s✖ %s failed (exit %s)\n  error trace: %s\n  debug log:   %s%s\n' \
-        "$RUN_QUIET_RED" "$label" "$status" "$error_log" "$debug_log" "$RUN_QUIET_RESET" >&2
+        # One line of why, never the trace: the filter drops trace lines from the window.
+        reason=$(grep -a -m1 -E '^[A-Za-z]*Error: |reported runtime status=' "$debug_log" 2>/dev/null | head -1) || true
+        printf '%s✖ %s failed (exit %s)%s\n' "$RUN_QUIET_RED" "$label" "$status" "$RUN_QUIET_RESET" >&2
+        [ -n "$reason" ] && printf '%s  reason:      %s%s\n' "$RUN_QUIET_RED" "$reason" "$RUN_QUIET_RESET" >&2
+        printf '%s  error trace: %s\n  debug log:   %s%s\n' \
+        "$RUN_QUIET_RED" "$error_log" "$debug_log" "$RUN_QUIET_RESET" >&2
         return "$status"
     fi
     

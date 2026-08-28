@@ -1,5 +1,5 @@
 # Host preparation for deploy/<deploy-id>/*.sh. Sourced, never executed directly.
-# Requires lib/logging.sh for deploy_step.
+# Requires lib/github-actions-logging.sh for deploy_step.
 
 ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-test}"
 # ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"

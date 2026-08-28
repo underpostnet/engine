@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/logging.sh"
+source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 
 # Runs in the workflow's rockylinux:9 container against the checked-out
 # workspace instead of over SSH, so the repository root is this script's
