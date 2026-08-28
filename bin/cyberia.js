@@ -14,6 +14,7 @@ import { Command } from 'commander';
 import fs from 'fs-extra';
 import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/runtime/process.js';
+import { cli } from '../src/server/build/execution.js';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
@@ -367,7 +368,7 @@ try {
             `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemIdsToClean.size} MFS paths removed`,
           );
           if (options.gitClean) {
-            shellExec(`cd src/client/public/cyberia && underpost run clean .`);
+            shellExec(`cd src/client/public/cyberia && ${cli()} run clean .`);
             logger.info('Asset directory cleaned');
           }
 
@@ -1748,9 +1749,9 @@ try {
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
       if (options.revert) {
-        shellExec(`cd /home/dd/cyberia-instances && underpost cmt . reset && underpost run clean .`);
-        shellExec(`cd /home/dd/engine/cyberia-server && underpost cmt . reset && underpost run clean .`);
-        shellExec(`cd /home/dd/engine/cyberia-client && underpost cmt . reset && underpost run clean .`);
+        shellExec(`cd /home/dd/cyberia-instances && ${cli()} cmt . reset && ${cli()} run clean .`);
+        shellExec(`cd /home/dd/engine/cyberia-server && ${cli()} cmt . reset && ${cli()} run clean .`);
+        shellExec(`cd /home/dd/engine/cyberia-client && ${cli()} cmt . reset && ${cli()} run clean .`);
         return;
       }
       if (options.exportCurrentFallbackworld) {
@@ -1798,10 +1799,10 @@ try {
       if (options.publish || options.publishBuild || options.publishRemove) {
         if (options.publishBuild) {
           if (!fs.existsSync('/home/dd/cyberia-instances')) {
-            shellExec('cd /home/dd && underpost clone underpostnet/cyberia-instances');
+            shellExec(`cd /home/dd && ${cli()} clone underpostnet/cyberia-instances`);
           } else {
-            shellExec(`underpost run clean /home/dd/cyberia-instances`);
-            shellExec(`cd /home/dd/cyberia-instances && underpost pull . underpostnet/cyberia-instances`, {
+            shellExec(`${cli()} run clean /home/dd/cyberia-instances`);
+            shellExec(`cd /home/dd/cyberia-instances && ${cli()} pull . underpostnet/cyberia-instances`, {
               silentOnError: true,
             });
           }
@@ -1955,7 +1956,7 @@ try {
           shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${instanceCode}.json`);
           return;
         }
-        shellExec(`cd /home/dd/cyberia-instances && underpost push . underpostnet/cyberia-instances`);
+        shellExec(`cd /home/dd/cyberia-instances && ${cli()} push . underpostnet/cyberia-instances`);
         return;
       }
 
@@ -4981,8 +4982,8 @@ try {
   runner.command('setup-workspace').action(() => {
     shellExec(`node bin fs src/client/public/cyberia --git --recursive --pull --deploy-id dd-cyberia`);
     shellExec(`node bin/deploy.js cyberia`);
-    if (!fs.existsSync('./cyberia-server')) shellExec(`underpost clone underpostnet/cyberia-server`);
-    if (!fs.existsSync('./cyberia-client')) shellExec(`underpost clone underpostnet/cyberia-client`);
+    if (!fs.existsSync('./cyberia-server')) shellExec(`${cli()} clone underpostnet/cyberia-server`);
+    if (!fs.existsSync('./cyberia-client')) shellExec(`${cli()} clone underpostnet/cyberia-client`);
   });
 
   runner.command('e2e-build').action(() => {
