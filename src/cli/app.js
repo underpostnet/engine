@@ -202,10 +202,15 @@ class UnderpostApp {
       // conf of its own, so its file is the local runtime env directly.
       if (instanceId) writeEnv(LOCAL_RUNTIME_ENV_PATH, values);
       else loadConf(deployId, `${context.args['sub-conf'] ?? ''}`.trim() || undefined);
+      // The resolution loadConf performed, not `ociEnv()`, which forces the overlay on: a
+      // skipped overlay and an applied one were indistinguishable in the pod log.
+      const resolved = deployEnvContentFactory(deployId, context.env, `${context.args?.['sub-conf'] ?? ''}`.trim());
       logger.info('Deployment environment loaded', {
         deployId,
         instanceId: instanceId || null,
         source: envPath,
+        inContainer: Underpost.state.isInsideContainer(),
+        ociOverlay: resolved.overlay,
         keys: Object.keys(values).length,
       });
       return { source: envPath, keys: Object.keys(values).length };

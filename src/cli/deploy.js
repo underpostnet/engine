@@ -50,6 +50,7 @@ import nodePath from 'node:path';
 import dotenv from 'dotenv';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { appSecretName } from './app.js';
 import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 
@@ -501,6 +502,12 @@ ${
           envFrom:
             - secretRef:
                 name: underpost-config
+            # The deployment's own environment, with its .env.<env>.oci overlay already
+            # applied by 'app apply'. Optional so a deployment predating that Secret still
+            # starts; the in-pod 'app load' resolves the same overlay as a second path.
+            - secretRef:
+                name: ${appSecretName(deployId, env)}
+                optional: true
 ${
   internalStatusPort
     ? `          env:
@@ -2199,11 +2206,19 @@ EOF`);
           Underpost.deploy.syncStaticAssets(deployId, env, options);
         return;
       }
+      // Before the `--build-manifest` return: a manifest build is when the Secrets it mounts
+      // must exist, and `run sync` reaches this command with `--build-manifest --info-router`.
+      if (!options.disableUpdateUnderpostConfig) {
+        Underpost.host.apply(domainContextFactory({ env, namespace }));
+        // Each deployment's own env, OCI overlay applied. Without it the overlay reaches a pod
+        // only through in-pod `app load`, so a stale image keeps the base file's 127.0.0.1.
+        for (const _deployId of deployIds)
+          Underpost.app.apply(domainContextFactory({ env, namespace, args: { 'deploy-id': _deployId } }));
+      }
       if (options.infoRouter === true || options.buildManifest === true) {
         logger.info('router', await Underpost.deploy.routerFactory(deployList, env));
         return;
       }
-      if (!options.disableUpdateUnderpostConfig) Underpost.host.apply(domainContextFactory({ env, namespace }));
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();

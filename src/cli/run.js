@@ -1165,7 +1165,12 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       // Retarget `underpost-config` at this sync's environment before anything is
       // deployed. `underpost host load` reads it back inside the
       // pod, so a stale Secret makes the container resolve the wrong NODE_ENV.
-      if (deploying) Underpost.host.apply(domainContextFactory({ env, namespace: options.namespace }));
+      if (deploying) {
+        Underpost.host.apply(domainContextFactory({ env, namespace: options.namespace }));
+        Underpost.app.apply(
+          domainContextFactory({ env, namespace: options.namespace, args: { 'deploy-id': deployId } }),
+        );
+      }
 
       // A direct sync owns the same gateway-first contract as the full cluster
       // runner. Build the host-side SSR documents before generating routes unless
