@@ -899,6 +899,52 @@ describe('edge host provisioning', () => {
       expect(() => UnderpostWireguard.API.syncTargets({ nodes: 'ghost' })).to.throw('no registered node matches');
     });
 
+    // The URI is the connection the cluster already holds: the node document
+    // names the machine, and the address it resolves to is what the SSH
+    // registry is keyed by.
+    it('builds one connection URI per selected node, from the node name', () => {
+      vi.spyOn(UnderpostEvent.API, 'hubs').mockReturnValue([{ nodeName: 'hub-node', hubHost: HUB_HOST }]);
+      vi.spyOn(UnderpostEvent.API, 'spokes').mockReturnValue([{ nodeName: 'control-node', id: 'control-a' }]);
+      vi.spyOn(UnderpostEvent.API, 'hubTarget').mockReturnValue({
+        role: 'hub',
+        via: `root@${HUB_HOST}:22`,
+        user: 'root',
+        host: HUB_HOST,
+        port: 22,
+        keyPath: './engine-private/deploy/id_rsa',
+      });
+      vi.spyOn(UnderpostEvent.API, 'spokeTarget').mockReturnValue({
+        role: 'spoke',
+        via: 'admin@198.51.100.2:2222',
+        user: 'admin',
+        host: '198.51.100.2',
+        port: 2222,
+        keyPath: './engine-private/deploy/users/admin/id_rsa',
+      });
+
+      expect(UnderpostWireguard.API.connectUri({ nodes: 'control-node' })).to.deep.equal([
+        {
+          nodeName: 'control-node',
+          via: 'admin@198.51.100.2:2222',
+          uri: 'ssh admin@198.51.100.2 -i ./engine-private/deploy/users/admin/id_rsa -p 2222',
+        },
+      ]);
+      expect(UnderpostWireguard.API.connectUri({}).map(({ uri }) => uri)).to.deep.equal([
+        'ssh root@203.0.113.10 -i ./engine-private/deploy/id_rsa -p 22',
+        'ssh admin@198.51.100.2 -i ./engine-private/deploy/users/admin/id_rsa -p 2222',
+      ]);
+    });
+
+    it('resolves no URI for a node that is this machine', () => {
+      vi.spyOn(UnderpostEvent.API, 'hubs').mockReturnValue([]);
+      vi.spyOn(UnderpostEvent.API, 'spokes').mockReturnValue([{ nodeName: 'control-node', id: 'control-a' }]);
+      vi.spyOn(UnderpostEvent.API, 'spokeTarget').mockReturnValue({ role: 'spoke', via: 'local', user: '', host: '' });
+
+      expect(UnderpostWireguard.API.connectUri({})).to.deep.equal([
+        { nodeName: 'control-node', via: 'local', uri: '' },
+      ]);
+    });
+
     it('reports every node it synced, and does not stop at the first failure', async () => {
       edgeFixture({ files: HUB_IDENTITY_FILES });
       vi.spyOn(UnderpostRepository.API, 'getDefaultBranch').mockReturnValue('master');

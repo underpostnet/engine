@@ -2,7 +2,7 @@
 
 /**
  * @module deploy-log-table.test
- * @description Covers the run_quiet filter in `deploy/lib/logging.sh`: how a
+ * @description Covers the run_quiet filter in `deploy/lib/github-actions-logging.sh`: how a
  * deployment monitor's stream is parsed into the live pod table (one row per
  * pod, titled with the iteration and its clock, monitor JSON emits folded into
  * the cells) and how it degrades when stdout is not a terminal. Drives the real shell helper — no cluster, no root.
@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const loggingLib = path.join(repoRoot, 'deploy/lib/logging.sh');
+const loggingLib = path.join(repoRoot, 'deploy/lib/github-actions-logging.sh');
 
 const ESC = '\u001b';
 const POD_A = 'dd-test-production-green-644cbdf488-j7drh';

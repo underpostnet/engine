@@ -14,6 +14,7 @@ import { shellHarness } from '../../../support/shell-harness.js';
 const NODES_PATH = './engine-private/deploy/nodes';
 const ROUTES_PATH = './engine-private/deploy/dd.routes';
 const HUB_HOST = '203.0.113.10';
+const KEY_PATH = './engine-private/deploy/users/fixture/id_rsa';
 
 const TOPOLOGY = {
   [HUB_HOST]: {
@@ -79,7 +80,7 @@ const eventFixture = ({ files = FILES, hostname = 'hub-node' } = {}) => {
       .filter((name) => !name.includes('/')),
   );
   vi.spyOn(UnderpostSSH.API, 'resolveConnection').mockImplementation(({ host }) =>
-    host ? { user: 'fixture', host, port: 22 } : null,
+    host ? { user: 'fixture', host, port: 22, keyPath: KEY_PATH } : null,
   );
   return { table, written };
 };
@@ -178,6 +179,8 @@ describe('event execution targets', () => {
       address: '10.0.0.1',
       user: 'fixture',
       host: HUB_HOST,
+      port: 22,
+      keyPath: KEY_PATH,
       via: `fixture@${HUB_HOST}:22`,
     });
   });

@@ -7,12 +7,14 @@ import { globSync } from 'node:fs';
 // CLI surface added after the published baseline that images in service were built from.
 // A command or flag listed here does not exist inside a pod until every image has been rebuilt.
 //
-// `app` and `host` left this list when the deprecated `env` alias was removed: the `--cmd`
-// payloads now name `app load`, so an image whose baked engine predates the domain commands
-// cannot run them and must be rebuilt. That is the intended breaking change — re-adding the
-// alias would hide a pod failure rather than prevent one. `state` stays: nothing in a payload
-// needs it yet, so there is no reason to spend the same compatibility break twice.
-const POST_BASELINE = [/\bnode bin state\b/, /\bunderpost state\b/, /\bclient\s+\S+\s+--env\b/];
+// `app` and `host` left this list when the deprecated `env` alias was removed: the payloads
+// name `app load`, so an image predating the domain commands must be rebuilt.
+//
+// `underpost state <operator>` is allowed because the bootstrap stamps `container-status` only
+// after `npm link --force`, where `underpost` resolves to the pulled checkout rather than the
+// image. Stamping earlier failed with `unknown command 'state'`. `node bin state` stays listed
+// for the same reason inverted: it needs the checkout, which exists only after the clone.
+const POST_BASELINE = [/\bnode bin state\b/, /\bunderpost state (?!get|set|delete|list)\b/, /\bclient\s+\S+\s+--env\b/];
 
 /**
  * Extracts every string that ends up executed inside the workload pod.
@@ -24,7 +26,10 @@ const POST_BASELINE = [/\bnode bin state\b/, /\bunderpost state\b/, /\bclient\s+
  */
 const inPodCommands = (source) => [
   ...[...source.matchAll(/--cmd\s+(['"])([\s\S]*?)\1/g)].map((match) => match[2]),
-  ...[...source.matchAll(/^\s*pod_cmd=(['"])([\s\S]*?)\1/gm)].map((match) => match[2]),
+  // To the closing quote at end of line, not to the first quote seen: the assignment embeds
+  // quoted words (`"$ENGINE_SRC_REPO"`), and stopping at those truncated the payload to its
+  // first few characters — the guard kept passing while seeing almost none of it.
+  ...[...source.matchAll(/^[ \t]*pod_cmd="([\s\S]*?)"[ \t]*$/gm)].map((match) => match[1]),
   ...[...source.matchAll(/pod_bootstrap_cmd\(\)\s*\{([\s\S]*?)\n\}/g)].map((match) => match[1]),
 ];
 
