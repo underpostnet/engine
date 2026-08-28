@@ -22,10 +22,7 @@
 | [`pull`](#underpost-pull) | Pulls the latest changes from a specified GitHub repository. |
 | [`cmt`](#underpost-cmt) | Manages commits to a GitHub repository, supporting various commit types and options. |
 | [`push`](#underpost-push) | Pushes committed changes from a local repository to a remote GitHub repository. |
-| [`env`](#underpost-env) | Deprecated alias of `underpost app load`, kept for images that predate it. |
 | [`static`](#underpost-static) | Manages static build of page, bundles, and documentation with comprehensive customization options. |
-| [`config`](#underpost-config) | Reads and writes single keys of the underpost root env store (see `underpost host` for its lifecycle). |
-| [`state`](#underpost-state) | Reads and writes the container runtime state store used by the deployment lifecycle. |
 | [`root`](#underpost-root) | Displays the root path of the npm installation. |
 | [`ip`](#underpost-ip) | Displays the current public machine IP addresses. |
 | [`cluster`](#underpost-cluster) | Manages Kubernetes clusters, defaulting to Kind cluster initialization. |
@@ -33,6 +30,7 @@
 | [`secret`](#underpost-secret) | Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets. |
 | [`host`](#underpost-host) | Host configuration: the node-level operational environment shared by the cluster. |
 | [`app`](#underpost-app) | Application environment: one deployment's runtime configuration. |
+| [`state`](#underpost-state) | Runtime state: live container execution state, health and metrics, exported off-cluster. |
 | [`image`](#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
 | [`db`](#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |
@@ -265,28 +263,6 @@ Pushes committed changes from a local repository to a remote GitHub repository.
 
 ---
 
-### underpost env
-
-Deprecated alias of `underpost app load`, kept for images that predate it.
-
-**Usage:** `underpost env [options] <deploy-id> [env] [sub-conf]`
-
-#### Arguments
-
-| Argument | Description |
-| --- | --- |
-| `deploy-id` | The deployment configuration ID. |
-| `env` | The environment to load. Defaults to production. |
-| `sub-conf` | Optional: the sub configuration to select. |
-
-#### Options
-
-| Option | Description |
-| --- | --- |
-| `-h, --help` | display help for command |
-
----
-
 ### underpost static
 
 Manages static build of page, bundles, and documentation with comprehensive customization options.
@@ -326,55 +302,6 @@ Manages static build of page, bundles, and documentation with comprehensive cust
 | `--dir <dir>` | HTML dir attribute (default: ltr). |
 | `--dev` | Sets the development cli context |
 | `--run-sv [port]` | Start a standalone Express static server to preview the static build (default port: 5000). |
-| `-h, --help` | display help for command |
-
----
-
-### underpost config
-
-Reads and writes single keys of the underpost root env store (see `underpost host` for its lifecycle).
-
-**Usage:** `underpost config [options] <operator> [key] [value]`
-
-#### Arguments
-
-| Argument | Description |
-| --- | --- |
-| `operator` | The configuration operation to perform. One of: get, set, delete, list. |
-| `key` | Optional: The specific configuration key to manage. |
-| `value` | Optional: The value to set for the configuration key. |
-
-#### Options
-
-| Option | Description |
-| --- | --- |
-| `--plain` | Prints the configuration value in plain text. |
-| `--filter <keyword>` | Filters the list by matching key or value (only for list operation). |
-| `--copy` | Copies the configuration value to the clipboard (only for get operation). |
-| `-h, --help` | display help for command |
-
----
-
-### underpost state
-
-Reads and writes the container runtime state store used by the deployment lifecycle.
-
-**Usage:** `underpost state [options] <operator> [key] [value]`
-
-#### Arguments
-
-| Argument | Description |
-| --- | --- |
-| `operator` | The state operation to perform. One of: get, set, delete, list. |
-| `key` | Optional: The state key to manage (e.g. container-status). |
-| `value` | Optional: The value to set for the state key. |
-
-#### Options
-
-| Option | Description |
-| --- | --- |
-| `--plain` | Prints the state value in plain text. |
-| `--filter <keyword>` | Filters the list by matching key or value (only for list operation). |
 | `-h, --help` | display help for command |
 
 ---
@@ -578,13 +505,15 @@ Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Se
 
 Host configuration: the node-level operational environment shared by the cluster.
 
-**Usage:** `underpost host [options] <action>`
+**Usage:** `underpost host [options] <action> [key] [value]`
 
 #### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. |
+| `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean, get, set, delete, list. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. get\|set\|delete\|list Key-level access to the store this domain owns. |
+| `key` | Key to act on, for the key-level operators. |
+| `value` | Value to write, for the `set` operator. |
 
 #### Options
 
@@ -595,6 +524,9 @@ Host configuration: the node-level operational environment shared by the cluster
 | `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
 | `--dry-run` | Reports what the action would change without changing anything. |
 | `--force` | Confirms the irreversible variant of the action. |
+| `--plain` | Prints the value in plain text (get). |
+| `--filter <keyword>` | Filters by matching key or value (list). |
+| `--copy` | Copies the value to the clipboard (get). |
 | `-h, --help` | display help for command |
 
 ---
@@ -620,6 +552,36 @@ Application environment: one deployment's runtime configuration.
 | `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
 | `--dry-run` | Reports what the action would change without changing anything. |
 | `--force` | Confirms the irreversible variant of the action. |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost state
+
+Runtime state: live container execution state, health and metrics, exported off-cluster.
+
+**Usage:** `underpost state [options] <action> [key] [value]`
+
+#### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean, get, set, delete, list. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. get\|set\|delete\|list Key-level access to the store this domain owns. |
+| `key` | Key to act on, for the key-level operators. |
+| `value` | Value to write, for the `set` operator. |
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--env <env>` | Target environment: development \| production \| test (default: production). |
+| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
+| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--dry-run` | Reports what the action would change without changing anything. |
+| `--force` | Confirms the irreversible variant of the action. |
+| `--plain` | Prints the value in plain text (get). |
+| `--filter <keyword>` | Filters by matching key or value (list). |
+| `--copy` | Copies the value to the clipboard (get). |
 | `-h, --help` | display help for command |
 
 ---
@@ -974,9 +936,11 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 | `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
 | `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology. |
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
-| `--nodes <node-names>` | Comma-separated node documents --sync and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--nodes <node-names>` | Comma-separated node documents --sync, --cmd and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--cmd <command-list>` | Comma-separated custom commands to run on the selected nodes over their SSH identity. Given with --sync, only these run in place of the sync steps. |
 | `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
+| `--repo-engine-private <repo>` | Private engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured private repo derived from --repo-engine. |
 | `--wireguard-start` | Enables and starts wg-quick@<interface> and the QUIC forward. |
 | `--wireguard-restart` | Restarts wg-quick@<interface> and restores the hub QUIC forward. |
 | `--wireguard-stop` | Tears down the interface and removes its transient packet rules. |
@@ -1030,9 +994,11 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 | `--forward-proxy-server-port <port>` | Port the forward proxy binds (default: 1080). |
 | `--ssh-forward-port <port>` | Publishes the default spoke SSH port on this public TCP port of the hub, so CI with no fixed address can reach the cluster node (e.g. 2222). "0" closes it. Stored in hub topology. |
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
-| `--nodes <node-names>` | Comma-separated node documents --sync and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--nodes <node-names>` | Comma-separated node documents --sync, --cmd and --node-exporter act on. Empty covers every hub and every peer of this node hub. |
+| `--cmd <command-list>` | Comma-separated custom commands to run on the selected nodes over their SSH identity. Given with --sync, only these run in place of the sync steps. |
 | `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
+| `--repo-engine-private <repo>` | Private engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured private repo derived from --repo-engine. |
 | `--wireguard-start` | Enables and starts wg-quick@<interface> and the QUIC forward. |
 | `--wireguard-restart` | Restarts wg-quick@<interface> and restores the hub QUIC forward. |
 | `--wireguard-stop` | Tears down the interface and removes its transient packet rules. |
@@ -1115,6 +1081,9 @@ Runs specified scripts using various runners.
 | `--volume-mount-path <volume-mount-path>` | Optional: Specifies the volume mount path for test execution. |
 | `--volume-type <volume-type>` | Optional: Specifies the volume type for test execution. |
 | `--image-name <image-name>` | Optional: Specifies the image name for test execution. |
+| `--image <image>` | Container image the deployment pulls and runs (sync). |
+| `--runtime-image <name>` | src/runtime/<name> image family the cluster runner brings up (default "express"). |
+| `--versions <deployment-versions>` | Comma-separated blue/green deployment versions (sync); unset resolves the next colour. |
 | `--container-name <container-name>` | Optional: Specifies the container name for test execution. |
 | `--namespace <namespace>` | Optional: Specifies the namespace for test execution. |
 | `--tty` | Enables TTY for the container in deploy-job. |
@@ -1161,6 +1130,7 @@ Runs specified scripts using various runners.
 | `--gateway-class <name>` | GatewayClass name for generated Gateway manifests (default "eg"). |
 | `--disable-http3` | Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests. |
 | `--quic-port <port>` | UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443). |
+| `--repo-engine-private <repo>` | Private configuration repository the pull runner checks out, as owner/repo or a clone URL. Defaults to the private repo derived from the engine source. |
 | `--disable-private-conf-update` | Disables updates to private configuration during execution. |
 | `--logs` | Streams logs during the runner execution. |
 | `--monitor-status <status>` | Sets the status to monitor for pod/resource (default: "Running"). |

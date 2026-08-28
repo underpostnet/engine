@@ -460,7 +460,7 @@ The receiver answers `202` before dispatching. Remediation can take minutes, whi
 
 Alertmanager never sends resolution notices to it. The dispatcher acts, and a resolution notice would ask it to act again on a condition that has already cleared.
 
-**Authentication.** The webhook triggers root-equivalent remediation on the edge, so it is never provisioned without a bearer token. The token is minted on first provisioning into the underpost root env store (`UNDERPOST_EVENT_TOKEN`) — the same store `sshRemoteRunner` reads its SSH credentials from — and projected into the cluster as the `alertmanager-webhook` Secret, which Alertmanager reads with `credentials_file`. It is a Secret rather than a field in the ConfigMap so it never appears in a `kubectl get -o yaml` dump.
+**Authentication.** The webhook triggers root-equivalent remediation on the edge, so it is never provisioned without a bearer token. The token is minted on first provisioning into the host configuration store (`UNDERPOST_EVENT_TOKEN`) — the same store `sshRemoteRunner` reads its SSH credentials from — and projected into the cluster as the `alertmanager-webhook` Secret, which Alertmanager reads with `credentials_file`. It is a Secret rather than a field in the ConfigMap so it never appears in a `kubectl get -o yaml` dump.
 
 **Notification.** After each dispatch the outcome goes to every route the event declares in [`conf.event.json`](#notifications). A failing handler is reported through those routes rather than thrown — an unhandled rejection in the receiver would silence every later alert.
 
@@ -556,7 +556,7 @@ Prometheus discovers cluster nodes and scrapes each at its own InternalIP. The h
   vultr_bandwidth_limit_bytes
 ```
 
-It renames the file into place, because the collector may read it mid-write, and mirrors both values into the root env store as `VULTR_BANDWIDTH_USAGE_BYTES` and `VULTR_BANDWIDTH_LIMIT_BYTES` for anything that reads configuration rather than metrics.
+It renames the file into place, because the collector may read it mid-write, and mirrors both values into the host configuration store as `VULTR_BANDWIDTH_USAGE_BYTES` and `VULTR_BANDWIDTH_LIMIT_BYTES` for anything that reads configuration rather than metrics.
 
 Threshold events declare no probe: their rules read these series, so `--list` reports no probe row for them and the "no resolvable probe targets" warning applies only to rules that actually read `probe_success`.
 

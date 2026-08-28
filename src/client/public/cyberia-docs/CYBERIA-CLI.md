@@ -87,6 +87,9 @@ cyberia instance [instance-code] [options]
 | `--import [path]`                                     | Import from a backup directory (upsert, preserves UUIDs)                |
 | `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json` |
 | `--drop`                                              | Drop all documents associated with the instance code                    |
+| `--export-current-fallbackworld`                      | Capture the in-memory procedural fallback world, then export it         |
+| `--keep-fallback-codes`                               | Capture using the raw `fallback-map-*` / canonical action-quest codes   |
+| `--fallback-url <url>`                                | Capture the world a running engine serves instead of regenerating it    |
 | `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                |
 
 ```bash
@@ -94,6 +97,30 @@ cyberia instance FOREST --export ./backups/FOREST
 cyberia instance FOREST --import ./backups/FOREST
 cyberia instance FOREST --drop
 ```
+
+### Capturing the procedural fallback world
+
+The fallback world is never persisted: every engine process rebuilds it from the code defaults at
+boot and serves it whenever a requested instance is absent. `--export-current-fallbackworld` freezes
+that in-memory world into MongoDB under a real instance code — maps and portal topology, the
+instance conf, and the content collections the fallback path serves from code rather than the DB
+(skills, entity-type defaults, dialogues, actions, quests) — and then exports it like any other
+instance.
+
+```bash
+# Freeze the current fallback world as PROC-1 and back it up
+cyberia instance PROC-1 --export-current-fallbackworld --dev
+
+# Restore it later as an ordinary persisted instance
+cyberia instance PROC-1 --import --dev
+```
+
+Map, action and quest codes are namespaced under the instance code (`fallback-map-0` →
+`PROC-1-map-0`) so successive captures never overwrite each other; `--keep-fallback-codes` writes
+the canonical codes verbatim instead. Sprites are the one thing a capture cannot synthesise: when a
+referenced item id has no `ObjectLayer` document the command aborts and names the ids to import with
+`cyberia ol <ids> --import`. Staged fallback default items live only in the serving engine process,
+so pass `--fallback-url http://localhost:4001` to capture a live world rather than regenerating it.
 
 ---
 
@@ -198,7 +225,7 @@ cyberia run-workflow build-server-dashboard
 ## Bringing up the full stack locally
 
 ```bash
-node bin run cluster 'express,dd-cyberia' --dev
+node bin run cluster --deploy-id dd-cyberia --dev
 ```
 
 One command, no extra flags. It resets and rebuilds the node, deploys MongoDB / IPFS / Valkey, imports each database from its git backup, installs the Gateway API control plane, and deploys `dd-cyberia` behind it.
@@ -213,16 +240,16 @@ The run ends with a gateway status report: listener and route conditions, the wo
 
 ### With the MMO services
 
-The optional third path segment brings up custom instances from `engine-private/conf/dd-cyberia/conf.instances.json` in the same run:
+`--instance-id` brings up custom instances from `engine-private/conf/dd-cyberia/conf.instances.json` in the same run:
 
 ```bash
-node bin run cluster 'express,dd-cyberia,mmo-server' --dev
-node bin run cluster 'express,dd-cyberia,mmo-server+mmo-client' --dev
+node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server --dev
+node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server,mmo-client --dev
 ```
 
 Each id runs only where `dd-cyberia` declares it, and only once the portal workload has rolled out — `cyberia-server` dials the engine's gRPC ClusterIP for its world configuration at boot, so the content authority has to be serving first. `mmo-server` names the whole variant family (`amethyst-strata-expansion`, `FOREST`, `TEST`); `mmo-server-forest` names one variant.
 
-`server.cyberiaonline.com` and `client.cyberiaonline.com` are issued the same self-signed certificates as the portal hosts and written into the same `/etc/hosts` pass, so the three services are reachable over TLS from a local browser without further setup. In production the same segment issues cert-manager certificates instead.
+`server.cyberiaonline.com` and `client.cyberiaonline.com` are issued the same self-signed certificates as the portal hosts and written into the same `/etc/hosts` pass, so the three services are reachable over TLS from a local browser without further setup. In production the same flag issues cert-manager certificates instead.
 
 To place the static documents again without redeploying — after rebuilding the portal client, for instance:
 

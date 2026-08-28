@@ -349,7 +349,7 @@ There is **no `records`-style block for `vultr`**, and none is needed. `dns` rea
 
 #### Vultr Environment Variables
 
-Set these in `engine-private/conf/<dd.cron deploy-id>/.env.production` — the file `loadCronDeployEnv()` loads into `process.env` at the top of every cron run. Two fallbacks follow, in order, so a manual run resolves the same values: `./.env`, which `underpost env <deploy-id> <environment>` writes, and then the underpost root env (`underpost env set …`).
+Set these in `engine-private/conf/<dd.cron deploy-id>/.env.production` — the file `loadCronDeployEnv()` loads into `process.env` at the top of every cron run. Two fallbacks follow, in order, so a manual run resolves the same values: `./.env`, which `underpost app load --env <environment> --args deploy-id=<deploy-id>` writes, and then the host configuration store (`underpost host set …`).
 
 | Variable                    | Required | Description                                                                                             | Default                          |
 | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | -------------------------------- |
@@ -533,9 +533,9 @@ This ensures that **no plaintext secret ever appears** in source-controlled JS f
 The `sync` command triggers cron setup automatically unless `--deploy-id-cron-jobs` is set to `none`:
 
 ```bash
-node bin run sync dd-my-app --dev --kind                        # cron deploy-id from dd.cron
-node bin run sync dd-my-app --kubeadm --deploy-id-cron-jobs dd-other
-node bin run sync dd-my-app --kubeadm --deploy-id-cron-jobs none # no cron setup at all
+node bin run sync --deploy-id dd-my-app --dev --kind                        # cron deploy-id from dd.cron
+node bin run sync --deploy-id dd-my-app --kubeadm --deploy-id-cron-jobs dd-other
+node bin run sync --deploy-id dd-my-app --kubeadm --deploy-id-cron-jobs none # no cron setup at all
 ```
 
 It runs `node bin cron <cron-deploy-id> --setup-start --git --apply` with the resolved cluster

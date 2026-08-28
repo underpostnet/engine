@@ -416,30 +416,30 @@ Deploy a custom instance to Kubernetes:
 
 ```bash
 # Development mode (using Kind cluster)
-node bin run --dev instance <deploy-id>,<instance-id>[,<replicas>]
+node bin run --dev instance --deploy-id <deploy-id> --instance-id <instance-id> [--replicas <replicas>]
 
 # Production mode (using Kubeadm cluster)
-underpost run instance <deploy-id>,<instance-id>[,<replicas>]
+underpost run instance --deploy-id <deploy-id> --instance-id <instance-id> [--replicas <replicas>]
 
 # With specific options
-underpost run --namespace production --node-name worker-01 instance myapp,app-1,3
+underpost run --namespace production --node-name worker-01 instance --deploy-id myapp --instance-id app-1 --replicas 3
 ```
 
 **Example:**
 
 ```bash
 # Deploy instance 'api-v1' from 'myapp' deployment with 2 replicas
-underpost run instance myapp,api-v1,2
+underpost run instance --deploy-id myapp --instance-id api-v1 --replicas 2
 ```
 
 A direct `run instance` resolves the next blue/green colour before creating anything. When the selected entries declare `customStatusPages`, it first copies those project-owned documents into `underpost-gateway`, installs the Nginx host block, and routes the hostname to that exact target colour while its Service is absent. It then verifies over the gateway that the unavailable upstream keeps a 502/503/504 status and returns the configured custom document byte-for-byte. Only after the probe passes does it render and apply `deployment.yaml`. The route remains on that colour, so the fallback automatically becomes live application traffic when Kubernetes marks the pod Ready; no second colour toggle occurs.
 
 #### As part of a full cluster bring-up
 
-`run cluster` takes the same instance ids as an optional third path segment and deploys them itself, so a whole environment comes up in one command:
+`run cluster` takes the same instance ids through `--instance-id` and deploys them itself, so a whole environment comes up in one command:
 
 ```bash
-node bin run cluster 'express,dd-cyberia,mmo-server' --dev
+node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server --dev
 ```
 
 Each id is resolved against every deploy in the list and runs only where that deploy's `conf.instances.json` declares it. Instances start after their deploy's default workload has rolled out, and their hosts are folded into the run's existing TLS and `/etc/hosts` pass — self-signed in development, cert-manager in production. See [Main cluster lifecycle commands → Custom instances](<./Main cluster lifecycle commands.md>).
@@ -587,10 +587,10 @@ Deploy and expose the service simultaneously:
 
 ```bash
 # Deploy first
-underpost run instance myapp,api-v1,2
+underpost run instance --deploy-id myapp --instance-id api-v1 --replicas 2
 
 # Then expose
-underpost run --expose instance myapp,api-v1
+underpost run --expose instance --deploy-id myapp --instance-id api-v1
 ```
 
 ### Using Custom Images
@@ -648,10 +648,10 @@ The instance deployment uses a blue-green strategy:
 
 ```bash
 # Deploy initial version (creates 'blue')
-underpost run instance myapp,api-v1
+underpost run instance --deploy-id myapp --instance-id api-v1
 
 # Deploy updated version (creates 'green')
-underpost run instance myapp,api-v1
+underpost run instance --deploy-id myapp --instance-id api-v1
 
 # Promote to green
 underpost run instance-promote myapp,api-v1
