@@ -176,7 +176,7 @@ hosts_from() {
 
 # ─────────────────────────── runtime mode ───────────────────────────
 run_runtime_mode() {
-  local link_cmd="cd /home/dd,underpost clone ${TEMPLATE_REPO},cd /home/dd/${TEMPLATE_REPO##*/},npm install,npm link"
+  local link_cmd="cd /home/dd,underpost clone ${TEMPLATE_REPO},cd /home/dd/${TEMPLATE_REPO##*/},npm install,npm link --force"
   local deploy_cmd proxy_flag="" expose_flags="" start_flags=""
 
   # Publish the local engine src to underpostnet/engine-test-<id> so the pod
@@ -220,7 +220,7 @@ run_instance_mode() {
   for id in "${ids[@]}"; do
     [ -n "$id" ] || continue
     echo "[test-monitor] deploying instance ${DEPLOY_ID},${id}"
-    node bin run instance "${DEPLOY_ID},${id},${REPLICAS}" \
+    node bin run instance --deploy-id "$DEPLOY_ID" --instance-id "$id" --replicas "$REPLICAS" \
       $DEV_FLAG $CLUSTER_FLAG --namespace "$NAMESPACE" --etc-hosts $tls_flag \
       ${IMAGE:+--image-name "$IMAGE"}
   done
