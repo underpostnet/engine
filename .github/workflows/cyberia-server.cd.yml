@@ -32,5 +32,9 @@ jobs:
           script: |
             set -e
             set -o pipefail
+            # Carried across the SSH hop so the far side reports in GitHub Actions form:
+            # deploy/lib/logging.sh folds its monitor frames into collapsed groups, and the
+            # state domain's telemetry export emits ::notice::/::error:: annotations this job
+            # surfaces. GITHUB_ACTIONS itself is a runner-local variable and does not travel.
             export RUN_QUIET_CI=github
             bash /home/dd/engine/deploy/cyberia-server/deploy.sh
