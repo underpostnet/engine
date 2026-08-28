@@ -741,7 +741,7 @@ EOF
       const { namespace: envoyNamespace } = UNDERPOST_MONITORING.envoy;
       if (!exists(`kubectl get deployment envoy-gateway -n ${envoyNamespace} -o name`)) {
         logger.info('Envoy Gateway is absent; installing the Gateway API control plane', { envoyNamespace });
-        shellExec(`${cli('underpost', { local: options.dev })} cluster${options.dev ? ' --dev' : ''} --gateway-api`);
+        shellExec(`${cli('underpost', { local: true })} cluster${options.dev ? ' --dev' : ''} --gateway-api`);
       }
       if (!exists(`kubectl get deployment envoy-gateway -n ${envoyNamespace} -o name`))
         logger.warn('Envoy Gateway is still absent; its metrics job will discover no targets', { envoyNamespace });

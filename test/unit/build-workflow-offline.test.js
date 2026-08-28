@@ -87,6 +87,18 @@ describe('binary resolution is centralized', () => {
     }
   });
 
+  it('re-enters the executing package from every multi-stage runner', () => {
+    // Regression: `run dev-cluster` resolved to whatever underpost was globally installed.
+    // A stale one looked for credential seeds under engine-private/ after this version moved
+    // them to engine-private/deploy/, so MongoDB bootstrapped with empty root credentials and
+    // died on "not authorized". A re-entrant stage must run the code its parent runs.
+    for (const file of ['src/cli/run.js', 'src/cli/monitor.js']) {
+      const source = readSource(file);
+      expect(source, file).to.not.match(/cli\('underpost',\s*\{\s*local:\s*options\.dev/);
+      expect(source, file).to.not.match(/\bcli\(\)/);
+    }
+  });
+
   it('never shells out to a bare global underpost from the cyberia CLI', () => {
     const shelledOut = readSource('bin/cyberia.js').match(
       /(?<!\$\{cli\(\)\} )\bunderpost (?=clone|pull|push|cmt|run|start|deploy|secret)/g,

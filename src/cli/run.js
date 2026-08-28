@@ -471,7 +471,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'dev-cluster': (path, options = DEFAULT_OPTION) => {
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       const mongoHosts = ['mongodb-0.mongodb-service'];
       let primaryMongoHost = 'mongodb-0.mongodb-service';
       const clusterType = clusterTypeFactory(options);
@@ -839,7 +839,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'template-deploy': (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       shellExec(`npm run security:secrets`);
       const reportPath = './gitleaks-report.json';
       if (fs.existsSync(reportPath) && JSON.parse(fs.readFileSync(reportPath, 'utf8')).length > 0) {
@@ -916,7 +916,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'template-deploy-local': async (path, options = DEFAULT_OPTION) => {
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       shellExec(`npm run security:secrets`);
       const reportPath = './gitleaks-report.json';
       if (fs.existsSync(reportPath) && JSON.parse(fs.readFileSync(reportPath, 'utf8')).length > 0) {
@@ -1977,7 +1977,7 @@ EOF
         gatewayApi: gatewayApiEnabledFactory(options),
         namespace: options.namespace || 'default',
       };
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const deployId = options.deployId;
       const id = options.instanceId;
@@ -2731,7 +2731,7 @@ EOF`);
      * @memberof UnderpostRun
      */
     'dd-container': async (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const currentImage = options.imageName
         ? options.imageName
@@ -2958,7 +2958,7 @@ EOF`);
     cluster: async (path = '', options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       const env = deployEnvFactory(options);
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterType = clusterTypeFactory(options, 'kubeadm');
       shellCd(`/home/dd/engine`);
@@ -3744,7 +3744,7 @@ EOF`);
      */
     service: async (path = '', options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       shellCd(`/home/dd/engine`);
       let [deployId, serviceId, host, _path, replicas, image, node] = path.split(',');
@@ -3989,7 +3989,7 @@ EOF`);
     'deploy-test': async (path, options = DEFAULT_OPTION) => {
       // Note: use recomendation empty deploy cluster: node bin --dev cluster
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = cli('underpost', { local: options.dev });
+      const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const inputs = path ? path.split(',') : [];
       const deployId = inputs[0] ? inputs[0] : 'dd-test';

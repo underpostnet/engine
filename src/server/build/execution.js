@@ -351,9 +351,12 @@ let underpostCliCache;
  * Two different questions hide behind "run underpost", and conflating them runs the
  * wrong codebase:
  *
- *   - `local: true` — re-enter *this* checkout. Required for any stage that operates on
- *     the working tree it was launched from, because a globally installed `underpost` is
- *     a different package that will read different paths out of the same cwd.
+ *   - `local: true` — re-enter the package this process is running from, resolved through
+ *     `import.meta.url`. From a checkout that is the checkout; from a global install it is
+ *     that same global install, so a deployed node is unaffected. Every multi-stage runner
+ *     wants this: a stage that re-enters `underpost` must run the code its parent runs, or
+ *     the two disagree about layout. A stale global install reading credential seeds from a
+ *     directory this version moved is what that skew looks like in practice.
  *   - default — whichever CLI this machine is meant to use: the globally linked binary
  *     when one exists, otherwise this checkout by absolute path, so a build box without a
  *     global install still works and callers that `cd` elsewhere keep resolving the same
