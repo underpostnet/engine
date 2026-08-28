@@ -169,6 +169,7 @@ const TEST_TIERS = [
     groupOrder: 7,
     sources: [
       'src/api/cyberia-server-defaults/*.js',
+      'src/api/cyberia-instance/cyberia-fallback-capture.js',
       'src/api/object-layer/object-layer.model.js',
       'src/projects/cyberia/shape-generator.js',
     ],

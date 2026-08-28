@@ -66,6 +66,13 @@ const DEFAULT_GRID_SIZE = 64;
 
 const KNOWN_DEFAULT_ITEM_IDS = new Set(DefaultCyberiaItems.map((e) => e.item.id));
 
+/**
+ * Every item id the canonical defaults can place, equip, summon, sell, or
+ * craft. Shared with the fallback-world capture, which must resolve an atlas
+ * for each of them before writing a backup.
+ *
+ * @returns {Set<string>}
+ */
 function collectReferencedItemIds() {
   const ids = new Set();
   const push = (id) => {
@@ -366,6 +373,7 @@ export {
   generateFallbackWorld,
   generateFallbackMap,
   auditFallbackItemIds,
+  collectReferencedItemIds,
   fallbackListInstance,
   DEFAULT_FALLBACK_INSTANCE_CODE,
 };
