@@ -25,6 +25,12 @@ spec:
           envFrom:
             - secretRef:
                 name: underpost-config
+            # The deployment's own environment, with its .env.<env>.oci overlay already
+            # applied by 'app apply'. Optional so a deployment predating that Secret still
+            # starts; the in-pod 'app load' resolves the same overlay as a second path.
+            - secretRef:
+                name: dd-test-development-env
+                optional: true
           env:
             - name: UNDERPOST_INTERNAL_PORT
               value: "4032"
