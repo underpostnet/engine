@@ -28,6 +28,7 @@ import { loggerFactory } from '../ops/logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../../index.js';
 import { latchRuntimeError } from './runtime-status.js';
+import { executionDecisionFactory } from '../build/execution.js';
 const logger = loggerFactory(import.meta);
 /**
  * Gets the current working directory, replacing backslashes with forward slashes for consistency.
@@ -208,7 +209,45 @@ class ShellExecError extends Error {
  * @returns {string|shelljs.ShellString} `ShellString` by default; the stdout string when `stdout: true`.
  * @throws {ShellExecError} On non-zero exit when `silentOnError` is not set.
  */
+/**
+ * The result a denied read hands back.
+ *
+ * Shaped as a `ShellString` so an elided command is indistinguishable from one that ran
+ * and found nothing — which is the answer the `silentOnError` call sites already handle.
+ * @returns {shelljs.ShellString} Empty successful result.
+ * @memberof Process
+ */
+const neutralShellResult = () => {
+  const result = shell.ShellString('');
+  result.code = 0;
+  result.stdout = '';
+  result.stderr = '';
+  return result;
+};
+
+/**
+ * Applies the active execution profile to one command.
+ *
+ * This is the single gate the profile system rests on: because every external
+ * invocation reaches it, an offline stage needs no per-call-site opt-out.
+ * @param {string} cmd - The command about to run.
+ * @param {Object} options - The `shellExec` options.
+ * @returns {null|{elided: true, result: *}} `null` when the command may run.
+ * @memberof Process
+ */
+const executionGate = (cmd, options) => {
+  const decision = executionDecisionFactory(cmd);
+  if (decision.permitted) return null;
+  logger.info(`[${decision.profile}] elided ${decision.capability}`, redactCredentials(cmd));
+  return { elided: true, result: options.stdout ? '' : neutralShellResult() };
+};
+
 const shellExec = (cmd, options = {}) => {
+  const gated = executionGate(cmd, options);
+  if (gated) {
+    if (options.callback) return options.callback(0, '', '');
+    return gated.result;
+  }
   if (!options.disableLog) logger.info(`cmd`, redactCredentials(cmd));
 
   // Whitelist exactly the keys `shelljs.exec` understands. Passing our own
@@ -277,6 +316,8 @@ const shellExec = (cmd, options = {}) => {
  */
 const shellExecAsync = (cmd, options = {}) =>
   new Promise((resolve, reject) => {
+    const gated = executionGate(cmd, options);
+    if (gated) return resolve(options.stdout ? '' : { code: 0, stdout: '', stderr: '' });
     if (!options.disableLog) logger.info(`cmd`, redactCredentials(cmd));
     const shellOpts = { async: true };
     if (options.silent !== undefined) shellOpts.silent = options.silent;
