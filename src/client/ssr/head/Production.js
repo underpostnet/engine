@@ -1,1 +1,1 @@
-SrrComponent = () => html``;
+SSRComponent = () => html``;

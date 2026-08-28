@@ -22,10 +22,10 @@ const logger = loggerFactory(import.meta);
  * @memberof ServerSideRendering
  */
 const ssrFactory = async (componentPath = `./src/client/ssr/RootDocument.js`) => {
-  const context = { SrrComponent: () => {}, npm_package_version: Underpost.version };
+  const context = { SSRComponent: () => {}, npm_package_version: Underpost.version };
   vm.createContext(context);
   vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);
-  return context.SrrComponent;
+  return context.SSRComponent;
 };
 
 /**

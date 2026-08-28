@@ -1,4 +1,4 @@
-SrrComponent = ({
+SSRComponent = ({
   title,
   author,
   keywords,

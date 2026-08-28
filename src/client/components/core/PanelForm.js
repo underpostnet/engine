@@ -734,7 +734,7 @@ class PanelForm {
       panelData.loading = false;
       LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
     };
-    const renderSrrPanelData = async () =>
+    const renderSSRPanelData = async () =>
       await panelRender({
         data: range(0, 0).map((i) => ({
           id: i,
@@ -827,7 +827,7 @@ class PanelForm {
           // Always reset skip to 0 when reloading (whether cid exists or not)
           PanelForm.Data[idPanel].skip = 0;
           const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
-          htmls(containerSelector, await renderSrrPanelData());
+          htmls(containerSelector, await renderSSRPanelData());
           await getPanelData();
           htmls(
             containerSelector,
@@ -906,10 +906,10 @@ class PanelForm {
         };
     }
     if (options.parentIdModal) {
-      htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());
+      htmls(`.html-${options.parentIdModal}`, await renderSSRPanelData());
       return '';
     }
-    return await renderSrrPanelData();
+    return await renderSSRPanelData();
   }
 }
 export { PanelForm };

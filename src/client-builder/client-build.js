@@ -872,7 +872,7 @@ const buildClient = async (
                 confSSR[view.ssr].head.unshift('Production');
 
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
-                const SrrComponent = await ssrFactory(`./src/client/ssr/head/${ssrHeadComponent}.js`);
+                const SSRComponent = await ssrFactory(`./src/client/ssr/head/${ssrHeadComponent}.js`);
 
                 switch (ssrHeadComponent) {
                   case 'Pwa':
@@ -927,11 +927,11 @@ const buildClient = async (
                       // ],
                       // "prefer_related_applications": true
                     }
-                    if (validPwaBuild) ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                    if (validPwaBuild) ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
                     break;
                   case 'Seo':
                     if (metadata) {
-                      ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                      ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
                     }
                     break;
                   case 'Microdata':
@@ -943,18 +943,18 @@ const buildClient = async (
                       const microdata = JSON.parse(
                         fs.readFileSync(`./src/client/public/${publicClientId}/microdata.json`, 'utf8'),
                       );
-                      ssrHeadComponents += SrrComponent({ microdata });
+                      ssrHeadComponents += SSRComponent({ microdata });
                     }
                     break;
                   default:
-                    ssrHeadComponents += SrrComponent({ ssrPath, host, path });
+                    ssrHeadComponents += SSRComponent({ ssrPath, host, path });
                     break;
                 }
               }
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
-                const SrrComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
-                ssrBodyComponents += SrrComponent({
+                const SSRComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
+                ssrBodyComponents += SSRComponent({
                   ...metadata,
                   ssrPath,
                   host,

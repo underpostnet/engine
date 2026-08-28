@@ -282,4 +282,4 @@ const swaggerDarkJs = `(function () {
   }, 100);
 })();`;
 
-SrrComponent = () => ({ css: swaggerDarkCss, js: swaggerDarkJs });
+SSRComponent = () => ({ css: swaggerDarkCss, js: swaggerDarkJs });

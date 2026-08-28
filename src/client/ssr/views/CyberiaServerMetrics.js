@@ -1020,7 +1020,7 @@ const main = () => {
   setInterval(fetchMetrics, POLL_INTERVAL_MS);
 };
 
-SrrComponent = () =>
+SSRComponent = () =>
   html`<script>
     {
       const POLL_INTERVAL_MS = ${POLL_INTERVAL_MS};

@@ -99,7 +99,7 @@ const buildIcons = async ({
 
     const ssrPath = `./src/client/ssr/head/Pwa${getCapVariableName(publicClientId)}.js`;
     if (!fs.existsSync(ssrPath))
-      fs.writeFileSync(ssrPath, 'SrrComponent = () => html`' + response.html.join(`\n`) + '`;', 'utf8');
+      fs.writeFileSync(ssrPath, 'SSRComponent = () => html`' + response.html.join(`\n`) + '`;', 'utf8');
   } catch (error) {
     logger.error(error.message); // Error description e.g. "An unknown error has occurred"
   }

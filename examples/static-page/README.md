@@ -54,23 +54,23 @@ When `--output-path` is provided, the server serves the directory containing the
 
 See [`static-config-example.json`](./static-config-example.json) for a complete working example.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `page` | `string` | Path to the SSR component to render |
-| `outputPath` | `string` | Output HTML file path |
-| `buildPath` | `string` | Base path for static documents or assets (default: `"/"`) |
-| `env` | `string` | `"production"` or `"development"` |
-| `minify` | `boolean` | Minify HTML output |
-| `lang` | `string` | HTML `lang` attribute |
-| `dir` | `string` | HTML `dir` attribute (`ltr`/`rtl`) |
-| `metadata` | `object` | SEO metadata (title, description, keywords, author, themeColor, canonicalURL, thumbnail, locale, siteName) |
-| `scripts` | `object` | `{ head: [...], body: [...] }` — inline or external scripts |
-| `styles` | `array` | Inline (`content`) or external (`href`) stylesheets |
-| `icons` | `object` | `favicon`, `appleTouchIcon`, `manifest` paths |
-| `headComponents` | `array` | SSR component paths injected into `<head>` |
-| `bodyComponents` | `array` | SSR component paths injected into `<body>` |
-| `microdata` | `array` | JSON-LD structured data objects |
-| `customPayload` | `object` | Arbitrary data injected into the render payload |
+| Field            | Type      | Description                                                                                                |
+| ---------------- | --------- | ---------------------------------------------------------------------------------------------------------- |
+| `page`           | `string`  | Path to the SSR component to render                                                                        |
+| `outputPath`     | `string`  | Output HTML file path                                                                                      |
+| `buildPath`      | `string`  | Base path for static documents or assets (default: `"/"`)                                                  |
+| `env`            | `string`  | `"production"` or `"development"`                                                                          |
+| `minify`         | `boolean` | Minify HTML output                                                                                         |
+| `lang`           | `string`  | HTML `lang` attribute                                                                                      |
+| `dir`            | `string`  | HTML `dir` attribute (`ltr`/`rtl`)                                                                         |
+| `metadata`       | `object`  | SEO metadata (title, description, keywords, author, themeColor, canonicalURL, thumbnail, locale, siteName) |
+| `scripts`        | `object`  | `{ head: [...], body: [...] }` — inline or external scripts                                                |
+| `styles`         | `array`   | Inline (`content`) or external (`href`) stylesheets                                                        |
+| `icons`          | `object`  | `favicon`, `appleTouchIcon`, `manifest` paths                                                              |
+| `headComponents` | `array`   | SSR component paths injected into `<head>`                                                                 |
+| `bodyComponents` | `array`   | SSR component paths injected into `<body>`                                                                 |
+| `microdata`      | `array`   | JSON-LD structured data objects                                                                            |
+| `customPayload`  | `object`  | Arbitrary data injected into the render payload                                                            |
 
 ## CLI Flags
 
@@ -138,10 +138,10 @@ underpost static --page <path>                  # SSR component path
 
 The page content is defined in an SSR component file. See [`ssr-components/CustomPage.js`](./ssr-components/CustomPage.js) for an example.
 
-A component exports an `SrrComponent` function that returns an HTML template literal:
+A component exports an `SSRComponent` function that returns an HTML template literal:
 
 ```js
-SrrComponent = () => html`
+SSRComponent = () => html`
   <div>
     <h1>Hello World</h1>
     <p>Your page content here.</p>

@@ -1,4 +1,4 @@
-SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, renderPayload, renderApi }) => html`
+SSRComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, renderPayload, renderApi }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>

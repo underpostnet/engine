@@ -327,7 +327,7 @@ class CalendarCore {
       lastCid = cid;
       if (s(`.main-body-calendar-${options.idModal}`)) {
         // if (Auth.getToken())
-        // else getSrrData();
+        // else getSSRData();
         await getPanelData();
         htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
       }

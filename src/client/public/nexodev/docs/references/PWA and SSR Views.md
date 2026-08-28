@@ -141,7 +141,7 @@ Falls through to the other if the primary is missing from cache, then `Response.
 
 ## Adding a new SSR view
 
-1. Create `src/client/ssr/views/<MyView>.js` exporting an `SrrComponent` function (see `src/client/ssr/views/Test.js` for the minimum shape).
+1. Create `src/client/ssr/views/<MyView>.js` exporting an `SSRComponent` function (see `src/client/ssr/views/Test.js` for the minimum shape).
 2. Append an entry to the relevant `ssr.<App>.views` array in `conf.ssr.json` / `conf.dd-<conf-id>.js`.
 3. Run `npm run build` (or `npm run dev`) — the build emits `<root>/<path>/index.html` for the new view.
 

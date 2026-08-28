@@ -52,7 +52,7 @@ const main = () => {
   );
 };
 
-SrrComponent = () =>
+SSRComponent = () =>
   html`<script>
     {
       const s = ${s};

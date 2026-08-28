@@ -5,10 +5,10 @@
 
 /**
  * SSR Component Example for rendering a custom landing page
- * @function SrrComponent
+ * @function SSRComponent
  * @returns {string} HTML string for the page body
  */
-SrrComponent = () => html`
+SSRComponent = () => html`
   <!-- Main Container -->
   <div class="custom-page">
     <!-- Hero Section -->

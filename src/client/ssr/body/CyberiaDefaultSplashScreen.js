@@ -1,4 +1,4 @@
-SrrComponent = ({ backgroundImage, metadata }) => html`
+SSRComponent = ({ backgroundImage, metadata }) => html`
   ${backgroundImage
     ? html`<style class="style-ssr-background-image">
         .ssr-background-image {

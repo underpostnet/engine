@@ -70,7 +70,7 @@ const CacheControl = function ({ ttiLoadTimeLimit }) {
   setTimeout(window.cacheControlCallBack, ttiLoadTimeLimit); // 70s limit);
 };
 
-SrrComponent = ({ ttiLoadTimeLimit, version }) => {
+SSRComponent = ({ ttiLoadTimeLimit, version }) => {
   const borderChar = (px, color, selectors) => {
     if (selectors) {
       return selectors

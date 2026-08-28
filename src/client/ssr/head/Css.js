@@ -1,6 +1,6 @@
 // https://css-loaders.com/pulsing/
 
-SrrComponent = () => html`
+SSRComponent = () => html`
   <style>
     body {
       margin: 0;

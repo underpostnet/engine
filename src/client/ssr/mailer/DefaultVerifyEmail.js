@@ -1,4 +1,4 @@
-SrrComponent = (render = { style: {}, renderStyle: () => '' }, options) => html`
+SSRComponent = (render = { style: {}, renderStyle: () => '' }, options) => html`
   <div style="${render.renderStyle('body')}">
     <div style="${render.renderStyle('.container')}">
       <h1 style="${render.renderStyle('h1')}">{{H1}}</h1>

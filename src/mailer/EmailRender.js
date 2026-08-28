@@ -98,8 +98,8 @@ class EmailRenderService {
     for (const templateKey of Object.keys(options.templates)) {
       const ssrEmailComponent = options.templates[templateKey];
       // Note: ssrFactory is assumed to load and return a functional component/function
-      const SrrComponent = await ssrFactory(`./src/client/ssr/mailer/${ssrEmailComponent}.js`);
-      templates[templateKey] = SrrComponent(this, options);
+      const SSRComponent = await ssrFactory(`./src/client/ssr/mailer/${ssrEmailComponent}.js`);
+      templates[templateKey] = SSRComponent(this, options);
     }
     return templates;
   }

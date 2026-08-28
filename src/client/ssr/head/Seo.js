@@ -1,4 +1,4 @@
-SrrComponent = ({ title, author, keywords, description, themeColor, ssrPath, canonicalURL, thumbnail }) => html`
+SSRComponent = ({ title, author, keywords, description, themeColor, ssrPath, canonicalURL, thumbnail }) => html`
   <link rel="canonical" href="${canonicalURL}" />
 
   <meta name="author" content="${author}" />

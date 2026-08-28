@@ -1,4 +1,4 @@
-SrrComponent = ({ microdata }) => html`
+SSRComponent = ({ microdata }) => html`
   ${microdata
     .map(
       (jsonld) => html`
