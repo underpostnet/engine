@@ -1259,6 +1259,48 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
     },
 
     /**
+     * @method net-tables
+     * @description Prints the host's network tables: interfaces and links (`ip -br link show`) with state, MAC address, and flags, followed by IP addresses (`ip -br addr show`) with IPv4/IPv6, each aligned via `column -t`.
+     * @param {string} path - The input value, identifier, or path for the operation (unused).
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow (unused).
+     * @memberof UnderpostRun
+     */
+    'net-tables': (path, options = DEFAULT_OPTION) => {
+      logger.info(`INTERFACES & LINKS`);
+      shellExec(`(echo "INTERFACE STATE MAC FLAGS"; ip -br link show) | column -t`);
+      logger.info(`IP ADDRESSES`);
+      shellExec(`(echo "INTERFACE STATE IPV4 IPV6"; ip -br addr show) | column -t`);
+      logger.info('KERNEL ROUTING TABLE');
+      shellExec(`(echo "DESTINATION GATEWAY INTERFACE PROTO SCOPE METRIC"; \
+ip route show | awk '{
+  dst = $1; gw = "on-link"; dev = "-"; proto = "-"; scope = "-"; metric = "-";
+  for (i=1; i<=NF; i++) {
+    if ($i == "via") gw = $(i+1);
+    if ($i == "dev") dev = $(i+1);
+    if ($i == "proto") proto = $(i+1);
+    if ($i == "scope") scope = $(i+1);
+    if ($i == "metric") metric = $(i+1);
+  }
+  print dst, gw, dev, proto, scope, metric;
+}') | column -t`);
+      logger.info(`ACTIVE NAT FLOWS`);
+      shellExec(`(echo "CHAIN TYPE TARGET_IP_PORT PACKETS BYTES"; \
+sudo nft list table ip nat | awk '
+/chain (PREROUTING|POSTROUTING)/ {chain=$2} 
+/dnat to|masquerade|snat to/ && !/packets 0/ {
+    type = ($0 ~ "dnat") ? "DNAT" : (($0 ~ "masquerade") ? "MASQUERADE" : "SNAT");
+    target = "N/A";
+    pkts = "0"; bytes = "0";
+    for(i=1; i<=NF; i++) {
+        if ($i == "packets") pkts = $(i+1);
+        if ($i == "bytes") bytes = $(i+1);
+        if ($i == "to") target = $(i+1);
+    }
+    print chain, type, target, pkts, bytes;
+}') | column -t`);
+    },
+
+    /**
      * @method stop
      * @description Deletes colour-suffixed Deployments and their Services, leaving routing untouched.
      *
