@@ -617,6 +617,8 @@ class UnderpostEvent {
         address: hub.address,
         user: connection.user,
         host: connection.host,
+        port: connection.port,
+        keyPath: connection.keyPath,
         via: `${connection.user}@${connection.host}:${connection.port}`,
       };
     },
@@ -628,7 +630,7 @@ class UnderpostEvent {
      * The management host joins exactly against `conf.users.json`; credentials
      * never enter the topology or rendered monitoring configuration.
      * @param {string} spokeId - Registered spoke id.
-     * @returns {{spokeId: string, address: string, user: string, host: string, via: string}} Resolved remediation target.
+     * @returns {{spokeId: string, address: string, user: string, host: string, port: number, keyPath: string, via: string}} Resolved remediation target.
      * @throws {Error} When the spoke is unregistered or has no management connection.
      * @memberof UnderpostEvent
      */
@@ -648,6 +650,8 @@ class UnderpostEvent {
           address: spoke.address,
           user: '',
           host: '',
+          port: 0,
+          keyPath: '',
           via: 'local',
         };
       }
@@ -669,6 +673,8 @@ class UnderpostEvent {
         address: spoke.address,
         user: connection.user,
         host: connection.host,
+        port: connection.port,
+        keyPath: connection.keyPath,
         via: `${connection.user}@${connection.host}:${connection.port}`,
       };
     },

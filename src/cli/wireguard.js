@@ -24,7 +24,7 @@ import {
 } from '../server/network/forward-proxy.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { nodeExporterServiceScriptFactory } from '../server/ops/monitoring.js';
-import { installRootFile, shellExec, sleepSync } from '../server/runtime/process.js';
+import { installRootFile, pbcopy, shellExec, sleepSync } from '../server/runtime/process.js';
 import {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
@@ -75,6 +75,10 @@ const UNDERPOST_EDGE = {
   // down rather than merely idle.
   handshakeStaleSeconds: 180,
 };
+
+/** The SSH command that reaches a resolved node target; empty when the node is this machine. */
+const sshUriFactory = ({ user = '', host = '', port = 0, keyPath = '' } = {}) =>
+  host ? `ssh ${user}@${host}${keyPath ? ` -i ${keyPath}` : ''} -p ${port || UNDERPOST_EDGE.sshPort}` : '';
 
 /** Prints one line per node of a fleet-wide run and fails the process if any did. */
 const reportFleetOutcome = ({ ok, nodes }) => {
@@ -2448,6 +2452,32 @@ class UnderpostWireguard {
     },
 
     /**
+     * @method connectUri
+     * @description The SSH command that reaches each selected node, built from
+     * the same node-to-identity join every fleet action uses.
+     *
+     * A node is named by its document (`deploy/nodes/<node-name>.json`), and the
+     * address that document resolves to — a hub's public host, a spoke's
+     * management host — is the key `conf.users.json` is registered under, so the
+     * URI is the connection the cluster already holds rather than one composed
+     * by hand. A node that is this machine resolves to no URI: there is no hop
+     * to make.
+     * @param {object} [options] - CLI options (`nodes`).
+     * @returns {Array<{nodeName: string, via: string, uri: string}>} One entry per selected node, hubs first.
+     * @throws {Error} When no node is registered, or a selector matches none.
+     * @memberof UnderpostWireguard
+     */
+    connectUri(options = {}) {
+      const targets = Underpost.wireguard.syncTargets(options);
+      if (targets.length === 0) throw new Error(`[wireguard] no node is registered in ${EDGE_TOPOLOGY_PATH}`);
+      return targets.map((target) => ({
+        nodeName: target.nodeName,
+        via: target.via,
+        uri: sshUriFactory(target),
+      }));
+    },
+
+    /**
      * @method nodeExporter
      * @description Provisions the host metrics collector on the nodes the
      * cluster cannot schedule it onto.
@@ -2621,6 +2651,20 @@ class UnderpostWireguard {
       // sync steps inside the same `sync()` runner, so one dispatch covers both.
       if (options.sync === true || options.cmd) return reportFleetOutcome(await UnderpostWireguard.API.sync(options));
       if (options.nodeExporter === true) return reportFleetOutcome(await UnderpostWireguard.API.nodeExporter(options));
+      if (options.connectUri === true) {
+        const entries = UnderpostWireguard.API.connectUri(options);
+        // One node prints a pasteable command and nothing else; a fleet listing
+        // names the node each command belongs to.
+        const output = entries
+          .map(({ nodeName, uri, via }) => {
+            const value = uri || `# ${nodeName} is this machine (${via})`;
+            return entries.length === 1 ? value : `${nodeName.padEnd(28)} ${value}`;
+          })
+          .join('\n');
+        if (options.copy === true) pbcopy(output);
+        else console.log(output);
+        return;
+      }
 
       if (options.nodeConfig === true) UnderpostWireguard.API.nodeConfig(options);
       // `--build-conf` is a hard promise, not a modifier: it short-circuits
@@ -2702,6 +2746,7 @@ export {
   readNodeConfigs,
   readTopology,
   redirectHostFactory,
+  sshUriFactory,
   unregisteredPeersFactory,
   tunnelAddressFactory,
   tunnelNetworkCidrFactory,

@@ -5,7 +5,7 @@
  */
 
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
-import { pbcopy, shellExec } from '../server/runtime/process.js';
+import { shellExec } from '../server/runtime/process.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { waitForPort } from '../server/runtime/conf.js';
 import {
@@ -442,8 +442,6 @@ class UnderpostSSH {
      * @param {boolean} [options.keyTest=false] - Test SSH key generation
      * @param {boolean} [options.stop=false] - Stop SSH service
      * @param {boolean} [options.status=false] - Check SSH service status
-     * @param {boolean} [options.connectUri=false] - Output SSH connection URI
-     * @param {boolean} [options.copy=false] - Copy SSH connection URI to clipboard
      * @returns {Promise<void>}
      * @description
      * Handles SSH operations against the cluster users registry
@@ -475,8 +473,6 @@ class UnderpostSSH {
         keyTest: false,
         stop: false,
         status: false,
-        connectUri: false,
-        copy: false,
       },
     ) => {
       if (!options.user) options.user = 'root';
@@ -491,7 +487,7 @@ class UnderpostSSH {
       // unambiguous and several are not — an account on many spokes must be told
       // which one is meant rather than acting on whichever the registry lists
       // first. Listing and removal are account-scoped and need no host at all.
-      const hostScoped = options.connectUri || options.userAdd || options.start || options.keyTest || options.hostsList;
+      const hostScoped = options.userAdd || options.start || options.keyTest || options.hostsList;
       if (!options.host && hostScoped) {
         if (registeredHosts.length > 1)
           throw new Error(
@@ -515,13 +511,6 @@ class UnderpostSSH {
       const sshDirFactory = () => `${Underpost.ssh.getUserHome(options.user)}/.ssh`;
 
       logger.info('options', options);
-
-      if (options.connectUri) {
-        const uri = `ssh ${options.user}@${options.host} -i ${keyPath} -p ${options.port}`;
-        if (options.copy) pbcopy(uri);
-        else console.log(uri);
-        return;
-      }
 
       if (options.reset) {
         const sshDir = sshDirFactory();

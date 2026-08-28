@@ -744,8 +744,6 @@ program
   .option('--key-test', 'Tests the SSH key using ssh-keygen.')
   .option('--stop', 'Stops the SSH service.')
   .option('--status', 'Checks the status of the SSH service.')
-  .option('--connect-uri', 'Displays the connection URI.')
-  .option('--copy', 'Copies the connection URI to clipboard.')
   .description(
     'Manages cluster scoped SSH credentials and sessions for remote access to cluster nodes or services. ' +
       'Users are registered in engine-private/deploy/conf.users.json and keys are stored in engine-private/deploy/users/<user>.',
@@ -829,9 +827,16 @@ const edgeCommandFactory = (name, description) =>
     )
     .option(
       '--nodes <node-names>',
-      'Comma-separated node documents --sync, --cmd and --node-exporter act on. ' +
+      'Comma-separated node documents --sync, --cmd, --node-exporter and --connect-uri act on. ' +
         'Empty covers every hub and every peer of this node hub.',
     )
+    .option(
+      '--connect-uri',
+      'Prints the SSH command that reaches each node named by --nodes, joining the node document under ' +
+        'engine-private/deploy/nodes to the management address it is registered under in ' +
+        'engine-private/deploy/conf.users.json. Empty --nodes lists the whole fleet.',
+    )
+    .option('--copy', 'Copies the --connect-uri output to the clipboard instead of printing it.')
     .option(
       '--cmd <command-list>',
       'Comma-separated custom commands to run on the selected nodes over their SSH identity. ' +
