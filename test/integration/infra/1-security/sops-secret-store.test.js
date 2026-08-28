@@ -249,7 +249,7 @@ describe('sops encrypted secret store', () => {
     it('rejects a recipient that is not an age public key', () => {
       fs.writeFileSync(confPath, rule('age1aaa'), 'utf8');
       expect(() => sops().rotateRecipient('/etc/passwd')).to.throw(/not a valid Age public recipient/i);
-      expect(() => sops().rotateRecipient('')).to.throw(/requires --recipient/);
+      expect(() => sops().rotateRecipient('')).to.throw(/requires --args recipient/);
     });
   });
 
@@ -513,8 +513,8 @@ describe('sops encrypted secret store', () => {
       expect(error, 'expected assertDecryptable to throw').to.be.an('error');
       expect(error.message).to.include(`${NS}/mariadb-secret`);
       expect(error.message).to.include(FOREIGN);
-      expect(error.message).to.include('underpost secret sops --rotate');
-      expect(error.message).to.include('underpost secret --setup --force');
+      expect(error.message).to.include('underpost secret rotate --args recipient=');
+      expect(error.message).to.include('underpost secret setup --force');
     });
 
     it('raises the adoption error before any manifest reaches kubectl', () => {

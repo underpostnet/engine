@@ -5,7 +5,7 @@ import axios from 'axios';
 import fs from 'fs-extra';
 import os from 'node:os';
 import { Dns, UnderpostDns, getLocalIPv4Address, isInternetConnection } from '../../../../src/server/network/dns.js';
-import UnderpostRootEnv from '../../../../src/cli/env.js';
+import UnderpostHost from '../../../../src/cli/host.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
 // Every nftables static shells out and every DDNS provider talks HTTP, so the
@@ -389,9 +389,9 @@ describe('dns edge firewall and dynamic DNS', () => {
     afterEach(() => fs.removeSync(dir));
 
     const stubEnv = (ip) => {
-      vi.spyOn(UnderpostRootEnv.API, 'get').mockImplementation((key) => (key === 'ip' ? ip : ''));
-      vi.spyOn(UnderpostRootEnv.API, 'set').mockImplementation(() => undefined);
-      vi.spyOn(UnderpostRootEnv.API, 'delete').mockImplementation(() => undefined);
+      vi.spyOn(UnderpostHost.API.store, 'get').mockImplementation((key) => (key === 'ip' ? ip : ''));
+      vi.spyOn(UnderpostHost.API.store, 'set').mockImplementation(() => undefined);
+      vi.spyOn(UnderpostHost.API.store, 'delete').mockImplementation(() => undefined);
     };
 
     it('does nothing while the host is offline', async () => {
@@ -405,7 +405,7 @@ describe('dns edge firewall and dynamic DNS', () => {
       vi.spyOn(Dns, 'isInternetConnection').mockResolvedValue(true);
       vi.spyOn(Dns, 'getPublicIp').mockResolvedValue('203.0.113.9');
       stubEnv('203.0.113.9');
-      const set = vi.spyOn(UnderpostRootEnv.API, 'set');
+      const set = vi.spyOn(UnderpostHost.API.store, 'set');
       await Dns.callback(DEPLOY_ID);
       expect(set.mock.calls.length).to.equal(0);
     });
@@ -441,7 +441,7 @@ describe('dns edge firewall and dynamic DNS', () => {
       stubEnv('198.51.100.1');
       const update = vi.spyOn(Dns.services.updateIp, 'dondominio').mockResolvedValue(true);
       vi.spyOn(axios, 'get').mockResolvedValue({ request: { socket: { remoteAddress: '203.0.113.9' } } });
-      const set = vi.spyOn(UnderpostRootEnv.API, 'set');
+      const set = vi.spyOn(UnderpostHost.API.store, 'set');
 
       await Dns.callback(DEPLOY_ID);
 
@@ -456,7 +456,7 @@ describe('dns edge firewall and dynamic DNS', () => {
       vi.spyOn(Dns, 'getPublicIp').mockResolvedValue('203.0.113.9');
       stubEnv('198.51.100.1');
       vi.spyOn(axios, 'get').mockResolvedValue({ request: { socket: { remoteAddress: '198.51.100.1' } } });
-      const set = vi.spyOn(UnderpostRootEnv.API, 'set');
+      const set = vi.spyOn(UnderpostHost.API.store, 'set');
       await Dns.callback(DEPLOY_ID);
       expect(set.mock.calls.some(([key]) => key === 'ip')).to.equal(false);
     });

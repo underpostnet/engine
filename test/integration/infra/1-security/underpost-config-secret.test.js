@@ -99,33 +99,57 @@ describe('ipfs cluster origin credentials', () => {
   });
 });
 
-describe('root env store access boundary', () => {
+describe('host configuration store access boundary', () => {
   const cliSource = fs.readFileSync(new URL('../../../../src/cli/index.js', import.meta.url), 'utf8');
-  const envSource = fs.readFileSync(new URL('../../../../src/cli/env.js', import.meta.url), 'utf8');
+  const hostSource = fs.readFileSync(new URL('../../../../src/cli/host.js', import.meta.url), 'utf8');
 
-  it('exposes only key-level operators, leaving the lifecycle to the host domain', () => {
-    expect(cliSource).to.include("const CONFIG_OPERATORS = ['get', 'set', 'delete', 'list'];");
-    // `clean` is the host domain's canonical action over the same file; `isInsideContainer` is a
-    // runtime predicate, not a configuration operation. Neither belongs on this command.
-    for (const operator of ['clean', 'isInsideContainer'])
-      expect(cliSource, operator).to.not.include(`'${operator}',\n];`);
+  it('reaches the store through the host domain rather than a command of its own', () => {
+    const domainsSource = fs.readFileSync(new URL('../../../../src/cli/domains.js', import.meta.url), 'utf8');
+    // A second top-level command over the same file is what `underpost config` was. The
+    // operators are the host domain's now, so there is one command addressing that store.
+    expect(cliSource).to.not.include("command('config')");
+    expect(domainsSource).to.include("const DOMAIN_STORE_OPERATORS = ['get', 'set', 'delete', 'list'];");
+    for (const operator of ['get', 'set', 'delete', 'list'])
+      expect(typeof Underpost.host[operator], operator).to.equal('function');
+    // `clean` is a canonical lifecycle action over the same file; `isInsideContainer` is a
+    // runtime predicate. Neither is a per-key operation, so neither is a store operator.
+    const operators = /const DOMAIN_STORE_OPERATORS = \[([^\]]*)\]/.exec(domainsSource)[1];
+    for (const operator of ['clean', 'isInsideContainer']) expect(operators, operator).to.not.include(operator);
   });
 
-  it('rejects an operator outside the allowlist instead of indexing the API with it', () => {
-    expect(cliSource).to.include('Unknown config operator');
-    expect(cliSource).to.not.include('Underpost.env[args[0]]');
+  it('offers the key-level operators only to the domains that own a store', () => {
+    const domainsSource = fs.readFileSync(new URL('../../../../src/cli/domains.js', import.meta.url), 'utf8');
+    // The canonical seven are symmetric across every domain by construction; the operators are
+    // opt-in, so a domain owning no key-value store never grows a key argument. `host` and
+    // `state` own one each; `secret` and `app` own none.
+    expect(domainsSource).to.include('store = false');
+    const declared = (name) => {
+      const start = cliSource.indexOf(`name: '${name}',`);
+      return cliSource.slice(start, cliSource.indexOf('},', start)).includes('store: true');
+    };
+    for (const domain of ['host', 'state']) expect(declared(domain), domain).to.equal(true);
+    for (const domain of ['secret', 'app']) expect(declared(domain), domain).to.equal(false);
+    // And the command surface follows the declaration, not the API: `secret` happens to export
+    // a `list` of its own, which must stay off the command as an operator.
+    for (const domain of ['secret', 'app'])
+      expect(program.commands.find((command) => command.name() === domain).registeredArguments).to.have.lengthOf(1);
+    for (const domain of ['host', 'state'])
+      expect(program.commands.find((command) => command.name() === domain).registeredArguments).to.have.lengthOf(3);
   });
 
-  it('writes only the host root env store, never a deployment env file', () => {
-    // The removed `--build` branch wrote ./engine-private/conf/<id>/.env.* — an app-domain
-    // concern that had no caller and no place in a host-store command.
-    expect(envSource).to.not.include('engine-private/conf/');
-    expect(envSource).to.not.include('resolveDeployList');
+  it('writes only the host configuration store, never a deployment env file', () => {
+    // A deployment env file is the app domain's durable source; the host store never writes one.
+    const storeBlock = hostSource.slice(
+      hostSource.indexOf('store: dotenvStoreFactory({'),
+      hostSource.indexOf('envPath(env = '),
+    );
+    expect(storeBlock).to.not.include('engine-private/conf/');
+    expect(storeBlock).to.include('${getUnderpostRootPath()}/.env');
   });
 
   it('keeps the operators the instance status transport depends on', () => {
     // Lifecycle hooks stamp `container-status` and the monitor reads it back over kubectl exec.
-    for (const operator of ['get', 'set']) expect(Underpost.env[operator]).to.be.a('function');
+    for (const operator of ['get', 'set']) expect(Underpost.host.store[operator]).to.be.a('function');
   });
 });
 
@@ -136,26 +160,62 @@ describe('container state store', () => {
     'utf8',
   );
 
-  it('resolves to its own file, never the host root env store', () => {
-    expect(Underpost.state.path()).to.not.equal(Underpost.env.path());
+  it('resolves to its own file, never the host configuration store', () => {
+    expect(Underpost.state.path()).to.not.equal(Underpost.host.store.path());
     expect(Underpost.state.path()).to.match(/\.state$/);
-    expect(Underpost.env.path()).to.match(/\.env$/);
+    expect(Underpost.host.store.path()).to.match(/\.env$/);
+  });
+
+  it('holds the boot latch, not the host configuration store', () => {
+    // `await-deploy` is container-scoped: set when a runtime starts configuring itself, cleared
+    // when it is listening. Held in the host store it was erased by `host load` (which cleans
+    // the file before repopulating it) and by the `host clean` the start pipeline runs once a
+    // production deployment is serving — both host-domain operations that know nothing about it.
+    const confSource = fs.readFileSync(new URL('../../../../src/server/runtime/conf.js', import.meta.url), 'utf8');
+    const runtimeSource = fs.readFileSync(
+      new URL('../../../../src/server/runtime/runtime.js', import.meta.url),
+      'utf8',
+    );
+    for (const [name, source] of [
+      ['conf.js', confSource],
+      ['runtime.js', runtimeSource],
+      ['runtime-status.js', statusSource],
+    ])
+      expect(source, name).to.not.include("store.set('await-deploy'");
+    expect(statusSource).to.include('Underpost.state.set(AWAIT_DEPLOY_KEY');
+    expect(statusSource).to.include('Underpost.state.delete(AWAIT_DEPLOY_KEY)');
+    // The key reaches the store through the contract module alone, never a literal at a call site.
+    for (const [name, source] of [
+      ['conf.js', confSource],
+      ['runtime.js', runtimeSource],
+    ])
+      expect(source, name).to.not.include("'await-deploy'");
   });
 
   it('routes every lifecycle transition through the state store', () => {
-    expect(statusSource).to.not.include('Underpost.env.');
+    expect(statusSource).to.not.include('Underpost.host.store.');
     for (const call of ['Underpost.state.set(CONTAINER_STATUS_KEY', 'Underpost.state.get(CONTAINER_STATUS_KEY'])
       expect(statusSource, call).to.include(call);
   });
 
-  it('exposes the same key-level operators as config, under its own command', () => {
-    expect(cliSource).to.include("const STATE_OPERATORS = ['get', 'set', 'delete', 'list'];");
-    expect(cliSource).to.include('Unknown state operator');
+  it('carries the key-level operators and the full canonical action set', () => {
+    // The fourth domain: the same seven verbs as the other three, plus the store operators the
+    // in-pod lifecycle hooks and the monitor transport call.
+    for (const operator of ['get', 'set', 'delete', 'list'])
+      expect(typeof Underpost.state[operator], operator).to.equal('function');
+    for (const action of ['setup', 'load', 'publish', 'apply', 'status', 'rotate', 'clean'])
+      expect(typeof Underpost.state[action], action).to.equal('function');
   });
 
-  it('is the first location the monitor exec transport reads', () => {
+  it('is registered as a domain rather than as a command of its own', () => {
+    expect(cliSource).to.not.include("command('state')");
+    expect(cliSource).to.include("name: 'state',");
+  });
+
+  it('is the only location the monitor exec transport reads', () => {
     const monitorSource = fs.readFileSync(new URL('../../../../src/cli/monitor.js', import.meta.url), 'utf8');
     expect(monitorSource).to.include('underpost state get container-status --plain');
+    expect(monitorSource).to.not.include('underpost config');
   });
 
   it('latches a failure through one helper rather than a literal in each module', () => {
@@ -187,26 +247,35 @@ describe('image bootstrap ABI', () => {
 
   it('keeps the commands a deployed image drives the pulled source through', () => {
     // A released `start` lifecycle shells out to these against the checkout it just cloned.
+    // `app` replaced the `env` alias here: any image whose baked lifecycle still names `env`
+    // must be rebuilt, so a re-added alias would hide that rather than fix it.
     const names = program.commands.map((command) => command.name());
-    for (const command of ['env', 'client', 'run', 'start']) expect(names, command).to.include(command);
+    for (const command of ['app', 'client', 'run', 'start']) expect(names, command).to.include(command);
+    expect(names).to.not.include('env');
   });
 });
 
-describe('container status read across image generations', () => {
+describe('container status read', () => {
   const monitorSource = fs.readFileSync(new URL('../../../../src/cli/monitor.js', import.meta.url), 'utf8');
   const read = monitorSource.slice(
     monitorSource.indexOf('const CONTAINER_STATUS_READ'),
     monitorSource.indexOf('const grafanaAdminSyncState'),
   );
 
-  it('asks the current location first and the older one second', () => {
-    expect(read.indexOf('underpost state get')).to.be.lessThan(read.indexOf('underpost config get'));
+  it('reads container status from the state domain and from nowhere else', () => {
+    // The host configuration store is node-scoped and survives the container; container status
+    // is neither. Reading it there once let a stale value from a previous workload answer for
+    // the current one, so that path is gone rather than kept as a fallback.
+    expect(read).to.include('underpost state get container-status');
+    expect(read).to.not.include('underpost config');
+    expect(read).to.not.include('host get container-status');
   });
 
-  it('falls through on an empty answer, not only on a failed one', () => {
-    // An image without `state` exits non-zero; one that has it but has recorded nothing exits
-    // zero with empty output. Only testing the exit status would strand the second case.
-    expect(read).to.include('[ -n "$s" ] ||');
+  it('never fails the read itself when the pod has recorded nothing yet', () => {
+    // An image that has the command but has not recorded a status exits zero with empty
+    // output; one too old to carry it exits non-zero. Both must reach the caller as "no
+    // reading", which classifies the pod as unreadable rather than as a status.
+    expect(read).to.include('|| true');
   });
 
   it('reports what the pod said instead of collapsing every failure to one label', () => {

@@ -158,12 +158,8 @@ describe('cluster custom instances', () => {
       const hostsPath = `${customComposeDir}/hosts`;
       fs.writeFileSync(hostsPath, '127.0.0.1 localhost\n', 'utf8');
       const options = { path: hostsPath, append: true, blockId: 'fixture-docker-compose' };
-      expect(etcHostFactory(['fixture-client', 'fixture-server', 'fixture-engine'], options).changed).to.equal(
-        true,
-      );
-      expect(etcHostFactory(['fixture-client', 'fixture-server', 'fixture-engine'], options).changed).to.equal(
-        false,
-      );
+      expect(etcHostFactory(['fixture-client', 'fixture-server', 'fixture-engine'], options).changed).to.equal(true);
+      expect(etcHostFactory(['fixture-client', 'fixture-server', 'fixture-engine'], options).changed).to.equal(false);
       const hosts = fs.readFileSync(hostsPath, 'utf8');
       expect(hosts.match(/underpost hosts fixture-docker-compose:begin/g)).to.have.length(1);
       expect(hosts).to.include('127.0.0.1 localhost');
@@ -184,7 +180,7 @@ describe('cluster custom instances', () => {
   it('resolves several instances across several deploys', () => {
     const { byDeployId, unmatched } = clusterInstancesFactory(
       ['dd-fixture-a', 'dd-fixture-b'],
-      'mmo-server+mmo-client+worker',
+      'mmo-server,mmo-client,worker',
     );
     expect(byDeployId['dd-fixture-a'].ids).to.deep.equal(['mmo-server', 'mmo-client']);
     expect(byDeployId['dd-fixture-a'].hosts).to.deep.equal(['server.fixture.test', 'client.fixture.test']);
@@ -207,13 +203,13 @@ describe('cluster custom instances', () => {
   });
 
   it('reports an id no deploy declares instead of silently skipping it', () => {
-    const { byDeployId, unmatched } = clusterInstancesFactory(['dd-fixture-a'], 'mmo-server+nope');
+    const { byDeployId, unmatched } = clusterInstancesFactory(['dd-fixture-a'], 'mmo-server,nope');
     expect(byDeployId['dd-fixture-a'].ids).to.deep.equal(['mmo-server']);
     expect(unmatched).to.deep.equal(['nope']);
   });
 
   it('is a no-op when no instance list is given', () => {
-    for (const list of ['', undefined, '+'])
+    for (const list of ['', undefined, ','])
       expect(clusterInstancesFactory(['dd-fixture-a'], list)).to.deep.equal({
         byDeployId: { 'dd-fixture-a': { ids: [], hosts: [] } },
         unmatched: [],

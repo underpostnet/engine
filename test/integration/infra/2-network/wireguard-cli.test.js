@@ -1019,6 +1019,25 @@ describe('edge host provisioning', () => {
       expect(install.mock.calls.length).to.equal(0);
     });
 
+    it('routes --cmd alone as a fleet run, away from every host action', async () => {
+      const sync = vi.spyOn(UnderpostWireguard.API, 'sync').mockResolvedValue({ ok: true, nodes: [] });
+      const install = vi.spyOn(UnderpostWireguard.API, 'install').mockImplementation(() => undefined);
+
+      await UnderpostWireguard.API.callback({ cmd: 'uptime', wireguardInstall: true });
+
+      expect(sync.mock.calls.length).to.equal(1);
+      expect(install.mock.calls.length).to.equal(0);
+    });
+
+    it('runs a single fleet dispatch when --cmd replaces the sync sequence', async () => {
+      const sync = vi.spyOn(UnderpostWireguard.API, 'sync').mockResolvedValue({ ok: true, nodes: [] });
+
+      await UnderpostWireguard.API.callback({ sync: true, cmd: 'uptime, hostname' });
+
+      expect(sync.mock.calls.length).to.equal(1);
+      expect(sync.mock.calls[0][0]).to.include({ cmd: 'uptime, hostname' });
+    });
+
     it('exposes the same API through the CLI namespace', () => {
       expect(Underpost.wireguard).to.equal(UnderpostWireguard.API);
     });

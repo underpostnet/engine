@@ -2,6 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import { readFileSync } from 'node:fs';
 import net from 'node:net';
 import shell from 'shelljs';
 import {
@@ -39,7 +40,6 @@ import {
   updatePrivateTemplateRepo,
   waitForPort,
 } from '../../src/server/runtime/conf.js';
-import UnderpostRootEnv from '../../src/cli/env.js';
 import UnderpostState from '../../src/cli/state.js';
 
 const withArgv = (argv, run) => {
@@ -187,6 +187,27 @@ describe('conf file resolution', () => {
     });
   });
 
+  it('honors an explicitly named sub-conf whatever the ambient environment says', () => {
+    // Regression: `underpost` loads the host configuration store with `override: true`, and on a
+    // provisioned node that store carries NODE_ENV=production. Gating the explicit sub-conf on
+    // development therefore discarded it on every CLI call — `node bin client dd-core nexodev`
+    // built conf.server.json, every host in it, rather than conf.server.dev.nexodev.json.
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}`.endsWith('conf.server.dev.local.json'));
+    for (const NODE_ENV of ['production', 'test', undefined])
+      withEnv({ NODE_ENV }, () => {
+        expect(getConfFilePath('dd-core', 'server', 'local'), `NODE_ENV=${NODE_ENV}`).to.equal(
+          './engine-private/conf/dd-core/conf.server.dev.local.json',
+        );
+      });
+  });
+
+  it('falls back to the base conf when the named sub-conf has no variant file', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    withEnv({ NODE_ENV: 'development' }, () => {
+      expect(getConfFilePath('dd-core', 'server', 'absent')).to.equal('./engine-private/conf/dd-core/conf.server.json');
+    });
+  });
+
   it('reads the sub-conf from the environment when none is passed', () => {
     vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}`.endsWith('conf.server.dev.envsub.json'));
     withEnv({ NODE_ENV: 'development', DEPLOY_SUB_CONF: 'envsub' }, () => {
@@ -196,13 +217,42 @@ describe('conf file resolution', () => {
     });
   });
 
-  it('never takes the development variant outside development', () => {
+  it('never takes the development variant for a sub-conf only inherited from the environment', () => {
+    // The env-var fallback keeps its gate: a production deploy that merely carries
+    // DEPLOY_SUB_CONF must not start reading a dev conf because of it. Only a caller that
+    // names the sub-conf overrides the environment.
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-    withEnv({ NODE_ENV: 'production' }, () => {
-      expect(getConfFilePath('dd-core', 'server', 'local')).to.equal(
-        './engine-private/replica/dd-core/conf.server.json',
-      );
+    withEnv({ NODE_ENV: 'production', DEPLOY_SUB_CONF: 'envsub' }, () => {
+      expect(getConfFilePath('dd-core', 'server')).to.equal('./engine-private/replica/dd-core/conf.server.json');
     });
+  });
+
+  it('never takes a development variant for a conf type that has none', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    withEnv({ NODE_ENV: 'development' }, () => {
+      for (const confType of ['client', 'ssr', 'cron'])
+        expect(getConfFilePath('dd-core', confType, 'local'), confType).to.equal(
+          `./engine-private/replica/dd-core/conf.${confType}.json`,
+        );
+    });
+  });
+
+  it('carries the sub-conf into the build rather than re-deriving it from the environment', () => {
+    // `client` accepts `[sub-conf]` but the two reads that actually drive the build used to take
+    // it from DEPLOY_SUB_CONF, so a build could read a different conf.server than the loadConf
+    // its caller had just run — and did, whenever the ambient environment was not development.
+    const clientSource = fs.readFileSync(new URL('../../src/cli/client.js', import.meta.url), 'utf8');
+    const buildSource = fs.readFileSync(new URL('../../src/client-builder/client-build.js', import.meta.url), 'utf8');
+    expect(clientSource).to.include(
+      "readConfJson(resolvedDeployId, 'server', { subConf: subConf ?? '', loadReplicas: true })",
+    );
+    expect(clientSource).to.include("subConf: subConf ?? '',");
+    for (const call of [
+      "readConfJson(deployId, 'client', { subConf })",
+      "readConfJson(deployId, 'server', { subConf, loadReplicas: true })",
+      "readConfJson(deployId, 'ssr', { subConf })",
+    ])
+      expect(buildSource, call).to.include(call);
   });
 
   it('names the missing file rather than failing on a parse', () => {
@@ -282,29 +332,41 @@ describe('deploy value helpers', () => {
 describe('deploy monitor wait', () => {
   afterEach(() => vi.restoreAllMocks());
 
+  // Both keys this reads — `container-status` and the `await-deploy` boot latch — are
+  // container-scoped, so the whole wait resolves against the state store and never touches the
+  // host configuration store a host-domain action is free to clear underneath it.
   it('returns false as soon as a container reports an error', async () => {
-    // Container status lives in the state store, not the host root env store.
     vi.spyOn(UnderpostState.API, 'get').mockImplementation((key) => (key === 'container-status' ? 'error' : ''));
-    vi.spyOn(UnderpostRootEnv.API, 'set').mockImplementation(() => undefined);
-    vi.spyOn(UnderpostRootEnv.API, 'get').mockReturnValue('');
+    vi.spyOn(UnderpostState.API, 'set').mockImplementation(() => undefined);
     expect(await awaitDeployMonitor(true, 1)).to.equal(false);
   });
 
   it('returns true once nothing is awaiting a deploy', async () => {
-    vi.spyOn(UnderpostRootEnv.API, 'set').mockImplementation(() => undefined);
-    vi.spyOn(UnderpostRootEnv.API, 'get').mockReturnValue('');
+    vi.spyOn(UnderpostState.API, 'set').mockImplementation(() => undefined);
+    vi.spyOn(UnderpostState.API, 'get').mockReturnValue('');
     expect(await awaitDeployMonitor(false, 1)).to.equal(true);
   });
 
   it('keeps polling while a deploy is still marked awaiting', async () => {
-    vi.spyOn(UnderpostRootEnv.API, 'set').mockImplementation(() => undefined);
+    vi.spyOn(UnderpostState.API, 'set').mockImplementation(() => undefined);
     let remaining = 2;
-    vi.spyOn(UnderpostRootEnv.API, 'get').mockImplementation((key) => {
+    vi.spyOn(UnderpostState.API, 'get').mockImplementation((key) => {
       if (key === 'container-status') return '';
       return remaining-- > 0 ? '2026-01-01T00:00:00.000Z' : '';
     });
     expect(await awaitDeployMonitor(false, 1)).to.equal(true);
     expect(remaining).to.be.below(0);
+  });
+
+  it('never reaches for the host configuration store', () => {
+    // `host load` cleans that file before repopulating it and `host clean` removes it outright,
+    // both while a deployment may be mid-boot. A latch held there is one a host operation can
+    // silently drop.
+    const source = readFileSync(new URL('../../src/server/runtime/conf.js', import.meta.url), 'utf8');
+    const body = source.slice(source.indexOf('const awaitDeployMonitor ='), source.indexOf('const mergeFile ='));
+    expect(body).to.not.include('Underpost.host');
+    expect(body).to.include('latchAwaitDeploy()');
+    expect(body).to.include('isAwaitingDeploy()');
   });
 });
 
@@ -591,7 +653,22 @@ describe('port readiness wait', () => {
 });
 
 describe('private conf sync', () => {
+  const CRON_ID_PATH = './engine-private/deploy/dd.cron';
   let commands;
+
+  // `existsSync` is answered per path, never blanket-true: the sync reads the cron deploy id
+  // straight after its own existence check, so a blanket answer fabricates
+  // `engine-private/deploy/dd.cron` and sends the read at whatever the runner happens to have
+  // cloned — present on a full checkout, absent in CI. `cronId` states which case is under test.
+  const checkout = ({ present, cronId = null }) => {
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) =>
+      `${filePath}` === CRON_ID_PATH ? cronId !== null : present,
+    );
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath, ...rest) => {
+      if (`${filePath}` === CRON_ID_PATH) return `${cronId}\n`;
+      return readFileSync(filePath, ...rest);
+    });
+  };
 
   beforeEach(() => {
     commands = [];
@@ -608,7 +685,7 @@ describe('private conf sync', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('clones the private repository when the checkout is missing', () => {
-    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    checkout({ present: false });
     withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
     expect(commands[0]).to.equal('cd .. && underpost clone fixture-org/engine-core-private');
     expect(commands.some((command) => command.includes('underpost push . fixture-org/engine-core-private'))).to.equal(
@@ -617,7 +694,7 @@ describe('private conf sync', () => {
   });
 
   it('resets an existing checkout rather than cloning over it', () => {
-    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    checkout({ present: true, cronId: 'dd-cron' });
     vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
     withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
     expect(commands.some((command) => command.includes('git checkout . && git clean -f -d'))).to.equal(true);
@@ -626,13 +703,36 @@ describe('private conf sync', () => {
 
   it('mirrors only the payload entries belonging to the deploy', () => {
     const copied = [];
-    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    checkout({ present: true, cronId: 'dd-cron' });
     vi.spyOn(fs, 'readdirSync').mockReturnValue(['dd-core-blue', 'dd-other-green']);
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => copied.push(`${src} -> ${dest}`));
     withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core', ['catalog/items.json']));
     expect(copied).to.include('./engine-private/replica/dd-core-blue -> ../engine-core-private/replica/dd-core-blue');
     expect(copied.some((entry) => entry.includes('dd-other-green'))).to.equal(false);
     expect(copied).to.include('./engine-private/catalog/items.json -> ../engine-core-private/catalog/items.json');
+  });
+
+  it('mirrors the cron conf the checkout declares', () => {
+    const copied = [];
+    checkout({ present: true, cronId: 'dd-cron' });
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => copied.push(`${src} -> ${dest}`));
+    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
+    expect(copied).to.include('./engine-private/conf/dd-cron -> ../engine-core-private/conf/dd-cron');
+  });
+
+  // A checkout with no `deploy/dd.cron` is the CI one. Mirroring `conf/null` fails the whole
+  // sync over an optional the deploy never declared.
+  it('mirrors no cron conf when the checkout declares none', () => {
+    const copied = [];
+    checkout({ present: true });
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => copied.push(`${src} -> ${dest}`));
+    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
+    expect(copied.some((entry) => entry.includes('null'))).to.equal(false);
+    expect(commands.some((command) => command.includes('underpost push . fixture-org/engine-core-private'))).to.equal(
+      true,
+    );
   });
 
   it('reports that a deploy declares no public sources to move', () => {

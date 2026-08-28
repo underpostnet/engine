@@ -6,7 +6,6 @@ import os from 'node:os';
 import Underpost from '../../../../src/index.js';
 import UnderpostBaremetal from '../../../../src/cli/baremetal.js';
 import UnderpostRepository from '../../../../src/cli/repository.js';
-import UnderpostRootEnv from '../../../../src/cli/env.js';
 import UnderpostState from '../../../../src/cli/state.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
@@ -123,13 +122,13 @@ describe('grafana administrator credentials', () => {
   });
 });
 
-describe('underpost root env store', () => {
+describe('host configuration store', () => {
   let cleaned;
   let set;
 
   beforeEach(() => {
-    cleaned = vi.spyOn(UnderpostRootEnv.API, 'clean').mockImplementation(() => undefined);
-    set = vi.spyOn(UnderpostRootEnv.API, 'set').mockImplementation(() => undefined);
+    cleaned = vi.spyOn(Underpost.host.store, 'clean').mockImplementation(() => undefined);
+    set = vi.spyOn(Underpost.host.store, 'set').mockImplementation(() => undefined);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -192,8 +191,8 @@ describe('application deployment environment', () => {
   let set;
 
   beforeEach(() => {
-    cleaned = vi.spyOn(UnderpostRootEnv.API, 'clean').mockImplementation(() => undefined);
-    set = vi.spyOn(UnderpostRootEnv.API, 'set').mockImplementation(() => undefined);
+    cleaned = vi.spyOn(Underpost.host.store, 'clean').mockImplementation(() => undefined);
+    set = vi.spyOn(Underpost.host.store, 'set').mockImplementation(() => undefined);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -229,8 +228,8 @@ describe('application deployment environment', () => {
     expect(first.source).to.equal('./engine-private/conf/dd-core/.env.production');
   });
 
-  it('materializes the working tree and leaves the host root env store alone', () => {
-    // Regression: `app load` used to rebuild the underpost root env store, which is host-scoped.
+  it('materializes the working tree and leaves the host configuration store alone', () => {
+    // Regression: `app load` used to rebuild the host configuration store, which is host-scoped.
     // Running it after `host load` erased the node's own configuration, container-status included.
     const appSource = fs.readFileSync(new URL('../../../../src/cli/app.js', import.meta.url), 'utf8');
     const loadBody = appSource.slice(
@@ -238,8 +237,8 @@ describe('application deployment environment', () => {
       appSource.indexOf('    publish(context = {}) {'),
     );
     expect(loadBody).to.include('loadConf(deployId');
-    expect(loadBody).to.not.include('Underpost.env.clean()');
-    expect(loadBody).to.not.include('Underpost.env.set(');
+    expect(loadBody).to.not.include('Underpost.host.store.clean()');
+    expect(loadBody).to.not.include('Underpost.host.store.set(');
   });
 
   it('names the missing file instead of silently loading nothing', () => {
@@ -310,9 +309,9 @@ describe('underpost-config secret', () => {
     expect(() => Underpost.host.apply()).to.throw('configuration source not found');
   });
 
-  it('clears the root env store and leaves container state untouched', () => {
+  it('clears the host configuration store and leaves container state untouched', () => {
     // Container runtime state has its own store, so the clean needs no carve-out for it.
-    const clean = vi.spyOn(UnderpostRootEnv.API, 'clean').mockImplementation(() => undefined);
+    const clean = vi.spyOn(Underpost.host.store, 'clean').mockImplementation(() => undefined);
     const stateClean = vi.spyOn(UnderpostState.API, 'clean').mockImplementation(() => undefined);
     vi.spyOn(UnderpostRepository.API, 'cleanupPrivateEngineRepo').mockImplementation(() => undefined);
     Underpost.host.clean({ args: {} });

@@ -1,5 +1,12 @@
 import { expect } from 'chai';
-import { buildProductPackageJson, productDevDependenciesFactory } from '../../src/server/build/package.js';
+import fs from 'fs-extra';
+import shell from 'shelljs';
+import {
+  STAGED_CLI_PACKAGE,
+  buildProductPackageJson,
+  productDevDependenciesFactory,
+  stagePackageArchive,
+} from '../../src/server/build/package.js';
 
 describe('generated product package dependencies', () => {
   it('keeps the engine toolchain for checkout tests without duplicating runtime dependencies', () => {
@@ -90,5 +97,48 @@ describe('generated product package dependencies', () => {
       devDependencies: { vitest: '4.1.11' },
       scripts: { test: 'vitest' },
     });
+  });
+});
+
+describe('package archive staging', () => {
+  let fixturePath;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (fixturePath) fs.removeSync(fixturePath);
+  });
+
+  it('packs in isolation and replaces the stable build-context archive', () => {
+    fixturePath = fs.mkdtempSync('/tmp/engine-package-stage-');
+    const packagePath = `${fixturePath}/source package`;
+    const outputPath = `${fixturePath}/build context`;
+    fs.outputJsonSync(`${packagePath}/package.json`, { name: 'example-package', version: '1.2.3' });
+    fs.outputFileSync(`${outputPath}/${STAGED_CLI_PACKAGE}`, 'old');
+
+    let temporaryPath;
+    const exec = vi.spyOn(shell, 'exec').mockImplementation((command) => {
+      temporaryPath = command.match(/--pack-destination '([^']+)'/)?.[1];
+      fs.outputFileSync(`${temporaryPath}/example-package-1.2.3.tgz`, 'new');
+      return { code: 0, stdout: '', stderr: '' };
+    });
+
+    const stagedPath = stagePackageArchive({
+      stagedFileName: STAGED_CLI_PACKAGE,
+      outputPath,
+      packagePath,
+    });
+
+    expect(stagedPath).to.equal(`${outputPath}/${STAGED_CLI_PACKAGE}`);
+    expect(fs.readFileSync(stagedPath, 'utf8')).to.equal('new');
+    expect(fs.existsSync(temporaryPath)).to.equal(false);
+    expect(exec.mock.calls[0][0]).to.include("--ignore-scripts --pack-destination '");
+    expect(exec.mock.calls[0][0]).to.include(`'${packagePath}'`);
+    expect(exec.mock.calls[0][1]).to.deep.equal({ silent: true });
+  });
+
+  it('rejects staged names that can escape the output directory', () => {
+    expect(() => stagePackageArchive({ stagedFileName: '../package.tgz' })).to.throw(
+      'stagePackageArchive requires a file name without a directory',
+    );
   });
 });

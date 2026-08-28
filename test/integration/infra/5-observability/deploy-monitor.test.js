@@ -3,7 +3,7 @@
  * @description End-to-end test of the two-phase deployment readiness contract
  * between the in-pod runtime (`start.js` / `runtime-status.js`) and the CD-runner
  * monitor (`Underpost.monitor.monitorReadyRunner`), exercised as real OS
- * processes coordinating through the shared underpost env file and a real HTTP
+ * processes coordinating through the shared host configuration store and a real HTTP
  * internal status endpoint.
  *
  * Contract under test:

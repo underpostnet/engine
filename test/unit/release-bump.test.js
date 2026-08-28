@@ -378,3 +378,97 @@ describe('release pipeline commands', () => {
     });
   });
 });
+
+// A document root that was never materialized is what Apache turns into a blanket 403, and the
+// 403 carries nothing naming this step — so the branch that skipped provisioning has to be
+// distinguishable in the log it leaves behind.
+describe('site root provisioning', () => {
+  let commands;
+
+  beforeEach(() => {
+    commands = [];
+    vi.spyOn(shell, 'exec').mockImplementation((command) => {
+      commands.push(command);
+      return { code: 0, stdout: '', stderr: '', toString: () => '' };
+    });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('separates an unresolved conf reference from an unreachable remote', () => {
+    const isRemote = vi.spyOn(UnderpostRepository.API, 'isRemoteRepo').mockReturnValue(true);
+    for (const repository of ['', '   ', undefined, null]) {
+      const result = UnderpostRepository.API.provisionSiteRoot({
+        host: 'www.example.com',
+        siteRoot: '/home/dd/netlify_example',
+        repository,
+      });
+      expect(result).to.deep.equal({ accessible: false, cloned: false });
+    }
+    // The remote was never consulted: an empty reference is a conf fault, not a GitHub one.
+    expect(isRemote.mock.calls.length).to.equal(0);
+    expect(commands).to.deep.equal([]);
+  });
+
+  it('reports an unreachable remote without touching the document root', () => {
+    vi.spyOn(UnderpostRepository.API, 'isRemoteRepo').mockReturnValue(false);
+    const existsSync = vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    expect(
+      UnderpostRepository.API.provisionSiteRoot({
+        host: 'www.example.com',
+        siteRoot: '/home/dd/netlify_example',
+        repository: 'owner/netlify_example',
+      }),
+    ).to.deep.equal({ accessible: false, cloned: false });
+    expect(commands.some((command) => command.includes('git clone'))).to.equal(false);
+    existsSync.mockRestore();
+  });
+
+  it('treats an existing checkout as provisioned and leaves it alone', () => {
+    vi.spyOn(UnderpostRepository.API, 'isRemoteRepo').mockReturnValue(true);
+    vi.spyOn(fs, 'existsSync').mockImplementation((target) => `${target}` === '/home/dd/netlify_example/.git');
+    expect(
+      UnderpostRepository.API.provisionSiteRoot({
+        host: 'www.example.com',
+        siteRoot: '/home/dd/netlify_example',
+        repository: 'owner/netlify_example',
+      }),
+    ).to.deep.equal({ accessible: true, cloned: false });
+    expect(commands).to.deep.equal([]);
+  });
+
+  // The runtime image ships the document-root directories. Reading their existence as
+  // "provisioned" skipped the clone on every fresh pod and left Apache serving 403 from a
+  // directory nothing would ever populate.
+  it('provisions a document root the image shipped but never populated', () => {
+    vi.spyOn(UnderpostRepository.API, 'isRemoteRepo').mockReturnValue(true);
+    vi.spyOn(fs, 'existsSync').mockImplementation((target) => `${target}` === '/home/dd/netlify_example');
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
+    expect(
+      UnderpostRepository.API.provisionSiteRoot({
+        host: 'www.example.com',
+        siteRoot: '/home/dd/netlify_example',
+        repository: 'owner/netlify_example',
+      }),
+    ).to.deep.equal({ accessible: true, cloned: true });
+    expect(commands.some((command) => command.includes('git clone'))).to.equal(true);
+    // Copied in, not renamed over: the path can be image-provided or a mount point, and a
+    // rename onto one fails where a copy succeeds.
+    expect(commands).to.include('sudo cp -a "/home/dd/netlify_example.tmp/." "/home/dd/netlify_example/"');
+    expect(commands.some((command) => command.startsWith('sudo mv'))).to.equal(false);
+  });
+
+  it('renames the clone into place when the document root does not exist at all', () => {
+    vi.spyOn(UnderpostRepository.API, 'isRemoteRepo').mockReturnValue(true);
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
+    expect(
+      UnderpostRepository.API.provisionSiteRoot({
+        host: 'www.example.com',
+        siteRoot: '/home/dd/netlify_example',
+        repository: 'owner/netlify_example',
+      }),
+    ).to.deep.equal({ accessible: true, cloned: true });
+    expect(commands).to.include('sudo mv "/home/dd/netlify_example.tmp" "/home/dd/netlify_example"');
+  });
+});

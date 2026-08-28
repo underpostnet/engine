@@ -21,7 +21,7 @@ import {
   forwardProxyTunnelTargetFactory,
   forwardProxyUnitFactory,
 } from '../../../../src/server/network/forward-proxy.js';
-import { ShellExecError, redactCredentials } from '../../../../src/server/runtime/process.js';
+import { ShellExecError, redactCredentials, shellArgumentFactory } from '../../../../src/server/runtime/process.js';
 import { probeGroupsFactory, prometheusConfFactory } from '../../../../src/server/ops/monitoring.js';
 import fs from 'node:fs';
 import { Dns } from '../../../../src/server/network/dns.js';
@@ -1353,13 +1353,49 @@ describe('engine sync', () => {
     expect(() => Underpost.repo.repoSlugFactory('engine')).to.throw('is not an owner/repo reference');
   });
 
+  it('pairs an engine source with the conf repository of the id they share', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    expect(Underpost.repo.enginePairFactory()).to.deep.equal({
+      engine: 'someone/engine',
+      enginePrivate: 'someone/engine-private',
+    });
+    for (const engine of ['underpostnet/engine-test-lampp', 'underpostnet/engine-lampp'])
+      expect(Underpost.repo.enginePairFactory({ engine }), engine).to.deep.equal({
+        engine,
+        enginePrivate: 'underpostnet/engine-lampp-private',
+      });
+  });
+
+  it('takes the conf repository owner from the engine, not from the account', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    expect(Underpost.repo.enginePairFactory({ engine: 'https://github.com/underpostnet/engine.git' })).to.deep.equal({
+      engine: 'underpostnet/engine',
+      enginePrivate: 'underpostnet/engine-private',
+    });
+  });
+
+  it('lets an explicit conf repository override the pairing', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    expect(
+      Underpost.repo.enginePairFactory({
+        engine: 'underpostnet/engine-test-lampp',
+        enginePrivate: 'https://github.com/underpostnet/engine-core-private.git',
+      }),
+    ).to.deep.equal({
+      engine: 'underpostnet/engine-test-lampp',
+      enginePrivate: 'underpostnet/engine-core-private',
+    });
+  });
+
   it('binds every repository placeholder to the configured account', () => {
     process.env.GITHUB_USERNAME = 'someone';
     const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
     expect(commands).to.have.lengthOf(ENGINE_SYNC_STEPS.length);
     expect(commands.join('\n')).to.not.match(/<[a-z-]+>/);
     expect(commands).to.include('underpost cmt --switch-repo someone/engine --target-branch master');
-    expect(commands).to.include('underpost pull ./engine-private someone/engine-private');
+    expect(commands).to.include(
+      'underpost cmt ./engine-private --switch-repo someone/engine-private --target-branch main',
+    );
   });
 
   it('pulls the named engine while the private repository follows the account', () => {
@@ -1368,7 +1404,37 @@ describe('engine sync', () => {
       repoEngine: 'https://github.com/underpostnet/engine.git',
     }).map((step) => step.command);
     expect(commands).to.include('underpost cmt --switch-repo underpostnet/engine --target-branch master');
-    expect(commands).to.include('underpost pull ./engine-private someone/engine-private');
+    expect(commands).to.include(
+      'underpost cmt ./engine-private --switch-repo underpostnet/engine-private --target-branch main',
+    );
+  });
+
+  it('overrides the private repository with --repo-engine-private', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const commands = UnderpostWireguard.API.syncCommands({
+      repoEngine: 'https://github.com/underpostnet/engine.git',
+      repoEnginePrivate: 'https://github.com/underposnet/engine-core-private.git',
+    }).map((step) => step.command);
+    expect(commands).to.include('underpost cmt --switch-repo underpostnet/engine --target-branch master');
+    expect(commands).to.include(
+      'underpost cmt ./engine-private --switch-repo underposnet/engine-core-private --target-branch main',
+    );
+  });
+
+  it('runs only --cmd in place of the sync sequence, no placeholders unresolved', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const commands = UnderpostWireguard.API.syncCommands({ cmd: 'uptime, hostname -I' }).map((step) => step.command);
+    expect(commands).to.deep.equal(['uptime', 'hostname -I']);
+    expect(commands.join('\n')).to.not.match(/<[a-z-]+>/);
+    expect(commands).to.not.include('underpost cmt --switch-repo');
+  });
+
+  it('labels a --cmd fleet run as a command, not a sync', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const script = UnderpostWireguard.API.syncScript({ cmd: 'uptime, hostname' });
+    expect(script).to.include("echo '[cmd] uptime'");
+    expect(script).to.include("echo '[cmd] hostname'");
+    expect(script).to.not.include('[sync]');
   });
 
   it('names the branch the node must fetch instead of letting it guess', () => {
@@ -1445,6 +1511,25 @@ describe('command credential redaction', () => {
     const error = new ShellExecError('git push https://ghp_secret@github.com/o/r', 128, '', '');
     expect(error.message).to.not.include('ghp_secret');
     expect(error.cmd).to.not.include('ghp_secret');
+  });
+});
+
+describe('shell argument quoting', () => {
+  it('carries a comma-separated command list through as one argument', () => {
+    expect(shellArgumentFactory('cd /home/dd, npm install, npm link')).to.equal("'cd /home/dd, npm install, npm link'");
+  });
+
+  it('closes, escapes and reopens an embedded single quote', () => {
+    expect(shellArgumentFactory(`echo 'hi'`)).to.equal(`'echo '\\''hi'\\'''`);
+  });
+
+  it('leaves double quotes and expansions literal', () => {
+    expect(shellArgumentFactory('echo "$HOME"')).to.equal('\'echo "$HOME"\'');
+  });
+
+  it('quotes an empty value rather than dropping the argument', () => {
+    expect(shellArgumentFactory('')).to.equal("''");
+    expect(shellArgumentFactory(undefined)).to.equal("''");
   });
 });
 

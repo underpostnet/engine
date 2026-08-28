@@ -6,15 +6,13 @@ import { globSync } from 'node:fs';
 
 // CLI surface added after the published baseline that images in service were built from.
 // A command or flag listed here does not exist inside a pod until every image has been rebuilt.
-const POST_BASELINE = [
-  /\bnode bin app\b/,
-  /\bnode bin host\b/,
-  /\bnode bin state\b/,
-  /\bunderpost app\b/,
-  /\bunderpost host\b/,
-  /\bunderpost state\b/,
-  /\bclient\s+\S+\s+--env\b/,
-];
+//
+// `app` and `host` left this list when the deprecated `env` alias was removed: the `--cmd`
+// payloads now name `app load`, so an image whose baked engine predates the domain commands
+// cannot run them and must be rebuilt. That is the intended breaking change — re-adding the
+// alias would hide a pod failure rather than prevent one. `state` stays: nothing in a payload
+// needs it yet, so there is no reason to spend the same compatibility break twice.
+const POST_BASELINE = [/\bnode bin state\b/, /\bunderpost state\b/, /\bclient\s+\S+\s+--env\b/];
 
 /** Extracts every `--cmd '...'` payload: these strings are executed inside the workload pod. */
 const inPodCommands = (source) => [...source.matchAll(/--cmd\s+(['"])([\s\S]*?)\1/g)].map((match) => match[2]);

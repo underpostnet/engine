@@ -10,7 +10,14 @@
 import { expect } from 'chai';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const WS_URL = process.env.CYBERIA_LOAD_WS_URL ?? 'wss://server.cyberiaonline.com/TEST/ws';
+// Opt-in, with no default endpoint: every simulated client shares one address,
+// so a fleet this size only fits an instance started for load — one running with
+// CYBERIA_DISABLE_CONNECTION_LIMITS=1, or with its per-IP admission limits raised
+// past CYBERIA_LOAD_CONNECTIONS. Pointed at an untuned instance the run is capped
+// by `DefaultMaxConnectionsPerIP` (cyberia-server/game/connection_guard.go) and
+// reports a refusal, so the target is named deliberately rather than defaulted to.
+// `underpost cyberia test` sets this, along with the fleet size and the duration.
+const WS_URL = process.env.CYBERIA_LOAD_WS_URL ?? '';
 const CONNECTIONS = Number(process.env.CYBERIA_LOAD_CONNECTIONS ?? 5);
 const TAP_FREQUENCY = Number(process.env.CYBERIA_LOAD_TAP_FREQUENCY ?? 5);
 const DURATION_MS = Number(process.env.CYBERIA_LOAD_DURATION_MS ?? 3000);
@@ -348,8 +355,8 @@ const LOAD_TIMEOUT_MS =
   CLOSE_TIMEOUT_MS +
   60000;
 
-// Without a reachable cyberia-server there is no subject to load, so the suite
-// is skipped at collection rather than failing on connect.
+// Without a named cyberia-server there is no subject to load, so the suite is
+// skipped at collection rather than failing on connect.
 describe.skipIf(!WS_URL)(
   'Cyberia load — simulated tap clients against cyberia-server',
   { timeout: LOAD_TIMEOUT_MS },
