@@ -249,7 +249,7 @@ class UnderpostClient {
               ? fs.existsSync(`./engine-private/replica/${resolvedDeployId}`)
               : false;
             const serverConf = resolvedDeployId
-              ? readConfJson(resolvedDeployId, 'server', { loadReplicas: true })
+              ? readConfJson(resolvedDeployId, 'server', { subConf: subConf ?? '', loadReplicas: true })
               : Config.default.server;
             for (const host of Object.keys(serverConf)) {
               for (const path of Object.keys(serverConf[host])) {
@@ -268,6 +268,7 @@ class UnderpostClient {
             }
             await buildClient({
               deployId: resolvedDeployId,
+              subConf: subConf ?? '',
               instances: selectedInstances,
               buildZip: options.buildZip || false,
               split: options.split || '',
