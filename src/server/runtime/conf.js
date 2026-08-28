@@ -2920,10 +2920,10 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   fs.removeSync(confDest);
   fs.mkdirSync(confDest, { recursive: true });
   fs.copySync(`./engine-private/conf/${deployId}`, confDest);
-  fs.copySync(`./engine-private/conf/${cronDeployId}`, `${privateRepoPath}/conf/${cronDeployId}`);
-  fs.copySync(`./engine-private/deploy`, `${privateRepoPath}/deploy`);
   // A checkout that declares no cron deploy has no `conf/<cron-id>` to mirror. Without this
   // the path resolves to `conf/null` and the whole sync fails over an absent optional.
+  if (cronDeployId) fs.copySync(`./engine-private/conf/${cronDeployId}`, `${privateRepoPath}/conf/${cronDeployId}`);
+  fs.copySync(`./engine-private/deploy`, `${privateRepoPath}/deploy`);
   fs.removeSync(`${privateRepoPath}/replica`);
   fs.removeSync(`${privateRepoPath}/logs`);
   const replicaSrcDir = `./engine-private/replica`;
