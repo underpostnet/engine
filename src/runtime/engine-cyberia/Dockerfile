@@ -29,11 +29,7 @@ RUN set -eux; \
     dnf clean all; rm -rf /var/cache/dnf; \
     npm cache clean --force
 
-# Underpost CLI, baked from the engine checkout that built this image. The package is staged
-# into this build context by `node bin/cyberia run-workflow stage-cli`, so the runtime state
-# layer — `underpost state set container-status ...` in the instance lifecycle hooks — is the
-# same engine that produced the image, and a starting pod makes no registry call, no clone and
-# no npm link to obtain it. Its own layer so the Node base above stays cached across CLI changes.
+
 # The builder's own `underpost clone` calls below run on this same CLI, and the runtime stage
 # inherits it through `COPY --from=builder /usr/local/`.
 COPY underpost-cli.tgz /tmp/underpost-cli.tgz
