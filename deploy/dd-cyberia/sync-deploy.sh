@@ -49,7 +49,11 @@ main() {
     
     deploy_step "Pull underpost public assets" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin fs src/client/public/underpost --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
+        "cd $ENGINE_ROOT && node bin fs src/client/public/underpost \
+          --deploy-id dd-cyberia \
+          --pull \
+          --recursive \
+          --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
     
     if [ "$(has_changes src/client/public/cyberia)" = "1" ]; then
         deploy_step "Commit cyberia public assets" \
@@ -122,10 +126,20 @@ main() {
             sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
             node bin/cyberia run-workflow import-default-items --clean, \
             node bin/cyberia run-workflow import-default-items, \
+            npm install, \
             npm link --force, \
             node bin app load --env production --args deploy-id=dd-cyberia, \
             node bin client dd-cyberia, \
     node bin start dd-cyberia production --run'"
+
+    # State domain: read the deployment's live execution state, health and metrics off the
+    # cluster and export them to the CD job. RUN_QUIET_CI, exported by the workflow, is what
+    # survives the SSH hop, so this reports as GitHub Actions annotations rather than plain JSON.
+    deploy_step "Export dd-cyberia runtime state" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
+          --env production \
+          --args deploy-id=dd-cyberia"
 }
 
 main "$@"

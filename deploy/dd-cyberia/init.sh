@@ -17,17 +17,40 @@ main() {
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/build dd-cyberia --conf"
 
+    local pod_cmd
+    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-cyberia), \
+        underpost start dd-cyberia production --build --run --skip-pull-base"
+
     deploy_step "Deploy dd-cyberia production" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-cyberia production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --sync --build-manifest --timeout-response 300000ms --versions green --replicas 1"
+        "cd $ENGINE_ROOT && node bin deploy dd-cyberia production \
+          --versions green \
+          --replicas 1 \
+          --kubeadm \
+          --timeout-response 300000ms \
+          --gateway-api \
+          --ingress-node ${INGRESS_NODE} \
+          --sync \
+          --build-manifest \
+          --cmd '${pod_cmd}'"
 
     deploy_step "Clean dd-cyberia working tree" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-cyberia production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --disable-update-proxy --git-clean"
+        "cd $ENGINE_ROOT && node bin deploy dd-cyberia production \
+          --kubeadm \
+          --gateway-api \
+          --ingress-node ${INGRESS_NODE} \
+          --disable-update-proxy \
+          --git-clean"
 
     deploy_step "Promote dd-cyberia deployment" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"
+        "cd $ENGINE_ROOT && node bin monitor dd-cyberia production \
+          --ready-deployment \
+          --promote \
+          --timeout-response 300000ms \
+          --versions green \
+          --replicas 1"
 }
 
 main "$@"

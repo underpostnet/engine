@@ -13,9 +13,31 @@ main() {
 
     prepare_host "$ENGINE_ROOT"
 
+    local pod_cmd
+    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-lampp), \
+        underpost start dd-lampp production --build --run --skip-pull-base"
+
     deploy_step "Sync dd-lampp cluster" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --timeout-response 300000ms --deploy-id-cron-jobs none --deploy-id dd-lampp --replicas 1 --image underpost/wp:v3.3.0"
+        "cd $ENGINE_ROOT && node bin run sync \
+          --deploy-id dd-lampp \
+          --replicas 1 \
+          --image underpost/wp:v3.3.0 \
+          --kubeadm \
+          --deploy-id-cron-jobs none \
+          --timeout-response 300000ms \
+          --gateway-api \
+          --ingress-node ${INGRESS_NODE} \
+          --cmd '${pod_cmd}'"
+
+    # State domain: read the deployment's live execution state, health and metrics off the
+    # cluster and export them to the CD job. RUN_QUIET_CI, exported by the workflow, is what
+    # survives the SSH hop, so this reports as GitHub Actions annotations rather than plain JSON.
+    deploy_step "Export dd-lampp runtime state" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
+          --env production \
+          --args deploy-id=dd-lampp"
 }
 
 main "$@"

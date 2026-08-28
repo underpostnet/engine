@@ -17,17 +17,39 @@ main() {
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/build dd-lampp --conf"
 
+    local pod_cmd
+    pod_cmd="$(pod_bootstrap_cmd underpostnet/engine-lampp), \
+        underpost start dd-lampp production --build --run --skip-pull-base"
+
     deploy_step "Deploy dd-lampp production" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-lampp production --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --sync --build-manifest --image 'underpost/wp:v3.3.0' --versions green --replicas 1"
+        "cd $ENGINE_ROOT && node bin deploy dd-lampp production \
+          --versions green \
+          --replicas 1 \
+          --image 'underpost/wp:v3.3.0' \
+          --kubeadm \
+          --gateway-api \
+          --ingress-node ${INGRESS_NODE} \
+          --sync \
+          --build-manifest \
+          --cmd '${pod_cmd}'"
 
     deploy_step "Issue dd-lampp certificates" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-lampp production --cert --kubeadm --gateway-api --ingress-node ${INGRESS_NODE} --disable-update-proxy"
+        "cd $ENGINE_ROOT && node bin deploy dd-lampp production \
+          --kubeadm \
+          --gateway-api \
+          --ingress-node ${INGRESS_NODE} \
+          --cert \
+          --disable-update-proxy"
 
     deploy_step "Promote dd-lampp deployment" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin monitor dd-lampp production --ready-deployment --promote --versions green --replicas 1"
+        "cd $ENGINE_ROOT && node bin monitor dd-lampp production \
+          --ready-deployment \
+          --promote \
+          --versions green \
+          --replicas 1"
 }
 
 main "$@"
