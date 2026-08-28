@@ -7,7 +7,7 @@
 import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from '../ops/logger.js';
-import { shellCd, shellExec } from './process.js';
+import { shellCd, shellExec, shellExecAsync } from './process.js';
 import {
   RUNTIME_STATUS,
   setRuntimeStatus,
@@ -299,14 +299,15 @@ class UnderpostStartUp {
       if (options.skipPullBase !== true) Underpost.start.pullBase(deployId, options);
       shellCd(ENGINE_PATH);
       Underpost.repo.privateEngineRepoFactory(deployId);
-      // Installed again after the private repo lands: `pullBase` installs only what the CLI
-      // needs to boot stage 2, which is resolved before `engine-private` is on disk.
-      shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
-      shellExec(`node bin app load --env ${env} --args deploy-id=${deployId}`);
-      if (options.pullBundle === true) shellExec(`node bin run pull-bundle --deploy-id ${deployId}`);
+      // Awaited rather than blocking: these are the minutes-long steps of a deployment, and a
+      // synchronous child stalls the event loop for its whole duration — leaving the status
+      // endpoint bound but unable to answer, so telemetry went dark across the entire build.
+      await shellExecAsync(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
+      await shellExecAsync(`node bin app load --env ${env} --args deploy-id=${deployId}`);
+      if (options.pullBundle === true) await shellExecAsync(`node bin run pull-bundle --deploy-id ${deployId}`);
       // `--env` is explicit rather than inherited: the container's ambient NODE_ENV comes from
       // the injected `underpost-config`, and a build that guesses it renders the wrong conf.
-      else if (!options.skipFullBuild) shellExec(`node bin client ${deployId} --env ${env}`);
+      else if (!options.skipFullBuild) await shellExecAsync(`node bin client ${deployId} --env ${env}`);
     },
     /**
      * Runs a deployment.

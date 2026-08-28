@@ -258,6 +258,39 @@ const shellExec = (cmd, options = {}) => {
   }
 };
 /**
+ * Runs a command as a child process and resolves when it exits, without blocking the event loop.
+ *
+ * Same contract as {@link shellExec}: a non-zero exit throws {@link ShellExecError} unless
+ * `silentOnError`, and `stdout` returns the captured output. The difference is that timers and
+ * sockets keep running while the child does — which is what lets the in-pod status endpoint
+ * answer during a build instead of going silent for its whole duration.
+ *
+ * @memberof Process
+ * @param {string} cmd - The command to run.
+ * @param {Object} [options] - Options.
+ * @param {boolean} [options.silent] - Suppress child output on the parent stdio.
+ * @param {boolean} [options.silentOnError] - Resolve instead of throwing on a non-zero exit.
+ * @param {boolean} [options.stdout] - Resolve with the captured stdout rather than the result.
+ * @param {boolean} [options.disableLog] - Suppress the command log line.
+ * @param {string} [options.cwd] - Directory to run in.
+ * @returns {Promise<*>} Resolves with the result, or the stdout when `stdout` is set.
+ */
+const shellExecAsync = (cmd, options = {}) =>
+  new Promise((resolve, reject) => {
+    if (!options.disableLog) logger.info(`cmd`, redactCredentials(cmd));
+    const shellOpts = { async: true };
+    if (options.silent !== undefined) shellOpts.silent = options.silent;
+    if (options.cwd) shellOpts.cwd = options.cwd;
+    shell.exec(cmd, shellOpts, (code, stdout, stderr) => {
+      if (code !== 0 && !options.silentOnError) {
+        latchRuntimeError();
+        return reject(new ShellExecError(cmd, code, stdout || '', stderr || ''));
+      }
+      resolve(options.stdout ? stdout : { code, stdout, stderr });
+    });
+  });
+
+/**
  * Blocks the calling thread for `ms` milliseconds.
  *
  * Retry backoff around the synchronous `shellExec` chains (kubectl exec, pod
@@ -369,6 +402,7 @@ export {
   redactCredentials,
   shellArgumentFactory,
   shellExec,
+  shellExecAsync,
   shellCd,
   sleepSync,
   pbcopy,
