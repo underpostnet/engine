@@ -6,10 +6,17 @@
  * Supports MariaDB and MongoDB with import/export capabilities, Git integration, and multi-pod operations.
  */
 
-import { loadConfInstances, loadConfServerJson, loadReplicas, mergeFile, splitFileFactory } from '../server/runtime/conf.js';
+import {
+  loadConfInstances,
+  loadConfServerJson,
+  loadReplicas,
+  mergeFile,
+  splitFileFactory,
+} from '../server/runtime/conf.js';
 import { pathPortAssignmentFactory } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { shellExec } from '../server/runtime/process.js';
+import { cli } from '../server/build/execution.js';
 import fs from 'fs-extra';
 import { DataBaseProviderService } from '../db/DataBaseProvider.js';
 import { loadCronDeployEnv } from '../server/ops/cron.js';
@@ -567,7 +574,6 @@ class UnderpostDB {
      * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases.
      * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment.
      * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only.
-     * @param {string} [options.primaryPodEnsure=''] - Pod name to ensure MongoDB primary pod is running.
      * @param {boolean} [options.stats=false] - Whether to display database statistics.
      * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export.
      * @param {boolean} [options.forceClone=false] - Whether to force re-clone Git repository.
@@ -596,7 +602,6 @@ class UnderpostDB {
         paths: '',
         allPods: false,
         primaryPod: false,
-        primaryPodEnsure: '',
         stats: false,
         macroRollbackExport: 1,
         forceClone: false,
@@ -652,23 +657,6 @@ class UnderpostDB {
           import: options.import,
           export: options.export,
         });
-
-        if (options.primaryPodEnsure) {
-          const primaryPodName = MongoBootstrap.getPrimaryPodName({
-            namespace,
-            podName: options.primaryPodEnsure,
-            username: process.env.MONGODB_USERNAME || process.env.DB_USER || '',
-            password: process.env.MONGODB_PASSWORD || process.env.DB_PASSWORD || '',
-            authDatabase: process.env.MONGODB_AUTH_DB || 'admin',
-          });
-          if (!primaryPodName) {
-            const baseCommand = options.dev ? 'node bin' : 'underpost';
-            const baseClusterCommand = options.dev ? ' --dev' : '';
-            let clusterFlag = options.k3s ? ' --k3s' : options.kubeadm ? ' --kubeadm' : '';
-            shellExec(`${baseCommand} cluster${baseClusterCommand}${clusterFlag} --mongodb`);
-          }
-          return;
-        }
 
         // Track processed repositories to avoid duplicate Git operations
         const processedRepos = new Set();

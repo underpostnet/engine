@@ -5,6 +5,7 @@
  */
 
 import { daemonProcess, pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
+import { cli, withExecutionProfile } from '../server/build/execution.js';
 import { RUNTIME_STATUS } from '../server/runtime/runtime-status.js';
 import {
   awaitDeployMonitor,
@@ -470,7 +471,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'dev-cluster': (path, options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       const mongoHosts = ['mongodb-0.mongodb-service'];
       let primaryMongoHost = 'mongodb-0.mongodb-service';
       const clusterType = clusterTypeFactory(options);
@@ -838,7 +839,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'template-deploy': (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       shellExec(`npm run security:secrets`);
       const reportPath = './gitleaks-report.json';
       if (fs.existsSync(reportPath) && JSON.parse(fs.readFileSync(reportPath, 'utf8')).length > 0) {
@@ -915,7 +916,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'template-deploy-local': async (path, options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       shellExec(`npm run security:secrets`);
       const reportPath = './gitleaks-report.json';
       if (fs.existsSync(reportPath) && JSON.parse(fs.readFileSync(reportPath, 'utf8')).length > 0) {
@@ -1087,7 +1088,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
     sync: async (path, options = DEFAULT_OPTION) => {
       const env = deployEnvFactory(options);
       options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
-      const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
       const deploying = !options.build && !!options.deployId;
@@ -1976,7 +1977,7 @@ EOF
         gatewayApi: gatewayApiEnabledFactory(options),
         namespace: options.namespace || 'default',
       };
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const deployId = options.deployId;
       const id = options.instanceId;
@@ -2664,7 +2665,6 @@ EOF
      * @memberof UnderpostRun
      */
     'host-update': async (path, options = DEFAULT_OPTION) => {
-      // const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`chmod +x ${options.underpostRoot}/scripts/rocky-setup.sh`);
       shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh${options.dev ? ' --install-dev' : ``}`);
     },
@@ -2731,7 +2731,7 @@ EOF`);
      * @memberof UnderpostRun
      */
     'dd-container': async (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const currentImage = options.imageName
         ? options.imageName
@@ -2958,7 +2958,7 @@ EOF`);
     cluster: async (path = '', options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       const env = deployEnvFactory(options);
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterType = clusterTypeFactory(options, 'kubeadm');
       shellCd(`/home/dd/engine`);
@@ -3744,7 +3744,7 @@ EOF`);
      */
     service: async (path = '', options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       shellCd(`/home/dd/engine`);
       let [deployId, serviceId, host, _path, replicas, image, node] = path.split(',');
@@ -3989,7 +3989,7 @@ EOF`);
     'deploy-test': async (path, options = DEFAULT_OPTION) => {
       // Note: use recomendation empty deploy cluster: node bin --dev cluster
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: options.dev });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const inputs = path ? path.split(',') : [];
       const deployId = inputs[0] ? inputs[0] : 'dd-test';
@@ -4352,7 +4352,7 @@ EOF`;
      * @memberof UnderpostRun
      */
     'push-bundle': (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: true });
       const env = options.dev ? 'development' : 'production';
       const deployId = options.deployId || 'dd-default';
       const pathParts = (path || '').split('.');
@@ -4440,7 +4440,7 @@ EOF`;
      * @memberof UnderpostRun
      */
     'pull-bundle': (path = '', options = DEFAULT_OPTION) => {
-      const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
+      const baseCommand = cli('underpost', { local: true });
       const env = options.dev ? 'development' : 'production';
       const deployId = options.deployId || 'dd-default';
       const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
@@ -4544,15 +4544,24 @@ EOF`;
 
     /**
      * @method build-cluster-deployment-manifests
-     * @description Builds deployment manifests for both production and development environments using `node bin deploy --build-manifest`, syncing them, and setting replicas to 1 for the `dd` deployment.
+     * @description Builds deployment manifests for both production and development environments using `underpost deploy --build-manifest`, syncing them, and setting replicas to 1 for the `dd` deployment. Runs under `HERMETIC_BUILD`, so it needs no reachable cluster.
      * @param {string} path - Unused.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @memberof UnderpostRun
      */
-    'build-cluster-deployment-manifests': (path = '', options = DEFAULT_OPTION) => {
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production --cert`);
-    },
+    'build-cluster-deployment-manifests': (path = '', options = DEFAULT_OPTION) =>
+      // Manifest generation writes files; it does not touch a cluster. Declaring that once
+      // here is what lets the whole tree below run on a build box with no apiserver — the
+      // profile rides into both child processes through the environment.
+      withExecutionProfile('HERMETIC_BUILD', () => {
+        // `local` is load-bearing: this builds the manifests of the checkout it was
+        // launched from, and a globally installed underpost is a different package that
+        // reads different paths out of the same cwd.
+        const underpost = cli('underpost', { local: true });
+        const flags = '--build-manifest --sync --info-router --replicas 1';
+        shellExec(`${underpost} deploy ${flags} dd development`);
+        shellExec(`${underpost} deploy ${flags} dd production --cert`);
+      }),
 
     /**
      * @method monitor-ui

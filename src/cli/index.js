@@ -6,6 +6,7 @@ import { deployEnvFactory, getNpmRootPath, getUnderpostRootPath } from '../serve
 import { commitData } from '../client/components/core/CommonJs.js';
 import { registerDomainCommand } from './domains.js';
 import { TEST_TIERS, testSuiteNames } from '../server/build/testing.js';
+import { EXECUTION_PROFILES, profileFromOptionsFactory, setExecutionProfile } from '../server/build/execution.js';
 
 import Underpost from '../index.js';
 
@@ -17,6 +18,25 @@ else dotenv.config({ quiet: true });
 const program = new Command();
 
 program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`).version(Underpost.version);
+
+// One gate for every command. The profile decides which classes of side effect this run
+// may cause; `src/server/runtime/process.js` enforces it under all 1400+ call sites, so a
+// command never has to be taught that its environment is unreachable.
+program.option(
+  '--profile <profile>',
+  `Execution profile. One of: ${Object.keys(EXECUTION_PROFILES).join(', ')}.\n` +
+    Object.values(EXECUTION_PROFILES)
+      .map((profile) => `  ${profile.name.padEnd(16)} ${profile.description}`)
+      .join('\n'),
+);
+
+// Resolved before any action runs, from the root flag, the subcommand's own options, or a
+// legacy bypass flag standing in for a profile. Writing it to the environment is what
+// carries it into nested `underpost` invocations.
+program.hook('preAction', (command, actionCommand) => {
+  const profile = profileFromOptionsFactory({ ...command.opts(), ...actionCommand.opts() });
+  if (profile) setExecutionProfile(profile);
+});
 
 program
   .command('new')
@@ -506,7 +526,6 @@ program
   )
   .option('--all-pods', 'Target all matching pods instead of just the first one.')
   .option('--primary-pod', 'Automatically detect and use MongoDB primary pod (MongoDB only).')
-  .option('--primary-pod-ensure <pod-name>', 'Ensure setup of MongoDB replica set primary pod before operations.')
   .option('--stats', 'Display database statistics (collection/table names with document/row counts).')
   .option('--collections <collections>', 'Comma-separated list of database collections to operate on.')
   .option('--out-path <out-path>', 'Specifies a custom output path for backups.')

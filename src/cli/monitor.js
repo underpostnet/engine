@@ -47,6 +47,7 @@ import os from 'node:os';
 import fs from 'fs-extra';
 import net from 'node:net';
 import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
+import { cli } from '../server/build/execution.js';
 import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 
@@ -740,7 +741,7 @@ EOF
       const { namespace: envoyNamespace } = UNDERPOST_MONITORING.envoy;
       if (!exists(`kubectl get deployment envoy-gateway -n ${envoyNamespace} -o name`)) {
         logger.info('Envoy Gateway is absent; installing the Gateway API control plane', { envoyNamespace });
-        shellExec(`${options.dev ? 'node bin' : 'underpost'} cluster${options.dev ? ' --dev' : ''} --gateway-api`);
+        shellExec(`${cli('underpost', { local: options.dev })} cluster${options.dev ? ' --dev' : ''} --gateway-api`);
       }
       if (!exists(`kubectl get deployment envoy-gateway -n ${envoyNamespace} -o name`))
         logger.warn('Envoy Gateway is still absent; its metrics job will discover no targets', { envoyNamespace });
