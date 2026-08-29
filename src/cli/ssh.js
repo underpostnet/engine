@@ -767,10 +767,16 @@ class UnderpostSSH {
       // Local execution still honours `cd`: the underpost CLI resolves its deploy
       // configuration relative to the working directory, so running it from
       // wherever the caller happened to start would act on a different cluster's
-      // config, or none.
+      // config, or none. It honours it only when that directory exists — a checkout
+      // that lives elsewhere (a CI container, a developer tree) has no deploy path to
+      // enter, and chdir failing there turns a runnable local command into an error
+      // reported as a failed remediation.
       // The generated wrapper is transport, not information: echoing it buries
       // whatever the command actually said under a page of boilerplate.
-      if (!remote) return shellExec(remoteCommand, { ...(cd ? { cwd: cd } : {}), silent, disableLog: true });
+      if (!remote) {
+        const cwd = cd && fs.existsSync(cd) ? cd : '';
+        return shellExec(remoteCommand, { ...(cwd ? { cwd } : {}), silent, disableLog: true });
+      }
 
       // Set up SSH credentials from the cluster config
       if (user) await Underpost.ssh.setDefautlSshCredentials({ user, host });

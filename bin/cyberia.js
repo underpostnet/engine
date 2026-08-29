@@ -18,7 +18,12 @@ import { cli } from '../src/server/build/execution.js';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
-import { etcHostFactory, loadConfServerJson, normalizeInstanceTopology } from '../src/server/runtime/conf.js';
+import {
+  deployEnvFilePath,
+  etcHostFactory,
+  loadConfServerJson,
+  normalizeInstanceTopology,
+} from '../src/server/runtime/conf.js';
 import {
   ObjectLayerEngine,
   resolveCanonicalCid,
@@ -1749,6 +1754,7 @@ try {
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
       if (options.revert) {
+        Underpost.repo.declareSafeDirectory('/home/dd/cyberia-instances');
         shellExec(`cd /home/dd/cyberia-instances && ${cli()} cmt . reset && ${cli()} run clean .`);
         shellExec(`cd /home/dd/engine/cyberia-server && ${cli()} cmt . reset && ${cli()} run clean .`);
         shellExec(`cd /home/dd/engine/cyberia-client && ${cli()} cmt . reset && ${cli()} run clean .`);
@@ -1776,6 +1782,12 @@ try {
         logger.warn(`No instance code provided, defaulting to: ${instanceCode}`);
       }
 
+      // An explicitly named env must exist: falling through to the ambient `./.env` resolves the
+      // instance against whatever deployment was loaded last, which is not the one the caller named.
+      if (options.envPath && !fs.existsSync(options.envPath)) {
+        logger.error(`Env file not found: ${options.envPath}`);
+        process.exit(1);
+      }
       if (!options.envPath) options.envPath = `./.env`;
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -1797,6 +1809,9 @@ try {
       }
 
       if (options.publish || options.publishBuild || options.publishRemove) {
+        // The instances checkout is cloned by the deploy user and driven by root during a deploy,
+        // and git refuses to touch a tree owned by someone else until it is declared safe.
+        Underpost.repo.declareSafeDirectory('/home/dd/cyberia-instances');
         if (options.publishBuild) {
           if (!fs.existsSync('/home/dd/cyberia-instances')) {
             shellExec(`cd /home/dd && ${cli()} clone underpostnet/cyberia-instances`);
@@ -5826,9 +5841,16 @@ node bin image --path cyberia-client \
       // script sources `$SCRIPT_DIR/../lib/logging.sh`, which only resolves when lib/ is the
       // script directory's sibling there too.
       for (const project of ['cyberia-client', 'cyberia-server']) {
+        const scripts = `./deploy/${project}`;
+        // A tree assembled before these scripts were packaged does not carry them; mirroring is
+        // what publishes them, so say so and continue rather than failing the whole manifest build.
+        if (!fs.existsSync(scripts)) {
+          logger.warn(`[build-manifest] No deploy scripts to mirror for ${project}`, { path: scripts });
+          continue;
+        }
         fs.removeSync(`./${project}/deploy`);
         fs.copySync('./deploy/lib', `./${project}/deploy/lib`);
-        fs.copySync(`./deploy/${project}`, `./${project}/deploy/${project}`);
+        fs.copySync(scripts, `./${project}/deploy/${project}`);
       }
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
       fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md');
@@ -5841,7 +5863,15 @@ node bin image --path cyberia-client \
         './cyberia-server/.github/workflows/cyberia-server.cd.yml',
       );
       shellExec('cp -a ./engine-private/conf/dd-cyberia/docker-compose/cyberia/. ./src/runtime/engine-cyberia/');
-      shellExec('node bin/cyberia.js instance --publish-build');
+      // The publish is scoped to the deployment this workflow builds — every other step here is —
+      // so it reads dd-cyberia's own environment instead of the working-tree `./.env`, which names
+      // whichever deployment `app load` ran for last.
+      shellExec(
+        `node bin/cyberia.js instance --publish-build --env-path ${deployEnvFilePath(
+          'dd-cyberia',
+          isDev ? 'development' : 'production',
+        )}`,
+      );
       logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
     });
 

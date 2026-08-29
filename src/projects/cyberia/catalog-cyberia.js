@@ -51,6 +51,11 @@ export default {
     '/.github/workflows/coverall.cyberia.ci.yml',
     '/bin/cyberia.js',
     '/hardhat',
+    // The deploy scripts `run-workflow build-manifest` mirrors into each generated instance
+    // repository. The base template drops the whole `deploy/` tree, so the product CLI only has
+    // them if it packages them here.
+    '/deploy/cyberia-client',
+    '/deploy/cyberia-server',
   ],
   stripPaths: [
     './src/projects/cyberia',
@@ -62,6 +67,8 @@ export default {
     './src/client/public/cyberia-docs',
     './bin/cyberia.js',
     './hardhat',
+    './deploy/cyberia-client',
+    './deploy/cyberia-server',
   ],
   moves: [],
   copies: [

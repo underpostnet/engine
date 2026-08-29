@@ -21,6 +21,18 @@ describe('a fleet command cannot fall back to local execution', () => {
     expect(result.ok).to.equal(true);
     expect(`${result.output}`).to.include('local-remediation-ok');
   });
+
+  it('runs locally from where it is, when the deploy path is not on this machine', async () => {
+    // A CI container checks the engine out under /__w/<repo>, so entering the deploy path is
+    // impossible there; that chdir failing reported a perfectly runnable command as a failed
+    // remediation.
+    const output = await Underpost.ssh.sshRemoteRunner('echo local-remediation-ok', {
+      cd: '/underpost/absent-deploy-path',
+      remote: false,
+      silent: true,
+    });
+    expect(`${output}`).to.include('local-remediation-ok');
+  });
 });
 
 describe('wireguard sync never switches the checkout it runs from', () => {
