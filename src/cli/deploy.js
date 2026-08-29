@@ -1741,6 +1741,45 @@ ${rules}`;
     },
 
     /**
+     * Reports whether a Deployment object exists at all.
+     *
+     * The inactive colour of a blue/green pair is routinely absent, so callers
+     * that act on it must distinguish "not deployed yet" from a failed lookup.
+     * @param {string} deployment - Deployment name.
+     * @param {string} [namespace] - Kubernetes namespace.
+     * @returns {boolean} True when the object is present.
+     */
+    deploymentExists({ deployment, namespace = 'default' }) {
+      return !!`${
+        shellExec(`kubectl get deployment ${deployment} -n ${namespace} --ignore-not-found -o name`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+        }) || ''
+      }`.trim();
+    },
+
+    /**
+     * Node a live Deployment is pinned to, read from its `nodeSelector`.
+     *
+     * A colour created next to a live one must inherit that placement: its
+     * hostPath volumes exist on that node only.
+     * @param {string} deployment - Deployment name.
+     * @param {string} [namespace] - Kubernetes namespace.
+     * @returns {string} Node hostname, or empty when the workload is unpinned or absent.
+     */
+    deploymentNode({ deployment, namespace = 'default' }) {
+      if (!deployment) return '';
+      return `${
+        shellExec(
+          `kubectl get deployment ${deployment} -n ${namespace} ` +
+            `-o jsonpath='{.spec.template.spec.nodeSelector.kubernetes\.io/hostname}'`,
+          { stdout: true, silent: true, silentOnError: true },
+        ) || ''
+      }`.trim();
+    },
+
+    /**
      * Reports whether the Deployment controller has observed the current
      * generation and every desired replica is updated, Ready, and Available.
      * @param {string} deployment - Deployment name.

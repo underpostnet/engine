@@ -2419,6 +2419,25 @@ const isTrafficServingFactory = ({ liveTraffic = '', hasReadyEndpoints = () => f
   !!liveTraffic && hasReadyEndpoints(liveTraffic);
 
 /**
+ * @method redeployPlanFactory
+ * @description The colour a redeploy targets, and how that colour is brought up.
+ *
+ * The inactive colour has no Deployment for most of a blue/green cycle: `run sync`
+ * deletes it before publishing the maintenance route, and a promote leaves only
+ * the colour it routed to. So a `rollout restart` of the target is a NotFound
+ * error on exactly the state blue/green is meant to be in, and its absence has to
+ * select building that colour instead of failing the deploy.
+ * @param {string} [liveTraffic] - Colour currently routed, or empty when none is.
+ * @param {Function} hasDeployment - `(colour) => boolean`.
+ * @returns {{targetTraffic: string, create: boolean}} Colour to deploy, and whether it must be created rather than restarted.
+ * @memberof ServerConfBuilder
+ */
+const redeployPlanFactory = ({ liveTraffic = '', hasDeployment = () => false }) => {
+  const targetTraffic = nextTrafficFactory(liveTraffic);
+  return { targetTraffic, create: !hasDeployment(targetTraffic) };
+};
+
+/**
  * @method instanceTrafficPlanFactory
  * @description Resolves, for each instance, the colour routed now and the colour
  * to route next, and which instances are actually serving on the live one.
@@ -3374,6 +3393,7 @@ export {
   instanceTrafficPlanFactory,
   isTrafficServingFactory,
   nextTrafficFactory,
+  redeployPlanFactory,
   schedulableNodeFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,

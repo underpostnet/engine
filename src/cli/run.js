@@ -43,6 +43,7 @@ import {
   trafficTableRowsFactory,
   isTrafficServingFactory,
   nextTrafficFactory,
+  redeployPlanFactory,
   stopPlanFactory,
   trafficFromRoutingInfoFactory,
 } from '../server/runtime/conf.js';
@@ -3608,6 +3609,10 @@ EOF`);
     /**
      * @method deploy
      * @description Deploys a specified service (identified by `path`) using blue/green strategy, monitors its status, and switches traffic upon readiness.
+     *
+     * The target colour is restarted when it is already deployed, and built and applied when it is not:
+     * between cycles only the routed colour has a Deployment, so its counterpart being absent is the
+     * normal state rather than a precondition.
      * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -3615,19 +3620,57 @@ EOF`);
     deploy: async (path, options = DEFAULT_OPTION) => {
       const deployId = path;
       const env = options.dev ? 'development' : 'production';
+      const namespace = options.namespace || 'default';
       const { validVersion } = Underpost.repo.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
-      const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env });
-      const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
+      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
+      const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
+        namespace,
+        env,
+        gatewayApi: options.gatewayApi,
+      });
+      const { targetTraffic, create } = redeployPlanFactory({
+        liveTraffic: currentTraffic,
+        hasDeployment: (colour) =>
+          Underpost.deploy.deploymentExists({ deployment: `${deployId}-${env}-${colour}`, namespace }),
+      });
       const ignorePods = Underpost.kubectl
-        .get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace)
+        .get(`${deployId}-${env}-${targetTraffic}`, 'pods', namespace)
         .map((p) => p.NAME);
 
-      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${options.namespace}`);
+      if (create) {
+        // The target colour having no Deployment is the steady state of a
+        // blue/green cycle, not a missing prerequisite: build that colour's
+        // manifest and apply it, leaving the live colour routed until the
+        // promotion below.
+        const replicas = options.replicas || 1;
+        const node =
+          (currentTraffic
+            ? Underpost.deploy.deploymentNode({ deployment: `${deployId}-${env}-${currentTraffic}`, namespace })
+            : '') || options.nodeName;
+        logger.info('Target traffic colour is not deployed; creating it', {
+          deployId,
+          env,
+          targetTraffic,
+          node: node || '(unpinned)',
+        });
+        const deployFlags =
+          ` --versions ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${node ? ` --node ${node}` : ''}` +
+          `${options.image ? ` --image ${options.image}` : ''}` +
+          `${Underpost.deploy.timeoutFlagsFactory(options)}${options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : ''}` +
+          `${Underpost.deploy.gatewayApiFlagsFactory(options)}`;
+        // `--build-manifest` returns before any cluster mutation, so the colour is
+        // rendered first and applied by the second call. `--traffic` keeps the
+        // generated traffic Service on the colour still serving.
+        shellExec(
+          `node bin deploy --build-manifest --info-router --traffic ${currentTraffic || targetTraffic}${deployFlags} ${deployId} ${env}`,
+        );
+        shellExec(`node bin deploy --disable-update-proxy${deployFlags} ${deployId} ${env}`);
+      } else shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${namespace}`);
 
-      await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
+      await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, namespace);
 
-      Underpost.deploy.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace, options);
+      Underpost.deploy.switchTraffic(deployId, env, targetTraffic, options.replicas, namespace, options);
     },
 
     /**
