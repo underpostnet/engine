@@ -259,6 +259,37 @@ describe('docs build', () => {
     }
   });
 
+  it('points the server at the API runtime when the client and the API are split', async () => {
+    const previousEnv = process.env.NODE_ENV;
+    const previousApi = process.env.BASE_API;
+    process.env.BASE_API = 'api';
+    try {
+      process.env.NODE_ENV = 'development';
+      await runBuildDocs({
+        apiBaseHost: 'localhost:4017',
+        apiBaseProxyPath: '/',
+        docs: { jsJsonPath: `${fixturePath}/absent.json` },
+      });
+      await flushApiDocs();
+      expect(generated[0].doc.servers[0].url).to.equal('http://localhost:4017/api');
+
+      generated.length = 0;
+      process.env.NODE_ENV = 'production';
+      await runBuildDocs({
+        path: '/store',
+        apiBaseHost: 'api.fixture.test',
+        apiBaseProxyPath: '/store',
+        docs: { jsJsonPath: `${fixturePath}/absent.json` },
+      });
+      await flushApiDocs();
+      expect(generated[0].doc.servers[0].url).to.equal('https://api.fixture.test/store/api');
+    } finally {
+      process.env.NODE_ENV = previousEnv;
+      if (previousApi === undefined) delete process.env.BASE_API;
+      else process.env.BASE_API = previousApi;
+    }
+  });
+
   // swagger-autogen has no OAS-3 requestBody support, so the generated document
   // is patched afterwards. The patch has to survive an operation the generator
   // did not emit, and has to strip the OAS-2 `in: body` parameter it did.

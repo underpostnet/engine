@@ -20,6 +20,8 @@ import { ssrFactory } from './ssr.js';
  * @param {string} options.host - The hostname for the API
  * @param {string} options.path - The base path for the API
  * @param {number} options.port - The port number for the API
+ * @param {string} [options.apiBaseHost] - Host serving the API when it is split from the client
+ * @param {string} [options.apiBaseProxyPath] - Proxy path of the API runtime when it is split from the client
  * @param {Object} options.metadata - Metadata for the API documentation
  * @param {Array<string>} options.apis - List of API modules to document
  * @param {string} options.publicClientId - Client ID for the public documentation
@@ -30,6 +32,8 @@ const buildApiDocs = async ({
   host,
   path,
   port,
+  apiBaseHost,
+  apiBaseProxyPath,
   metadata = {},
   apis = [],
   publicClientId,
@@ -37,7 +41,10 @@ const buildApiDocs = async ({
   packageData,
 }) => {
   const logger = loggerFactory(import.meta);
-  const basePath = path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`;
+  // The spec is rendered by the client instance but exercised against the API runtime;
+  // when the two are split the server url must follow the API, not the docs page.
+  const apiPath = apiBaseProxyPath ? apiBaseProxyPath : path;
+  const basePath = apiPath === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`;
 
   const doc = {
     info: {
@@ -49,8 +56,8 @@ const buildApiDocs = async ({
       {
         url:
           process.env.NODE_ENV === 'development'
-            ? `http://localhost:${port}${path}${basePath}`
-            : `https://${host}${path}${basePath}`,
+            ? `http://${apiBaseHost ? apiBaseHost : `localhost:${port}`}${apiPath}${basePath}`
+            : `https://${apiBaseHost ? apiBaseHost : host}${apiPath}${basePath}`,
         description: `${process.env.NODE_ENV} server`,
       },
     ],
@@ -439,6 +446,8 @@ const buildCoverage = async ({ docs, docsDestination }) => {
  * @param {string} options.host - The hostname
  * @param {string} options.path - The base path
  * @param {number} options.port - The port number
+ * @param {string} [options.apiBaseHost] - Host serving the API when it is split from the client
+ * @param {string} [options.apiBaseProxyPath] - Proxy path of the API runtime when it is split from the client
  * @param {Object} options.metadata - Metadata for the documentation
  * @param {Array<string>} options.apis - List of API modules to document
  * @param {string} options.publicClientId - Client ID for the public documentation
@@ -450,6 +459,8 @@ const buildDocs = async ({
   host,
   path,
   port,
+  apiBaseHost,
+  apiBaseProxyPath,
   metadata = {},
   apis = [],
   publicClientId,
@@ -469,6 +480,8 @@ const buildDocs = async ({
     host,
     path,
     port,
+    apiBaseHost,
+    apiBaseProxyPath,
     metadata,
     apis,
     publicClientId,

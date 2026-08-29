@@ -165,19 +165,22 @@ class ExpressService {
     // Create HTTP server for regular instances (required for WebSockets)
     const server = createServer({}, app);
 
+    // Swagger path definition. The UI is served by every instance that renders the
+    // client, so a split client/API deployment keeps `api-docs` same-origin with the
+    // page that frames it.
+    const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+    const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
+    const swaggerEnabled = fs.existsSync(swaggerJsonPath);
+
+    // Flag swagger requests before security middleware
+    if (swaggerEnabled) {
+      app.use(swaggerPath, (req, res, next) => {
+        res.locals.isSwagger = true;
+        next();
+      });
+    }
+
     if (!apiBaseHost) {
-      // Swagger path definition
-      const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-      const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
-
-      // Flag swagger requests before security middleware
-      if (fs.existsSync(swaggerJsonPath)) {
-        app.use(swaggerPath, (req, res, next) => {
-          res.locals.isSwagger = true;
-          next();
-        });
-      }
-
       // Security and CORS — must run before swagger-ui so CSP headers are included in swagger responses
       if (process.env.NODE_ENV === 'development' && useLocalSsl)
         origins = origins.map((origin) => origin.replace('http', 'https'));
@@ -185,13 +188,6 @@ class ExpressService {
       applySecurity(app, {
         origin: origins,
       });
-
-      // Swagger UI setup (after security middleware so responses carry correct CSP headers)
-      if (fs.existsSync(swaggerJsonPath)) {
-        const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-        const swaggerUiOptions = await buildSwaggerUiOptions();
-        app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc, swaggerUiOptions));
-      }
 
       // Database and Valkey connections
       if (db && apis) await DataBaseProviderService.load({ apis, host, path, db });
@@ -261,6 +257,13 @@ class ExpressService {
           meta,
         });
       }
+    }
+
+    // Swagger UI setup (after security middleware so responses carry correct CSP headers)
+    if (swaggerEnabled) {
+      const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
+      const swaggerUiOptions = await buildSwaggerUiOptions();
+      app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc, swaggerUiOptions));
     }
 
     // SSR middleware loading
