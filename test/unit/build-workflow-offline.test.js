@@ -5,7 +5,13 @@ import fs from 'fs-extra';
 import { EXECUTION_PROFILE_ENV_KEY, withExecutionProfile } from '../../src/server/build/execution.js';
 import { shellExec } from '../../src/server/runtime/process.js';
 
-const readSource = (relative) => fs.readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
+const sourceUrl = (relative) => new URL(`../../${relative}`, import.meta.url);
+const readSource = (relative) => fs.readFileSync(sourceUrl(relative), 'utf8');
+const hasSource = (relative) => fs.existsSync(sourceUrl(relative));
+
+// A product build strips the CLIs it does not own, so an absent product entrypoint
+// is a CLI this tree does not ship, not a failure.
+const CYBERIA_CLI = 'bin/cyberia.js';
 
 describe('shellExec enforces the active execution profile', () => {
   const originalProfile = process.env[EXECUTION_PROFILE_ENV_KEY];
@@ -99,11 +105,22 @@ describe('binary resolution is centralized', () => {
     }
   });
 
-  it('never shells out to a bare global underpost from the cyberia CLI', () => {
-    const shelledOut = readSource('bin/cyberia.js').match(
+  it.skipIf(!hasSource(CYBERIA_CLI))('never shells out to a bare global underpost from the cyberia CLI', () => {
+    const shelledOut = readSource(CYBERIA_CLI).match(
       /(?<!\$\{cli\(\)\} )\bunderpost (?=clone|pull|push|cmt|run|start|deploy|secret)/g,
     );
     expect(shelledOut, `unresolved underpost invocations: ${shelledOut}`).to.equal(null);
+  });
+
+  it('replaces a checkout without depending on what that checkout installed', () => {
+    // Regression: the pre-pull clean ran through the global `underpost`, which is linked at
+    // the very tree being replaced — a node left without dependencies failed the pull that
+    // would have repaired it, and the fresh checkout was then used uninstalled.
+    const source = readSource('src/cli/run.js');
+    const runner = source.slice(source.indexOf('    pull: (path'), source.indexOf(`'ssh-deploy':`));
+    expect(runner).to.not.match(/shellExec\(`underpost /);
+    expect(runner).to.include('Underpost.repo.clean(');
+    expect(runner).to.include('npm install');
   });
 
   it('exposes the profile as one root-level flag rather than per-command bypasses', () => {

@@ -981,6 +981,10 @@ class UnderpostRun {
      * Both checkouts are replaced rather than merged, by the same `--switch-repo` route the fleet
      * sync takes — so a node moves onto a test source repo and back without being reprovisioned,
      * and one that has drifted onto commits of its own is brought back instead of refused.
+     *
+     * The replacement checkout is installed before this returns: it is a different commit than
+     * the one the caller started from, and nothing that follows can run against uninstalled
+     * dependencies.
      * @param {string} path - Engine source repository, as `owner/repo` or a clone URL. Defaults to
      *   the `GITHUB_USERNAME` monorepo.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
@@ -995,9 +999,18 @@ class UnderpostRun {
       });
       logger.info('Pulling engine source', { source, privateRepo });
 
-      if (fs.existsSync(`/home/dd/engine`)) shellExec(`underpost run clean`);
-      Underpost.repo.syncCheckout({ path: `/home/dd/engine`, repo: source });
-      Underpost.repo.syncCheckout({ path: `/home/dd/engine/engine-private`, repo: privateRepo });
+      const engineRoot = `/home/dd/engine`;
+      // Cleaning is the in-process API rather than a shell round trip through the
+      // global `underpost`: that bin is linked at the very checkout being replaced,
+      // so a tree left without its dependencies made the pre-clean — and with it the
+      // whole pull — exit non-zero on exactly the node that needed replacing.
+      if (fs.existsSync(engineRoot)) Underpost.repo.clean({ paths: [engineRoot, `${engineRoot}/engine-private`] });
+      Underpost.repo.syncCheckout({ path: engineRoot, repo: source });
+      Underpost.repo.syncCheckout({ path: `${engineRoot}/engine-private`, repo: privateRepo });
+      // The checkout that lands here is a different commit than the one this process
+      // started from, and its package.json is only a description until it is installed.
+      // Everything after this — the linked global bin included — runs from this tree.
+      shellExec(`cd ${engineRoot} && npm install`);
     },
 
     /**
