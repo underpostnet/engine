@@ -1,17 +1,25 @@
 # Host preparation for deploy/<deploy-id>/*.sh. Sourced, never executed directly.
 # Requires lib/github-actions-logging.sh for deploy_step.
 
-ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-test}"
+ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-cyberia}"
 # ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 ENGINE_SRC_PRIVATE_REPO="underpostnet/engine-private"
 
 # Brings a node to the state every deploy assumes: the engine source at HEAD, its dependencies
 # installed, and the host configuration loaded into the underpost root env store. `host load`
 # is the one entry point for that store — see `underpost host`.
+#
+# Dependencies are installed before the pull, not after: the pull runs through this checkout's
+# own CLI, so a tree whose node_modules no longer match its package.json cannot repair itself —
+# the entrypoint fails to import long before it can replace the source. The checkout the pull
+# lands is installed by `run pull` itself, which is the only place that knows it changed.
 prepare_host() {
     local engine_root="${1:-/home/dd/engine}"
     local src_repo="${2:-$ENGINE_SRC_REPO}"
     local src_private_repo="${3:-$ENGINE_SRC_PRIVATE_REPO}"
+    
+    deploy_step "Install dependencies" \
+    sudo -n -- /bin/bash -lc "cd $engine_root && npm install"
     
     deploy_step "Pull repository" \
     sudo -n -- /bin/bash -lc \
@@ -47,7 +55,7 @@ pod_bootstrap_cmd() {
     local env="${2:-production}"
     local repo="${3:-underpostnet/engine-test-${deploy_id#dd-}}"
     local name="${repo##*/}"
-
+    
     printf '%s' "cd /home/dd, \
 underpost clone ${repo}, \
 mkdir -p /home/dd/engine, \
@@ -56,5 +64,5 @@ rm -rf /home/dd/${name}, \
 cd /home/dd/engine, \
 npm install, \
 npm link --force, \
-underpost state set container-status ${deploy_id}-${env}-build-deployment"
+    underpost state set container-status ${deploy_id}-${env}-build-deployment"
 }
