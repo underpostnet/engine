@@ -1450,12 +1450,15 @@ class UnderpostEvent {
      * @description Runs one remediation command through the single execution
      * facility, locally or on a named account's host.
      *
-     * `sshRemoteRunner` selects local or remote execution. A remote target always
-     * supplies both the registered user and management host.
+     * `sshRemoteRunner` selects local or remote execution from whether a registered
+     * user resolved. That is right for remediation, which repairs this node without
+     * an SSH hop, and wrong for anything that rewrites the checkout it runs in:
+     * such a caller passes `requireRemote` so the fallback cannot happen silently.
      * @param {string} command - Command to run.
      * @param {object} [options]
      * @param {string} [options.user] - Registered SSH user; omitted runs locally.
      * @param {string} [options.host] - Host that account should reach.
+     * @param {boolean} [options.requireRemote] - Refuse to fall back to local execution.
      * @param {boolean} [options.dryRun] - Report the command instead of running it.
      * @param {boolean} [options.silent] - Suppress the command's output; it is still returned.
      * @returns {Promise<{ok: boolean, output: string, error?: string}>} Execution result.
@@ -1464,6 +1467,11 @@ class UnderpostEvent {
     async runCommand(command, options = {}) {
       const user = options.user || '';
       const host = options.host || '';
+      if (options.requireRemote === true && !user)
+        throw new Error(
+          `[event] refusing to run locally: this command requires a remote target, but no ` +
+            `registered SSH user resolved${host ? ` for ${host}` : ''}.`,
+        );
       const where = user ? `ssh ${user}@${host || '(registered host)'}` : 'local';
       if (options.dryRun) {
         logger.info(`[dry-run] ${where} :: ${command}`);

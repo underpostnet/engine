@@ -2602,8 +2602,30 @@ class UnderpostWireguard {
       // The engine repositories are private, and their credentials live in the
       // cron deploy environment rather than the host's.
       loadCronDeployEnv();
-      const targets = Underpost.wireguard.syncTargets(options);
-      if (targets.length === 0) throw new Error(`[wireguard] no node is registered in ${EDGE_TOPOLOGY_PATH}`);
+      const allTargets = Underpost.wireguard.syncTargets(options);
+      if (allTargets.length === 0) throw new Error(`[wireguard] no node is registered in ${EDGE_TOPOLOGY_PATH}`);
+
+      // This sequence repoints origin and hard-resets the checkout it runs in, so the machine
+      // driving it is the source and never a destination. Which machine that is, is decided
+      // under the hub by the address a peer is registered at — `managementHost` is unique,
+      // where a hostname is not: the control plane and a workstation are both
+      // `localhost.localdomain`, and matching on that name would aim the switch at whichever
+      // of them happened to run the command. Dispatch is SSH-only for the same reason.
+      const addresses = hostAddressesFactory();
+      const runsHere = (target) => !target.user || addresses.has(`${target.host || ''}`.trim());
+      const targets = allTargets.filter((target) => !runsHere(target));
+      for (const target of allTargets.filter(runsHere))
+        logger.warn('Skipping the node this command runs from; it is the sync source, not a destination', {
+          node: target.nodeName,
+          via: target.via,
+          hint: 'update this checkout with git, or run the sync from another node',
+        });
+      if (targets.length === 0)
+        throw new Error(
+          `[wireguard] every selected node resolves to this machine, which is the sync source; ` +
+            `nothing would be synced.`,
+        );
+
       const script = Underpost.wireguard.syncScript(options);
       const custom = parseList(options.cmd).length > 0;
       const nodes = [];
@@ -2617,6 +2639,7 @@ class UnderpostWireguard {
           ...options,
           user: target.user,
           host: target.host,
+          requireRemote: true,
         });
         if (!result.ok)
           logger.error('Sync failed', {
