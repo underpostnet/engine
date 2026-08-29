@@ -42,7 +42,11 @@ describe('wireguard sync never switches the checkout it runs from', () => {
     return dispatched;
   };
 
-  const remote = { nodeName: 'vultr', user: 'root', host: '64.176.25.136', via: 'root@64.176.25.136:22' };
+  // Dispatch fixtures use RFC 5737 documentation addresses on purpose: the guard skips any node
+  // registered at an address this machine holds, so a fixture that names a real fleet address —
+  // the control plane's LAN address, or its 10.0.0.x tunnel address — stops being a remote node
+  // on the very hosts the suite runs on.
+  const remote = { nodeName: 'vultr', user: 'root', host: '203.0.113.10', via: 'root@203.0.113.10:22' };
 
   it('skips a node registered at an address this machine holds', async () => {
     // The peer list is keyed by managementHost because it is unique; a hostname is not, and
@@ -54,7 +58,7 @@ describe('wireguard sync never switches the checkout it runs from', () => {
 
     await Underpost.wireguard.sync({ cmd: 'echo fleet' });
 
-    expect(dispatched.map(({ host }) => host)).to.deep.equal(['64.176.25.136']);
+    expect(dispatched.map(({ host }) => host)).to.deep.equal(['203.0.113.10']);
   });
 
   it('skips a target that resolved to local execution', async () => {
@@ -64,7 +68,7 @@ describe('wireguard sync never switches the checkout it runs from', () => {
     await Underpost.wireguard.sync({ cmd: 'echo fleet' });
 
     expect(dispatched).to.have.lengthOf(1);
-    expect(dispatched[0].host).to.equal('64.176.25.136');
+    expect(dispatched[0].host).to.equal('203.0.113.10');
   });
 
   it('marks every dispatch remote-only', async () => {
@@ -86,11 +90,11 @@ describe('wireguard sync never switches the checkout it runs from', () => {
   });
 
   it('still syncs a remote node that merely shares this machine hostname', async () => {
-    // The reported case: the control plane at .85 and this workstation are both
+    // The reported case: the control plane and this workstation are both
     // `localhost.localdomain`, so the remote one must still be reached, not skipped.
-    const sameName = { nodeName: 'localhost.localdomain', user: 'git_super_admin', host: '192.168.1.85', via: 'ssh' };
+    const sameName = { nodeName: 'localhost.localdomain', user: 'admin', host: '198.51.100.85', via: 'ssh' };
     const dispatched = stub([sameName]);
     await Underpost.wireguard.sync({ cmd: 'echo fleet' });
-    expect(dispatched.map(({ host }) => host)).to.deep.equal(['192.168.1.85']);
+    expect(dispatched.map(({ host }) => host)).to.deep.equal(['198.51.100.85']);
   });
 });

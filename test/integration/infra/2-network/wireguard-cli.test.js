@@ -958,11 +958,13 @@ describe('edge host provisioning', () => {
         user: 'root',
         host: HUB_HOST,
       });
+      // A documentation address, not the fixture's 10.0.0.2: that tunnel address is a real
+      // address on a fleet node, and the guard would skip it there instead of dispatching.
       vi.spyOn(UnderpostEvent.API, 'spokeTarget').mockReturnValue({
         role: 'spoke',
         via: 'ssh',
         user: 'admin',
-        host: '10.0.0.2',
+        host: '198.51.100.2',
       });
       const run = vi
         .spyOn(UnderpostEvent.API, 'runCommand')
