@@ -950,8 +950,20 @@ describe('edge host provisioning', () => {
       vi.spyOn(UnderpostRepository.API, 'getDefaultBranch').mockReturnValue('master');
       vi.spyOn(UnderpostEvent.API, 'hubs').mockReturnValue([{ nodeName: 'hub-node', hubHost: HUB_HOST }]);
       vi.spyOn(UnderpostEvent.API, 'spokes').mockReturnValue([{ nodeName: 'control-node', id: 'control-a' }]);
-      vi.spyOn(UnderpostEvent.API, 'hubTarget').mockReturnValue({ role: 'hub', via: 'local', host: HUB_HOST });
-      vi.spyOn(UnderpostEvent.API, 'spokeTarget').mockReturnValue({ role: 'spoke', via: 'ssh', host: '10.0.0.2' });
+      // Both carry the user a real target resolves with: sync dispatches over SSH only, and
+      // skips any node registered at an address this machine holds.
+      vi.spyOn(UnderpostEvent.API, 'hubTarget').mockReturnValue({
+        role: 'hub',
+        via: 'ssh',
+        user: 'root',
+        host: HUB_HOST,
+      });
+      vi.spyOn(UnderpostEvent.API, 'spokeTarget').mockReturnValue({
+        role: 'spoke',
+        via: 'ssh',
+        user: 'admin',
+        host: '10.0.0.2',
+      });
       const run = vi
         .spyOn(UnderpostEvent.API, 'runCommand')
         .mockImplementation(async (_command, options) => ({ ok: options.host === HUB_HOST, error: 'refused' }));
