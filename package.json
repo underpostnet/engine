@@ -68,7 +68,7 @@
     "@vitest/coverage-v8": "4.1.11",
     "adm-zip": "^0.6.0",
     "ag-grid-community": "^36.1.0",
-    "allure-vitest": "3.10.2",
+    "allure-vitest": "3.11.0",
     "axios": "^1.19.0",
     "bumpp": "^12.2.1",
     "chai": "^6.2.2",
