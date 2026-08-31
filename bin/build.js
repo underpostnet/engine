@@ -14,7 +14,9 @@ import {
 } from '../src/server/runtime/conf.js';
 import { resolveDeployList } from '../src/server/network/router.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
-import { buildProductPackageJson } from '../src/server/build/package.js';
+import { buildProductPackageJson, productPackageOptionsFactory } from '../src/server/build/package.js';
+import { COVERAGE_BUNDLE_DIRECTORY, bundleCoverageReport } from '../src/server/build/coverage.js';
+import { shellExec } from '../src/server/runtime/process.js';
 import Underpost from '../src/index.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
@@ -110,7 +112,6 @@ const buildDeployTemplate = async (confName) => {
 
   const sourcePackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const basePackageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
-  let packageOptions = {};
 
   // A packaged path may be a nested project with its own installed tree; the
   // product resolves dependencies from its own lockfile, never from a copy.
@@ -121,24 +122,16 @@ const buildDeployTemplate = async (confName) => {
       });
   };
 
+  // The manifest a product publishes is its catalog's declaration, resolved the same way for
+  // every product: only the files a product places in the template are its own business.
+  const packageOptions = productPackageOptionsFactory({ catalog, underpostVersion: Underpost.version });
+
   switch (confName) {
     case 'dd-cyberia': {
-      const { CyberiaDependencies, DOCKER_SCRIPTS } = await import(
-        `../src/api/cyberia-server-defaults/cyberia-server-defaults.js`
-      );
       fs.copyFileSync(
         `./.github/workflows/publish.cyberia.ci.yml`,
         `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
       );
-      packageOptions = {
-        customDependencies: {
-          underpost: '^' + Underpost.version.replace('v', ''),
-          'adm-zip': '^0.6.0',
-          ...CyberiaDependencies,
-        },
-        customScripts: DOCKER_SCRIPTS,
-        customBin: { cyberia: 'bin/index.js' },
-      };
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       // Canonical Cyberia doc; engine-cyberia/README.md is a generated copy — never hand-edited.
       fs.writeFileSync(
@@ -162,11 +155,7 @@ const buildDeployTemplate = async (confName) => {
     repositoryName: repoName,
     ...packageOptions,
   });
-  fs.writeFileSync(
-    `${basePath}/package.json`,
-    JSON.stringify(packageJson, null, 4),
-    'utf8',
-  );
+  fs.writeFileSync(`${basePath}/package.json`, JSON.stringify(packageJson, null, 4), 'utf8');
   if (fs.existsSync(`./deploy/${confName}`))
     fs.copySync(`./deploy/${confName}`, `${basePath}/deploy/${confName}`, {
       overwrite: true,
@@ -230,6 +219,19 @@ const buildDeployTemplate = async (confName) => {
   }
 };
 
+/**
+ * Carries this build stage's coverage HTML report into the assembled template, so every
+ * container started from the published source serves the report instead of generating one.
+ */
+const bundleDeployCoverage = () => {
+  const { bundled, from, to } = bundleCoverageReport('.', basePath);
+  if (bundled) return void logger.info('Build coverage artifact', { from, to });
+  logger.warn('No coverage report to bundle; the deploy will publish the unavailable page', {
+    hint: 'node bin/build <deploy-id> --coverage',
+    to,
+  });
+};
+
 const program = new Command();
 
 program
@@ -241,6 +243,11 @@ program
   .option(
     '--no-template-rebuild',
     'Skip the from-scratch base template reconstruction before assembly (assemble onto the existing template).',
+  )
+  .option(
+    '--coverage',
+    `Run the test suite to refresh ./coverage before assembly, so the artifact carries a current ${COVERAGE_BUNDLE_DIRECTORY} report.`,
+    false,
   )
   .option(
     '--update-private',
@@ -259,12 +266,18 @@ program
       return;
     }
 
+    // Tests run here, in the build stage, and exactly once: the artifact carries the report so
+    // no container ever has to produce its own. Refreshing is opt-in because a template
+    // assembly is not otherwise a test run.
+    if (options.coverage) shellExec(`npm run test:coverage`);
+
     for (const deployId of deployList) {
       // Reconstruct the base template from 0 before each deploy id so neither a previous
       // build run nor the deploy id assembled before this one leaks into it. Opt out with
       // --no-template-rebuild.
       if (options.templateRebuild) await buildTemplate({ toPath: basePath });
       await buildDeployTemplate(deployId);
+      bundleDeployCoverage();
       // Publish the just-assembled tree to the deploy id's private test repo so a
       // pod started with `--private-test-repo` clones this work-in-progress source.
       if (options.updatePrivate) await updatePrivateEngineTestRepo(deployId);

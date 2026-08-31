@@ -3,6 +3,7 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
 import shell from 'shelljs';
+import { COVERAGE_BUNDLE_DIRECTORY } from '../../src/server/build/coverage.js';
 import { buildCoverage, buildDocs, buildSwaggerUiOptions } from '../../src/client-builder/client-build-docs.js';
 
 // swagger-autogen is a code generator that walks the real router files and
@@ -60,64 +61,60 @@ describe('client coverage build', () => {
     expect(fs.existsSync(`${fixturePath}/out/report/index.html`)).to.equal(true);
   });
 
-  it('skips a coverage directory with no HTML index rather than publishing an empty route', async () => {
+  it('publishes the unavailable page for a coverage directory with no HTML index', async () => {
     fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
     fs.outputFileSync(`${fixturePath}/coverage/lcov.info`, 'TN:\n');
 
     await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
 
-    expect(fs.existsSync(`${fixturePath}/out`)).to.equal(false);
+    expect(fs.readFileSync(`${fixturePath}/out/coverage/index.html`, 'utf8')).to.include('Coverage report unavailable');
   });
 
-  it('skips a project with no coverage output and no way to produce it', async () => {
+  it('publishes the report an assembled deploy artifact bundled', async () => {
     fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
+    fs.outputFileSync(
+      `${fixturePath}/${COVERAGE_BUNDLE_DIRECTORY}/index.html`,
+      '<!doctype html><title>bundled</title>',
+    );
+
+    await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
+
+    expect(fs.readFileSync(`${fixturePath}/out/coverage/index.html`, 'utf8')).to.include('bundled');
+  });
+
+  it('prefers a freshly generated report over the bundled artifact', async () => {
+    fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
+    fs.outputFileSync(`${fixturePath}/coverage/lcov-report/index.html`, '<!doctype html><title>fresh</title>');
+    fs.outputFileSync(
+      `${fixturePath}/${COVERAGE_BUNDLE_DIRECTORY}/index.html`,
+      '<!doctype html><title>bundled</title>',
+    );
+
+    await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
+
+    expect(fs.readFileSync(`${fixturePath}/out/coverage/index.html`, 'utf8')).to.include('fresh');
+  });
+
+  // Regression: the build used to shell out to `npm test` when no report was present. Inside a
+  // pod that spent minutes of the build phase on a test runner, and the suite's expected
+  // non-zero exits latched `container-status=error`, failing a healthy rollout.
+  it('never runs a test runner to produce a missing report', async () => {
+    fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
+    fs.outputJsonSync(`${fixturePath}/package.json`, {
+      scripts: { coverage: 'vitest run --coverage', test: 'vitest run' },
+    });
     const exec = vi.spyOn(shell, 'exec');
 
     await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
 
     expect(exec.mock.calls.length).to.equal(0);
+    expect(fs.readFileSync(`${fixturePath}/out/coverage/index.html`, 'utf8')).to.include('Coverage report unavailable');
   });
 
-  it('runs the project coverage script when the report is missing', async () => {
+  it('publishes nothing for a deploy that declares no coverage source', async () => {
     fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
-    fs.outputJsonSync(`${fixturePath}/package.json`, { scripts: { coverage: 'vitest run --coverage' } });
-    const exec = vi.spyOn(shell, 'exec').mockReturnValue({ code: 0, stdout: '', stderr: '' });
 
-    await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
-
-    expect(exec.mock.calls[0][0]).to.equal(`cd ${fixturePath} && npm run coverage`);
-  });
-
-  it('falls back to the test script when no coverage script is declared', async () => {
-    fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
-    fs.outputJsonSync(`${fixturePath}/package.json`, { scripts: { test: 'vitest run' } });
-    const exec = vi.spyOn(shell, 'exec').mockReturnValue({ code: 0, stdout: '', stderr: '' });
-
-    await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
-
-    expect(exec.mock.calls[0][0]).to.equal(`cd ${fixturePath} && npm test`);
-  });
-
-  // A docs build that aborts because a dependent project's suite is red would
-  // take the whole site down with it; the report is simply left unpublished.
-  it('treats a failing coverage script as non-fatal', async () => {
-    fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
-    fs.outputJsonSync(`${fixturePath}/package.json`, { scripts: { coverage: 'exit 1' } });
-    vi.spyOn(shell, 'exec').mockReturnValue({ code: 1, stdout: '', stderr: 'failed' });
-
-    await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
-
-    expect(fs.existsSync(`${fixturePath}/out`)).to.equal(false);
-  });
-
-  it('treats a failing test script as non-fatal', async () => {
-    fixturePath = fs.mkdtempSync('/tmp/engine-coverage-');
-    fs.outputJsonSync(`${fixturePath}/package.json`, { scripts: { test: 'exit 1' } });
-    vi.spyOn(shell, 'exec').mockImplementation(() => {
-      throw new Error('suite failed');
-    });
-
-    await buildCoverage({ docs: { coveragePath: fixturePath }, docsDestination: `${fixturePath}/out/` });
+    await buildCoverage({ docs: {}, docsDestination: `${fixturePath}/out/` });
 
     expect(fs.existsSync(`${fixturePath}/out`)).to.equal(false);
   });

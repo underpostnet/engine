@@ -9,6 +9,11 @@
 import fs from 'fs-extra';
 import { shellExec } from '../server/runtime/process.js';
 import { loggerFactory } from '../server/ops/logger.js';
+import {
+  coverageReportCandidates,
+  coverageUnavailablePage,
+  resolveCoverageReportPath,
+} from '../server/build/coverage.js';
 import { JSONweb } from './client-formatted.js';
 import { ssrFactory } from './ssr.js';
 
@@ -378,64 +383,60 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, do
   fs.writeFileSync(tmpConfigPath, JSON.stringify(runtimeConfig, null, 2), 'utf8');
   logger.warn('build typedoc view', docsDestination);
 
-  shellExec(`node_modules/.bin/typedoc --options ${tmpConfigPath}`, { silent: true });
+  // Non-fatal like every other docs surface: a typedoc failure leaves the reference site
+  // unpublished, it does not take a rollout down with it.
+  const result = shellExec(`node_modules/.bin/typedoc --options ${tmpConfigPath}`, {
+    silent: true,
+    silentOnError: true,
+  });
 
   fs.removeSync(tmpConfigPath);
+
+  if (fs.existsSync(`${docsDestination}index.html`)) return;
+  logger.warn('typedoc produced no HTML index', {
+    docsDestination,
+    code: result?.code,
+    stderr: `${result?.stderr ?? ''}`.trim().split('\n').slice(-1)[0],
+  });
 };
 
 /**
- * Builds test coverage documentation
+ * Publishes the coverage HTML report a build carried into the docs route.
+ *
+ * Never generates it: the report belongs to the test stage, which bundles it into the
+ * deploy artifact (see {@link module:src/server/build/coverage.js}). A client build that
+ * shelled out to `npm test` here spent minutes of a pod's build phase on a runner the
+ * workload has no business holding, and every expected non-zero exit of that suite latched
+ * `container-status=error`, failing the deployment monitor on a healthy rollout.
  * @function buildCoverage
  * @memberof clientBuildDocs
  * @param {Object} options - Coverage build options
  * @param {Object} options.docs - Documentation config from server conf
- * @param {string} options.docs.coveragePath - Directory where coverage reports are generated
+ * @param {string} options.docs.coveragePath - Source tree root the report was bundled into
+ * @param {string} [options.docs.coverageOutputDir] - Route directory under the docs path
  * @param {string} options.docsDestination - Resolved output path where docs were built
  */
 const buildCoverage = async ({ docs, docsDestination }) => {
   const logger = loggerFactory(import.meta);
   const { coveragePath, coverageOutputDir = 'coverage' } = docs;
+  // No configured source tree is a deploy that never declared coverage — not a missing report.
+  if (!coveragePath) return;
 
-  const coverageOutputPath = `${coveragePath}/coverage`;
-  if (!fs.existsSync(coverageOutputPath)) {
-    const pkgPath = `${coveragePath}/package.json`;
-    if (fs.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-      if (pkg.scripts && pkg.scripts.coverage) {
-        logger.info('generating coverage report', coveragePath);
-        try {
-          await shellExec(`cd ${coveragePath} && npm run coverage`, { silent: true });
-        } catch (err) {
-          logger.warn('coverage generation failed (non-fatal), skipping:', err.message);
-          return;
-        }
-      } else if (pkg.scripts && pkg.scripts.test) {
-        logger.info('generating coverage via test', coveragePath);
-        try {
-          await shellExec(`cd ${coveragePath} && npm test`, { silent: true, silentOnError: true });
-        } catch (err) {
-          logger.warn('coverage generation failed (non-fatal), skipping:', err.message);
-          return;
-        }
-      }
-    }
+  const coverageBuildPath = `${docsDestination}${coverageOutputDir}`;
+  const reportPath = resolveCoverageReportPath(coveragePath);
+
+  if (!reportPath) {
+    fs.outputFileSync(`${coverageBuildPath}/index.html`, coverageUnavailablePage(), 'utf8');
+    logger.warn('no coverage report bundled, publishing the unavailable page', {
+      searched: coverageReportCandidates(coveragePath),
+      published: coverageBuildPath,
+    });
+    return;
   }
 
-  if (fs.existsSync(coverageOutputPath) && fs.readdirSync(coverageOutputPath).length > 0) {
-    const coverageBuildPath = `${docsDestination}${coverageOutputDir}`;
-    const reportPath = [`${coverageOutputPath}/html`, `${coverageOutputPath}/lcov-report`, coverageOutputPath].find(
-      (candidate) => fs.existsSync(`${candidate}/index.html`),
-    );
-    if (!reportPath) {
-      logger.warn('coverage HTML index not found, skipping', coverageOutputPath);
-      return;
-    }
-    fs.emptyDirSync(coverageBuildPath);
-    fs.copySync(reportPath, coverageBuildPath);
-    logger.warn('build coverage', coverageBuildPath);
-  } else {
-    logger.warn('no coverage output found, skipping', coverageOutputPath);
-  }
+  fs.emptyDirSync(coverageBuildPath);
+  fs.copySync(reportPath, coverageBuildPath);
+  logger.warn('build coverage', coverageBuildPath);
 };
 
 /**

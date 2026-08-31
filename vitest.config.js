@@ -36,6 +36,10 @@ export default defineConfig({
       // `lcov` is what Coveralls ingests, `json` is what a merged multi-job
       // report is assembled from, `text` is what a local run reads.
       reporter: ['text', 'lcov', 'json'],
+      // Written even when the run fails: the coverage workflows upload the report
+      // from a job the threshold step is meant to fail, and without it the badge
+      // freezes at the last passing build instead of moving with the tree.
+      reportOnFailure: true,
       // The tiers in the selection decide what is measured, so a partial run
       // reports the slice it drives and the whole run reports the whole of it —
       // rather than every module the CLI barrel drags into a worker on import.
