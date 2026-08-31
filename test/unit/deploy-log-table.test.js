@@ -97,6 +97,7 @@ const runQuiet = ({ tty = false, plain = false, ci = false, exitCode = 0 } = {})
   fs.writeFileSync(scriptPath, script);
 
   const env = { ...process.env, TERM: 'xterm', COLUMNS: '140', LINES: '40' };
+  delete env.NO_COLOR;
   if (plain) env.RUN_QUIET_PLAIN = '1';
   else delete env.RUN_QUIET_PLAIN;
   // The helper picks its rendering from the environment, so a run on a GitHub

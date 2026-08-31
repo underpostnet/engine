@@ -34,6 +34,93 @@ const levels = {
  */
 const level = (logLevel = '') => logLevel || 'info';
 
+const REDACTED = '[REDACTED]';
+const CONFIG_NAME_SOURCE = '[A-Za-z_][A-Za-z0-9_.-]*';
+const SENSITIVE_VALUE_SOURCE = '(?:"[^"\\r\\n]*"|\'[^\'\\r\\n]*\'|[^\\s;&|]+)';
+const SENSITIVE_WORDS = new Set([
+  'authorization',
+  'cookie',
+  'credential',
+  'pass',
+  'passwd',
+  'password',
+  'secret',
+  'token',
+]);
+const SENSITIVE_COMPOUNDS = ['apikey', 'privatekey', 'accesskey', 'sessionid', 'mysqlpwd', 'mariadbpwd'];
+const sensitiveField = (key) => {
+  const words = `${key || ''}`
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const compact = words.join('');
+  return (
+    words.some((word) => SENSITIVE_WORDS.has(word)) ||
+    SENSITIVE_COMPOUNDS.some((compound) => compact.endsWith(compound))
+  );
+};
+
+const redactSensitiveText = (value = '') =>
+  `${value ?? ''}`
+    .replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, REDACTED)
+    .replace(
+      /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g,
+      REDACTED,
+    )
+    .replace(/([a-z][a-z0-9+.-]*\\?:(?:\\?\/){2})(?:(?:\\.)|[^/\\\s@])+(\\?@)/gi, '$1***$2')
+    .replace(/\b(x-access-token\\?:)[^\s"']+?(?=\\?@github\.com\b)/gi, '$1***')
+    .replace(
+      /((?:"|')?(?:authorization|proxy-authorization)(?:"|')?\s*:\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+\S+|\S+)/gi,
+      `$1"${REDACTED}"`,
+    )
+    .replace(
+      new RegExp(
+        `(\\b(?:host|app|state|secret)\\s+set\\s+)(${CONFIG_NAME_SOURCE})(\\s+)(${SENSITIVE_VALUE_SOURCE})`,
+        'gi',
+      ),
+      (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
+    )
+    .replace(
+      new RegExp(`(\\s--?)(${CONFIG_NAME_SOURCE})(=|\\s+)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+      (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
+    )
+    .replace(
+      new RegExp(`(^|\\s)(-p)(\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+      (match, prefix, flag, separator, secret) =>
+        secret.startsWith('-') ? match : `${prefix}${flag}${separator}${REDACTED}`,
+    )
+    .replace(
+      new RegExp(`\\b(${CONFIG_NAME_SOURCE})(\\s*=\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+      (match, key, separator) => (sensitiveField(key) ? `${key}${separator}${REDACTED}` : match),
+    )
+    .replace(
+      new RegExp(`((?:"|')?)(${CONFIG_NAME_SOURCE})((?:"|')?\\s*:\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+      (match, quote, key, separator) => (sensitiveField(key) ? `${quote}${key}${separator}"${REDACTED}"` : match),
+    );
+
+const serializeLogValue = (value) => {
+  const seen = new WeakSet();
+  const serialized = JSON.stringify(
+    value,
+    (key, current) => {
+      if (key && sensitiveField(key)) return REDACTED;
+      if (typeof current === 'string') return redactSensitiveText(current);
+      if (typeof current === 'bigint') return `${current}`;
+      if (typeof current === 'function') return `[Function: ${current.name || 'anonymous'}]`;
+      if (current instanceof Error)
+        return Object.fromEntries(Object.getOwnPropertyNames(current).map((name) => [name, current[name]]));
+      if (typeof current === 'object' && current !== null) {
+        if (seen.has(current)) return '[Circular]';
+        seen.add(current);
+      }
+      return current;
+    },
+    4,
+  );
+  return serialized === undefined ? redactSensitiveText(`${value ?? ''}`) : serialized;
+};
+
 // Define different colors for each level.
 // Colors make the log message more visible,
 // adding the ability to focus or ignore messages.
@@ -49,7 +136,7 @@ winston.addColors({
 });
 
 // Chose the aspect of your log customizing the log format.
-const format = (meta) =>
+const loggerFormatFactory = (meta) =>
   winston.format.combine(
     // winston.format.errors({ stack: true }),
     // Add the message timestamp with the preferred format
@@ -61,25 +148,13 @@ const format = (meta) =>
       const splatKey = Symbol.for('splat');
       const splat = info[splatKey];
       const hasSplat = Array.isArray(splat) && splat.length > 0 && splat[0] !== undefined;
-      let splatStr = '';
-      if (hasSplat) {
-        const seen = new WeakSet();
-        splatStr = JSON.stringify(
-          splat[0],
-          (key, value) => {
-            if (typeof value === 'function') return `[Function: ${value.name || 'anonymous'}]`;
-            if (typeof value === 'object' && value !== null) {
-              if (seen.has(value)) return '[Circular]';
-              seen.add(value);
-            }
-            return value;
-          },
-          4,
-        );
-      }
+      const splatStr = hasSplat ? serializeLogValue(splat[0]) : '';
+      const message = redactSensitiveText(
+        info.message instanceof Error ? info.message.stack || info.message.message : info.message,
+      );
       return `${`[${meta}]`.green} ${info.timestamp} ${info.level} ${
         hasSplat
-          ? `${clearTerminalStringColor(info.message)}: ${colorize(splatStr, {
+          ? `${clearTerminalStringColor(message)}: ${colorize(splatStr, {
               colors: {
                 StringKey: color.green,
                 StringLiteral: color.magenta,
@@ -88,7 +163,7 @@ const format = (meta) =>
                 NullLiteral: color.white,
               },
             })}`
-          : info.message
+          : message
       }`;
     }),
   );
@@ -158,7 +233,7 @@ const loggerFactory = (
     defaultMeta: meta,
     level: level(logLevel),
     levels,
-    format: format(meta),
+    format: loggerFormatFactory(meta),
     transports,
     // exceptionHandlers: [new winston.transports.File({ filename: 'exceptions.log' })],
     // rejectionHandlers: [new winston.transports.File({ filename: 'rejections.log' })],
@@ -226,4 +301,14 @@ const actionInitLog = () =>
 `,
   );
 
-export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCII, actionInitLog };
+export {
+  REDACTED,
+  actionInitLog,
+  loggerFactory,
+  loggerFormatFactory,
+  loggerMiddleware,
+  redactSensitiveText,
+  serializeLogValue,
+  setUpInfo,
+  underpostASCII,
+};

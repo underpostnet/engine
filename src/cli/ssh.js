@@ -6,7 +6,7 @@
 
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
 import { shellExec } from '../server/runtime/process.js';
-import { loggerFactory } from '../server/ops/logger.js';
+import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { waitForPort } from '../server/runtime/conf.js';
 import {
   runSELinuxCommands,
@@ -16,10 +16,32 @@ import {
   selinuxSshPortCommandsFactory,
   shellArgumentFactory,
 } from '../server/security/selinux.js';
+import ContainerStorageService from '../server/security/container-storage.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
+
+const shellExecRedacted = (command, options = {}) => {
+  const silent = options.silent === true;
+  try {
+    const result = shellExec(command, { ...options, silent: true });
+    if (!silent) {
+      if (result.stdout) process.stdout.write(redactSensitiveText(result.stdout));
+      if (result.stderr) process.stderr.write(redactSensitiveText(result.stderr));
+    }
+    return result.stdout;
+  } catch (error) {
+    error.stdout = redactSensitiveText(error.stdout || '');
+    error.stderr = redactSensitiveText(error.stderr || '');
+    error.message = redactSensitiveText(error.message || error);
+    if (!silent) {
+      if (error.stdout) process.stdout.write(error.stdout);
+      if (error.stderr) process.stderr.write(error.stderr);
+    }
+    throw error;
+  }
+};
 
 /**
  * SSH users are cluster scoped: one registry and one key store serve every
@@ -697,6 +719,10 @@ class UnderpostSSH {
      * @param {string} [params.keyPath='./engine-private/deploy/id_rsa'] - Private key path.
      * @param {string} [params.owner='1000:1000'] - chown target on the node (empty to skip).
      * @param {string} [params.mode='755'] - chmod mode on the node (empty to skip).
+     * @param {boolean} [params.containerStorage=false] - Give the destination tree the persistent
+     *   `container_file_t` mapping on the node. Required for a hostPath volume: the label has to
+     *   exist on the node that actually mounts it, and a directory created here by `mkdir -p`
+     *   otherwise inherits whatever the parent carries — which no unprivileged pod can read.
      * @returns {void}
      */
     copyDirToNode: ({
@@ -708,6 +734,7 @@ class UnderpostSSH {
       keyPath = './engine-private/deploy/id_rsa',
       owner = '1000:1000',
       mode = '755',
+      containerStorage = false,
     }) => {
       if (!host) throw new Error('copyDirToNode requires a host');
       if (!localDir || !fs.existsSync(localDir)) throw new Error(`copyDirToNode: local dir not found: ${localDir}`);
@@ -730,6 +757,17 @@ class UnderpostSSH {
             silent: true,
             disableLog: true,
           });
+        // After the fixups, so the restorecon pass covers the files tar just extracted. A no-op
+        // on a node without SELinux, and it never runs unless the caller asked for it.
+        if (containerStorage)
+          shellExec(
+            `ssh ${sshOpts} ${user}@${host} ${shellArgumentFactory(
+              ContainerStorageService.containerStorageSubtreeCommandsFactory(remoteDir, {
+                sudo: user !== 'root',
+              }).join('; '),
+            )}`,
+            { silent: true, disableLog: true },
+          );
       } catch (err) {
         logger.error(`copyDirToNode failed`);
         process.exit(1);
@@ -775,7 +813,7 @@ class UnderpostSSH {
       // whatever the command actually said under a page of boilerplate.
       if (!remote) {
         const cwd = cd && fs.existsSync(cd) ? cd : '';
-        return shellExec(remoteCommand, { ...(cwd ? { cwd } : {}), silent, disableLog: true });
+        return shellExecRedacted(remoteCommand, { ...(cwd ? { cwd } : {}), silent, disableLog: true });
       }
 
       // Set up SSH credentials from the cluster config
@@ -798,7 +836,7 @@ ${useSudo ? `sudo -n -- /bin/bash -lc "${remoteCommand}"` : remoteCommand}
 EOF
 `;
 
-      return shellExec(sshScript, { stdout: true, silent, disableLog: true });
+      return shellExecRedacted(sshScript, { silent, disableLog: true });
     },
 
     /**

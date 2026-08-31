@@ -6,27 +6,12 @@
  * @namespace UnderpostKubectl
  */
 
-import { loggerFactory } from '../server/ops/logger.js';
+import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { shellExec, sleepSync } from '../server/runtime/process.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
-
-/**
- * Redacts credentials from shell command strings before logging.
- * Masks passwords in `-p<password>`, `--password=<password>`, and `-P <password>` patterns.
- * @param {string} cmd - The raw command string.
- * @returns {string} The command with credentials replaced by `***`.
- * @memberof UnderpostKubectl
- */
-const sanitizeCommand = (cmd) => {
-  if (typeof cmd !== 'string') return cmd;
-  return cmd
-    .replace(/-p['"]?[^\s'"]+/g, '-p***')
-    .replace(/--password=['"]?[^\s'"]+/g, '--password=***')
-    .replace(/-P\s+['"]?[^\s'"]+/g, '-P ***');
-};
 
 const DEFAULT_POD_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 2000;
@@ -135,7 +120,7 @@ class UnderpostKubectl {
       for (let attempt = 1; ; attempt++) {
         try {
           logger.info(`Executing kubectl command`, {
-            command: sanitizeCommand(command),
+            command: redactSensitiveText(command),
             context,
             ...(attempts > 1 ? { attempt, attempts } : {}),
           });
@@ -143,7 +128,7 @@ class UnderpostKubectl {
         } catch (error) {
           if (attempt === attempts) {
             logger.error(`kubectl command failed`, {
-              command: sanitizeCommand(command),
+              command: redactSensitiveText(command),
               error: error.message,
               context,
               attempts,
@@ -152,7 +137,7 @@ class UnderpostKubectl {
           }
           const delayMs = backoffDelayMs(attempt, baseDelayMs);
           logger.warn(`kubectl command failed, retrying`, {
-            command: sanitizeCommand(command),
+            command: redactSensitiveText(command),
             context,
             attempt,
             attempts,
