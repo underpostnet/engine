@@ -731,4 +731,120 @@ describe('secret status report', () => {
     harness.route({ match: 'command -v', code: 0, stdout: 'missing\n' });
     expect(() => sops().statusReport('', {})).not.to.throw();
   });
+
+  // The cron workloads used to read these values by bind-mounting the directory that holds the
+  // operator's global `.env` — a home-directory tree no unprivileged container can read under
+  // SELinux. Projecting them as a Secret is what replaced that mount, so the environment path has
+  // to work even on a host that keeps no seed file for them.
+  describe('environment-seeded workload secrets', () => {
+    const CRON_ENV_VARS = [
+      'GITHUB_TOKEN',
+      'GITHUB_USERNAME',
+      'DEFAULT_SSH_USER',
+      'DEFAULT_SSH_HOST',
+      'DEFAULT_SSH_PORT',
+      'DEFAULT_SSH_KEY_PATH',
+    ];
+
+    // Every mapped variable is pinned, not just the ones a case sets: the host running the suite
+    // has its own SSH connection exported, and an unpinned variable would leak into the result.
+    const withEnv = (values, run) => {
+      const pinned = { ...Object.fromEntries(CRON_ENV_VARS.map((key) => [key, undefined])), ...values };
+      const previous = {};
+      for (const [key, value] of Object.entries(pinned)) {
+        previous[key] = process.env[key];
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      try {
+        return run();
+      } finally {
+        for (const [key, value] of Object.entries(previous))
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+      }
+    };
+
+    it('maps every value the cron pods used to read off the mounted host tree', () => {
+      // The GitHub credentials and the SSH connection back to the node: exactly what
+      // `${getUnderpostRootPath()}/.env` carried into the pod before that mount was removed.
+      expect(Object.keys(sops().seedEnvKeys('underpost-cron-env')).sort()).to.deep.equal(CRON_ENV_VARS.slice().sort());
+    });
+
+    it('reads the values out of the environment when no seed file exists', () => {
+      withEnv({ GITHUB_TOKEN: 'token-value', DEFAULT_SSH_HOST: '10.0.0.4' }, () => {
+        expect(sops().seedEnvValues('underpost-cron-env')).to.deep.equal({
+          GITHUB_TOKEN: 'token-value',
+          DEFAULT_SSH_HOST: '10.0.0.4',
+        });
+      });
+    });
+
+    it('treats an unset or empty variable as absent rather than projecting a blank credential', () => {
+      // The cron deploy env declares DEFAULT_SSH_* with empty values; projecting those would give
+      // the pod a configured-looking connection with nothing behind it.
+      withEnv({ GITHUB_TOKEN: 'token-value', GITHUB_USERNAME: '', DEFAULT_SSH_KEY_PATH: '' }, () => {
+        expect(sops().seedEnvValues('underpost-cron-env')).to.deep.equal({ GITHUB_TOKEN: 'token-value' });
+      });
+    });
+
+    it('projects the Secret from the environment, staged on tmpfs and never as a literal', () => {
+      secretFixture({});
+      withEnv({ GITHUB_TOKEN: 'token-value', GITHUB_USERNAME: 'octocat', DEFAULT_SSH_HOST: '10.0.0.4' }, () => {
+        expect(sops().applyFromOriginSeed('underpost-cron-env', 'default')).to.equal(true);
+      });
+      const create = harness.calls.find((command) => command.includes('kubectl create secret generic'));
+      expect(create).to.include('--from-file=GITHUB_TOKEN=/dev/shm/');
+      expect(create).to.include('--from-file=GITHUB_USERNAME=/dev/shm/');
+      expect(create).to.include('--from-file=DEFAULT_SSH_HOST=/dev/shm/');
+      expect(create).to.not.include('token-value');
+      expect(create).to.not.include('--from-literal');
+    });
+
+    it('projects the keys the host does set and omits the rest, rather than refusing outright', () => {
+      // Environment-mapped keys are ambient, not a contract: a partial set still deploys. Only a
+      // half-present set of file-mapped keys (a database credential) is an error.
+      secretFixture({});
+      withEnv({ GITHUB_TOKEN: 'token-value' }, () => {
+        expect(sops().applyFromOriginSeed('underpost-cron-env', 'default')).to.equal(true);
+      });
+      const create = harness.calls.find((command) => command.includes('kubectl create secret generic'));
+      expect(create).to.include('--from-file=GITHUB_TOKEN=');
+      expect(create).to.not.include('DEFAULT_SSH_HOST');
+      expect(create).to.not.include('GITHUB_USERNAME');
+    });
+
+    it('projects nothing, rather than a partial Secret, when neither seed nor environment has it', () => {
+      secretFixture({});
+      withEnv({ GITHUB_TOKEN: undefined, GITHUB_USERNAME: undefined }, () => {
+        expect(sops().applyFromOriginSeed('underpost-cron-env', 'default')).to.equal(false);
+      });
+      expect(harness.calls.some((command) => command.includes('kubectl create secret generic'))).to.equal(false);
+    });
+
+    it('leaves the grafana credentials on their own resolver', () => {
+      expect(sops().seedEnvKeys('grafana-admin')).to.have.keys(['admin-user', 'admin-password']);
+    });
+
+    // The other half of removing the mount: the Secret puts the values in the pod's environment,
+    // and this is what lets `underpost host get` — which reads a file store next to the global
+    // installation — resolve them there.
+    it('resolves a host store key from the environment when the store file is absent', () => {
+      secretFixture({});
+      withEnv({ DEFAULT_SSH_KEY_PATH: '/home/dd/engine/engine-private/deploy/id_rsa' }, () => {
+        expect(Underpost.host.get('DEFAULT_SSH_KEY_PATH', undefined, { disableLog: true })).to.equal(
+          '/home/dd/engine/engine-private/deploy/id_rsa',
+        );
+      });
+    });
+
+    it('keeps the store file authoritative over the environment', () => {
+      secretFixture({ [Underpost.host.store.path()]: 'DEFAULT_SSH_HOST=from-file\n' });
+      // `read()` gates on statSync().isFile(); the shared fixture models only the path table.
+      vi.spyOn(fs, 'statSync').mockReturnValue({ isFile: () => true });
+      withEnv({ DEFAULT_SSH_HOST: 'from-env' }, () => {
+        expect(Underpost.host.get('DEFAULT_SSH_HOST', undefined, { disableLog: true })).to.equal('from-file');
+      });
+    });
+  });
 });

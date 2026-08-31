@@ -11,7 +11,9 @@ import os from 'os';
 import dotenv from 'dotenv';
 import Underpost from '../index.js';
 import { domainContextFactory } from './domains.js';
+import { readDeployRoutes, resolveDeployList } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
+import { activeExecutionProfile } from '../server/build/execution.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -23,6 +25,41 @@ const SOPS_ARCHIVE_DIR = `${SOPS_SECRETS_DIR}/.archive`;
 const SOPS_ENCRYPTED_REGEX = '^(data|stringData)$';
 const SOPS_VERSION = 'v3.10.2';
 const AGE_VERSION = 'v1.2.1';
+
+// The GitHub-side credential CI workflows and cross-repository checkouts authenticate with. The
+// stored manifest keeps this file's kebab-case naming, while the data key keeps the environment
+// spelling so a workload consumes it through `envFrom` unchanged. Deliberately absent from
+// MANAGED_SECRETS: its authoritative home is the GitHub Actions secret store, and the encrypted
+// manifest is an optional mirror rather than the origin.
+const GIT_AUTH_TOKEN_KEY = 'GIT_AUTH_TOKEN';
+const GIT_AUTH_TOKEN_SECRET = 'git-auth-token';
+const GIT_AUTH_TOKEN_STAGE_DIR = '/dev/shm/underpost-git-auth';
+
+// The second meta id alongside `dd`. The template lineage is not a deploy, so it carries no conf
+// id and resolves to its own repositories rather than through the `engine-<conf-id>` naming.
+const TEMPLATE_ALIAS = 'template';
+const TEMPLATE_REPOS = ['pwa-microservices-template', 'pwa-microservices-template-ghpkg', 'engine'];
+// Plaintext staging lives on tmpfs and is created at its final mode rather than created and then
+// chmod'ed: between the `mkdir`/`open` and the `chmod` the entry exists at the process umask
+// (0755 / 0644), and that window is enough for any local user to read a credential. The mode
+// argument is only masked by umask, never widened, so it is safe under any umask.
+const STAGE_DIR_MODE = 0o700;
+const STAGE_FILE_MODE = 0o600;
+
+const stageDirSync = (path) => {
+  fs.mkdirSync(path, { recursive: true, mode: STAGE_DIR_MODE });
+  // A directory left behind by an interrupted run keeps whatever mode it had, so tighten it —
+  // guarded, because `mkdirSync` is a no-op for a path that already exists and the guard is what
+  // keeps this from throwing where the filesystem is not the real one.
+  if (fs.existsSync(path)) fs.chmodSync(path, STAGE_DIR_MODE);
+  return path;
+};
+
+const writeStageFileSync = (path, value) => {
+  fs.writeFileSync(path, value, { mode: STAGE_FILE_MODE });
+  return path;
+};
+
 const MANAGED_SECRETS = [
   'postgres-secret',
   'mariadb-secret',
@@ -51,6 +88,9 @@ const ORIGIN_SEED_FILES = {
     'cluster-secret': 'ipfs-cluster-secret',
     'bootstrap-peer-priv-key': { file: 'ipfs-cluster-identity.json', json: 'private_key' },
   },
+  // Optional: when these files are absent the values fall back to the environment the host CLI
+  // already carries (see SECRET_ENV_KEYS), which is where they live today.
+  'underpost-cron-env': { GITHUB_TOKEN: 'github-token', GITHUB_USERNAME: 'github-username' },
 };
 
 /** Normalizes a registry entry to `{ file, json }`. */
@@ -77,6 +117,22 @@ const SECRET_ENV_KEYS = {
   'grafana-admin': {
     'admin-user': 'GF_SECURITY_ADMIN_USER',
     'admin-password': 'GF_SECURITY_ADMIN_PASSWORD',
+  },
+  // Credentials the cron workloads consume as plain environment variables. They previously
+  // reached the CronJob pods by bind-mounting the operator's global underpost directory out of
+  // root's home, which no unprivileged container can read once SELinux is Enforcing — and which
+  // exposed far more of that tree than the two values actually needed.
+  'underpost-cron-env': {
+    GITHUB_TOKEN: 'GITHUB_TOKEN',
+    GITHUB_USERNAME: 'GITHUB_USERNAME',
+    // The SSH connection back to the node. `sshRemoteRunner` resolves these through
+    // `underpost host get`, whose store is a file next to the global installation — a file the
+    // pod used to receive by mounting root's npm tree. They are values, not a directory, so they
+    // travel as a Secret; `dotenvStoreFactory.get` falls back to the environment to read them.
+    DEFAULT_SSH_USER: 'DEFAULT_SSH_USER',
+    DEFAULT_SSH_HOST: 'DEFAULT_SSH_HOST',
+    DEFAULT_SSH_PORT: 'DEFAULT_SSH_PORT',
+    DEFAULT_SSH_KEY_PATH: 'DEFAULT_SSH_KEY_PATH',
   },
 };
 
@@ -164,6 +220,30 @@ const generateSeedValue = (key) => {
     );
   return generateRandomPasswordSelection(24);
 };
+
+/**
+ * Whether a value carries the shape of a GitHub personal access, OAuth, app or refresh token.
+ * Advisory only: GitHub has changed token formats before, so an unrecognized shape warns rather
+ * than blocks a rotation the operator has already decided on.
+ * @param {string} token - Candidate token.
+ * @returns {boolean} True when the value matches a known GitHub token prefix and length.
+ * @memberof UnderpostSecret
+ */
+/**
+ * Whether fd 0 carries piped or redirected data, as opposed to a terminal or `/dev/null`.
+ * @returns {boolean} True when stdin can be read to EOF without blocking on a user.
+ * @memberof UnderpostSecret
+ */
+const stdinIsRedirected = () => {
+  try {
+    const stat = fs.fstatSync(0);
+    return stat.isFIFO() || stat.isFile();
+  } catch {
+    return false;
+  }
+};
+
+const looksLikeGitHubToken = (token) => /^(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})$/.test(token);
 
 /**
  * @class UnderpostSecret
@@ -279,17 +359,49 @@ class UnderpostSecret {
     },
 
     /**
-     * Re-keys every stored manifest onto a new Age recipient. Secret values are unchanged, so no
-     * workload restart is needed — this rotates the encryption identity, not the credential.
-     * @param {object} context - Normalized domain context. Requires `--args recipient=age1...`;
-     *   `prune=true` revokes previous recipients and `keep=` retains named ones.
+     * Replaces the current projection: either the Age identity the store is sealed to, or the
+     * value of a credential itself.
+     *
+     * `--args secret=GIT_AUTH_TOKEN` selects the credential rotation — the GitHub Actions secret
+     * every repository of a deploy authenticates with, mirrored into the encrypted store.
+     * Without it the recipient rotation runs, which re-keys stored manifests onto a new Age
+     * recipient: secret values are unchanged there, so no workload restart is needed.
+     * @param {object} context - Normalized domain context. Requires either
+     *   `--args secret=GIT_AUTH_TOKEN` (with `token=`, `deploy-id=`, `owner=`, `repos=`,
+     *   `store=true`, `apply=true`) or `--args recipient=age1...` (with `prune=true` to revoke
+     *   previous recipients and `keep=` to retain named ones).
      * @returns {*} The rotation result.
      * @memberof UnderpostSecret
      */
     rotate(context = {}) {
       context = domainContextFactory(context);
+      const secret = `${context.args.secret ?? ''}`.trim();
+      if (secret) {
+        if (secret.toUpperCase() !== GIT_AUTH_TOKEN_KEY)
+          // Phrased without a `secret=<value>` pair on purpose: the log redactor treats one as a
+          // credential and would replace the very name the operator needs to read back.
+          throw new Error(
+            `[secret] rotate does not know the credential '${secret}'; ${GIT_AUTH_TOKEN_KEY} is the only one ` +
+              `it rotates. Re-key the store's encryption identity with --args recipient=age1... instead.`,
+          );
+        return Underpost.secret.rotateGitAuthToken({
+          namespace: context.namespace,
+          dryRun: context.dryRun,
+          token: context.args.token,
+          deployId: context.args['deploy-id'] ?? context.args.deployId,
+          owner: context.args.owner,
+          repos: context.args.repos,
+          store: context.args.store,
+          apply: context.args.apply,
+        });
+      }
       const recipient = `${context.args.recipient ?? ''}`.trim();
-      if (!recipient) throw new Error('[secret] rotate requires --args recipient=<age-public-key>');
+      if (!recipient)
+        throw new Error(
+          '[secret] rotate requires a target: --args recipient=<age-public-key> re-keys the store onto a new ' +
+            `Age identity, and the 'secret' parameter rotates a credential value (${GIT_AUTH_TOKEN_KEY} is the ` +
+            'one it supports).',
+        );
       return Underpost.secret.rotateRecipient(recipient, {
         namespace: context.namespace,
         dryRun: context.dryRun,
@@ -423,8 +535,7 @@ UNDERPOST_SOPS_ENV_EOF`,
       // 3. Build and encrypt each requested Secret.
       const stageDir = '/dev/shm/underpost-secrets';
       const held = Underpost.secret.localRecipients();
-      fs.ensureDirSync(stageDir);
-      fs.chmodSync(stageDir, 0o700);
+      stageDirSync(stageDir);
       try {
         for (const name of secretNames) {
           const stored = Underpost.secret.has(name, namespace);
@@ -477,7 +588,7 @@ UNDERPOST_SOPS_ENV_EOF`,
           }
 
           const stagePath = `${stageDir}/${name}.yaml`;
-          fs.outputFileSync(
+          writeStageFileSync(
             stagePath,
             [
               'apiVersion: v1',
@@ -494,9 +605,7 @@ UNDERPOST_SOPS_ENV_EOF`,
               ...Object.entries(stringData).map(([key, value]) => `  ${key}: '${`${value}`.replace(/'/g, "''")}'`),
               '',
             ].join('\n'),
-            'utf8',
           );
-          fs.chmodSync(stagePath, 0o600);
           // encrypt() stages, validates, moves into place, and shreds the plaintext source.
           Underpost.secret.encrypt(stagePath, namespace, options);
         }
@@ -793,12 +902,20 @@ UNDERPOST_SOPS_ENV_EOF`,
 
     /** Resolves present environment-backed seed values without logging them. */
     seedEnvValues(name, options = {}) {
-      if (name !== 'grafana-admin') return {};
-      const credentials = Underpost.host.grafanaAdmin({ ...options, required: false });
-      return {
-        ...(credentials.username ? { 'admin-user': credentials.username } : {}),
-        ...(credentials.password ? { 'admin-password': credentials.password } : {}),
-      };
+      if (name === 'grafana-admin') {
+        const credentials = Underpost.host.grafanaAdmin({ ...options, required: false });
+        return {
+          ...(credentials.username ? { 'admin-user': credentials.username } : {}),
+          ...(credentials.password ? { 'admin-password': credentials.password } : {}),
+        };
+      }
+      // Every other env-mapped secret reads straight from the process environment, which on the
+      // host already carries the global underpost `.env` (loaded with override in src/cli/index.js).
+      return Object.entries(Underpost.secret.seedEnvKeys(name)).reduce((values, [dataKey, envKey]) => {
+        const value = process.env[envKey];
+        if (value !== undefined && `${value}`.length > 0) values[dataKey] = value;
+        return values;
+      }, {});
     },
 
     /**
@@ -820,36 +937,49 @@ UNDERPOST_SOPS_ENV_EOF`,
      */
     applyFromOriginSeed(name, namespace = 'default') {
       const sources = Underpost.secret.seedSources(name);
-      const dataKeys = Object.keys(sources);
-      if (dataKeys.length === 0) {
+      const envKeys = Underpost.secret.seedEnvKeys(name);
+      const fileKeys = Object.keys(sources);
+      if (fileKeys.length === 0 && Object.keys(envKeys).length === 0) {
         logger.warn('No origin seed registered for secret; nothing to project', { name });
         return false;
       }
-      const values = Underpost.secret.seedValues(name);
-      const missing = dataKeys.filter((key) => values[key] === undefined);
-      if (missing.length === dataKeys.length) {
-        logger.warn('No origin seed files present for secret; nothing to project', { name, sources });
+      // Seed files first, then the environment — the same precedence `setup` applies, so a
+      // credential that only ever lived in the host CLI's environment can still reach a workload
+      // as a Kubernetes Secret instead of as a bind mount of the directory holding it.
+      const values = { ...Underpost.secret.seedEnvValues(name), ...Underpost.secret.seedValues(name) };
+      const dataKeys = [...new Set([...fileKeys, ...Object.keys(envKeys)])].filter((key) => values[key] !== undefined);
+      if (dataKeys.length === 0) {
+        logger.warn('No origin seed present for secret; nothing to project', { name, sources, envKeys });
         return false;
       }
-      if (missing.length > 0)
-        throw new Error(`[${name}] incomplete origin seed: ${missing.map((key) => sources[key]).join(', ')} missing`);
+      // A key backed only by a seed file is a contract: half a database credential is worse than
+      // none, so a partial set of those still fails. A key with an environment fallback is
+      // ambient — a host that has registered no SSH connection simply contributes nothing, and
+      // the workload reports its own missing configuration rather than the apply refusing to run.
+      const missingRequired = fileKeys.filter((key) => !(key in envKeys) && values[key] === undefined);
+      if (missingRequired.length > 0)
+        throw new Error(
+          `[${name}] incomplete origin seed: ${missingRequired.map((key) => sources[key]).join(', ')} missing`,
+        );
+      const missingOptional = Object.keys(envKeys).filter((key) => values[key] === undefined);
+      if (missingOptional.length > 0)
+        logger.warn('Secret projected without environment-only keys this host does not set', {
+          name,
+          missing: missingOptional.map((key) => `$${envKeys[key]}`),
+        });
       // Values are staged on tmpfs and projected with `--from-file` rather than passed as
       // `--from-literal`: a literal puts the credential in the command string, where it is
       // visible in the process table for the life of the call.
       const stageDir = `/dev/shm/underpost-origin-seed-${name}`;
       try {
-        fs.ensureDirSync(stageDir);
-        fs.chmodSync(stageDir, 0o700);
+        stageDirSync(stageDir);
         const fromFile = dataKeys
-          .map((key) => {
-            const stagePath = `${stageDir}/${key}`;
-            fs.writeFileSync(stagePath, values[key]);
-            fs.chmodSync(stagePath, 0o600);
-            return `--from-file=${key}=${stagePath}`;
-          })
+          .map((key) => `--from-file=${key}=${writeStageFileSync(`${stageDir}/${key}`, values[key])}`)
           .join(' ');
+        // No `sudo`: the staged files are owned by this user at 0600, and elevating only to read
+        // them would make the manifest generation run as root for no gain.
         shellExec(
-          `sudo kubectl create secret generic ${name} ${fromFile} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+          `kubectl create secret generic ${name} ${fromFile} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
         );
       } finally {
         fs.removeSync(stageDir);
@@ -1492,6 +1622,452 @@ UNDERPOST_SOPS_ENV_EOF`,
           { revoked },
         );
       return { recipients: next, revoked, rekeyed: manifests.length };
+    },
+
+    /**
+     * @method gitAuthTokenTargets
+     * @description Resolves every GitHub repository that carries a deploy's `GIT_AUTH_TOKEN`:
+     * the private configuration repository its conf lives in, and the engine source repositories
+     * it deploys from — production and test, which are one deploy under two names.
+     *
+     * Naming is delegated to {@link UnderpostRepository} rather than re-derived here, so a
+     * rotation targets exactly the repositories `run pull` and `deploy/lib/host.sh` resolve for
+     * the same deploy. Any reference naming it works — `dd-cyberia`, `engine-cyberia`,
+     * `engine-test-cyberia`, `engine-cyberia-private` or a clone URL — because they all reduce to
+     * the one conf id.
+     *
+     * Each deploy contributes its private conf repository, its production and test engine sources,
+     * its `engine-ghpkg-<conf-id>` package mirror, and every `metadata.repository` its
+     * `conf.instances.json` declares — an instance is a separate product with its own workflows
+     * reading the same token. Derived names that do not exist are dropped by the reachability
+     * probe, so no separate existence check is needed here.
+     *
+     * `dd` fans out across `engine-private/deploy/dd.routes`, so one rotation covers the whole
+     * fleet. `template` is the second meta id: the template lineage carries no conf id, so it
+     * resolves to `pwa-microservices-template`, its `-ghpkg` mirror, and `engine`. The union is
+     * deduplicated: deploys share repositories, and one listed twice would be rotated twice.
+     * @param {object} [options={}] - Resolution options.
+     * @param {string} [options.deployId] - Deploy id, any repository reference naming it, a list
+     *   separated by `|`, `;` or whitespace, the meta id `dd` for every deploy in
+     *   `engine-private/deploy/dd.routes`, or `template` for the template lineage. Falls back to
+     *   `ENGINE_SRC_REPO`, then the monorepo pair.
+     * @param {string} [options.owner] - GitHub owner. Falls back to the owner of `ENGINE_SRC_REPO`,
+     *   then `GITHUB_USERNAME`, then `underpostnet`.
+     * @param {string} [options.repos] - Extra targets separated by `|`, `;` or whitespace —
+     *   `--args` itself splits on commas, so a list there cannot use one.
+     * @returns {Array<string>} Deduplicated `owner/repo` slugs, private configuration first.
+     * @memberof UnderpostSecret
+     */
+    gitAuthTokenTargets(options = {}) {
+      const envSource = `${process.env.ENGINE_SRC_REPO ?? ''}`.trim();
+      const owner =
+        `${options.owner ?? ''}`.trim() ||
+        (envSource.includes('/') ? envSource.split('/')[0] : '') ||
+        process.env.GITHUB_USERNAME ||
+        'underpostnet';
+      const requested = `${options.deployId ?? ''}`.trim() || envSource;
+      // `dd` is the meta id every runner reads as "all of dd.routes", resolved through the one
+      // reader the cluster deploys from — a rotation that parsed the route table itself could
+      // cover a different fleet than the one running. An explicit list separates on `|`, `;` or
+      // whitespace, because `--args` has already claimed the comma.
+      const references = requested === 'dd' ? resolveDeployList('dd') : requested.split(/[,|;\s]+/).filter(Boolean);
+      // The fallback fires for an absent route table *and* for an empty one, so it is detected on
+      // the table itself rather than on the file's existence: rotating one invented deploy while
+      // reporting a fleet rotation is the failure this warning exists to prevent.
+      if (requested === 'dd' && readDeployRoutes().length === 0)
+        logger.warn(
+          `No deploy ids in ./engine-private/deploy/dd.routes; 'dd' fell back to ${references.join(', ')} ` +
+            `rather than the fleet. Check out engine-private, or name the deploys explicitly with ` +
+            `--args "deploy-id=dd-one|dd-two".`,
+        );
+      const candidates = [];
+      // Unioned and deduplicated: deploys share repositories (every one of them pairs with the
+      // same engine-private when ENGINE_SRC_PRIVATE_REPO names it), and a repository listed twice
+      // would be rotated twice.
+      if (requested === TEMPLATE_ALIAS) candidates.push(...TEMPLATE_REPOS.map((repo) => `${owner}/${repo}`));
+      else
+        for (const reference of references.length > 0 ? references : ['']) {
+          const confId = Underpost.repo.confIdFactory(reference);
+          const source = `${owner}/${Underpost.repo.engineRepoFactory(confId)}`;
+          const ghpkg = Underpost.repo.ghpkgRepoFactory(confId);
+          candidates.push(
+            // Paired off the source rather than named on its own, so the conf repository and the
+            // engine it configures can never be resolved apart.
+            Underpost.repo.enginePairFactory({ engine: source, account: owner }).enginePrivate,
+            source,
+            `${owner}/${Underpost.repo.engineRepoFactory(confId, { test: true })}`,
+            // The ghpkg mirror and the instance repositories run their own workflows against the
+            // same token, so a rotation that skipped them would leave half the deploy behind.
+            ...(ghpkg ? [`${owner}/${ghpkg}`] : []),
+            ...(confId ? Underpost.repo.instanceRepos(`dd-${confId}`) : []),
+          );
+        }
+      candidates.push(
+        `${process.env.ENGINE_SRC_PRIVATE_REPO ?? ''}`.trim(),
+        envSource,
+        ...`${options.repos ?? ''}`.split(/[,|;\s]+/),
+      );
+      const targets = [];
+      for (const candidate of candidates.filter(Boolean)) {
+        let slug;
+        try {
+          slug = Underpost.repo.repoSlugFactory(candidate);
+        } catch (error) {
+          // One malformed extra target must not take down the rotation of the resolvable ones.
+          logger.warn(`Ignoring unresolvable rotation target: ${candidate}`, { error: error.message });
+          continue;
+        }
+        if (!targets.includes(slug)) targets.push(slug);
+      }
+      return targets;
+    },
+
+    /**
+     * @method plannedTokenSource
+     * @description Names the source a rotation would take its token from, without reading,
+     * minting or prompting for anything. Pure, so `--dry-run` can report the plan truthfully.
+     * @param {object} [options={}] - Rotation options.
+     * @param {string} [options.token] - Token supplied through `--args token=`.
+     * @returns {string} Human-readable source name.
+     * @memberof UnderpostSecret
+     */
+    plannedTokenSource(options = {}) {
+      if (`${options.token ?? ''}`.trim()) return '--args token';
+      if (stdinIsRedirected()) return 'piped stdin';
+      if (`${process.env[GIT_AUTH_TOKEN_KEY] ?? ''}`.trim()) return `${GIT_AUTH_TOKEN_KEY} environment`;
+      return process.stdin.isTTY ? 'interactive prompt' : '(unavailable: no token, nothing piped, no terminal)';
+    },
+
+    /**
+     * @method probeGitAuthTokenTargets
+     * @description Splits resolved targets into those the current `gh` credential can actually
+     * reach and those it cannot, without writing anything.
+     *
+     * A deploy does not necessarily own every repository its naming implies — a test source repo
+     * often does not exist — so this is what keeps a fleet fan-out from aborting on the first
+     * absent one, and what lets `--dry-run` report the real target set rather than the derived one.
+     * @param {Array<string>} targets - `owner/repo` slugs.
+     * @returns {{reachable: Array<string>, unreachable: Array<string>}} The split.
+     * @memberof UnderpostSecret
+     */
+    probeGitAuthTokenTargets(targets = []) {
+      const reachable = [];
+      const unreachable = [];
+      for (const repo of targets) {
+        const view = shellExec(`gh repo view "${repo}" --json nameWithOwner,viewerPermission`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+          disableLog: true,
+        });
+        if (`${view}`.trim()) reachable.push(repo);
+        else {
+          unreachable.push(repo);
+          logger.warn(`${repo} does not resolve with the current gh credential; skipping.`);
+        }
+      }
+      return { reachable, unreachable };
+    },
+
+    /**
+     * @method stageGitAuthToken
+     * @description Materializes the replacement token onto tmpfs at mode 600 — the single source
+     * both the GitHub write and the manifest write read from.
+     *
+     * The value never travels as a command argument: `gh secret set` takes it on stdin and the
+     * manifest is built by Node, so it reaches neither the process table nor the command log. An
+     * interactive prompt writes straight into the staged file for the same reason — captured
+     * stdout is logged, a file is not.
+     *
+     * Sources, in order: `--args token=`, piped stdin, the `GIT_AUTH_TOKEN` environment, then a
+     * no-echo terminal prompt. Piping is the one that keeps a token out of both the process table
+     * and the shell history, so it is what automation should use.
+     * @param {string} stagePath - tmpfs path to write the token to.
+     * @param {object} [options={}] - Token sources.
+     * @param {string} [options.token] - The token itself, from `--args token=`.
+     * @returns {{token: string, source: string}} The staged token and where it came from.
+     * @memberof UnderpostSecret
+     */
+    stageGitAuthToken(stagePath, options = {}) {
+      // `GITHUB_TOKEN` is deliberately not a source: it is the credential `gh` authenticates
+      // *with*, which during a rotation is the outgoing token. Reading it here would re-set the
+      // value being replaced and report a rotation that never happened.
+      const provided = `${options.token ?? ''}`.trim();
+      const inherited = `${process.env[GIT_AUTH_TOKEN_KEY] ?? ''}`.trim();
+      let source;
+      if (provided) {
+        writeStageFileSync(stagePath, provided);
+        source = '--args token';
+      } else if (stdinIsRedirected()) {
+        // Ahead of the environment: a pipe is what the operator chose for this run, while
+        // GIT_AUTH_TOKEN may be an inherited export still holding the outgoing token.
+        writeStageFileSync(stagePath, fs.readFileSync(0, 'utf8'));
+        source = 'piped stdin';
+      } else if (inherited) {
+        writeStageFileSync(stagePath, inherited);
+        source = `${GIT_AUTH_TOKEN_KEY} environment`;
+      } else {
+        if (!process.stdin.isTTY)
+          throw new Error(
+            `[secret] rotate needs the replacement token: pipe it in ` +
+              `(printf %s "$TOKEN" | node bin secret rotate …), pass --args token=<token>, export ` +
+              `${GIT_AUTH_TOKEN_KEY}, or run this from a terminal to be prompted.`,
+          );
+        // Created empty first so the file exists at mode 600 before anything is read into it.
+        writeStageFileSync(stagePath, '');
+        shellExec(
+          `bash -c 'set -o pipefail; umask 077; read -rsp "New ${GIT_AUTH_TOKEN_KEY}: " value </dev/tty; ` +
+            `echo >/dev/tty; printf %s "$value" > "${stagePath}"'`,
+          { disableLog: true },
+        );
+        source = 'interactive prompt';
+      }
+
+      const raw = fs.readFileSync(stagePath, 'utf8');
+      const token = raw.replace(/\r?\n$/, '');
+      if (!token) throw new Error(`[secret] the replacement ${GIT_AUTH_TOKEN_KEY} is empty`);
+      if (/\s/.test(token))
+        throw new Error(`[secret] the replacement ${GIT_AUTH_TOKEN_KEY} contains whitespace; it is not a token`);
+      if (token !== raw) writeStageFileSync(stagePath, token);
+      if (!looksLikeGitHubToken(token))
+        logger.warn(
+          `The replacement ${GIT_AUTH_TOKEN_KEY} does not match a known GitHub token shape ` +
+            `(ghp_…, gho_…, github_pat_…). Continuing — GitHub token formats have changed before.`,
+        );
+      return { token, source };
+    },
+
+    /**
+     * @method writeGitAuthTokenManifest
+     * @description Records the token in the encrypted store as `git-auth-token`, replacing the
+     * stored manifest.
+     *
+     * The plaintext is written by Node onto tmpfs at mode 600 and handed to {@link encrypt},
+     * which stages to a temp file, validates the envelope, moves into place only on success and
+     * shreds the source — so a failed encrypt cannot leave a truncated manifest where a readable
+     * one was. The data key keeps the `GIT_AUTH_TOKEN` spelling, so a workload reading it through
+     * `envFrom` gets the environment variable its tooling already expects.
+     * @param {string} token - The token to store.
+     * @param {string} [namespace='default'] - Store namespace.
+     * @returns {string} Path of the written encrypted manifest.
+     * @memberof UnderpostSecret
+     */
+    writeGitAuthTokenManifest(token, namespace = 'default') {
+      const stageDir = stageDirSync(GIT_AUTH_TOKEN_STAGE_DIR);
+      const plaintextPath = `${stageDir}/${GIT_AUTH_TOKEN_SECRET}.yaml`;
+      writeStageFileSync(
+        plaintextPath,
+        [
+          'apiVersion: v1',
+          'kind: Secret',
+          'metadata:',
+          `  name: ${GIT_AUTH_TOKEN_SECRET}`,
+          `  namespace: ${namespace}`,
+          '  labels:',
+          '    app.kubernetes.io/managed-by: underpost',
+          'type: Opaque',
+          'stringData:',
+          // Single-quoted YAML scalar with doubled internal quotes: a token is opaque and may
+          // carry characters YAML would otherwise interpret.
+          `  ${GIT_AUTH_TOKEN_KEY}: '${`${token}`.replace(/'/g, "''")}'`,
+          '',
+        ].join('\n'),
+      );
+      return Underpost.secret.encrypt(plaintextPath, namespace, { force: true });
+    },
+
+    /**
+     * @method rotateGitAuthToken
+     * @description Replaces the `GIT_AUTH_TOKEN` Actions secret on every repository a deploy
+     * authenticates with, and records the new value in the encrypted store.
+     *
+     * GitHub is written first and the store second, because the token is only real once GitHub
+     * holds it: a store that leads GitHub records a credential no workflow can use, while a
+     * GitHub that leads the store converges on the next run. Every write is idempotent, so a run
+     * that failed part way is re-runnable with the same token.
+     *
+     * A target that does not resolve is reported and skipped rather than aborting the rotation —
+     * a deploy does not necessarily own every repository its naming implies, and a missing test
+     * source repo must not leave the private conf repo un-rotated. A target that resolves but
+     * fails to write is collected and raised at the end, after the repositories that did succeed
+     * are on record.
+     *
+     * The token never appears as a command argument: `gh secret set` reads it from a tmpfs file
+     * on stdin, so it reaches neither the process table nor the command log.
+     *
+     * Usage:
+     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd-cyberia"
+     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd" --dry-run   # whole fleet
+     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd"
+     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,store=true,apply=true"
+     * @param {object} [options={}] - Rotation options.
+     * @param {string} [options.token] - Replacement token. When omitted: piped stdin, then the
+     *   `GIT_AUTH_TOKEN` environment, then a no-echo terminal prompt.
+     * @param {string} [options.deployId] - Deploy id, a list separated by `|`, `;` or whitespace,
+     *   `dd` for every deploy in `engine-private/deploy/dd.routes`, or `template`.
+     * @param {string} [options.owner] - GitHub owner for the resolved repository names.
+     * @param {string} [options.repos] - Extra `owner/repo` targets, separated by `|`, `;` or space.
+     * @param {string} [options.namespace='default'] - Store namespace for the mirrored manifest.
+     * @param {boolean} [options.store=false] - Mirror into the encrypted store even when no
+     *   manifest is stored yet. An existing manifest is always updated.
+     * @param {boolean} [options.apply=false] - Project the updated manifest into the cluster.
+     * @param {boolean} [options.dryRun=false] - Report the plan without contacting GitHub,
+     *   prompting, or writing anything.
+     * @returns {{targets: Array<string>, rotated: Array<string>, unreachable: Array<string>,
+     *   failed: Array<string>, manifest: string, store: boolean, tokenSource: string}} Outcome.
+     * @memberof UnderpostSecret
+     */
+    rotateGitAuthToken(options = {}) {
+      const namespace = options.namespace || 'default';
+      const targets = Underpost.secret.gitAuthTokenTargets(options);
+      if (targets.length === 0)
+        throw new Error(
+          `[secret] no repository resolved for ${GIT_AUTH_TOKEN_KEY} rotation. Name the deploy with ` +
+            `--args deploy-id=<id>, or the repositories with --args "repos=owner/repo|owner/other".`,
+        );
+      const stored = Underpost.secret.has(GIT_AUTH_TOKEN_SECRET, namespace);
+      const store = stored || options.store === true || `${options.store}` === 'true';
+      const ghReady = Underpost.secret.hasBinary('gh');
+      // Advisory, not a gate: `gh auth status` also exits non-zero for a logged-in account whose
+      // token merely lacks an optional scope. Reachability of the targets is the real
+      // precondition, so this is captured to explain a failure rather than to cause one.
+      const ghAuth = ghReady
+        ? shellExec(`gh auth status 2>&1`, { silent: true, silentOnError: true, disableLog: true })
+        : null;
+      const ghAuthenticated = ghAuth?.code === 0;
+      const ghAuthOutput = `${ghAuth?.stdout ?? ''}`.trim() || '(no output)';
+      // gh prefers GH_TOKEN/GITHUB_TOKEN over the account `gh auth login` stored, and this engine's
+      // own host store exports GITHUB_TOKEN — so a stale one silently shadows a working login and
+      // every probe fails against a credential the operator never chose.
+      const shadowing = ['GH_TOKEN', 'GITHUB_TOKEN'].filter((key) => `${process.env[key] ?? ''}`.trim());
+
+      if (options.dryRun) {
+        // Probing is a read, so the plan reports the targets that actually exist rather than the
+        // ones the naming derived. Nothing is minted, prompted for, or written.
+        const probed = ghReady ? Underpost.secret.probeGitAuthTokenTargets(targets) : null;
+        logger.info(`[dry-run] ${GIT_AUTH_TOKEN_KEY} rotation plan`, {
+          targets,
+          wouldRotate: probed ? probed.reachable : '(not probed)',
+          unreachable: probed ? probed.unreachable : '(not probed)',
+          namespace,
+          from: Underpost.secret.plannedTokenSource(options),
+          gh: ghReady ? (ghAuthenticated ? 'authenticated' : 'not authenticated') : 'missing',
+          manifest: store ? Underpost.secret.manifestPath(GIT_AUTH_TOKEN_SECRET, namespace) : '(store untouched)',
+          storedManifest: stored,
+        });
+        if (!ghReady) logger.warn('gh is not on PATH; this plan cannot run until the GitHub CLI is installed.');
+        else if (!ghAuthenticated)
+          logger.warn('gh is not authenticated, so no target could be probed. Run `gh auth login`.');
+        return {
+          targets,
+          rotated: [],
+          unreachable: probed ? probed.unreachable : [],
+          failed: [],
+          manifest: '',
+          store,
+          tokenSource: '',
+        };
+      }
+
+      if (!ghReady)
+        throw new Error(
+          `gh not found in PATH. Install the GitHub CLI (https://cli.github.com), then authenticate it with ` +
+            `\`gh auth login\` before rotating ${GIT_AUTH_TOKEN_KEY}.`,
+        );
+      if (!ghAuthenticated)
+        logger.warn(`\`gh auth status\` exited non-zero; continuing if the targets are reachable.`, {
+          status: ghAuthOutput,
+        });
+
+      // Probed before the token is staged: nothing can be written to an unreachable set, and
+      // prompting for a credential that has nowhere to go wastes the operator's paste.
+      const probed = Underpost.secret.probeGitAuthTokenTargets(targets);
+      if (probed.reachable.length === 0)
+        throw new Error(
+          `None of the ${targets.length} target(s) is reachable with the current gh credential, so ` +
+            `${GIT_AUTH_TOKEN_KEY} was not rotated and nothing was written. Writing an Actions secret ` +
+            `needs the \`repo\` scope and admin on each repository.\n` +
+            `Targets: ${targets.join(', ')}\n` +
+            (shadowing.length
+              ? `${shadowing.join(' and ')} is set here, and gh uses it in preference to the account ` +
+                `\`gh auth login\` stored. If gh calls it invalid below, run \`unset ` +
+                `${shadowing.join(' ')}\` and try again.\n`
+              : '') +
+            `\`gh auth status\` reports:\n${ghAuthOutput}`,
+        );
+
+      stageDirSync(GIT_AUTH_TOKEN_STAGE_DIR);
+      const stagePath = `${GIT_AUTH_TOKEN_STAGE_DIR}/${GIT_AUTH_TOKEN_KEY}`;
+      const rotated = [];
+      const unreachable = probed.unreachable;
+      const failed = [];
+      let manifest = '';
+      let tokenSource = '';
+      try {
+        const staged = Underpost.secret.stageGitAuthToken(stagePath, options);
+        tokenSource = staged.source;
+        logger.info(`Rotating ${GIT_AUTH_TOKEN_KEY}`, { targets, namespace, from: tokenSource, store });
+
+        for (const repo of probed.reachable) {
+          try {
+            // The token arrives on stdin from the staged file, never as an argument.
+            shellExec(
+              `bash -c 'set -o pipefail; gh secret set ${GIT_AUTH_TOKEN_KEY} --repo "${repo}" < "${stagePath}"'`,
+              { silent: true, disableLog: true },
+            );
+            rotated.push(repo);
+            logger.info(`${GIT_AUTH_TOKEN_KEY} set on ${repo}`);
+          } catch (error) {
+            failed.push(repo);
+            logger.error(`${GIT_AUTH_TOKEN_KEY} could not be set on ${repo}`, { error: error.message });
+          }
+        }
+
+        if (rotated.length === 0)
+          throw new Error(
+            `${GIT_AUTH_TOKEN_KEY} could not be written to any of the ${probed.reachable.length} reachable ` +
+              `target(s): ${probed.reachable.join(', ')}. The encrypted store was left untouched, so it still ` +
+              `records the credential GitHub is running on.`,
+          );
+
+        if (store) manifest = Underpost.secret.writeGitAuthTokenManifest(staged.token, namespace);
+        else
+          logger.info(
+            `No ${GIT_AUTH_TOKEN_SECRET} manifest in ns/${namespace}; the store was left untouched. ` +
+              `Pass --args store=true to mirror this token into it.`,
+          );
+
+        if (manifest && (options.apply === true || `${options.apply}` === 'true'))
+          Underpost.secret.applyIfPresent(GIT_AUTH_TOKEN_SECRET, namespace);
+      } finally {
+        shellExec(`shred -u "${stagePath}" 2>/dev/null || rm -f "${stagePath}"`, {
+          silentOnError: true,
+          silent: true,
+          disableLog: true,
+        });
+        fs.removeSync(GIT_AUTH_TOKEN_STAGE_DIR);
+      }
+
+      const report = { targets, rotated, unreachable, failed, manifest, store, tokenSource };
+      if (failed.length > 0)
+        throw new Error(
+          `${GIT_AUTH_TOKEN_KEY} was rotated on ${rotated.join(', ')} but failed on ${failed.join(', ')}. ` +
+            `Those repositories still hold the previous token, so the fleet is split across two credentials. ` +
+            `Re-run once resolved: every target is written again, and a minted token is reissued, so the ` +
+            `fleet converges on one value either way.`,
+        );
+      // Built explicitly rather than spread from `report`: the redactor blanks any field whose
+      // name carries "token", which would hide the source label behind [REDACTED].
+      logger.info(`${GIT_AUTH_TOKEN_KEY} rotation complete`, {
+        targets,
+        rotated,
+        unreachable,
+        failed,
+        manifest,
+        store,
+        from: tokenSource,
+      });
+      return report;
     },
 
     /**

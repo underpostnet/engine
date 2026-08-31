@@ -154,7 +154,10 @@ const HOST_WRITE_BINARIES = new Set([
   'haproxy',
 ]);
 
-const NET_BINARIES = new Set(['curl', 'wget', 'ssh', 'scp', 'sftp', 'rsync', 'nc', 'ping', 'dig', 'nslookup']);
+// `gh` reaches a remote service and writes to it (`gh secret set`, `gh release create`), so it
+// is a network effect rather than local filesystem work — an unclassified binary would default
+// to `fs` and run under HERMETIC_BUILD.
+const NET_BINARIES = new Set(['curl', 'wget', 'ssh', 'scp', 'sftp', 'rsync', 'nc', 'ping', 'dig', 'nslookup', 'gh']);
 
 const CLUSTER_BINARIES = new Set(['kubectl', 'helm']);
 

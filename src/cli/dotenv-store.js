@@ -67,7 +67,11 @@ const dotenvStoreFactory = ({ path, label }) => {
      * @memberof UnderpostDotenvStore
      */
     get(key, value, options = {}) {
-      const stored = read()[key];
+      // The environment is the fallback, not an override: the store file always wins where it has
+      // the key. A container gets this configuration injected as environment variables rather than
+      // as a mounted file — bind-mounting the directory that holds the file would hand the pod a
+      // home-directory tree no unprivileged container can read under SELinux.
+      const stored = read()[key] ?? process.env[key];
       // `--plain` is a machine read: an absent key prints nothing, never the string `undefined`,
       // so a caller testing for empty output is not handed a value that looks set.
       if (!options.disableLog)

@@ -1,6 +1,7 @@
 'use strict';
 
 import { expect } from 'chai';
+import { execFileSync } from 'node:child_process';
 import fs from 'fs-extra';
 import { EXECUTION_PROFILE_ENV_KEY, withExecutionProfile } from '../../src/server/build/execution.js';
 import { shellExec } from '../../src/server/runtime/process.js';
@@ -87,6 +88,20 @@ describe('e2e-build runs without a cluster', () => {
 });
 
 describe('binary resolution is centralized', () => {
+  it.skipIf(!hasSource(CYBERIA_CLI))('keeps rerouted plain reads machine-readable', () => {
+    const stdout = execFileSync(
+      process.execPath,
+      [CYBERIA_CLI, 'host', 'get', '--plain', 'UNDERPOST_TEST_MISSING_KEY'],
+      {
+        cwd: new URL('../..', import.meta.url),
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+
+    expect(stdout.trim()).to.equal('');
+  });
+
   it('leaves no hand-rolled underpost/node-bin branch behind', () => {
     for (const file of ['src/cli/run.js', 'src/cli/db.js', 'src/cli/monitor.js']) {
       expect(readSource(file), file).to.not.include(`'node bin' : 'underpost'`);

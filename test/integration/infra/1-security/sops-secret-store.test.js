@@ -3,7 +3,10 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
 import os from 'os';
+import crypto from 'node:crypto';
 import Underpost from '../../../../src/index.js';
+import { classifyCommand, EXECUTION_PROFILES } from '../../../../src/server/build/execution.js';
+import { resolveDeployList } from '../../../../src/server/network/router.js';
 
 const sops = () => Underpost.secret;
 // Unique namespace so the fixture can never collide with (or clean up) a real
@@ -199,6 +202,303 @@ describe('sops encrypted secret store', () => {
       expect(body).to.include('sops --config');
       expect(body).to.include('updatekeys --yes');
       expect(body).to.include('disableLog: true');
+    });
+  });
+
+  describe('GIT_AUTH_TOKEN rotation', () => {
+    const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
+    const saved = {};
+
+    // `instanceRepos` reads `./engine-private/conf/<deployId>/conf.instances.json`, and
+    // engine-private is a private repository absent from a CI checkout. A real deploy's
+    // instances are therefore fixture data here: the deploy gets its own directory, that
+    // directory is removed whole afterwards, and an existing one is never touched.
+    const FIXTURE_DEPLOY = 'dd-fixture-sops';
+    const FIXTURE_CONF_DIR = `./engine-private/conf/${FIXTURE_DEPLOY}`;
+    const FIXTURE_INSTANCE_REPOS = ['underpostnet/fixture-sops-server', 'underpostnet/fixture-sops-client'];
+
+    beforeAll(() => {
+      if (fs.existsSync(FIXTURE_CONF_DIR))
+        throw new Error(`Refusing to write fixtures into an existing deploy: ${FIXTURE_CONF_DIR}`);
+      fs.outputJsonSync(`${FIXTURE_CONF_DIR}/conf.instances.json`, [
+        { id: 'fixture-server', metadata: { repository: FIXTURE_INSTANCE_REPOS[0] } },
+        { id: 'fixture-client', metadata: { repository: FIXTURE_INSTANCE_REPOS[1] } },
+        { id: 'fixture-page' },
+      ]);
+    });
+
+    afterAll(() => {
+      fs.removeSync(FIXTURE_CONF_DIR);
+    });
+
+    beforeEach(() => {
+      for (const key of ['ENGINE_SRC_REPO', 'ENGINE_SRC_PRIVATE_REPO', 'GITHUB_USERNAME', 'GIT_AUTH_TOKEN'])
+        saved[key] = process.env[key];
+      for (const key of Object.keys(saved)) delete process.env[key];
+    });
+
+    afterEach(() => {
+      for (const [key, value] of Object.entries(saved))
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+    });
+
+    it('targets the private conf repo, both engine sources and the package mirror of a deploy', () => {
+      // Same naming `deploy_id_from_repo` resolves in deploy/lib/host.sh, reached through the
+      // repository domain rather than re-derived here. dd-core declares no instances, so this is
+      // the naming-derived set on its own.
+      expect(sops().gitAuthTokenTargets({ deployId: 'dd-core', owner: 'acme' })).to.deep.equal([
+        'acme/engine-core-private',
+        'acme/engine-core',
+        'acme/engine-test-core',
+        'acme/engine-ghpkg-core',
+      ]);
+    });
+
+    it('keeps an instance repository under the owner it declares, not the derived one', () => {
+      // metadata.repository is an explicit slug, so it outranks the --args owner used for naming.
+      expect(sops().gitAuthTokenTargets({ deployId: FIXTURE_DEPLOY, owner: 'acme' })).to.include(
+        FIXTURE_INSTANCE_REPOS[0],
+      );
+    });
+
+    it('includes the ghpkg package mirror the engine repository publishes into', () => {
+      // .github/workflows/ghpkg.ci.yml builds engine-ghpkg-<conf_id>, whose own workflows read
+      // the same token; the monorepo has no ghpkg of its own.
+      expect(sops().gitAuthTokenTargets({ deployId: 'dd-cyberia', owner: 'acme' })).to.include(
+        'acme/engine-ghpkg-cyberia',
+      );
+      expect(sops().gitAuthTokenTargets({ owner: 'acme' })).to.not.include('acme/engine-ghpkg');
+    });
+
+    it("includes every repository the deploy's instances are built from", () => {
+      // dd-cyberia builds from cyberia-server and cyberia-client; rotating only the engine repos
+      // would leave half the deploy on the previous token.
+      const declared = Underpost.repo.instanceRepos(FIXTURE_DEPLOY);
+      expect(declared, `${FIXTURE_DEPLOY} declares no instance repositories`).to.deep.equal(FIXTURE_INSTANCE_REPOS);
+      expect(sops().gitAuthTokenTargets({ deployId: FIXTURE_DEPLOY })).to.include.members(declared);
+    });
+
+    it('contributes nothing for a deploy that declares no instances', () => {
+      expect(Underpost.repo.instanceRepos('dd-core')).to.deep.equal([]);
+      expect(Underpost.repo.instanceRepos('')).to.deep.equal([]);
+    });
+
+    it('resolves the `template` meta id to the template lineage, not through conf-id naming', () => {
+      expect(sops().gitAuthTokenTargets({ deployId: 'template', owner: 'acme' })).to.deep.equal([
+        'acme/pwa-microservices-template',
+        'acme/pwa-microservices-template-ghpkg',
+        'acme/engine',
+      ]);
+    });
+
+    it('resolves the same targets from every reference that names the deploy', () => {
+      const expected = [
+        'acme/engine-lampp-private',
+        'acme/engine-lampp',
+        'acme/engine-test-lampp',
+        'acme/engine-ghpkg-lampp',
+      ];
+      for (const reference of ['dd-lampp', 'engine-lampp', 'engine-test-lampp', 'engine-lampp-private'])
+        expect(sops().gitAuthTokenTargets({ deployId: reference, owner: 'acme' }), reference).to.deep.equal(expected);
+    });
+
+    it('falls back to the monorepo pair, deduplicated, when no deploy is named', () => {
+      expect(sops().gitAuthTokenTargets({ owner: 'acme' })).to.deep.equal(['acme/engine-private', 'acme/engine']);
+    });
+
+    it('takes the deploy and owner from the deploy environment when none is passed', () => {
+      process.env.ENGINE_SRC_REPO = 'acme/engine-test-fixture-sops';
+      process.env.ENGINE_SRC_PRIVATE_REPO = 'acme/engine-private';
+      expect(sops().gitAuthTokenTargets({})).to.deep.equal([
+        'acme/engine-fixture-sops-private',
+        'acme/engine-fixture-sops',
+        'acme/engine-test-fixture-sops',
+        'acme/engine-ghpkg-fixture-sops',
+        ...FIXTURE_INSTANCE_REPOS,
+        'acme/engine-private',
+      ]);
+    });
+
+    it('fans `dd` out across the route table, one triple per deploy, deduplicated', () => {
+      // `dd` is the meta id every runner reads as "all of dd.routes"; the rotation must cover the
+      // same fleet the cluster deploys, resolved through the one reader rather than a second parse.
+      const routed = resolveDeployList('dd');
+      const targets = sops().gitAuthTokenTargets({ deployId: 'dd', owner: 'acme' });
+      expect(routed.length, 'no deploy routes to fan out over').to.be.greaterThan(0);
+      expect(targets).to.have.lengthOf(new Set(targets).size);
+      for (const deployId of routed) {
+        const confId = Underpost.repo.confIdFactory(deployId);
+        expect(targets, deployId).to.include.members([
+          `acme/engine-${confId}-private`,
+          `acme/engine-${confId}`,
+          `acme/engine-test-${confId}`,
+        ]);
+      }
+    });
+
+    it('accepts an explicit multi-deploy list, in route-table order', () => {
+      expect(sops().gitAuthTokenTargets({ deployId: `${FIXTURE_DEPLOY}|dd-lampp`, owner: 'acme' })).to.deep.equal([
+        'acme/engine-fixture-sops-private',
+        'acme/engine-fixture-sops',
+        'acme/engine-test-fixture-sops',
+        'acme/engine-ghpkg-fixture-sops',
+        ...FIXTURE_INSTANCE_REPOS,
+        'acme/engine-lampp-private',
+        'acme/engine-lampp',
+        'acme/engine-test-lampp',
+        'acme/engine-ghpkg-lampp',
+      ]);
+    });
+
+    it('unions repositories two deploys share instead of rotating them twice', () => {
+      process.env.ENGINE_SRC_PRIVATE_REPO = 'acme/engine-private';
+      const targets = sops().gitAuthTokenTargets({ deployId: `${FIXTURE_DEPLOY}|dd-lampp`, owner: 'acme' });
+      expect(targets.filter((slug) => slug === 'acme/engine-private')).to.have.lengthOf(1);
+    });
+
+    it('separates extra targets on characters --args does not split on', () => {
+      const targets = sops().gitAuthTokenTargets({ owner: 'acme', repos: 'other/one|other/two;other/three' });
+      expect(targets).to.include.members(['other/one', 'other/two', 'other/three']);
+    });
+
+    it('drops an unresolvable extra target instead of failing the whole rotation', () => {
+      const targets = sops().gitAuthTokenTargets({ owner: 'acme', repos: 'not-a-slug|other/one' });
+      expect(targets).to.include('other/one');
+      expect(targets).to.not.include('not-a-slug');
+    });
+
+    it('reports the plan without contacting GitHub or writing anything on a dry run', () => {
+      const report = sops().rotateGitAuthToken({ deployId: FIXTURE_DEPLOY, owner: 'acme', dryRun: true });
+      expect(report.targets).to.have.lengthOf(4 + FIXTURE_INSTANCE_REPOS.length);
+      expect(report.rotated).to.deep.equal([]);
+      expect(report.manifest).to.equal('');
+      expect(report.tokenSource).to.equal('');
+    });
+
+    it('takes a piped token, ahead of an inherited environment holding the outgoing one', () => {
+      const start = secretsSource.indexOf('    stageGitAuthToken(stagePath, options = {}) {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      expect(body).to.include('stdinIsRedirected()');
+      expect(body).to.include("fs.readFileSync(0, 'utf8')");
+      expect(body.indexOf("source = 'piped stdin'")).to.be.lessThan(body.indexOf('} else if (inherited) {'));
+    });
+
+    it('reads stdin only when it is piped or redirected, never a terminal or /dev/null', () => {
+      // fstat rather than isTTY: `< /dev/null` is not a TTY either, and reading it would strand
+      // the rotation on an empty token instead of falling through to the next source.
+      expect(secretsSource).to.include('stat.isFIFO() || stat.isFile()');
+    });
+
+    it('names piped stdin as the planned source without consuming it', () => {
+      expect(sops().plannedTokenSource({ token: 'ghp_explicit' })).to.equal('--args token');
+      expect(sops().plannedTokenSource({})).to.be.a('string').and.not.equal('');
+    });
+
+    it('treats `gh auth status` as advisory, gating on target reachability instead', () => {
+      // A logged-in account whose token merely lacks an optional scope still exits non-zero here,
+      // so making it the gate blocks a rotation that would have worked.
+      const start = secretsSource.indexOf('    rotateGitAuthToken(options = {}) {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      expect(body).to.include('if (!ghAuthenticated)');
+      expect(body).to.not.match(/if \(!ghAuthenticated\)\s*\n?\s*throw/);
+      expect(body).to.include('probed.reachable.length === 0');
+    });
+
+    it('surfaces what gh actually reported instead of a bare "not authenticated"', () => {
+      expect(secretsSource).to.include('gh auth status 2>&1');
+      expect(secretsSource).to.include('${ghAuthOutput}');
+    });
+
+    it('names a shadowing GH_TOKEN/GITHUB_TOKEN as the likely cause of a dead credential', () => {
+      // gh prefers these over the stored login, and `host load` exports GITHUB_TOKEN on every
+      // engine node — so a stale one turns a working `gh auth login` into 15 unreachable targets.
+      expect(secretsSource).to.include("['GH_TOKEN', 'GITHUB_TOKEN'].filter(");
+      expect(secretsSource).to.include('is set here, and gh uses it in preference to the account');
+    });
+
+    it('probes before staging the token, so an unreachable set never prompts for one', () => {
+      const start = secretsSource.indexOf('    rotateGitAuthToken(options = {}) {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      expect(body.indexOf('probeGitAuthTokenTargets(targets)')).to.be.lessThan(
+        body.indexOf('stageGitAuthToken(stagePath, options)'),
+      );
+    });
+
+    it('hands the token to gh on stdin, never as a command argument', () => {
+      // A token in the command string is a token in the process table and in the command log.
+      expect(secretsSource).to.include('gh secret set ${GIT_AUTH_TOKEN_KEY} --repo "${repo}" < "${stagePath}"');
+      expect(secretsSource).to.not.include('gh secret set ${GIT_AUTH_TOKEN_KEY} --body');
+    });
+
+    it('runs the gh write under pipefail with the command kept out of the log', () => {
+      const start = secretsSource.indexOf('    rotateGitAuthToken(options = {}) {');
+      expect(start, 'rotateGitAuthToken() not found').to.be.greaterThan(-1);
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      expect(body).to.include("bash -c 'set -o pipefail; gh secret set");
+      expect(body).to.include('disableLog: true');
+      expect(body).to.include('shred -u "${stagePath}"');
+    });
+
+    it('stages the token on tmpfs at mode 600 rather than through a shell heredoc', () => {
+      expect(secretsSource).to.include("const GIT_AUTH_TOKEN_STAGE_DIR = '/dev/shm/underpost-git-auth';");
+      const start = secretsSource.indexOf('    stageGitAuthToken(stagePath, options = {}) {');
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      expect(body).to.include('writeStageFileSync(stagePath');
+      // GITHUB_TOKEN is what gh authenticates with — on a rotation that is the outgoing token.
+      expect(body).to.not.include('process.env.GITHUB_TOKEN');
+    });
+
+    it('replaces the stored manifest through the validating atomic encrypt path', () => {
+      const start = secretsSource.indexOf("    writeGitAuthTokenManifest(token, namespace = 'default') {");
+      expect(start, 'writeGitAuthTokenManifest() not found').to.be.greaterThan(-1);
+      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      expect(body).to.include('Underpost.secret.encrypt(plaintextPath, namespace, { force: true })');
+    });
+
+    it('classifies gh as a network effect so a rotation cannot run under a hermetic profile', () => {
+      expect(classifyCommand('gh secret set GIT_AUTH_TOKEN --repo acme/engine')).to.equal('net');
+      expect(EXECUTION_PROFILES.HERMETIC_BUILD.permits).to.not.include('net');
+    });
+
+    it('rejects a credential the verb does not rotate, and a rotation with no target', () => {
+      expect(() => sops().rotate({ args: { secret: 'AWS_SECRET_ACCESS_KEY' } })).to.throw(
+        /GIT_AUTH_TOKEN is the only one it rotates/,
+      );
+      expect(() => sops().rotate({ args: {} })).to.throw(/rotate requires a target/);
+    });
+  });
+
+  describe('GIT_AUTH_TOKEN token sources', () => {
+    const saved = {};
+
+    beforeEach(() => {
+      saved.env = process.env.GIT_AUTH_TOKEN;
+      delete process.env.GIT_AUTH_TOKEN;
+    });
+
+    afterEach(() => {
+      if (saved.env === undefined) delete process.env.GIT_AUTH_TOKEN;
+      else process.env.GIT_AUTH_TOKEN = saved.env;
+    });
+
+    it('prefers an explicit token over every implicit source', () => {
+      process.env.GIT_AUTH_TOKEN = 'ghp_fromEnvironment';
+      expect(sops().plannedTokenSource({ token: 'ghp_explicit' })).to.equal('--args token');
+    });
+
+    it('falls back through the environment to a prompt', () => {
+      process.env.GIT_AUTH_TOKEN = 'ghp_fromEnvironment';
+      expect(sops().plannedTokenSource({})).to.equal('GIT_AUTH_TOKEN environment');
+      delete process.env.GIT_AUTH_TOKEN;
+      expect(sops().plannedTokenSource({})).to.match(/interactive prompt|unavailable/);
+    });
+
+    it('does not prompt or write on a dry run', () => {
+      const report = sops().rotateGitAuthToken({ deployId: 'dd-cyberia', owner: 'acme', dryRun: true });
+      expect(report.tokenSource).to.equal('');
+      expect(report.rotated).to.deep.equal([]);
+      expect(report.manifest).to.equal('');
     });
   });
 
