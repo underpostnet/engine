@@ -174,27 +174,34 @@ describe('node bootstrap installs a runtime a unit can execute', () => {
   });
 
   it('resolves only an executable Node 24 at a system path', () => {
-    const probe = (bin) =>
+    // The candidate paths are faked under a temp root rather than the real /usr/bin, /usr/local/bin,
+    // /bin: the host running this suite may itself have a genuine system Node 24 at one of those
+    // paths, which would make the probe correctly resolve it and defeat the regression check below.
+    const probe = (bin, candidates) =>
       execFileSync(
         'bash',
         [
           '-c',
-          'set -euo pipefail; system_node_path() { local c; for c in /usr/bin/node /usr/local/bin/node /bin/node; ' +
-            'do if [ -x "$c" ] && "$c" --version 2>/dev/null | grep -q "^v24"; then printf "%s" "$c"; return 0; fi; ' +
+          'set -euo pipefail; system_node_path() { local c; for c in ' +
+            candidates +
+            '; do if [ -x "$c" ] && "$c" --version 2>/dev/null | grep -q "^v24"; then printf "%s" "$c"; return 0; fi; ' +
             `done; return 1; }; PATH=${bin}:$PATH; if p="$(system_node_path)"; then printf 'system:%s' "$p"; ` +
             "else printf 'none'; fi",
         ],
         { encoding: 'utf8' },
       );
 
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-nvm-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-nvm-'));
     try {
+      const home = path.join(root, 'home');
+      const candidates = ['/usr/bin', '/usr/local/bin', '/bin'].map((d) => path.join(root, 'fake', d, 'node'));
+
       // A Node 24 reachable only through PATH, the way nvm publishes one, resolves to nothing.
       fs.outputFileSync(path.join(home, 'node'), '#!/bin/sh\necho v24.15.0\n');
       fs.chmodSync(path.join(home, 'node'), 0o755);
-      expect(probe(home)).to.equal('none');
+      expect(probe(home, candidates.join(' '))).to.equal('none');
     } finally {
-      fs.removeSync(home);
+      fs.removeSync(root);
     }
   });
 });
