@@ -34,6 +34,7 @@ import os from 'node:os';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import Underpost from '../../index.js';
+import { EXECUTION_PROFILES, activeExecutionProfile } from '../build/execution.js';
 import { loggerFactory } from '../ops/logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -251,14 +252,38 @@ const setRuntimeStatus = (deployId, env, phase) => {
 };
 
 /**
+ * Whether this process is executing under a test runner.
+ * @memberof RuntimeStatus
+ * @returns {boolean} True under `NODE_ENV=test` or a Vitest worker.
+ */
+const isTestRuntime = () =>
+  process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST || process.env.VITEST_WORKER_ID);
+
+/**
+ * Whether this process may write the runtime status contract.
+ *
+ * Only a live workload observes itself. A test run and a non-live execution profile both
+ * execute commands whose non-zero exit is the expected outcome — a suite asserting a failure
+ * path, a hermetic build eliding a cluster call — and neither is an observation of a running
+ * deployment. Letting them latch `container-status` published a false `error` to the CD
+ * monitor and failed rollouts that were healthy.
+ * @memberof RuntimeStatus
+ * @returns {boolean} True when this process speaks for a live container.
+ */
+const runtimeStatusWritable = () =>
+  Underpost.state.isInsideContainer() &&
+  !isTestRuntime() &&
+  activeExecutionProfile().name === EXECUTION_PROFILES.LIVE_CLUSTER.name;
+
+/**
  * Latches the container as failed, for a failure detected outside the lifecycle phases — a shell
- * command, a database connection, a backup. A no-op outside a container, where there is no
- * monitor reading it.
+ * command, a database connection, a backup. A no-op wherever the contract is not writable:
+ * outside a container, under a test runner, or under a non-live execution profile.
  * @memberof RuntimeStatus
  * @returns {void}
  */
 const latchRuntimeError = () => {
-  if (Underpost.state.isInsideContainer()) Underpost.state.set(CONTAINER_STATUS_KEY, RUNTIME_STATUS.ERROR);
+  if (runtimeStatusWritable()) Underpost.state.set(CONTAINER_STATUS_KEY, RUNTIME_STATUS.ERROR);
 };
 
 /**
@@ -354,7 +379,9 @@ export {
   latchAwaitDeploy,
   isAwaitingDeploy,
   clearAwaitDeploy,
+  isTestRuntime,
   latchRuntimeError,
+  runtimeStatusWritable,
   setStartContainerStatus,
   runtimeStatusPayload,
   runtimeTelemetryPayload,

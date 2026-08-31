@@ -7,7 +7,7 @@
 import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from '../ops/logger.js';
-import { shellCd, shellExec, shellExecAsync } from './process.js';
+import { shellArgumentFactory, shellCd, shellExec, shellExecAsync } from './process.js';
 import {
   RUNTIME_STATUS,
   setRuntimeStatus,
@@ -20,28 +20,6 @@ const logger = loggerFactory(import.meta);
 
 // Every deployment builds and runs out of this path inside the workload container.
 const ENGINE_PATH = '/home/dd/engine';
-
-/**
- * Renders the `underpost start` flags for the stage-2 re-entry.
- *
- * `--skip-pull-base` is always present: it is both the marker that the source is already in
- * place and the guard that makes the stage-1 branch unreachable a second time.
- * @param {object} [options] - Stage-1 options to carry across.
- * @returns {string} Space-separated flags.
- * @memberof UnderpostStartUp
- */
-const startFlagsFactory = (options = {}) =>
-  [
-    options.build === true ? '--build' : '',
-    options.run === true ? '--run' : '',
-    options.underpostQuicklyInstall === true ? '--underpost-quickly-install' : '',
-    options.skipFullBuild === true ? '--skip-full-build' : '',
-    options.pullBundle === true ? '--pull-bundle' : '',
-    options.privateTestRepo === true ? '--private-test-repo' : '',
-    '--skip-pull-base',
-  ]
-    .filter(Boolean)
-    .join(' ');
 
 /**
  * @class UnderpostStartUp
@@ -163,9 +141,11 @@ class UnderpostStartUp {
      * @param {boolean} options.build - Whether to build the deployment.
      * @param {boolean} options.run - Whether to run the deployment.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
-     * @param {boolean} options.skipPullBase - Whether to skip pulling the base code.
+     * @param {boolean} options.skipPullRepoBase - Whether to skip pulling the engine source repository.
+     * @param {boolean} options.skipPullPrivateRepo - Whether to skip cloning the private configuration repository.
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
      * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle before starting.
+     * @param {boolean} options.privateTestRepo - When true, the base pull clones `engine-test-<id>` instead of `engine-<id>`.
      */
     async callback(
       deployId = 'dd-default',
@@ -174,9 +154,11 @@ class UnderpostStartUp {
         build: false,
         run: false,
         underpostQuicklyInstall: false,
-        skipPullBase: false,
+        skipPullRepoBase: false,
+        skipPullPrivateRepo: false,
         skipFullBuild: false,
         pullBundle: false,
+        privateTestRepo: false,
       },
     ) {
       // Host configuration first: the pod command names only `start`, so the container env the
@@ -185,23 +167,11 @@ class UnderpostStartUp {
       // does not depend on CLI surface either.
       if (Underpost.state.isInsideContainer()) Underpost.host.load({ env });
 
-      // Stage 1. The `underpost` on PATH is the npm snapshot baked into the image, no newer
-      // than the last publish — including this file. Pull the deployment's real source, point
-      // the global CLI at it, and re-enter through that CLI, so every phase after this line
-      // runs the code that was just pulled rather than the code that shipped in the image.
+      // One phase, and the source pull belongs to `build`: a pod arrives here either through
+      // its bootstrap, which already replaced this checkout and linked the CLI, or with
+      // `--build` and no `--skip-pull-repo-base`, which pulls it here. Every long step shells
+      // out through `node bin`, so those run the pulled source either way.
       //
-      // Nothing is bound here: stage 2 owns the status server. The gap is safe because the
-      // startupProbe (180 x 10s) suspends readiness and liveness across the whole build
-      // window, and the monitor's default `exec` transport reads the file-backed
-      // `container-status` store rather than the HTTP endpoint — a store both stages resolve
-      // to the same path, since linking repoints only the bin and leaves the published
-      // package directory `getUnderpostRootPath()` returns untouched.
-      if (options.build === true && options.skipPullBase !== true) {
-        setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
-        Underpost.start.pullBase(deployId, options);
-        shellExec(`underpost start ${startFlagsFactory(options)} ${deployId} ${env}`);
-        return;
-      }
       // Bring the internal status endpoint up first so Phase-2 readiness is
       // observable through every lifecycle phase, including build and init. Bind
       // the deployment-resolved port so it always matches the monitor's target.
@@ -219,15 +189,19 @@ class UnderpostStartUp {
     },
     /**
      * Replaces `/home/dd/engine` with the deployment's own source and points the global
-     * `underpost` command at it — the stage-1 bootstrap that makes the rest of the flow
-     * independent of how recently the npm package was published.
+     * `underpost` command at it — the base pull that makes the rest of the flow independent
+     * of how recently the npm package was published.
+     *
+     * One pull per container: {@link UnderpostStartUp.build} performs it unless
+     * `--skip-pull-repo-base` says the pod's own bootstrap (`pod_bootstrap_cmd`) already
+     * replaced the checkout and linked the CLI before `start` was ever invoked.
      * @param {string} deployId - The ID of the deployment.
      * @param {Object} [options] - Options for the pull.
      * @param {boolean} [options.underpostQuicklyInstall] - Use `underpost install` instead of `npm install`.
      * @param {boolean} [options.privateTestRepo] - Clone `engine-test-<id>` instead of `engine-<id>`.
      * @memberof UnderpostStartUp
      */
-    pullBase(deployId = 'dd-default', options = {}) {
+    pullRepoBase(deployId = 'dd-default', options = {}) {
       const buildBasePath = `/home/dd`;
       // `--private-test-repo` clones the isolated test source repo published by
       // `node bin/build <deployId> --update-private`, instead of the production one.
@@ -258,10 +232,15 @@ class UnderpostStartUp {
      * @memberof UnderpostStartUp
      */
     linkRuntimeCli(enginePath = ENGINE_PATH) {
-      const result = shellExec(`cd ${enginePath} && npm link --force`, {
-        silent: true,
-        silentOnError: true,
-      });
+      const checkout = shellArgumentFactory(enginePath);
+      const result = shellExec(
+        `cd ${checkout} && npm link --force && ` +
+          `test "$(readlink -f "$(command -v underpost)")" = "$(readlink -f ./bin/index.js)"`,
+        {
+          silent: true,
+          silentOnError: true,
+        },
+      );
       if (result?.code === 0) {
         logger.info('Global underpost CLI linked to the engine checkout', { enginePath });
         return true;
@@ -282,7 +261,8 @@ class UnderpostStartUp {
      * @param {string} deployId - The ID of the deployment.
      * @param {string} env - The environment of the deployment.
      * @param {Object} options - Options for the build.
-     * @param {boolean} options.skipPullBase - Whether to skip pulling the base code and use the current workspace code directly.
+     * @param {boolean} options.skipPullRepoBase - Whether to skip pulling the engine source repository and use the current workspace code directly.
+     * @param {boolean} options.skipPullPrivateRepo - Whether to skip cloning the private configuration repository, for a pod whose bootstrap already placed `engine-private`.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
      * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle (must be pushed first with push-bundle).
@@ -294,11 +274,20 @@ class UnderpostStartUp {
     async build(
       deployId = 'dd-default',
       env = 'development',
-      options = { underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false, pullBundle: false },
+      options = {
+        underpostQuicklyInstall: false,
+        skipPullRepoBase: false,
+        skipPullPrivateRepo: false,
+        skipFullBuild: false,
+        pullBundle: false,
+      },
     ) {
-      if (options.skipPullBase !== true) Underpost.start.pullBase(deployId, options);
+      if (options.skipPullRepoBase !== true) Underpost.start.pullRepoBase(deployId, options);
       shellCd(ENGINE_PATH);
-      Underpost.repo.privateEngineRepoFactory(deployId);
+      // Containers refresh private config because an image/bootstrap checkout may be stale.
+      // Hosts keep their local checkout, while explicit skip preserves caller-provided config.
+      if (options.skipPullPrivateRepo !== true)
+        Underpost.repo.privateEngineRepoFactory(deployId, { force: Underpost.state.isInsideContainer() });
       // Awaited rather than blocking: these are the minutes-long steps of a deployment, and a
       // synchronous child stalls the event loop for its whole duration — leaving the status
       // endpoint bound but unable to answer, so telemetry went dark across the entire build.
@@ -369,4 +358,4 @@ const createKeepAliveProcess = async () =>
 
 export default UnderpostStartUp;
 
-export { createKeepAliveProcess, startFlagsFactory, UnderpostStartUp };
+export { createKeepAliveProcess, UnderpostStartUp };
