@@ -2,7 +2,6 @@
 
 import { Command } from 'commander';
 import fs from 'fs-extra';
-import dotenv from 'dotenv';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import {
@@ -19,8 +18,10 @@ import { COVERAGE_BUNDLE_DIRECTORY, bundleCoverageReport } from '../src/server/b
 import { shellExec } from '../src/server/runtime/process.js';
 import Underpost from '../src/index.js';
 
-const baseConfPath = './engine-private/conf/dd-cron/.env.production';
-if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: true });
+// The host environment this entrypoint publishes with, read through the domain that owns it
+// rather than from a path: the durable source is one file per scope, and naming the pre-split
+// file here left the build with no credentials at all once that file was retired.
+for (const [key, value] of Object.entries(Underpost.host.read())) process.env[key] = value;
 
 const logger = loggerFactory(import.meta);
 
