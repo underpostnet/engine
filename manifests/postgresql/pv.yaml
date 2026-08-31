@@ -1,3 +1,7 @@
+# The host path lives under /data, the node storage root this platform owns and labels
+# `container_file_t`. `claimRef` pins the volume to exactly one claim: this PV and mysql-pv were
+# previously interchangeable `manual`-class volumes over the same '/mnt/data' directory, so either
+# database could bind either one and both could end up writing one data tree.
 kind: PersistentVolume
 apiVersion: v1
 metadata:
@@ -7,9 +11,16 @@ metadata:
     app: postgres
 spec:
   storageClassName: manual
+  persistentVolumeReclaimPolicy: Retain
   capacity:
     storage: 5Gi
   accessModes:
     - ReadWriteMany
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: default
+    name: postgres-pv-claim
   hostPath:
-    path: '/mnt/data'
+    path: '/data/postgresql'
+    type: DirectoryOrCreate

@@ -1,4 +1,9 @@
 # pv-pvc.yaml
+# The host path lives under /data, the node storage root this platform owns and labels
+# `container_file_t`; a path outside it (the previous '/mnt/data') carries the policy default and
+# is unreadable to the unprivileged container. `claimRef` pins the volume to exactly one claim —
+# without it this PV and postgres-pv-volume were interchangeable `manual`-class volumes over the
+# same directory, so either database could bind either one and both could land on one data tree.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -7,12 +12,19 @@ metadata:
     type: local
 spec:
   storageClassName: manual
+  persistentVolumeReclaimPolicy: Retain
   capacity:
     storage: 20Gi
   accessModes:
     - ReadWriteOnce
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: default
+    name: mysql-pv-claim
   hostPath:
-    path: '/mnt/data'
+    path: '/data/mysql'
+    type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -20,6 +32,7 @@ metadata:
   name: mysql-pv-claim
 spec:
   storageClassName: manual
+  volumeName: mysql-pv
   accessModes:
     - ReadWriteOnce
   resources:
