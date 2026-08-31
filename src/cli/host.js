@@ -14,6 +14,14 @@
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
+import nodePath from 'node:path';
+
+import {
+  CONFIG_SCOPES,
+  classifyConfigKeys,
+  configOwnershipFactory,
+  configRejectionFactory,
+} from '../server/runtime/config-scope.js';
 import { cronDeployIdResolve } from '../server/ops/cron.js';
 import { domainContextFactory } from './domains.js';
 import { dotenvStoreFactory } from './dotenv-store.js';
@@ -25,6 +33,8 @@ import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 const UNDERPOST_CONFIG_SECRET = 'underpost-config';
+const DEFAULT_CRON_DEPLOY_ID = 'dd-cron';
+const SCOPES_DIR = './engine-private/deploy/scopes';
 
 // Shell- and Kubernetes-critical keys that must never round-trip through a published Secret:
 // an injected PATH overrides the container image's own and breaks coreutils resolution in the
@@ -168,7 +178,19 @@ class UnderpostHost {
      * @memberof UnderpostHost
      */
     envPath(env = 'production') {
-      return `./engine-private/conf/${cronDeployIdResolve() || 'dd-cron'}/.env.${env || 'production'}`;
+      return `./engine-private/conf/${cronDeployIdResolve() || DEFAULT_CRON_DEPLOY_ID}/.env.${env || 'production'}`;
+    },
+
+    /**
+     * The scoped durable sources present for an environment.
+     * @param {string} [env='production'] - Environment selector.
+     * @returns {Array<{scope: string, path: string}>} Sources that exist, in scope-table order.
+     * @memberof UnderpostHost
+     */
+    scopedSources(env = 'production') {
+      return Object.keys(CONFIG_SCOPES)
+        .map((scope) => ({ scope, path: UnderpostHost.API.scopePath(scope, env) }))
+        .filter(({ path }) => fs.existsSync(path));
     },
 
     /**
@@ -179,8 +201,25 @@ class UnderpostHost {
      * @memberof UnderpostHost
      */
     read(env = 'production') {
+      // The scoped sources are authoritative once they exist. The unsplit file is read only until
+      // `setup` has split and verified it, and is retired at that point — a durable source that
+      // outlives its replacement is a second answer to the same question.
+      const scoped = UnderpostHost.API.scopedSources(env);
+      if (scoped.length > 0)
+        return scoped.reduce((values, { path }) => ({ ...values, ...dotenv.parse(fs.readFileSync(path, 'utf8')) }), {});
       const envPath = UnderpostHost.API.envPath(env);
       return fs.existsSync(envPath) ? dotenv.parse(fs.readFileSync(envPath, 'utf8')) : {};
+    },
+
+    /**
+     * Where this environment's configuration is actually read from, for diagnostics.
+     * @param {string} [env='production'] - Environment selector.
+     * @returns {string} Scopes directory once split, else the unsplit source.
+     * @memberof UnderpostHost
+     */
+    sourceLabel(env = 'production') {
+      const scoped = UnderpostHost.API.scopedSources(env);
+      return scoped.length > 0 ? `${SCOPES_DIR}/*.env.${env || 'production'}` : UnderpostHost.API.envPath(env);
     },
 
     /**
@@ -230,6 +269,188 @@ class UnderpostHost {
       return credentials;
     },
 
+    /**
+     * Where a configuration scope's durable source lives.
+     *
+     * Beside the deploy markers rather than inside a deployment's conf: these are the node's
+     * concerns, not any one deployment's, and the deployment that happens to carry them today is
+     * an accident of history the split exists to end.
+     * @param {string} scope - Scope name.
+     * @param {string} [env='production'] - Environment selector.
+     * @returns {string} Path to that scope's env file.
+     * @memberof UnderpostHost
+     */
+    scopePath(scope, env = 'production') {
+      return `${SCOPES_DIR}/${scope}.env.${env || 'production'}`;
+    },
+
+    /**
+     * Splits the host domain's durable source into one file per owning scope.
+     *
+     * Additive and idempotent: it writes the scoped sources and reports what it found, and never
+     * removes the source it read. The legacy file stays authoritative until an operator has
+     * compared the two — a migration that deletes the only copy of a fleet's credentials on the
+     * strength of a regex is not a migration worth having.
+     *
+     * Fails closed on a key no scope claims. Guessing an owner is how a provisioning credential
+     * ends up in a workload projection, which is the exposure this split exists to close.
+     * @param {object} context - Normalized domain context.
+     * @returns {{source: string, scopes: Object<string, number>, written: string[]}} What was split.
+     * @memberof UnderpostHost
+     */
+    /**
+     * Writes an environment into the scoped durable sources, one file per owning scope.
+     *
+     * Fails closed on a key no scope claims: guessing an owner is how a provisioning credential
+     * ends up in a workload projection, which is the exposure the split exists to close.
+     * @param {Object<string, string>} values - Environment to distribute.
+     * @param {object} [context] - Normalized domain context.
+     * @returns {string[]} Paths written.
+     * @memberof UnderpostHost
+     */
+    writeScopes(values, context = {}) {
+      const env = context.env || 'production';
+      const { scopes, unclassified } = classifyConfigKeys(values);
+      if (unclassified.length > 0)
+        throw new Error(
+          `[host] ${unclassified.length} key(s) belong to no scope, so their exposure cannot be decided:\n` +
+            unclassified
+              .map((key) =>
+                configRejectionFactory({
+                  domain: 'host',
+                  deployId: cronDeployIdResolve() || DEFAULT_CRON_DEPLOY_ID,
+                  env,
+                  key,
+                  reason: 'no ownership rule matches; declare it in CONFIG_OWNERSHIP',
+                }),
+              )
+              .join('\n'),
+        );
+
+      const written = [];
+      for (const [scope, keys] of Object.entries(scopes)) {
+        if (keys.length === 0) continue;
+        const target = UnderpostHost.API.scopePath(scope, env);
+        written.push(target);
+        if (context.dryRun) continue;
+        fs.mkdirpSync(nodePath.dirname(target));
+        writeEnv(target, Object.fromEntries(keys.map((key) => [key, values[key]])));
+        fs.chmodSync(target, 0o600);
+      }
+      return written;
+    },
+
+    split(context = {}) {
+      context = domainContextFactory(context);
+      const env = context.env || 'production';
+      const source = UnderpostHost.API.envPath(env);
+      if (!fs.existsSync(source)) {
+        // Retired, which is the finished state of this migration rather than a fault. Rerunning
+        // `setup` on a migrated node has nothing to split, and must not read that as a broken one.
+        const scoped = UnderpostHost.API.scopedSources(env);
+        if (scoped.length === 0) throw new Error(`[host] configuration source not found: ${source}`);
+        logger.info('Host configuration already split by scope', { env, scopes: scoped.length });
+        return { source, scopes: {}, written: [] };
+      }
+
+      const values = dotenv.parse(fs.readFileSync(source, 'utf8'));
+      const written = UnderpostHost.API.writeScopes(values, { ...context, env });
+      const counts = Object.fromEntries(
+        Object.entries(classifyConfigKeys(values).scopes).map(([scope, keys]) => [scope, keys.length]),
+      );
+
+      logger.info(
+        context.dryRun ? '[dry-run] host configuration would be split by scope' : 'Host configuration split',
+        { source, env, scopes: counts, written: written.length },
+      );
+      return { source, scopes: counts, written };
+    },
+
+    /**
+     * Confirms a split is complete: every key of the durable source is present, once, in exactly
+     * the scope that owns it. Run before an operator retires the unsplit source.
+     * @param {object} context - Normalized domain context.
+     * @returns {{ok: boolean, source: string, missing: string[], misplaced: string[]}} Verdict.
+     * @memberof UnderpostHost
+     */
+    verifySplit(context = {}) {
+      context = domainContextFactory(context);
+      const env = context.env || 'production';
+      const source = UnderpostHost.API.envPath(env);
+      if (!fs.existsSync(source)) return { ok: true, source, missing: [], misplaced: [] };
+
+      const values = dotenv.parse(fs.readFileSync(source, 'utf8'));
+      const missing = [];
+      const misplaced = [];
+      for (const key of Object.keys(values)) {
+        const ownership = configOwnershipFactory(key);
+        if (!ownership) {
+          missing.push(key);
+          continue;
+        }
+        const target = UnderpostHost.API.scopePath(ownership.owner, env);
+        const split = fs.existsSync(target) ? dotenv.parse(fs.readFileSync(target, 'utf8')) : {};
+        if (split[key] === undefined) missing.push(key);
+        else if (split[key] !== values[key]) misplaced.push(key);
+      }
+
+      const ok = missing.length === 0 && misplaced.length === 0;
+      logger[ok ? 'info' : 'error']('Host configuration split verification', {
+        source,
+        env,
+        keys: Object.keys(values).length,
+        missing: missing.length,
+        misplaced: misplaced.length,
+        ...(ok ? {} : { keysMissing: missing, keysMisplaced: misplaced }),
+      });
+      if (!ok) process.exitCode = 1;
+      return { ok, source, missing, misplaced };
+    },
+
+    /**
+     * Whether this environment still has an unsplit source beside its scoped ones.
+     * @param {string} [env='production'] - Environment selector.
+     * @returns {boolean} True while both layouts exist.
+     * @memberof UnderpostHost
+     */
+    hasDualSource(env = 'production') {
+      return UnderpostHost.API.scopedSources(env).length > 0 && fs.existsSync(UnderpostHost.API.envPath(env));
+    },
+
+    /**
+     * Removes the unsplit source once the scoped ones fully account for it.
+     *
+     * The gate is {@link UnderpostHost.verifySplit}, not the presence of the scope files: a split
+     * that dropped or altered a key would otherwise retire the only copy of it. Idempotent — an
+     * already-retired source is nothing to do, not an error.
+     * @param {object} context - Normalized domain context.
+     * @returns {{retired: boolean, source: string, reason: string}} What happened, and why.
+     * @memberof UnderpostHost
+     */
+    retireLegacySource(context = {}) {
+      context = domainContextFactory(context);
+      const source = UnderpostHost.API.envPath(context.env);
+      if (!fs.existsSync(source)) return { retired: false, source, reason: 'already retired' };
+
+      const { ok, missing, misplaced } = UnderpostHost.API.verifySplit(context);
+      if (!ok) {
+        process.exitCode = 0;
+        logger.warn('Unsplit host source kept: the scoped sources do not account for it', {
+          source,
+          missing: missing.length,
+          misplaced: misplaced.length,
+        });
+        return { retired: false, source, reason: 'verification failed' };
+      }
+      if (context.dryRun) {
+        logger.info('[dry-run] unsplit host source would be retired', { source });
+        return { retired: false, source, reason: 'dry-run' };
+      }
+      fs.removeSync(source);
+      logger.info('Unsplit host source retired; the scoped sources are authoritative', { source });
+      return { retired: true, source, reason: 'verified' };
+    },
+
     // ── canonical domain actions ────────────────────────────────────────────────────────────
 
     /**
@@ -241,15 +462,22 @@ class UnderpostHost {
      */
     setup(context = {}) {
       context = domainContextFactory(context);
-      const deployId = cronDeployIdResolve() || 'dd-cron';
-      const source = UnderpostHost.API.envPath(context.env);
-      if (!fs.existsSync(source)) throw new Error(`[host] configuration source not found: ${source}`);
+      const deployId = cronDeployIdResolve() || DEFAULT_CRON_DEPLOY_ID;
+      const source = UnderpostHost.API.sourceLabel(context.env);
+      if (Object.keys(UnderpostHost.API.read(context.env)).length === 0)
+        throw new Error(`[host] configuration source not found: ${source}`);
       if (context.dryRun) {
         logger.info('[dry-run] host setup would load', { deployId, source });
         return { deployId, source, keys: Object.keys(UnderpostHost.API.read(context.env)).length };
       }
       const { keys } = UnderpostHost.API.load(context);
-      return { deployId, source, keys };
+      // The scoped sources are what this domain provisions: they are what lets a projection hand a
+      // workload its own scope instead of the whole node environment. Split, verify, then retire —
+      // the unsplit file is removed only once every key of it is proven present and equal under its
+      // owner, so a failed classification leaves the original in place.
+      const split = UnderpostHost.API.split(context);
+      const retired = UnderpostHost.API.retireLegacySource(context);
+      return { deployId, source, keys, scopes: split.scopes, retired };
     },
 
     /**
@@ -267,12 +495,12 @@ class UnderpostHost {
      */
     load(context = {}) {
       context = domainContextFactory(context);
-      const envPath = UnderpostHost.API.envPath(context.env);
-      const fromFile = fs.existsSync(envPath);
+      const onDisk = UnderpostHost.API.read(context.env);
+      const fromFile = Object.keys(onDisk).length > 0;
       const values = fromFile
-        ? dotenv.parse(fs.readFileSync(envPath, 'utf8'))
+        ? onDisk
         : Object.fromEntries(Object.entries(process.env).filter(([key]) => !isReservedEnvKey(key)));
-      const source = fromFile ? envPath : 'container-env';
+      const source = fromFile ? UnderpostHost.API.sourceLabel(context.env) : 'container-env';
       if (context.dryRun) {
         logger.info('[dry-run] host load would replace the host configuration store', {
           source,
@@ -379,6 +607,7 @@ class UnderpostHost {
         clusterSecret: `${projected ?? ''}`.trim() ? UNDERPOST_CONFIG_SECRET : null,
       };
       logger.info('host status', report);
+      if (present) UnderpostHost.API.verifySplit(context);
       return report;
     },
 
