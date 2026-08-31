@@ -493,7 +493,7 @@ class UnderpostRelease {
 
       // ── Downstream regenerations and manifest sync (unchanged from previous flow). ──
       shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
-      shellExec(`node bin/deploy update-dependencies`);
+      shellExec(`node bin package --sync`);
       shellExec(`node bin/build dd`);
       shellExec(`node bin run build-cluster-deployment-manifests`);
       shellExec(`node bin new --default-conf --conf-workflow-id template`);

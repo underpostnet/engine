@@ -47,32 +47,6 @@ export const DOCKER_COMPOSE_ID = 'cyberia';
 
 export const DEPLOY_ID = 'dd-cyberia';
 
-/**
- * Native-dependency pin list. Consumed by `bin/build.js` and `bin/deploy.js`
- * when materialising the Cyberia subtree so versions stay reproducible
- * across CI / production deploys.
- */
-export class CyberiaDependencies {
-  static 'maxrects-packer' = '^2.7.3';
-  static pngjs = '^7.0.0';
-  static jimp = '^1.6.0';
-  static sharp = '^0.35.3';
-  static ethers = '~6.16.0';
-}
-
-export const DOCKER_SCRIPTS = {
-  'docker:generate': `node bin docker-compose --generate --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:up': `node bin docker-compose --up --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:up:build': `node bin docker-compose --up --build --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:down': `node bin docker-compose --down --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:down:volumes': `node bin docker-compose --down --volumes --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:restart': `node bin docker-compose --restart --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:pull': `node bin docker-compose --pull --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:logs': `node bin docker-compose --logs --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:status': `node bin docker-compose --status --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-  'docker:reset': `node bin docker-compose --reset --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`,
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Skill / action / quest seed content
 // ─────────────────────────────────────────────────────────────────────────────

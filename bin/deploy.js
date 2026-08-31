@@ -179,70 +179,6 @@ try {
       }
       break;
 
-    case 'update-dependencies':
-      const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
-      const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-      for (const relativePath of files) {
-        const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
-        if (filePah.split('/').pop() === 'package.json') {
-          const deployPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
-          deployPackage.dependencies = originPackage.dependencies;
-          deployPackage.devDependencies = originPackage.devDependencies;
-          deployPackage.overrides = originPackage.overrides;
-          fs.writeFileSync(filePah, JSON.stringify(deployPackage, null, 4), 'utf8');
-        }
-      }
-      break;
-
-    case 'rename-package': {
-      const name = process.argv[3];
-      const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-      originPackage.name = name;
-      fs.writeFileSync(`./package.json`, JSON.stringify(originPackage, null, 4), 'utf8');
-
-      const originPackageLockJson = JSON.parse(fs.readFileSync(`./package-lock.json`, 'utf8'));
-      originPackageLockJson.name = name;
-      originPackageLockJson.packages[''].name = name;
-      fs.writeFileSync(`./package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
-
-      break;
-    }
-
-    case 'set-repo': {
-      const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-      originPackage.repository = {
-        type: 'git',
-        url: `git+https://github.com/${process.argv[3]}.git`,
-      };
-      fs.writeFileSync(`./package.json`, JSON.stringify(originPackage, null, 4), 'utf8');
-
-      break;
-    }
-
-    case 'build-default-confs': {
-      for (const deployId of readDeployRoutes().concat(['dd-cron'])) {
-        // The same set `deploy --build-manifest` mirrors. Anything missing here
-        // is a manifest the project repo silently stops carrying while the
-        // private build dir still has it.
-        for (const file of [
-          'deployment.yaml',
-          'proxy.yaml',
-          'gateway.yaml',
-          'httproute.yaml',
-          'pv-pvc.yaml',
-          'traffic-service.yaml',
-          'grpc-service.yaml',
-        ]) {
-          const source = `./engine-private/conf/${deployId}/build/development/${file}`;
-          const target = `./manifests/deployment/${deployId}-development/${file}`;
-          if (fs.existsSync(source)) fs.copySync(source, target);
-          else fs.removeSync(target);
-        }
-        shellExec(`node bin new --dev --default-conf --deploy-id ${deployId}`);
-      }
-      break;
-    }
-
     case 'update-authors': {
       // #### Ordered by first contribution.
       fs.writeFileSync(
@@ -707,15 +643,6 @@ nvidia/gpu-operator \
             logger.info(`sync-conf`, { deployId, file });
           }
         }
-      }
-      break;
-    }
-
-    case 'cyberia': {
-      const { CyberiaDependencies } = await import(`../src/api/cyberia-server-defaults/cyberia-server-defaults.js`);
-      for (const dep of Object.keys(CyberiaDependencies)) {
-        const ver = CyberiaDependencies[dep];
-        shellExec(`npm install ${dep}@${ver}`);
       }
       break;
     }

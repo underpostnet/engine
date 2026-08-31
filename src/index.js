@@ -21,6 +21,7 @@ import UnderpostIPFS from './cli/ipfs.js';
 import UnderpostImage from './cli/image.js';
 import UnderpostLxd from './cli/lxd.js';
 import UnderpostMonitor from './cli/monitor.js';
+import UnderpostPackage from './cli/package.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
 import UnderpostSecret from './cli/secrets.js';
@@ -373,6 +374,16 @@ class Underpost {
   static get test() {
     return UnderpostTest.API;
   }
+
+  /**
+   * Deploy package manifest cli API
+   * @static
+   * @type {UnderpostPackage.API}
+   * @memberof Underpost
+   */
+  static get package() {
+    return UnderpostPackage.API;
+  }
 }
 
 if (!process.version || !process.version.startsWith(`${Underpost.majorNodejsVersion}.`))
@@ -404,6 +415,7 @@ export {
   UnderpostKickStart,
   UnderpostIPFS,
   UnderpostMonitor,
+  UnderpostPackage,
   UnderpostApp,
   UnderpostClient,
   UnderpostHost,

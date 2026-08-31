@@ -13,12 +13,51 @@
  *   - `copies`            — `[src, dest]` pairs copied into the template during assembly (like moves but copied instead of moved).
  *   - `keywords`          — npm keywords for the standalone product CLI package.
  *   - `description`       — npm description for the standalone product CLI package.
+ *   - `packageName`       — npm name of the product package; the deploy id without `dd-` otherwise.
+ *   - `packageBin`        — bin map of the standalone product CLI.
+ *   - `packageDependencies` — runtime dependencies this product adds to the engine's.
+ *   - `packageScripts`    — npm scripts this product adds to the engine's.
+ *
+ * The `package*` fields are the single declaration of what this product's manifests carry:
+ * every generated manifest — the deploy's `engine-private/conf/<id>/package.json`, the product
+ * repository's, and the published instance copy — is built from them by
+ * {@link module:src/server/build/package.js}. Nothing else may name them.
  *
  * @module src/projects/cyberia/catalog-cyberia.js
  * @namespace CyberiaCatalog
  */
 
+const DEPLOY_ID = 'dd-cyberia';
+const DOCKER_COMPOSE_ID = 'cyberia';
+
+const dockerScript = (action, flags = '') =>
+  `node bin docker-compose --${action}${flags} --deploy-id ${DEPLOY_ID} --docker-compose-id ${DOCKER_COMPOSE_ID}`;
+
 export default {
+  packageName: 'cyberia',
+  // Pod bootstraps link this product checkout over the image CLI before continuing.
+  packageBin: { cyberia: 'bin/index.js', underpost: 'bin/index.js' },
+  // Native-dependency pin list: versions stay reproducible across CI and production deploys.
+  packageDependencies: {
+    'adm-zip': '^0.6.0',
+    'maxrects-packer': '^2.7.3',
+    pngjs: '^7.0.0',
+    jimp: '^1.6.0',
+    sharp: '^0.35.3',
+    ethers: '~6.16.0',
+  },
+  packageScripts: {
+    'docker:generate': dockerScript('generate'),
+    'docker:up': dockerScript('up'),
+    'docker:up:build': dockerScript('up', ' --build'),
+    'docker:down': dockerScript('down'),
+    'docker:down:volumes': dockerScript('down', ' --volumes'),
+    'docker:restart': dockerScript('restart'),
+    'docker:pull': dockerScript('pull'),
+    'docker:logs': dockerScript('logs'),
+    'docker:status': dockerScript('status'),
+    'docker:reset': dockerScript('reset'),
+  },
   sourceMoves: [],
   privateConfPaths: [
     /** INSTANCE_CODES */

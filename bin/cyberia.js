@@ -52,9 +52,8 @@ import {
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
   fillInstanceConfDefaults,
-  DOCKER_SCRIPTS,
-  CyberiaDependencies,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import cyberiaCatalog from '../src/projects/cyberia/catalog-cyberia.js';
 
 import {
   DEFAULT_INSTANCE_CODE,
@@ -62,7 +61,13 @@ import {
   DefaultCyberiaItems,
 } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
-import { STAGED_CLI_PACKAGE, stageCliPackage } from '../src/server/build/package.js';
+import {
+  DEPLOY_MANIFEST_INDENT,
+  STAGED_CLI_PACKAGE,
+  buildDeployPackageJson,
+  deployPackagePathFactory,
+  stageCliPackage,
+} from '../src/server/build/package.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.
@@ -1844,40 +1849,24 @@ try {
             `/home/dd/cyberia-instances/conf/dd-cyberia/conf.volume.json`,
           );
           {
-            const catalog = await loadDeployCatalog('dd-cyberia');
-            fs.copyFileSync(
-              `./engine-private/conf/dd-cyberia/package.json`,
-              `/home/dd/cyberia-instances/conf/dd-cyberia/package.json`,
-            );
-            const originPackageJson = JSON.parse(
-              fs.readFileSync(`./engine-private/conf/dd-cyberia/package.json`, 'utf-8'),
-            );
-            const scriptsOrigin = originPackageJson.scripts;
-            const scriptsTarget = JSON.parse(fs.readFileSync(`./package.json`, 'utf-8')).scripts;
-            originPackageJson.name = 'cyberia';
-            originPackageJson.bin = {
-              cyberia: 'bin/index.js',
-            };
-            originPackageJson.keywords = catalog.keywords;
-            originPackageJson.description = catalog.description;
+            // The published manifest is the deploy's, under the product's own identity — one
+            // builder for every generated package.json in the project, so the instances repo
+            // cannot drift from what the deploy and the product CLI declare.
+            const deployPackagePath = deployPackagePathFactory('dd-cyberia');
             fs.writeFileSync(
               `/home/dd/cyberia-instances/conf/dd-cyberia/package.json`,
-              JSON.stringify(
-                {
-                  ...originPackageJson,
-                  scripts: {
-                    ...scriptsTarget,
-                    start: scriptsOrigin.start,
-                    ...DOCKER_SCRIPTS,
-                  },
-                  dependencies: {
-                    ...originPackageJson.dependencies,
-                    ...CyberiaDependencies,
-                  },
-                },
+              `${JSON.stringify(
+                buildDeployPackageJson({
+                  deployId: 'dd-cyberia',
+                  enginePackageJson: JSON.parse(fs.readFileSync(`./package.json`, 'utf-8')),
+                  catalog: await loadDeployCatalog('dd-cyberia'),
+                  currentPackageJson: JSON.parse(fs.readFileSync(deployPackagePath, 'utf-8')),
+                  productIdentity: true,
+                }),
                 null,
-                2,
-              ),
+                DEPLOY_MANIFEST_INDENT,
+              )}\n`,
+              'utf8',
             );
           }
           fs.copyFileSync(
@@ -5005,6 +4994,8 @@ try {
     shellExec(`node bin run build-cluster-deployment-manifests`);
     shellExec(`node bin/cyberia run-workflow build-manifest`);
     shellExec(`node bin/cyberia run-workflow publish --dry-run`);
+    shellExec(`npm run security`);
+    shellExec(`sudo rm -rf ./conf.dd*.js`);
   });
 
   runner.command('cluster').action(() => {
@@ -5219,6 +5210,14 @@ try {
     }
   });
 
+  runner.command('sync-cluster').action(() => {
+    shellExec(`node bin/build dd-cyberia --update-private && node bin/build dd-core --update-private`);
+    shellExec(`node bin/build dd-cyberia --update-private && node bin/build dd-core --update-private`);
+    shellExec(
+      `node bin wireguard --sync --repo-engine underpostnet/engine-test-cyberia --repo-engine-private underpostnet/engine-private`,
+    );
+  });
+
   runner
     .command('test')
     .option('--n-con <connections>', 'Number of concurrent WebSocket connections')
@@ -5281,7 +5280,7 @@ node bin image --path cyberia-client \
       }
     });
 
-  for (const [cmd, action] of Object.entries(DOCKER_SCRIPTS))
+  for (const [cmd, action] of Object.entries(cyberiaCatalog.packageScripts))
     runner.command(cmd).action(() => {
       if (cmd === 'docker:up' || cmd === 'docker:up:build' || cmd === 'docker:restart') {
         const { aliases, changed } = installCyberiaDockerHostAliases();
@@ -6001,7 +6000,7 @@ node bin image --path cyberia-client \
   // line.
   if (error && error.message === 'Trigger underpost passthrough') {
     process.argv = process.argv.filter((c) => c !== 'underpost');
-    logger.warn('Rerouting to underpost cli...');
+    if (!process.argv.includes('--plain')) logger.warn('Rerouting to underpost cli...');
     try {
       await underpostProgram.parseAsync();
     } catch (err) {

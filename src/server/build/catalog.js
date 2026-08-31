@@ -18,7 +18,13 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
-/** Empty product catalog returned for deploy ids without a dedicated module. */
+/**
+ * Empty product catalog returned for deploy ids without a dedicated module.
+ *
+ * The `package*` fields are the deploy's package manifest contract, read by
+ * {@link module:src/server/build/package.js}: a deploy id with no catalog gets the engine
+ * manifest under its own identity, and one with a catalog adds exactly what it declares here.
+ */
 const EMPTY_CATALOG = {
   sourceMoves: [],
   privateConfPaths: [],
@@ -28,6 +34,10 @@ const EMPTY_CATALOG = {
   copies: [],
   keywords: [],
   description: '',
+  packageName: '',
+  packageBin: {},
+  packageDependencies: {},
+  packageScripts: {},
 };
 
 /**

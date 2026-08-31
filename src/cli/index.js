@@ -92,7 +92,11 @@ program
   .option('--run', 'Starts application servers and monitors their health.')
   .option('--build', 'Triggers the client-side application build process.')
   .option('--underpost-quickly-install', 'Uses Underpost Quickly Install for dependency installation.')
-  .option('--skip-pull-base', 'Skips cloning repositories, uses current workspace code directly.')
+  .option('--skip-pull-repo-base', 'Skips cloning the engine source repository, uses current workspace code directly.')
+  .option(
+    '--skip-pull-private-repo',
+    'Skips cloning the private configuration repository, uses the engine-private already in the workspace.',
+  )
   .option('--skip-full-build', 'Skips the full client bundle build during deployment.')
   .option(
     '--pull-bundle',
@@ -591,7 +595,11 @@ program
   )
   .option('--namespace <namespace>', 'Kubernetes namespace for the CronJob resources (default: "default").')
   .option('--image <image>', 'Custom container image for the CronJob pods.')
-  .option('--node-name <node-name>', 'Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector.')
+  .option(
+    '--node-name <node-name>',
+    'Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector. ' +
+      'With --apply, defaults to this machine when the cluster knows it as a node, because the pods mount its checkout.',
+  )
   .option('--git', 'Pass --git flag to cron job execution.')
   .option('--cmd <cmd>', 'Optional pre-script commands to run before cron execution.')
   .option('--dev', 'Use local ./ base path instead of global underpost installation.')
@@ -1359,6 +1367,23 @@ program
     'Manages baremetal server operations, including installation, database setup, commissioning, and user management.',
   )
   .action(Underpost.baremetal.callback);
+
+program
+  .command('package')
+  .argument(
+    '[deploy-id]',
+    'Deploy id, or a comma-separated list, to act on. Defaults to every deploy id in the private configuration tree.',
+  )
+  .option('--sync', 'Regenerates each deploy manifest from the engine manifest and the deploy catalog (default).')
+  .option('--install', 'Installs the dependencies the deploy catalog pins into this checkout.')
+  .option('--rename <name>', "Renames this checkout's package, in its manifest and its lockfile.")
+  .option('--set-repo <owner/repo>', "Points this checkout's package at a repository.")
+  .option('--dry-run', 'For --sync: resolves the manifests without writing them.')
+  .description(
+    "Generates the package manifests a deploy id owns, from the engine manifest and the deploy's " +
+      'product catalog, and installs the dependencies that catalog pins.',
+  )
+  .action(Underpost.package.callback);
 
 program
   .command('release')
