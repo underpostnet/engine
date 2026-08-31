@@ -14,7 +14,7 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-lampp production), underpost start dd-lampp production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-lampp production), underpost start dd-lampp production --build --run --skip-pull-repo-base"
 
     deploy_step "Sync dd-lampp cluster" \
         sudo -n -- /bin/bash -lc \

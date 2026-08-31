@@ -9,24 +9,9 @@ ENGINE_ROOT=/home/dd/engine
 TARGET_NODE=localhost.localdomain
 INGRESS_NODE=localhost.localdomain
 
-# Base source the pod bootstraps from, and the private conf repository it pairs with. The
-# checkout directory is derived from the repository name rather than written out again, so
-# switching the base repo cannot leave the copies below pointing at a directory the clone
-# never created — which is exactly how a pod ended up copying from ./engine-cyberia after
-# the clone had landed in ./engine-test-cyberia.
+# Base source the pod bootstraps from. The private configuration repository is not named here:
+# `underpost start --build` derives it from the deploy id and clones it into ./engine-private.
 POD_SRC_REPO="${POD_SRC_REPO:-underpostnet/engine-test-cyberia}"
-POD_SRC_DIR="${POD_SRC_REPO##*/}"
-POD_SRC_PRIVATE_REPO="${POD_SRC_PRIVATE_REPO:-underpostnet/engine-cyberia-private}"
-POD_SRC_PRIVATE_DIR="${POD_SRC_PRIVATE_REPO##*/}"
-
-# Asset repositories are committed only when they actually changed, so the
-# status query stays outside deploy_step: its stdout is the value we branch on.
-has_changes() {
-    local path="$1"
-    
-    sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && node bin cmt $path --has-changes" | tr -d '\n'
-}
 
 main() {
     deploy_start "Starting remote sync and deploy"
@@ -65,13 +50,13 @@ main() {
           --recursive \
     --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
     
-    if [ "$(has_changes src/client/public/cyberia)" = "1" ]; then
+    if [ "$(has_changes src/client/public/cyberia "$ENGINE_ROOT")" = "1" ]; then
         deploy_step "Commit cyberia public assets" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin cmt src/client/public/cyberia feat 'Update cyberia public assets'"
     fi
     
-    if [ "$(has_changes src/client/public/underpost)" = "1" ]; then
+    if [ "$(has_changes src/client/public/underpost "$ENGINE_ROOT")" = "1" ]; then
         deploy_step "Commit underpost public assets" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
@@ -85,9 +70,9 @@ main() {
     sudo -n -- /bin/bash -lc \
     "cd $ENGINE_ROOT && npm install"
     
-    deploy_step "Build cyberia deployment bundle" \
+    deploy_step "Install dd-cyberia catalog dependencies" \
     sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && node bin/deploy cyberia"
+    "cd $ENGINE_ROOT && node bin package dd-cyberia --install"
     
     deploy_step "Clean build artifacts" \
     sudo -n -- /bin/bash -lc \
@@ -101,6 +86,15 @@ main() {
     sudo -n -- /bin/bash -lc \
     "cd $ENGINE_ROOT && node bin/cyberia run-workflow build-manifest"
     
+    # Two commands, one bootstrap: `pod_bootstrap_cmd` replaces the image's engine with this
+    # deploy's source and repoints the global bin at it — without that, the first step needing
+    # the current CLI answered `unknown command 'app'`. `start --build` then owns the rest
+    # (private conf clone, dependencies, `app load`, client bundle) and `--skip-pull-repo-base` tells
+    # it the source is already in place, so the checkout is pulled exactly once.
+    local pod_cmd
+    pod_cmd="$(pod_bootstrap_cmd dd-cyberia production "$POD_SRC_REPO"), \
+        node bin start dd-cyberia production --build --run --skip-pull-repo-base"
+
     deploy_step "Sync dd-cyberia cluster" \
     sudo -n -- /bin/bash -lc \
     "cd $ENGINE_ROOT && node bin run sync \
@@ -115,32 +109,7 @@ main() {
           --ingress-node ${INGRESS_NODE} \
           --ssh-key-path /home/dd/tmp/897as9dxhaskd9 \
           --image-pull-policy Always \
-          --cmd 'cd /home/dd/engine, \
-            underpost clone ${POD_SRC_REPO}, \
-            mkdir -p /home/dd/engine/src/client/public/itemledger \
-              /home/dd/engine/src/client/public/cryptokoyn \
-              /home/dd/engine/src/client/components/cryptokoyn \
-              /home/dd/engine/src/client/components/itemledger \
-              /home/dd/engine/hardhat, \
-            cp -a ./${POD_SRC_DIR}/src/client/public/itemledger/. /home/dd/engine/src/client/public/itemledger/, \
-            cp -a ./${POD_SRC_DIR}/src/client/public/cryptokoyn/. /home/dd/engine/src/client/public/cryptokoyn/, \
-            cp -a ./${POD_SRC_DIR}/src/client/components/cryptokoyn/. /home/dd/engine/src/client/components/cryptokoyn/, \
-            cp -a ./${POD_SRC_DIR}/src/client/components/itemledger/. /home/dd/engine/src/client/components/itemledger/, \
-            cp -a ./${POD_SRC_DIR}/src/client/Itemledger.index.js /home/dd/engine/src/client/Itemledger.index.js, \
-            cp -a ./${POD_SRC_DIR}/src/client/Cryptokoyn.index.js /home/dd/engine/src/client/Cryptokoyn.index.js, \
-            rm -rf ./${POD_SRC_DIR}, \
-            sudo rm -rf ./engine-private/, \
-            node bin clone ${POD_SRC_PRIVATE_REPO}, \
-            sudo mv ./${POD_SRC_PRIVATE_DIR} ./engine-private, \
-            node bin app load --env production --args deploy-id=dd-cyberia, \
-            sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
-            node bin/cyberia run-workflow import-default-items --clean, \
-            node bin/cyberia run-workflow import-default-items, \
-            npm install, \
-            npm link --force, \
-            node bin app load --env production --args deploy-id=dd-cyberia, \
-            node bin client dd-cyberia, \
-    node bin start dd-cyberia production --run'"
+          --cmd '${pod_cmd}'"
     
 }
 

@@ -14,7 +14,7 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-prototype production), underpost start dd-prototype production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-prototype production), underpost start dd-prototype production --build --run --skip-pull-repo-base"
 
     deploy_step "Sync dd-prototype cluster" \
         sudo -n -- /bin/bash -lc \

@@ -23,7 +23,7 @@ main() {
         "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-test production), underpost start dd-test production --build --run --pull-bundle --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-test production), underpost start dd-test production --build --run --pull-bundle --skip-pull-repo-base"
 
     deploy_step "Deploy dd-test production" \
         sudo -n -- /bin/bash -lc \

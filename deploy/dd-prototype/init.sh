@@ -18,7 +18,7 @@ main() {
         "cd $ENGINE_ROOT && node bin/build dd-prototype --conf"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-prototype production), underpost start dd-prototype production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-prototype production), underpost start dd-prototype production --build --run --skip-pull-repo-base"
 
     deploy_step "Deploy dd-prototype production" \
         sudo -n -- /bin/bash -lc \

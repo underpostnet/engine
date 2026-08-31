@@ -15,7 +15,7 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-core production), underpost start dd-core production --build --run --skip-pull-base"
+    pod_cmd="$(pod_bootstrap_cmd dd-core production), underpost start dd-core production --build --run --skip-pull-repo-base"
 
     deploy_step "Sync dd-core cluster" \
         sudo -n -- /bin/bash -lc \
