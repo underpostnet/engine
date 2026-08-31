@@ -35,22 +35,26 @@ spec:
                   cd /home/dd/engine &&
                   node bin app load --env production --args deploy-id=dd-cron &&
                   node bin cron dd-cron vultr --git --kubeadm 
+              envFrom:
+                - secretRef:
+                    name: underpost-cron-env
+                    optional: true
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume
-                - mountPath: /usr/lib/node_modules/underpost
-                  name: underpost-share-env
                 - mountPath: /var/lib/node_exporter/textfile
                   name: underpost-node-exporter-textfile
           volumes:
+            # The engine checkout. The job body runs this repository's CLI (`node bin ...`), so it
+            # needs the source tree, its node_modules and engine-private's deploy configuration —
+            # the mount cannot be narrowed below the checkout without changing where the CLI runs
+            # from. See docs/selinux-cron-mounts in the module header for the Enforcing caveat.
             - hostPath:
                 path: /home/dd/engine
                 type: Directory
               name: underpost-cron-container-volume
-            - hostPath:
-                path: /root/.nvm/versions/node/v24.15.0/lib/node_modules/underpost
-                type: DirectoryOrCreate
-              name: underpost-share-env
+            # Metrics the cluster cannot scrape for itself are written here and read by the
+            # node-exporter collector. Prepared and labeled by prepareCronHostStorage().
             - hostPath:
                 path: /var/lib/node_exporter/textfile
                 type: DirectoryOrCreate

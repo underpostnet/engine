@@ -17,6 +17,7 @@
  * @namespace UnderpostMonitoring
  */
 
+import { containerStorageCommandsFactory } from '../security/container-storage.js';
 import { systemdServiceCommandsFactory, systemdUnitFactory } from './systemd.js';
 
 /**
@@ -728,7 +729,16 @@ VERSION=${nodeExporter.version}
 ARCH=$(uname -m)
 case "$ARCH" in x86_64) ARCH=amd64 ;; aarch64) ARCH=arm64 ;; esac
 RELEASE=node_exporter-$VERSION.linux-$ARCH
-sudo install -d -m 0755 ${nodeExporter.textfileDirectory}
+# The collector's textfile directory is written by CronJob pods, so it needs the shared container
+# label; the /var/lib default leaves it readable but not writable by container_t. Non-fatal: a
+# host without the SELinux userspace still gets a working collector, just unlabeled.
+# A subshell, not a brace group: the generated mapping command calls exit 1 when semanage is
+# missing, which in a brace group would terminate this installer rather than just this check.
+if ! ( ${containerStorageCommandsFactory(nodeExporter.textfileDirectory)
+    .map((command) => `{ ${command}; }`)
+    .join(' && ')} ); then
+  echo "WARN: could not label ${nodeExporter.textfileDirectory} for container access" >&2
+fi
 if ! ${nodeExporter.binaryPath} --version 2>/dev/null | grep -q "version $VERSION"; then
   TMP=$(mktemp -d)
   curl -fsSL "https://github.com/prometheus/node_exporter/releases/download/v$VERSION/$RELEASE.tar.gz" -o "$TMP/$RELEASE.tar.gz"

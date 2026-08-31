@@ -1,26 +1,58 @@
 /**
  * UnderpostCron server module
+ *
+ * ## Host mounts and SELinux
+ *
+ * Generated CronJob pods run as `container_t`, so every host path they mount has to carry a type
+ * that domain can use. Three mounts existed; two are gone and one is deliberate:
+ *
+ * - **the global underpost directory** (`<npm root>/underpost`, i.e. root's nvm tree) was mounted
+ *   over the image's own copy of the CLI purely so the container could read `.env` and `.state`
+ *   from it. It carried `admin_home_t`, which `container_t` can neither read nor write, and it
+ *   exposed the whole of root's npm tree to get at two variables. Replaced by an optional
+ *   `envFrom` Secret carrying exactly those values.
+ * - **the node-exporter textfile directory** is written by the job bodies. Created by the
+ *   collector's installer under `/var/lib`, so it inherits a type `container_t` may read but not
+ *   write; {@link prepareCronHostStorage} gives it the shared container label.
+ * - **the engine mirror** at {@link ENGINE_MIRROR_PATH}. The job body is `node bin ...` — it
+ *   executes *this repository*, so it needs the source tree, its `node_modules` and
+ *   `engine-private`'s deploy configuration, and there is no narrower subpath: that set is the
+ *   checkout. The checkout itself is never mounted. It lives in the operator's home tree, where
+ *   `container_t` is denied every read, and the fix cannot be to relabel it: it is a live working
+ *   tree, and the shared container label on it would make everything ever written there
+ *   container-readable. So the pods mount a dedicated copy outside `/home` instead, refreshed
+ *   from the checkout and labeled by {@link prepareCronHostStorage}. The mount lands on the
+ *   checkout's own path inside the container, so nothing the job body runs knows the difference.
+ *
  * @module src/server/ops/cron.js
  * @namespace UnderpostCron
  */
 
 import { loggerFactory } from './logger.js';
-import { shellExec } from '../runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../runtime/process.js';
 import fs from 'fs-extra';
+import os from 'node:os';
 import dotenv from 'dotenv';
 import Underpost from '../../index.js';
-import { getUnderpostRootPath } from '../runtime/environment.js';
 import { DEPLOY_ROUTES_PATH, readDeployRoutes } from '../network/router.js';
 import { UNDERPOST_MONITORING } from './monitoring.js';
+import ContainerStorageService, { ensureContainerStorage } from '../security/container-storage.js';
 
 const logger = loggerFactory(import.meta);
 
-const volumeHostPath = '/home/dd';
+// Where the job body runs, inside the container. The image is built around this path and every
+// relative path the CLI resolves hangs off it, so the mount lands here whatever its host source.
 const enginePath = '/home/dd/engine';
+// The host source that mount reads: a copy of the checkout outside every home tree, which is the
+// only way an unprivileged pod can read this platform's own source. See the module header.
+const ENGINE_MIRROR_PATH = '/opt/engine';
 const cronVolumeName = 'underpost-cron-container-volume';
-const shareEnvVolumeName = 'underpost-share-env';
 const textfileVolumeName = 'underpost-node-exporter-textfile';
-const underpostContainerEnvDir = '/usr/lib/node_modules/underpost';
+// The credentials the job bodies read out of the environment (`GITHUB_TOKEN`, `GITHUB_USERNAME`).
+// They used to arrive by bind-mounting the operator's global underpost directory out of root's
+// home over the image's own copy of the CLI; a Secret delivers exactly those values, is labeled
+// for container consumption by kubelet, and exposes nothing else of that tree.
+const cronEnvSecretName = 'underpost-cron-env';
 const DEFAULT_CRON_ID = 'dd-cron';
 
 /**
@@ -160,22 +192,27 @@ ${
                 - -c
                 - >
                   ${fullCommand}
+              envFrom:
+                - secretRef:
+                    name: ${cronEnvSecretName}
+                    optional: true
               volumeMounts:
                 - mountPath: ${enginePath}
                   name: ${cronVolumeName}
-                - mountPath: ${underpostContainerEnvDir}
-                  name: ${shareEnvVolumeName}
                 - mountPath: ${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}
                   name: ${textfileVolumeName}
           volumes:
+            # The engine mirror: a copy of the checkout kept outside every home tree, because
+            # \`container_t\` is denied every read under one. The job body runs this repository's CLI
+            # (\`node bin ...\`), so it needs the source tree, its node_modules and engine-private's
+            # deploy configuration — the mount cannot be narrowed below that. Refreshed and labeled
+            # by prepareCronHostStorage(); see src/server/ops/cron.js's module header.
             - hostPath:
-                path: ${enginePath}
+                path: ${ENGINE_MIRROR_PATH}
                 type: Directory
               name: ${cronVolumeName}
-            - hostPath:
-                path: ${getUnderpostRootPath()}
-                type: DirectoryOrCreate
-              name: ${shareEnvVolumeName}
+            # Metrics the cluster cannot scrape for itself are written here and read by the
+            # node-exporter collector. Prepared and labeled by prepareCronHostStorage().
             - hostPath:
                 path: ${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}
                 type: DirectoryOrCreate
@@ -185,18 +222,51 @@ ${
 };
 
 /**
+ * Prepares the node directories the generated CronJobs mount, and gives the one they write to a
+ * label an unprivileged container can actually use.
+ *
+ * The node-exporter textfile directory is created by the collector's own installer under
+ * `/var/lib`, so it inherits that tree's policy type — which `container_t` may read but never
+ * write. The cron pods write their metrics there, so without this the first Enforcing run turns
+ * every `*.prom` write into a denial.
+ *
+ * The engine mirror is refreshed from the checkout first, then labeled with the rest: the pods
+ * execute it, so a stale or unlabeled mirror is the same outage. The checkout itself is never
+ * prepared — it is the operator's working tree, and the shared container label on it would make
+ * everything written there container-readable.
+ * @returns {string[]} Prepared paths.
+ * @memberof UnderpostCron
+ */
+const prepareCronHostStorage = () => {
+  syncEngineMirror();
+
+  const paths = [UNDERPOST_MONITORING.nodeExporter.textfileDirectory, ENGINE_MIRROR_PATH];
+  ensureContainerStorage(paths, { execute: shellExec });
+
+  const mirror = cronCheckoutContextFactory();
+  if (!mirror.readable)
+    logger.warn('CronJob pods cannot read the engine mirror they mount', {
+      path: ENGINE_MIRROR_PATH,
+      type: mirror.type,
+      effect: `every job body fails with Cannot find module '${enginePath}/bin'`,
+      remedy: `label it ${ContainerStorageService.SHARED_CONTAINER_TYPE}: sudo restorecon -RF ${ENGINE_MIRROR_PATH}`,
+    });
+
+  return paths;
+};
+
+/**
  * Syncs the engine directory into the kind-worker container node.
  * Required for kind clusters where worker nodes don't share the host filesystem.
  *
  * @memberof UnderpostCron
  */
 const syncEngineToKindWorker = () => {
-  logger.info('Syncing engine volume to kind-worker node');
-  shellExec(`docker exec -i kind-worker bash -c "rm -rf ${volumeHostPath}"`);
-  shellExec(`docker exec -i kind-worker bash -c "mkdir -p ${volumeHostPath}"`);
-  shellExec(`docker cp ${volumeHostPath}/engine kind-worker:${volumeHostPath}/engine`);
+  logger.info('Syncing engine mirror to kind-worker node', { path: ENGINE_MIRROR_PATH });
+  shellExec(`docker exec -i kind-worker bash -c "rm -rf ${ENGINE_MIRROR_PATH}"`);
+  shellExec(`docker cp ${ENGINE_MIRROR_PATH} kind-worker:${ENGINE_MIRROR_PATH}`);
   shellExec(
-    `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${volumeHostPath}; chmod -R 755 ${volumeHostPath}"`,
+    `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${ENGINE_MIRROR_PATH}; chmod -R 755 ${ENGINE_MIRROR_PATH}"`,
   );
 };
 
@@ -256,6 +326,136 @@ const nodeExists = (nodeName) => {
     disableLog: true,
   });
   return `${stdout || ''}`.trim().length > 0;
+};
+
+/**
+ * Whether the pods can read the mirror they mount, and the type denying them when they cannot.
+ *
+ * The job body is the engine's own CLI, so a mount `container_t` may not read surfaces as
+ * `Cannot find module '<engine>/bin'` — a Node error naming neither the mount nor the policy that
+ * denied it. {@link prepareCronHostStorage} labels the mirror, so this is the post-condition on
+ * that: a mirror that still denies means the labeling did not take, not that the mount is wrong.
+ * Off an Enforcing host nothing denies, so nothing is claimed.
+ *
+ * @memberof UnderpostCron
+ * @returns {{readable: boolean, type: string}} Whether a pod can read the mount, and its SELinux type.
+ */
+const cronCheckoutContextFactory = () => {
+  const read = (command) =>
+    `${shellExec(command, { stdout: true, silent: true, silentOnError: true, disableLog: true }) || ''}`.trim();
+
+  if (read('command -v getenforce >/dev/null 2>&1 && getenforce') !== 'Enforcing') return { readable: true, type: '' };
+
+  const type = (read(`ls -Zd ${ENGINE_MIRROR_PATH}`).split(/\s+/)[0] || '').split(':')[2] || '';
+  return { readable: type === ContainerStorageService.SHARED_CONTAINER_TYPE, type };
+};
+
+/**
+ * @constant ENGINE_MIRROR_CONTENTS
+ * @description Exactly what a job body resolves, as rsync filter rules over the checkout.
+ *
+ * An allowlist, not a denylist, for two reasons that both bite in production. The mirror carries
+ * the shared container label, so every `container_t` process on the node can read it: a denylist
+ * leaks whatever the repository gains next, and the thing it gains may be a key. And the mirror is
+ * copied on every apply, so a denylist grows without anyone deciding to grow it.
+ *
+ * `engine-private` is narrowed rather than dropped — the pod cannot run without it. `app load`
+ * reads `conf/<deploy-id>/.env.<env>` and that deploy's `conf.*.json`; `cron` reads
+ * `deploy/dd.cron`, `deploy/dd.routes` and the env of every routed deploy. Nothing in the job
+ * bodies reads `ssl/`, `secrets/` or the instance trees, so none of it is mirrored.
+ *
+ * `node_modules` is present and `.git` is not, which is why the repository's own ignore files
+ * cannot express this set: they describe what is not source, and this is what is executed.
+ * @memberof UnderpostCron
+ */
+const ENGINE_MIRROR_CONTENTS = Object.freeze([
+  // rsync takes the first rule that matches, so the asset trees are subtracted before `/src/**`
+  // adds their parents back. They are data the CLI never opens, and the bulk of the checkout.
+  '--exclude=/src/client/public/**',
+  // The CLI, its modules, and the manifest that makes them resolvable. `/src` is taken whole
+  // apart from those two subtrees: it is one import graph, and the entrypoint pulls from every
+  // corner of it — `src/runtime/nginx` among them.
+  '--include=/bin/',
+  '--include=/bin/**',
+  '--include=/src/',
+  '--include=/src/**',
+  '--include=/package.json',
+  '--include=/conf.js',
+  '--include=/node_modules/',
+  '--include=/node_modules/**',
+  // The deploy configuration the job bodies resolve, and nothing else of the private repository.
+  '--include=/engine-private/',
+  '--include=/engine-private/conf/',
+  '--include=/engine-private/conf/**',
+  '--include=/engine-private/deploy/',
+  '--include=/engine-private/deploy/**',
+  '--exclude=*',
+]);
+
+/**
+ * Refreshes the engine mirror the CronJob pods mount from the checkout this command runs in.
+ *
+ * `--delete` because the mirror is an output, not a second working tree: a file the checkout no
+ * longer has must not survive in the tree the pods execute.
+ *
+ * @memberof UnderpostCron
+ * @returns {{source: string, target: string}} What was mirrored, and where.
+ */
+const syncEngineMirror = () => {
+  const source = process.cwd();
+  const filters = ENGINE_MIRROR_CONTENTS.map(shellArgumentFactory).join(' ');
+
+  logger.info('Refreshing the engine mirror the CronJob pods mount', { source, target: ENGINE_MIRROR_PATH });
+  shellExec(
+    `sudo rsync -a --delete ${filters} ${shellArgumentFactory(`${source}/`)} ${shellArgumentFactory(`${ENGINE_MIRROR_PATH}/`)}`,
+  );
+  return { source, target: ENGINE_MIRROR_PATH };
+};
+
+/**
+ * Resolves the node a generated CronJob's pods are pinned to.
+ *
+ * Placement is not optional for these manifests. The job body runs the engine checkout they
+ * hostPath-mount, and a hostPath is node-local: an unpinned pod is free to land on a node whose
+ * `/home/dd/engine` is some other directory of that name, where the body dies on
+ * `Cannot find module '/home/dd/engine/bin'` before it can report anything of its own. The node
+ * generating the manifest is the one holding the checkout it mounts, so it is the default —
+ * claimed only when the cluster actually knows it under that name, so a workstation that is not
+ * a node keeps producing the portable manifest it produced before.
+ *
+ * @param {string} [nodeName] - Explicit `--node-name`, which always wins.
+ * @memberof UnderpostCron
+ * @returns {string} Node to pin to, or `''` to leave the pods unpinned.
+ */
+const cronNodeNameFactory = (nodeName) => {
+  const requested = `${nodeName || ''}`.trim();
+  if (requested) return requested;
+
+  const local = os.hostname();
+  if (!local || !nodeExists(local)) return '';
+  logger.info('Pinning CronJob pods to the node holding the mounted checkout', { nodeName: local });
+  return local;
+};
+
+/**
+ * Resolves the cluster context a manifest run applies under.
+ *
+ * The context is not decoration: it selects how the image reaches the cluster and is rendered
+ * into the pod's own command, so a run that names none published a CronJob whose body addressed
+ * no cluster at all. A node can be asked which runtime it belongs to, so an unnamed context is
+ * read from the cluster rather than left blank.
+ *
+ * @param {object} [options] - CLI options carrying `k3s`, `kind` or `kubeadm`.
+ * @memberof UnderpostCron
+ * @returns {{k3s: boolean, kind: boolean, kubeadm: boolean}} Mutually exclusive context flags.
+ */
+const cronClusterContextFactory = (options = {}) => {
+  if (options.k3s || options.kind || options.kubeadm)
+    return { k3s: !!options.k3s, kind: !!options.kind, kubeadm: !!options.kubeadm };
+
+  const { type } = Underpost.cluster.detectClusterRuntime();
+  if (type) logger.info('Resolved the cluster context from the cluster itself', { clusterType: type });
+  return { k3s: type === 'k3s', kind: type === 'kind', kubeadm: type === 'kubeadm' };
 };
 
 /**
@@ -460,17 +660,17 @@ class UnderpostCron {
      * @param {boolean} [options.apply=false] - kubectl apply generated manifests
      * @param {string}  [options.namespace='default'] - Target Kubernetes namespace
      * @param {string}  [options.image] - Custom container image override
-     * @param {boolean} [options.k3s=false] - k3s cluster context (apply directly on host)
-     * @param {boolean} [options.kind=false] - kind cluster context (apply via kind-worker container)
-     * @param {boolean} [options.kubeadm=false] - kubeadm cluster context (apply directly on host)
+     * @param {boolean} [options.k3s] - k3s cluster context (apply directly on host); read from the cluster when no context is named
+     * @param {boolean} [options.kind] - kind cluster context (apply via kind-worker container); read from the cluster when no context is named
+     * @param {boolean} [options.kubeadm] - kubeadm cluster context (apply directly on host); read from the cluster when no context is named
      * @param {boolean} [options.createJobNow=false] - After applying, create a Job from each CronJob immediately
      * @param {boolean} [options.dryRun=false] - Pass --dry-run=client to kubectl commands
-     * @param {string}  [options.nodeName] - Pin every generated CronJob's pod to this node
+     * @param {string}  [options.nodeName] - Pin every generated CronJob's pod to this node; defaults to this node
+     *   when the cluster knows it, because the pods mount its checkout
      * @memberof UnderpostCron
      */
     generateK8sCronJobs: async function (options = {}) {
       const namespace = options.namespace || 'default';
-      const nodeName = options.nodeName;
       const jobDeployId = resolveDeployId(options.deployId);
 
       if (!jobDeployId) {
@@ -508,6 +708,16 @@ class UnderpostCron {
         return;
       }
 
+      // Placement and cluster context are read from the cluster this run publishes to, so a run
+      // that only writes manifests stays offline and portable — the same reason `--apply` is what
+      // makes a manifest node-specific: it is the run that knows which node's checkout the pods
+      // will mount.
+      const nodeName = options.apply === true ? cronNodeNameFactory(options.nodeName) : options.nodeName || '';
+      const cluster =
+        options.apply === true
+          ? cronClusterContextFactory(options)
+          : { k3s: !!options.k3s, kind: !!options.kind, kubeadm: !!options.kubeadm };
+
       const outputDir = `./manifests/cronjobs/${jobDeployId}`;
       fs.mkdirSync(outputDir, { recursive: true });
 
@@ -517,6 +727,14 @@ class UnderpostCron {
         const jobConfig = confCronConfig.jobs[job];
 
         if (jobConfig.enabled === false) {
+          // The manifest is an output, not a source: leaving the previous one on disk keeps a
+          // stale spec around that a later `kubectl apply -f` would happily deploy — which is how
+          // a mount or image this generator has since dropped comes back.
+          const disabledPath = `${outputDir}/${jobDeployId}-${job}.yaml`;
+          if (fs.existsSync(disabledPath)) {
+            fs.removeSync(disabledPath);
+            logger.info(`Removed manifest for disabled job: ${disabledPath}`);
+          }
           logger.info(`Skipping disabled job: ${job}`);
           continue;
         }
@@ -537,9 +755,7 @@ class UnderpostCron {
           cmd: options.cmd,
           suspend: false,
           dryRun: !!options.dryRun,
-          k3s: !!options.k3s,
-          kind: !!options.kind,
-          kubeadm: !!options.kubeadm,
+          ...cluster,
           nodeName,
         });
 
@@ -561,6 +777,16 @@ class UnderpostCron {
         if (nodeName && !nodeExists(nodeName))
           logger.warn(`Target node not found on the cluster; pods will stay Pending until it joins`, { nodeName });
 
+        // The node directory the pods write metrics into, labeled for container access.
+        prepareCronHostStorage();
+
+        // The credentials the job bodies read from the environment. Optional by design: the
+        // `envFrom` reference is `optional: true`, so a cluster with neither seed files nor the
+        // values in its environment still schedules — the jobs that need a GitHub token simply
+        // report their own failure instead of the pod refusing to start.
+        if (!Underpost.secret.applyIfPresent(cronEnvSecretName, namespace))
+          Underpost.secret.applyFromOriginSeed(cronEnvSecretName, namespace);
+
         // Delete existing CronJobs before applying new ones
         for (const job of targetJobs) {
           const cronJobName = `${jobDeployId}-${job}`;
@@ -572,15 +798,13 @@ class UnderpostCron {
           logger.info('Ensuring default image is loaded on cluster');
           Underpost.image.pullDockerHubImage({
             dockerhubImage: 'underpost',
-            kind: !!options.kind,
-            k3s: !!options.k3s,
-            kubeadm: !!options.kubeadm,
+            ...cluster,
             dev: !!options.dev,
           });
         }
 
         // Sync engine volume to kind-worker node if using kind cluster
-        if (options.kind) {
+        if (cluster.kind) {
           syncEngineToKindWorker();
         }
 
@@ -667,4 +891,12 @@ class UnderpostCron {
 
 export default UnderpostCron;
 
-export { cronDeployIdResolve, cronJobYamlFactory, loadCronDeployEnv, parseList, resolveDeployId, resolveJobDeployList };
+export {
+  cronCheckoutContextFactory,
+  cronDeployIdResolve,
+  cronJobYamlFactory,
+  loadCronDeployEnv,
+  parseList,
+  resolveDeployId,
+  resolveJobDeployList,
+};
