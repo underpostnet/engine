@@ -6004,7 +6004,7 @@ node bin image --path cyberia-client \
   // line.
   if (error && error.message === 'Trigger underpost passthrough') {
     process.argv = process.argv.filter((c) => c !== 'underpost');
-    if (!process.argv.includes('--plain')) logger.warn('Rerouting to underpost cli...');
+    if (!process.argv.includes('--plain')) logger.info('Rerouting to underpost cli...');
     try {
       await underpostProgram.parseAsync();
     } catch (err) {
