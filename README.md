@@ -106,6 +106,7 @@ npm run dev
 | Option | Description |
 | --- | --- |
 | `-V, --version` | output the version number |
+| `--profile <profile>` | Execution profile. One of: LIVE_CLUSTER, HERMETIC_BUILD, OFFLINE_DRY_RUN. LIVE_CLUSTER Full access: cluster and host mutation permitted. HERMETIC_BUILD Build outputs only: no cluster, host or network side effects. OFFLINE_DRY_RUN Nothing executes; every command is reported as intent. |
 | `-h, --help` | display help for command |
 
 ### Commands
@@ -145,6 +146,7 @@ npm run dev
 | [`docker-compose`](CLI-HELP.md#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
 | [`lxd`](CLI-HELP.md#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](CLI-HELP.md#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
+| [`package`](CLI-HELP.md#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
 | [`release`](CLI-HELP.md#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
 
 <!-- cli-index-end -->

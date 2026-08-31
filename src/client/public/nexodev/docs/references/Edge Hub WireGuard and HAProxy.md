@@ -469,13 +469,38 @@ The nodes a fault can be repaired on are exactly the nodes the engine runs on, s
 Per node, in the checkout at `/home/dd/engine`, as **one** SSH session:
 
 ```bash
-underpost run clean .
-underpost run clean ./engine-private
+bash ./deploy/<deploy-id>/package.sh
+node bin host set GITHUB_TOKEN <github-token>
+underpost run clean
 underpost cmt --switch-repo <repo-engine> --target-branch <default-branch>
-underpost pull ./engine-private <account>/engine-private
-npm run fix
-npm install
+underpost cmt ./engine-private --switch-repo <repo-engine-private> --target-branch <default-branch>
+bash ./deploy/<deploy-id>/package.sh
+node bin host set ENGINE_SRC_REPO <repo-engine>
+node bin host set ENGINE_SRC_PRIVATE_REPO <repo-engine-private>
+<cron-reconcile-command>
+test -f /etc/systemd/system/underpost-event.service && <event-service-command>
+test -f /etc/systemd/system/underpost-forward-proxy.service && <forward-proxy-command>
 ```
+
+The deploy's package script runs on both sides of the switch, and that is the shape of the whole
+sequence: every step between the two is the node's own CLI, which cannot load from a checkout
+whose installed packages no longer match its manifest. The first run repairs the tree it finds —
+advisory, because a node whose tree predates that script still has to reach the switch that gives
+it one — and the second installs the manifest the switch just landed. Both are dropped for a
+source that belongs to no deploy, or to a deploy that ships no package script of its own.
+
+The switch moves the node between package scopes, and the steps after it are what makes
+everything running off that scope follow. The last two are scoped to the node's role, read from
+its `deploy/nodes/<node-name>.json` document:
+
+| Step                                                   | Why it is part of a sync                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `host set ENGINE_SRC_REPO` / `ENGINE_SRC_PRIVATE_REPO` | `deploy/lib/host.sh` reads the pair back out of the host configuration store to decide which source a later `prepare_host` pulls from. It is the only place the pair is named, so without this step the next host preparation resolves the default pairing and undoes the switch.                                                                                                                                              |
+| `<cron-reconcile-command>`                             | The CronJob pod bodies run the checkout that just changed, so the manifests are regenerated and republished against the new scope. A **control** node gets `node bin cron --setup-start --git --apply`; every other role gets nothing, because only the control plane can publish them — a worker carrying `kubectl` without cluster access rewrote the cron deploy's manifests and relabeled host directories before failing. |
+| `<event-service-command>`                              | The dispatcher is long-running and holds the code it started with. A **control** node gets `node bin event --service`; a **worker** or **hub** gets `node bin event --service-stop`, because only a control node can answer Alertmanager and repair the tunnel.                                                                                                                                                                |
+| `<forward-proxy-command>`                              | The hub's forward proxy runs the same checkout, so a **hub** gets `node bin wireguard --forward-proxy-server`; no other role owns one, and it refuses to configure itself off the hub.                                                                                                                                                                                                                                         |
+
+Each supervised service is reconciled through its own generator rather than `systemctl restart`: the units are generated, their `ExecStart` names a Node binary probed under systemd's own constraints, and a checkout switch can leave that path unexecutable — restarting then reruns a broken unit until systemd rate-limits it. Both act on the unit file's existence rather than on the unit being active, so a node that deliberately runs neither is left alone.
 
 A node is reached once, not once per step: each session re-reads the credential store, re-authenticates and re-enters the checkout, and a step could otherwise land on a different session than the one before it. The steps are chained with `&&`, and each echoes a `[sync]` line first, so the last one printed names the step a failed run stopped at.
 
@@ -483,7 +508,7 @@ The engine's default branch is resolved **on the controller** and named explicit
 
 `--repo-engine` takes `owner/repo` or a clone URL and defaults to the configured account's `engine`; `engine-private` follows `GITHUB_USERNAME`, because the two are one checkout on the node. The engine step switches the remote rather than pulling into whatever it already tracked, so pointing a fleet at a fork is the same command as keeping it on the current one.
 
-The sequence halts at the first failing step the later ones depend on — installing over a checkout whose pull failed would deploy stale sources under a fresh version. `npm run fix` is the one exception: `npm audit` exits non-zero while any advisory remains, which is a finding to report rather than a reason to skip the install. One node failing never stops the others; each is reported with the identity it ran as, and the command exits non-zero if any failed.
+The sequence halts at the first failing step the later ones depend on — installing over a checkout whose pull failed would deploy stale sources under a fresh version. The advisory steps are the exceptions, neutralized in place so they cannot stop the sequence: the first package script, and the two reconciles at the end, which belong to subsystems a given node may not run at all. One node failing never stops the others; each is reported with the identity it ran as, and the command exits non-zero if any failed.
 
 ---
 

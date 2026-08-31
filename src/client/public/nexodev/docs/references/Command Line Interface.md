@@ -6,10 +6,11 @@
 
 ### Global options
 
-| Option          | Description               |
-| --------------- | ------------------------- |
-| `-V, --version` | output the version number |
-| `-h, --help`    | display help for command  |
+| Option                | Description                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-V, --version`       | output the version number                                                                                                                                                                                                                                                                    |
+| `--profile <profile>` | Execution profile. One of: LIVE_CLUSTER, HERMETIC_BUILD, OFFLINE_DRY_RUN. LIVE_CLUSTER Full access: cluster and host mutation permitted. HERMETIC_BUILD Build outputs only: no cluster, host or network side effects. OFFLINE_DRY_RUN Nothing executes; every command is reported as intent. |
+| `-h, --help`          | display help for command                                                                                                                                                                                                                                                                     |
 
 ### Commands
 
@@ -48,6 +49,7 @@
 | [`docker-compose`](#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack).                                                                                                                                      |
 | [`lxd`](#underpost-lxd)                       | Manages LXD virtual machines as K3s nodes (control plane or workers).                                                                                                                                                        |
 | [`baremetal`](#underpost-baremetal)           | Manages baremetal server operations, including installation, database setup, commissioning, and user management.                                                                                                             |
+| [`package`](#underpost-package)               | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins.                                                                |
 | [`release`](#underpost-release)               | Release orchestrator for building new versions and deploying releases of the Underpost CLI.                                                                                                                                  |
 
 ## Command reference
@@ -138,7 +140,8 @@ Initiates application servers, build pipelines, or other defined services based 
 | `--run`                       | Starts application servers and monitors their health.                                                                                                        |
 | `--build`                     | Triggers the client-side application build process.                                                                                                          |
 | `--underpost-quickly-install` | Uses Underpost Quickly Install for dependency installation.                                                                                                  |
-| `--skip-pull-base`            | Skips cloning repositories, uses current workspace code directly.                                                                                            |
+| `--skip-pull-repo-base`       | Skips cloning the engine source repository, uses current workspace code directly.                                                                            |
+| `--skip-pull-private-repo`    | Skips cloning the private configuration repository, uses the engine-private already in the workspace.                                                        |
 | `--skip-full-build`           | Skips the full client bundle build during deployment.                                                                                                        |
 | `--pull-bundle`               | Downloads the pre-built client bundle from Cloudinary via pull-bundle before starting. Use together with --skip-full-build to skip the local build entirely. |
 | `--private-test-repo`         | During --build, clone the private test source repo (engine-test-<id>) instead of the production engine-<id> repo.                                            |
@@ -652,7 +655,7 @@ Manages database operations with support for MariaDB and MongoDB, including impo
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `--import`                                  | Imports container backups from specified repositories.                                                 |
 | `--export`                                  | Exports container backups to specified repositories.                                                   |
-| `--pod-name <pod-name>`                     | Comma-separated list of pod names or patterns (supports wildcards like "mariadb-\*").                  |
+| `--pod-name <pod-name>`                     | Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").                   |
 | `--all-pods`                                | Target all matching pods instead of just the first one.                                                |
 | `--primary-pod`                             | Automatically detect and use MongoDB primary pod (MongoDB only).                                       |
 | `--stats`                                   | Display database statistics (collection/table names with document/row counts).                         |
@@ -1055,10 +1058,10 @@ Runs specified scripts using various runners.
 
 #### Arguments
 
-| Argument    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,ssh-deploy,ide,crypto-policy,sync,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,kill,generate-pass,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
-| `path`      | The input value, identifier, or path for the operation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Argument    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,ssh-deploy,ide,crypto-policy,sync,net-tables,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,kill,generate-pass,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
+| `path`      | The input value, identifier, or path for the operation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 #### Options
 
@@ -1349,6 +1352,31 @@ Manages baremetal server operations, including installation, database setup, com
 
 ---
 
+### underpost package
+
+Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins.
+
+**Usage:** `underpost package [options] [deploy-id]`
+
+#### Arguments
+
+| Argument    | Description                                                                                                     |
+| ----------- | --------------------------------------------------------------------------------------------------------------- |
+| `deploy-id` | Deploy id, or a comma-separated list, to act on. Defaults to every deploy id in the private configuration tree. |
+
+#### Options
+
+| Option                    | Description                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------- |
+| `--sync`                  | Regenerates each deploy manifest from the engine manifest and the deploy catalog (default). |
+| `--install`               | Installs the dependencies the deploy catalog pins into this checkout.                       |
+| `--rename <name>`         | Renames this checkout's package, in its manifest and its lockfile.                          |
+| `--set-repo <owner/repo>` | Points this checkout's package at a repository.                                             |
+| `--dry-run`               | For --sync: resolves the manifests without writing them.                                    |
+| `-h, --help`              | display help for command                                                                    |
+
+---
+
 ### underpost release
 
 Release orchestrator for building new versions and deploying releases of the Underpost CLI.
@@ -1363,18 +1391,18 @@ Release orchestrator for building new versions and deploying releases of the Und
 
 #### Options
 
-| Option                        | Description                                                                                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--build`                     | Builds a new version: tests template, bumps versions, rebuilds manifests and configs.                                                                                                 |
-| `--deploy`                    | Deploys the release: syncs secrets, commits, and pushes to remote repositories.                                                                                                       |
-| `--ci-push <deploy-id>`       | Local equivalent of engine-\*.ci.yml: builds dd-{deploy-id} and pushes to the engine-{deploy-id} repository. Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia". |
-| `--message <message>`         | Commit message for --ci-push or --pwa-build (defaults to last commit of the engine repository).                                                                                       |
-| `--pwa-build`                 | Runs the pwa-microservices-template update flow: always re-clones, syncs engine sources, installs, builds, and pushes.                                                                |
-| `--dry-run`                   | For --build: previews version-bump changes (per-file substitution counts) without writing files or running downstream commands.                                                       |
-| `--mongo-host <host>`         | For --build: override DB_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82:27017").                                                                           |
-| `--mongo-user <user>`         | For --build: override DB_USER in the template .env.example for the smoke test.                                                                                                        |
-| `--mongo-password <password>` | For --build: override DB_PASSWORD in the template .env.example for the smoke test.                                                                                                    |
-| `--valkey-host <host>`        | For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82").                                                                             |
-| `-h, --help`                  | display help for command                                                                                                                                                              |
+| Option                        | Description                                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--build`                     | Builds a new version: tests template, bumps versions, rebuilds manifests and configs.                                                                                                |
+| `--deploy`                    | Deploys the release: syncs secrets, commits, and pushes to remote repositories.                                                                                                      |
+| `--ci-push <deploy-id>`       | Local equivalent of engine-*.ci.yml: builds dd-{deploy-id} and pushes to the engine-{deploy-id} repository. Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia". |
+| `--message <message>`         | Commit message for --ci-push or --pwa-build (defaults to last commit of the engine repository).                                                                                      |
+| `--pwa-build`                 | Runs the pwa-microservices-template update flow: always re-clones, syncs engine sources, installs, builds, and pushes.                                                               |
+| `--dry-run`                   | For --build: previews version-bump changes (per-file substitution counts) without writing files or running downstream commands.                                                      |
+| `--mongo-host <host>`         | For --build: override DB_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82:27017").                                                                          |
+| `--mongo-user <user>`         | For --build: override DB_USER in the template .env.example for the smoke test.                                                                                                       |
+| `--mongo-password <password>` | For --build: override DB_PASSWORD in the template .env.example for the smoke test.                                                                                                   |
+| `--valkey-host <host>`        | For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82").                                                                            |
+| `-h, --help`                  | display help for command                                                                                                                                                             |
 
 ---

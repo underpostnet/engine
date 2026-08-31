@@ -118,6 +118,24 @@ Coverage is scoped to the files a run actually loads rather than all of `src`.
 The client bundles and generated assets under it are shipped, not executed by
 any suite, and instrumenting them would report a floor no test can move.
 
+### Publishing the HTML report
+
+The report is produced by the build stage and travels with the deploy artifact;
+no workload container ever runs a test runner to obtain one.
+
+- `node bin/build <deploy-id> --coverage` runs `npm run test:coverage` and then
+  assembles the template. Without the flag, whatever `./coverage` already holds
+  is bundled as-is.
+- Assembly copies the HTML report into the artifact at `docs/coverage`, which is
+  published with the deploy source (`engine-<id>` / `engine-test-<id>`).
+- The client build (`node bin client <deploy-id>`) publishes that report at
+  `/docs/coverage`, preferring a local `coverage/` run output over the bundled
+  artifact. When neither is present it writes a static "report unavailable" page.
+
+A container that generated its own report would spend minutes of its build phase
+on a test runner, and every expected non-zero exit of the suite latched
+`container-status=error`, failing a healthy rollout at the deployment monitor.
+
 ---
 
 ## Migrating a Mocha suite

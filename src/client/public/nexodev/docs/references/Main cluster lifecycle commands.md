@@ -364,9 +364,15 @@ prepare_host "$ENGINE_ROOT"
 prepare_host "$ENGINE_ROOT" underpostnet/engine-test-lampp underpostnet/engine-core-private
 ```
 
-`ENGINE_SRC_PRIVATE_REPO` is empty by default and only forwarded when set, so the derived pairing stays in force unless a script overrides it. Both keys are listed in `.env.example`.
+Both are resolved in one order, most specific first:
 
-Left unset, `prepare_host` pulls the monorepo pair — the behaviour every existing deploy script keeps.
+1. the environment, as above — a deploy script naming the source it prepares for;
+2. the node's own host configuration store, which is where `underpost wireguard --sync` records the pair it moved the node onto;
+3. nothing — `run pull` derives the pair itself, which is the monorepo when no account names another.
+
+Step 2 is what keeps a switch from being undone: a node synced onto a product source prepares itself from that source on its next `prepare_host`, instead of being pulled back to a repository named in a script. `host.sh` names no repository of its own for that reason. The store is read directly rather than through `underpost host get`, because this is the file that resolves the manifest making that CLI runnable.
+
+Both keys are listed in `.env.example`.
 
 ---
 
