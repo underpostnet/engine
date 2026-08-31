@@ -34,7 +34,7 @@ jobs:
       - name: Build cyberia-server SSR dashboard (dev)
         working-directory: engine
         run: |
-          node bin/deploy cyberia
+          node bin package dd-cyberia --install
           node bin/cyberia run-workflow build-server-dashboard --dev --output-path ../public/index.html
           node bin/cyberia run-workflow build-cyberia-404 --output-path ../public/404/index.html
 

@@ -60,8 +60,8 @@ jobs:
       - name: Install dependencies and set repo configuration
         run: |
           npm install
-          node ./bin/deploy rename-package @underpostnet/underpost
-          node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
+          node ./bin package --rename @underpostnet/underpost
+          node ./bin package --set-repo underpostnet/pwa-microservices-template-ghpkg
 
       - name: Set git global credentials
         run: |
@@ -152,8 +152,8 @@ jobs:
           cd engine-$CONF_ID
           rm -rf ./.git
           mv ../$GHPKG_REPO.git ./.git
-          node ../engine/bin/deploy rename-package "$PACKAGE_NAME"
-          node ../engine/bin/deploy set-repo underpostnet/$GHPKG_REPO
+          node ../engine/bin package --rename "$PACKAGE_NAME"
+          node ../engine/bin package --set-repo underpostnet/$GHPKG_REPO
           git init
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'

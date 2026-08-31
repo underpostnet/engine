@@ -34,7 +34,7 @@ jobs:
       - name: Build cyberia-server SSR dashboard
         working-directory: engine
         run: |
-          node bin/deploy cyberia
+          node bin package dd-cyberia --install
           node bin/cyberia run-workflow build-cyberia-404 --output-path ../assets/404/index.html
 
       - name: Stage underpost CLI package
