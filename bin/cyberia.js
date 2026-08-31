@@ -5210,13 +5210,17 @@ try {
     }
   });
 
-  runner.command('sync-cluster').action(() => {
-    shellExec(`node bin/build dd-cyberia --update-private && node bin/build dd-core --update-private`);
-    shellExec(`node bin/build dd-cyberia --update-private && node bin/build dd-core --update-private`);
-    shellExec(
-      `node bin wireguard --sync --repo-engine underpostnet/engine-test-cyberia --repo-engine-private underpostnet/engine-private`,
-    );
-  });
+  runner
+    .command('sync-cluster')
+    .option('--build')
+    .action((options) => {
+      shellExec(`node bin/build dd-cyberia --update-private`);
+      shellExec(`node bin/build dd-core --update-private`);
+      if (options.build) return;
+      shellExec(
+        `node bin wireguard --sync --repo-engine underpostnet/engine-test-cyberia --repo-engine-private underpostnet/engine-private`,
+      );
+    });
 
   runner
     .command('test')
