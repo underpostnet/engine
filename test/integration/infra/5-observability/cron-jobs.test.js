@@ -16,6 +16,7 @@ import Underpost from '../../../../src/index.js';
 import UnderpostImage from '../../../../src/cli/image.js';
 import UnderpostSecret from '../../../../src/cli/secrets.js';
 import { Dns } from '../../../../src/server/network/dns.js';
+import { SCOPE_ENTITLEMENTS } from '../../../../src/server/runtime/config-scope.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
 const CRON_ID_PATH = './engine-private/deploy/dd.cron';
@@ -298,15 +299,24 @@ describe('CronJob manifest', () => {
 
 describe('cron CLI', () => {
   let harness;
+  let previousEnv;
 
   beforeEach(() => {
     harness = shellHarness();
     vi.spyOn(UnderpostImage.API, 'pullDockerHubImage').mockImplementation(() => undefined);
+    // `--apply` projects `underpost-cron-env` from whatever this host's own environment carries
+    // within the `cron` scope (see seedEnvValues / SCOPE_ENTITLEMENTS.cron), so any of those keys
+    // set for real in the runner's shell would otherwise get staged and show up in `written`
+    // alongside the manifests, breaking the assertions below in a way that depends on who is
+    // running the suite.
+    previousEnv = { ...process.env };
+    for (const key of SCOPE_ENTITLEMENTS.cron) delete process.env[key];
   });
 
   afterEach(() => {
     harness.restore();
     vi.restoreAllMocks();
+    process.env = previousEnv;
   });
 
   describe('direct execution', () => {

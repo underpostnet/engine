@@ -225,6 +225,41 @@ describe('scope entitlement is explicit, not inferred from naming', () => {
 });
 
 describe('the host domain has one durable source per scope', () => {
+  // A migrated node has no `engine-private` checkout to assert against in every environment this
+  // suite runs in (CI, a fresh clone), so the migrated state is a fixture rather than the real
+  // filesystem — the deterministic path the project's testing guidance asks for, and immune to
+  // whatever an operator has actually done to this box's private tree.
+  const SCOPES_DIR = './engine-private/deploy/scopes';
+  const LEGACY_SOURCE = './engine-private/conf/dd-cron/.env.production';
+
+  const migratedNodeFixture = () => {
+    const table = new Map([
+      [`${SCOPES_DIR}/host.env.production`, 'GITHUB_TOKEN=host-github\n'],
+      [`${SCOPES_DIR}/cron.env.production`, 'DDNS_API_KEY=cron-ddns\n'],
+      [`${SCOPES_DIR}/app.env.production`, 'DB_PASSWORD=app-secret\n'],
+    ]);
+    const modes = new Map([...table.keys()].map((path) => [path, 0o600]));
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => table.has(`${filePath}`));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+      const key = `${filePath}`;
+      if (!table.has(key)) throw Object.assign(new Error(`ENOENT: ${key}`), { code: 'ENOENT' });
+      return table.get(key);
+    });
+    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => {
+      const key = `${filePath}`;
+      table.set(key, `${value}`);
+      if (!modes.has(key)) modes.set(key, 0o644);
+    });
+    vi.spyOn(fs, 'mkdirpSync').mockImplementation(() => undefined);
+    vi.spyOn(fs, 'chmodSync').mockImplementation((filePath, mode) => modes.set(`${filePath}`, mode));
+    vi.spyOn(fs, 'statSync').mockImplementation((filePath) => ({ mode: modes.get(`${filePath}`) ?? 0o644 }));
+    vi.spyOn(fs, 'removeSync').mockImplementation((filePath) => table.delete(`${filePath}`));
+    return { table, modes };
+  };
+
+  beforeEach(() => migratedNodeFixture());
+  afterEach(() => vi.restoreAllMocks());
+
   it('reads the scoped sources and needs no unsplit file', () => {
     // The migration has run in this tree: the scoped sources answer for the whole environment and
     // the file they were split from is gone.
@@ -249,6 +284,7 @@ describe('the host domain has one durable source per scope', () => {
   // broken configuration. Asserted on the two operations rather than through `setup`, whose
   // `load` rewrites the host store once per key and belongs to no timing budget here.
   it('reruns on a migrated node with the legacy source gone', () => {
+    expect(fs.existsSync(LEGACY_SOURCE)).to.equal(false);
     expect(() => UnderpostHost.API.split({ env: 'production' })).to.not.throw();
     expect(UnderpostHost.API.split({ env: 'production' }).written).to.deep.equal([]);
     expect(UnderpostHost.API.verifySplit({ env: 'production' }).ok).to.equal(true);

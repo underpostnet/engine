@@ -369,11 +369,19 @@ describe('sops encrypted secret store', () => {
     });
 
     it('reports the plan without contacting GitHub or writing anything on a dry run', () => {
-      const report = sops().rotateGitAuthToken({ deployId: FIXTURE_DEPLOY, owner: 'acme', dryRun: true });
-      expect(report.targets).to.have.lengthOf(4 + FIXTURE_INSTANCE_REPOS.length);
-      expect(report.rotated).to.deep.equal([]);
-      expect(report.manifest).to.equal('');
-      expect(report.tokenSource).to.equal('');
+      // Same reasoning as the 'GIT_AUTH_TOKEN token sources' dry-run test: the reported fields
+      // don't depend on gh reachability, so probing is stubbed to keep this test from reaching the
+      // real GitHub API through whatever `gh` session happens to be authenticated on this machine.
+      const hasBinary = vi.spyOn(sops(), 'hasBinary').mockReturnValue(false);
+      try {
+        const report = sops().rotateGitAuthToken({ deployId: FIXTURE_DEPLOY, owner: 'acme', dryRun: true });
+        expect(report.targets).to.have.lengthOf(4 + FIXTURE_INSTANCE_REPOS.length);
+        expect(report.rotated).to.deep.equal([]);
+        expect(report.manifest).to.equal('');
+        expect(report.tokenSource).to.equal('');
+      } finally {
+        hasBinary.mockRestore();
+      }
     });
 
     it('takes a piped token, ahead of an inherited environment holding the outgoing one', () => {
@@ -495,10 +503,19 @@ describe('sops encrypted secret store', () => {
     });
 
     it('does not prompt or write on a dry run', () => {
-      const report = sops().rotateGitAuthToken({ deployId: 'dd-cyberia', owner: 'acme', dryRun: true });
-      expect(report.tokenSource).to.equal('');
-      expect(report.rotated).to.deep.equal([]);
-      expect(report.manifest).to.equal('');
+      // Report fields under dryRun are independent of gh reachability (see rotateGitAuthToken's
+      // early return), so probing is stubbed out here rather than left to whatever `gh` happens to
+      // be installed and authenticated as on the machine running the suite — otherwise this reaches
+      // the real GitHub API for a probe of the fictitious 'acme/dd-cyberia' target.
+      const hasBinary = vi.spyOn(sops(), 'hasBinary').mockReturnValue(false);
+      try {
+        const report = sops().rotateGitAuthToken({ deployId: 'dd-cyberia', owner: 'acme', dryRun: true });
+        expect(report.tokenSource).to.equal('');
+        expect(report.rotated).to.deep.equal([]);
+        expect(report.manifest).to.equal('');
+      } finally {
+        hasBinary.mockRestore();
+      }
     });
   });
 
