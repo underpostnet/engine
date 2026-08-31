@@ -30,12 +30,131 @@ durable source, one local runtime, and one cluster projection. Nothing is config
 general — a value is app, host, or workload-secret, and which one it is decides the command that
 touches it.
 
-| Domain   | Owns                                   | Durable source                                                                      | Local runtime                             | Cluster projection             |
-| -------- | -------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------ |
-| `app`    | one deployment's runtime environment   | `engine-private/conf/<deployId>/.env.<env>[.<sub-conf>]` + `.env.<env>.oci` overlay | working-tree `./.env*` + `Config.default` | `<deployId>-<env>-env` Secret  |
-| `host`   | the node-level operational environment | `engine-private/conf/<dd.cron deployId>/.env.<env>`                                 | host configuration store `<root>/.env`    | `underpost-config` Secret      |
-| `secret` | workload credentials                   | `engine-private/secrets/<namespace>/<name>.enc.yaml` (SOPS/Age)                     | host configuration store, via `host`      | one Kubernetes Secret per name |
-| `state`  | one container's live execution state   | none — an observation is only true of a running container                           | container state store `<root>/.state`     | in-pod `/_internal/*` endpoints |
+| Domain   | Owns                                   | Durable source                                                                      | Local runtime                             | Cluster projection                                                |
+| -------- | -------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------- |
+| `app`    | one deployment's runtime environment   | `engine-private/conf/<deployId>/.env.<env>[.<sub-conf>]` + `.env.<env>.oci` overlay | working-tree `./.env*` + `Config.default` | `<deployId>-<env>-env` Secret                                     |
+| `host`   | the node-level operational environment | `engine-private/deploy/scopes/<scope>.env.<env>`, one file per scope, mode `0600`   | host configuration store `<root>/.env`    | `underpost-config` Secret, and one scoped projection per workload |
+| `secret` | workload credentials                   | `engine-private/secrets/<namespace>/<name>.enc.yaml` (SOPS/Age)                     | host configuration store, via `host`      | one Kubernetes Secret per name                                    |
+| `state`  | one container's live execution state   | none — an observation is only true of a running container                           | container state store `<root>/.state`     | in-pod `/_internal/*` endpoints                                   |
+
+### Configuration scopes inside the host domain
+
+A domain says _who owns_ a value. It does not say _who may see it_, and the host domain's durable
+source answers to several unrelated concerns at once — the edge, machine provisioning, the package
+registries, the scheduled jobs. Projecting that file to a workload handed it all of them.
+
+`src/server/runtime/config-scope.js` answers two separate questions, and only the first by pattern.
+
+**Ownership** — `CONFIG_OWNERSHIP` says where a key lives. A family pattern is right here: a new
+`MAAS_` key is a provisioning key wherever it came from.
+
+**Visibility** — `SCOPE_ENTITLEMENTS` says what a workload may read, and is an **exact key list**. A
+pattern there would mean the next credential added to a family silently inherits that family's
+audience — `GITHUB_NEW_SENSITIVE_TOKEN` becoming cron-visible because `GITHUB_` once was. The
+policy is therefore readable from the table alone, with nothing inferred from naming.
+
+Owning a key is not by itself permission to ship it to a workload. A value a workload does not
+consume is not projected: `DEFAULT_SSH_KEY_PATH` named a path that exists only on a host, and
+handing it to a pod made the SSH resolver prefer it over the Secret volume holding the real key.
+
+| Scope        | Owns                                                                | Consumed by                  |
+| ------------ | ------------------------------------------------------------------- | ---------------------------- |
+| `runtime`    | process settings with no credential value (`NODE_ENV`, `TIME_ZONE`) | every scope                  |
+| `host`       | the edge, observability, cluster mail, deployment targets           | host CLI, `underpost-config` |
+| `cron`       | `VULTR_*`, `DDNS_*`                                                 | the scheduled jobs           |
+| `baremetal`  | `MAAS_*`, `DB_PG_MAAS_*`, `TFTP_ROOT`, `NETMASK`, `NFS_EXPORT_PATH` | `underpost baremetal`        |
+| `publishing` | `NPM_*`, `DOCKER_HUB_*`, `POSTMAN_*`                                | release and image publishing |
+| `app`        | a deployment's database, sessions and integrations                  | the deployment's own runtime |
+
+Entitled to `cron`, by name: `VULTR_API_KEY`, `VULTR_INSTANCE_ID`, `VULTR_BANDWIDTH_THRESHOLD`,
+`VULTR_VPS_IP`, `VULTR_SSH_USER`, `VULTR_SSH_PORT`, `FORWARD_PROXY_API_KEY`, `FORWARD_PROXY_HOST`,
+`FORWARD_PROXY_PORT`, `DEFAULT_SSH_USER`, `DEFAULT_SSH_HOST`, `DEFAULT_SSH_PORT`, `GITHUB_TOKEN`,
+`GITHUB_USERNAME`, `DDNS_HOST`, `DDNS_PROVIDER`, `DDNS_API_KEY`, `DDNS_USER`, `HTTP_PLAIN_IP_URL`,
+`DEFAULT_DEPLOY_HOST`. Nothing else. On the reference fleet that is **17 of 86** keys.
+
+Classification is closed. A key no rule places is reported by key name and refused, never defaulted
+into a scope:
+
+```text
+configuration source rejected: domain=host deploy=dd-cron env=production key=NEW_CREDENTIAL
+reason=no ownership rule matches; declare it in CONFIG_OWNERSHIP
+```
+
+### Node Roles and Capability Boundaries
+
+The topology defines exactly three roles — `hub`, `control`, `worker` — and there is no
+`control-plane`, `edge`, `gateway`, `master` or `server` role. `src/server/network/node-capability.js`
+holds what each may do, derived from the gates the platform already enforces.
+
+| Capability                    |  hub   | control | worker |
+| ----------------------------- | :----: | :-----: | :----: |
+| host configuration            |  yes   |   yes   |  yes   |
+| WireGuard hub                 |  yes   |   no    |   no   |
+| WireGuard spoke               |   no   |   yes   |  yes   |
+| HAProxy                       |  yes   |   no    |   no   |
+| forward proxy                 |  yes   |   no    |   no   |
+| edge routing                  |  yes   |   no    |   no   |
+| Kubernetes node runtime       |   no   |   yes   |  yes   |
+| Kubernetes administration     | **no** |   yes   | **no** |
+| cluster Secret administration | **no** |   yes   | **no** |
+| cron publication              | **no** |   yes   | **no** |
+| event service                 |   no   |   yes   |   no   |
+| node metrics                  |  yes   |   yes   |  yes   |
+
+**`host` domain ≠ Kubernetes administration.** Every role carries `underpost host`, because host
+configuration is node-level operational configuration. It is not permission to administer the
+cluster, and neither is joining one: a worker runs the kubelet and holds `kubelet.conf`, which is
+node runtime, not `/etc/kubernetes/admin.conf`.
+
+- `hub` — Kubernetes administration: **no**. It is a VPS outside the cluster, and not a Kubernetes
+  node at all. HAProxy and the forward proxy are hub-only and refuse to configure themselves
+  elsewhere; TLS is never terminated there.
+- `control` — Kubernetes administration: **yes, only where required**. It alone initializes the
+  control plane, publishes CronJobs, administers cluster Secrets and runs the event dispatcher.
+- `worker` — Kubernetes administration: **no**. It joins and runs workloads; it never publishes
+  CronJobs, owns the dispatcher, or writes cluster Secrets.
+
+`assertRoleCapability` refuses an operation a role does not hold, naming the operation, the
+capability and what the role does hold — and fails closed on a role the table does not define.
+
+Node bring-up performs no cluster Secret administration. Secret projection is part of the control
+node's reconciliation (`cron --setup-start --apply`), never part of a node joining the cluster.
+
+The identities stay separate: a WireGuard peer identity, the `managementHost` SSH identity in
+`conf.users.json`, a Kubernetes credential and an Underpost role are four different things, and
+remediation resolves its credentials from the management-host registry rather than from ambient
+defaults.
+
+### Cron environment delivery
+
+The CronJob pods receive their environment **injected**, never from a file:
+
+- the `underpost-cron-env` Secret is built from the `cron` scope of the host source, so its key set
+  is derived rather than hand-listed and cannot drift from the ownership table;
+- `NODE_ENV` is rendered into the manifest as a container `env` entry, which wins over `envFrom`, so
+  the environment the manifest resolved is the environment the pod runs;
+- the shared mirror at `/opt/engine` carries **no `.env.*` at any environment**. It keeps
+  `conf.*.json`, which hold `env:` references rather than values.
+
+The pod body is therefore `node bin cron …` alone. `app load` is not run there: it materializes a
+deployment's environment from that deployment's env file, and a workload has neither the file nor a
+reason to write one into a tree every `container_t` process on the node can read.
+
+### Migration — complete
+
+`underpost host setup` splits, verifies, then retires, in that order:
+
+1. `split` writes `engine-private/deploy/scopes/<scope>.env.<env>` at mode `0600`, refusing any key
+   no scope claims rather than parking it somewhere convenient;
+2. `verifySplit` proves every key of the unsplit source is present, once, under its owner, with an
+   equal value;
+3. `retireLegacySource` removes the unsplit file **only** when step 2 is clean. A split that dropped
+   or altered a key leaves the original in place.
+
+Each step is idempotent, and `host read` prefers the scoped sources whenever they exist. On the
+reference fleet the migration has run: `engine-private/conf/dd-cron/.env.production` is retired and
+there is **one durable source per scope**, with no dual-source model remaining. `host publish`
+writes back through the same scope table, so no command can recreate the unsplit file.
 
 The **OCI override** is an app-domain concern and only an app-domain concern: `.env.<env>.oci`
 overlays the deployment source when the consumer is a container image rather than this host, so
@@ -71,13 +190,13 @@ pretending otherwise:
 
 | action    | for the state domain                                                                     |
 | --------- | ---------------------------------------------------------------------------------------- |
-| `setup`   | provisions the container state store, then takes a first observation                       |
-| `load`    | collects from the **live workload** — over the monitor's own exec transport — not a file    |
-| `publish` | **exports the observation off-cluster** rather than writing a source back                  |
-| `apply`   | stamps a contract phase into the live runtime (`--args phase=running-deployment`)          |
-| `status`  | the observation, plus where this agent read it from                                        |
-| `rotate`  | drops a latched status and re-stamps from a fresh observation                              |
-| `clean`   | removes the container state store                                                          |
+| `setup`   | provisions the container state store, then takes a first observation                     |
+| `load`    | collects from the **live workload** — over the monitor's own exec transport — not a file |
+| `publish` | **exports the observation off-cluster** rather than writing a source back                |
+| `apply`   | stamps a contract phase into the live runtime (`--args phase=running-deployment`)        |
+| `status`  | the observation, plus where this agent read it from                                      |
+| `rotate`  | drops a latched status and re-stamps from a fresh observation                            |
+| `clean`   | removes the container state store                                                        |
 
 `publish` is how a deployment reports itself to CI. Under GitHub Actions the observation becomes
 `::notice::` / `::error::` workflow commands on stdout — the only transport that survives the SSH
@@ -910,12 +1029,12 @@ node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,store=true,appl
 GitHub exposes no API for creating a personal access token, so you generate the PAT yourself at
 `github.com/settings/tokens` and the CLI distributes it. Sources are tried in this order:
 
-| Order | Source                   | When                                                              |
-| ----- | ------------------------ | ----------------------------------------------------------------- |
-| 1     | `--args token=<token>`   | Always wins.                                                      |
-| 2     | Piped stdin              | fd 0 is a pipe or a redirected file.                              |
-| 3     | `$GIT_AUTH_TOKEN`        | Exported in the environment.                                      |
-| 4     | No-echo terminal prompt  | Interactive session, nothing above available.                     |
+| Order | Source                  | When                                          |
+| ----- | ----------------------- | --------------------------------------------- |
+| 1     | `--args token=<token>`  | Always wins.                                  |
+| 2     | Piped stdin             | fd 0 is a pipe or a redirected file.          |
+| 3     | `$GIT_AUTH_TOKEN`       | Exported in the environment.                  |
+| 4     | No-echo terminal prompt | Interactive session, nothing above available. |
 
 Piping is what automation should use — it is the only source that keeps the token out of both the
 process table and the shell history:
@@ -932,7 +1051,7 @@ empty token instead of falling through to the next source.
 > exported `GIT_AUTH_TOKEN` is very often the **outgoing** token — inside a workflow that maps
 > `GIT_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}`, taking it would re-set the value being replaced
 > and report a rotation that never happened. (`$GITHUB_TOKEN` is excluded as a source entirely, for
-> the same reason: it is what `gh` authenticates *with*.)
+> the same reason: it is what `gh` authenticates _with_.)
 
 #### Rotating the whole fleet
 
@@ -972,12 +1091,12 @@ The targets are resolved from the deploy id through the same naming `deploy/lib/
 `dd-cyberia`, `engine-cyberia`, `engine-test-cyberia` and `engine-cyberia-private` all name the
 same set. Each deploy contributes:
 
-| Target                           | Source                                                        |
-| -------------------------------- | ------------------------------------------------------------- |
-| `engine-<conf-id>-private`       | The private configuration repository.                         |
-| `engine-<conf-id>`               | The production engine source.                                 |
-| `engine-test-<conf-id>`          | The test engine source.                                       |
-| `engine-ghpkg-<conf-id>`         | The package mirror `.github/workflows/ghpkg.ci.yml` publishes. |
+| Target                             | Source                                                                |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| `engine-<conf-id>-private`         | The private configuration repository.                                 |
+| `engine-<conf-id>`                 | The production engine source.                                         |
+| `engine-test-<conf-id>`            | The test engine source.                                               |
+| `engine-ghpkg-<conf-id>`           | The package mirror `.github/workflows/ghpkg.ci.yml` publishes.        |
 | `metadata.repository` per instance | Every entry in `engine-private/conf/<deploy-id>/conf.instances.json`. |
 
 An instance is a separate product with its own repository and its own workflows reading the same
@@ -1001,14 +1120,14 @@ node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=template" --dry-r
 #   engine
 ```
 
-| Parameter    | Effect                                                                        |
-| ------------ | ----------------------------------------------------------------------------- |
-| `token=`     | The replacement token. Omit it to mint one, or fall back to the prompt below.  |
+| Parameter    | Effect                                                                                 |
+| ------------ | -------------------------------------------------------------------------------------- |
+| `token=`     | The replacement token. Omit it to mint one, or fall back to the prompt below.          |
 | `deploy-id=` | The deploy(s) to rotate: an id, a `\|`-separated list, or `dd` for all of `dd.routes`. |
-| `owner=`     | GitHub owner. Falls back to `$ENGINE_SRC_REPO`'s, then `$GITHUB_USERNAME`.     |
-| `repos=`     | Extra `owner/repo` targets, separated by `\|`, `;` or whitespace.              |
-| `store=true` | Mirror into the encrypted store even when no manifest exists yet.              |
-| `apply=true` | Project the updated manifest into the cluster.                                 |
+| `owner=`     | GitHub owner. Falls back to `$ENGINE_SRC_REPO`'s, then `$GITHUB_USERNAME`.             |
+| `repos=`     | Extra `owner/repo` targets, separated by `\|`, `;` or whitespace.                      |
+| `store=true` | Mirror into the encrypted store even when no manifest exists yet.                      |
+| `apply=true` | Project the updated manifest into the cluster.                                         |
 
 Requires the GitHub CLI, authenticated as an account holding **admin** on the targets — writing
 an Actions secret needs it:
@@ -1027,11 +1146,11 @@ Behaviour worth knowing before you run it:
 - **An unreachable target is skipped, not fatal.** A deploy does not necessarily own every
   repository its naming implies — a test source repo often does not exist — and a missing one must
   not leave the private conf repo un-rotated. Targets that resolve but fail to write are collected
-  and raised at the end, after the successful ones are on record. If *nothing* rotated, the store
+  and raised at the end, after the successful ones are on record. If _nothing_ rotated, the store
   is left untouched so it keeps recording the credential GitHub is actually running on.
 - **The token is never a command argument.** It is staged on tmpfs at mode 600, handed to
   `gh secret set` on stdin, and shredded afterwards — so it reaches neither the process table nor
-  the command log. `$GITHUB_TOKEN` is deliberately *not* a source for the new value: it is what
+  the command log. `$GITHUB_TOKEN` is deliberately _not_ a source for the new value: it is what
   `gh` authenticates with, which during a rotation is the outgoing token.
 
 ### Multi-recipient management
