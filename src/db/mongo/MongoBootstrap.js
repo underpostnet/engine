@@ -12,6 +12,7 @@ import fs from 'fs-extra';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { shellExec } from '../../server/runtime/process.js';
 import { crictlCommandFactory } from '../../server/ops/cri.js';
+import { ensureContainerStorage } from '../../server/security/container-storage.js';
 import { resolveReplicaCount } from '../../server/runtime/conf.js';
 // Cyclic by construction (index -> cluster -> MongoBootstrap -> index), same as cluster.js.
 // Safe because the binding is only dereferenced inside method bodies, never at module scope.
@@ -426,6 +427,33 @@ class MongoBootstrap {
   }
 
   /**
+   * Creates the replica data directories and gives the tree the shared container label.
+   *
+   * The PVs are `hostPath` with `type: DirectoryOrCreate`, so kubelet will happily create a
+   * missing member directory — with whatever context its parent carries. `/data` has no mapping
+   * in the base RHEL policy, so that context is `default_t`, which `container_t` cannot write:
+   * mongod's checkpointer and `ftdc` writer then fail on every `WiredTiger.turtle.set` rename and
+   * `metrics.interim.temp` create. Registering the mapping and restoring the tree here makes the
+   * label a property of the directory rather than of whoever happened to create it, and it
+   * survives a policy update or a full relabel.
+   *
+   * Only the directories are created; ownership and mode are left to the StatefulSet's
+   * `data-dir-permissions` init container, which is the single owner of that concern.
+   * @param {number} replicaCount - Number of member directories to prepare.
+   * @param {{execute?: Function}} [options] - Command executor, injectable for tests.
+   * @returns {string[]} Prepared paths.
+   * @memberof MongoBootstrap
+   */
+  static prepareReplicaDataRoot(replicaCount, { execute = shellExec } = {}) {
+    const paths = [
+      MONGODB_DATA_ROOT,
+      ...Array.from({ length: Math.max(0, Number(replicaCount) || 0) }, (_, i) => `${MONGODB_DATA_ROOT}/v${i}`),
+    ];
+    ensureContainerStorage(paths, { execute });
+    return paths;
+  }
+
+  /**
    * Renders one hostPath PersistentVolume per replica, each pre-bound to that member's claim.
    *
    * The volume set is a function of the replica count, so it is generated rather than read from a
@@ -668,8 +696,11 @@ class MongoBootstrap {
       shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}`);
       for (let i = 0; i < effectiveReplicaCount; i++) {
         shellExec(`sudo rm -rf ${MONGODB_DATA_ROOT}/v${i}`);
-        shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}/v${i}`);
       }
+      // A directory recreated after a wipe inherits its parent's context, and the WiredTiger
+      // files mongod then creates inherit that in turn — so recreate and relabel here, before the
+      // Kind remount below binds these inodes into the node containers.
+      MongoBootstrap.prepareReplicaDataRoot(effectiveReplicaCount);
       // Fix any stale bind mounts caused by prior deletion of /data/mongodb on the host
       if (isKind) MongoBootstrap.remountKindMongoVolume(kindNodes, effectiveReplicaCount);
     }
@@ -691,6 +722,10 @@ class MongoBootstrap {
       shellExec(`kubectl delete storageclass ${MONGODB_STORAGE_CLASS_NAME} --ignore-not-found`);
     }
     shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml -n ${namespace}`);
+    // Unconditional, not only on the reset path: an existing cluster's member directories were
+    // created before the mapping existed (or by kubelet's `DirectoryOrCreate`), so they carry the
+    // policy default until this runs. Idempotent, and it never touches the data itself.
+    MongoBootstrap.prepareReplicaDataRoot(effectiveReplicaCount);
     // One PV per member, generated from the effective replica count. A static manifest can only
     // ever describe a fixed number, so any `--replicas` above it leaves the extra members with no
     // volume to bind and the StatefulSet stalls forever on Pending.
@@ -865,8 +900,8 @@ class MongoBootstrap {
       shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}`);
       for (let i = 0; i < MONGODB_ORDINAL_SWEEP; i++) {
         shellExec(`sudo rm -rf ${MONGODB_DATA_ROOT}/v${i}`);
-        shellExec(`sudo mkdir -p ${MONGODB_DATA_ROOT}/v${i}`);
       }
+      MongoBootstrap.prepareReplicaDataRoot(MONGODB_ORDINAL_SWEEP);
       // For Kind: repair any stale bind mounts via nsenter (overmounts with current host inode)
       if (isKind) {
         const nodesRaw = shellExec('kind get nodes', { stdout: true, silent: true, silentOnError: true });

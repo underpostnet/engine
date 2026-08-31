@@ -109,7 +109,12 @@ const TEST_TIERS = [
     name: 'infra:1-security',
     directory: 'test/integration/infra/1-security',
     groupOrder: 2,
-    sources: ['src/cli/secrets.js', 'src/server/ops/systemd.js', 'src/server/security/selinux.js'],
+    sources: [
+      'src/cli/secrets.js',
+      'src/server/ops/systemd.js',
+      'src/server/security/container-storage.js',
+      'src/server/security/selinux.js',
+    ],
     description: 'SELinux policy, systemd units and the SOPS secret store.',
   },
   {

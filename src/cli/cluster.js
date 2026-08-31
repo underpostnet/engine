@@ -11,11 +11,16 @@ import { shellExec } from '../server/runtime/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
 import {
   runSELinuxCommands,
-  selinuxContainerSharedContextCommandsFactory,
   selinuxEnforcingCommandsFactory,
   selinuxPackagesCommandFactory,
   selinuxRestoreconCommandFactory,
 } from '../server/security/selinux.js';
+import ContainerStorageService, {
+  containerStorageRootsFactory,
+  ensureContainerStorage,
+  localPathConfigCommandFactory,
+  localPathRootsFactory,
+} from '../server/security/container-storage.js';
 import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/network/underpost-gateway.js';
 import {
   UNDERPOST_INGRESS,
@@ -37,8 +42,6 @@ const ENVOY_GATEWAY_VERSION = 'v1.8.3';
 const CONTOUR_NAMESPACE = 'projectcontour';
 const LOCAL_PATH_PROVISIONER_MANIFEST =
   'https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml';
-const KUBEADM_CONTAINER_MOUNT_PATHS = ['/etc/kubernetes', '/var/lib/etcd', '/var/lib/calico'];
-const HOST_VOLUME_PATHS = ['/data', '/opt/local-path-provisioner', HOST_VOLUME_ROOT];
 const K3S_SELINUX_PATHS = [
   '/usr/local/bin/k3s',
   '/etc/rancher',
@@ -47,15 +50,16 @@ const K3S_SELINUX_PATHS = [
   '/var/lib/cni',
 ];
 
-const shareWithContainers = (paths = []) => {
-  for (const path of paths) shellExec(`sudo mkdir -p ${path}`);
-  runSELinuxCommands(selinuxContainerSharedContextCommandsFactory(paths), { execute: shellExec });
-};
-
-const enforceSELinux = (paths = []) => {
+// `semanage` and `restorecon` come from separate packages and neither is guaranteed on a minimal
+// Rocky install. Installed before anything tries to register a mapping, because a missing
+// `semanage` would otherwise turn every persistent labeling command into a hard failure.
+const ensureSELinuxTooling = () =>
   shellExec(
     `if [ -f /etc/redhat-release ] && command -v dnf >/dev/null 2>&1 && { ! command -v restorecon >/dev/null 2>&1 || ! command -v semanage >/dev/null 2>&1; }; then ${selinuxPackagesCommandFactory()}; fi`,
   );
+
+const enforceSELinux = (paths = []) => {
+  ensureSELinuxTooling();
   const commands = selinuxEnforcingCommandsFactory({ restorePaths: paths });
   runSELinuxCommands(commands, { execute: shellExec });
 };
@@ -235,6 +239,12 @@ class UnderpostCluster {
         logger.info(
           `Detected existing ${runtime.type} cluster (${runtime.ready ? 'Ready' : 'NotReady'}); skipping initialization.`,
         );
+        // Initialization is skipped, but the labeling invariant is not: the node directories
+        // backing PersistentVolumes outlive the bring-up that created them, and a policy update,
+        // a full relabel or a directory recreated by kubelet resets them to the policy default.
+        // Re-asserting it costs a `semanage` lookup and a `restorecon` pass, mutates no workload,
+        // and never changes SELinux mode.
+        Underpost.cluster.ensureContainerStorageContexts();
       }
 
       // --- Kubeadm/Kind/K3s Cluster Initialization ---
@@ -268,7 +278,7 @@ class UnderpostCluster {
         } else if (options.kubeadm) {
           Underpost.cluster.config();
           Underpost.cluster.natSetup({ underpostRoot });
-          shareWithContainers([...KUBEADM_CONTAINER_MOUNT_PATHS, ...HOST_VOLUME_PATHS]);
+          Underpost.cluster.ensureContainerStorageContexts({ controlPlane: true });
           logger.info('Initializing Kubeadm control plane...');
           // Set default values if not provided
           const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
@@ -403,21 +413,27 @@ class UnderpostCluster {
         shellExec(`kubectl delete statefulset mariadb-statefulset -n ${options.namespace} --ignore-not-found`);
 
         if (options.pullImage) Underpost.cluster.pullImage('mariadb:latest', options);
+        // The StatefulSet's volumeClaimTemplate is dynamically provisioned, so the data lands in
+        // a subdirectory of the local-path root and inherits that root's label.
+        Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/mariadb'] });
         shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml -n ${options.namespace}`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb -n ${options.namespace}`);
       }
       if (options.mysql) {
         if (!Underpost.secret.applyIfPresent('mysql-secret', options.namespace))
           Underpost.secret.applyFromOriginSeed('mysql-secret', options.namespace);
-        shellExec(`sudo mkdir -p /mnt/data`);
-        shellExec(`sudo chmod 777 /mnt/data`);
-        shellExec(`sudo chown -R $(whoami):$(whoami) /mnt/data`);
+        // The data directory is prepared, not opened up: a world-writable host path plus the
+        // operator's ownership was standing in for the SELinux label the container actually
+        // needed. `container_file_t` is what lets mysqld write here; 0755 root-owned is enough,
+        // because the image's entrypoint chowns the tree to its own uid on first start.
+        Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/mysql'] });
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql -n ${options.namespace}`);
       }
       if (options.postgresql) {
         if (options.pullImage) Underpost.cluster.pullImage('postgres:latest', options);
         if (!Underpost.secret.applyIfPresent('postgres-secret', options.namespace))
           Underpost.secret.applyFromOriginSeed('postgres-secret', options.namespace);
+        Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/postgresql'] });
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
       }
       if (options.mongodb4) {
@@ -700,6 +716,68 @@ EOF
     },
 
     /**
+     * @method discoverLocalPathRoots
+     * @description Reads the node directories the local-path provisioner writes into, from its
+     * live ConfigMap. Every dynamically provisioned claim in this platform (Grafana, Prometheus,
+     * Alertmanager, IPFS, MariaDB) becomes a subdirectory of one of them, so the root has to be
+     * discovered rather than assumed — a wrong guess leaves those claims carrying the `/opt`
+     * policy default (`usr_t`), which no `container_t` pod can write.
+     * @returns {string[]} Configured node paths; empty when no provisioner is reachable.
+     * @memberof UnderpostCluster
+     */
+    discoverLocalPathRoots() {
+      for (const namespace of ContainerStorageService.LOCAL_PATH_NAMESPACES) {
+        const config = `${
+          shellExec(localPathConfigCommandFactory({ namespace }), {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+            disableLog: true,
+          }) || ''
+        }`.trim();
+        const roots = localPathRootsFactory(config);
+        if (roots.length > 0) return roots;
+      }
+      return [];
+    },
+
+    /**
+     * @method ensureContainerStorageContexts
+     * @description Makes SELinux compatibility an invariant of the storage lifecycle rather than
+     * a one-time bring-up step: creates the node directories this platform hands to containers
+     * (only when missing, so live data trees keep their ownership and mode), registers the
+     * persistent `container_file_t` mapping for each, and restores the trees.
+     *
+     * Idempotent and safe to call on every deploy. Never relabels paths outside the discovered
+     * set, and never changes SELinux mode.
+     * @param {object} [options]
+     * @param {boolean} [options.controlPlane=false] - Also cover the kubeadm control-plane trees
+     *   bind-mounted into containers (`/etc/kubernetes`, `/var/lib/etcd`, `/var/lib/calico`).
+     * @param {string[]} [options.extraPaths=[]] - Additional node directories to include.
+     * @returns {string[]} The roots that were prepared.
+     * @memberof UnderpostCluster
+     */
+    ensureContainerStorageContexts(options = {}) {
+      const roots = containerStorageRootsFactory({
+        localPathRoots: Underpost.cluster.discoverLocalPathRoots(),
+        extraPaths: options.extraPaths || [],
+        controlPlane: options.controlPlane === true,
+      });
+      logger.info('Preparing container-mounted host storage', { roots });
+      // HOST_VOLUME_ROOT is the one root the deploy flow writes into unprivileged (it lives in the
+      // operator's home tree and receives each hostPath volume's contents), so it is created owned
+      // by the invoking user. The rest stay root-owned: their subdirectories are chowned by each
+      // workload's own init container, which is the single owner of that concern.
+      const { uid, gid } = os.userInfo();
+      const operatorRoots = roots.filter((root) => root === HOST_VOLUME_ROOT);
+      const systemRoots = roots.filter((root) => root !== HOST_VOLUME_ROOT);
+      if (systemRoots.length > 0) ensureContainerStorage(systemRoots, { execute: shellExec });
+      if (operatorRoots.length > 0)
+        ensureContainerStorage(operatorRoots, { execute: shellExec, owner: `${uid}:${gid}` });
+      return roots;
+    },
+
+    /**
      * @method ensureLocalPathProvisioner
      * @description Ensures dynamic local-path PVC provisioning is available.
      * @returns {string} Namespace containing the ready provisioner.
@@ -724,6 +802,10 @@ EOF
         namespace = 'local-path-storage';
       }
       shellExec(`kubectl rollout status deployment/local-path-provisioner -n ${namespace} --timeout=5m`);
+      // The provisioner's root exists (or is about to) only now, and its helper pod creates each
+      // claim directory by inheriting that root's label. Prepare it here so the first dynamically
+      // provisioned claim already lands on `container_file_t` instead of `/opt`'s `usr_t`.
+      Underpost.cluster.ensureContainerStorageContexts();
       return namespace;
     },
 
@@ -1386,6 +1468,16 @@ EOF
     config(options = { underpostRoot: '.' }) {
       const { underpostRoot } = options;
       console.log('Applying host configuration: SELinux, Docker, Containerd, and Sysctl settings.');
+      // Label before enforcing, never after: flipping the mode first would put the host into
+      // Enforcing with the storage trees still carrying the policy default, and every pod that
+      // mounts one would start failing for real instead of only logging a denial.
+      //
+      // Registered on every run, not only at first cluster creation: the node directories backing
+      // PersistentVolumes are recreated by resets, by `DirectoryOrCreate`, and by the local-path
+      // helper pod long after `kubeadm init` ran, and each of those inherits the policy default
+      // unless the mapping is already in the store.
+      ensureSELinuxTooling();
+      Underpost.cluster.ensureContainerStorageContexts();
       enforceSELinux(['/var/lib/kubelet', '/var/lib/containerd']);
 
       // Enable and start Docker and Kubelet services
@@ -1442,8 +1534,11 @@ EOF
       // forever (the upstream unit ships TimeoutStartSec=0).
       shellExec(`if systemctl is-active --quiet firewalld; then sudo systemctl disable --now firewalld; fi`);
 
+      // Storage labeling precedes the Enforcing flip, so the mode is never activated over trees
+      // that still carry the policy default.
+      ensureSELinuxTooling();
+      Underpost.cluster.ensureContainerStorageContexts();
       enforceSELinux(K3S_SELINUX_PATHS);
-      shareWithContainers(HOST_VOLUME_PATHS);
 
       // Disable swap. `swapoff -a` is a no-op without swap; the sed only edits
       // fstab when a swap line is present.
@@ -1717,6 +1812,10 @@ fi`);
       else logger.info('  -> Skipping (pass --remove-volume-host-paths to enable).');
 
       logger.info('Phase 2/7: Enforcing SELinux and restoring runtime contexts...');
+      // The hostPath cleanup above emptied the volume trees; re-asserting the mapping here means
+      // a rebuild starts from correctly labeled storage instead of inheriting the policy default.
+      ensureSELinuxTooling();
+      Underpost.cluster.ensureContainerStorageContexts();
       enforceSELinux(['/var/lib/kubelet', '/var/lib/containerd']);
 
       logger.info('Phase 3/7: Stopping host kubelet and container runtimes (kubeadm-scope only)...');
