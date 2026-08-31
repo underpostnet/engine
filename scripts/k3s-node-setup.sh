@@ -50,23 +50,36 @@ fi
 
 # ---------------------------------------------------------------------------
 # System-wide Node.js is required by service units under SELinux.
+#
+# RHEL/Rocky only. An underpost node is an SELinux-Enforcing RHEL host: the storage labeling,
+# the systemd units and the CRI bring-up below are all written against that policy, so a
+# package manager that is merely present is not evidence the rest of this script applies.
+# Commissioning a Debian/Ubuntu machine that is not an underpost node is `underpost baremetal`.
 # ---------------------------------------------------------------------------
-if command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit
+if ! command -v dnf >/dev/null 2>&1; then
+    echo "ERROR: underpost nodes are RHEL/Rocky only; dnf was not found" >&2
+    exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1 || ! node --version 2>/dev/null | grep -q '^v24'; then
+sudo dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit rsync
+
+# `command -v node` is not the question this step asks: an nvm runtime under $HOME answers it and
+# is exactly what a unit cannot execute. Only a Node 24 at a system path counts.
+system_node_path() {
+    local candidate
+    for candidate in /usr/bin/node /usr/local/bin/node /bin/node; do
+        if [ -x "$candidate" ] && "$candidate" --version 2>/dev/null | grep -q '^v24'; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+if ! system_node_path >/dev/null; then
     echo "Installing system-wide Node.js 24..."
-    if command -v dnf >/dev/null 2>&1; then
-        curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
-        sudo dnf install -y nodejs
-    elif command -v apt-get >/dev/null 2>&1; then
-        curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -
-        sudo apt-get install -y nodejs
-    else
-        echo "ERROR: a supported system package manager is required for Node.js 24" >&2
-        exit 1
-    fi
+    curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
+    sudo dnf install -y nodejs
 fi
 
 echo "
