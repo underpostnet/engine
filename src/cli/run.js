@@ -6,6 +6,7 @@
 
 import { daemonProcess, pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
 import { cli, withExecutionProfile } from '../server/build/execution.js';
+import { syncDeployPackages } from '../server/build/package.js';
 import { RUNTIME_STATUS } from '../server/runtime/runtime-status.js';
 import {
   awaitDeployMonitor,
@@ -4609,7 +4610,11 @@ EOF`;
       // Manifest generation writes files; it does not touch a cluster. Declaring that once
       // here is what lets the whole tree below run on a build box with no apiserver — the
       // profile rides into both child processes through the environment.
-      withExecutionProfile('HERMETIC_BUILD', () => {
+      withExecutionProfile('HERMETIC_BUILD', async () => {
+        // Each deploy's package manifest is generated from the engine's before the cluster
+        // manifests that ship it: a deploy id declares only its identity and whatever its
+        // catalog adds, so a dependency the engine gained reaches every deploy from here.
+        await syncDeployPackages();
         // `local` is load-bearing: this builds the manifests of the checkout it was
         // launched from, and a globally installed underpost is a different package that
         // reads different paths out of the same cwd.
@@ -4617,6 +4622,8 @@ EOF`;
         const flags = '--build-manifest --sync --info-router --replicas 1';
         shellExec(`${underpost} deploy ${flags} dd development`);
         shellExec(`${underpost} deploy ${flags} dd production --cert`);
+        // What the build just produced is what the project repository carries.
+        if (deployRoutesExists()) Underpost.deploy.mirrorDefaultManifests();
       }),
 
     /**
