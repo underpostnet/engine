@@ -6,8 +6,8 @@
 
 import dotenv from 'dotenv';
 import { commitData } from '../client/components/core/CommonJs.js';
-import { pbcopy, redactCredentials, shellCd, shellExec } from '../server/runtime/process.js';
-import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
+import { pbcopy, shellCd, shellExec } from '../server/runtime/process.js';
+import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
 import { Config, readConfJson, readConfInstances } from '../server/runtime/conf.js';
@@ -41,18 +41,15 @@ class UnderpostRepository {
     clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
+      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${gitUri}${gExtension}`);
       // A bare clone lands in `<repo>.git`: clearing `<repo>` instead would both leave the
       // real target in place and delete an unrelated work tree that happens to share the name.
       const clonePath = `./${repoName}${options?.bare === true ? gExtension : ''}`;
       if (fs.existsSync(clonePath)) fs.removeSync(clonePath);
-      shellExec(
-        `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
-          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
-        }github.com/${gitUri}${gExtension}`,
-        {
-          disableLog: true,
-        },
-      );
+      shellExec(`git clone ${options?.bare === true ? ` --bare ` : ''}"${auth.url}"`, {
+        disableLog: true,
+        env: auth.env,
+      });
     },
     /**
      * Pulls updates from a GitHub repository.
@@ -75,14 +72,11 @@ class UnderpostRepository {
       options = { g8: false },
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
-      shellExec(
-        `cd ${repoPath} && git pull --ff-only https://${
-          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
-        }github.com/${gitUri}${gExtension}`,
-        {
-          disableLog: true,
-        },
-      );
+      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${gitUri}${gExtension}`);
+      shellExec(`cd ${repoPath} && git pull --ff-only "${auth.url}"`, {
+        disableLog: true,
+        env: auth.env,
+      });
     },
     /**
      * Creates a Git commit with a conventional commit message.
@@ -475,14 +469,11 @@ class UnderpostRepository {
       options = { f: false, g8: false },
     ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
-      shellExec(
-        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${
-          options?.f === true ? ' --force' : ''
-        }`,
-        {
-          disableLog: true,
-        },
-      );
+      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${gitUri}${gExtension}`);
+      shellExec(`cd ${repoPath} && git push "${auth.url}"${options?.f === true ? ' --force' : ''}`, {
+        disableLog: true,
+        env: auth.env,
+      });
       logger.info(
         'commit url',
         `http://github.com/${gitUri}${gExtension === '.g8' ? '.g8' : ''}/commit/${shellExec(
@@ -720,8 +711,6 @@ class UnderpostRepository {
               ];
 
               const username = process.env.GITHUB_USERNAME;
-              const token = process.env.GITHUB_TOKEN;
-
               if (!username) {
                 logger.error('GITHUB_USERNAME environment variable not set');
                 return reject(false);
@@ -733,7 +722,7 @@ class UnderpostRepository {
                   logger.info(`Created repository directory: ${repo.path}`);
                 }
 
-                const remoteUrl = `https://${token ? `${token}@` : ''}github.com/${username}/${repo.name}.git`;
+                const remoteUrl = `https://github.com/${username}/${repo.name}.git`;
                 UnderpostRepository.API.initLocalRepo({ path: repo.path, origin: remoteUrl });
                 logger.info(`Initialized git repository with remote: ${repo.name}`);
               }
@@ -1120,11 +1109,14 @@ Prevent build private config repo.`,
      */
     getDefaultBranch(repo) {
       if (!repo) throw new Error('[repo] getDefaultBranch requires a repository reference');
-      const authUrl = Underpost.repo.resolveAuthUrl(repo);
-      const raw = shellExec(
-        `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --symref "${authUrl}" HEAD 2>&1`,
-        { stdout: true, silent: true, disableLog: true, silentOnError: true },
-      );
+      const auth = Underpost.repo.gitAuthFactory(repo);
+      const raw = shellExec(`git ls-remote --symref "${auth.url}" HEAD 2>&1`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+        env: auth.env,
+      });
       // --symref emits a line like: ref: refs/heads/main	HEAD
       const match = typeof raw === 'string' ? raw.match(/^ref:\s*refs\/heads\/(\S+)\tHEAD$/m) : null;
       // Guessing here is worse than failing: `main` against a `master` remote
@@ -1133,7 +1125,7 @@ Prevent build private config repo.`,
       if (!match)
         throw new Error(
           `[repo] cannot read the default branch of '${repo}'; it may be empty, unreachable, ` +
-            `or need credentials: ${redactCredentials(`${raw || ''}`.trim().split('\n').pop() || 'no ref reported')}`,
+            `or need credentials: ${redactSensitiveText(`${raw || ''}`.trim().split('\n').pop() || 'no ref reported')}`,
         );
       logger.info('getDefaultBranch', { repo, branch: match[1] });
       return match[1];
@@ -1277,6 +1269,52 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Names the canonical GitHub package repository a reference's engine mirrors into.
+     *
+     * The monorepo has none — `.github/workflows/ghpkg.ci.yml` builds `engine-ghpkg-<conf_id>`
+     * per deploy, and the template lineage mirrors into `pwa-microservices-template-ghpkg`
+     * instead — so an unnamed deploy resolves to `''` rather than an invented name.
+     * @param {string} reference - Deploy id or repository reference.
+     * @returns {string} Repository name without owner, or `''` for the monorepo.
+     * @memberof UnderpostRepository
+     */
+    ghpkgRepoFactory(reference = '') {
+      const confId = Underpost.repo.confIdFactory(reference);
+      return confId ? `engine-ghpkg-${confId}` : '';
+    },
+
+    /**
+     * Every distinct repository a deploy's instances are built from, as declared by
+     * `metadata.repository` in its `conf.instances.json`.
+     *
+     * An instance is a separate product with its own repository and its own workflows —
+     * `dd-cyberia` builds from `cyberia-server` and `cyberia-client` — so anything acting on
+     * "the repositories of a deploy" has to include them or it covers only half the deploy.
+     * The path is left to {@link readConfInstances} rather than rebuilt here.
+     * @param {string} deployId - Deploy id (e.g. `dd-cyberia`).
+     * @returns {Array<string>} Deduplicated `owner/repo` slugs, empty when the deploy declares none.
+     * @memberof UnderpostRepository
+     */
+    instanceRepos(deployId = '') {
+      const id = `${deployId || ''}`.trim();
+      if (!id) return [];
+      try {
+        return [
+          ...new Set(
+            readConfInstances(id)
+              .map((entry) => entry?.metadata?.repository)
+              .filter(Boolean),
+          ),
+        ];
+      } catch (error) {
+        // A deploy that declares no instances has no file, which is not a fault; anything else is.
+        if (error.code !== 'ENOENT')
+          logger.warn(`[repo] unreadable conf.instances.json for ${id}`, { error: error.message });
+        return [];
+      }
+    },
+
+    /**
      * Resolves the repository pair a node checks out: the engine source and the private
      * configuration that belongs to it.
      *
@@ -1307,42 +1345,46 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Resolves a Git remote URL, normalizing short-form owner/repo references to full
-     * GitHub HTTPS URLs and injecting GITHUB_TOKEN when available.
-     * @param {string} url - The repository URL or short-form (e.g. "owner/repo" or full HTTPS URL).
-     * @returns {string} The resolved (and optionally authenticated) HTTPS URL.
+     * Keeps GitHub credentials in the child environment instead of command arguments or remotes.
+     * @param {string} url - Repository URL or owner/repo reference.
+     * @returns {{url: string, env: NodeJS.ProcessEnv}} Token-free URL and Git child environment.
      * @memberof UnderpostRepository
      */
-    resolveAuthUrl(url) {
-      if (!url) return url;
-      const normalized = Underpost.repo.repoUrlFactory(url);
+    gitAuthFactory(url) {
+      const normalized = Underpost.repo.repoUrlFactory(url).replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/i, '$1');
+      const env = {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_CONFIG_COUNT: '1',
+        GIT_CONFIG_KEY_0: 'credential.helper',
+        GIT_CONFIG_VALUE_0: '',
+      };
       if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
-        return normalized.replace(
-          'https://github.com/',
-          `https://x-access-token:${process.env.GITHUB_TOKEN}@github.com/`,
-        );
+        env.GIT_CONFIG_COUNT = '2';
+        env.GIT_CONFIG_KEY_1 = 'http.https://github.com/.extraheader';
+        env.GIT_CONFIG_VALUE_1 = `AUTHORIZATION: basic ${Buffer.from(
+          `x-access-token:${process.env.GITHUB_TOKEN}`,
+        ).toString('base64')}`;
       }
-      return normalized;
+      return { url: normalized, env };
     },
     /**
      * Checks whether a remote Git repository URL is reachable.
      * Uses `silentOnError` so a non-reachable remote returns false instead of throwing.
-     * Injects `GITHUB_TOKEN` into GitHub HTTPS URLs when available.
+     * Passes `GITHUB_TOKEN` to Git through its child environment when available.
      * @param {string} url - Full HTTPS clone URL to test (e.g. "https://github.com/org/repo.git").
      * @returns {boolean} `true` when the remote responded with at least one ref hash.
      * @memberof UnderpostRepository
      */
     isRemoteRepo(url) {
       if (!url) return false;
-      const authUrl = Underpost.repo.resolveAuthUrl(url);
-      // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
-      // `-c credential.helper=` disables any host-configured credential helper so its stderr
-      // warnings don't pollute the ls-remote output; the token is already embedded in authUrl.
-      const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote "${authUrl}" HEAD 2>&1`, {
+      const auth = Underpost.repo.gitAuthFactory(url);
+      const raw = shellExec(`git ls-remote "${auth.url}" HEAD 2>&1`, {
         stdout: true,
         silent: true,
         disableLog: true,
         silentOnError: true,
+        env: auth.env,
       });
       const refLine = typeof raw === 'string' ? (raw.match(/^[0-9a-f]{40}\t.*$/m) || [])[0] : undefined;
       const accessible = !!refLine;
@@ -1375,7 +1417,7 @@ Prevent build private config repo.`,
      * Sequence (idempotent, re-runnable):
      *   1. Normalize the URL (`owner/repo` → full GitHub HTTPS) and set/add the
      *      remote, storing the token-free URL so no secret leaks into `.git/config`.
-     *   2. Force-fetch the target branch (auth injected inline for private repos).
+     *   2. Force-fetch the target branch with credentials isolated in the child environment.
      *   3. Reset the working tree to the fetched tip and check out the target
      *      branch, overwriting any current tracked content.
      *
@@ -1393,14 +1435,12 @@ Prevent build private config repo.`,
       if (!url) throw new Error('switchRemote requires a target remote url');
       if (!fs.existsSync(`${repoPath}/.git`)) throw new Error(`switchRemote: not a git repository: ${repoPath}`);
       const targetBranch = branch || Underpost.repo.getDefaultBranch(url);
-      // Token-free URL for the stored remote; auth-injected URL only for the fetch.
-      const normalized = Underpost.repo.repoUrlFactory(url);
-      const authUrl = Underpost.repo.resolveAuthUrl(url);
+      const auth = Underpost.repo.gitAuthFactory(url);
       const current = Underpost.repo.getRemoteUrl({ path: repoPath, remote });
-      if (!current) shellExec(`cd "${repoPath}" && git remote add ${remote} "${normalized}"`);
-      else shellExec(`cd "${repoPath}" && git remote set-url ${remote} "${normalized}"`);
-      logger.info('switchRemote', { path: repoPath, remote, branch: targetBranch, url: normalized });
-      shellExec(`cd "${repoPath}" && GIT_TERMINAL_PROMPT=0 git fetch --force "${authUrl}" ${targetBranch}`);
+      if (!current) shellExec(`cd "${repoPath}" && git remote add ${remote} "${auth.url}"`);
+      else shellExec(`cd "${repoPath}" && git remote set-url ${remote} "${auth.url}"`);
+      logger.info('switchRemote', { path: repoPath, remote, branch: targetBranch, url: auth.url });
+      shellExec(`cd "${repoPath}" && git fetch --force "${auth.url}" ${targetBranch}`, { env: auth.env });
       // reset --hard first clears the worktree so the checkout cannot be blocked
       // by conflicting local changes; -B points the target branch at the fetched tip.
       shellExec(`cd "${repoPath}" && git reset --hard FETCH_HEAD`);
@@ -1702,7 +1742,8 @@ Prevent build private config repo.`,
       const tmp = `${siteRoot}.tmp`;
       if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
       fs.mkdirSync(path.dirname(siteRoot), { recursive: true });
-      shellExec(`git clone "${Underpost.repo.resolveAuthUrl(reference)}" "${tmp}"`);
+      const auth = Underpost.repo.gitAuthFactory(reference);
+      shellExec(`git clone "${auth.url}" "${tmp}"`, { env: auth.env });
       // Copied into a directory that already exists rather than renamed over it: that directory
       // can be image-provided or a mount point, and a rename onto one fails where a copy works.
       if (populateInPlace) {
@@ -2013,8 +2054,11 @@ Prevent build private config repo.`,
         logger.info('[sparseCheckoutDirectory] path already present, skipping', localPath);
         return false;
       }
-      const authUrl = `https://${process.env.GITHUB_TOKEN}@github.com/${repoOwner}/${repoName}.git`;
-      shellExec(`git clone --depth 1 --no-checkout ${authUrl} ${targetDir}`, { disableLog: true });
+      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${repoOwner}/${repoName}.git`);
+      shellExec(`git clone --depth 1 --no-checkout "${auth.url}" ${targetDir}`, {
+        disableLog: true,
+        env: auth.env,
+      });
       shellExec(`cd ${targetDir} && git sparse-checkout set ${subPath} && git checkout`, { disableLog: true });
       logger.info('[sparseCheckoutDirectory] sparse checkout complete', localPath);
       return true;
