@@ -21,7 +21,8 @@ import {
   forwardProxyTunnelTargetFactory,
   forwardProxyUnitFactory,
 } from '../../../../src/server/network/forward-proxy.js';
-import { ShellExecError, redactCredentials, shellArgumentFactory } from '../../../../src/server/runtime/process.js';
+import { redactSensitiveText } from '../../../../src/server/ops/logger.js';
+import { ShellExecError, shellArgumentFactory } from '../../../../src/server/runtime/process.js';
 import { probeGroupsFactory, prometheusConfFactory } from '../../../../src/server/ops/monitoring.js';
 import fs from 'node:fs';
 import { Dns } from '../../../../src/server/network/dns.js';
@@ -1327,6 +1328,7 @@ describe('node document resolution', () => {
 
 describe('engine sync', () => {
   const account = process.env.GITHUB_USERNAME;
+  const token = process.env.GITHUB_TOKEN;
   let getDefaultBranch;
 
   beforeEach(() => {
@@ -1337,6 +1339,8 @@ describe('engine sync', () => {
     Underpost.repo.getDefaultBranch = getDefaultBranch;
     if (account === undefined) delete process.env.GITHUB_USERNAME;
     else process.env.GITHUB_USERNAME = account;
+    if (token === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = token;
   });
 
   it('accepts a slug or a clone URL for the same repository', () => {
@@ -1347,6 +1351,19 @@ describe('engine sync', () => {
       'git@github.com:underpostnet/engine.git',
     ])
       expect(Underpost.repo.repoSlugFactory(reference), reference).to.equal('underpostnet/engine');
+  });
+
+  it('keeps GitHub credentials out of Git URLs and command arguments', () => {
+    process.env.GITHUB_TOKEN = 'github-token-fixture';
+    const auth = Underpost.repo.gitAuthFactory('https://x-access-token:stale-token@github.com/underpostnet/engine.git');
+
+    expect(auth.url).to.equal('https://github.com/underpostnet/engine.git');
+    expect(auth.url).to.not.match(/token|@github/);
+    expect(auth.env.GIT_TERMINAL_PROMPT).to.equal('0');
+    expect(auth.env.GIT_CONFIG_KEY_1).to.equal('http.https://github.com/.extraheader');
+    expect(Buffer.from(auth.env.GIT_CONFIG_VALUE_1.split(' ').pop(), 'base64').toString()).to.equal(
+      'x-access-token:github-token-fixture',
+    );
   });
 
   it('refuses a reference that names no owner', () => {
@@ -1390,8 +1407,8 @@ describe('engine sync', () => {
   it('binds every repository placeholder to the configured account', () => {
     process.env.GITHUB_USERNAME = 'someone';
     const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
-    expect(commands).to.have.lengthOf(ENGINE_SYNC_STEPS.length);
     expect(commands.join('\n')).to.not.match(/<[a-z-]+>/);
+    expect(commands.some((command) => command.includes('package.sh'))).to.equal(false);
     expect(commands).to.include('underpost cmt --switch-repo someone/engine --target-branch master');
     expect(commands).to.include(
       'underpost cmt ./engine-private --switch-repo someone/engine-private --target-branch main',
@@ -1453,19 +1470,107 @@ describe('engine sync', () => {
     expect(script).to.not.include(';\n');
     let cursor = -1;
     for (const command of commands) {
-      const at = script.indexOf(`echo '[sync] ${command}'`);
+      const at = script.indexOf(`echo '[sync] ${redactSensitiveText(command)}'`);
       expect(at, command).to.be.greaterThan(cursor);
       cursor = at;
     }
   });
 
-  it('restarts a running dispatcher, so it stops answering with the code it started with', () => {
-    const restart = ENGINE_SYNC_STEPS[ENGINE_SYNC_STEPS.length - 1];
-    expect(restart.command).to.include('systemctl restart underpost-event.service');
-    expect(restart.command).to.include('is-active --quiet');
+  it('redacts a credential from the remote progress line without changing the executed step', () => {
+    process.env.GITHUB_TOKEN = 'github-token-fixture';
+    const script = UnderpostWireguard.API.syncScript();
+
+    expect(script).to.include("echo '[sync] node bin host set GITHUB_TOKEN [REDACTED]'");
+    expect(script).to.include('node bin host set GITHUB_TOKEN github-token-fixture');
+    expect(script.match(/github-token-fixture/g)).to.have.lengthOf(1);
+  });
+
+  it('reconciles the dispatcher for the role of the node it reached', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const dispatcher = (nodeRole) =>
+      UnderpostWireguard.API.syncCommands({ nodeRole }).find((step) => step.command.includes('underpost-event'));
+
+    // Only a control node is in a position to answer Alertmanager and repair the tunnel, and
+    // `event --service` refuses to install the dispatcher anywhere else. Regression: `systemctl
+    // restart` reran a generated unit whose ExecStart named a Node binary systemd could not
+    // execute, until it rate-limited; only the generator re-probes that path and rewrites it.
+    expect(dispatcher('control').command).to.include('node bin event --service');
+    expect(dispatcher('control').command).to.not.include('systemctl');
+    for (const nodeRole of ['worker', 'hub'])
+      expect(dispatcher(nodeRole).command, nodeRole).to.include('node bin event --service-stop');
+    expect(dispatcher('')).to.equal(undefined);
+  });
+
+  it('reconciles the hub forward proxy, which runs the checkout the switch replaced', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const proxy = (nodeRole) =>
+      UnderpostWireguard.API.syncCommands({ nodeRole }).find((step) => step.command.includes('forward-proxy'));
+
+    expect(proxy('hub').command).to.include('node bin wireguard --forward-proxy-server');
+    expect(proxy('hub').command).to.include('test -f /etc/systemd/system/underpost-forward-proxy.service');
+    expect(proxy('hub').halt).to.equal(false);
+    // The proxy binds the hub's own tunnel address, and `--forward-proxy-server` refuses to
+    // configure itself anywhere else.
+    for (const nodeRole of ['control', 'worker', '']) expect(proxy(nodeRole), nodeRole).to.equal(undefined);
+  });
+
+  it('acts on the unit file rather than on the unit being active', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    // Regression: guarding on `is-active` skipped exactly the dispatcher that needs the restart,
+    // the one the previous package scope left dead. The unit file is what says a node runs one.
+    const step = ENGINE_SYNC_STEPS.find((entry) => entry.command.includes('<event-service-command>'));
+    expect(step.command).to.include('test -f /etc/systemd/system/underpost-event.service');
+    expect(step.command).to.not.include('is-active');
     // A node that does not run the dispatcher must not fail its sync over it.
-    expect(restart.halt).to.equal(false);
-    expect(UnderpostWireguard.API.syncScript()).to.include(`{ ${restart.command} || true; }`);
+    expect(step.halt).to.equal(false);
+    const reconcile = UnderpostWireguard.API.syncCommands({ nodeRole: 'control' }).at(-1);
+    expect(UnderpostWireguard.API.syncScript({ nodeRole: 'control' })).to.include(`{ ${reconcile.command} || true; }`);
+  });
+
+  it('records the pair it switched the node onto, after the switch rather than before it', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    // deploy/lib/host.sh reads these back out of the host configuration store to decide which
+    // source a later `prepare_host` pulls from; without them the node's own deploy scripts
+    // prepare it from their built-in default and undo the switch.
+    const commands = UnderpostWireguard.API.syncCommands({
+      repoEngine: 'underpostnet/engine-test-cyberia',
+    }).map((step) => step.command);
+    const at = (command) => commands.indexOf(command);
+
+    expect(at('node bin host set ENGINE_SRC_REPO underpostnet/engine-test-cyberia')).to.be.greaterThan(
+      at('underpost cmt --switch-repo underpostnet/engine-test-cyberia --target-branch master'),
+    );
+    expect(at('node bin host set ENGINE_SRC_PRIVATE_REPO underpostnet/engine-cyberia-private')).to.be.greaterThan(
+      at('underpost cmt --switch-repo underpostnet/engine-test-cyberia --target-branch master'),
+    );
+  });
+
+  it('republishes the cron manifests from the control node alone', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const cron = (nodeRole) =>
+      UnderpostWireguard.API.syncCommands({ nodeRole }).find((step) => step.command.includes('bin cron'));
+
+    // The pod bodies run the checkout the switch replaced, so the manifests are republished — but
+    // only where they can be. Regression: a worker carrying kubectl without cluster access
+    // rewrote the cron deploy's manifests and relabeled host directories before failing.
+    expect(cron('control').command).to.equal('node bin cron --setup-start --git --apply');
+    expect(cron('control').halt).to.equal(false);
+    for (const nodeRole of ['worker', 'hub', '']) expect(cron(nodeRole), nodeRole).to.equal(undefined);
+  });
+
+  it('runs a deploy package script only when the deploy being synced ships one', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const scripts = (repoEngine) =>
+      UnderpostWireguard.API.syncCommands({ repoEngine }).filter((step) => step.command.startsWith('bash '));
+
+    // Both occurrences or neither: the halting one turns a missing script into a failed sync
+    // rather than a missing install.
+    expect(scripts('underpostnet/engine-test-cyberia').map((step) => step.command)).to.deep.equal([
+      'bash ./deploy/dd-cyberia/package.sh',
+      'bash ./deploy/dd-cyberia/package.sh',
+    ]);
+    expect(scripts('underpostnet/engine-test-absent')).to.deep.equal([]);
+    expect(scripts('underpostnet/engine')).to.deep.equal([]);
   });
 
   it('neutralizes advisory steps in place and chains the rest', () => {
@@ -1496,14 +1601,20 @@ describe('peer locality', () => {
 
 describe('command credential redaction', () => {
   it('masks a token embedded in a clone URL', () => {
-    expect(redactCredentials('git fetch --force "https://x-access-token:ghp_secret@github.com/o/r" main')).to.equal(
+    expect(redactSensitiveText('git fetch --force "https://x-access-token:ghp_secret@github.com/o/r" main')).to.equal(
       'git fetch --force "https://***@github.com/o/r" main',
     );
   });
 
   it('leaves a URL that carries no credential alone', () => {
-    expect(redactCredentials('git remote set-url origin "https://github.com/o/r"')).to.equal(
+    expect(redactSensitiveText('git remote set-url origin "https://github.com/o/r"')).to.equal(
       'git remote set-url origin "https://github.com/o/r"',
+    );
+  });
+
+  it('masks token environment assignments in failed command wrappers', () => {
+    expect(redactSensitiveText('GITHUB_TOKEN=ghp_secret GITHUB_USERNAME=operator node bin db')).to.equal(
+      'GITHUB_TOKEN=[REDACTED] GITHUB_USERNAME=operator node bin db',
     );
   });
 

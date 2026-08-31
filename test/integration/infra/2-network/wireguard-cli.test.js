@@ -869,10 +869,59 @@ describe('edge host provisioning', () => {
       }
     });
 
+    it('installs the deploy manifest before the CLI is used, and again on what the switch landed', () => {
+      // Regression: a node whose install no longer matched its manifest could not load its own
+      // CLI, so the first step of the sync died before the step that repairs the tree.
+      const previousUser = process.env.GITHUB_USERNAME;
+      const previousToken = process.env.GITHUB_TOKEN;
+      process.env.GITHUB_USERNAME = 'fixture-org';
+      process.env.GITHUB_TOKEN = 'fixture-token';
+      try {
+        const steps = UnderpostWireguard.API.syncCommands({
+          repoEngine: 'fixture-org/engine-test-cyberia',
+          nodeRole: 'control',
+        });
+        const commands = steps.map(({ command }) => command);
+        const packageStep = 'bash ./deploy/dd-cyberia/package.sh';
+
+        expect(commands[0]).to.equal(packageStep);
+        expect(steps[0].halt, 'a tree predating the script must still reach the switch').to.not.equal(true);
+        expect(commands).to.not.include('npm link --force');
+        const last = commands.lastIndexOf(packageStep);
+        expect(last).to.be.greaterThan(commands.findIndex((command) => command.includes('./engine-private')));
+        expect(last).to.be.lessThan(commands.findIndex((command) => command.includes('underpost-event')));
+        expect(steps[last].halt).to.equal(true);
+
+        // The monorepo belongs to no deploy, so it carries no package step at all.
+        expect(
+          UnderpostWireguard.API.syncCommands({ repoEngine: 'fixture-org/engine', nodeRole: 'control' }),
+        ).to.satisfy((monorepo) =>
+          monorepo.every(({ command }) => !command.includes('package.sh') && !/<[a-z-]+>/.test(command)),
+        );
+      } finally {
+        if (previousUser === undefined) delete process.env.GITHUB_USERNAME;
+        else process.env.GITHUB_USERNAME = previousUser;
+        if (previousToken === undefined) delete process.env.GITHUB_TOKEN;
+        else process.env.GITHUB_TOKEN = previousToken;
+      }
+    });
+
+    it('never writes a blank token onto a node', () => {
+      const previous = process.env.GITHUB_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+      try {
+        expect(UnderpostWireguard.API.syncCommands({})).to.satisfy((steps) =>
+          steps.every(({ command }) => !command.includes('GITHUB_TOKEN')),
+        );
+      } finally {
+        if (previous !== undefined) process.env.GITHUB_TOKEN = previous;
+      }
+    });
+
     // A node is reached once, not once per step: each SSH session re-reads the
     // credential store and re-enters the checkout.
     it('composes the whole sequence into one remote command, halting only where it must', () => {
-      const script = UnderpostWireguard.API.syncScript({});
+      const script = UnderpostWireguard.API.syncScript({ nodeRole: 'control' });
       expect(script.split(' && echo ').length).to.be.above(1);
       expect(script).to.include('[sync]');
       expect(script).to.include('|| true; }');

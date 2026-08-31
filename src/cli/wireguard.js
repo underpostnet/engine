@@ -8,7 +8,8 @@ import fs from 'fs-extra';
 import { isIP } from 'node:net';
 import os from 'node:os';
 import nodePath from 'node:path';
-import { getConfFilePath, loadConfInstances, loadConfServerJson } from '../server/runtime/conf.js';
+import { getConfFilePath, loadConfInstances, loadConfServerJson, syncPrivateConf } from '../server/runtime/conf.js';
+import { loadDeployCatalog } from '../server/build/catalog.js';
 import { loadCronDeployEnv, parseList } from '../server/ops/cron.js';
 import { resolveDeployList } from '../server/network/router.js';
 import {
@@ -22,7 +23,7 @@ import {
   forwardProxyStartProbeCommandFactory,
   forwardProxyUnitFactory,
 } from '../server/network/forward-proxy.js';
-import { loggerFactory } from '../server/ops/logger.js';
+import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { nodeExporterServiceScriptFactory } from '../server/ops/monitoring.js';
 import { installRootFile, pbcopy, shellExec, sleepSync } from '../server/runtime/process.js';
 import {
@@ -35,6 +36,7 @@ import {
   systemdStatusCommandsFactory,
 } from '../server/ops/systemd.js';
 import Underpost from '../index.js';
+import { syncDeployPackages } from '../server/build/package.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -87,36 +89,52 @@ const reportFleetOutcome = ({ ok, nodes }) => {
   if (!ok) process.exitCode = 1;
 };
 
+/** Where the dispatcher's unit lives once `underpost event --service` has installed it. */
+const EVENT_SERVICE_UNIT_PATH = '/etc/systemd/system/underpost-event.service';
+
 /**
  * @constant ENGINE_SYNC_STEPS
  * @description What bringing one node's checkout up to date consists of.
  *
- * Ordered and fail-fast up to the install: building or installing over a
- * checkout whose pull failed would deploy stale sources under a fresh version.
- * `npm run fix` is advisory — `npm audit` exits non-zero while any advisory
- * remains, which is a finding to report rather than a reason to skip the install.
+ * The deploy's package script runs twice, and that is the shape of the whole sequence: every
+ * step between them is the node's own CLI, which cannot load from a checkout whose installed
+ * packages no longer match its manifest — so the first run repairs the tree it finds, and the
+ * second installs the manifest the switch just landed. The first is advisory because a node
+ * whose tree predates that script must still reach the switch that gives it one.
+ *
+ * The switch moves the node between package scopes, and everything the node runs off that scope
+ * has to follow it, or the sync leaves the node running the previous one:
+ * - the repository pair is written into the node's host configuration, because that store is the
+ *   only place `deploy/lib/host.sh` reads the source a later `prepare_host` pulls from. Without
+ *   it that preparation resolves the default pairing and undoes the switch.
+ * - the cluster's CronJob manifests are regenerated and republished, because their pod bodies run
+ *   the checkout that just changed.
+ * - the supervised services are reconciled through their own generators, on the unit file's
+ *   existence rather than on the unit being active: one the previous scope's tree left dead is
+ *   exactly the one that has to come back, and `is-active` skipped precisely that case.
+ *
+ * All of those are scoped to the role of the node reached — see {@link NODE_ROLE_STEPS}.
+ *
+ * A step whose placeholder resolves to nothing is dropped rather than run empty: a monorepo sync
+ * belongs to no deploy, a deploy that ships no package script has nothing to run, and a run
+ * without a token must not overwrite the node's with a blank.
  * @memberof UnderpostWireguard
  */
 const ENGINE_SYNC_STEPS = [
-  // { command: 'npm install -g underpost', halt: true },
+  { command: 'bash <deploy-package-script>', halt: false },
+  { command: 'node bin host set GITHUB_TOKEN <github-token>' },
   { command: 'underpost run clean', halt: true },
   { command: 'underpost cmt --switch-repo <engine> --target-branch <engine-branch>', halt: true },
-  // Both checkouts are replaced, not merged: a node that has drifted onto commits of its own
-  // cannot be reconciled from here, and a pull would fail on exactly the nodes that need this
-  // most. The private checkout aligns the same way the engine one does.
   {
     command: 'underpost cmt ./engine-private --switch-repo <engine-private> --target-branch <engine-private-branch>',
     halt: true,
   },
-  // { command: 'npm run fix', halt: false },
-  // { command: 'npm install', halt: true },
-  // A supervised dispatcher holds the code it started with: after the checkout
-  // moves, the running process still answers webhooks from the old registry and
-  // silently drops events it has never heard of. Nodes without the unit skip it.
-  {
-    command: 'systemctl is-active --quiet underpost-event.service && systemctl restart underpost-event.service',
-    halt: false,
-  },
+  { command: 'bash <deploy-package-script>', halt: true },
+  { command: 'node bin host set ENGINE_SRC_REPO <engine>', halt: true },
+  { command: 'node bin host set ENGINE_SRC_PRIVATE_REPO <engine-private>', halt: true },
+  { command: '<cron-reconcile-command>', halt: false },
+  { command: `test -f ${EVENT_SERVICE_UNIT_PATH} && <event-service-command>`, halt: false },
+  { command: `test -f ${FORWARD_PROXY.unitPath} && <forward-proxy-command>`, halt: false },
 ];
 
 /**
@@ -132,6 +150,26 @@ const deployIdFactory = (deployId) => {
   // would turn it into a deploy that does not exist.
   if (!value || value === 'dd') return value;
   return value.startsWith('dd-') ? value : `dd-${value}`;
+};
+
+/**
+ * @method deployPackageScriptFactory
+ * @description The package script of the deploy an engine source belongs to, when the source
+ * being synced actually ships one.
+ *
+ * Both halves have to hold. A monorepo sync belongs to no deploy, and a deploy that ships no
+ * script of its own would leave the node running `bash` against a path that does not exist —
+ * which the second, halting occurrence turns into a failed sync rather than a missing install.
+ * The check reads this checkout because it is the tree the node lands on once the switch
+ * completes, which is the only tree whose contents the step can be resolved against.
+ * @param {string} engine - Engine source repository the node is switched onto.
+ * @returns {string} Path to that deploy's package script, or `''` when there is none to run.
+ * @memberof UnderpostWireguard
+ */
+const deployPackageScriptFactory = (engine = '') => {
+  const deployId = deployIdFactory(Underpost.repo.confIdFactory(engine));
+  const path = deployId ? `./deploy/${deployId}/package.sh` : '';
+  return path && fs.existsSync(path) ? path : '';
 };
 
 /**
@@ -169,6 +207,54 @@ const deployListFactory = (deployId) => {
 const EDGE_TOPOLOGY_PATH = './engine-private/deploy/conf.wireguard.json';
 const EDGE_NODES_PATH = './engine-private/deploy/nodes';
 const EDGE_NODE_ROLES = Object.freeze(['control', 'worker', 'hub']);
+
+/**
+ * @constant NODE_ROLE_STEPS
+ * @description The supervised work each node role owns, as the command that reconciles it.
+ *
+ * A role owns a subsystem or it does not, and every one of these runs the checkout a sync
+ * replaces. The control node is the cluster's control plane, so it alone publishes the CronJobs —
+ * elsewhere that step rewrote the cron deploy's manifests and relabeled host directories before
+ * failing on a cluster it cannot reach. It is also the only node the dispatcher may run on, and
+ * the hub the only one the forward proxy may run on; both refuse to configure themselves
+ * anywhere else. A role that does not own the dispatcher withdraws it, rather than leaving a unit
+ * that holds a port and answers with code no one reconciles.
+ *
+ * Each is reconciled through its own generator rather than `systemctl restart`, because the units
+ * are generated: their `ExecStart` names a Node binary probed under systemd's own constraints,
+ * and a checkout switch can leave that path unexecutable. Restarting reruns a broken unit until
+ * systemd rate-limits it; only the generator re-probes, rewrites and clears the failed state — or
+ * says why no Node on the node can run the service.
+ * @memberof UnderpostWireguard
+ */
+const NODE_ROLE_STEPS = Object.freeze({
+  control: {
+    '<cron-reconcile-command>': 'node bin cron --setup-start --git --apply',
+    '<event-service-command>': 'node bin event --service',
+  },
+  hub: {
+    '<event-service-command>': 'node bin event --service-stop',
+    '<forward-proxy-command>': 'node bin wireguard --forward-proxy-server',
+  },
+  worker: { '<event-service-command>': 'node bin event --service-stop' },
+});
+
+/**
+ * @method nodeRoleStepsFactory
+ * @description {@link NODE_ROLE_STEPS} for one role, with every step a role does not own resolved
+ * to nothing so the sequence drops it rather than running it empty.
+ * @param {string} nodeRole - `control`, `worker` or `hub`.
+ * @returns {Object<string, string>} One value per role-scoped step.
+ * @memberof UnderpostWireguard
+ */
+const nodeRoleStepsFactory = (nodeRole = '') => {
+  const owned = NODE_ROLE_STEPS[nodeRole] || {};
+  const steps = [...new Set(Object.values(NODE_ROLE_STEPS).flatMap((role) => Object.keys(role)))];
+  return Object.fromEntries(steps.map((step) => [step, owned[step] || '']));
+};
+
+/** The node role a sync target carries: a hub is its own role, a spoke's is in its node document. */
+const targetRoleFactory = (target = {}) => `${target.nodeRole || target.role || ''}`.trim();
 
 const nodeNameFactory = (value = '') => {
   const nodeName = `${value || ''}`.trim();
@@ -2539,7 +2625,8 @@ class UnderpostWireguard {
      * tooling the step exists to renew: a node carrying an older `underpost`
      * resolves it differently, or not at all, and fetches a ref that does not
      * exist — after origin has already been repointed.
-     * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`).
+     * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`), plus the
+     *   `nodeRole` of the node the steps are for.
      * @returns {Array<{command: string, halt: boolean}>} Steps in execution order.
      * @memberof UnderpostWireguard
      */
@@ -2550,15 +2637,24 @@ class UnderpostWireguard {
         engine: options.repoEngine,
         enginePrivate: options.repoEnginePrivate,
       });
-      const branch = Underpost.repo.getDefaultBranch(engine);
-      const privateBranch = Underpost.repo.getDefaultBranch(enginePrivate);
-      return ENGINE_SYNC_STEPS.map((step) => ({
+      const values = {
+        '<engine-private-branch>': Underpost.repo.getDefaultBranch(enginePrivate),
+        '<engine-private>': enginePrivate,
+        '<engine-branch>': Underpost.repo.getDefaultBranch(engine),
+        '<engine>': engine,
+        '<deploy-package-script>': deployPackageScriptFactory(engine),
+        ...nodeRoleStepsFactory(options.nodeRole),
+        '<github-token>': process.env.GITHUB_TOKEN || '',
+      };
+      const entries = Object.entries(values);
+      return ENGINE_SYNC_STEPS.filter(({ command }) =>
+        entries.every(([placeholder, value]) => value || !command.includes(placeholder)),
+      ).map((step) => ({
         ...step,
-        command: step.command
-          .replace('<engine-private-branch>', privateBranch)
-          .replace('<engine-private>', enginePrivate)
-          .replace('<engine-branch>', branch)
-          .replace('<engine>', engine),
+        command: entries.reduce(
+          (command, [placeholder, value]) => command.replaceAll(placeholder, value),
+          step.command,
+        ),
       }));
     },
 
@@ -2574,7 +2670,8 @@ class UnderpostWireguard {
      * remaining audit finding cannot stop the install behind it.
      * When `--cmd` is set the label becomes `[cmd]` so a fleet run reads as what
      * it actually executed rather than a sync.
-     * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`).
+     * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`), plus the
+     *   `nodeRole` of the node the script is for.
      * @returns {string} Composed remote command.
      * @memberof UnderpostWireguard
      */
@@ -2582,7 +2679,10 @@ class UnderpostWireguard {
       const commands = Underpost.wireguard.syncCommands(options);
       const label = parseList(options.cmd).length > 0 ? 'cmd' : 'sync';
       return commands
-        .map(({ command, halt }) => `echo '[${label}] ${command}' && ${halt ? command : `{ ${command} || true; }`}`)
+        .map(
+          ({ command, halt }) =>
+            `echo '[${label}] ${redactSensitiveText(command)}' && ${halt ? command : `{ ${command} || true; }`}`,
+        )
         .join(' && ');
     },
 
@@ -2593,7 +2693,8 @@ class UnderpostWireguard {
      *
      * One node failing does not stop the others: they are independent hosts, and
      * a partially synced fleet is reported rather than hidden. Each node is one
-     * session, and the `[sync]` line it last echoed names the step it stopped at.
+     * session, and the `[sync]` line it last echoed names the step it stopped at. The dispatcher
+     * step each node receives is the one its own role calls for.
      * @param {object} [options] - CLI options (`cmd`, `nodes`, `repoEngine`, `repoEnginePrivate`, `dryRun`).
      * @returns {Promise<{ok: boolean, nodes: Array<object>}>} Per-node outcome.
      * @memberof UnderpostWireguard
@@ -2626,8 +2727,27 @@ class UnderpostWireguard {
             `nothing would be synced.`,
         );
 
-      const script = Underpost.wireguard.syncScript(options);
       const custom = parseList(options.cmd).length > 0;
+      if (!custom && options.dryRun !== true) {
+        const { engine } = Underpost.repo.enginePairFactory({
+          engine: options.repoEngine,
+          enginePrivate: options.repoEnginePrivate,
+        });
+        const deployId = deployIdFactory(Underpost.repo.confIdFactory(engine));
+        if (deployId) {
+          await syncDeployPackages({ deployIds: [deployId] });
+          const { privateConfPaths } = await loadDeployCatalog(deployId);
+          syncPrivateConf(deployId, privateConfPaths);
+        }
+      }
+
+      // One script per role, not per node: the branches it names are resolved against the remotes,
+      // and every node of a role is sent the same sequence.
+      const scripts = new Map();
+      const scriptFor = (nodeRole) => {
+        if (!scripts.has(nodeRole)) scripts.set(nodeRole, Underpost.wireguard.syncScript({ ...options, nodeRole }));
+        return scripts.get(nodeRole);
+      };
       const nodes = [];
 
       for (const target of targets) {
@@ -2635,7 +2755,7 @@ class UnderpostWireguard {
           node: target.nodeName,
           via: target.via,
         });
-        const result = await Underpost.event.runCommand(script, {
+        const result = await Underpost.event.runCommand(scriptFor(targetRoleFactory(target)), {
           ...options,
           user: target.user,
           host: target.host,

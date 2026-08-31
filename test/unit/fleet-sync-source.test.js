@@ -4,6 +4,12 @@ import { expect } from 'chai';
 import Underpost from '../../src/index.js';
 import { hostAddressesFactory } from '../../src/cli/wireguard.js';
 
+const syncPrivateConfMock = vi.hoisted(() => vi.fn());
+vi.mock('../../src/server/runtime/conf.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  syncPrivateConf: syncPrivateConfMock,
+}));
+
 describe('a fleet command cannot fall back to local execution', () => {
   it('refuses when a remote target resolved no SSH identity', async () => {
     let thrown;
@@ -38,10 +44,13 @@ describe('a fleet command cannot fall back to local execution', () => {
 describe('wireguard sync never switches the checkout it runs from', () => {
   const originalTargets = Underpost.wireguard.syncTargets;
   const originalRunCommand = Underpost.event.runCommand;
+  const originalGetDefaultBranch = Underpost.repo.getDefaultBranch;
 
   afterEach(() => {
     Underpost.wireguard.syncTargets = originalTargets;
     Underpost.event.runCommand = originalRunCommand;
+    Underpost.repo.getDefaultBranch = originalGetDefaultBranch;
+    syncPrivateConfMock.mockReset();
   });
 
   const stub = (targets) => {
@@ -108,5 +117,33 @@ describe('wireguard sync never switches the checkout it runs from', () => {
     const dispatched = stub([sameName]);
     await Underpost.wireguard.sync({ cmd: 'echo fleet' });
     expect(dispatched.map(({ host }) => host)).to.deep.equal(['198.51.100.85']);
+  });
+
+  it('publishes an associated deploy private repo before updating remote nodes', async () => {
+    const order = [];
+    Underpost.repo.getDefaultBranch = () => 'main';
+    Underpost.wireguard.syncTargets = () => [remote];
+    syncPrivateConfMock.mockImplementation((deployId) => order.push(`publish:${deployId}`));
+    Underpost.event.runCommand = async () => {
+      order.push('update');
+      return { ok: true, output: '' };
+    };
+
+    await Underpost.wireguard.sync({ repoEngine: 'fixture-org/engine-test-cyberia' });
+
+    expect(order).to.deep.equal(['publish:dd-cyberia', 'update']);
+  });
+
+  it('does not publish a deploy private repo for the base engine, a custom command, or a dry run', async () => {
+    const published = [];
+    Underpost.repo.getDefaultBranch = () => 'main';
+    syncPrivateConfMock.mockImplementation((deployId) => published.push(deployId));
+    stub([remote]);
+
+    await Underpost.wireguard.sync({ repoEngine: 'fixture-org/engine' });
+    await Underpost.wireguard.sync({ repoEngine: 'fixture-org/engine-cyberia', cmd: 'echo fleet' });
+    await Underpost.wireguard.sync({ repoEngine: 'fixture-org/engine-cyberia', dryRun: true });
+
+    expect(published).to.deep.equal([]);
   });
 });
