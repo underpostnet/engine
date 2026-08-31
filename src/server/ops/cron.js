@@ -4,7 +4,7 @@
  * ## Host mounts and SELinux
  *
  * Generated CronJob pods run as `container_t`, so every host path they mount has to carry a type
- * that domain can use. Three mounts existed; two are gone and one is deliberate:
+ * that domain can use, and no host path carries a credential:
  *
  * - **the global underpost directory** (`<npm root>/underpost`, i.e. root's nvm tree) was mounted
  *   over the image's own copy of the CLI purely so the container could read `.env` and `.state`
@@ -15,14 +15,19 @@
  *   collector's installer under `/var/lib`, so it inherits a type `container_t` may read but not
  *   write; {@link prepareCronHostStorage} gives it the shared container label.
  * - **the engine mirror** at {@link ENGINE_MIRROR_PATH}. The job body is `node bin ...` — it
- *   executes *this repository*, so it needs the source tree, its `node_modules` and
- *   `engine-private`'s deploy configuration, and there is no narrower subpath: that set is the
- *   checkout. The checkout itself is never mounted. It lives in the operator's home tree, where
+ *   executes *this repository*, so it needs the source tree, its `node_modules` and the deploy
+ *   configuration it resolves — {@link engineMirrorContentsFactory} is that set, and nothing wider.
+ *   The checkout itself is never mounted. It lives in the operator's home tree, where
  *   `container_t` is denied every read, and the fix cannot be to relabel it: it is a live working
  *   tree, and the shared container label on it would make everything ever written there
  *   container-readable. So the pods mount a dedicated copy outside `/home` instead, refreshed
  *   from the checkout and labeled by {@link prepareCronHostStorage}. The mount lands on the
  *   checkout's own path inside the container, so nothing the job body runs knows the difference.
+ * - **the connection key**, a projected Secret rather than a host path. `ssh` authenticates with a
+ *   file, so it cannot travel in the `envFrom` Secret beside the tokens; and it must not travel in
+ *   the mirror, which every `container_t` process on the node can read.
+ *   {@link UnderpostSSH.keyPathFactory} prefers the mount, so a pod and the host CLI take the same
+ *   code path to different keys.
  *
  * @module src/server/ops/cron.js
  * @namespace UnderpostCron
@@ -37,6 +42,7 @@ import Underpost from '../../index.js';
 import { DEPLOY_ROUTES_PATH, readDeployRoutes } from '../network/router.js';
 import { UNDERPOST_MONITORING } from './monitoring.js';
 import ContainerStorageService, { ensureContainerStorage } from '../security/container-storage.js';
+import { assertRoleCapability } from '../network/node-capability.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -53,7 +59,16 @@ const textfileVolumeName = 'underpost-node-exporter-textfile';
 // home over the image's own copy of the CLI; a Secret delivers exactly those values, is labeled
 // for container consumption by kubelet, and exposes nothing else of that tree.
 const cronEnvSecretName = 'underpost-cron-env';
+// The connection key, projected as a volume: ssh authenticates with a file, and the mirror the
+// pods mount deliberately carries no key material. `UnderpostSSH.keyPathFactory` reads it here.
+const cronSshSecretName = 'underpost-ssh-key';
+const sshSecretMountPath = '/etc/underpost/secrets/ssh';
+const sshVolumeName = 'underpost-ssh-key';
 const DEFAULT_CRON_ID = 'dd-cron';
+
+/** The environment a generated pod runs. Rendered into the manifest, where it wins over the
+ * projected Secret, so the resolved value and the running value cannot drift. */
+const cronDeployEnvFactory = (dev) => (dev === true ? 'development' : 'production');
 
 /**
  * Resolves the deploy ID stored in `engine-private/deploy/dd.cron`.
@@ -141,14 +156,13 @@ const cronJobYamlFactory = ({
 
   const cronDeployId = cronDeployIdResolve();
 
-  const cronBin = 'node bin'; // dev ? 'node bin' : 'underpost';
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
-  const commands = [
-    `cd ${enginePath}`,
-    `node bin app load --env ${dev ? `development` : `production`} --args deploy-id=${cronDeployId}`,
-  ];
+  // No `app load`: it materializes a deployment's environment from its env file, and the pod has
+  // neither. Its environment arrives injected, scoped to what the jobs consume; the `conf.*.json`
+  // the jobs read carry `env:` references that resolve against exactly that.
+  const commands = [`cd ${enginePath}`];
   if (cmd) commands.push(cmd);
-  commands.push(`${cronBin} cron ${deployList} ${jobList} ${flags}`);
+  commands.push(`node bin cron ${deployList} ${jobList} ${flags}`);
   const fullCommand = commands.join(' &&\n                  ');
 
   return `apiVersion: batch/v1
@@ -192,6 +206,11 @@ ${
                 - -c
                 - >
                   ${fullCommand}
+              # Explicit, so the environment the pod runs is the one this manifest resolved:
+              # a container env entry wins over envFrom, whatever the projected Secret carries.
+              env:
+                - name: NODE_ENV
+                  value: ${cronDeployEnvFactory(dev)}
               envFrom:
                 - secretRef:
                     name: ${cronEnvSecretName}
@@ -201,6 +220,9 @@ ${
                   name: ${cronVolumeName}
                 - mountPath: ${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}
                   name: ${textfileVolumeName}
+                - mountPath: ${sshSecretMountPath}
+                  name: ${sshVolumeName}
+                  readOnly: true
           volumes:
             # The engine mirror: a copy of the checkout kept outside every home tree, because
             # \`container_t\` is denied every read under one. The job body runs this repository's CLI
@@ -217,6 +239,13 @@ ${
                 path: ${UNDERPOST_MONITORING.nodeExporter.textfileDirectory}
                 type: DirectoryOrCreate
               name: ${textfileVolumeName}
+            # Optional for the same reason the credential Secret is: a cluster that has onboarded
+            # no key still schedules, and the job that needs one reports its own failure.
+            - secret:
+                secretName: ${cronSshSecretName}
+                optional: true
+                defaultMode: 0400
+              name: ${sshVolumeName}
           restartPolicy: OnFailure
 `;
 };
@@ -351,7 +380,7 @@ const cronCheckoutContextFactory = () => {
 };
 
 /**
- * @constant ENGINE_MIRROR_CONTENTS
+ * @method engineMirrorContentsFactory
  * @description Exactly what a job body resolves, as rsync filter rules over the checkout.
  *
  * An allowlist, not a denylist, for two reasons that both bite in production. The mirror carries
@@ -361,14 +390,20 @@ const cronCheckoutContextFactory = () => {
  *
  * `engine-private` is narrowed rather than dropped — the pod cannot run without it. `app load`
  * reads `conf/<deploy-id>/.env.<env>` and that deploy's `conf.*.json`; `cron` reads
- * `deploy/dd.cron`, `deploy/dd.routes` and the env of every routed deploy. Nothing in the job
- * bodies reads `ssl/`, `secrets/` or the instance trees, so none of it is mirrored.
+ * `deploy/dd.cron`, `deploy/dd.routes` and the env of every routed deploy. That is the whole set.
+ * No key material is mirrored: the connection key arrives as a projected Secret volume.
  *
  * `node_modules` is present and `.git` is not, which is why the repository's own ignore files
  * cannot express this set: they describe what is not source, and this is what is executed.
+ *
+ * No `.env.*` at any environment. Each one is a deployment's entire credential set, and the
+ * mirror is readable by every `container_t` process on the node; the pods receive the keys their
+ * scope entitles them to as an injected environment instead. `conf.*.json` stay because they hold
+ * `env:` references rather than values.
+ * @returns {string[]} rsync filter rules, in precedence order.
  * @memberof UnderpostCron
  */
-const ENGINE_MIRROR_CONTENTS = Object.freeze([
+const engineMirrorContentsFactory = () => [
   // rsync takes the first rule that matches, so the asset trees are subtracted before `/src/**`
   // adds their parents back. They are data the CLI never opens, and the bulk of the checkout.
   '--exclude=/src/client/public/**',
@@ -383,14 +418,19 @@ const ENGINE_MIRROR_CONTENTS = Object.freeze([
   '--include=/conf.js',
   '--include=/node_modules/',
   '--include=/node_modules/**',
-  // The deploy configuration the job bodies resolve, and nothing else of the private repository.
+  // The deploy configuration the job bodies resolve, named file-shape by file-shape rather than
+  // globbed: `conf/<id>` also holds per-deploy key pairs and `deploy/` holds the fleet's own, and
+  // an allowlist is only worth having if it stops at the files that are actually read.
   '--include=/engine-private/',
   '--include=/engine-private/conf/',
-  '--include=/engine-private/conf/**',
+  '--include=/engine-private/conf/*/',
+  '--include=/engine-private/conf/*/conf.*.json',
+  '--include=/engine-private/conf/*/package.json',
   '--include=/engine-private/deploy/',
-  '--include=/engine-private/deploy/**',
+  '--include=/engine-private/deploy/dd.cron',
+  '--include=/engine-private/deploy/dd.routes',
   '--exclude=*',
-]);
+];
 
 /**
  * Refreshes the engine mirror the CronJob pods mount from the checkout this command runs in.
@@ -403,7 +443,7 @@ const ENGINE_MIRROR_CONTENTS = Object.freeze([
  */
 const syncEngineMirror = () => {
   const source = process.cwd();
-  const filters = ENGINE_MIRROR_CONTENTS.map(shellArgumentFactory).join(' ');
+  const filters = engineMirrorContentsFactory().map(shellArgumentFactory).join(' ');
 
   logger.info('Refreshing the engine mirror the CronJob pods mount', { source, target: ENGINE_MIRROR_PATH });
   shellExec(
@@ -790,8 +830,8 @@ class UnderpostCron {
         // `envFrom` reference is `optional: true`, so a cluster with neither seed files nor the
         // values in its environment still schedules — the jobs that need a GitHub token simply
         // report their own failure instead of the pod refusing to start.
-        if (!Underpost.secret.applyIfPresent(cronEnvSecretName, namespace))
-          Underpost.secret.applyFromOriginSeed(cronEnvSecretName, namespace);
+        for (const name of [cronEnvSecretName, cronSshSecretName])
+          if (!Underpost.secret.applyIfPresent(name, namespace)) Underpost.secret.applyFromOriginSeed(name, namespace);
 
         // Delete existing CronJobs before applying new ones
         for (const job of targetJobs) {
@@ -901,6 +941,7 @@ export {
   cronCheckoutContextFactory,
   cronDeployIdResolve,
   cronJobYamlFactory,
+  engineMirrorContentsFactory,
   loadCronDeployEnv,
   parseList,
   resolveDeployId,

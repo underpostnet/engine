@@ -14,6 +14,7 @@ import UnderpostCron, {
 } from '../../../../src/server/ops/cron.js';
 import Underpost from '../../../../src/index.js';
 import UnderpostImage from '../../../../src/cli/image.js';
+import UnderpostSecret from '../../../../src/cli/secrets.js';
 import { Dns } from '../../../../src/server/network/dns.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
@@ -221,12 +222,18 @@ describe('CronJob manifest', () => {
     expect(render({ nodeName: 'worker-1' })).to.include('kubernetes.io/hostname: worker-1');
   });
 
-  it('loads the cron deploy env before running the job', () => {
-    expect(render()).to.include('node bin app load --env production --args deploy-id=dd-cron');
+  // The pod takes its environment injected, so it materializes none: `app load` reads a
+  // deployment's env file and writes the working tree, and the mirror carries neither.
+  it('states the environment on the pod rather than materializing it from a file', () => {
+    expect(render()).to.not.include('app load');
+    expect(render()).to.include('- name: NODE_ENV\n                  value: production');
+    expect(render({ dev: true })).to.include('- name: NODE_ENV\n                  value: development');
   });
 
-  it('loads the development env under --dev', () => {
-    expect(render({ dev: true })).to.include('node bin app load --env development --args deploy-id=dd-cron');
+  it('injects the cron credential Secret and takes the job straight from the CLI', () => {
+    const yaml = render();
+    expect(yaml).to.include('name: underpost-cron-env');
+    expect(yaml).to.match(/cd \/home\/dd\/engine &&\n\s+node bin cron dd-core dns/);
   });
 
   it('forwards every cluster and execution flag to the containerised command', () => {
@@ -498,14 +505,54 @@ describe('cron CLI', () => {
         expect(rules.indexOf(`--exclude=${asset}`), asset).to.be.lessThan(rules.indexOf('--include=/src/**'));
     });
 
-    it('narrows engine-private to the deploy configuration a job body resolves', async () => {
+    it('narrows engine-private to the documents a job body resolves, and no environment', async () => {
       await generate({ apply: true, kubeadm: true });
       const rsync = harness.calls.find((command) => command.includes('rsync'));
-      // `app load` reads conf/<deploy-id>, `cron` reads deploy/dd.cron and dd.routes. Nothing
-      // reads ssl/, secrets/ or the instance trees, so the trailing exclude keeps them out.
-      expect(rsync).to.include("'--include=/engine-private/conf/**'");
-      expect(rsync).to.include("'--include=/engine-private/deploy/**'");
-      expect(rsync).to.not.include('/engine-private/**');
+      // `cron` reads deploy/dd.cron, deploy/dd.routes and the conf documents; every value those
+      // documents reference arrives injected, so no env file is mirrored at any environment.
+      expect(rsync).to.include("'--include=/engine-private/conf/*/conf.*.json'");
+      expect(rsync).to.include("'--include=/engine-private/deploy/dd.cron'");
+      expect(rsync).to.include("'--include=/engine-private/deploy/dd.routes'");
+      expect(rsync).to.not.include('.env');
+      // `conf/<id>` also holds per-deploy key pairs, so neither half may be globbed.
+      for (const glob of ['/engine-private/**', '/engine-private/conf/**', '/engine-private/deploy/**'])
+        expect(rsync, glob).to.not.include(glob);
+    });
+
+    // The mirror is readable by every `container_t` process on the node, so no key may reach it.
+    // Every deploy's env file is that deploy's whole credential set, and the mirror is readable by
+    // every container on the node, so none of them is mirrored at any environment.
+    it('mirrors no deployment environment, whichever environment the pods run', async () => {
+      for (const dev of [false, true]) {
+        harness.calls.length = 0;
+        const { written } = await generate({ apply: true, kubeadm: true, dev });
+        expect(
+          harness.calls.find((command) => command.includes('rsync')),
+          `dev=${dev}`,
+        ).to.not.include('.env');
+        for (const manifest of written.values())
+          expect(manifest, `dev=${dev}`).to.include(`value: ${dev ? 'development' : 'production'}`);
+      }
+    });
+
+    it('mirrors no key material, and mounts the connection key as a Secret instead', async () => {
+      const { written } = await generate({ apply: true, kubeadm: true });
+      const rsync = harness.calls.find((command) => command.includes('rsync'));
+      for (const material of ['id_rsa', 'conf.users.json', 'ipfs-cluster-secret', 'mariadb-password'])
+        expect(rsync, material).to.not.include(material);
+
+      for (const manifest of written.values()) {
+        expect(manifest).to.include('secretName: underpost-ssh-key');
+        expect(manifest).to.include('defaultMode: 0400');
+        expect(manifest).to.include('mountPath: /etc/underpost/secrets/ssh');
+      }
+    });
+
+    it('projects the key Secret alongside the credential Secret', async () => {
+      const applied = [];
+      vi.spyOn(UnderpostSecret.API, 'applyIfPresent').mockImplementation((name) => (applied.push(name), true));
+      await generate({ apply: true, kubeadm: true });
+      expect(applied).to.deep.equal(['underpost-cron-env', 'underpost-ssh-key']);
     });
 
     // A nodeSelector naming an unregistered node leaves every Job Pending at its

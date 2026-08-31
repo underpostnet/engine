@@ -65,6 +65,24 @@ const shellExecRedacted = (command, options = {}) => {
 const USERS_CONF_PATH = './engine-private/deploy/conf.users.json';
 const USERS_KEYS_PATH = './engine-private/deploy/users';
 const DEFAULT_SSH_PORT = 22;
+/** The checkout's own key, and where a workload receives it instead: a projected Secret volume. */
+const HOST_KEY_PATH = './engine-private/deploy/id_rsa';
+const SECRET_KEY_PATH = '/etc/underpost/secrets/ssh/id_rsa';
+
+/**
+ * The private key this process authenticates with.
+ *
+ * One resolver for every SSH caller, because the answer differs by where the process runs and
+ * nothing else should have to know that. A pod has the key as a projected Secret and no checkout
+ * to read it from; the host CLI has the checkout and no mount. The mount is preferred over the
+ * checkout default but never over a caller's own path, because on a host the key is per target —
+ * the hub answers to a different one than the LAN nodes — and only the caller knows which.
+ * @param {string} [keyPath] - Explicit path, which always wins.
+ * @returns {string} Path to the private key.
+ * @memberof UnderpostSSH
+ */
+const sshKeyPathFactory = (keyPath = '') =>
+  `${keyPath || ''}`.trim() || (fs.existsSync(SECRET_KEY_PATH) ? SECRET_KEY_PATH : '') || HOST_KEY_PATH;
 
 /**
  * @method hostNameFactory
@@ -716,7 +734,7 @@ class UnderpostSSH {
      * @param {string} params.remoteDir - Destination directory on the node.
      * @param {number} [params.port=22] - SSH port.
      * @param {string} [params.user='root'] - SSH user (key-only).
-     * @param {string} [params.keyPath='./engine-private/deploy/id_rsa'] - Private key path.
+     * @param {string} [params.keyPath] - Private key path; resolved by {@link sshKeyPathFactory} when empty.
      * @param {string} [params.owner='1000:1000'] - chown target on the node (empty to skip).
      * @param {string} [params.mode='755'] - chmod mode on the node (empty to skip).
      * @param {boolean} [params.containerStorage=false] - Give the destination tree the persistent
@@ -731,7 +749,7 @@ class UnderpostSSH {
       remoteDir,
       port = 22,
       user = 'root',
-      keyPath = './engine-private/deploy/id_rsa',
+      keyPath = '',
       owner = '1000:1000',
       mode = '755',
       containerStorage = false,
@@ -739,9 +757,10 @@ class UnderpostSSH {
       if (!host) throw new Error('copyDirToNode requires a host');
       if (!localDir || !fs.existsSync(localDir)) throw new Error(`copyDirToNode: local dir not found: ${localDir}`);
       if (!remoteDir) throw new Error('copyDirToNode requires a remoteDir');
+      const key = sshKeyPathFactory(keyPath);
       try {
-        shellExec(`chmod 600 ${keyPath}`, { silent: true, silentOnError: true, disableLog: true });
-        const sshOpts = `-i ${keyPath} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
+        shellExec(`chmod 600 ${key}`, { silent: true, silentOnError: true, disableLog: true });
+        const sshOpts = `-i ${key} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
         shellExec(`ssh ${sshOpts} ${user}@${host} 'mkdir -p ${remoteDir}'`, {
           silent: true,
           disableLog: true,
@@ -773,6 +792,15 @@ class UnderpostSSH {
         process.exit(1);
       }
     },
+
+    /**
+     * The private key this process authenticates with; see {@link sshKeyPathFactory}.
+     * @function keyPathFactory
+     * @param {string} [keyPath] - Explicit path, which always wins.
+     * @returns {string} Path to the private key.
+     * @memberof UnderpostSSH
+     */
+    keyPathFactory: sshKeyPathFactory,
 
     /**
      * Generic SSH remote command runner that SSH execution logic.
@@ -819,16 +847,22 @@ class UnderpostSSH {
       // Set up SSH credentials from the cluster config
       if (user) await Underpost.ssh.setDefautlSshCredentials({ user, host });
 
-      // Build the complete SSH command
+      // The store holds the key `setDefautlSshCredentials` just resolved for this target, which is
+      // the only per-target answer; a pod has no such key on disk and takes its mount instead.
+      const sshKey = fs.existsSync(SECRET_KEY_PATH)
+        ? shellArgumentFactory(SECRET_KEY_PATH)
+        : '$(node bin host get --plain DEFAULT_SSH_KEY_PATH)';
+
       const sshScript = `#!/usr/bin/env bash
 set -euo pipefail
 
 REMOTE_USER=$(node bin host get --plain DEFAULT_SSH_USER)
 REMOTE_HOST=$(node bin host get --plain DEFAULT_SSH_HOST)
 REMOTE_PORT=$(node bin host get --plain DEFAULT_SSH_PORT)
-SSH_KEY=$(node bin host get --plain DEFAULT_SSH_KEY_PATH)
+SSH_KEY=${sshKey}
 
-chmod 600 "$SSH_KEY"
+# A projected Secret is read-only, and its mode is already restrictive enough for ssh.
+chmod 600 "$SSH_KEY" 2>/dev/null || true
 
 ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
 ${cd ? `cd ${cd}` : ''}
@@ -884,7 +918,7 @@ EOF
      * @param {string} params.command - Remote command batch to execute.
      * @param {number} [params.port=22] - SSH port.
      * @param {string} [params.user='root'] - SSH user (key-only).
-     * @param {string} [params.keyPath] - Private key path (defaults to engine deploy key).
+     * @param {string} [params.keyPath] - Private key path; resolved by {@link sshKeyPathFactory} when empty.
      * @param {number} [params.connectTimeoutSec=15] - Per-attempt SSH connect timeout.
      * @param {number} [params.retries=3] - Auth/exec retry attempts.
      * @param {number} [params.retryDelayMs=5000] - Base backoff between retries.
@@ -896,7 +930,7 @@ EOF
       command,
       port = 22,
       user = 'root',
-      keyPath = './engine-private/deploy/id_rsa',
+      keyPath = '',
       connectTimeoutSec = 15,
       retries = 3,
       retryDelayMs = 5000,
@@ -910,10 +944,11 @@ EOF
         if (!reachable) return { ok: false, code: 255, stdout: '', stderr: 'ssh port unreachable', attempts: 0 };
       }
 
-      shellExec(`chmod 600 ${keyPath}`, { silent: true, silentOnError: true, disableLog: true });
+      const key = sshKeyPathFactory(keyPath);
+      shellExec(`chmod 600 ${key}`, { silent: true, silentOnError: true, disableLog: true });
 
       const sshOpts = [
-        `-i ${keyPath}`,
+        `-i ${key}`,
         `-o BatchMode=yes`,
         `-o PreferredAuthentications=publickey`,
         `-o PubkeyAuthentication=yes`,
@@ -989,7 +1024,7 @@ EOF
       remotePath = '/tmp/underpost-remote-script.sh',
       port = 22,
       user = 'root',
-      keyPath = './engine-private/deploy/id_rsa',
+      keyPath = '',
       retries = 3,
       waitForPortMs = 0,
     }) => {

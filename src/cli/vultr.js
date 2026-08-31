@@ -58,7 +58,6 @@ const UNDERPOST_VULTR = {
   requestTimeoutMs: 20000,
   defaultSshUser: 'root',
   defaultSshPort: 22,
-  defaultSshKeyPath: './engine-private/deploy/id_rsa',
   remoteEnginePath: '/home/dd/engine',
   // latched in the host store, which the CronJob mounts from the host, so the
   // decision survives the container that made it.
@@ -422,10 +421,9 @@ class UnderpostVultr {
         threshold: thresholdFactory(options.threshold || envFactory(UNDERPOST_VULTR.env.threshold)),
         host: `${options.host || ''}`.trim() || envFactory(UNDERPOST_VULTR.env.host),
         user: `${options.user || ''}`.trim() || envFactory(UNDERPOST_VULTR.env.user) || UNDERPOST_VULTR.defaultSshUser,
-        keyPath:
-          `${options.keyPath || ''}`.trim() ||
-          envFactory(UNDERPOST_VULTR.env.keyPath) ||
-          UNDERPOST_VULTR.defaultSshKeyPath,
+        keyPath: Underpost.ssh.keyPathFactory(
+          `${options.keyPath || ''}`.trim() || envFactory(UNDERPOST_VULTR.env.keyPath),
+        ),
         port: Number(options.port || envFactory(UNDERPOST_VULTR.env.port)) || UNDERPOST_VULTR.defaultSshPort,
         // `total` is the conservative reading and trips first; `outgoing` counts
         // egress alone, which is what a plan billing outbound-only meters.

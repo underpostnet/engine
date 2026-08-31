@@ -21,6 +21,7 @@ import crypto from 'crypto';
 import colors from 'colors';
 import { loggerFactory } from '../ops/logger.js';
 import { isOciRuntime, writeEnv } from './environment.js';
+import { configRejectionFactory } from './config-scope.js';
 import { shellArgumentFactory, shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from '../network/underpost-gateway.js';
 import { COVERAGE_BUNDLE_DIRECTORY } from '../build/coverage.js';
@@ -430,6 +431,28 @@ const deployEnvFilePath = (deployId, env = 'production', subConf = '') => {
 };
 
 /**
+ * The environments a deployment's configuration actually carries.
+ *
+ * Read from the tree rather than assumed, because which environments exist is a property of the
+ * checkout: a workstation carries every one a developer runs, and a workload carries none at all —
+ * its environment is injected. A name is the segment after `.env.` and nothing further, so an
+ * overlay (`.env.production.oci`) and a sub-configuration (`.env.development.api`) are the
+ * variants of an environment, never environments of their own.
+ * @param {string} deployId - Deployment id.
+ * @returns {string[]} Environment names present, sorted.
+ * @memberof ServerConfBuilder
+ */
+const deployEnvNamesFactory = (deployId) => {
+  const folder = getConfFolder(deployId);
+  if (!fs.existsSync(folder)) return [];
+  return fs
+    .readdirSync(folder)
+    .map((entry) => `${entry}`.match(/^\.env\.([^.]+)$/)?.[1])
+    .filter(Boolean)
+    .sort();
+};
+
+/**
  * Resolves a custom instance's env file for an environment.
  *
  * An instance's runtime environment is its own file, not a sub-configuration of the parent
@@ -586,18 +609,30 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   }
   // Each materialized copy carries its own OCI overlay, so a container that later switches
   // NODE_ENV still reads container values rather than the host endpoints of the base file.
-  for (const envName of ['production', 'development', 'test'])
-    fs.writeFileSync(`./.env.${envName}`, deployEnvContentFactory(deployId, envName).content, 'utf8');
+  const available = deployEnvNamesFactory(deployId);
+  for (const name of available)
+    fs.writeFileSync(`./.env.${name}`, deployEnvContentFactory(deployId, name).content, 'utf8');
+
   const envName = process.env.NODE_ENV || 'development';
-  if (envName) {
+  // A tree with no environment of its own is a workload: its configuration is injected, and
+  // materializing is neither possible nor wanted. A tree that carries environments but not this
+  // one is a mistake worth naming — falling through would run the deployment against whichever
+  // environment happened to be loaded.
+  if (available.length > 0) {
+    if (!available.includes(envName))
+      throw new Error(
+        configRejectionFactory({
+          domain: 'app',
+          deployId,
+          env: envName,
+          key: 'NODE_ENV',
+          reason: `no environment source; ${getConfFolder(deployId)} carries ${available.join(', ')}`,
+        }),
+      );
     const { content, values } = deployEnvContentFactory(deployId, envName, subConf);
     fs.writeFileSync(`./.env`, content, 'utf8');
-    process.env = {
-      ...process.env,
-      ...values,
-      NODE_ENV: envName,
-    };
-  }
+    process.env = { ...process.env, ...values, NODE_ENV: envName };
+  } else process.env.NODE_ENV = envName;
   const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const packageJson = JSON.parse(fs.readFileSync(`${folder}/package.json`, 'utf8'));
   originPackageJson.scripts.start = packageJson.scripts.start;
@@ -3324,6 +3359,7 @@ const clusterInstancesFactory = (deployList = [], instanceList = '') => {
 export {
   cleanDeployEnvFiles,
   deployEnvFilePath,
+  deployEnvNamesFactory,
   instanceEnvFilePath,
   Config,
   loadConf,

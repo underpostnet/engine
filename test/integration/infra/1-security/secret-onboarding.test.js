@@ -8,6 +8,7 @@ import UnderpostBaremetal from '../../../../src/cli/baremetal.js';
 import UnderpostRepository from '../../../../src/cli/repository.js';
 import UnderpostState from '../../../../src/cli/state.js';
 import { shellHarness } from '../../../support/shell-harness.js';
+import { scopeValuesFactory } from '../../../../src/server/runtime/config-scope.js';
 
 const sops = () => Underpost.secret;
 const CRON_ID_PATH = './engine-private/deploy/dd.cron';
@@ -737,19 +738,23 @@ describe('secret status report', () => {
   // SELinux. Projecting them as a Secret is what replaced that mount, so the environment path has
   // to work even on a host that keeps no seed file for them.
   describe('environment-seeded workload secrets', () => {
+    // The connection, not the key: the key path names a host location and would shadow the Secret
+    // volume a pod actually reads, so it is entitled to no scope.
     const CRON_ENV_VARS = [
       'GITHUB_TOKEN',
       'GITHUB_USERNAME',
       'DEFAULT_SSH_USER',
       'DEFAULT_SSH_HOST',
       'DEFAULT_SSH_PORT',
-      'DEFAULT_SSH_KEY_PATH',
     ];
+    const CRON_UNENTITLED = ['DEFAULT_SSH_KEY_PATH', 'VULTR_SSH_KEY_PATH'];
 
-    // Every mapped variable is pinned, not just the ones a case sets: the host running the suite
-    // has its own SSH connection exported, and an unpinned variable would leak into the result.
+    // Every cron-entitled variable is pinned, not just the ones a case sets: the key set is derived
+    // from the live environment, and the host running the suite exports its own connection.
     const withEnv = (values, run) => {
-      const pinned = { ...Object.fromEntries(CRON_ENV_VARS.map((key) => [key, undefined])), ...values };
+      const entitled = Object.keys(scopeValuesFactory(process.env, 'cron'));
+      const cleared = Object.fromEntries([...CRON_ENV_VARS, ...entitled].map((key) => [key, undefined]));
+      const pinned = { ...cleared, ...values };
       const previous = {};
       for (const [key, value] of Object.entries(pinned)) {
         previous[key] = process.env[key];
@@ -765,18 +770,42 @@ describe('secret status report', () => {
       }
     };
 
-    it('maps every value the cron pods used to read off the mounted host tree', () => {
-      // The GitHub credentials and the SSH connection back to the node: exactly what
-      // `${getUnderpostRootPath()}/.env` carried into the pod before that mount was removed.
-      expect(Object.keys(sops().seedEnvKeys('underpost-cron-env')).sort()).to.deep.equal(CRON_ENV_VARS.slice().sort());
+    it('maps what the cron scope entitles the pods to, derived rather than listed', () => {
+      // The key set is the `cron` scope of whatever the host source carries, so it cannot drift
+      // from the ownership table the way a hand-written list does.
+      const set = Object.fromEntries([...CRON_ENV_VARS, ...CRON_UNENTITLED].map((key) => [key, 'set']));
+      withEnv(set, () => {
+        const mapped = Object.keys(sops().seedEnvKeys('underpost-cron-env'));
+        expect(mapped.sort()).to.include.members(CRON_ENV_VARS.slice().sort());
+        for (const key of CRON_UNENTITLED) expect(mapped, key).to.not.include(key);
+      });
+      for (const key of CRON_UNENTITLED) delete process.env[key];
+    });
+
+    it('never maps a key another scope owns, whatever the host environment carries', () => {
+      const foreign = {
+        DB_PASSWORD: 'app-secret',
+        JWT_SECRET: 'app-secret',
+        MAAS_API_KEY: 'baremetal-secret',
+        NPM_TOKEN: 'publishing-secret',
+        GF_SECURITY_ADMIN_PASSWORD: 'host-only-secret',
+      };
+      withEnv({ GITHUB_TOKEN: 'token-value', ...foreign }, () => {
+        const mapped = sops().seedEnvKeys('underpost-cron-env');
+        const values = sops().seedEnvValues('underpost-cron-env');
+        for (const key of Object.keys(foreign)) {
+          expect(mapped, key).to.not.have.property(key);
+          expect(values, key).to.not.have.property(key);
+        }
+        expect(values).to.have.property('GITHUB_TOKEN', 'token-value');
+      });
+      for (const key of Object.keys(foreign)) delete process.env[key];
     });
 
     it('reads the values out of the environment when no seed file exists', () => {
       withEnv({ GITHUB_TOKEN: 'token-value', DEFAULT_SSH_HOST: '10.0.0.4' }, () => {
-        expect(sops().seedEnvValues('underpost-cron-env')).to.deep.equal({
-          GITHUB_TOKEN: 'token-value',
-          DEFAULT_SSH_HOST: '10.0.0.4',
-        });
+        const values = sops().seedEnvValues('underpost-cron-env');
+        expect(values).to.include({ GITHUB_TOKEN: 'token-value', DEFAULT_SSH_HOST: '10.0.0.4' });
       });
     });
 
@@ -784,7 +813,10 @@ describe('secret status report', () => {
       // The cron deploy env declares DEFAULT_SSH_* with empty values; projecting those would give
       // the pod a configured-looking connection with nothing behind it.
       withEnv({ GITHUB_TOKEN: 'token-value', GITHUB_USERNAME: '', DEFAULT_SSH_KEY_PATH: '' }, () => {
-        expect(sops().seedEnvValues('underpost-cron-env')).to.deep.equal({ GITHUB_TOKEN: 'token-value' });
+        const values = sops().seedEnvValues('underpost-cron-env');
+        expect(values).to.have.property('GITHUB_TOKEN', 'token-value');
+        expect(values).to.not.have.property('GITHUB_USERNAME');
+        expect(values).to.not.have.property('DEFAULT_SSH_KEY_PATH');
       });
     });
 
@@ -846,5 +878,50 @@ describe('secret status report', () => {
         expect(Underpost.host.get('DEFAULT_SSH_HOST', undefined, { disableLog: true })).to.equal('from-file');
       });
     });
+  });
+});
+
+// The connection key is the one credential a workload cannot take as an environment variable:
+// ssh authenticates with a file. One resolver answers where that file is, so a pod and the host
+// CLI reach different keys through the same call rather than through a flag either side sets.
+describe('ssh key resolution', () => {
+  const SECRET_KEY_PATH = '/etc/underpost/secrets/ssh/id_rsa';
+  let mounted;
+
+  beforeEach(() => {
+    mounted = false;
+    delete process.env.DEFAULT_SSH_KEY_PATH;
+    vi.spyOn(fs, 'existsSync').mockImplementation((path) => (`${path}` === SECRET_KEY_PATH ? mounted : false));
+  });
+  afterEach(() => {
+    delete process.env.DEFAULT_SSH_KEY_PATH;
+    vi.restoreAllMocks();
+  });
+
+  it('takes the checkout key on a host with no mount and no configured path', () => {
+    expect(Underpost.ssh.keyPathFactory()).to.equal('./engine-private/deploy/id_rsa');
+  });
+
+  it('takes the projected Secret inside a pod, where the checkout key does not exist', () => {
+    mounted = true;
+    expect(Underpost.ssh.keyPathFactory()).to.equal(SECRET_KEY_PATH);
+  });
+
+  it('lets an explicit path win over the mount, so a caller can still name a key', () => {
+    mounted = true;
+    expect(Underpost.ssh.keyPathFactory('/tmp/other-key')).to.equal('/tmp/other-key');
+  });
+
+  // Regression: resolving the key from the ambient DEFAULT_SSH_KEY_PATH sent every node of a
+  // fleet sync the same key. On a host the key is per target — the hub answers to root's, the LAN
+  // nodes to another account's — and only the caller knows which, so an explicit path always wins.
+  it('never overrides a caller path, which is how a fleet reaches each node with its own key', () => {
+    process.env.DEFAULT_SSH_KEY_PATH = '/ambient/key';
+    mounted = true;
+    expect(Underpost.ssh.keyPathFactory('/hub/root-key')).to.equal('/hub/root-key');
+    mounted = false;
+    expect(Underpost.ssh.keyPathFactory('/hub/root-key')).to.equal('/hub/root-key');
+    // The ambient value is not a source: it names one key for a fleet that has several.
+    expect(Underpost.ssh.keyPathFactory()).to.equal('./engine-private/deploy/id_rsa');
   });
 });

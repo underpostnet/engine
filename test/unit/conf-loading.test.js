@@ -65,6 +65,9 @@ describe('deploy configuration loading', () => {
       return path === folder || files.has(path);
     });
     vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+    vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
+      [...files.keys()].filter((path) => path.startsWith(`${dir}/`)).map((path) => path.slice(`${dir}/`.length)),
+    );
     vi.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined);
     process.env.NODE_ENV = 'development';
 
@@ -72,6 +75,34 @@ describe('deploy configuration loading', () => {
 
     expect(Config.default.server).to.deep.equal({ 'dev.test': { '/': { port: 4017 } } });
     expect(Config.default.client).to.deep.equal(originalConfig.client);
+  });
+
+  // A container carries only the environment it runs: the other two are a host checkout's
+  // convenience, and materializing them writes a second and third copy of that deploy's
+  // credentials onto a tree the whole `container_t` domain can read.
+  it('materializes only the environments the checkout actually carries', () => {
+    const folder = './engine-private/conf/dd-narrow';
+    const files = new Map([
+      [`${folder}/conf.server.json`, JSON.stringify({ 'narrow.test': { '/': { port: 3000 } } })],
+      [`${folder}/.env.production`, 'DEPLOY_ID=dd-narrow\nSECRET=value\n'],
+      ['./package.json', JSON.stringify({ name: 'underpost-engine', scripts: { start: 'node bin' } })],
+      [`${folder}/package.json`, JSON.stringify({ name: 'narrow', scripts: { start: 'node bin' } })],
+    ]);
+    const written = new Map();
+    vi.spyOn(fs, 'existsSync').mockImplementation((path) => `${path}` === folder || files.has(`${path}`));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+    vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
+      [...files.keys()].filter((path) => path.startsWith(`${dir}/`)).map((path) => path.slice(`${dir}/`.length)),
+    );
+    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => written.set(`${filePath}`, `${value}`));
+    process.env.NODE_ENV = 'production';
+
+    loadConf('dd-narrow');
+
+    expect([...written.keys()].filter((path) => path.startsWith('./.env')).sort()).to.deep.equal([
+      './.env',
+      './.env.production',
+    ]);
   });
 
   it('keeps the selected production mode while applying the container overlay', () => {
@@ -88,6 +119,9 @@ describe('deploy configuration loading', () => {
 
     vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}` === folder || files.has(`${filePath}`));
     vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+    vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
+      [...files.keys()].filter((path) => path.startsWith(`${dir}/`)).map((path) => path.slice(`${dir}/`.length)),
+    );
     vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, content) => files.set(`${filePath}`, content));
     process.env.NODE_ENV = 'production';
     process.env.KUBERNETES_SERVICE_HOST = '10.96.0.1';
@@ -110,6 +144,9 @@ describe('OCI runtime env overlay', () => {
   const mockFiles = (files) => {
     vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => files.has(`${filePath}`));
     vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+    vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
+      [...files.keys()].filter((path) => path.startsWith(`${dir}/`)).map((path) => path.slice(`${dir}/`.length)),
+    );
   };
 
   afterEach(() => {

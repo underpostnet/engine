@@ -14,6 +14,7 @@ import { domainContextFactory } from './domains.js';
 import { readDeployRoutes, resolveDeployList } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { activeExecutionProfile } from '../server/build/execution.js';
+import { scopeValuesFactory } from '../server/runtime/config-scope.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -91,6 +92,10 @@ const ORIGIN_SEED_FILES = {
   // Optional: when these files are absent the values fall back to the environment the host CLI
   // already carries (see SECRET_ENV_KEYS), which is where they live today.
   'underpost-cron-env': { GITHUB_TOKEN: 'github-token', GITHUB_USERNAME: 'github-username' },
+  // The connection key the cron workloads SSH out with, mounted as a volume rather than injected
+  // as env: ssh authenticates with a file, and a private key in the environment is readable from
+  // every process listing and every log that dumps it.
+  'underpost-ssh-key': { 'id-rsa': 'id_rsa' },
 };
 
 /** Normalizes a registry entry to `{ file, json }`. */
@@ -122,19 +127,20 @@ const SECRET_ENV_KEYS = {
   // reached the CronJob pods by bind-mounting the operator's global underpost directory out of
   // root's home, which no unprivileged container can read once SELinux is Enforcing — and which
   // exposed far more of that tree than the two values actually needed.
-  'underpost-cron-env': {
-    GITHUB_TOKEN: 'GITHUB_TOKEN',
-    GITHUB_USERNAME: 'GITHUB_USERNAME',
-    // The SSH connection back to the node. `sshRemoteRunner` resolves these through
-    // `underpost host get`, whose store is a file next to the global installation — a file the
-    // pod used to receive by mounting root's npm tree. They are values, not a directory, so they
-    // travel as a Secret; `dotenvStoreFactory.get` falls back to the environment to read them.
-    DEFAULT_SSH_USER: 'DEFAULT_SSH_USER',
-    DEFAULT_SSH_HOST: 'DEFAULT_SSH_HOST',
-    DEFAULT_SSH_PORT: 'DEFAULT_SSH_PORT',
-    DEFAULT_SSH_KEY_PATH: 'DEFAULT_SSH_KEY_PATH',
-  },
 };
+
+/**
+ * Secrets whose key set is a configuration scope rather than a fixed list.
+ *
+ * The cron workloads receive their whole runtime environment this way, so the Secret has to say
+ * *which* environment rather than enumerate it: a hand-written list drifts from the jobs that read
+ * it, and every key it gains is a key nobody reviewed. {@link scopeValuesFactory} answers it from
+ * {@link ConfigScope.CONFIG_OWNERSHIP}, which is where widening a workload's access is a visible
+ * edit. Everything outside the scope — the provisioning credentials, the registry identities, the
+ * deployments' own databases — is not in the projection and cannot be.
+ * @memberof UnderpostSecret
+ */
+const SECRET_ENV_SCOPES = Object.freeze({ 'underpost-cron-env': 'cron' });
 
 // Shell/runtime-critical and Kubernetes-injected env keys that must never be persisted as
 // application secrets nor injected into a pod via `envFrom`. An injected PATH (or HOME, etc.)
@@ -895,9 +901,14 @@ UNDERPOST_SOPS_ENV_EOF`,
       return values;
     },
 
-    /** Environment keys that seed a managed Secret. */
+    /**
+     * Environment keys that seed a managed Secret: a fixed mapping, or every key the Secret's
+     * configuration scope entitles it to.
+     */
     seedEnvKeys(name) {
-      return { ...(SECRET_ENV_KEYS[name] || {}) };
+      const scope = SECRET_ENV_SCOPES[name];
+      if (!scope) return { ...(SECRET_ENV_KEYS[name] || {}) };
+      return Object.fromEntries(Object.keys(scopeValuesFactory(process.env, scope)).map((key) => [key, key]));
     },
 
     /** Resolves present environment-backed seed values without logging them. */
@@ -956,7 +967,12 @@ UNDERPOST_SOPS_ENV_EOF`,
       // none, so a partial set of those still fails. A key with an environment fallback is
       // ambient — a host that has registered no SSH connection simply contributes nothing, and
       // the workload reports its own missing configuration rather than the apply refusing to run.
-      const missingRequired = fileKeys.filter((key) => !(key in envKeys) && values[key] === undefined);
+      // A scope-backed secret is ambient in whole: its key set is whatever the host environment
+      // carries within the scope, so a key absent from this host is a host that does not set it,
+      // never an incomplete credential. Only a fixed file mapping can be half-present.
+      const missingRequired = SECRET_ENV_SCOPES[name]
+        ? []
+        : fileKeys.filter((key) => !(key in envKeys) && values[key] === undefined);
       if (missingRequired.length > 0)
         throw new Error(
           `[${name}] incomplete origin seed: ${missingRequired.map((key) => sources[key]).join(', ')} missing`,
