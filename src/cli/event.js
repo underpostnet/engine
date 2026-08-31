@@ -1900,26 +1900,61 @@ class UnderpostEvent {
      * systemd refuses to execute a binary under `/root` or `/home` on an SELinux
      * host, and the failure surfaces only as 203/EXEC in the journal. Probing
      * with a transient unit reproduces the constraint before one is installed.
-     * @returns {{path: string, probed: boolean}} Chosen path, and whether a probe confirmed it.
+     *
+     * Each rejection carries its reason, because the three ways a candidate fails need three
+     * different answers from whoever reads them: a binary that is not installed, one too old for
+     * the checkout, and one systemd cannot reach or cannot run the entry script with.
+     * @returns {{path: string, probed: boolean, rejected: Array<{candidate: string, reason: string}>}}
+     *   Chosen path, whether a probe confirmed it, and why each earlier candidate was passed over.
      * @memberof UnderpostEvent
      */
     serviceNodePath() {
+      const read = (command) =>
+        `${shellExec(command, { stdout: true, silent: true, silentOnError: true, disableLog: true }) || ''}`.trim();
       const ok = (command) =>
         shellExec(command, { silent: true, silentOnError: true, disableLog: true, stdout: false }).code === 0;
-      const candidates = [...new Set([process.execPath, ...nodeCandidatesFactory()])];
-      for (const path of candidates)
+      const requiredMajor = Number(`${process.versions.node}`.split('.')[0]) || 0;
+      const candidates = nodeCandidatesFactory();
+      const rejected = [];
+
+      for (const path of candidates) {
+        const major = Number(read(`${path} --version`).replace(/^v/, '').split('.')[0]) || 0;
+        if (major < requiredMajor) {
+          rejected.push({
+            candidate: path,
+            reason: major ? `runs Node v${major}, the engine needs v${requiredMajor}` : 'not present',
+          });
+          continue;
+        }
+        if (!ok(nodeProbeCommandFactory(path))) {
+          rejected.push({
+            candidate: path,
+            reason: homeDirectoryPathFactory(path)
+              ? 'systemd cannot execute it: it is under a home directory, whose SELinux label a unit cannot enter'
+              : 'systemd cannot execute it',
+          });
+          continue;
+        }
         if (
-          ok(nodeProbeCommandFactory(path)) &&
-          ok(
+          !ok(
             scriptProbeCommandFactory({
               nodePath: path,
               scriptPath: process.argv[1],
               workingDirectory: process.cwd(),
             }),
           )
-        )
-          return { path, probed: true };
-      return { path: candidates[0] || process.execPath, probed: false };
+        ) {
+          rejected.push({
+            candidate: path,
+            reason: homeDirectoryPathFactory(process.cwd())
+              ? `it cannot run ${process.argv[1]}: the checkout is under a home directory, which a unit cannot read on an SELinux host`
+              : `it cannot run ${process.argv[1]}`,
+          });
+          continue;
+        }
+        return { path, probed: true, rejected };
+      }
+      return { path: candidates[0] || process.execPath, probed: false, rejected };
     },
 
     /**
@@ -1973,11 +2008,17 @@ class UnderpostEvent {
       Underpost.event.assertDispatchReady();
 
       const node = Underpost.event.serviceNodePath();
-      if (!node.probed)
+      if (!node.probed) {
+        logger.error('No Node binary the dispatcher service can execute', {
+          requires: `Node v${`${process.versions.node}`.split('.')[0]}`,
+          rejected: node.rejected,
+          fix: 'install Node system-wide, then re-run: curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash - && sudo dnf install -y nodejs',
+        });
         throw new Error(
           `[event] no Node executable can run ${process.argv[1]} from ${process.cwd()} under systemd; ` +
             'install Node system-wide or move the checkout outside /root and /home',
         );
+      }
       const port = Number(options.port) || UNDERPOST_MONITORING.eventWebhook.port;
       const unit = Underpost.event.serviceUnitFactory({
         port,

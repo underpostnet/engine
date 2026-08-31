@@ -831,17 +831,48 @@ describe('dispatcher service', () => {
     expect(UnderpostEvent.API.serviceJournal(5)).to.equal('log line\n');
   });
 
-  // systemd refuses a binary under /root or /home on an SELinux host, and the
-  // failure surfaces only as 203/EXEC in the journal.
-  it('probes a Node binary with a transient unit before installing one', () => {
+  // systemd refuses a binary under /root or /home on an SELinux host, and the failure surfaces
+  // only as 203/EXEC in the journal — which is why every candidate is probed with a transient
+  // unit, and why each rejection has to say which of the three ways it failed.
+  const currentMajor = `${process.versions.node}`.split('.')[0];
+
+  it('selects a system Node new enough for the checkout, over one under a home directory', () => {
+    harness.route({ match: '--version', code: 0, stdout: `v${currentMajor}.0.0\n` });
     const probed = UnderpostEvent.API.serviceNodePath();
-    expect(probed).to.include({ probed: true });
-    expect(probed.path).to.equal(process.execPath);
+    expect(probed.probed).to.equal(true);
+    expect(probed.path).to.equal('/usr/bin/node');
+  });
+
+  it('passes over a Node older than the engine requires, naming the version it found', () => {
+    harness.route({ match: '--version', code: 0, stdout: 'v18.0.0\n' });
+    const result = UnderpostEvent.API.serviceNodePath();
+    expect(result.probed).to.equal(false);
+    expect(result.rejected[0].reason).to.include('runs Node v18, the engine needs');
+  });
+
+  it('separates a binary systemd cannot execute from one it can', () => {
+    harness.route({ match: '--version', code: 0, stdout: `v${currentMajor}.0.0\n` });
+    harness.route({ match: 'systemd-run', code: 1 });
+    const result = UnderpostEvent.API.serviceNodePath();
+    expect(result.probed).to.equal(false);
+    expect(result.rejected.map(({ reason }) => reason)).to.satisfy((reasons) =>
+      reasons.every((reason) => reason.startsWith('systemd cannot execute it')),
+    );
+  });
+
+  it('names the entry script when the unit can execute Node but not run the checkout', () => {
+    harness.route({ match: '--version', code: 0, stdout: `v${currentMajor}.0.0\n` });
+    harness.route({ match: 'WorkingDirectory', code: 1 });
+    const result = UnderpostEvent.API.serviceNodePath();
+    expect(result.probed).to.equal(false);
+    expect(result.rejected[0].reason).to.include('it cannot run');
   });
 
   it('falls back to the first candidate when no probe succeeds', () => {
     harness.route({ match: '', code: 1 });
-    expect(UnderpostEvent.API.serviceNodePath()).to.include({ path: process.execPath, probed: false });
+    const result = UnderpostEvent.API.serviceNodePath();
+    expect(result).to.include({ path: '/usr/bin/node', probed: false });
+    expect(result.rejected[0].reason).to.equal('not present');
   });
 });
 
