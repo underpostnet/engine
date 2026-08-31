@@ -1117,7 +1117,7 @@ describe('dispatcher service reconciliation', () => {
   it('refuses to install the dispatcher anywhere but a control node', () => {
     vi.spyOn(UnderpostEvent.API, 'serviceInstalledPort').mockReturnValue(0);
     eventFixture({ hostname: 'hub-node' });
-    expect(() => UnderpostEvent.API.service({})).to.throw('must run on a WireGuard control node');
+    expect(() => UnderpostEvent.API.service({})).to.throw("requires 'event-service'");
   });
 
   it('refuses to install a unit no Node binary can start', () => {

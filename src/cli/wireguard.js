@@ -23,6 +23,7 @@ import {
   forwardProxyStartProbeCommandFactory,
   forwardProxyUnitFactory,
 } from '../server/network/forward-proxy.js';
+import { assertRoleCapability } from '../server/network/node-capability.js';
 import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { nodeExporterServiceScriptFactory } from '../server/ops/monitoring.js';
 import { installRootFile, pbcopy, shellExec, sleepSync } from '../server/runtime/process.js';
@@ -2019,7 +2020,7 @@ class UnderpostWireguard {
       if (conflicts.length > 0)
         logger.warn('Hostnames claimed by more than one deploy; only the first is served', { conflicts });
       const state = readEdgeContext();
-      if (state.role !== 'hub') throw new Error('[wireguard] HAProxy routing can be published only on the hub');
+      assertRoleCapability({ role: state.role, capability: 'haproxy', operation: 'wireguard --haproxy-sync' });
       const defaultPeer = defaultPeerFactory(state.peers);
       const maps = haproxyMapsFactory({ routes });
       const conf = haproxyConfFactory({
@@ -2107,7 +2108,11 @@ class UnderpostWireguard {
      */
     forwardProxyConfig(options = {}) {
       const state = readEdgeContext();
-      if (state.role !== 'hub') throw new Error('[wireguard] --forward-proxy-server runs only on the hub');
+      assertRoleCapability({
+        role: state.role,
+        capability: 'forward-proxy',
+        operation: 'wireguard --forward-proxy-server',
+      });
       const config = forwardProxyConfigFactory({
         host: `${options.forwardProxyServerHost || ''}`.trim() || tunnelAddressFactory(state.address),
         port: options.forwardProxyServerPort,
@@ -2601,6 +2606,25 @@ class UnderpostWireguard {
       }
 
       return { ok: nodes.every((node) => node.ok), nodes };
+    },
+
+    /**
+     * @method localRole
+     * @description This machine's node role, or `''` when it is not a fleet node.
+     *
+     * The empty answer is the meaningful one: a workstation or CI runner has no node document, and
+     * is not a node whose capabilities can be checked. Callers gate on a role when there is one and
+     * leave an off-fleet machine alone, so authorization follows where an operation executes rather
+     * than which module it lives in.
+     * @returns {string} `hub`, `control`, `worker`, or `''`.
+     * @memberof UnderpostWireguard
+     */
+    localRole() {
+      try {
+        return readEdgeContext().role || '';
+      } catch {
+        return '';
+      }
     },
 
     /**

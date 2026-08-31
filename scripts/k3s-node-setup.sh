@@ -97,7 +97,7 @@ cd "$ENGINE_ROOT"
 
 # Install JS deps and generate secrets using the local engine entrypoint only.
 npm install
-node bin secret --from-cron-env
+# Cluster Secret administration is a control-plane capability, not part of node bring-up.
 
 if [ "$ROLE" = "control" ]; then
     echo "Installing underpost CLI..."

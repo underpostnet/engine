@@ -772,6 +772,12 @@ class UnderpostCron {
       }
 
       if (options.apply) {
+        // Publishing is the privileged half: it stages credentials on the node and writes cluster
+        // resources. Generating manifests is neither, which is why the gate is here and not around
+        // the whole command — a workstation or CI runner has no node role and keeps working.
+        const role = Underpost.wireguard.localRole();
+        if (role) assertRoleCapability({ role, capability: 'cron-publication', operation: 'cron --apply' });
+
         // A nodeSelector naming a node that is not registered leaves every Job Pending at its
         // next fire, silently. Warn rather than throw: the node may join before the schedule.
         if (nodeName && !nodeExists(nodeName))

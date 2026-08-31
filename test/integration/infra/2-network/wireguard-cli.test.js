@@ -630,7 +630,7 @@ describe('edge host provisioning', () => {
         },
         hostname: 'control-node',
       });
-      expect(() => UnderpostWireguard.API.haproxySync({})).to.throw('only on the hub');
+      expect(() => UnderpostWireguard.API.haproxySync({})).to.throw("requires 'haproxy'");
     });
 
     it('installs, publishes and enables the daemon in one pass', () => {
@@ -786,7 +786,7 @@ describe('edge host provisioning', () => {
 
     it('refuses to run on a spoke', () => {
       edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
-      expect(() => withApiKey(() => UnderpostWireguard.API.forwardProxyConfig({}))).to.throw('runs only on the hub');
+      expect(() => withApiKey(() => UnderpostWireguard.API.forwardProxyConfig({}))).to.throw("requires 'forward-proxy'");
     });
 
     it('names the ways to configure the key when it is unset', () => {

@@ -61,6 +61,7 @@ import {
   readTopology,
   tunnelAddressFactory,
 } from './wireguard.js';
+import { assertRoleCapability } from '../server/network/node-capability.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -2000,10 +2001,11 @@ class UnderpostEvent {
         return { service: EVENT_SERVICE.name, active: 'inactive', enabled: 'disabled' };
       }
 
-      if (readEdgeContext().role !== 'control')
-        throw new Error(
-          '[event] the dispatcher must run on a WireGuard control node; remove it elsewhere with --service-stop',
-        );
+      assertRoleCapability({
+        role: readEdgeContext().role,
+        capability: 'event-service',
+        operation: 'event --service (remove it elsewhere with --service-stop)',
+      });
 
       Underpost.event.assertDispatchReady();
 

@@ -269,10 +269,8 @@ fi
 
 cd "$ENGINE_ROOT"
 
-# Clone + normalize the private secrets repo into $ENGINE_ROOT/engine-private
-# (where `node bin secret --from-cron-env` reads engine-private/conf/.../.env.production),
-# regardless of the private repo's name. The token is masked in logs and then
-# stripped from the saved remote URL.
+# Clone + normalize the private secrets repo into $ENGINE_ROOT/engine-private, regardless of the
+# private repo's name. The token is masked in logs and then stripped from the saved remote URL.
 if [ -n "$GITHUB_TOKEN" ]; then
     PRIV_URL="https://${GITHUB_USERNAME:-x-access-token}:${GITHUB_TOKEN}@${ENGINE_PRIVATE_REPO#https://}"
     if clone_or_pull "$PRIV_URL" "$ENGINE_PRIVATE_BRANCH" "$ENGINE_ROOT/engine-private" "origin" "$GITHUB_TOKEN"; then
@@ -285,10 +283,11 @@ else
     log "WARNING: GITHUB_TOKEN not provided; engine-private not cloned — secrets will be unavailable"
 fi
 
-# Install JS deps and generate secrets using the local engine entrypoint.
+# Install JS deps using the local engine entrypoint. Cluster Secret administration is not part of
+# node bring-up: it is a control-plane capability, projected by `cron --setup-start --apply` on the
+# control node. A worker joining the cluster has no business writing cluster-wide Secrets.
 npm install
 npm install -g underpost
-node bin secret --from-cron-env
 
 # ---------------------------------------------------------------------------
 # 3. Host prerequisites (Docker, CRI-O, kubelet/kubeadm/kubectl, ...) via cluster.js
