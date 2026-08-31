@@ -70,7 +70,7 @@
     "ag-grid-community": "^36.1.0",
     "allure-vitest": "3.10.2",
     "axios": "^1.19.0",
-    "bumpp": "^12.2.1",
+    "bumpp": "^12.2.2",
     "chai": "^6.2.2",
     "clipboardy": "^5.3.2",
     "cloudinary": "^2.10.1",
