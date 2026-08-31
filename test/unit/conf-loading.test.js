@@ -22,6 +22,8 @@ describe('deploy configuration loading', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalSubConf = process.env.DEPLOY_SUB_CONF;
   const originalDeployId = process.env.DEPLOY_ID;
+  const originalKubernetesHost = process.env.KUBERNETES_SERVICE_HOST;
+  const originalRuntimeFixture = process.env.CONF_RUNTIME_FIXTURE;
   const originalConfig = structuredClone(Config.default);
 
   afterEach(() => {
@@ -29,6 +31,8 @@ describe('deploy configuration loading', () => {
     restoreEnv('NODE_ENV', originalNodeEnv);
     restoreEnv('DEPLOY_SUB_CONF', originalSubConf);
     restoreEnv('DEPLOY_ID', originalDeployId);
+    restoreEnv('KUBERNETES_SERVICE_HOST', originalKubernetesHost);
+    restoreEnv('CONF_RUNTIME_FIXTURE', originalRuntimeFixture);
     for (const key of Object.keys(Config.default)) delete Config.default[key];
     Object.assign(Config.default, structuredClone(originalConfig));
   });
@@ -68,6 +72,32 @@ describe('deploy configuration loading', () => {
 
     expect(Config.default.server).to.deep.equal({ 'dev.test': { '/': { port: 4017 } } });
     expect(Config.default.client).to.deep.equal(originalConfig.client);
+  });
+
+  it('keeps the selected production mode while applying the container overlay', () => {
+    const folder = './engine-private/conf/dd-runtime';
+    const files = new Map([
+      [`${folder}/conf.server.json`, JSON.stringify({ 'runtime.test': { '/': { port: 3000 } } })],
+      [`${folder}/.env.production`, 'DEPLOY_ID=dd-runtime\nNODE_ENV=development\nCONF_RUNTIME_FIXTURE=host\n'],
+      [`${folder}/.env.production.oci`, 'CONF_RUNTIME_FIXTURE=container\n'],
+      [`${folder}/.env.development`, 'DEPLOY_ID=dd-runtime\nNODE_ENV=development\n'],
+      [`${folder}/.env.test`, 'DEPLOY_ID=dd-runtime\nNODE_ENV=test\n'],
+      [`${folder}/package.json`, JSON.stringify({ name: 'runtime', scripts: { start: 'node src/server' } })],
+      ['./package.json', JSON.stringify({ name: 'engine', scripts: { prod: 'node src/server' } })],
+    ]);
+
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}` === folder || files.has(`${filePath}`));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, content) => files.set(`${filePath}`, content));
+    process.env.NODE_ENV = 'production';
+    process.env.KUBERNETES_SERVICE_HOST = '10.96.0.1';
+
+    loadConf('dd-runtime');
+
+    expect(process.env.NODE_ENV).to.equal('production');
+    expect(process.env.CONF_RUNTIME_FIXTURE).to.equal('container');
+    expect(files.get('./.env')).to.include('CONF_RUNTIME_FIXTURE=container');
+    expect(files.get('./.env')).to.not.include('CONF_RUNTIME_FIXTURE=host');
   });
 });
 

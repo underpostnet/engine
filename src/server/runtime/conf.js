@@ -23,6 +23,7 @@ import { loggerFactory } from '../ops/logger.js';
 import { isOciRuntime, writeEnv } from './environment.js';
 import { shellArgumentFactory, shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from '../network/underpost-gateway.js';
+import { COVERAGE_BUNDLE_DIRECTORY } from '../build/coverage.js';
 import { DefaultConf } from '../../../conf.js';
 import splitFile from 'split-file';
 import { readDeployRoutes } from '../network/router.js';
@@ -587,13 +588,14 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   // NODE_ENV still reads container values rather than the host endpoints of the base file.
   for (const envName of ['production', 'development', 'test'])
     fs.writeFileSync(`./.env.${envName}`, deployEnvContentFactory(deployId, envName).content, 'utf8');
-  const NODE_ENV = process.env.NODE_ENV || 'development';
-  if (NODE_ENV) {
-    const { content, values } = deployEnvContentFactory(deployId, NODE_ENV, subConf);
+  const envName = process.env.NODE_ENV || 'development';
+  if (envName) {
+    const { content, values } = deployEnvContentFactory(deployId, envName, subConf);
     fs.writeFileSync(`./.env`, content, 'utf8');
     process.env = {
       ...process.env,
       ...values,
+      NODE_ENV: envName,
     };
   }
   const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
@@ -3254,6 +3256,11 @@ git init
 git config user.name '${username}'
 git config user.email 'development@underpost.net'
 git add -A .`);
+
+  // The bundled coverage report is a build output the artifact has to carry: force-added so a
+  // tree-level ignore rule can never silently drop it from the published source.
+  if (fs.existsSync(`${publishPath}/${COVERAGE_BUNDLE_DIRECTORY}`))
+    shellExec(`cd ${publishPath} && git add -A -f ${COVERAGE_BUNDLE_DIRECTORY}`);
 
   const hasChanges = shellExec(`node bin cmt ${publishPath} --has-changes`, {
     stdout: true,
