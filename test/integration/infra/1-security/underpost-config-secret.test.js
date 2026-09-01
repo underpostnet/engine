@@ -53,6 +53,41 @@ describe('underpost-config secret', () => {
       for (const action of ['setup', 'load', 'publish', 'apply', 'status', 'rotate', 'clean'])
         expect(domain[action], action).to.be.a('function');
   });
+
+  // Regression: `apply`, `status` and `publish` read/wrote `envPath()` directly — the legacy,
+  // now-retired unsplit file — instead of composing through `read()`/`sourceLabel()`. On a node
+  // the scope migration has already run on, `deploy sync` failed at the exact line the real hub
+  // hit: `[host] configuration source not found: ./engine-private/conf/dd-cron/.env.production`,
+  // even though 86 keys were sitting right there in the scoped sources.
+  describe('post-migration source resolution', () => {
+    it('does not require the legacy file once scoped sources cover the environment', () => {
+      expect(host().hasDualSource('production')).to.equal(false);
+      expect(fs.existsSync(host().envPath('production'))).to.equal(false);
+      expect(Object.keys(host().read('production')).length).to.be.greaterThan(0);
+    });
+
+    it('apply resolves the source through read(), not the legacy path', () => {
+      expect(() => host().apply({ env: 'production', namespace: 'default', dryRun: true })).to.not.throw();
+    });
+
+    it('status reports the scoped sources as present and authoritative', () => {
+      const report = host().status({ env: 'production', namespace: 'default' });
+      expect(report.sourcePresent).to.equal(true);
+      expect(report.keys).to.be.greaterThan(0);
+      expect(report.source).to.include('/scopes/');
+      expect(report.dualSource).to.equal(false);
+    });
+
+    it('publish refuses to silently overwrite an existing scoped source', () => {
+      expect(() => host().publish({ env: 'production' })).to.throw('already exist');
+      expect(fs.existsSync(host().envPath('production'))).to.equal(false);
+    });
+
+    it('publish never recreates the legacy source, even when forced', () => {
+      expect(() => host().publish({ env: 'production', force: true, dryRun: true })).to.not.throw();
+      expect(fs.existsSync(host().envPath('production'))).to.equal(false);
+    });
+  });
 });
 
 describe('ipfs cluster origin credentials', () => {

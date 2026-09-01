@@ -257,7 +257,7 @@ class UnderpostHost {
         username: `${values.GF_SECURITY_ADMIN_USER || ''}`.trim(),
         password: `${values.GF_SECURITY_ADMIN_PASSWORD || ''}`,
         email: `${values.GF_SECURITY_ADMIN_EMAIL || ''}`.trim(),
-        envPath: UnderpostHost.API.envPath(env),
+        envPath: UnderpostHost.API.sourceLabel(env),
       };
       if (options.required !== false) {
         const missing = [
@@ -517,26 +517,32 @@ class UnderpostHost {
     /**
      * Writes the host configuration store back into the durable host configuration source.
      *
-     * The inverse of `load`. Refuses to overwrite an existing source without `--force`, because
-     * the host configuration store on a node is a projection and can be narrower than the file it came from.
+     * The inverse of `load`. Writes each key into the scope that owns it — there is no file that
+     * takes all of them — so this can never recreate the legacy unsplit source, migrated away from
+     * in {@link UnderpostHost.retireLegacySource}. `--force` still governs overwriting an existing
+     * scoped source, the same guarantee the single-file version made per file.
      * @param {object} context - Normalized domain context.
      * @returns {{target: string, keys: number}} What was written.
      * @memberof UnderpostHost
      */
     publish(context = {}) {
       context = domainContextFactory(context);
-      const target = UnderpostHost.API.envPath(context.env);
+      const env = context.env || 'production';
       const values = UnderpostHost.API.store.list(undefined, undefined, { disableLog: true });
       const keys = Object.keys(values);
       if (keys.length === 0) throw new Error('[host] the host configuration store is empty; nothing to publish');
-      if (fs.existsSync(target) && !context.force)
-        throw new Error(`[host] ${target} already exists; re-run with --force to overwrite it`);
-      if (context.dryRun) {
-        logger.info('[dry-run] host publish would write', { target, keys: keys.length });
-        return { target, keys: keys.length };
+      if (!context.force) {
+        const existing = UnderpostHost.API.scopedSources(env).map(({ path }) => path);
+        if (existing.length > 0)
+          throw new Error(`[host] ${existing.join(', ')} already exist; re-run with --force to overwrite them`);
       }
-      writeEnv(target, values);
-      logger.info('Host configuration published', { target, keys: keys.length });
+      const written = UnderpostHost.API.writeScopes(values, { ...context, env });
+      const target = UnderpostHost.API.sourceLabel(env);
+      logger.info(context.dryRun ? '[dry-run] host publish would write' : 'Host configuration published', {
+        target,
+        keys: keys.length,
+        scopes: written.length,
+      });
       return { target, keys: keys.length };
     },
 
@@ -547,26 +553,36 @@ class UnderpostHost {
      * Applying it before a deploy is what makes the pod resolve the requested `NODE_ENV`: the
      * container reads it back through `load`, so a stale Secret means a stale environment.
      * Idempotent — delete-then-apply converges on the current source.
+     *
+     * Reads through {@link UnderpostHost.read}, the one composition of the durable source: scoped
+     * files where the migration has run, the legacy file otherwise. Staged on tmpfs rather than
+     * beside the source, because the source is no longer necessarily one file to stage beside.
      * @param {object} context - Normalized domain context.
      * @returns {{secret: string, namespace: string, env: string}} What was projected.
      * @memberof UnderpostHost
      */
     apply(context = {}) {
       context = domainContextFactory(context);
-      const envFilePath = UnderpostHost.API.envPath(context.env);
-      if (!fs.existsSync(envFilePath)) throw new Error(`[host] configuration source not found: ${envFilePath}`);
+      const source = UnderpostHost.API.sourceLabel(context.env);
+      const values = UnderpostHost.API.read(context.env);
+      if (Object.keys(values).length === 0) throw new Error(`[host] configuration source not found: ${source}`);
       if (context.dryRun) {
         logger.info('[dry-run] host apply would publish the Secret', {
           secret: UNDERPOST_CONFIG_SECRET,
           namespace: context.namespace,
-          source: envFilePath,
+          source,
         });
         return { secret: UNDERPOST_CONFIG_SECRET, namespace: context.namespace, env: context.env };
       }
       // `--from-env-file` turns every KEY=VALUE into a secret key the Deployment injects via
-      // `envFrom`, so the file is sanitized before it is handed to kubectl.
-      const sanitizedEnvPath = `${envFilePath}.secret`;
-      fs.writeFileSync(sanitizedEnvPath, UnderpostHost.API.sanitizeEnvFile(fs.readFileSync(envFilePath, 'utf8')));
+      // `envFrom`, so reserved keys are filtered before the file is handed to kubectl.
+      const sanitized = Object.fromEntries(Object.entries(values).filter(([key]) => !isReservedEnvKey(key)));
+      const stageDir = '/dev/shm/underpost-host-apply';
+      fs.mkdirpSync(stageDir, { mode: 0o700 });
+      fs.chmodSync(stageDir, 0o700);
+      const sanitizedEnvPath = `${stageDir}/${context.namespace}.env`;
+      writeEnv(sanitizedEnvPath, sanitized);
+      fs.chmodSync(sanitizedEnvPath, 0o600);
       try {
         shellExec(`kubectl delete secret ${UNDERPOST_CONFIG_SECRET} -n ${context.namespace} --ignore-not-found`);
         shellExec(
@@ -575,7 +591,7 @@ class UnderpostHost {
       } finally {
         fs.removeSync(sanitizedEnvPath);
       }
-      logger.info('Host configuration applied', { env: context.env, namespace: context.namespace });
+      logger.info('Host configuration applied', { env: context.env, namespace: context.namespace, source });
       return { secret: UNDERPOST_CONFIG_SECRET, namespace: context.namespace, env: context.env };
     },
 
@@ -588,8 +604,9 @@ class UnderpostHost {
      */
     status(context = {}) {
       context = domainContextFactory(context);
-      const source = UnderpostHost.API.envPath(context.env);
-      const present = fs.existsSync(source);
+      const source = UnderpostHost.API.sourceLabel(context.env);
+      const keys = Object.keys(UnderpostHost.API.read(context.env)).length;
+      const legacyPresent = fs.existsSync(UnderpostHost.API.envPath(context.env));
       const projected = shellExec(`kubectl get secret ${UNDERPOST_CONFIG_SECRET} -n ${context.namespace} -o name`, {
         silent: true,
         stdout: true,
@@ -602,12 +619,13 @@ class UnderpostHost {
         namespace: context.namespace,
         deployId: cronDeployIdResolve() || 'dd-cron',
         source,
-        sourcePresent: present,
-        keys: present ? Object.keys(UnderpostHost.API.read(context.env)).length : 0,
+        sourcePresent: keys > 0,
+        keys,
+        dualSource: UnderpostHost.API.hasDualSource(context.env),
         clusterSecret: `${projected ?? ''}`.trim() ? UNDERPOST_CONFIG_SECRET : null,
       };
       logger.info('host status', report);
-      if (present) UnderpostHost.API.verifySplit(context);
+      if (legacyPresent) UnderpostHost.API.verifySplit(context);
       return report;
     },
 

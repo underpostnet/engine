@@ -288,8 +288,11 @@ describe('underpost-config secret', () => {
     expect(Underpost.host.envPath('production')).to.equal('./engine-private/conf/dd-fixture-cron/.env.production');
   });
 
-  it('republishes the secret from the sanitized env file and removes the staged copy', () => {
+  it('republishes the secret from a sanitized copy staged on tmpfs, then removes it', () => {
+    // Staged off tmpfs rather than beside the source: the source composes from one file per
+    // scope once the migration has run, and there is no longer one file to stage next to.
     const harness = shellHarness();
+    const stagedPath = '/dev/shm/underpost-host-apply/ops.env';
     const { written, removed } = secretFixture({
       [CRON_ID_PATH]: 'dd-cron',
       './engine-private/conf/dd-cron/.env.production': 'PATH=/usr/bin\nAPP_SECRET=value\n',
@@ -297,9 +300,9 @@ describe('underpost-config secret', () => {
     try {
       Underpost.host.apply({ env: 'production', namespace: 'ops' });
       expect(harness.ran('kubectl delete secret underpost-config -n ops --ignore-not-found')).to.equal(true);
-      expect(harness.ran('--from-env-file=./engine-private/conf/dd-cron/.env.production.secret')).to.equal(true);
-      expect(removed).to.include('./engine-private/conf/dd-cron/.env.production.secret');
-      expect(written.has('./engine-private/conf/dd-cron/.env.production.secret')).to.equal(false);
+      expect(harness.ran(`--from-env-file=${stagedPath}`)).to.equal(true);
+      expect(removed).to.include(stagedPath);
+      expect(written.has(stagedPath)).to.equal(false);
     } finally {
       harness.restore();
     }
