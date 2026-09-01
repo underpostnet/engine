@@ -44,21 +44,28 @@ const sources = () =>
       .join('\n'),
   }));
 
+// The assembled payloads live in `deploy/dd-*`, which the base template does not restore: only
+// the `lib/` helper they call survives there, with no call site to resolve it from.
+const shipsDeployIdScripts = globSync('deploy/dd-*/*.sh').length > 0;
+
 describe('in-pod CLI surface', () => {
   it('finds the `--cmd` payloads it is meant to guard', () => {
     const found = sources().flatMap(({ source }) => inPodCommands(source));
     expect(found.length, 'no --cmd payloads located; the extractor has drifted').to.be.greaterThan(0);
   });
 
-  it('resolves a payload assembled into a variable, not just a literal at the --cmd site', () => {
-    // Regression guard for the guard: `--cmd '${pod_cmd}'` is opaque to a literal-only scan, so
-    // the commands it stands for have to be reachable from the assignment and from the shared
-    // helper that builds its prefix.
-    const all = sources().flatMap(({ source }) => inPodCommands(source));
-    expect(all.some((command) => command.includes('pod_bootstrap_cmd'))).to.equal(true);
-    expect(all.some((command) => command.includes('npm link --force'))).to.equal(true);
-    expect(all.some((command) => command.includes('underpost start'))).to.equal(true);
-  });
+  it.skipIf(!shipsDeployIdScripts)(
+    'resolves a payload assembled into a variable, not just a literal at the --cmd site',
+    () => {
+      // Regression guard for the guard: `--cmd '${pod_cmd}'` is opaque to a literal-only scan, so
+      // the commands it stands for have to be reachable from the assignment and from the shared
+      // helper that builds its prefix.
+      const all = sources().flatMap(({ source }) => inPodCommands(source));
+      expect(all.some((command) => command.includes('pod_bootstrap_cmd'))).to.equal(true);
+      expect(all.some((command) => command.includes('npm link --force'))).to.equal(true);
+      expect(all.some((command) => command.includes('underpost start'))).to.equal(true);
+    },
+  );
 
   it('never names surface a deployed image cannot have', () => {
     // A `--cmd` payload runs against the engine baked into the image, not this checkout. Naming

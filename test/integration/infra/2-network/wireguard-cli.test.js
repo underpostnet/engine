@@ -17,6 +17,10 @@ import UnderpostRepository from '../../../../src/cli/repository.js';
 import { FORWARD_PROXY } from '../../../../src/server/network/forward-proxy.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
+// Emitted only when this checkout ships the script it names, so the case needs a tree that
+// carries the deploy: the base template restores no deploy id of its own.
+const shipsCyberiaPackageScript = fs.existsSync('./deploy/dd-cyberia/package.sh');
+
 const NODES_PATH = './engine-private/deploy/nodes';
 const ROUTES_PATH = './engine-private/deploy/dd.routes';
 
@@ -786,7 +790,9 @@ describe('edge host provisioning', () => {
 
     it('refuses to run on a spoke', () => {
       edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
-      expect(() => withApiKey(() => UnderpostWireguard.API.forwardProxyConfig({}))).to.throw("requires 'forward-proxy'");
+      expect(() => withApiKey(() => UnderpostWireguard.API.forwardProxyConfig({}))).to.throw(
+        "requires 'forward-proxy'",
+      );
     });
 
     it('names the ways to configure the key when it is unset', () => {
@@ -869,42 +875,45 @@ describe('edge host provisioning', () => {
       }
     });
 
-    it('installs the deploy manifest before the CLI is used, and again on what the switch landed', () => {
-      // Regression: a node whose install no longer matched its manifest could not load its own
-      // CLI, so the first step of the sync died before the step that repairs the tree.
-      const previousUser = process.env.GITHUB_USERNAME;
-      const previousToken = process.env.GITHUB_TOKEN;
-      process.env.GITHUB_USERNAME = 'fixture-org';
-      process.env.GITHUB_TOKEN = 'fixture-token';
-      try {
-        const steps = UnderpostWireguard.API.syncCommands({
-          repoEngine: 'fixture-org/engine-test-cyberia',
-          nodeRole: 'control',
-        });
-        const commands = steps.map(({ command }) => command);
-        const packageStep = 'bash ./deploy/dd-cyberia/package.sh';
+    it.skipIf(!shipsCyberiaPackageScript)(
+      'installs the deploy manifest before the CLI is used, and again on what the switch landed',
+      () => {
+        // Regression: a node whose install no longer matched its manifest could not load its own
+        // CLI, so the first step of the sync died before the step that repairs the tree.
+        const previousUser = process.env.GITHUB_USERNAME;
+        const previousToken = process.env.GITHUB_TOKEN;
+        process.env.GITHUB_USERNAME = 'fixture-org';
+        process.env.GITHUB_TOKEN = 'fixture-token';
+        try {
+          const steps = UnderpostWireguard.API.syncCommands({
+            repoEngine: 'fixture-org/engine-test-cyberia',
+            nodeRole: 'control',
+          });
+          const commands = steps.map(({ command }) => command);
+          const packageStep = 'bash ./deploy/dd-cyberia/package.sh';
 
-        expect(commands[0]).to.equal(packageStep);
-        expect(steps[0].halt, 'a tree predating the script must still reach the switch').to.not.equal(true);
-        expect(commands).to.not.include('npm link --force');
-        const last = commands.lastIndexOf(packageStep);
-        expect(last).to.be.greaterThan(commands.findIndex((command) => command.includes('./engine-private')));
-        expect(last).to.be.lessThan(commands.findIndex((command) => command.includes('underpost-event')));
-        expect(steps[last].halt).to.equal(true);
+          expect(commands[0]).to.equal(packageStep);
+          expect(steps[0].halt, 'a tree predating the script must still reach the switch').to.not.equal(true);
+          expect(commands).to.not.include('npm link --force');
+          const last = commands.lastIndexOf(packageStep);
+          expect(last).to.be.greaterThan(commands.findIndex((command) => command.includes('./engine-private')));
+          expect(last).to.be.lessThan(commands.findIndex((command) => command.includes('underpost-event')));
+          expect(steps[last].halt).to.equal(true);
 
-        // The monorepo belongs to no deploy, so it carries no package step at all.
-        expect(
-          UnderpostWireguard.API.syncCommands({ repoEngine: 'fixture-org/engine', nodeRole: 'control' }),
-        ).to.satisfy((monorepo) =>
-          monorepo.every(({ command }) => !command.includes('package.sh') && !/<[a-z-]+>/.test(command)),
-        );
-      } finally {
-        if (previousUser === undefined) delete process.env.GITHUB_USERNAME;
-        else process.env.GITHUB_USERNAME = previousUser;
-        if (previousToken === undefined) delete process.env.GITHUB_TOKEN;
-        else process.env.GITHUB_TOKEN = previousToken;
-      }
-    });
+          // The monorepo belongs to no deploy, so it carries no package step at all.
+          expect(
+            UnderpostWireguard.API.syncCommands({ repoEngine: 'fixture-org/engine', nodeRole: 'control' }),
+          ).to.satisfy((monorepo) =>
+            monorepo.every(({ command }) => !command.includes('package.sh') && !/<[a-z-]+>/.test(command)),
+          );
+        } finally {
+          if (previousUser === undefined) delete process.env.GITHUB_USERNAME;
+          else process.env.GITHUB_USERNAME = previousUser;
+          if (previousToken === undefined) delete process.env.GITHUB_TOKEN;
+          else process.env.GITHUB_TOKEN = previousToken;
+        }
+      },
+    );
 
     it('never writes a blank token onto a node', () => {
       const previous = process.env.GITHUB_TOKEN;

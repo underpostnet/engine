@@ -19,7 +19,11 @@ import {
 } from '../../src/server/build/package.js';
 import path from 'node:path';
 import os from 'node:os';
-import cyberiaCatalog from '../../src/projects/cyberia/catalog-cyberia.js';
+import { loadDeployCatalog } from '../../src/server/build/catalog.js';
+
+// Through the resolver, never a static import: the base template ships no product module, and a
+// checkout that carries none has to load the suite rather than fail to import it.
+const cyberiaCatalog = await loadDeployCatalog('dd-cyberia');
 
 describe('generated product package dependencies', () => {
   it('keeps the engine toolchain for checkout tests without duplicating runtime dependencies', () => {
@@ -205,16 +209,19 @@ describe('generated deploy package manifests', () => {
     expect(manifest.bin).to.deep.equal({ underpost: 'bin/index.js' });
   });
 
-  it('publishes the product identity only when asked for it', () => {
-    expect(
-      buildDeployPackageJson({
-        deployId: 'dd-cyberia',
-        enginePackageJson,
-        catalog: cyberiaCatalog,
-        productIdentity: true,
-      }).bin,
-    ).to.deep.equal({ cyberia: 'bin/index.js', underpost: 'bin/index.js' });
-  });
+  it.skipIf(!Object.keys(cyberiaCatalog.packageBin).length)(
+    'publishes the product identity only when asked for it',
+    () => {
+      expect(
+        buildDeployPackageJson({
+          deployId: 'dd-cyberia',
+          enginePackageJson,
+          catalog: cyberiaCatalog,
+          productIdentity: true,
+        }).bin,
+      ).to.deep.equal({ cyberia: 'bin/index.js', underpost: 'bin/index.js' });
+    },
+  );
 
   it('keeps a start script the deploy already declared', () => {
     // dd-cron starts a cron applier, not the engine server; regenerating must not overwrite it.

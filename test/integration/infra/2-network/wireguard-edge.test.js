@@ -109,6 +109,10 @@ const PEERS = [
   { id: 'homelab-b', address: '10.0.0.3', publicKey: 'BBB=', hosts: ['www.nexodev.org'], instances: ['mmo-server'] },
 ];
 
+// Emitted only when this checkout ships the script it names, so the case needs a tree that
+// carries the deploy: the base template restores no deploy id of its own.
+const shipsCyberiaPackageScript = fs.existsSync('./deploy/dd-cyberia/package.sh');
+
 describe('edge hub routing', () => {
   describe('hostProxyEntriesFactory', () => {
     it('extracts every domain that declares proxy ports, with its redirect target', () => {
@@ -1558,20 +1562,23 @@ describe('engine sync', () => {
     for (const nodeRole of ['worker', 'hub', '']) expect(cron(nodeRole), nodeRole).to.equal(undefined);
   });
 
-  it('runs a deploy package script only when the deploy being synced ships one', () => {
-    process.env.GITHUB_USERNAME = 'someone';
-    const scripts = (repoEngine) =>
-      UnderpostWireguard.API.syncCommands({ repoEngine }).filter((step) => step.command.startsWith('bash '));
+  it.skipIf(!shipsCyberiaPackageScript)(
+    'runs a deploy package script only when the deploy being synced ships one',
+    () => {
+      process.env.GITHUB_USERNAME = 'someone';
+      const scripts = (repoEngine) =>
+        UnderpostWireguard.API.syncCommands({ repoEngine }).filter((step) => step.command.startsWith('bash '));
 
-    // Both occurrences or neither: the halting one turns a missing script into a failed sync
-    // rather than a missing install.
-    expect(scripts('underpostnet/engine-test-cyberia').map((step) => step.command)).to.deep.equal([
-      'bash ./deploy/dd-cyberia/package.sh',
-      'bash ./deploy/dd-cyberia/package.sh',
-    ]);
-    expect(scripts('underpostnet/engine-test-absent')).to.deep.equal([]);
-    expect(scripts('underpostnet/engine')).to.deep.equal([]);
-  });
+      // Both occurrences or neither: the halting one turns a missing script into a failed sync
+      // rather than a missing install.
+      expect(scripts('underpostnet/engine-test-cyberia').map((step) => step.command)).to.deep.equal([
+        'bash ./deploy/dd-cyberia/package.sh',
+        'bash ./deploy/dd-cyberia/package.sh',
+      ]);
+      expect(scripts('underpostnet/engine-test-absent')).to.deep.equal([]);
+      expect(scripts('underpostnet/engine')).to.deep.equal([]);
+    },
+  );
 
   it('neutralizes advisory steps in place and chains the rest', () => {
     process.env.GITHUB_USERNAME = 'someone';

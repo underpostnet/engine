@@ -133,8 +133,13 @@ describe('a node prepares itself from the source its host configuration names', 
   });
 });
 
-describe('every deploy ships a package script for its own manifest', () => {
-  const deployRoot = path.join(repoRoot, 'deploy');
+const deployRoot = path.join(repoRoot, 'deploy');
+// The base template restores `deploy/lib` and nothing that deploys, so a checkout carrying no
+// deploy id of its own has no manifest script to hold to this contract. Read as "ships deploy
+// ids", not as "the filter below found something" — that stays an assertion, not a skip.
+const shipsDeployIds = fs.existsSync(deployRoot) && fs.readdirSync(deployRoot).some((e) => e.startsWith('dd-'));
+
+describe.skipIf(!shipsDeployIds)('every deploy ships a package script for its own manifest', () => {
   // A deploy id directory is one that carries a deploy script; lib/ and the project-scope
   // directories are not deployments.
   const deployDirectories = fs
