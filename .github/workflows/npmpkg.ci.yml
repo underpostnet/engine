@@ -51,25 +51,27 @@ jobs:
           curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
           dnf install nodejs -y
 
-      - name: Capture commit message
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
-            if [ -z "$LAST_COMMIT_MESSAGE" ]; then
-              LAST_COMMIT_MESSAGE="Update repository"
-            fi
-          else
-            FULL_MSG="${{ github.event.head_commit.message }}"
-            REST="$(echo "$FULL_MSG" | tail -n +2 | awk 'NR==1{first=$0; has_first=1; next} NR==2{print first " " $0; has_first=0; next} {print} END{if(has_first) print first}')"
-            LAST_COMMIT_MESSAGE="${REST:-$FULL_MSG}"
-          fi
-          echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
-          echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
-
       - name: Install dependencies
         run: npm install
+
+      # Placed after the install because it resolves the payload through the CLI, which needs the
+      # dependencies. The dispatch input wins; a push carries its own commit message instead.
+      - name: Capture commit message
+        env:
+          # Never interpolated into the script: the propagated payload is multi-line and a shell
+          # expansion would corrupt entries holding `$` and execute anything in `$(...)`.
+          PROPAGATED_MESSAGE: ${{ github.event.inputs.message || github.event.head_commit.message }}
+        run: |
+          LAST_COMMIT_MESSAGE=$(node bin cmt --propagate-msg 2>/dev/null || echo "")
+          if [ -z "$LAST_COMMIT_MESSAGE" ]; then
+            LAST_COMMIT_MESSAGE="Update repository"
+          fi
+          {
+            echo "LAST_COMMIT_MESSAGE<<PROPAGATION_EOF"
+            echo "$LAST_COMMIT_MESSAGE"
+            echo "PROPAGATION_EOF"
+          } >> $GITHUB_ENV
+          echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
 
       - name: Set git global credentials
         run: |
