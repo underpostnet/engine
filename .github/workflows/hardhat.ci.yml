@@ -18,10 +18,8 @@ jobs:
   build-and-test:
     name: Compile, Test & Audit
     if: |
-    if: |
       github.actor != 'dependabot[bot]' &&
-      (github.repository == 'underpostnet/engine' ||
-       github.repository == 'underpostnet/engine-cyberia' ||
+      (github.repository == 'underpostnet/engine-cyberia' ||
        github.repository == 'underpostnet/engine-ghpkg-cyberia' ||
        github.repository == 'underpostnet/engine-test-cyberia')
     runs-on: ubuntu-latest
