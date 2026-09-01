@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import Underpost from '../../../../src/index.js';
 import { program } from '../../../../src/cli/index.js';
+import { shellHarness } from '../../../support/shell-harness.js';
 
 const host = () => Underpost.host;
 
@@ -60,6 +61,45 @@ describe('underpost-config secret', () => {
   // hit: `[host] configuration source not found: ./engine-private/conf/dd-cron/.env.production`,
   // even though 86 keys were sitting right there in the scoped sources.
   describe('post-migration source resolution', () => {
+    // The migrated node is a fixture rather than this checkout's private tree: what is asserted
+    // is how the three actions compose their source, and reading the real tree made these cases
+    // answer to a migration an operator may not have run, may be part-way through, or may not
+    // have cloned at all — the same reason `config-scope.test.js` fixes the state it asserts on.
+    const MIGRATED_NODE = {
+      host: { GITHUB_TOKEN: 'host-github' },
+      cron: { DDNS_API_KEY: 'cron-ddns' },
+      app: { DB_PASSWORD: 'app-secret' },
+    };
+    const scopedValues = () => Object.assign({}, ...Object.values(MIGRATED_NODE));
+    const renderScope = (values) =>
+      Object.entries(values)
+        .map(([key, value]) => `${key}=${value}\n`)
+        .join('');
+
+    beforeEach(() => {
+      const table = new Map(
+        Object.entries(MIGRATED_NODE).map(([scope, values]) => [
+          host().scopePath(scope, 'production'),
+          renderScope(values),
+        ]),
+      );
+      vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => table.has(`${filePath}`));
+      vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+        const key = `${filePath}`;
+        if (!table.has(key)) throw Object.assign(new Error(`ENOENT: ${key}`), { code: 'ENOENT' });
+        return table.get(key);
+      });
+      vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => table.set(`${filePath}`, `${value}`));
+      vi.spyOn(fs, 'mkdirpSync').mockImplementation(() => undefined);
+      vi.spyOn(fs, 'chmodSync').mockImplementation(() => undefined);
+      // `publish` writes the node's loaded runtime back out, so the store answers for it here.
+      vi.spyOn(host().store, 'list').mockReturnValue(scopedValues());
+      // `status` probes the cluster for the projection; the fixture answers for that too.
+      shellHarness();
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
     it('does not require the legacy file once scoped sources cover the environment', () => {
       expect(host().hasDualSource('production')).to.equal(false);
       expect(fs.existsSync(host().envPath('production'))).to.equal(false);

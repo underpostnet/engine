@@ -53,7 +53,7 @@ const CONFIG_OWNERSHIP = Object.freeze([
   { match: /^(VULTR_|DDNS_|HTTP_PLAIN_IP_URL$)/, owner: 'cron' },
 
   { match: /^(MAAS_|DB_PG_MAAS_)/, owner: 'baremetal' },
-  { match: /^(TFTP_ROOT|NETMASK|NFS_EXPORT_PATH|WIFI_PASSWORD)$/, owner: 'baremetal' },
+  { match: /^(TFTP_ROOT|NETMASK|NFS_EXPORT_PATH)$/, owner: 'baremetal' },
 
   { match: /^(NPM_|DOCKER_HUB_|POSTMAN_)/, owner: 'publishing' },
 
