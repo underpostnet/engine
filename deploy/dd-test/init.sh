@@ -30,7 +30,7 @@ main() {
         "cd $ENGINE_ROOT && node bin deploy dd-test production \
           --versions green \
           --replicas 1 \
-          --image 'underpost/wp:v3.3.0' \
+          --image 'underpost/wp:v3.3.73' \
           --kubeadm \
           --timeout-response 300000ms \
           --node ${TARGET_NODE} \

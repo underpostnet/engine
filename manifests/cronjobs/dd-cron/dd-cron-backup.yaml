@@ -27,14 +27,18 @@ spec:
         spec:
           containers:
             - name: dd-cron-backup
-              image: underpost/underpost-engine:v3.3.0
+              image: underpost/underpost-engine:v3.3.73
               command:
                 - /bin/sh
                 - -c
                 - >
                   cd /home/dd/engine &&
-                  node bin app load --env production --args deploy-id=dd-cron &&
                   node bin cron dd-lampp,dd-cyberia,dd-core,dd-prototype,dd-test backup --git --kubeadm 
+              # Explicit, so the environment the pod runs is the one this manifest resolved:
+              # a container env entry wins over envFrom, whatever the projected Secret carries.
+              env:
+                - name: NODE_ENV
+                  value: production
               envFrom:
                 - secretRef:
                     name: underpost-cron-env
@@ -44,13 +48,17 @@ spec:
                   name: underpost-cron-container-volume
                 - mountPath: /var/lib/node_exporter/textfile
                   name: underpost-node-exporter-textfile
+                - mountPath: /etc/underpost/secrets/ssh
+                  name: underpost-ssh-key
+                  readOnly: true
           volumes:
-            # The engine checkout. The job body runs this repository's CLI (`node bin ...`), so it
-            # needs the source tree, its node_modules and engine-private's deploy configuration —
-            # the mount cannot be narrowed below the checkout without changing where the CLI runs
-            # from. See docs/selinux-cron-mounts in the module header for the Enforcing caveat.
+            # The engine mirror: a copy of the checkout kept outside every home tree, because
+            # `container_t` is denied every read under one. The job body runs this repository's CLI
+            # (`node bin ...`), so it needs the source tree, its node_modules and engine-private's
+            # deploy configuration — the mount cannot be narrowed below that. Refreshed and labeled
+            # by prepareCronHostStorage(); see src/server/ops/cron.js's module header.
             - hostPath:
-                path: /home/dd/engine
+                path: /opt/engine
                 type: Directory
               name: underpost-cron-container-volume
             # Metrics the cluster cannot scrape for itself are written here and read by the
@@ -59,4 +67,11 @@ spec:
                 path: /var/lib/node_exporter/textfile
                 type: DirectoryOrCreate
               name: underpost-node-exporter-textfile
+            # Optional for the same reason the credential Secret is: a cluster that has onboarded
+            # no key still schedules, and the job that needs one reports its own failure.
+            - secret:
+                secretName: underpost-ssh-key
+                optional: true
+                defaultMode: 0400
+              name: underpost-ssh-key
           restartPolicy: OnFailure

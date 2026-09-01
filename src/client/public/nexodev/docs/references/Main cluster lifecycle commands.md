@@ -818,7 +818,7 @@ node bin run sync --deploy-id dd --dev --kind --create-job-now
 node bin run sync --deploy-id dd-my-app --dev --kind --deploy-id-cron-jobs dd-cron
 node bin run sync --deploy-id dd-my-app --k3s --namespace production
 node bin run sync --deploy-id dd-core --kubeadm --image-pull-policy Always
-node bin run sync --deploy-id dd-lampp --replicas 2 --image underpost/wp:v3.3.0 --kubeadm
+node bin run sync --deploy-id dd-lampp --replicas 2 --image underpost/wp:v3.3.73 --kubeadm
 ```
 
 On a **first bring-up**, before `sync` applies the target colour's `deployment.yaml`, it enforces the same no-backend checkpoint as `run cluster`: it builds (or reuses, with `--skip-full-build`) configured SSR assets, syncs them into `underpost-gateway`, applies only the target-colour Gateway/HTTPRoute configuration, and requests every `maintenanceDefault` fallback. Each response must preserve a 502/503/504 status and exactly match the configured document. Only then does sync execute its existing `--disable-update-proxy` workload apply, readiness monitor and final traffic reconciliation.

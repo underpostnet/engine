@@ -20,7 +20,7 @@ _Stackable Rendering Layers as a Unified Tokenized Reality_
 <!-- CI/CD and health -->
 <div align="center">
 
-[![Node.js CI](https://img.shields.io/github/actions/workflow/status/underpostnet/engine-cyberia/docker-image.engine-cyberia.ci.yml?branch=main&label=Node.js%20CI)](https://github.com/underpostnet/engine-cyberia/actions/workflows/docker-image.engine-cyberia.ci.yml) [![Test](https://img.shields.io/github/actions/workflow/status/underpostnet/engine-cyberia/coverall.cyberia.ci.yml?branch=main&label=Test)](https://github.com/underpostnet/engine-cyberia/actions/workflows/coverall.cyberia.ci.yml) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine-cyberia/badge.svg?branch=main)](https://coveralls.io/github/underpostnet/engine-cyberia?branch=main) [![Socket Badge](https://socket.dev/api/badge/npm/package/cyberia/3.3.0)](https://socket.dev/npm/package/cyberia/overview/3.3.0)
+[![Node.js CI](https://img.shields.io/github/actions/workflow/status/underpostnet/engine-cyberia/docker-image.engine-cyberia.ci.yml?branch=main&label=Node.js%20CI)](https://github.com/underpostnet/engine-cyberia/actions/workflows/docker-image.engine-cyberia.ci.yml) [![Test](https://img.shields.io/github/actions/workflow/status/underpostnet/engine-cyberia/coverall.cyberia.ci.yml?branch=main&label=Test)](https://github.com/underpostnet/engine-cyberia/actions/workflows/coverall.cyberia.ci.yml) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine-cyberia/badge.svg?branch=main)](https://coveralls.io/github/underpostnet/engine-cyberia?branch=main) [![Socket Badge](https://socket.dev/api/badge/npm/package/cyberia/3.3.73)](https://socket.dev/npm/package/cyberia/overview/3.3.73)
 
 </div>
 

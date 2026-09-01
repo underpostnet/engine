@@ -135,7 +135,7 @@ services:
   # server starts but rejects connections until seeded). Serves REST/WS on 4005
   # and the engine gRPC data service on 50051.
   engine-cyberia-runtime:
-    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.3.0}
+    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.3.73}
     container_name: dd-cyberia-engine
     command:
       - /bin/sh
@@ -190,7 +190,7 @@ services:
   # gateway on host port 8081, so one port can route every instance path.
 
   cyberia-server-runtime:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.3.0}
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.3.73}
     container_name: dd-cyberia-server
     environment:
       INSTANCE_CODE: amethyst-strata-expansion
@@ -226,7 +226,7 @@ services:
     restart: unless-stopped
 
   cyberia-server-forest:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.3.0}
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.3.73}
     container_name: dd-cyberia-server-forest
     environment:
       INSTANCE_CODE: FOREST
@@ -262,7 +262,7 @@ services:
     restart: unless-stopped
 
   cyberia-server-test:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.3.0}
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.3.73}
     container_name: dd-cyberia-server-test
     environment:
       INSTANCE_CODE: TEST
@@ -309,7 +309,7 @@ services:
   #   cyberia-server-test   -> cyberia-client-test
 
   cyberia-client-runtime:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.3.0}
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.3.73}
     container_name: dd-cyberia-client
     environment:
       CYBERIA_PORT: '8081'
@@ -334,7 +334,7 @@ services:
     restart: unless-stopped
 
   cyberia-client-forest:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.3.0}
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.3.73}
     container_name: dd-cyberia-client-forest
     environment:
       CYBERIA_PORT: '8081'
@@ -359,7 +359,7 @@ services:
     restart: unless-stopped
 
   cyberia-client-test:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.3.0}
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.3.73}
     container_name: dd-cyberia-client-test
     environment:
       CYBERIA_PORT: '8081'

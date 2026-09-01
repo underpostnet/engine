@@ -252,18 +252,12 @@ const DefaultConf = /**/ {
       'default-cluster-mailer-provider': {
         type: 'mailer',
         mailer: {
-          sender: {
-            email: 'env:CLUSTER_MAILER_SENDER_EMAIL',
-            name: 'env:CLUSTER_MAILER_SENDER_NAME:Underpost',
-          },
+          sender: { email: 'env:CLUSTER_MAILER_SENDER_EMAIL', name: 'env:CLUSTER_MAILER_SENDER_NAME:Underpost' },
           transport: {
             host: 'env:CLUSTER_MAILER_SMTP_HOST',
             port: 'env:CLUSTER_MAILER_SMTP_PORT:int:587',
             secure: 'env:CLUSTER_MAILER_SMTP_SECURE:bool:false',
-            auth: {
-              user: 'env:CLUSTER_MAILER_SMTP_AUTH_USER',
-              pass: 'env:CLUSTER_MAILER_SMTP_AUTH_PASS',
-            },
+            auth: { user: 'env:CLUSTER_MAILER_SMTP_AUTH_USER', pass: 'env:CLUSTER_MAILER_SMTP_AUTH_PASS' },
           },
         },
       },
@@ -275,14 +269,7 @@ const DefaultConf = /**/ {
         notifications: [
           {
             'notification-provider-id': 'default-cluster-mailer-provider',
-            payload: {
-              subscribers: [
-                {
-                  email: 'admin@default.net',
-                  name: 'Admin',
-                },
-              ],
-            },
+            payload: { subscribers: [{ email: 'admin@default.net', name: 'Admin' }] },
           },
         ],
       },
@@ -292,14 +279,7 @@ const DefaultConf = /**/ {
         notifications: [
           {
             'notification-provider-id': 'default-cluster-mailer-provider',
-            payload: {
-              subscribers: [
-                {
-                  email: 'admin@default.net',
-                  name: 'Admin',
-                },
-              ],
-            },
+            payload: { subscribers: [{ email: 'admin@default.net', name: 'Admin' }] },
           },
         ],
       },
@@ -309,14 +289,7 @@ const DefaultConf = /**/ {
         notifications: [
           {
             'notification-provider-id': 'default-cluster-mailer-provider',
-            payload: {
-              subscribers: [
-                {
-                  email: 'admin@default.net',
-                  name: 'Admin',
-                },
-              ],
-            },
+            payload: { subscribers: [{ email: 'admin@default.net', name: 'Admin' }] },
           },
         ],
       },
@@ -329,12 +302,7 @@ const DefaultConf = /**/ {
       groups: 'wheel',
       keyPath: './engine-private/deploy/id_rsa',
       pubKeyPath: './engine-private/deploy/id_rsa.pub',
-      hosts: [
-        {
-          host: '00.000.00.000',
-          port: 22,
-        },
-      ],
+      hosts: [{ host: '00.000.00.000', port: 22 }],
     },
   ],
 }; /**/

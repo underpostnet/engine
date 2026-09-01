@@ -25,7 +25,7 @@ main() {
         "cd $ENGINE_ROOT && node bin deploy dd-lampp production \
           --versions green \
           --replicas 1 \
-          --image 'underpost/wp:v3.3.0' \
+          --image 'underpost/wp:v3.3.73' \
           --kubeadm \
           --gateway-api \
           --ingress-node ${INGRESS_NODE} \

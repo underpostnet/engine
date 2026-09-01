@@ -26,7 +26,7 @@ main() {
         "cd $ENGINE_ROOT && node bin run sync \
           --deploy-id dd-test \
           --replicas 1 \
-          --image underpost/wp:v3.3.0 \
+          --image underpost/wp:v3.3.73 \
           --kubeadm \
           --deploy-id-cron-jobs none \
           --timeout-response 300000ms \

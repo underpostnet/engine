@@ -172,8 +172,8 @@ underpost test infra --deploy-list dd-core,dd-cyberia --namespace default
 **As a Job** — for a run that owns its lifetime and outlives no pod.
 
 ```bash
-underpost test infra --job --image underpost/engine:v3.3.0
-underpost test --job --image underpost/engine:v3.3.0 --dry-run   # print the manifest
+underpost test infra --job --image underpost/engine:v3.3.73
+underpost test --job --image underpost/engine:v3.3.73 --dry-run   # print the manifest
 ```
 
 The Job carries `backoffLimit: 0` and `restartPolicy: Never`: a test run is a
