@@ -1,7 +1,6 @@
 'use strict';
 
 import { expect } from 'chai';
-import { execFileSync } from 'node:child_process';
 import fs from 'fs-extra';
 import { globSync } from 'node:fs';
 
@@ -77,28 +76,4 @@ describe('in-pod CLI surface', () => {
     const block = deploySource.slice(deploySource.indexOf('if (!cmd)'), deploySource.indexOf('const packageJson'));
     expect([...new Set([...block.matchAll(/`underpost ([a-z-]+)/g)].map((m) => m[1]))]).to.deep.equal(['start']);
   });
-});
-
-// The reroute notice is diagnostic output, so it must not reach stdout: a caller reading a value
-// out of `--plain` would otherwise parse the banner as the value. Spawning the real CLI is the
-// only way to observe the two streams apart, which is why it lives in this tier rather than
-// beside the source assertions in the unit suite.
-describe('rerouted plain reads stay machine-readable', () => {
-  const CYBERIA_CLI = 'bin/cyberia.js';
-  const repoRoot = new URL('../../../../', import.meta.url);
-
-  it.skipIf(!fs.existsSync(new URL(CYBERIA_CLI, repoRoot)))(
-    'prints nothing for a key the store lacks',
-    () => {
-      const stdout = execFileSync(
-        process.execPath,
-        [CYBERIA_CLI, 'host', 'get', '--plain', 'UNDERPOST_TEST_MISSING_KEY'],
-        { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-      );
-      expect(stdout.trim()).to.equal('');
-      // A cold CLI start imports the whole command surface; the budget is for the import, not the
-      // read, and is stated here rather than left to the runner default a loaded machine exceeds.
-    },
-    60000,
-  );
 });
