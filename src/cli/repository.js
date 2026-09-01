@@ -6,7 +6,7 @@
 
 import dotenv from 'dotenv';
 import { commitData } from '../client/components/core/CommonJs.js';
-import { pbcopy, shellCd, shellExec } from '../server/runtime/process.js';
+import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
 import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
@@ -219,6 +219,19 @@ class UnderpostRepository {
         if (options.copy) pbcopy(currentBranch);
         else console.log(currentBranch);
         return;
+      }
+
+      if (options.propagateMsg) {
+        // Chain hop: carry the payload the previous workflow sent instead of regenerating it, so
+        // every repository downstream of the dispatch commits the same entries.
+        const propagated = Underpost.repo.resolvePropagationMessage(process.env.PROPAGATED_MESSAGE);
+        if (propagated) {
+          console.log(propagated);
+          return;
+        }
+        // Nothing arrived — fall through to this repository's own changelog for the last N commits.
+        options.changelogMsg = true;
+        options.changelogNoHash = true;
       }
 
       if (options.changelog !== undefined || options.changelogBuild || options.changelogMsg !== undefined) {
@@ -436,7 +449,10 @@ class UnderpostRepository {
       } ${message ? message : commitData[commitType].description}`;
       if (options.copy) return pbcopy(_message);
       shellExec(
-        `cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}${options.edit ? `--amend  --no-edit ` : `-m "${_message}"`}`,
+        `cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}${
+          // A propagated payload is multi-line and may hold `$`: quoting keeps every entry intact.
+          options.edit ? `--amend  --no-edit ` : `-m ${shellArgumentFactory(_message)}`
+        }`,
       );
     },
 
@@ -1566,6 +1582,41 @@ Prevent build private config repo.`,
       // callers fall back to their own generic default.
       return sanitized === 'No changelog entries found.' ? '' : sanitized;
     },
+    /**
+     * Resolves the changelog payload a workflow received from the previous link of the
+     * propagation chain.
+     *
+     * Every hop commits the payload with `cmt`, which wraps it as
+     * `type(scope): <emoji> <first entry>` — the newest entry rides on the subject line, so a
+     * downstream hop that drops the whole subject line loses it. This strips only the wrapper
+     * and keeps every entry, on its own line, in order.
+     *
+     * @param {string} rawMessage - The message as received (a commit message or a dispatch input).
+     * @returns {string} The propagated entries, or an empty string when there is nothing to carry.
+     * @memberof UnderpostRepository
+     */
+    resolvePropagationMessage(rawMessage) {
+      if (!rawMessage) return '';
+      const types = Object.keys(commitData).join('|');
+      const emojis = Object.values(commitData)
+        .map(({ emoji }) => emoji)
+        .filter(Boolean);
+      const lines = `${rawMessage}`
+        .replace(new RegExp(`^(${types})(\\([^)]*\\))?:\\s*`), '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (lines[0]) {
+        for (const emoji of emojis)
+          if (lines[0].startsWith(emoji)) {
+            lines[0] = lines[0].slice(emoji.length).trim();
+            break;
+          }
+        if (!lines[0]) lines.shift();
+      }
+      return lines.join('\n');
+    },
+
     /**
      * Initializes a git repository at the given path and configures user identity
      * from environment variables (`GITHUB_USERNAME` / `GITHUB_EMAIL`).

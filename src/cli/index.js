@@ -158,6 +158,12 @@ program
     'Print the sanitized, commit-ready changelog message of the last N commits (see --from-n-commit, default 1). Empty when there are no tagged entries.',
   )
   .option('--from-n-commit <n>', 'Number of latest commits to include in --changelog/--changelog-msg (default: 1).')
+  .option(
+    '--propagate-msg',
+    'Prints the changelog payload carried by the propagation chain, read from the PROPAGATED_MESSAGE ' +
+      'environment variable and stripped of the commit subject wrapper. Falls back to --changelog-msg ' +
+      'over the last N commits (see --from-n-commit) when nothing was propagated.',
+  )
   .option('--unpush', 'With --log, automatically sets range to unpushed commits ahead of remote.')
   .option('-b', 'Shows the current Git branch name.')
   .option('-p [branch]', 'Shows the reflog for the specified branch.')
