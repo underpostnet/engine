@@ -848,7 +848,7 @@ class UnderpostRun {
         logger.error('Secrets detected in gitleaks-report.json, aborting template-deploy');
         return;
       }
-      shellExec(`${baseCommand} run pull`);
+      Underpost.repo.fastForwardEnginePair(baseCommand);
       shellExec(`${baseCommand} run shared-dir`);
 
       // Capture the sanitized message from the last N commits (--from-n-commit, default 1) for
@@ -925,7 +925,7 @@ class UnderpostRun {
         logger.error('Secrets detected in gitleaks-report.json, aborting template-deploy');
         return;
       }
-      shellExec(`${baseCommand} run pull`);
+      Underpost.repo.fastForwardEnginePair(baseCommand);
       shellExec(`${baseCommand} run shared-dir`);
 
       // Capture the sanitized message from the last N commits (--from-n-commit, default 1).

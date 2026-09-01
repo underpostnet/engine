@@ -1345,6 +1345,21 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Fast-forwards the engine and engine-private checkouts ahead of a template deploy.
+     *
+     * The deploy runners publish local commits, so they must not take the `run pull` route: that one
+     * is for provisioning a node and force-replaces both trees at the remote tip, discarding the very
+     * commits being published. `underpost pull` is `git pull --ff-only`, so a diverged checkout stops
+     * the deploy instead of losing history.
+     * @param {string} baseCommand - Resolved `underpost` CLI invocation.
+     * @returns {void}
+     */
+    fastForwardEnginePair(baseCommand) {
+      shellExec(`${baseCommand} pull . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`${baseCommand} pull ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
+    },
+
+    /**
      * Keeps GitHub credentials in the child environment instead of command arguments or remotes.
      * @param {string} url - Repository URL or owner/repo reference.
      * @returns {{url: string, env: NodeJS.ProcessEnv}} Token-free URL and Git child environment.
