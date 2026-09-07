@@ -1847,7 +1847,7 @@ try {
     .option('--dev', 'Force development environment')
     .option(
       '--sync-entities',
-      "Point the instance conf at every entity-type default its maps place and every skill their items trigger, dropping what the world no longer carries",
+      'Point the instance conf at every entity-type default its maps place and every skill their items trigger, dropping what the world no longer carries',
     )
     .option('--publish-build', 'Build instance backup directory with all related maps, entities and object layers')
     .option('--publish-remove', 'Remove published instance from underpostnet/cyberia-instances repository')
@@ -2008,6 +2008,10 @@ try {
           fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
           fs.mkdirpSync(`/home/dd/cyberia-instances/sagas`);
           for (const _instanceCode of instanceCode.split(',')) {
+            if (fs.existsSync(`/home/dd/cyberia-instances/instances/${_instanceCode}`))
+              shellExec(`rm -rf /home/dd/cyberia-instances/instances/${_instanceCode}`);
+            if (fs.existsSync(`/home/dd/cyberia-instances/sagas/${_instanceCode}.json`))
+              shellExec(`rm -rf /home/dd/cyberia-instances/sagas/${_instanceCode}.json`);
             fs.copySync(
               `./engine-private/cyberia-instances/${_instanceCode}`,
               `/home/dd/cyberia-instances/instances/${_instanceCode}`,
@@ -2503,9 +2507,7 @@ try {
               if (asset.fileId) await exportFileDoc(asset.fileId, `audio-${asset.code}`);
             }
           }
-          const missingAudioCodes = [...audioCodes].filter(
-            (code) => !audioAssets.some((asset) => asset.code === code),
-          );
+          const missingAudioCodes = [...audioCodes].filter((code) => !audioAssets.some((asset) => asset.code === code));
           logger.info(`Exported ${audioAssets.length} CyberiaAudio document(s)`, {
             codes: audioAssets.map((a) => a.code),
           });
@@ -2937,7 +2939,6 @@ try {
 
             // Query other instances/maps for shared thumbnail exclusion
             const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
-
 
             // Add the item ids the conf's referenced entity-type defaults name.
             const existingConf =
@@ -3849,7 +3850,6 @@ try {
 
           // Query other instances for shared thumbnail exclusion
           const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
-
 
           // Add the item ids the conf's referenced entity-type defaults name.
           const existingConf =
@@ -5215,7 +5215,7 @@ try {
     .option('--env-path <path>', 'Engine environment file')
     .option('--mongo-host <host>', 'Mongo host override')
     .option('--dev', 'Use the development environment')
-    .description('Record audio, upsert generic files and audio metadata, and configure a world\'s maps')
+    .description("Record audio, upsert generic files and audio metadata, and configure a world's maps")
     .action(async (options) => {
       // Recording writes only `records/`: the client bundles no audio and fetches every asset
       // from engine-cyberia by code, so seeding the database is what makes a recording reachable.
@@ -6200,6 +6200,7 @@ node bin image --path cyberia-client \
       if (options.dryRun) {
         shellExec('node bin cmt --log --unpush cyberia-server');
         shellExec('node bin cmt --log --unpush cyberia-client');
+        shellExec('node bin cmt --log --unpush cyberia-audio');
         shellExec('node bin cmt --log --unpush');
         shellExec('node bin cmt --log --unpush ../cyberia-instances');
       } else {
@@ -6210,6 +6211,9 @@ node bin image --path cyberia-client \
           silentOnError: true,
         });
         shellExec('node bin push cyberia-client underpostnet/cyberia-client', {
+          silentOnError: true,
+        });
+        shellExec('node bin push cyberia-audio underpostnet/cyberia-audio', {
           silentOnError: true,
         });
         shellExec('node bin run template-deploy', {
