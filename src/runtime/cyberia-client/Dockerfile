@@ -38,8 +38,9 @@ RUN set -eux; \
     underpost --version
 
 # Path + server layout is the contract with conf.instances.json mmo-client cmd,
-# which execs `python3 /home/dd/engine/cyberia-client/wasm-driver.py <port>
-# /home/dd/engine/cyberia-client/bin` in both development and production.
+# which execs `python3 /home/dd/engine/cyberia-client/wasm-driver.py --port=<port>
+# --directory=/home/dd/engine/cyberia-client/bin --data-server-url=<url>` in both
+# development and production.
 # Keep this identical to Dockerfile.dev so prod and dev images are interchangeable.
 WORKDIR /home/dd/engine/cyberia-client
 
@@ -48,7 +49,10 @@ COPY --from=builder /cyberia-client/bin              ./bin/
 
 ENV PYTHONUNBUFFERED=1
 ENV CYBERIA_PORT=8081
+# Mirrors the --data-server-url default in wasm-driver.py: the CMD below always passes the flag,
+# so leaving this unset would hand the client an empty origin rather than that default.
+ENV CYBERIA_DATA_SERVER_URL=https://cyberiaonline.com
 
 EXPOSE 8081
 
-CMD ["sh", "-c", "exec python3 wasm-driver.py ${CYBERIA_PORT} bin"]
+CMD ["sh", "-c", "exec python3 wasm-driver.py --port=${CYBERIA_PORT} --directory=bin --data-server-url=${CYBERIA_DATA_SERVER_URL}"]
