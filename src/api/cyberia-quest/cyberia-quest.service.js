@@ -50,9 +50,9 @@ class CyberiaQuestService {
     if (!code) throw new Error('code parameter is required');
     const data = await CyberiaQuest.findOne({ code }).lean();
     if (data) return data;
-    // Fallback world delivers quests to the Go server via gRPC from the
-    // canonical defaults without persisting them. Serve those same defaults so
-    // the client can resolve metadata even when Mongo has no seeded quest.
+    // The fallback world serves quests from the canonical defaults and never
+    // persists them. Serve the same defaults, so the client resolves metadata
+    // with no seeded quest in Mongo.
     const fallback = DefaultCyberiaQuests.find((q) => q.code === code);
     if (fallback) return fallback;
     throw new Error(`No quest found for code: ${code}`);

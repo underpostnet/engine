@@ -61,26 +61,17 @@ function derivePublicKey(privateKeyHex) {
  * (uncompressed, sans 04 prefix) public key bytes:
  *   `address = keccak256(pubKeyBytes)[12..31]`
  *
- * **Important:** Ethereum uses the *original* Keccak-256 (the pre-NIST
- * submission), NOT NIST SHA3-256.  NIST added different domain-separation
- * padding when standardising SHA-3, so `crypto.createHash('sha3-256')`
- * produces **wrong** addresses.  We use `ethers.keccak256` which bundles
- * a correct Keccak-256 implementation.
+ * Ethereum uses the original Keccak-256, not NIST SHA3-256. NIST added other
+ * domain-separation padding, so `crypto.createHash('sha3-256')` gives wrong
+ * addresses. `ethers.keccak256` carries a correct Keccak-256.
  *
  * @param {string} publicKeyHex - 128-char hex public key (no 0x prefix).
  * @returns {string} 40-char lowercase hex Ethereum address (no 0x prefix).
  * @memberof BesuGenesisGenerator
  */
 function publicKeyToAddress(publicKeyHex) {
-  // Ethereum addresses are derived using Keccak-256 (the original Keccak submission),
-  // NOT NIST SHA3-256.  NIST SHA3-256 added different domain-separation padding,
-  // so crypto.createHash('sha3-256') produces WRONG addresses.
-  //
-  // Node.js's OpenSSL does not expose the original Keccak-256, so we use ethers
-  // which bundles a correct implementation.
-  //
-  // ethersKeccak256 expects a 0x-prefixed hex string or Uint8Array and returns
-  // a 0x-prefixed 64-char hex hash.  The Ethereum address is the last 20 bytes.
+  // ethersKeccak256 takes 0x-prefixed hex or a Uint8Array and returns a
+  // 0x-prefixed 64-char hash. The address is its last 20 bytes.
   const hash = ethersKeccak256(Buffer.from(publicKeyHex, 'hex')); // 0x-prefixed 64-char hex
   return hash.slice(26); // skip '0x' + first 24 hex chars → last 40 hex chars (20 bytes)
 }

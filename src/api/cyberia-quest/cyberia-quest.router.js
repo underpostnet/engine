@@ -9,10 +9,10 @@ class CyberiaQuestRouter {
    */
   static router(options) {
     const router = express.Router();
-    // Direct lookup by code — C client fetches quest metadata by code.
+    // Direct lookup of quest metadata by code.
     router.get(`/code/:code`, async (req, res) => await CyberiaQuestController.getByCode(req, res, options));
-    // Quest offers located by binding cell — C client resolves the Quest tab from
-    // here using the interacted entity's cell, decoupled from CyberiaAction.
+    // Quest offers by binding cell. The client resolves its Quest tab from the
+    // interacted entity's cell, with no CyberiaAction lookup.
     router.get(
       `/cell/:mapCode/:cellX/:cellY`,
       async (req, res) => await CyberiaQuestController.getByCell(req, res, options),

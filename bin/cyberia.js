@@ -268,11 +268,10 @@ try {
         /** @type {import('mongoose').Model} */
         const Ipfs = DataBaseProviderService.getModel('ipfs', { host, path });
 
-        // Idempotent repair, run only before flows that write: collapses legacy
-        // duplicates and upgrades the data.item.id index to unique so every
-        // later write has exactly one document to land on. Read-only
-        // subcommands stay side-effect free — findByItemId already resolves the
-        // same canonical document whether or not duplicates are still present.
+        // Idempotent repair, run only before a flow that writes: collapse
+        // duplicates and make the data.item.id index unique, so every later
+        // write lands on one document. A read-only subcommand stays free of
+        // side effects; findByItemId resolves the same canonical document.
         if (options.import || options.importTypes || options.drop || options.generate) {
           const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
           if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
@@ -2027,8 +2026,8 @@ try {
         atlasMetadata: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
       });
 
-      // Canonical pins now carry a single `mfsPath`; `mfsPaths` (plural) is only read
-      // for backward compatibility with older backups that consolidated shared CIDs.
+      // A canonical pin carries one `mfsPath`. `mfsPaths` (plural) is read too,
+      // because a backup that consolidated shared CIDs writes that field.
       const collectMfsPaths = (doc = {}) => {
         const paths = new Set();
         if (doc.mfsPath) paths.add(doc.mfsPath);
@@ -2084,10 +2083,9 @@ try {
           ...(entry.mfsPath ? { mfsPath: entry.mfsPath } : {}),
         }));
 
-      // Bring the live Ipfs collection in line with the mfsPath-unique model: collapse
-      // duplicate mfsPath rows (keeping the most recently updated association) then sync
-      // indexes so the legacy {cid,resourceType} unique index is dropped and the new
-      // partial unique index on mfsPath is built. Idempotent and safe to re-run.
+      // Bring the Ipfs collection in line with the mfsPath-unique model: collapse
+      // duplicate mfsPath rows, keeping the most recent, then sync indexes so the
+      // partial unique index on mfsPath is built. Safe to re-run.
       const reconcileIpfsRegistryIndexes = async () => {
         let removedDuplicates = 0;
         const duplicateGroups = await Ipfs.aggregate([
@@ -2141,13 +2139,10 @@ try {
 
       // ── CAPTURE CURRENT FALLBACK WORLD ──────────────────────────────
       //
-      // The procedural fallback world only exists in engine memory (see
-      // cyberia-fallback-world.js): it is rebuilt from code defaults on every
-      // boot and intercepts any service that asks for an absent instance.
-      // Capturing writes that exact world into MongoDB under [instance-code] —
-      // together with the content collections the fallback path serves from
-      // code defaults rather than the DB — so the export below can back it up
-      // and `--import` can restore it as an ordinary persisted instance.
+      // The procedural fallback world lives only in engine memory. A capture
+      // writes it to MongoDB under [instance-code], with the content
+      // collections the fallback path serves from code defaults, so the export
+      // below can back it up and `--import` can restore it.
       if (options.exportCurrentFallbackworld) {
         const { generateFallbackWorld } = await import('../src/api/cyberia-instance/cyberia-fallback-world.js');
         const { captureFallbackWorld } = await import('../src/api/cyberia-instance/cyberia-fallback-capture.js');
@@ -2283,9 +2278,8 @@ try {
           instanceConf = created?.toObject ? created.toObject() : created;
         }
         if (instanceConf) {
-          // `.lean()` skips Mongoose schema defaults and older docs may predate
-          // some fields, so backfill every CyberiaInstanceConfSchema field from
-          // the canonical defaults before writing the backup.
+          // `.lean()` skips the Mongoose schema defaults, so fill every
+          // CyberiaInstanceConfSchema field from the canonical defaults first.
           instanceConf = fillInstanceConfDefaults(instanceConf);
           fs.writeJsonSync(`${backupDir}/cyberia-instance-conf.json`, instanceConf, { spaces: 2 });
           logger.info('Exported CyberiaInstanceConf', { instanceCode });
@@ -2448,14 +2442,12 @@ try {
           }
         }
 
-        // 4d-bis. Export entity-type defaults whose item ids belong to this
-        //     instance's real content (own model: CyberiaEntityTypeDefault). A
-        //     default is related when any of its live/dead/drop ids or default
-        //     object-layer ids appears in contentItemIds — map/instance content
-        //     only, NOT the canonical conf defaults every instance shares (which
-        //     would spuriously drag in the global seed entity-type-defaults).
-        //     Matched ids are folded back into objectLayerItemIds so the related
-        //     atlases + dialogues export too.
+        // 4d-bis. Export the CyberiaEntityTypeDefault documents whose item ids
+        //     belong to this instance's content. A default matches when one of
+        //     its live/dead/drop or default-object-layer ids is in
+        //     contentItemIds, which holds map and instance content only, not the
+        //     canonical conf defaults every instance shares. A matched id joins
+        //     objectLayerItemIds, so its atlases and dialogues export too.
         if (contentItemIds.size > 0) {
           const idsForMatch = [...contentItemIds];
           const entityDefaults = await CyberiaEntityTypeDefault.find({
@@ -2481,29 +2473,10 @@ try {
           }
         }
 
-        // 4e. Export sagas related to this instance. A saga is considered related
-        //     when its code matches the instance code (direct namespace match), or
-        //     when its mapCodes or itemIds overlap with the instance's data.
-        //     At this point objectLayerItemIds contains all map-entity, instance-level,
-        //     conf-default, and skill-summoned item IDs — giving the broadest possible
-        //     match surface for saga discovery.
+        // 4e. Export the sagas of this instance. A saga belongs to it when the
+        //     saga code matches the instance code.
         const sagaCodeMatch = instanceCode ? await CyberiaSaga.find({ code: instanceCode }).lean() : [];
-        // Disabling overlaps queries for now because they can be very expensive and are not strictly necessary for a backup.
-        const sagaMapOverlap = true
-          ? []
-          : mapCodes.size > 0
-            ? await CyberiaSaga.find({ mapCodes: { $in: [...mapCodes] } }).lean()
-            : [];
-        const sagaItemOverlap = true
-          ? []
-          : objectLayerItemIds.size > 0
-            ? await CyberiaSaga.find({ itemIds: { $in: [...objectLayerItemIds] } }).lean()
-            : [];
-        const allSagas = [
-          ...new Map(
-            [...sagaCodeMatch, ...sagaMapOverlap, ...sagaItemOverlap].map((s) => [s._id.toString(), s]),
-          ).values(),
-        ];
+        const allSagas = [...new Map(sagaCodeMatch.map((s) => [s._id.toString(), s])).values()];
         if (allSagas.length > 0) {
           fs.ensureDirSync(`${backupDir}/cyberia-sagas`);
           for (const saga of allSagas) {
@@ -2812,15 +2785,15 @@ try {
 
         logger.info('Importing instance', { code: instanceCode, backupDir });
 
-        // Idempotent: a backup restore writes object layers, so collapse any
-        // legacy duplicates and make the data.item.id index unique first.
+        // A restore writes object layers, so collapse duplicates and make the
+        // data.item.id index unique first.
         const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
         if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
         if (indexUpgraded) logger.info('Upgraded data.item.id index to unique');
 
-        // Item ids belonging to this instance (collected from imported object
-        // layers + the instance doc) — used to backfill missing skills from the
-        // canonical DefaultSkillConfig when the backup predates the skill model.
+        // Item ids of this instance, from the imported object layers and the
+        // instance doc. They backfill skills from DefaultSkillConfig when the
+        // backup carries none.
         const importedItemIds = new Set();
 
         // 0. Drop existing documents if --drop is set
@@ -3048,13 +3021,13 @@ try {
           const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
           let importedConf = null;
           if (fs.existsSync(confImportPath)) {
-            // Backfill any missing schema fields so older backups import a
-            // complete, playable config into the DB.
+            // Backfill missing schema fields, so a partial backup imports a
+            // complete, playable config.
             const confData = fillInstanceConfDefaults(fs.readJsonSync(confImportPath));
             if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
             await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
-            // Always bump updatedAt so the Go server's version hash changes and
-            // ReloadWorld re-applies the config without requiring a full restart.
+            // Bump updatedAt so the world version changes and the server
+            // re-applies the config without a restart.
             confData.updatedAt = new Date();
             importedConf = await CyberiaInstanceConf.create(confData);
             logger.info('Imported CyberiaInstanceConf', { instanceCode: confData.instanceCode });
@@ -3062,11 +3035,10 @@ try {
             logger.warn(`CyberiaInstanceConf backup not found: ${confImportPath}`);
           }
 
-          // In --conf mode we must NOT delete + recreate the CyberiaInstance because
-          // that would overwrite cyberiaMapCodes / portals / itemIds with whatever was
-          // in the (possibly stale) backup, effectively removing the live maps and OLs
-          // from the instance.  Only update the conf ref and bump updatedAt so the Go
-          // server's version hash changes and ReloadWorld re-applies the config.
+          // --conf must not recreate the CyberiaInstance: that would overwrite
+          // cyberiaMapCodes, portals and itemIds from a possibly stale backup.
+          // Update the conf ref and bump updatedAt, so the world version changes
+          // and the server re-applies the config.
           if (importedConf) {
             const result = await CyberiaInstance.updateOne(
               { code: instanceCode },
@@ -3238,8 +3210,8 @@ try {
         // 6. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
         if (fs.existsSync(confImportPath)) {
-          // Backfill any missing schema fields so older backups import a
-          // complete, playable config into the DB.
+          // Backfill missing schema fields, so a partial backup imports a
+          // complete, playable config.
           const confData = fillInstanceConfDefaults(fs.readJsonSync(confImportPath));
           if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
           await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
@@ -3253,9 +3225,8 @@ try {
         const instancePath = `${backupDir}/cyberia-instance.json`;
         if (fs.existsSync(instancePath)) {
           const instanceData = fs.readJsonSync(instancePath);
-          // Heal legacy shapes against the current model. itemIds migrated from a
-          // flat string[] to [{ id, defaultPlayerInventory }] — a raw old backup
-          // would fail Mongoose embedded-cast validation, so normalize it here.
+          // Normalize itemIds to [{ id, defaultPlayerInventory }]. A flat string[]
+          // in the backup would fail the Mongoose embedded cast.
           instanceData.itemIds = (instanceData.itemIds || [])
             .map((entry) => (typeof entry === 'string' ? { id: entry, defaultPlayerInventory: false } : entry))
             .filter((entry) => entry && entry.id);
@@ -3377,11 +3348,9 @@ try {
           logger.info(`Imported ${entityDefaultCount} CyberiaEntityTypeDefault document(s)`);
         }
 
-        // 8e. Backfill missing skills from the canonical DefaultSkillConfig. Old
-        //     backups predate the CyberiaSkill model and ship no skills/ dir, so
-        //     any instance item that has a canonical skill (e.g. atlas_pistol_mk2,
-        //     coin, hatchet) but no document yet is seeded from defaults. Existing
-        //     skills are never overwritten.
+        // 8e. Backfill missing skills from DefaultSkillConfig: an instance item
+        //     with a canonical skill but no document is seeded from the
+        //     defaults. An existing skill is never overwritten.
         let backfilledSkillCount = 0;
         for (const sk of DefaultSkillConfig) {
           if (!importedItemIds.has(sk.triggerItemId)) continue;
@@ -5564,26 +5533,6 @@ node bin image --path cyberia-client \
         'skin-vivid',
         'skin-natural',
         'skin-shaved',
-        // 'resource-desert-petal',
-        // 'resource-desert-stone',
-        // 'resource-desert-polygon',
-        // 'resource-desert-thread',
-        // 'resource-grass-petal',
-        // 'resource-grass-stone',
-        // 'resource-grass-polygon',
-        // 'resource-grass-thread',
-        // 'resource-water-petal',
-        // 'resource-water-stone',
-        // 'resource-water-polygon',
-        // 'resource-water-thread',
-        // 'resource-stone-petal',
-        // 'resource-stone-stone',
-        // 'resource-stone-polygon',
-        // 'resource-stone-thread',
-        // 'resource-lava-petal',
-        // 'resource-lava-stone',
-        // 'resource-lava-polygon',
-        // 'resource-lava-thread',
       ];
 
       const baseSeed = options.seed || 'example';
@@ -5704,10 +5653,9 @@ node bin image --path cyberia-client \
       const nodeFlag = options.nodeName ? ` --node-name ${options.nodeName}` : '';
 
       // ── Dynamically resolve instance codes from conf.instances.json ──────
-      // Read all cyberia-server runtime instances and collect their
-      // multiInstance variant codes. These are used to update the
-      // INSTANCE_CODES label in Dockerfile.dev so the dev image
-      // provisions every variant's backup dir and saga at build time.
+      // Collect the multiInstance variant codes of every game-server runtime
+      // instance. They set the INSTANCE_CODES label in Dockerfile.dev, so the
+      // dev image provisions each variant's backup dir and saga at build time.
       //
       // Only codes that have an on-disk instance backup directory are
       // included. The saga file is optional — the Dockerfile's for loop
@@ -5769,14 +5717,12 @@ node bin image --path cyberia-client \
       }
 
       // ── Update catalog-cyberia.js privateConfPaths ───────────────────────
-      // The array block in privateConfPaths is bounded by /** INSTANCE_CODES */
-      // markers (valid JS comments here). Replace everything between them with
-      // the resolved per-code paths. These are synced by syncPrivateConf, which
-      // copies each entry from `./engine-private/<path>` — so they must match the
-      // LOCAL engine-private layout (`cyberia-instances/<code>`,
-      // `cyberia-sagas/<code>.json`), not the published cyberia-instances repo
-      // (which uses `instances/` + `sagas/`). Only emit paths that exist on disk
-      // so the sync never hits ENOENT on a variant without local content.
+      // The privateConfPaths array block sits between the /** INSTANCE_CODES */
+      // markers. Replace its content with the resolved per-code paths.
+      // syncPrivateConf copies each entry from `./engine-private/<path>`, so the
+      // paths follow the local engine-private layout (`cyberia-instances/<code>`,
+      // `cyberia-sagas/<code>.json`). Emit only paths that exist on disk, so the
+      // sync never hits ENOENT for a variant without local content.
       const catalogPath = './src/projects/cyberia/catalog-cyberia.js';
       try {
         const catalogContent = fs.readFileSync(catalogPath, 'utf8');
@@ -5838,11 +5784,10 @@ node bin image --path cyberia-client \
 
       // Copy canonical doc sources into the generated project READMEs.
       // Edit the canonical sources; never hand-edit these generated outputs.
-      // The mirrored deploy tree is a generated artifact, rebuilt from scratch so a file
-      // dropped or renamed upstream cannot linger in the published repo. It reproduces the
-      // engine layout exactly — the <deploy-id> directory beside lib/ — because every deploy
-      // script sources `$SCRIPT_DIR/../lib/logging.sh`, which only resolves when lib/ is the
-      // script directory's sibling there too.
+      // The mirrored deploy tree is generated, and rebuilt from scratch so a file
+      // renamed upstream cannot linger. It keeps the engine layout, the
+      // <deploy-id> directory beside lib/, because every deploy script sources
+      // `$SCRIPT_DIR/../lib/logging.sh`.
       for (const project of ['cyberia-client', 'cyberia-server']) {
         const scripts = `./deploy/${project}`;
         // A tree assembled before these scripts were packaged does not carry them; mirroring is
@@ -5866,9 +5811,8 @@ node bin image --path cyberia-client \
         './cyberia-server/.github/workflows/cyberia-server.cd.yml',
       );
       shellExec('cp -a ./engine-private/conf/dd-cyberia/docker-compose/cyberia/. ./src/runtime/engine-cyberia/');
-      // The publish is scoped to the deployment this workflow builds — every other step here is —
-      // so it reads dd-cyberia's own environment instead of the working-tree `./.env`, which names
-      // whichever deployment `app load` ran for last.
+      // Scope the publish to the deployment this workflow builds: read
+      // dd-cyberia's own environment, not the working-tree `./.env`.
       shellExec(
         `node bin/cyberia.js instance --publish-build --env-path ${deployEnvFilePath(
           'dd-cyberia',
@@ -5995,13 +5939,9 @@ node bin image --path cyberia-client \
 
   await program.parseAsync();
 } catch (error) {
-  // ONLY reroute on the explicit passthrough sentinel. Any other thrown
-  // error (subprocess non-zero from shellExec's fail-fast default, CLI
-  // parse errors, missing modules) must propagate as a non-zero process
-  // exit so GitHub Actions / CI parents observe the failure. Without this
-  // guard, a genuine build failure was being silently rerouted into the
-  // underpost CLI and then masked behind a misleading "unknown command"
-  // line.
+  // Reroute only on the passthrough sentinel. Every other error — a non-zero
+  // subprocess, a CLI parse error, a missing module — must exit non-zero, so a
+  // CI parent sees the failure.
   if (error && error.message === 'Trigger underpost passthrough') {
     process.argv = process.argv.filter((c) => c !== 'underpost');
     if (!process.argv.includes('--plain')) logger.info('Rerouting to underpost cli...');

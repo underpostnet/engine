@@ -8,7 +8,7 @@ import { Schema, model, Types } from 'mongoose';
  *
  * Schema fields:
  *   code    – primary grouping key, e.g. "default-lain" or "wason-intro".
- *             The C client fetches all lines for a given code in one request.
+ *             The client fetches every line of one code in a single request.
  *   order   – zero-based display sequence within the code group.
  *   speaker – display name shown above the dialogue line.
  *   text    – the dialogue line itself.

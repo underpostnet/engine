@@ -3,22 +3,14 @@
  *
  * Read-only service layer for client presentation hints.
  *
- * Resolution order (highest priority first):
- *   1. CyberiaClientHints collection — the dedicated presentation-overrides
- *      collection. Always preferred when present.
- *   2. Compatibility read on CyberiaInstanceConf with the same `code` —
- *      covers instances seeded before CyberiaClientHints existed.
- *   3. Canonical compile-time defaults from
- *      SharedDefaultsCyberia.js. The C client bakes the
- *      same defaults at compile time, so this branch returns exactly the
- *      values the client already has.
+ * Resolution order, highest priority first:
+ *   1. CyberiaClientHints collection, the dedicated overrides collection.
+ *   2. Presentation fields on CyberiaInstanceConf with the same `code`.
+ *   3. Canonical defaults from SharedDefaultsCyberia.js, the same values the
+ *      client holds built in.
  *
- * Caching: in-memory TTL cache keyed by instance code. Read-only on the
- * hot path; cache writes happen on cache miss + DB hit. CMS writes that
- * mutate the underlying collection should call `clientHintsInvalidate(code)`.
- *
- * Output is a plain JSON-friendly object whose shape matches the C
- * client's compile-time layout.
+ * An in-memory TTL cache keyed by instance code serves the hot path. A write
+ * to either collection must call `clientHintsInvalidate(code)`.
  */
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
@@ -31,8 +23,7 @@ import {
 
 const logger = loggerFactory(import.meta);
 
-// TTL chosen long enough that bursty client fetches are absorbed, short
-// enough that an editor change shows up within ~30s without manual flush.
+// TTL absorbs bursty client fetches and still shows an editor change in ~30s.
 const CACHE_TTL_MS = 30_000;
 
 // One per instance code. value: { data, expiresAt }
@@ -56,9 +47,7 @@ function cacheSet(code, data) {
   cache.set(code, { data, expiresAt: now() + CACHE_TTL_MS });
 }
 
-/** Invalidate a cache entry. CMS write paths should call this after
- *  mutating either CyberiaClientHints or CyberiaInstanceConf for
- *  the given code. */
+/** Invalidate one cache entry, or the whole cache when `code` is empty. */
 export function clientHintsInvalidate(code) {
   if (code) {
     cache.delete(code);
@@ -107,7 +96,7 @@ export async function resolveClientHints(code, options = {}) {
     return { data: CYBERIA_CLIENT_HINTS_DEFAULTS, source: 'defaults' };
   }
 
-  // 1. Preferred — CyberiaClientHints collection (src/api/cyberia-client-hints/cyberia-client-hints.model.js).
+  // 1. Preferred source: the CyberiaClientHints collection.
   if (HintsModel && code) {
     const hint = await HintsModel.findOne({ code }).lean().catch(() => null);
     if (hint) {
@@ -117,9 +106,7 @@ export async function resolveClientHints(code, options = {}) {
     }
   }
 
-  // 2. Compatibility read — for instances seeded before CyberiaClientHints
-  //    existed, look up the same code in CyberiaInstanceConf and read its
-  //    presentation-shaped fields directly.
+  // 2. Instances that keep their presentation fields on CyberiaInstanceConf.
   if (ConfModel && code) {
     const fromConf =
       (await ConfModel.findOne({ code }).lean().catch(() => null)) ||
@@ -131,22 +118,18 @@ export async function resolveClientHints(code, options = {}) {
     }
   }
 
-  // 3. Any available CyberiaClientHints document — used when the requested
-  //    code has no record yet but another instance (e.g. the one the Go
-  //    server is currently running) does.  This avoids pure built-in
-  //    defaults in fresh environments where only a different code is seeded.
+  // 3. Any CyberiaClientHints document, when the requested code has none but
+  //    another instance does. Beats falling straight through to defaults.
   if (HintsModel) {
     const anyHint = await HintsModel.findOne({}).lean().catch(() => null);
     if (anyHint) {
       const merged = buildClientHints(anyHint);
-      // Cache under the requested code so subsequent requests are fast,
-      // but with a shorter TTL (5 s) so a proper seed wins quickly.
+      // Short TTL under the requested code so a later seed wins quickly.
       if (code) cache.set(code, { data: merged, expiresAt: now() + 5_000 });
       return { data: merged, source: 'presentation-hints-fallback' };
     }
   }
 
-  // 4. Canonical defaults. Not cached — we do not poison the cache with
-  //    a default that could mask a later DB insert.
+  // 4. Canonical defaults. Never cached, so a later DB insert wins.
   return { data: CYBERIA_CLIENT_HINTS_DEFAULTS, source: 'defaults' };
 }

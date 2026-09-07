@@ -9,8 +9,8 @@ class CyberiaActionRouter {
    */
   static router(options) {
     const router = express.Router();
-    // Direct lookup by code — the client fetches an NPC's action metadata
-    // (label, dialogue map) by the action code the Go server sends over AOI.
+    // Direct lookup by code. The client fetches an NPC's action metadata
+    // (label, dialogue map) by the action code the AOI stream carries.
     router.get(`/code/:code`, async (req, res) => await CyberiaActionController.getByCode(req, res, options));
     return registerCrudRoutes(router, CyberiaActionController, options);
   }

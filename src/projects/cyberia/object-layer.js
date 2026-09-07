@@ -880,7 +880,7 @@ export class ObjectLayerEngine {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Backward-compatible named exports matching the original destructured imports.
+// Named exports of the ObjectLayerEngine statics.
 // ──────────────────────────────────────────────────────────────────────────
 
 /**

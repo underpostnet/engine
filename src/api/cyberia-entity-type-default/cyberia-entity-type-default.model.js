@@ -11,19 +11,15 @@ import { Schema, model } from 'mongoose';
 //   dropItemIds          — ids granted to the killer on depletion (resources).
 //   defaultObjectLayers  — seed inventory rows ({ itemId, active, quantity }).
 //
-// Resolution rule (authoritative): defaults are looked up by the entity's ACTIVE
-// itemId (usually the skin) — the system finds the document whose `liveItemIds`
-// contains that itemId, then applies the document's deadItemIds / dropItemIds /
-// defaultObjectLayers to drive what is shown as the entity's state changes.
-//
-// Resolution (subset matching): a document matches an entity when ALL of its
-// `liveItemIds` are present in the entity's active item ids, and the MOST SPECIFIC
-// match wins — the document requiring the largest item set. This lets the same
-// skin map to different defaults by its full active set, e.g.
+// Resolution: a document matches an entity when every one of its `liveItemIds`
+// is in the entity's active item ids. The most specific match wins, the document
+// that requires the largest item set. Its deadItemIds, dropItemIds and
+// defaultObjectLayers then drive the entity through its states. So one skin can
+// map to different defaults by its full active set, e.g.
 //   { bot, liveItemIds:[purple, atlas_pistol_mk2], behavior:hostile }
 //   { bot, liveItemIds:[purple],                    behavior:passive }
 // where a purple bot carrying the pistol is hostile and a bare purple bot is
-// passive. The Go simulation (game/entity_defaults.go) implements the same rule.
+// passive. The simulation applies the same rule.
 //
 // Invariants:
 //   - `entityType` is a label, not a unique key — a category appears in many
@@ -51,8 +47,8 @@ const CyberiaEntityTypeDefaultSchema = new Schema(
     defaultObjectLayers: [ObjectLayerDefaultSchema],
     // Canonical entity behavior bound to entities matched by liveItemIds (see
     // SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty = let the runtime derive it
-    // (armed → hostile, else passive). The Go simulation resolves this with the
-    // same liveItemIds matching used for the live/dead/drop sets.
+    // (armed → hostile, else passive). The simulation resolves it with the same
+    // liveItemIds match it uses for the live/dead/drop sets.
     behavior: { type: String, trim: true },
   },
   {

@@ -17,7 +17,7 @@ const ObjectLayerSlotSchema = new Schema(
 // responsibility and travels through the CyberiaClientHints REST contract.
 const EntityDefaultSchema = new Schema(
   {
-    // Entity category string (matches entity_type_str / bot Behavior in game engine)
+    // Entity category string, as the simulation names it.
     entityType: { type: String, required: true },
     // Default ObjectLayer item IDs when the entity is alive and carries no assigned items.
     liveItemIds: { type: [String], default: [] },
@@ -26,10 +26,8 @@ const EntityDefaultSchema = new Schema(
     // Resource-only inventory items granted on extraction/depletion.
     // These are not auto-activated on the entity itself.
     dropItemIds: { type: [String], default: [] },
-    // Full default ObjectLayer inventory for this entity type.
-    // Each entry specifies itemId, whether it starts active, and its initial quantity.
-    // The coin slot must always have active:false — coins are non-activable.
-    // When non-empty this supersedes liveItemIds for inventory initialization.
+    // Full default ObjectLayer inventory for this entity type. A non-empty list
+    // supersedes liveItemIds. The coin slot must keep active:false.
     defaultObjectLayers: { type: [ObjectLayerSlotSchema], default: [] },
     // Canonical entity behavior (SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty
     // lets the runtime derive it (armed → hostile, else passive).
@@ -47,10 +45,9 @@ const SkillConfigEntrySchema = new Schema(
 );
 
 // ── StatusIconEntrySchema ────────────────────────────────────────────────────
-// Numeric Entity Status Indicator (ESI) IDs. The Go server stamps one of
-// these u8 IDs on every entity in the AOI binary wire format. Visual
-// resolution (icon stem, border colour, bounce) is the C client's job and
-// arrives through the /api/cyberia-client-hints REST contract — NOT here.
+// Numeric Entity Status Indicator (ESI) IDs. The server stamps one u8 ID on
+// every entity in the AOI wire format. The icon visuals belong to the client
+// and travel through /api/cyberia-client-hints, not here.
 const StatusIconEntrySchema = new Schema(
   {
     id: { type: Number, required: true },
@@ -61,10 +58,9 @@ const StatusIconEntrySchema = new Schema(
 );
 
 // ── EconomyRulesSchema ───────────────────────────────────────────────────────
-// Mirrors the EconomyRules proto message and the economyRules sub-document in
-// cyberia-server-defaults.js.  All fields default from those canonical
-// values so a freshly created document is immediately playable.
-// See OFF_CHAIN_ECONOMY.md for the full Fountain & Sink architecture.
+// The EconomyRules message shape. Every field defaults from
+// cyberia-server-defaults.js, so a new document is playable at once.
+// See OFF_CHAIN_ECONOMY.md for the Fountain & Sink architecture.
 const EconomyRulesSchema = new Schema(
   {
     // ── Fountains ───────────────────────────────────────────────────────────
@@ -115,12 +111,11 @@ const SkillRulesSchema = new Schema(
 );
 
 /**
- * Game server configuration for a Cyberia instance.
- * Separated from CyberiaInstance so the GUI never overwrites live server parameters
- * when editing instance identity / map-graph fields.
+ * Simulation configuration for a Cyberia instance. It is separate from
+ * CyberiaInstance so an edit to instance identity or map graph cannot
+ * overwrite live simulation parameters.
  *
- * Linked from CyberiaInstance.conf (ObjectId ref).
- * Looked up by instanceCode for CLI / gRPC use.
+ * Linked from CyberiaInstance.conf (ObjectId ref), looked up by instanceCode.
  */
 const CyberiaInstanceConfSchema = new Schema(
   {
@@ -167,9 +162,7 @@ const CyberiaInstanceConfSchema = new Schema(
     lifeRegenChance: { type: Number, default: D.lifeRegenChance },
     maxChance: { type: Number, default: D.maxChance },
 
-    // ── Entity type rendering defaults ───────────────────────────────
-    // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
-    // coinItemId, defaultFloorItemId, weaponDefaultItemId.
+    // ── Entity type defaults ─────────────────────────────────────────
     // Each entry: { entityType, liveItemIds, deadItemIds, dropItemIds, colorKey }.
     entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
 

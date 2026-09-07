@@ -1,15 +1,9 @@
 /**
- * Mongoose model for `CyberiaClientHints`.
+ * Mongoose model for `CyberiaClientHints`, the per-instance presentation
+ * overrides. Editor flows write it; the game client reads it over REST. The
+ * simulation never touches it.
  *
- * Dedicated collection for per-instance presentation overrides.
- *
- * Ownership:
- *   - Read by:  cyberia-client (via /api/cyberia-client-hints/:code), CMS UIs.
- *   - Written by: CMS / editor flows. The Cyberia simulation server
- *                 never reads or writes this collection.
- *   - Cacheable: yes — the service layer keeps an in-memory TTL cache.
- *
- * Schema scope: purely visual fields. Anything that influences simulation
+ * Schema scope: visual fields only. A field that changes the simulation
  * belongs in `CyberiaInstanceConf`.
  *
  * @module src/api/cyberia-client-hints/cyberia-client-hints.model.js
@@ -58,13 +52,10 @@ const EntityColorKeySchema = new Schema(
 
 const CyberiaClientHintsSchema = new Schema(
   {
-    // Instance code this hint set is scoped to. Matches CyberiaInstance.code
-    // and CyberiaInstanceConf.instanceCode. Indexed and unique to make the
-    // service-layer cache a 1-to-1 keyed lookup.
+    // Instance code, matching CyberiaInstance.code. Unique: one hint set per code.
     code: { type: String, required: true, unique: true, index: true },
 
-    // Optional palette overrides. Keys not present here fall back to the
-    // client's compile-time defaults.
+    // Palette overrides. An absent key keeps the client default.
     palette: { type: [PaletteEntrySchema], default: [] },
 
     // Optional per-entity-type color-key overrides.
@@ -73,8 +64,8 @@ const CyberiaClientHintsSchema = new Schema(
     // Optional status-icon visual overrides (id → iconId + borderColor).
     statusIcons: { type: [StatusIconHintSchema], default: [] },
 
-    // Camera, viewport, and cell-sizing tunings — null/undefined means
-    // "use the SharedDefaultsCyberia.RENDER_DEFAULTS value".
+    // Camera, viewport and cell-size tunings. null keeps the
+    // SharedDefaultsCyberia.RENDER_DEFAULTS value.
     cellSize: { type: Number, default: null },
     defaultObjWidth: { type: Number, default: null },
     defaultObjHeight: { type: Number, default: null },
@@ -85,8 +76,8 @@ const CyberiaClientHintsSchema = new Schema(
     interpolationMs: { type: Number, default: null },
     devUi: { type: Boolean, default: null },
 
-    // Main UI font: TTF file name under engine assets/fonts/ (null = built-in
-    // raylib font) and a uniform text-size multiplier.
+    // Main UI font: TTF file name under engine assets/fonts/ (null = client
+    // built-in font) and a uniform text-size multiplier.
     fontFamily: { type: String, default: null },
     fontFactorSize: { type: Number, default: null },
   },

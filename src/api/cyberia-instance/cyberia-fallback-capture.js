@@ -329,10 +329,9 @@ async function seedMissingContentDefaults({ CyberiaSkill, CyberiaEntityTypeDefau
 }
 
 /**
- * Remove documents left over in this capture's own namespace by a previous,
- * larger capture (e.g. a world that used to have more maps). Only ever touches
- * codes prefixed with the instance code, and never runs in `keepFallbackCodes`
- * mode where the codes are the globally shared canonical ones.
+ * Remove documents that a larger previous capture left in this capture's own
+ * namespace. Touches only codes prefixed with the instance code, and never runs
+ * in `keepFallbackCodes` mode, where the codes are the shared canonical ones.
  */
 async function pruneStaleCaptureDocs({ models, instanceCode, plan }) {
   const namespace = new RegExp(`^${escapeRegExp(instanceCode)}-`);

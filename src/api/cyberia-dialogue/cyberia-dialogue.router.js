@@ -9,7 +9,7 @@ class CyberiaDialogueRouter {
    */
   static router(options) {
     const router = express.Router();
-    // Direct lookup by code — C client fetches dialogue by code (e.g. "default-lain")
+    // Direct lookup by code, e.g. "default-lain".
     router.get(`/code/:code`, async (req, res) => await CyberiaDialogueController.getByCode(req, res, options));
     return registerCrudRoutes(router, CyberiaDialogueController, options);
   }

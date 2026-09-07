@@ -1,15 +1,14 @@
 /**
  * Shared Cyberia instance world-load / boot data assembly.
  *
- * Single source of truth for the payloads cyberia-server (Go) needs to boot an
- * instance and hot-reload it: full instance world (instance + maps + object
- * layers + simulation config + actions/quests), single map/object-layer
- * lookups, and the object-layer manifest.
+ * Single source of truth for the payloads the simulation server needs to boot
+ * and hot-reload an instance: the full world (instance + maps + object layers +
+ * simulation config + actions/quests), single map / object-layer lookups, and
+ * the object-layer manifest.
  *
- * Consumed by BOTH transports so they stay byte-for-byte equivalent:
- *  - gRPC `CyberiaDataService` (src/grpc/cyberia/grpc-server.js) — primary.
- *  - REST `/api/cyberia-instance/boot/*` — fallback when the engine gRPC
- *    server is not enabled for the deploy.
+ * Both boot transports adapt this module, so they stay equivalent:
+ *  - gRPC `CyberiaDataService` (src/grpc/cyberia/grpc-server.js), primary.
+ *  - REST `/api/cyberia-instance/boot/*`, fallback when gRPC is off.
  *
  * @module src/projects/cyberia/instance-data.js
  */
@@ -85,16 +84,10 @@ function normalizeEntityDefault(entityDefault = {}, canonical = {}) {
   };
 }
 
-// Merge instance-level itemIds flagged `defaultPlayerInventory` into the player
-// entityDefault's defaultObjectLayers so cyberia-server seeds them into every new
-// player's inventory (see handlers.go player spawn). Items are added inactive —
-// present in the inventory, not auto-equipped — so they never violate the
-// one-active-per-type equipment rule.
-//
-// Also **removes** items that are flagged `defaultPlayerInventory: false` from
-// the player's defaultObjectLayers. This ensures the instance's explicit intent
-// is honoured even when the conf's entityDefaults (e.g. from a backup/import)
-// baked those items into the player layer list.
+// Apply the instance-level `defaultPlayerInventory` flags to the player
+// entityDefault's defaultObjectLayers: a flagged item is added inactive, and an
+// item flagged false is removed. The instance intent wins over an entityDefaults
+// list that baked the item in. Inactive keeps the one-active-per-type rule.
 function applyInstanceDefaultPlayerInventory(config, instanceItemIds = []) {
   const entries = instanceItemIds || [];
 
@@ -127,10 +120,8 @@ function applyInstanceDefaultPlayerInventory(config, instanceItemIds = []) {
   return config;
 }
 
-// Map CyberiaSkill collection docs to the proto skillConfig shape. The skill
-// collection is the authoritative own-model source: it carries full skill
-// metadata (summonedEntityItemId, name, description) that the instance-conf
-// skillConfig schema deliberately does not store.
+// Map CyberiaSkill docs to the wire skillConfig shape. This collection is
+// authoritative: it holds the metadata the instance-conf schema drops.
 function skillDocsToConfig(skillDocs = []) {
   return skillDocs
     .filter((d) => d && d.triggerItemId)
@@ -145,19 +136,15 @@ function skillDocsToConfig(skillDocs = []) {
     }));
 }
 
-// Load authoritative skill configs from the CyberiaSkill collection. Returns []
-// when the model is not loaded (api not mounted) or the collection is empty, so
-// callers transparently keep the conf / fallback skillConfig.
+// Load skill configs. Returns [] when the model is not mounted or the
+// collection is empty, so the caller keeps the conf / fallback skillConfig.
 async function loadSkillConfigDocs(models) {
   if (!models.CyberiaSkill) return [];
   return await models.CyberiaSkill.find({}).lean();
 }
 
-// Map CyberiaEntityTypeDefault collection docs to the proto entityDefaults shape.
-// This collection is the authoritative own-model source for per-entity-type item
-// defaults (live/dead/drop + seed object layers). Resolution is by liveItemIds
-// membership, so every variant (e.g. each resource skin) must travel as its own
-// entry — never collapsed by entityType.
+// Map CyberiaEntityTypeDefault docs to the wire entityDefaults shape. Lookup is
+// by liveItemIds membership, so each variant travels as its own entry.
 function entityTypeDefaultDocsToConfig(docs = []) {
   return docs
     .filter((d) => d && d.entityType)
@@ -175,17 +162,15 @@ function entityTypeDefaultDocsToConfig(docs = []) {
     }));
 }
 
-// Load authoritative entity-type defaults from the CyberiaEntityTypeDefault
-// collection. Returns [] when the model is not mounted or empty, so callers
-// transparently keep the conf / canonical entityDefaults.
+// Load entity-type defaults. Returns [] when the model is not mounted or the
+// collection is empty, so the caller keeps the conf / canonical entityDefaults.
 async function loadEntityTypeDefaultDocs(models) {
   if (!models.CyberiaEntityTypeDefault) return [];
   return await models.CyberiaEntityTypeDefault.find({}).lean();
 }
 
-// Feed every live/dead/drop and default-object-layer item id from the collection
-// defaults into the atlas id set so the Go server resolves their sprites even
-// when the entity appears in no map (e.g. a new resource skin).
+// Add every live/dead/drop and default-object-layer item id to the atlas set,
+// so the sprites resolve even when the entity appears in no map.
 function addEntityDefaultAtlasIds(entityDefaults, atlasItemIds) {
   for (const d of entityDefaults || []) {
     for (const id of d.liveItemIds || []) if (id) atlasItemIds.add(id);
@@ -195,9 +180,8 @@ function addEntityDefaultAtlasIds(entityDefaults, atlasItemIds) {
   }
 }
 
-// Feed skill trigger items and every concrete summoned-entity id into the atlas
-// id set so the Go server resolves their sprites even when the entity appears in
-// no map. Runtime placeholders ('$active_skin', …) are excluded.
+// Add skill trigger items and concrete summoned-entity ids to the atlas set.
+// Runtime placeholders ('$active_skin', …) are excluded.
 function addSkillAtlasIds(skillDocs, atlasItemIds) {
   for (const d of skillDocs || []) {
     if (d.triggerItemId) atlasItemIds.add(d.triggerItemId);
@@ -263,7 +247,7 @@ function parseRgba(str) {
   if (!str) return { r: 0, g: 0, b: 0, a: 0 };
   const m = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
   if (!m) return { r: 0, g: 0, b: 0, a: 0 };
-  // CSS alpha is 0-1 (float); proto uses 0-255 (int).
+  // CSS alpha is 0-1 float; the wire format uses 0-255 int.
   const cssAlpha = m[4] !== undefined ? parseFloat(m[4]) : 1;
   return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: Math.round(cssAlpha * 255) };
 }
@@ -394,17 +378,10 @@ function toInstanceConfig(gc) {
   const fb = FALLBACK_CONFIG_DEFAULTS;
   if (!gc) return buildFallbackConfig();
 
-  // STRICT BOUNDARY — this function produces the *simulation* config for
-  // cyberia-server only. Every presentation concern is excluded:
-  //
-  //   - palette (colors), camera tunings, screen factors, devUi,
-  //     interpolationMs, status-icon visuals, entityDefaults[].colorKey,
-  //     cellSize, defaultObj* — all of these reach the client through
-  //     /api/cyberia-client-hints, never through the boot transports.
-  //
-  // The Go simulation does not need any of them to advance world state;
-  // the C/WASM cyberia-client owns its own render policy. See
-  // src/client/components/cyberia/SharedDefaultsCyberia.js.
+  // STRICT BOUNDARY: this config is simulation only. Presentation values
+  // (palette, camera tunings, screen factors, devUi, interpolationMs,
+  // status-icon visuals, entityDefaults[].colorKey, cellSize, defaultObj*)
+  // reach the client through /api/cyberia-client-hints, never a boot transport.
 
   const gcDefaults = gc.entityDefaults && gc.entityDefaults.length > 0 ? gc.entityDefaults : [];
   const entityDefaults = mergeEntityDefaults(gcDefaults);
@@ -430,7 +407,7 @@ function toInstanceConfig(gc) {
     initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
     respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
-    // Economy — Fountain & Sink (nested, mirrors EconomyRules proto message).
+    // Economy — Fountain & Sink (nested EconomyRules message).
     economyRules: {
       botSpawnCoins: gc.economyRules?.botSpawnCoins ?? fb.economyRules.botSpawnCoins,
       playerSpawnCoins: gc.economyRules?.playerSpawnCoins ?? fb.economyRules.playerSpawnCoins,
@@ -465,7 +442,7 @@ function toInstanceConfig(gc) {
       doppelgangerInitialLifeFraction:
         gc.skillRules?.doppelgangerInitialLifeFraction ?? fb.skillRules.doppelgangerInitialLifeFraction,
     },
-    // Equipment rules — governs activation constraints (nested, mirrors EquipmentRules proto message).
+    // Equipment rules — activation constraints (nested EquipmentRules message).
     equipmentRules: {
       activeItemTypes: gc.equipmentRules?.activeItemTypes ?? fb.equipmentRules.activeItemTypes,
       onePerType: gc.equipmentRules?.onePerType ?? fb.equipmentRules.onePerType,
@@ -558,8 +535,8 @@ async function fetchFullInstance(models, requestedInstanceCode) {
     const world = generateFallbackWorld({ itemIds: getFallbackDefaultItems() });
     const fallbackConf = buildFallbackConfig();
 
-    // Collect all objectLayerItemIds from the generated maps so the
-    // Go server can resolve atlases at startup.
+    // Collect every objectLayerItemId of the generated maps, so the atlases
+    // resolve at startup.
     const fallbackItemIds = new Set();
     for (const m of world.maps) {
       for (const e of m.entities || []) {
@@ -575,10 +552,8 @@ async function fetchFullInstance(models, requestedInstanceCode) {
         if (ol.itemId) fallbackItemIds.add(ol.itemId);
       }
     }
-    // Include every canonical item so the Go server can resolve the type
-    // of anything a player may pick up or equip (quest rewards like
-    // hatchet, alt weapons, etc.) — required for the one-per-type
-    // equipment rule, which silently no-ops when item type is unknown.
+    // Include every canonical item so the server knows the type of anything a
+    // player can pick up. The one-per-type rule no-ops on an unknown type.
     for (const it of DefaultCyberiaItems || []) {
       if (it?.item?.id) fallbackItemIds.add(it.item.id);
     }
@@ -589,25 +564,21 @@ async function fetchFullInstance(models, requestedInstanceCode) {
       if (entry?.id) fallbackItemIds.add(entry.id);
     }
 
-    // The fallback world is fully self-contained: content config comes
-    // exclusively from the canonical code defaults (cyberia-server-defaults
-    // + SharedDefaultsCyberia). Own-model collections (CyberiaSkill,
-    // CyberiaEntityTypeDefault) are deliberately NOT consulted here so a
-    // stale seed can never mask a code-default change. Only ObjectLayer is
-    // read — sprite/render assets have no code-side source.
+    // The fallback world is self-contained: its content config comes only from
+    // the code defaults, never from CyberiaSkill or CyberiaEntityTypeDefault, so
+    // a stale seed cannot mask a code default. Only ObjectLayer is read, because
+    // sprite assets have no code-side source.
     const fallbackOlDocs = fallbackItemIds.size
       ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } }).lean()
       : [];
 
     const fallbackConfig = buildFallbackInstanceConfig(fallbackConf, world.instance.itemIds);
 
-    // Opaque version over everything mutable in this payload, mirroring the
-    // persisted path below. A constant here would make hot reload a silent
-    // no-op: WorldBuilder.ReloadWorld skips the rebuild — and therefore
-    // ApplyInstanceConfig — whenever the version is unchanged. The world
-    // geometry itself is deterministic (code defaults + seed), so the inputs
-    // that can actually differ are the staged default items and the
-    // ObjectLayer docs, which are the only things read from the DB here.
+    // Opaque version over everything mutable in this payload, like the
+    // persisted path below. The server skips the world rebuild while the
+    // version holds, so a constant here would make hot reload a no-op. The
+    // geometry is deterministic; only the staged default items and the
+    // ObjectLayer docs can differ.
     const fallbackVersionParts = ['fallback'];
     for (const entry of world.instance.itemIds || []) {
       fallbackVersionParts.push(`${entry.id}:${entry.defaultPlayerInventory ? 1 : 0}`);
@@ -633,8 +604,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
       objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
       config: fallbackConfig,
       version: fallbackVersion,
-      // Mission content for the procedural fallback comes straight from
-      // the canonical defaults — no DB, fully self-contained.
+      // Mission content for the fallback comes from the code defaults, no DB.
       actions: DefaultCyberiaActions.map(toActionMsg),
       quests: DefaultCyberiaQuests.map(toQuestMsg),
     };
@@ -642,10 +612,8 @@ async function fetchFullInstance(models, requestedInstanceCode) {
 
   // ── Instance found — load maps + entity OLs + config default OLs ──────
   // `populate('conf')` returns null when the ObjectId ref is missing or
-  // orphaned (e.g. after a --conf import that preserved a stale _id).
-  // Fall back to a direct instanceCode lookup so aoiRadius and all other
-  // tuning fields are always read from the database, never silently
-  // replaced by FALLBACK_CONFIG_DEFAULTS.
+  // orphaned. The direct instanceCode lookup keeps every tuning field coming
+  // from the database instead of FALLBACK_CONFIG_DEFAULTS.
   let conf = inst.conf;
   if (!conf) {
     conf = await models.CyberiaInstanceConf.findOne({ instanceCode }).lean();
@@ -665,23 +633,20 @@ async function fetchFullInstance(models, requestedInstanceCode) {
     }
   }
 
-  // Instance-level itemIds (e.g. default-player-inventory items) may not
-  // appear in any map entity — include them so their atlases resolve.
-  // Tolerate legacy flat-string entries alongside the { id, … } shape.
+  // Instance-level itemIds may appear in no map entity. Include them so their
+  // atlases resolve. Accepts both the flat-string and the { id, … } shape.
   for (const entry of inst.itemIds || []) {
     const id = typeof entry === 'string' ? entry : entry?.id;
     if (id) itemIds.add(id);
   }
 
-  // Authoritative per-entity-type defaults come from the
-  // CyberiaEntityTypeDefault collection (own model); empty collection leaves
-  // the conf/canonical defaults in place.
+  // CyberiaEntityTypeDefault is authoritative. An empty collection keeps the
+  // conf / canonical defaults.
   const entityDefaultDocs = await loadEntityTypeDefaultDocs(models);
   const entityDefaultsConfig = entityTypeDefaultDocsToConfig(entityDefaultDocs);
 
-  // Include system OL items from canonical ENTITY_TYPE_DEFAULTS, the DB conf,
-  // AND the collection so the Go server always caches every default atlas
-  // even when an entity (e.g. a new resource skin) appears in no map.
+  // Add system OL items from ENTITY_TYPE_DEFAULTS, the DB conf and the
+  // collection, so every default atlas resolves even with no map entity.
   for (const d of [...ENTITY_TYPE_DEFAULTS, ...(conf.entityDefaults || [])]) {
     for (const id of d.liveItemIds || []) itemIds.add(id);
     for (const id of d.deadItemIds || []) itemIds.add(id);
@@ -690,35 +655,32 @@ async function fetchFullInstance(models, requestedInstanceCode) {
       if (ol.itemId) itemIds.add(ol.itemId);
     }
   }
-  // The Go server falls back to this dead visual when a build declares
-  // no deadItemIds — its atlas must resolve even when nothing references it.
+  // The server uses this dead visual when a build declares no deadItemIds, so
+  // its atlas must resolve even when nothing references it.
   itemIds.add(DEFAULT_DEAD_ITEM_ID);
   addEntityDefaultAtlasIds(entityDefaultsConfig, itemIds);
 
-  // Authoritative skills come from the CyberiaSkill collection (own model);
-  // resolve their atlases before the OL query so summoned entities render.
+  // CyberiaSkill is authoritative. Resolve its atlases before the OL query so
+  // summoned entities render.
   const skillDocs = await loadSkillConfigDocs(models);
   addSkillAtlasIds(skillDocs, itemIds);
 
   const olDocs = itemIds.size ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } }).lean() : [];
 
-  // Opaque version string from updatedAt timestamps — the Go server
-  // compares this to skip full world rebuilds when nothing changed.
+  // Opaque version over the updatedAt timestamps. The server compares it to
+  // skip a full world rebuild when nothing changed.
   const versionParts = [String(inst.updatedAt || inst._id)];
   for (const m of mapDocs) versionParts.push(String(m.updatedAt || m._id));
   if (conf.updatedAt) versionParts.push(String(conf.updatedAt));
-  // Skill edits live in their own collection — fold them in so a skill
-  // change triggers a Go-side world rebuild instead of serving stale skills.
+  // Fold in skill edits so a skill change triggers a world rebuild.
   for (const sk of skillDocs) versionParts.push(String(sk.updatedAt || sk._id));
-  // Entity-type-default edits live in their own collection too — fold them
-  // in so adding/editing a default (e.g. a new resource) rebuilds the world.
+  // Fold in entity-type-default edits for the same reason.
   for (const ed of entityDefaultDocs) versionParts.push(String(ed.updatedAt || ed._id));
   const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
-  // Mission content for this instance: actions and quests bound to its
-  // maps (by sourceMapCode). Delivered with the world so the Go server
-  // never opens a separate content channel, and never receives content from
-  // other instances' maps.
+  // Mission content for this instance: the actions and quests bound to its maps
+  // by sourceMapCode. It travels with the world, so no second content channel
+  // is needed and no other instance's content leaks in.
   const actionDocs =
     mapCodes.length && models.CyberiaAction
       ? await models.CyberiaAction.find({ sourceMapCode: { $in: mapCodes } }).lean()
@@ -729,14 +691,13 @@ async function fetchFullInstance(models, requestedInstanceCode) {
       : [];
 
   const baseConfig = toInstanceConfig(conf);
-  // Own-model entity defaults win over the conf's entityDefaults (overlaid on
-  // canonical via mergeEntityDefaults), so every collection variant — e.g.
-  // each resource skin — reaches the Go runtime keyed by liveItemIds. Applied
-  // BEFORE default-player-inventory so the player layer additions survive.
+  // Collection entity defaults win over the conf's, so each variant reaches the
+  // runtime keyed by liveItemIds. Apply them before default-player-inventory,
+  // which must keep its additions to the player layer list.
   if (entityDefaultsConfig.length) baseConfig.entityDefaults = mergeEntityDefaults(entityDefaultsConfig);
   const config = applyInstanceDefaultPlayerInventory(baseConfig, inst.itemIds);
-  // Own-model skills win over the conf's stripped skillConfig (which lacks
-  // summonedEntityItemId); empty collection leaves the conf/fallback as-is.
+  // Collection skills win over the conf's stripped skillConfig. An empty
+  // collection keeps the conf / fallback.
   if (skillDocs.length) config.skillConfig = skillDocsToConfig(skillDocs);
 
   return {

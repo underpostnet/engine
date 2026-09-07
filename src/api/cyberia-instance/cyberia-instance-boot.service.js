@@ -1,11 +1,11 @@
 /**
  * REST boot service — the /api/cyberia-instance/boot/* fallback transport.
  *
- * Serves the exact CyberiaDataService payloads (world load, hot reload) over
- * REST so cyberia-server can boot from ENGINE_API_BASE_URL when the engine
- * gRPC server (ENGINE_GRPC_ADDRESS) is not enabled for the deploy. All data
- * assembly lives in src/projects/cyberia/instance-data.js, shared with
- * src/grpc/cyberia/grpc-server.js so both transports stay equivalent.
+ * Serves the CyberiaDataService payloads (world load, hot reload) over REST, so
+ * the game server can boot from ENGINE_API_BASE_URL when the engine gRPC server
+ * (ENGINE_GRPC_ADDRESS) is off for the deploy. The data assembly lives in
+ * src/projects/cyberia/instance-data.js, shared with
+ * src/grpc/cyberia/grpc-server.js, so both transports stay equivalent.
  *
  * Endpoints (all GET, internal server-to-server, mirroring the RPCs):
  *   /boot/ping                         → { serverTimeMs }

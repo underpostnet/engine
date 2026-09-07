@@ -4,7 +4,7 @@ import { Schema, model } from 'mongoose';
 
 const CyberiaQuestProgressSchema = new Schema(
   {
-    // Matches the Go relay server's player UUID
+    // Matches the simulation server's player UUID
     playerId: { type: String, required: true, trim: true },
     // References CyberiaQuest.code
     questCode: { type: String, required: true, trim: true },

@@ -2,9 +2,8 @@ import { Schema, model } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-// Expanded metadata for one logic event a trigger item can fire. Mirrors the
-// `skills[]` entries in DefaultSkillConfig (cyberia-server-defaults.js) and the
-// SkillDefinition consumed by cyberia-server (game/skill.go).
+// Expanded metadata for one logic event a trigger item can fire. Same shape as
+// the `skills[]` entries of DefaultSkillConfig (cyberia-server-defaults.js).
 const SkillDefinitionSchema = new Schema(
   {
     // Handler key dispatched by the simulation skill engine (e.g. 'projectile',

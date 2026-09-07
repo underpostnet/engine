@@ -14,8 +14,8 @@ import { setTimeout as sleep } from 'node:timers/promises';
 // so a fleet this size only fits an instance started for load — one running with
 // CYBERIA_DISABLE_CONNECTION_LIMITS=1, or with its per-IP admission limits raised
 // past CYBERIA_LOAD_CONNECTIONS. Pointed at an untuned instance the run is capped
-// by `DefaultMaxConnectionsPerIP` (cyberia-server/game/connection_guard.go) and
-// reports a refusal, so the target is named deliberately rather than defaulted to.
+// by the server's per-IP admission limit and reports a refusal, so the target is
+// named deliberately rather than defaulted to.
 // `underpost cyberia test` sets this, along with the fleet size and the duration.
 const WS_URL = process.env.CYBERIA_LOAD_WS_URL ?? '';
 const CONNECTIONS = Number(process.env.CYBERIA_LOAD_CONNECTIONS ?? 5);
@@ -62,8 +62,8 @@ const DISPERSAL_MARGIN_CELLS = 3;
 // lingers there sits in the crossfire of every joining player.
 const SPAWN_CLEARANCE_CELLS = 14;
 
-// Unit vectors for the supported directions, in the order of the Direction enum
-// in cyberia-server/game/types.go. NONE is excluded: a tap carries movement intent.
+// Unit vectors for the supported directions, in Direction enum order. NONE is
+// excluded: a tap carries movement intent.
 const DIRECTIONS = [
   [0, -1], // UP
   [1, -1], // UP_RIGHT
@@ -90,9 +90,8 @@ const clamp = (value, max) => (value < 0 ? 0 : value > max ? max : value);
 const randomDirection = () => DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
 
 /**
- * Picks the supported direction closest to a vector. Same mapping the server
- * uses in `updateBotDirection` (cyberia-server/game/ai.go): the enum starts at
- * UP, so the angle index shifts by two quadrants.
+ * Picks the supported direction closest to a vector, the same mapping the
+ * server uses. The enum starts at UP, so the angle index shifts two quadrants.
  */
 function directionToward(dx, dy) {
   const index = (((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 2) % 8) + 8) % 8;

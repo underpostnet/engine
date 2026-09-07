@@ -483,7 +483,6 @@ function generateBots(mapDims, colors, opts = {}) {
       cellY = randInt(0, maxY);
     }
 
-    // const skin = BOT_SKIN_POOL[Math.floor(Math.random() * BOT_SKIN_POOL.length)];
     const skin = 'kishins';
     const hasWeapon = nextRandom() < BOT_WEAPON_CHANCE;
     const itemIds = hasWeapon ? [skin, 'atlas_pistol_mk2'] : [skin];
@@ -506,16 +505,13 @@ function generateBots(mapDims, colors, opts = {}) {
 }
 
 /**
- * Action-provider NPC bots — the fixed-position entities that back the
- * default mission system. One passive bot is placed per `CyberiaAction`
- * whose `sourceMapCode` matches `mapCode`, at the action's
- * (`sourceCellX`, `sourceCellY`). The Go server binds each bot back to its
- * action by these coordinates, so the positions here are the single source
- * of truth shared with `DefaultCyberiaActions`.
+ * Action-provider NPC bots, the fixed-position entities behind the mission
+ * system. One passive bot per `CyberiaAction` whose `sourceMapCode` matches
+ * `mapCode`, at the action's (`sourceCellX`, `sourceCellY`). The server binds
+ * a bot to its action by these coordinates.
  *
- * The NPC skin is derived from the action's first `default-<skin>` dialogue
- * code (e.g. `default-wason` → skin `wason`) — there is no separate
- * provideItemId; the bot's own active skin is what 'talk' objectives match.
+ * The NPC skin comes from the action's first `default-<skin>` dialogue code
+ * (`default-wason` → skin `wason`). A 'talk' objective matches that skin.
  *
  * @param {string} mapCode
  * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
@@ -546,9 +542,8 @@ function generateActionProviderBots(mapCode, colors, opts = {}) {
 
     if (opts.grid) opts.grid.block(cellX, cellY, dim, dim);
 
-    // Passive quest-giver NPC: no aggro, and a small wander radius so it
-    // drifts near its source cell but stays easy to find. The Go server binds
-    // it by its spawn-centre (the initial cell), so the bind survives movement.
+    // Passive quest-giver NPC: no aggro and a small wander radius. The server
+    // binds it by its spawn cell, so the bind survives the drift.
     entities.push({
       entityType: 'bot',
       initCellX: cellX,

@@ -9,9 +9,7 @@ class CyberiaClientHintsController {
         host: options.host || 'default',
         path: options.path || '/',
       });
-      // Surface the resolution source as a non-authoritative header so
-      // operators can see whether the runtime fetched from the new
-      // collection, the compatibility read on instance-conf, the cache, or defaults.
+      // Diagnostic header: which source answered this request.
       res.setHeader('X-Cyberia-Hints-Source', source);
       return sendSuccess(res, data);
     },

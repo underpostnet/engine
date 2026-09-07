@@ -34,10 +34,9 @@ class CyberiaActionService {
     if (!code) throw new Error('code parameter is required');
     const data = await CyberiaAction.findOne({ code }).lean();
     if (data) return data;
-    // Fallback world delivers actions to the Go server from the canonical
-    // defaults without persisting them; serve those so the client can fetch the
-    // action's label + dialogue map by code. Quest OFFERS are NOT resolved here —
-    // the client locates offered quests via the cyberia-quest API by cell.
+    // The fallback world serves actions from the canonical defaults and never
+    // persists them. Serve the same defaults here, so the client can fetch an
+    // action by code. Quest offers come from the cyberia-quest API by cell.
     const fallback = DefaultCyberiaActions.find((a) => a.code === code);
     if (fallback) return fallback;
     throw new Error(`No action found for code: ${code}`);

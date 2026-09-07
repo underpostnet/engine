@@ -10,9 +10,8 @@
  *             opens.
  *   dynamic — per-player capability activity. Polled while the modal is open.
  *
- * Live player position is intentionally absent: engine-cyberia holds no
- * real-time simulation state (see cyberia-docs/ARCHITECTURE.md). The client
- * overlays its own predicted position on the graph.
+ * Live player position is absent: the engine holds no real-time simulation
+ * state. The client overlays its own predicted position on the graph.
  *
  * @module src/api/cyberia-instance/cyberia-instance-map.service.js
  */
@@ -78,8 +77,8 @@ const entityPresenceStatus = (entity, objectLayerMetadata, behavior) => {
   }
 };
 
-// Behaviors whose entities never carry the sum-stats readout (mission/action
-// givers and fully static NPCs — mirrors the Go server's behavior semantics).
+// Behaviors whose entities carry no sum-stats readout: mission givers and
+// fully static NPCs.
 const STATLESS_BEHAVIORS = new Set(['provider', 'provider-static', 'static']);
 
 const mergeEntityDefaults = (entityDefaults = []) => {
@@ -101,8 +100,8 @@ const mergeEntityDefaults = (entityDefaults = []) => {
   return merged;
 };
 
-// Mirrors game/entity_defaults.go: the most-specific live-item set wins, then
-// the first build for the entity type supplies the runtime fallback behavior.
+// Resolution order, as the simulation applies it: the most-specific live-item
+// set wins, then the first build for the entity type.
 const entityBehavior = (entity, entityDefaults) => {
   const itemIds = new Set(entity.objectLayerItemIds || []);
   let firstTypeDefault;
@@ -179,7 +178,7 @@ const resolveEntityDefaults = async (instance, options) => {
     const defaults = await CyberiaEntityTypeDefault.find({}).lean();
     if (defaults.length > 0) return mergeEntityDefaults(defaults);
   } catch {
-    // The editable own-model collection is optional for legacy deployments.
+    // The editable own-model collection is optional.
   }
   return mergeEntityDefaults(configDefaults);
 };
@@ -257,11 +256,10 @@ const buildPresencePois = ({
     }
   }
 
-  // Portal-cell presence mirrors the AOI: the portal's OWN outgoing edge
-  // decides random vs fixed (priority 200 overrides the authored entity
-  // classification, which may lack the runtime-assigned mode). Fixed-cell
-  // TARGET endpoints only guarantee a plain portal POI — their real mode, if
-  // any, is stamped by their own outgoing edge.
+  // Portal-cell presence follows the AOI: the portal's own outgoing edge
+  // decides random against fixed, and priority 200 beats the authored entity
+  // class. A fixed-cell target endpoint is only a plain portal POI; its own
+  // outgoing edge stamps the mode.
   for (const portal of instance.portals || []) {
     getPoi(
       portal.sourceMapCode,
@@ -283,8 +281,7 @@ const buildPresencePois = ({
     addCapability(poi, CAPABILITY_ACTION);
   }
 
-  // Display permission is explicit: a statless entity must never become a
-  // visible `stats 0` tab due to a numeric fallback or merged POI source.
+  // Display permission is explicit: a statless entity never shows a `stats 0` tab.
   return [...pois.values()]
     .map(({ sourcePriority, hasStatfulPresence, hasStatlessPresence, ...poi }) => ({
       ...poi,
@@ -323,11 +320,10 @@ const buildStaticPayload = ({
     gridY: m.gridY,
     // File id of the map's auto-captured Object Layer render (persisted maps).
     preview: m.preview ? String(m.preview) : '',
-    // Ready-to-fetch path of the node background. A captured File is served
-    // directly; otherwise the client hits the preview route, which renders on
-    // demand — and for a persisted map also stores the result as its `preview`
-    // File, so the next payload serves it through the default blob path.
-    // Fallback-world maps only advertise the route once a render succeeded.
+    // Path of the node background. A captured File is served directly. Without
+    // one the client hits the preview route, which renders on demand and, for a
+    // persisted map, stores the result as its `preview` File. A fallback-world
+    // map advertises the route only after a render succeeds.
     previewUrl: m.preview
       ? `/api/file/blob/${String(m.preview)}`
       : fallback
@@ -416,10 +412,9 @@ const classifyActionProviders = (actions, questProviders) => {
 
 /**
  * Resolve the content-authority view of an instance: its map nodes plus the
- * quests/actions bound to those maps. Falls back to the in-memory procedural
- * world (and canonical default quests/actions) when the instance is not
- * persisted — mirroring the gRPC getFullInstance fallback that feeds
- * cyberia-server.
+ * quests and actions bound to those maps. An instance that is not persisted
+ * falls back to the procedural world and the default quests/actions, the same
+ * fallback getFullInstance serves to the simulation.
  */
 const resolveInstanceWorld = async (instanceCode, options) => {
   const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
@@ -458,9 +453,8 @@ const resolveInstanceWorld = async (instanceCode, options) => {
       objectLayerMetadata,
       entityDefaults: mergeEntityDefaults(),
       sumStatsLimit: CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
-      // The procedural world never passes through the browser editor, so its
-      // node backgrounds are rendered here and served from the in-memory
-      // preview cache (see instanceMapPreview).
+      // The procedural world has no editor pass, so its node backgrounds render
+      // here and are served from the in-memory preview cache.
       previewCachedMapCodes: new Set(await cacheWorldMapPreviews(instanceCode, world.maps)),
       fallback: true,
     };
@@ -490,8 +484,7 @@ const resolveInstanceWorld = async (instanceCode, options) => {
   return {
     instance,
     maps,
-    // Empty collections fall back to canonical defaults, matching the quest
-    // getByCode behaviour for unseeded databases.
+    // Empty collections fall back to the canonical defaults, as getByCode does.
     quests: dbQuests.length > 0 ? dbQuests : DefaultCyberiaQuests.filter((q) => codeSet.has(q.sourceMapCode)),
     actions: dbActions.length > 0 ? dbActions : DefaultCyberiaActions.filter((a) => codeSet.has(a.sourceMapCode)),
     objectLayerMetadata,
@@ -543,8 +536,7 @@ class CyberiaInstanceMapService {
 
     let png = getCachedMapPreview(instanceCode, mapCode);
     if (!png) {
-      // Cold cache (first hit, or a restart since the modal last opened):
-      // regenerate the world so the preview exists, then serve it.
+      // Cold cache: regenerate the world so the preview exists, then serve it.
       const { maps } = await resolveInstanceWorld(instanceCode, options);
       await cacheWorldMapPreviews(instanceCode, maps);
       png = getCachedMapPreview(instanceCode, mapCode);

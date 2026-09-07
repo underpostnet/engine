@@ -1,24 +1,19 @@
 /**
- * Hot-reload trigger — engine-cyberia → cyberia-server control channel.
+ * Hot-reload trigger — the engine's control channel to a running game server.
  *
- * Asks a running cyberia-server to rebuild its world NOW instead of waiting
- * for its polling loop (ENGINE_GRPC_RELOAD_INTERVAL_SEC). Two transports, in
- * order:
+ * Asks the server to rebuild its world now instead of waiting for its polling
+ * loop. Two transports, in order:
  *
- *   1. gRPC  — cyberia-server's CyberiaControlService. Preferred.
- *   2. REST  — POST {baseUrl}/api/v1/hot-reload. Fallback when the control
- *              gRPC port is unreachable (not exposed, different network).
+ *   1. gRPC, the server's CyberiaControlService. Preferred.
+ *   2. REST, POST {baseUrl}/api/v1/hot-reload. Used when the control gRPC port
+ *      is unreachable.
  *
- * The gRPC control service is served with a JSON codec, so this client is
- * hand-rolled with makeUnaryRequest + JSON serializers — no .proto codegen on
- * either side. Keep SERVICE/METHOD in sync with cyberia-server/hotreload/grpc.go.
+ * The control service uses a JSON codec, so this client is hand-rolled with
+ * makeUnaryRequest and JSON serializers. There is no .proto codegen; SERVICE
+ * and METHOD must match the server's control service.
  *
- * AUTHORIZATION
- * -------------
- * Both transports carry CYBERIA_SERVER_API_KEY, the INTERNAL shared secret
- * between engine-cyberia and cyberia-server. It is read from the environment
- * here and never returned to a browser: the engine's REST endpoint is the only
- * public surface, and it is moderator/admin guarded.
+ * Both transports carry CYBERIA_SERVER_API_KEY, the internal shared secret. It
+ * is read from the environment and never returned to a browser.
  *
  * @module src/projects/cyberia/hot-reload-trigger.js
  */
@@ -49,11 +44,9 @@ const serverApiKey = () => process.env.CYBERIA_SERVER_API_KEY || '';
  * gRPC target. The gRPC host reuses the hostname with the control port, since
  * the control service listens on its own port.
  *
- * The URL sub-path is preserved as `basePath` ("", "/FOREST", "/TEST") and kept
- * on `restBaseUrl`: a path-based multi-instance proxy routes the REST trigger to
- * the right variant, and cyberia-server consumes that same base path natively.
- * Using `url.origin` alone would drop the sub-path and land every trigger on the
- * default (root) deployment.
+ * The URL sub-path is kept as `basePath` ("", "/FOREST", "/TEST") and stays on
+ * `restBaseUrl`. A path-based multi-instance proxy routes the REST trigger by
+ * it; `url.origin` alone would send every trigger to the root deployment.
  */
 const resolveTargets = (rawUrl, { grpcPort = DEFAULT_GRPC_PORT } = {}) => {
   const trimmed = String(rawUrl || '').trim();
@@ -133,11 +126,8 @@ const triggerHotReload = async ({
   const { restBaseUrl, grpcTarget, basePath } = resolveTargets(serverUrl, { grpcPort });
   const call = { apiKey, mode, instanceCode, timeoutMs };
 
-  // A path-based multi-instance proxy routes by URL sub-path, but a gRPC method
-  // path is fixed (/cyberia.CyberiaControlService/…) and can't carry the
-  // /FOREST prefix — a control call to hostname:port reaches the default
-  // variant. When the target names a variant sub-path, use the sub-path-aware
-  // REST transport directly instead of triggering the wrong world over gRPC.
+  // A gRPC method path is fixed and cannot carry the variant sub-path, so a
+  // control call would reach the default variant. Use REST for a sub-path target.
   if (basePath) {
     const result = await triggerViaRest({ ...call, restBaseUrl });
     logger.info(`hot reload via REST ${restBaseUrl}: ${result?.message}`);
@@ -149,8 +139,7 @@ const triggerHotReload = async ({
     logger.info(`hot reload via gRPC ${grpcTarget}: ${result?.message}`);
     return { transport: 'grpc', result };
   } catch (grpcError) {
-    // A rejected key is a real answer, not a transport failure — do not retry
-    // over REST, or a misconfigured key would be reported twice.
+    // A rejected key is an answer, not a transport failure. Do not retry.
     if (grpcError?.code === grpc.status.PERMISSION_DENIED) throw new Error(grpcError.details || grpcError.message);
     logger.warn(`hot reload gRPC (${grpcTarget}) unavailable: ${grpcError.message} — falling back to REST`);
 

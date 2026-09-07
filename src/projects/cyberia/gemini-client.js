@@ -5,9 +5,9 @@
  * Top-Down PCG saga generator. No streaming, no tool-calls — the saga
  * orchestration only needs one structured JSON payload per request.
  *
- * General purpose, but for now only the `:generateContent` endpoint is wired,
- * matching the Gemma model family (e.g. `gemma-4-26b-a4b-it`). Authentication
- * uses the `x-goog-api-key` header sourced from `GEMINI_API_KEY`.
+ * Only the `:generateContent` endpoint is wired, matching the Gemma model
+ * family (e.g. `gemma-4-26b-a4b-it`). Authentication uses the `x-goog-api-key`
+ * header from `GEMINI_API_KEY`.
  *
  * @module src/projects/cyberia/gemini-client.js
  * @namespace GeminiClient
