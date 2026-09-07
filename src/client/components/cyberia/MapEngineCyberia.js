@@ -65,11 +65,60 @@ class MapEngineCyberia {
       : [];
   }
 
+  /** Comma-separated ItemIds as typed, in order, blanks removed. Duplicates are the caller's to judge. */
+  static parseItemIdList(value = '') {
+    return String(value)
+      .split(',')
+      .map((itemId) => itemId.trim())
+      .filter((itemId) => itemId);
+  }
+
   static getRenameObjectLayerItemIds() {
     return {
       source: s(`.${MapEngineCyberia.renameSourceObjectLayerInputId}`)?.value?.trim() || '',
       target: s(`.${MapEngineCyberia.renameTargetObjectLayerInputId}`)?.value?.trim() || '',
     };
+  }
+
+  /**
+   * source ItemId → the ItemIds that replace it, or the reason the lists cannot be paired.
+   *
+   * Three shapes, each unambiguous on its own:
+   *   - one source, many targets — the source expands into all of them, so a layer can be split
+   *     into a skin plus a weapon in one pass;
+   *   - one target, many sources — every source collapses onto it;
+   *   - equal counts — paired off in the order they were typed.
+   * Any other combination is a typo worth refusing: pairing a short list by position would
+   * rewrite some entities and silently leave the rest.
+   *
+   * @returns {{map?: Map<string,string[]>, error?: string}}
+   */
+  static buildRenameItemIdMap() {
+    const { source, target } = MapEngineCyberia.getRenameObjectLayerItemIds();
+    const sources = MapEngineCyberia.parseItemIdList(source);
+    const targets = MapEngineCyberia.parseItemIdList(target);
+    if (!sources.length || !targets.length) return { error: 'Source and target ItemId are required.' };
+
+    const repeated = sources.filter((itemId, index) => sources.indexOf(itemId) !== index);
+    if (repeated.length) {
+      return { error: `Each source ItemId may appear once: "${[...new Set(repeated)].join('", "')}" is repeated.` };
+    }
+    if (sources.length > 1 && targets.length > 1 && targets.length !== sources.length) {
+      return {
+        error: `${sources.length} sources take one target for all of them, or ${sources.length} paired in order — got ${targets.length}. A list of targets replaces a single source.`,
+      };
+    }
+
+    const replacement = (index) =>
+      sources.length === 1 || targets.length === 1 ? [...new Set(targets)] : [targets[index]];
+    const map = new Map(sources.map((itemId, index) => [itemId, replacement(index)]));
+    // A source that expands into a list containing itself is keeping its layer and gaining
+    // others, which is the point. Only a replacement that is the source alone does nothing.
+    const unchanged = [...map].filter(([from, to]) => to.length === 1 && to[0] === from).map(([from]) => from);
+    if (unchanged.length) {
+      return { error: `Source and target ItemId must differ: "${unchanged.join('", "')}".` };
+    }
+    return { map };
   }
 
   static setDropdownValue(dropdownId, value) {
@@ -111,8 +160,8 @@ class MapEngineCyberia {
       excludeSelected: true,
       serviceProvider: async (q) => {
         const result = await ObjectLayerService.searchItemIds({ q });
-        if (result.status === 'success' && result.data?.itemIds) {
-          return result.data.itemIds.map((itemId) => createDropdownOption(itemId));
+        if (result.status === 'success' && result.data?.items) {
+          return result.data.items.map(({ id }) => createDropdownOption(id));
         }
         return [];
       },
@@ -128,22 +177,12 @@ class MapEngineCyberia {
   }
 
   static renameFilteredObjectLayerItemId() {
-    const { source, target } = MapEngineCyberia.getRenameObjectLayerItemIds();
-    if (!source || !target) {
-      NotificationManager.Push({
-        html: 'Source and target ItemId are required.',
-        status: 'error',
-      });
+    const { map: renames, error } = MapEngineCyberia.buildRenameItemIdMap();
+    if (error) {
+      NotificationManager.Push({ html: error, status: 'error' });
       return false;
     }
-
-    if (source === target) {
-      NotificationManager.Push({
-        html: 'Source and target ItemId must be different.',
-        status: 'error',
-      });
-      return false;
-    }
+    const sourceList = [...renames.keys()].join('", "');
 
     const filtered = MapEngineCyberia.getFilteredEntities();
     if (!filtered.length) {
@@ -154,18 +193,19 @@ class MapEngineCyberia {
       return false;
     }
 
-    // Collect indices of filtered entities that have the source itemId
+    // Exact ItemId equality, never a prefix or a case fold: this rewrites map documents, and a
+    // near-miss would rename an entity nobody asked about.
     const eligible = [];
     for (const { i } of filtered) {
       const entity = MapEngineCyberia.entities[i];
-      if (Array.isArray(entity?.objectLayerItemIds) && entity.objectLayerItemIds.includes(source)) {
+      if (Array.isArray(entity?.objectLayerItemIds) && entity.objectLayerItemIds.some((id) => renames.has(id))) {
         eligible.push(i);
       }
     }
 
     if (!eligible.length) {
       NotificationManager.Push({
-        html: `No exact ItemId matches for "${source}" were found in the current filtered entities.`,
+        html: `No exact ItemId matches for "${sourceList}" were found in the current filtered entities.`,
         status: 'error',
       });
       return false;
@@ -175,6 +215,8 @@ class MapEngineCyberia {
     // a random probability check in [fMin, fMax]. If the roll passes, it gets renamed;
     // otherwise it stays unchanged. This produces an intermediate intensity between
     // "almost everyone" (factors near/above 1.0) and "almost no one" (factors near 0).
+    // The roll is per entity, not per ItemId: an entity carrying several sources takes all of
+    // its renames or none, so a partly-renamed loadout is never produced.
     let matchedEntities = 0;
     let renamedReferences = 0;
     const changed = MapEngineCyberia.commitEntityMutation(() => {
@@ -191,20 +233,28 @@ class MapEngineCyberia {
           if (roll < 1.0 && Math.random() > roll) continue;
         }
         const entity = MapEngineCyberia.entities[i];
-        let entityChanged = false;
-        entity.objectLayerItemIds = entity.objectLayerItemIds.map((itemId) => {
-          if (itemId !== source) return itemId;
-          entityChanged = true;
-          renamedReferences += 1;
-          return target;
+        const previous = entity.objectLayerItemIds;
+        let replaced = 0;
+        const expanded = previous.flatMap((itemId) => {
+          if (!renames.has(itemId)) return [itemId];
+          replaced += 1;
+          return renames.get(itemId);
         });
-        if (entityChanged) matchedEntities += 1;
+        // A replacement the entity already carries must not be added twice: an ItemId appearing
+        // once is what every reader of a loadout assumes.
+        const next = [...new Set(expanded)];
+        if (next.length === previous.length && next.every((itemId, index) => itemId === previous[index])) continue;
+        entity.objectLayerItemIds = next;
+        renamedReferences += replaced;
+        matchedEntities += 1;
       }
     });
 
     if (!changed) {
       NotificationManager.Push({
-        html: `No exact ItemId matches for "${source}" were found in the current filtered entities.`,
+        html: MapEngineCyberia.enableRandomFactors
+          ? `Random factors skipped all ${eligible.length} matching entit${eligible.length === 1 ? 'y' : 'ies'} — raise the factors or turn them off.`
+          : `All ${eligible.length} entit${eligible.length === 1 ? 'y' : 'ies'} matching "${sourceList}" already carry the target ItemIds.`,
         status: 'error',
       });
       return false;
@@ -374,16 +424,24 @@ class MapEngineCyberia {
       filterType: s('.map-engine-filter-entity-type')?.value?.trim().toLowerCase() || '',
       filterX: s('.map-engine-filter-init-x')?.value?.trim() || '',
       filterY: s('.map-engine-filter-init-y')?.value?.trim() || '',
+      filterItemIds: MapEngineCyberia.parseItemIdList(s('.map-engine-filter-object-layer-item-ids')?.value || ''),
     };
   }
 
   static getFilteredEntities() {
-    const { filterType, filterX, filterY } = MapEngineCyberia.getEntityFilters();
+    const { filterType, filterX, filterY, filterItemIds } = MapEngineCyberia.getEntityFilters();
 
     return MapEngineCyberia.entities.reduce((acc, entity, i) => {
       if (filterType && !(entity.entityType || '').toLowerCase().includes(filterType)) return acc;
       if (filterX !== '' && String(entity.initCellX) !== filterX) return acc;
       if (filterY !== '' && String(entity.initCellY) !== filterY) return acc;
+      // Every listed id, matched exactly: the list narrows the selection like the other filters,
+      // so naming a second id picks out the entities carrying that combination rather than
+      // widening the set. What this selects is exactly what the rename will act on.
+      if (filterItemIds.length) {
+        const carried = entity.objectLayerItemIds || [];
+        if (!filterItemIds.every((itemId) => carried.includes(itemId))) return acc;
+      }
       acc.push({ entity, i });
       return acc;
     }, []);
@@ -1311,13 +1369,13 @@ class MapEngineCyberia {
           MapEngineCyberia.renderEntityList(entityListId);
         }, 300);
       };
-      [idFilterEntityType, idFilterInitX, idFilterInitY].forEach((cls) => {
+      [idFilterEntityType, idFilterInitX, idFilterInitY, idFilterObjectLayerItemIds].forEach((cls) => {
         if (s(`.${cls}`)) s(`.${cls}`).addEventListener('input', applyEntityFilter);
       });
 
       if (s('.btn-map-engine-clear-entity-filter'))
         s('.btn-map-engine-clear-entity-filter').onclick = () => {
-          [idFilterEntityType, idFilterInitX, idFilterInitY].forEach((cls) => {
+          [idFilterEntityType, idFilterInitX, idFilterInitY, idFilterObjectLayerItemIds].forEach((cls) => {
             if (s(`.${cls}`)) s(`.${cls}`).value = '';
           });
           MapEngineCyberia.renderEntityList(entityListId);
@@ -1368,6 +1426,7 @@ class MapEngineCyberia {
     const idFilterEntityType = 'map-engine-filter-entity-type';
     const idFilterInitX = 'map-engine-filter-init-x';
     const idFilterInitY = 'map-engine-filter-init-y';
+    const idFilterObjectLayerItemIds = 'map-engine-filter-object-layer-item-ids';
 
     return html`<div class="in section-mp map-engine-container">
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcMapFields, type: 'search-inputs' })}
@@ -1816,13 +1875,15 @@ class MapEngineCyberia {
         <div class="in section-mp-border" style="margin: 10px; padding: 10px;">
           <div class="in input-label">Rename Object Layer ItemId on Filtered Entities</div>
           <div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
-            Replaces only exact source ItemId matches inside entities currently visible through the filters.
+            Replaces only exact source ItemId matches inside entities currently visible through the filters. Both
+            fields take comma-separated lists: several targets expand one source into all of them, one target
+            renames every source onto it, and equal counts pair off in the order typed.
           </div>
           <div class="fl">
             <div class="in fll" style="flex:1;padding-right:5px;">
               ${await Input.instance({
                 id: idRenameSourceObjectLayer,
-                label: html`Source ItemId`,
+                label: html`Source ItemIds`,
                 containerClass: 'inl',
                 type: 'text',
                 placeholder: true,
@@ -1831,7 +1892,7 @@ class MapEngineCyberia {
             <div class="in fll" style="flex:1;padding-left:5px;">
               ${await Input.instance({
                 id: idRenameTargetObjectLayer,
-                label: html`Target ItemId`,
+                label: html`Target ItemIds`,
                 containerClass: 'inl',
                 type: 'text',
                 placeholder: true,
@@ -1921,6 +1982,18 @@ class MapEngineCyberia {
                   type: 'text',
                   placeholder: true,
                 })}
+              </div>
+            </div>
+            <div class="in" style="margin-top:5px;">
+              ${await Input.instance({
+                id: idFilterObjectLayerItemIds,
+                label: html`Object Layer ItemIds`,
+                containerClass: 'inl',
+                type: 'text',
+                placeholder: true,
+              })}
+              <div class="in" style="font-size:12px;color:#888;margin-top:3px;">
+                Comma separated, matched exactly. Keeps only entities carrying all of them.
               </div>
             </div>
             <div

@@ -183,9 +183,11 @@ class ObjectLayerService {
         }),
     );
   };
-  static searchItemIds = (options = { q: '' }) => {
+  /** Item identity ({ id, type }) by id prefix (`q`) or by an exact id list (`ids`). */
+  static searchItemIds = (options = { q: '', ids: [] }) => {
     const url = new URL(getApiBaseUrl({ id: `search-item-ids`, endpoint }));
     if (options.q) url.searchParams.set('q', options.q);
+    if (options.ids?.length) url.searchParams.set('ids', options.ids.join(','));
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',

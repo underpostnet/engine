@@ -90,8 +90,8 @@ class ActionEngineCyberia {
       containerClass: 'inl',
       serviceProvider: async (q) => {
         const result = await ObjectLayerService.searchItemIds({ q });
-        if (result.status === 'success' && result.data?.itemIds) {
-          return result.data.itemIds.map((itemId) => dropdownOption(itemId));
+        if (result.status === 'success' && result.data?.items) {
+          return result.data.items.map(({ id }) => dropdownOption(id));
         }
         return [];
       },

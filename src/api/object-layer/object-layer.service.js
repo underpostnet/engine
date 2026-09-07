@@ -257,20 +257,25 @@ class ObjectLayerService {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
 
-    // GET /search-item-ids?q=<partial> - Fast partial match search on data.item.id
+    // GET /search-item-ids - item identity, by prefix (`q`, for type-ahead) or by exact ids
+    // (`ids`, comma separated). Carries the item's type because that is what addresses its
+    // sprite directory; an id alone cannot be previewed.
     if (req.path.startsWith('/search-item-ids')) {
       const q = (req.query.q || '').trim();
-      if (!q) return { itemIds: [] };
-      // Escape regex special characters for safe partial matching
-      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const results = await ObjectLayer.find(
-        { 'data.item.id': { $regex: escaped, $options: 'i' } },
-        { 'data.item.id': 1, _id: 0 },
-      )
-        .limit(20)
+      const ids = String(req.query.ids || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (!q && ids.length === 0) return { items: [] };
+      const query = ids.length
+        ? { 'data.item.id': { $in: ids } }
+        : // Escape regex special characters for safe partial matching
+          { 'data.item.id': { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } };
+      const results = await ObjectLayer.find(query, { 'data.item.id': 1, 'data.item.type': 1, _id: 0 })
+        .limit(ids.length ? ids.length : 20)
         .lean();
-      const itemIds = [...new Set(results.map((r) => r.data.item.id))];
-      return { itemIds };
+      const byId = new Map(results.map((r) => [r.data.item.id, r.data.item.type || '']));
+      return { items: [...byId].map(([id, type]) => ({ id, type })) };
     }
 
     // GET /frame-counts/:id - Get frame counts for each direction using numeric codes

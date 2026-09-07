@@ -347,8 +347,8 @@ class ObjectLayerRouter {
       /*
         #swagger.auto = false
         #swagger.tags = ['object-layer']
-        #swagger.summary = 'Search object layer item IDs'
-        #swagger.description = 'Returns partial matches of data.item.id for type-ahead autocomplete'
+        #swagger.summary = 'Resolve object layer item identity'
+        #swagger.description = 'Returns { id, type } for partial matches of data.item.id (type-ahead) or for an exact id list'
         #swagger.path = '/object-layer/search-item-ids'
         #swagger.method = 'get'
         #swagger.produces = ['application/json']
@@ -360,8 +360,15 @@ class ObjectLayerRouter {
             type: 'string'
         }
 
+        #swagger.parameters['ids'] = {
+            in: 'query',
+            description: 'Comma separated exact item IDs to resolve',
+            required: false,
+            type: 'string'
+        }
+
         #swagger.responses[200] = {
-          description: 'Item IDs matching the query',
+          description: 'Item identities matching the query',
           content: {
               'application/json': {
                   schema: {
