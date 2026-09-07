@@ -12,9 +12,9 @@ class CyberiaInstanceRouter {
     const router = express.Router();
     // ── Custom actions (must come before generic /:id routes) ──────────────
     // Boot transport — REST fallback of the gRPC CyberiaDataService, consumed
-    // server-to-server by cyberia-server (ENGINE_API_BASE_URL) when the engine
-    // gRPC server (ENGINE_GRPC_ADDRESS) is not enabled. Unauthenticated for
-    // parity with the internal-network insecure gRPC channel.
+    // server-to-server by cyberia-server (its --data-server-url) when the engine
+    // gRPC server is not enabled for the deploy. Unauthenticated for parity with
+    // the internal-network insecure gRPC channel.
     router.get(`/boot/ping`, async (req, res) => await CyberiaInstanceController.bootPing(req, res, options));
     router.get(
       `/boot/object-layers`,

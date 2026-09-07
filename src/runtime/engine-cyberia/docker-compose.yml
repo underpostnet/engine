@@ -197,9 +197,9 @@ services:
       CYBERIA_BASE_PATH: /
       CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}
       CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
-      ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia}
+      CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
-      ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia-runtime:50051}
+      CYBERIA_DATA_SERVER_GRPC: ${CYBERIA_DATA_SERVER_GRPC:-engine-cyberia-runtime:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
       APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
@@ -235,9 +235,9 @@ services:
       CYBERIA_BASE_PATH: /FOREST
       CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/FOREST
       CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
-      ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia}
+      CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
-      ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia-runtime:50051}
+      CYBERIA_DATA_SERVER_GRPC: ${CYBERIA_DATA_SERVER_GRPC:-engine-cyberia-runtime:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
       APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
@@ -273,9 +273,9 @@ services:
       CYBERIA_BASE_PATH: /TEST
       CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/TEST
       CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
-      ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia}
+      CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
-      ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia-runtime:50051}
+      CYBERIA_DATA_SERVER_GRPC: ${CYBERIA_DATA_SERVER_GRPC:-engine-cyberia-runtime:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
       APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
@@ -323,7 +323,7 @@ services:
       CYBERIA_BASE_PATH: /
       CYBERIA_DEFAULT_INSTANCE: ${CYBERIA_DEFAULT_INSTANCE:-amethyst-strata-expansion}
       CYBERIA_WS_ORIGIN: ${CYBERIA_WS_ORIGIN:-ws://localhost:8081}
-      CYBERIA_ENGINE_API_ORIGIN: ${CYBERIA_ENGINE_API_ORIGIN:-http://localhost}
+      CYBERIA_DATA_SERVER_URL: ${CYBERIA_CLIENT_DATA_SERVER_URL:-http://localhost}
     networks:
       - dd-cyberia-internal
     expose:
@@ -348,7 +348,7 @@ services:
       CYBERIA_BASE_PATH: /FOREST
       CYBERIA_DEFAULT_INSTANCE: ${CYBERIA_DEFAULT_INSTANCE:-amethyst-strata-expansion}
       CYBERIA_WS_ORIGIN: ${CYBERIA_WS_ORIGIN:-ws://localhost:8081}
-      CYBERIA_ENGINE_API_ORIGIN: ${CYBERIA_ENGINE_API_ORIGIN:-http://localhost}
+      CYBERIA_DATA_SERVER_URL: ${CYBERIA_CLIENT_DATA_SERVER_URL:-http://localhost}
     networks:
       - dd-cyberia-internal
     expose:
@@ -373,7 +373,7 @@ services:
       CYBERIA_BASE_PATH: /TEST
       CYBERIA_DEFAULT_INSTANCE: ${CYBERIA_DEFAULT_INSTANCE:-amethyst-strata-expansion}
       CYBERIA_WS_ORIGIN: ${CYBERIA_WS_ORIGIN:-ws://localhost:8081}
-      CYBERIA_ENGINE_API_ORIGIN: ${CYBERIA_ENGINE_API_ORIGIN:-http://localhost}
+      CYBERIA_DATA_SERVER_URL: ${CYBERIA_CLIENT_DATA_SERVER_URL:-http://localhost}
     networks:
       - dd-cyberia-internal
     expose:

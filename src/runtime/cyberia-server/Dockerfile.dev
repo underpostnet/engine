@@ -59,4 +59,11 @@ COPY public/ ./public/
 
 EXPOSE 8081
 
-ENTRYPOINT ["/home/dd/engine/cyberia-server/server"]
+# Both Data Server endpoints are flags, not environment reads (cmd/cyberia-server/main.go), and
+# the server refuses to start without them. Passing them here from the environment is what lets a
+# plain `docker run` or a Compose service that sets no command still start: a Kubernetes pod spec
+# supplies its own command and overrides this.
+ENV CYBERIA_DATA_SERVER_URL=http://engine-cyberia
+ENV CYBERIA_DATA_SERVER_GRPC=engine-cyberia-runtime:50051
+
+CMD ["sh", "-c", "exec /home/dd/engine/cyberia-server/server --data-server-url=${CYBERIA_DATA_SERVER_URL} --data-server-grpc=${CYBERIA_DATA_SERVER_GRPC}"]
