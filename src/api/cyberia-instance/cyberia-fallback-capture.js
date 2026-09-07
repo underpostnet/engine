@@ -16,6 +16,12 @@
  *     reads from code defaults INSTEAD of Mongo; a persisted instance reads
  *     them from Mongo, so they must exist there for the capture to serve the
  *     same world (see instance-data.js#fetchFullInstance).
+ *   - CyberiaMapAudioConf — one per captured map. The client asks for audio by
+ *     map code, so a namespaced capture would otherwise play nothing.
+ *
+ * CyberiaAudio assets are NOT captured: an asset is global, identified by its
+ * code, and imported once by `cyberia audio --import`. The capture reports the
+ * codes it bound that no asset carries yet.
  *
  * ObjectLayer/atlas assets are NOT generated here — they come from the asset
  * pipeline (`bin/cyberia ol <ids> --import`). The capture reports the missing
@@ -31,6 +37,8 @@
 
 import { loggerFactory } from '../../server/ops/logger.js';
 import { collectReferencedItemIds } from './cyberia-fallback-world.js';
+import { collectInstanceItemIds } from './cyberia-instance-items.js';
+import { fallbackAudioConfig } from '../../projects/cyberia/seed-audio.js';
 import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
@@ -372,7 +380,8 @@ async function pruneStaleCaptureDocs({ models, instanceCode, plan }) {
  * @param {object} params
  * @param {object} params.models       `{ CyberiaInstance, CyberiaInstanceConf, CyberiaMap, CyberiaAction,
  *                                        CyberiaQuest, CyberiaSkill, CyberiaEntityTypeDefault,
- *                                        CyberiaDialogue, ObjectLayer }`
+ *                                        CyberiaDialogue, CyberiaMapAudioConf, CyberiaAudio,
+ *                                        ObjectLayer }`
  * @param {object} params.world        Result of `generateFallbackWorld()`.
  * @param {string} params.instanceCode
  * @param {boolean} [params.keepFallbackCodes=false]
@@ -436,6 +445,16 @@ async function captureFallbackWorld({ models, world, instanceCode, keepFallbackC
   const inserted = await seedMissingContentDefaults(models);
   logger.info('Seeded missing content defaults', inserted);
 
+  const audio = await captureAudioConfig({ models, plan });
+  logger.info(`Captured ${audio.audioConfs} CyberiaMapAudioConf document(s)`);
+  if (audio.missingAudioCodes.length > 0) {
+    logger.warn(
+      'Audio codes with no imported CyberiaAudio document were left unbound — ' +
+        'run `node bin/cyberia run-workflow seed-audio` to record and import them',
+      { codes: audio.missingAudioCodes },
+    );
+  }
+
   // `keepFallbackCodes` reuses the globally shared canonical codes, so nothing
   // in that namespace belongs exclusively to this capture.
   const pruned = keepFallbackCodes
@@ -451,11 +470,12 @@ async function captureFallbackWorld({ models, world, instanceCode, keepFallbackC
   );
   const missingObjectLayerItemIds = plan.itemIds.filter((id) => !presentItemIds.has(id));
 
-  return { plan, inserted, pruned, missingObjectLayerItemIds };
+  return { plan, inserted, pruned, audio, missingObjectLayerItemIds };
 }
 
 export {
   planFallbackCapture,
+  captureAudioConfig,
   captureFallbackWorld,
   collectCaptureItemIds,
   captureMapCode,

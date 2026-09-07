@@ -47,6 +47,7 @@ packer/images/*/*.iso
 /manifests/besu
 /cyberia-server
 /cyberia-client
+/cyberia-audio
 *pub.json
 gitleaks-report.json
 

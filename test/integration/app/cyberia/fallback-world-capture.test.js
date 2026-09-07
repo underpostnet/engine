@@ -8,6 +8,7 @@ import {
   captureFallbackWorld,
   captureMapCode,
 } from '../../../../src/api/cyberia-instance/cyberia-fallback-capture.js';
+import { fallbackAudioConfig } from '../../../../src/projects/cyberia/seed-audio.js';
 import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
@@ -73,7 +74,13 @@ class FakeModel {
   }
 }
 
-const buildModels = ({ objectLayerItemIds = [], seeded = {} } = {}) => ({
+// Every asset the fallback audio configuration binds, as `cyberia audio --import` would leave them.
+const AUDIO_CONFIG = fallbackAudioConfig();
+const importedAudioCodes = () => [
+  ...new Set([...AUDIO_CONFIG.events.map((e) => e.audioCode), ...AUDIO_CONFIG.maps.map((m) => m.defaultMusic)]),
+];
+
+const buildModels = ({ objectLayerItemIds = [], audioCodes = importedAudioCodes(), seeded = {} } = {}) => ({
   CyberiaInstance: new FakeModel(seeded.instances),
   CyberiaInstanceConf: new FakeModel(seeded.confs),
   CyberiaMap: new FakeModel(seeded.maps),
@@ -82,6 +89,8 @@ const buildModels = ({ objectLayerItemIds = [], seeded = {} } = {}) => ({
   CyberiaSkill: new FakeModel(seeded.skills),
   CyberiaEntityTypeDefault: new FakeModel(seeded.entityTypeDefaults),
   CyberiaDialogue: new FakeModel(seeded.dialogues),
+  CyberiaMapAudioConf: new FakeModel(seeded.audioConfs),
+  CyberiaAudio: new FakeModel(audioCodes.map((code) => ({ code }))),
   ObjectLayer: new FakeModel(objectLayerItemIds.map((id) => ({ data: { item: { id } } }))),
 });
 
@@ -249,5 +258,79 @@ describe('captureFallbackWorld', () => {
   it('reports item ids that have no ObjectLayer instead of writing a broken backup', async () => {
     const { result } = await run({ objectLayerItemIds: plan.itemIds.filter((id) => id !== 'coin') });
     expect(result.missingObjectLayerItemIds).to.deep.equal(['coin']);
+  });
+});
+
+describe('captureFallbackWorld — audio configuration', () => {
+  const world = generateFallbackWorld();
+  const plan = planFallbackCapture({ world, instanceCode: INSTANCE_CODE });
+
+  const run = async (overrides = {}) => {
+    const models = buildModels({ objectLayerItemIds: plan.itemIds, ...overrides });
+    const result = await captureFallbackWorld({
+      models,
+      world,
+      instanceCode: INSTANCE_CODE,
+      keepFallbackCodes: !!overrides.keepFallbackCodes,
+    });
+    return { models, result };
+  };
+
+  it('writes one configuration per captured map, under the captured map code', async () => {
+    const { models, result } = await run();
+    // The client asks for audio by map code, so a namespaced capture needs its own documents.
+    expect(result.audio.audioConfs).to.equal(AUDIO_CONFIG.maps.length);
+    expect(models.CyberiaMapAudioConf.docs.map((d) => d.mapCode)).to.deep.equal(
+      AUDIO_CONFIG.maps.map((m) => captureMapCode(m.mapCode, INSTANCE_CODE)),
+    );
+    for (const doc of models.CyberiaMapAudioConf.docs) {
+      expect(doc.mapCode).to.not.include('fallback-map-');
+      expect(plan.instance.cyberiaMapCodes).to.include(doc.mapCode);
+      expect(doc.events.map((e) => e.logicEventId)).to.deep.equal(AUDIO_CONFIG.events.map((e) => e.logicEventId));
+      expect(doc.settings).to.deep.equal(AUDIO_CONFIG.settings);
+    }
+    expect(result.audio.missingAudioCodes).to.deep.equal([]);
+  });
+
+  it('binds a logic event to an audio code, carrying no asset of its own', async () => {
+    const { models } = await run();
+    const [doc] = models.CyberiaMapAudioConf.docs;
+    const projectile = doc.events.find((e) => e.logicEventId === 'projectile');
+    expect(projectile.audioCode).to.equal('shoot');
+    expect(projectile).to.not.have.property('audioId');
+    expect(doc.defaultMusic).to.equal(AUDIO_CONFIG.maps[0].defaultMusic);
+  });
+
+  it('leaves a code with no imported asset unbound, and reports it', async () => {
+    const { models, result } = await run({ audioCodes: importedAudioCodes().filter((code) => code !== 'shoot') });
+    expect(result.audio.missingAudioCodes).to.deep.equal(['shoot']);
+    for (const doc of models.CyberiaMapAudioConf.docs) {
+      expect(doc.events.some((e) => e.audioCode === 'shoot')).to.equal(false);
+    }
+  });
+
+  it('clears a default music the world has not imported', async () => {
+    const { models, result } = await run({ audioCodes: [] });
+    expect(result.audio.missingAudioCodes).to.deep.equal(importedAudioCodes().sort());
+    for (const doc of models.CyberiaMapAudioConf.docs) {
+      expect(doc.defaultMusic).to.equal('');
+      expect(doc.events).to.deep.equal([]);
+    }
+  });
+
+  it('writes the canonical map codes under keepFallbackCodes', async () => {
+    const { models } = await run({ keepFallbackCodes: true });
+    expect(models.CyberiaMapAudioConf.docs.map((d) => d.mapCode)).to.deep.equal(
+      AUDIO_CONFIG.maps.map((m) => m.mapCode),
+    );
+  });
+
+  it('is idempotent — a second capture converges on the same configuration', async () => {
+    const models = buildModels({ objectLayerItemIds: plan.itemIds });
+    await captureFallbackWorld({ models, world, instanceCode: INSTANCE_CODE });
+    const first = JSON.stringify(models.CyberiaMapAudioConf.docs);
+    await captureFallbackWorld({ models, world, instanceCode: INSTANCE_CODE });
+    expect(models.CyberiaMapAudioConf.docs.length).to.equal(AUDIO_CONFIG.maps.length);
+    expect(JSON.stringify(models.CyberiaMapAudioConf.docs)).to.equal(first);
   });
 });

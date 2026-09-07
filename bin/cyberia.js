@@ -10,7 +10,7 @@
  */
 
 import dotenv from 'dotenv';
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 import fs from 'fs-extra';
 import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/runtime/process.js';
@@ -18,6 +18,18 @@ import { cli } from '../src/server/build/execution.js';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
+import { CyberiaAudioService } from '../src/api/cyberia-audio/cyberia-audio.service.js';
+import { CyberiaEntityTypeDefaultService } from '../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
+import {
+  collectInstanceItemIds,
+  collectSummonedItemIds,
+  selectInstanceSkills,
+} from '../src/api/cyberia-instance/cyberia-instance-items.js';
+import { prepareFallbackAudio, seedFallbackAudio, seedInstanceAudio } from '../src/projects/cyberia/seed-audio.js';
+import {
+  CyberiaMapAudioConfService,
+  parseEventAudioBinding,
+} from '../src/api/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
 import {
   deployEnvFilePath,
   etcHostFactory,
@@ -1986,6 +1998,8 @@ try {
           'cyberia-skill',
           'cyberia-entity-type-default',
           'cyberia-saga',
+          'cyberia-audio',
+          'cyberia-map-audio-conf',
           'object-layer',
           'object-layer-render-frames',
           'atlas-sprite-sheet',
@@ -2006,6 +2020,8 @@ try {
       const CyberiaSkill = DataBaseProviderService.getModel('cyberia-skill', { host, path });
       const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('cyberia-entity-type-default', { host, path });
       const CyberiaSaga = DataBaseProviderService.getModel('cyberia-saga', { host, path });
+      const CyberiaAudio = DataBaseProviderService.getModel('cyberia-audio', { host, path });
+      const CyberiaMapAudioConf = DataBaseProviderService.getModel('cyberia-map-audio-conf', { host, path });
       const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
       const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
       const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
@@ -2183,6 +2199,8 @@ try {
             CyberiaSkill,
             CyberiaEntityTypeDefault,
             CyberiaDialogue,
+            CyberiaMapAudioConf,
+            CyberiaAudio,
             ObjectLayer,
           },
           world,
@@ -2209,6 +2227,7 @@ try {
           mapCodes: capture.plan.instance.cyberiaMapCodes,
           actions: capture.plan.actions.length,
           quests: capture.plan.quests.length,
+          audioConfs: capture.audio.audioConfs,
           objectLayerItemIds: capture.plan.itemIds.length,
         });
 
@@ -2316,6 +2335,52 @@ try {
           }
         }
         logger.info(`Exported ${maps.length} CyberiaMap document(s)`, { codes: maps.map((m) => m.code) });
+
+        // 3a. Export the audio configuration of those maps, and the assets it binds.
+        //     A CyberiaMapAudioConf belongs to one map, so it travels with the instance. A
+        //     CyberiaAudio is global and shared by every map that binds its code, so it travels
+        //     as a copy: the import upserts it by code and leaves other instances' bindings alone.
+        //     The WAV rides along as an ordinary File document, keeping its _id so `fileId` still
+        //     resolves after a restore.
+        const audioConfs = await CyberiaMapAudioConf.find({ mapCode: { $in: [...mapCodes] } }).lean();
+        if (audioConfs.length > 0) {
+          fs.ensureDirSync(`${backupDir}/cyberia-map-audio-confs`);
+          const audioCodes = new Set();
+          for (const conf of audioConfs) {
+            fs.writeJsonSync(`${backupDir}/cyberia-map-audio-confs/${encodeURIComponent(conf.mapCode)}.json`, conf, {
+              spaces: 2,
+            });
+            if (conf.defaultMusic) audioCodes.add(conf.defaultMusic);
+            for (const event of conf.events || []) if (event.audioCode) audioCodes.add(event.audioCode);
+          }
+          logger.info(`Exported ${audioConfs.length} CyberiaMapAudioConf document(s)`, {
+            mapCodes: audioConfs.map((c) => c.mapCode),
+          });
+
+          const audioAssets = await CyberiaAudio.find({ code: { $in: [...audioCodes] } }).lean();
+          if (audioAssets.length > 0) {
+            fs.ensureDirSync(`${backupDir}/cyberia-audio`);
+            for (const asset of audioAssets) {
+              fs.writeJsonSync(`${backupDir}/cyberia-audio/${encodeURIComponent(asset.code)}.json`, asset, {
+                spaces: 2,
+              });
+              if (asset.fileId) await exportFileDoc(asset.fileId, `audio-${asset.code}`);
+            }
+          }
+          const missingAudioCodes = [...audioCodes].filter(
+            (code) => !audioAssets.some((asset) => asset.code === code),
+          );
+          logger.info(`Exported ${audioAssets.length} CyberiaAudio document(s)`, {
+            codes: audioAssets.map((a) => a.code),
+          });
+          if (missingAudioCodes.length > 0) {
+            logger.warn(
+              'Audio bindings reference codes with no imported CyberiaAudio document — ' +
+                'run `node bin/cyberia audio --import` before restoring this backup',
+              { codes: missingAudioCodes },
+            );
+          }
+        }
 
         // 3b. Export quests + actions bound to THIS instance's maps (sourceMapCode
         //     in the instance's map codes) — only the content tied to this instance.
@@ -2861,6 +2926,12 @@ try {
               const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
               logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
 
+              // A map's audio configuration belongs to that map. The assets it bound do not:
+              // they are global and shared, so they stay.
+              const audioConfResult = await CyberiaMapAudioConf.deleteMany({ mapCode: { $in: [...dropMapCodes] } });
+              if (audioConfResult.deletedCount > 0)
+                logger.info(`Dropped ${audioConfResult.deletedCount} CyberiaMapAudioConf document(s)`);
+
               // Quests + actions are bound to maps by sourceMapCode, so they drop
               // with this instance's maps — only the content tied to this instance.
               const questResult = await CyberiaQuest.deleteMany({ sourceMapCode: { $in: [...dropMapCodes] } });
@@ -3207,12 +3278,70 @@ try {
           logger.info(`Imported ${mapCount} CyberiaMap document(s)`);
         }
 
+        // 5a. Import audio assets, then the map bindings that reference them by code. Assets are
+        //     upserted by code (they are global and may already be present from another import);
+        //     their File documents were restored above with their original _id, so `fileId` still
+        //     resolves. A binding whose asset is absent is kept: the code is the reference, and
+        //     importing the asset later makes it play.
+        const audioAssetsDir = `${backupDir}/cyberia-audio`;
+        if (fs.existsSync(audioAssetsDir)) {
+          const assetFiles = fs.readdirSync(audioAssetsDir).filter((f) => f.endsWith('.json'));
+          let assetCount = 0;
+          let replacedFiles = 0;
+          for (const file of assetFiles) {
+            const assetData = fs.readJsonSync(`${audioAssetsDir}/${file}`);
+            if (!assetData.code) {
+              logger.warn(`Skipping CyberiaAudio backup without code: ${file}`);
+              continue;
+            }
+            // The asset this restore supersedes may hold different bytes under a different
+            // fileId. Replacing the document without dropping that blob leaves it referenced by
+            // nothing — an orphan `db clean-fs` would later have to sweep.
+            const superseded = await CyberiaAudio.find({
+              $or: [{ code: assetData.code }, ...(assetData._id ? [{ _id: assetData._id }] : [])],
+            }).lean();
+            await CyberiaAudio.deleteOne({ code: assetData.code });
+            if (assetData._id) await CyberiaAudio.deleteOne({ _id: assetData._id });
+            await CyberiaAudio.create(assetData);
+            for (const old of superseded) {
+              if (!old.fileId || String(old.fileId) === String(assetData.fileId)) continue;
+              if (await File.findByIdAndDelete(old.fileId)) replacedFiles++;
+            }
+            assetCount++;
+          }
+          logger.info(`Imported ${assetCount} CyberiaAudio document(s)`, {
+            ...(replacedFiles > 0 ? { replacedFiles } : {}),
+          });
+        }
+
+        const audioConfsDir = `${backupDir}/cyberia-map-audio-confs`;
+        if (fs.existsSync(audioConfsDir)) {
+          const confFiles = fs.readdirSync(audioConfsDir).filter((f) => f.endsWith('.json'));
+          let audioConfCount = 0;
+          for (const file of confFiles) {
+            const confData = fs.readJsonSync(`${audioConfsDir}/${file}`);
+            if (!confData.mapCode) {
+              logger.warn(`Skipping CyberiaMapAudioConf backup without mapCode: ${file}`);
+              continue;
+            }
+            await CyberiaMapAudioConf.deleteOne({ mapCode: confData.mapCode });
+            if (confData._id) await CyberiaMapAudioConf.deleteOne({ _id: confData._id });
+            await CyberiaMapAudioConf.create(confData);
+            audioConfCount++;
+          }
+          logger.info(`Imported ${audioConfCount} CyberiaMapAudioConf document(s)`);
+        }
+
         // 6. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
         if (fs.existsSync(confImportPath)) {
-          // Backfill missing schema fields, so a partial backup imports a
-          // complete, playable config.
-          const confData = fillInstanceConfDefaults(fs.readJsonSync(confImportPath));
+          // Backfill any missing schema fields so older backups import a
+          // complete, playable config into the DB.
+          const confData = await adoptEntityTypeDefaultRefs(
+            fillInstanceConfDefaults(fs.readJsonSync(confImportPath)),
+            backupDir,
+            CyberiaEntityTypeDefault,
+          );
           if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
           await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
           await CyberiaInstanceConf.create(confData);
@@ -3924,6 +4053,130 @@ try {
         process.exit(1);
       }
     });
+
+  const runAudioCommand = async (audioCode, options = {}) => {
+    const assignments = {
+      ...(options.setDefaultMusic === undefined ? {} : { defaultMusic: options.setDefaultMusic }),
+      events: options.setEvent ?? [],
+    };
+    const configuring = assignments.defaultMusic !== undefined || assignments.events.length > 0;
+
+    if (configuring && !options.map) {
+      logger.error('--map <map-code> is required to apply --set-default-music/--set-event');
+      process.exit(1);
+    }
+    if (!options.import && !options.map) {
+      logger.error('Nothing to do: pass --import, or --map <map-code> to read or configure a map');
+      process.exit(1);
+    }
+
+    if (options.envPath && !fs.existsSync(options.envPath)) {
+      logger.error(`Env file not found: ${options.envPath}`);
+      process.exit(1);
+    }
+    const envPath =
+      options.envPath || `./engine-private/conf/dd-cyberia/.env.${options.dev ? 'development' : 'production'}`;
+    if (fs.existsSync(envPath)) dotenv.config({ path: envPath, override: true });
+
+    const deployId = process.env.DEFAULT_DEPLOY_ID;
+    const host = process.env.DEFAULT_DEPLOY_HOST;
+    const path = process.env.DEFAULT_DEPLOY_PATH;
+    const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+    if (!fs.existsSync(confServerPath)) {
+      logger.error(`Server config not found: ${confServerPath}. Ensure DEFAULT_DEPLOY_ID is set.`);
+      process.exit(1);
+    }
+    const confServer = loadConfServerJson(confServerPath, { resolve: true });
+    const { db } = confServer[host][path];
+    db.host = options.mongoHost
+      ? options.mongoHost
+      : options.dev
+        ? db.host
+        : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+    logger.info('env', { env: envPath, deployId, host, path });
+
+    await DataBaseProviderService.load({
+      apis: ['cyberia-audio', 'cyberia-instance', 'cyberia-map', 'cyberia-map-audio-conf', 'file'],
+      host,
+      path,
+      db,
+    });
+
+    try {
+      if (options.seedWorld) {
+        // An instance names its own maps, in its own order; without one the fallback world is the
+        // world being scored. Either way the bank and the rotation are the same.
+        const result = options.instance
+          ? await seedInstanceAudio(
+              { instanceCode: options.instance, recordsPath: options.recordsPath },
+              { host, path },
+            )
+          : await seedFallbackAudio({ recordsPath: options.recordsPath }, { host, path });
+        logger.info(
+          `seed-audio${options.instance ? ` --instance ${options.instance}` : ''}: ` +
+            `${result.assets.length} assets, ${result.maps.length} maps`,
+        );
+      } else if (options.import) {
+        const recordsPath = options.recordsPath || DEFAULT_AUDIO_RECORDS_PATH;
+        const codes = audioCode
+          ? audioCode
+              .split(',')
+              .map((code) => code.trim())
+              .filter(Boolean)
+          : null;
+        const imported = await CyberiaAudioService.importRecords({ recordsPath, codes }, { host, path });
+        logger.info(`audio --import: imported ${imported.length} asset(s) from ${recordsPath}`);
+      }
+
+      if (options.map) {
+        /** @type {import('mongoose').Model} */
+        const CyberiaMap = DataBaseProviderService.getModel('cyberia-map', { host, path });
+        if (!(await CyberiaMap.exists({ code: options.map }))) {
+          throw new Error(`cyberia-map not found for code="${options.map}"`);
+        }
+
+        if (configuring) {
+          const conf = await CyberiaMapAudioConfService.assign(
+            { mapCode: options.map, ...assignments },
+            { host, path },
+          );
+          logger.info(`audio --map: updated audio configuration for "${options.map}"`, {
+            defaultMusic: conf.defaultMusic || null,
+            events: conf.events.map(({ logicEventId, audioCode: code }) => `${logicEventId}:${code}`),
+          });
+        } else {
+          const conf = await CyberiaMapAudioConfService.getByMapCode(options.map, { host, path });
+          if (!conf) logger.warn(`No audio configuration for map "${options.map}"`);
+          else console.log(JSON.stringify(conf, null, 2));
+        }
+      }
+    } finally {
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    }
+  };
+
+  // ── audio: import cyberia-audio assets and configure per-map audio ──
+  program
+    .command('audio [audio-code]')
+    .option('--import', 'Import <name>.wav + <name>.json pairs into MongoDB (all pairs when no id is given)')
+    .option(
+      '--records-path <records-path>',
+      `Records directory to import from (default: ${DEFAULT_AUDIO_RECORDS_PATH})`,
+    )
+    .option('--map <map-code>', 'Target cyberia-map code to read or configure')
+    .option('--set-default-music <audio-code>', 'Set the default background music of --map')
+    .option(
+      '--set-event <logic-event-id:audio-code>',
+      'Bind an audio asset to a logic event e.g. combat:combat or shoot:shoot, repeatable',
+      eventAudioBindingFactory('--set-event'),
+      [],
+    )
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Import cyberia-audio assets into MongoDB and configure cyberia-map audio')
+    .action(runAudioCommand);
 
   // ── generate-saga: Top-Down PCG guided by LLMs (Semantic Reverse-Engineering) ──
   program
@@ -4889,6 +5142,26 @@ try {
     });
 
   const runner = program.command('run-workflow').description('Run a Cyberia script from the "scripts" directory');
+
+  runner
+    .command('seed-audio')
+    .option('--records-path <path>', 'Recorded WAV and manifest directory', DEFAULT_AUDIO_RECORDS_PATH)
+    .option('--records-only', 'Record the WAV and manifest pairs without touching the database')
+    .option(
+      '--instance <instance-code>',
+      "Configure that instance's maps instead of the fallback world's, in its own cyberiaMapCodes order",
+    )
+    .option('--env-path <path>', 'Engine environment file')
+    .option('--mongo-host <host>', 'Mongo host override')
+    .option('--dev', 'Use the development environment')
+    .description('Record audio, upsert generic files and audio metadata, and configure a world\'s maps')
+    .action(async (options) => {
+      // Recording writes only `records/`: the client bundles no audio and fetches every asset
+      // from engine-cyberia by code, so seeding the database is what makes a recording reachable.
+      await prepareFallbackAudio({ recordsPath: options.recordsPath ?? DEFAULT_AUDIO_RECORDS_PATH });
+      if (!options.recordsOnly) await runAudioCommand(undefined, { ...options, import: true, seedWorld: true });
+      logger.info('seed-audio complete');
+    });
 
   runner
     .command('import-default-items')

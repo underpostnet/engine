@@ -151,6 +151,97 @@ export const SKILL_LOGIC_ID_VALUES = Object.freeze(SKILL_LOGIC_IDS.map((l) => l.
 export const isCanonicalSkillLogicId = (logicEventId) => SKILL_LOGIC_ID_VALUES.includes(logicEventId);
 
 /**
+ * The two audio routes: a held music bed, and one-shot effects over it.
+ *
+ * One bus vocabulary, spelled once: the same ids name the `src/audio-module/<bus-id>/` directory
+ * an asset is authored in, the argument `cyberia-audio <bus-id> <id>` dispatches on, the `bus` a
+ * recorded manifest carries, and the route a binding's `settings.bus` selects.
+ */
+export const AUDIO_BUS_MUSIC = 'music';
+export const AUDIO_BUS_SFX = 'sfx';
+export const AUDIO_BUSES = Object.freeze([AUDIO_BUS_MUSIC, AUDIO_BUS_SFX]);
+
+/**
+ * Canonical audio LogicId registry — the runtime events an audio binding may answer.
+ *
+ * Audio is a consumer of the game's semantic event vocabulary, never a second one: a
+ * `cyberia-map-audio-conf` binding resolves one of these ids (or a canonical skill LogicId, which
+ * the client emits by the same name) to an `audioCode`. The ids live here, beside the other shared
+ * vocabularies, because three parties must agree on them — the C client that emits them, the seed
+ * that binds them, and the editor that offers them.
+ *
+ * `bus` is the binding's natural routing: music events take over the map's bed until `idle`
+ * restores it; sfx events are one shots. A binding may override it in its own settings.
+ *
+ * MUST stay aligned with the events emitted by cyberia-client (`src/audio/audio_events.h`).
+ *
+ * @type {ReadonlyArray<{id:string,name:string,description:string,bus:'music'|'sfx'}>}
+ */
+export const AUDIO_LOGIC_IDS = Object.freeze([
+  Object.freeze({
+    id: 'idle',
+    name: 'Idle',
+    description: 'No event is holding the bed: the map returns to its default music.',
+    bus: AUDIO_BUS_MUSIC,
+  }),
+  Object.freeze({
+    id: 'combat',
+    name: 'Combat',
+    description: 'The player is taking damage: combat music takes over until the exchange ends.',
+    bus: AUDIO_BUS_MUSIC,
+  }),
+  Object.freeze({ id: 'boss', name: 'Boss', description: 'A boss encounter is under way.', bus: AUDIO_BUS_MUSIC }),
+  Object.freeze({ id: 'victory', name: 'Victory', description: 'A quest or encounter was completed.', bus: AUDIO_BUS_MUSIC }),
+  Object.freeze({
+    id: 'portal-cooldown',
+    name: 'Portal Cooldown',
+    description: 'The player is standing on a portal while its teleport charge runs.',
+    bus: AUDIO_BUS_MUSIC,
+  }),
+  Object.freeze({
+    id: 'portal',
+    name: 'Portal',
+    description: 'The teleport charge completed and the player jumps — within a map or across one.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({
+    id: 'hit',
+    name: 'Hit',
+    description: 'Damage landed on any entity in view, not only on the player.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({ id: 'heal', name: 'Heal', description: 'Life was restored to an entity in view.', bus: AUDIO_BUS_SFX }),
+  Object.freeze({ id: 'drop', name: 'Drop', description: 'An item drop spawned in the world.', bus: AUDIO_BUS_SFX }),
+  Object.freeze({
+    id: 'ui-click',
+    name: 'UI Click',
+    description: 'The interface accepted a tap — a button, a modal control, a bubble.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({
+    id: 'footsteps',
+    name: 'Footsteps',
+    description: 'Something with feet is walking in view; repeats on a gait cadence while it lasts.',
+    bus: AUDIO_BUS_SFX,
+  }),
+]);
+
+/** Ordered list of canonical audio LogicId values. */
+export const AUDIO_LOGIC_ID_VALUES = Object.freeze(AUDIO_LOGIC_IDS.map((l) => l.id));
+
+/** Map: audio LogicId → its natural bus. */
+export const AUDIO_LOGIC_ID_BUSES = Object.freeze(
+  Object.fromEntries(AUDIO_LOGIC_IDS.map((l) => [l.id, l.bus])),
+);
+
+/**
+ * True when `logicEventId` is a runtime event an audio binding may answer: an audio event, or a
+ * skill event the dispatcher fires (a skill's own id is what the client emits when it runs).
+ */
+export const isCanonicalAudioLogicId = (logicEventId) =>
+  AUDIO_LOGIC_ID_VALUES.includes(logicEventId) || isCanonicalSkillLogicId(logicEventId);
+
+/**
  * Canonical entity-behavior registry — the authoritative vocabulary for the
  * `behavior` an entity-type default may bind to its matched entities. The Go
  * simulation owns the runtime semantics; this registry is the shared label /

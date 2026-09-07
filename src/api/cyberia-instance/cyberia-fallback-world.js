@@ -53,6 +53,9 @@ import {
 const DEFAULT_MAP_COUNT = 4;
 const DEFAULT_GRID_SIZE = 64;
 
+const getFallbackMapCodes = (mapCount = DEFAULT_MAP_COUNT) =>
+  Array.from({ length: mapCount }, (_, index) => `fallback-map-${index}`);
+
 // ── Asset-id integrity ──────────────────────────────────────────────────────
 //
 // Every item id the fallback world can place must also be in
@@ -277,11 +280,7 @@ function generateFallbackWorld(opts = {}) {
     );
   }
 
-  // Generate map codes.
-  const mapCodes = [];
-  for (let i = 0; i < mapCount; i++) {
-    mapCodes.push(`fallback-map-${i}`);
-  }
+  const mapCodes = getFallbackMapCodes(mapCount);
 
   // Deterministic layout: the seeded random source makes every call reproduce
   // the same world. The `/static` POIs and the `/preview` image come from
@@ -318,7 +317,6 @@ function generateFallbackWorld(opts = {}) {
     portals,
     topologyMode: 'procedural',
     playerSpawn: { ...DEFAULT_PLAYER_SPAWN },
-    itemIds: itemIds.map((entry) => ({ ...entry })),
   };
 
   return {

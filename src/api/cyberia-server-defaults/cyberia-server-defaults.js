@@ -21,6 +21,12 @@ import {
   ENTITY_TYPES,
   SKILL_LOGIC_ID_VALUES,
   isCanonicalSkillLogicId,
+  AUDIO_BUSES,
+  AUDIO_BUS_MUSIC,
+  AUDIO_BUS_SFX,
+  AUDIO_LOGIC_ID_BUSES,
+  AUDIO_LOGIC_ID_VALUES,
+  isCanonicalAudioLogicId,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 export const DOCKER_COMPOSE_ID = 'cyberia';

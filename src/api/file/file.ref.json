@@ -12,6 +12,12 @@
     }
   },
   {
+    "api": "cyberia-audio",
+    "model": {
+      "fileId": true
+    }
+  },
+  {
     "api": "cyberia-instance",
     "model": {
       "thumbnail": true

@@ -74,8 +74,8 @@ cyberia ol hatchet --drop --client-public --import
 
 ## `cyberia instance` — instance data
 
-Export / import / drop a game instance and its related maps, entities, actions, quests, and object
-layers in MongoDB.
+Export / import / drop a game instance and its related maps, entities, actions, quests, object
+layers and map audio in MongoDB.
 
 ```bash
 cyberia instance [instance-code] [options]
@@ -105,7 +105,9 @@ boot and serves it whenever a requested instance is absent. `--export-current-fa
 that in-memory world into MongoDB under a real instance code — maps and portal topology, the
 instance conf, and the content collections the fallback path serves from code rather than the DB
 (skills, entity-type defaults, dialogues, actions, quests) — and then exports it like any other
-instance.
+instance. It writes each captured map's audio configuration too, under the captured map code,
+binding only the codes an imported `CyberiaAudio` actually carries and reporting the rest: the
+client asks for audio by map code, so a namespaced capture would otherwise play nothing.
 
 ```bash
 # Freeze the current fallback world as PROC-1 and back it up
@@ -145,6 +147,129 @@ cyberia client-hints [instance-code] [options]
 cyberia client-hints cyberia-main --seed-defaults
 cyberia client-hints cyberia-main --export ./client-hints-cyberia-main.json
 ```
+
+---
+
+## `cyberia audio` — audio assets and map audio
+
+Imports recorded [`cyberia-audio`](https://github.com/underpostnet/cyberia-audio) assets into MongoDB and binds
+them to a map. Every recording is a pair — `<name>.wav` and its `<name>.json` manifest — and the pair is the unit
+of import: a WAV with no manifest beside it is skipped. Produce the pair with `cyberia-audio sfx coin` or
+`cyberia-audio music combat`.
+
+```bash
+cyberia audio [audio-code] [options]
+```
+
+| Option                                                | Description                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| `--import`                                            | Import WAV + manifest pairs; all of them when no code is given         |
+| `--records-path <path>`                               | Records directory to import from (default `./cyberia-audio/records`)   |
+| `--map <map-code>`                                    | Target `cyberia-map` code to read or configure                         |
+| `--set-default-music <audio-code>`                    | Default background music for `--map`                                   |
+| `--set-event <logic-event-id:audio-code>`             | Bind an asset to a logic event (e.g. `combat`, `shoot`); repeatable    |
+| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                               |
+
+```bash
+# Import every recorded asset, or a single one
+cyberia audio --import
+cyberia audio combat --import
+
+# Configure a map, then read back what it resolved to
+cyberia audio --map FOREST --set-default-music exploration \
+  --set-event projectile:shoot --set-event coin_drop_or_transaction:coin
+cyberia audio --map FOREST
+```
+
+An asset is identified by its `code` alone — `cyberia-audio` stores what a sound *is* (`code`, `fileId`,
+`manifest`) and never what it is for. `manifest.bus` is the `src/audio-module/<bus-id>/` directory the module
+was authored in — the asset's natural route, recorded as provenance; a map binding decides where it actually
+plays. Configuration lands in `cyberia-map-audio-conf`, one document per map code,
+holding `defaultMusic`, a single `events` list and volume/loop/crossfade `settings`. Each binding is the same
+pattern the skill model uses — a semantic `logicEventId` resolving to an `audioCode`:
+
+```js
+{ logicEventId: 'combat', audioCode: 'combat', settings: { bus: 'music', loop: true, crossfadeMs: 800 } }
+{ logicEventId: 'hit', audioCode: 'hit' }
+```
+
+`bus` is one vocabulary with one spelling — `music` and `sfx`, declared once in
+`SharedDefaultsCyberia.AUDIO_BUSES`. The same two ids name the `cyberia-audio/src/audio-module/<bus-id>/`
+directory an asset is authored in, the argument `cyberia-audio <bus-id> <id>` dispatches on, the `bus` a
+recorded manifest carries, and the route a binding's `settings.bus` selects.
+
+The event vocabulary is centralized the same way: `SharedDefaultsCyberia.AUDIO_LOGIC_IDS` declares the
+events a binding may answer and the bus each one naturally routes to, `cyberia-server-defaults` holds the seed's
+bank (`DEFAULT_AUDIO_BANK`) and its bindings (`DEFAULT_AUDIO_BINDINGS`, expanded by `buildAudioEventBindings`),
+and `cyberia-client/src/audio/audio_events.h` holds the same ids for the emitting side. A binding naming an
+unknown event, or an asset the bank does not carry, throws at import rather than playing silence.
+
+The fallback bank binds `projectile`, `coin_drop_or_transaction`, `drop`, `heal`, `hit`, `portal`, `ui-click`
+and `footsteps` as one-shots, and `combat`, `boss`, `victory` and `portal-cooldown` as music. `hit` follows the
+server's damage events, so it sounds for any entity in view rather than only for the player; `ui-click` follows a
+tap the interface accepted.
+
+Two cues are about the crowd rather than about one event, because sounding them per entity buries the bus.
+`heal` is a milestone: regeneration ticks constantly and in small amounts, so it sounds only when an entity's
+life crosses back above zero, 25%, 50% or 75%, once per snapshot however many entities crossed. `footsteps`
+is a cadence: one gait cycle repeats for as long as anything with feet is walking in view, at one rate for the
+whole scene rather than one per walker.
+
+Portal audio follows the authoritative teleport charge, never the map code: `onPortal` holds `portal-cooldown` as
+a bed for as long as the charge runs, and completing it fires the `portal` one-shot while the departing map's
+bindings are still resident. An intra-map portal moves the player without changing maps, so watching the map code
+was silent for exactly that case; stepping off the pad drops the bed without sounding the jump.
+
+Whether a binding behaves as a bed, a one-shot or a transition follows from the logic event that fires it and the
+settings it carries, not from a classification stored twice. The code is checked against the imported assets, so
+an unimported one is rejected rather than stored as a dangling name. Bindings merge by `logicEventId`: naming an
+event replaces that binding and leaves the others in place. `--map` on its own prints the current configuration
+and writes nothing.
+
+The fallback seed is the exception, and deliberately so: it states a map's complete binding set, so re-running it
+converges. A binding whose logic event the bank no longer declares — a renamed cue, for instance — is dropped and
+logged, instead of surviving as a name the client would keep asking the engine to resolve.
+
+`settings.bus` selects `music` or `sfx` on the binding. It does not classify the asset.
+Omitted settings inherit client or map defaults. Supported overrides include volume, loop, crossfadeMs, pitch, pan, and priority.
+Set music event routing through the map configuration API or the fallback seed workflow.
+Changing only an event's audio code preserves its existing settings.
+
+Record and seed the complete fallback bank from the engine repository root:
+
+```bash
+cyberia run-workflow seed-audio --records-only
+cyberia run-workflow seed-audio --dev --mongo-host 127.0.0.1
+cyberia run-workflow seed-audio --instance my-instance --dev --mongo-host 127.0.0.1
+```
+
+The first command records thirteen WAV and manifest pairs and touches no database.
+The second also upserts generic File references, CyberiaAudio metadata, and audio configuration for the fallback maps.
+The third configures one instance's maps instead: `--instance <instance-code>` reads that instance's own
+`cyberiaMapCodes` and scores every one of them with the same bank, bindings and default bed the fallback world
+uses, so a world built on that topology sounds the way the fallback world does. Every map falls back to the
+`exploration` bed; what makes a place sound different is the event that fires there. The instance must exist and
+declare at least one map, or the run fails without writing anything.
+
+Every form states each map's whole configuration, so re-running converges rather than accumulating: a bed is
+reassigned and a binding the bank no longer declares is dropped.
+It reuses the existing engine environment resolution. Full seeding requires that deployment configuration and MongoDB.
+Use `--records-path` to select the output directory.
+An asset's generic File `_id` is derived from its code and the bytes themselves, so re-importing an unchanged
+bank rewrites nothing, and a changed render lands on a new `fileId` while the blob it replaced is deleted in the
+same step. That is what keeps the client honest: it fetches a WAV as `/api/file/blob/<fileId>` and caches it, so
+new bytes under a reused id would go on playing the old sound. `cyberia-audio.fileId` is registered in
+`src/api/file/file.ref.json`, which is the list `underpost db clean-fs` treats as the complete set of File
+references — a blob no registered field points at is deleted by that sweep. Deleting an asset, through the API or
+by restoring an instance over it, deletes its blob with it. Interrupted imports can be rerun safely.
+
+Recording produces nothing for the client to ship: `cyberia-client` bundles no WAV and fetches every asset from
+engine-cyberia by code, so an asset is reachable only once it is seeded.
+
+The client resolves `logicEventId → audioCode → fileId → /api/file/blob/:fileId` and caches decoded WAVs.
+Fallback maps use exploration, combat, boss, and exploration music in order.
+Missing remote content uses the generated local bank. Unknown effects become silence.
+Regenerate the local bank before building the client after changing audio content.
 
 ---
 
