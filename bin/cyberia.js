@@ -2003,6 +2003,12 @@ try {
             `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
             `/home/dd/cyberia-instances/deployments/cyberia-server/.`,
           );
+          const folders = ['ui-icons', 'cursor', 'fonts', 'icons', 'splash', 'templates', 'video'];
+          for (const folder of folders)
+            fs.copySync(
+              `./src/client/public/cyberia/assets/${folder}`,
+              `/home/dd/cyberia-instances/public/cyberia/assets/${folder}`,
+            );
           // fs.removeSync(`/home/dd/cyberia-instances/public/cyberia`);
           // fs.mkdirpSync(`/home/dd/cyberia-instances/public/cyberia`);
           fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
