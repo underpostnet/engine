@@ -125,7 +125,7 @@ The three processes are supervised independently. Each service owns its own moni
 
 Dependency between services is handled by supervision and reconnect loops:
 
-- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`ENGINE_API_BASE_URL`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world. On reconnect, it reloads world configuration.
+- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world. On reconnect, it reloads world configuration.
 - `cyberia-client` reconnects to `cyberia-server` over WebSocket and re-fetches content from `engine-cyberia` over REST independently.
 - If any one of the three services goes unhealthy, the game moves to standby until all three recover.
 

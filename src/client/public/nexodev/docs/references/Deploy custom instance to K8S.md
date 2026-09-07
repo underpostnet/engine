@@ -121,7 +121,7 @@ An instance config may declare K8S-native lifecycle hooks and probes. These spli
   "toPort": 8081,
   "cmd": {
     "production": [
-      "set -a && . /env/production.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && exec /home/dd/engine/cyberia-server/server",
+      "set -a && . /env/production.env && set +a && exec /home/dd/engine/cyberia-server/server --data-server-url=$CYBERIA_DATA_SERVER_URL --data-server-grpc={{grpc-service-dns}}",
     ],
   },
   "lifecycle": {
@@ -309,7 +309,7 @@ and operator-owned secrets, with no templating annotations:
 # mmo-server/env/production.env
 INSTANCE_CODE=amethyst-strata-expansion
 CYBERIA_BASE_PATH=/
-ENGINE_API_BASE_URL=https://www.cyberiaonline.com
+CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
 CYBERIA_SERVER_API_KEY=<operator-owned-secret>
 ```
 
@@ -319,7 +319,7 @@ CYBERIA_INSTANCE_CODE=amethyst-strata-expansion
 CYBERIA_DEFAULT_INSTANCE=amethyst-strata-expansion
 CYBERIA_BASE_PATH=/
 CYBERIA_WS_ORIGIN=wss://server.cyberiaonline.com
-CYBERIA_ENGINE_API_ORIGIN=https://www.cyberiaonline.com
+CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
 ```
 
 The generic `dispatchBuildInstanceEnv` hook in `src/server/runtime/conf.js` selects a
@@ -388,11 +388,15 @@ acts on one instance:
 
 ```bash
 # All variants
-node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' --kubeadm
+node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id mmo-server --kubeadm
 
 # Just one
-node bin run instance-build-manifest 'dd-cyberia,mmo-server-forest,./cyberia-server' --kubeadm
+node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id mmo-server-forest --kubeadm
 ```
+
+Where the artifacts land is not an argument. The project directory is derived from the conf entry
+itself — its `metadata.repository` name, else its `runtime`, else its id — so an instance cannot be
+paired with another project's checkout.
 
 Only the instance whose id matches the template verbatim publishes its artifacts
 to the project root, so the repo keeps one canonical `Dockerfile` /
@@ -954,7 +958,7 @@ The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`.
 
 **File:** `./engine-private/conf/dd-cyberia/conf.instances.json`
 
-- **`mmo-server`** — `runtime: "cyberia-server"` (Dockerfile at `src/runtime/cyberia-server/Dockerfile`). The Go binary `/home/dd/engine/cyberia-server/server` is the long-running process. `cmd[env]` sources a deployment-secret env file from the `instance-cyberia-server` PVC, exports the runner-resolved `ENGINE_GRPC_ADDRESS` from the `{{grpc-service-dns}}` template, then exec's the binary. Readiness is observed by Kubernetes through the `readinessProbe` (TCP socket on port 8081).
+- **`mmo-server`** — `runtime: "cyberia-server"` (Dockerfile at `src/runtime/cyberia-server/Dockerfile`). The Go binary `/home/dd/engine/cyberia-server/server` is the long-running process. `cmd[env]` sources a deployment-secret env file from the `instance-cyberia-server` PVC, then exec's the binary with its two Data Server endpoints as flags: the REST origin from the env file, and the gRPC endpoint from the runner-resolved `{{grpc-service-dns}}` template. Readiness is observed by Kubernetes through the `readinessProbe` (TCP socket on port 8081).
 
 - **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. Its canonical env files provide the client build/runtime origins and annotated instance code/base path; it needs no gRPC wiring.
 
