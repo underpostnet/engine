@@ -28,6 +28,7 @@ import {
   instancePortFactory,
   instanceProxyRoutesFactory,
   instanceStatusPageEntriesFactory,
+  instanceProjectPathFactory,
   loadConfInstances,
   loadProjectInstanceEnvBuilder,
   loadConfServerJson,
@@ -2268,19 +2269,25 @@ EOF
      * If `--build` is supplied the image is built from the project Dockerfile and loaded into the
      * cluster before the manifest is written (kind by default; `--kubeadm` / `--k3s` override).
      *
-     * @param {string} path - Comma-separated: `deployId,instanceId[,projectPath]`.
-     *   `projectPath` is the root directory that contains the `Dockerfile` (e.g. `./cyberia-client`).
-     *   Artifacts are written to `<projectPath>/manifests/<env>/Dockerfile` and
-     *   `<projectPath>/manifests/<env>/deployment.yaml`.
-     *   In production, files are also copied to `<projectPath>/Dockerfile` and
-     *   `<projectPath>/deployment.yaml`.
+     * The target is named by `--deploy-id` and `--instance-id`, like every other instance runner.
+     * Where the artifacts land is not an argument: an instance's project directory is derived from
+     * the conf entry itself (see {@link instanceProjectPathFactory}), so the caller cannot pair an
+     * instance with someone else's checkout. Artifacts are written to
+     * `<project>/manifests/deployments/<instance>-<env>/`, and in production the pair is also
+     * copied to `<project>/Dockerfile` and `<project>/deployment.yaml`.
+     *
+     * @param {string} path - Unused; the target comes from `--deploy-id` and `--instance-id`.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'instance-build-manifest': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      let [deployId, id, projectPath] = path.split(',');
-      const rootPath = projectPath ? projectPath : '.';
+      const deployId = options.deployId;
+      const id = options.instanceId;
+      if (!deployId || !id) {
+        logger.error('[instance-build-manifest] --deploy-id and --instance-id are required');
+        return;
+      }
 
       const confInstances = loadConfInstances(deployId);
       // Targeting a template id builds every world in the family. The fan-out
@@ -2298,20 +2305,23 @@ EOF
       }
       if (!options.instanceOnly && (selected.length > 1 || selected[0].id !== id)) {
         for (const instance of selected)
-          await UnderpostRun.RUNNERS['instance-build-manifest'](
-            [deployId, instance.id, projectPath].filter((v) => v !== undefined).join(','),
-            { ...options, instanceOnly: true },
-          );
+          await UnderpostRun.RUNNERS['instance-build-manifest']('', {
+            ...options,
+            instanceId: instance.id,
+            instanceOnly: true,
+          });
         return;
       }
 
+      const instance = selected[0];
+      // The conf names the project: its repository, else its runtime, else its id. A world and the
+      // checkout it publishes to cannot disagree, because only one of them is stated.
+      const rootPath = instanceProjectPathFactory(instance);
       const envManifestPath = `${rootPath}/manifests/deployments/${id}-${env}`;
       const outputPath = `${envManifestPath}/deployment.yaml`;
       const dockerfileManifestPath = `${envManifestPath}/Dockerfile`;
 
       fs.mkdirpSync(envManifestPath);
-
-      const instance = selected[0];
       const isDefaultInstance = instance.id === instance.templateId || !instance.templateId;
       const instanceEnvBuilder = await loadProjectInstanceEnvBuilder(deployId);
 
@@ -2358,14 +2368,15 @@ EOF
       const _fromPort = instancePortFactory({ instance, env });
       const _toPort = instancePortFactory({ instance, env, container: true });
 
-      // Build image from projectPath Dockerfile and load into cluster when --build is set.
-      if (options.build && projectPath) {
+      // Build the image from the project's own Dockerfile and load it into the cluster when
+      // --build is set.
+      if (options.build) {
         const isKind = !options.kubeadm && !options.k3s;
         Underpost.image.build({
-          path: projectPath,
+          path: rootPath,
           imageName: _image,
           podmanSave: true,
-          imageOutPath: projectPath,
+          imageOutPath: rootPath,
           kind: isKind,
           kubeadm: !!options.kubeadm,
           k3s: !!options.k3s,
@@ -2485,12 +2496,11 @@ EOF
       // a rewrite never points at a document that cannot exist. The check is a
       // read: placing the document into the gateway volume is `deploy
       // --sync-static`'s job at apply time, and a build must not mutate the host.
-      // `projectPath` is passed through because this runner is given one
-      // explicitly; the sync derives the same root from the instance itself.
-      const statusPageEntries = instanceStatusPageEntriesFactory({
-        instances: [instance],
-        projectPath: rootPath,
-      }).filter((entry) => fs.existsSync(entry.sourcePath));
+      // No project override: this runner and the sync now derive the root from the same instance
+      // by the same rule, so passing one here could only make them disagree.
+      const statusPageEntries = instanceStatusPageEntriesFactory({ instances: [instance] }).filter((entry) =>
+        fs.existsSync(entry.sourcePath),
+      );
 
       // httproute.yaml — this instance's own routes, including the status routes
       // that reach the static utility instead of this workload. No Gateway is

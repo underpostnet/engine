@@ -33,6 +33,7 @@ import {
 import {
   deployEnvFilePath,
   etcHostFactory,
+  instanceProjectPathFactory,
   loadConfServerJson,
   normalizeInstanceTopology,
 } from '../src/server/runtime/conf.js';
@@ -5934,10 +5935,10 @@ node bin image --path cyberia-client \
   // Instance id → project root. Single source of truth for the workloads this
   // workflow builds: both the k8s manifests and the status page artifacts each
   // project ships are resolved from this list plus conf.instances.json.
-  const CYBERIA_INSTANCE_PROJECTS = [
-    { id: 'mmo-client', rootPath: './cyberia-client' },
-    { id: 'mmo-server', rootPath: './cyberia-server' },
-  ];
+  // The template instances this deploy builds artifacts for. Where each one publishes is not
+  // listed here: instanceProjectPathFactory reads it off the conf entry, the same rule
+  // instance-build-manifest applies, so the two can never name different checkouts.
+  const CYBERIA_INSTANCE_IDS = ['mmo-client', 'mmo-server'];
   const CYBERIA_CONF_INSTANCES_PATH = './engine-private/conf/dd-cyberia/conf.instances.json';
   const CYBERIA_CONF_SSR_PATH = './engine-private/conf/dd-cyberia/conf.ssr.json';
   // Copy shared by the server and the client for a given status code. A status
@@ -6132,11 +6133,11 @@ node bin image --path cyberia-client \
       // embed each document declared under an instance's `customStatusPages`,
       // so the artifact has to exist at its `hostPath` by manifest time.
       const statusPagesBuilt = [];
-      for (const { id, rootPath } of CYBERIA_INSTANCE_PROJECTS) {
+      for (const id of CYBERIA_INSTANCE_IDS) {
         const instance = confInstancesEntries.find((entry) => entry.id === id);
         for (const page of instance?.customStatusPages || []) {
           if (!page?.status || !page?.hostPath) continue;
-          const outputPath = nodePath.normalize(`${rootPath}/${page.hostPath}`);
+          const outputPath = nodePath.normalize(`${instanceProjectPathFactory(instance)}/${page.hostPath}`);
           if (buildCyberiaStatusPage({ status: page.status, outputPath, dev: isDev }))
             statusPagesBuilt.push({ instance: id, status: page.status, outputPath });
         }
@@ -6149,14 +6150,14 @@ node bin image --path cyberia-client \
       // ── Build dev manifests (always --kind --dev) ────────────────────────
       {
         const flags = `--kind --dev${nodeFlag}`;
-        for (const { id, rootPath } of CYBERIA_INSTANCE_PROJECTS)
-          shellExec(`node bin run instance-build-manifest 'dd-cyberia,${id},${rootPath}' ${flags}`);
+        for (const id of CYBERIA_INSTANCE_IDS)
+          shellExec(`node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id ${id} ${flags}`);
       }
       // ── Build prod manifests (--kubeadm, no --dev) ───────────────────────
       if (!isDev) {
         const flags = `--kubeadm${nodeFlag}`;
-        for (const { id, rootPath } of CYBERIA_INSTANCE_PROJECTS)
-          shellExec(`node bin run instance-build-manifest 'dd-cyberia,${id},${rootPath}' ${flags}`);
+        for (const id of CYBERIA_INSTANCE_IDS)
+          shellExec(`node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id ${id} ${flags}`);
       }
 
       // Copy canonical doc sources into the generated project READMEs.
