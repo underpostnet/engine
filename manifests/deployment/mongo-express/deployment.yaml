@@ -4,6 +4,7 @@ metadata:
   name: mongo-express
   labels:
     app: mongo-express
+    group: db
 spec:
   replicas: 1
   selector:
@@ -13,25 +14,27 @@ spec:
     metadata:
       labels:
         app: mongo-express
+        group: db
     spec:
       containers:
         - name: mongo-express
-          image: mongo-express
+          image: mongo-express:1.0.2
           ports:
             - containerPort: 8081
           env:
-            # - name: ME_CONFIG_MONGODB_ADMINUSERNAME
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: mongodb-secret
-            #       key: username
-            # - name: ME_CONFIG_MONGODB_ADMINPASSWORD
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: mongodb-secret
-            #       key: password
-            - name: ME_CONFIG_SITE_BASEURL
-              value: '/mongo/'
+            # Both credential pairs come from the one `mongodb-secret` the StatefulSet already
+            # consumes: the UI authenticates to mongod with the root credentials, and gates its
+            # own session behind the same pair rather than the image's admin/pass defaults.
+            - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: username
+            - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: password
             - name: ME_CONFIG_BASICAUTH_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -42,21 +45,37 @@ spec:
                 secretKeyRef:
                   name: mongodb-secret
                   key: password
+            - name: ME_CONFIG_SITE_BASEURL
+              value: '/mongo/'
+            # In-cluster identity of the first replica, identical under Kind, Kubeadm and K3s.
+            # The driver reads the replica set config from it and reaches the remaining members
+            # through the same headless service.
             - name: ME_CONFIG_MONGODB_SERVER
               value: 'mongodb-0.mongodb-service'
-            # - name: ME_CONFIG_MONGODB_ENABLE_ADMIN
-            #   value: 'true'
             - name: ME_CONFIG_MONGODB_PORT
               value: '27017'
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongo-express-service
-spec:
-  selector:
-    app: mongo-express
-  ports:
-    - protocol: TCP
-      port: 8081
-      targetPort: 8081
+            - name: ME_CONFIG_MONGODB_AUTH_DATABASE
+              value: 'admin'
+            # Without this the UI only lists the databases named in its config; the point of the
+            # deployment is browsing whatever collections the StatefulSet actually holds.
+            - name: ME_CONFIG_MONGODB_ENABLE_ADMIN
+              value: 'true'
+          readinessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: '50m'
+              memory: '128Mi'
+            limits:
+              cpu: '500m'
+              memory: '256Mi'

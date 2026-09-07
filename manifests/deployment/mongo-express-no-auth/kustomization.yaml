@@ -1,0 +1,16 @@
+---
+# kubectl apply -k manifests/deployment/mongo-express-no-auth/.
+# Overlay of manifests/deployment/mongo-express for a mongod started without --auth
+# (manifests/mongodb-4.4). Credentials sent to a server that enforces none are not ignored: the
+# driver still runs SCRAM and the handshake fails, so the admin pair is dropped rather than left
+# resolving against a secret the server never checks. `cluster --mongo-express` selects between
+# this overlay and the base from the deployed StatefulSet's own mongod arguments.
+#
+# A sibling of the base rather than a child of it: kustomize rejects an overlay nested inside the
+# root it extends as a cycle.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../mongo-express
+patches:
+  - path: disable-mongodb-auth.yaml

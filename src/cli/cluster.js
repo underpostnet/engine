@@ -31,6 +31,7 @@ import {
 } from '../server/network/underpost-ingress.js';
 import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/MongooseDB.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
+import { MongoExpress } from '../db/mongo/MongoExpress.js';
 import os from 'os';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
@@ -82,6 +83,7 @@ class UnderpostCluster {
      * @param {object} [options] - Configuration options for cluster initialization.
      * @param {boolean} [options.mongodb=false] - Deploy MongoDB.
      * @param {boolean} [options.mongodb4=false] - Deploy MongoDB 4.4.
+     * @param {boolean} [options.mongoExpress=false] - Deploy the mongo-express web client for inspecting the MongoDB StatefulSet collections.
      * @param {string} [options.serviceHost=''] - Set a custom host/IP for exposed MongoDB and Valkey clients.
      * @param {boolean} [options.mariadb=false] - Deploy MariaDB.
      * @param {boolean} [options.mysql=false] - Deploy MySQL.
@@ -129,6 +131,7 @@ class UnderpostCluster {
       options = {
         mongodb: false,
         mongodb4: false,
+        mongoExpress: false,
         serviceHost: '',
         mariadb: false,
         mysql: false,
@@ -508,6 +511,10 @@ class UnderpostCluster {
             options,
           });
       }
+
+      // After both StatefulSet branches, so one invocation can bring up MongoDB and its inspector
+      // and the client reads the auth mode from the set this run just applied.
+      if (options.mongoExpress) await MongoExpress.deploy({ namespace: options.namespace, underpostRoot, options });
 
       // Installing one stack must never break the other. Whichever is already
       // present decides whether this install takes the node's 80/443 for itself

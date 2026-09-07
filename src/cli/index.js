@@ -289,6 +289,12 @@ program
   .option('--service-host <host>', 'Set custom host/IP for exposed MongoDB and Valkey clients.')
   .option('--postgresql', 'Initializes the cluster with a PostgreSQL statefulset.')
   .option('--mongodb4', 'Initializes the cluster with a MongoDB 4.4 service.')
+  .option(
+    '--mongo-express',
+    'Deploys the mongo-express web client for inspecting the MongoDB statefulset databases and collections. ' +
+      'Reuses the mongodb-secret credentials, and drops them when the deployed mongod runs without --auth. ' +
+      'Combine with --node-port to expose it on the node network.',
+  )
   .option('--valkey', 'Initializes the cluster with a Valkey service.')
   .option('--ipfs', 'Initializes the cluster with an ipfs-cluster statefulset.')
   .option('--contour', 'Initializes the cluster with Project Contour base HTTPProxy and Envoy.')

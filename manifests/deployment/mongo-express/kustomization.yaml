@@ -1,0 +1,9 @@
+---
+# kubectl apply -k manifests/deployment/mongo-express/.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # mongo-express-nodeport.yaml is intentionally absent: host/public exposure of an admin UI is
+  # opt-in, applied by `cluster --mongo-express --node-port` once the pod reports Ready.
+  - deployment.yaml
+  - service.yaml

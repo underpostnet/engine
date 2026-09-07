@@ -62,6 +62,7 @@ import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
+import { MongoExpress } from '../db/mongo/MongoExpress.js';
 import {
   UNDERPOST_GATEWAY,
   assertStaticAssets,
@@ -3850,9 +3851,9 @@ EOF`);
       );
       switch (serviceId) {
         case 'mongo-express-service': {
-          shellExec(`kubectl delete svc mongo-express-service -n ${options.namespace} --ignore-not-found`);
-          shellExec(`kubectl delete deployment mongo-express -n ${options.namespace} --ignore-not-found`);
-          shellExec(`kubectl apply -f manifests/deployment/mongo-express/deployment.yaml -n ${options.namespace}`);
+          // One deploy path for the client, shared with `cluster --mongo-express`: the secret,
+          // the auth-mode overlay selection and the readiness wait live there.
+          await MongoExpress.deploy({ namespace: options.namespace, options });
           podToMonitor = 'mongo-express';
           break;
         }

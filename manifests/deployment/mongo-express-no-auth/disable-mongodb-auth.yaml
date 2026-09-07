@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+spec:
+  template:
+    spec:
+      containers:
+        - name: mongo-express
+          env:
+            - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+              $patch: delete
+            - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+              $patch: delete
+            - name: ME_CONFIG_MONGODB_AUTH_DATABASE
+              $patch: delete

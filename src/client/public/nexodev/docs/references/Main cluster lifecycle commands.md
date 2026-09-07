@@ -99,11 +99,11 @@ Values that only hold when a deployment runs as a container image — cluster-in
 
 The overlay declares only the keys it changes; every other key keeps the base value. It is applied automatically when the reader is a container runtime:
 
-| Caller                                        | Overlay applied                                    |
-| --------------------------------------------- | -------------------------------------------------- |
-| `node bin app load`                           | Only when the process is inside a container        |
-| `node bin app apply`                          | Always — the Secret is consumed by container pods  |
-| `node bin app status`                         | Reports the overlay path under `ociOverlay`        |
+| Caller                | Overlay applied                                   |
+| --------------------- | ------------------------------------------------- |
+| `node bin app load`   | Only when the process is inside a container       |
+| `node bin app apply`  | Always — the Secret is consumed by container pods |
+| `node bin app status` | Reports the overlay path under `ociOverlay`       |
 
 Detection is Kubernetes service injection (`KUBERNETES_SERVICE_HOST`) or Docker's `/.dockerenv` marker, the same check `underpost state` uses. On a developer host the base file is read untouched, so a local run keeps its `127.0.0.1` endpoints while the same deploy id resolves cluster endpoints inside a pod.
 
@@ -185,11 +185,11 @@ node bin app status
 node bin app clean
 ```
 
-| Flag                    | Description                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `--env <env>`           | `production`, `development` or `test`. Defaults to `production`                  |
-| `--args deploy-id=<id>` | Overrides the deployment id resolved from the repository context                 |
-| `--args sub-conf=<name>`| Selects `.env.<env>.<name>` when that file exists                                |
+| Flag                     | Description                                                      |
+| ------------------------ | ---------------------------------------------------------------- |
+| `--env <env>`            | `production`, `development` or `test`. Defaults to `production`  |
+| `--args deploy-id=<id>`  | Overrides the deployment id resolved from the repository context |
+| `--args sub-conf=<name>` | Selects `.env.<env>.<name>` when that file exists                |
 
 Inside a container, `app load` additionally applies the deploy's `.env.<env>.oci` overlay on top of
 the resolved file — see [OCI runtime overlay](#oci-runtime-overlay).
@@ -329,9 +329,9 @@ node bin run pull underpostnet/engine-test-lampp
 
 Only the source repository is named. The private configuration repository is derived from the conf id the two share, so the pair can never drift apart:
 
-| `source-repo`                    | Engine checkout                  | Private configuration            |
-| -------------------------------- | -------------------------------- | -------------------------------- |
-| *(omitted)*                      | `<owner>/engine`                 | `<owner>/engine-private`         |
+| `source-repo`                    | Engine checkout                  | Private configuration               |
+| -------------------------------- | -------------------------------- | ----------------------------------- |
+| _(omitted)_                      | `<owner>/engine`                 | `<owner>/engine-private`            |
 | `underpostnet/engine-lampp`      | `underpostnet/engine-lampp`      | `underpostnet/engine-lampp-private` |
 | `underpostnet/engine-test-lampp` | `underpostnet/engine-test-lampp` | `underpostnet/engine-lampp-private` |
 
@@ -339,8 +339,8 @@ The owner is taken from the reference, which may be an `owner/repo` slug or a fu
 
 Both checkouts are **replaced**, not merged — the same `underpost cmt --switch-repo` route the fleet sync takes, so a node reached by `run pull` and a node reached by `underpost edge --sync` land on the same commit by the same operation. A node that moved onto a test source repo comes back without being reprovisioned, and one that drifted onto commits of its own is brought back rather than refused by a fast-forward pull.
 
-| Option                     | Description                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Option                         | Description                                                                                                    |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `--repo-engine-private <repo>` | Private configuration repository to check out, as `owner/repo` or a clone URL. Overrides the derivation above. |
 
 `--repo-engine-private` is for a conf repository the pairing cannot name — one whose name does not follow `engine-<conf-id>-private`, or one that lives under a different owner:
@@ -571,6 +571,46 @@ An instance belongs to a deploy through that deploy's own `conf.instances.json` 
 `/etc/hosts` is rewritten wholesale, so instance hosts are resolved _before_ any deploy runs and written together with the deploy hosts in one pass — the runner never passes `--etc-hosts` down to `run instance`, which would rewrite the file with only its own hosts.
 
 Instance status pages declared under `customStatusPages` are placed by the cluster's first static sync, resolved relative to the instance project directory. An instance without a separate PWA `maintenanceDefault` view reuses its first declared custom status document for unavailable-upstream responses: Nginx substitutes that body while preserving the original 502/503/504 code.
+
+### Mongo Express data browser
+
+`node bin cluster --mongo-express` deploys the mongo-express web client that browses the databases and collections held by the MongoDB StatefulSet. It is a stateless `Deployment` plus a ClusterIP `Service`, so the same manifests converge identically on Kind, Kubeadm and K3s — only the image pull differs (loaded into the Kind node image store, pulled through the CRI on Kubeadm/K3s).
+
+```bash
+# Deploy MongoDB and its inspector in one invocation
+node bin cluster --kubeadm --mongodb --mongo-express
+
+# Inspector alone, against the statefulset already running
+node bin cluster --kubeadm --mongo-express
+
+# Preload the image and expose the UI on the node network (NodePort 32081)
+node bin cluster --kubeadm --mongo-express --pull-image --node-port
+
+# Pin it to one node
+node bin cluster --kubeadm --mongo-express --node-name hp-envy-iso-ram-rocky9
+```
+
+**Credentials follow the storage secret convention.** The client owns none of its own: both the mongod connection and the UI's own session read `mongodb-secret` — the same Secret the StatefulSet consumes — through `secretKeyRef`, never through a literal. The Secret is applied before the workload with the usual precedence, SOPS/Age store first (`engine-private/secrets/<namespace>/mongodb-secret.enc.yaml`) and the origin seed files (`mongodb-username`, `mongodb-password`) only when no encrypted manifest exists. See [SOPS + Age Secret Management](<./SOPS Age Secret Management.md>).
+
+**Auth mode is read from the cluster, not from the flags.** `manifests/mongodb` starts mongod with `--auth`; `manifests/mongodb-4.4` does not. Credentials sent to a server that enforces none are not ignored — the driver still runs SCRAM and the handshake fails — so the deployed StatefulSet's own mongod arguments select the kustomization: `manifests/deployment/mongo-express` with the admin pair, or `manifests/deployment/mongo-express-no-auth`, which drops it and keeps the UI's basic auth. Where no StatefulSet is deployed yet, `--mongodb4` selects the no-auth overlay and everything else the default auth-enabled one.
+
+| Surface    | Value                                                                           |
+| ---------- | ------------------------------------------------------------------------------- |
+| Deployment | `mongo-express`                                                                 |
+| Service    | `mongo-express-service` (ClusterIP, `8081`)                                     |
+| NodePort   | `mongo-express-nodeport` (`32081`), applied only with `--node-port`             |
+| Base URL   | `/mongo/`                                                                       |
+| Upstream   | `mongodb-0.mongodb-service:27017`, with the remaining members read from the set |
+| Secret     | `mongodb-secret` (`username`, `password`)                                       |
+
+Without `--node-port` the UI stays inside the cluster, which is the intended default for an admin surface:
+
+```bash
+kubectl port-forward -n default svc/mongo-express-service 8081:8081
+# http://localhost:8081/mongo/
+```
+
+`node bin run service <deploy-id>,mongo-express-service,<host>,<path>` publishes the same Deployment through a deploy's router instead, and shares this one deploy path.
 
 ---
 
