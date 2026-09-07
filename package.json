@@ -86,7 +86,7 @@
     "escape-string-regexp": "^5.0.0",
     "express": "^5.2.1",
     "express-fileupload": "^1.4.3",
-    "express-rate-limit": "^8.6.2",
+    "express-rate-limit": "^8.7.0",
     "express-slow-down": "^3.1.1",
     "fast-json-stable-stringify": "^2.1.0",
     "favicons": "^7.3.1",
