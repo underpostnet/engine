@@ -195,6 +195,8 @@ services:
     environment:
       INSTANCE_CODE: amethyst-strata-expansion
       CYBERIA_BASE_PATH: /
+      CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}
+      CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia-runtime:50051}
@@ -231,6 +233,8 @@ services:
     environment:
       INSTANCE_CODE: FOREST
       CYBERIA_BASE_PATH: /FOREST
+      CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/FOREST
+      CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia-runtime:50051}
@@ -267,6 +271,8 @@ services:
     environment:
       INSTANCE_CODE: TEST
       CYBERIA_BASE_PATH: /TEST
+      CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/TEST
+      CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
       ENGINE_API_BASE_URL: ${ENGINE_API_BASE_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
       ENGINE_GRPC_ADDRESS: ${ENGINE_GRPC_ADDRESS:-engine-cyberia-runtime:50051}
@@ -299,7 +305,7 @@ services:
 
   # === Tier 4: presentation, one per variant ===============================
   # One WASM bundle serves every variant; the instance is resolved from the URL
-  # sub-path (docker-driver injects CYBERIA_BASE_PATH / _WS_ORIGIN /
+  # sub-path (wasm-driver injects CYBERIA_BASE_PATH / _WS_ORIGIN /
   # _ENGINE_API_ORIGIN / _DEFAULT_INSTANCE). Each client waits ONLY for its own
   # server, so the three
   # server->client pipelines advance independently (in parallel) once the shared

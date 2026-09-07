@@ -71,11 +71,11 @@ RUN set -eux; \
 
 WORKDIR /home/dd/engine/cyberia-client
 
-COPY --from=builder /cyberia-client/docker-driver.py ./docker-driver.py
+COPY --from=builder /cyberia-client/wasm-driver.py ./wasm-driver.py
 COPY --from=builder /cyberia-client/bin              ./bin/
 
 ENV CYBERIA_PORT=8082
 
 EXPOSE 8081 8082
 
-CMD ["sh", "-c", "exec python3 docker-driver.py ${CYBERIA_PORT} bin"]
+CMD ["sh", "-c", "exec python3 wasm-driver.py ${CYBERIA_PORT} bin"]
