@@ -152,8 +152,14 @@ const buildCrudController = (service, extend = {}) => {
   class CrudController {
     /** @static @memberof Middlewares */
     static post = serviceHandler(service.post);
-    /** @static @memberof Middlewares */
-    static get = serviceHandler(service.get, { pagination: true });
+    /**
+     * Reads are public and cross-origin by default: the browser client is served from its own
+     * origin and every list/read it issues is a plain GET against this API. Without the header
+     * the response arrives with status 200 and is then discarded by the same-origin policy,
+     * which reads as a silent feature failure rather than a transport error.
+     * @static @memberof Middlewares
+     */
+    static get = serviceHandler(service.get, { pagination: true, crossOrigin: true });
     /** @static @memberof Middlewares */
     static put = serviceHandler(service.put);
     /** @static @memberof Middlewares */

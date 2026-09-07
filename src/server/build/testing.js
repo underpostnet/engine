@@ -128,7 +128,7 @@ const TEST_TIERS = [
     name: 'infra:3-cluster',
     directory: 'test/integration/infra/3-cluster',
     groupOrder: 4,
-    sources: ['src/cli/docker-compose.js', 'src/server/runtime/conf.js'],
+    sources: ['src/cli/docker-compose.js', 'src/db/mongo/MongoExpress.js', 'src/server/runtime/conf.js'],
     description: 'Instance clustering, node assignment and compute scheduling.',
   },
   {
@@ -136,6 +136,7 @@ const TEST_TIERS = [
     directory: 'test/integration/infra/4-ingress',
     groupOrder: 5,
     sources: [
+      'src/server/network/middlewares.js',
       'src/server/network/router.js',
       'src/server/network/underpost-compression.js',
       'src/server/network/underpost-gateway.js',
