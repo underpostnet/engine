@@ -1,49 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
-// ObjectLayer inventory slot: itemId + whether it starts active + initial quantity.
-// Used by EntityDefaultSchema.defaultObjectLayers.
-const ObjectLayerSlotSchema = new Schema(
-  {
-    itemId: { type: String, required: true },
-    active: { type: Boolean, default: false },
-    quantity: { type: Number, default: 1 },
-  },
-  { _id: false },
-);
-
-// Per-entity-type simulation defaults. ONLY authoritative item-id wiring
-// lives here — presentation (palette, colour keys) is the client's
-// responsibility and travels through the CyberiaClientHints REST contract.
-const EntityDefaultSchema = new Schema(
-  {
-    // Entity category string, as the simulation names it.
-    entityType: { type: String, required: true },
-    // Default ObjectLayer item IDs when the entity is alive and carries no assigned items.
-    liveItemIds: { type: [String], default: [] },
-    // Default ObjectLayer item IDs for the dead / ghost / respawning state.
-    deadItemIds: { type: [String], default: [] },
-    // Resource-only inventory items granted on extraction/depletion.
-    // These are not auto-activated on the entity itself.
-    dropItemIds: { type: [String], default: [] },
-    // Full default ObjectLayer inventory for this entity type. A non-empty list
-    // supersedes liveItemIds. The coin slot must keep active:false.
-    defaultObjectLayers: { type: [ObjectLayerSlotSchema], default: [] },
-    // Canonical entity behavior (SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty
-    // lets the runtime derive it (armed → hostile, else passive).
-    behavior: { type: String, default: '' },
-  },
-  { _id: false },
-);
-
-const SkillConfigEntrySchema = new Schema(
-  {
-    triggerItemId: { type: String, required: true },
-    logicEventIds: { type: [String], default: [] },
-  },
-  { _id: false },
-);
-
 // ── StatusIconEntrySchema ────────────────────────────────────────────────────
 // Numeric Entity Status Indicator (ESI) IDs. The server stamps one u8 ID on
 // every entity in the AOI wire format. The icon visuals belong to the client
@@ -163,8 +120,21 @@ const CyberiaInstanceConfSchema = new Schema(
     maxChance: { type: Number, default: D.maxChance },
 
     // ── Entity type defaults ─────────────────────────────────────────
-    // Each entry: { entityType, liveItemIds, deadItemIds, dropItemIds, colorKey }.
-    entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
+    // References into the CyberiaEntityTypeDefault collection, which owns the
+    // per-entity-type item wiring (live/dead/drop sets, seed inventory, behavior).
+    //
+    // A reference, never a copy. Embedding the documents here meant the same
+    // wiring existed twice — once in the collection, once inside every instance
+    // conf — and the two were reconciled by matching item ids, so two instances
+    // sharing a skin resolved into each other's defaults on import and export.
+    // An id names exactly one document, which is what makes that impossible.
+    //
+    // An empty list is not "no defaults": it means this instance adds nothing to
+    // the canonical ENTITY_TYPE_DEFAULTS, which every world resolves against.
+    entityDefaults: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'CyberiaEntityTypeDefault' }],
+      default: D.entityDefaults,
+    },
 
     // ── Entity Status Indicators ────────────────────────────────────
     // Overhead icon mapping + per-status border colour.
@@ -172,9 +142,11 @@ const CyberiaInstanceConfSchema = new Schema(
     statusIcons: { type: [StatusIconEntrySchema], default: D.statusIcons },
 
     // ── Skill system ─────────────────────────────────────────────────
-    // Each entry maps a trigger item to an ordered list of logic handler keys.
-    // Spawning entities (e.g. projectiles) is handled inside the logic handler itself.
-    skillConfig: { type: [SkillConfigEntrySchema], default: [] },
+    // Which skills an instance runs is not stored: the CyberiaSkill collection owns the
+    // definitions, and an instance runs the ones whose trigger item its own content names.
+    // See collectInstanceItemIds / selectInstanceSkills (cyberia-instance-items.js). Storing
+    // the list here meant maintaining a second answer to that question, and the two disagreed —
+    // a trigger a quest asked for exported but never reached the simulation.
 
     // Numeric tuning parameters for each skill archetype.
     skillRules: { type: SkillRulesSchema },

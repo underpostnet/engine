@@ -9,142 +9,17 @@ import { DropDown } from '../core/DropDown.js';
 import { CyberiaInstanceManagement } from '../../services/cyberia-instance/cyberia-instance.management.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
+import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-
-const dropdownValueKey = (value = '') => String(value).trim().replaceAll(' ', '-');
-const createDropdownOption = (value, onClick = () => {}, display = value, data = value) => ({
-  value,
-  display,
-  data,
-  onClick,
-});
 
 class InstanceEngineCyberia {
   static currentInstanceId = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
   static portals = [];
-  static itemIdsDropdownId = 'instance-engine-item-ids-dropdown';
-  static itemInventoryListId = 'instance-engine-item-inventory-list';
-  // itemId → defaultPlayerInventory flag for the currently selected item ids.
-  static itemInventoryFlags = {};
-
-  // Current selection, read from the dropdown's `oncheckvalues` (always live —
-  // it is updated before `_renderSelectedBadges` runs, unlike `.value` which
-  // lags by one in the option-click path).
-  static getSelectedItemIds() {
-    const token = DropDown.Tokens[InstanceEngineCyberia.itemIdsDropdownId];
-    if (!token) return [];
-    const fromChecks = Object.values(token.oncheckvalues || {})
-      .map((v) => v.data)
-      .filter(Boolean);
-    if (fromChecks.length > 0) return fromChecks;
-    return Array.isArray(token.value) ? token.value.filter(Boolean) : [];
-  }
-
-  // Render the per-item "Default Player Inventory" toggles for every selected
-  // item id. Kept in sync with the dropdown via a MutationObserver on its badge
-  // container (see render()).
-  static renderItemInventoryList(containerId = InstanceEngineCyberia.itemInventoryListId) {
-    const container = s(`.${containerId}`);
-    if (!container) return;
-
-    const selected = InstanceEngineCyberia.getSelectedItemIds();
-
-    // Drop flags for items no longer selected so the payload never carries them.
-    for (const key of Object.keys(InstanceEngineCyberia.itemInventoryFlags)) {
-      if (!selected.includes(key)) delete InstanceEngineCyberia.itemInventoryFlags[key];
-    }
-
-    if (selected.length === 0) {
-      htmls(`.${containerId}`, html`<div style="color:#888;font-size:12px;">No item IDs selected.</div>`);
-      return;
-    }
-
-    let listHtml = '';
-    for (const itemId of selected) {
-      const checked = InstanceEngineCyberia.itemInventoryFlags[itemId] ? 'checked' : '';
-      listHtml += html`<div class="fl" style="border-bottom:1px solid #444;padding:4px 0;align-items:center;">
-        <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">${itemId}</div>
-        <div class="in fll" style="display:flex;align-items:center;justify-content:flex-end;">
-          <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;">
-            <input
-              type="checkbox"
-              class="instance-engine-item-inv-checkbox"
-              data-item-id="${itemId}"
-              ${checked}
-              style="cursor:pointer;"
-            />
-            Default Player Inventory
-          </label>
-        </div>
-      </div>`;
-    }
-    htmls(`.${containerId}`, listHtml);
-
-    container.querySelectorAll('.instance-engine-item-inv-checkbox').forEach((cb) => {
-      cb.onchange = () => {
-        InstanceEngineCyberia.itemInventoryFlags[cb.dataset.itemId] = cb.checked;
-      };
-    });
-  }
-
-  static syncItemIdsDropdownSelection(itemIds = []) {
-    const dropdownId = InstanceEngineCyberia.itemIdsDropdownId;
-    if (!DropDown.Tokens[dropdownId]) return;
-
-    // Accept both the new [{ id, defaultPlayerInventory }] shape and the legacy
-    // string[] shape so older instance docs keep loading.
-    const normalized = (itemIds || [])
-      .map((entry) => (typeof entry === 'string' ? { id: entry, defaultPlayerInventory: false } : entry))
-      .filter((entry) => entry && entry.id);
-
-    DropDown.Tokens[dropdownId].value = [];
-    if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = [];
-    DropDown.Tokens[dropdownId].oncheckvalues = {};
-    htmls(`.dropdown-current-${dropdownId}`, '');
-    htmls(`.${dropdownId}-render-container`, '');
-
-    InstanceEngineCyberia.itemInventoryFlags = {};
-    const ids = [];
-    for (const entry of normalized) {
-      const key = dropdownValueKey(entry.id);
-      DropDown.Tokens[dropdownId].oncheckvalues[key] = {
-        data: entry.id,
-        display: entry.id,
-        value: entry.id,
-      };
-      InstanceEngineCyberia.itemInventoryFlags[entry.id] = !!entry.defaultPlayerInventory;
-      ids.push(entry.id);
-    }
-    DropDown.Tokens[dropdownId].value = [...ids];
-    if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = [...ids];
-    DropDown.Tokens[dropdownId]._renderSelectedBadges?.();
-    InstanceEngineCyberia.renderItemInventoryList();
-  }
-
-  static async buildItemIdsDropdown() {
-    return await DropDown.instance({
-      id: InstanceEngineCyberia.itemIdsDropdownId,
-      label: html`Object Layer Item IDs`,
-      data: [],
-      type: 'checkbox',
-      containerClass: 'inl',
-      excludeSelected: true,
-      serviceProvider: async (q) => {
-        const result = await ObjectLayerService.searchItemIds({ q });
-        if (result.status === 'success' && result.data?.itemIds) {
-          return result.data.itemIds.map((itemId) => createDropdownOption(itemId));
-        }
-        return [];
-      },
-    });
-  }
-
   static renderPortalList(containerId) {
     const container = s(`.${containerId}`);
     if (!container) return;
@@ -237,7 +112,6 @@ class InstanceEngineCyberia {
     const idHotReloadUrl = 'instance-engine-input-hot-reload-url';
     const idThumbnail = 'instance-engine-input-thumbnail';
     const idMapCodesDropdown = 'instance-engine-map-codes-dropdown';
-    const idItemIdsDropdown = InstanceEngineCyberia.itemIdsDropdownId;
     const managementId = 'modal-cyberia-instance-engine';
     const portalListId = 'instance-engine-portal-list';
     const idSourceMapCode = 'instance-engine-source-map-code';
@@ -268,10 +142,6 @@ class InstanceEngineCyberia {
       const cyberiaMapCodes = DropDown.Tokens[idMapCodesDropdown]?.value
         ? [...DropDown.Tokens[idMapCodesDropdown].value]
         : [];
-      const itemIds = InstanceEngineCyberia.getSelectedItemIds().map((id) => ({
-        id,
-        defaultPlayerInventory: !!InstanceEngineCyberia.itemInventoryFlags[id],
-      }));
       const payload = {
         code: s(`.${idCode}`)?.value || '',
         name: s(`.${idName}`)?.value || '',
@@ -279,7 +149,6 @@ class InstanceEngineCyberia {
         tags,
         status: DropDown.Tokens[idStatus]?.value || 'unlisted',
         cyberiaMapCodes,
-        itemIds,
         portals: InstanceEngineCyberia.portals,
         playerSpawn: {
           sourceMapCode: s(`.${idSpawnMapCode}`)?.value?.trim() || '',
@@ -450,7 +319,6 @@ class InstanceEngineCyberia {
         }
       }
 
-      InstanceEngineCyberia.syncItemIdsDropdownSelection(instanceData.itemIds || instanceData.itemsId || []);
 
       // Load portals
       InstanceEngineCyberia.portals = (instanceData.portals || []).map((p) => ({
@@ -502,14 +370,6 @@ class InstanceEngineCyberia {
         htmls(`.dropdown-current-${idMapCodesDropdown}`, '');
         htmls(`.${idMapCodesDropdown}-render-container`, '');
       }
-      if (DropDown.Tokens[idItemIdsDropdown]) {
-        DropDown.Tokens[idItemIdsDropdown].oncheckvalues = {};
-        DropDown.Tokens[idItemIdsDropdown].value = [];
-        htmls(`.dropdown-current-${idItemIdsDropdown}`, '');
-        htmls(`.${idItemIdsDropdown}-render-container`, '');
-      }
-      InstanceEngineCyberia.itemInventoryFlags = {};
-      InstanceEngineCyberia.renderItemInventoryList();
       InstanceEngineCyberia.portals = [];
       InstanceEngineCyberia.renderPortalList(portalListId);
       if (s(`.${idSpawnMapCode}`)) s(`.${idSpawnMapCode}`).value = '';
@@ -594,6 +454,87 @@ class InstanceEngineCyberia {
           for (const btn of buttons) if (btn) btn.disabled = false;
         }
       };
+
+      // Syncs against what is on screen: the instance is persisted first so the conf and the map
+      // selection agree, then the server matches defaults to the entities those maps place.
+      if (s(`.btn-instance-engine-sync-entities`))
+        s(`.btn-instance-engine-sync-entities`).onclick = async () => {
+          const btn = s(`.btn-instance-engine-sync-entities`);
+          const status = s(`.instance-engine-sync-entities-status`);
+          const code = s(`.${idCode}`)?.value?.trim();
+          if (!code) {
+            NotificationManager.Push({ html: 'Instance code is required to sync.', status: 'error' });
+            return;
+          }
+          if (btn) btn.disabled = true;
+          if (status) htmls(`.instance-engine-sync-entities-status`, 'Syncing…');
+          try {
+            const persisted = await persistInstance({ notify: false });
+            if (persisted?.status !== 'success') {
+              NotificationManager.Push({ html: persisted?.message || 'Could not save the instance.', status: 'error' });
+              if (status) htmls(`.instance-engine-sync-entities-status`, '');
+              return;
+            }
+            const mapCodes = DropDown.Tokens[idMapCodesDropdown]?.value
+              ? [...DropDown.Tokens[idMapCodesDropdown].value]
+              : [];
+            const result = await CyberiaEntityTypeDefaultService.syncInstance({
+              instanceCode: code,
+              body: { mapCodes },
+            });
+            if (result.status === 'error') {
+              NotificationManager.Push({ html: result.message, status: 'error' });
+              if (status) htmls(`.instance-engine-sync-entities-status`, '');
+              return;
+            }
+            const {
+              linked = [],
+              skipped = [],
+              dropped = [],
+              entityDefaults = [],
+              skills = [],
+              entitiesUpdated = [],
+              conflicts = [],
+              duplicates = [],
+            } = result.data || {};
+            const placedRewritten = entitiesUpdated.reduce((sum, { entities }) => sum + entities, 0);
+            if (status) {
+              htmls(
+                `.instance-engine-sync-entities-status`,
+                html`${entityDefaults.length} reference${1 === entityDefaults.length ? '' : 's'}${linked.length
+                  ? ` · linked ${linked.length}`
+                  : ''}${dropped.length ? ` · dropped ${dropped.length}` : ''}${skills.length
+                  ? ` · ${skills.length} skill${1 === skills.length ? '' : 's'}`
+                  : ''}${placedRewritten
+                  ? ` · placed ${placedRewritten}`
+                  : ''}${skipped.length
+                  ? html`<div style="margin-top:3px;color:#c90;">
+                      ${skipped.length} match${1 === skipped.length ? '' : 'es'} already referenced by another
+                      instance — link deliberately in the Entity engine, or clone it there.
+                    </div>`
+                  : ''}${conflicts.length
+                  ? html`<div style="margin-top:3px;color:#c90;">
+                      ${conflicts.length} match${1 === conflicts.length ? '' : 'es'} not linked: this instance already
+                      references a default for the same entity type and live items. Link it in the Entity engine only
+                      if you mean to replace the one it has.
+                    </div>`
+                  : ''}${duplicates.length
+                  ? html`<div style="margin-top:3px;color:#c90;">
+                      ${duplicates.length} reference${1 === duplicates.length ? '' : 's'} answer for a build another
+                      reference already covers — which one applies depends on list order. Unlink or delete the
+                      redundant record in the Entity engine.
+                    </div>`
+                  : ''}`,
+              );
+            }
+            NotificationManager.Push({
+              html: `Entity type defaults synced — ${entityDefaults.length} referenced`,
+              status: 'success',
+            });
+          } finally {
+            if (btn) btn.disabled = false;
+          }
+        };
 
       if (s(`.btn-instance-engine-hot-reload`))
         s(`.btn-instance-engine-hot-reload`).onclick = () => triggerHotReload('full');
@@ -694,19 +635,6 @@ class InstanceEngineCyberia {
           });
           InstanceEngineCyberia.renderPortalList(portalListId);
         };
-
-      // Keep the per-item "Default Player Inventory" toggles in sync with the
-      // item-ids dropdown. Every add/remove/clear re-renders the dropdown badge
-      // container, so observing it is a reliable change hook (the dropdown
-      // exposes no onChange callback).
-      const itemBadgeContainer = s(`.dropdown-current-${idItemIdsDropdown}`);
-      if (itemBadgeContainer) {
-        const itemInventoryObserver = new MutationObserver(() => {
-          InstanceEngineCyberia.renderItemInventoryList();
-        });
-        itemInventoryObserver.observe(itemBadgeContainer, { childList: true, subtree: true });
-      }
-      InstanceEngineCyberia.renderItemInventoryList();
 
       ThemeEvents['instance-engine-theme'] = () => {
         InstanceEngineCyberia.renderPortalList(portalListId);
@@ -857,11 +785,6 @@ class InstanceEngineCyberia {
             return [];
           },
         })}
-      </div>
-      <div class="in section-mp" style="margin-top: 10px;">${await InstanceEngineCyberia.buildItemIdsDropdown()}</div>
-      <div class="in section-mp" style="margin-top: 5px;">
-        <div class="in input-label" style="font-size:13px;margin-bottom:5px;">Default Player Inventory</div>
-        <div class="in ${InstanceEngineCyberia.itemInventoryListId}" style="max-height:200px;overflow-y:auto;"></div>
       </div>
       <div class="in section-mp" style="margin-top: 10px;">
         <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Portals</div>
@@ -1029,6 +952,19 @@ class InstanceEngineCyberia {
       </div>
       ${canMutate
         ? html`<div class="in section-mp" style="margin-top: 10px;">
+            <div class="in" style="color:#888;font-size:12px;margin-bottom:6px;">
+              Points this instance's conf at every entity-type default the maps selected above actually place —
+              matched the way the runtime matches them, by live item ids — and at every skill their items trigger.
+              References whose document is gone, and skills nothing carries, are dropped. Saves the instance first,
+              so the maps it syncs against are the ones on screen.
+            </div>
+            ${await BtnIcon.instance({
+              class: 'wfa btn-instance-engine-sync-entities',
+              label: html`<i class="fa-solid fa-diagram-project"></i> Sync Entity Type Defaults`,
+            })}
+            <div class="in instance-engine-sync-entities-status" style="margin-top:5px;font-size:12px;"></div>
+          </div>
+          <div class="in section-mp" style="margin-top: 10px;">
             ${await BtnIcon.instance({
               class: 'wfa btn-instance-engine-toggle-hot-reload',
               label: html`<i class="fa-solid fa-caret-right instance-engine-hot-reload-caret"></i> Hot Reload`,

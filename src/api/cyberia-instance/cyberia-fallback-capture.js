@@ -197,7 +197,6 @@ function planFallbackCapture({
       ...(spawn.sourceMapCode ? { sourceMapCode: mapCodes.get(spawn.sourceMapCode) || spawn.sourceMapCode } : {}),
     },
     topologyMode: 'procedural',
-    itemIds: (world.instance.itemIds || []).map((entry) => ({ ...entry })),
   };
 
   const conf = { ...fillInstanceConfDefaults(world.config || {}), instanceCode };
@@ -227,57 +226,24 @@ function planFallbackCapture({
     codeMaps,
     skippedActionCodes,
     skippedQuestCodes,
-    itemIds: collectCaptureItemIds({ instance, conf, maps, actions: capturedActions, quests: capturedQuests }),
+    itemIds: collectCaptureItemIds({ maps, actions: capturedActions, quests: capturedQuests }),
   };
 }
 
 /**
- * Every ObjectLayer item id the captured instance needs an atlas for: what the
- * maps place, what the instance and conf declare, what the seeded skills and
- * entity-type defaults reference, and what the vendor/assembler/quest catalogs
- * draw icons for.
+ * Every ObjectLayer item id the captured instance needs an atlas for: the canonical world's
+ * own ids, plus what this instance names — its maps, its entity-type defaults, and the
+ * vendor/assembler/quest catalogs the interact modal draws icons for.
  *
  * @returns {string[]} Sorted, de-duplicated item ids.
  */
-function collectCaptureItemIds({ instance, conf, maps, actions, quests }) {
+function collectCaptureItemIds({ maps, actions, quests, entityDefaults = [] }) {
+  // The canonical world's own ids — every fallback default, including the skill triggers and
+  // summoned entities DefaultSkillConfig names. What the captured instance adds on top follows
+  // the same rule the export and the boot payload use.
   const ids = collectReferencedItemIds();
-  const push = (id) => {
-    if (typeof id === 'string' && id.length > 0 && !id.startsWith('$')) ids.add(id);
-  };
-
-  for (const map of maps || []) {
-    for (const entity of map.entities || []) (entity.objectLayerItemIds || []).forEach(push);
-  }
-  for (const entry of instance?.itemIds || []) push(typeof entry === 'string' ? entry : entry?.id);
-
-  for (const entityDefault of conf?.entityDefaults || []) {
-    (entityDefault.liveItemIds || []).forEach(push);
-    (entityDefault.deadItemIds || []).forEach(push);
-    (entityDefault.dropItemIds || []).forEach(push);
-    for (const slot of entityDefault.defaultObjectLayers || []) push(slot.itemId);
-  }
-  for (const skillConfig of conf?.skillConfig || []) {
-    push(skillConfig.triggerItemId);
-    for (const skill of skillConfig.skills || []) push(skill.summonedEntityItemId);
-  }
-
-  for (const action of actions || []) {
-    for (const shopItem of action.shopItems || []) {
-      push(shopItem.itemId);
-      push(shopItem.priceItemId);
-    }
-    for (const recipe of action.craftRecipes || []) {
-      (recipe.ingredients || []).forEach((ingredient) => push(ingredient.itemId));
-      (recipe.outputItems || []).forEach((output) => push(output.itemId));
-    }
-  }
-  for (const quest of quests || []) {
-    for (const step of quest.steps || []) {
-      for (const objective of step.objectives || []) push(objective.itemId);
-    }
-    for (const reward of quest.rewards || []) push(reward.itemId);
-  }
-
+  // The conf references its entity-type defaults by _id, so the documents arrive resolved.
+  for (const itemId of collectInstanceItemIds({ maps, entityDefaults, actions, quests })) ids.add(itemId);
   return [...ids].sort();
 }
 
@@ -317,7 +283,8 @@ async function seedMissingContentDefaults({ CyberiaSkill, CyberiaEntityTypeDefau
         liveItemIds: entityDefault.liveItemIds || [],
         deadItemIds: entityDefault.deadItemIds || [],
         dropItemIds: entityDefault.dropItemIds || [],
-        defaultObjectLayers: entityDefault.defaultObjectLayers || [],
+        inventoryItemsIds: entityDefault.inventoryItemsIds || [],
+        overrideItemsIdsState: entityDefault.overrideItemsIdsState || [],
         behavior: entityDefault.behavior || '',
       },
       'entityTypeDefaults',
@@ -334,6 +301,56 @@ async function seedMissingContentDefaults({ CyberiaSkill, CyberiaEntityTypeDefau
   }
 
   return inserted;
+}
+
+/**
+ * Write the audio configuration of the captured maps.
+ *
+ * Audio reaches the client per map code, so a world captured under namespaced codes needs its
+ * bindings rewritten under those codes — the same reason the actions and quests are re-coded.
+ * Only codes an imported asset actually carries are bound: a binding to an absent asset would be
+ * a dangling name, and the caller is told which ones are missing instead.
+ *
+ * @param {object} params
+ * @param {object} params.models - `{ CyberiaMapAudioConf, CyberiaAudio }`.
+ * @param {object} params.plan - Result of `planFallbackCapture()`.
+ * @returns {Promise<{audioConfs: number, missingAudioCodes: string[]}>}
+ */
+async function captureAudioConfig({ models, plan }) {
+  const { CyberiaMapAudioConf, CyberiaAudio } = models;
+  if (!CyberiaMapAudioConf) return { audioConfs: 0, missingAudioCodes: [] };
+
+  const config = fallbackAudioConfig();
+  const bound = new Set(
+    [...config.events.map(({ audioCode }) => audioCode), ...config.maps.map(({ defaultMusic }) => defaultMusic)].filter(
+      Boolean,
+    ),
+  );
+  const present = new Set(
+    CyberiaAudio
+      ? (await CyberiaAudio.find({ code: { $in: [...bound] } }, { code: 1 }).lean()).map((doc) => doc.code)
+      : [],
+  );
+  const events = config.events.filter(({ audioCode }) => present.has(audioCode));
+
+  let audioConfs = 0;
+  for (const map of config.maps) {
+    const mapCode = plan.codeMaps.mapCodes.get(map.mapCode);
+    if (!mapCode) continue;
+    await CyberiaMapAudioConf.findOneAndUpdate(
+      { mapCode },
+      {
+        $set: {
+          defaultMusic: present.has(map.defaultMusic) ? map.defaultMusic : '',
+          settings: config.settings,
+          events,
+        },
+      },
+      { upsert: true },
+    );
+    audioConfs++;
+  }
+  return { audioConfs, missingAudioCodes: [...bound].filter((code) => !present.has(code)).sort() };
 }
 
 /**

@@ -83,7 +83,7 @@ function collectReferencedItemIds() {
     (e.liveItemIds || []).forEach(push);
     (e.deadItemIds || []).forEach(push);
     (e.dropItemIds || []).forEach(push);
-    (e.defaultObjectLayers || []).forEach((ol) => push(ol.itemId));
+    (e.inventoryItemsIds || []).forEach(push);
   }
   for (const r of RESOURCE_ENTITY_TYPE_DEFAULTS) {
     (r.liveItemIds || []).forEach(push);
@@ -239,11 +239,6 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
  * @param {number} [opts.resourceCount]        Resources per map (random if omitted).
  * @param {number} [opts.staticCount]          Static decorators per map (random if omitted).
  * @param {Array}  [opts.colors]              Override palette.
- * @param {Array<{id: string, defaultPlayerInventory: boolean}>} [opts.itemIds=[]]
- *   Instance-level default items, mirroring `CyberiaInstance.itemIds`. Entries
- *   flagged `defaultPlayerInventory` are merged into the player entity default
- *   by `applyInstanceDefaultPlayerInventory`; every id is also resolved to an
- *   atlas at boot. Layout is unaffected, so this stays outside the world seed.
  * @returns {{
  *   instance: object,
  *   maps: object[],
@@ -266,7 +261,6 @@ function generateFallbackWorld(opts = {}) {
     // rgba(...) string on entities, for previews drawn before atlases load. The
     // game client resolves its own colours and ignores this value.
     colors = PALETTE,
-    itemIds = [],
   } = opts;
 
   // Report item-id drift at the first build, not as grey rectangles later.
@@ -356,6 +350,7 @@ function fallbackListInstance() {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export {
+  getFallbackMapCodes,
   generateFallbackWorld,
   generateFallbackMap,
   auditFallbackItemIds,

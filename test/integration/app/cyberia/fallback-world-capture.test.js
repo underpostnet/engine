@@ -175,7 +175,9 @@ describe('planFallbackCapture', () => {
   it('stamps the instance code onto a fully defaulted conf document', () => {
     expect(plan.conf.instanceCode).to.equal(INSTANCE_CODE);
     expect(plan.conf.tickRate).to.equal(world.config.tickRate);
-    expect(plan.conf.entityDefaults).to.be.an('array').that.is.not.empty;
+    // The captured conf references no entity-type default: the fallback world runs on the
+    // canonical set, and referencing nothing is what says so.
+    expect(plan.conf.entityDefaults).to.deep.equal([]);
     expect(plan.conf.equipmentRules).to.be.an('object');
   });
 

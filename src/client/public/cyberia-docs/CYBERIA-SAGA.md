@@ -294,8 +294,7 @@ A single JSON object with these interrelated sections:
 - **saga** — `code`, `name`, `description`, `mapCodes[]`, `itemIds[]`, `questCodes[]`.
 - **instance** — the playable `CyberiaInstance` shell derived from the saga
   metadata: `code`, `name`, `description`, `tags[]`, `cyberiaMapCodes[]` (the
-  saga's map codes), `itemIds[]` (`{ id, defaultPlayerInventory }`),
-  `topologyMode`. Spatial topology (`portals`) and the tuning ref (`conf`) are
+  saga's map codes), `topologyMode`. Spatial topology (`portals`) and the tuning ref (`conf`) are
   left empty here and bound by downstream spatial synthesis.
 - **maps[]** — narrative zones the quest chain visits: `code`, `name`,
   `description` (text only — grid/cells/entities stay at schema defaults). Their
@@ -338,7 +337,7 @@ normalization slugifies every code/id so they line up:
   minimal `skill`-type item for any summoned id the model omitted;
 - `saga.questCodes` / `saga.itemIds` are reconciled to include every generated
   quest and item (including appended skill items), and `instance.cyberiaMapCodes`
-  / `instance.itemIds` mirror the saga's.
+  mirrors the saga's.
 
 ### `talk` objectives (guaranteed fulfillable)
 

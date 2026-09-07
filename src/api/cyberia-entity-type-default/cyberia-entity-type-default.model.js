@@ -6,16 +6,23 @@ import { Schema, model } from 'mongoose';
 // item defaults that ship in cyberia-server-defaults.js (ENTITY_TYPE_DEFAULTS).
 // A document binds an entity category (entityType) to the item ids the runtime
 // rotates through by lifecycle state:
-//   liveItemIds          — ObjectLayer item ids while the entity is alive.
-//   deadItemIds          — ids swapped in on death / ghost state.
-//   dropItemIds          — ids granted to the killer on depletion (resources).
-//   defaultObjectLayers  — seed inventory rows ({ itemId, active, quantity }).
+//   liveItemIds       — ObjectLayer item ids while the entity is alive.
+//   deadItemIds       — ids swapped in on death / ghost state.
+//   dropItemIds       — ids granted to the killer on depletion (resources).
+//   inventoryItemsIds     — ids the entity carries but no lifecycle state activates.
+//   overrideItemsIdsState — per-id overrides of what the lists would otherwise derive.
+//
+// The three lifecycle lists are discriminators, not separate inventories. The entity holds one
+// inventory — the union of all four lists — and the runtime activates the slots the context
+// calls for. An id's active flag and quantity follow from the list it belongs to, so neither is
+// stored per row — `overrideItemsIdsState` is the one exception, and it only ever adjusts an id
+// the lists already carry. See resolveEntityInventory() in cyberia-server-defaults.js.
 //
 // Resolution: a document matches an entity when every one of its `liveItemIds`
 // is in the entity's active item ids. The most specific match wins, the document
-// that requires the largest item set. Its deadItemIds, dropItemIds and
-// defaultObjectLayers then drive the entity through its states. So one skin can
-// map to different defaults by its full active set, e.g.
+// that requires the largest item set. Its remaining lists then drive the entity
+// through its states. So one skin can map to different defaults by its full
+// active set, e.g.
 //   { bot, liveItemIds:[purple, atlas_pistol_mk2], behavior:hostile }
 //   { bot, liveItemIds:[purple],                    behavior:passive }
 // where a purple bot carrying the pistol is hostile and a bare purple bot is
@@ -29,11 +36,14 @@ import { Schema, model } from 'mongoose';
 //     at different specificity levels). `liveItemIds` is indexed (non-unique
 //     multikey) only for fast membership lookups.
 
-const ObjectLayerDefaultSchema = new Schema(
+// Overrides what the lists derive for one carried id: `active` forces the spawn state (a skin the
+// equipment rules would otherwise leave inactive), `quantity` sizes a stack (a drop bundle).
+// Omitting `active` keeps the derived value; an id no list carries is ignored.
+const OverrideItemStateSchema = new Schema(
   {
-    itemId: { type: String, required: true, trim: true },
-    active: { type: Boolean, default: false },
-    quantity: { type: Number, default: 0 },
+    itemId: { type: String, trim: true },
+    active: { type: Boolean },
+    quantity: { type: Number, default: 1, min: 1 },
   },
   { _id: false },
 );
@@ -44,7 +54,8 @@ const CyberiaEntityTypeDefaultSchema = new Schema(
     liveItemIds: { type: [{ type: String, trim: true }], index: true },
     deadItemIds: [{ type: String, trim: true }],
     dropItemIds: [{ type: String, trim: true }],
-    defaultObjectLayers: [ObjectLayerDefaultSchema],
+    inventoryItemsIds: [{ type: String, trim: true }],
+    overrideItemsIdsState: [OverrideItemStateSchema],
     // Canonical entity behavior bound to entities matched by liveItemIds (see
     // SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty = let the runtime derive it
     // (armed → hostile, else passive). The simulation resolves it with the same

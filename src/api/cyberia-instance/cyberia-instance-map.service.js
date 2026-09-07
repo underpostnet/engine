@@ -16,6 +16,7 @@
  * @module src/api/cyberia-instance/cyberia-instance-map.service.js
  */
 
+import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { generateFallbackWorld } from './cyberia-fallback-world.js';
 import {
@@ -30,6 +31,7 @@ import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
+  resolveEntityDefaultBuild,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
@@ -100,27 +102,10 @@ const mergeEntityDefaults = (entityDefaults = []) => {
   return merged;
 };
 
-// Resolution order, as the simulation applies it: the most-specific live-item
-// set wins, then the first build for the entity type.
-const entityBehavior = (entity, entityDefaults) => {
-  const itemIds = new Set(entity.objectLayerItemIds || []);
-  let firstTypeDefault;
-  let matchedDefault;
-  let matchedSize = 0;
-
-  for (const entityDefault of entityDefaults) {
-    if (entityDefault.entityType !== entity.entityType) continue;
-    if (!firstTypeDefault) firstTypeDefault = entityDefault;
-    const liveItemIds = entityDefault.liveItemIds || [];
-    if (0 === itemIds.size || 0 === liveItemIds.length) continue;
-    if (!liveItemIds.every((itemId) => itemIds.has(itemId))) continue;
-    if (liveItemIds.length > matchedSize) {
-      matchedDefault = entityDefault;
-      matchedSize = liveItemIds.length;
-    }
-  }
-  return (matchedDefault || firstTypeDefault)?.behavior || '';
-};
+// One resolution rule for the whole platform — see resolveEntityDefaultBuild.
+const entityBehavior = (entity, entityDefaults) =>
+  resolveEntityDefaultBuild({ entityType: entity.entityType, itemIds: entity.objectLayerItemIds }, entityDefaults)
+    ?.behavior || '';
 
 const objectLayerStatsSum = (itemIds, objectLayerMetadata, sumStatsLimit) =>
   Math.min(
@@ -163,24 +148,16 @@ const resolveSumStatsLimit = async (instance, options) => {
   return Number.isFinite(conf?.sumStatsLimit) && conf.sumStatsLimit > 0 ? conf.sumStatsLimit : fallback;
 };
 
+// Only what this instance references: the conf names its entity-type defaults by _id, so a POI
+// never reads behavior out of another world's wiring.
 const resolveEntityDefaults = async (instance, options) => {
-  let configDefaults = [];
   try {
     const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
     const conf = await CyberiaInstanceConf.findOne({ instanceCode: instance.code }).select('entityDefaults').lean();
-    configDefaults = conf?.entityDefaults || [];
+    return mergeEntityDefaults(await CyberiaEntityTypeDefaultService.resolve(conf?.entityDefaults, options));
   } catch {
-    configDefaults = [];
+    return mergeEntityDefaults();
   }
-
-  try {
-    const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
-    const defaults = await CyberiaEntityTypeDefault.find({}).lean();
-    if (defaults.length > 0) return mergeEntityDefaults(defaults);
-  } catch {
-    // The editable own-model collection is optional.
-  }
-  return mergeEntityDefaults(configDefaults);
 };
 
 const buildPresencePois = ({

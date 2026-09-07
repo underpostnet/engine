@@ -15,7 +15,6 @@ import { fileURLToPath } from 'url';
 import { loggerFactory } from '../../server/ops/logger.js';
 import {
   buildFallbackConfig,
-  buildFallbackInstanceConfig,
   fetchFullInstance,
   fetchMapData,
   fetchObjectLayer,
@@ -158,4 +157,4 @@ class GrpcServer {
   }
 }
 
-export { GrpcServer, buildFallbackConfig, buildFallbackInstanceConfig };
+export { GrpcServer, buildFallbackConfig };

@@ -117,6 +117,92 @@ async function connectDbForChain({ envPath, mongoHost }) {
   return { ObjectLayer, host, path };
 }
 
+/**
+ * Rewrites a conf backup's `entityDefaults` into the reference shape the schema now stores.
+ *
+ * Backups written before the collection became the single owner embedded whole documents in the
+ * conf. Those files are the only place that shape still exists, so it is converted here, at the
+ * boundary where they enter — nothing downstream understands anything but an id.
+ *
+ * Each embedded entry is matched against the entity-type-default documents travelling in the same
+ * backup, by entity type and live-item set. That lookup is safe precisely because it cannot see
+ * the database: it can only ever resolve to a document this instance exported. An entry with no
+ * counterpart is written to the collection so the reference it gets resolves to something.
+ *
+ * @param {object} confData - Parsed cyberia-instance-conf.json.
+ * @param {string} backupDir - Backup root, holding cyberia-entity-type-defaults/.
+ * @param {import('mongoose').Model} CyberiaEntityTypeDefault
+ * @returns {Promise<object>} The conf, with `entityDefaults` as ids.
+ */
+const adoptEntityTypeDefaultRefs = async (confData, backupDir, CyberiaEntityTypeDefault) => {
+  const entries = confData.entityDefaults || [];
+  const embedded = entries.filter((entry) => entry && 'object' === typeof entry && entry.entityType);
+  if (0 === embedded.length) return confData;
+
+  const dir = `${backupDir}/cyberia-entity-type-defaults`;
+  const exported = fs.existsSync(dir)
+    ? fs
+        .readdirSync(dir)
+        .filter((file) => file.endsWith('.json'))
+        .map((file) => fs.readJsonSync(`${dir}/${file}`))
+    : [];
+  const liveKey = (doc) => `${doc.entityType}::${[...(doc.liveItemIds || [])].sort().join(',')}`;
+  const byKey = new Map(exported.map((doc) => [liveKey(doc), doc]));
+
+  const ids = [];
+  let created = 0;
+  for (const entry of entries) {
+    if (!entry || 'object' !== typeof entry || !entry.entityType) {
+      if (entry) ids.push(entry);
+      continue;
+    }
+    const match = byKey.get(liveKey(entry));
+    if (match?._id) {
+      ids.push(match._id);
+      continue;
+    }
+    const doc = await CyberiaEntityTypeDefault.create({
+      entityType: entry.entityType,
+      liveItemIds: entry.liveItemIds || [],
+      deadItemIds: entry.deadItemIds || [],
+      dropItemIds: entry.dropItemIds || [],
+      inventoryItemsIds: entry.inventoryItemsIds || [],
+      overrideItemsIdsState: entry.overrideItemsIdsState || [],
+      behavior: entry.behavior || '',
+    });
+    ids.push(doc._id);
+    created++;
+  }
+  confData.entityDefaults = ids;
+  logger.info('Migrated embedded conf entityDefaults to collection references', {
+    instanceCode: confData.instanceCode,
+    references: ids.length,
+    created,
+  });
+  return confData;
+};
+
+/** Default source of recorded `<name>.wav` + `<name>.json` pairs for `cyberia audio --import`. */
+const DEFAULT_AUDIO_RECORDS_PATH = './cyberia-audio/records';
+
+/**
+ * Commander parser for the repeatable `<logic-event-id>:<audio-code>` flag.
+ *
+ * @function eventAudioBindingFactory
+ * @param {string} flag - Flag name, used in the usage error.
+ * @returns {(value: string, previous: Array<{event: string, code: string}>) => Array<{event: string, code: string}>} Accumulating parser.
+ * @memberof CyberiaCLI
+ */
+const eventAudioBindingFactory =
+  (flag) =>
+  (value, previous = []) => {
+    try {
+      return previous.concat([parseEventAudioBinding(value)]);
+    } catch {
+      throw new InvalidArgumentError(`${flag} expects <logic-event-id>:<audio-code>`);
+    }
+  };
+
 /** @type {Function} */
 const logger = loggerFactory(import.meta);
 
@@ -1759,6 +1845,10 @@ try {
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
+    .option(
+      '--sync-entities',
+      "Point the instance conf at every entity-type default its maps place and every skill their items trigger, dropping what the world no longer carries",
+    )
     .option('--publish-build', 'Build instance backup directory with all related maps, entities and object layers')
     .option('--publish-remove', 'Remove published instance from underpostnet/cyberia-instances repository')
     .option('--publish', 'Publish instance in underpostnet/cyberia-instances repository')
@@ -2236,6 +2326,28 @@ try {
         if (options.export === undefined) options.export = true;
       }
 
+      // ── SYNC ENTITY-TYPE DEFAULTS ───────────────────────────────────
+      if (options.syncEntities) {
+        const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode }, { host, path });
+        logger.info(`sync-entities ${instanceCode}`, {
+          maps: result.mapCodes.length,
+          references: result.entityDefaults.length,
+          ...(result.linked.length > 0 ? { linked: result.linked } : {}),
+          ...(result.dropped.length > 0 ? { dropped: result.dropped } : {}),
+          ...(result.skipped.length > 0 ? { claimedByAnotherInstance: result.skipped } : {}),
+          ...(result.skills.length > 0 ? { skills: result.skills } : {}),
+          ...(result.entitiesUpdated.length > 0
+            ? { entitiesUpdated: result.entitiesUpdated.map(({ mapCode, entities }) => `${mapCode}:${entities}`) }
+            : {}),
+          ...(result.conflicts.length > 0 ? { notLinkedSameBuildAlreadyReferenced: result.conflicts } : {}),
+          ...(result.duplicates.length > 0 ? { duplicateReferencesDeleteOne: result.duplicates } : {}),
+        });
+        if (options.export === undefined && !options.import && !options.drop) {
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+          return;
+        }
+      }
+
       // ── EXPORT ──────────────────────────────────────────────────────
       if (options.export !== undefined) {
         const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
@@ -2251,6 +2363,25 @@ try {
             : `./engine-private/cyberia-instances/${instanceCode}`;
 
         fs.ensureDirSync(backupDir);
+        // The export is a projection of what this instance references, never an archive of
+        // everything it once did: a document that drops out of the world has to leave the
+        // directory with it, or the next import brings it back from the dead. Emptied up front,
+        // so a collection that exports nothing this run ends up empty rather than stale. The
+        // asset directories — files, ipfs, render-frames, atlas sheets — are content-addressed
+        // and expensive to refetch, so they keep what they have.
+        for (const collection of [
+          'maps',
+          'cyberia-map-audio-confs',
+          'cyberia-audio',
+          'cyberia-quests',
+          'cyberia-actions',
+          'cyberia-skills',
+          'cyberia-entity-type-defaults',
+          'cyberia-dialogues',
+          'object-layers',
+        ]) {
+          fs.emptyDirSync(`${backupDir}/${collection}`);
+        }
         logger.info('Exporting instance', { code: instanceCode, backupDir });
 
         // Helper: export a File document to the files/ directory
@@ -2280,6 +2411,11 @@ try {
         // 1b. Export linked CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         // If no conf doc exists yet (instance created before auto-upsert logic), create one using
         // schema defaults — identical to the behaviour in CyberiaInstanceService.post().
+        //
+        // Compact first: a reference whose entity-type default is gone cannot be exported, and
+        // writing it into the backup would carry the dangling id into every world restored from
+        // it. Dropping it here repairs the live conf and the backup in one step.
+        await CyberiaEntityTypeDefaultService.compactInstanceRefs({ host, path }, { instanceCode });
         let instanceConf =
           (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
           (instance.conf ? await CyberiaInstanceConf.findById(instance.conf).lean() : null);
@@ -2412,134 +2548,57 @@ try {
           logger.info(`Exported ${actions.length} CyberiaAction document(s)`, { codes: actions.map((a) => a.code) });
         }
 
-        // 4. Collect all objectLayerItemIds from map entities
-        const objectLayerItemIds = new Set();
-        for (const map of maps) {
-          for (const entity of map.entities || []) {
-            for (const itemId of entity.objectLayerItemIds || []) {
-              objectLayerItemIds.add(itemId);
-            }
+        // 4. Export the entity-type defaults this instance's conf references, by _id.
+        //    Membership is a reference, not a resemblance: matching on item ids used to pull in
+        //    every document that happened to share a skin, so two instances built on the same
+        //    art exported each other's wiring and overwrote it on the way back in.
+        const referencedIds = (instanceConf?.entityDefaults || []).map((id) => String(id?._id ?? id));
+        // Every reference resolves: the conf was compacted before it was read.
+        const entityDefaults = referencedIds.length
+          ? await CyberiaEntityTypeDefault.find({ _id: { $in: referencedIds } }).lean()
+          : [];
+        if (entityDefaults.length > 0) {
+          fs.ensureDirSync(`${backupDir}/cyberia-entity-type-defaults`);
+          for (const ed of entityDefaults) {
+            fs.writeJsonSync(`${backupDir}/cyberia-entity-type-defaults/${ed._id}.json`, ed, { spaces: 2 });
           }
+          logger.info(`Exported ${entityDefaults.length} CyberiaEntityTypeDefault document(s)`, {
+            entityTypes: entityDefaults.map((ed) => ed.entityType),
+          });
         }
 
-        // 4b. Add instance-level itemIds ({ id, defaultPlayerInventory }).
-        for (const entry of instance.itemIds || []) {
-          const id = typeof entry === 'string' ? entry : entry?.id;
-          if (id) objectLayerItemIds.add(id);
-        }
+        // 4b. Everything this instance names: what its maps place, what its entity-type defaults
+        //     wire, and what its vendor / assembler / quest catalogs trade. Every one of these
+        //     draws an icon somewhere, so the atlases travel with the backup even when no map
+        //     entity wears them. One rule, shared with the boot payload and the editor's sync.
+        const objectLayerItemIds = collectInstanceItemIds({ maps, entityDefaults, actions, quests });
 
-        const contentItemIds = new Set(objectLayerItemIds);
-
-        // 4c. Add all itemIds referenced by CyberiaInstanceConf (entityDefaults + skillConfig).
-        //     This ensures liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers and
-        //     skill trigger items are included even if no map entity currently uses them.
-        if (instanceConf) {
-          for (const ed of instanceConf.entityDefaults || []) {
-            for (const id of ed.liveItemIds || []) if (id) objectLayerItemIds.add(id);
-            for (const id of ed.deadItemIds || []) if (id) objectLayerItemIds.add(id);
-            for (const id of ed.dropItemIds || []) if (id) objectLayerItemIds.add(id);
-            for (const slot of ed.defaultObjectLayers || []) {
-              if (slot.itemId) objectLayerItemIds.add(slot.itemId);
-            }
-          }
-          for (const sc of instanceConf.skillConfig || []) {
-            if (sc.triggerItemId) objectLayerItemIds.add(sc.triggerItemId);
-            for (const skill of sc.skills || []) {
-              if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$')) {
-                objectLayerItemIds.add(skill.summonedEntityItemId);
-              }
-            }
-          }
-        }
-
-        // 4c-bis. Add the item ids the instance's vendor / assembler / quest
-        //     catalogs name. The interact modal draws an icon for every shop
-        //     item, recipe ingredient/output and quest reward, so their atlases
-        //     must travel with the backup even when no map entity wears them.
-        //     Kept out of contentItemIds: catalogs must not widen the
-        //     entity-type-default match surface below.
-        for (const action of actions) {
-          for (const shopItem of action.shopItems || []) {
-            if (shopItem.itemId) objectLayerItemIds.add(shopItem.itemId);
-            if (shopItem.priceItemId) objectLayerItemIds.add(shopItem.priceItemId);
-          }
-          for (const recipe of action.craftRecipes || []) {
-            for (const ingredient of recipe.ingredients || []) {
-              if (ingredient.itemId) objectLayerItemIds.add(ingredient.itemId);
-            }
-            for (const output of recipe.outputItems || []) {
-              if (output.itemId) objectLayerItemIds.add(output.itemId);
-            }
-          }
-        }
-        for (const quest of quests) {
-          for (const step of quest.steps || []) {
-            for (const objective of step.objectives || []) {
-              if (objective.itemId) objectLayerItemIds.add(objective.itemId);
-            }
-          }
-          for (const reward of quest.rewards || []) {
-            if (reward.itemId) objectLayerItemIds.add(reward.itemId);
-          }
-        }
-
-        // 4d. Export skills whose trigger item belongs to this instance (own model:
-        //     CyberiaSkill, keyed by triggerItemId). Their summoned-entity items are
-        //     added to the OL set so those atlases export too. Runs before the
-        //     dialogue + OL queries so the summoned ids are included.
-        if (objectLayerItemIds.size > 0) {
-          const skills = await CyberiaSkill.find({ triggerItemId: { $in: [...objectLayerItemIds] } }).lean();
+        // 4c. Export the skills this instance runs: the collection owns the definitions, and one
+        //     belongs here when its trigger item is an id the instance names — which is how a
+        //     trigger only a quest objective or a vendor's shelf mentions still travels. Their
+        //     summoned entities join the OL set, so this runs before the dialogue + OL queries.
+        {
+          const skills = selectInstanceSkills(await CyberiaSkill.find({}).lean(), objectLayerItemIds);
           if (skills.length > 0) {
             fs.ensureDirSync(`${backupDir}/cyberia-skills`);
             for (const skill of skills) {
               fs.writeJsonSync(`${backupDir}/cyberia-skills/${encodeURIComponent(skill.triggerItemId)}.json`, skill, {
                 spaces: 2,
               });
-              for (const def of skill.skills || []) {
-                if (def.summonedEntityItemId && !def.summonedEntityItemId.startsWith('$')) {
-                  objectLayerItemIds.add(def.summonedEntityItemId);
-                }
-              }
             }
+            for (const summoned of collectSummonedItemIds(skills)) objectLayerItemIds.add(summoned);
             logger.info(`Exported ${skills.length} CyberiaSkill document(s)`, {
               triggerItemIds: skills.map((sk) => sk.triggerItemId),
             });
           }
         }
 
-        // 4d-bis. Export the CyberiaEntityTypeDefault documents whose item ids
-        //     belong to this instance's content. A default matches when one of
-        //     its live/dead/drop or default-object-layer ids is in
-        //     contentItemIds, which holds map and instance content only, not the
-        //     canonical conf defaults every instance shares. A matched id joins
-        //     objectLayerItemIds, so its atlases and dialogues export too.
-        if (contentItemIds.size > 0) {
-          const idsForMatch = [...contentItemIds];
-          const entityDefaults = await CyberiaEntityTypeDefault.find({
-            $or: [
-              { liveItemIds: { $in: idsForMatch } },
-              { deadItemIds: { $in: idsForMatch } },
-              { dropItemIds: { $in: idsForMatch } },
-              { 'defaultObjectLayers.itemId': { $in: idsForMatch } },
-            ],
-          }).lean();
-          if (entityDefaults.length > 0) {
-            fs.ensureDirSync(`${backupDir}/cyberia-entity-type-defaults`);
-            for (const ed of entityDefaults) {
-              fs.writeJsonSync(`${backupDir}/cyberia-entity-type-defaults/${ed._id}.json`, ed, { spaces: 2 });
-              for (const id of ed.liveItemIds || []) if (id) objectLayerItemIds.add(id);
-              for (const id of ed.deadItemIds || []) if (id) objectLayerItemIds.add(id);
-              for (const id of ed.dropItemIds || []) if (id) objectLayerItemIds.add(id);
-              for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) objectLayerItemIds.add(slot.itemId);
-            }
-            logger.info(`Exported ${entityDefaults.length} CyberiaEntityTypeDefault document(s)`, {
-              entityTypes: entityDefaults.map((ed) => ed.entityType),
-            });
-          }
-        }
-
-        // 4e. Export the sagas of this instance. A saga belongs to it when the
-        //     saga code matches the instance code.
+        // 4e. Export sagas related to this instance. A saga is considered related
+        //     when its code matches the instance code (direct namespace match), or
+        //     when its mapCodes or itemIds overlap with the instance's data.
+        //     At this point objectLayerItemIds contains all map-entity, instance-level,
+        //     conf-default, and skill-summoned item IDs — giving the broadest possible
+        //     match surface for saga discovery.
         const sagaCodeMatch = instanceCode ? await CyberiaSaga.find({ code: instanceCode }).lean() : [];
         const allSagas = [...new Map(sagaCodeMatch.map((s) => [s._id.toString(), s])).values()];
         if (allSagas.length > 0) {
@@ -2879,30 +2938,18 @@ try {
             // Query other instances/maps for shared thumbnail exclusion
             const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
 
-            // Add instance-level itemIds (may not appear in any map entity)
-            for (const entry of existingInstance.itemIds || []) {
-              const id = typeof entry === 'string' ? entry : entry?.id;
-              if (id) dropOlItemIds.add(id);
-            }
 
-            // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
+            // Add the item ids the conf's referenced entity-type defaults name.
             const existingConf =
               (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
               (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
             if (existingConf) {
-              for (const ed of existingConf.entityDefaults || []) {
-                for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
-                for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
-                for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
-                for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
-              }
-              for (const sc of existingConf.skillConfig || []) {
-                if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
-                for (const skill of sc.skills || []) {
-                  if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
-                    dropOlItemIds.add(skill.summonedEntityItemId);
-                }
-              }
+              // The conf names its entity-type defaults by _id; read the documents to reach their items.
+              const referencedIds = (existingConf.entityDefaults || []).map((id) => String(id?._id ?? id));
+              const referenced = referencedIds.length
+                ? await CyberiaEntityTypeDefault.find({ _id: { $in: referencedIds } }).lean()
+                : [];
+              for (const itemId of collectInstanceItemIds({ entityDefaults: referenced })) dropOlItemIds.add(itemId);
             }
 
             const otherMaps = await CyberiaMap.find(
@@ -2962,6 +3009,15 @@ try {
                 if (advResult.deletedCount > 0)
                   logger.info(`Dropped ${advResult.deletedCount} CyberiaDialogue document(s) (action-referenced)`);
               }
+            }
+
+            // A conf stores no skills: the ones this instance ran are the ones its own items trigger.
+            // What those summon is drawn by this instance alone, so it joins the drop surface and is
+            // then protected by the same shared-with-another-map check as everything else.
+            for (const itemId of collectSummonedItemIds(
+              selectInstanceSkills(await CyberiaSkill.find({}).lean(), dropOlItemIds),
+            )) {
+              dropOlItemIds.add(itemId);
             }
 
             // Exclude OL item IDs referenced by maps outside this instance
@@ -3094,7 +3150,11 @@ try {
           if (fs.existsSync(confImportPath)) {
             // Backfill missing schema fields, so a partial backup imports a
             // complete, playable config.
-            const confData = fillInstanceConfDefaults(fs.readJsonSync(confImportPath));
+            const confData = await adoptEntityTypeDefaultRefs(
+              fillInstanceConfDefaults(fs.readJsonSync(confImportPath)),
+              backupDir,
+              CyberiaEntityTypeDefault,
+            );
             if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
             await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
             // Bump updatedAt so the world version changes and the server
@@ -3354,12 +3414,6 @@ try {
         const instancePath = `${backupDir}/cyberia-instance.json`;
         if (fs.existsSync(instancePath)) {
           const instanceData = fs.readJsonSync(instancePath);
-          // Normalize itemIds to [{ id, defaultPlayerInventory }]. A flat string[]
-          // in the backup would fail the Mongoose embedded cast.
-          instanceData.itemIds = (instanceData.itemIds || [])
-            .map((entry) => (typeof entry === 'string' ? { id: entry, defaultPlayerInventory: false } : entry))
-            .filter((entry) => entry && entry.id);
-          for (const entry of instanceData.itemIds) importedItemIds.add(entry.id);
           await CyberiaInstance.deleteOne({ code: instanceCode });
           await CyberiaInstance.deleteOne({ _id: instanceData._id });
           await CyberiaInstance.create(instanceData);
@@ -3454,32 +3508,37 @@ try {
           logger.info(`Imported ${skillCount} CyberiaSkill document(s)`);
         }
 
-        // 8d-bis. Import CyberiaEntityTypeDefault documents (own model, overwrite
-        //     by the natural (entityType, liveItemIds) key, then by _id).
+        // 8d-bis. Import CyberiaEntityTypeDefault documents by _id (preserveUUID), which is how
+        //     the conf's references keep resolving after a restore. Only the documents this
+        //     backup carries are touched: overwriting by an (entityType, liveItemIds) "natural
+        //     key" clobbered another instance's document whenever two worlds shared a skin.
         const entityDefaultsDir = `${backupDir}/cyberia-entity-type-defaults`;
         if (fs.existsSync(entityDefaultsDir)) {
           const entityDefaultFiles = fs.readdirSync(entityDefaultsDir).filter((f) => f.endsWith('.json'));
           let entityDefaultCount = 0;
           for (const file of entityDefaultFiles) {
             const edData = fs.readJsonSync(`${entityDefaultsDir}/${file}`);
-            if (!edData.entityType) {
-              logger.warn(`Skipping CyberiaEntityTypeDefault backup without entityType: ${file}`);
+            if (!edData.entityType || !edData._id) {
+              logger.warn(`Skipping CyberiaEntityTypeDefault backup without entityType or _id: ${file}`);
               continue;
             }
-            await CyberiaEntityTypeDefault.deleteMany({
-              entityType: edData.entityType,
-              liveItemIds: edData.liveItemIds || [],
-            });
-            if (edData._id) await CyberiaEntityTypeDefault.deleteOne({ _id: edData._id });
+            await CyberiaEntityTypeDefault.deleteOne({ _id: edData._id });
             await CyberiaEntityTypeDefault.create(edData);
             entityDefaultCount++;
           }
           logger.info(`Imported ${entityDefaultCount} CyberiaEntityTypeDefault document(s)`);
         }
 
-        // 8e. Backfill missing skills from DefaultSkillConfig: an instance item
-        //     with a canonical skill but no document is seeded from the
-        //     defaults. An existing skill is never overwritten.
+        // A conf can reference a default this backup does not carry — an older backup, or one
+        // exported before the reference existed. Restoring that reference would recreate the
+        // orphan the export just removed, so the restored conf is compacted too.
+        await CyberiaEntityTypeDefaultService.compactInstanceRefs({ host, path }, { instanceCode });
+
+        // 8e. Backfill missing skills from the canonical DefaultSkillConfig. Old
+        //     backups predate the CyberiaSkill model and ship no skills/ dir, so
+        //     any instance item that has a canonical skill (e.g. atlas_pistol_mk2,
+        //     coin, hatchet) but no document yet is seeded from defaults. Existing
+        //     skills are never overwritten.
         let backfilledSkillCount = 0;
         for (const sk of DefaultSkillConfig) {
           if (!importedItemIds.has(sk.triggerItemId)) continue;
@@ -3791,30 +3850,18 @@ try {
           // Query other instances for shared thumbnail exclusion
           const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
 
-          // Add instance-level itemIds (may not appear in any map entity)
-          for (const entry of existingInstance.itemIds || []) {
-            const id = typeof entry === 'string' ? entry : entry?.id;
-            if (id) dropOlItemIds.add(id);
-          }
 
-          // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
+          // Add the item ids the conf's referenced entity-type defaults name.
           const existingConf =
             (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
             (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
           if (existingConf) {
-            for (const ed of existingConf.entityDefaults || []) {
-              for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
-              for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
-              for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
-              for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
-            }
-            for (const sc of existingConf.skillConfig || []) {
-              if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
-              for (const skill of sc.skills || []) {
-                if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
-                  dropOlItemIds.add(skill.summonedEntityItemId);
-              }
-            }
+            // The conf names its entity-type defaults by _id; read the documents to reach their items.
+            const referencedIds = (existingConf.entityDefaults || []).map((id) => String(id?._id ?? id));
+            const referenced = referencedIds.length
+              ? await CyberiaEntityTypeDefault.find({ _id: { $in: referencedIds } }).lean()
+              : [];
+            for (const itemId of collectInstanceItemIds({ entityDefaults: referenced })) dropOlItemIds.add(itemId);
           }
 
           const otherMaps = await CyberiaMap.find(
@@ -3835,6 +3882,20 @@ try {
             }
             const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
             logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
+
+            // A map's audio configuration belongs to that map; the shared assets it bound do not.
+            const audioConfResult = await CyberiaMapAudioConf.deleteMany({ mapCode: { $in: [...dropMapCodes] } });
+            if (audioConfResult.deletedCount > 0)
+              logger.info(`Dropped ${audioConfResult.deletedCount} CyberiaMapAudioConf document(s)`);
+          }
+
+          // A conf stores no skills: the ones this instance ran are the ones its own items trigger.
+          // What those summon is drawn by this instance alone, so it joins the drop surface and is
+          // then protected by the same shared-with-another-map check as everything else.
+          for (const itemId of collectSummonedItemIds(
+            selectInstanceSkills(await CyberiaSkill.find({}).lean(), dropOlItemIds),
+          )) {
+            dropOlItemIds.add(itemId);
           }
 
           // Exclude OL item IDs referenced by maps outside this instance
@@ -5338,7 +5399,7 @@ try {
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
-    .description('Drop all Cyberia collections and remove File documents referenced by instance/map thumbnails')
+    .description('Drop all Cyberia collections and remove the File documents they reference')
     .action(async (options = {}) => {
       if (!options.envPath) options.envPath = `./.env`;
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
@@ -5381,30 +5442,38 @@ try {
         'cyberia-entity-type-default',
         'cyberia-client-hints',
         'cyberia-saga',
+        'cyberia-audio',
+        'cyberia-map-audio-conf',
+      ];
+
+      // Every File _id a Cyberia document owns: instance and map thumbnails and previews, and the
+      // recorded WAV each audio asset points at. Read before anything is dropped, so the backing
+      // File documents do not survive the collections that referenced them.
+      const fileReferences = [
+        { api: 'cyberia-instance', fields: ['thumbnail', 'preview'] },
+        { api: 'cyberia-map', fields: ['thumbnail', 'preview'] },
+        { api: 'cyberia-audio', fields: ['fileId'] },
       ];
 
       await DataBaseProviderService.load({ apis: [...cyberiaCollections, 'file'], host, path, db });
 
       const File = DataBaseProviderService.getModel('file', { host, path });
 
-      // Thumbnails/previews on instances/maps are File _id references; collect
-      // them before dropping so the backing File documents don't leak as orphans.
-      const thumbnailFileIds = new Set();
-      for (const api of ['cyberia-instance', 'cyberia-map']) {
+      const fileIds = new Set();
+      for (const { api, fields } of fileReferences) {
         const Model = DataBaseProviderService.getModel(api, { host, path });
         const docs = await Model.find(
-          { $or: [{ thumbnail: { $ne: null } }, { preview: { $ne: null } }] },
-          { thumbnail: 1, preview: 1 },
+          { $or: fields.map((field) => ({ [field]: { $ne: null } })) },
+          Object.fromEntries(fields.map((field) => [field, 1])),
         ).lean();
         for (const doc of docs) {
-          if (doc.thumbnail) thumbnailFileIds.add(doc.thumbnail.toString());
-          if (doc.preview) thumbnailFileIds.add(doc.preview.toString());
+          for (const field of fields) if (doc[field]) fileIds.add(doc[field].toString());
         }
       }
 
-      if (thumbnailFileIds.size > 0) {
-        const result = await File.deleteMany({ _id: { $in: [...thumbnailFileIds] } });
-        logger.info(`Removed ${result.deletedCount} thumbnail File document(s)`);
+      if (fileIds.size > 0) {
+        const result = await File.deleteMany({ _id: { $in: [...fileIds] } });
+        logger.info(`Removed ${result.deletedCount} referenced File document(s)`);
       }
 
       for (const api of cyberiaCollections) {
@@ -5685,9 +5754,9 @@ node bin image --path cyberia-client \
 
       const CyberiaSkill = DataBaseProviderService.getModel('cyberia-skill', { host, path });
 
-      // Upsert each skill record keyed by triggerItemId — full record (logic
-      // event keys + expanded skills metadata), unlike the instance-conf
-      // skillConfig schema which keeps only triggerItemId + logicEventIds.
+      // Upsert each skill record keyed by triggerItemId — the full record (logic event keys +
+      // expanded skills metadata). The collection is deployment-wide; an instance runs the
+      // subset its own content triggers, decided at export and boot, never stored.
       let upserted = 0;
       for (const sk of DefaultSkillConfig) {
         await CyberiaSkill.findOneAndUpdate(
@@ -5710,6 +5779,10 @@ node bin image --path cyberia-client \
     .command('seed-entities')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option(
+      '--instance <instance-code>',
+      "Point that instance's conf at the seeded documents, replacing whatever it referenced",
+    )
     .option('--dev', 'Force development environment')
     .description('Upsert ENTITY_TYPE_DEFAULTS into the cyberia-entity-type-default collection (idempotent)')
     .action(async (options) => {
@@ -5741,7 +5814,12 @@ node bin image --path cyberia-client \
 
       logger.info('seed-entities', { deployId, host, path });
 
-      await DataBaseProviderService.load({ apis: ['cyberia-entity-type-default'], host, path, db });
+      await DataBaseProviderService.load({
+        apis: ['cyberia-entity-type-default', 'cyberia-instance-conf'],
+        host,
+        path,
+        db,
+      });
 
       const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('cyberia-entity-type-default', { host, path });
 
@@ -5760,8 +5838,9 @@ node bin image --path cyberia-client \
       // (across entity types, or within one type at different specificity). Every
       // entry is upserted, idempotently, by its exact (entityType, liveItemIds) key.
       let upserted = 0;
+      const seededIds = [];
       for (const ed of ENTITY_TYPE_DEFAULTS) {
-        await CyberiaEntityTypeDefault.findOneAndUpdate(
+        const doc = await CyberiaEntityTypeDefault.findOneAndUpdate(
           { entityType: ed.entityType, liveItemIds: ed.liveItemIds || [] },
           {
             $set: {
@@ -5769,12 +5848,14 @@ node bin image --path cyberia-client \
               liveItemIds: ed.liveItemIds || [],
               deadItemIds: ed.deadItemIds || [],
               dropItemIds: ed.dropItemIds || [],
-              defaultObjectLayers: ed.defaultObjectLayers || [],
+              inventoryItemsIds: ed.inventoryItemsIds || [],
+              overrideItemsIdsState: ed.overrideItemsIdsState || [],
               behavior: ed.behavior || '',
             },
           },
-          { upsert: true },
+          { upsert: true, returnDocument: 'after' },
         );
+        if (doc?._id) seededIds.push(doc._id);
         upserted++;
       }
 
@@ -5782,6 +5863,23 @@ node bin image --path cyberia-client \
         `seed-entities: ${upserted} entity-type-default records upserted`,
         ENTITY_TYPE_DEFAULTS.map((e) => `${e.entityType} → [${(e.liveItemIds || []).join(', ')}]`),
       );
+
+      // A seeded document reaches a world only when that world's conf names it. Binding here is
+      // what makes an edited row take effect, and it states the whole reference set so re-running
+      // converges instead of accumulating.
+      if (options.instance) {
+        const CyberiaInstanceConf = DataBaseProviderService.getModel('cyberia-instance-conf', { host, path });
+        const conf = await CyberiaInstanceConf.findOneAndUpdate(
+          { instanceCode: options.instance },
+          { $set: { entityDefaults: seededIds, updatedAt: new Date() } },
+          { returnDocument: 'after' },
+        );
+        if (!conf) {
+          logger.error(`cyberia-instance-conf not found for instanceCode="${options.instance}"`);
+          process.exit(1);
+        }
+        logger.info(`seed-entities --instance ${options.instance}: ${seededIds.length} reference(s) bound`);
+      }
 
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });

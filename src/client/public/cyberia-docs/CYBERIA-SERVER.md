@@ -176,7 +176,11 @@ World configuration is loaded once at boot from engine-cyberia via gRPC `GetFull
 | `economyRules`                                                       | Fountain & Sink coin economy                                                      |
 | `skillRules`                                                         | projectile / doppelganger spawn rates and lifetimes                               |
 | `equipmentRules`                                                     | item activation constraints (one-per-type, requireSkin, activeItemTypes)          |
-| `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
+| `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, seed inventory        |
+
+`entityDefaults[*].defaultObjectLayers` also arrives derived: engine-cyberia stores an entity default as four id lists and resolves the seed inventory from their union, marking the live ids active, with `overrideItemsIdsState` adjusting an individual row's active flag or quantity. A drop's row is where its stack size lives, so `spawnDrops` scatters that many tokens instead of one. `activateOrAppendLayer` then finds every lifecycle slot already present and flips it, instead of appending one.
+
+`entityDefaults` arrives materialised. engine-cyberia stores it as references — `CyberiaInstanceConf.entityDefaults` holds `CyberiaEntityTypeDefault` ids — and resolves the documents this instance names before building the payload, completing them with the canonical defaults for every entity type they do not cover. The simulation therefore only ever sees the wiring of the world it is serving, and never needs to know that a reference was involved.
 
 World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. Presentation metadata ownership is described in the next section.
 

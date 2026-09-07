@@ -30,10 +30,6 @@ class TranslateCyberiaPortal {
       en: 'Cyberia Entity Engine',
       es: 'Cyberia Entity Engine',
     };
-    Translate.Data['fallback-world-engine'] = {
-      en: 'Fallback World Engine',
-      es: 'Fallback World Engine',
-    };
     Translate.Data['instance-selection'] = {
       en: 'Select World',
       es: 'Seleccionar Mundo',

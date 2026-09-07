@@ -35,7 +35,6 @@ const SCHEMA_FIELDS = [
   'maxChance',
   'entityDefaults',
   'statusIcons',
-  'skillConfig',
   'skillRules',
   'equipmentRules',
 ];
@@ -90,33 +89,28 @@ describe('fillInstanceConfDefaults', () => {
   });
 
   it('keeps a present non-empty array and does not merge defaults into it', () => {
-    const custom = [{ entityType: 'player', liveItemIds: ['anon'], deadItemIds: [], dropItemIds: [] }];
+    // entityDefaults holds CyberiaEntityTypeDefault references, never documents.
+    const custom = ['6a9d72430a55742d256c22d6', '6a9d72430a55742d256c22d7'];
     const out = fillInstanceConfDefaults({ entityDefaults: custom });
     expect(out.entityDefaults).to.deep.equal(custom);
   });
 
-  it('populates an empty skillConfig from defaults, normalised to schema shape (no `skills`)', () => {
-    for (const input of [{}, { skillConfig: [] }, { skillConfig: null }]) {
-      const out = fillInstanceConfDefaults(input);
-      expect(out.skillConfig.length, JSON.stringify(input)).to.be.greaterThan(0);
-      for (const entry of out.skillConfig) {
-        expect(entry).to.have.property('triggerItemId');
-        expect(entry).to.have.property('logicEventIds');
-        expect(entry).to.not.have.property('skills');
-      }
+  it('carries no skillConfig, because an instance never stores which skills it runs', () => {
+    // The CyberiaSkill collection owns the definitions; membership is derived from the content an
+    // instance names. A conf from before that still carrying the field has it dropped, so a stale
+    // list cannot reach the wire behind the derived one.
+    for (const input of [{}, { skillConfig: [] }, { skillConfig: [{ triggerItemId: 'hatchet' }] }]) {
+      expect(fillInstanceConfDefaults(input), JSON.stringify(input)).to.not.have.property('skillConfig');
     }
   });
 
-  it('keeps an author-set non-empty skillConfig verbatim', () => {
-    const custom = [{ triggerItemId: 'custom-weapon', logicEventIds: ['projectile'] }];
-    const out = fillInstanceConfDefaults({ skillConfig: custom });
-    expect(out.skillConfig).to.deep.equal(custom);
-  });
-
-  it('fills an empty config array (entityDefaults) from defaults', () => {
-    const out = fillInstanceConfDefaults({ entityDefaults: [] });
-    expect(out.entityDefaults.length).to.be.greaterThan(0);
-    expect(out.entityDefaults).to.deep.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.entityDefaults);
+  it('leaves entityDefaults empty, because referencing none is a complete world', () => {
+    // A conf owns references, not defaults: naming no document means "add nothing to the
+    // canonical ENTITY_TYPE_DEFAULTS", which is what every fresh instance wants.
+    for (const input of [{}, { entityDefaults: [] }, { entityDefaults: null }]) {
+      expect(fillInstanceConfDefaults(input).entityDefaults, JSON.stringify(input)).to.deep.equal([]);
+    }
+    expect(CYBERIA_INSTANCE_CONF_DEFAULTS.entityDefaults).to.deep.equal([]);
   });
 
   it('preserves DB metadata (_id, instanceCode, timestamps)', () => {

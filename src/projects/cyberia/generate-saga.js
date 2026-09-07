@@ -1621,7 +1621,6 @@ function normalizeSagaPayload(raw, { theme }) {
     description: saga.description,
     tags: ['saga', 'generated'],
     cyberiaMapCodes: [...saga.mapCodes],
-    itemIds: saga.itemIds.map((id) => ({ id, defaultPlayerInventory: false })),
     portals: [],
     topologyMode: 'procedural',
   };
@@ -1687,7 +1686,6 @@ async function persistInstance({ instance, CyberiaInstance }) {
         description: instance.description,
         tags: instance.tags,
         cyberiaMapCodes: instance.cyberiaMapCodes,
-        itemIds: instance.itemIds,
         topologyMode: instance.topologyMode,
       },
       $setOnInsert: { code: instance.code, portals: instance.portals || [] },

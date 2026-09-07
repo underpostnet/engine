@@ -45,26 +45,26 @@ Go server and the WASM client with data — it does not run the simulation or th
 
 ```text
                          ┌───────────────────────────────────────────────┐
-                         │              UNDERPOST PLATFORM                 │
-                         │  toolchain · deploy · PWA build · static        │
-                         │  delivery · cluster/image/db · monitoring       │
-                         │                                                 │
-                         │   underpost CLI  ──▶  builds & deploys all      │
+                         │              UNDERPOST PLATFORM               │
+                         │  toolchain · deploy · PWA build · static      │
+                         │  delivery · cluster/image/db · monitoring     │
+                         │                                               │
+                         │   underpost CLI  ──▶  builds & deploys all    │
                          └───────────────────────────────────────────────┘
                                             │  hosts / delivers
                                             ▼
-   ╔═══════════════════════════════ CYBERIA MMO ══════════════════════════════════╗
+   ╔═══════════════════════════════ CYBERIA MMO ═══════════════════════════════════╗
    ║                                                                               ║
-   ║   ┌──────────────────┐   gRPC    ┌──────────────────┐   WebSocket            ║
-   ║   │  engine-cyberia  │ ────────▶ │  cyberia-server  │ ───────────┐           ║
-   ║   │     (Node.js)    │           │       (Go)       │            │           ║
-   ║   │                  │           │                  │            ▼           ║
-   ║   │ content          │           │ authoritative    │   ┌──────────────────┐ ║
-   ║   │ validation       │           │ simulation       │   │  cyberia-client  │ ║
-   ║   │ persistence      │           │ world tick       │   │    (C / WASM)    │ ║
-   ║   │ gRPC/REST data   │           │ AOI replication  │   │                  │ ║
-   ║   │ asset metadata   │           │                  │   │ rendering        │ ║
-   ║   └──────────────────┘           └──────────────────┘   │ input            │ ║
+   ║   ┌──────────────────┐   gRPC    ┌──────────────────┐   WebSocket             ║
+   ║   │  engine-cyberia  │ ────────▶ │  cyberia-server  │ ───────────┐            ║
+   ║   │     (Node.js)    │           │       (Go)       │            │            ║
+   ║   │                  │           │                  │            ▼            ║
+   ║   │ content          │           │ authoritative    │    ┌──────────────────┐ ║
+   ║   │ validation       │           │ simulation       │    │  cyberia-client  │ ║
+   ║   │ persistence      │           │ world tick       │    │    (C / WASM)    │ ║
+   ║   │ gRPC/REST data   │           │ AOI replication  │    │                  │ ║
+   ║   │ asset metadata   │           │                  │    │ rendering        │ ║
+   ║   └──────────────────┘           └──────────────────┘    │ input            │ ║
    ║            │                                             │ prediction       │ ║
    ║            └──────────────── REST (content/assets) ─────▶│ presentation     │ ║
    ║                                                          └──────────────────┘ ║

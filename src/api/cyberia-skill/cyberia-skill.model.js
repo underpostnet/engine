@@ -19,9 +19,10 @@ const SkillDefinitionSchema = new Schema(
 );
 
 /**
- * Authoritative skill definition for a single trigger item. Owns the full skill
- * record (logic event keys + expanded metadata) so the simulation receives the
- * summoned-entity item ids the instance-conf skillConfig schema does not carry.
+ * Authoritative skill definition for a single trigger item. Owns the full skill record — logic
+ * event keys plus the expanded metadata, including the summoned-entity item ids the simulation
+ * needs. The collection is deployment-wide: which of these an instance runs is derived from the
+ * content that instance names, never stored on it. See cyberia-instance-items.js.
  */
 const CyberiaSkillSchema = new Schema(
   {

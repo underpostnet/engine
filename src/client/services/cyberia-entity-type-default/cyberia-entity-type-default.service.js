@@ -95,5 +95,43 @@ class CyberiaEntityTypeDefaultService {
           return reject(error);
         }),
     );
+  /** Points one instance's conf at every default the given maps place. */
+  static syncInstance = (options = { instanceCode: '', body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `sync-instance/${options.instanceCode}`, endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: payloadFactory(options.body),
+      })
+        .then(async (res) => await res.json())
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  /** States the complete set of instances that reference this default. */
+  static setInstances = (options = { id: '', body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `${options.id}/instances`, endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: payloadFactory(options.body),
+      })
+        .then(async (res) => await res.json())
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
 }
 export { CyberiaEntityTypeDefaultService };

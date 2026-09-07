@@ -87,6 +87,7 @@ cyberia instance [instance-code] [options]
 | `--import [path]`                                     | Import from a backup directory (upsert, preserves UUIDs)                |
 | `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json` |
 | `--drop`                                              | Drop all documents associated with the instance code                    |
+| `--sync-entities`                                     | Sync the conf's entity-type default references and skill config          |
 | `--export-current-fallbackworld`                      | Capture the in-memory procedural fallback world, then export it         |
 | `--keep-fallback-codes`                               | Capture using the raw `fallback-map-*` / canonical action-quest codes   |
 | `--fallback-url <url>`                                | Capture the world a running engine serves instead of regenerating it    |
@@ -97,6 +98,94 @@ cyberia instance FOREST --export ./backups/FOREST
 cyberia instance FOREST --import ./backups/FOREST
 cyberia instance FOREST --drop
 ```
+
+A backup carries audio too. `cyberia-map-audio-confs/<map-code>.json` holds each map's bindings —
+that configuration belongs to the map, so it travels with the instance and `--drop` removes it with
+the map. The assets those bindings name travel as copies in `cyberia-audio/<code>.json` with their
+WAV beside them in `files/`, because a `CyberiaAudio` document is global: the import upserts it by
+code and leaves other instances' bindings alone, and `--drop` never removes one. A binding whose
+asset is missing is kept as written — the code is the whole reference, so importing the asset later
+is all it takes to make it play.
+
+A backup also carries the entity-type defaults the instance's conf **references**, under
+`cyberia-entity-type-defaults/<_id>.json`. `CyberiaInstanceConf.entityDefaults` holds
+`CyberiaEntityTypeDefault` ids, never copies of the documents, and both directions travel by that
+id: the export writes exactly the referenced documents, and the import restores them under their
+original `_id` so the references keep resolving.
+
+`--sync-entities` builds those references from the world's own content: a default belongs to the
+instance when all of its `liveItemIds` appear together on some entity the maps place — the same
+subset containment the runtime resolves an entity with. It is additive and idempotent, so a
+hand-linked default that no map places (a player or coin default) is kept, and re-running links
+nothing new. A match another instance already references is **reported, not adopted**: two worlds
+built on the same art hold documents with identical live item ids, so matching alone cannot tell
+them apart, and claiming one stays a deliberate act in the Entity engine.
+
+Skills are **derived, never stored**. The `cyberia-skill` collection is deployment-wide and owns
+the definitions; an instance runs the ones whose `triggerItemId` is an item id its own content
+names. That content is four things and no more: what its maps place, what its entity-type defaults
+wire, what its vendor and assembler catalogs trade, and what its quests ask for or pay out. The
+canonical `ENTITY_TYPE_DEFAULTS` count alongside the instance's own, so a world referencing no
+player default still holds `atlas_pistol_mk2` and keeps its projectile skill rather than being
+disarmed.
+
+That last source is why `hatchet` belongs to a world whose maps place no hatchet: a quest objective
+or a shop shelf names one, so a player there can come to hold it and fire it. `--sync-entities`
+reports the resolved list, the export writes exactly those documents to
+`cyberia-skills/`, and the boot payload sends exactly those to the simulation — one rule, so the
+three can no longer disagree. Nothing is written to the instance conf, which carries no
+`skillConfig` field: a stored list was a second answer to the same question, and it was the one
+that went stale.
+
+The Instance engine has the same action as a button, syncing against the map codes currently
+selected.
+
+```bash
+cyberia instance FOREST --sync-entities --dev
+```
+
+A reference cannot outlive its document. Deleting an entity-type default unlinks it from every
+conf first, and both `--export` and `--import` compact the instance's references — dropping any
+whose document is gone — so a backup never carries a dangling id and restoring one never recreates
+it. Saving a default in the Entity engine compacts the collection too. What is exported is
+therefore exactly what resolves.
+
+That reference is what scopes a default to a world. Membership used to be inferred by matching item
+ids, and two instances built on the same art therefore matched each other: exporting one dragged in
+the other's wiring, and importing it overwrote the original by an `(entityType, liveItemIds)`
+"natural key". An id names one document, so neither is possible. A backup written before the change
+still embeds the documents in its conf; importing it converts them to references against the
+documents in that same backup, creating any it cannot find.
+
+An instance that references nothing is complete, not empty: it runs on the canonical
+`ENTITY_TYPE_DEFAULTS`, and referenced documents override only the entity types they cover.
+
+Those documents are also where a world's starting inventory comes from, and an entity has exactly
+one. It carries the **union** of every id its default names — `liveItemIds`, `deadItemIds`,
+`dropItemIds` and the inventory-only `inventoryItemsIds` — deduplicated. Nothing stores which slots
+are worn: the three lifecycle lists are discriminators, and the runtime activates the ones the
+context calls for, which is why the whole union is seeded (the server activates a slot that is
+already there rather than appending one). Spawn state is alive, so the live ids are the active
+ones; everything else is carried empty, a coin balance included.
+
+`overrideItemsIdsState` is the one adjustment to that derivation, per id: `active` forces the spawn
+state — a skin the equipment rules would otherwise leave inactive — and `quantity` sizes a stack,
+which is how a drop bundle declares how many tokens it scatters. It never adds an id; the union
+decides membership, an override only what a member starts as.
+
+`inventoryItemsIds` is therefore only for what no lifecycle state ever activates. The instance holds
+no item list of its own: it names entity-type defaults, and the items follow from them, so there is
+exactly one place to read or change a starting kit.
+
+To point a world at the seeded collection, name it:
+
+```bash
+cyberia run-workflow seed-entities --instance FOREST --dev
+```
+
+`seed-entities` upserts `ENTITY_TYPE_DEFAULTS` into the collection; `--instance` then makes that
+instance's conf reference exactly those documents, replacing whatever it referenced before, so
+re-running converges rather than accumulating.
 
 ### Capturing the procedural fallback world
 
