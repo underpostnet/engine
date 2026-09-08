@@ -7,7 +7,6 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import sharp from 'sharp';
 import { Jimp, rgbaToInt } from 'jimp';
 import { loggerFactory } from '../../server/ops/logger.js';
 
@@ -38,7 +37,7 @@ export class AtlasSpriteSheetGenerator {
    * @returns {Promise<Jimp>} The generated image
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
-  static async frameMatrixToImage(frameMatrix, colors, cellPixelDim = 20) {
+  static async frameMatrixToImage(frameMatrix, colors, cellPixelDim = 1) {
     if (!frameMatrix || frameMatrix.length === 0 || frameMatrix[0].length === 0) {
       throw new Error('Invalid frame matrix');
     }
@@ -79,46 +78,22 @@ export class AtlasSpriteSheetGenerator {
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
   static calculateOptimalDimension(frameImages) {
-    if (!frameImages || frameImages.length === 0) {
-      logger.warn('No frames provided for dimension calculation, using default 2048');
-      return 2048;
+    if (
+      !frameImages?.length ||
+      frameImages.some(
+        ({ width, height }) => !Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0,
+      )
+    ) {
+      throw new Error('Invalid frame dimensions');
     }
-
-    // Get max frame dimensions with defensive checks
-    const widths = frameImages.map((f) => f.width).filter((w) => !isNaN(w) && w > 0);
-    const heights = frameImages.map((f) => f.height).filter((h) => !isNaN(h) && h > 0);
-
-    if (widths.length === 0 || heights.length === 0) {
-      logger.warn('Invalid frame dimensions found, using default 2048');
-      return 2048;
-    }
-
-    const maxFrameWidth = Math.max(...widths);
-    const maxFrameHeight = Math.max(...heights);
-
-    logger.info(`Frame dimensions: max ${maxFrameWidth}x${maxFrameHeight}, count: ${frameImages.length}`);
-
-    // Calculate grid layout (try to make it roughly square)
-    const frameCount = frameImages.length;
-    const cols = Math.ceil(Math.sqrt(frameCount));
-    const rows = Math.ceil(frameCount / cols);
-
-    // Calculate required dimensions
-    const requiredWidth = cols * maxFrameWidth;
-    const requiredHeight = rows * maxFrameHeight;
-    const requiredDim = Math.max(requiredWidth, requiredHeight);
-
-    logger.info(`Grid layout: ${cols}x${rows}, required: ${requiredWidth}x${requiredHeight}`);
-
-    // Round up to next power of 2
-    const optimalDim = AtlasSpriteSheetGenerator.nextPowerOf2(requiredDim);
-
-    // Ensure minimum 1024, maximum 8192
-    const finalDim = Math.max(1024, Math.min(8192, optimalDim));
-
-    logger.info(`Calculated optimal dimension: ${finalDim}x${finalDim}`);
-
-    return finalDim;
+    const cols = Math.ceil(Math.sqrt(frameImages.length));
+    const rows = Math.ceil(frameImages.length / cols);
+    return AtlasSpriteSheetGenerator.nextPowerOf2(
+      Math.max(
+        cols * Math.max(...frameImages.map((frame) => frame.width)),
+        rows * Math.max(...frameImages.map((frame) => frame.height)),
+      ),
+    );
   }
 
   /**
@@ -126,12 +101,13 @@ export class AtlasSpriteSheetGenerator {
    * @static
    * @param {Object} objectLayerRenderFrames - The ObjectLayerRenderFrames document
    * @param {string} itemKey - The item key for the atlas
-   * @param {number} [cellPixelDim=20] - Pixel dimension per cell
+   * @param {number} [cellPixelDim=1] - Pixel dimension per cell
    * @param {number} [maxAtlasDim=null] - Maximum atlas dimension (auto-calculated if null)
    * @returns {Promise<{buffer: Buffer, metadata: Object}>} Atlas buffer and metadata
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
-  static async generateAtlas(objectLayerRenderFrames, itemKey, cellPixelDim = 20, maxAtlasDim = null) {
+  static async generateAtlas(objectLayerRenderFrames, itemKey, cellPixelDim = 1, maxAtlasDim = null) {
+    if (!Number.isInteger(cellPixelDim) || cellPixelDim < 1) throw new Error('Invalid pixel scale');
     const { frames, colors } = objectLayerRenderFrames;
     const frameDuration = Number(objectLayerRenderFrames?.frame_duration);
 
@@ -194,10 +170,8 @@ export class AtlasSpriteSheetGenerator {
       );
     }
 
-    // Validate maxAtlasDim
-    if (isNaN(maxAtlasDim) || maxAtlasDim <= 0) {
-      logger.error(`Invalid maxAtlasDim: ${maxAtlasDim}, using default 2048`);
-      maxAtlasDim = 2048;
+    if (!Number.isInteger(maxAtlasDim) || maxAtlasDim <= 0 || maxAtlasDim > 4096) {
+      throw new Error('Atlas dimension must be between 1 and 4096');
     }
 
     // Simple grid packing algorithm
@@ -302,7 +276,6 @@ export class AtlasSpriteSheetGenerator {
     let rowHeight = 0;
     let maxWidth = 0;
     let totalHeight = 0;
-    let exceedsCount = 0;
 
     for (const frame of sortedFrames) {
       // Check if frame fits in current row
@@ -313,9 +286,8 @@ export class AtlasSpriteSheetGenerator {
         rowHeight = 0;
       }
 
-      // Check if we exceed max height
-      if (currentY + frame.height > maxDim) {
-        exceedsCount++;
+      if (frame.width > maxDim || currentY + frame.height > maxDim) {
+        throw new Error(`Frames exceed atlas dimension ${maxDim}`);
       }
 
       packedFrames.push({
@@ -330,20 +302,8 @@ export class AtlasSpriteSheetGenerator {
       totalHeight = Math.max(totalHeight, currentY + frame.height);
     }
 
-    // Log once if frames exceeded dimensions
-    if (exceedsCount > 0) {
-      const recommendedSize = AtlasSpriteSheetGenerator.nextPowerOf2(Math.max(maxWidth, totalHeight));
-      logger.warn(
-        `${exceedsCount} frames exceed atlas dimension (${maxDim}x${maxDim}). ` +
-          `Actual required: ${maxWidth}x${totalHeight}. ` +
-          `Recommended: --to-atlas-sprite-sheet ${recommendedSize}`,
-      );
-    }
-
-    // Use maxDim as the atlas dimensions (already power-of-2 and optimal from auto-calculation)
-    // If all frames fit within a smaller power-of-2, use that instead
-    const atlasWidth = maxDim;
-    const atlasHeight = maxDim;
+    const atlasWidth = maxWidth;
+    const atlasHeight = totalHeight;
 
     return {
       packedFrames,
@@ -376,18 +336,12 @@ export class AtlasSpriteSheetGenerator {
    * @param {Object} objectLayerRenderFrames - The ObjectLayerRenderFrames document
    * @param {string} itemKey - The item key for the atlas
    * @param {string} outputPath - Output file path
-   * @param {number} [cellPixelDim=20] - Pixel dimension per cell
+   * @param {number} [cellPixelDim=1] - Pixel dimension per cell
    * @param {number} [maxAtlasDim=null] - Maximum atlas dimension (auto-calculated if null)
    * @returns {Promise<{buffer: Buffer, metadata: Object, outputPath: string}>}
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
-  static async generateAtlasToFile(
-    objectLayerRenderFrames,
-    itemKey,
-    outputPath,
-    cellPixelDim = 20,
-    maxAtlasDim = null,
-  ) {
+  static async generateAtlasToFile(objectLayerRenderFrames, itemKey, outputPath, cellPixelDim = 1, maxAtlasDim = null) {
     const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
       objectLayerRenderFrames,
       itemKey,

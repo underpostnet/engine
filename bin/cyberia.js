@@ -585,7 +585,6 @@ try {
                 const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
                   objectLayerRenderFramesData,
                   itemKey,
-                  20,
                 );
 
                 stagingFileDoc = await new File({
@@ -742,7 +741,6 @@ try {
                 const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
                   objectLayerRenderFramesData,
                   itemKey,
-                  20,
                 );
 
                 stagingFileDoc = await new File({
@@ -981,7 +979,6 @@ try {
                   const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
                     entry.objectLayerRenderFramesData,
                     itemKey,
-                    20,
                   );
 
                   stagingFileDoc = await new File({
@@ -1131,7 +1128,6 @@ try {
                   const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
                     entry.objectLayerRenderFramesData,
                     itemKey,
-                    20,
                   );
 
                   stagingFileDoc = await new File({
@@ -1431,7 +1427,7 @@ try {
           const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
             objectLayer.objectLayerRenderFramesId,
             itemKey,
-            20, // cellPixelDim
+            undefined,
             maxAtlasDim,
           );
 
@@ -1685,7 +1681,6 @@ try {
             const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
               populatedObjectLayer.objectLayerRenderFramesId,
               atlasItemKey,
-              20,
             );
 
             // Save atlas file to File collection

@@ -99,7 +99,7 @@ const AtlasSpriteSheetSchema = new Schema(
       itemKey: { type: String, required: true, trim: true },
       atlasWidth: { type: Number, required: true, min: 1 },
       atlasHeight: { type: Number, required: true, min: 1 },
-      cellPixelDim: { type: Number, required: true, min: 1, default: 20 },
+      cellPixelDim: { type: Number, required: true, min: 1 },
       frame_duration: { type: Number, min: 0, default: 100 },
       frames: { type: DirectionFramesSchema, required: true },
     },
