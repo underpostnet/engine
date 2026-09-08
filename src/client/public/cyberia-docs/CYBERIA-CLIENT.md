@@ -268,21 +268,17 @@ At normal zoom, POIs render only their authored presence-status icon. At inspect
 ```bash
 cd cyberia-client
 
-# Development build (defaults: BUILD_MODE=DEBUG, localhost URLs)
+# Development build (BUILD_MODE=DEBUG, localhost websocket URL)
 make -f Web.mk clean && make -f Web.mk all
 
-# Release build — pass the production URLs explicitly (see note below)
-make -f Web.mk clean && make -f Web.mk all BUILD_MODE=RELEASE \
-    WS_URL=wss://server.cyberiaonline.com/ws \
-    API_BASE=https://www.cyberiaonline.com
-
-# Build + serve locally on dev port :8082 (DEBUG, localhost)
-./dev-server.sh            # or: ./dev-server.sh <port>
+# Release build
+make -f Web.mk clean && make -f Web.mk all BUILD_MODE=RELEASE
 ```
 
-`WS_URL` and `API_BASE` are passed straight through to the compiler — see
-[Compile-time configuration](#compile-time-configuration). When omitted they
-default to `localhost`, so **production build pipelines must pass real URLs**.
+`BUILD_MODE` picks the websocket URL baked into the WASM — see
+[Compile-time configuration](#compile-time-configuration). The Data Server URL
+is not a build argument: the client reads it from its own command line at
+startup.
 
 The build is part of the Underpost Platform static + PWA pipeline; production deploys go through `underpost client` and `underpost deploy`.
 
@@ -300,23 +296,23 @@ bin/
 
 ## Compile-time configuration
 
-### Server URLs (build arguments)
+### Server URLs
 
-`WS_URL` and `API_BASE` are `make` arguments baked into the WASM as
-`-DWS_URL_OVERRIDE` / `-DAPI_BASE_URL_OVERRIDE`. There is **no** RELEASE/DEBUG URL
-switch — both default to `localhost` regardless of `BUILD_MODE`:
+`WS_URL` in `src/config.h` holds both websocket endpoints. `BUILD_MODE` picks
+one: DEBUG takes `ws://localhost:8081/ws`, RELEASE takes
+`wss://server.cyberiaonline.com/ws`. `window.CYBERIA_WS_ORIGIN`, injected by
+`wasm-driver.py`, overrides it at runtime.
 
-| make argument | Default                  | Baked macro             |
-| ------------- | ------------------------ | ----------------------- |
-| `WS_URL`      | `ws://localhost:8081/ws` | `WS_URL_OVERRIDE`       |
-| `API_BASE`    | `http://localhost:4005`  | `API_BASE_URL_OVERRIDE` |
+The Data Server URL is a command line argument, not a build argument:
 
-> **Production pipelines must pass the URLs.** `BUILD_MODE=RELEASE` alone still
-> yields `localhost`. Any release build — the Docker image build, CI, manual
-> release — must pass `WS_URL=wss://… API_BASE=https://…` as make arguments
-> (or Docker build-args wired through to `make`), or the client ships pointing
-> at localhost. If unset, `src/config.h` falls back to bare `"ws://"` /
-> `"https://"` stubs.
+```
+wasm-driver.py --data-server-url=<origin>
+  -> window.CYBERIA_ARGV -> Module.arguments -> main(argc, argv)
+```
+
+`config_init()` reads `--data-server-url=<origin>` from `argv`. The argument is
+required: the client asserts and stops if it is absent. There is no environment
+fallback, no config file and no runtime override.
 
 ### Constants (`src/config.h`)
 

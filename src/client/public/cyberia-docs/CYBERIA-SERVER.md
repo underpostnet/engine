@@ -38,7 +38,7 @@ persisted maps + rules                  tick + AOI + snapshots           render 
 ```
 
 - Each service is supervised independently and owns its own monitor and reconnector.
-- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world.
+- `cyberia-server` dials the Data Server gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world.
 - On reconnect, world configuration is reloaded via `GetFullInstance(instanceCode)`.
 - If any one of the three services is unhealthy, the game moves to standby until all three recover.
 
@@ -176,11 +176,7 @@ World configuration is loaded once at boot from engine-cyberia via gRPC `GetFull
 | `economyRules`                                                       | Fountain & Sink coin economy                                                      |
 | `skillRules`                                                         | projectile / doppelganger spawn rates and lifetimes                               |
 | `equipmentRules`                                                     | item activation constraints (one-per-type, requireSkin, activeItemTypes)          |
-| `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, seed inventory        |
-
-`entityDefaults[*].defaultObjectLayers` also arrives derived: engine-cyberia stores an entity default as four id lists and resolves the seed inventory from their union, marking the live ids active, with `overrideItemsIdsState` adjusting an individual row's active flag or quantity. A drop's row is where its stack size lives, so `spawnDrops` scatters that many tokens instead of one, and where its `dropChance` lives, so `spawnDrops` rolls each drop id on its own before scattering it at all — an id the build states nothing about always drops. `activateOrAppendLayer` then finds every lifecycle slot already present and flips it, instead of appending one.
-
-`entityDefaults` arrives materialised. engine-cyberia stores it as references — `CyberiaInstanceConf.entityDefaults` holds `CyberiaEntityTypeDefault` ids — and resolves the documents this instance names before building the payload, completing them with the canonical defaults for every entity type they do not cover. The simulation therefore only ever sees the wiring of the world it is serving, and never needs to know that a reference was involved.
+| `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
 
 World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. Presentation metadata ownership is described in the next section.
 
@@ -266,25 +262,20 @@ All content data (ObjectLayer metadata, asset blobs, optional client hints, the 
 
 ## Environment
 
-Both Data Server endpoints are command-line flags, not environment reads, and the server exits
-rather than start without them. The image's default command fills them from the two variables
-below, so a `docker run` or a Compose service that sets no command still starts; a Kubernetes pod
-spec passes its own command and supplies the flags directly.
+Two endpoints are command-line flags, not variables. Both are required, and
+each is const for the life of the process.
 
-| Flag                 | Image default                  | Description                          |
-| -------------------- | ------------------------------ | ------------------------------------ |
-| `--data-server-url`  | `$CYBERIA_DATA_SERVER_URL`     | engine-cyberia REST origin (**required**) |
-| `--data-server-grpc` | `$CYBERIA_DATA_SERVER_GRPC`    | engine-cyberia gRPC `host:port` (**required**) |
+| Flag                 | Example                         | Description               |
+| -------------------- | ------------------------------- | ------------------------- |
+| `--data-server-url`  | `https://www.cyberiaonline.com` | Data Server REST origin   |
+| `--data-server-grpc` | `localhost:50051`               | Data Server gRPC endpoint |
 
-| Variable                          | Default           | Description                                        |
-| --------------------------------- | ----------------- | -------------------------------------------------- |
-| `CYBERIA_DATA_SERVER_URL`         | `http://engine-cyberia` | Internal engine-cyberia REST origin, read by the image's default command |
-| `CYBERIA_DATA_SERVER_GRPC`        | `engine-cyberia-runtime:50051` | Internal engine-cyberia gRPC endpoint, read by the image's default command |
-| `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                   |
-| `ENGINE_PUBLIC_URL`               | _(empty)_         | Client-visible Content Authority origin (forwarded to clients) |
-| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval            |
-| `SERVER_PORT`                     | `8081`            | WebSocket + HTTP listen port                       |
-| `STATIC_DIR`                      | `./public`        | Directory for static WASM client files             |
+| Variable                          | Default      | Description                             |
+| --------------------------------- | ------------ | --------------------------------------- |
+| `INSTANCE_CODE`                   | `default`    | Instance code to load on startup        |
+| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_ | ObjectLayer hot-reload polling interval |
+| `SERVER_PORT`                     | `8081`       | WebSocket + HTTP listen port            |
+| `STATIC_DIR`                      | `./public`   | Directory for static WASM client files  |
 
 ---
 
