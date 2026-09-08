@@ -44,6 +44,10 @@ const OverrideItemStateSchema = new Schema(
     itemId: { type: String, trim: true },
     active: { type: Boolean },
     quantity: { type: Number, default: 1, min: 1 },
+    // Probability in [0,1] that this id actually scatters when the entity dies. Absent means 1 —
+    // the drop always happens, which is what every world did before this existed. Only meaningful
+    // for an id the build carries in `dropItemIds`; on any other row it is inert.
+    dropChance: { type: Number, min: 0, max: 1 },
   },
   { _id: false },
 );

@@ -493,8 +493,8 @@ describe('placed entities carry what their default wears', () => {
       dropItemIds: ['wood-drop-1'],
       inventoryItemsIds: ['tim-knife'],
       overrideItemsIdsState: [
-        { itemId: 'wood-drop-1', active: false, quantity: 2 },
-        { itemId: 'tim-knife', active: true, quantity: 1 },
+        { itemId: 'wood-drop-1', active: false, quantity: 2, dropChance: 1 },
+        { itemId: 'tim-knife', active: true, quantity: 1, dropChance: 1 },
       ],
     },
     { entityType: 'resource', liveItemIds: ['wood-2'], deadItemIds: ['wood-extracted-2'], dropItemIds: ['wood-drop-2'] },
@@ -607,10 +607,10 @@ describe('the canonical inventory contract', () => {
     // Spawn state is alive, so the live ids are the worn ones; the rest are carried but empty,
     // which is what lets the runtime activate a slot instead of appending one.
     expect(inventory).toEqual([
-      { itemId: 'skin', active: true, quantity: 1 },
-      { itemId: 'ghost', active: false, quantity: 0 },
-      { itemId: 'loot', active: false, quantity: 0 },
-      { itemId: 'coin', active: false, quantity: 0 },
+      { itemId: 'skin', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'ghost', active: false, quantity: 0, dropChance: 1 },
+      { itemId: 'loot', active: false, quantity: 0, dropChance: 1 },
+      { itemId: 'coin', active: false, quantity: 0, dropChance: 1 },
     ]);
   });
 
@@ -637,8 +637,8 @@ describe('the canonical inventory contract', () => {
     // The equipment rules would leave a dead id inactive; the override says otherwise, and the
     // quantity follows the state it lands in.
     expect(inventory).toEqual([
-      { itemId: 'skin', active: true, quantity: 1 },
-      { itemId: 'ghost', active: true, quantity: 1 },
+      { itemId: 'skin', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'ghost', active: true, quantity: 1, dropChance: 1 },
     ]);
   });
 
@@ -649,7 +649,61 @@ describe('the canonical inventory contract', () => {
       overrideItemsIdsState: [{ itemId: 'wood-drop', quantity: 5 }],
     });
     // The stack the server scatters, still carried inactive by the resource itself.
-    expect(drop).toEqual({ itemId: 'wood-drop', active: false, quantity: 5 });
+    expect(drop).toEqual({ itemId: 'wood-drop', active: false, quantity: 5, dropChance: 1 });
+  });
+
+  it('states how often every row drops, and defaults to always', () => {
+    // One field on every row, so the simulation never reads a missing one. A world that authored
+    // nothing keeps scattering everything, which is what every world did before this existed.
+    const inventory = resolveEntityInventory({
+      liveItemIds: ['skin'],
+      dropItemIds: ['common', 'rare'],
+      overrideItemsIdsState: [{ itemId: 'rare', dropChance: 0.15 }],
+    });
+    expect(inventory.map(({ itemId, dropChance }) => [itemId, dropChance])).toEqual([
+      ['skin', 1],
+      ['common', 1],
+      ['rare', 0.15],
+    ]);
+  });
+
+  it('keeps a drop chance of zero, which is the whole point of authoring one', () => {
+    const [drop] = resolveEntityInventory({
+      dropItemIds: ['never'],
+      overrideItemsIdsState: [{ itemId: 'never', dropChance: 0 }],
+    });
+    expect(drop.dropChance).toBe(0);
+  });
+
+  it('honours a drop chance only for an id the drop list carries', () => {
+    // Drop chance answers "how often does this scatter on death". An id that never scatters has
+    // no such question to answer, so an override naming one is inert rather than misleading.
+    const inventory = resolveEntityInventory({
+      liveItemIds: ['skin'],
+      inventoryItemsIds: ['knife'],
+      dropItemIds: ['loot'],
+      overrideItemsIdsState: [
+        { itemId: 'skin', dropChance: 0.1 },
+        { itemId: 'knife', dropChance: 0.2 },
+        { itemId: 'loot', dropChance: 0.3 },
+      ],
+    });
+    expect(inventory.map(({ itemId, dropChance }) => [itemId, dropChance])).toEqual([
+      ['skin', 1],
+      ['loot', 0.3],
+      ['knife', 1],
+    ]);
+  });
+
+  it('clamps an out-of-range drop chance instead of passing it on', () => {
+    const rows = resolveEntityInventory({
+      dropItemIds: ['low', 'high'],
+      overrideItemsIdsState: [
+        { itemId: 'low', dropChance: -2 },
+        { itemId: 'high', dropChance: 4 },
+      ],
+    });
+    expect(rows.map((row) => row.dropChance)).toEqual([0, 1]);
   });
 
   it('ignores an override for an id no list carries', () => {
@@ -657,13 +711,13 @@ describe('the canonical inventory contract', () => {
     // id no list carries does nothing at all.
     expect(
       resolveEntityInventory({ liveItemIds: ['skin'], overrideItemsIdsState: [{ itemId: 'absent', quantity: 9 }] }),
-    ).toEqual([{ itemId: 'skin', active: true, quantity: 1 }]);
+    ).toEqual([{ itemId: 'skin', active: true, quantity: 1, dropChance: 1 }]);
     expect(
       resolveEntityInventory(
         { liveItemIds: ['skin'], overrideItemsIdsState: [{ itemId: 'absent', active: true }] },
         { itemTypes: { skin: 'skin', absent: 'skin' } },
       ),
-    ).toEqual([{ itemId: 'skin', active: true, quantity: 1 }]);
+    ).toEqual([{ itemId: 'skin', active: true, quantity: 1, dropChance: 1 }]);
   });
 
   it('puts an overridden carried item on a live entity, whatever its type', () => {
@@ -678,17 +732,17 @@ describe('the canonical inventory contract', () => {
           dropItemIds: ['wood-drop-1'],
           inventoryItemsIds: ['tim-knife'],
           overrideItemsIdsState: [
-            { itemId: 'wood-drop-1', active: false, quantity: 2 },
-            { itemId: 'tim-knife', active: true, quantity: 1 },
+            { itemId: 'wood-drop-1', active: false, quantity: 2, dropChance: 1 },
+            { itemId: 'tim-knife', active: true, quantity: 1, dropChance: 1 },
           ],
         },
         { itemTypes: { 'wood-1': 'skin', 'wood-extracted-1': 'skin', 'wood-drop-1': 'weapon', 'tim-knife': 'weapon' } },
       ),
     ).toEqual([
-      { itemId: 'wood-1', active: true, quantity: 1 },
-      { itemId: 'wood-extracted-1', active: false, quantity: 0 },
-      { itemId: 'wood-drop-1', active: false, quantity: 2 },
-      { itemId: 'tim-knife', active: true, quantity: 1 },
+      { itemId: 'wood-1', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'wood-extracted-1', active: false, quantity: 0, dropChance: 1 },
+      { itemId: 'wood-drop-1', active: false, quantity: 2, dropChance: 1 },
+      { itemId: 'tim-knife', active: true, quantity: 1, dropChance: 1 },
     ]);
   });
 
@@ -703,9 +757,9 @@ describe('the canonical inventory contract', () => {
     ).toEqual([
       // Taken off, not taken away: the skin stays in the inventory with its stack intact, which is
       // what lets the player bank it or put it back on.
-      { itemId: 'anon', active: false, quantity: 1 },
-      { itemId: 'pistol', active: true, quantity: 1 },
-      { itemId: 'punk', active: true, quantity: 1 },
+      { itemId: 'anon', active: false, quantity: 1, dropChance: 1 },
+      { itemId: 'pistol', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'punk', active: true, quantity: 1, dropChance: 1 },
     ]);
     // With no types to read, every row keeps the state its list derives.
     expect(
@@ -727,15 +781,15 @@ describe('the canonical inventory contract', () => {
           liveItemIds: ['anon', 'atlas_pistol_mk2'],
           deadItemIds: ['fragmentation'],
           inventoryItemsIds: ['kaneki'],
-          overrideItemsIdsState: [{ itemId: 'kaneki', active: true, quantity: 1 }],
+          overrideItemsIdsState: [{ itemId: 'kaneki', active: true, quantity: 1, dropChance: 1 }],
         },
         { itemTypes: { anon: 'skin', kaneki: 'skin', atlas_pistol_mk2: 'weapon', fragmentation: 'skin' } },
       ),
     ).toEqual([
-      { itemId: 'anon', active: false, quantity: 1 },
-      { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
-      { itemId: 'fragmentation', active: false, quantity: 0 },
-      { itemId: 'kaneki', active: true, quantity: 1 },
+      { itemId: 'anon', active: false, quantity: 1, dropChance: 1 },
+      { itemId: 'atlas_pistol_mk2', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'fragmentation', active: false, quantity: 0, dropChance: 1 },
+      { itemId: 'kaneki', active: true, quantity: 1, dropChance: 1 },
     ]);
   });
 
@@ -756,7 +810,7 @@ describe('the canonical inventory contract', () => {
       overrideItemsIdsState: [{ itemId: 'coin', quantity: 250 }],
     });
     // Quantity only: coin stays inactive, as its list derives.
-    expect(inventory.at(-1)).toEqual({ itemId: 'coin', active: false, quantity: 250 });
+    expect(inventory.at(-1)).toEqual({ itemId: 'coin', active: false, quantity: 250, dropChance: 1 });
   });
 
   it('resolves nothing for a default that names no ids', () => {

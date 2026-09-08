@@ -215,6 +215,9 @@ class EntityEngineCyberia {
       const rule = EntityEngineCyberia.overrideItemsIdsState[i];
       // An override for an id no list carries is inert — the union decides membership.
       const orphan = !carried.has(rule.itemId);
+      // Drop chance only reaches the simulation for an id the drop list carries, so the input is
+      // offered where it can do something and the reason is stated where it cannot.
+      const isDrop = EntityEngineCyberia.listFieldOf('drop').includes(rule.itemId);
       out += html`<div
         class="fl"
         style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
@@ -234,6 +237,23 @@ class EntityEngineCyberia {
             value="${rule.quantity}"
             style="width:60px;"
           />
+          ${isDrop
+            ? html`<label
+                style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;"
+                title="Probability this id scatters on death. 1 always drops, 0 never does."
+              >
+                drop
+                <input
+                  class="entity-engine-override-drop-chance-${i}"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value="${Number.isFinite(rule.dropChance) ? rule.dropChance : 1}"
+                  style="width:60px;"
+                />
+              </label>`
+            : ''}
           ${orphan ? html`<span style="color:#c90;font-size:11px;">no list carries this id</span>` : ''}
         </div>
         ${await BtnIcon.instance({
@@ -252,6 +272,17 @@ class EntityEngineCyberia {
       if (qty)
         qty.onchange = () =>
           (EntityEngineCyberia.overrideItemsIdsState[i].quantity = Math.max(1, parseInt(qty.value) || 1));
+      const dropChance = s(`.entity-engine-override-drop-chance-${i}`);
+      if (dropChance)
+        dropChance.onchange = () => {
+          const parsed = parseFloat(dropChance.value);
+          const rule = EntityEngineCyberia.overrideItemsIdsState[i];
+          // An empty or unreadable box means "say nothing", which the whole pipeline reads as
+          // always drops — the same as a world that never set one.
+          if (!Number.isFinite(parsed)) delete rule.dropChance;
+          else rule.dropChance = Math.min(1, Math.max(0, parsed));
+          dropChance.value = Number.isFinite(rule.dropChance) ? rule.dropChance : 1;
+        };
       if (s(`.btn-entity-engine-rm-override-${i}`))
         s(`.btn-entity-engine-rm-override-${i}`).onclick = () => {
           EntityEngineCyberia.overrideItemsIdsState.splice(i, 1);
@@ -426,11 +457,14 @@ class EntityEngineCyberia {
         this.eGui.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding:4px 0;';
         this.eGui.innerHTML = rules
           .map(
-            ({ itemId, active, quantity }) =>
+            ({ itemId, active, quantity, dropChance }) =>
               html`<span
                 style="font-size:11px;font-family:monospace;white-space:nowrap;${active ? '' : 'color:#888;'}"
                 title="${itemId}"
-                >${active ? 'active' : 'inactive'} ×${Math.max(1, quantity || 1)} ${itemId}</span
+                >${active ? 'active' : 'inactive'} ×${Math.max(1, quantity || 1)}${Number.isFinite(dropChance) &&
+                1 !== dropChance
+                  ? ` drop ${dropChance}`
+                  : ''} ${itemId}</span
               >`,
           )
           .join('');
@@ -450,7 +484,11 @@ class EntityEngineCyberia {
   // useful string form of its own.
   static overridesFilterText = (rules = []) =>
     rules
-      .map(({ itemId, active, quantity }) => `${itemId} ${active ? 'active' : 'inactive'} x${quantity || 1}`)
+      .map(
+        ({ itemId, active, quantity, dropChance }) =>
+          `${itemId} ${active ? 'active' : 'inactive'} x${quantity || 1}` +
+          (Number.isFinite(dropChance) && 1 !== dropChance ? ` drop${dropChance}` : ''),
+      )
       .join(', ');
 
   static toRow(doc) {
@@ -538,6 +576,9 @@ class EntityEngineCyberia {
         itemId: rule.itemId,
         active: !!rule.active,
         quantity: Math.max(1, rule.quantity || 1),
+        // Sent only when authored. Omitting it is what makes the id drop every time, so a rule
+        // that never touched the input reads the same as every rule written before it existed.
+        ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
       })),
     };
   }
@@ -554,6 +595,7 @@ class EntityEngineCyberia {
       itemId: rule.itemId,
       active: !!rule.active,
       quantity: Math.max(1, rule.quantity || 1),
+      ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
     }));
     EntityEngineCyberia.instanceCodes = [...(EntityEngineCyberia.instanceLinks.get(String(doc._id)) || [])];
     for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);

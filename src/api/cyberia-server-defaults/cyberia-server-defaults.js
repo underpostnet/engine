@@ -957,11 +957,18 @@ export function resolveEntityInventory(entityDefault = {}, { itemTypes } = {}) {
       ].filter(Boolean),
     ),
   ];
+  const drops = new Set(entityDefault.dropItemIds || []);
   const rows = itemIds.map((itemId) => {
     const override = overrides.get(itemId);
     const active = 'boolean' === typeof override?.active ? override.active : live.has(itemId);
     const quantity = Number.isFinite(override?.quantity) ? override.quantity : active ? 1 : 0;
-    return { itemId, active, quantity };
+    // A drop id scatters on death unless an override says how often. Rows that are not drops
+    // carry the same 1, so every consumer reads one field and never a missing one.
+    const dropChance =
+      drops.has(itemId) && Number.isFinite(override?.dropChance)
+        ? Math.min(1, Math.max(0, override.dropChance))
+        : 1;
+    return { itemId, active, quantity, dropChance };
   });
   return applyEquipmentRules(rows, { itemTypes, overrides });
 }

@@ -169,9 +169,17 @@ already there rather than appending one). Spawn state is alive, so the live ids 
 ones; everything else is carried empty, a coin balance included.
 
 `overrideItemsIdsState` is the one adjustment to that derivation, per id: `active` forces the spawn
-state — a skin the equipment rules would otherwise leave inactive — and `quantity` sizes a stack,
-which is how a drop bundle declares how many tokens it scatters. It never adds an id; the union
-decides membership, an override only what a member starts as.
+state — a skin the equipment rules would otherwise leave inactive — `quantity` sizes a stack,
+which is how a drop bundle declares how many tokens it scatters, and `dropChance` (0–1) says how
+often the id actually scatters when the entity dies. It never adds an id; the union decides
+membership, an override only what a member starts as.
+
+`dropChance` is meaningful only for an id the build carries in `dropItemIds`; on any other row it is
+inert, and the resolver reports 1 there so the simulation reads one field and never a missing one.
+Saying nothing means 1, which is what every world did before the field existed, and each drop id is
+rolled independently — a build can pair a common drop with a rare one and have both decided on their
+own. A deliberate 0 survives, because the wire field is explicitly optional: absent and zero are
+different answers.
 
 `inventoryItemsIds` is therefore only for what no lifecycle state ever activates. The instance holds
 no item list of its own: it names entity-type defaults, and the items follow from them, so there is

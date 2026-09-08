@@ -23,6 +23,7 @@ const toEntityDefault = (source) => ({
       itemId: rule.itemId,
       ...('boolean' === typeof rule.active ? { active: rule.active } : {}),
       ...(Number.isFinite(rule.quantity) ? { quantity: rule.quantity } : {}),
+      ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
     })),
   behavior: source.behavior || '',
 });
