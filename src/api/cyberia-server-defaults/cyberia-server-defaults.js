@@ -1020,14 +1020,14 @@ function applyEquipmentRules(rows, { itemTypes, overrides = new Map() } = {}) {
  * @type {ReadonlyArray<{code:string,bus:'music'|'sfx',options?:object}>}
  */
 export const DEFAULT_AUDIO_BANK = Object.freeze([
-  ...['shoot', 'coin', 'drop', 'heal', 'hit', 'portal', 'ui-click', 'footsteps'].map((code) =>
+  ...['shoot', 'coin', 'drop', 'item-pickup', 'victory', 'heal', 'hit', 'portal', 'ui-click', 'footsteps'].map((code) =>
     Object.freeze({ code, bus: AUDIO_BUS_SFX }),
   ),
   Object.freeze({ code: 'exploration', bus: AUDIO_BUS_MUSIC, options: { cycles: 1 } }),
   Object.freeze({ code: 'combat', bus: AUDIO_BUS_MUSIC, options: { rounds: 1 } }),
   Object.freeze({ code: 'boss', bus: AUDIO_BUS_MUSIC }),
-  Object.freeze({ code: 'victory', bus: AUDIO_BUS_MUSIC }),
   Object.freeze({ code: 'portal-cooldown', bus: AUDIO_BUS_MUSIC }),
+  Object.freeze({ code: 'craft', bus: AUDIO_BUS_MUSIC }),
 ]);
 
 /** Map-level audio settings the seed writes onto every seeded map. */
@@ -1046,15 +1046,16 @@ export const DEFAULT_MAP_MUSIC = 'exploration';
  * Canonical runtime-event → asset bindings.
  *
  * `logicEventId` is the semantic event the client emits (an audio LogicId, or a skill LogicId the
- * dispatcher runs); `audioCode` is the bank entry that answers it. `once` marks a music cue that
- * plays through instead of holding the bed in a loop.
+ * dispatcher runs); `audioCode` is the bank entry that answers it.
  *
- * @type {ReadonlyArray<{logicEventId:string,audioCode:string,once?:boolean}>}
+ * @type {ReadonlyArray<{logicEventId:string,audioCode:string}>}
  */
 export const DEFAULT_AUDIO_BINDINGS = Object.freeze([
   Object.freeze({ logicEventId: 'projectile', audioCode: 'shoot' }),
   Object.freeze({ logicEventId: 'coin_drop_or_transaction', audioCode: 'coin' }),
   Object.freeze({ logicEventId: 'drop', audioCode: 'drop' }),
+  Object.freeze({ logicEventId: 'item-pickup', audioCode: 'item-pickup' }),
+  Object.freeze({ logicEventId: 'craft', audioCode: 'craft' }),
   Object.freeze({ logicEventId: 'heal', audioCode: 'heal' }),
   Object.freeze({ logicEventId: 'hit', audioCode: 'hit' }),
   Object.freeze({ logicEventId: 'portal', audioCode: 'portal' }),
@@ -1062,7 +1063,7 @@ export const DEFAULT_AUDIO_BINDINGS = Object.freeze([
   Object.freeze({ logicEventId: 'footsteps', audioCode: 'footsteps' }),
   Object.freeze({ logicEventId: 'combat', audioCode: 'combat' }),
   Object.freeze({ logicEventId: 'boss', audioCode: 'boss' }),
-  Object.freeze({ logicEventId: 'victory', audioCode: 'victory', once: true }),
+  Object.freeze({ logicEventId: 'victory', audioCode: 'victory' }),
   Object.freeze({ logicEventId: 'portal-cooldown', audioCode: 'portal-cooldown' }),
 ]);
 
@@ -1107,13 +1108,13 @@ if (!AUDIO_BANK_CODES.includes(DEFAULT_MAP_MUSIC)) {
  */
 export function buildAudioEventBindings(settings = DEFAULT_AUDIO_SETTINGS) {
   const { volume, crossfadeMs } = { ...DEFAULT_AUDIO_SETTINGS, ...settings };
-  return DEFAULT_AUDIO_BINDINGS.map(({ logicEventId, audioCode, once }) => {
+  return DEFAULT_AUDIO_BINDINGS.map(({ logicEventId, audioCode }) => {
     const bus = AUDIO_LOGIC_ID_BUSES[logicEventId] ?? AUDIO_BUS_SFX;
     const music = AUDIO_BUS_MUSIC === bus;
     return {
       logicEventId,
       audioCode,
-      settings: { bus, volume, loop: music && true !== once, crossfadeMs: music ? crossfadeMs : 0 },
+      settings: { bus, volume, loop: music, crossfadeMs: music ? crossfadeMs : 0 },
     };
   });
 }

@@ -191,7 +191,6 @@ export const AUDIO_LOGIC_IDS = Object.freeze([
     bus: AUDIO_BUS_MUSIC,
   }),
   Object.freeze({ id: 'boss', name: 'Boss', description: 'A boss encounter is under way.', bus: AUDIO_BUS_MUSIC }),
-  Object.freeze({ id: 'victory', name: 'Victory', description: 'A quest or encounter was completed.', bus: AUDIO_BUS_MUSIC }),
   Object.freeze({
     id: 'portal-cooldown',
     name: 'Portal Cooldown',
@@ -212,6 +211,24 @@ export const AUDIO_LOGIC_IDS = Object.freeze([
   }),
   Object.freeze({ id: 'heal', name: 'Heal', description: 'Life was restored to an entity in view.', bus: AUDIO_BUS_SFX }),
   Object.freeze({ id: 'drop', name: 'Drop', description: 'An item drop spawned in the world.', bus: AUDIO_BUS_SFX }),
+  Object.freeze({
+    id: 'victory',
+    name: 'Victory',
+    description: 'A quest or encounter was completed.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({
+    id: 'item-pickup',
+    name: 'Item Pickup',
+    description: 'An item landed in the player inventory — loot, a reward, a purchase, an assembly output.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({
+    id: 'craft',
+    name: 'Craft',
+    description: 'An assembly is charging: the bed is held until the recipe progress bar finishes.',
+    bus: AUDIO_BUS_MUSIC,
+  }),
   Object.freeze({
     id: 'ui-click',
     name: 'UI Click',

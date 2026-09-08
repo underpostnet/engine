@@ -301,10 +301,21 @@ bank (`DEFAULT_AUDIO_BANK`) and its bindings (`DEFAULT_AUDIO_BINDINGS`, expanded
 and `cyberia-client/src/audio/audio_events.h` holds the same ids for the emitting side. A binding naming an
 unknown event, or an asset the bank does not carry, throws at import rather than playing silence.
 
-The fallback bank binds `projectile`, `coin_drop_or_transaction`, `drop`, `heal`, `hit`, `portal`, `ui-click`
-and `footsteps` as one-shots, and `combat`, `boss`, `victory` and `portal-cooldown` as music. `hit` follows the
-server's damage events, so it sounds for any entity in view rather than only for the player; `ui-click` follows a
-tap the interface accepted.
+The fallback bank binds `projectile`, `coin_drop_or_transaction`, `drop`, `item-pickup`, `victory`, `heal`,
+`hit`, `portal`, `ui-click` and `footsteps` as one-shots, and `combat`, `boss`, `portal-cooldown` and
+`craft` as music. `victory` is a cue rather than a bed: completing a quest is an event, and holding the
+bus for it would take the map's music away for the length of a flourish. `hit` follows the server's damage events, so it sounds for any entity in view rather than
+only for the player; `ui-click` follows a tap the interface accepted.
+
+`item-pickup` fires where every route into the inventory bar converges — world loot flying in, a quest
+reward, a purchase, an assembly output — so one emission covers them all. It is deliberately plainer than
+`coin`, which stays the reward gesture reserved for currency.
+
+`craft` is a held bed rather than a cue, the same shape as `portal-cooldown`: it takes over the map's music
+for exactly as long as a recipe's assembly bar charges, loops seamlessly while the player waits, and releases
+back to the map on completion. Both holds are arbitrated in `audio_context.c`, which is also what makes them
+outlive a combat exchange instead of being cut by it — the modal owns the bar and only reports whether one is
+running.
 
 Two cues are about the crowd rather than about one event, because sounding them per entity buries the bus.
 `heal` is a milestone: regeneration ticks constantly and in small amounts, so it sounds only when an entity's
