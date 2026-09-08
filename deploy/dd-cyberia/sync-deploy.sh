@@ -53,13 +53,13 @@ main() {
     if [ "$(has_changes src/client/public/cyberia "$ENGINE_ROOT")" = "1" ]; then
         deploy_step "Commit cyberia public assets" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin cmt src/client/public/cyberia feat 'Update cyberia public assets'"
+        "cd $ENGINE_ROOT && git -C src/client/public/cyberia add . && node bin cmt src/client/public/cyberia feat 'Update cyberia public assets'"
     fi
     
     if [ "$(has_changes src/client/public/underpost "$ENGINE_ROOT")" = "1" ]; then
         deploy_step "Commit underpost public assets" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
+        "cd $ENGINE_ROOT && git -C src/client/public/underpost add . && node bin cmt src/client/public/underpost feat 'Update underpost public assets'"
     fi
     
     deploy_step "Apply format fixes" \
