@@ -177,9 +177,10 @@ const TEST_TIERS = [
       'src/api/cyberia-server-defaults/*.js',
       'src/api/cyberia-instance/cyberia-fallback-capture.js',
       'src/api/object-layer/object-layer.model.js',
+      'src/projects/cyberia/atlas-sprite-sheet-generator.js',
       'src/projects/cyberia/shape-generator.js',
     ],
-    description: 'Cyberia MMO extension: content, persistence and shape generation.',
+    description: 'Cyberia MMO extension: content, persistence, sprite atlases and shape generation.',
   },
   {
     name: 'contracts',

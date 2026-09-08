@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ObjectLayerEngine } from '../../src/projects/cyberia/object-layer.js';
+import { ObjectLayerEngine } from '../../../../src/projects/cyberia/object-layer.js';
 
 const select = (storedItemIds, requestedItemIds) =>
   ObjectLayerEngine.selectMinifyItemIds({ storedItemIds, requestedItemIds });

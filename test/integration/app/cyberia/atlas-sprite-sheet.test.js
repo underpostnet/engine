@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Jimp } from 'jimp';
-import { AtlasSpriteSheetGenerator as Atlas } from '../../src/projects/cyberia/atlas-sprite-sheet-generator.js';
+import { AtlasSpriteSheetGenerator as Atlas } from '../../../../src/projects/cyberia/atlas-sprite-sheet-generator.js';
 
 const colors = [
   [255, 0, 0, 255],
