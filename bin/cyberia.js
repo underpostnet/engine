@@ -5347,12 +5347,48 @@ try {
     .description('Packs this engine checkout as underpost-cli.tgz for a runtime image build context')
     .action((options) => stageCliPackage(options.outputPath || '.'));
 
-  runner.command('sync-src').action(() => {
-    fs.copyFileSync('./cyberia-server/README.md', './src/client/public/cyberia-docs/CYBERIA-SERVER.md');
-    fs.copyFileSync('./cyberia-server/Dockerfile', './src/runtime/cyberia-server/Dockerfile');
-    fs.copyFileSync('./cyberia-client/README.md', './src/client/public/cyberia-docs/CYBERIA-CLIENT.md');
-    fs.copyFileSync('./cyberia-client/Dockerfile', './src/runtime/cyberia-client/Dockerfile');
-  });
+  // Every file mirrored between this engine and a product checkout, engine path first. One
+  // table for both directions, so a pair cannot be synced one way and forgotten the other.
+  const cyberiaSrcSyncPairs = [
+    ['./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md'],
+    ['./src/runtime/cyberia-server/Dockerfile', './cyberia-server/Dockerfile'],
+    ['./src/runtime/cyberia-server/Dockerfile.dev', './cyberia-server/Dockerfile.dev'],
+    ['./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md'],
+    ['./src/runtime/cyberia-client/Dockerfile', './cyberia-client/Dockerfile'],
+    ['./src/runtime/cyberia-client/Dockerfile.dev', './cyberia-client/Dockerfile.dev'],
+  ];
+
+  runner
+    .command('sync-src')
+    .option('--from-repo', 'Copy from the product checkouts into this engine instead of out to them')
+    .option('--dry-run', 'Report what would be copied without writing it')
+    .description(
+      'Mirrors the cyberia product READMEs and runtime Dockerfiles between this engine and the product checkouts',
+    )
+    .action((options) => {
+      const fromRepo = options.fromRepo === true;
+      const dryRun = options.dryRun === true;
+      const copied = [];
+      const missing = [];
+
+      for (const [enginePath, repoPath] of cyberiaSrcSyncPairs) {
+        const [source, target] = fromRepo ? [repoPath, enginePath] : [enginePath, repoPath];
+        // A product checkout `setup-workspace` has not cloned yet must not leave the run
+        // half applied, so a missing source is reported rather than thrown on.
+        if (!fs.existsSync(source)) {
+          missing.push(source);
+          continue;
+        }
+        if (!dryRun) fs.copySync(source, target);
+        copied.push(`${source} -> ${target}`);
+      }
+
+      logger.info(`Cyberia sources synced ${fromRepo ? 'from' : 'to'} the product checkouts`, {
+        copied,
+        missing,
+        dryRun,
+      });
+    });
 
   runner.command('setup-workspace').action(() => {
     shellExec(`node bin fs src/client/public/cyberia --git --recursive --pull --deploy-id dd-cyberia`);
