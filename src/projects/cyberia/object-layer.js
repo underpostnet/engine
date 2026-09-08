@@ -877,6 +877,33 @@ export class ObjectLayerEngine {
     );
     return { cid: `sha256:${sha256}`, sha256, source: 'sha256-fallback' };
   }
+
+  /**
+   * Selects the item ids that `ol --minify` reprocesses.
+   *
+   * With no requested ids, every item id of the collection is reprocessed.
+   * With requested ids, only the ids that the collection holds are kept, so a
+   * rerun stays limited to documents that already exist.
+   *
+   * @static
+   * @param {Object} params
+   * @param {string[]} params.storedItemIds - Item ids of the ObjectLayer collection.
+   * @param {string[]} [params.requestedItemIds=[]] - Item ids given on the command line.
+   * @returns {{ itemIds: string[], missingItemIds: string[] }}
+   * @memberof CyberiaObjectLayer
+   */
+  static selectMinifyItemIds({ storedItemIds, requestedItemIds = [] }) {
+    const normalize = (ids) =>
+      [...new Set((ids ?? []).filter((id) => typeof id === 'string').map((id) => id.trim()))].filter(Boolean);
+    const stored = normalize(storedItemIds);
+    const requested = normalize(requestedItemIds);
+    if (requested.length === 0) return { itemIds: stored, missingItemIds: [] };
+    const storedSet = new Set(stored);
+    return {
+      itemIds: requested.filter((id) => storedSet.has(id)),
+      missingItemIds: requested.filter((id) => !storedSet.has(id)),
+    };
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -966,3 +993,10 @@ export const writeStaticFrameAssets = ObjectLayerEngine.writeStaticFrameAssets;
  * @memberof CyberiaObjectLayer
  */
 export const resolveCanonicalCid = ObjectLayerEngine.resolveCanonicalCid;
+
+/**
+ * @see {@link ObjectLayerEngine.selectMinifyItemIds}
+ * @function selectMinifyItemIds
+ * @memberof CyberiaObjectLayer
+ */
+export const selectMinifyItemIds = ObjectLayerEngine.selectMinifyItemIds;

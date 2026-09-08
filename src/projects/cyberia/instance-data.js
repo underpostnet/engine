@@ -653,9 +653,29 @@ async function fetchFullInstance(models, requestedInstanceCode) {
   };
 }
 
+/**
+ * Every ObjectLayer item id one instance runs on, as stored documents.
+ *
+ * Reads the world the same way the runtime does, so a tool never disagrees with the
+ * simulation about what a world owns. Ids the instance names but the collection does not
+ * hold are absent, because {@link fetchFullInstance} resolves the set against ObjectLayer.
+ *
+ * @param {object} models - Instance models, see {@link getInstanceModels}.
+ * @param {string} instanceCode - Instance code, must exist.
+ * @returns {Promise<string[]>} Item ids, no duplicates.
+ * @throws {Error} When no CyberiaInstance holds that code.
+ */
+async function fetchInstanceObjectLayerItemIds(models, instanceCode) {
+  const instance = await models.CyberiaInstance.findOne({ code: instanceCode }, { _id: 1 }).lean();
+  if (!instance) throw new Error(`CyberiaInstance "${instanceCode}" not found`);
+  const { objectLayers } = await fetchFullInstance(models, instanceCode);
+  return [...new Set(objectLayers.map((objectLayer) => objectLayer?.item?.id).filter(Boolean))];
+}
+
 export {
   buildCyberiaMmoInstanceEnv as buildInstanceEnv,
   buildCyberiaMmoInstanceEnv,
+  fetchInstanceObjectLayerItemIds,
   getInstanceModels,
   itemTypesOf,
   normalizeEntityDefault,

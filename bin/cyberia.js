@@ -43,6 +43,7 @@ import {
   pngDirectoryIteratorByObjectLayerType,
   buildImgFromTile,
 } from '../src/projects/cyberia/object-layer.js';
+import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/projects/cyberia/instance-data.js';
 import { getKeyframeDirectionsByCode } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { AtlasSpriteSheetGenerator } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
 import {
@@ -248,6 +249,14 @@ try {
       '--import',
       'Import specific item-id(s) passed as comma-separated command argument (e.g. ol hatchet,sword --import)',
     )
+    .option(
+      '--minify',
+      'Reprocess object layers of the DB collection from their source files, minified for client download (e.g. ol hatchet --minify, or ol --minify for all)',
+    )
+    .option(
+      '--instance <instance-code>',
+      'Limit --minify to the object layers one instance runs on (e.g. ol --minify --instance FOREST)',
+    )
     .option('--import-types [object-layer-type]', 'Batch import by object layer type e.g. skin,floors or all')
     .option('--show-frame [direction-frame]', 'View object layer frame for given item-id e.g. 08_0 (default: 08_0)')
     .option('--generate', 'Generate procedural object layers from semantic item-id (e.g. floor-desert)')
@@ -271,6 +280,8 @@ try {
        * @param {string|undefined} itemId - Optional item ID argument.
        * @param {Object} options - Command options parsed by Commander.
        * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
+       * @param {boolean} options.minify - Reprocess DB collection item(s) from their source files with the minified atlas pipeline.
+       * @param {string} options.instance - Instance code whose object layers --minify reprocesses.
        * @param {boolean|string} options.importTypes - Object layer types to batch import (e.g., 'all', 'skin,floor') or `false`.
        * @param {boolean|string} options.showFrame - Direction-frame string (e.g., '08_0') or `true` for default.
        * @param {string} options.envPath - Path to the `.env` file.
@@ -295,6 +306,8 @@ try {
         itemId,
         options = {
           import: false,
+          minify: false,
+          instance: '',
           importTypes: false,
           showFrame: '',
           envPath: '',
@@ -349,8 +362,21 @@ try {
           path,
         });
 
+        // --instance reads the world the runtime reads, so its content collections load too.
+        const instanceApis = options.instance
+          ? [
+              'cyberia-instance',
+              'cyberia-instance-conf',
+              'cyberia-map',
+              'cyberia-quest',
+              'cyberia-action',
+              'cyberia-skill',
+              'cyberia-entity-type-default',
+            ]
+          : [];
+
         await DataBaseProviderService.load({
-          apis: ['object-layer', 'object-layer-render-frames', 'atlas-sprite-sheet', 'file', 'ipfs'],
+          apis: ['object-layer', 'object-layer-render-frames', 'atlas-sprite-sheet', 'file', 'ipfs', ...instanceApis],
           host,
           path,
           db,
@@ -371,7 +397,9 @@ try {
         // duplicates and make the data.item.id index unique, so every later
         // write lands on one document. A read-only subcommand stays free of
         // side effects; findByItemId resolves the same canonical document.
-        if (options.import || options.importTypes || options.drop || options.generate) {
+        if (options.instance && !options.minify) logger.warn('--instance only narrows --minify, ignored');
+
+        if (options.import || options.minify || options.importTypes || options.drop || options.generate) {
           const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
           if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
           if (indexUpgraded) logger.info('Upgraded data.item.id index to unique');
@@ -505,18 +533,56 @@ try {
         /** @type {Object|null} */
         const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
 
-        // ── Handle --import (specific item-id(s)) ─────────────────────
-        if (options.import) {
-          if (!itemId) {
+        // ── Handle --import / --minify (specific item-id(s)) ──────────
+        // --minify takes the same path as --import: the source files rebuild
+        // the render frames and the generator packs a minified atlas. It reads
+        // its item ids from the collection, so it only reprocesses stored items.
+        if (options.import || options.minify) {
+          if (!itemId && !options.minify) {
             logger.error('item-id is required for --import (comma-separated item IDs, e.g. ol hatchet,sword --import)');
             process.exit(1);
           }
 
-          const itemIds = itemId
-            .split(',')
-            .map((id) => id.trim())
-            .filter(Boolean);
-          logger.info(`Importing specific item(s): ${itemIds.join(', ')}`);
+          const requestedItemIds = itemId
+            ? itemId
+                .split(',')
+                .map((id) => id.trim())
+                .filter(Boolean)
+            : [];
+
+          let itemIds = requestedItemIds;
+          if (options.minify) {
+            let storedItemIds;
+            if (options.instance) {
+              try {
+                storedItemIds = await fetchInstanceObjectLayerItemIds(
+                  getInstanceModels({ host, path }),
+                  options.instance,
+                );
+              } catch (instanceError) {
+                logger.error(instanceError.message);
+                process.exit(1);
+              }
+              logger.info(`Instance '${options.instance}' runs on ${storedItemIds.length} stored object layer(s)`);
+            } else {
+              const storedDocs = await ObjectLayer.find({}, { 'data.item.id': 1 }).lean();
+              storedItemIds = storedDocs.map((doc) => doc?.data?.item?.id);
+            }
+            const { itemIds: selectedItemIds, missingItemIds } = ObjectLayerEngine.selectMinifyItemIds({
+              storedItemIds,
+              requestedItemIds,
+            });
+            const scope = options.instance ? `instance '${options.instance}'` : 'the ObjectLayer collection';
+            if (missingItemIds.length > 0) logger.warn(`Not in ${scope}, skipped: ${missingItemIds.join(', ')}`);
+            if (selectedItemIds.length === 0) {
+              logger.error(`No object layer of ${scope} matches the requested item-id(s) for --minify`);
+              process.exit(1);
+            }
+            itemIds = selectedItemIds;
+            logger.info(`Minify reprocess for ${itemIds.length} stored item(s): ${itemIds.join(', ')}`);
+          } else {
+            logger.info(`Importing specific item(s): ${itemIds.join(', ')}`);
+          }
 
           for (const currentItemId of itemIds) {
             // Search across all asset type directories to find which type contains this item-id
