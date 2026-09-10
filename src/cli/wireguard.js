@@ -95,42 +95,27 @@ const EVENT_SERVICE_UNIT_PATH = '/etc/systemd/system/underpost-event.service';
 
 /**
  * @constant ENGINE_SYNC_STEPS
- * @description What bringing one node's checkout up to date consists of.
+ * @description Sequence of steps to bring a node's checkout up to date.
  *
- * The deploy's package script runs twice, and that is the shape of the whole sequence: every
- * step between them is the node's own CLI, which cannot load from a checkout whose installed
- * packages no longer match its manifest — so the first run repairs the tree it finds, and the
- * second installs the manifest the switch just landed. The first is advisory because a node
- * whose tree predates that script must still reach the switch that gives it one.
+ * The sync runs the node's own CLI, bracketed by two critical installs:
  *
- * The switch moves the node between package scopes, and everything the node runs off that scope
- * has to follow it, or the sync leaves the node running the previous one:
- * - the repository pair is written into the node's host configuration, because that store is the
- *   only place `deploy/lib/host.sh` reads the source a later `prepare_host` pulls from. Without
- *   it that preparation resolves the default pairing and undoes the switch.
- * - the cluster's CronJob manifests are regenerated and republished, because their pod bodies run
- *   the checkout that just changed.
- * - the supervised services are reconciled through their own generators, on the unit file's
- *   existence rather than on the unit being active: one the previous scope's tree left dead is
- *   exactly the one that has to come back, and `is-active` skipped precisely that case.
+ * 1. **Bootstrap Install:** Restores the original `package.json` from git and installs it.
+ *    This ensures the CLI remains runnable with the current code tree before any changes are applied.
+ * 2. **Deploy Install:** Installs the deploy's `package.json` and links the CLI. This happens
+ *    after both the configuration and source code switches have landed.
  *
- * All of those are scoped to the role of the node reached — see {@link NODE_ROLE_STEPS}.
- *
- * A step whose placeholder resolves to nothing is dropped rather than run empty: a monorepo sync
- * belongs to no deploy, a deploy that ships no package script has nothing to run, and a run
- * without a token must not overwrite the node's with a blank.
  * @memberof UnderpostWireguard
  */
 const ENGINE_SYNC_STEPS = [
-  { command: 'bash <deploy-package-script>', halt: false },
+  { command: 'git checkout -- package.json; npm install', halt: false },
   { command: 'node bin host set GITHUB_TOKEN <github-token>' },
-  { command: 'underpost run clean', halt: true },
-  { command: 'underpost cmt --switch-repo <engine> --target-branch <engine-branch>', halt: true },
+  { command: 'node bin run clean', halt: true },
   {
-    command: 'underpost cmt ./engine-private --switch-repo <engine-private> --target-branch <engine-private-branch>',
+    command: 'node bin cmt ./engine-private --switch-repo <engine-private> --target-branch <engine-private-branch>',
     halt: true,
   },
-  { command: 'bash <deploy-package-script>', halt: true },
+  { command: 'node bin cmt --switch-repo <engine> --target-branch <engine-branch>', halt: true },
+  { command: '<package-install-command>', halt: true },
   { command: 'node bin host set ENGINE_SRC_REPO <engine>', halt: true },
   { command: 'node bin host set ENGINE_SRC_PRIVATE_REPO <engine-private>', halt: true },
   { command: '<cron-reconcile-command>', halt: false },
@@ -159,10 +144,9 @@ const deployIdFactory = (deployId) => {
  * being synced actually ships one.
  *
  * Both halves have to hold. A monorepo sync belongs to no deploy, and a deploy that ships no
- * script of its own would leave the node running `bash` against a path that does not exist —
- * which the second, halting occurrence turns into a failed sync rather than a missing install.
- * The check reads this checkout because it is the tree the node lands on once the switch
- * completes, which is the only tree whose contents the step can be resolved against.
+ * script of its own would leave the node running `bash` against a path that does not exist. The
+ * check reads this checkout because it is the tree the node lands on once the switch completes,
+ * which is the only tree whose contents the step can be resolved against.
  * @param {string} engine - Engine source repository the node is switched onto.
  * @returns {string} Path to that deploy's package script, or `''` when there is none to run.
  * @memberof UnderpostWireguard
@@ -171,6 +155,23 @@ const deployPackageScriptFactory = (engine = '') => {
   const deployId = deployIdFactory(Underpost.repo.confIdFactory(engine));
   const path = deployId ? `./deploy/${deployId}/package.sh` : '';
   return path && fs.existsSync(path) ? path : '';
+};
+
+/**
+ * @method packageInstallCommandFactory
+ * @description How a node installs against the source a switch just landed.
+ *
+ * A deploy's own script is preferred because it installs that deploy's manifest and links the
+ * CLI. Where there is none — a monorepo sync, or a deploy that ships no script — the checkout's
+ * own manifest is installed instead, so the step is never dropped: every sync replaces the
+ * source, and source the installed packages predate is what breaks the next command.
+ * @param {string} engine - Engine source repository the node is switched onto.
+ * @returns {string} The install command for that source.
+ * @memberof UnderpostWireguard
+ */
+const packageInstallCommandFactory = (engine = '') => {
+  const packageScript = deployPackageScriptFactory(engine);
+  return packageScript ? `bash ${packageScript}` : 'npm install';
 };
 
 /**
@@ -2666,7 +2667,7 @@ class UnderpostWireguard {
         '<engine-private>': enginePrivate,
         '<engine-branch>': Underpost.repo.getDefaultBranch(engine),
         '<engine>': engine,
-        '<deploy-package-script>': deployPackageScriptFactory(engine),
+        '<package-install-command>': packageInstallCommandFactory(engine),
         ...nodeRoleStepsFactory(options.nodeRole),
         '<github-token>': process.env.GITHUB_TOKEN || '',
       };

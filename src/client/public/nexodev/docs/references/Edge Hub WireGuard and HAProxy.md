@@ -471,9 +471,9 @@ Per node, in the checkout at `/home/dd/engine`, as **one** SSH session:
 ```bash
 bash ./deploy/<deploy-id>/package.sh
 node bin host set GITHUB_TOKEN <github-token>
-underpost run clean
-underpost cmt --switch-repo <repo-engine> --target-branch <default-branch>
-underpost cmt ./engine-private --switch-repo <repo-engine-private> --target-branch <default-branch>
+node bin run clean
+node bin cmt --switch-repo <repo-engine> --target-branch <default-branch>
+node bin cmt ./engine-private --switch-repo <repo-engine-private> --target-branch <default-branch>
 bash ./deploy/<deploy-id>/package.sh
 node bin host set ENGINE_SRC_REPO <repo-engine>
 node bin host set ENGINE_SRC_PRIVATE_REPO <repo-engine-private>
@@ -488,6 +488,11 @@ whose installed packages no longer match its manifest. The first run repairs the
 advisory, because a node whose tree predates that script still has to reach the switch that gives
 it one — and the second installs the manifest the switch just landed. Both are dropped for a
 source that belongs to no deploy, or to a deploy that ships no package script of its own.
+
+Every step that needs the CLI enters it as `node bin`, never as the globally linked `underpost`.
+That link is a symlink onto `bin/index.js` inside the checkout these steps restore, so the first
+step to run `git checkout .` rewrites its target's mode and the next step stops on `Permission
+denied`.
 
 The switch moves the node between package scopes, and the steps after it are what makes
 everything running off that scope follow. The last two are scoped to the node's role, read from

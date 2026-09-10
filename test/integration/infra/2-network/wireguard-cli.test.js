@@ -876,10 +876,12 @@ describe('edge host provisioning', () => {
     });
 
     it.skipIf(!shipsCyberiaPackageScript)(
-      'installs the deploy manifest before the CLI is used, and again on what the switch landed',
+      'installs the checkout manifest before the CLI is used, and the deploy manifest on what the switch landed',
       () => {
         // Regression: a node whose install no longer matched its manifest could not load its own
-        // CLI, so the first step of the sync died before the step that repairs the tree.
+        // CLI, so the first step of the sync died before the step that repairs the tree. The
+        // bootstrap installs the checkout's own manifest because that is the one matching the code
+        // already in the tree; the deploy manifest can only be installed once its switch lands it.
         const previousUser = process.env.GITHUB_USERNAME;
         const previousToken = process.env.GITHUB_TOKEN;
         process.env.GITHUB_USERNAME = 'fixture-org';
@@ -892,20 +894,25 @@ describe('edge host provisioning', () => {
           const commands = steps.map(({ command }) => command);
           const packageStep = 'bash ./deploy/dd-cyberia/package.sh';
 
-          expect(commands[0]).to.equal(packageStep);
-          expect(steps[0].halt, 'a tree predating the script must still reach the switch').to.not.equal(true);
+          expect(commands[0]).to.equal('git checkout -- package.json; npm install');
+          expect(steps[0].halt, 'a tree that cannot be restored must still reach the switch').to.not.equal(true);
           expect(commands).to.not.include('npm link --force');
           const last = commands.lastIndexOf(packageStep);
+          expect(last).to.equal(commands.indexOf(packageStep));
           expect(last).to.be.greaterThan(commands.findIndex((command) => command.includes('./engine-private')));
           expect(last).to.be.lessThan(commands.findIndex((command) => command.includes('underpost-event')));
           expect(steps[last].halt).to.equal(true);
 
-          // The monorepo belongs to no deploy, so it carries no package step at all.
-          expect(
-            UnderpostWireguard.API.syncCommands({ repoEngine: 'fixture-org/engine', nodeRole: 'control' }),
-          ).to.satisfy((monorepo) =>
-            monorepo.every(({ command }) => !command.includes('package.sh') && !/<[a-z-]+>/.test(command)),
+          // The monorepo belongs to no deploy, so its post-switch install falls back to the
+          // checkout's own manifest rather than being dropped.
+          const monorepo = UnderpostWireguard.API.syncCommands({
+            repoEngine: 'fixture-org/engine',
+            nodeRole: 'control',
+          }).map(({ command }) => command);
+          expect(monorepo.every((command) => !command.includes('package.sh') && !/<[a-z-]+>/.test(command))).to.equal(
+            true,
           );
+          expect(monorepo).to.include('npm install');
         } finally {
           if (previousUser === undefined) delete process.env.GITHUB_USERNAME;
           else process.env.GITHUB_USERNAME = previousUser;
@@ -914,6 +921,23 @@ describe('edge host provisioning', () => {
         }
       },
     );
+
+    it('enters the CLI through Node, never through the link its own steps invalidate', () => {
+      // Regression: the global `underpost` is a symlink onto `bin/index.js` in the checkout the
+      // sync restores, so `run clean` rewrote that file's mode and every later step died on
+      // `Permission denied`.
+      const previous = process.env.GITHUB_USERNAME;
+      process.env.GITHUB_USERNAME = 'fixture-org';
+      try {
+        for (const nodeRole of ['control', 'worker', 'hub'])
+          expect(UnderpostWireguard.API.syncCommands({ nodeRole })).to.satisfy((steps) =>
+            steps.every(({ command }) => !/(^|[\s;&|])underpost\s/.test(command)),
+          );
+      } finally {
+        if (previous === undefined) delete process.env.GITHUB_USERNAME;
+        else process.env.GITHUB_USERNAME = previous;
+      }
+    });
 
     it('never writes a blank token onto a node', () => {
       const previous = process.env.GITHUB_TOKEN;
