@@ -27,4 +27,38 @@ describe('rerouted plain reads stay machine-readable', () => {
     },
     60000,
   );
+
+  it.skipIf(!fs.existsSync(new URL(CYBERIA_CLI, repoRoot)))(
+    'keeps an argument whose value is the CLI name through the reroute',
+    () => {
+      // Regression: the reroute dropped every argv token equal to `underpost`, so an option value
+      // that happens to be the CLI name was removed and the parse failed on a missing argument.
+      // A redundant name can only precede the command; everything after it is an argument.
+      let output = '';
+      try {
+        output = execFileSync(
+          process.execPath,
+          [
+            CYBERIA_CLI,
+            'fs',
+            'src/client/public/underpost',
+            '--deploy-id',
+            'dd-cyberia',
+            '--pull',
+            '--tracked',
+            '--storage-id',
+            'underpost',
+          ],
+          { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+        );
+      } catch (error) {
+        output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+      }
+
+      // Whatever the run goes on to do, it must not fail on the argument it was given.
+      expect(output).to.not.include('argument missing');
+      expect(output).to.include('Rerouting to underpost cli');
+    },
+    60000,
+  );
 });

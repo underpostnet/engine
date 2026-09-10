@@ -6422,7 +6422,19 @@ node bin image --path cyberia-client \
   // subprocess, a CLI parse error, a missing module — must exit non-zero, so a
   // CI parent sees the failure.
   if (error && error.message === 'Trigger underpost passthrough') {
-    process.argv = process.argv.filter((c) => c !== 'underpost');
+    // A redundant CLI name can only appear before the command; everything from the command
+    // onward is an argument. Filtering the whole of argv removed those too, so an option whose
+    // value happens to be `underpost` — a storage id, a public asset path — lost it, and the
+    // parse failed on a missing argument rather than on anything the caller wrote.
+    const commandIndex = process.argv.findIndex(
+      (token, index) => index >= 2 && underpostProgram.commands.some((command) => command._name === token),
+    );
+    if (commandIndex > 2)
+      process.argv = [
+        ...process.argv.slice(0, 2),
+        ...process.argv.slice(2, commandIndex).filter((token) => token !== 'underpost'),
+        ...process.argv.slice(commandIndex),
+      ];
     if (!process.argv.includes('--plain')) logger.info('Rerouting to underpost cli...');
     try {
       await underpostProgram.parseAsync();
