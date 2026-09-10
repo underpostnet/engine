@@ -93,12 +93,10 @@ const replaceTemplateReferences = (value, templateRepositoryName, repositoryName
 /**
  * Builds the development dependency set for a generated product repository.
  *
- * Product packages replace the engine's broad runtime dependency set with a
- * deliberately small product-specific one. The generated repository still
- * contains the engine source, build scripts, Vitest configuration and tests,
- * though, so those engine dependencies remain necessary when developing or
- * testing the checkout. Keeping them as dev dependencies makes CI complete
- * without adding them to installations of the published product package.
+ * A product's runtime set is the engine's plus whatever its catalog pins, so what stays here is
+ * the toolchain the generated repository needs to build and test itself: engine dev
+ * dependencies, the template's own, and anything the product already declares at runtime is
+ * dropped rather than pinned twice.
  *
  * @param {object} [params]
  * @param {Record<string, string>} [params.engineDependencies]
@@ -178,6 +176,46 @@ const buildProductPackageJson = ({
     ...(Object.keys(devDependencies).length ? { devDependencies } : {}),
     scripts: { ...base.scripts, ...customScripts },
     ...(customBin === undefined ? {} : { bin: { ...customBin } }),
+  };
+};
+
+/**
+ * The manifest a product publishes to npm, from the one its repository runs on.
+ *
+ * A product repository declares the engine's runtime dependencies because it runs the engine
+ * source it ships. Somebody installing the product from the registry does not run that
+ * checkout: they get the engine through the published `underpost` package, so the tarball
+ * declares that package and the catalog's pins, and everything else stays the toolchain the
+ * repository builds and tests itself with. Publishing the repository's manifest unchanged
+ * would install a second copy of the engine's dependency set next to `underpost`'s own.
+ *
+ * The rewrite belongs to the publish step alone — never to the checkout, whose install is what
+ * a node and a pod run from.
+ * @param {object} params
+ * @param {object} params.packageJson - The repository's manifest.
+ * @param {object} [params.catalog] - That product's catalog.
+ * @param {string} [params.underpostVersion] - Engine CLI version to pin; the manifest's own otherwise.
+ * @returns {object} The manifest to publish.
+ * @memberof PackageBuilder
+ */
+const publishedProductPackageJson = ({ packageJson, catalog = {}, underpostVersion = '' } = {}) => {
+  if (!packageJson || typeof packageJson !== 'object')
+    throw new TypeError('publishedProductPackageJson requires packageJson');
+
+  const version = `${underpostVersion || packageJson.version || ''}`.replace(/^v/, '');
+  if (!version) throw new TypeError('publishedProductPackageJson requires a version to pin the engine CLI at');
+
+  const dependencies = { underpost: `^${version}`, ...(catalog.packageDependencies ?? {}) };
+  const devDependencies = productDevDependenciesFactory({
+    engineDependencies: packageJson.dependencies,
+    engineDevDependencies: packageJson.devDependencies,
+    productDependencies: dependencies,
+  });
+
+  return {
+    ...packageJson,
+    dependencies,
+    ...(Object.keys(devDependencies).length ? { devDependencies } : {}),
   };
 };
 
@@ -276,22 +314,26 @@ const buildDeployPackageJson = ({
 /**
  * The product-CLI manifest overrides a catalog declares, for {@link buildProductPackageJson}.
  *
- * A product package replaces the engine's runtime dependency set with its own, so it always
- * carries the published `underpost` alongside whatever the catalog pins. A catalog that
- * declares no package contract returns nothing, leaving the base template's manifest as it is.
+ * A product package carries the engine's own runtime dependencies, not the published
+ * `underpost` package. A product repository ships the engine source and runs it directly, so
+ * depending on the package installed a second copy of the engine whose nested tree `src/`
+ * cannot resolve from — and a dependency pinned at a different version there was reachable
+ * only as a dev entry, which a production install omits, leaving the deployment unable to
+ * import its own modules. A catalog that declares no package contract returns nothing, leaving
+ * the base template's manifest as it is.
  * @param {object} params
  * @param {object} params.catalog - The deploy's product catalog.
- * @param {string} params.underpostVersion - Version of the engine CLI the product depends on.
+ * @param {Record<string, string>} [params.engineDependencies] - The engine's runtime dependencies.
  * @returns {{customDependencies?: object, customScripts?: object, customBin?: object}} Overrides.
  * @memberof PackageBuilder
  */
-const productPackageOptionsFactory = ({ catalog = {}, underpostVersion = '' } = {}) => {
+const productPackageOptionsFactory = ({ catalog = {}, engineDependencies = {} } = {}) => {
   const dependencies = catalog.packageDependencies ?? {};
   const bin = catalog.packageBin ?? {};
   if (Object.keys(dependencies).length === 0 && Object.keys(bin).length === 0) return {};
 
   return {
-    customDependencies: { underpost: `^${`${underpostVersion}`.replace(/^v/, '')}`, ...dependencies },
+    customDependencies: { ...engineDependencies, ...dependencies },
     customScripts: { ...catalog.packageScripts },
     ...(Object.keys(bin).length ? { customBin: { ...bin } } : {}),
   };
@@ -457,6 +499,7 @@ export {
   packageRepositoryFactory,
   productDevDependenciesFactory,
   productPackageOptionsFactory,
+  publishedProductPackageJson,
   renamePackage,
   setPackageRepository,
   stageCliPackage,

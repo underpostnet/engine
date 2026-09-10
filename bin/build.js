@@ -125,7 +125,7 @@ const buildDeployTemplate = async (confName) => {
 
   // The manifest a product publishes is its catalog's declaration, resolved the same way for
   // every product: only the files a product places in the template are its own business.
-  const packageOptions = productPackageOptionsFactory({ catalog, underpostVersion: Underpost.version });
+  const packageOptions = productPackageOptionsFactory({ catalog, engineDependencies: sourcePackageJson.dependencies });
 
   switch (confName) {
     case 'dd-cyberia': {

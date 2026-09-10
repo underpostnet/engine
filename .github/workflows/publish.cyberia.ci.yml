@@ -32,6 +32,28 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # The repository declares the engine's runtime dependencies because it runs the engine
+      # source it ships; a registry consumer gets them through `underpost` instead. This restores
+      # the manifest the package published before that split, and only in the tarball — after
+      # `npm ci`, so the lockfile the checkout installs from is the repository's own.
+      - name: Restore the published dependency set
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import { publishedProductPackageJson, DEPLOY_MANIFEST_INDENT } from "./src/server/build/package.js";
+            import { loadDeployCatalog } from "./src/server/build/catalog.js";
+            const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf8"));
+            const published = publishedProductPackageJson({
+              packageJson,
+              catalog: await loadDeployCatalog("dd-cyberia"),
+            });
+            fs.writeFileSync("./package.json", JSON.stringify(published, null, DEPLOY_MANIFEST_INDENT) + "\n", "utf8");
+            console.log("published manifest", {
+              dependencies: Object.keys(published.dependencies).length,
+              devDependencies: Object.keys(published.devDependencies ?? {}).length,
+            });
+          '
+
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -56,6 +78,28 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+
+      # The repository declares the engine's runtime dependencies because it runs the engine
+      # source it ships; a registry consumer gets them through `underpost` instead. This restores
+      # the manifest the package published before that split, and only in the tarball — after
+      # `npm ci`, so the lockfile the checkout installs from is the repository's own.
+      - name: Restore the published dependency set
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import { publishedProductPackageJson, DEPLOY_MANIFEST_INDENT } from "./src/server/build/package.js";
+            import { loadDeployCatalog } from "./src/server/build/catalog.js";
+            const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf8"));
+            const published = publishedProductPackageJson({
+              packageJson,
+              catalog: await loadDeployCatalog("dd-cyberia"),
+            });
+            fs.writeFileSync("./package.json", JSON.stringify(published, null, DEPLOY_MANIFEST_INDENT) + "\n", "utf8");
+            console.log("published manifest", {
+              dependencies: Object.keys(published.dependencies).length,
+              devDependencies: Object.keys(published.devDependencies ?? {}).length,
+            });
+          '
 
       - name: Publish to npm
         env:

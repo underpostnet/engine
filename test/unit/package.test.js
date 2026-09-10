@@ -1,5 +1,7 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
+// Named import: js-yaml's ESM build exports no default.
+import { load } from 'js-yaml';
 import shell from 'shelljs';
 import { program } from '../../src/cli/index.js';
 import {
@@ -14,6 +16,7 @@ import {
   deployPackagePathFactory,
   productDevDependenciesFactory,
   productPackageOptionsFactory,
+  publishedProductPackageJson,
   stagePackageArchive,
   syncDeployPackages,
 } from '../../src/server/build/package.js';
@@ -38,7 +41,7 @@ describe('generated product package dependencies', () => {
         },
         productDependencies: {
           'runtime-shared': '3.0.0',
-          underpost: '^3.3.0',
+          nodemailer: '^10.0.0',
         },
         productDevDependencies: {
           'product-dev-only': '4.0.0',
@@ -72,7 +75,7 @@ describe('generated product package dependencies', () => {
       },
       catalog: { description: 'Cyberia CLI', keywords: ['cyberia'] },
       confName: 'dd-cyberia',
-      customDependencies: { underpost: '^3.3.0' },
+      customDependencies: { nodemailer: '^10.0.0' },
       customScripts: { build: 'node bin client' },
       customBin: { cyberia: 'bin/index.js' },
     });
@@ -82,7 +85,7 @@ describe('generated product package dependencies', () => {
       description: 'Cyberia CLI',
       keywords: ['cyberia'],
       bin: { cyberia: 'bin/index.js' },
-      dependencies: { underpost: '^3.3.0' },
+      dependencies: { nodemailer: '^10.0.0' },
       devDependencies: { express: '5.2.1', vitest: '4.1.11' },
       scripts: { test: 'node bin test', build: 'node bin client' },
     });
@@ -265,25 +268,94 @@ describe('generated deploy package manifests', () => {
 });
 
 describe('product manifest overrides read the catalog', () => {
-  it('carries the published engine CLI alongside the catalog pins', () => {
-    expect(
-      productPackageOptionsFactory({
-        catalog: {
-          packageDependencies: { ethers: '~6.16.0' },
-          packageBin: { cyberia: 'bin/index.js' },
-          packageScripts: { 'docker:up': 'node bin docker-compose --up' },
-        },
-        underpostVersion: 'v3.3.0',
-      }),
-    ).to.deep.equal({
-      customDependencies: { underpost: '^3.3.0', ethers: '~6.16.0' },
+  it('carries the engine runtime dependencies alongside the catalog pins', () => {
+    // Regression: the product depended on the published `underpost` package instead, which
+    // installed a second engine whose nested `nodemailer` `src/` could not resolve, while the
+    // hoistable copy survived only as a dev entry a production install omits.
+    const options = productPackageOptionsFactory({
+      catalog: {
+        packageDependencies: { ethers: '~6.16.0' },
+        packageBin: { cyberia: 'bin/index.js' },
+        packageScripts: { 'docker:up': 'node bin docker-compose --up' },
+      },
+      engineDependencies: { express: '^5.2.1', nodemailer: '^10.0.0' },
+    });
+
+    expect(options).to.deep.equal({
+      customDependencies: { express: '^5.2.1', nodemailer: '^10.0.0', ethers: '~6.16.0' },
       customScripts: { 'docker:up': 'node bin docker-compose --up' },
       customBin: { cyberia: 'bin/index.js' },
     });
+    expect(options.customDependencies).to.not.have.property('underpost');
+  });
+
+  it('lets a catalog pin override the engine version of the same dependency', () => {
+    expect(
+      productPackageOptionsFactory({
+        catalog: { packageDependencies: { sharp: '^0.35.3' } },
+        engineDependencies: { sharp: '^0.34.0' },
+      }).customDependencies,
+    ).to.deep.equal({ sharp: '^0.35.3' });
   });
 
   it('leaves the base template manifest alone for a catalog that declares no package', () => {
-    expect(productPackageOptionsFactory({ catalog: {}, underpostVersion: 'v3.3.0' })).to.deep.equal({});
+    expect(productPackageOptionsFactory({ catalog: {}, engineDependencies: { express: '^5.2.1' } })).to.deep.equal({});
+  });
+});
+
+describe('the manifest a product publishes to npm', () => {
+  it('trades the engine runtime set for the published CLI and the catalog pins', () => {
+    const published = publishedProductPackageJson({
+      packageJson: {
+        name: 'cyberia',
+        version: '3.3.73',
+        dependencies: { express: '^5.2.1', nodemailer: '^10.0.0', sharp: '^0.35.3' },
+        devDependencies: { vitest: '5.0.0' },
+      },
+      catalog: { packageDependencies: { sharp: '^0.35.3', ethers: '~6.16.0' } },
+    });
+
+    expect(published.dependencies).to.deep.equal({ underpost: '^3.3.73', sharp: '^0.35.3', ethers: '~6.16.0' });
+    expect(published.devDependencies).to.deep.equal({
+      express: '^5.2.1',
+      nodemailer: '^10.0.0',
+      vitest: '5.0.0',
+    });
+    expect(published.name).to.equal('cyberia');
+  });
+
+  it('pins the engine CLI at the version it is given, tag stripped', () => {
+    expect(
+      publishedProductPackageJson({ packageJson: { version: '3.3.73' }, underpostVersion: 'v4.0.0' }).dependencies,
+    ).to.deep.equal({ underpost: '^4.0.0' });
+  });
+
+  it('refuses a manifest it cannot pin the engine CLI from', () => {
+    expect(() => publishedProductPackageJson()).to.throw('packageJson');
+    expect(() => publishedProductPackageJson({ packageJson: { name: 'cyberia' } })).to.throw('version');
+  });
+
+  it('leaves the repository manifest as the checkout installs from', () => {
+    const packageJson = { version: '1.0.0', dependencies: { express: '^5.2.1' } };
+    publishedProductPackageJson({ packageJson });
+
+    expect(packageJson).to.deep.equal({ version: '1.0.0', dependencies: { express: '^5.2.1' } });
+  });
+
+  it('is rewritten by the publish workflow, after the install and before every publish', () => {
+    // The rewrite is the publish step's alone: a checkout that installed the published shape
+    // would run the engine source against a second engine in node_modules.
+    const workflow = load(fs.readFileSync('./.github/workflows/publish.cyberia.ci.yml', 'utf8'));
+
+    for (const [job, { steps }] of Object.entries(workflow.jobs)) {
+      const commands = steps.map(({ run }) => `${run ?? ''}`);
+      const restore = commands.findIndex((command) => command.includes('publishedProductPackageJson'));
+      const install = commands.findIndex((command) => command.trim().startsWith('npm ci'));
+      const publish = commands.findIndex((command) => command.includes('npm publish'));
+
+      expect(restore, `${job}: restores the published manifest`).to.be.greaterThan(install);
+      expect(restore, `${job}: restores it before publishing`).to.be.lessThan(publish);
+    }
   });
 });
 
