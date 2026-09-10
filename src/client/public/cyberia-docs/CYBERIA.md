@@ -157,17 +157,17 @@ Three supervised processes run in parallel, each with its own monitor and reconn
 
 ```text
         ┌──────────────────────────────────────────────────────────────┐
-        │                    SUPERVISION (parallel)                      │
-        │                                                                │
-        │   engine-cyberia        cyberia-server        cyberia-client   │
-        │   ┌────────────┐        ┌────────────┐        ┌────────────┐   │
-        │   │  monitor   │        │  monitor   │        │  monitor   │   │
-        │   │ +reconnect │        │ +reconnect │        │ +reconnect │   │
-        │   └─────┬──────┘        └─────┬──────┘        └─────┬──────┘   │
-        │         │                     │                     │          │
-        │         └──────────┬──────────┴──────────┬──────────┘          │
-        │                    ▼                     ▼                     │
-        │            all three up & connected?                          │
+        │                    SUPERVISION (parallel)                    │
+        │                                                              │
+        │   engine-cyberia        cyberia-server        cyberia-client │
+        │   ┌────────────┐        ┌────────────┐        ┌────────────┐ │
+        │   │  monitor   │        │  monitor   │        │  monitor   │ │
+        │   │ +reconnect │        │ +reconnect │        │ +reconnect │ │
+        │   └─────┬──────┘        └─────┬──────┘        └─────┬──────┘ │
+        │         │                     │                     │        │
+        │         └──────────┬──────────┴──────────┬──────────┘        │
+        │                    ▼                     ▼                   │
+        │            all three up & connected?                         │
         └────────────────────────────┬─────────────────────────────────┘
                                       │
                 ┌─────────────────────┼─────────────────────┐

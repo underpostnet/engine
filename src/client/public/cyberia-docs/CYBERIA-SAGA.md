@@ -100,11 +100,11 @@ security presence, taxes, historical scars — never the subject.
 To make a faction the **central driver** of the saga, name one or more with
 `--faction-context` (comma-separated). Valid keys:
 
-| Key       | Confederation                                  |
-| --------- | ---------------------------------------------- |
-| `zenith`  | the Zenith Empire (Red)                        |
-| `nova`    | the Nova Republic (Blue)                       |
-| `atlas`   | the Atlas Confederation (Yellow)               |
+| Key       | Confederation                                    |
+| --------- | ------------------------------------------------ |
+| `zenith`  | the Zenith Empire (Red)                          |
+| `nova`    | the Nova Republic (Blue)                         |
+| `atlas`   | the Atlas Confederation (Yellow)                 |
 | `neutral` | unaligned independent enclaves / neutral parties |
 
 ```bash
@@ -133,23 +133,23 @@ Two optional flags steer it; **both default to random** when unset:
   from (unset → a random non-empty subset, so runs vary their cultural mix).
   Unknown keys warn and are skipped. Valid keys:
 
-  | Key | Flavor |
-  | --- | ------ |
-  | `low_level_synthetics` | serialized / technical utility-frame designations |
-  | `high_fidelity_synthetics` | refined, near-human synthetic names |
-  | `global_latin_diaspora` | Latin / Iberian-descended |
-  | `east_asian_pacific_diaspora` | East-Asian / Pacific-descended |
-  | `middle_eastern_turkish_diaspora` | Middle-Eastern / Turkish-descended |
-  | `sub_saharan_african_diaspora` | Sub-Saharan African-descended |
-  | `classic_western_scifi` | gritty Anglo operators / enforcers |
-  | `mutagen_clans` | organic, mutation-flavored clan names |
+  | Key                               | Flavor                                            |
+  | --------------------------------- | ------------------------------------------------- |
+  | `low_level_synthetics`            | serialized / technical utility-frame designations |
+  | `high_fidelity_synthetics`        | refined, near-human synthetic names               |
+  | `global_latin_diaspora`           | Latin / Iberian-descended                         |
+  | `east_asian_pacific_diaspora`     | East-Asian / Pacific-descended                    |
+  | `middle_eastern_turkish_diaspora` | Middle-Eastern / Turkish-descended                |
+  | `sub_saharan_african_diaspora`    | Sub-Saharan African-descended                     |
+  | `classic_western_scifi`           | gritty Anglo operators / enforcers                |
+  | `mutagen_clans`                   | organic, mutation-flavored clan names             |
 
 - **`--cultural-exposure <mode>`** — how mixed the population is (unset → random):
 
-  | Mode | Effect |
-  | ---- | ------ |
-  | `cosmopolitan` | heavy mixing, hybrid surnames, intermarriage — maximizes variety |
-  | `local` | isolated clans/enclaves, strong local naming traditions, internally consistent |
+  | Mode           | Effect                                                                         |
+  | -------------- | ------------------------------------------------------------------------------ |
+  | `cosmopolitan` | heavy mixing, hybrid surnames, intermarriage — maximizes variety               |
+  | `local`        | isolated clans/enclaves, strong local naming traditions, internally consistent |
 
 ```bash
 # Latin + East-Asian diaspora names in a highly mixed, cosmopolitan population
@@ -166,26 +166,26 @@ node bin/cyberia.js generate-saga --character-context 'mutagen_clans' --cultural
 The theme commits to one of four broad narrative types — chosen **uniformly
 (~25% each)** unless forced with `--tone`:
 
-| Tone        | Register                                                        |
-| ----------- | -------------------------------------------------------------- |
-| `adventure` | noir high-risk missions: covert ops, sabotage, combat, rogue AI, mystery |
+| Tone        | Register                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `adventure` | noir high-risk missions: covert ops, sabotage, combat, rogue AI, mystery                                          |
 | `politics`  | power & ideology at any scale — councils, clans, enclaves, revolutions (confederation geopolitics only sometimes) |
-| `tragic`    | heartbreaking, intimate: family, bonds, loss, grief            |
-| `comedy`    | everyday absurdity and silliness, played for humor             |
+| `tragic`    | heartbreaking, intimate: family, bonds, loss, grief                                                               |
+| `comedy`    | everyday absurdity and silliness, played for humor                                                                |
 
 #### Spatial context (physical vs. hyperspace)
 
 Cyberia has two equally important layers — the **Physical Layer** (fleets,
 colonies, logistics, force) and the **Hyperspace Layer** (persistent Instances,
-memory-cities, digital ecosystems). Because the lore is titled *The Frontier of
-Hyperspace*, an unconstrained model drifts to hyperspace-only premises. So the
+memory-cities, digital ecosystems). Because the lore is titled _The Frontier of
+Hyperspace_, an unconstrained model drifts to hyperspace-only premises. So the
 auto-theme picks a spatial context **explicitly and uniformly (~33.3% each)**:
 
-| Context      | Premise lives in…                                              |
-| ------------ | -------------------------------------------------------------- |
-| `physical`   | the material frontier only — no hyperspace                     |
-| `mixed`      | the porous interplay where events bleed between both layers    |
-| `hyperspace` | inside the Instances only — not the physical frontier          |
+| Context      | Premise lives in…                                           |
+| ------------ | ----------------------------------------------------------- |
+| `physical`   | the material frontier only — no hyperspace                  |
+| `mixed`      | the porous interplay where events bleed between both layers |
+| `hyperspace` | inside the Instances only — not the physical frontier       |
 
 Force one with `--space-context <physical\|mixed\|hyperspace>`; an invalid value
 warns and falls back to random. This applies to auto-generation only (with
@@ -265,25 +265,25 @@ overwritten and codes are never duplicated.
 
 Options:
 
-| Flag                       | Description                                          |
-| -------------------------- | ---------------------------------------------------- |
-| `--prompt <theme>`         | Theme seed. Omit to auto-generate from the lore.     |
-| `--import <file>`          | Load a generated payload file into the DB.           |
-| `--lore-path <path>`       | Override the base-lore doc (auto-generate mode).     |
-| `--space-context <ctx>`    | Force `physical` \| `mixed` \| `hyperspace` (else random). |
-| `--tone <tone>`            | Force `adventure` \| `politics` \| `tragic` \| `comedy` (else random). |
-| `--faction-context <keys>` | Comma-separated `zenith` \| `nova` \| `atlas` \| `neutral` that DRIVE the theme (else background). |
-| `--character-context <keys>` | Comma-separated `CHARACTER_NAMES_POOL` keys for name inspiration (else random subset). |
-| `--cultural-exposure <mode>` | `cosmopolitan` \| `local` naming-diversity mode (else random). |
-| `--temperature <value>`    | Sampling temperature for every model call (default `1.3`). |
-| `--model <id>`             | Gemini model id (default `gemma-4-26b-a4b-it`).      |
-| `--timeout <ms>`           | Per-request timeout in ms (default `300000`).        |
-| `--thinking-level <level>` | `low` \| `medium` \| `high` (default `high`).        |
-| `--out <file>`             | Payload dump path (default `./engine-private/cyberia-sagas/<saga-code>.json`). |
-| `--dry-run`                | Normalize only; no database writes.                  |
-| `--env-path <path>`        | Env file to load (`GEMINI_API_KEY`, deploy vars).    |
-| `--mongo-host <host>`      | Mongo host override.                                 |
-| `--dev`                    | Force the development environment.                  |
+| Flag                         | Description                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `--prompt <theme>`           | Theme seed. Omit to auto-generate from the lore.                                                   |
+| `--import <file>`            | Load a generated payload file into the DB.                                                         |
+| `--lore-path <path>`         | Override the base-lore doc (auto-generate mode).                                                   |
+| `--space-context <ctx>`      | Force `physical` \| `mixed` \| `hyperspace` (else random).                                         |
+| `--tone <tone>`              | Force `adventure` \| `politics` \| `tragic` \| `comedy` (else random).                             |
+| `--faction-context <keys>`   | Comma-separated `zenith` \| `nova` \| `atlas` \| `neutral` that DRIVE the theme (else background). |
+| `--character-context <keys>` | Comma-separated `CHARACTER_NAMES_POOL` keys for name inspiration (else random subset).             |
+| `--cultural-exposure <mode>` | `cosmopolitan` \| `local` naming-diversity mode (else random).                                     |
+| `--temperature <value>`      | Sampling temperature for every model call (default `1.3`).                                         |
+| `--model <id>`               | Gemini model id (default `gemma-4-26b-a4b-it`).                                                    |
+| `--timeout <ms>`             | Per-request timeout in ms (default `10000`).                                                       |
+| `--thinking-level <level>`   | `low` \| `medium` \| `high` (default `high`).                                                      |
+| `--out <file>`               | Payload dump path (default `./engine-private/cyberia-sagas/<saga-code>.json`).                     |
+| `--dry-run`                  | Normalize only; no database writes.                                                                |
+| `--env-path <path>`          | Env file to load (`GEMINI_API_KEY`, deploy vars).                                                  |
+| `--mongo-host <host>`        | Mongo host override.                                                                               |
+| `--dev`                      | Force the development environment.                                                                 |
 
 `GEMINI_API_KEY` must be available in the environment or the `--env-path` file.
 
