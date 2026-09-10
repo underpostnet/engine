@@ -1,6 +1,9 @@
 # Host preparation for deploy/<deploy-id>/*.sh. Sourced, never executed directly.
 # Requires lib/github-actions-logging.sh for deploy_step.
 
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$LIB_DIR/config.sh"
+
 # The host configuration store, if this node has one.
 #
 # Every step below drives the CLI through `sudo`, so the store the CLI writes is root's, not the
@@ -82,21 +85,24 @@ deploy_id_from_repo() {
 #
 # Usage: install_deploy_dependencies <engine-root> [deploy-id]
 install_deploy_dependencies() {
-    local engine_root="${1:-/home/dd/engine}"
+    local engine_root="${1:-$ENGINE_ROOT}"
     local deploy_id="$2"
     local manifest="engine-private/conf/$deploy_id/package.json"
 
     if [ -n "$deploy_id" ] && [ -f "$engine_root/$manifest" ]; then
         deploy_step "Install dependencies ($deploy_id)" \
-        sudo -n -- /bin/bash -lc "cd $engine_root && cp -a ./$manifest ./package.json && npm install"
+            sudo -n -- /bin/bash -lc "cd $engine_root && cp -a ./$manifest ./package.json && npm install"
     else
         deploy_step "Install dependencies" \
-        sudo -n -- /bin/bash -lc "cd $engine_root && npm install"
+            sudo -n -- /bin/bash -lc "cd $engine_root && npm install"
     fi
 
+    # The global `underpost` is a symlink onto this checkout's entrypoint, so the link is only
+    # usable while that file carries its executable mode. The mode is tracked in git; the chmod
+    # is what carries a checkout that predates it, which is every node still to be synced.
     deploy_step "Link underpost CLI" \
-    sudo -n -- /bin/bash -lc \
-    "cd $engine_root && npm link --force && test \"\$(readlink -f \"\$(command -v underpost)\")\" = \"\$(readlink -f ./bin/index.js)\""
+        sudo -n -- /bin/bash -lc \
+        "cd $engine_root && chmod +x ./bin/index.js && npm link --force && test -x ./bin/index.js && test \"\$(readlink -f \"\$(command -v underpost)\")\" = \"\$(readlink -f ./bin/index.js)\""
 }
 
 # Brings a node to the state every deploy assumes: the engine source at HEAD, its dependencies
@@ -109,21 +115,21 @@ install_deploy_dependencies() {
 # installed again after it, because the pull resets the checkout to its remote and takes
 # `package.json` with it.
 prepare_host() {
-    local engine_root="${1:-/home/dd/engine}"
+    local engine_root="${1:-$ENGINE_ROOT}"
     local src_repo="${2:-$ENGINE_SRC_REPO}"
     local src_private_repo="${3:-$ENGINE_SRC_PRIVATE_REPO}"
     local deploy_id="${4:-$(deploy_id_from_repo "$src_repo")}"
-    
+
     install_deploy_dependencies "$engine_root" "$deploy_id"
-    
+
     deploy_step "Pull repository" \
-    sudo -n -- /bin/bash -lc \
-    "cd $engine_root && node bin run pull $src_repo${src_private_repo:+ --repo-engine-private $src_private_repo}"
-    
+        sudo -n -- /bin/bash -lc \
+        "cd $engine_root && node bin run pull $src_repo${src_private_repo:+ --repo-engine-private $src_private_repo}"
+
     install_deploy_dependencies "$engine_root" "$deploy_id"
-    
+
     deploy_step "Load host config" \
-    sudo -n -- /bin/bash -lc "cd $engine_root && node bin host load"
+        sudo -n -- /bin/bash -lc "cd $engine_root && node bin host load"
 }
 
 # Whether a tracked path carries uncommitted changes, as `1` or empty.
@@ -136,10 +142,10 @@ prepare_host() {
 # Usage: has_changes <path> [engine-root]
 has_changes() {
     local path="$1"
-    local engine_root="${2:-${ENGINE_ROOT:-/home/dd/engine}}"
-    
+    local engine_root="${2:-$ENGINE_ROOT}"
+
     sudo -n -- /bin/bash -lc \
-    "cd $engine_root && node bin cmt $path --has-changes" | tr -d '\n'
+        "cd $engine_root && node bin cmt $path --has-changes" | tr -d '\n'
 }
 
 # The in-pod bootstrap, emitted as a `--cmd` payload (comma-separated: `underpost deploy`
@@ -163,13 +169,16 @@ has_changes() {
 # `install` hook installs global tooling and `npm link` publishes the CLI there, and both write
 # a tree the image left owned by root.
 #
+# The paths below are the container's, fixed by the image layout, and deliberately not
+# `$ENGINE_ROOT`: that one names the checkout on the host running this script.
+#
 # Usage: pod_bootstrap_cmd <deploy-id> [env] [owner/repo]
 pod_bootstrap_cmd() {
     local deploy_id="$1"
     local env="${2:-production}"
     local repo="${3:-underpostnet/engine-test-${deploy_id#dd-}}"
     local name="${repo##*/}"
-    
+
     printf '%s' "cd /home/dd, \
 underpost clone ${repo}, \
 mkdir -p /home/dd/engine, \
@@ -181,5 +190,5 @@ sudo chown -R \$(id -u):\$(id -g) \$(npm prefix -g)/lib/node_modules \$(npm pref
 npm install, \
 npm link --force, \
 test \"\$(readlink -f \"\$(command -v underpost)\")\" = \"\$(readlink -f ./bin/index.js)\", \
-    underpost state set container-status ${deploy_id}-${env}-build-deployment"
+        underpost state set container-status ${deploy_id}-${env}-build-deployment"
 }

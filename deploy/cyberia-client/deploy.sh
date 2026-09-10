@@ -5,18 +5,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 source "$SCRIPT_DIR/../lib/host.sh"
 
-ENGINE_ROOT=/home/dd/engine
-TARGET_NODE=hp-envy-iso-ram-rocky9
-INGRESS_NODE=localhost.localdomain
+DEPLOY_ID=dd-cyberia
+INSTANCE_ID=mmo-client
+TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 
 main() {
     deploy_start "Starting remote deploy"
 
     prepare_host "$ENGINE_ROOT"
 
-    deploy_step "Build dd-cyberia configuration" \
+    deploy_step "Build $DEPLOY_ID configuration" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin/build dd-cyberia --conf"
+        "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 
     deploy_step "Wait for target node readiness" \
         sudo -n -- /bin/bash -lc \
@@ -30,18 +30,17 @@ main() {
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-gateway -n default --timeout=5m"
 
-    deploy_step "Deploy cyberia mmo client instance" \
+    deploy_step "Deploy $DEPLOY_ID $INSTANCE_ID instance" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin run instance \
           --kubeadm \
+          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
           --gateway-api \
           --image-pull-policy Always \
-          --node-name ${TARGET_NODE} \
           --ingress-node ${INGRESS_NODE} \
-          --ssh-key-path /home/dd/tmp/897as9dxhaskd9 \
-          --deploy-id dd-cyberia \
-          --instance-id mmo-client"
-
+          --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
+          --deploy-id $DEPLOY_ID \
+          --instance-id $INSTANCE_ID"
 }
 
 main "$@"

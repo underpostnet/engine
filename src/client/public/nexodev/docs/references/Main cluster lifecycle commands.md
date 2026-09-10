@@ -374,6 +374,32 @@ Step 2 is what keeps a switch from being undone: a node synced onto a product so
 
 Both keys are listed in `.env.example`.
 
+### Shared deploy constants
+
+Everything more than one deploy script needs lives in `deploy/lib/config.sh`, which `lib/host.sh`
+and `lib/state.sh` both source. No script assigns any of them:
+
+| Name                  | What it names                                              |
+| --------------------- | ---------------------------------------------------------- |
+| `ENGINE_ROOT`         | The engine checkout every step runs in.                    |
+| `HOST_NODE`           | The machine the deploy runs from.                          |
+| `WORKER_NODE`         | The second node deploys are pinned to.                     |
+| `INGRESS_NODE`        | The node carrying the shared host-network ingress.         |
+| `DEPLOY_SSH_KEY_PATH` | The key the sync and instance steps ship volume data with. |
+| `DEPLOY_WP_IMAGE`     | The published image the WordPress deploys run.             |
+
+Each resolves from the environment first, so a run is retargeted without editing a script:
+
+```bash
+WORKER_NODE=other-node bash deploy/dd-test/sync-deploy.sh
+```
+
+A script declares only what belongs to its own deploy, in one block under the `source` lines:
+`DEPLOY_ID`, then `DEPLOY_ENV`, `TARGET_NODE`, `DEPLOY_IMAGE`, and the source repositories.
+`TARGET_NODE` is empty where nothing is pinned and the CLI resolves the node itself. The flag it
+fills is spelled `--node` by `node bin deploy` and `--node-name` by `run sync` and `run instance`,
+so the value is held once and the flag follows the command being driven.
+
 ---
 
 ## SSH Deploy

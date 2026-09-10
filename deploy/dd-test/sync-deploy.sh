@@ -5,36 +5,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 source "$SCRIPT_DIR/../lib/host.sh"
 
-ENGINE_ROOT=/home/dd/engine
-INGRESS_NODE=localhost.localdomain
-TARGET_NODE=hp-envy-iso-ram-rocky9
-
-# Base source the pod bootstraps from. `pod_bootstrap_cmd` derives its checkout directory from
-# this name, so the repository is stated once and can be repointed without touching the command.
-POD_SRC_REPO="${POD_SRC_REPO:-underpostnet/engine-test-test}"
+DEPLOY_ID=dd-test
+DEPLOY_ENV="${DEPLOY_ENV:-production}"
+TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
+DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
+# The source the pod bootstraps from; the host takes the same pair through prepare_host.
+ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-test}"
 
 main() {
     deploy_start "Starting remote sync and deploy"
-    
-    prepare_host "$ENGINE_ROOT"
-    
-    local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-test production "$POD_SRC_REPO"), underpost start dd-test production --build --run --skip-pull-repo-base"
 
-    deploy_step "Sync dd-test cluster" \
+    prepare_host "$ENGINE_ROOT"
+
+    local pod_cmd
+    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
+        underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --skip-pull-repo-base"
+
+    deploy_step "Sync $DEPLOY_ID cluster" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin run sync \
-          --deploy-id dd-test \
+          --deploy-id $DEPLOY_ID \
           --replicas 1 \
-          --image underpost/wp:v3.3.73 \
+          --image '${DEPLOY_IMAGE}' \
           --kubeadm \
           --deploy-id-cron-jobs none \
-          --timeout-response 300000ms \
-          --node-name ${TARGET_NODE} \
+          --timeout-response 10000ms \
+          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
           --gateway-api \
           --ingress-node ${INGRESS_NODE} \
           --cmd '${pod_cmd}'"
-
 }
 
 main "$@"

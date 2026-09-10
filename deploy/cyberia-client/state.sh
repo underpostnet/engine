@@ -5,10 +5,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 source "$SCRIPT_DIR/../lib/state.sh"
 
-ENGINE_ROOT=/home/dd/engine
+DEPLOY_ID=dd-cyberia
+INSTANCE_ID=mmo-client
 
 main() {
-    stream_state "$ENGINE_ROOT" dd-cyberia mmo-client
+    stream_state "$ENGINE_ROOT" "$DEPLOY_ID" "$INSTANCE_ID"
 }
 
 main "$@"

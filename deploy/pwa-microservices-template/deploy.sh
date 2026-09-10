@@ -9,6 +9,8 @@ source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 # grandparent rather than a fixed remote path.
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+DEPLOY_ID=dd-github-pages
+
 main() {
     deploy_start "Starting github pages deploy"
 
@@ -29,17 +31,17 @@ main() {
     deploy_step "Install dependencies" \
         npm install
 
-    deploy_step "Build dd-github-pages configuration" \
-        node bin new --default-conf --conf-workflow-id dd-github-pages
+    deploy_step "Build $DEPLOY_ID configuration" \
+        node bin new --default-conf --conf-workflow-id $DEPLOY_ID
 
-    deploy_step "Create dd-github-pages deployment" \
-        node bin new --deploy-id dd-github-pages
+    deploy_step "Create $DEPLOY_ID deployment" \
+        node bin new --deploy-id $DEPLOY_ID
 
-    deploy_step "Load dd-github-pages production environment" \
-        node bin app load --env production --args deploy-id=dd-github-pages
+    deploy_step "Load $DEPLOY_ID production environment" \
+        node bin app load --env production --args deploy-id=$DEPLOY_ID
 
-    deploy_step "Build dd-github-pages client" \
-        env NODE_ENV=production node bin client dd-github-pages '' underpostnet.github.io /pwa-microservices-template-ghpkg
+    deploy_step "Build $DEPLOY_ID client" \
+        env NODE_ENV=production node bin client $DEPLOY_ID '' underpostnet.github.io /pwa-microservices-template-ghpkg
 }
 
 main "$@"

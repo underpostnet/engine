@@ -3,6 +3,9 @@
 # The one source of streamed state for every context. Nothing here is conditional on GitHub
 # Actions: annotations are just the rendering the state domain picks when it detects a workflow.
 
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$LIB_DIR/config.sh"
+
 STATE_ENV="${STATE_ENV:-production}"
 STATE_NAMESPACE="${STATE_NAMESPACE:-default}"
 STATE_STREAM="${STATE_STREAM:-1}"
@@ -18,7 +21,7 @@ STATE_WATCH="${STATE_WATCH:-2}"
 #
 # Usage: stream_state <engine-root> [deploy-id] [instance-id]
 stream_state() {
-    local engine_root="${1:-/home/dd/engine}"
+    local engine_root="${1:-$ENGINE_ROOT}"
     local deploy_id="${2:-$(basename "$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)")}"
     local instance_id="${3:-}"
     local args="deploy-id=${deploy_id}"

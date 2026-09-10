@@ -5,8 +5,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 source "$SCRIPT_DIR/../lib/host.sh"
 
-ENGINE_ROOT=/home/dd/engine
-INGRESS_NODE=localhost.localdomain
+DEPLOY_ID=dd-lampp
+DEPLOY_ENV="${DEPLOY_ENV:-production}"
+# Empty: nothing is pinned, so the CLI resolves the node the deploy runs on.
+TARGET_NODE="${TARGET_NODE:-}"
+DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
 
 main() {
     deploy_start "Starting remote sync and deploy"
@@ -14,21 +17,22 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-lampp production), underpost start dd-lampp production --build --run --skip-pull-repo-base"
+    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV), \
+    underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --skip-pull-repo-base"
 
-    deploy_step "Sync dd-lampp cluster" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync \
-          --deploy-id dd-lampp \
+    deploy_step "Sync $DEPLOY_ID cluster" \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin run sync \
+          --deploy-id $DEPLOY_ID \
           --replicas 1 \
-          --image underpost/wp:v3.3.73 \
+          --image '${DEPLOY_IMAGE}' \
           --kubeadm \
           --deploy-id-cron-jobs none \
-          --timeout-response 300000ms \
+          --timeout-response 10000ms \
+          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
           --gateway-api \
           --ingress-node ${INGRESS_NODE} \
-          --cmd '${pod_cmd}'"
-
+    --cmd '${pod_cmd}'"
 }
 
 main "$@"

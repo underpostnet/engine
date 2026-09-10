@@ -5,57 +5,59 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 source "$SCRIPT_DIR/../lib/host.sh"
 
-ENGINE_ROOT=/home/dd/engine
-INGRESS_NODE=localhost.localdomain
-TARGET_NODE=hp-envy-iso-ram-rocky9
+DEPLOY_ID=dd-test
+DEPLOY_ENV="${DEPLOY_ENV:-production}"
+TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
+DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
 
 main() {
-    deploy_start "Starting init deploy"
+    deploy_start "Starting remote init deploy"
 
     prepare_host "$ENGINE_ROOT"
 
-    deploy_step "Build dd-test configuration" \
+    deploy_step "Build $DEPLOY_ID configuration" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin/build dd-test --conf"
+        "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 
     deploy_step "Wait for target node readiness" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd dd-test production), underpost start dd-test production --build --run --pull-bundle --skip-pull-repo-base"
+    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV), \
+        underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --pull-bundle --skip-pull-repo-base"
 
-    deploy_step "Deploy dd-test production" \
+    deploy_step "Deploy $DEPLOY_ID $DEPLOY_ENV" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-test production \
+        "cd $ENGINE_ROOT && node bin deploy $DEPLOY_ID $DEPLOY_ENV \
           --versions green \
           --replicas 1 \
-          --image 'underpost/wp:v3.3.73' \
+          --image '${DEPLOY_IMAGE}' \
           --kubeadm \
-          --timeout-response 300000ms \
-          --node ${TARGET_NODE} \
+          --timeout-response 10000ms \
+          ${TARGET_NODE:+--node ${TARGET_NODE}} \
           --gateway-api \
           --ingress-node ${INGRESS_NODE} \
           --sync \
           --build-manifest \
           --cmd '${pod_cmd}'"
 
-    deploy_step "Issue dd-test certificates" \
+    deploy_step "Issue $DEPLOY_ID certificates" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin deploy dd-test production \
+        "cd $ENGINE_ROOT && node bin deploy $DEPLOY_ID $DEPLOY_ENV \
           --kubeadm \
-          --node ${TARGET_NODE} \
+          ${TARGET_NODE:+--node ${TARGET_NODE}} \
           --gateway-api \
           --ingress-node ${INGRESS_NODE} \
           --cert \
           --disable-update-proxy"
 
-    deploy_step "Promote dd-test deployment" \
+    deploy_step "Promote $DEPLOY_ID deployment" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin monitor dd-test production \
+        "cd $ENGINE_ROOT && node bin monitor $DEPLOY_ID $DEPLOY_ENV \
           --ready-deployment \
           --promote \
-          --timeout-response 300000ms \
+          --timeout-response 10000ms \
           --versions green \
           --replicas 1"
 }

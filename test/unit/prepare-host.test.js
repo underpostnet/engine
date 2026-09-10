@@ -81,7 +81,12 @@ describe('a node installs the deploy own package manifest', () => {
     try {
       const emitted = run(`install_deploy_dependencies ${root} dd-absent`).trim().split('\n');
       expect(emitted[0]).to.equal(`Install dependencies :: sudo -n -- /bin/bash -lc cd ${root} && npm install`);
-      expect(emitted[1]).to.include(`Link underpost CLI :: sudo -n -- /bin/bash -lc cd ${root} && npm link --force`);
+      // The link is a symlink onto the checkout's entrypoint, and a restored checkout can leave
+      // that file without its executable mode, so the link step restores it before linking.
+      expect(emitted[1]).to.include(
+        `Link underpost CLI :: sudo -n -- /bin/bash -lc cd ${root} && chmod +x ./bin/index.js && npm link --force`,
+      );
+      expect(emitted[1]).to.include('test -x ./bin/index.js');
     } finally {
       fs.removeSync(root);
     }
@@ -295,5 +300,83 @@ describe('prepare_host brings a node up in an order it can recover from', () => 
   it('loads the host config last, through the one entry point for that store', () => {
     expect(titles.at(-1)).to.equal('Load host config');
     expect(emitted.at(-1)).to.include('node bin host load');
+  });
+});
+
+const cyberiaDeployScript = path.join(deployRoot, 'dd-cyberia/sync-deploy.sh');
+
+describe.skipIf(!fs.existsSync(cyberiaDeployScript))('a pod lands its private configuration at engine-private', () => {
+  const source = fs.existsSync(cyberiaDeployScript) ? fs.readFileSync(cyberiaDeployScript, 'utf8') : '';
+
+  it('names the pod conf repository once and derives the directory the clone lands in', () => {
+    expect(source).to.match(/^POD_SRC_PRIVATE_REPO="\$\{POD_SRC_PRIVATE_REPO:-[^"]+\}"$/m);
+    expect(source).to.include('underpost clone ${POD_SRC_PRIVATE_REPO}');
+    expect(source).to.include('POD_SRC_PRIVATE_DIR="${POD_SRC_PRIVATE_REPO##*/}"');
+    expect(source).to.include('sudo mv ./${POD_SRC_PRIVATE_DIR} ./engine-private');
+  });
+
+  it('clears the destination first, so the checkout replaces engine-private instead of nesting in it', () => {
+    const cleared = source.indexOf('sudo rm -rf ./engine-private');
+    const moved = source.indexOf('sudo mv ./${POD_SRC_PRIVATE_DIR} ./engine-private');
+    expect(cleared).to.be.greaterThan(-1);
+    expect(cleared).to.be.lessThan(moved);
+  });
+});
+
+// Every script under deploy/ is the same shape on purpose: one entry point, one constants block,
+// and no value repeated across files. A second shape is how the drift starts, so it is asserted
+// here rather than left to review.
+describe.skipIf(!shipsDeployIds)('every deploy script is written to one shape', () => {
+  const libDirectory = path.join(deployRoot, 'lib');
+  const scripts = fs
+    .readdirSync(deployRoot)
+    .filter((entry) => fs.statSync(path.join(deployRoot, entry)).isDirectory() && entry !== 'lib')
+    .flatMap((directory) =>
+      fs
+        .readdirSync(path.join(deployRoot, directory))
+        .filter((file) => file.endsWith('.sh'))
+        .map((file) => ({
+          id: `${directory}/${file}`,
+          source: fs.readFileSync(path.join(deployRoot, directory, file), 'utf8'),
+        })),
+    );
+  const libraries = fs
+    .readdirSync(libDirectory)
+    .filter((file) => file.endsWith('.sh'))
+    .map((file) => ({ id: `lib/${file}`, source: fs.readFileSync(path.join(libDirectory, file), 'utf8') }));
+
+  it('opens and closes every entry point the same way', () => {
+    expect(scripts).to.not.be.empty;
+    for (const { id, source } of scripts) {
+      expect(source.startsWith('#!/bin/bash\nset -euo pipefail\n'), id).to.equal(true);
+      expect(source, id).to.include('source "$SCRIPT_DIR/../lib/github-actions-logging.sh"');
+      expect(source.trimEnd().endsWith('main "$@"'), id).to.equal(true);
+    }
+  });
+
+  it('leaves the shared values to lib/config.sh, so no script carries a copy', () => {
+    // The engine root, the ingress node, the fleet's node names, the ssh key and the WordPress
+    // image were each pasted into a dozen scripts before this.
+    for (const { id, source } of scripts) {
+      expect(source, id).to.not.match(/^ENGINE_ROOT=/m);
+      expect(source, id).to.not.match(/^INGRESS_NODE=/m);
+      expect(source, id).to.not.include('/home/dd/engine');
+      expect(source, id).to.not.include('hp-envy');
+      expect(source, id).to.not.include('underpost/wp:');
+    }
+  });
+
+  it('states its deploy id once and reads it back from there', () => {
+    // A fleet-level script names no deploy of its own; one that names a deploy declares it.
+    for (const { id, source } of scripts.filter(({ source: text }) => /dd-[a-z0-9]/.test(text))) {
+      expect(source, id).to.match(/^DEPLOY_ID=dd-[a-z0-9-]+$/m);
+      const belowDeclaration = source.slice(source.indexOf('\n', source.search(/^DEPLOY_ID=/m)));
+      expect(belowDeclaration, id).to.not.match(/dd-[a-z0-9]/);
+    }
+  });
+
+  it('carries no library shebang and no trailing whitespace anywhere', () => {
+    for (const { id, source } of libraries) expect(source.startsWith('#!'), id).to.equal(false);
+    for (const { id, source } of [...scripts, ...libraries]) expect(source, id).to.not.match(/[ \t]+$/m);
   });
 });
