@@ -206,6 +206,29 @@ class ObjectLayerEngineViewer {
       const numericCode = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
       return numericCode ? frameCounts[numericCode] || 0 : 0;
     };
+    // One atlas render: which one it is, how large it is, and its PNG.
+    // `native` draws the blob at its own pixel size, with no fit to the panel.
+    const atlasRender = ({ label, fileId, pixelsPerCell, emptyText, native }) => {
+      const metadata = ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata;
+      const size =
+        pixelsPerCell > 0
+          ? `${metadata.atlasWidth * pixelsPerCell}x${metadata.atlasHeight * pixelsPerCell}px · ${pixelsPerCell}px per cell`
+          : '';
+      return html`<div class="atlas-render">
+        <p class="atlas-render-label">
+          <strong class="item-data-key-label">${label}</strong>
+          <span class="atlas-render-size">${size}</span>
+        </p>
+        <div class="atlas-img-wrapper">
+          ${fileId
+            ? html`<img
+                src="${getProxyPath()}api/file/blob/${fileId._id || fileId}"
+                class="in atlas-img-preview ${native ? 'atlas-img-native' : ''}"
+              />`
+            : html`<div class="atlas-img-placeholder">${emptyText}</div>`}
+        </div>
+      </div>`;
+    };
     ThemeEvents[id] = () => {
       if (!s(`.style-${id}`)) return;
       htmls(
@@ -238,6 +261,32 @@ class ObjectLayerEngineViewer {
           }
           .atlas-img-preview {
             width: 100%;
+            image-rendering: pixelated;
+            background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
+          }
+          /* Own pixel size, so one atlas pixel is one screen pixel. */
+          .atlas-img-native {
+            width: auto;
+            height: auto;
+            margin: auto;
+          }
+          .atlas-img-placeholder {
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: ${darkTheme ? '#aaa' : '#666'};
+          }
+          .atlas-render-label {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 8px;
+            padding: 2px;
+            font-size: 14px;
+          }
+          .atlas-render-size {
+            font-size: 12px;
+            opacity: 0.75;
           }
           .atlas-metadata-grid {
             display: grid;
@@ -869,24 +918,19 @@ class ObjectLayerEngineViewer {
                       ${ObjectLayerEngineViewer.Data.atlasSpriteSheet
                         ? html`
                         <div class="atlas-preview-container">
-                          ${
-                            ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId
-                              ? html`
-                                  <div class="atlas-img-wrapper">
-                                    <img
-                                      src="${getProxyPath()}api/file/blob/${ObjectLayerEngineViewer.Data
-                                        .atlasSpriteSheet.fileId._id ||
-                                      ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId}"
-                                      class="in atlas-img-preview"
-                                    />
-                                  </div>
-                                `
-                              : html`
-                                  <div class="atlas-img-wrapper">
-                                    <div class="atlas-img-placeholder">Atlas image not available</div>
-                                  </div>
-                                `
-                          }
+                          ${atlasRender({
+                            label: 'Upscaled',
+                            fileId: ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId,
+                            pixelsPerCell: ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.upscaleFactor,
+                            emptyText: 'Upscaled render not available',
+                          })}
+                          ${atlasRender({
+                            label: 'Minified',
+                            fileId: ObjectLayerEngineViewer.Data.atlasSpriteSheet.minifyFileId,
+                            pixelsPerCell: ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.cellPixelDim,
+                            emptyText: 'Minified render not available',
+                            native: true,
+                          })}
                           <div class="atlas-metadata-grid">
                             <div>
                               <p style="padding: 2px"><strong class="item-data-key-label">ID:</strong></p>
@@ -902,16 +946,6 @@ class ObjectLayerEngineViewer {
                                   </div>`
                                 : ''
                             }
-                            <div>
-                              <p style="padding: 2px"><strong class="item-data-key-label">Layout:</strong></p>
-                              <p style="padding: 2px">
-                                ${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasWidth}x${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasHeight} cells
-                              </p>
-                            </div>
-                            <div>
-                                <p style="padding: 2px"><strong class="item-data-key-label">Upscale:</strong></p>
-                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.upscaleFactor}px per cell</p>
-                            </div>
                             <div>
                                 <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
                               <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}</p>
