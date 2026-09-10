@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 import stringify from 'fast-json-stable-stringify';
 import { Schema, model } from 'mongoose';
+import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../file/file.ref.js';
 /**
  * @typedef {Object} Stats
  * @property {number} effect - The effect attribute value
@@ -247,10 +248,45 @@ async function collapseItemIdDuplicates(Model, itemId) {
   const removedIds = duplicates.map((duplicate) => duplicate._id);
   await Model.deleteMany({ _id: { $in: removedIds } });
 
+  // What the survivor still links is never collateral: a duplicate written by an older
+  // upsert can carry the very same render frames or atlas the survivor points at.
+  const survivorLinks = new Set(
+    [survivor.objectLayerRenderFramesId, survivor.atlasSpriteSheetId].filter(Boolean).map(String),
+  );
+  const droppedLinks = (field) =>
+    [
+      ...new Set(
+        duplicates
+          .map((duplicate) => duplicate[field])
+          .filter(Boolean)
+          .map(String),
+      ),
+    ].filter((id) => !survivorLinks.has(id));
+
   // Orphaned render frames have no other cleanup path once their owner is gone.
-  const renderFramesIds = duplicates.map((duplicate) => duplicate.objectLayerRenderFramesId).filter(Boolean);
+  const renderFramesIds = droppedLinks('objectLayerRenderFramesId');
   if (renderFramesIds.length > 0 && Model.db.models.ObjectLayerRenderFrames) {
     await Model.db.models.ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFramesIds } });
+  }
+
+  // An atlas owns File renders, so dropping its document without them is what leaves
+  // unreachable blobs in the File collection.
+  const atlasIds = droppedLinks('atlasSpriteSheetId');
+  const AtlasSpriteSheet = Model.db.models.AtlasSpriteSheet;
+  if (atlasIds.length > 0 && AtlasSpriteSheet) {
+    const fields = fileRefFields('atlas-sprite-sheet');
+    const atlasDocs = await AtlasSpriteSheet.find(
+      { _id: { $in: atlasIds } },
+      Object.fromEntries(fields.map((field) => [field, 1])),
+    ).lean();
+    await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
+    if (Model.db.models.File)
+      await deleteOwnedFiles({
+        File: Model.db.models.File,
+        Owner: AtlasSpriteSheet,
+        fields,
+        ids: documentFileIds(atlasDocs, fields),
+      });
   }
 
   return { survivor, removedIds };
