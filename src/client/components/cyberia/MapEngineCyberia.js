@@ -13,7 +13,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { getProxyPath } from '../core/Router.js';
+import { getProxyPath, getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { ENTITY_TYPES, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
@@ -29,6 +29,7 @@ const createDropdownOption = (value, onClick = () => {}, display = value, data =
 class MapEngineCyberia {
   static entities = [];
   static currentMapId = null;
+  static currentMapCode = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
   static currentPreviewId = null;
@@ -697,6 +698,7 @@ class MapEngineCyberia {
 
     MapEngineCyberia.setEntities([], { clearHistory: true });
     MapEngineCyberia.currentMapId = null;
+    MapEngineCyberia.currentMapCode = null;
     MapEngineCyberia.currentThumbnailId = null;
     MapEngineCyberia.currentPreviewId = null;
 
@@ -1022,6 +1024,9 @@ class MapEngineCyberia {
       });
       if (result.status === 'success') {
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
+        // A saved map becomes the one the URL points at.
+        MapEngineCyberia.currentMapCode = body.code || null;
+        setQueryParams({ mapCode: body.code || null }, { replace: true });
         renderPreviewImage();
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
@@ -1066,6 +1071,8 @@ class MapEngineCyberia {
       });
       if (result.status === 'success') {
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
+        MapEngineCyberia.currentMapCode = body.code || null;
+        setQueryParams({ mapCode: body.code || null }, { replace: true });
         if (cloneThumbnailId) MapEngineCyberia.currentThumbnailId = cloneThumbnailId;
         if (clonePreviewId) MapEngineCyberia.currentPreviewId = clonePreviewId;
         renderPreviewImage();
@@ -1075,6 +1082,8 @@ class MapEngineCyberia {
 
     const loadMap = async (mapData) => {
       MapEngineCyberia.currentMapId = mapData._id || null;
+      MapEngineCyberia.currentMapCode = mapData.code || null;
+      setQueryParams({ mapCode: mapData.code || null }, { replace: true });
       if (s(`.${idCode}`)) s(`.${idCode}`).value = mapData.code || '';
       if (s(`.${idName}`)) s(`.${idName}`).value = mapData.name || '';
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = mapData.description || '';
@@ -1161,6 +1170,8 @@ class MapEngineCyberia {
 
     const resetForm = () => {
       MapEngineCyberia.currentMapId = null;
+      MapEngineCyberia.currentMapCode = null;
+      setQueryParams({ mapCode: null }, { replace: true });
       MapEngineCyberia.currentThumbnailId = null;
       MapEngineCyberia.currentPreviewId = null;
       MapEngineCyberia.thumbnailDirty = false;
@@ -1197,6 +1208,28 @@ class MapEngineCyberia {
         htmls(`.${idObjLayerDropdown}-render-container`, '');
       }
     };
+
+    // ?mapCode=<code> loads that map into the form on arrival.
+    const loadMapByCode = async (code) => {
+      if (!code || code === MapEngineCyberia.currentMapCode) return;
+      const { status, data } = await CyberiaMapService.get({ id: code });
+      if (status !== 'success' || !data?._id) {
+        NotificationManager.Push({ html: `No map answers to the code "${code}"`, status: 'error' });
+        return;
+      }
+      await loadMap(data);
+      NotificationManager.Push({ html: `Map "${data.name || data.code}" loaded`, status: 'success' });
+    };
+
+    listenQueryParamsChange({
+      id: 'cyberia-map-engine-query-listener',
+      event: async (queryParams) => {
+        if (!s(`.${idCode}`)) return;
+        const code = queryParams.mapCode || null;
+        if (code) await loadMapByCode(code);
+        else if (MapEngineCyberia.currentMapCode) resetForm();
+      },
+    });
 
     setTimeout(() => {
       const canvas = s(`.${canvasId}`);
@@ -1388,6 +1421,9 @@ class MapEngineCyberia {
         s('.btn-map-engine-rename-filtered-object-layer-item-id').onclick = () => {
           MapEngineCyberia.renameFilteredObjectLayerItemId();
         };
+
+      // Loaded last: loadMap repaints the canvas through the history sync above.
+      loadMapByCode(getQueryParams().mapCode);
     });
 
     const statusOptions = [

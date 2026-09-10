@@ -26,7 +26,7 @@ class ObjectLayerManagement {
         this.eGui = document.createElement('div');
         const { data } = params;
 
-        if (!data || !data._id) {
+        if (!data?.data?.item?.id) {
           this.eGui.innerHTML = '';
           return;
         }
@@ -43,10 +43,8 @@ class ObjectLayerManagement {
           if (btn)
             btn.onclick = async () =>
               setTimeout(async () => {
-                // Navigate to viewer route first
                 setPath(`${getProxyPath()}object-layer-engine-viewer`);
-                // Then add query param without replacing history
-                setQueryParams({ id: data._id }, { replace: true });
+                setQueryParams({ id: null, itemId: data.data.item.id }, { replace: true });
                 if (s(`.modal-object-layer-engine-viewer`)) {
                   await ObjectLayerEngineViewer.Reload({ appStore, force: true });
                 }
@@ -72,7 +70,7 @@ class ObjectLayerManagement {
         this.eGui = document.createElement('div');
         const { data } = params;
 
-        if (!data || !data._id) {
+        if (!data?.data?.item?.id) {
           this.eGui.innerHTML = '';
           return;
         }
@@ -89,10 +87,8 @@ class ObjectLayerManagement {
           if (btn)
             btn.onclick = async () =>
               setTimeout(async () => {
-                // Navigate to editor route first
                 setPath(`${getProxyPath()}object-layer-engine`);
-                // Then add query param without replacing history
-                setQueryParams({ id: data._id }, { replace: true });
+                setQueryParams({ id: null, itemId: data.data.item.id }, { replace: true });
                 if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
                 else s(`.main-btn-object-layer-engine`).click();
               });

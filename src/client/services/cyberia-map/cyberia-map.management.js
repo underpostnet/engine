@@ -29,7 +29,7 @@ class CyberiaMapManagement {
             <i class="fa-solid fa-upload"></i>
           </div>`,
           class: `in fll section-mp management-table-btn-mini management-table-btn-load-map-${idModal}-${cellRenderId} ${
-            !params.data._id ? 'hide' : ''
+            !params.data.code ? 'hide' : ''
           }`,
         })}`;
 
@@ -37,12 +37,13 @@ class CyberiaMapManagement {
           EventsUI.onClick(
             `.management-table-btn-load-map-${idModal}-${cellRenderId}`,
             async () => {
-              if (!params.data._id) return;
-              const result = await CyberiaMapService.get({ id: params.data._id });
+              // Maps are addressed by code, the key the engine URL carries.
+              if (!params.data.code) return;
+              const result = await CyberiaMapService.get({ id: params.data.code });
               if (result.status === 'success' && result.data) {
                 if (loadMapCallback) await loadMapCallback(result.data);
                 NotificationManager.Push({
-                  html: `Map "${result.data.name || result.data.code || params.data._id}" loaded`,
+                  html: `Map "${result.data.name || result.data.code}" loaded`,
                   status: 'success',
                 });
               } else {

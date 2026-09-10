@@ -29,7 +29,7 @@ class CyberiaInstanceManagement {
             <i class="fa-solid fa-upload"></i>
           </div>`,
           class: `in fll section-mp management-table-btn-mini management-table-btn-load-instance-${idModal}-${cellRenderId} ${
-            !params.data._id ? 'hide' : ''
+            !params.data.code ? 'hide' : ''
           }`,
         })}`;
 
@@ -37,12 +37,13 @@ class CyberiaInstanceManagement {
           EventsUI.onClick(
             `.management-table-btn-load-instance-${idModal}-${cellRenderId}`,
             async () => {
-              if (!params.data._id) return;
-              const result = await CyberiaInstanceService.get({ id: params.data._id });
+              // Instances are addressed by code, the key the engine URL carries.
+              if (!params.data.code) return;
+              const result = await CyberiaInstanceService.get({ id: params.data.code });
               if (result.status === 'success' && result.data) {
                 if (loadInstanceCallback) await loadInstanceCallback(result.data);
                 NotificationManager.Push({
-                  html: `Instance "${result.data.name || result.data.code || params.data._id}" loaded`,
+                  html: `Instance "${result.data.name || result.data.code}" loaded`,
                   status: 'success',
                 });
               } else {

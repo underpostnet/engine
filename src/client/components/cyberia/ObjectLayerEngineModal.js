@@ -735,7 +735,7 @@ class ObjectLayerEngineModal {
     const statsRandomMinInputId = 'ol-input-stats-random-min';
     const statsRandomMaxInputId = 'ol-input-stats-random-max';
 
-    // Check if we have an 'id' query parameter to load existing object layer
+    // ?itemId=<item-id> opens the editor on a stored object layer.
     const queryParams = getQueryParams();
     let loadedData = null;
 
@@ -966,12 +966,13 @@ class ObjectLayerEngineModal {
       });
     };
 
-    if (queryParams.id) {
-      ObjectLayerEngineModal.existingObjectLayerId = queryParams.id;
-      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.id);
+    if (queryParams.itemId) {
+      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.itemId);
 
       if (loadedData) {
         const { metadata, objectLayerRenderFramesId } = loadedData;
+        // The URL carries the item id; writes address the document it resolved to.
+        ObjectLayerEngineModal.existingObjectLayerId = metadata._id;
 
         // Set form values from metadata
         if (metadata.data) {
@@ -2382,10 +2383,8 @@ class ObjectLayerEngineModal {
     const modalId = `modal-object-layer-engine-${subModalId}`;
     await DefaultManagement.runIsolated(modalId, async () => {
       setPath(`${getProxyPath()}object-layer-engine-management`);
-      const queryParams = getQueryParams();
-      queryParams.id = id ? id : '';
-      queryParams.page = 1;
-      setQueryParams(queryParams, { replace: true });
+      // The grid filters by document id; itemId belongs to the editor route only.
+      setQueryParams({ ...getQueryParams(), itemId: null, id: id ? id : '', page: 1 }, { replace: true });
 
       if (id) {
         DefaultManagement.setIdFilter(modalId, id);

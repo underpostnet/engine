@@ -29,7 +29,7 @@ class ObjectLayerEngineViewer {
     currentMode: 'idle',
     webp: null,
     isGenerating: false,
-    currentObjectId: undefined, // Track current loaded object layer id to prevent unnecessary reloads
+    currentItemId: undefined, // Item id in the URL, so an unchanged route skips a reload
     atlasSpriteSheet: null,
     isGeneratingAtlas: false,
     webpMetadata: null,
@@ -52,8 +52,8 @@ class ObjectLayerEngineViewer {
   }
   static async instance({ appStore }) {
     const id = 'object-layer-engine-viewer';
-    // Reset currentObjectId when modal is rendered to ensure Reload triggers properly
-    ObjectLayerEngineViewer.Data.currentObjectId = undefined;
+    // Reset so a modal render always triggers Reload.
+    ObjectLayerEngineViewer.Data.currentItemId = undefined;
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
       ObjectLayerEngineViewer.Reload({ appStore });
     };
@@ -61,13 +61,12 @@ class ObjectLayerEngineViewer {
     listenQueryParamsChange({
       id: `${id}-query-listener`,
       event: async (queryParams) => {
-        const objectId = queryParams.id || null;
+        const itemId = queryParams.itemId || null;
         if (!s(`.modal-${id}`) || !s(`#${id}`)) {
           logger.warn('ObjectLayerEngineViewer DOM not ready for query param change');
           return;
         }
-        // Only reload if object id actually changed (normalize undefined to null for comparison)
-        if (objectId !== ObjectLayerEngineViewer.Data.currentObjectId) {
+        if (itemId !== ObjectLayerEngineViewer.Data.currentItemId) {
           await ObjectLayerEngineViewer.Reload({ appStore });
         }
       },
@@ -90,8 +89,7 @@ class ObjectLayerEngineViewer {
       logger.warn('ObjectLayerEngineViewer DOM not ready for renderEmpty');
       return;
     }
-    // Clear current object id when rendering empty state
-    ObjectLayerEngineViewer.Data.currentObjectId = null;
+    ObjectLayerEngineViewer.Data.currentItemId = null;
     // Check if the management table grid already exists AND its DOM is still present
     // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
     const gridId = `object-layer-engine-management-grid-${idModal}`;
@@ -116,7 +114,7 @@ class ObjectLayerEngineViewer {
       }),
     );
   }
-  static async loadObjectLayer(objectLayerId, appStore, options = {}) {
+  static async loadObjectLayer(itemId, appStore, options = {}) {
     const { skipWebp = false } = options;
     const id = 'object-layer-engine-viewer';
     // Check if DOM element exists
@@ -126,7 +124,7 @@ class ObjectLayerEngineViewer {
     }
     try {
       // Load metadata first
-      const { status: metaStatus, data: metadata } = await ObjectLayerService.getMetadata({ id: objectLayerId });
+      const { status: metaStatus, data: metadata } = await ObjectLayerService.getMetadata({ id: itemId });
       if (metaStatus !== 'success' || !metadata) {
         throw new Error('Failed to load object layer metadata');
       }
@@ -142,15 +140,11 @@ class ObjectLayerEngineViewer {
         ObjectLayerEngineViewer.Data.atlasSpriteSheet = null;
       }
       // Load frame counts for all directions
-      const { status: frameStatus, data: frameData } = await ObjectLayerService.getFrameCounts({ id: objectLayerId });
+      const { status: frameStatus, data: frameData } = await ObjectLayerService.getFrameCounts({ id: itemId });
       if (frameStatus !== 'success' || !frameData) {
         throw new Error('Failed to load frame counts');
       }
       ObjectLayerEngineViewer.Data.frameCounts = frameData.frameCounts;
-      // Priority order for directions
-      const directions = ['down', 'up', 'left', 'right'];
-      // Priority order for modes
-      const modes = ['idle', 'walking'];
       ObjectLayerEngineViewer.Data.currentDirection = 'down';
       ObjectLayerEngineViewer.Data.currentMode = 'idle';
       // instance the viewer UI
@@ -162,7 +156,7 @@ class ObjectLayerEngineViewer {
     } catch (error) {
       logger.error('Error loading object layer:', error);
       NotificationManager.Push({
-        html: `Failed to load object layer: ${error.message}`,
+        html: `Failed to load object layer "${itemId}": ${error.message}`,
         status: 'error',
       });
       htmls(
@@ -170,12 +164,16 @@ class ObjectLayerEngineViewer {
         html`
           <div class="in section-mp">
             <div class="in">
-              <h3>Error</h3>
-              <p>Failed to load object layer. Please try again.</p>
+              <h3>Object layer not found</h3>
+              <p>No object layer answers to the item id <strong>${itemId}</strong>.</p>
+              <button class="default-viewer-btn" id="return-to-list-btn">
+                <i class="fa-solid fa-list"></i> Back to the list
+              </button>
             </div>
           </div>
         `,
       );
+      ObjectLayerEngineViewer.attachReturnToList({ appStore });
     }
   }
   static async renderViewer({ appStore }) {
@@ -1125,12 +1123,12 @@ class ObjectLayerEngineViewer {
         }
         delete ThemeEvents['metadata-json-editor-theme'];
         // Navigate back to list
-        ObjectLayerEngineViewer.Data.currentObjectId = undefined;
+        ObjectLayerEngineViewer.Data.currentItemId = undefined;
         ObjectLayerEngineViewer.Data.objectLayer = null;
         ObjectLayerEngineViewer.Data.webp = null;
         ObjectLayerEngineViewer.Data.webpMetadata = null;
         ObjectLayerEngineViewer.Data.atlasSpriteSheet = null;
-        setQueryParams({ id: null }, { replace: false });
+        setQueryParams({ itemId: null }, { replace: false });
       } else {
         throw new Error(result.message || 'Failed to delete object layer');
       }
@@ -1141,6 +1139,21 @@ class ObjectLayerEngineViewer {
         status: 'error',
       });
     }
+  }
+  static attachReturnToList({ appStore }) {
+    const listBtn = s('#return-to-list-btn');
+    if (!listBtn) return;
+    listBtn.addEventListener('click', async () => {
+      ObjectLayerEngineViewer.Data.webp = null;
+      ObjectLayerEngineViewer.Data.webpMetadata = null;
+      ObjectLayerEngineViewer.Data.objectLayer = null;
+      ObjectLayerEngineViewer.Data.frameCounts = null;
+      // Cleared before the URL changes, so the query listener sees a match and
+      // skips the Reload that would render the list twice.
+      ObjectLayerEngineViewer.Data.currentItemId = null;
+      setQueryParams({ itemId: null }, { replace: false });
+      await ObjectLayerEngineViewer.renderEmpty({ appStore });
+    });
   }
   static attachEventListeners({ appStore }) {
     // Direction buttons
@@ -1178,28 +1191,7 @@ class ObjectLayerEngineViewer {
         ObjectLayerEngineViewer.downloadWebp();
       });
     }
-    // Return to list button
-    const listBtn = s('#return-to-list-btn');
-    if (listBtn) {
-      listBtn.addEventListener('click', async () => {
-        // Clear object data and reset state
-        ObjectLayerEngineViewer.Data.webp = null;
-        ObjectLayerEngineViewer.Data.webpMetadata = null;
-        ObjectLayerEngineViewer.Data.objectLayer = null;
-        ObjectLayerEngineViewer.Data.frameCounts = null;
-        // Set currentObjectId to null BEFORE setQueryParams so the
-        // listenQueryParamsChange listener sees the id already matches
-        // and skips calling Reload (avoids double-render race condition)
-        ObjectLayerEngineViewer.Data.currentObjectId = null;
-        // Update the URL to remove the id parameter
-        setQueryParams({ id: null }, { replace: false });
-        // Directly render the list view instead of relying on the
-        // listener → Reload → renderEmpty chain which can silently
-        // fail when the URL was already clean or currentObjectId
-        // was already null
-        await ObjectLayerEngineViewer.renderEmpty({ appStore });
-      });
-    }
+    ObjectLayerEngineViewer.attachReturnToList({ appStore });
     // Edit button
     const editBtn = s('#edit-object-layer-btn');
     if (editBtn) {
@@ -1477,12 +1469,10 @@ class ObjectLayerEngineViewer {
     });
   }
   static toEngine() {
-    const { objectLayer } = ObjectLayerEngineViewer.Data;
-    if (!objectLayer || !objectLayer._id) return;
-    // Navigate to editor route first
+    const itemId = ObjectLayerEngineViewer.Data.objectLayer?.data?.item?.id;
+    if (!itemId) return;
     setPath(`${getProxyPath()}object-layer-engine`);
-    // Then add query param without replacing history
-    setQueryParams({ id: objectLayer._id }, { replace: true });
+    setQueryParams({ itemId }, { replace: true });
     if (s(`.modal-object-layer-engine`)) {
       ObjectLayerEngineModal.Reload();
     } else {
@@ -1491,31 +1481,22 @@ class ObjectLayerEngineViewer {
   }
   static async Reload(options = {}) {
     const { appStore, force = false, skipWebp = false } = options;
-    const queryParams = getQueryParams();
-    const objectId = queryParams.id || null;
-    // Only reload if object id actually changed (same logic as listener) or forced
-    if (objectId !== ObjectLayerEngineViewer.Data.currentObjectId || force) {
-      if (objectId !== ObjectLayerEngineViewer.Data.currentObjectId && !skipWebp) {
+    const itemId = getQueryParams().itemId || null;
+    const changed = itemId !== ObjectLayerEngineViewer.Data.currentItemId;
+    if (changed || force) {
+      if (changed && !skipWebp) {
         ObjectLayerEngineViewer.Data.webp = null;
         ObjectLayerEngineViewer.Data.webpMetadata = null;
       }
-      ObjectLayerEngineViewer.Data.currentObjectId = objectId;
-      if (objectId) {
-        await ObjectLayerEngineViewer.loadObjectLayer(objectId, appStore, { skipWebp });
-      } else {
-        await ObjectLayerEngineViewer.renderEmpty({ appStore });
-      }
-    } else if (!objectId && (ObjectLayerEngineViewer.Data.currentObjectId === null || force)) {
-      // Special case: if we're already in empty state but DOM might have been reset
-      // (e.g., modal reopened), force render the table if DOM is missing
-      const id = 'object-layer-engine-viewer';
-      const idModal = 'modal-object-layer-engine-viewer';
-      const gridId = `object-layer-engine-management-grid-${idModal}`;
-      const gridDomExists = s(`.${gridId}`);
-      if (!gridDomExists) {
-        // DOM was reset (e.g., modal HTML reloaded), re-render the table
-        await ObjectLayerEngineViewer.renderEmpty({ appStore });
-      }
+      ObjectLayerEngineViewer.Data.currentItemId = itemId;
+      if (itemId) await ObjectLayerEngineViewer.loadObjectLayer(itemId, appStore, { skipWebp });
+      else await ObjectLayerEngineViewer.renderEmpty({ appStore });
+      return;
+    }
+    // Already on the list, but a modal reopen can drop its DOM.
+    if (!itemId && ObjectLayerEngineViewer.Data.currentItemId === null) {
+      const gridId = `object-layer-engine-management-grid-modal-object-layer-engine-viewer`;
+      if (!s(`.${gridId}`)) await ObjectLayerEngineViewer.renderEmpty({ appStore });
     }
   }
 }

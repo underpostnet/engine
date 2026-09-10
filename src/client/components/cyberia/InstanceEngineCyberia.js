@@ -14,9 +14,11 @@ import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.servic
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 
 class InstanceEngineCyberia {
   static currentInstanceId = null;
+  static currentInstanceCode = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
   static portals = [];
@@ -129,6 +131,7 @@ class InstanceEngineCyberia {
     const idAoiRadius = 'instance-engine-aoi-radius';
 
     InstanceEngineCyberia.currentInstanceId = null;
+    InstanceEngineCyberia.currentInstanceCode = null;
     InstanceEngineCyberia.currentThumbnailId = null;
     InstanceEngineCyberia.thumbnailDirty = false;
     InstanceEngineCyberia.portals = [];
@@ -227,6 +230,9 @@ class InstanceEngineCyberia {
       }
       if (result.status === 'success') {
         if (result.data?._id) InstanceEngineCyberia.currentInstanceId = result.data._id;
+        // A newly saved instance becomes the one the URL points at.
+        InstanceEngineCyberia.currentInstanceCode = body.code || null;
+        setQueryParams({ instanceCode: body.code || null }, { replace: true });
         // The conf is auto-upserted on instance save; persist the AOI radius onto
         // it now that we know the instance code resolves to a conf document.
         await persistAoiRadius(body.code);
@@ -241,6 +247,8 @@ class InstanceEngineCyberia {
 
     const loadInstance = async (instanceData) => {
       InstanceEngineCyberia.currentInstanceId = instanceData._id || null;
+      InstanceEngineCyberia.currentInstanceCode = instanceData.code || null;
+      setQueryParams({ instanceCode: instanceData.code || null }, { replace: true });
       if (s(`.${idCode}`)) s(`.${idCode}`).value = instanceData.code || '';
       if (s(`.${idName}`)) s(`.${idName}`).value = instanceData.name || '';
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = instanceData.description || '';
@@ -346,6 +354,8 @@ class InstanceEngineCyberia {
 
     const resetForm = () => {
       InstanceEngineCyberia.currentInstanceId = null;
+      InstanceEngineCyberia.currentInstanceCode = null;
+      setQueryParams({ instanceCode: null }, { replace: true });
       InstanceEngineCyberia.currentThumbnailId = null;
       InstanceEngineCyberia.thumbnailDirty = false;
       if (s(`.${idCode}`)) s(`.${idCode}`).value = '';
@@ -379,9 +389,32 @@ class InstanceEngineCyberia {
       if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = '';
     };
 
-    setTimeout(() => {
+    // ?instanceCode=<code> loads that instance into the form on arrival.
+    const loadInstanceByCode = async (code) => {
+      if (!code || code === InstanceEngineCyberia.currentInstanceCode) return;
+      const { status, data } = await CyberiaInstanceService.get({ id: code });
+      if (status !== 'success' || !data?._id) {
+        NotificationManager.Push({ html: `No instance answers to the code "${code}"`, status: 'error' });
+        return;
+      }
+      await loadInstance(data);
+      NotificationManager.Push({ html: `Instance "${data.name || data.code}" loaded`, status: 'success' });
+    };
+
+    listenQueryParamsChange({
+      id: 'cyberia-instance-engine-query-listener',
+      event: async (queryParams) => {
+        if (!s(`.${idCode}`)) return;
+        const code = queryParams.instanceCode || null;
+        if (code) await loadInstanceByCode(code);
+        else if (InstanceEngineCyberia.currentInstanceCode) resetForm();
+      },
+    });
+
+    setTimeout(async () => {
       if (s(`.btn-instance-engine-save`)) s(`.btn-instance-engine-save`).onclick = () => saveInstance();
       if (s(`.btn-instance-engine-new`)) s(`.btn-instance-engine-new`).onclick = () => resetForm();
+      await loadInstanceByCode(getQueryParams().instanceCode);
 
       if (s(`.btn-instance-engine-toggle-thumbnail`))
         s(`.btn-instance-engine-toggle-thumbnail`).onclick = () => {
