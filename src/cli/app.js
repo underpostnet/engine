@@ -205,14 +205,25 @@ class UnderpostApp {
       // The resolution loadConf performed, not `ociEnv()`, which forces the overlay on: a
       // skipped overlay and an applied one were indistinguishable in the pod log.
       const resolved = deployEnvContentFactory(deployId, context.env, `${context.args?.['sub-conf'] ?? ''}`.trim());
+      const inContainer = Underpost.state.isInsideContainer();
       logger.info('Deployment environment loaded', {
         deployId,
         instanceId: instanceId || null,
         source: envPath,
-        inContainer: Underpost.state.isInsideContainer(),
+        inContainer,
         ociOverlay: resolved.overlay,
         keys: Object.keys(values).length,
       });
+      // A container that resolves no overlay runs on the host-scoped endpoints of the base file —
+      // a loopback database, a local cache — and fails minutes later at the first connection,
+      // pointing at the endpoint rather than at the conf checkout that is missing the overlay.
+      // Named rather than thrown: a deployment is allowed to have no overlay for an environment.
+      if (inContainer && !instanceId && !resolved.overlay)
+        logger.warn('No OCI env overlay resolved; container is running on host-scoped values', {
+          deployId,
+          env: context.env,
+          expected: deployOciEnvFilePath(deployId, context.env),
+        });
       return { source: envPath, keys: Object.keys(values).length };
     },
 
