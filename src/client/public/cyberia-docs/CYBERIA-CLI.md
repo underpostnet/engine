@@ -43,7 +43,10 @@ cyberia ol [item-id] [options]
 | `--count <n>` / `--density <0..1>`                                                   | Shape count multiplier (default `3`) / density (default `0.5`)           |
 | `--seed <seed>`                                                                      | Deterministic seed for `--generate` (e.g. `fx-42`)                       |
 | `--frame-index <n>` / `--frame-count <n>`                                            | Start frame (default `0`) / frame count (default `1`)                    |
-| `--to-atlas-sprite-sheet [dim]`                                                      | Build a consolidated atlas PNG for the item                              |
+| `--to-atlas-sprite-sheet [dim]`                                                      | Rebuild both atlas renders for the selected items                        |
+| `--minify`                                                                           | Refresh the minified atlas render the client downloads                   |
+| `--instance <code>`                                                                  | Narrows `--minify` and `--to-atlas-sprite-sheet` to one instance         |
+| `--upscale <px-factor>`                                                              | Pixels per cell of the human-resolution render; alone, rebuilds it       |
 | `--show-frame [dir_frame]`                                                           | View one frame (e.g. `08_0`; default `08_0`)                             |
 | `--show-atlas-sprite-sheet`                                                          | Display the atlas PNG for the item                                       |
 | `--drop`                                                                             | Drop existing data before importing (or standalone)                      |
@@ -65,6 +68,15 @@ cyberia ol floor-grass  --generate --frame-count 4 --count 5 --density 0.7
 # Atlas / inspect
 cyberia ol hatchet --to-atlas-sprite-sheet
 cyberia ol hatchet --show-frame 08_0
+
+# Rebuild both atlas renders. The scope is an item-id, an instance, or everything.
+cyberia ol hatchet --to-atlas-sprite-sheet --upscale 40
+cyberia ol --instance TEST --upscale 20
+cyberia ol --to-atlas-sprite-sheet
+
+# Refresh the minified render the client downloads
+cyberia ol hatchet --minify
+cyberia ol --minify --instance FOREST
 
 # Drop + re-import a single item, including static folders
 cyberia ol hatchet --drop --client-public --import

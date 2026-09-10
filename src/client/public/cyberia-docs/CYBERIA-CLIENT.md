@@ -217,10 +217,14 @@ Other message types — init data (0x02), FCT (0x04), ItemFCT (0x05) — carry t
 
 The client speaks REST directly to engine-cyberia for content. None of these calls go through cyberia-server.
 
+The atlas blob is the minified render, at one pixel per cell, and the atlas metadata describes that
+same render. The engine keeps a second, human-resolution render for viewing; the client never
+downloads it. `cyberia ol --minify` refreshes the minified render of stored items.
+
 | Endpoint                                                       | Purpose                                    |
 | -------------------------------------------------------------- | ------------------------------------------ |
 | `GET /api/atlas-sprite-sheet/metadata/:itemKey`                | Frame layout JSON for a sprite atlas       |
-| `GET /api/atlas-sprite-sheet/blob/:itemKey`                    | Atlas PNG                                  |
+| `GET /api/atlas-sprite-sheet/blob/:itemKey`                    | Minified atlas PNG, one pixel per cell     |
 | `GET /api/object-layer/:itemId`                                | ObjectLayer JSON metadata                  |
 | `GET /api/cyberia-dialogue/code/default-:itemId`               | Dialogue lines for an NPC                  |
 | `GET /assets/ui-icons/:iconId.png`                             | Status-bar icons                           |
