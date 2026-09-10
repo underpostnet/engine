@@ -21,6 +21,35 @@ const renderLog = (message, metadata) => {
 };
 
 describe('central logger redaction', () => {
+  it('filters a credential a service reports next to its name, with no delimiter between them', () => {
+    // Regression: `Invalid api_key 4778…` reached the terminal in full. Every rule matched on a
+    // delimiter — `=`, `:`, a flag — and an error message carries none, so the pair went through.
+    expect(redactSensitiveText('Invalid api_key 477826957851424')).to.equal('Invalid api_key [REDACTED]');
+    expect(redactSensitiveText('Invalid api_secret 8kQvN2mLp0XyZ_abc')).to.equal('Invalid api_secret [REDACTED]');
+    expect(redactSensitiveText('CLOUDINARY_API_KEY 477826957851424')).to.equal('CLOUDINARY_API_KEY [REDACTED]');
+  });
+
+  it('leaves prose and identifiers that merely follow a sensitive word', () => {
+    // The name of a thing is not the thing: redacting the next word of every sentence would cost
+    // more legibility than it buys protection, so the value has to be shaped like a credential.
+    for (const kept of [
+      'token verification failed',
+      'password changed successfully',
+      'authorization required for this route',
+      'api_secret mismatch',
+      'Target pod: dd-cyberia-production-blue-5b7c67bb8f-kwhz7 | Pod status: Running',
+    ])
+      expect(redactSensitiveText(kept), kept).to.equal(kept);
+  });
+
+  it('reaches a credential that a non-sensitive word precedes', () => {
+    // The scan looks ahead rather than consuming: matching `Invalid api_key` as a pair of its own
+    // would advance past the real one behind it.
+    const rendered = renderLog('cloudinary rejected: Invalid api_key 477826957851424');
+    expect(rendered).to.include('[REDACTED]');
+    expect(rendered).to.not.include('477826957851424');
+  });
+
   it('filters common secret forms from free-form messages', () => {
     const rawToken = `ghp_${'A'.repeat(30)}`;
     const input = [

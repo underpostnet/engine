@@ -48,6 +48,13 @@ const SENSITIVE_WORDS = new Set([
   'token',
 ]);
 const SENSITIVE_COMPOUNDS = ['apikey', 'privatekey', 'accesskey', 'sessionid', 'mysqlpwd', 'mariadbpwd'];
+/**
+ * A value adjacent to a sensitive name, separated by nothing but whitespace, is only treated as
+ * the secret when it is shaped like one: long enough, and carrying a digit, a capital, or a
+ * separator. Prose reads the same way — `token verification failed` — and redacting the next
+ * word of every sentence would cost more than it protects.
+ */
+const CREDENTIAL_SHAPED = /^(?=.{12,}$)(?=.*[0-9A-Z_-])[A-Za-z0-9_-]+$/;
 const sensitiveField = (key) => {
   const words = `${key || ''}`
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
@@ -61,43 +68,71 @@ const sensitiveField = (key) => {
   );
 };
 
+/**
+ * Redacts a value that follows a sensitive name with nothing but whitespace between them.
+ *
+ * Service errors report credentials this way — `Invalid api_key 4778…` — so the pair reaches a
+ * log through a message rather than through a command or a structured field, which is what every
+ * other rule matches on. The candidate is looked ahead rather than consumed: a plain match would
+ * take `Invalid api_key` as its own name/value pair and advance past the real one behind it.
+ * @param {string} text - Text to scan.
+ * @returns {string} The text with adjacent credentials redacted.
+ * @memberof Logger
+ */
+const redactAdjacentCredentials = (text) => {
+  const pairs = new RegExp(`(${CONFIG_NAME_SOURCE})([ \\t]+)(?=([A-Za-z0-9_-]+)(?![\\w-]))`, 'g');
+  let out = '';
+  let cursor = 0;
+  for (const match of text.matchAll(pairs)) {
+    const [, key, separator, candidate] = match;
+    const valueStart = match.index + key.length + separator.length;
+    if (valueStart < cursor) continue;
+    if (!sensitiveField(key) || !CREDENTIAL_SHAPED.test(candidate)) continue;
+    out += text.slice(cursor, valueStart) + REDACTED;
+    cursor = valueStart + candidate.length;
+  }
+  return cursor === 0 ? text : out + text.slice(cursor);
+};
+
 const redactSensitiveText = (value = '') =>
-  `${value ?? ''}`
-    .replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, REDACTED)
-    .replace(
-      /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g,
-      REDACTED,
-    )
-    .replace(/([a-z][a-z0-9+.-]*\\?:(?:\\?\/){2})(?:(?:\\.)|[^/\\\s@])+(\\?@)/gi, '$1***$2')
-    .replace(/\b(x-access-token\\?:)[^\s"']+?(?=\\?@github\.com\b)/gi, '$1***')
-    .replace(
-      /((?:"|')?(?:authorization|proxy-authorization)(?:"|')?\s*:\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+\S+|\S+)/gi,
-      `$1"${REDACTED}"`,
-    )
-    .replace(
-      new RegExp(
-        `(\\b(?:host|app|state|secret)\\s+set\\s+)(${CONFIG_NAME_SOURCE})(\\s+)(${SENSITIVE_VALUE_SOURCE})`,
-        'gi',
+  redactAdjacentCredentials(
+    `${value ?? ''}`
+      .replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, REDACTED)
+      .replace(
+        /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g,
+        REDACTED,
+      )
+      .replace(/([a-z][a-z0-9+.-]*\\?:(?:\\?\/){2})(?:(?:\\.)|[^/\\\s@])+(\\?@)/gi, '$1***$2')
+      .replace(/\b(x-access-token\\?:)[^\s"']+?(?=\\?@github\.com\b)/gi, '$1***')
+      .replace(
+        /((?:"|')?(?:authorization|proxy-authorization)(?:"|')?\s*:\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+\S+|\S+)/gi,
+        `$1"${REDACTED}"`,
+      )
+      .replace(
+        new RegExp(
+          `(\\b(?:host|app|state|secret)\\s+set\\s+)(${CONFIG_NAME_SOURCE})(\\s+)(${SENSITIVE_VALUE_SOURCE})`,
+          'gi',
+        ),
+        (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
+      )
+      .replace(
+        new RegExp(`(\\s--?)(${CONFIG_NAME_SOURCE})(=|\\s+)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+        (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
+      )
+      .replace(
+        new RegExp(`(^|\\s)(-p)(\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+        (match, prefix, flag, separator, secret) =>
+          secret.startsWith('-') ? match : `${prefix}${flag}${separator}${REDACTED}`,
+      )
+      .replace(
+        new RegExp(`\\b(${CONFIG_NAME_SOURCE})(\\s*=\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+        (match, key, separator) => (sensitiveField(key) ? `${key}${separator}${REDACTED}` : match),
+      )
+      .replace(
+        new RegExp(`((?:"|')?)(${CONFIG_NAME_SOURCE})((?:"|')?\\s*:\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
+        (match, quote, key, separator) => (sensitiveField(key) ? `${quote}${key}${separator}"${REDACTED}"` : match),
       ),
-      (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
-    )
-    .replace(
-      new RegExp(`(\\s--?)(${CONFIG_NAME_SOURCE})(=|\\s+)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
-      (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
-    )
-    .replace(
-      new RegExp(`(^|\\s)(-p)(\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
-      (match, prefix, flag, separator, secret) =>
-        secret.startsWith('-') ? match : `${prefix}${flag}${separator}${REDACTED}`,
-    )
-    .replace(
-      new RegExp(`\\b(${CONFIG_NAME_SOURCE})(\\s*=\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
-      (match, key, separator) => (sensitiveField(key) ? `${key}${separator}${REDACTED}` : match),
-    )
-    .replace(
-      new RegExp(`((?:"|')?)(${CONFIG_NAME_SOURCE})((?:"|')?\\s*:\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
-      (match, quote, key, separator) => (sensitiveField(key) ? `${quote}${key}${separator}"${REDACTED}"` : match),
-    );
+  );
 
 const serializeLogValue = (value) => {
   const seen = new WeakSet();
