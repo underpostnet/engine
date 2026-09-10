@@ -1,11 +1,15 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
-import { AtlasSpriteSheetGenerator } from '../../projects/cyberia/atlas-sprite-sheet-generator.js';
-import { FileFactory } from '../file/file.service.js';
+import { FileCleanup } from '../file/file.service.js';
 import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';
 import { IpfsClient } from '../../projects/cyberia/ipfs-client.js';
-import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
+import { removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
+import {
+  ATLAS_FILE_FIELDS,
+  AtlasSpriteSheetStore,
+  atlasMfsPaths,
+} from '../../projects/cyberia/atlas-sprite-sheet-store.js';
 
 const logger = loggerFactory(import.meta);
 const DEFAULT_ATLAS_FRAME_DURATION = 100;
@@ -51,7 +55,44 @@ async function withResolvedAtlasFrameDuration(doc, ObjectLayer) {
   };
 }
 
+/**
+ * Removes one atlas: its IPFS pins and MFS entries, both render File documents,
+ * and the AtlasSpriteSheet document itself.
+ *
+ * @param {Object} params
+ * @param {Object} params.atlasDoc - The AtlasSpriteSheet document.
+ * @param {Object} params.options - Router options ({ host, path }).
+ * @param {string} [params.itemKey] - Item key, when the caller already resolved it.
+ * @param {string} [params.metadataCid] - Atlas metadata CID, when the object layer holds it.
+ * @returns {Promise<void>}
+ */
+const purgeAtlasDoc = async ({ atlasDoc, options, itemKey, metadataCid }) => {
+  const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
+  const File = DataBaseProviderService.getModel('File', options);
+  const key = itemKey || atlasDoc.metadata?.itemKey;
+  const mfsPaths = key ? atlasMfsPaths(key) : null;
+
+  for (const [cid, mfsPath] of [
+    [atlasDoc.cid, mfsPaths?.png],
+    [metadataCid, mfsPaths?.metadata],
+  ]) {
+    if (!cid) continue;
+    try {
+      await removePinRecordsAndUnpin(cid, options);
+      if (mfsPath) await IpfsClient.removeMfsPath(mfsPath);
+      logger.info(`Cleaned up IPFS CID ${cid} for AtlasSpriteSheet ${atlasDoc._id}`);
+    } catch (ipfsErr) {
+      logger.warn(`Failed to clean up IPFS CID ${cid}: ${ipfsErr.message}`);
+    }
+  }
+
+  await FileCleanup.deleteDocumentFiles({ doc: atlasDoc, fileFields: ATLAS_FILE_FIELDS, File });
+  await AtlasSpriteSheet.findByIdAndDelete(atlasDoc._id);
+};
+
 class AtlasSpriteSheetService {
+  // Serves the minified render, the one `metadata` describes. The client runtime
+  // pairs this blob with GET /metadata/:itemKey, so the two must be the same layout.
   static blob = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
     const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
@@ -61,8 +102,9 @@ class AtlasSpriteSheetService {
     const itemKey = req.params.itemKey;
     const atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey }).lean();
     if (!atlasDoc) throw new Error(`Atlas not found for itemKey: ${itemKey}`);
+    if (!atlasDoc.minifyFileId) throw new Error(`Minified atlas render missing for itemKey: ${itemKey}`);
 
-    const fileDoc = await File.findById(atlasDoc.fileId);
+    const fileDoc = await File.findById(atlasDoc.minifyFileId);
     if (!fileDoc || !fileDoc.data) throw new Error(`File not found for atlas itemKey: ${itemKey}`);
 
     return { buffer: Buffer.from(fileDoc.data), mimetype: fileDoc.mimetype || 'image/png', name: fileDoc.name };
@@ -70,114 +112,22 @@ class AtlasSpriteSheetService {
   static generate = async (req, res, options, generateOptions = {}) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
-    /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel('File', options);
-    /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
-    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
 
-    let objectLayer = req.objectLayer;
+    const objectLayer =
+      req.objectLayer || (await ObjectLayer.findById(req.params.id).populate('objectLayerRenderFramesId'));
 
-    if (!objectLayer) {
-      objectLayer = await ObjectLayer.findById(req.params.id).populate('objectLayerRenderFramesId');
-    }
+    if (!objectLayer) throw new Error('ObjectLayer not found');
+    if (!objectLayer.objectLayerRenderFramesId) throw new Error('ObjectLayer has no render frames');
 
-    if (!objectLayer) {
-      throw new Error('ObjectLayer not found');
-    }
+    const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+      itemKey: objectLayer.data.item.id,
+      objectLayerRenderFrames: objectLayer.objectLayerRenderFramesId,
+      upscaleFactor: generateOptions.upscaleFactor,
+      options,
+    });
 
-    if (!objectLayer.objectLayerRenderFramesId) {
-      throw new Error('ObjectLayer has no render frames');
-    }
-
-    const itemKey = objectLayer.data.item.id;
-    const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
-      objectLayer.objectLayerRenderFramesId,
-      itemKey,
-    );
-
-    const fileDoc = await new File(FileFactory.create(buffer, `${itemKey}.png`)).save();
-
-    // Add atlas PNG to IPFS and obtain its CID
-    let atlasCid = '';
-    let atlasMetadataCid = '';
-    const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
-    try {
-      const ipfsResult = await IpfsClient.addBufferToIpfs(
-        buffer,
-        `${itemKey}_atlas_sprite_sheet.png`,
-        `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
-      );
-      if (ipfsResult) {
-        atlasCid = ipfsResult.cid;
-        logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${atlasCid}`);
-      }
-    } catch (ipfsError) {
-      logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
-    }
-
-    // Pin atlas metadata JSON to IPFS (fast-json-stable-stringify) and obtain its CID
-    try {
-      const metadataIpfsResult = await IpfsClient.addJsonToIpfs(
-        metadata,
-        `${itemKey}_atlas_sprite_sheet_metadata.json`,
-        `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
-      );
-      if (metadataIpfsResult) {
-        atlasMetadataCid = metadataIpfsResult.cid;
-        logger.info(`Atlas metadata pinned to IPFS – CID: ${atlasMetadataCid}`);
-      }
-    } catch (ipfsError) {
-      logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
-    }
-
-    let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
-
-    if (atlasDoc) {
-      // Clean up old file if it exists
-      if (atlasDoc.fileId) {
-        await File.findByIdAndDelete(atlasDoc.fileId);
-      }
-      atlasDoc.fileId = fileDoc._id;
-      atlasDoc.cid = atlasCid;
-      atlasDoc.metadata = metadata;
-      await atlasDoc.save();
-    } else {
-      atlasDoc = await new AtlasSpriteSheet({
-        fileId: fileDoc._id,
-        cid: atlasCid,
-        metadata,
-      }).save();
-    }
-
-    // Register CIDs in the IPFS registry now that atlasDoc._id is known.
-    if (atlasCid) {
-      try {
-        await createPinRecord({
-          cid: atlasCid,
-          resourceType: 'atlas-sprite-sheet',
-          mfsPath: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
-          options,
-        });
-      } catch (e) {
-        logger.warn('IPFS registry update failed (atlas PNG):', e.message);
-      }
-    }
-    if (atlasMetadataCid) {
-      try {
-        await createPinRecord({
-          cid: atlasMetadataCid,
-          resourceType: 'atlas-metadata',
-          mfsPath: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
-          options,
-        });
-      } catch (e) {
-        logger.warn('IPFS registry update failed (atlas metadata):', e.message);
-      }
-    }
-
-    // When skipObjectLayerSave is set, return CIDs without mutating the OL document.
-    // This enables cut-over consistency: callers stage CIDs in memory and write the
-    // ObjectLayer atomically only after all CIDs are computed.
+    // Callers that stage CIDs in memory write the ObjectLayer themselves, so the
+    // document stays untouched until every CID is known.
     if (generateOptions.skipObjectLayerSave) {
       return { atlasDoc, atlasCid, atlasMetadataCid };
     }
@@ -194,8 +144,6 @@ class AtlasSpriteSheetService {
   static deleteByObjectLayerId = async (req, res, options) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
-    /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel('File', options);
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
     const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
 
@@ -207,37 +155,12 @@ class AtlasSpriteSheetService {
     if (objectLayer.atlasSpriteSheetId) {
       const atlasDoc = await AtlasSpriteSheet.findById(objectLayer.atlasSpriteSheetId);
       if (atlasDoc) {
-        // Remove pin records and unpin atlas CID from IPFS
-        const atlasCid = atlasDoc.cid || objectLayer.data.render?.cid;
-        const atlasMetadataCid = objectLayer.data.render?.metadataCid;
-        if (atlasCid) {
-          try {
-            await removePinRecordsAndUnpin(atlasCid, options);
-            // Remove the MFS entry for the atlas sprite sheet PNG
-            const itemId = objectLayer.data.item.id;
-            await IpfsClient.removeMfsPath(`/object-layer/${itemId}/${itemId}_atlas_sprite_sheet.png`);
-            logger.info(`Cleaned up IPFS atlas CID ${atlasCid} for ObjectLayer ${objectLayer._id}`);
-          } catch (ipfsErr) {
-            logger.warn(`Failed to clean up IPFS atlas CID ${atlasCid}: ${ipfsErr.message}`);
-          }
-        }
-        if (atlasMetadataCid) {
-          try {
-            await removePinRecordsAndUnpin(atlasMetadataCid, options);
-            const itemId = objectLayer.data.item.id;
-            await IpfsClient.removeMfsPath(`/object-layer/${itemId}/${itemId}_atlas_sprite_sheet_metadata.json`);
-            logger.info(`Cleaned up IPFS atlas metadata CID ${atlasMetadataCid} for ObjectLayer ${objectLayer._id}`);
-          } catch (ipfsErr) {
-            logger.warn(`Failed to clean up IPFS atlas metadata CID ${atlasMetadataCid}: ${ipfsErr.message}`);
-          }
-        }
-
-        // Delete the atlas File document from MongoDB
-        if (atlasDoc.fileId) {
-          await File.findByIdAndDelete(atlasDoc.fileId);
-        }
-        // Delete the AtlasSpriteSheet document itself
-        await AtlasSpriteSheet.findByIdAndDelete(atlasDoc._id);
+        await purgeAtlasDoc({
+          atlasDoc,
+          options,
+          itemKey: objectLayer.data.item.id,
+          metadataCid: objectLayer.data.render?.metadataCid,
+        });
       }
       objectLayer.atlasSpriteSheetId = undefined;
       if (!objectLayer.data.render) objectLayer.data.render = {};
@@ -328,54 +251,23 @@ class AtlasSpriteSheetService {
   static delete = async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
     const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
-    /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel('File', options);
 
     if (req.params.id) {
       const atlasDoc = await AtlasSpriteSheet.findById(req.params.id);
       if (!atlasDoc) return null;
-
-      // Remove pin records and unpin atlas CID from IPFS
-      if (atlasDoc.cid) {
-        try {
-          await removePinRecordsAndUnpin(atlasDoc.cid, options);
-          if (atlasDoc.metadata?.itemKey) {
-            const itemKey = atlasDoc.metadata.itemKey;
-            await IpfsClient.removeMfsPath(`/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`);
-          }
-          logger.info(`Cleaned up IPFS atlas CID ${atlasDoc.cid} for AtlasSpriteSheet ${atlasDoc._id}`);
-        } catch (ipfsErr) {
-          logger.warn(`Failed to clean up IPFS atlas CID ${atlasDoc.cid}: ${ipfsErr.message}`);
-        }
-      }
-
-      // Delete the referenced File document (the atlas PNG blob)
-      if (atlasDoc.fileId) {
-        await File.findByIdAndDelete(atlasDoc.fileId);
-      }
-
-      return await AtlasSpriteSheet.findByIdAndDelete(req.params.id);
-    } else {
-      // Bulk delete: iterate each atlas to clean up File, IPFS pins, and pin records
-      const allAtlases = await AtlasSpriteSheet.find({});
-      for (const atlasDoc of allAtlases) {
-        try {
-          if (atlasDoc.cid) {
-            await removePinRecordsAndUnpin(atlasDoc.cid, options);
-            if (atlasDoc.metadata?.itemKey) {
-              const itemKey = atlasDoc.metadata.itemKey;
-              await IpfsClient.removeMfsPath(`/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`);
-            }
-          }
-          if (atlasDoc.fileId) {
-            await File.findByIdAndDelete(atlasDoc.fileId);
-          }
-        } catch (err) {
-          logger.error(`Failed to clean up AtlasSpriteSheet ${atlasDoc._id} during bulk delete: ${err.message}`);
-        }
-      }
-      return await AtlasSpriteSheet.deleteMany();
+      await purgeAtlasDoc({ atlasDoc, options });
+      return atlasDoc;
     }
+
+    const allAtlases = await AtlasSpriteSheet.find({});
+    for (const atlasDoc of allAtlases) {
+      try {
+        await purgeAtlasDoc({ atlasDoc, options });
+      } catch (err) {
+        logger.error(`Failed to clean up AtlasSpriteSheet ${atlasDoc._id} during bulk delete: ${err.message}`);
+      }
+    }
+    return { deletedCount: allAtlases.length };
   };
 }
 

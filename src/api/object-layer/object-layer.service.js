@@ -20,8 +20,9 @@ import { ObjectLayerEngine } from '../../projects/cyberia/object-layer.js';
 import { shellExec } from '../../server/runtime/process.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { AtlasSpriteSheetStore } from '../../projects/cyberia/atlas-sprite-sheet-store.js';
 import { IpfsClient } from '../../projects/cyberia/ipfs-client.js';
-import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
+import { removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
 
 /**
  * Logger instance for this module.
@@ -45,8 +46,8 @@ class ObjectLayerService {
    * - `/metadata/:itemType/:itemId` — Create an object layer from uploaded frames and metadata.
    * - Default — Create an object layer directly from the request body.
    *
-   * The `/metadata` and default routes delegate to {@link ObjectLayerEngine.createObjectLayerDocuments}
-   * for document creation, atlas generation, SHA-256 computation, and IPFS pinning.
+   * The `/metadata` and default routes delegate to {@link ObjectLayerEngine.persistObjectLayerDocuments}
+   * for the document write, atlas generation, SHA-256 computation, and IPFS pinning.
    *
    * @async
    * @function post
@@ -160,22 +161,12 @@ class ObjectLayerService {
           metadataOverride: req.body,
         });
 
-      const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+      const { objectLayer } = await ObjectLayerEngine.persistObjectLayerDocuments({
         ObjectLayer,
         ObjectLayerRenderFrames,
         objectLayerRenderFramesData,
         objectLayerData,
-        createOptions: {
-          generateAtlas: true,
-          atlasServiceContext: {
-            req,
-            res,
-            options,
-            AtlasSpriteSheetService,
-            IpfsClient,
-            createPinRecord,
-          },
-        },
+        persistOptions: { options },
       });
 
       return objectLayer;
@@ -191,44 +182,32 @@ class ObjectLayerService {
     bodyData.data.render.cid = '';
     bodyData.data.render.metadataCid = '';
 
-    // If has render frames, generate atlas + CIDs BEFORE creating the ObjectLayer
+    // Stage the atlas CIDs before the write, so the document is never stored without them.
     if (bodyData.objectLayerRenderFramesId) {
       const renderFramesDoc = await ObjectLayerRenderFrames.findById(bodyData.objectLayerRenderFramesId);
       if (renderFramesDoc) {
         try {
-          const stagingOL = {
-            data: bodyData.data,
-            objectLayerRenderFramesId: renderFramesDoc,
-          };
-          const result = await AtlasSpriteSheetService.generate(
-            { objectLayer: stagingOL, auth: req.auth },
-            res,
+          const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+            itemKey: bodyData.data.item.id,
+            objectLayerRenderFrames: renderFramesDoc,
             options,
-            { skipObjectLayerSave: true },
-          );
-          bodyData.data.render.cid = result.atlasCid;
-          bodyData.data.render.metadataCid = result.atlasMetadataCid;
-          bodyData.atlasSpriteSheetId = result.atlasDoc._id;
+          });
+          bodyData.data.render.cid = atlasCid;
+          bodyData.data.render.metadataCid = atlasMetadataCid;
+          bodyData.atlasSpriteSheetId = atlasDoc._id;
         } catch (atlasError) {
           logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
         }
       }
     }
 
-    // Pin data JSON to IPFS
-    try {
-      const itemId = bodyData.data.item.id;
-      const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
-      const ipfsResult = await IpfsClient.addJsonToIpfs(bodyData.data, `${itemId}_data.json`, mfsPath);
-      if (ipfsResult) {
-        bodyData.cid = ipfsResult.cid;
-        await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
-      }
-    } catch (ipfsError) {
-      logger.warn('Failed to pin data JSON to IPFS:', ipfsError.message);
-    }
+    const dataCid = await ObjectLayerEngine.pinObjectLayerData({
+      data: bodyData.data,
+      itemId: bodyData.data.item.id,
+      options,
+    });
+    if (dataCid) bodyData.cid = dataCid;
 
-    // Atomic create/replace – ObjectLayer is fully populated with all CIDs
     return await (await ObjectLayer.upsertByItemId(bodyData)).populate('objectLayerRenderFramesId');
   };
 
@@ -257,6 +236,9 @@ class ObjectLayerService {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
 
+    // Object layers are addressed by item id, the key the editor navigates by.
+    const keyFilter = (key) => DataQuery.naturalKeyFilter('data.item.id', key);
+
     // GET /search-item-ids - item identity, by prefix (`q`, for type-ahead) or by exact ids
     // (`ids`, comma separated). Carries the item's type because that is what addresses its
     // sprite directory; an id alone cannot be previewed.
@@ -280,7 +262,7 @@ class ObjectLayerService {
 
     // GET /frame-counts/:id - Get frame counts for each direction using numeric codes
     if (req.path.startsWith('/frame-counts/')) {
-      const objectLayer = await ObjectLayer.findById(req.params.id)
+      const objectLayer = await ObjectLayer.findOne(keyFilter(req.params.id))
         .select(ObjectLayerDto.select.getMetadata())
         .populate('objectLayerRenderFramesId');
       if (!objectLayer) {
@@ -323,7 +305,7 @@ class ObjectLayerService {
 
     // GET /render/:id - Get only render data for specific object layer
     if (req.path.startsWith('/render/')) {
-      const objectLayer = await ObjectLayer.findById(req.params.id)
+      const objectLayer = await ObjectLayer.findOne(keyFilter(req.params.id))
         .select(ObjectLayerDto.select.getRender())
         .populate('objectLayerRenderFramesId');
       if (!objectLayer) {
@@ -338,7 +320,7 @@ class ObjectLayerService {
 
     // GET /metadata/:id - Get only metadata (no render frames/colors) for specific object layer
     if (req.path.startsWith('/metadata/')) {
-      const objectLayer = await ObjectLayer.findById(req.params.id)
+      const objectLayer = await ObjectLayer.findOne(keyFilter(req.params.id))
         .select(ObjectLayerDto.select.getMetadata())
         .populate('objectLayerRenderFramesId', ObjectLayerRenderFramesDto.select.get());
       if (!objectLayer) {
@@ -390,22 +372,14 @@ class ObjectLayerService {
     }
 
     // GET / - Get paginated list of object layers
-    const id = req.params.id || req.query.id;
-    logger.info(`ObjectLayerService.get - filtering check - id: ${id}`);
-    if (id && id !== 'undefined' && !['render', 'metadata', 'frame-counts'].includes(id)) {
-      try {
-        const objectLayer = await ObjectLayer.findById(id)
-          .select(ObjectLayerDto.select.get())
-          .populate('atlasSpriteSheetId', 'cid')
-          .populate('objectLayerRenderFramesId', ObjectLayerRenderFramesDto.select.get());
-        if (objectLayer) {
-          logger.info(`ObjectLayerService.get - found record by id: ${id}`);
-          return { data: [objectLayer], total: 1, page: 1, totalPages: 1 };
-        }
-        logger.warn(`ObjectLayerService.get - record NOT found for id: ${id}`);
-      } catch (e) {
-        logger.warn(`Invalid ID format or not found: ${id}`);
-      }
+    const key = req.params.id || req.query.id;
+    if (key && key !== 'undefined' && !['render', 'metadata', 'frame-counts'].includes(key)) {
+      const objectLayer = await ObjectLayer.findOne(keyFilter(key))
+        .select(ObjectLayerDto.select.get())
+        .populate('atlasSpriteSheetId', 'cid')
+        .populate('objectLayerRenderFramesId', ObjectLayerRenderFramesDto.select.get());
+      if (objectLayer) return { data: [objectLayer], total: 1, page: 1, totalPages: 1 };
+      logger.warn(`ObjectLayerService.get - no object layer for key: ${key}`);
     }
 
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
@@ -562,8 +536,8 @@ class ObjectLayerService {
    * - `/:id/metadata/:itemType/:itemId` — Update metadata and reprocess all frames.
    * - `/:id` — Standard update from request body.
    *
-   * The `/metadata` route delegates to {@link ObjectLayerEngine.updateObjectLayerDocuments}
-   * for document update, atlas regeneration, SHA-256 computation, and IPFS pinning.
+   * The `/metadata` route delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
+   * for the document write, atlas regeneration, SHA-256 computation, and IPFS pinning.
    *
    * @async
    * @function put
@@ -657,7 +631,6 @@ class ObjectLayerService {
 
     // PUT /:id/metadata/:itemType/:itemId - Update object layer metadata and reprocess all frames
     if (req.path.includes('/metadata/')) {
-      const objectLayerId = req.params.id;
       const itemType = req.params.itemType;
       const itemId = req.params.itemId;
 
@@ -688,24 +661,12 @@ class ObjectLayerService {
           metadataOverride: req.body,
         });
 
-      // Update documents using engine method (with atlas generation)
-      const { objectLayer } = await ObjectLayerEngine.updateObjectLayerDocuments({
-        objectLayerId,
+      const { objectLayer } = await ObjectLayerEngine.persistObjectLayerDocuments({
         ObjectLayer,
         ObjectLayerRenderFrames,
         objectLayerRenderFramesData,
         objectLayerData,
-        updateOptions: {
-          generateAtlas: true,
-          atlasServiceContext: {
-            req,
-            res,
-            options,
-            AtlasSpriteSheetService,
-            IpfsClient,
-            createPinRecord,
-          },
-        },
+        persistOptions: { options },
       });
 
       return objectLayer;
@@ -722,23 +683,16 @@ class ObjectLayerService {
     const stagingData = updateData.data || existingOL.data.toObject();
     if (!stagingData.render) stagingData.render = {};
 
-    // Use existing render frames if available
-    const renderFramesData = existingOL.objectLayerRenderFramesId;
-    if (renderFramesData) {
+    if (existingOL.objectLayerRenderFramesId) {
       try {
-        const stagingOL = {
-          data: stagingData,
-          objectLayerRenderFramesId: renderFramesData,
-        };
-        const result = await AtlasSpriteSheetService.generate(
-          { objectLayer: stagingOL, auth: req.auth },
-          res,
+        const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+          itemKey: stagingData.item.id,
+          objectLayerRenderFrames: existingOL.objectLayerRenderFramesId,
           options,
-          { skipObjectLayerSave: true },
-        );
-        stagingData.render.cid = result.atlasCid;
-        stagingData.render.metadataCid = result.atlasMetadataCid;
-        updateData.atlasSpriteSheetId = result.atlasDoc._id;
+        });
+        stagingData.render.cid = atlasCid;
+        stagingData.render.metadataCid = atlasMetadataCid;
+        updateData.atlasSpriteSheetId = atlasDoc._id;
       } catch (atlasError) {
         logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
       }
@@ -747,25 +701,16 @@ class ObjectLayerService {
     updateData.data = stagingData;
     updateData.sha256 = ObjectLayerEngine.computeSha256(stagingData);
 
-    // Pin data JSON to IPFS
-    try {
-      const itemId = stagingData.item.id;
-      const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
-      const ipfsResult = await IpfsClient.addJsonToIpfs(stagingData, `${itemId}_data.json`, mfsPath);
-      if (ipfsResult) {
-        updateData.cid = ipfsResult.cid;
-        await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
-      }
-    } catch (ipfsError) {
-      logger.warn('Failed to pin data JSON to IPFS:', ipfsError.message);
-    }
+    const dataCid = await ObjectLayerEngine.pinObjectLayerData({
+      data: stagingData,
+      itemId: stagingData.item.id,
+      options,
+    });
+    if (dataCid) updateData.cid = dataCid;
 
-    // Atomic update with all CIDs populated
-    let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, updateData, {
+    return await ObjectLayer.findByIdAndUpdate(req.params.id, updateData, {
       returnDocument: 'after',
     }).populate('objectLayerRenderFramesId');
-
-    return updatedObjectLayer;
   };
 
   /**

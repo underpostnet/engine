@@ -5,12 +5,23 @@
  * @namespace CyberiaAtlasSpriteSheetGenerator
  */
 
-import fs from 'fs-extra';
-import path from 'path';
 import { Jimp, rgbaToInt } from 'jimp';
 import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * Pixels per cell of the human-resolution atlas, when no factor is given.
+ * @memberof CyberiaAtlasSpriteSheetGenerator
+ */
+export const DEFAULT_ATLAS_UPSCALE_FACTOR = 20;
+
+/**
+ * Pixels per cell of the minified atlas. The client runtime downloads this one,
+ * so it stays at one pixel per cell.
+ * @memberof CyberiaAtlasSpriteSheetGenerator
+ */
+const MINIFY_CELL_PIXEL_DIM = 1;
 
 /**
  * @typedef {Object} AtlasFrame
@@ -97,17 +108,28 @@ export class AtlasSpriteSheetGenerator {
   }
 
   /**
-   * Consolidates all frames from an ObjectLayerRenderFrames into a single atlas sprite sheet
+   * Consolidates all frames of an ObjectLayerRenderFrames into one atlas sprite sheet.
+   *
+   * One packing produces two renders of the same layout: `minifyBuffer` at one
+   * pixel per cell, which the client runtime downloads, and `buffer` at
+   * `upscaleFactor` pixels per cell for human viewing. `metadata` describes the
+   * minified render, so atlas metadata and the served blob always agree.
+   *
    * @static
    * @param {Object} objectLayerRenderFrames - The ObjectLayerRenderFrames document
    * @param {string} itemKey - The item key for the atlas
-   * @param {number} [cellPixelDim=1] - Pixel dimension per cell
+   * @param {number} [upscaleFactor=DEFAULT_ATLAS_UPSCALE_FACTOR] - Pixels per cell of the human-resolution render
    * @param {number} [maxAtlasDim=null] - Maximum atlas dimension (auto-calculated if null)
-   * @returns {Promise<{buffer: Buffer, metadata: Object}>} Atlas buffer and metadata
+   * @returns {Promise<{buffer: Buffer, minifyBuffer: Buffer, metadata: Object}>} Both renders and the shared metadata
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
-  static async generateAtlas(objectLayerRenderFrames, itemKey, cellPixelDim = 1, maxAtlasDim = null) {
-    if (!Number.isInteger(cellPixelDim) || cellPixelDim < 1) throw new Error('Invalid pixel scale');
+  static async generateAtlas(
+    objectLayerRenderFrames,
+    itemKey,
+    upscaleFactor = DEFAULT_ATLAS_UPSCALE_FACTOR,
+    maxAtlasDim = null,
+  ) {
+    if (!Number.isInteger(upscaleFactor) || upscaleFactor < 1) throw new Error('Invalid pixel scale');
     const { frames, colors } = objectLayerRenderFrames;
     const frameDuration = Number(objectLayerRenderFrames?.frame_duration);
 
@@ -133,7 +155,7 @@ export class AtlasSpriteSheetGenerator {
       'none_idle',
     ];
 
-    // Generate all frame images
+    // The packing works on the minified render; the upscaled render reuses its layout.
     const frameImages = [];
 
     for (const direction of directionOrder) {
@@ -143,10 +165,15 @@ export class AtlasSpriteSheetGenerator {
       for (let frameIndex = 0; frameIndex < directionFrames.length; frameIndex++) {
         const frameMatrix = directionFrames[frameIndex];
         try {
-          const frameImage = await AtlasSpriteSheetGenerator.frameMatrixToImage(frameMatrix, colors, cellPixelDim);
+          const frameImage = await AtlasSpriteSheetGenerator.frameMatrixToImage(
+            frameMatrix,
+            colors,
+            MINIFY_CELL_PIXEL_DIM,
+          );
 
           frameImages.push({
             image: frameImage,
+            frameMatrix,
             direction,
             frameIndex,
             width: frameImage.bitmap.width,
@@ -189,43 +216,29 @@ export class AtlasSpriteSheetGenerator {
       );
     }
 
-    // Create atlas canvas
-    const atlasImage = new Jimp({ width: atlasWidth, height: atlasHeight, color: 0x00000000 });
+    const minifyImage = new Jimp({ width: atlasWidth, height: atlasHeight, color: 0x00000000 });
+    const upscaledImage = new Jimp({
+      width: atlasWidth * upscaleFactor,
+      height: atlasHeight * upscaleFactor,
+      color: 0x00000000,
+    });
 
-    // Build metadata structure first
     const frameMetadata = {};
 
-    // Composite frames onto atlas
-    let loggedCount = 0;
     for (const packedFrame of packedFrames) {
-      const { image, x, y, direction, frameIndex } = packedFrame;
+      const { image, frameMatrix, x, y, direction, frameIndex } = packedFrame;
 
-      // Log first few frames for debugging
-      if (loggedCount < 3) {
-        logger.info(
-          `Frame ${loggedCount + 1}: ${direction}[${frameIndex}] → (${x},${y}) ${image.bitmap.width}x${image.bitmap.height}`,
-        );
-        loggedCount++;
+      AtlasSpriteSheetGenerator.blitFrame(minifyImage, image, x, y);
+
+      // The same cell grid at a larger scale, so the upscaled atlas is an exact
+      // multiple of the layout the metadata describes.
+      if (upscaleFactor > MINIFY_CELL_PIXEL_DIM) {
+        const upscaledFrame = await AtlasSpriteSheetGenerator.frameMatrixToImage(frameMatrix, colors, upscaleFactor);
+        AtlasSpriteSheetGenerator.blitFrame(upscaledImage, upscaledFrame, x * upscaleFactor, y * upscaleFactor);
+      } else {
+        AtlasSpriteSheetGenerator.blitFrame(upscaledImage, image, x, y);
       }
 
-      // Manually copy pixels to ensure correct positioning
-      for (let srcY = 0; srcY < image.bitmap.height; srcY++) {
-        for (let srcX = 0; srcX < image.bitmap.width; srcX++) {
-          const destX = x + srcX;
-          const destY = y + srcY;
-
-          // Skip if out of bounds
-          if (destX >= atlasWidth || destY >= atlasHeight) continue;
-
-          // Get pixel color from source image
-          const color = image.getPixelColor(srcX, srcY);
-
-          // Set pixel in atlas at destination position
-          atlasImage.setPixelColor(color, destX, destY);
-        }
-      }
-
-      // Store metadata in correct order
       if (!frameMetadata[direction]) {
         frameMetadata[direction] = [];
       }
@@ -239,19 +252,42 @@ export class AtlasSpriteSheetGenerator {
       };
     }
 
-    // Convert to PNG buffer
-    const buffer = await atlasImage.getBuffer('image/png');
-
     const metadata = {
       itemKey,
       atlasWidth,
       atlasHeight,
-      cellPixelDim,
+      cellPixelDim: MINIFY_CELL_PIXEL_DIM,
+      upscaleFactor,
       frame_duration: Number.isFinite(frameDuration) ? frameDuration : 100,
       frames: frameMetadata,
     };
 
-    return { buffer, metadata };
+    return {
+      buffer: await upscaledImage.getBuffer('image/png'),
+      minifyBuffer: await minifyImage.getBuffer('image/png'),
+      metadata,
+    };
+  }
+
+  /**
+   * Copies a frame image onto an atlas canvas at the given origin.
+   * @static
+   * @param {Jimp} atlasImage - Destination atlas canvas.
+   * @param {Jimp} frameImage - Source frame image.
+   * @param {number} originX - Destination X origin.
+   * @param {number} originY - Destination Y origin.
+   * @returns {void}
+   * @memberof CyberiaAtlasSpriteSheetGenerator
+   */
+  static blitFrame(atlasImage, frameImage, originX, originY) {
+    for (let srcY = 0; srcY < frameImage.bitmap.height; srcY++) {
+      for (let srcX = 0; srcX < frameImage.bitmap.width; srcX++) {
+        const destX = originX + srcX;
+        const destY = originY + srcY;
+        if (destX >= atlasImage.bitmap.width || destY >= atlasImage.bitmap.height) continue;
+        atlasImage.setPixelColor(frameImage.getPixelColor(srcX, srcY), destX, destY);
+      }
+    }
   }
 
   /**
@@ -329,39 +365,4 @@ export class AtlasSpriteSheetGenerator {
     n |= n >> 16;
     return n + 1;
   }
-
-  /**
-   * Generates atlas and saves to file system
-   * @static
-   * @param {Object} objectLayerRenderFrames - The ObjectLayerRenderFrames document
-   * @param {string} itemKey - The item key for the atlas
-   * @param {string} outputPath - Output file path
-   * @param {number} [cellPixelDim=1] - Pixel dimension per cell
-   * @param {number} [maxAtlasDim=null] - Maximum atlas dimension (auto-calculated if null)
-   * @returns {Promise<{buffer: Buffer, metadata: Object, outputPath: string}>}
-   * @memberof CyberiaAtlasSpriteSheetGenerator
-   */
-  static async generateAtlasToFile(objectLayerRenderFrames, itemKey, outputPath, cellPixelDim = 1, maxAtlasDim = null) {
-    const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
-      objectLayerRenderFrames,
-      itemKey,
-      cellPixelDim,
-      maxAtlasDim,
-    );
-
-    await fs.ensureDir(path.dirname(outputPath));
-    await fs.writeFile(outputPath, buffer);
-
-    logger.info(`Atlas sprite sheet generated: ${outputPath}`);
-
-    return { buffer, metadata, outputPath };
-  }
 }
-
-// Export convenience functions
-export const generateAtlas = AtlasSpriteSheetGenerator.generateAtlas;
-export const generateAtlasToFile = AtlasSpriteSheetGenerator.generateAtlasToFile;
-export const frameMatrixToImage = AtlasSpriteSheetGenerator.frameMatrixToImage;
-export const packFramesGrid = AtlasSpriteSheetGenerator.packFramesGrid;
-export const nextPowerOf2 = AtlasSpriteSheetGenerator.nextPowerOf2;
-export const calculateOptimalDimension = AtlasSpriteSheetGenerator.calculateOptimalDimension;

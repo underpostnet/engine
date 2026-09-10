@@ -69,14 +69,23 @@ const DirectionFramesSchema = new Schema(
   { _id: false },
 );
 /**
+ * One atlas per item key, kept in two renders of one layout.
+ *
+ * `fileId` is the human-resolution PNG, at `metadata.upscaleFactor` pixels per
+ * cell. `minifyFileId` is the PNG the client runtime downloads through
+ * `GET /atlas-sprite-sheet/blob/:itemKey`, at `metadata.cellPixelDim` pixels per
+ * cell. `metadata` describes the minified render, so blob and metadata agree.
+ *
  * @typedef {Object} AtlasSpriteSheet
- * @property {Types.ObjectId} fileId - Reference to File document (consolidated PNG)
+ * @property {Types.ObjectId} fileId - Reference to the human-resolution PNG File document
+ * @property {Types.ObjectId} [minifyFileId] - Reference to the minified PNG File document
  * @property {string} [cid] - IPFS Content Identifier for the atlas PNG
  * @property {Object} metadata - Atlas sprite sheet metadata
  * @property {string} metadata.itemKey - Item identifier key for texture reference
- * @property {number} metadata.atlasWidth - Total atlas width in pixels
- * @property {number} metadata.atlasHeight - Total atlas height in pixels
- * @property {number} metadata.cellPixelDim - Pixel dimension of each cell
+ * @property {number} metadata.atlasWidth - Minified atlas width in pixels
+ * @property {number} metadata.atlasHeight - Minified atlas height in pixels
+ * @property {number} metadata.cellPixelDim - Pixels per cell of the minified render
+ * @property {number} metadata.upscaleFactor - Pixels per cell of the human-resolution render
  * @property {number} metadata.frame_duration - Duration of each frame in milliseconds
  * @property {DirectionFrames} metadata.frames - Frame positions in atlas by direction
  * @property {Date} createdAt - When the document was created
@@ -90,6 +99,12 @@ const AtlasSpriteSheetSchema = new Schema(
       ref: 'File',
       required: true,
     },
+    // Absent until `cyberia ol --minify` renders it for this item.
+    minifyFileId: {
+      type: Schema.Types.ObjectId,
+      ref: 'File',
+      default: null,
+    },
     cid: {
       type: String,
       default: '',
@@ -100,6 +115,7 @@ const AtlasSpriteSheetSchema = new Schema(
       atlasWidth: { type: Number, required: true, min: 1 },
       atlasHeight: { type: Number, required: true, min: 1 },
       cellPixelDim: { type: Number, required: true, min: 1 },
+      upscaleFactor: { type: Number, required: false, min: 1 },
       frame_duration: { type: Number, min: 0, default: 100 },
       frames: { type: DirectionFramesSchema, required: true },
     },
@@ -113,6 +129,7 @@ const AtlasSpriteSheetSchema = new Schema(
 // Indexes for efficient querying
 AtlasSpriteSheetSchema.index({ 'metadata.itemKey': 1 }, { unique: true });
 AtlasSpriteSheetSchema.index({ fileId: 1 });
+AtlasSpriteSheetSchema.index({ minifyFileId: 1 });
 // Pre-save validation
 AtlasSpriteSheetSchema.pre('save', function () {
   if (!this.fileId || !this.metadata) {
@@ -127,6 +144,7 @@ class AtlasSpriteSheetDto {
       return {
         _id: 1,
         fileId: 1,
+        minifyFileId: 1,
         cid: 1,
         metadata: 1,
         createdAt: 1,
@@ -144,6 +162,7 @@ class AtlasSpriteSheetDto {
         'metadata.atlasWidth': 1,
         'metadata.atlasHeight': 1,
         'metadata.cellPixelDim': 1,
+        'metadata.upscaleFactor': 1,
         'metadata.frame_duration': 1,
         'metadata.frames': 1,
         createdAt: 1,

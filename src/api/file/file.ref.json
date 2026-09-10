@@ -2,7 +2,8 @@
   {
     "api": "atlas-sprite-sheet",
     "model": {
-      "fileId": true
+      "fileId": true,
+      "minifyFileId": true
     }
   },
   {

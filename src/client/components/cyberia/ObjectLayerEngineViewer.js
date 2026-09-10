@@ -905,14 +905,14 @@ class ObjectLayerEngineViewer {
                                 : ''
                             }
                             <div>
-                              <p style="padding: 2px"><strong class="item-data-key-label">Dimensions:</strong></p>
+                              <p style="padding: 2px"><strong class="item-data-key-label">Layout:</strong></p>
                               <p style="padding: 2px">
-                                ${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasWidth}x${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasHeight}
+                                ${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasWidth}x${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasHeight} cells
                               </p>
                             </div>
                             <div>
-                                <p style="padding: 2px"><strong class="item-data-key-label">Cell Dim:</strong></p>
-                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.cellPixelDim}px</p>
+                                <p style="padding: 2px"><strong class="item-data-key-label">Upscale:</strong></p>
+                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.upscaleFactor}px per cell</p>
                             </div>
                             <div>
                                 <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>

@@ -14,8 +14,8 @@ const frame = [
 describe('Cyberia atlas generation', () => {
   it('keeps source pixels and frame positions without square padding', async () => {
     const source = { colors, frames: { down_idle: [frame], up_idle: [frame], down_walking: [frame] } };
-    const { buffer, metadata } = await Atlas.generateAtlas(source, 'test');
-    const image = await Jimp.read(buffer);
+    const { minifyBuffer, metadata } = await Atlas.generateAtlas(source, 'test');
+    const image = await Jimp.read(minifyBuffer);
     expect(metadata.cellPixelDim).toBe(1);
     expect([image.bitmap.width, image.bitmap.height]).toEqual([4, 4]);
     for (const frames of Object.values(metadata.frames)) {
@@ -29,22 +29,40 @@ describe('Cyberia atlas generation', () => {
 
   it('fits 26 character frames without scaling each source pixel', async () => {
     const pixels = Array.from({ length: 25 }, () => Array(25).fill(0));
-    const { buffer, metadata } = await Atlas.generateAtlas(
+    const { minifyBuffer, metadata } = await Atlas.generateAtlas(
       { colors, frames: { down_idle: Array(26).fill(pixels) } },
       'character',
+      1,
     );
     expect([metadata.atlasWidth, metadata.atlasHeight]).toEqual([250, 75]);
-    expect((await Jimp.read(buffer)).bitmap.data.byteLength).toBe(75000);
+    expect((await Jimp.read(minifyBuffer)).bitmap.data.byteLength).toBe(75000);
     expect(metadata.frames.down_idle).toHaveLength(26);
   });
 
-  it('keeps an explicit pixel scale consistent with frame metadata', async () => {
-    const { buffer, metadata } = await Atlas.generateAtlas({ colors, frames: { down_idle: [frame] } }, 'scaled', 2);
-    const image = await Jimp.read(buffer);
-    expect(metadata.cellPixelDim).toBe(2);
-    expect(metadata.frames.down_idle[0].width).toBe(4);
-    expect(image.getPixelColor(1, 1)).toBe(0xff0000ff);
-    expect(image.getPixelColor(2, 0)).toBe(0x00ff00ff);
+  it('describes the minified render, whatever the upscale factor', async () => {
+    const source = { colors, frames: { down_idle: [frame], up_idle: [frame] } };
+    const { metadata } = await Atlas.generateAtlas(source, 'scaled', 20);
+    expect(metadata.cellPixelDim).toBe(1);
+    expect(metadata.upscaleFactor).toBe(20);
+    expect(metadata.frames.down_idle[0].width).toBe(2);
+  });
+
+  it('renders the upscaled atlas as an exact multiple of the minified one', async () => {
+    const source = { colors, frames: { down_idle: [frame], up_idle: [frame] } };
+    const { buffer, minifyBuffer, metadata } = await Atlas.generateAtlas(source, 'scaled', 3);
+    const minified = await Jimp.read(minifyBuffer);
+    const upscaled = await Jimp.read(buffer);
+
+    expect([upscaled.bitmap.width, upscaled.bitmap.height]).toEqual([
+      metadata.atlasWidth * 3,
+      metadata.atlasHeight * 3,
+    ]);
+    for (let y = 0; y < minified.bitmap.height; y++) {
+      for (let x = 0; x < minified.bitmap.width; x++) {
+        expect(upscaled.getPixelColor(x * 3, y * 3)).toBe(minified.getPixelColor(x, y));
+        expect(upscaled.getPixelColor(x * 3 + 2, y * 3 + 2)).toBe(minified.getPixelColor(x, y));
+      }
+    }
   });
 
   it('rejects clipped frames and invalid dimensions', async () => {
