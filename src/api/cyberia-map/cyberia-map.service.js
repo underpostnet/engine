@@ -28,7 +28,9 @@ class CyberiaMapService {
       return { codes };
     }
 
-    if (req.params.id) return await CyberiaMap.findById(req.params.id).populate(populateCreator);
+    // Maps are addressed by code, the key the engine navigates by.
+    if (req.params.id)
+      return await CyberiaMap.findOne(DataQuery.naturalKeyFilter('code', req.params.id)).populate(populateCreator);
 
     // Parse query parameters using DataQuery helper
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);

@@ -16,6 +16,22 @@
  */
 class DataQuery {
   /**
+   * Filter that addresses one document by its natural key.
+   *
+   * The natural key is the value people navigate by: an object layer item id, an
+   * instance code. A key shaped like a document id matches either field, so a
+   * document id still resolves.
+   *
+   * @param {string} field - Path of the natural key, e.g. 'data.item.id'.
+   * @param {string} key - The key taken from the request.
+   * @memberof DataQuery
+   * @returns {Object} A Mongoose filter selecting at most one document.
+   */
+  static naturalKeyFilter(field, key) {
+    return /^[0-9a-f]{24}$/i.test(String(key)) ? { $or: [{ [field]: key }, { _id: key }] } : { [field]: key };
+  }
+
+  /**
    * Parse request query parameters into Mongoose query options
    * @param {Object} params - The request query parameters (req.query)
    * @param {string|Object} [params.filterModel] - AG Grid filterModel as JSON string or object

@@ -43,7 +43,9 @@ class CyberiaInstanceService {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
-    if (req.params.id) return await CyberiaInstance.findById(req.params.id).populate(populateCreator);
+    // Instances are addressed by code, the key the engine navigates by.
+    if (req.params.id)
+      return await CyberiaInstance.findOne(DataQuery.naturalKeyFilter('code', req.params.id)).populate(populateCreator);
 
     // Parse query parameters using DataQuery helper
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
