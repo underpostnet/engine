@@ -47,6 +47,7 @@ import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/proje
 import { getKeyframeDirectionsByCode } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
 import { AtlasSpriteSheetStore } from '../src/projects/cyberia/atlas-sprite-sheet-store.js';
+import { fileRefFields } from '../src/api/file/file.ref.js';
 import {
   generateMultiFrame,
   lookupSemantic,
@@ -524,9 +525,9 @@ try {
             logger.info('Dropping ALL object layer data');
           }
 
-          // Build query filter: targeted or all
+          // Build query filter: targeted or all. The atlas side of the drop is selected by
+          // the store, from the item keys and the links collected below.
           const olFilter = isTargetedDrop ? { 'data.item.id': { $in: dropItemIds } } : {};
-          const atlasFilter = isTargetedDrop ? { 'metadata.itemKey': { $in: dropItemIds } } : {};
 
           // Collect data before deletion
           const olDocs = await ObjectLayer.find(olFilter, {
@@ -537,7 +538,6 @@ try {
             objectLayerRenderFramesId: 1,
             atlasSpriteSheetId: 1,
           }).lean();
-          const atlasDocs = await AtlasSpriteSheet.find(atlasFilter, { fileId: 1, cid: 1 }).lean();
 
           const cidsToUnpin = new Set();
           const itemIdsToClean = new Set();
@@ -553,34 +553,36 @@ try {
             if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
           }
 
-          const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
-          for (const atlas of atlasDocs) {
-            if (atlas.cid) cidsToUnpin.add(atlas.cid);
-          }
-
           const olCount = olDocs.length;
-          const atlasCount = atlasDocs.length;
 
           // Delete targeted documents
           if (isTargetedDrop) {
             const olIds = olDocs.map((d) => d._id);
             if (olIds.length > 0) await ObjectLayer.deleteMany({ _id: { $in: olIds } });
             if (renderFrameIds.length > 0) await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
-            if (atlasIds.length > 0) await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
           } else {
             await ObjectLayer.deleteMany();
             await ObjectLayerRenderFrames.deleteMany();
-            await AtlasSpriteSheet.deleteMany();
           }
 
           const rfCount = renderFrameIds.length;
 
-          // Remove only the File documents that were referenced by atlas sprite sheets
-          let fileCount = 0;
-          if (atlasFileIds.length > 0) {
-            const result = await File.deleteMany({ _id: { $in: atlasFileIds } });
-            fileCount = result.deletedCount || 0;
-          }
+          // The atlas owns two renders and the store is what knows that: a drop naming
+          // `fileId` alone left every minified render unreachable in the File collection.
+          // Both selectors are passed, so an atlas linked by the object layer and one
+          // matching the item key are the same drop.
+          const purged = await AtlasSpriteSheetStore.purge({
+            itemKeys: isTargetedDrop ? dropItemIds : [],
+            atlasIds: isTargetedDrop ? atlasIds : [],
+            all: !isTargetedDrop,
+            options: { host, path },
+          });
+          for (const cid of purged.cids) cidsToUnpin.add(cid);
+          const atlasCount = purged.atlases;
+          // Renders an earlier drop left behind are unreachable by definition, so this
+          // drop takes them too instead of letting them accumulate.
+          const fileCount =
+            purged.files + (await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } }));
 
           // Delete IPFS pin registry records for all collected CIDs
           if (cidsToUnpin.size > 0) {
@@ -2404,19 +2406,17 @@ try {
                 if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
               }
 
-              // Delete AtlasSpriteSheet + referenced File docs
-              if (atlasIds.length > 0) {
-                const atlasDocs = await AtlasSpriteSheet.find({ _id: { $in: atlasIds } }, { fileId: 1, cid: 1 }).lean();
-                const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
-                for (const atlas of atlasDocs) {
-                  if (atlas.cid) cidsToUnpin.add(atlas.cid);
-                }
-                if (atlasFileIds.length > 0) {
-                  const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
-                  logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
-                }
-                const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
-                logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
+              // Delete AtlasSpriteSheet + every File render it owns, through the store that
+              // knows how many renders that is.
+              if (atlasIds.length > 0 || itemKeysToClean.size > 0) {
+                const purged = await AtlasSpriteSheetStore.purge({
+                  itemKeys: [...itemKeysToClean],
+                  atlasIds,
+                  options: { host, path },
+                });
+                for (const cid of purged.cids) cidsToUnpin.add(cid);
+                if (purged.files > 0) logger.info(`Dropped ${purged.files} File document(s) (atlas)`);
+                if (purged.atlases > 0) logger.info(`Dropped ${purged.atlases} AtlasSpriteSheet document(s)`);
               }
 
               // Delete RenderFrames
@@ -2571,6 +2571,9 @@ try {
             atlasCount++;
           }
           logger.info(`Imported ${atlasCount} AtlasSpriteSheet document(s)`);
+          // The replaced atlases took their renders out of reach; the imported ones are
+          // already stored, so what no atlas points at now is exactly the leftover.
+          await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });
         }
 
         // 4. Import object layers
@@ -3276,18 +3279,15 @@ try {
               if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
             }
 
-            if (atlasIds.length > 0) {
-              const atlasDocs = await AtlasSpriteSheet.find({ _id: { $in: atlasIds } }, { fileId: 1, cid: 1 }).lean();
-              const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
-              for (const atlas of atlasDocs) {
-                if (atlas.cid) cidsToUnpin.add(atlas.cid);
-              }
-              if (atlasFileIds.length > 0) {
-                const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
-                logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
-              }
-              const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
-              logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
+            if (atlasIds.length > 0 || itemKeysToClean.size > 0) {
+              const purged = await AtlasSpriteSheetStore.purge({
+                itemKeys: [...itemKeysToClean],
+                atlasIds,
+                options: { host, path },
+              });
+              for (const cid of purged.cids) cidsToUnpin.add(cid);
+              if (purged.files > 0) logger.info(`Dropped ${purged.files} File document(s) (atlas)`);
+              if (purged.atlases > 0) logger.info(`Dropped ${purged.atlases} AtlasSpriteSheet document(s)`);
             }
 
             if (renderFrameIds.length > 0) {
@@ -4807,13 +4807,12 @@ try {
       ];
 
       // Every File _id a Cyberia document owns: instance and map thumbnails and previews, and the
-      // recorded WAV each audio asset points at. Read before anything is dropped, so the backing
-      // File documents do not survive the collections that referenced them.
-      const fileReferences = [
-        { api: 'cyberia-instance', fields: ['thumbnail', 'preview'] },
-        { api: 'cyberia-map', fields: ['thumbnail', 'preview'] },
-        { api: 'cyberia-audio', fields: ['fileId'] },
-      ];
+      // recorded WAV each audio asset points at. Read from the registry that maps a model to its
+      // File fields, so a reference added there is dropped here without editing this command, and
+      // read before anything is dropped, so no backing File survives the collection that held it.
+      const fileReferences = cyberiaCollections
+        .map((api) => ({ api, fields: fileRefFields(api) }))
+        .filter(({ fields }) => fields.length > 0);
 
       await DataBaseProviderService.load({ apis: [...cyberiaCollections, 'file'], host, path, db });
 
