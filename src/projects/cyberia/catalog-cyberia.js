@@ -39,11 +39,10 @@ export default {
   packageBin: { cyberia: 'bin/index.js', underpost: 'bin/index.js' },
   // Native-dependency pin list: versions stay reproducible across CI and production deploys.
   packageDependencies: {
-    'adm-zip': '^0.6.0',
     'maxrects-packer': '^2.7.3',
     pngjs: '^7.0.0',
     jimp: '^1.6.0',
-    sharp: '^0.35.3',
+    sharp: '^0.35.4',
     ethers: '~6.16.0',
   },
   packageScripts: {

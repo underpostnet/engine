@@ -83,7 +83,7 @@ class UnderpostClient {
           const env = deployEnvFactory(options, process.env.NODE_ENV || 'development');
           process.env.NODE_ENV = env;
           if (options.mergeZip) {
-            mergeClientBuildZip({
+            await mergeClientBuildZip({
               buildPrefix: options.mergeZip,
               logger,
             });
@@ -91,7 +91,7 @@ class UnderpostClient {
           }
 
           if (options.unzip) {
-            unzipClientBuild({
+            await unzipClientBuild({
               buildPrefix: options.unzip,
               logger,
             });

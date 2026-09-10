@@ -80,7 +80,7 @@ updates:
           - 'dotenv'
           - 'commander'
           - 'fs-extra'
-          - 'adm-zip'
+          - 'jszip'
           - 'shelljs'
           - 'colors'
           - 'winston'

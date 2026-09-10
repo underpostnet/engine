@@ -17,7 +17,7 @@ import {
 } from '../client/components/core/CommonJs.js';
 import { readConfJson } from '../server/runtime/conf.js';
 import { minify } from 'html-minifier-terser';
-import AdmZip from 'adm-zip';
+import { extractZipTo, findZipEntry, isZipBuffer, loadZip, zipFromLocalFiles } from '../server/storage/zip.js';
 import * as dir from 'path';
 import { shellExec } from '../server/runtime/process.js';
 import { SitemapStream, streamToPromise } from 'sitemap';
@@ -180,6 +180,17 @@ const splitFileByMb = ({ filePath, partSizeMb, logger }) => {
   return partPaths;
 };
 
+/**
+ * Names the zip artifact a served route builds to. Single source of truth for the bundle
+ * identity: the build writes `<id>.zip`, and push/pull address the same file by this name.
+ * @function clientBundleIdFactory
+ * @param {string} host - The served host.
+ * @param {string} routePath - The route's proxy sub-path (`/`, `/peer`, ...).
+ * @returns {string} The bundle id, e.g. `underpost.net-` for `/` or `underpost.net-peer`.
+ * @memberof clientBuild
+ */
+const clientBundleIdFactory = (host, routePath) => `${host}-${`${routePath ?? ''}`.replaceAll('/', '')}`;
+
 const getZipPartPaths = (zipPath) => {
   const zipDir = dir.dirname(zipPath);
   const zipBase = dir.basename(zipPath);
@@ -269,9 +280,9 @@ const resolveClientBuildZip = (buildPrefix) => {
  * @param {object} options
  * @param {string} options.buildPrefix - The build prefix path (e.g. build/underpost.net/underpost.net-).
  * @param {object} options.logger - Logger instance.
- * @returns {{ zipPath: string, partPaths: string[], mergedBytes: number }}
+ * @returns {Promise<{ zipPath: string, partPaths: string[], mergedBytes: number }>}
  */
-const mergeClientBuildZip = ({ buildPrefix, logger }) => {
+const mergeClientBuildZip = async ({ buildPrefix, logger }) => {
   // Normalize to get the zip path, then look for parts directly (bypassing resolveClientBuildZip
   // which prefers an existing monolithic zip over parts).
   const normalizedPrefix = buildPrefix.replace(/\.zip(?:[.-]part\d+)?$/, '').replace(/[-.]$/, '') + '-';
@@ -301,31 +312,41 @@ const mergeClientBuildZip = ({ buildPrefix, logger }) => {
   // For each part, extract raw bytes: if the part file is a Cloudinary wrapper zip
   // (downloaded via pull without --omit-unzip or with --omit-unzip keeping the .zip),
   // extract the inner entry rather than using the wrapper bytes.
-  const readPartBytes = (partPath) => {
+  const readPartBytes = async (partPath) => {
     const rawBytes = fs.readFileSync(partPath);
-    // Check for ZIP magic bytes (PK\x03\x04)
-    if (rawBytes[0] === 0x50 && rawBytes[1] === 0x4b && rawBytes[2] === 0x03 && rawBytes[3] === 0x04) {
-      try {
-        const wrapperZip = new AdmZip(rawBytes);
-        const entries = wrapperZip.getEntries();
-        // The inner entry is the original part file (without the outer .zip wrapper)
-        const partBase = dir.basename(partPath).replace(/\.zip$/i, '');
-        const entry = entries.find((e) => e.entryName === partBase || e.entryName.endsWith('/' + partBase));
-        if (entry) {
-          return entry.getData();
-        }
-        // Fallback: single-entry archive
-        if (entries.length === 1) {
-          return entries[0].getData();
-        }
-      } catch (_) {
-        // Not a valid zip or extraction failed — use raw bytes
-      }
+    if (!isZipBuffer(rawBytes)) return rawBytes;
+
+    let wrapper;
+    try {
+      wrapper = await loadZip(rawBytes);
+    } catch (_) {
+      // A raw split part carries the zip signature but no central directory, so failing to load
+      // is how a part that was never wrapped identifies itself.
+      return rawBytes;
     }
-    return rawBytes;
+
+    // A part pulled from storage arrives inside the archive the download produced. Falling back
+    // to that wrapper's own bytes merges compressed data into the bundle and surfaces much later
+    // as a corrupt archive, so a wrapper whose part cannot be found fails here and names itself.
+    const entry = findZipEntry(wrapper, dir.basename(partPath).replace(/\.zip$/i, ''));
+    if (!entry) throw new Error(`Bundle part wrapper holds no matching entry: ${partPath}`);
+    return await entry.async('nodebuffer');
   };
 
-  const mergedBuffer = Buffer.concat(partPaths.map(readPartBytes));
+  const partBuffers = [];
+  for (const partPath of partPaths) partBuffers.push(await readPartBytes(partPath));
+  const mergedBuffer = Buffer.concat(partBuffers);
+
+  // A short part anywhere in the sequence only shows up as a byte count against the assembled
+  // archive, which names nothing. Reporting each part's contribution is what makes the one that
+  // came up short identifiable.
+  logger.info('merge-zip: part sizes', {
+    zipPath,
+    parts: partPaths.map((partPath, index) => ({
+      part: dir.basename(partPath),
+      bytes: partBuffers[index].length,
+    })),
+  });
   fs.writeFileSync(zipPath, mergedBuffer);
 
   logger.warn('merge-zip: merged split parts into zip', {
@@ -337,19 +358,16 @@ const mergeClientBuildZip = ({ buildPrefix, logger }) => {
   return { zipPath, partPaths, mergedBytes: mergedBuffer.length };
 };
 
-const unzipClientBuild = ({ buildPrefix, logger }) => {
+const unzipClientBuild = async ({ buildPrefix, logger }) => {
   const { zipPath, partPaths, buildPrefix: resolvedBuildPrefix } = resolveClientBuildZip(buildPrefix);
   const outputPath = resolvedBuildPrefix.replace(/-$/, '');
 
   fs.removeSync(outputPath);
-  fs.mkdirSync(outputPath, { recursive: true });
 
-  const zip =
-    partPaths.length > 0
-      ? new AdmZip(Buffer.concat(partPaths.map((partPath) => fs.readFileSync(partPath))))
-      : new AdmZip(zipPath);
-
-  zip.extractAllTo(outputPath, true);
+  await extractZipTo(
+    partPaths.length > 0 ? Buffer.concat(partPaths.map((partPath) => fs.readFileSync(partPath))) : zipPath,
+    outputPath,
+  );
 
   logger.warn('unzip build', {
     source: partPaths.length > 0 ? partPaths : [zipPath],
@@ -833,14 +851,12 @@ const buildClient = async (
       }
 
       if (!ssrOnly && views) {
-        if (
-          !(
-            enableLiveRebuild &&
-            !options.liveClientBuildPaths.find(
-              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
-            )
+        if (!(
+          enableLiveRebuild &&
+          !options.liveClientBuildPaths.find(
+            (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
           )
-        )
+        ))
           for (const view of views) {
             const buildPath = `${
               rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -1147,23 +1163,25 @@ ${swTransformedJs}`,
 
         if (!fs.existsSync('./build')) fs.mkdirSync('./build');
 
-        const zip = new AdmZip();
         const files = await fs.readdir(rootClientPath, { recursive: true });
+        const zipEntries = [];
 
         for (const relativePath of files) {
           const filePath = dir.resolve(`${rootClientPath}/${relativePath}`);
           if (!fs.lstatSync(filePath).isDirectory()) {
             const folder = dir.relative(`public/${host}${path}`, dir.dirname(filePath));
-            zip.addLocalFile(filePath, folder);
+            zipEntries.push({
+              localPath: filePath,
+              entryName: folder ? `${folder}/${dir.basename(filePath)}` : dir.basename(filePath),
+            });
           }
         }
 
-        const buildId = `${host}-${path.replaceAll('/', '')}`;
-        const zipPath = `./build/${buildId}.zip`;
+        const zipPath = `./build/${clientBundleIdFactory(host, path)}.zip`;
 
         logger.warn('write zip', zipPath);
 
-        zip.writeZip(zipPath);
+        fs.writeFileSync(zipPath, await zipFromLocalFiles(zipEntries));
 
         if (options.split) {
           splitFileByMb({
@@ -1181,7 +1199,9 @@ ${swTransformedJs}`,
 
 export {
   buildClient,
+  clientBundleIdFactory,
   copyNonExistingFiles,
+  getZipPartPaths,
   unzipClientBuild,
   mergeClientBuildZip,
   staticContextRoutesFactory,
