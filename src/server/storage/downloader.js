@@ -31,31 +31,79 @@ class Downloader {
    * @memberof Downloader
    */
   static downloadFile(url, fullPath, options = { method: 'get', responseType: 'stream' }) {
-    return new Promise((resolve, reject) =>
+    /**
+     * Renders an error response body, whatever transport shape it arrived in, capped for a log
+     * line. A stream request carries even its errors as a stream, so the body has to be read
+     * before it can be reported.
+     */
+    const responseBody = async (data) => {
+      if (!data) return undefined;
+      try {
+        if (Buffer.isBuffer(data)) return data.toString('utf8').slice(0, 500);
+        if (typeof data === 'string') return data.slice(0, 500);
+        if (typeof data.on === 'function') {
+          let text = '';
+          for await (const chunk of data) {
+            text += chunk;
+            if (text.length > 500) break;
+          }
+          return text.slice(0, 500) || undefined;
+        }
+        return JSON.stringify(data).slice(0, 500);
+      } catch {
+        return undefined;
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        logger.error('Error downloading the file', { fullPath, error: error?.message });
+        // A partial file is worse than none: the caller cannot tell it apart from a whole one.
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+        return reject(error);
+      };
+
       axios({
         url,
         ...options,
       })
         .then((response) => {
-          // Create a write stream to save the file to the specified path
           const writer = fs.createWriteStream(fullPath);
-          response.data.pipe(writer);
+          const expectedBytes = Number(response.headers?.['content-length'] ?? NaN);
+
+          // A response stream that ends early still ends, so the writer emits `finish` and the
+          // download reports success over a truncated file. The declared length is what proves
+          // the transfer whole — without this check a short part reached the caller intact-looking
+          // and only surfaced much later, as a corrupt archive assembled from it.
           writer.on('finish', () => {
-            logger.info('Download completet');
+            if (settled) return;
+            const receivedBytes = writer.bytesWritten;
+            if (Number.isFinite(expectedBytes) && receivedBytes !== expectedBytes)
+              return fail(new Error(`Truncated download: expected ${expectedBytes} bytes, received ${receivedBytes}`));
+            settled = true;
+            logger.info('Download complete', { fullPath, bytes: receivedBytes });
             return resolve(fullPath);
           });
-          writer.on('error', (error) => {
-            logger.error('Error downloading the file');
-            // Cleanup incomplete file if possible
-            if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-            return reject(error);
-          });
+          writer.on('error', fail);
+          response.data.on('error', fail);
+          response.data.pipe(writer);
         })
-        .catch((error) => {
-          logger.error('Error in the request');
+        .catch(async (error) => {
+          // The status alone names nothing. A storage service explains a refusal in the body —
+          // which delivery type it looked under, which id it could not find — and without it a
+          // caller sees `status code 400` and has to reproduce the request by hand to learn why.
+          logger.error('Error in the request', {
+            fullPath,
+            error: error?.message,
+            status: error?.response?.status,
+            body: await responseBody(error?.response?.data),
+          });
           return reject(error);
-        }),
-    );
+        });
+    });
   }
 }
 
