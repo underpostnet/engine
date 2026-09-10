@@ -4311,7 +4311,7 @@ try {
     )
     .option('--import <file>', 'Load a previously generated payload file (the shape --out writes) into the database')
     .option('--model <model>', 'Gemini model id (default: gemma-4-26b-a4b-it)')
-    .option('--timeout <ms>', 'Per-request timeout in ms (default: 300000)', (v) => parseInt(v, 10))
+    .option('--timeout <ms>', 'Per-request timeout in ms (default: 10000)', (v) => parseInt(v, 10))
     .option('--thinking-level <level>', 'Gemini thinking level: low | medium | high (default: high)')
     .option(
       '--lore-path <path>',

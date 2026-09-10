@@ -38,14 +38,14 @@ Nothing in this stack is hand-configured. Scrape targets are derived from the sa
 
 Five responsibilities, each owned by exactly one place. Nothing detects and acts; nothing routes and communicates.
 
-| Responsibility  | Owner                      | Holds                                                       |
-| --------------- | -------------------------- | ----------------------------------------------------------- |
-| **semantics**   | `src/cli/event.js`         | What an event means, who it affects, and how it is repaired |
+| Responsibility  | Owner                          | Holds                                                       |
+| --------------- | ------------------------------ | ----------------------------------------------------------- |
+| **semantics**   | `src/cli/event.js`             | What an event means, who it affects, and how it is repaired |
 | **rendering**   | `src/server/ops/monitoring.js` | Configuration and manifests, as pure functions              |
-| **detect**      | Prometheus + Blackbox      | Probes the subject and evaluates the rule                   |
-| **route**       | Alertmanager               | Groups a firing alert and delivers it to the dispatcher     |
-| **act**         | the event handler          | Runs the remediation on the resolved subject                |
-| **communicate** | `conf.event.json`          | The providers and subscribers each event's outcome reaches  |
+| **detect**      | Prometheus + Blackbox          | Probes the subject and evaluates the rule                   |
+| **route**       | Alertmanager                   | Groups a firing alert and delivers it to the dispatcher     |
+| **act**         | the event handler              | Runs the remediation on the resolved subject                |
+| **communicate** | `conf.event.json`              | The providers and subscribers each event's outcome reaches  |
 
 `monitoring.js` never decides anything — it takes probes, rules and targets and renders YAML. `event.js` never renders YAML — it declares probes, a rule and a handler, and the render layer turns those into scrape config, alert rules and a route. Neither holds a recipient: an event's behaviour is code, its audience is deployment data. This is why adding an event is one object rather than an edit in four files, and why no generated file can describe a probe that has no handler.
 
@@ -453,7 +453,7 @@ Two consequences worth knowing. An id the cluster runs that the registry no long
 ```bash
 node bin event --service                       # supervised systemd unit (how it should run)
 node bin event --serve                         # foreground, for a one-off test
-node bin event --serve --port 39099 --cooldown-ms 300000
+node bin event --serve --port 39099 --cooldown-ms 10000
 ```
 
 The receiver answers `202` before dispatching. Remediation can take minutes, while Alertmanager retries any delivery it does not see accepted. A five-minute cooldown is keyed by event and subject, so duplicates for one spoke are suppressed without blocking another spoke.
@@ -997,23 +997,23 @@ Cockpit and Prometheus both default to port 9090. They do not collide — Promet
 
 ### `node bin event [event-id]`
 
-| Option                | Description                                                              |
-| --------------------- | ------------------------------------------------------------------------ |
-| `--deploy`            | Merge the event into the cluster's deployed set and republish            |
-| `--undeploy`          | Remove the event from the deployed set and republish without it          |
-| `--serve`             | Run the webhook receiver in the foreground (ends with the session)       |
-| `--service`           | Install and start the receiver as the `underpost-event` systemd unit     |
-| `--service-status`    | Report whether that unit is active and enabled                           |
-| `--service-stop`      | Stop, disable and remove that unit                                       |
-| `--list`              | List registered events with their resolved probe targets                 |
-| `--port <port>`       | Listening port for `--serve` (default: `39099`)                          |
-| `--cooldown-ms <ms>`  | Minimum interval between two dispatches of one event (default: `300000`) |
-| `--spoke <id>`        | Spoke to remediate by hand, by topology peer id                          |
-| `--nodes <names>`     | Comma-separated node documents to act on; empty covers every one         |
-| `--webhook-url <url>` | URL written into the generated route with `--deploy`                     |
-| `--dry-run`           | Report the remediation without running it                                |
-| `--no-notify`         | Skip the notifications the event declares                                |
-| `--e2e-test`          | Rehearse the event against the live edge, notification included          |
+| Option                | Description                                                             |
+| --------------------- | ----------------------------------------------------------------------- |
+| `--deploy`            | Merge the event into the cluster's deployed set and republish           |
+| `--undeploy`          | Remove the event from the deployed set and republish without it         |
+| `--serve`             | Run the webhook receiver in the foreground (ends with the session)      |
+| `--service`           | Install and start the receiver as the `underpost-event` systemd unit    |
+| `--service-status`    | Report whether that unit is active and enabled                          |
+| `--service-stop`      | Stop, disable and remove that unit                                      |
+| `--list`              | List registered events with their resolved probe targets                |
+| `--port <port>`       | Listening port for `--serve` (default: `39099`)                         |
+| `--cooldown-ms <ms>`  | Minimum interval between two dispatches of one event (default: `10000`) |
+| `--spoke <id>`        | Spoke to remediate by hand, by topology peer id                         |
+| `--nodes <names>`     | Comma-separated node documents to act on; empty covers every one        |
+| `--webhook-url <url>` | URL written into the generated route with `--deploy`                    |
+| `--dry-run`           | Report the remediation without running it                               |
+| `--no-notify`         | Skip the notifications the event declares                               |
+| `--e2e-test`          | Rehearse the event against the live edge, notification included         |
 
 ---
 

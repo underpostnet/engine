@@ -147,10 +147,10 @@ const GATEWAY_DURATION_UNITS = [
 ];
 
 /**
- * Converts an HTTPProxy duration (`300000ms`, `10s`, `infinity`) into a Gateway
+ * Converts an HTTPProxy duration (`10000ms`, `10s`, `infinity`) into a Gateway
  * API Duration. The Gateway API grammar allows at most 5 digits per component,
  * so a value that overflows in one unit is re-expressed in a coarser one
- * (`300000ms` → `5m`); `infinity` maps to `0s`, which disables the timeout.
+ * (`10000ms` → `5m`); `infinity` maps to `0s`, which disables the timeout.
  * @param {string|number} value - Source duration.
  * @returns {string|null} Gateway API Duration, or null when unset/unparsable.
  */
@@ -617,7 +617,7 @@ spec:
      * @param {string} options.namespace - Kubernetes namespace for the deployment (defaults to "default").
      * @param {string} [options.versions] - Comma-separated list of versions to deploy.
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
-     * @param {string} [options.timeoutResponse] - HTTPProxy per-route response timeout (e.g. "300000ms", "infinity").
+     * @param {string} [options.timeoutResponse] - HTTPProxy per-route response timeout (e.g. "10000ms", "infinity").
      * @param {string} [options.timeoutIdle] - HTTPProxy per-route idle timeout (e.g. "10s", "infinity").
      * @param {string} [options.retryCount] - HTTPProxy per-route retry count (e.g. 3).
      * @param {string} [options.retryPerTryTimeout] - HTTPProxy per-route per-try timeout (e.g. "150ms").
@@ -2185,7 +2185,7 @@ ${rules}`;
      * @param {boolean} options.disableUpdateVolume - Whether to disable volume updates.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
      * @param {string} [options.namespace] - Kubernetes namespace for the deployment (defaults to "default").
-     * @param {string} [options.timeoutResponse] - HTTPProxy per-route response timeout (e.g. "300000ms", "infinity").
+     * @param {string} [options.timeoutResponse] - HTTPProxy per-route response timeout (e.g. "10000ms", "infinity").
      * @param {string} [options.timeoutIdle] - HTTPProxy per-route idle timeout (e.g. "10s", "infinity").
      * @param {string} [options.retryCount] - HTTPProxy per-route retry count (e.g. 3).
      * @param {string} [options.retryPerTryTimeout] - HTTPProxy per-route per-try timeout (e.g. "150ms").

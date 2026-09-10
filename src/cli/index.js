@@ -745,7 +745,7 @@ program
   .option('--service-status', 'Reports whether the underpost-event unit is active and enabled.')
   .option('--list', 'Lists the registered events with their resolved probe targets.')
   .option('--port <port>', 'Listening port for --serve and the generated unit (default: 39099).')
-  .option('--cooldown-ms <ms>', 'Minimum interval between two dispatches of one event in --serve (default: 300000).')
+  .option('--cooldown-ms <ms>', 'Minimum interval between two dispatches of one event in --serve (default: 10000).')
   .option(
     '--spoke <spoke-id>',
     'Spoke to remediate when dispatching wireguard-spoke-down by hand; a webhook takes it from the alert labels.',

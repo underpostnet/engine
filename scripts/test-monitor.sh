@@ -29,7 +29,7 @@ VERSIONS=green                                # csv of blue/green versions
 REPLICAS=1                                    # replicas per deployment
 NAMESPACE=default                             # k8s namespace
 CLUSTER=kind                                  # kind | kubeadm | k3s | "" (auto/none)
-TIMEOUT_RESPONSE=300000ms                     # HTTPProxy per-route response timeout
+TIMEOUT_RESPONSE=10000ms                     # HTTPProxy per-route response timeout
 TEMPLATE_REPO=underpostnet/pwa-microservices-template-private  # runtime mode link repo
 ENVOY_NAMESPACE=projectcontour                # ingress namespace (instance TLS exposure)
 ENVOY_SERVICE=envoy                           # ingress service (instance TLS exposure)
@@ -59,7 +59,7 @@ Common (every default is overridable):
   --replicas <n>
   --namespace <ns>
   --cluster <kind|kubeadm|k3s|none>
-  --timeout-response <dur>      e.g. 300000ms
+  --timeout-response <dur>      e.g. 10000ms
   --template-repo <owner/repo>  runtime mode link repo
   --envoy-namespace <ns>        instance TLS exposure ingress namespace
   --envoy-service <name>        instance TLS exposure ingress service
