@@ -85,7 +85,7 @@ const stream = [
 let workDir;
 let streamPath;
 
-const runQuiet = ({ tty = false, plain = false, ci = false, exitCode = 0 } = {}) => {
+const runQuiet = ({ tty = false, plain = false, ci = false, debug = false, exitCode = 0 } = {}) => {
   const command = `exit ${exitCode}`;
   const script = [
     'status=0',
@@ -106,6 +106,8 @@ const runQuiet = ({ tty = false, plain = false, ci = false, exitCode = 0 } = {})
   delete env.GITHUB_ACTIONS;
   delete env.RUN_QUIET_CI;
   if (ci) env.RUN_QUIET_CI = 'github';
+  delete env.RUN_QUIET_DEBUG;
+  if (debug) env.RUN_QUIET_DEBUG = '1';
 
   const [file, args] = tty ? ['script', ['-qec', `bash ${scriptPath}`, '/dev/null']] : ['bash', [scriptPath]];
   return execFileSync(file, args, { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -128,7 +130,7 @@ describe('deploy failure propagation (run_quiet exit status)', () => {
    * Runs the helper against an arbitrary stream and reports the exit status rather than
    * throwing, so a failing step is an assertion rather than a caught exception.
    */
-  const runWith = (lines, exitCode = 0) => {
+  const runWith = (lines, exitCode = 0, mode = { RUN_QUIET_PLAIN: '1' }) => {
     const logPath = path.join(failDir, 'stream.log');
     fs.writeFileSync(logPath, `${lines.join('\n')}\n`);
     const scriptPath = path.join(failDir, 'run.sh');
@@ -141,9 +143,12 @@ describe('deploy failure propagation (run_quiet exit status)', () => {
         'echo REACHED_NEXT_STEP',
       ].join('\n'),
     );
-    const env = { ...process.env, RUN_QUIET_PLAIN: '1' };
+    const env = { ...process.env };
     delete env.GITHUB_ACTIONS;
     delete env.RUN_QUIET_CI;
+    delete env.RUN_QUIET_PLAIN;
+    delete env.RUN_QUIET_DEBUG;
+    Object.assign(env, mode);
     try {
       const stdout = execFileSync('bash', [scriptPath], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       return { status: 0, stdout, stderr: '' };
@@ -157,6 +162,41 @@ describe('deploy failure propagation (run_quiet exit status)', () => {
   });
 
   afterEach(() => fs.removeSync(failDir));
+
+  // The failure report names two files and prints nothing out of them, so what the step captured
+  // is read back from the file rather than from the transcript.
+  const errorLog = (result) => {
+    const named = /error trace:\s+(\S+)/.exec(result.stderr);
+    expect(named, 'the failure report names an error trace').to.not.equal(null);
+    return fs.readFileSync(named[1], 'utf8');
+  };
+
+  it('latches a fatal runtime state in every rendering, including the debug stream', () => {
+    // The latch is parsed, not rendered. Turning the display off must not turn it off with it, or
+    // an audit run reports success on a deployment that never came up.
+    const podFatal = 'Target pod: dd-test-blue | Pod status: Running | Runtime status: error';
+
+    for (const [name, mode] of [
+      ['plain', { RUN_QUIET_PLAIN: '1' }],
+      ['ci', { RUN_QUIET_CI: 'github' }],
+      ['debug', { RUN_QUIET_DEBUG: '1' }],
+    ]) {
+      const result = runWith([podFatal], 0, mode);
+      expect(result.status, name).to.equal(1);
+      expect(result.stderr, name).to.include('reported a fatal runtime state but exited 0');
+      expect(result.stdout, name).to.not.include('REACHED_NEXT_STEP');
+    }
+  });
+
+  it('latches a fatal runtime state reported only by a monitor event, in the debug stream too', () => {
+    // The event arrives as a multi-line JSON block, so the state machine that reads it has to run
+    // in a mode that renders none of it.
+    const emitted = emit('08:11:33', 'runtime', 'runtime_error', 'error').split('\n');
+    const result = runWith(emitted, 0, { RUN_QUIET_DEBUG: '1' });
+
+    expect(result.status).to.equal(1);
+    expect(result.stdout, 'debug shows the event it latched on').to.include('"status": "error"');
+  });
 
   it('propagates a non-zero command status so `set -e` stops the deployment', () => {
     const result = runWith([podLine(POD_A, 'Running', 'running-deployment')], 7);
@@ -184,7 +224,10 @@ describe('deploy failure propagation (run_quiet exit status)', () => {
     expect(result.status).to.equal(1);
     expect(result.stdout).to.not.include('REACHED_NEXT_STEP');
     expect(result.stderr).to.include('fatal runtime state but exited 0');
-    expect(result.stderr).to.include(POD_A);
+    // The pod name is captured output: a CI transcript is readable by anyone with the job log,
+    // so the latch detail belongs in the error log and nowhere else.
+    expect(result.stderr).to.not.include(POD_A);
+    expect(errorLog(result)).to.include(`pod ${POD_A}: runtime status=error`);
   });
 
   it('fails on a fatal runtime status carried by a monitor event rather than a pod row', () => {
@@ -196,7 +239,8 @@ describe('deploy failure propagation (run_quiet exit status)', () => {
       0,
     );
     expect(result.status).to.equal(1);
-    expect(result.stderr).to.include('runtime event: status=error');
+    expect(result.stderr).to.not.include('status=error');
+    expect(errorLog(result)).to.include('runtime event: status=error');
   });
 
   it('never hands off to the traffic switch on a pod reporting the fatal state', () => {
@@ -316,6 +360,33 @@ describe('deploy log table (run_quiet filter)', () => {
     expect(lines[lines.length - 1]).to.include('▶ Switch traffic');
     expect(out).to.not.include(READY_LINE);
     expect(out).to.not.include(CHATTER_LINE);
+  });
+
+  it('streams every line verbatim in debug mode, rendering nothing of its own', () => {
+    const out = runQuiet({ debug: true });
+
+    // What the other modes consume is exactly what an operator opened this session to read: the
+    // monitor's own JSON, and the report lines the table replaces.
+    expect(out).to.include('deploy-monitor');
+    expect(out).to.include('"phase": "kubernetes"');
+    expect(out).to.include('Target pod: ');
+    expect(out).to.include(READY_LINE);
+    expect(out).to.include(CHATTER_LINE);
+
+    // Nothing is rendered on top of the stream: no table, no CI section, no hand-off.
+    expect(out).to.not.include('POD NAME');
+    expect(out).to.not.include('refresh #');
+    expect(out).to.not.include('::group::');
+    expect(out).to.not.include('▶ Switch traffic');
+  });
+
+  it('keeps debug mode a passthrough even where a CI log would fold frames', () => {
+    // Debug is the operator asking for the stream, so it wins over the rendering the destination
+    // would otherwise get: a collapsed section hides exactly what the run is being watched for.
+    const out = runQuiet({ debug: true, ci: true });
+
+    expect(out).to.not.include('::group::');
+    expect(out).to.include('deploy-monitor');
   });
 
   it('falls back to plain rows on a terminal when RUN_QUIET_PLAIN is set', function () {

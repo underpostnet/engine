@@ -1,37 +1,20 @@
 # Logging helpers for deploy/<deploy-id>/*.sh. Sourced, never executed directly.
 #
-# Deploy script contract:
-# - deploy_start once for the run's title, prepare_host from lib/host.sh next,
-#   then one deploy_step call per remote command, each with its own label
-# - the body lives in main(), invoked on the last line: the first remote command
-#   pulls this repository, rewriting the running script while bash reads it
+# Environment read by these helpers, and nothing else:
+#   RUN_QUIET_DEBUG  Stream every line verbatim: no table, no folding, no dropped traces. For an
+#                    operator watching a step over SSH who needs the run itself, not a report of
+#                    it. Wins over the two below, which each hide part of the stream by design.
+#   RUN_QUIET_CI     Marks stdout as a GitHub Actions log, which folds monitor frames into
+#                    collapsed sections. The CD workflows export it on the far side of the SSH
+#                    hop because GITHUB_ACTIONS is runner-local and does not travel; a remote
+#                    deploy has no other way to know. `underpost state publish` reads the same
+#                    pair to choose workflow commands over JSON.
+#   RUN_QUIET_PLAIN  No colour, no cursor motion, no folding: frames stream as they arrive.
+#   NO_COLOR         Colour off, the usual convention. Everything else is unaffected.
 #
-# deploy_step is the entry point every deploy script uses. run_quiet stays the
-# mechanism underneath it, for the rare caller that needs a different report
-# pattern or passthrough window.
-#
-# run_quiet hides normal output and returns the command's exit status so
-# `set -e` stops the deployment. Lines matching `patterns` that parse as a
-# deployment pod report are folded into a table — one row per pod, three columns
-# wide — instead of being streamed; the monitor's raw `deploy-monitor` JSON emits
-# are consumed into that table's cells rather than printed. The monitor
-# iteration and its clock are per frame, not per pod, so they title the table
-# rather than repeating down a column of every row. Anything else within
-# `lines_after` lines of a match scrolls above the table. On failure it keeps
-# two temp files and prints their paths in red instead of their contents: the
-# error trace and the full unfiltered log up to the error. The trace is stderr
-# plus the failing tail of the merged log, because the engine CLI reports through
-# its logger and that writes to stdout — stderr alone routinely holds nothing but
-# git progress output.
-#
-# The table renders three ways, because a log viewer is not a terminal:
-# - terminal: redrawn in place, cursor relative, one frame at a time
-# - CI (GITHUB_ACTIONS/RUN_QUIET_CI): no cursor addressing exists there, so the
-#   changed rows stream inside a collapsed `::group::` and the final table is
-#   printed after it, expanded
-# - anywhere else: changed rows appended
-# Colour is ANSI SGR only and is emitted in all three (GitHub renders SGR in
-# step logs); NO_COLOR or RUN_QUIET_PLAIN turns it off.
+# Whatever the rendering, the parsing behind it is the same: a step that reports a fatal runtime
+# status fails, including one that exits 0, and including in debug mode.
+
 
 if [ -n "${NO_COLOR:-}${RUN_QUIET_PLAIN:-}" ]; then
     RUN_QUIET_RED=''
@@ -41,8 +24,8 @@ else
     RUN_QUIET_RESET=$'\033[0m'
 fi
 
-RUN_QUIET_NODE_NAME=$(hostname 2>/dev/null | tr '[:upper:]' '[:lower:]')
-RUN_QUIET_NODE_TAG=${RUN_QUIET_NODE_NAME:+ [$RUN_QUIET_NODE_NAME]}
+RUN_QUIET_NODE_TAG=$(hostname 2>/dev/null | tr '[:upper:]' '[:lower:]')
+RUN_QUIET_NODE_TAG=${RUN_QUIET_NODE_TAG:+ [$RUN_QUIET_NODE_TAG]}
 
 # The report pattern and the passthrough window describe the deployment log
 # format, not any one step, so they are declared once here instead of being
@@ -68,27 +51,37 @@ run_quiet() {
     local patterns="$2"
     local lines_after="$3"
     shift 3
-    
+
     local debug_log
     local error_log
     local fail_flag
     local fatal
-    local reason
     local fifo_dir
     local filter_pid
     local stderr_pid
     local color=0
+    local debug=0
     local groups=0
     local redraw=0
     local width=0
     local rows=0
     local status=0
-    
+
     echo "$RUN_QUIET_NODE_TAG $(date -Is) ▶ $label"
-    
+
+    # How a step renders is decided by what its destination can do, not by preference, and the
+    # three renderings are mutually exclusive:
+    #   debug   an operator watching over SSH — nothing filtered, folded or overwritten
+    #   redraw  a terminal — one live region, rewritten in place
+    #   groups  a GitHub Actions log — no cursor motion, so frames fold into a collapsed section
+    # With none of them the frames simply stream. RUN_QUIET_DEBUG is resolved first because it
+    # is the operator asking to see the stream itself, which neither of the others can show: a
+    # live region overwrites what came before, and a collapsed section hides it.
+    [ -z "${RUN_QUIET_DEBUG:-}" ] || debug=1
+
     [ -n "${NO_COLOR:-}${RUN_QUIET_PLAIN:-}" ] || color=1
-    
-    if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${RUN_QUIET_PLAIN:-}" ]; then
+
+    if [ "$debug" -eq 0 ] && [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${RUN_QUIET_PLAIN:-}" ]; then
         redraw=1
         width=${COLUMNS:-0}
         [ "$width" -gt 0 ] 2>/dev/null || width=$(tput cols 2>/dev/null || echo 0)
@@ -98,18 +91,22 @@ run_quiet() {
         # addresses the table no longer matches the lines it printed.
         [ "$width" -ge 20 ] || redraw=0
     fi
-    
-    if [ "$redraw" -eq 0 ] && [ -z "${RUN_QUIET_PLAIN:-}" ] && [ -n "${GITHUB_ACTIONS:-}${RUN_QUIET_CI:-}" ]; then
+
+    # GITHUB_ACTIONS exists on a runner but is not carried across the SSH hop a remote deploy runs
+    # over, so RUN_QUIET_CI — which the workflows export on the far side — is what actually marks
+    # a step whose stdout a GitHub log will render.
+    if [ "$debug" -eq 0 ] && [ "$redraw" -eq 0 ] && [ -z "${RUN_QUIET_PLAIN:-}" ] &&
+        [ -n "${GITHUB_ACTIONS:-}${RUN_QUIET_CI:-}" ]; then
         groups=1
     fi
-    
+
     debug_log=$(mktemp --suffix=.debug.log)
     error_log=$(mktemp --suffix=.error.log)
     fail_flag=$(mktemp --suffix=.fatal)
     : >"$fail_flag"
     fifo_dir=$(mktemp -d)
     mkfifo "$fifo_dir/merged" "$fifo_dir/stderr"
-    
+
     # The filter reads the live stream rather than the finished log: a deployment
     # monitor prints its report for minutes before exiting, so a pass over the
     # completed file would show nothing until then. fflush defeats awk's block
@@ -133,6 +130,7 @@ run_quiet() {
     -v debug_log="$debug_log" \
     -v redraw="$redraw" \
     -v color="$color" \
+    -v debug="$debug" \
     -v groups="$groups" \
     -v label="$label" \
     -v width="$width" \
@@ -422,7 +420,31 @@ run_quiet() {
         # actually moved; the iteration count alone is not a change. The title is
         # reprinted whenever a later iteration is the one moving rows, so a
         # streamed row is still dated without carrying its own clock column.
+        # The parsing every rendering shares: it advances the monitor'"'"'s event state machine,
+        # records what each pod reported, and latches a fatal runtime status. What a line *is*
+        # cannot depend on how the run is being displayed, so this answers only that, and the
+        # caller decides what to show.
+        function track(line) {
+            if (in_json) {
+                if (line ~ json_close) {
+                    in_json = 0
+                    apply_event()
+                } else {
+                    if (json_value("phase") != "") event_phase = json_value("phase")
+                    if (json_value("state") != "") event_state = json_value("state")
+                    if (json_value("status") != "") event_status = json_value("status")
+                }
+                return "event"
+            }
+            if (line ~ json_open) {
+                in_json = 1
+                event_phase = event_state = event_status = ""
+                return "event"
+            }
+            return read_pod_line(line) ? "pod" : "other"
+        }
         function append_row(pod,   cells) {
+            if (debug) return
             cells = pod "|" k8s_cell(pod) "|" runtime_cell(pod)
             if (cells == last_row[pod]) return
             last_row[pod] = cells
@@ -456,34 +478,30 @@ run_quiet() {
             if ($0 !~ /"timestamp"/ && match(strip($0), clock)) last_time = substr(strip($0), RSTART, RLENGTH)
         }
         {
+            # DEBUG streams the step verbatim: no table, no group, no passthrough window, and no
+            # dropped stack traces — a CI transcript withholds those because it is published,
+            # which is not true of the session an operator opened to audit this run. Tracking
+            # still runs, so a fatal runtime status latches here exactly as in every other mode
+            # and a step that reports one still fails.
+            if (debug) {
+                track($0)
+                put($0)
+                next
+            }
             if (!handed_off && $0 !~ pattern && ready_pending()) hand_off()
             if (handed_off) {
                 if ($0 !~ pattern) next
                 reset_table()
             }
+            line_kind = track($0)
             # The monitor JSON is state already carried by the table cells: it is
             # consumed here and never reaches the terminal.
-            if (in_json) {
-                if ($0 ~ json_close) {
-                    in_json = 0
-                    apply_event()
-                } else {
-                    if (json_value("phase") != "") event_phase = json_value("phase")
-                    if (json_value("state") != "") event_state = json_value("state")
-                    if (json_value("status") != "") event_status = json_value("status")
-                }
+            if (line_kind == "event") {
                 if (remaining > 0) remaining--
                 last_pod_line = 0
                 next
             }
-            if ($0 ~ json_open) {
-                in_json = 1
-                event_phase = event_state = event_status = ""
-                if (remaining > 0) remaining--
-                last_pod_line = 0
-                next
-            }
-            if (read_pod_line($0)) {
+            if (line_kind == "pod") {
                 # Pod reports arrive back to back, one per pod, once per monitor
                 # iteration: the first of a run opens a new cycle.
                 if (!last_pod_line) cycles++
@@ -511,27 +529,27 @@ run_quiet() {
             }
         }
         END {
-            if (!handed_off && ready_pending()) hand_off()
+            if (!debug && !handed_off && ready_pending()) hand_off()
             close_group()
         }
     ' <"$fifo_dir/merged" &
     filter_pid=$!
-    
+
     # stderr is duplicated: on its own for the native error and stack trace, and
     # into the merged stream so both the debug log and the filter see it in
     # chronological order with stdout.
     tee -a "$error_log" <"$fifo_dir/stderr" >"$fifo_dir/merged" &
     stderr_pid=$!
-    
+
     "$@" >"$fifo_dir/merged" 2>"$fifo_dir/stderr" || status=$?
-    
+
     # Drain both readers before the paths are printed, or the trace can still be
     # in flight. Bounded: a command that leaks a child holding a stream open must
     # not hang the deployment, and by then everything read has been written.
     run_quiet_drain "$stderr_pid"
     run_quiet_drain "$filter_pid"
     rm -rf "$fifo_dir"
-    
+
     # A deployment can fail without the command failing. The in-pod lifecycle latches
     # `container-status=error` and deliberately does not crash the container, so a step that
     # reported a fatal runtime state can still exit 0 — and a green step here is a green
@@ -541,23 +559,21 @@ run_quiet() {
     rm -f "$fail_flag"
     if [ "$status" -eq 0 ] && [ -n "$fatal" ]; then
         status=1
-        printf '%s✖ %s reported a fatal runtime state but exited 0 (%s)%s\n' \
-        "$RUN_QUIET_RED" "$label" "$fatal" "$RUN_QUIET_RESET" >&2
+        printf -- '--- fatal runtime latch ---\n%s\n' "$fatal" >>"$error_log"
+        printf '%s✖ %s reported a fatal runtime state but exited 0%s\n' \
+        "$RUN_QUIET_RED" "$label" "$RUN_QUIET_RESET" >&2
     fi
-    
+
     if [ "$status" -ne 0 ]; then
         run_quiet_error_trace "$debug_log" "$error_log"
-        # One line of why, never the trace: the filter drops trace lines from the window.
-        reason=$(grep -a -m1 -E '^[A-Za-z]*Error: |reported runtime status=' "$debug_log" 2>/dev/null | head -1) || true
         printf '%s✖ %s failed (exit %s)%s\n' "$RUN_QUIET_RED" "$label" "$status" "$RUN_QUIET_RESET" >&2
-        [ -n "$reason" ] && printf '%s  reason:      %s%s\n' "$RUN_QUIET_RED" "$reason" "$RUN_QUIET_RESET" >&2
         printf '%s  error trace: %s\n  debug log:   %s%s\n' \
         "$RUN_QUIET_RED" "$error_log" "$debug_log" "$RUN_QUIET_RESET" >&2
         return "$status"
     fi
-    
+
     rm -f "$debug_log" "$error_log"
-    
+
     return "$status"
 }
 
@@ -570,13 +586,13 @@ run_quiet_error_trace() {
     local error_log="$2"
     local tail_lines="${3:-40}"
     local first
-    
+
     # grep exits 1 when it matches nothing, and every deploy script runs under `set -e` with
     # `pipefail`: unguarded, a failing step whose log carries no marker aborted this function
     # before run_quiet could print the exit code and the two log paths, and the tail fallback
     # below was unreachable. The no-match case is the fallback's trigger, not an error.
     first=$(grep -a -n -m1 -E 'Error:|Error \[|^[[:space:]]+at |✖' "$debug_log" 2>/dev/null | cut -d: -f1) || true
-    
+
     printf -- '--- error trace (from merged log) ---\n' >>"$error_log"
     if [ -n "$first" ]; then
         tail -n "+$first" "$debug_log" >>"$error_log"
@@ -587,7 +603,7 @@ run_quiet_error_trace() {
 
 run_quiet_drain() {
     local pid="$1"
-    
+
     timeout 10 tail --pid="$pid" -f /dev/null 2>/dev/null || true
     kill "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
