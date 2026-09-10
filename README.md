@@ -134,7 +134,7 @@ npm run dev
 | [`db`](CLI-HELP.md#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |
 | [`metadata`](CLI-HELP.md#underpost-metadata) | Manages cluster metadata operations, including import and export. |
 | [`cron`](CLI-HELP.md#underpost-cron) | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests. |
-| [`fs`](CLI-HELP.md#underpost-fs) | Manages file storage, defaulting to file upload operations. |
+| [`fs`](CLI-HELP.md#underpost-fs) | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest. |
 | [`monitor`](CLI-HELP.md#underpost-monitor) | Manages health server monitoring, the cluster observability stack, and host dashboards. |
 | [`event`](CLI-HELP.md#underpost-event) | Dispatches operational events and provisions the monitoring rules that trigger them. |
 | [`ssh`](CLI-HELP.md#underpost-ssh) | Manages cluster scoped SSH credentials and sessions for remote access to cluster nodes or services. Users are registered in engine-private/deploy/conf.users.json and keys are stored in engine-private/deploy/users/<user>. |
