@@ -5391,7 +5391,7 @@ try {
     });
 
   runner.command('setup-workspace').action(() => {
-    shellExec(`node bin fs src/client/public/cyberia --git --recursive --pull --deploy-id dd-cyberia`);
+    shellExec(`node bin fs src/client/public/cyberia --tracked --pull --deploy-id dd-cyberia`);
     shellExec(`node bin/deploy.js cyberia`);
     if (!fs.existsSync('./cyberia-server')) shellExec(`${cli()} clone underpostnet/cyberia-server`);
     if (!fs.existsSync('./cyberia-client')) shellExec(`${cli()} clone underpostnet/cyberia-client`);

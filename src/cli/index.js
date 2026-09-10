@@ -628,16 +628,21 @@ program
 
 program
   .command('fs')
-  .argument('[path]', 'The absolute or relative directory path for file operations.')
-  .option('--rm', 'Removes the specified file.')
-  .option('--git', 'Displays current Git changes related to file storage.')
-  .option('--recursive', 'Uploads files recursively from the specified path.')
-  .option('--deploy-id <deploy-id>', 'Specifies the deployment configuration ID for file operations.')
-  .option('--pull', 'Downloads the specified file.')
+  .argument('[path]', 'Selects one file or all files below a directory. Required unless --tracked is set.')
+  .option('--rm', 'Deletes selected remote assets and their manifest entries.')
+  .option('--git', 'Restricts filesystem selection to Git-tracked files. Does not change Git state.')
+  .option('--recursive', 'Compatibility option. Directories always select files recursively.')
+  .option('--tracked', 'Selects only manifest entries. An optional path limits their scope.')
+  .requiredOption('--deploy-id <deploy-id>', 'Selects the deployment configuration.')
+  .option('--pull', 'Downloads selected manifest assets. Use --tracked to restore missing local files.')
   .option('--omit-unzip', 'With --pull, keeps the downloaded .zip file and skips extraction.')
-  .option('--force', 'Forces the action, overriding any warnings or conflicts.')
-  .option('--storage-file-path <storage-file-path>', 'Specifies a custom file storage path.')
-  .description('Manages file storage, defaulting to file upload operations.')
+  .option('--force', 'Overwrites remote uploads or local downloads. Does not change selection.')
+  .option('--storage-id <sub-id>', 'Selects storage.<sub-id>.json. The default is storage.json.')
+  .option('--key <path>', 'Selects one exact manifest key within the path scope and filters.')
+  .option('--from-key <path>', 'Starts an inclusive range in manifest key order.')
+  .option('--to-key <path>', 'Ends an inclusive range. The default start is the first manifest key.')
+  .option('--key-regex <pattern>', 'Filters manifest keys by a JavaScript regular expression.')
+  .description('Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest.')
   .action(Underpost.fs.callback);
 
 program

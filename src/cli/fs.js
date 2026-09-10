@@ -1,378 +1,194 @@
-/**
- * File storage module for managing file operations using Cloudinary.
- * @module src/cli/fs.js
- * @namespace UnderpostFileStorage
- */
-
 import { v2 as cloudinary } from 'cloudinary';
-import { loggerFactory } from '../server/ops/logger.js';
-import AdmZip from 'adm-zip';
-import * as dir from 'path';
+import { randomUUID } from 'node:crypto';
+import * as dir from 'node:path';
 import fs from 'fs-extra';
+import { loggerFactory } from '../server/ops/logger.js';
+import { readZipEntry } from '../server/storage/zip.js';
 import Downloader from '../server/storage/downloader.js';
-import { shellExec } from '../server/runtime/process.js';
-import Underpost from '../index.js';
+import * as selection from './fs-selection.js';
 
 const logger = loggerFactory(import.meta);
+const CLOUDINARY_DELIVERY_TYPE = 'private';
+const CLOUDINARY_ACCESS_CONTROL = [{ access_type: 'token' }];
+const DELIVERY_TYPES = ['private', 'upload', 'authenticated'];
 
 /**
- * @class UnderpostFileStorage
- * @description Manages file storage operations using Cloudinary.
- * This class provides a set of static methods to upload, pull, and delete files
- * from Cloudinary, as well as manage a local storage configuration file.
+ * What a pull reports when the local file is already there and no overwrite was asked for.
+ * Distinct from a delivery type, which is what a pull that actually transferred returns.
  */
+const PULL_SKIPPED = 'skipped';
+const manifestIdPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
+
 class UnderpostFileStorage {
   static API = {
-    /**
-     * @method cloudinaryConfig
-     * @description Configures the Cloudinary client with environment variables.
-     * @memberof UnderpostFileStorage
-     */
+    ...selection,
+
     cloudinaryConfig() {
-      // https://console.cloudinary.com/
-      cloudinary.config({
+      const config = {
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
         api_key: process.env.CLOUDINARY_API_KEY,
         api_secret: process.env.CLOUDINARY_API_SECRET,
-      });
+      };
+      if (Object.values(config).some((value) => !value))
+        throw new Error('Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in the environment.');
+      cloudinary.config(config);
     },
-    /**
-     * @method getStorageConf
-     * @description Retrieves the storage configuration for a specific deployment.
-     * @param {object} options - An object containing deployment-specific options.
-     * @param {string} options.deployId - The identifier for the deployment.
-     * @param {string} [options.storageFilePath] - The path to the storage configuration file.
-     * @returns {object} An object containing the storage configuration and storage file path.
-     * @memberof UnderpostFileStorage
-     */
-    getStorageConf(options) {
-      let storage, storageConf;
-      if (options.deployId && typeof options.deployId === 'string') {
-        storageConf = options.storageFilePath ?? `./engine-private/conf/${options.deployId}/storage.json`;
-        if (!fs.existsSync(storageConf)) fs.writeFileSync(storageConf, JSON.stringify({}), 'utf8');
-        storage = JSON.parse(fs.readFileSync(storageConf, 'utf8'));
+
+    resolveManifest(options = {}) {
+      if (options.storageFilePath !== undefined)
+        throw new Error('Use --storage-id with a sub-id, not a manifest path.');
+      if (typeof options.deployId !== 'string' || !manifestIdPattern.test(options.deployId))
+        throw new Error('Provide a valid --deploy-id using letters, digits, hyphens, or underscores.');
+      if (
+        options.storageId !== undefined &&
+        (typeof options.storageId !== 'string' || !manifestIdPattern.test(options.storageId))
+      )
+        throw new Error('Use a --storage-id sub-id with letters, digits, hyphens, or underscores.');
+      const name = options.storageId === undefined ? 'storage.json' : `storage.${options.storageId}.json`;
+      return `engine-private/conf/${options.deployId}/${name}`;
+    },
+
+    readManifest(options = {}) {
+      const storageConf = UnderpostFileStorage.API.resolveManifest(options);
+      const storage = fs.existsSync(storageConf) ? JSON.parse(fs.readFileSync(storageConf, 'utf8')) : {};
+      if (!storage || typeof storage !== 'object' || Array.isArray(storage))
+        throw new Error(`Manifest must contain an object: ${storageConf}`);
+      const paths = new Set();
+      for (const [key, entry] of Object.entries(storage)) {
+        const normalized = selection.normalizeStoragePath(key);
+        if (!key || !entry || typeof entry !== 'object' || Array.isArray(entry) || paths.has(normalized))
+          throw new Error(`Invalid or duplicate manifest entry: ${key}`);
+        if (entry.type !== undefined && !DELIVERY_TYPES.includes(entry.type))
+          throw new Error(`Invalid manifest delivery type: ${key}`);
+        if (entry.bytes !== undefined && (!Number.isSafeInteger(entry.bytes) || entry.bytes < 0))
+          throw new Error(`Invalid manifest byte count: ${key}`);
+        paths.add(normalized);
       }
       return { storage, storageConf };
     },
-    /**
-     * @method writeStorageConf
-     * @description Writes the storage configuration to a file.
-     * @param {object} storage - The storage configuration object.
-     * @param {string} storageConf - The path to the storage configuration file.
-     * @memberof UnderpostFileStorage
-     */
-    writeStorageConf(storage, storageConf) {
-      if (storage) fs.writeFileSync(storageConf, JSON.stringify(storage, null, 4), 'utf8');
-    },
-    /**
-     * @method gitTrack
-     * @description Optional, non-fatal Git tracking layer. Any Git error is logged and swallowed
-     * so it can never interrupt or roll back the canonical `storage.*.json` workflow.
-     * @param {string} gitPath - The working directory to stage/commit.
-     * @param {object} [options] - Tracking options.
-     * @param {boolean} [options.init=false] - If true, initialize a local repo before staging.
-     * @param {string} [options.message=''] - Explicit commit message; when omitted, `underpost cmt` is used.
-     * @memberof UnderpostFileStorage
-     */
-    gitTrack(gitPath, options = { init: false, message: '' }) {
+
+    writeManifest(storage, storageConf) {
+      fs.ensureDirSync(dir.dirname(storageConf));
+      const temporary = `${storageConf}.${randomUUID()}.tmp`;
       try {
-        if (options.init === true) Underpost.repo.initLocalRepo({ path: gitPath });
-        shellExec(`cd ${gitPath} && git add .`, { silentOnError: true, silent: true, disableLog: true });
-        if (options.message)
-          shellExec(`cd ${gitPath} && git commit -m "${options.message}"`, {
-            silentOnError: true,
-            silent: true,
-            disableLog: true,
-          });
-        else shellExec(`underpost cmt ${gitPath} feat`, { silentOnError: true, silent: true, disableLog: true });
-      } catch (error) {
-        logger.warn('git tracking skipped (non-fatal)', { gitPath, error: error?.message });
+        fs.writeFileSync(temporary, JSON.stringify(storage, null, 4), { encoding: 'utf8', flag: 'wx' });
+        fs.renameSync(temporary, storageConf);
+      } finally {
+        fs.removeSync(temporary);
       }
     },
-    /**
-     * @method recursiveCallback
-     * @description Recursively processes files and directories based on the provided options.
-     * @param {string} path - The path to the directory to process.
-     * @param {object} [options] - An object containing options for the recursive callback.
-     * @param {boolean} [options.rm=false] - Flag to remove files and directories.
-     * @param {boolean} [options.recursive=false] - Flag to process directories recursively.
-     * @param {string} [options.deployId=''] - The identifier for the deployment.
-     * @param {boolean} [options.force=false] - Flag to force file operations.
-     * @param {boolean} [options.pull=false] - Flag to pull files from storage.
-     * @param {boolean} [options.git=false] - Flag to use Git for file operations.
-     * @param {boolean} [options.omitUnzip=false] - If true, do not extract zip and keep downloaded zip file.
-     * @param {string} [options.storageFilePath=''] - The path to the storage configuration file.
-     * @returns {Promise<void>} A promise that resolves when the recursive callback is complete.
-     * @memberof UnderpostFileStorage
-     */
-    async recursiveCallback(
-      path,
-      options = {
-        rm: false,
-        recursive: false,
-        deployId: '',
-        force: false,
-        pull: false,
-        git: false,
-        omitUnzip: false,
-        storageFilePath: '',
-      },
-    ) {
-      const { storage, storageConf } = Underpost.fs.getStorageConf(options);
 
-      // ── Single-file handling: when path is a file (not a directory), use parent dir
-      //    as the git working directory and process just that one file. ──────────────
-      let isSingleFile = false;
-      let parentDir = path;
-      let singleFileName = '';
-      if (fs.existsSync(path) && !fs.statSync(path).isDirectory()) {
-        isSingleFile = true;
-        parentDir = dir.dirname(path);
-        singleFileName = path.split('/').pop();
-      }
-
-      // In recursive remove mode, delete every tracked storage key under the requested path,
-      // even when local files/directories are already missing.
-      if (options.rm === true) {
-        const normalizedPath = typeof path === 'string' ? path.trim() : '';
-        const basePath = normalizedPath.replace(/\/+$/, '');
-        const hasPathFilter = basePath.length > 0;
-
-        const associatedPaths = Object.keys(storage || {}).filter((storedPath) => {
-          if (!hasPathFilter) return true;
-          return storedPath === basePath || storedPath.startsWith(`${basePath}/`);
-        });
-
-        for (const associatedPath of associatedPaths) {
-          await Underpost.fs.delete(associatedPath);
-          if (storage) delete storage[associatedPath];
-        }
-
-        if (hasPathFilter && options.force === true && fs.existsSync(basePath)) fs.removeSync(basePath);
-
-        // Storage is canonical: persist the removal before any (optional) git tracking runs.
-        Underpost.fs.writeStorageConf(storage, storageConf);
-
-        if (associatedPaths.length === 0)
-          logger.warn('No associated tracked storage paths found', { path: hasPathFilter ? basePath : '*' });
-        else
-          logger.info('Removed associated tracked storage paths', {
-            path: hasPathFilter ? basePath : '*',
-            removed: associatedPaths.length,
-          });
-
-        if (options.git === true) {
-          const gitPath = !hasPathFilter ? '.' : isSingleFile ? parentDir : basePath;
-          Underpost.fs.gitTrack(gitPath);
-        }
-
-        return;
-      }
-
-      // For single files, run getDeleteFiles against the parent directory to avoid
-      // trying to `cd` into a file.
-      const gitContextPath = isSingleFile ? parentDir : path;
-      // Detecting locally-deleted files is a best-effort enhancement backed by git; if the path is
-      // not a repo (or git is unavailable) it must not block the canonical storage workflow.
-      let deleteFiles = [];
-      if (options.pull !== true) {
-        try {
-          deleteFiles = Underpost.repo.getDeleteFiles(gitContextPath);
-        } catch (error) {
-          logger.warn('delete detection skipped (git unavailable)', { path: gitContextPath, error: error?.message });
-        }
-      }
-
-      // When processing a single file, only consider it for deletion
-      for (const relativePath of deleteFiles) {
-        const _path = isSingleFile ? (relativePath === singleFileName ? path : null) : path + '/' + relativePath;
-        if (_path && _path in storage) {
-          await Underpost.fs.delete(_path);
-          delete storage[_path];
-        }
-      }
-      if (options.pull === true) {
-        let pullSkipCount = 0;
-        for (const _path of Object.keys(storage)) {
-          if (!fs.existsSync(_path) || options.force === true) {
-            if (options.force === true && fs.existsSync(_path)) fs.removeSync(_path);
-            await Underpost.fs.pull(_path, options);
-          } else pullSkipCount++;
-        }
-        if (pullSkipCount > 0) logger.warn(`Pull skipped ${pullSkipCount} files that already exist`);
-        // Only run git init/commit when the caller explicitly requests git tracking (--git flag).
-        // For bundle pulls into ./build the git step is unwanted and would error on a non-repo path.
-        if (options.git === true) Underpost.fs.gitTrack(gitContextPath, { init: true, message: 'Base pull state' });
-      } else {
-        let files;
-        if (isSingleFile) {
-          // Single file: treat the file itself as the sole item to process
-          files = [singleFileName];
-        } else {
-          files =
-            options.git === true
-              ? Underpost.repo.getChangedFiles(gitContextPath)
-              : await fs.readdir(path, { recursive: true });
-        }
-        for (const relativePath of files) {
-          const _path = isSingleFile ? path : path + '/' + relativePath;
-          if (fs.existsSync(_path) && fs.statSync(_path).isDirectory()) {
-            if (options.pull === true && !fs.existsSync(_path)) fs.mkdirSync(_path, { recursive: true });
-            continue;
-          } else if (!(_path in storage) || options.force === true) {
-            await Underpost.fs.upload(_path, options);
-            if (storage) storage[_path] = {};
-          } else logger.warn('File already exists', _path);
-        }
-      }
-      // Storage is canonical and always persisted; git is an optional layer on top.
-      Underpost.fs.writeStorageConf(storage, storageConf);
-      if (options.git === true) Underpost.fs.gitTrack(gitContextPath);
+    updateManifest(manifest, path, entry) {
+      const next = { ...manifest.storage };
+      if (entry === undefined) delete next[path];
+      else Object.defineProperty(next, path, { value: entry, enumerable: true, configurable: true, writable: true });
+      UnderpostFileStorage.API.writeManifest(next, manifest.storageConf);
+      manifest.storage = next;
     },
-    /**
-     * @method callback
-     * @description Orchestrates file storage operations based on the provided options.
-     * This method handles file uploads, deletions, and recursive processing of directories.
-     * @param {string} path - The path to the file or directory to process.
-     * @param {object} [options] - An object containing options for the callback.
-     * @param {boolean} [options.rm=false] - Flag to remove files and directories.
-     * @param {boolean} [options.recursive=false] - Flag to process directories recursively.
-     * @param {string} [options.deployId=''] - The identifier for the deployment.
-     * @param {boolean} [options.force=false] - Flag to force file operations.
-     * @param {boolean} [options.pull=false] - Flag to pull files from storage.
-     * @param {boolean} [options.git=false] - Flag to use Git for file operations.
-     * @param {boolean} [options.omitUnzip=false] - If true, do not extract zip and keep downloaded zip file.
-     * @returns {Promise<void>} A promise that resolves when the callback is complete.
-     * @memberof UnderpostFileStorage
-     */
-    async callback(
-      path,
-      options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false, omitUnzip: false },
-    ) {
-      // rm always routes through recursiveCallback so storage.*.json is updated regardless of
-      // --recursive/--git. The bare `delete` primitive only removes the remote asset and would
-      // otherwise leave the tracked storage key orphaned.
-      if (options.recursive === true || options.git === true || options.rm === true)
-        return await Underpost.fs.recursiveCallback(path, options);
-      if (options.pull === true) return await Underpost.fs.pull(path, options);
-      return await Underpost.fs.upload(path, options);
-    },
-    /**
-     * @method upload
-     * @description Uploads a file to Cloudinary.
-     * @param {string} path - The path to the file to upload.
-     * @param {object} [options] - An object containing options for the upload.
-     * @param {string} [options.deployId=''] - The identifier for the deployment (used to locate the storage config file).
-     * @param {boolean} [options.force=false] - Flag to force file operations (overwrites existing remote asset).
-     * @param {string} [options.storageFilePath=''] - The path to the storage configuration file.
-     * @returns {Promise<object>} A promise that resolves to the upload result.
-     * @memberof UnderpostFileStorage
-     */
 
-    async upload(
-      path,
-      options = { rm: false, recursive: false, deployId: '', force: false, pull: false, storageFilePath: '' },
-    ) {
-      Underpost.fs.cloudinaryConfig();
-      const { storage, storageConf } = Underpost.fs.getStorageConf(options);
-      // path = Underpost.fs.file2Zip(path);
-      const uploadResult = await cloudinary.uploader
-        .upload(path, {
-          public_id: path,
-          resource_type: 'raw',
-          overwrite: options.force === true ? true : false,
-        })
-        .catch((error) => {
-          logger.error(error, { path, stack: error.stack });
-        });
-      logger.info('upload result', uploadResult);
-      if (storage) storage[path] = {};
-      Underpost.fs.writeStorageConf(storage, storageConf);
-      return uploadResult;
+    deliveryTypeCandidates(storage, path) {
+      const recorded = storage[path]?.type ?? 'upload';
+      return [...new Set([recorded, CLOUDINARY_DELIVERY_TYPE, 'upload'])];
     },
-    /**
-     * @method pull
-     * @description Pulls a file from Cloudinary.
-     * @param {string} path - The path to the file to pull.
-     * @param {object} [options] - Pull options.
-     * @param {boolean} [options.omitUnzip=false] - If true, do not extract zip and keep downloaded zip file.
-     * @param {boolean} [options.force=false] - If true, re-download even if the local zip already exists.
-     * @returns {Promise<void>} A promise that resolves when the file is pulled.
-     * @memberof UnderpostFileStorage
-     */
-    async pull(path, options = { omitUnzip: false, force: false }) {
-      Underpost.fs.cloudinaryConfig();
-      const folder = dir.dirname(path);
-      if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-      const zipPath = `${path}.zip`;
 
-      if (options.omitUnzip === true && options.force !== true && fs.existsSync(zipPath)) {
-        logger.warn('pull skipped, zip already exists and omit-unzip is enabled', { path, zipPath });
-        return;
+    async callback(path, options = {}) {
+      const api = UnderpostFileStorage.API;
+      const manifest = api.readManifest(options);
+      const paths = api.resolveSelection(path, manifest.storage, options);
+      const operation = options.rm ? 'delete' : options.pull ? 'pull' : 'upload';
+      if (paths.length === 0) logger.warn('No storage paths selected.');
+      // A skip is the absence of work, and one line per file buries the transfers that did happen
+      // under hundreds that did not. The count carries the same information: which files were
+      // skipped is exactly which files were already there.
+      let skipped = 0;
+      for (const selected of paths) {
+        if ((await api[operation](selected, options, manifest)) === PULL_SKIPPED) skipped++;
       }
+      if (skipped > 0) logger.info('Pull skipped files that already exist', { skipped, selected: paths.length });
+    },
 
-      const downloadResult = await cloudinary.utils.download_archive_url({
-        public_ids: [path],
+    async upload(path, options = {}, manifest = UnderpostFileStorage.API.readManifest(options)) {
+      const api = UnderpostFileStorage.API;
+      if (!fs.statSync(path).isFile()) throw new Error(`Upload requires a regular file: ${path}`);
+      api.cloudinaryConfig();
+      const result = await cloudinary.uploader.upload(path, {
+        public_id: path,
         resource_type: 'raw',
+        type: CLOUDINARY_DELIVERY_TYPE,
+        access_control: CLOUDINARY_ACCESS_CONTROL,
+        overwrite: options.force === true,
       });
-      await Downloader.downloadFile(downloadResult, zipPath);
+      const remote = result?.existing
+        ? await cloudinary.api.resource(path, { resource_type: 'raw', type: CLOUDINARY_DELIVERY_TYPE })
+        : result;
+      if (
+        remote?.error ||
+        remote?.public_id !== path ||
+        remote?.type !== CLOUDINARY_DELIVERY_TYPE ||
+        !Number.isSafeInteger(remote?.bytes) ||
+        remote.bytes < 0
+      )
+        throw new Error(`Invalid Cloudinary upload response: ${path}`);
+      api.updateManifest(manifest, path, { ...manifest.storage[path], type: remote.type, bytes: remote.bytes });
+      logger.info(result.existing ? 'Remote asset already exists' : 'Uploaded asset', { path });
+      return result;
+    },
 
-      if (options.omitUnzip === true) {
-        logger.warn('omit unzip enabled, keeping downloaded zip file', { path, zipPath });
-        return;
+    async pull(path, options = {}, manifest = UnderpostFileStorage.API.readManifest(options)) {
+      const api = UnderpostFileStorage.API;
+      if (!Object.hasOwn(manifest.storage, path)) throw new Error(`Asset is not in the selected manifest: ${path}`);
+      const target = options.omitUnzip ? `${path}.zip` : path;
+      if (fs.existsSync(target) && !fs.statSync(target).isFile())
+        throw new Error(`Pull target must be a regular file: ${target}`);
+      if (fs.existsSync(target) && !options.force) return PULL_SKIPPED;
+      api.cloudinaryConfig();
+      fs.ensureDirSync(dir.dirname(target));
+      const temporary = fs.mkdtempSync(dir.join(dir.dirname(target), '.underpost-fs-'));
+      const archive = dir.join(temporary, 'download.zip');
+      try {
+        let resolvedType;
+        let downloadError;
+        for (const type of api.deliveryTypeCandidates(manifest.storage, path)) {
+          try {
+            const url = cloudinary.utils.download_archive_url({ public_ids: [path], resource_type: 'raw', type });
+            await Downloader.downloadFile(url, archive);
+            resolvedType = type;
+            break;
+          } catch (error) {
+            downloadError = error;
+          }
+        }
+        if (resolvedType === undefined) throw downloadError;
+        const content = await readZipEntry(archive, dir.basename(path));
+        if (!content) throw new Error(`Downloaded archive has no asset: ${path}`);
+        let downloaded = archive;
+        if (!options.omitUnzip) {
+          downloaded = dir.join(temporary, 'asset');
+          fs.writeFileSync(downloaded, content);
+        }
+        fs.renameSync(downloaded, target);
+        api.updateManifest(manifest, path, { ...manifest.storage[path], type: resolvedType, bytes: content.length });
+        logger.info('Pulled asset', { path: target });
+        return resolvedType;
+      } finally {
+        fs.removeSync(temporary);
       }
+    },
 
-      path = Underpost.fs.zip2File(zipPath);
-      fs.removeSync(`${path}.zip`);
-    },
-    /**
-     * @method delete
-     * @description Deletes a file from Cloudinary by its public ID.
-     * @param {string} path - The path (public ID) of the file to delete.
-     * @returns {Promise<object>} A promise that resolves to the Cloudinary delete result.
-     * @memberof UnderpostFileStorage
-     */
-    async delete(path) {
-      Underpost.fs.cloudinaryConfig();
-      const deleteResult = await cloudinary.api
-        .delete_resources([path], { type: 'upload', resource_type: 'raw' })
-        .catch((error) => {
-          logger.error(error, { path, stack: error.stack });
-        });
-      logger.info('delete result', deleteResult);
-      return deleteResult;
-    },
-    /**
-     * @method file2Zip
-     * @description Converts a file to a zip file.
-     * @param {string} path - The path to the file to convert.
-     * @returns {string} The path to the zip file.
-     * @memberof UnderpostFileStorage
-     */
-    file2Zip(path) {
-      const zip = new AdmZip();
-      zip.addLocalFile(path, '/');
-      path = path + '.zip';
-      zip.writeZip(path);
-      return path;
-    },
-    /**
-     * @method zip2File
-     * @description Converts a zip file to a file.
-     * @param {string} path - The path to the zip file to convert.
-     * @returns {string} The path to the file.
-     * @memberof UnderpostFileStorage
-     */
-    zip2File(path) {
-      const zip = new AdmZip(path);
-      path = path.replaceAll('.zip', '');
-      zip.extractEntryTo(
-        /*entry name*/ path.split('/').pop(),
-        /*target path*/ dir.dirname(path),
-        /*maintainEntryPath*/ false,
-        /*overwrite*/ true,
-      );
-      return path;
+    async delete(path, options = {}, manifest = UnderpostFileStorage.API.readManifest(options)) {
+      const api = UnderpostFileStorage.API;
+      api.cloudinaryConfig();
+      const results = {};
+      for (const type of api.deliveryTypeCandidates(manifest.storage, path)) {
+        const result = await cloudinary.api.delete_resources([path], { type, resource_type: 'raw' });
+        const status = result?.deleted?.[path];
+        if (result?.error || !['deleted', 'not_found'].includes(status))
+          throw new Error(`Cloudinary delete failed for ${path} (${type}): ${status ?? 'missing status'}`);
+        results[type] = result;
+      }
+      api.updateManifest(manifest, path, undefined);
+      logger.info('Deleted remote asset', { path });
+      return results;
     },
   };
 }

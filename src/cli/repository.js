@@ -5,6 +5,7 @@
  */
 
 import dotenv from 'dotenv';
+import { execFileSync } from 'node:child_process';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
 import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
@@ -786,6 +787,16 @@ class UnderpostRepository {
       const commandUntrack = `cd ${path} && git ls-files --deleted`;
       const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
       return diffUntrackOutput.toString().split('\n').filter(Boolean);
+    },
+
+    // Read tracked paths without changing the index or working tree.
+    getTrackedFiles(directory = '.') {
+      const options = { cwd: path.resolve(directory), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 };
+      const root = execFileSync('git', ['rev-parse', '--show-toplevel'], options).replace(/\r?\n$/, '');
+      return execFileSync('git', ['ls-files', '--cached', '--full-name', '-z', '--', '.'], options)
+        .split('\0')
+        .filter(Boolean)
+        .map((file) => path.resolve(root, file));
     },
 
     /**
@@ -1734,6 +1745,23 @@ Prevent build private config repo.`,
         logger.error(`Git operation failed`, { repoName, operation, error: error.message });
         return false;
       }
+    },
+
+    /**
+     * Reports whether a path already sits inside a git work tree, so callers can skip
+     * initializing a repository that would nest inside an existing one.
+     * @param {string} repoPath - Directory to probe.
+     * @returns {boolean} True when the path is tracked by an enclosing repository.
+     * @memberof UnderpostRepository
+     */
+    isInsideWorkTree(repoPath) {
+      const output = shellExec(`cd "${repoPath}" && git rev-parse --is-inside-work-tree`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+      });
+      return `${output ?? ''}`.trim() === 'true';
     },
 
     /**
