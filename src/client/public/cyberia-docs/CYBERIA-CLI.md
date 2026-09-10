@@ -99,7 +99,7 @@ cyberia instance [instance-code] [options]
 | `--import [path]`                                     | Import from a backup directory (upsert, preserves UUIDs)                |
 | `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json` |
 | `--drop`                                              | Drop all documents associated with the instance code                    |
-| `--sync-entities`                                     | Sync the conf's entity-type default references and skill config          |
+| `--sync-entities`                                     | Sync the conf's entity-type default references and skill config         |
 | `--export-current-fallbackworld`                      | Capture the in-memory procedural fallback world, then export it         |
 | `--keep-fallback-codes`                               | Capture using the raw `fallback-map-*` / canonical action-quest codes   |
 | `--fallback-url <url>`                                | Capture the world a running engine serves instead of regenerating it    |
@@ -270,14 +270,14 @@ of import: a WAV with no manifest beside it is skipped. Produce the pair with `c
 cyberia audio [audio-code] [options]
 ```
 
-| Option                                                | Description                                                            |
-| ----------------------------------------------------- | ------------------------------------------------------------------------ |
-| `--import`                                            | Import WAV + manifest pairs; all of them when no code is given         |
-| `--records-path <path>`                               | Records directory to import from (default `./cyberia-audio/records`)   |
-| `--map <map-code>`                                    | Target `cyberia-map` code to read or configure                         |
-| `--set-default-music <audio-code>`                    | Default background music for `--map`                                   |
-| `--set-event <logic-event-id:audio-code>`             | Bind an asset to a logic event (e.g. `combat`, `shoot`); repeatable    |
-| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                               |
+| Option                                                | Description                                                          |
+| ----------------------------------------------------- | -------------------------------------------------------------------- |
+| `--import`                                            | Import WAV + manifest pairs; all of them when no code is given       |
+| `--records-path <path>`                               | Records directory to import from (default `./cyberia-audio/records`) |
+| `--map <map-code>`                                    | Target `cyberia-map` code to read or configure                       |
+| `--set-default-music <audio-code>`                    | Default background music for `--map`                                 |
+| `--set-event <logic-event-id:audio-code>`             | Bind an asset to a logic event (e.g. `combat`, `shoot`); repeatable  |
+| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                             |
 
 ```bash
 # Import every recorded asset, or a single one
@@ -290,7 +290,7 @@ cyberia audio --map FOREST --set-default-music exploration \
 cyberia audio --map FOREST
 ```
 
-An asset is identified by its `code` alone — `cyberia-audio` stores what a sound *is* (`code`, `fileId`,
+An asset is identified by its `code` alone — `cyberia-audio` stores what a sound _is_ (`code`, `fileId`,
 `manifest`) and never what it is for. `manifest.bus` is the `src/audio-module/<bus-id>/` directory the module
 was authored in — the asset's natural route, recorded as provenance; a map binding decides where it actually
 plays. Configuration lands in `cyberia-map-audio-conf`, one document per map code,
