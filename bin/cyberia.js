@@ -1981,14 +1981,9 @@ try {
         // and git refuses to touch a tree owned by someone else until it is declared safe.
         Underpost.repo.declareSafeDirectory('/home/dd/cyberia-instances');
         if (options.publishBuild) {
-          if (!fs.existsSync('/home/dd/cyberia-instances')) {
+          if (!fs.existsSync('/home/dd/cyberia-instances'))
             shellExec(`cd /home/dd && ${cli()} clone underpostnet/cyberia-instances`);
-          } else {
-            shellExec(`${cli()} run clean /home/dd/cyberia-instances`);
-            shellExec(`cd /home/dd/cyberia-instances && ${cli()} pull . underpostnet/cyberia-instances`, {
-              silentOnError: true,
-            });
-          }
+          else shellExec(`cd /home/dd/cyberia-instances && ${cli()} cmt --switch-repo underpostnet/cyberia-instances`);
 
           fs.mkdirpSync(`/home/dd/cyberia-instances/conf/dd-cyberia`);
           fs.copyFileSync(
