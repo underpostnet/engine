@@ -6,13 +6,14 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { FileCleanup } from '../file/file.service.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import { fileRefFields } from '../file/file.ref.js';
 
 const logger = loggerFactory(import.meta);
 
 const AUDIO_MIMETYPE = 'audio/wav';
 
-/** The File-referencing fields of this model, as `file.ref.json` registers them. */
-const FILE_FIELDS = ['fileId'];
+/** The File-referencing fields of this model, read from the registry that owns that mapping. */
+const FILE_FIELDS = fileRefFields('cyberia-audio');
 
 /**
  * The generic File `_id` an asset's bytes resolve through, derived from the asset code and the
@@ -73,9 +74,14 @@ class CyberiaAudioService {
     const fileData = { name: `${manifest.id}.wav`, data, size: data.length, mimetype: AUDIO_MIMETYPE, md5 };
 
     await new CyberiaAudio({ code: manifest.id, manifest }).validate();
-    if (44 > data.length || data.length > 8 * 1024 * 1024 ||
-        data.toString('ascii', 0, 4) !== 'RIFF' || data.toString('ascii', 8, 12) !== 'WAVE' ||
-        data.readUInt32LE(4) !== data.length - 8) throw new Error(`Invalid WAV: ${wavPath}`);
+    if (
+      44 > data.length ||
+      data.length > 8 * 1024 * 1024 ||
+      data.toString('ascii', 0, 4) !== 'RIFF' ||
+      data.toString('ascii', 8, 12) !== 'WAVE' ||
+      data.readUInt32LE(4) !== data.length - 8
+    )
+      throw new Error(`Invalid WAV: ${wavPath}`);
 
     const existing = await CyberiaAudio.findOne({ code: manifest.id });
     // Derived from the bytes, so it is the same id on an unchanged re-import and a new one the
@@ -83,7 +89,9 @@ class CyberiaAudioService {
     // interrupted before the metadata upsert; the stale document is then dropped on the next run.
     const fileId = audioFileId(manifest.id, md5);
     await File.findOneAndUpdate(
-      { _id: fileId }, { $set: fileData }, { upsert: true, returnDocument: 'after', runValidators: true },
+      { _id: fileId },
+      { $set: fileData },
+      { upsert: true, returnDocument: 'after', runValidators: true },
     );
 
     const doc = await CyberiaAudio.findOneAndUpdate(
@@ -96,7 +104,10 @@ class CyberiaAudioService {
     // on, and leaving it behind is what orphans a File document.
     if (existing) {
       await FileCleanup.cleanupReplacedFiles({
-        oldDoc: existing, newData: { fileId }, fileFields: FILE_FIELDS, File,
+        oldDoc: existing,
+        newData: { fileId },
+        fileFields: FILE_FIELDS,
+        File,
       });
     }
     return doc;
@@ -188,7 +199,10 @@ class CyberiaAudioService {
     // Repointing an asset at other bytes leaves the previous blob referenced by nothing.
     if (existing) {
       await FileCleanup.cleanupReplacedFiles({
-        oldDoc: existing, newData: req.body, fileFields: FILE_FIELDS, File,
+        oldDoc: existing,
+        newData: req.body,
+        fileFields: FILE_FIELDS,
+        File,
       });
     }
     return updated;
