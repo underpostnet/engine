@@ -1037,6 +1037,7 @@ program
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
   .option('--user <user>', 'Sets user context for the runner execution.')
   .option('--hosts <hosts>', 'Comma-separated list of hosts for the runner execution.')
+  .option('--split <mb>', 'Zip part size in MB for push-bundle, or "none" to upload a single zip. Defaults to 8.')
   .option('--instance-id <instance-id>', 'Sets instance id context for the runner execution.')
   .option('--pid <process-id>', 'Sets process id context for the runner execution.')
   .option(
