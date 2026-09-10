@@ -16,13 +16,22 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { createPinRecord } from '../../api/ipfs/ipfs.service.js';
 import { FileFactory } from '../../api/file/file.service.js';
+import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../../api/file/file.ref.js';
 import { AtlasSpriteSheetGenerator, DEFAULT_ATLAS_UPSCALE_FACTOR } from './atlas-sprite-sheet-generator.js';
 import { IpfsClient } from './ipfs-client.js';
 
 const logger = loggerFactory(import.meta);
 
-/** The File-referencing fields of this model, as `file.ref.json` registers them. */
-export const ATLAS_FILE_FIELDS = ['fileId', 'minifyFileId'];
+/** The File-referencing fields of this model, read from the registry that owns that mapping. */
+export const ATLAS_FILE_FIELDS = fileRefFields('atlas-sprite-sheet');
+
+/**
+ * The File `name` an atlas render is written under, as {@link upsertRenderFile} spells it.
+ * A prune reads it to recognise a render whose atlas is already gone.
+ * @constant {RegExp}
+ * @memberof CyberiaAtlasSpriteSheetStore
+ */
+const ATLAS_RENDER_NAME = /-(atlas|minify)\.png$/;
 
 /**
  * MFS paths of the IPFS content an item key owns.
@@ -206,6 +215,81 @@ export class AtlasSpriteSheetStore {
     await deleteReplacedFiles(File, previousFileIds, [fileId, minifyFileId]);
 
     return { atlasDoc, metadata, atlasCid, atlasMetadataCid };
+  }
+
+  /**
+   * Removes atlases and everything they own: every File render they point at, and
+   * the documents themselves.
+   *
+   * The one place a caller deletes an atlas, because an atlas owns more than its
+   * document: a drop that took `fileId` and left `minifyFileId` behind is what put
+   * unreachable renders in the File collection. Rerunnable — a second call finds
+   * nothing and reports zeros.
+   *
+   * @static
+   * @param {Object} params
+   * @param {string[]} [params.itemKeys] - Item keys to purge.
+   * @param {Array<*>} [params.atlasIds] - Atlas document ids to purge, for a caller holding the link rather than the key.
+   * @param {boolean} [params.all=false] - Purge the whole collection, ignoring both selectors.
+   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @returns {Promise<{atlases: number, files: number, cids: string[]}>} What was removed, and the CIDs the caller still has to unpin.
+   * @memberof CyberiaAtlasSpriteSheetStore
+   */
+  static async purge({ itemKeys = [], atlasIds = [], all = false, options }) {
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
+    const File = DataBaseProviderService.getModel('File', options);
+
+    const clauses = [];
+    if (itemKeys.length > 0) clauses.push({ 'metadata.itemKey': { $in: itemKeys } });
+    if (atlasIds.length > 0) clauses.push({ _id: { $in: atlasIds } });
+    if (!all && clauses.length === 0) return { atlases: 0, files: 0, cids: [] };
+    const selector = all ? {} : clauses.length === 1 ? clauses[0] : { $or: clauses };
+
+    const docs = await AtlasSpriteSheet.find(
+      selector,
+      Object.fromEntries([...ATLAS_FILE_FIELDS, 'cid'].map((field) => [field, 1])),
+    ).lean();
+    if (docs.length === 0) return { atlases: 0, files: 0, cids: [] };
+
+    const fileIds = documentFileIds(docs, ATLAS_FILE_FIELDS);
+    const cids = [...new Set(docs.map((doc) => doc.cid).filter(Boolean))];
+
+    // Documents first: the survivors this reads decide which renders are still
+    // reachable, so the ones being dropped must already be gone.
+    const { deletedCount } = await AtlasSpriteSheet.deleteMany({ _id: { $in: docs.map((doc) => doc._id) } });
+    const files = await deleteOwnedFiles({ File, Owner: AtlasSpriteSheet, fields: ATLAS_FILE_FIELDS, ids: fileIds });
+
+    return { atlases: deletedCount ?? 0, files, cids };
+  }
+
+  /**
+   * Deletes atlas renders no atlas document points at any more.
+   *
+   * The repair for what an earlier drop left behind: candidates are recognised by
+   * the name the writer gives a render, and a candidate a live atlas still holds
+   * is kept. Idempotent, and a no-op on a collection that never leaked.
+   *
+   * @static
+   * @param {Object} params
+   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @returns {Promise<number>} How many orphaned renders were removed.
+   * @memberof CyberiaAtlasSpriteSheetStore
+   */
+  static async pruneOrphanRenders({ options } = {}) {
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
+    const File = DataBaseProviderService.getModel('File', options);
+
+    const candidates = await File.find({ name: { $regex: ATLAS_RENDER_NAME } }, { _id: 1 }).lean();
+    if (candidates.length === 0) return 0;
+
+    const removed = await deleteOwnedFiles({
+      File,
+      Owner: AtlasSpriteSheet,
+      fields: ATLAS_FILE_FIELDS,
+      ids: candidates.map((doc) => doc._id),
+    });
+    if (removed > 0) logger.info(`Removed ${removed} orphaned atlas File document(s)`);
+    return removed;
   }
 
   /**

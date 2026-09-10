@@ -202,3 +202,146 @@ describe('atlas sprite sheet store', () => {
     expect(String(atlases.doc.minifyFileId)).toBe(String(before));
   });
 });
+
+/**
+ * Multi-document collections, because a drop is about more than one item. Supports the shapes the
+ * store queries with: `$or`, `$in`, `$regex` and the `metadata.itemKey` dot path.
+ */
+const fakeCollection = (docs) => {
+  const read = (doc, path) => path.split('.').reduce((value, part) => value?.[part], doc);
+  const matches = (doc, filter) => {
+    if (filter.$or) return filter.$or.some((clause) => matches(doc, clause));
+    return Object.entries(filter).every(([field, condition]) => {
+      const value = read(doc, field);
+      if (condition && typeof condition === 'object' && '$in' in condition)
+        return value !== undefined && value !== null && condition.$in.map(String).includes(String(value));
+      if (condition && typeof condition === 'object' && '$regex' in condition)
+        return typeof value === 'string' && condition.$regex.test(value);
+      return String(value) === String(condition);
+    });
+  };
+  return {
+    get docs() {
+      return docs;
+    },
+    find(filter) {
+      return { lean: async () => docs.filter((doc) => matches(doc, filter)) };
+    },
+    async deleteMany(filter = {}) {
+      const removing = new Set(docs.filter((doc) => matches(doc, filter)).map((doc) => String(doc._id)));
+      const before = docs.length;
+      docs = docs.filter((doc) => !removing.has(String(doc._id)));
+      return { deletedCount: before - docs.length };
+    },
+  };
+};
+
+const atlasDoc = (itemKey, suffix) => ({
+  _id: new Types.ObjectId(),
+  cid: `cid-${itemKey}`,
+  fileId: `${itemKey}-atlas-${suffix}`,
+  minifyFileId: `${itemKey}-minify-${suffix}`,
+  metadata: { itemKey },
+});
+
+const renderFile = (id, itemKey, role) => ({ _id: id, name: `${itemKey}-${role}.png` });
+
+describe('purging an atlas', () => {
+  let atlases;
+  let files;
+
+  beforeEach(() => {
+    atlases = fakeCollection([atlasDoc('hatchet', 1), atlasDoc('sword', 1)]);
+    files = fakeCollection([
+      renderFile('hatchet-atlas-1', 'hatchet', 'atlas'),
+      renderFile('hatchet-minify-1', 'hatchet', 'minify'),
+      renderFile('sword-atlas-1', 'sword', 'atlas'),
+      renderFile('sword-minify-1', 'sword', 'minify'),
+    ]);
+    models.AtlasSpriteSheet = atlases;
+    models.File = files;
+  });
+
+  it('takes both renders of the item, not only the human-resolution one', async () => {
+    // Regression: the CLI drop named `fileId` alone, so every minified render the client
+    // downloads stayed in the File collection with nothing left pointing at it.
+    const result = await AtlasSpriteSheetStore.purge({ itemKeys: ['hatchet'] });
+
+    expect(result).toEqual({ atlases: 1, files: 2, cids: ['cid-hatchet'] });
+    expect(files.docs.map((doc) => doc._id)).toEqual(['sword-atlas-1', 'sword-minify-1']);
+    expect(atlases.docs.map((doc) => doc.metadata.itemKey)).toEqual(['sword']);
+  });
+
+  it('drops an atlas selected by its document id as readily as by its item key', async () => {
+    const linked = atlases.docs.find((doc) => doc.metadata.itemKey === 'sword');
+
+    const result = await AtlasSpriteSheetStore.purge({ atlasIds: [linked._id] });
+
+    expect(result.atlases).toBe(1);
+    expect(result.files).toBe(2);
+    expect(atlases.docs).toHaveLength(1);
+  });
+
+  it('empties the collection when asked for all of it', async () => {
+    const result = await AtlasSpriteSheetStore.purge({ all: true });
+
+    expect(result.atlases).toBe(2);
+    expect(result.files).toBe(4);
+    expect(files.docs).toHaveLength(0);
+  });
+
+  it('deletes nothing when no selector is given', async () => {
+    expect(await AtlasSpriteSheetStore.purge({})).toEqual({ atlases: 0, files: 0, cids: [] });
+    expect(atlases.docs).toHaveLength(2);
+    expect(files.docs).toHaveLength(4);
+  });
+
+  it('reports zeros on a rerun instead of failing', async () => {
+    await AtlasSpriteSheetStore.purge({ itemKeys: ['hatchet'] });
+    expect(await AtlasSpriteSheetStore.purge({ itemKeys: ['hatchet'] })).toEqual({
+      atlases: 0,
+      files: 0,
+      cids: [],
+    });
+  });
+
+  it('keeps a render a second atlas of the same item still points at', async () => {
+    atlases.docs.push({ ...atlasDoc('hatchet', 1), _id: new Types.ObjectId() });
+    const first = atlases.docs.find((doc) => doc.metadata.itemKey === 'hatchet');
+
+    const result = await AtlasSpriteSheetStore.purge({ atlasIds: [first._id] });
+
+    expect(result.files).toBe(0);
+    expect(files.docs.map((doc) => doc._id)).toContain('hatchet-minify-1');
+  });
+});
+
+describe('pruning renders left behind by an earlier drop', () => {
+  it('removes the renders no atlas points at and keeps the ones in use', async () => {
+    const atlases = fakeCollection([atlasDoc('sword', 1)]);
+    const files = fakeCollection([
+      renderFile('hatchet-minify-1', 'hatchet', 'minify'),
+      renderFile('sword-atlas-1', 'sword', 'atlas'),
+      renderFile('sword-minify-1', 'sword', 'minify'),
+      { _id: 'thumbnail-1', name: 'map-thumbnail.png' },
+    ]);
+    models.AtlasSpriteSheet = atlases;
+    models.File = files;
+
+    const removed = await AtlasSpriteSheetStore.pruneOrphanRenders({});
+
+    expect(removed).toBe(1);
+    expect(files.docs.map((doc) => doc._id)).toEqual(['sword-atlas-1', 'sword-minify-1', 'thumbnail-1']);
+  });
+
+  it('is a no-op on a collection that leaked nothing', async () => {
+    models.AtlasSpriteSheet = fakeCollection([atlasDoc('sword', 1)]);
+    models.File = fakeCollection([
+      renderFile('sword-atlas-1', 'sword', 'atlas'),
+      renderFile('sword-minify-1', 'sword', 'minify'),
+    ]);
+
+    expect(await AtlasSpriteSheetStore.pruneOrphanRenders({})).toBe(0);
+    expect(models.File.docs).toHaveLength(2);
+  });
+});
