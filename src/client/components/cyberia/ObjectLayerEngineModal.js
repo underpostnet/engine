@@ -22,6 +22,11 @@ import {
   OBJECT_LAYER_DIRECTION_LABELS,
   getKeyframeDirectionsByCode,
   STAT_TYPES,
+  STAT_DESCRIPTIONS,
+  STAT_MODIFIER_MIN,
+  STAT_MODIFIER_MAX,
+  validateStats,
+  generateRandomStats,
 } from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
@@ -93,8 +98,8 @@ const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
 const DEFAULT_DISTORTION_STATUS =
   'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
-const DEFAULT_STAT_RANDOM_MIN = 0;
-const DEFAULT_STAT_RANDOM_MAX = 10;
+const DEFAULT_STAT_RANDOM_MIN = STAT_MODIFIER_MIN;
+const DEFAULT_STAT_RANDOM_MAX = STAT_MODIFIER_MAX;
 const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
 const DIRECTION_PREVIEW_MODAL_ID = 'modal-object-layer-direction-preview';
 const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
@@ -541,45 +546,7 @@ class ObjectLayerEngineModal {
       data: [],
     },
   ];
-  static statDescriptions = {
-    effect: {
-      title: 'Effect',
-      icon: 'stat-effect.png',
-      description: 'Amount of life removed when an entity collides or deals an impact.',
-      detail: 'Measured in life points.',
-    },
-    resistance: {
-      title: 'Resistance',
-      icon: 'stat-resistance.png',
-      description: "Adds to the owner's maximum life (survivability cap).",
-      detail:
-        "This value is summed with the entity's base max life. It also increases the amount of life restored when a regeneration event occurs (adds directly to current life).",
-    },
-    agility: {
-      title: 'Agility',
-      icon: 'stat-agility.png',
-      description: 'Increases the movement speed of entities.',
-      detail: 'Higher values result in faster movement.',
-    },
-    range: {
-      title: 'Range',
-      icon: 'stat-range.png',
-      description: 'Increases the lifetime of a cast/summoned entity.',
-      detail: 'Measured in milliseconds.',
-    },
-    intelligence: {
-      title: 'Intelligence',
-      icon: 'stat-intelligence.png',
-      description: 'Probability-based stat that increases the chance to spawn/trigger a summoned entity.',
-      detail: 'Higher values increase summoning success rate.',
-    },
-    utility: {
-      title: 'Utility',
-      icon: 'stat-utility.png',
-      description: 'Reduces the cooldown time between actions, allowing for more frequent actions.',
-      detail: 'It also increases the chance to trigger life-regeneration events.',
-    },
-  };
+  static statDescriptions = STAT_DESCRIPTIONS;
 
   static RenderTemplate = (colorTemplate) => {
     const ole = s('object-layer-engine');
@@ -762,42 +729,19 @@ class ObjectLayerEngineModal {
       return normalizedFactor;
     };
 
-    const readRandomStatBounds = () => {
-      const minInput = getRenderedInputNode(statsRandomMinInputId);
-      const maxInput = getRenderedInputNode(statsRandomMaxInputId);
-      let minValue = Number.parseInt(minInput?.value, 10);
-      let maxValue = Number.parseInt(maxInput?.value, 10);
-
-      minValue = clampNumber(Number.isFinite(minValue) ? minValue : DEFAULT_STAT_RANDOM_MIN, 0, 10);
-      maxValue = clampNumber(Number.isFinite(maxValue) ? maxValue : DEFAULT_STAT_RANDOM_MAX, 0, 10);
-
-      if (minValue > maxValue) {
-        const nextMin = maxValue;
-        maxValue = minValue;
-        minValue = nextMin;
-      }
-
-      if (minInput) minInput.value = String(minValue);
-      if (maxInput) maxInput.value = String(maxValue);
-
-      return { minValue, maxValue };
-    };
-
     const randomizeStatInputs = () => {
-      const { minValue, maxValue } = readRandomStatBounds();
-
-      for (const statType of statTypes) {
-        const statInput = getRenderedInputNode(`ol-input-item-stats-${statType}`);
-        if (!statInput) continue;
-
-        const randomValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
-        statInput.value = String(randomValue);
+      try {
+        const minValue = Number(getRenderedInputNode(statsRandomMinInputId)?.value);
+        const maxValue = Number(getRenderedInputNode(statsRandomMaxInputId)?.value);
+        const stats = generateRandomStats(minValue, maxValue);
+        for (const statType of statTypes) {
+          const input = getRenderedInputNode(`ol-input-item-stats-${statType}`);
+          if (input) input.value = String(stats[statType]);
+        }
+        NotificationManager.Push({ html: `Stats randomized between ${minValue} and ${maxValue}.`, status: 'success' });
+      } catch (error) {
+        NotificationManager.Push({ html: error.message, status: 'error' });
       }
-
-      NotificationManager.Push({
-        html: `Stats randomized between ${minValue} and ${maxValue}.`,
-        status: 'success',
-      });
     };
 
     let uniformOpacitySyncInProgress = false;
@@ -1382,8 +1326,8 @@ class ObjectLayerEngineModal {
             </div>`,
             containerClass: 'inl',
             type: 'number',
-            min: 0,
-            max: 10,
+            min: STAT_MODIFIER_MIN,
+            max: STAT_MODIFIER_MAX,
             placeholder: true,
             value: statValue,
           })}
@@ -1797,14 +1741,15 @@ class ObjectLayerEngineModal {
           }
         }
         objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
-        objectLayer.data.stats = {
-          effect: parseInt(s(`.ol-input-item-stats-effect`).value),
-          resistance: parseInt(s(`.ol-input-item-stats-resistance`).value),
-          agility: parseInt(s(`.ol-input-item-stats-agility`).value),
-          range: parseInt(s(`.ol-input-item-stats-range`).value),
-          intelligence: parseInt(s(`.ol-input-item-stats-intelligence`).value),
-          utility: parseInt(s(`.ol-input-item-stats-utility`).value),
-        };
+        try {
+          objectLayer.data.stats = validateStats(Object.fromEntries(STAT_TYPES.map((key) => {
+            const input = getRenderedInputNode(`ol-input-item-stats-${key}`);
+            return [key, input?.value.trim() ? Number(input.value) : NaN];
+          })));
+        } catch (error) {
+          NotificationManager.Push({ html: error.message, status: 'error' });
+          return;
+        }
         objectLayer.data.item = {
           type: ObjectLayerEngineModal.selectItemType,
           activable: ObjectLayerEngineModal.itemActivable,
@@ -2313,6 +2258,7 @@ class ObjectLayerEngineModal {
         <div class="in fll ${idSectionB}-col-b">
           <div class="in section-mp section-mp-border">
             <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
+            <div class="in">−100 penalty ↔ 0 neutral ↔ +100 bonus</div>
             <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
               <div class="in fll" style="width: 110px;">
                 ${await Input.instance({
@@ -2320,8 +2266,8 @@ class ObjectLayerEngineModal {
                   label: html`Random min`,
                   containerClass: 'inl',
                   type: 'number',
-                  min: 0,
-                  max: 10,
+                  min: STAT_MODIFIER_MIN,
+                  max: STAT_MODIFIER_MAX,
                   placeholder: true,
                   value: DEFAULT_STAT_RANDOM_MIN,
                 })}
@@ -2332,8 +2278,8 @@ class ObjectLayerEngineModal {
                   label: html`Random max`,
                   containerClass: 'inl',
                   type: 'number',
-                  min: 0,
-                  max: 10,
+                  min: STAT_MODIFIER_MIN,
+                  max: STAT_MODIFIER_MAX,
                   placeholder: true,
                   value: DEFAULT_STAT_RANDOM_MAX,
                 })}

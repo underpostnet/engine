@@ -770,7 +770,7 @@ class ObjectLayerEngineViewer {
                                   />
                                   <span class="item-data-key-label">${statInfo.title}</span>
                                 </div>
-                                <span class="item-data-value-label">${statValue}</span>
+                                <span class="item-data-value-label" style="color: ${statValue < 0 ? '#ef7777' : statValue > 0 ? '#7bdd9a' : '#aaa'}">${statValue > 0 ? '+' : ''}${statValue}</span>
                               </div>
                             `;
                           })

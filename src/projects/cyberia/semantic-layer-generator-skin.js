@@ -28,6 +28,7 @@
  * @namespace SemanticLayerGeneratorSkin
  */
 import { readFileSync } from 'fs';
+import { STAT_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
@@ -1070,14 +1071,7 @@ function generateSkinMultiFrame(options, _descriptor) {
         description: `Procedurally generated character skin (seed: ${seed})`,
         activable: true,
       },
-      stats: {
-        effect: 0,
-        resistance: 0,
-        agility: 0,
-        range: 0,
-        intelligence: 0,
-        utility: 0,
-      },
+      stats: { ...STAT_DEFAULTS },
       ledger: { type: 'OFF_CHAIN' },
       seed: localSeedToUUIDv4(`${seed}:${itemId}`),
     },

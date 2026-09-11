@@ -1,51 +1,4 @@
-/**
- * Shared Cyberia defaults — isomorphic, dependency-free, importable from
- * **both** Node and the browser.
- *
- * Pure plain-data ESM module: no Node built-ins, no DOM APIs, no
- * environment guards. Every export is a frozen literal, a constant
- * lookup table, or a pure function over those tables. Side-effect free
- * on import.
- *
- * Two responsibilities, no others:
- *
- *   1. **Presentation values** — palette, entity colour keys, status-icon
- *      visuals (icon stem + border colour + bounce), camera tunings,
- *      render flags. Mirrored 1-to-1 by the C/WASM client's compile-time
- *      defaults in `cyberia-client/src/domain/presentation_defaults.h`.
- *      Optionally overridable per deployment through the REST endpoint
- *      `/api/cyberia-client-hints/:code`.
- *
- *   2. **Shared content vocabulary** — `ITEM_TYPES`, `ENTITY_TYPES`,
- *      `DefaultCyberiaItems` registry + lookups, type-to-item mapping,
- *      quest step objective enum. The data shape both the
- *      browser-side editor UI and the engine REST controllers need to
- *      understand; it is **not** simulation state.
- *
- * STRICT BOUNDARIES
- * -----------------
- *   - The cyberia-server (Go) MUST NOT load this file. None of these
- *     values influence the authoritative simulation. The server owns the
- *     numeric Entity Status Indicator IDs only (see `cyberia-server-defaults`).
- *
- *   - The C/WASM cyberia-client embeds *presentation* defaults at compile
- *     time and fetches optional overrides through REST. It does NOT carry
- *     the JS vocabulary constants — entity-type and item-id strings
- *     arrive on the wire and are matched directly.
- *
- *   - The browser editor bundles this file via esbuild. It MUST NOT
- *     import `cyberia-server-defaults.js` — that would pull simulation
- *     rules, economy, and seed content into the browser bundle. All
- *     shared vocabulary the editor needs lives here.
- *
- * Naming: this file is intentionally placed under `src/client/` so its
- * URL is `/components/cyberia/SharedDefaultsCyberia.js` when the engine
- * static server resolves it. Node-side importers reach in with a
- * relative path; both halves see the same module instance.
- *
- * @module src/client/components/cyberia/SharedDefaultsCyberia.js
- */
-
+// Shared content, stat contract, and presentation defaults.
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared content vocabulary
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,6 +171,18 @@ export const AUDIO_LOGIC_IDS = Object.freeze([
     bus: AUDIO_BUS_SFX,
   }),
   Object.freeze({
+    id: 'level-up',
+    name: 'Level Up',
+    description: 'An entity in view reached a new level.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({
+    id: 'death',
+    name: 'Death',
+    description: 'An entity in view was defeated.',
+    bus: AUDIO_BUS_SFX,
+  }),
+  Object.freeze({
     id: 'item-pickup',
     name: 'Item Pickup',
     description: 'An item landed in the player inventory — loot, a reward, a purchase, an assembly output.',
@@ -385,19 +350,105 @@ export const OBJECT_LAYER_DIRECTION_NAME_TO_CODE = Object.freeze(
   }, {}),
 );
 
-/**
- * Canonical entity/item stat types, in display order. Shared by the object-layer
- * editor (stat inputs) and the asset pipeline (random stat generation).
- */
-export const STAT_TYPES = Object.freeze(['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility']);
+// Stat order is shared by authoring, simulation, and snapshots. `scale` is what one point is
+// worth in the simulation; the server reads it from the generated contract.
+export const STAT_DEFINITIONS = Object.freeze([
+  { key: 'effect', title: 'Effect', description: 'Removes life on impact.', detail: 'Each point removes one life point per hit.', floor: 1, scale: 1 },
+  { key: 'resistance', title: 'Resistance', description: 'Adds maximum life and regeneration amount.', detail: 'Each point adds one point of maximum life and a tenth of a point to each regeneration.', floor: 0, scale: 1 },
+  { key: 'agility', title: 'Agility', description: 'Changes movement speed.', detail: 'Each point adds one percent of base speed.', floor: -90, scale: 0.01 },
+  { key: 'range', title: 'Range', description: 'Adds lifetime to summoned entities.', detail: 'Each point adds fifty milliseconds of summon lifetime.', floor: 0, scale: 50 },
+  { key: 'intelligence', title: 'Intelligence', description: 'Adds summon success chance.', detail: 'Each point adds five percentage points of summon chance.', floor: 0, scale: 0.05 },
+  { key: 'utility', title: 'Utility', description: 'Reduces action cooldown and increases regeneration chance.', detail: 'Each point removes one percent of base cooldown and adds one percentage point of regeneration chance.', floor: 0, scale: 0.01 },
+].map((stat) => Object.freeze({ ...stat, icon: `stat-${stat.key}.png` })));
+export const STAT_TYPES = Object.freeze(STAT_DEFINITIONS.map(({ key }) => key));
+/** What one point of each stat is worth in the simulation. */
+export const STAT_SCALES = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, scale }) => [key, scale])));
+/** Life regenerated per trigger for each point of resistance, on top of the entity's base regeneration. */
+export const STAT_REGEN_PER_RESISTANCE = 0.1;
+export const STAT_MODIFIER_MIN = -100;
+export const STAT_MODIFIER_MAX = 100;
+export const STAT_DEFAULT = 0;
+export const ENTITY_LEVEL_MIN = 1;
+export const ENTITY_LEVEL_MAX = 65535;
+export function validateEntityLevel(level) {
+  if (!Number.isInteger(level) || level < ENTITY_LEVEL_MIN || level > ENTITY_LEVEL_MAX) {
+    throw new RangeError('Entity level must be an integer from 1 to 65535.');
+  }
+  return level;
+}
+export const STAT_CONTRACT_VERSION = 2;
+export const STAT_DEFAULTS = Object.freeze(Object.fromEntries(STAT_TYPES.map((key) => [key, STAT_DEFAULT])));
+export const STAT_EFFECTIVE_FLOORS = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, floor }) => [key, floor])));
+export const STAT_DESCRIPTIONS = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, ...info }) => [key, Object.freeze(info)])));
+
+export function validateStatModifier(value) {
+  if (!Number.isInteger(value) || value < STAT_MODIFIER_MIN || value > STAT_MODIFIER_MAX) {
+    throw new RangeError(`Stat modifiers must be integers from ${STAT_MODIFIER_MIN} to +${STAT_MODIFIER_MAX}.`);
+  }
+  return value;
+}
+
+export function validateStats(stats = {}) {
+  if (!stats || typeof stats !== 'object' || Array.isArray(stats)) throw new TypeError('Stats must be an object.');
+  for (const key of Object.keys(stats)) {
+    if (!STAT_TYPES.includes(key)) throw new TypeError(`Unknown stat: ${key}`);
+  }
+  return Object.fromEntries(STAT_TYPES.map((key) => [key, validateStatModifier(stats[key] === undefined ? STAT_DEFAULT : stats[key])]));
+}
 
 /**
- * Build a random stat block keyed by STAT_TYPES, each value 0–10 inclusive.
- * Non-deterministic (uses Math.random) — the asset pipeline uses it to seed
- * default stats for newly authored object layers.
+ * Semantic stat bounds per item type, inclusive, as `[min, max]` per stat.
+ *
+ * What a type may carry: a weapon deals its effect and can cost resistance, a skin and a
+ * breastplate defend, a skill reaches, and world content carries nothing. A type absent here,
+ * or a stat a type leaves out, keeps the contract bounds.
  */
-export const generateRandomStats = () =>
-  Object.fromEntries(STAT_TYPES.map((statType) => [statType, Math.floor(Math.random() * 11)]));
+export const STAT_TYPE_BOUNDS = Object.freeze({
+  weapon:      { effect: [5, 20], resistance: [-10, 2], agility: [-5, 5], range: [0, 10], intelligence: [0, 5], utility: [0, 10] },
+  skin:        { effect: [1, 1], resistance: [0, 20], agility: [-5, 10], range: [0, 0], intelligence: [0, 2], utility: [0, 5] },
+  breastplate: { effect: [0, 0], resistance: [5, 30], agility: [-15, 0], range: [0, 0], intelligence: [0, 3], utility: [0, 5] },
+  skill:       { effect: [0, 15], resistance: [0, 5], agility: [0, 5], range: [5, 30], intelligence: [0, 10], utility: [0, 10] },
+  resource:    { effect: [0, 0], resistance: [0, 10], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  coin:        { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  floor:       { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  obstacle:    { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  portal:      { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  foreground:  { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  static:      { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+});
+
+for (const [type, bounds] of Object.entries(STAT_TYPE_BOUNDS)) {
+  if (!Object.values(ITEM_TYPES).includes(type)) throw new Error(`STAT_TYPE_BOUNDS: unknown item type "${type}"`);
+  for (const [key, [min, max]] of Object.entries(bounds)) {
+    if (!STAT_TYPES.includes(key)) throw new Error(`STAT_TYPE_BOUNDS: ${type} names unknown stat "${key}"`);
+    validateStatModifier(min);
+    validateStatModifier(max);
+    if (min > max) throw new Error(`STAT_TYPE_BOUNDS: ${type}.${key} minimum exceeds its maximum`);
+  }
+}
+
+/**
+ * The inclusive `[min, max]` every stat may take for an item type: the semantic bound where the
+ * type declares one, the contract bound where it does not.
+ *
+ * @param {string} itemType
+ * @returns {Readonly<Record<string,[number,number]>>}
+ */
+export function statBoundsForType(itemType) {
+  const typed = STAT_TYPE_BOUNDS[itemType] ?? {};
+  return Object.freeze(Object.fromEntries(STAT_TYPES.map((key) => [key, typed[key] ?? [STAT_MODIFIER_MIN, STAT_MODIFIER_MAX]])));
+}
+
+export function generateRandomStats(min = STAT_MODIFIER_MIN, max = STAT_MODIFIER_MAX, random = Math.random) {
+  validateStatModifier(min);
+  validateStatModifier(max);
+  if (min > max) throw new RangeError('Random minimum must not exceed maximum.');
+  return Object.fromEntries(STAT_TYPES.map((key) => {
+    const value = random();
+    if (!Number.isFinite(value) || value < 0 || value >= 1) throw new RangeError('Random source must return [0, 1).');
+    return [key, Math.floor(value * (max - min + 1)) + min];
+  }));
+}
 
 /**
  * Canonical (itemId → itemType) registry shipped with the engine. Used

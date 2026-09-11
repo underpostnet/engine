@@ -15,6 +15,7 @@ import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
+import { validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { ObjectLayerDto } from './object-layer.model.js';
 import { ObjectLayerEngine } from '../../projects/cyberia/object-layer.js';
 import { shellExec } from '../../server/runtime/process.js';
@@ -681,6 +682,7 @@ class ObjectLayerService {
     // Apply body updates to staging data in memory
     const updateData = { ...req.body };
     const stagingData = updateData.data || existingOL.data.toObject();
+    stagingData.stats = validateStats(stagingData.stats);
     if (!stagingData.render) stagingData.render = {};
 
     if (existingOL.objectLayerRenderFramesId) {
@@ -710,6 +712,7 @@ class ObjectLayerService {
 
     return await ObjectLayer.findByIdAndUpdate(req.params.id, updateData, {
       returnDocument: 'after',
+      runValidators: true,
     }).populate('objectLayerRenderFramesId');
   };
 

@@ -4,6 +4,7 @@
  * @namespace CyberiaObjectLayerModel
  */
 import crypto from 'crypto';
+import { STAT_TYPES, STAT_DEFAULT, STAT_MODIFIER_MIN, STAT_MODIFIER_MAX, STAT_CONTRACT_VERSION, validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import stringify from 'fast-json-stable-stringify';
 import { Schema, model } from 'mongoose';
 import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../file/file.ref.js';
@@ -18,15 +19,11 @@ import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../file/file.r
  * @memberof CyberiaObjectLayerModel
  */
 const StatsSchema = new Schema(
-  {
-    effect: { type: Number, required: true, min: 0 },
-    resistance: { type: Number, required: true, min: 0 },
-    agility: { type: Number, required: true, min: 0 },
-    range: { type: Number, required: true, min: 0 },
-    intelligence: { type: Number, required: true, min: 0 },
-    utility: { type: Number, required: true, min: 0 },
-  },
-  { _id: false },
+  Object.fromEntries(STAT_TYPES.map((key) => [key, {
+    type: Number, required: true, default: STAT_DEFAULT, min: STAT_MODIFIER_MIN, max: STAT_MODIFIER_MAX,
+    validate: Number.isInteger,
+  }])),
+  { _id: false, strict: 'throw' },
 );
 /**
  * @typedef {Object} Item
@@ -113,6 +110,7 @@ const RenderSchema = new Schema(
  */
 const ObjectLayerSchema = new Schema(
   {
+    statContractVersion: { type: Number, default: STAT_CONTRACT_VERSION, enum: [STAT_CONTRACT_VERSION] },
     data: {
       stats: { type: StatsSchema, required: true },
       item: { type: ItemSchema, required: true },
@@ -229,7 +227,7 @@ function mergeObjectLayerData(existing, incoming) {
  * payload the writer hashed before merging.
  * @memberof CyberiaObjectLayerModel
  */
-const UPSERTABLE_FIELDS = ['data', 'cid', 'objectLayerRenderFramesId', 'atlasSpriteSheetId'];
+const UPSERTABLE_FIELDS = ['statContractVersion', 'data', 'cid', 'objectLayerRenderFramesId', 'atlasSpriteSheetId'];
 
 /**
  * Collapses any pre-existing duplicates of a given `data.item.id` down to a
@@ -368,6 +366,7 @@ ObjectLayerSchema.statics.upsertByItemId = async function (payload, { setOnInser
   const itemId = payload?.data?.item?.id;
   if (!itemId) throw new Error('ObjectLayer.upsertByItemId requires data.item.id');
 
+  if (Object.hasOwn(payload.data, 'stats')) validateStats(payload.data.stats);
   const { survivor } = await collapseItemIdDuplicates(this, itemId);
 
   if (!survivor) {
@@ -384,7 +383,7 @@ ObjectLayerSchema.statics.upsertByItemId = async function (payload, { setOnInser
   }
   update.sha256 = computeObjectLayerSha256(update.data ?? existing.data);
 
-  return await this.findByIdAndUpdate(survivor._id, { $set: update }, { returnDocument: 'after' });
+  return await this.findByIdAndUpdate(survivor._id, { $set: update }, { returnDocument: 'after', runValidators: true });
 };
 
 // Create and export the model

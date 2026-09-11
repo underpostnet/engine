@@ -1,3 +1,4 @@
+import { validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 /**
  * Top-Down Procedural Generation guided by LLMs (Semantic Reverse-Engineering).
  *
@@ -1089,9 +1090,10 @@ const STAGE_PROMPTS = {
     'STAGE: foundation. Return ONE JSON object: { "saga": {...}, "objectLayers": [...] }.',
     'saga: { code, name, description, mapCodes:[] }  (leave mapCodes an empty array).',
     'objectLayers[]: { stats:{ effect, resistance, agility, range, intelligence, utility },',
+    '- Stats are integer modifiers from -100 to +100. Zero is neutral. Level and XP belong to entities.',
     '  item:{ id, type, description, activable }, render:null }',
     '  item.type is one of: skin, breastplate, weapon, skill, coin, floor, obstacle, portal,',
-    '  foreground, resource; every stat is an integer 0..10 balanced to the lore.',
+    '  foreground, resource; every stat is an integer -100..+100, with 0 neutral.',
     'Produce 5-10 object-layer items including at least one "coin" currency item AND at least two',
     '"skin" items that represent NAMED NPC characters players can speak to (these back "talk" quests).',
   ].join('\n'),
@@ -1536,14 +1538,7 @@ function normalizeSagaPayload(raw, { theme }) {
   const objectLayers = asArray(raw.objectLayers).map((ol) => {
     const stats = ol.stats || {};
     return {
-      stats: {
-        effect: Number(stats.effect) || 0,
-        resistance: Number(stats.resistance) || 0,
-        agility: Number(stats.agility) || 0,
-        range: Number(stats.range) || 0,
-        intelligence: Number(stats.intelligence) || 0,
-        utility: Number(stats.utility) || 0,
-      },
+      stats: validateStats(stats),
       item: {
         id: slugify(ol.item?.id),
         type: ol.item?.type || 'skin',

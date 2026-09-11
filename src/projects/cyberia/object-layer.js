@@ -17,6 +17,8 @@ import { IpfsClient } from './ipfs-client.js';
 import { range } from '../../client/components/core/CommonJs.js';
 import {
   generateRandomStats,
+  validateStats,
+  STAT_CONTRACT_VERSION,
   getKeyframeDirectionsByCode,
   OBJECT_LAYER_DIRECTION_NAME_TO_CODE,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
@@ -387,7 +389,7 @@ export class ObjectLayerEngine {
             description: '',
             activable: true,
           },
-          stats: metadata.data.stats || generateRandomStats(),
+          stats: validateStats(metadata.data.stats ?? generateRandomStats()),
           ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
         },
       };
@@ -575,6 +577,8 @@ export class ObjectLayerEngine {
     objectLayerData,
     persistOptions = {},
   }) {
+    objectLayerData.data.stats = validateStats(objectLayerData.data.stats);
+    objectLayerData.statContractVersion = STAT_CONTRACT_VERSION;
     const { generateAtlas = true, upscaleFactor, options } = persistOptions;
     const itemId = objectLayerData.data.item.id;
 

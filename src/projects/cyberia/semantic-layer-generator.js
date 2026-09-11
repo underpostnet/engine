@@ -17,6 +17,7 @@
  */
 
 import crypto from 'crypto';
+import { generateRandomStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 import { createRng, seedToInt, createNoise2D, generateShape, listShapes } from './shape-generator.js';
 import { loggerFactory } from '../../server/ops/logger.js';
@@ -703,14 +704,7 @@ export function generateMultiFrame(options) {
         description: `Procedurally generated ${descriptor.semanticTags.join(', ')} (seed: ${seed})`,
         activable: true,
       },
-      stats: {
-        effect: hashMod(seed + ':effect', 11),
-        resistance: hashMod(seed + ':resistance', 11),
-        agility: hashMod(seed + ':agility', 11),
-        range: hashMod(seed + ':range', 11),
-        intelligence: hashMod(seed + ':intelligence', 11),
-        utility: hashMod(seed + ':utility', 11),
-      },
+      stats: generateRandomStats(undefined, undefined, createRng(seedToInt(seed + ':stats'))),
       ledger: { type: 'OFF_CHAIN' },
       seed: seedToUUIDv4(seed + ':' + itemId),
     },
@@ -724,16 +718,6 @@ export function generateMultiFrame(options) {
     objectLayerRenderFramesData,
     objectLayerData,
   };
-}
-
-/**
- * Deterministic modulo hash for stat generation.
- * @param {string} str
- * @param {number} mod
- * @returns {number}
- */
-function hashMod(str, mod) {
-  return ((hashString(str) % mod) + mod) % mod;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
