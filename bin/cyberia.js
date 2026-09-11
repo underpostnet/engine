@@ -10,6 +10,7 @@
  */
 
 import dotenv from 'dotenv';
+import { registerStatCommands } from '../src/projects/cyberia/stat-commands.js';
 import { Command, InvalidArgumentError } from 'commander';
 import fs from 'fs-extra';
 import stringify from 'fast-json-stable-stringify';
@@ -76,6 +77,7 @@ import {
   ITEM_TYPES as itemTypes,
   DefaultCyberiaItems,
 } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
+import { balanceStats, resolveStatBounds, statPolicyActive } from '../src/projects/cyberia/stat-balance.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
 import {
   DEPLOY_MANIFEST_INDENT,
@@ -225,6 +227,31 @@ const parseItemIds = (itemId) =>
     : [];
 
 /**
+ * Applies the `ol` stat policy (`--normalize-stats`, `--random-stats`,
+ * `--min-stat`, `--max-stat`) to one object layer before it is written.
+ * Marks the path on a Mongoose document so the save carries it; a plain
+ * payload needs no mark. A policy that changes nothing leaves the stats alone.
+ *
+ * @param {{ data: { item: { id: string, type: string }, stats: Object }, markModified?: Function }} objectLayer
+ * @param {import('../src/projects/cyberia/stat-balance.js').StatPolicy} policy
+ * @returns {boolean} Whether the stats were rewritten.
+ */
+const applyStatPolicy = (objectLayer, policy) => {
+  if (!statPolicyActive(policy)) return false;
+  const { stats, item } = objectLayer.data;
+  objectLayer.data.stats = balanceStats({
+    stats: typeof stats?.toObject === 'function' ? stats.toObject() : stats,
+    itemType: item.type,
+    policy,
+  });
+  if (typeof objectLayer.markModified === 'function') objectLayer.markModified('data.stats');
+  logger.info(
+    `Stats for '${objectLayer.data.item.id}' (${objectLayer.data.item.type}): ${JSON.stringify(objectLayer.data.stats)}`,
+  );
+  return true;
+};
+
+/**
  * Finds the asset type directory that holds one item id.
  *
  * @param {string} itemId - Object layer item id.
@@ -301,6 +328,7 @@ const installCyberiaDockerHostAliases = () => {
 
 try {
   const program = new Command();
+  registerStatCommands(program);
 
   /** @type {string} */
   const version = Underpost.version;
@@ -333,6 +361,24 @@ try {
       'Limit --minify and --to-atlas-sprite-sheet to the object layers one instance runs on (e.g. ol --minify --instance FOREST)',
     )
     .option(
+      '--normalize-stats',
+      'Clamp every stat of each object layer the action writes into the semantic bounds of its item type',
+    )
+    .option(
+      '--random-stats',
+      'Regenerate every stat of each object layer the action writes, with random signed modifiers',
+    )
+    .option(
+      '--min-stat <value>',
+      'Lowest value --random-stats or --normalize-stats may leave (default: -100)',
+      parseInt,
+    )
+    .option(
+      '--max-stat <value>',
+      'Highest value --random-stats or --normalize-stats may leave (default: 100)',
+      parseInt,
+    )
+    .option(
       '--upscale <px-factor>',
       `Pixels per cell of the human-resolution atlas render; on its own it rebuilds that render (default: ${DEFAULT_ATLAS_UPSCALE_FACTOR})`,
       parseInt,
@@ -362,6 +408,10 @@ try {
        * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
        * @param {boolean} options.minify - Refresh the minified atlas render of stored item(s).
        * @param {string} options.instance - Instance code whose object layers --minify reprocesses.
+       * @param {boolean} options.normalizeStats - Clamp the stats of every object layer the action writes to its type's bounds.
+       * @param {boolean} options.randomStats - Regenerate the stats of every object layer the action writes.
+       * @param {number} [options.minStat] - Lowest value --random-stats may draw.
+       * @param {number} [options.maxStat] - Highest value --random-stats may draw.
        * @param {number} options.upscale - Pixels per cell of the human-resolution atlas render.
        * @param {boolean|string} options.importTypes - Object layer types to batch import (e.g., 'all', 'skin,floor') or `false`.
        * @param {boolean|string} options.showFrame - Direction-frame string (e.g., '08_0') or `true` for default.
@@ -391,6 +441,8 @@ try {
           instance: '',
           upscale: DEFAULT_ATLAS_UPSCALE_FACTOR,
           importTypes: false,
+          normalizeStats: false,
+          randomStats: false,
           showFrame: '',
           envPath: '',
           mongoHost: '',
@@ -487,6 +539,24 @@ try {
         const liveObjectLayer = () => DataBaseProviderService.getModel('object-layer', { host, path });
 
         const rebuildAtlases = ObjectLayerEngine.selectAtlasRebuild(options);
+
+        /* Bounds fail here, before any write, rather than on the first item. */
+        const statPolicy = {
+          normalize: !!options.normalizeStats,
+          random: !!options.randomStats,
+          min: options.minStat,
+          max: options.maxStat,
+        };
+        if (statPolicyActive(statPolicy)) {
+          try {
+            resolveStatBounds('', statPolicy);
+          } catch (boundsError) {
+            logger.error(`--min-stat/--max-stat: ${boundsError.message}`);
+            process.exit(1);
+          }
+        } else if (statPolicy.min !== undefined || statPolicy.max !== undefined) {
+          logger.warn('--min-stat and --max-stat only bound --random-stats and --normalize-stats, ignored');
+        }
 
         if (options.instance && !options.minify && !rebuildAtlases) {
           logger.warn('--instance only narrows --minify and --to-atlas-sprite-sheet, ignored');
@@ -641,7 +711,8 @@ try {
         // ── Handle --minify (stored item-id(s)) ──────────────────────────
         // Refreshes only the minified atlas render, the one the client runtime
         // downloads. It reads its item ids from the collection, so it never
-        // creates an object layer, and it leaves every other attribute alone.
+        // creates an object layer. With --random-stats every stored document
+        // in scope is rewritten, whether or not its render can be refreshed.
         if (options.minify) {
           const selectedItemIds = await selectScopedItemIds({
             ObjectLayer,
@@ -661,8 +732,12 @@ try {
               const objectLayer = await liveObjectLayer()
                 .findByItemId(currentItemId)
                 .populate('objectLayerRenderFramesId');
+              if (objectLayer && applyStatPolicy(objectLayer, statPolicy)) {
+                await objectLayer.save();
+                await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer, options: { host, path } });
+              }
               if (!objectLayer?.objectLayerRenderFramesId) {
-                logger.warn(`No render frames stored for '${currentItemId}', skipped`);
+                logger.warn(`No render frames stored for '${currentItemId}', render skipped`);
                 tally.missing++;
                 continue;
               }
@@ -718,6 +793,7 @@ try {
                 objectLayerType: found.type,
                 objectLayerId: currentItemId,
               });
+            applyStatPolicy(objectLayerData, statPolicy);
 
             // Write processed frames back to disk so WebP matches atlas
             await ObjectLayerEngine.writeStaticFrameAssets({
@@ -792,6 +868,7 @@ try {
                       objectLayerType,
                       objectLayerId,
                     });
+                  applyStatPolicy(objectLayerData, statPolicy);
 
                   // Write processed frames back to disk so WebP matches atlas
                   const srcBasePath = './src/client/public/cyberia/';
@@ -960,6 +1037,7 @@ try {
               objectLayer.data.render.cid = atlasCid;
               objectLayer.data.render.metadataCid = atlasMetadataCid;
               objectLayer.markModified('data.render');
+              applyStatPolicy(objectLayer, statPolicy);
               await objectLayer.save();
 
               await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer, options: { host, path } });
@@ -1077,6 +1155,7 @@ try {
 
           // Overwrite the item id in the generated data with the unique variant
           multiFrameResult.objectLayerData.data.item.id = uniqueItemId;
+          applyStatPolicy(multiFrameResult.objectLayerData, statPolicy);
 
           logger.info(
             `Generated ${multiFrameResult.frameCount} frame(s) with ${multiFrameResult.objectLayerRenderFramesData.colors.length} unique colors`,
