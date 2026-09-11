@@ -29,7 +29,7 @@ class CyberiaEntityService {
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
     const CyberiaEntity = DataBaseProviderService.getModel("CyberiaEntity", options);
-    return await CyberiaEntity.findByIdAndUpdate(req.params.id, req.body);
+    return await CyberiaEntity.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */

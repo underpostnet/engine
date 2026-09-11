@@ -1,20 +1,4 @@
-/**
- * Instance Map service — strategic-graph REST payloads for the client's
- * expanded Instance Map modal.
- *
- * Serves two lightweight views of an instance, decoupled from the gameplay
- * AOI stream:
- *   static  — graph topology plus authored map-cell presence, capability
- *             membership, and baseline stats for living presence (bots and
- *             resources; portals carry none). Fetched once when the modal
- *             opens.
- *   dynamic — per-player capability activity. Polled while the modal is open.
- *
- * Live player position is absent: the engine holds no real-time simulation
- * state. The client overlays its own predicted position on the graph.
- *
- * @module src/api/cyberia-instance/cyberia-instance-map.service.js
- */
+// The instance map serves authored topology and capabilities. AOI owns live stats.
 
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
@@ -27,7 +11,6 @@ import {
 import { FileFactory } from '../file/file.service.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import {
-  CYBERIA_INSTANCE_CONF_DEFAULTS,
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
@@ -79,9 +62,6 @@ const entityPresenceStatus = (entity, objectLayerMetadata, behavior) => {
   }
 };
 
-// Behaviors whose entities carry no sum-stats readout: mission givers and
-// fully static NPCs.
-const STATLESS_BEHAVIORS = new Set(['provider', 'provider-static', 'static']);
 
 const mergeEntityDefaults = (entityDefaults = []) => {
   const merged = entityDefaults.map((entityDefault) => ({
@@ -107,12 +87,6 @@ const entityBehavior = (entity, entityDefaults) =>
   resolveEntityDefaultBuild({ entityType: entity.entityType, itemIds: entity.objectLayerItemIds }, entityDefaults)
     ?.behavior || '';
 
-const objectLayerStatsSum = (itemIds, objectLayerMetadata, sumStatsLimit) =>
-  Math.min(
-    (itemIds || []).reduce((sum, itemId) => sum + (objectLayerMetadata[itemId]?.statsSum || 0), 0),
-    sumStatsLimit,
-  );
-
 const resolveObjectLayerMetadata = async (itemIds, options) => {
   if (!itemIds.length) return {};
 
@@ -123,29 +97,16 @@ const resolveObjectLayerMetadata = async (itemIds, options) => {
     return {};
   }
   const objectLayers = await ObjectLayer.find({ 'data.item.id': { $in: itemIds } })
-    .select('data.item.id data.item.type data.stats')
+    .select('data.item.id data.item.type')
     .lean();
   return Object.fromEntries(
     objectLayers.map((layer) => [
       layer.data.item.id,
       {
-        statsSum: Object.values(layer.data.stats || {}).reduce((sum, value) => sum + (Number(value) || 0), 0),
         type: layer.data.item.type,
       },
     ]),
   );
-};
-
-const resolveSumStatsLimit = async (instance, options) => {
-  const fallback = CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit;
-  let CyberiaInstanceConf;
-  try {
-    CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
-  } catch {
-    return fallback;
-  }
-  const conf = await CyberiaInstanceConf.findOne({ instanceCode: instance.code }).select('sumStatsLimit').lean();
-  return Number.isFinite(conf?.sumStatsLimit) && conf.sumStatsLimit > 0 ? conf.sumStatsLimit : fallback;
 };
 
 // Only what this instance references: the conf names its entity-type defaults by _id, so a POI
@@ -167,11 +128,10 @@ const buildPresencePois = ({
   actions,
   objectLayerMetadata = {},
   entityDefaults = mergeEntityDefaults(),
-  sumStatsLimit = CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
 }) => {
   const pois = new Map();
 
-  const getPoi = (mapCode, cellX, cellY, presenceStatus, sourcePriority = 0, statsSum = 0, showStatsValue = false) => {
+  const getPoi = (mapCode, cellX, cellY, presenceStatus, sourcePriority = 0) => {
     if (!mapCode || !Number.isFinite(cellX) || !Number.isFinite(cellY) || cellX < 0 || cellY < 0 || !presenceStatus)
       return null;
     const key = `${mapCode}:${cellX}:${cellY}`;
@@ -183,19 +143,7 @@ const buildPresencePois = ({
       presenceStatus,
       capabilities: [],
       sourcePriority,
-      statsSum: 0,
-      hasStatfulPresence: false,
-      hasStatlessPresence: false,
     };
-    if (sourcePriority >= 100) {
-      if (showStatsValue) {
-        poi.hasStatfulPresence = true;
-        poi.statsSum += statsSum;
-      } else {
-        poi.hasStatlessPresence = true;
-        poi.statsSum = 0;
-      }
-    }
     const priority = sourcePriority + (PRESENCE_PRIORITY[presenceStatus] || 0);
     const currentPriority = poi.sourcePriority + (PRESENCE_PRIORITY[poi.presenceStatus] || 0);
     if (priority > currentPriority) {
@@ -215,21 +163,7 @@ const buildPresencePois = ({
       const behavior = entityBehavior(entity, entityDefaults);
       const presenceStatus = entityPresenceStatus(entity, objectLayerMetadata, behavior);
       if (!presenceStatus) continue;
-      // Stats travel only with living presence (bots and resources); portal
-      // cells and provider/static-behavior entities never carry the readout.
-      const statless =
-        presenceStatus === PRESENCE_STATUS.portal ||
-        presenceStatus === PRESENCE_STATUS.portalRandom ||
-        STATLESS_BEHAVIORS.has(behavior);
-      getPoi(
-        map.code,
-        entity.initCellX ?? 0,
-        entity.initCellY ?? 0,
-        presenceStatus,
-        100,
-        statless ? 0 : objectLayerStatsSum(entity.objectLayerItemIds, objectLayerMetadata, sumStatsLimit),
-        !statless,
-      );
+      getPoi(map.code, entity.initCellX ?? 0, entity.initCellY ?? 0, presenceStatus, 100);
     }
   }
 
@@ -258,13 +192,8 @@ const buildPresencePois = ({
     addCapability(poi, CAPABILITY_ACTION);
   }
 
-  // Display permission is explicit: a statless entity never shows a `stats 0` tab.
   return [...pois.values()]
-    .map(({ sourcePriority, hasStatfulPresence, hasStatlessPresence, ...poi }) => ({
-      ...poi,
-      statsSum: hasStatfulPresence && !hasStatlessPresence && poi.capabilities.length === 0 ? poi.statsSum : 0,
-      showStatsValue: hasStatfulPresence && !hasStatlessPresence && poi.capabilities.length === 0,
-    }))
+    .map(({ sourcePriority, ...poi }) => poi)
     .sort(
       (left, right) =>
         left.mapCode.localeCompare(right.mapCode) || left.cellY - right.cellY || left.cellX - right.cellX,
@@ -284,7 +213,6 @@ const buildStaticPayload = ({
   fallback,
   objectLayerMetadata = {},
   entityDefaults = mergeEntityDefaults(),
-  sumStatsLimit = CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
   previewCachedMapCodes = new Set(),
 }) => {
   const previewRoute = (mapCode) =>
@@ -335,7 +263,6 @@ const buildStaticPayload = ({
       actions,
       objectLayerMetadata,
       entityDefaults,
-      sumStatsLimit,
     }),
   };
 };
@@ -412,7 +339,7 @@ const resolveInstanceWorld = async (instanceCode, options) => {
     const resolved = await resolveObjectLayerMetadata(fallbackItemIds, options);
     const objectLayerMetadata = Object.fromEntries(
       Object.entries(resolved).map(([itemId, meta]) => {
-        return [itemId, { statsSum: meta.statsSum, type: meta.type }];
+        return [itemId, { type: meta.type }];
       }),
     );
 
@@ -429,7 +356,6 @@ const resolveInstanceWorld = async (instanceCode, options) => {
       actions: DefaultCyberiaActions.filter((a) => mapCodes.has(a.sourceMapCode)),
       objectLayerMetadata,
       entityDefaults: mergeEntityDefaults(),
-      sumStatsLimit: CYBERIA_INSTANCE_CONF_DEFAULTS.sumStatsLimit,
       // The procedural world has no editor pass, so its node backgrounds render
       // here and are served from the in-memory preview cache.
       previewCachedMapCodes: new Set(await cacheWorldMapPreviews(instanceCode, world.maps)),
@@ -454,7 +380,6 @@ const resolveInstanceWorld = async (instanceCode, options) => {
     ...new Set(maps.flatMap((map) => (map.entities || []).flatMap((entity) => entity.objectLayerItemIds || []))),
   ];
   const objectLayerMetadata = await resolveObjectLayerMetadata(itemIds, options);
-  const sumStatsLimit = await resolveSumStatsLimit(instance, options);
   const entityDefaults = await resolveEntityDefaults(instance, options);
 
   const codeSet = new Set(mapCodes);
@@ -466,7 +391,6 @@ const resolveInstanceWorld = async (instanceCode, options) => {
     actions: dbActions.length > 0 ? dbActions : DefaultCyberiaActions.filter((a) => codeSet.has(a.sourceMapCode)),
     objectLayerMetadata,
     entityDefaults,
-    sumStatsLimit,
     fallback: false,
   };
 };

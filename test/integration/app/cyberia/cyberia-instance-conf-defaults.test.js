@@ -25,7 +25,7 @@ const SCHEMA_FIELDS = [
   'playerBaseSpeed',
   'playerBaseLifeRegenMin',
   'playerBaseLifeRegenMax',
-  'sumStatsLimit',
+  'progressionRules',
   'maxActiveLayers',
   'initialLifeFraction',
   'respawnDurationMs',

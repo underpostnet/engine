@@ -604,13 +604,14 @@ describe('the canonical inventory contract', () => {
       dropItemIds: ['loot'],
       inventoryItemsIds: ['coin'],
     });
-    // Spawn state is alive, so the live ids are the worn ones; the rest are carried but empty,
-    // which is what lets the runtime activate a slot instead of appending one.
+    // Spawn state is alive, so the live ids are the worn ones. Inventory-only ids are stock the
+    // entity holds, so they start as one unit a player can bank. Dead and drop ids are lifecycle
+    // slots carried empty, which is what lets the runtime activate one instead of appending it.
     expect(inventory).toEqual([
       { itemId: 'skin', active: true, quantity: 1, dropChance: 1 },
       { itemId: 'ghost', active: false, quantity: 0, dropChance: 1 },
       { itemId: 'loot', active: false, quantity: 0, dropChance: 1 },
-      { itemId: 'coin', active: false, quantity: 0, dropChance: 1 },
+      { itemId: 'coin', active: false, quantity: 1, dropChance: 1 },
     ]);
   });
 

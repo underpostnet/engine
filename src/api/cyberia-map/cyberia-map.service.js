@@ -50,6 +50,8 @@ class CyberiaMapService {
     if (!map) throw new Error('map not found');
     if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
+    const candidate = new CyberiaMap({ ...map.toObject(), ...req.body });
+    await candidate.validate();
     const File = DataBaseProviderService.getModel("File", options);
     if (req.body.thumbnail && map.thumbnail && String(req.body.thumbnail) !== String(map.thumbnail)) {
       await File.findByIdAndDelete(map.thumbnail);
@@ -57,7 +59,7 @@ class CyberiaMapService {
     if (req.body.preview && map.preview && String(req.body.preview) !== String(map.preview)) {
       await File.findByIdAndDelete(map.preview);
     }
-    return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+    return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after', runValidators: true });
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */

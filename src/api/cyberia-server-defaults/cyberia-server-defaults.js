@@ -18,6 +18,9 @@
 // Shared vocabulary lives under src/client/ so the browser bundler resolves it.
 import {
   ITEM_TYPES,
+  STAT_TYPES,
+  STAT_MODIFIER_MAX,
+  ENTITY_LEVEL_MAX,
   ENTITY_TYPES,
   SKILL_LOGIC_ID_VALUES,
   isCanonicalSkillLogicId,
@@ -922,8 +925,10 @@ export function resolveEntityDefaultBuild({ entityType, itemIds = [] }, defaults
  * cyberia-server/game/dead_items.go activates the slot that is already there). Seeding the whole
  * union is what lets it activate rather than append.
  *
- * Spawn state is alive, so the live ids are the active ones. A slot the entity is not wearing
- * starts empty; a coin balance is exactly that, and the server owns its quantity from there.
+ * Spawn state is alive, so the live ids are the active ones. A worn item and an inventory-only
+ * item are stock the entity holds, so each starts as one unit. A dead or drop id is a lifecycle
+ * slot the runtime activates or scatters later, so it starts empty. The server owns the coin
+ * quantity from spawn on, whatever the seed says.
  *
  * `overrideItemsIdsState` adjusts that derivation for one carried id: `active` forces the spawn
  * state — a skin the equipment rules would otherwise leave inactive — and `quantity` sizes a
@@ -958,10 +963,12 @@ export function resolveEntityInventory(entityDefault = {}, { itemTypes } = {}) {
     ),
   ];
   const drops = new Set(entityDefault.dropItemIds || []);
+  const stock = new Set(entityDefault.inventoryItemsIds || []);
   const rows = itemIds.map((itemId) => {
     const override = overrides.get(itemId);
     const active = 'boolean' === typeof override?.active ? override.active : live.has(itemId);
-    const quantity = Number.isFinite(override?.quantity) ? override.quantity : active ? 1 : 0;
+    const held = active || stock.has(itemId);
+    const quantity = Number.isFinite(override?.quantity) ? override.quantity : held ? 1 : 0;
     // A drop id scatters on death unless an override says how often. Rows that are not drops
     // carry the same 1, so every consumer reads one field and never a missing one.
     const dropChance =
@@ -1020,8 +1027,8 @@ function applyEquipmentRules(rows, { itemTypes, overrides = new Map() } = {}) {
  * @type {ReadonlyArray<{code:string,bus:'music'|'sfx',options?:object}>}
  */
 export const DEFAULT_AUDIO_BANK = Object.freeze([
-  ...['shoot', 'coin', 'drop', 'item-pickup', 'victory', 'heal', 'hit', 'portal', 'ui-click', 'footsteps'].map((code) =>
-    Object.freeze({ code, bus: AUDIO_BUS_SFX }),
+  ...['shoot', 'coin', 'drop', 'item-pickup', 'victory', 'level-up', 'death', 'heal', 'hit', 'portal', 'ui-click', 'footsteps'].map(
+    (code) => Object.freeze({ code, bus: AUDIO_BUS_SFX }),
   ),
   Object.freeze({ code: 'exploration', bus: AUDIO_BUS_MUSIC, options: { cycles: 1 } }),
   Object.freeze({ code: 'combat', bus: AUDIO_BUS_MUSIC, options: { rounds: 1 } }),
@@ -1064,6 +1071,8 @@ export const DEFAULT_AUDIO_BINDINGS = Object.freeze([
   Object.freeze({ logicEventId: 'combat', audioCode: 'combat' }),
   Object.freeze({ logicEventId: 'boss', audioCode: 'boss' }),
   Object.freeze({ logicEventId: 'victory', audioCode: 'victory' }),
+  Object.freeze({ logicEventId: 'level-up', audioCode: 'level-up' }),
+  Object.freeze({ logicEventId: 'death', audioCode: 'death' }),
   Object.freeze({ logicEventId: 'portal-cooldown', audioCode: 'portal-cooldown' }),
 ]);
 
@@ -1148,6 +1157,58 @@ export const DEFAULT_PLAYER_SPAWN = Object.freeze({
  * forbidden — see `SharedDefaultsCyberia.js` and the
  * `/api/cyberia-client-hints` REST endpoint for presentation overrides.
  */
+export const PROGRESSION_RULES_DEFAULTS = Object.freeze({
+  maxLevel: 100,
+  xpPerLevel: 100,
+  baseStats: Object.freeze({ effect: 5, resistance: 10, agility: 0, range: 0, intelligence: 0, utility: 0 }),
+  perLevelStats: Object.freeze({ effect: 2, resistance: 5, agility: 1, range: 10, intelligence: 1, utility: 1 }),
+  killXp: 25,
+  questXp: 100,
+  objectiveXp: 10,
+  minAwardIntervalMs: 500,
+  repeatWindowMs: 60000,
+  maxRepeatAwards: 4,
+  maxAwardsPerWindow: 30,
+  defaultBotLevel: 1,
+});
+
+export const PROGRESSION_RULE_LIMITS = Object.freeze(Object.fromEntries(Object.entries({
+  maxLevel: [1, ENTITY_LEVEL_MAX], xpPerLevel: [1, 1000000],
+  killXp: [0, 1000000], questXp: [0, 1000000], objectiveXp: [0, 1000000],
+  minAwardIntervalMs: [1, 60000], repeatWindowMs: [1000, 3600000],
+  maxRepeatAwards: [1, 100], maxAwardsPerWindow: [1, 1000], defaultBotLevel: [1, ENTITY_LEVEL_MAX],
+}).map(([key, bounds]) => [key, Object.freeze(bounds)])));
+
+export function resolveProgressionRules(input = {}) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Progression rules must be an object.');
+  const defaults = PROGRESSION_RULES_DEFAULTS;
+  const rules = {
+    ...defaults, ...input,
+    baseStats: { ...defaults.baseStats, ...input.baseStats },
+    perLevelStats: { ...defaults.perLevelStats, ...input.perLevelStats },
+  };
+  for (const key of ['baseStats', 'perLevelStats']) {
+    if (input[key] !== undefined && (!input[key] || typeof input[key] !== 'object' || Array.isArray(input[key]))) {
+      throw new TypeError('Base stat curve must be an object: ' + key);
+    }
+  }
+  if (rules.defaultBotLevel > rules.maxLevel) throw new RangeError('Default bot level exceeds maximum level.');
+  for (const [key, [min, max]] of Object.entries(PROGRESSION_RULE_LIMITS)) {
+    if (!Number.isInteger(rules[key]) || rules[key] < min || rules[key] > max) throw new RangeError('Invalid progression rule: ' + key);
+  }
+  for (const block of [rules.baseStats, rules.perLevelStats]) {
+    for (const [key, value] of Object.entries(block)) {
+      if (!STAT_TYPES.includes(key) || !Number.isInteger(value) || value < 0 || value > STAT_MODIFIER_MAX) {
+        throw new RangeError('Invalid base stat curve: ' + key);
+      }
+    }
+  }
+  for (const key of Object.keys(rules)) {
+    if (!(key in defaults)) throw new TypeError('Unknown progression rule: ' + key);
+  }
+  return rules;
+}
+
 export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Tick model ─────────────────────────────────────────────────────
   tickRate: 60,
@@ -1176,7 +1237,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // projectiles and every other entity keep entityBaseSpeed. 0 falls back to
   // entityBaseSpeed.
   playerBaseSpeed: 8,
-  sumStatsLimit: 500,
+  progressionRules: PROGRESSION_RULES_DEFAULTS,
   maxActiveLayers: 4,
   initialLifeFraction: 1.0,
 
@@ -1196,9 +1257,11 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
     craftingFeePercent: 0.0,
   },
 
-  // ── Regen ──────────────────────────────────────────────────────────
-  lifeRegenChance: 300,
-  maxChance: 10000,
+  // ── Chances, as fractions of 1 ───────────────────────────────────
+  // A tap has lifeRegenChance to regenerate life; utility raises it. No chance the
+  // stats raise passes maxChance, so nothing becomes a certainty.
+  lifeRegenChance: 0.15,
+  maxChance: 0.95,
 
   // ── Per-entity-type defaults ───────────────────────────────────────
   // References into the CyberiaEntityTypeDefault collection — see the schema.
@@ -1215,12 +1278,12 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // stored on the conf. See DefaultSkillConfig above for the definitions and
   // cyberia-instance-items.js for the membership rule.
   skillRules: {
-    projectileSpawnChance: 0.5,
+    projectileSpawnChance: 0.75,
     projectileLifetimeMs: 2000,
     projectileWidth: 1,
     projectileHeight: 1,
     projectileSpeedMultiplier: 3,
-    doppelgangerSpawnChance: 0.5,
+    doppelgangerSpawnChance: 0.6,
     doppelgangerLifetimeMs: 5000,
     doppelgangerSpawnRadius: 3,
     doppelgangerInitialLifeFraction: 1.0,

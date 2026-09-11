@@ -1,11 +1,13 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import { resolveProgressionRules } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const logger = loggerFactory(import.meta);
 
 class CyberiaInstanceConfService {
   static post = async (req, res, options) => {
+    if (Object.hasOwn(req.body, 'progressionRules')) req.body.progressionRules = resolveProgressionRules(req.body.progressionRules);
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
@@ -29,10 +31,11 @@ class CyberiaInstanceConfService {
     return { data, total, page, totalPages };
   };
   static put = async (req, res, options) => {
+    if (Object.hasOwn(req.body, 'progressionRules')) req.body.progressionRules = resolveProgressionRules(req.body.progressionRules);
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
-    return await CyberiaInstanceConf.findByIdAndUpdate(req.params.id, req.body);
+    return await CyberiaInstanceConf.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */

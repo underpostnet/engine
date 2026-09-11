@@ -1,10 +1,19 @@
+import { STAT_TYPES, STAT_MODIFIER_MAX } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { Schema, model } from 'mongoose';
-import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS as D, resolveProgressionRules, PROGRESSION_RULE_LIMITS } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
-// ── StatusIconEntrySchema ────────────────────────────────────────────────────
-// Numeric Entity Status Indicator (ESI) IDs. The server stamps one u8 ID on
-// every entity in the AOI wire format. The icon visuals belong to the client
-// and travel through /api/cyberia-client-hints, not here.
+const BaseStatsSchema = new Schema(Object.fromEntries(STAT_TYPES.map((key) => [key, {
+  type: Number, min: 0, max: STAT_MODIFIER_MAX, validate: Number.isInteger,
+}])), { _id: false, strict: 'throw' });
+const ProgressionRulesSchema = new Schema({
+  ...Object.fromEntries(Object.entries(PROGRESSION_RULE_LIMITS).map(([key, [min, max]]) => [key, {
+    type: Number, min, max, validate: Number.isInteger,
+  }])),
+  baseStats: BaseStatsSchema,
+  perLevelStats: BaseStatsSchema,
+}, { _id: false, strict: 'throw' });
+ProgressionRulesSchema.pre('validate', function () { resolveProgressionRules(this.toObject()); });
+
 const StatusIconEntrySchema = new Schema(
   {
     id: { type: Number, required: true },
@@ -103,7 +112,7 @@ const CyberiaInstanceConfSchema = new Schema(
     playerBaseSpeed: { type: Number, default: D.playerBaseSpeed },
     playerBaseLifeRegenMin: { type: Number, default: D.playerBaseLifeRegenMin },
     playerBaseLifeRegenMax: { type: Number, default: D.playerBaseLifeRegenMax },
-    sumStatsLimit: { type: Number, default: D.sumStatsLimit },
+    progressionRules: { type: ProgressionRulesSchema, default: D.progressionRules },
     maxActiveLayers: { type: Number, default: D.maxActiveLayers },
     initialLifeFraction: { type: Number, default: D.initialLifeFraction },
 
@@ -115,9 +124,9 @@ const CyberiaInstanceConfSchema = new Schema(
     // Fountain & Sink parameters. See EconomyRulesSchema and OFF_CHAIN_ECONOMY.md.
     economyRules: { type: EconomyRulesSchema },
 
-    // ── Regen ────────────────────────────────────────────────────────
-    lifeRegenChance: { type: Number, default: D.lifeRegenChance },
-    maxChance: { type: Number, default: D.maxChance },
+    // ── Chances, as fractions of 1 ───────────────────────────────────
+    lifeRegenChance: { type: Number, default: D.lifeRegenChance, min: 0, max: 1 },
+    maxChance: { type: Number, default: D.maxChance, min: 0, max: 1 },
 
     // ── Entity type defaults ─────────────────────────────────────────
     // References into the CyberiaEntityTypeDefault collection, which owns the

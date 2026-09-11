@@ -14,7 +14,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getProxyPath, getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
-import { ENTITY_TYPES, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
+import { ENTITY_TYPES, ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX, validateEntityLevel, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -637,6 +637,7 @@ class MapEngineCyberia {
         if (s('.map-engine-init-cell-x')) s('.map-engine-init-cell-x').value = entity.initCellX || 0;
         if (s('.map-engine-init-cell-y')) s('.map-engine-init-cell-y').value = entity.initCellY || 0;
         if (s('.map-engine-dim-x')) s('.map-engine-dim-x').value = entity.dimX || 1;
+        if (s('.map-engine-level')) s('.map-engine-level').value = entity.level ?? '';
         if (s('.map-engine-dim-y')) s('.map-engine-dim-y').value = entity.dimY || 1;
 
         // Parse rgba color back to hex + alpha
@@ -678,6 +679,7 @@ class MapEngineCyberia {
     const canvasId = 'map-engine-canvas';
 
     const idEntityType = MapEngineCyberia.entityTypeDropdownId;
+    const idLevel = 'map-engine-level';
     const idInitCellX = 'map-engine-init-cell-x';
     const idInitCellY = 'map-engine-init-cell-y';
     const idDimX = 'map-engine-dim-x';
@@ -764,7 +766,16 @@ class MapEngineCyberia {
     const getEntityParams = () => {
       const hex = s(`.${idColor}`)?.value || '#ff0000';
       const alpha = parseFloat(s(`.${idAlpha}`)?.value);
+      const rawLevel = s(`.${idLevel}`)?.value.trim();
+      let level;
+      try {
+        if (rawLevel) level = validateEntityLevel(Number(rawLevel));
+      } catch (error) {
+        NotificationManager.Push({ html: error.message, status: 'error' });
+        return null;
+      }
       return {
+        level,
         entityType: MapEngineCyberia.getSelectedEntityType(),
         initCellX: parseInt(s(`.${idInitCellX}`)?.value) || 0,
         initCellY: parseInt(s(`.${idInitCellY}`)?.value) || 0,
@@ -784,6 +795,7 @@ class MapEngineCyberia {
 
     const addEntityLocally = () => {
       const ep = getEntityParams();
+      if (!ep) return;
       ep.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
@@ -795,6 +807,7 @@ class MapEngineCyberia {
 
     const fillMapWithEntity = () => {
       const ep = getEntityParams();
+      if (!ep) return;
       ep.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
@@ -873,6 +886,7 @@ class MapEngineCyberia {
       const selectedCount = getAffectedEntityCount(preserveIndices.length);
       const selected = [...preserveIndices].sort(() => Math.random() - 0.5).slice(0, selectedCount);
       const template = getEntityParams();
+      if (!template) return;
       template.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
@@ -883,6 +897,7 @@ class MapEngineCyberia {
           const replacement = {
             ...target,
             entityType: template.entityType,
+            level: template.level,
             dimX: template.dimX,
             dimY: template.dimY,
             color: template.color,
@@ -1156,6 +1171,7 @@ class MapEngineCyberia {
 
       const nextEntities = (mapData.entities || []).map((e) => ({
         entityType: e.entityType,
+        level: e.level,
         initCellX: e.initCellX,
         initCellY: e.initCellY,
         dimX: e.dimX,
@@ -1196,6 +1212,7 @@ class MapEngineCyberia {
       if (s(`.${idY}`)) s(`.${idY}`).value = 16;
       if (s(`.${idCellW}`)) s(`.${idCellW}`).value = 32;
       if (s(`.${idCellH}`)) s(`.${idCellH}`).value = 32;
+      if (s(`.${idLevel}`)) s(`.${idLevel}`).value = '';
       if (s(`.${idVariationPreserve}`)) s(`.${idVariationPreserve}`).value = '';
       if (s(`.${idRenameSourceObjectLayer}`)) s(`.${idRenameSourceObjectLayer}`).value = '';
       if (s(`.${idRenameTargetObjectLayer}`)) s(`.${idRenameTargetObjectLayer}`).value = '';
@@ -1768,6 +1785,11 @@ class MapEngineCyberia {
               data: MapEngineCyberia.getEntityTypeDropdownOptions(),
               value: DEFAULT_ENTITY_TYPE,
               containerClass: 'inl',
+            })}
+            ${await Input.instance({
+              id: idLevel,
+              label: html`Level (empty uses instance default)`,
+              containerClass: 'inl', type: 'number', min: ENTITY_LEVEL_MIN, max: ENTITY_LEVEL_MAX, value: '',
             })}
           </div>
           <div class="in fll ${dcEntityType}-col-b">

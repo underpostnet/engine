@@ -1,9 +1,11 @@
 import { Schema, model, Types } from 'mongoose';
+import { ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
 const CyberiaEntitySchema = new Schema({
   entityType: { type: String, default: 'floor' },
+  level: { type: Number, min: ENTITY_LEVEL_MIN, max: ENTITY_LEVEL_MAX, validate: Number.isInteger },
   initCellX: { type: Number, default: 0 },
   initCellY: { type: Number, default: 0 },
   dimX: { type: Number, default: 1 },
