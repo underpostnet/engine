@@ -208,18 +208,27 @@ The `ObjectLayerToken` contract maps each `tokenId` → canonical `cid` on-chain
 
 ### 4.4 Canonical Stats Schema
 
-Stats govern mechanical behavior across all game systems (combat, movement, skills, drops):
+Each Object Layer contributes six signed integer modifiers in `[-100, +100]`. Zero is neutral.
+The canonical source is `SharedDefaultsCyberia.js`.
 
-```
-Stats {
-  effect:       int  // damage output / skill power
-  resistance:   int  // damage reduction
-  agility:      int  // movement speed modifier
-  range:        int  // attack / interaction range
-  intelligence: int  // skill cooldown / mana modifier
-  utility:      int  // general-purpose utility bonus
-}
-```
+| Stat | Runtime meaning |
+| --- | --- |
+| `effect` | Life removed by an impact |
+| `resistance` | Maximum life bonus and life restored by regeneration |
+| `agility` | Movement speed percentage modifier |
+| `range` | Summoned entity lifetime in milliseconds |
+| `intelligence` | Summon success chance modifier |
+| `utility` | Action cooldown percentage reduction and regeneration chance modifier |
+
+The server adds base stats at the entity level, active OL contributions, and temporary modifiers.
+It applies playable floors after this sum. Players, bots, NPCs, and resources use the same calculation.
+Bots and NPCs use assigned levels with frozen XP.
+
+XP belongs to entity progression. Resolved kills, resource defeats, and quest completions can award XP.
+Cooldowns, contribution checks, repeat limits, and rate limits restrict rewards. Raw taps and idle time award no XP.
+
+The current guest runtime keeps progression for one connected session.
+The [stat specification](STATS-PROGRESSION.md) defines the wire fields, curves, and account persistence boundary.
 
 ### 4.5 Item Type Registry
 

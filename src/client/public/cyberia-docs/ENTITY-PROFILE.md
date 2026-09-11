@@ -70,7 +70,7 @@ type PlayerState struct {
     FreezeReason      string             // "dialogue" | "inventory" | ...
     Path              []PointI           // A* path (for smooth movement)
     AOI               Rectangle          // current area-of-interest bounds
-    SumStatsLimit     int                // max aggregate stat sum (equipment rules)
+    Progression       EntityProgression  // level, total XP, and progression freeze
 }
 ```
 
@@ -131,13 +131,21 @@ z-order  type
 
 ## Stat Aggregation
 
-Stats are aggregated across all **active** Object Layers on an entity. The server enforces a `sumStatsLimit` — the maximum sum of all stat values allowed for the player. Attempting to equip items that would exceed this limit is rejected.
+Players, bots, NPCs, and resources share the same progression and stat module.
+Bots, NPCs, and resources have frozen XP. Their authored level selects the same base curve as players.
 
-**Active stats sum:**
+```text
+Effective = max(floor, Base(Level) + ActiveOL + Temporary)
+```
 
-$$\text{activeStatsSum} = \sum_{\text{active layers}} (\text{effect} + \text{resistance} + \text{agility} + \text{range} + \text{intelligence} + \text{utility})$$
+Each active layer with positive quantity contributes once. Each OL stat is an integer in `[-100, +100]`.
+The server applies floors after the full sum. Equipment rules control active slots and item types.
 
-The `sumStatsLimit` and `activeStatsSum` are sent to the client on each AOI update so the inventory UI can show remaining equip budget.
+The self snapshot carries `level`, `xp`, `levelXp`, `nextLevelXp`, and four stat arrays.
+Other living entities carry `level` and `effectiveStats`. `statsSum` is an uncapped display summary.
+The overhead HUD and the Stats tab display the server values. XP and level never belong to `data.stats`.
+
+See [Stats and progression](STATS-PROGRESSION.md) for curves, limits, and the API contract.
 
 ---
 

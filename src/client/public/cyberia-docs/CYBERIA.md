@@ -277,3 +277,7 @@ cd cyberia-client && make -f Web.mk serve-development     # serves on :8082
   orchestration scripts safe to rerun.
 - `engine-private/` is a private external dependency. Reference it only as private input; never assume
   its contents exist locally.
+
+## Cyberia stat contract
+
+See [Stats and progression](STATS-PROGRESSION.md) for signed OL modifiers, entity levels, CLI commands, and verification.

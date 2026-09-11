@@ -242,7 +242,8 @@ The Instance Map is a strategic overlay, not a minimap. It visualises the instan
 
 One integrated widget with two modes, split across two modules:
 
-- **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[quest][map][fullscreen]`. The quest button shows/hides the Quest Journal (hidden by default); the **Map** toggle (ui-icon `map`) morphs the container to the full screen with an eased transition and retracts it the same way on close, swapping to a close icon while expanded.
+- **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[quest][map][fullscreen]`. The quest button shows/hides the Quest Journal and the map button shows/hides the minimap; both are hidden by default and stay open together. The coordinate readout opens the expanded Instance Map, which morphs to the full screen with an eased transition and retracts the same way on close.
+- **Side stack** (`ui/hud_side_stack`) — the right-hand column both panels live in: the minimap on top, the Quest Journal beneath, between the toolbar and the inventory bar. The column sizes to the room the bar leaves. When both are open the minimap gives way to at most half of the column so the journal keeps room, and the journal takes only what its content needs. Each panel keeps its own state across toggles: the journal its scroll, sections and pages, the minimap its zoom.
 - **Container** (`ui/modal_map`) — compact mode is the always-on readout (map code, position, fps) hosted inside the toolbar; expanded mode is the full-screen morph target.
 - **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: a non-blocking translucent full-screen panel (the world keeps rendering behind it).
 
@@ -257,15 +258,35 @@ Strict independence from the gameplay renderer:
 
 Data lifecycle:
 
-1. Opening the overlay fetches the **static** payload once: graph nodes, portal edges, and authored `presencePois` carrying map-cell presence status, `sumStatsLimit`-capped baseline ObjectLayer stat sums, and static action/quest capability membership. The instance code arrives in the simulation server's `metadata` message.
+1. Opening the overlay fetches the **static** payload once: graph nodes, portal edges, and authored `presencePois` carrying map-cell presence status and static action/quest capability membership. The instance code arrives in the simulation server's `metadata` message.
 2. While open, the client polls the **dynamic** endpoint (~1/s, `?playerId=`) only for per-player capability activity: `acceptable` / `active` quests and active actions.
 3. Closing the overlay stops polling immediately; late responses are discarded.
 
 Live player position never travels through this API — engine-cyberia holds no simulation state. The overlay marks the player's node (and cell fraction within it) from the client's own predicted position, refreshed every frame.
 
-At normal zoom, POIs render only their authored presence-status icon. At inspection zoom, static action and quest capability icons appear with the authored baseline stat sum; dynamic activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
+At normal zoom, POIs render only their authored presence-status icon. At inspection zoom, static action and quest capability icons appear; dynamic activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
 
 ---
+
+## Stats and progression
+
+Every living entity's overhead HUD shows `[stats] lv.<level>` and `[stack] <stats sum>` above its nameplate, and a gold XP bar under its HP bar. The local player's bar fills with its progress through the current level and carries an `XP n / m` label in a smaller font; entities whose XP the client cannot read show an empty, unlabeled bar.
+
+The Stats tab of the interact modal draws one shared stat panel per block: the stats icon, the signed sum, and a two-column grid with one icon per stat. Every entity gets its effective stats. The local player also gets the OL modifiers, base stats, and temporary modifiers from the self snapshot. The inventory modal draws the same panel for one item.
+
+An XP award floats as gold `+N XP` combat text over the earner only. A server level increment triggers a `LEVEL UP` aura: shaded gold sparks stream from the entity's feet up past its head for 3 s under a spinning star and a label, and the whole effect follows the entity as it moves, for any entity in view. First sight, repeated snapshots, and lower levels do not trigger it.
+
+A defeat of a player or bot triggers the death cue: shaded red sparks burst out of the body and fall while a `skull` icon rises over it for 2.6 s, following the body. It fires once, when an entity seen alive in the prior snapshot is dead in this one. An entity first seen dead, or still dead, triggers nothing. A resource is extracted, not slain: it goes straight to its extracted state with no cue.
+
+While either cue runs, the entity's whole overhead stack, presence icon included, yields the space to it and returns when the cue ends.
+
+The cues are visual only. Their sounds arrive as `audio_event` messages the server broadcasts to every player whose area of interest covers the event, so a defeat, an extraction, or a level gained sounds the same for everyone in reach. The client plays the id through the map's audio bindings.
+
+Item slots badge an object layer with the `stack` icon and its signed stat sum, red when negative.
+
+The server sends six values in canonical order. The client displays these values and uses the supplied movement speed.
+
+See [Stats and progression](https://github.com/underpostnet/engine/blob/master/src/client/public/cyberia-docs/STATS-PROGRESSION.md) for the contract and tests.
 
 ## Build and run
 

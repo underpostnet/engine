@@ -47,6 +47,9 @@ cyberia ol [item-id] [options]
 | `--minify`                                                                           | Refresh the minified atlas render the client downloads                   |
 | `--instance <code>`                                                                  | Narrows `--minify` and `--to-atlas-sprite-sheet` to one instance         |
 | `--upscale <px-factor>`                                                              | Pixels per cell of the human-resolution render; alone, rebuilds it       |
+| `--normalize-stats`                                                                  | Clamp the stats of every layer the action writes to its item type's bounds |
+| `--random-stats`                                                                     | Regenerate the stats of every layer the action writes at random          |
+| `--min-stat <n>` / `--max-stat <n>`                                                  | Narrow the range the two flags above may leave (default `-100`/`100`)    |
 | `--show-frame [dir_frame]`                                                           | View one frame (e.g. `08_0`; default `08_0`)                             |
 | `--show-atlas-sprite-sheet`                                                          | Display the atlas PNG for the item                                       |
 | `--drop`                                                                             | Drop existing data before importing (or standalone)                      |
@@ -77,6 +80,10 @@ cyberia ol --to-atlas-sprite-sheet
 # Refresh the minified render the client downloads
 cyberia ol hatchet --minify
 cyberia ol --minify --instance FOREST
+
+# Balance stats on every layer an action writes
+cyberia ol --minify --instance FOREST --normalize-stats
+cyberia ol hatchet --import --random-stats --normalize-stats --max-stat 10
 
 # Drop + re-import a single item, including static folders
 cyberia ol hatchet --drop --client-public --import
@@ -313,11 +320,11 @@ bank (`DEFAULT_AUDIO_BANK`) and its bindings (`DEFAULT_AUDIO_BINDINGS`, expanded
 and `cyberia-client/src/audio/audio_events.h` holds the same ids for the emitting side. A binding naming an
 unknown event, or an asset the bank does not carry, throws at import rather than playing silence.
 
-The fallback bank binds `projectile`, `coin_drop_or_transaction`, `drop`, `item-pickup`, `victory`, `heal`,
-`hit`, `portal`, `ui-click` and `footsteps` as one-shots, and `combat`, `boss`, `portal-cooldown` and
+The fallback bank binds `projectile`, `coin_drop_or_transaction`, `drop`, `item-pickup`, `victory`, `level-up`,
+`death`, `heal`, `hit`, `portal`, `ui-click` and `footsteps` as one-shots, and `combat`, `boss`, `portal-cooldown` and
 `craft` as music. `victory` is a cue rather than a bed: completing a quest is an event, and holding the
 bus for it would take the map's music away for the length of a flourish. `hit` follows the server's damage events, so it sounds for any entity in view rather than
-only for the player; `ui-click` follows a tap the interface accepted.
+only for the player; `level-up` and `death` arrive as server `audio_event` broadcasts, so a level gained or a defeat sounds for every viewer in reach; `ui-click` follows a tap the interface accepted.
 
 `item-pickup` fires where every route into the inventory bar converges — world loot flying in, a quest
 reward, a purchase, an assembly output — so one emission covers them all. It is deliberately plainer than
@@ -511,3 +518,7 @@ node bin deploy dd-cyberia development --sync-static --gateway-api --kubeadm
 - Prefer one source of truth for generated manifests, deploy IDs, runtime choice, and asset metadata.
 - Treat generated artifacts (atlases, manifests, dashboard HTML) as outputs only; never hand-edit them.
 - `engine-private/` is a private external dependency; never assume its contents exist locally.
+
+## Cyberia stat contract
+
+See [Stats and progression](STATS-PROGRESSION.md) for signed OL modifiers, entity levels, CLI commands, and verification.

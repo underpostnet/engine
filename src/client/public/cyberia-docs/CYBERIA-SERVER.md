@@ -232,7 +232,7 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the 
 | `src/economy.go`                                                                                  | Fountain & Sink coin economy                                                                            |
 | `src/life_regen.go`                                                                               | HP regeneration                                                                                         |
 | `src/ai.go`                                                                                       | Bot AI                                                                                                  |
-| `src/stats.go`                                                                                    | Active stat aggregation, sum-stats limit enforcement                                                    |
+| `src/stats.go`                                                                                    | Signed stat aggregation and effective floors                                                    |
 | `src/entity_status.go`                                                                            | Entity Status Indicator (ESI) numeric IDs                                                               |
 | `src/frozen_state.go`                                                                             | FrozenInteractionState                                                                                  |
 | `src/handlers.go`                                                                                 | WebSocket lifecycle, binary uplink decoder, JSON-uplink back-compat adapter                             |
@@ -297,3 +297,9 @@ go build -o cyberia-server .
 ```bash
 go test ./logx/ -run TestResolveLevel
 ```
+
+## Stats and progression
+
+`game/progression.go` owns level curves and XP rules. `game/stats.go` combines base, active OL, and temporary stats.
+
+The server validates content before cache replacement or world reload. See [Stats and progression](STATS-PROGRESSION.md).

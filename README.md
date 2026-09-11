@@ -152,3 +152,7 @@ npm run dev
 <!-- cli-index-end -->
 
 <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/CLI-HELP.md">See CLI Docs.</a>
+
+## Cyberia stat contract
+
+See [Stats and progression](src/client/public/cyberia-docs/STATS-PROGRESSION.md) for signed OL modifiers, entity levels, CLI commands, and verification.
