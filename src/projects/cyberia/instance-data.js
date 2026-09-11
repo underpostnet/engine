@@ -24,6 +24,7 @@ import { loggerFactory } from '../../server/ops/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   DEFAULT_DEAD_ITEM_ID,
+  resolveProgressionRules,
   ENTITY_TYPE_DEFAULTS,
   resolveEntityInventory,
   DefaultCyberiaActions,
@@ -32,6 +33,8 @@ import {
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import {
   DEFAULT_INSTANCE_CODE,
+  validateStats,
+  validateEntityLevel,
   DefaultCyberiaItems,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
@@ -171,19 +174,11 @@ function itemTypesOf(objectLayerDocs = []) {
 function toObjectLayerMsg(doc) {
   const d = doc.data || {};
   const item = d.item || {};
-  const stats = d.stats || {};
   const ledger = d.ledger || {};
   const render = d.render || {};
   return {
     mongoId: String(doc._id),
-    stats: {
-      effect: stats.effect || 0,
-      resistance: stats.resistance || 0,
-      agility: stats.agility || 0,
-      range: stats.range || 0,
-      intelligence: stats.intelligence || 0,
-      utility: stats.utility || 0,
-    },
+    stats: validateStats(d.stats),
     item: {
       id: item.id || '',
       type: item.type || '',
@@ -221,6 +216,7 @@ function toEntityMsg(ent) {
   const rgba = parseRgba(ent.color);
   return {
     entityType: ent.entityType || 'floor',
+    level: ent.level === undefined ? 0 : validateEntityLevel(ent.level),
     initCellX: ent.initCellX || 0,
     initCellY: ent.initCellY || 0,
     dimX: ent.dimX || 1,
@@ -339,6 +335,10 @@ function toQuestMsg(q) {
  * Any field that is null/undefined in `gc` falls back to FALLBACK_CONFIG_DEFAULTS,
  * so partial DB documents always produce a fully playable config.
  */
+// A chance is a fraction of one. Anything else a conf carries is not a chance and resolves to
+// the default, the same way a partial progression curve inherits its missing fields.
+const chanceOf = (value, fallback) => (Number.isFinite(value) && value >= 0 && value <= 1 ? value : fallback);
+
 function toInstanceConfig(gc) {
   const fb = FALLBACK_CONFIG_DEFAULTS;
   if (!gc) return buildFallbackConfig();
@@ -369,7 +369,7 @@ function toInstanceConfig(gc) {
     playerBaseSpeed: gc.playerBaseSpeed ?? fb.playerBaseSpeed,
     playerBaseLifeRegenMin: gc.playerBaseLifeRegenMin ?? fb.playerBaseLifeRegenMin,
     playerBaseLifeRegenMax: gc.playerBaseLifeRegenMax ?? fb.playerBaseLifeRegenMax,
-    sumStatsLimit: gc.sumStatsLimit ?? fb.sumStatsLimit,
+    progressionRules: resolveProgressionRules(gc.progressionRules),
     maxActiveLayers: gc.maxActiveLayers ?? fb.maxActiveLayers,
     initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
     respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
@@ -385,19 +385,19 @@ function toInstanceConfig(gc) {
       portalFee: gc.economyRules?.portalFee ?? fb.economyRules.portalFee,
       craftingFeePercent: gc.economyRules?.craftingFeePercent ?? fb.economyRules.craftingFeePercent,
     },
-    lifeRegenChance: gc.lifeRegenChance ?? fb.lifeRegenChance,
-    maxChance: gc.maxChance ?? fb.maxChance,
+    lifeRegenChance: chanceOf(gc.lifeRegenChance, fb.lifeRegenChance),
+    maxChance: chanceOf(gc.maxChance, fb.maxChance),
     entityDefaults,
     // Filled in by the caller from the skills this world's own content triggers; a conf stores
     // none, so there is nothing here to fall back to.
     skillConfig: [],
     skillRules: {
-      projectileSpawnChance: gc.skillRules?.projectileSpawnChance ?? fb.skillRules.projectileSpawnChance,
+      projectileSpawnChance: chanceOf(gc.skillRules?.projectileSpawnChance, fb.skillRules.projectileSpawnChance),
       projectileLifetimeMs: gc.skillRules?.projectileLifetimeMs ?? fb.skillRules.projectileLifetimeMs,
       projectileWidth: gc.skillRules?.projectileWidth ?? fb.skillRules.projectileWidth,
       projectileHeight: gc.skillRules?.projectileHeight ?? fb.skillRules.projectileHeight,
       projectileSpeedMultiplier: gc.skillRules?.projectileSpeedMultiplier ?? fb.skillRules.projectileSpeedMultiplier,
-      doppelgangerSpawnChance: gc.skillRules?.doppelgangerSpawnChance ?? fb.skillRules.doppelgangerSpawnChance,
+      doppelgangerSpawnChance: chanceOf(gc.skillRules?.doppelgangerSpawnChance, fb.skillRules.doppelgangerSpawnChance),
       doppelgangerLifetimeMs: gc.skillRules?.doppelgangerLifetimeMs ?? fb.skillRules.doppelgangerLifetimeMs,
       doppelgangerSpawnRadius: gc.skillRules?.doppelgangerSpawnRadius ?? fb.skillRules.doppelgangerSpawnRadius,
       doppelgangerInitialLifeFraction:
@@ -527,10 +527,8 @@ async function fetchFullInstance(models, requestedInstanceCode) {
     // Opaque version over everything mutable in this payload, mirroring the
     // persisted path below. A constant here would make hot reload a silent
     // no-op: WorldBuilder.ReloadWorld skips the rebuild — and therefore
-    // ApplyInstanceConfig — whenever the version is unchanged. The world
-    // geometry itself is deterministic (code defaults + seed), so the
-    // ObjectLayer docs are the only input that can differ.
-    const fallbackVersionParts = ['fallback'];
+    // ApplyInstanceConfig when content and configuration are unchanged.
+    const fallbackVersionParts = ['fallback', JSON.stringify(fallbackConfig)];
     for (const doc of fallbackOlDocs) fallbackVersionParts.push(String(doc.sha256 || doc._id));
     const fallbackVersion = `fallback-${crypto
       .createHash('sha256')
@@ -619,7 +617,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
 
   // Opaque version over the updatedAt timestamps. The server compares it to
   // skip a full world rebuild when nothing changed.
-  const versionParts = [String(inst.updatedAt || inst._id)];
+  const versionParts = [String(inst.updatedAt || inst._id), JSON.stringify(toInstanceConfig(conf))];
   for (const m of mapDocs) versionParts.push(String(m.updatedAt || m._id));
   if (conf.updatedAt) versionParts.push(String(conf.updatedAt));
   // Skill edits live in their own collection — fold them in so a skill
