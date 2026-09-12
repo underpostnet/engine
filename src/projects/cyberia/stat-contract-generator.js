@@ -1,7 +1,7 @@
 import { buildBootContractArtifacts } from './boot-contract-fixtures.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,6 +69,21 @@ static const char* const CYBERIA_STAT_LABELS[CYBERIA_STAT_COUNT] = {${STAT_DEFIN
     'cyberia-server/game/stat_contract_generated.go': formatted,
     'cyberia-client/src/domain/stat_contract_generated.h': header,
   };
+}
+
+/**
+ * Whether cyberia-server and cyberia-client sit beside this repository.
+ *
+ * Both are gitignored siblings (see .gitignore, alongside cyberia-audio), so a checkout that
+ * publishes only this repo's tracked tree — the engine-cyberia npm mirrors, for one — never has
+ * them. {@link generateStatContract} writes into both; callers that only run in a full
+ * multi-repo checkout should skip rather than fail on a missing sibling.
+ *
+ * @param {string} [root] - Defaults to this repository's own root.
+ * @returns {boolean}
+ */
+export function hasCyberiaSiblings(root = fileURLToPath(new URL('../../../', import.meta.url))) {
+  return existsSync(resolve(root, 'cyberia-server')) && existsSync(resolve(root, 'cyberia-client'));
 }
 
 export async function generateStatContract({ root = fileURLToPath(new URL('../../../', import.meta.url)), check = false } = {}) {

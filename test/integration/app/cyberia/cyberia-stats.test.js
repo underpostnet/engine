@@ -16,7 +16,7 @@ import { DataBaseProviderService } from '../../../../src/db/DataBaseProvider.js'
 import { CyberiaEntityModel } from '../../../../src/api/cyberia-entity/cyberia-entity.model.js';
 import { CyberiaInstanceConfModel } from '../../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
 import { toObjectLayerMsg, toEntityMsg, toInstanceConfig } from '../../../../src/projects/cyberia/instance-data.js';
-import { generateStatContract } from '../../../../src/projects/cyberia/stat-contract-generator.js';
+import { generateStatContract, hasCyberiaSiblings } from '../../../../src/projects/cyberia/stat-contract-generator.js';
 import { registerStatCommands } from '../../../../src/projects/cyberia/stat-commands.js';
 
 const block = (value) => Object.fromEntries(STAT_TYPES.map((key) => [key, value]));
@@ -115,7 +115,9 @@ describe('Cyberia signed stat contract', () => {
     }
   });
 
-  it('matches generated Go and C contracts', async () => {
+  // cyberia-server and cyberia-client are gitignored siblings this repo does not contain (see
+  // .gitignore); a checkout that only has this repo's own tracked tree has nothing to check.
+  it.skipIf(!hasCyberiaSiblings())('matches generated Go and C contracts', async () => {
     await generateStatContract({ check: true });
   });
 });

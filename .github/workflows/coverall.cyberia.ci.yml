@@ -34,6 +34,11 @@ jobs:
           curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
           dnf install nodejs -y
 
+      # gofmt formats the generated stat contract; the cyberia tier's contract
+      # check fails without it on PATH.
+      - name: Install Go
+        run: dnf install -y golang
+
       - name: Install project dependencies
         run: npm install
 
