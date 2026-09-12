@@ -1433,6 +1433,19 @@ try {
               '/home/dd/cyberia-instances/conf/dd-cyberia/conf.instances.json',
             );
 
+          if (!fs.existsSync('/home/dd/cyberia-instances/manifests'))
+            fs.mkdirSync('/home/dd/cyberia-instances/manifests');
+          fs.copySync('./cyberia-server/manifests', '/home/dd/cyberia-instances/manifests', { overwrite: true });
+          fs.copySync('./cyberia-client/manifests', '/home/dd/cyberia-instances/manifests', { overwrite: true });
+          if (!fs.existsSync('/home/dd/cyberia-instances/manifests/deployments/dd-cyberia-development'))
+            fs.mkdirSync('/home/dd/cyberia-instances/manifests/deployments/dd-cyberia-development', {
+              recursive: true,
+            });
+          fs.copySync(
+            './manifests/deployment/dd-cyberia-development',
+            '/home/dd/cyberia-instances/manifests/deployments/dd-cyberia-development',
+            { overwrite: true },
+          );
           const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
           const publishMessage =
             shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
