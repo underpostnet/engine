@@ -63,12 +63,12 @@ const EquipmentRulesSchema = new Schema(
 
 const SkillRulesSchema = new Schema(
   {
-    projectileSpawnChance: { type: Number, default: D.skillRules.projectileSpawnChance },
+    projectileSpawnChance: { type: Number, default: D.skillRules.projectileSpawnChance, min: 0, max: 1 },
     projectileLifetimeMs: { type: Number, default: D.skillRules.projectileLifetimeMs },
     projectileWidth: { type: Number, default: D.skillRules.projectileWidth },
     projectileHeight: { type: Number, default: D.skillRules.projectileHeight },
     projectileSpeedMultiplier: { type: Number, default: D.skillRules.projectileSpeedMultiplier },
-    doppelgangerSpawnChance: { type: Number, default: D.skillRules.doppelgangerSpawnChance },
+    doppelgangerSpawnChance: { type: Number, default: D.skillRules.doppelgangerSpawnChance, min: 0, max: 1 },
     doppelgangerLifetimeMs: { type: Number, default: D.skillRules.doppelgangerLifetimeMs },
     doppelgangerSpawnRadius: { type: Number, default: D.skillRules.doppelgangerSpawnRadius },
     doppelgangerInitialLifeFraction: { type: Number, default: D.skillRules.doppelgangerInitialLifeFraction },

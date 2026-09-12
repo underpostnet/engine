@@ -21,6 +21,7 @@ import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/c
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
 import { CyberiaAudioService } from '../src/api/cyberia-audio/cyberia-audio.service.js';
 import { CyberiaEntityTypeDefaultService } from '../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
+import { CyberiaInstanceConfService } from '../src/api/cyberia-instance-conf/cyberia-instance-conf.service.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
@@ -45,6 +46,7 @@ import {
   buildImgFromTile,
 } from '../src/projects/cyberia/object-layer.js';
 import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/projects/cyberia/instance-data.js';
+import { restoreObjectLayerBackup } from '../src/projects/cyberia/instance-backup.js';
 import { getKeyframeDirectionsByCode } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
 import { AtlasSpriteSheetStore } from '../src/projects/cyberia/atlas-sprite-sheet-store.js';
@@ -68,7 +70,6 @@ import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
   ENTITY_TYPE_DEFAULTS,
-  fillInstanceConfDefaults,
 } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import cyberiaCatalog from '../src/projects/cyberia/catalog-cyberia.js';
 
@@ -358,7 +359,7 @@ try {
     )
     .option(
       '--instance <instance-code>',
-      'Limit --minify and --to-atlas-sprite-sheet to the object layers one instance runs on (e.g. ol --minify --instance FOREST)',
+      'Limit --minify and --to-atlas-sprite-sheet to the object layers one instance runs on, or make --import restore item(s) from that instance backup under engine-private (e.g. ol hatchet --instance FOREST --import)',
     )
     .option(
       '--normalize-stats',
@@ -558,8 +559,8 @@ try {
           logger.warn('--min-stat and --max-stat only bound --random-stats and --normalize-stats, ignored');
         }
 
-        if (options.instance && !options.minify && !rebuildAtlases) {
-          logger.warn('--instance only narrows --minify and --to-atlas-sprite-sheet, ignored');
+        if (options.instance && !options.minify && !rebuildAtlases && !options.import) {
+          logger.warn('--instance only narrows --minify and --to-atlas-sprite-sheet, or sources --import, ignored');
         }
 
         // Idempotent repair, run only before a flow that writes: collapse
@@ -768,8 +769,43 @@ try {
           }
         }
 
+        // ── Handle --import --instance: restore item(s) from the instance backup ──
+        // The backup under engine-private is the authority for the item id: every document it
+        // holds for the item replaces the database's, rather than regenerating from the asset
+        // directory. The item never touches the stat policy — the backup already states its stats.
+        if (options.import && options.instance) {
+          const itemIds = parseItemIds(itemId);
+          if (itemIds.length === 0) {
+            logger.error(
+              'item-id is required for --import --instance (e.g. ol hatchet,sword --instance FOREST --import)',
+            );
+            process.exit(1);
+          }
+          const backupDir = `./engine-private/cyberia-instances/${options.instance}`;
+          if (!fs.existsSync(backupDir)) {
+            logger.error(`No instance backup at ${backupDir}`);
+            process.exit(1);
+          }
+          logger.info(`Restoring ${itemIds.length} item(s) from instance backup '${options.instance}'`);
+          let restored = 0;
+          for (const currentItemId of itemIds) {
+            try {
+              const summary = await restoreObjectLayerBackup({
+                backupDir,
+                itemId: currentItemId,
+                options: { host, path },
+              });
+              logger.info(`Restored '${currentItemId}' from backup`, summary);
+              restored++;
+            } catch (restoreError) {
+              logger.error(`Restore failed for '${currentItemId}': ${restoreError.message}`);
+            }
+          }
+          logger.info(`Instance restore done: ${restored}/${itemIds.length} item(s)`);
+        }
+
         // ── Handle --import (specific item-id(s)) ────────────────────────
-        if (options.import) {
+        if (options.import && !options.instance) {
           const itemIds = parseItemIds(itemId);
           if (itemIds.length === 0) {
             logger.error('item-id is required for --import (comma-separated item IDs, e.g. ol hatchet,sword --import)');
@@ -1855,9 +1891,10 @@ try {
           instanceConf = created?.toObject ? created.toObject() : created;
         }
         if (instanceConf) {
-          // `.lean()` skips the Mongoose schema defaults, so fill every
-          // CyberiaInstanceConfSchema field from the canonical defaults first.
-          instanceConf = fillInstanceConfDefaults(instanceConf);
+          // `.lean()` skips the schema defaults and a document written before a bound tightened
+          // may carry a value the schema now rejects; the backup is made whole and valid here so
+          // it imports back as-is.
+          ({ conf: instanceConf } = await CyberiaInstanceConfService.coerceToSchema(instanceConf, CyberiaInstanceConf));
           fs.writeJsonSync(`${backupDir}/cyberia-instance-conf.json`, instanceConf, { spaces: 2 });
           logger.info('Exported CyberiaInstanceConf', { instanceCode });
         } else {
@@ -2565,12 +2602,11 @@ try {
           const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
           let importedConf = null;
           if (fs.existsSync(confImportPath)) {
-            // Backfill missing schema fields, so a partial backup imports a
-            // complete, playable config.
-            const confData = await adoptEntityTypeDefaultRefs(
-              fillInstanceConfDefaults(fs.readJsonSync(confImportPath)),
-              backupDir,
-              CyberiaEntityTypeDefault,
+            // Made whole and valid before the live conf is touched, so a backup the schema
+            // rejects resets to defaults rather than leaving the instance with no conf.
+            const { conf: confData } = await CyberiaInstanceConfService.coerceToSchema(
+              await adoptEntityTypeDefaultRefs(fs.readJsonSync(confImportPath), backupDir, CyberiaEntityTypeDefault),
+              CyberiaInstanceConf,
             );
             if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
             await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
@@ -2815,12 +2851,11 @@ try {
         // 6. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
         if (fs.existsSync(confImportPath)) {
-          // Backfill any missing schema fields so older backups import a
-          // complete, playable config into the DB.
-          const confData = await adoptEntityTypeDefaultRefs(
-            fillInstanceConfDefaults(fs.readJsonSync(confImportPath)),
-            backupDir,
-            CyberiaEntityTypeDefault,
+          // Made whole and valid before the live conf is touched, so a backup the schema
+          // rejects resets to defaults rather than leaving the instance with no conf.
+          const { conf: confData } = await CyberiaInstanceConfService.coerceToSchema(
+            await adoptEntityTypeDefaultRefs(fs.readJsonSync(confImportPath), backupDir, CyberiaEntityTypeDefault),
+            CyberiaInstanceConf,
           );
           if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
           await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
