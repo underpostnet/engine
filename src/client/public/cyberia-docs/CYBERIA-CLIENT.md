@@ -286,8 +286,6 @@ Item slots badge an object layer with the `stack` icon and its signed stat sum, 
 
 The server sends six values in canonical order. The client displays these values and uses the supplied movement speed.
 
-See [Stats and progression](https://github.com/underpostnet/engine/blob/master/src/client/public/cyberia-docs/STATS-PROGRESSION.md) for the contract and tests.
-
 ## Build and run
 
 ```bash

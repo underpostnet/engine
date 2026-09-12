@@ -95,6 +95,7 @@ npm run dev
 <a target="_top" href="https://www.nexodev.org/docs?cid=src">See Docs.</a>
 
 <!-- cli-index-start -->
+
 ## Underpost CLI
 
 > underpost ci/cd cli v3.3.73
@@ -103,56 +104,50 @@ npm run dev
 
 ### Global options
 
-| Option | Description |
-| --- | --- |
-| `-V, --version` | output the version number |
+| Option                | Description                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-V, --version`       | output the version number                                                                                                                                                                                                                                                                    |
 | `--profile <profile>` | Execution profile. One of: LIVE_CLUSTER, HERMETIC_BUILD, OFFLINE_DRY_RUN. LIVE_CLUSTER Full access: cluster and host mutation permitted. HERMETIC_BUILD Build outputs only: no cluster, host or network side effects. OFFLINE_DRY_RUN Nothing executes; every command is reported as intent. |
-| `-h, --help` | display help for command |
+| `-h, --help`          | display help for command                                                                                                                                                                                                                                                                     |
 
 ### Commands
 
-| Command | Description |
-| --- | --- |
-| [`new`](CLI-HELP.md#underpost-new) | Initializes a new Underpost project, service, or configuration. |
-| [`client`](CLI-HELP.md#underpost-client) | Builds client assets, single replicas, and/or syncs environment ports. |
-| [`start`](CLI-HELP.md#underpost-start) | Initiates application servers, build pipelines, or other defined services based on the deployment ID. |
-| [`clone`](CLI-HELP.md#underpost-clone) | Clones a specified GitHub repository into the current directory. |
-| [`pull`](CLI-HELP.md#underpost-pull) | Pulls the latest changes from a specified GitHub repository. |
-| [`cmt`](CLI-HELP.md#underpost-cmt) | Manages commits to a GitHub repository, supporting various commit types and options. |
-| [`push`](CLI-HELP.md#underpost-push) | Pushes committed changes from a local repository to a remote GitHub repository. |
-| [`static`](CLI-HELP.md#underpost-static) | Manages static build of page, bundles, and documentation with comprehensive customization options. |
-| [`root`](CLI-HELP.md#underpost-root) | Displays the root path of the npm installation. |
-| [`ip`](CLI-HELP.md#underpost-ip) | Displays the current public machine IP addresses. |
-| [`cluster`](CLI-HELP.md#underpost-cluster) | Manages Kubernetes clusters, defaulting to Kind cluster initialization. |
-| [`deploy`](CLI-HELP.md#underpost-deploy) | Manages application deployments, defaulting to deploying development pods. |
-| [`secret`](CLI-HELP.md#underpost-secret) | Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets. |
-| [`host`](CLI-HELP.md#underpost-host) | Host configuration: the node-level operational environment shared by the cluster. |
-| [`app`](CLI-HELP.md#underpost-app) | Application environment: one deployment's runtime configuration. |
-| [`state`](CLI-HELP.md#underpost-state) | Runtime state: live container execution state, health and metrics, exported off-cluster. |
-| [`image`](CLI-HELP.md#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
-| [`install`](CLI-HELP.md#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
-| [`db`](CLI-HELP.md#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |
-| [`metadata`](CLI-HELP.md#underpost-metadata) | Manages cluster metadata operations, including import and export. |
-| [`cron`](CLI-HELP.md#underpost-cron) | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests. |
-| [`fs`](CLI-HELP.md#underpost-fs) | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest. |
-| [`monitor`](CLI-HELP.md#underpost-monitor) | Manages health server monitoring, the cluster observability stack, and host dashboards. |
-| [`event`](CLI-HELP.md#underpost-event) | Dispatches operational events and provisions the monitoring rules that trigger them. |
-| [`ssh`](CLI-HELP.md#underpost-ssh) | Manages cluster scoped SSH credentials and sessions for remote access to cluster nodes or services. Users are registered in engine-private/deploy/conf.users.json and keys are stored in engine-private/deploy/users/<user>. |
-| [`wireguard`](CLI-HELP.md#underpost-wireguard) | Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it. |
-| [`haproxy`](CLI-HELP.md#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
-| [`vultr`](CLI-HELP.md#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
-| [`run`](CLI-HELP.md#underpost-run) | Runs specified scripts using various runners. |
-| [`test`](CLI-HELP.md#underpost-test) | Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting. |
-| [`docker-compose`](CLI-HELP.md#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
-| [`lxd`](CLI-HELP.md#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
-| [`baremetal`](CLI-HELP.md#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
-| [`package`](CLI-HELP.md#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
-| [`release`](CLI-HELP.md#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
+| Command                                                  | Description                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`new`](CLI-HELP.md#underpost-new)                       | Initializes a new Underpost project, service, or configuration.                                                                                                                                                              |
+| [`client`](CLI-HELP.md#underpost-client)                 | Builds client assets, single replicas, and/or syncs environment ports.                                                                                                                                                       |
+| [`start`](CLI-HELP.md#underpost-start)                   | Initiates application servers, build pipelines, or other defined services based on the deployment ID.                                                                                                                        |
+| [`clone`](CLI-HELP.md#underpost-clone)                   | Clones a specified GitHub repository into the current directory.                                                                                                                                                             |
+| [`pull`](CLI-HELP.md#underpost-pull)                     | Pulls the latest changes from a specified GitHub repository.                                                                                                                                                                 |
+| [`cmt`](CLI-HELP.md#underpost-cmt)                       | Manages commits to a GitHub repository, supporting various commit types and options.                                                                                                                                         |
+| [`push`](CLI-HELP.md#underpost-push)                     | Pushes committed changes from a local repository to a remote GitHub repository.                                                                                                                                              |
+| [`static`](CLI-HELP.md#underpost-static)                 | Manages static build of page, bundles, and documentation with comprehensive customization options.                                                                                                                           |
+| [`root`](CLI-HELP.md#underpost-root)                     | Displays the root path of the npm installation.                                                                                                                                                                              |
+| [`ip`](CLI-HELP.md#underpost-ip)                         | Displays the current public machine IP addresses.                                                                                                                                                                            |
+| [`cluster`](CLI-HELP.md#underpost-cluster)               | Manages Kubernetes clusters, defaulting to Kind cluster initialization.                                                                                                                                                      |
+| [`deploy`](CLI-HELP.md#underpost-deploy)                 | Manages application deployments, defaulting to deploying development pods.                                                                                                                                                   |
+| [`secret`](CLI-HELP.md#underpost-secret)                 | Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets.                                                                                                                                       |
+| [`host`](CLI-HELP.md#underpost-host)                     | Host configuration: the node-level operational environment shared by the cluster.                                                                                                                                            |
+| [`app`](CLI-HELP.md#underpost-app)                       | Application environment: one deployment's runtime configuration.                                                                                                                                                             |
+| [`state`](CLI-HELP.md#underpost-state)                   | Runtime state: live container execution state, health and metrics, exported off-cluster.                                                                                                                                     |
+| [`image`](CLI-HELP.md#underpost-image)                   | Manages Docker images, including building, saving, and loading into Kubernetes clusters.                                                                                                                                     |
+| [`install`](CLI-HELP.md#underpost-install)               | Quickly imports Underpost npm dependencies by copying them.                                                                                                                                                                  |
+| [`db`](CLI-HELP.md#underpost-db)                         | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.                                                                                         |
+| [`metadata`](CLI-HELP.md#underpost-metadata)             | Manages cluster metadata operations, including import and export.                                                                                                                                                            |
+| [`cron`](CLI-HELP.md#underpost-cron)                     | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.                                                                                                                                        |
+| [`fs`](CLI-HELP.md#underpost-fs)                         | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest.                                                                                                                                 |
+| [`monitor`](CLI-HELP.md#underpost-monitor)               | Manages health server monitoring, the cluster observability stack, and host dashboards.                                                                                                                                      |
+| [`event`](CLI-HELP.md#underpost-event)                   | Dispatches operational events and provisions the monitoring rules that trigger them.                                                                                                                                         |
+| [`ssh`](CLI-HELP.md#underpost-ssh)                       | Manages cluster scoped SSH credentials and sessions for remote access to cluster nodes or services. Users are registered in engine-private/deploy/conf.users.json and keys are stored in engine-private/deploy/users/<user>. |
+| [`wireguard`](CLI-HELP.md#underpost-wireguard)           | Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it.                                                                                                                                |
+| [`haproxy`](CLI-HELP.md#underpost-haproxy)               | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`).                                                                                                                     |
+| [`vultr`](CLI-HELP.md#underpost-vultr)                   | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues.                                                                                                                         |
+| [`run`](CLI-HELP.md#underpost-run)                       | Runs specified scripts using various runners.                                                                                                                                                                                |
+| [`test`](CLI-HELP.md#underpost-test)                     | Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting.                                                                                                                              |
+| [`docker-compose`](CLI-HELP.md#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack).                                                                                                                                      |
+| [`lxd`](CLI-HELP.md#underpost-lxd)                       | Manages LXD virtual machines as K3s nodes (control plane or workers).                                                                                                                                                        |
+| [`baremetal`](CLI-HELP.md#underpost-baremetal)           | Manages baremetal server operations, including installation, database setup, commissioning, and user management.                                                                                                             |
+| [`package`](CLI-HELP.md#underpost-package)               | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins.                                                                |
+| [`release`](CLI-HELP.md#underpost-release)               | Release orchestrator for building new versions and deploying releases of the Underpost CLI.                                                                                                                                  |
 
 <!-- cli-index-end -->
-
-<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/CLI-HELP.md">See CLI Docs.</a>
-
-## Cyberia stat contract
-
-See [Stats and progression](src/client/public/cyberia-docs/STATS-PROGRESSION.md) for signed OL modifiers, entity levels, CLI commands, and verification.

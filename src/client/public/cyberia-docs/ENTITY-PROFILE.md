@@ -145,8 +145,6 @@ The self snapshot carries `level`, `xp`, `levelXp`, `nextLevelXp`, and four stat
 Other living entities carry `level` and `effectiveStats`. `statsSum` is an uncapped display summary.
 The overhead HUD and the Stats tab display the server values. XP and level never belong to `data.stats`.
 
-See [Stats and progression](STATS-PROGRESSION.md) for curves, limits, and the API contract.
-
 ---
 
 ## Entity Status Indicator (ESI)

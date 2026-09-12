@@ -35,26 +35,26 @@ Import PNG assets, generate procedural layers, build atlas sprite sheets, push t
 cyberia ol [item-id] [options]
 ```
 
-| Option                                                                               | Description                                                              |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `--import`                                                                           | Import specific item-id(s), comma-separated, from the asset directory    |
-| `--import-types [types]`                                                             | Batch import by type (e.g. `skin,floors`) or `all`                       |
-| `--generate`                                                                         | Generate procedural layers from a semantic item-id (e.g. `floor-desert`) |
-| `--count <n>` / `--density <0..1>`                                                   | Shape count multiplier (default `3`) / density (default `0.5`)           |
-| `--seed <seed>`                                                                      | Deterministic seed for `--generate` (e.g. `fx-42`)                       |
-| `--frame-index <n>` / `--frame-count <n>`                                            | Start frame (default `0`) / frame count (default `1`)                    |
-| `--to-atlas-sprite-sheet [dim]`                                                      | Rebuild both atlas renders for the selected items                        |
-| `--minify`                                                                           | Refresh the minified atlas render the client downloads                   |
-| `--instance <code>`                                                                  | Narrows `--minify` and `--to-atlas-sprite-sheet` to one instance         |
-| `--upscale <px-factor>`                                                              | Pixels per cell of the human-resolution render; alone, rebuilds it       |
+| Option                                                                               | Description                                                                |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `--import`                                                                           | Import specific item-id(s), comma-separated, from the asset directory      |
+| `--import-types [types]`                                                             | Batch import by type (e.g. `skin,floors`) or `all`                         |
+| `--generate`                                                                         | Generate procedural layers from a semantic item-id (e.g. `floor-desert`)   |
+| `--count <n>` / `--density <0..1>`                                                   | Shape count multiplier (default `3`) / density (default `0.5`)             |
+| `--seed <seed>`                                                                      | Deterministic seed for `--generate` (e.g. `fx-42`)                         |
+| `--frame-index <n>` / `--frame-count <n>`                                            | Start frame (default `0`) / frame count (default `1`)                      |
+| `--to-atlas-sprite-sheet [dim]`                                                      | Rebuild both atlas renders for the selected items                          |
+| `--minify`                                                                           | Refresh the minified atlas render the client downloads                     |
+| `--instance <code>`                                                                  | Narrows `--minify` and `--to-atlas-sprite-sheet` to one instance           |
+| `--upscale <px-factor>`                                                              | Pixels per cell of the human-resolution render; alone, rebuilds it         |
 | `--normalize-stats`                                                                  | Clamp the stats of every layer the action writes to its item type's bounds |
-| `--random-stats`                                                                     | Regenerate the stats of every layer the action writes at random          |
-| `--min-stat <n>` / `--max-stat <n>`                                                  | Narrow the range the two flags above may leave (default `-100`/`100`)    |
-| `--show-frame [dir_frame]`                                                           | View one frame (e.g. `08_0`; default `08_0`)                             |
-| `--show-atlas-sprite-sheet`                                                          | Display the atlas PNG for the item                                       |
-| `--drop`                                                                             | Drop existing data before importing (or standalone)                      |
-| `--client-public` / `--git-clean`                                                    | With `--drop`: also remove static asset folders / run clean              |
-| `--env-path <path>` · `--mongo-host <host>` · `--dev` · `--storage-file-path <path>` | env / DB / dev / filter overrides                                        |
+| `--random-stats`                                                                     | Regenerate the stats of every layer the action writes at random            |
+| `--min-stat <n>` / `--max-stat <n>`                                                  | Narrow the range the two flags above may leave (default `-100`/`100`)      |
+| `--show-frame [dir_frame]`                                                           | View one frame (e.g. `08_0`; default `08_0`)                               |
+| `--show-atlas-sprite-sheet`                                                          | Display the atlas PNG for the item                                         |
+| `--drop`                                                                             | Drop existing data before importing (or standalone)                        |
+| `--client-public` / `--git-clean`                                                    | With `--drop`: also remove static asset folders / run clean                |
+| `--env-path <path>` · `--mongo-host <host>` · `--dev` · `--storage-file-path <path>` | env / DB / dev / filter overrides                                          |
 
 ```bash
 # Import specific items
@@ -518,7 +518,3 @@ node bin deploy dd-cyberia development --sync-static --gateway-api --kubeadm
 - Prefer one source of truth for generated manifests, deploy IDs, runtime choice, and asset metadata.
 - Treat generated artifacts (atlases, manifests, dashboard HTML) as outputs only; never hand-edit them.
 - `engine-private/` is a private external dependency; never assume its contents exist locally.
-
-## Cyberia stat contract
-
-See [Stats and progression](STATS-PROGRESSION.md) for signed OL modifiers, entity levels, CLI commands, and verification.
