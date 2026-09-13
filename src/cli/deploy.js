@@ -281,6 +281,58 @@ EOF
       return Underpost.deploy.trafficServiceNameFactory({ deployId, env });
     },
     /**
+     * Removes the Gateway API objects an earlier model of this deploy left behind, so
+     * they stop competing with the consolidated `<deployId>-<env>` Gateway.
+     *
+     * The per-host model emitted one Gateway and one `<host>-http3` ClientTrafficPolicy
+     * per hostname. Left in place they duplicate that hostname's listeners in the same
+     * merged set, and the oldest resource retains traffic. `undefined` / `undefined-http3`
+     * is the same problem under a different name: the consolidated objects were briefly
+     * emitted with an unresolved host in their metadata, and merged listeners are
+     * configured by the oldest policy that targets them.
+     *
+     * The namespace is listed once and only objects that exist are deleted: a sweep that
+     * issued a blind delete per host per kind spent two dozen `kubectl` round-trips per
+     * sync on names that were gone after the first migration, and buried the one line
+     * that mattered when something was actually removed.
+     * @param {object} params
+     * @param {string[]} params.hosts - Hostnames the deploy's `conf.server.json` declares.
+     * @param {string} params.namespace - Namespace the deploy's Gateway objects live in.
+     * @returns {{gateways: string[], policies: string[]}} Names removed, per kind.
+     * @memberof UnderpostDeploy
+     */
+    sweepLegacyGatewayObjects({ hosts = [], namespace = 'default' }) {
+      const existing = (kind) =>
+        new Set(
+          `${
+            shellExec(`kubectl get ${kind} -n ${namespace} -o name --ignore-not-found`, {
+              stdout: true,
+              silent: true,
+              silentOnError: true,
+              disableLog: true,
+            }) ?? ''
+          }`
+            .split('\n')
+            .map((line) => line.trim().split('/').pop())
+            .filter(Boolean),
+        );
+      const legacy = [...new Set(hosts.filter(Boolean)), 'undefined'];
+      const gateways = existing('Gateway');
+      const policies = existing('ClientTrafficPolicy');
+      const removed = {
+        gateways: legacy.filter((name) => gateways.has(name)),
+        policies: legacy.map((name) => `${name}-http3`).filter((name) => policies.has(name)),
+      };
+      for (const name of removed.gateways)
+        shellExec(`sudo kubectl delete Gateway ${name} -n ${namespace} --ignore-not-found`);
+      for (const name of removed.policies)
+        shellExec(`sudo kubectl delete ClientTrafficPolicy ${name} -n ${namespace} --ignore-not-found`);
+      if (removed.gateways.length > 0 || removed.policies.length > 0)
+        logger.warn('Legacy per-host Gateway API objects removed', { namespace, ...removed });
+      return removed;
+    },
+
+    /**
      * Removes the route kind owned by the inactive ingress stack. The active
      * route is already published before this runs, so migration never creates a
      * hostname with no route.
@@ -2479,34 +2531,15 @@ EOF`);
                 });
           }
 
-        for (const host of Object.keys(confServer)) {
-          if (!options.disableUpdateProxy) {
-            // The host's route object is left in place and replaced by the `apply`
-            // below. Deleting it first unpublished the hostname for the whole
-            // reconciliation window, so every promote dropped live requests before
-            // the new colour was ever the question.
-            //
-            // A deploy that previously ran the per-host model left a Gateway
-            // named after each host. Those are superseded by the consolidated
-            // one, and leaving them behind duplicates that hostname's listeners
-            // in the same merged set. The oldest resource would retain traffic.
-            //
-            // `undefined-http3` is the same problem under a different name: the
-            // consolidated policy was briefly emitted with an unresolved host in
-            // its metadata. Merged listeners are configured by the oldest policy
-            // that targets them, so that object outranks the correctly named one
-            // for as long as it exists.
-            if (options.gatewayApi)
-              for (const name of [host, 'undefined']) {
-                shellExec(`sudo kubectl delete Gateway ${name} -n ${namespace} --ignore-not-found`, { silent: true });
-                shellExec(`sudo kubectl delete ClientTrafficPolicy ${name}-http3 -n ${namespace} --ignore-not-found`, {
-                  silent: true,
-                });
-              }
-            if (Underpost.deploy.isCertManagerContext({ host, env, options }))
-              shellExec(`sudo kubectl delete Certificate ${host} -n ${namespace} --ignore-not-found`);
-          }
-        }
+        // The host's route object is left in place and replaced by the `apply`
+        // below. Deleting it first unpublished the hostname for the whole
+        // reconciliation window, so every promote dropped live requests before
+        // the new colour was ever the question.
+        if (!options.disableUpdateProxy && options.gatewayApi)
+          Underpost.deploy.sweepLegacyGatewayObjects({ hosts: Object.keys(confServer), namespace });
+        for (const host of Object.keys(confServer))
+          if (!options.disableUpdateProxy && Underpost.deploy.isCertManagerContext({ host, env, options }))
+            shellExec(`sudo kubectl delete Certificate ${host} -n ${namespace} --ignore-not-found`);
 
         const manifestsPath =
           env === 'production'
