@@ -958,6 +958,104 @@ const placeInstanceStaticAssets = ({ instances, options, label }) => {
 };
 
 /**
+ * @method parseRawHttpResponse
+ * @description Splits a raw HTTP/1.x response into its status code and body. The body
+ * is everything after the first blank line, byte for byte, so it can be hashed against
+ * the document on disk.
+ * @param {string} raw - Response as read off the socket.
+ * @returns {{status: string, body: string}} Status code (empty when no status line) and body.
+ * @memberof UnderpostGateway
+ */
+const parseRawHttpResponse = (raw = '') => {
+  const status = /^HTTP\/[0-9.]+\s+([0-9]{3})/.exec(raw)?.[1] || '';
+  if (!status) return { status: '', body: '' };
+  const separator = raw.search(/\r?\n\r?\n/);
+  if (separator < 0) return { status, body: '' };
+  return { status, body: raw.slice(separator).replace(/^\r?\n\r?\n/, '') };
+};
+
+/**
+ * @method gatewayPodFetch
+ * @description One request against the gateway from inside its own pod, returning the
+ * status and the body even when the status is an error.
+ *
+ * Written on the socket with `nc` rather than fetched with `wget`: the image ships
+ * busybox, whose `wget` discards the body of any non-2xx response and exits — so a
+ * fallback document, which is by definition delivered with an upstream-failure status,
+ * could never be read through it. The probe that did so failed every attempt on a
+ * correct edge and looked like a hang. HTTP/1.0 keeps the reply unchunked, so the body
+ * is the document verbatim. Where `nc` is absent the `wget` pair still yields the status.
+ * @param {object} params
+ * @param {string} params.namespace - Namespace the gateway runs in.
+ * @param {string} params.host - Host header to present.
+ * @param {string} [params.path] - Request path.
+ * @returns {{status: string, body: string}} What the gateway answered.
+ * @memberof UnderpostGateway
+ */
+const gatewayPodFetch = ({ namespace, host, path = '/' }) => {
+  const exec = (script) =>
+    `${
+      shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- sh -c "${script}"`, {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+        disableLog: true,
+      }) ?? ''
+    }`;
+  const request = path || '/';
+  const raw = exec(
+    `printf 'GET ${request} HTTP/1.0\\r\\nHost: ${host}\\r\\n\\r\\n' | nc -w 10 127.0.0.1 ${UNDERPOST_GATEWAY.port} 2>/dev/null || true`,
+  );
+  const parsed = parseRawHttpResponse(raw);
+  if (parsed.status) return parsed;
+  const url = `http://127.0.0.1${request}`;
+  const headers = exec(`wget -S -O /dev/null -T 10 --header 'Host: ${host}' ${url} 2>&1 || true`);
+  const status = [...headers.matchAll(/HTTP\/[0-9.]+\s+([0-9]{3})/g)].pop()?.[1] || '';
+  const body = exec(`wget -q -O - -T 10 --header 'Host: ${host}' ${url} 2>/dev/null || true`);
+  return { status, body };
+};
+
+/**
+ * @method gatewayFetch
+ * @description One request against the gateway, returning the status and the body
+ * even when the status is an error — the shape every fallback probe asserts on.
+ *
+ * Sent from this host with `curl` to the gateway Service first: the sync runs on the
+ * node that holds the gateway's volume, so the ClusterIP is reachable, and curl keeps
+ * the body of an error response. Only when that yields no status line does it fall back
+ * to {@link UnderpostGateway.gatewayPodFetch}, which needs nothing on the host at all.
+ * @param {object} params
+ * @param {string} params.namespace - Namespace the gateway runs in.
+ * @param {string} params.host - Host header to present.
+ * @param {string} [params.path] - Request path.
+ * @returns {{status: string, body: string, via: string}} What the gateway answered, and which way.
+ * @memberof UnderpostGateway
+ */
+const gatewayFetch = ({ namespace, host, path = '/' }) => {
+  const clusterIp = `${
+    shellExec(`kubectl get svc ${UNDERPOST_GATEWAY.serviceName} -n ${namespace} -o jsonpath='{.spec.clusterIP}'`, {
+      stdout: true,
+      silent: true,
+      silentOnError: true,
+      disableLog: true,
+    }) ?? ''
+  }`.trim();
+  if (/^[0-9a-f.:]+$/i.test(clusterIp)) {
+    const raw = `${
+      shellExec(
+        `curl -sS -i --noproxy '*' --max-time 10 -H 'Host: ${host}' http://${clusterIp}:${UNDERPOST_GATEWAY.port}${
+          path || '/'
+        } 2>/dev/null || true`,
+        { stdout: true, silent: true, silentOnError: true, disableLog: true },
+      ) ?? ''
+    }`;
+    const parsed = parseRawHttpResponse(raw);
+    if (parsed.status) return { ...parsed, via: 'host' };
+  }
+  return { ...gatewayPodFetch({ namespace, host, path }), via: 'pod' };
+};
+
+/**
  * @method gatewayFallbackProbeRunner
  * @description Proves the edge answers each configured fallback with the exact
  * document on disk, before any application is deployed behind it.
@@ -1018,26 +1116,24 @@ const gatewayFallbackProbeRunner = async ({ checks, options, label, gatewayStatu
           silent: true,
           silentOnError: true,
         }).trim();
-      } else {
-        const request = `http://127.0.0.1${check.path || '/'}`;
-        body = shellExec(
-          `kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- sh -c ` +
-            `"wget -q -O - -T 10 --header 'Host: ${check.host}' ${request} 2>/dev/null || true"`,
-          { stdout: true, silent: true, silentOnError: true },
-        );
-        const headers = shellExec(
-          `kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- sh -c ` +
-            `"wget -S -O /dev/null -T 10 --header 'Host: ${check.host}' ${request} 2>&1 || true"`,
-          { stdout: true, silent: true, silentOnError: true },
-        );
-        status = [...headers.matchAll(/HTTP\/[0-9.]+\s+([0-9]{3})/g)].pop()?.[1] || '';
-      }
+      } else ({ status, body } = gatewayFetch({ namespace, host: check.host, path: check.path }));
       actualHash = crypto
         .createHash('sha256')
         .update(body || '')
         .digest('hex');
       passed = /^50[234]$/.test(status) && !!expectedHash && actualHash === expectedHash;
       if (passed) break;
+      // The first miss is reported as it happens: a probe that polls for minutes with
+      // nothing on the console reads as a hang, and what it saw is the whole diagnosis.
+      if (attempts === 1)
+        logger.warn(`[${label}] Fallback probe not yet satisfied; polling`, {
+          host: check.host,
+          path: check.path || '/',
+          status: status || '(none)',
+          bodyBytes: Buffer.byteLength(body || ''),
+          bodyMatchesConfiguredAsset: actualHash === expectedHash,
+          expectedAsset: expectedHash ? check.assetPath : '(missing on disk)',
+        });
       if (attempts < 30) await timer(2000);
     }
     const result = {
@@ -1059,6 +1155,8 @@ export {
   UNDERPOST_GATEWAY,
   assertStaticAssets,
   gatewayFallbackProbeRunner,
+  gatewayFetch,
+  gatewayPodFetch,
   gatewayStaticAssetExists,
   hostInstanceRegistryPathFactory,
   hostServerConfFactory,
@@ -1071,6 +1169,7 @@ export {
   kubernetesUpstreamFactory,
   underpostGatewayManifestsFactory,
   nginxConfFactory,
+  parseRawHttpResponse,
   seedDefaultStatusPage,
   staticLocationFactory,
   staticPathSegmentFactory,
