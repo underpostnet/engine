@@ -15,6 +15,9 @@ import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
+import os from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
 import { validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { ObjectLayerDto } from './object-layer.model.js';
 import { ObjectLayerEngine } from '../../projects/cyberia/object-layer.js';
@@ -473,9 +476,14 @@ class ObjectLayerService {
     // Create temporary output file path
     const tempOutputPath = `${framesFolder}/${tmpOutputFileName}`;
 
+    // img2webp takes one frame size, and frames of one direction may differ: the game
+    // stretches each to the entity's cell box, so the preview stretches them to the
+    // largest one — nearest-neighbour, since a scaled frame is still pixel art.
+    const stagedFolder = await ObjectLayerService.stageUniformFrames(framesFolder, pngFiles);
+
     try {
       // Change to the frames directory and execute img2webp command
-      const cmd = `cd "${framesFolder}" && img2webp -d ${frameDuration} -loop 0 *.png -o ${tmpOutputFileName}`;
+      const cmd = `cd "${stagedFolder ?? framesFolder}" && img2webp -d ${frameDuration} -loop 0 *.png -o "${path.resolve(tempOutputPath)}"`;
 
       logger.info(`Executing command: ${cmd}`);
 
@@ -526,7 +534,39 @@ class ObjectLayerService {
       }
 
       throw error;
+    } finally {
+      if (stagedFolder) await fs.remove(stagedFolder);
     }
+  };
+
+  /**
+   * Stages copies of the frames resized to one common size when they differ, or returns null
+   * when they already share one and can be encoded in place.
+   * @function stageUniformFrames
+   * @memberof ObjectLayerService
+   * @param {string} framesFolder - Directory holding the direction's PNG frames.
+   * @param {string[]} pngFiles - Frame file names, in animation order.
+   * @returns {Promise<string|null>} Temporary directory with the resized frames, or null.
+   */
+  static stageUniformFrames = async (framesFolder, pngFiles) => {
+    const sizes = await Promise.all(
+      pngFiles.map(async (file) => {
+        const { width, height } = await sharp(`${framesFolder}/${file}`).metadata();
+        return { file, width, height };
+      }),
+    );
+    const width = Math.max(...sizes.map((size) => size.width));
+    const height = Math.max(...sizes.map((size) => size.height));
+    if (sizes.every((size) => size.width === width && size.height === height)) return null;
+
+    const stagedFolder = await fs.mkdtemp(path.join(os.tmpdir(), 'ol-webp-'));
+    for (const { file } of sizes) {
+      await sharp(`${framesFolder}/${file}`)
+        .resize(width, height, { fit: 'fill', kernel: 'nearest' })
+        .toFile(`${stagedFolder}/${file}`);
+    }
+    logger.info(`Staged ${pngFiles.length} frame(s) at ${width}x${height} for webp encoding`);
+    return stagedFolder;
   };
 
   /**
