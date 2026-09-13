@@ -14,6 +14,12 @@ import { TEST_TIERS } from '../../src/server/build/testing.js';
 const catalogs = await loadProductCatalogs();
 const describeProducts = describe.skipIf(catalogs.length === 0);
 
+// A product template keeps its own catalog but has every other product sliced away, so only
+// the unsliced engine tree carries every catalog and every tier directory. `buildTemplate`
+// drops `build:template` from the manifest and every product manifest inherits that, which
+// makes the script the one durable marker of the unsliced tree.
+const unsliced = !!JSON.parse(fs.readFileSync('./package.json', 'utf8')).scripts?.['build:template'];
+
 describeProducts('product catalogs', () => {
   it('every catalog carries the uniform shape', () => {
     for (const catalog of catalogs)
@@ -54,12 +60,17 @@ describeProducts('product catalogs and the test tiers', () => {
     catalogs.some(({ stripPaths }) => stripPaths.includes(`./${directory}`)),
   );
 
-  it('has products that own at least one tier', () => {
+  it.skipIf(!unsliced)('has products that own at least one tier', () => {
     expect(strippedTiers).to.not.be.empty;
   });
 
-  it('gives every tier a directory that exists in an unsliced tree', () => {
+  it.skipIf(!unsliced)('gives every tier a directory that exists in an unsliced tree', () => {
     for (const { name, directory } of TEST_TIERS) expect(fs.existsSync(directory), name).to.equal(true);
+  });
+
+  it('carries the directory of every tier a present product owns', () => {
+    // Holds in a product template too: what it kept of itself must be whole.
+    for (const { name, directory } of strippedTiers) expect(fs.existsSync(directory), name).to.equal(true);
   });
 
   it('ships every tier it strips from the base template', () => {
