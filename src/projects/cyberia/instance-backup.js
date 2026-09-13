@@ -4,11 +4,17 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { createPinRecord } from '../../api/ipfs/ipfs.service.js';
 import { IpfsClient } from './ipfs-client.js';
-import { AtlasSpriteSheetStore, atlasMfsPaths } from './atlas-sprite-sheet-store.js';
+import { documentFileIds } from '../../api/file/file.ref.js';
+import { ATLAS_FILE_FIELDS, AtlasSpriteSheetStore, atlasMfsPaths } from './atlas-sprite-sheet-store.js';
 import { DEFAULT_ATLAS_UPSCALE_FACTOR } from './atlas-sprite-sheet-generator.js';
 import { ObjectLayerEngine } from './object-layer.js';
 
 const logger = loggerFactory(import.meta);
+
+/* The `files/` name each atlas render is exported under; one per registered File field, so an
+ * export overwrites its own previous copy instead of leaving one behind. */
+const ATLAS_BACKUP_FILE_PREFIX = { fileId: 'atlas', minifyFileId: 'atlas-minify', idlePreviewFileId: 'atlas-idle' };
+export const atlasBackupFileKey = (field, itemKey) => `${ATLAS_BACKUP_FILE_PREFIX[field]}-${itemKey}`;
 
 /* A File's bytes as the export wrote them: base64, or a serialised Buffer. */
 const decodeFileData = (data) => {
@@ -23,7 +29,7 @@ const readJsonIfPresent = (file) => (fs.existsSync(file) ? fs.readJsonSync(file)
 /**
  * Reads everything an instance backup holds for one object layer.
  *
- * The object layer names its render frames and atlas by `_id`; the atlas names its two render
+ * The object layer names its render frames and atlas by `_id`; the atlas names its render
  * Files the same way. Files are matched on that `_id`, never on file name, so a backup that
  * renamed its renders still resolves. The IPFS payloads are the raw bytes behind the three
  * CIDs the item references, when the backup carried them.
@@ -42,7 +48,7 @@ export function readObjectLayerBackup({ backupDir, itemId }) {
   const renderFrames = readJsonIfPresent(path.join(backupDir, 'render-frames', `${itemId}.json`));
   const atlas = readJsonIfPresent(path.join(backupDir, 'atlas-sprite-sheets', `${itemId}.json`));
 
-  const wanted = new Set([atlas?.fileId, atlas?.minifyFileId].filter(Boolean).map(String));
+  const wanted = new Set(documentFileIds(atlas ? [atlas] : [], ATLAS_FILE_FIELDS));
   const filesDir = path.join(backupDir, 'files');
   const files = [];
   if (wanted.size > 0 && fs.existsSync(filesDir)) {
@@ -151,6 +157,8 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options }) {
     await AtlasSpriteSheet.deleteOne({ _id: atlas._id });
     await AtlasSpriteSheet.deleteOne({ 'metadata.itemKey': itemId });
     await AtlasSpriteSheet.create(atlas);
+    // A backup from before the still existed restores without one; cut it from the render now.
+    await AtlasSpriteSheetStore.syncIdlePreview({ itemKey: itemId, options });
     await AtlasSpriteSheetStore.pruneOrphanRenders({ options });
   }
   // An item the database already has keeps its own _id and takes the backup's values, so an

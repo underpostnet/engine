@@ -46,10 +46,10 @@ import {
   buildImgFromTile,
 } from '../src/projects/cyberia/object-layer.js';
 import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/projects/cyberia/instance-data.js';
-import { restoreObjectLayerBackup } from '../src/projects/cyberia/instance-backup.js';
+import { atlasBackupFileKey, restoreObjectLayerBackup } from '../src/projects/cyberia/instance-backup.js';
 import { getKeyframeDirectionsByCode } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
-import { AtlasSpriteSheetStore } from '../src/projects/cyberia/atlas-sprite-sheet-store.js';
+import { ATLAS_FILE_FIELDS, AtlasSpriteSheetStore } from '../src/projects/cyberia/atlas-sprite-sheet-store.js';
 import { fileRefFields } from '../src/api/file/file.ref.js';
 import {
   generateMultiFrame,
@@ -757,6 +757,12 @@ try {
               else if (status === 'stale')
                 logger.warn(`Render frames of '${currentItemId}' moved the atlas layout; regenerate the atlas`);
               else logger.info(`Minified render ${status} for '${currentItemId}'`);
+
+              const still = await AtlasSpriteSheetStore.syncIdlePreview({
+                itemKey: currentItemId,
+                options: { host, path },
+              });
+              if (still.status !== 'missing') logger.info(`Idle preview ${still.status} for '${currentItemId}'`);
             } catch (minifyError) {
               logger.error(`Minify failed for '${currentItemId}': ${minifyError.message}`);
               tally.failed.push(currentItemId);
@@ -1448,7 +1454,7 @@ try {
             `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
             `/home/dd/cyberia-instances/deployments/cyberia-server/.`,
           );
-          const folders = ['ui-icons', 'cursor', 'fonts', 'icons', 'splash', 'templates', 'video'];
+          const folders = ['ui-icons', 'cursor', 'fonts', 'icons', 'splash', 'templates'];
           for (const folder of folders)
             fs.copySync(
               `./src/client/public/cyberia/assets/${folder}`,
@@ -2179,9 +2185,10 @@ try {
             if (atlas) {
               const atlasExport = newInstance(atlas);
               objectLayerExport.atlasSpriteSheetId = atlas._id;
-              // Both renders travel with the atlas, so a restore leaves neither reference dangling.
-              if (atlas.fileId) await exportFileDoc(atlas.fileId, `atlas-${itemKey}`);
-              if (atlas.minifyFileId) await exportFileDoc(atlas.minifyFileId, `atlas-minify-${itemKey}`);
+              // Every render travels with the atlas, so a restore leaves no reference dangling.
+              for (const field of ATLAS_FILE_FIELDS) {
+                if (atlas[field]) await exportFileDoc(atlas[field], atlasBackupFileKey(field, itemKey));
+              }
 
               const atlasFile = atlas.fileId ? await File.findById(atlas.fileId).lean() : null;
               const atlasBuffer = toBuffer(atlasFile?.data);
@@ -2709,6 +2716,15 @@ try {
             atlasCount++;
           }
           logger.info(`Imported ${atlasCount} AtlasSpriteSheet document(s)`);
+          // A backup from before the still existed restores without one; cut each from its render.
+          let stillCount = 0;
+          for (const f of atlasFiles) {
+            const itemKey = fs.readJsonSync(`${atlasDir}/${f}`).metadata?.itemKey;
+            if (!itemKey) continue;
+            const { status } = await AtlasSpriteSheetStore.syncIdlePreview({ itemKey, options: { host, path } });
+            if (status === 'updated') stillCount++;
+          }
+          if (stillCount) logger.info(`Filled ${stillCount} idle preview still(s)`);
           // The replaced atlases took their renders out of reach; the imported ones are
           // already stored, so what no atlas points at now is exactly the leftover.
           await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });

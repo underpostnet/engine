@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readObjectLayerBackup } from '../../src/projects/cyberia/instance-backup.js';
+import { atlasBackupFileKey, readObjectLayerBackup } from '../../src/projects/cyberia/instance-backup.js';
 
 let backupDir;
 const write = (rel, value) => writeFile(join(backupDir, rel), Buffer.isBuffer(value) ? value : JSON.stringify(value));
@@ -24,6 +24,7 @@ beforeAll(async () => {
     _id: 'at1',
     fileId: 'f-full',
     minifyFileId: 'f-min',
+    idlePreviewFileId: 'f-idle',
     cid: 'cid-png',
   });
   // Files are matched on _id, never on name: one is misnamed on purpose, one is a bystander.
@@ -37,6 +38,7 @@ beforeAll(async () => {
     name: 'hatchet-minify.png',
     data: { type: 'Buffer', data: [1, 2, 3] },
   });
+  await write('files/atlas-idle-hatchet.json', { _id: 'f-idle', name: 'hatchet-idle.png', data: { $base64: 'AA==' } });
   await write('files/atlas-sword.json', { _id: 'f-other', name: 'sword-atlas.png', data: { $base64: 'AA==' } });
   await write('ipfs/content/cid-data.bin', Buffer.from('data'));
   await write('ipfs/content/cid-png.bin', Buffer.from('png'));
@@ -55,7 +57,13 @@ describe('reading one object layer out of an instance backup', () => {
 
   it('resolves the atlas render Files by _id and leaves other Files alone', () => {
     const { files } = readObjectLayerBackup({ backupDir, itemId: 'hatchet' });
-    expect(files.map((f) => f._id).sort()).toEqual(['f-full', 'f-min']);
+    expect(files.map((f) => f._id).sort()).toEqual(['f-full', 'f-idle', 'f-min']);
+  });
+
+  it('names each exported render after its atlas field', () => {
+    expect(atlasBackupFileKey('fileId', 'hatchet')).toBe('atlas-hatchet');
+    expect(atlasBackupFileKey('minifyFileId', 'hatchet')).toBe('atlas-minify-hatchet');
+    expect(atlasBackupFileKey('idlePreviewFileId', 'hatchet')).toBe('atlas-idle-hatchet');
   });
 
   it('decodes both File byte encodings the export can write', () => {
