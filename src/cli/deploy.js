@@ -50,6 +50,8 @@ import nodePath from 'node:path';
 import dotenv from 'dotenv';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { dump as yamlDump, load as yamlLoad } from 'js-yaml';
 import { appSecretName } from './app.js';
 import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
@@ -92,6 +94,23 @@ const GATEWAY_CLASS_DEFAULT = 'eg';
 const UPSTREAM_FAILURE_STATUSES = [502, 503, 504];
 
 const CONTAINER_ENGINE_ROOT = '/home/dd/engine';
+
+/**
+ * @constant LETSENCRYPT_ISSUER_NAME
+ * @description The ClusterIssuer every generated Certificate references.
+ * @memberof UnderpostDeploy
+ */
+const LETSENCRYPT_ISSUER_NAME = 'letsencrypt-prod';
+
+/**
+ * @constant LETSENCRYPT_ISSUER_MANIFEST
+ * @description Base ClusterIssuer manifest: account, ACME server and key Secret. Resolved
+ * from this module so an installed CLI and a checkout read the same file.
+ * @memberof UnderpostDeploy
+ */
+const LETSENCRYPT_ISSUER_MANIFEST = fileURLToPath(
+  new URL(`../../manifests/${LETSENCRYPT_ISSUER_NAME}.yaml`, import.meta.url),
+);
 
 // The manifest set `deploy --build-manifest` produces for one environment.
 const DEFAULT_MANIFEST_FILES = [
@@ -1111,6 +1130,125 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   secretName: ${host}`;
+    },
+
+    /**
+     * The Gateways an ACME HTTP-01 challenge route must attach to: every Gateway the
+     * namespace holds now, plus the one each routed deploy publishes under, whether or
+     * not it exists yet. A challenge HTTPRoute lists them all as parents; the data plane
+     * attaches it to whichever one carries a listener for the challenged hostname, and
+     * reports the rest as unmatched, which is harmless.
+     *
+     * The union rather than either side alone: the live list covers Gateways a deploy
+     * outside `dd.routes` created, the route table covers a deploy that has not been
+     * applied yet — an issuer that only knew the live list would have to be re-applied
+     * after every first deploy before that deploy's certificate could issue.
+     * @param {object} params
+     * @param {string} [params.namespace] - Namespace the Gateways live in.
+     * @param {string} [params.env] - Environment the routed deploys publish under.
+     * @returns {Array<{name: string, namespace: string}>} Parent references, sorted by name.
+     * @memberof UnderpostDeploy
+     */
+    acmeGatewayParentRefsFactory({ namespace = 'default', env = 'production' } = {}) {
+      const live = `${
+        shellExec(`kubectl get gateway -n ${namespace} -o name --ignore-not-found`, {
+          stdout: true,
+          silent: true,
+          silentOnError: true,
+          disableLog: true,
+        }) ?? ''
+      }`
+        .split('\n')
+        .map((line) => line.trim().split('/').pop())
+        .filter(Boolean);
+      const routed = readDeployRoutes().map((deployId) => Underpost.deploy.gatewayNameFactory({ deployId, env }));
+      return [...new Set([...live, ...routed])].sort().map((name) => ({ name, namespace }));
+    },
+
+    /**
+     * Renders the Let's Encrypt ClusterIssuer for the ingress stack that actually
+     * carries the HTTP-01 challenge.
+     *
+     * The base manifest fixes the account (email, ACME server, key Secret); only the
+     * solver is decided here. With the Gateway API stack, the challenge must be answered
+     * through an HTTPRoute on the deploy's Gateway: an `ingress`-class solver creates an
+     * Ingress nothing on the request path reads, so `/.well-known/acme-challenge/*` is
+     * routed by the application's own HTTPRoute to the workload — a 404 — or, with no
+     * workload behind it, to the maintenance fallback. Every renewal fails that way while
+     * the solver pods sit there ready, and the failure only surfaces when the certificate
+     * expires.
+     * @param {object} params
+     * @param {'gateway'|'ingress'} params.solver - Which stack answers the challenge.
+     * @param {Array<{name: string, namespace: string}>} [params.parentRefs] - Gateways for the `gateway` solver.
+     * @param {string} [params.basePath] - Base ClusterIssuer manifest.
+     * @returns {string} ClusterIssuer YAML.
+     * @throws {Error} When the Gateway solver is requested with no Gateway to attach to.
+     * @memberof UnderpostDeploy
+     */
+    letsEncryptIssuerYamlFactory({ solver, parentRefs = [], basePath = LETSENCRYPT_ISSUER_MANIFEST }) {
+      const issuer = yamlLoad(fs.readFileSync(basePath, 'utf8'));
+      if (solver === 'gateway') {
+        if (parentRefs.length === 0)
+          throw new Error('[cert-manager] the Gateway API HTTP-01 solver needs at least one Gateway parentRef');
+        issuer.spec.acme.solvers = [
+          {
+            http01: {
+              gatewayHTTPRoute: {
+                parentRefs: parentRefs.map(({ name, namespace }) => ({ name, namespace, kind: 'Gateway' })),
+              },
+            },
+          },
+        ];
+      } else issuer.spec.acme.solvers = [{ http01: { ingress: { class: 'contour' } } }];
+      return yamlDump(issuer, { lineWidth: -1, noRefs: true });
+    },
+
+    /**
+     * Whether the Let's Encrypt ClusterIssuer is installed. False both when it was never
+     * applied and when cert-manager's CRDs are absent, which is the same answer here.
+     * @returns {boolean}
+     * @memberof UnderpostDeploy
+     */
+    letsEncryptIssuerExists() {
+      return (
+        `${
+          shellExec(`kubectl get clusterissuer ${LETSENCRYPT_ISSUER_NAME} -o name --ignore-not-found`, {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+            disableLog: true,
+          }) ?? ''
+        }`.trim().length > 0
+      );
+    },
+
+    /**
+     * Applies the Let's Encrypt ClusterIssuer for the stack in use, so certificates keep
+     * renewing through whichever data plane the deploy's hostnames are served by.
+     * @param {object} params
+     * @param {'gateway'|'ingress'} params.solver - Which stack answers the challenge.
+     * @param {string} [params.namespace] - Namespace the Gateways live in.
+     * @param {string} [params.env] - Environment the routed deploys publish under.
+     * @param {string} [params.basePath] - Base ClusterIssuer manifest.
+     * @returns {{solver: string, parentRefs: Array<{name: string, namespace: string}>}} What was applied.
+     * @memberof UnderpostDeploy
+     */
+    applyLetsEncryptIssuer({ solver, namespace = 'default', env = 'production', basePath } = {}) {
+      const parentRefs = solver === 'gateway' ? Underpost.deploy.acmeGatewayParentRefsFactory({ namespace, env }) : [];
+      const manifest = Underpost.deploy.letsEncryptIssuerYamlFactory({ solver, parentRefs, basePath });
+      const stagePath = `/dev/shm/underpost-${LETSENCRYPT_ISSUER_NAME}.yaml`;
+      fs.writeFileSync(stagePath, manifest, 'utf8');
+      try {
+        shellExec(`sudo kubectl apply -f ${stagePath}`);
+      } finally {
+        fs.removeSync(stagePath);
+      }
+      logger.info("Let's Encrypt ClusterIssuer applied", {
+        issuer: LETSENCRYPT_ISSUER_NAME,
+        solver,
+        gateways: parentRefs.map(({ name }) => name),
+      });
+      return { solver, parentRefs };
     },
     /**
      * Mirrors each deploy's built development manifests into the project tree, and refreshes the
@@ -2480,6 +2618,11 @@ EOF`);
           }
 
           if (Underpost.deploy.isCertManagerContext({ host: Object.keys(confServer)[0], env, options })) {
+            // The issuer's challenge route must list this deploy's Gateway as a parent, or
+            // the certificates applied below can never issue. Re-rendered from the live
+            // Gateway list, so a deploy created after `cluster --cert-manager` is covered.
+            if (options.gatewayApi && Underpost.deploy.letsEncryptIssuerExists())
+              Underpost.deploy.applyLetsEncryptIssuer({ solver: 'gateway', namespace, env });
             const secretPath = `./${manifestsPath}/secret.yaml`;
             if (fs.existsSync(secretPath) && fs.readFileSync(secretPath, 'utf8').trim()) {
               shellExec(`sudo kubectl apply -f ${secretPath} -n ${namespace}`);
@@ -3143,3 +3286,4 @@ spec:
 }
 
 export default UnderpostDeploy;
+export { LETSENCRYPT_ISSUER_MANIFEST, LETSENCRYPT_ISSUER_NAME };

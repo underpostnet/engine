@@ -36,6 +36,13 @@ import os from 'os';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 
+/**
+ * @constant CERT_MANAGER_VERSION
+ * @description Pinned cert-manager chart version.
+ * @memberof UnderpostCluster
+ */
+const CERT_MANAGER_VERSION = 'v1.17.0';
+
 const logger = loggerFactory(import.meta);
 
 const GATEWAY_API_RELEASE = 'v1.5.1';
@@ -670,22 +677,12 @@ EOF
         }
       }
 
-      if (options.certManager) {
-        if (!Underpost.kubectl.get('cert-manager').find((p) => p.STATUS === 'Running')) {
-          shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
-          shellExec(
-            `helm install cert-manager jetstack/cert-manager \
---namespace cert-manager \
---create-namespace \
---version v1.17.0 \
---set crds.enabled=true`,
-          );
-        }
-
-        const letsEncName = 'letsencrypt-prod';
-        shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName} --ignore-not-found`);
-        shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml -n ${options.namespace}`);
-      }
+      if (options.certManager)
+        Underpost.cluster.installCertManager({
+          namespace: options.namespace,
+          env: options.dev ? 'development' : 'production',
+          solver: Underpost.cluster.acmeSolverFactory({ options, presence: Underpost.cluster.ingressStackPresence() }),
+        });
     },
 
     /**
@@ -1098,6 +1095,57 @@ EOF
         return false;
       }
       return true;
+    },
+
+    /**
+     * @method acmeSolverFactory
+     * @description Which ingress stack answers the HTTP-01 challenge.
+     *
+     * Read from the cluster, like {@link UnderpostCluster.ingressStackPresence}: the
+     * `cluster` runner installs the issuer in a separate invocation that carries no stack
+     * flag, so the flags alone would always name the Contour solver. `--contour` is the
+     * only explicit override; a cluster with the Gateway API data plane installed routes
+     * every hostname through it, so an Ingress solver there is unreachable.
+     * @param {object} params
+     * @param {object} [params.options] - Cluster init options.
+     * @param {{contour: boolean, gateway: boolean}} params.presence - Installed stacks.
+     * @returns {'gateway'|'ingress'} Solver kind.
+     * @memberof UnderpostCluster
+     */
+    acmeSolverFactory({ options = {}, presence }) {
+      if (options.contour === true && options.gatewayApi !== true) return 'ingress';
+      return options.gatewayApi === true || presence.gateway ? 'gateway' : 'ingress';
+    },
+
+    /**
+     * @method installCertManager
+     * @description Installs or upgrades cert-manager and applies the Let's Encrypt
+     * ClusterIssuer for the stack in use.
+     *
+     * `upgrade --install` rather than a one-time install: the Gateway API solver is
+     * ignored by a controller that was not started with `enableGatewayAPI`, so a cluster
+     * whose cert-manager predates the Gateway API migration must be re-configured, not
+     * skipped because a pod is Running. The version is pinned, so on a cluster already at
+     * it the upgrade is a no-op.
+     * @param {object} params
+     * @param {string} [params.namespace] - Namespace the deploys' Gateways live in.
+     * @param {string} [params.env] - Environment the routed deploys publish under.
+     * @param {'gateway'|'ingress'} params.solver - Which stack answers the challenge.
+     * @returns {{solver: string, parentRefs: Array<{name: string, namespace: string}>}} What was applied.
+     * @memberof UnderpostCluster
+     */
+    installCertManager({ namespace = 'default', env = 'production', solver }) {
+      const gatewayValues =
+        solver === 'gateway'
+          ? ' --set config.apiVersion=controller.config.cert-manager.io/v1alpha1' +
+            ' --set config.kind=ControllerConfiguration --set config.enableGatewayAPI=true'
+          : '';
+      shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
+      shellExec(
+        `helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace` +
+          ` --version ${CERT_MANAGER_VERSION} --set crds.enabled=true${gatewayValues} --wait --timeout 5m`,
+      );
+      return Underpost.deploy.applyLetsEncryptIssuer({ solver, namespace, env });
     },
 
     /**
