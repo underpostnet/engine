@@ -2,13 +2,16 @@ import { defineConfig } from 'vitest/config';
 import {
   UNDERPOST_TESTING,
   coverageIncludeFactory,
+  coverageReportKey,
   coverageThresholdFactory,
   testProjectsFactory,
+  vitestProjectSelector,
 } from './src/server/build/testing.js';
 
 const allureResultsDirectory = process.env[UNDERPOST_TESTING.allureResultsEnvKey];
 const coverageThreshold = coverageThresholdFactory(process.env);
 const coverageInclude = coverageIncludeFactory(process.argv);
+const coverageReportDirectory = coverageReportKey(vitestProjectSelector(process.argv));
 
 // Spread into every tier: a Vitest project inherits nothing from the root
 // `test` block, and only `coverage` and `reporters` are read from it.
@@ -33,9 +36,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reportsDirectory: UNDERPOST_TESTING.coverageDirectory,
-      // `lcov` is what Coveralls ingests, `json` is what a merged multi-job
-      // report is assembled from, `text` is what a local run reads.
-      reporter: ['text', 'lcov', 'json'],
+      // `lcovonly` is what Coveralls ingests, `json` is what a merged multi-job
+      // report is assembled from, `text` is what a local run reads, and `html` is
+      // what a deploy publishes — under the selection's own directory, so the
+      // report a deploy declares is the run it names and never the last run made.
+      reporter: ['text', 'lcovonly', 'json', ['html', { subdir: coverageReportDirectory }]],
+      // The directory holds one report per selection, so a run must not empty it; the
+      // runner (`src/cli/test.js`) clears its own selection's report before it starts.
+      clean: false,
       // Written even when the run fails: the coverage workflows upload the report
       // from a job the threshold step is meant to fail, and without it the badge
       // freezes at the last passing build instead of moving with the tree.

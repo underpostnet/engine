@@ -6,10 +6,12 @@ import {
   TEST_TIERS,
   UNDERPOST_TESTING,
   coverageIncludeFactory,
+  coverageReportKey,
   coverageThresholdFactory,
   resolveTestSelection,
   testProjectsFactory,
   testSuiteNames,
+  vitestProjectSelector,
 } from '../../src/server/build/testing.js';
 
 // The table declares every tier the platform ships. A product build slices the
@@ -189,5 +191,30 @@ describe('coverage scope', () => {
 
   it('rejects a selection that matches no tier', () => {
     expect(() => coverageIncludeFactory(['--project', 'not-a-tier'])).to.throw(/unknown suite/);
+  });
+});
+
+describe('coverage report directory', () => {
+  it('names the report after the suites the selection spans', () => {
+    expect(coverageReportKey('unit,infra,app')).to.equal('unit-infra-app');
+    expect(coverageReportKey('cyberia')).to.equal('cyberia');
+    expect(coverageReportKey('infra:1-security,infra:2-network')).to.equal('infra');
+  });
+
+  it('names every Vitest suite for a full run and none for a delegated one', () => {
+    expect(coverageReportKey('')).to.equal(coverageReportKey('all'));
+    expect(coverageReportKey('all').split('-')).to.have.members([
+      ...new Set(TEST_TIERS.filter(({ delegate }) => !delegate).map(({ name }) => name.split(':')[0])),
+    ]);
+    expect(coverageReportKey('contracts')).to.equal('');
+  });
+
+  // A deploy names its report by suite and the runner is handed the same tiers as
+  // `--project` flags; both must land on one directory.
+  it('agrees between a suite selector and the projects the runner was handed', () => {
+    const { projects } = resolveTestSelection('unit,infra,app');
+    const argv = ['npx', 'vitest', 'run', ...projects.flatMap((project) => ['--project', project]), '--coverage'];
+    expect(coverageReportKey(vitestProjectSelector(argv))).to.equal(coverageReportKey('unit,infra,app'));
+    expect(vitestProjectSelector(['--project=cyberia'])).to.equal('cyberia');
   });
 });

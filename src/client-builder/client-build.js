@@ -27,6 +27,7 @@ import { statusPageBuildSegment } from '../server/network/underpost-gateway.js';
 import { repositoryIdentityFactory } from '../server/storage/repository.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
+import { coverageReportsFactory } from '../server/build/coverage.js';
 import { ssrFactory } from './ssr.js';
 
 // Static Site Generation (SSG)
@@ -722,6 +723,8 @@ const buildClient = async (
         apiBasePath: process.env.BASE_API,
         version: Underpost.version,
         repository: repositoryIdentityFactory(),
+        // The reports the docs menu offers, each published at /docs/coverage/<id>.
+        coverage: coverageReportsFactory(docs).map(({ id, label }) => ({ id, label })),
         ...(isDevelopment ? { dev: true } : undefined),
       };
 

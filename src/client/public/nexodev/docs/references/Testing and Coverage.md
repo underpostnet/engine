@@ -111,26 +111,55 @@ Solidity coverage is Hardhat's own instrumentation and is not merged into
 ## Coverage
 
 `@vitest/coverage-v8` replaces `c8`. The reporters are `text` (local),
-`lcov` (Coveralls) and `json` (merging across CI jobs), all written to
-`coverage/`, so `coveralls < ./coverage/lcov.info` is unchanged.
+`lcovonly` (Coveralls), `json` (merging across CI jobs) and `html` (the report a
+deploy publishes). `lcov.info` and `coverage-final.json` are written to
+`coverage/`, so `coveralls < ./coverage/lcov.info` is unchanged; the HTML report
+is written to `coverage/<key>/`, where `key` is the suites the selection spans
+joined with `-` — `node bin test unit,infra,app` writes `coverage/unit-infra-app/`,
+`node bin test cyberia` writes `coverage/cyberia/`, and a full run writes
+`coverage/unit-infra-app-cyberia/`. Two selections never overwrite each other's
+report on a host that publishes both.
 
 Coverage is scoped to the files a run actually loads rather than all of `src`.
 The client bundles and generated assets under it are shipped, not executed by
 any suite, and instrumenting them would report a floor no test can move.
 
-### Publishing the HTML report
+### Publishing the HTML reports
 
-The report is produced by the build stage and travels with the deploy artifact;
+A deploy declares the reports it publishes in `conf.server.json`, under the
+route's `docs.coverage`. Each entry is one report, served at
+`/docs/coverage/<id>` and offered as one entry of the docs menu:
+
+```json
+"docs": {
+  "jsJsonPath": "./typedoc.dd-cyberia.json",
+  "coverage": [
+    { "id": "cyberia", "label": "Cyberia coverage", "suite": "cyberia" },
+    { "id": "hardhat", "label": "Hardhat coverage", "path": "./hardhat" }
+  ]
+}
+```
+
+- `suite` names a tier selection; the report is the one `node bin test <suite>`
+  writes to `coverage/<key>/`. A deploy shows the run it names, never the last
+  run a host happened to make: `dd-core` declares `unit,infra,app` — the
+  `coverall.ci.yml` selection — and `dd-cyberia` declares `cyberia`.
+- `path` names another tree that produces its own report under `coverage/`
+  (`html/`, `lcov-report/` or flat) — Hardhat's Solidity coverage, from
+  `npm run coverage` in `hardhat/`.
+
+The reports are produced by the build stage and travel with the deploy artifact;
 no workload container ever runs a test runner to obtain one.
 
-- `node bin/build <deploy-id> --coverage` runs `npm run test:coverage` and then
-  assembles the template. Without the flag, whatever `./coverage` already holds
-  is bundled as-is.
-- Assembly copies the HTML report into the artifact at `docs/coverage`, which is
-  published with the deploy source (`engine-<id>` / `engine-test-<id>`).
-- The client build (`node bin client <deploy-id>`) publishes that report at
-  `/docs/coverage`, preferring a local `coverage/` run output over the bundled
-  artifact. When neither is present it writes a static "report unavailable" page.
+- `node bin/build <deploy-id> --coverage` runs `node bin test <suite>` for every
+  suite the deploy ids' reports name, then assembles the template. Without the
+  flag, whatever the run directories already hold is bundled as-is.
+- Assembly copies each report into the artifact at `docs/coverage/<id>`, which
+  is published with the deploy source (`engine-<id>` / `engine-test-<id>`).
+- The client build (`node bin client <deploy-id>`) publishes each report at
+  `/docs/coverage/<id>`, preferring the run output over the bundled artifact.
+  When neither is present it writes a static "report unavailable" page naming
+  the command that produces it.
 
 A container that generated its own report would spend minutes of its build phase
 on a test runner, and every expected non-zero exit of the suite latched
@@ -211,17 +240,18 @@ path above covers dynamic triggering without it.
 
 ## CI
 
-| Workflow                                 | Command                     | Coveralls flag |
-| ---------------------------------------- | --------------------------- | -------------- |
-| `coverall.ci.yml`                        | `node bin test unit,infra`  | `core`         |
-| `coverall.cyberia.ci.yml`                | `node bin test app,cyberia` | `cyberia`      |
-| `pwa-microservices-template-test.ci.yml` | `node bin test unit,infra`  | —              |
-| `hardhat.ci.yml`                         | `npm test` in `hardhat/`    | —              |
+| Workflow                                 | Command                                |
+| ---------------------------------------- | -------------------------------------- |
+| `coverall.ci.yml`                        | `node bin test unit,infra,app`         |
+| `coverall.cyberia.ci.yml`                | `node bin test unit,infra,app,cyberia` |
+| `pwa-microservices-template-test.ci.yml` | `node bin test unit,infra`             |
+| `hardhat.ci.yml`                         | `npm test` in `hardhat/`               |
 
-The two coverage jobs partition the Vitest tiers exactly, so nothing is counted
-twice and nothing is missed. The base template strips
-`test/integration/app/cyberia`; its `cyberia` project then matches no files,
-which is not an error as long as another tier has some.
+The platform job measures the platform tiers and the cyberia job the whole
+tree, so the two badges read the same metric over the surfaces each product
+ships. The base template strips `test/integration/app/cyberia`; its `cyberia`
+project then matches no files, which is not an error as long as another tier
+has some.
 
 `hardhat.ci.yml` is path-filtered to `hardhat/**` and installs only that
 project's lockfile, so it stays on Hardhat's own tasks rather than pulling the

@@ -11,6 +11,7 @@ import { shellExec } from '../server/runtime/process.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import {
   coverageReportCandidates,
+  coverageReportsFactory,
   coverageUnavailablePage,
   resolveCoverageReportPath,
 } from '../server/build/coverage.js';
@@ -296,43 +297,41 @@ const buildApiDocs = async ({
       ),
     'utf8',
   );
-  setTimeout(async () => {
-    const { default: swaggerAutoGen } = await import('swagger-autogen');
-    const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-    const routes = [];
-    for (const api of apis) {
-      if (['user', 'object-layer'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
-    }
+  // Imported after the patch above, and awaited: the spec is part of the client build
+  // output, so a bundle zipped before it landed shipped without one and the pod that
+  // restored that bundle served no `api-docs`.
+  const { default: swaggerAutoGen } = await import('swagger-autogen');
+  const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+  const routes = [];
+  for (const api of apis) {
+    if (['user', 'object-layer'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
+  }
 
-    await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
+  await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
 
-    // Post-process: inject requestBody into operations — swagger-autogen silently
-    // ignores #swagger.requestBody annotations and has no internal OAS-3 body support.
-    if (fs.existsSync(outputFile)) {
-      const swaggerJson = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
-      let patched = false;
+  // Post-process: inject requestBody into operations — swagger-autogen silently
+  // ignores #swagger.requestBody annotations and has no internal OAS-3 body support.
+  if (fs.existsSync(outputFile)) {
+    const swaggerJson = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+    let patched = false;
 
-      for (const [key, requestBody] of Object.entries(requestBodies)) {
-        const [method, ...pathParts] = key.split(' ');
-        const opPath = pathParts.join(' ');
-        if (swaggerJson.paths?.[opPath]?.[method]) {
-          swaggerJson.paths[opPath][method].requestBody = requestBody;
-          // Remove any stale in:body entry from parameters (OAS 3.0 doesn't allow it)
-          if (Array.isArray(swaggerJson.paths[opPath][method].parameters)) {
-            swaggerJson.paths[opPath][method].parameters = swaggerJson.paths[opPath][method].parameters.filter(
-              (p) => p.in !== 'body',
-            );
-          }
-          patched = true;
+    for (const [key, requestBody] of Object.entries(requestBodies)) {
+      const [method, ...pathParts] = key.split(' ');
+      const opPath = pathParts.join(' ');
+      if (swaggerJson.paths?.[opPath]?.[method]) {
+        swaggerJson.paths[opPath][method].requestBody = requestBody;
+        // Remove any stale in:body entry from parameters (OAS 3.0 doesn't allow it)
+        if (Array.isArray(swaggerJson.paths[opPath][method].parameters)) {
+          swaggerJson.paths[opPath][method].parameters = swaggerJson.paths[opPath][method].parameters.filter(
+            (p) => p.in !== 'body',
+          );
         }
-      }
-
-      if (patched) {
-        fs.writeFileSync(outputFile, JSON.stringify(swaggerJson, null, 2), 'utf8');
-        // logger.warn('swagger post-process: requestBody injected', Object.keys(requestBodies));
+        patched = true;
       }
     }
-  });
+
+    if (patched) fs.writeFileSync(outputFile, JSON.stringify(swaggerJson, null, 2), 'utf8');
+  }
 };
 
 /**
@@ -401,9 +400,9 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, do
 };
 
 /**
- * Publishes the coverage HTML report a build carried into the docs route.
+ * Publishes every coverage HTML report the deploy declares, each at `docs/coverage/<id>`.
  *
- * Never generates it: the report belongs to the test stage, which bundles it into the
+ * Never generates one: a report belongs to the test stage, which bundles it into the
  * deploy artifact (see {@link module:src/server/build/coverage.js}). A client build that
  * shelled out to `npm test` here spent minutes of a pod's build phase on a runner the
  * workload has no business holding, and every expected non-zero exit of that suite latched
@@ -412,31 +411,32 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, do
  * @memberof clientBuildDocs
  * @param {Object} options - Coverage build options
  * @param {Object} options.docs - Documentation config from server conf
- * @param {string} options.docs.coveragePath - Source tree root the report was bundled into
- * @param {string} [options.docs.coverageOutputDir] - Route directory under the docs path
+ * @param {Array<{id: string, label?: string, suite?: string, path?: string}>} [options.docs.coverage] - Declared reports
  * @param {string} options.docsDestination - Resolved output path where docs were built
  */
 const buildCoverage = async ({ docs, docsDestination }) => {
   const logger = loggerFactory(import.meta);
-  const { coveragePath, coverageOutputDir = 'coverage' } = docs;
-  // No configured source tree is a deploy that never declared coverage — not a missing report.
-  if (!coveragePath) return;
+  const reports = coverageReportsFactory(docs);
+  if (reports.length === 0) return;
+  // The route holds exactly the declared reports: one dropped from the conf leaves with it.
+  fs.emptyDirSync(`${docsDestination}coverage`);
+  for (const report of reports) {
+    const coverageBuildPath = `${docsDestination}coverage/${report.id}`;
+    const reportPath = resolveCoverageReportPath(report);
 
-  const coverageBuildPath = `${docsDestination}${coverageOutputDir}`;
-  const reportPath = resolveCoverageReportPath(coveragePath);
+    if (!reportPath) {
+      fs.outputFileSync(`${coverageBuildPath}/index.html`, coverageUnavailablePage(report), 'utf8');
+      logger.warn('no coverage report bundled, publishing the unavailable page', {
+        id: report.id,
+        searched: coverageReportCandidates(report),
+        published: coverageBuildPath,
+      });
+      continue;
+    }
 
-  if (!reportPath) {
-    fs.outputFileSync(`${coverageBuildPath}/index.html`, coverageUnavailablePage(), 'utf8');
-    logger.warn('no coverage report bundled, publishing the unavailable page', {
-      searched: coverageReportCandidates(coveragePath),
-      published: coverageBuildPath,
-    });
-    return;
+    fs.copySync(reportPath, coverageBuildPath);
+    logger.warn('build coverage', coverageBuildPath);
   }
-
-  fs.emptyDirSync(coverageBuildPath);
-  fs.copySync(reportPath, coverageBuildPath);
-  logger.warn('build coverage', coverageBuildPath);
 };
 
 /**
@@ -473,7 +473,7 @@ const buildDocs = async ({
   // TypeDoc output is versioned: served at /docs/engine/{version}/
   const version = (packageData?.version || '').replace(/^v/, '');
   const jsDocsDestination = `./public/${host}${pathPrefix}docs/engine/${version}/`;
-  // Coverage output at /docs/coverage/ (or /docs/{coverageOutputDir}/)
+  // Coverage reports at /docs/coverage/<id>/
   const coverageBaseDestination = `./public/${host}${pathPrefix}docs/`;
   await buildJsDocs({ host, path, metadata, publicClientId, docs, docsDestination: jsDocsDestination });
   await buildCoverage({ docs, docsDestination: coverageBaseDestination });

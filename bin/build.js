@@ -14,7 +14,12 @@ import {
 import { resolveDeployList } from '../src/server/network/router.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
 import { buildProductPackageJson, productPackageOptionsFactory } from '../src/server/build/package.js';
-import { COVERAGE_BUNDLE_DIRECTORY, bundleCoverageReport } from '../src/server/build/coverage.js';
+import {
+  COVERAGE_BUNDLE_DIRECTORY,
+  bundleCoverageReports,
+  coverageReportCommand,
+  deployCoverageReports,
+} from '../src/server/build/coverage.js';
 import { shellExec } from '../src/server/runtime/process.js';
 import Underpost from '../src/index.js';
 
@@ -221,16 +226,28 @@ const buildDeployTemplate = async (confName) => {
 };
 
 /**
- * Carries this build stage's coverage HTML report into the assembled template, so every
- * container started from the published source serves the report instead of generating one.
+ * The coverage reports a deploy id's conf declares, as {@link deployCoverageReports} reads them.
+ * @param {string} deployId - A concrete deploy id.
+ * @returns {Array<{id: string, suite?: string, path?: string}>}
  */
-const bundleDeployCoverage = () => {
-  const { bundled, from, to } = bundleCoverageReport('.', basePath);
-  if (bundled) return void logger.info('Build coverage artifact', { from, to });
-  logger.warn('No coverage report to bundle; the deploy will publish the unavailable page', {
-    hint: 'node bin/build <deploy-id> --coverage',
-    to,
-  });
+const deployReports = (deployId) =>
+  deployCoverageReports(JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')));
+
+/**
+ * Carries this build stage's coverage HTML reports into the assembled template, so every
+ * container started from the published source serves them instead of generating one.
+ * @param {string} deployId - A concrete deploy id.
+ */
+const bundleDeployCoverage = (deployId) => {
+  for (const { id, bundled, from, to } of bundleCoverageReports(deployReports(deployId), basePath)) {
+    if (bundled) logger.info('Build coverage artifact', { id, from, to });
+    else
+      logger.warn('No coverage report to bundle; the deploy will publish the unavailable page', {
+        id,
+        hint: 'node bin/build <deploy-id> --coverage',
+        to,
+      });
+  }
 };
 
 const program = new Command();
@@ -247,7 +264,7 @@ program
   )
   .option(
     '--coverage',
-    `Run the test suite to refresh ./coverage before assembly, so the artifact carries a current ${COVERAGE_BUNDLE_DIRECTORY} report.`,
+    `Run the test suites the deploy ids' coverage reports name before assembly, so the artifact carries current ${COVERAGE_BUNDLE_DIRECTORY} reports.`,
     false,
   )
   .option(
@@ -267,10 +284,13 @@ program
       return;
     }
 
-    // Tests run here, in the build stage, and exactly once: the artifact carries the report so
-    // no container ever has to produce its own. Refreshing is opt-in because a template
-    // assembly is not otherwise a test run.
-    if (options.coverage) shellExec(`npm run test:coverage`);
+    // Tests run here, in the build stage, and once per declared suite: the artifact carries
+    // each report so no container ever has to produce its own. Refreshing is opt-in because
+    // a template assembly is not otherwise a test run.
+    if (options.coverage) {
+      const suites = new Set(deployList.flatMap(deployReports).flatMap(({ suite }) => (suite ? [suite] : [])));
+      for (const suite of suites) shellExec(coverageReportCommand({ suite }));
+    }
 
     for (const deployId of deployList) {
       // Reconstruct the base template from 0 before each deploy id so neither a previous
@@ -278,7 +298,7 @@ program
       // --no-template-rebuild.
       if (options.templateRebuild) await buildTemplate({ toPath: basePath });
       await buildDeployTemplate(deployId);
-      bundleDeployCoverage();
+      bundleDeployCoverage(deployId);
       // Publish the just-assembled tree to the deploy id's private test repo so a
       // pod started with `--private-test-repo` clones this work-in-progress source.
       if (options.updatePrivate) await updatePrivateEngineTestRepo(deployId);

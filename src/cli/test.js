@@ -19,6 +19,7 @@ import { shellExec } from '../server/runtime/process.js';
 import {
   UNDERPOST_TESTING,
   allureManifestsFactory,
+  coverageReportKey,
   resolveTestSelection,
   testJobManifestFactory,
   vitestArgsFactory,
@@ -82,6 +83,9 @@ class UnderpostTest {
           'NODE_ENV=test',
           ...(allureResultsDirectory ? [`${UNDERPOST_TESTING.allureResultsEnvKey}=${allureResultsDirectory}`] : []),
         ];
+        // Only this selection's report starts from nothing: the ones beside it belong to
+        // other selections a deploy on this host may publish.
+        if (coverage) fs.removeSync(`${root}/${UNDERPOST_TESTING.coverageDirectory}/${coverageReportKey(suite)}`);
         shellExec(
           `cd ${root} && ${env.join(' ')} npx vitest ${vitestArgsFactory({ projects, grep, watch, coverage }).join(' ')}`,
         );

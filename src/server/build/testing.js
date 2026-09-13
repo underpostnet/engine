@@ -348,12 +348,44 @@ const coverageThresholdFactory = ({ COVERAGE_ENFORCE, COVERAGE_MIN } = {}) => {
  * @throws {Error} When a selected project matches no declared tier.
  * @memberof UnderpostTesting
  */
-const coverageIncludeFactory = (argv = []) => {
-  const projects = argv.flatMap((arg, index) =>
-    arg === '--project' ? [argv[index + 1]] : arg.startsWith('--project=') ? [arg.slice('--project='.length)] : [],
-  );
-  return [...new Set(resolveTestTiers(projects.filter(Boolean).join(',')).flatMap(({ sources = [] }) => sources))];
-};
+const coverageIncludeFactory = (argv = []) => [
+  ...new Set(resolveTestTiers(vitestProjectSelector(argv)).flatMap(({ sources = [] }) => sources)),
+];
+
+/**
+ * @method vitestProjectSelector
+ * @description The tier selector a Vitest argument vector carries, as `--project` flags.
+ * @param {string[]} [argv] - Argument vector.
+ * @returns {string} Comma separated selector, empty when no project was named.
+ * @memberof UnderpostTesting
+ */
+const vitestProjectSelector = (argv = []) =>
+  argv
+    .flatMap((arg, index) =>
+      arg === '--project' ? [argv[index + 1]] : arg.startsWith('--project=') ? [arg.slice('--project='.length)] : [],
+    )
+    .filter(Boolean)
+    .join(',');
+
+/**
+ * @method coverageReportKey
+ * @description The directory under `coverage/` a selection's HTML report is written to,
+ * derived from the suites the selection spans so a deploy that names `unit,infra,app` and
+ * a run that was handed the same tiers as `--project` flags address one report — and so
+ * two selections never overwrite each other's on a host that serves both.
+ * @param {string} [selector] - Suite names, tier names, or empty for every tier.
+ * @returns {string} Suite names in declaration order, joined with `-`.
+ * @throws {Error} When a selector matches no declared tier.
+ * @memberof UnderpostTesting
+ */
+const coverageReportKey = (selector = '') =>
+  [
+    ...new Set(
+      resolveTestTiers(selector)
+        .filter(({ delegate }) => !delegate)
+        .map(({ name }) => name.split(':')[0]),
+    ),
+  ].join('-');
 
 /**
  * @method allureManifestsFactory
@@ -520,6 +552,7 @@ export {
   TEST_TIERS,
   allureManifestsFactory,
   coverageIncludeFactory,
+  coverageReportKey,
   coverageThresholdFactory,
   resolveTestSelection,
   resolveTestTiers,
@@ -527,4 +560,5 @@ export {
   testProjectsFactory,
   testSuiteNames,
   vitestArgsFactory,
+  vitestProjectSelector,
 };

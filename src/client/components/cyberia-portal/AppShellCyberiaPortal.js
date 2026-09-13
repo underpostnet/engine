@@ -553,7 +553,6 @@ class AppShellCyberiaPortal {
             idModal: 'modal-docs',
             subMenuIcon: (type) =>
               html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/arrow-right.png" />`,
-            coverageUrl: () => `${getProxyPath()}docs/hardhat-coverage`,
             demoUrl: () => `https://client.cyberiaonline.com/`,
             lastReleaseUrl: () => githubUrl('engine-cyberia'),
           }),

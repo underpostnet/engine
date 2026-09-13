@@ -173,10 +173,7 @@ class Docs {
 
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       resizeIframe();
-      if (type.match('coverage')) {
-        simpleIconsRender(`.doc-icon-coverage`);
-        simpleIconsRender(`.doc-icon-coverage-link`);
-      }
+      if (type.match('coverage')) simpleIconsRender(`.doc-icon-coverage`);
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
     // The observer fires on modal mutations, not on viewport changes; a rotate
@@ -189,105 +186,87 @@ class Docs {
       closeModalRouteChangeEvent({ closedId: ModalId });
     };
   }
-  static Data = [
-    {
-      type: 'repo',
-      icon: html`<i class="fab fa-github"></i>`,
-      text: `Last Release`,
-      url: function () {
-        const tokenOpts = Docs.Tokens['modal-docs'];
-        if (tokenOpts && tokenOpts.lastReleaseUrl) return tokenOpts.lastReleaseUrl();
-        return githubUrl(packageRepository());
-      },
-    },
-    {
-      type: 'demo',
-      icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 32 32">
-        <path fill="currentColor" d="M20 2v12l10-6z" />
-        <path
-          fill="currentColor"
-          d="M28 14v8H4V6h10V4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8v4H8v2h16v-2h-4v-4h8a2 2 0 0 0 2-2v-8zM18 28h-4v-4h4z"
-        />
-      </svg>`,
-      text: html`Demo`,
-      url: function () {
-        const tokenOpts = Docs.Tokens['modal-docs'];
-        if (tokenOpts && tokenOpts.demoUrl) return tokenOpts.demoUrl();
-        return githubPagesUrl(packageRepository());
-      },
-    },
-    {
-      type: 'src',
-      icon: html`<i class="fa-brands fa-osi"></i>`,
-      text: 'Source Docs',
-      url: function () {
-        return `${getProxyPath()}docs/engine/${window.renderPayload.version.replace('v', '')}`;
-      },
-    },
-    {
-      type: 'api',
-      icon: html`<i class="fa-solid fa-arrows-turn-to-dots"></i>`,
-      text: `Api Docs`,
-      url: function () {
-        return `${getProxyPath()}api-docs`;
-      },
-    },
-    {
-      type: 'coverage',
+  // One entry per coverage report the build declared, each framed from /docs/coverage/<id>.
+  static coverageReports = () =>
+    (window.renderPayload.coverage ?? []).map(({ id, label }) => ({
+      type: `coverage-${id}`,
       icon: html`<img height="20" width="20" class="doc-icon-coverage" />`,
-      text: `Coverage report`,
-      url: function () {
-        const tokenOpts = Docs.Tokens['modal-docs'];
-        if (tokenOpts && tokenOpts.coverageUrl) return tokenOpts.coverageUrl();
-        return `${getProxyPath()}docs/coverage`;
+      text: label,
+      url: () => `${getProxyPath()}docs/coverage/${id}`,
+    }));
+  static get Data() {
+    return [
+      {
+        type: 'repo',
+        external: true,
+        icon: html`<i class="fab fa-github"></i>`,
+        text: `Last Release`,
+        url: function () {
+          const tokenOpts = Docs.Tokens['modal-docs'];
+          if (tokenOpts && tokenOpts.lastReleaseUrl) return tokenOpts.lastReleaseUrl();
+          return githubUrl(packageRepository());
+        },
       },
-      themeEvent: () => {
-        if (s(`.doc-icon-coverage`)) setTimeout(() => simpleIconsRender(`.doc-icon-coverage`));
+      {
+        type: 'demo',
+        external: true,
+        icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 32 32">
+          <path fill="currentColor" d="M20 2v12l10-6z" />
+          <path
+            fill="currentColor"
+            d="M28 14v8H4V6h10V4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8v4H8v2h16v-2h-4v-4h8a2 2 0 0 0 2-2v-8zM18 28h-4v-4h4z"
+          />
+        </svg>`,
+        text: html`Demo`,
+        url: function () {
+          const tokenOpts = Docs.Tokens['modal-docs'];
+          if (tokenOpts && tokenOpts.demoUrl) return tokenOpts.demoUrl();
+          return githubPagesUrl(packageRepository());
+        },
       },
-    },
-    {
-      type: 'coverage-link',
-      icon: html`<img height="20" width="20" class="doc-icon-coverage-link" />`,
-      text: `Coverage`,
-      url: function () {
-        const tokenOpts = Docs.Tokens['modal-docs'];
-        if (tokenOpts && tokenOpts.coverageLinkUrl) return tokenOpts.coverageLinkUrl();
-        return coverallsUrl();
+      {
+        type: 'src',
+        icon: html`<i class="fa-brands fa-osi"></i>`,
+        text: 'Source Docs',
+        url: function () {
+          return `${getProxyPath()}docs/engine/${window.renderPayload.version.replace('v', '')}`;
+        },
       },
-      themeEvent: () => {
-        if (s(`.doc-icon-coverage-link`)) setTimeout(() => simpleIconsRender(`.doc-icon-coverage-link`));
+      {
+        type: 'api',
+        icon: html`<i class="fa-solid fa-arrows-turn-to-dots"></i>`,
+        text: `Api Docs`,
+        url: function () {
+          return `${getProxyPath()}api-docs`;
+        },
       },
-    },
-  ];
+      ...Docs.coverageReports(),
+      {
+        type: 'coverage-link',
+        external: true,
+        icon: html`<img height="20" width="20" class="doc-icon-coverage" />`,
+        text: `Coverage`,
+        url: function () {
+          const tokenOpts = Docs.Tokens['modal-docs'];
+          if (tokenOpts && tokenOpts.coverageLinkUrl) return tokenOpts.coverageLinkUrl();
+          return coverallsUrl();
+        },
+      },
+    ];
+  }
   static Tokens = {};
   static async instance(options = {}) {
     const { idModal } = options;
     Docs.Tokens[idModal] = options;
     setTimeout(() => {
-      s(`.btn-docs-src`).onclick = async () => {
-        setQueryPath({ path: 'docs', queryPath: 'src' });
-        await Docs.RenderModal('src', idModal);
-      };
-      s(`.btn-docs-api`).onclick = async () => {
-        setQueryPath({ path: 'docs', queryPath: 'api' });
-        await Docs.RenderModal('api', idModal);
-      };
-      s(`.btn-docs-coverage`).onclick = async () => {
-        setQueryPath({ path: 'docs', queryPath: 'coverage' });
-        await Docs.RenderModal('coverage', idModal);
-      };
-      s(`.btn-docs-coverage-link`).onclick = () => {
-        const docData = Docs.Data.find((d) => d.type === 'coverage-link');
-        location.href = docData.url();
-      };
-      s(`.btn-docs-repo`).onclick = () => {
-        const docData = Docs.Data.find((d) => d.type === 'repo');
-        location.href = docData.url();
-      };
-      s(`.btn-docs-demo`).onclick = () => {
-        const docData = Docs.Data.find((d) => d.type === 'demo');
-        location.href = docData.url();
-      };
+      // An external entry leaves the app; the rest open in a framed modal on their own route.
+      for (const docData of Docs.Data) {
+        s(`.btn-docs-${docData.type}`).onclick = async () => {
+          if (docData.external) return (location.href = docData.url());
+          setQueryPath({ path: 'docs', queryPath: docData.type });
+          await Docs.RenderModal(docData.type, idModal);
+        };
+      }
       listenQueryPathInstance({
         id: options.idModal,
         routeId: 'docs',
@@ -301,13 +280,11 @@ class Docs {
         },
       });
     });
-    // Register theme events for items that have them (Docs-specific concern)
-    for (const docData of Docs.Data) {
-      if (docData.themeEvent) {
-        ThemeEvents[`doc-icon-${docData.type}`] = docData.themeEvent;
-        setTimeout(ThemeEvents[`doc-icon-${docData.type}`]);
-      }
-    }
+    // The coverage icons are tinted to the theme's text colour, so they follow theme changes.
+    ThemeEvents['doc-icon-coverage'] = () => {
+      if (s(`.doc-icon-coverage`)) setTimeout(() => simpleIconsRender(`.doc-icon-coverage`));
+    };
+    setTimeout(ThemeEvents['doc-icon-coverage']);
     // Build submenu items and populate — submenu system is owned by Modal
     Modal.subMenuPopulate('docs', await Modal.buildSubMenuItemsHtml('docs', Docs.Data, options));
 
