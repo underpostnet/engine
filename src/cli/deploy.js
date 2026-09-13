@@ -274,10 +274,14 @@ ${buildKindPorts(fromPort, toPort)}`;
           : Underpost.deploy.trafficServiceYamlFactory({ deployId, env, traffic, namespace, fromPort, toPort });
       const escaped = `${deployId}-${env}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       manifest = manifest.replace(new RegExp(`app: ${escaped}-(?:blue|green)`), `app: ${deployId}-${env}-${traffic}`);
-      shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
+      logger.info('Applying the traffic Service', { deployId, env, traffic, namespace });
+      shellExec(
+        `kubectl apply -f - -n ${namespace} <<'EOF'
 ${manifest}
 EOF
-`);
+`,
+        { disableLog: true },
+      );
       return Underpost.deploy.trafficServiceNameFactory({ deployId, env });
     },
     /**

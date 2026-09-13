@@ -263,7 +263,7 @@ describe('shared ingress front', () => {
       );
       const testCandidate = install.indexOf("execIngress('nginx -t -c /tmp/nginx.candidate.conf'");
       const reload = install.indexOf('nginx -s reload -c /tmp/nginx.conf', testCandidate);
-      const persist = install.indexOf("shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'", reload);
+      const persist = install.indexOf("`kubectl apply -f - -n ${namespace} <<'EOF'", reload);
       expect(testCandidate).to.be.greaterThan(-1);
       expect(reload).to.be.greaterThan(testCandidate);
       expect(persist).to.be.greaterThan(reload);

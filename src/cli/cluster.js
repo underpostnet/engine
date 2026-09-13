@@ -1406,14 +1406,21 @@ EOF
       }
 
       try {
-        shellExec(`kubectl apply -f - -n ${namespace} <<'EOF'
+        // The manifest carries the whole nginx.conf: echoing it as the command line
+        // buries the lines that follow it — the fallback probes above all — under
+        // a page of routing tables on every sync.
+        logger.info('Applying the underpost ingress manifests', { namespace, node: ingressNode });
+        shellExec(
+          `kubectl apply -f - -n ${namespace} <<'EOF'
 ${underpostIngressManifestsFactory({
   namespace,
   conf,
   nodeName: ingressNode,
 })}
 EOF
-`);
+`,
+          { disableLog: true },
+        );
       } catch (error) {
         if (shouldHotReload)
           execIngress(`sh -c 'cp /tmp/nginx.previous.conf /tmp/nginx.conf && nginx -s reload -c /tmp/nginx.conf'`, {
