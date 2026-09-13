@@ -103,7 +103,21 @@ const TEST_TIERS = [
       'src/server/runtime/conf.js',
       'src/server/security/crypto.js',
     ],
+    // Non-recursive: the cyberia extension underneath is its own tier, so a
+    // tree that strips the product keeps a unit tier that imports none of it.
+    recursive: false,
     description: 'Pure functions with no host, cluster or network dependency.',
+  },
+  {
+    name: 'cyberia:unit',
+    directory: 'test/unit/cyberia',
+    groupOrder: 1,
+    sources: [
+      'src/projects/cyberia/instance-backup.js',
+      'src/projects/cyberia/instance-data.js',
+      'src/projects/cyberia/stat-balance.js',
+    ],
+    description: 'Cyberia MMO extension: pure functions over instance data, backups and stat policies.',
   },
   {
     name: 'infra:1-security',
@@ -170,7 +184,7 @@ const TEST_TIERS = [
     description: 'Platform application layer served over the provisioned stack.',
   },
   {
-    name: 'cyberia',
+    name: 'cyberia:app',
     directory: 'test/integration/app/cyberia',
     groupOrder: 7,
     sources: [

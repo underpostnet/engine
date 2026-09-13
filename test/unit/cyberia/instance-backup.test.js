@@ -6,18 +6,24 @@ import { join } from 'node:path';
 // The restore path only routes documents; the collections are in-memory stand-ins, IPFS is
 // unreachable, and the static frame writer is a no-op, so what is asserted is the routing.
 const models = {};
-vi.mock('../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
-vi.mock('../../src/api/ipfs/ipfs.service.js', () => ({ createPinRecord: async () => ({}) }));
-vi.mock('../../src/projects/cyberia/ipfs-client.js', () => ({ IpfsClient: { addToIpfs: async () => null } }));
-vi.mock('../../src/projects/cyberia/object-layer.js', () => ({
+vi.mock('../../../src/api/ipfs/ipfs.service.js', () => ({ createPinRecord: async () => ({}) }));
+vi.mock('../../../src/projects/cyberia/ipfs-client.js', () => ({ IpfsClient: { addToIpfs: async () => null } }));
+vi.mock('../../../src/projects/cyberia/object-layer.js', () => ({
   ObjectLayerEngine: { writeStaticFrameAssets: async () => [], computeAndSaveFinalSha256: async () => ({}) },
 }));
+// The generator pulls in jimp, a cyberia product dependency the engine runner does not install;
+// every store method that would reach it is spied out below, so only the constant is needed.
+vi.mock('../../../src/projects/cyberia/atlas-sprite-sheet-generator.js', () => ({
+  AtlasSpriteSheetGenerator: {},
+  DEFAULT_ATLAS_UPSCALE_FACTOR: 20,
+}));
 
-const { AtlasSpriteSheetStore } = await import('../../src/projects/cyberia/atlas-sprite-sheet-store.js');
+const { AtlasSpriteSheetStore } = await import('../../../src/projects/cyberia/atlas-sprite-sheet-store.js');
 const { atlasBackupFileKey, readObjectLayerBackup, restoreObjectLayerBackup } =
-  await import('../../src/projects/cyberia/instance-backup.js');
+  await import('../../../src/projects/cyberia/instance-backup.js');
 
 /** A collection that remembers what was created and hands the last upsert back as the live document. */
 const collection = () => {

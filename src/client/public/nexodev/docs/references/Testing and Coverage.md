@@ -14,6 +14,7 @@ selector. Nothing enumerates test files by name.
 ```text
 test/
   unit/                              pure functions, no host or cluster
+    cyberia/                         Cyberia MMO extension, pure functions
   integration/
     infra/
       1-security/                    SELinux, systemd units, SOPS secret store
@@ -42,10 +43,10 @@ lookup table.
 
 | Selector              | Runs                                   |
 | --------------------- | -------------------------------------- |
-| `unit`                | `test/unit`                            |
+| `unit`                | `test/unit` (non-recursive)            |
 | `infra`               | all five `infra:*` tiers               |
 | `app`                 | `test/integration/app` (non-recursive) |
-| `cyberia`             | `test/integration/app/cyberia`         |
+| `cyberia`             | both `cyberia:*` tiers                 |
 | `contracts`           | `hardhat/test` — delegated, see below  |
 | `all`, or no argument | every tier                             |
 | `infra:2-network`     | one tier                               |
@@ -54,7 +55,7 @@ lookup table.
 underpost test                       # every tier, in tier order
 underpost test unit,infra            # platform suites only
 underpost test infra:4-ingress       # one tier
-underpost test cyberia --grep shape  # one tier, filtered by test name
+underpost test cyberia:app --grep shape  # one tier, filtered by test name
 underpost test contracts             # Solidity contracts, on Hardhat's EVM
 underpost test --watch --no-coverage # local iteration
 ```
@@ -76,12 +77,12 @@ Vitest expresses that with `sequence.groupOrder` per project: equal values run
 in parallel, lower values run to completion first.
 
 ```text
-groupOrder  1     2           3          4          5          6                7
-            unit  1-security  2-network  3-cluster  4-ingress  5-observability  app ∥ cyberia ∥ contracts
+groupOrder  1                    2           3          4          5          6                7
+            unit ∥ cyberia:unit  1-security  2-network  3-cluster  4-ingress  5-observability  app ∥ cyberia:app ∥ contracts
 ```
 
-`app`, `cyberia` and `contracts` share order 7 because none can invalidate the
-others.
+`unit` and `cyberia:unit` share order 1, and `app`, `cyberia:app` and
+`contracts` share order 7, because none can invalidate the others in its group.
 
 > `groupOrder` starts at 1, never 0. Vitest routes a project left on the
 > default `0` with a single worker into a bucket it appends _after_ every
@@ -117,7 +118,7 @@ deploy publishes). `lcov.info` and `coverage-final.json` are written to
 is written to `coverage/<key>/`, where `key` is the suites the selection spans
 joined with `-` — `node bin test unit,infra,app` writes `coverage/unit-infra-app/`,
 `node bin test cyberia` writes `coverage/cyberia/`, and a full run writes
-`coverage/unit-infra-app-cyberia/`. Two selections never overwrite each other's
+`coverage/unit-cyberia-infra-app/`. Two selections never overwrite each other's
 report on a host that publishes both.
 
 Coverage is scoped to the files a run actually loads rather than all of `src`.
@@ -249,9 +250,9 @@ path above covers dynamic triggering without it.
 
 The platform job measures the platform tiers and the cyberia job the whole
 tree, so the two badges read the same metric over the surfaces each product
-ships. The base template strips `test/integration/app/cyberia`; its `cyberia`
-project then matches no files, which is not an error as long as another tier
-has some.
+ships. The base template strips `test/unit/cyberia` and
+`test/integration/app/cyberia`; the `cyberia:*` projects then match no files,
+which is not an error as long as another tier has some.
 
 `hardhat.ci.yml` is path-filtered to `hardhat/**` and installs only that
 project's lockfile, so it stays on Hardhat's own tasks rather than pulling the

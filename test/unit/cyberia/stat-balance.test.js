@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { balanceStats, resolveStatBounds, statPolicyActive } from '../../src/projects/cyberia/stat-balance.js';
+import { balanceStats, resolveStatBounds, statPolicyActive } from '../../../src/projects/cyberia/stat-balance.js';
 import {
   STAT_TYPE_BOUNDS,
   STAT_TYPES,
   statBoundsForType,
-} from '../../src/client/components/cyberia/SharedDefaultsCyberia.js';
+} from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 
 const wild = { effect: 60, resistance: -40, agility: 3, range: 25, intelligence: 9, utility: -2 };
 const lcg = (seed) => () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
