@@ -64,13 +64,39 @@ class ObjectLayerEngineElement extends HTMLElement {
           gap: var(--gap);
           align-items: flex-start;
         }
+        /* Rulers on two sides of the frame: the X axis above, the Y axis on the left, and the
+           frame's own border padded onto each so the ticks line up with the cells inside it. */
+        .board {
+          display: grid;
+          grid-template-columns: auto auto;
+          grid-template-rows: auto auto;
+          line-height: 0;
+        }
+        canvas.ruler-x {
+          grid-column: 2;
+          border-left: var(--border);
+          border-left-color: transparent;
+        }
+        canvas.ruler-y {
+          grid-row: 2;
+          border-top: var(--border);
+          border-top-color: transparent;
+        }
         .canvas-frame {
+          grid-column: 2;
+          grid-row: 2;
           border: var(--border);
           display: inline-block;
           line-height: 0;
           position: relative;
           background: transparent;
           image-rendering: pixelated;
+        }
+        .cursor-info {
+          font-size: 12px;
+          opacity: 0.75;
+          min-height: 1.2em;
+          font-variant-numeric: tabular-nums;
         }
         canvas.canvas-layer {
           display: block;
@@ -321,17 +347,25 @@ class ObjectLayerEngineElement extends HTMLElement {
           <span part="sel-hint" class="hint">Drag to select</span>
         </div>
 
-        <div class="canvas-frame" style="${renderChessPattern()}">
-          <canvas part="canvas" class="canvas-layer"></canvas>
-          <canvas part="grid" class="grid-layer"></canvas>
-          <div class="ctx-menu" part="ctx-menu" hidden></div>
+        <div class="board">
+          <canvas part="ruler-x" class="ruler-x"></canvas>
+          <canvas part="ruler-y" class="ruler-y"></canvas>
+          <div class="canvas-frame" style="${renderChessPattern()}">
+            <canvas part="canvas" class="canvas-layer"></canvas>
+            <canvas part="grid" class="grid-layer"></canvas>
+            <div class="ctx-menu" part="ctx-menu" hidden></div>
+          </div>
         </div>
+        <span part="cursor-info" class="cursor-info"></span>
       </div>
     `;
 
     // DOM
     this._pixelCanvas = this.shadowRoot.querySelector('canvas[part="canvas"]');
     this._gridCanvas = this.shadowRoot.querySelector('canvas[part="grid"]');
+    this._rulerX = this.shadowRoot.querySelector('canvas[part="ruler-x"]');
+    this._rulerY = this.shadowRoot.querySelector('canvas[part="ruler-y"]');
+    this._cursorInfo = this.shadowRoot.querySelector('span[part="cursor-info"]');
     this._colorInput = this.shadowRoot.querySelector('input[part="color"]');
     this._hexInput = this.shadowRoot.querySelector('input[part="hex-input"]');
     this._rInput = this.shadowRoot.querySelector('input[part="r-input"]');
@@ -440,7 +474,9 @@ class ObjectLayerEngineElement extends HTMLElement {
     return ['width', 'height', 'pixel-size'];
   }
   attributeChangedCallback(name, oldV, newV) {
-    if (oldV === newV) return;
+    // An attribute this element wrote itself is already applied: reacting to it would read the
+    // sibling axis before its own write lands and cut the matrix to the stale size.
+    if (oldV === newV || this._reflecting) return;
     if (name === 'width') this.width = parseInt(newV, 10) || this._width;
     if (name === 'height') this.height = parseInt(newV, 10) || this._height;
     if (name === 'pixel-size') this.pixelSize = parseInt(newV, 10) || this._pixelSize;
@@ -684,6 +720,22 @@ class ObjectLayerEngineElement extends HTMLElement {
     return mat;
   }
 
+  /* Takes new cell dimensions and keeps the size inputs and attributes saying the same thing,
+   * so a matrix loaded at another size cannot leave stale numbers for the next change to apply. */
+  _setDimensions(w, h) {
+    this._width = w;
+    this._height = h;
+    if (this._widthInput) this._widthInput.value = String(w);
+    if (this._heightInput) this._heightInput.value = String(h);
+    this._reflecting = true;
+    try {
+      this.setAttribute('width', String(w));
+      this.setAttribute('height', String(h));
+    } finally {
+      this._reflecting = false;
+    }
+  }
+
   loadMatrix(matrix) {
     if (!Array.isArray(matrix) || matrix.length === 0) throw new TypeError('matrix must be non-empty 2D array');
     const h = matrix.length;
@@ -696,9 +748,8 @@ class ObjectLayerEngineElement extends HTMLElement {
         matrix[y][x] = v.map((n) => this._clampInt(n));
       }
     }
-    this._width = w;
-    this._height = h;
     this._matrix = matrix.map((r) => r.map((c) => c.slice()));
+    this._setDimensions(w, h);
     this.clearSelection();
     this._updateSelectionUI();
     this._setupContextsAndSize();
@@ -721,15 +772,8 @@ class ObjectLayerEngineElement extends HTMLElement {
       const minH = Math.min(nh, this._height);
       for (let y = 0; y < minH; y++) for (let x = 0; x < minW; x++) newMat[y][x] = this._matrix[y][x].slice();
     }
-    this._width = nw;
-    this._height = nh;
     this._matrix = newMat;
-
-    // keep inputs and attributes in sync
-    if (this._widthInput) this._widthInput.value = String(this._width);
-    if (this._heightInput) this._heightInput.value = String(this._height);
-    this.setAttribute('width', String(this._width));
-    this.setAttribute('height', String(this._height));
+    this._setDimensions(nw, nh);
 
     this._clampSelection();
     this._updateSelectionUI();
@@ -777,7 +821,60 @@ class ObjectLayerEngineElement extends HTMLElement {
       this._pixelCtx.imageSmoothingEnabled = false;
       this._gridCtx.imageSmoothingEnabled = false;
     } catch (e) {}
+    this._renderRulers();
     this._renderGrid();
+  }
+
+  /* Cell indices along each axis. Every cell gets a tick; a number goes on every cell it fits
+   * on, and on every Nth otherwise, so the rulers stay readable at any pixel size. */
+  _renderRulers() {
+    const ps = this._pixelSize;
+    const font = '10px ui-monospace, Menlo, monospace';
+    const color = darkTheme ? '#e1e1e1' : '#272727';
+    const thickness = 16;
+    const measure = this._rulerX.getContext('2d');
+    measure.font = font;
+    const digits = measure.measureText(String(Math.max(this._width, this._height) - 1)).width;
+    const step = Math.max(1, Math.ceil((digits + 4) / ps));
+
+    const draw = (canvas, count, horizontal) => {
+      canvas.width = horizontal ? count * ps : Math.ceil(digits) + 8;
+      canvas.height = horizontal ? thickness : count * ps;
+      canvas.style.width = `${canvas.width}px`;
+      canvas.style.height = `${canvas.height}px`;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = font;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = horizontal ? 'center' : 'right';
+      ctx.beginPath();
+      for (let i = 0; i < count; i++) {
+        const at = i * ps + 0.5;
+        const labelled = i % step === 0;
+        const tick = labelled ? 5 : 2;
+        if (horizontal) {
+          ctx.moveTo(at, thickness);
+          ctx.lineTo(at, thickness - tick);
+          if (labelled) ctx.fillText(String(i), at + ps / 2, (thickness - tick) / 2);
+        } else {
+          ctx.moveTo(canvas.width, at);
+          ctx.lineTo(canvas.width - tick, at);
+          if (labelled) ctx.fillText(String(i), canvas.width - tick - 2, at + ps / 2);
+        }
+      }
+      ctx.stroke();
+    };
+    draw(this._rulerX, this._width, true);
+    draw(this._rulerY, this._height, false);
+  }
+
+  /* The cell under the pointer, or nothing once it leaves the canvas. */
+  _updateCursorInfo(x, y) {
+    const inside = x >= 0 && y >= 0 && x < this._width && y < this._height;
+    this._cursorInfo.textContent = inside ? `x: ${x}  y: ${y}` : '';
   }
 
   render() {
@@ -1126,6 +1223,7 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   _onPointerMove(evt) {
     const [x, y] = this._toGridCoords(evt);
+    this._updateCursorInfo(x, y);
     if (!this._isPointerDown) {
       // Hover feedback: the cursor says whether the next press moves or selects.
       if (this._selectMode) this._updateCursor(this._inSelection(x, y));
@@ -1493,14 +1591,8 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (!this._selection) {
       if (w === this._width && h === this._height) return;
       this._beginTransaction();
-      const resampled = this.resampleMatrix(this._matrix, w, h);
-      this._width = w;
-      this._height = h;
-      this._matrix = resampled;
-      if (this._widthInput) this._widthInput.value = String(w);
-      if (this._heightInput) this._heightInput.value = String(h);
-      this.setAttribute('width', String(w));
-      this.setAttribute('height', String(h));
+      this._matrix = this.resampleMatrix(this._matrix, w, h);
+      this._setDimensions(w, h);
       this._setupContextsAndSize();
       this.render();
       this._endTransaction();
@@ -1529,7 +1621,7 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   // ---------------- Import / Export ----------------
   exportMatrixJSON() {
-    return JSON.stringify({ width: this._width, height: this._height, matrix: this._matrix });
+    return ObjectLayerEngineElement.matrixJSON(this._matrix);
   }
   importMatrixJSON(json) {
     const data = typeof json === 'string' ? JSON.parse(json) : json;
@@ -1589,9 +1681,15 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   // Async blob version (recommended for large images)
   toBlob(scale = this._pixelSize) {
+    return ObjectLayerEngineElement.matrixToBlob(this._matrix, scale);
+  }
+
+  /* A PNG of any matrix at `scale` px per cell, with no editor involved: a frame can be
+   * pictured from stored data without passing through — or racing — the canvas. */
+  static matrixToBlob(matrix, scale) {
     return new Promise((resolve) => {
-      const w = this._width,
-        h = this._height;
+      const h = matrix.length;
+      const w = matrix[0].length;
       const outW = Math.max(1, Math.floor(w * scale));
       const outH = Math.max(1, Math.floor(h * scale));
       const src = document.createElement('canvas');
@@ -1603,11 +1701,11 @@ class ObjectLayerEngineElement extends HTMLElement {
       let p = 0;
       for (let y = 0; y < h; y++)
         for (let x = 0; x < w; x++) {
-          const c = this._matrix[y][x] || [0, 0, 0, 0];
-          data[p++] = this._clampInt(c[0]);
-          data[p++] = this._clampInt(c[1]);
-          data[p++] = this._clampInt(c[2]);
-          data[p++] = this._clampInt(c[3]);
+          const c = matrix[y][x] || [0, 0, 0, 0];
+          data[p++] = Math.min(255, Math.max(0, Math.floor(c[0]) || 0));
+          data[p++] = Math.min(255, Math.max(0, Math.floor(c[1]) || 0));
+          data[p++] = Math.min(255, Math.max(0, Math.floor(c[2]) || 0));
+          data[p++] = Math.min(255, Math.max(0, Math.floor(c[3]) || 0));
         }
       sctx.putImageData(img, 0, 0);
       const out = document.createElement('canvas');
@@ -1620,6 +1718,11 @@ class ObjectLayerEngineElement extends HTMLElement {
       octx.drawImage(src, 0, 0, outW, outH);
       out.toBlob((b) => resolve(b), 'image/png');
     });
+  }
+
+  /* The frame JSON the editor exports and imports, for any matrix. */
+  static matrixJSON(matrix) {
+    return JSON.stringify({ width: matrix[0].length, height: matrix.length, matrix });
   }
 
   // Trigger download of PNG (uses blob to avoid huge data URLs on big exports)
@@ -1645,13 +1748,8 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   _loadSnapshot(snap) {
     if (!snap) return;
-    this._width = snap.width;
-    this._height = snap.height;
     this._matrix = snap.matrix.map((r) => r.map((c) => c.slice()));
-    if (this._widthInput) this._widthInput.value = String(this._width);
-    if (this._heightInput) this._heightInput.value = String(this._height);
-    this.setAttribute('width', String(this._width));
-    this.setAttribute('height', String(this._height));
+    this._setDimensions(snap.width, snap.height);
     this._clampSelection();
     this._updateSelectionUI();
     this._setupContextsAndSize();
@@ -1877,14 +1975,8 @@ class ObjectLayerEngineElement extends HTMLElement {
         newMat[newY][newX] = px;
       }
     }
-    this._width = newW;
-    this._height = newH;
     this._matrix = newMat;
-    // keep inputs/attributes in sync
-    if (this._widthInput) this._widthInput.value = String(this._width);
-    if (this._heightInput) this._heightInput.value = String(this._height);
-    this.setAttribute('width', String(this._width));
-    this.setAttribute('height', String(this._height));
+    this._setDimensions(newW, newH);
 
     this.clearSelection();
     this._updateSelectionUI();
@@ -1910,13 +2002,8 @@ class ObjectLayerEngineElement extends HTMLElement {
         newMat[newY][newX] = px;
       }
     }
-    this._width = newW;
-    this._height = newH;
     this._matrix = newMat;
-    if (this._widthInput) this._widthInput.value = String(this._width);
-    if (this._heightInput) this._heightInput.value = String(this._height);
-    this.setAttribute('width', String(this._width));
-    this.setAttribute('height', String(this._height));
+    this._setDimensions(newW, newH);
 
     this.clearSelection();
     this._updateSelectionUI();
@@ -1932,21 +2019,26 @@ class ObjectLayerEngineElement extends HTMLElement {
     return this._width;
   }
   set width(v) {
-    this._width = Math.max(1, Math.floor(v));
-    this.setAttribute('width', String(this._width));
-    this._clampSelection();
-    this._setupContextsAndSize();
-    this.render();
+    this._resizeAxis(v, this._attributeSize('height', this._height));
   }
   get height() {
     return this._height;
   }
   set height(v) {
-    this._height = Math.max(1, Math.floor(v));
-    this.setAttribute('height', String(this._height));
-    this._clampSelection();
-    this._setupContextsAndSize();
-    this.render();
+    this._resizeAxis(this._attributeSize('width', this._width), v);
+  }
+
+  /* An axis as its attribute states it. While the element upgrades, the attributes are all
+   * present before any setter has run, so the axis not being set is read from here rather than
+   * from a default the resize would otherwise write over the attribute. */
+  _attributeSize(name, fallback) {
+    return parseInt(this.getAttribute(name), 10) || fallback;
+  }
+
+  _resizeAxis(w, h) {
+    const nw = Math.max(1, Math.floor(w));
+    const nh = Math.max(1, Math.floor(h));
+    if (nw !== this._width || nh !== this._height) this.resize(nw, nh);
   }
   get pixelSize() {
     return this._pixelSize;
@@ -1976,6 +2068,8 @@ class ObjectLayerEngineElement extends HTMLElement {
 }
 
 customElements.define('object-layer-engine', ObjectLayerEngineElement);
+
+export { ObjectLayerEngineElement };
 
 /*
 Example usage:

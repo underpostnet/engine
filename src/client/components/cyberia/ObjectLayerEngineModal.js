@@ -15,7 +15,7 @@ import { AgGrid } from '../core/AgGrid.js';
 import { Modal } from '../core/Modal.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
-import * as _ from '../cyberia/ObjectLayerEngine.js';
+import { ObjectLayerEngineElement } from '../cyberia/ObjectLayerEngine.js';
 import {
   ITEM_TYPES,
   OBJECT_LAYER_DIRECTION_CODES,
@@ -1242,40 +1242,25 @@ class ObjectLayerEngineModal {
       s(`.frame-editor-container`).classList.remove('hide');
     };
 
-    // Helper function to process and add frame from PNG URL using ObjectLayerPngLoader
-    const processAndAddFrameFromPngUrl = async (directionCode, pngUrl) => {
-      // Wait for components to be available with retry logic
-      let ole = s('object-layer-engine');
-      let loader = s('object-layer-png-loader');
-
-      if (!ole || !loader) {
-        console.warn('object-layer-engine or object-layer-png-loader component not found after retries');
-        return;
-      }
-
+    // Adds one stored frame to a direction code, rebuilt cell for cell from the render-frames
+    // document: the index matrix keeps each frame's own width and height, where the asset PNG
+    // would be resampled into whatever size the editor happens to have. The editor is not
+    // involved: a frame that passed through it was captured whenever something else wrote to
+    // the canvas in between, and came back empty.
+    const processAndAddStoredFrame = async (directionCode, indexMatrix, colors) => {
       try {
-        // Load PNG using the loader component - it will automatically load into the editor
-        await loader.loadPngUrl(pngUrl);
-
-        // Export as blob and JSON from component after loading
-        const image = await ole.toBlob();
-        const json = ole.exportMatrixJSON();
+        const matrix = indexMatrix.map((row) => row.map((index) => colors[index].slice()));
+        const image = await ObjectLayerEngineElement.matrixToBlob(matrix, pixelSize);
+        const json = ObjectLayerEngineElement.matrixJSON(matrix);
         const id = `frame-loaded-${s4()}-${s4()}`;
 
-        // Add to ObjectLayerData
         if (!ObjectLayerEngineModal.ObjectLayerData[directionCode]) {
           ObjectLayerEngineModal.ObjectLayerData[directionCode] = [];
         }
         ObjectLayerEngineModal.ObjectLayerData[directionCode].push({ id, image, json });
-        console.log(
-          `Stored frame ${id} in direction code ${directionCode}. Total frames:`,
-          ObjectLayerEngineModal.ObjectLayerData[directionCode].length,
-        );
-
-        // Add to UI
         await addFrameToBar(directionCode, id, image, json);
       } catch (error) {
-        console.error('Error loading frame from PNG URL:', error);
+        console.error('Error loading stored frame:', error);
       }
     };
 
@@ -1371,36 +1356,21 @@ class ObjectLayerEngineModal {
               // Wait longer to ensure all direction bars are rendered
 
               if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
-                // Show loading animation only once on first direction that has frames
-
-                const { type, id } = loadedData.metadata.data.item;
                 const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
-
-                console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
 
                 // Check if frames exist for any direction mapped to this direction code.
                 // Object layers with an empty render (no render-frames doc yet) load
                 // with zero frames so the user can author them from scratch.
-                const frames = loadedData.objectLayerRenderFramesId?.frames;
+                const { frames, colors } = loadedData.objectLayerRenderFramesId ?? {};
                 for (const direction of directions) {
                   if (frames && frames[direction] && frames[direction].length > 0) {
                     // Track this direction code as having original data
                     if (!ObjectLayerEngineModal.originalDirectionCodes.includes(currentDirectionCode)) {
                       ObjectLayerEngineModal.originalDirectionCodes.push(currentDirectionCode);
                     }
-                    // Load frames from static PNG URLs sequentially to avoid race conditions
-                    const frameCount = frames[direction].length;
-                    console.log(
-                      `Found ${frameCount} frames for direction: ${direction} (code: ${currentDirectionCode})`,
-                    );
-                    for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-                      const pngUrl = `${getProxyPath()}assets/${type}/${id}/${currentDirectionCode}/${frameIndex}.png`;
-                      console.log(
-                        `Loading frame ${frameIndex} for direction code ${currentDirectionCode} from: ${pngUrl}`,
-                      );
-                      await processAndAddFrameFromPngUrl(currentDirectionCode, pngUrl);
+                    for (const indexMatrix of frames[direction]) {
+                      await processAndAddStoredFrame(currentDirectionCode, indexMatrix, colors);
                     }
-                    console.log(`Completed loading ${frameCount} frames for direction code: ${currentDirectionCode}`);
                     // Once we found frames for this direction code, we can break to avoid duplicates
                     break;
                   }
@@ -1742,10 +1712,14 @@ class ObjectLayerEngineModal {
         }
         objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
         try {
-          objectLayer.data.stats = validateStats(Object.fromEntries(STAT_TYPES.map((key) => {
-            const input = getRenderedInputNode(`ol-input-item-stats-${key}`);
-            return [key, input?.value.trim() ? Number(input.value) : NaN];
-          })));
+          objectLayer.data.stats = validateStats(
+            Object.fromEntries(
+              STAT_TYPES.map((key) => {
+                const input = getRenderedInputNode(`ol-input-item-stats-${key}`);
+                return [key, input?.value.trim() ? Number(input.value) : NaN];
+              }),
+            ),
+          );
         } catch (error) {
           NotificationManager.Push({ html: error.message, status: 'error' });
           return;
@@ -1943,9 +1917,12 @@ class ObjectLayerEngineModal {
           padding: 0.5rem;
           width: 70px;
         }
+        /* One square tile per frame whatever its aspect: a wide frame drawn at natural height
+           sat almost entirely under the edit and trash buttons, so a click never reached it. */
         .direction-code-bar-frames-img {
           width: 100px;
-          height: auto;
+          height: 100px;
+          object-fit: contain;
           margin: 3px;
           cursor: pointer;
         }
@@ -2297,19 +2274,23 @@ class ObjectLayerEngineModal {
       </div>
 
       <div class="fl section-mp">
-        ${canMutate
-          ? await BtnIcon.instance({
-              label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
-                ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
-              class: `in flr ol-btn-save`,
-            })
-          : ''}
-        ${canMutate && ObjectLayerEngineModal.existingObjectLayerId
-          ? await BtnIcon.instance({
-              label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
-              class: `in flr ol-btn-clone`,
-            })
-          : ''}
+        ${
+          canMutate
+            ? await BtnIcon.instance({
+                label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
+                  ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
+                class: `in flr ol-btn-save`,
+              })
+            : ''
+        }
+        ${
+          canMutate && ObjectLayerEngineModal.existingObjectLayerId
+            ? await BtnIcon.instance({
+                label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
+                class: `in flr ol-btn-clone`,
+              })
+            : ''
+        }
         ${await BtnIcon.instance({
           label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.instance('reset')}`,
           class: `in flr ol-btn-reset`,
