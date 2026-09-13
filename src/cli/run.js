@@ -3518,10 +3518,17 @@ EOF`);
           logger.info('[gateway-status] Backend probe (same Host and path, bypassing Envoy)', { backendProbes });
           // Only the rule the browser actually hit is comparable, so judge on
           // the root rule rather than on every rule of the route.
+          // The gateway answer carries the `server` header (`502 (nginx)`), the
+          // direct one is the bare code: compared as strings, every relayed status
+          // read as a routing fault, and the data plane log was dumped on a healthy
+          // edge whose only problem was an absent workload.
+          const statusCode = (answer) => /^([0-9]{3})/.exec(`${answer ?? ''}`)?.[1];
           const rootProbes = backendProbes.filter((entry) => entry.request.endsWith('/'));
-          const appFault = rootProbes.filter((entry) => `${entry.direct}` === `${entry.gateway}`);
+          const appFault = rootProbes.filter(
+            (entry) => statusCode(entry.direct) && statusCode(entry.direct) === statusCode(entry.gateway),
+          );
           const gatewayFault = rootProbes.filter(
-            (entry) => /^[0-9]{3}$/.test(entry.direct) && `${entry.direct}` !== `${entry.gateway}`,
+            (entry) => statusCode(entry.direct) && statusCode(entry.direct) !== statusCode(entry.gateway),
           );
           if (gatewayFault.length > 0) {
             logger.warn(
