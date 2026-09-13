@@ -80,7 +80,7 @@ jobs:
           echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
           node engine/bin clone underpostnet/engine-prototype
           cd engine
-          node bin/build dd-prototype development
+          node bin/build dd-prototype development --coverage
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-prototype/.git ./.git

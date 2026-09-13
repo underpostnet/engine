@@ -14,7 +14,11 @@ import {
 } from '../src/server/runtime/conf.js';
 import { resolveDeployList } from '../src/server/network/router.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
-import { buildProductPackageJson, productPackageOptionsFactory } from '../src/server/build/package.js';
+import {
+  buildProductPackageJson,
+  installDeployDependencies,
+  productPackageOptionsFactory,
+} from '../src/server/build/package.js';
 import {
   COVERAGE_BUNDLE_DIRECTORY,
   bundleCoverageReports,
@@ -231,11 +235,32 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
 
 /**
  * The coverage reports a deploy id's conf declares, as {@link deployCoverageReports} reads them.
+ * The conf is fetched when this checkout does not carry it yet: a CI runner builds from a bare
+ * engine tree, and a deploy without source moves never pulls its conf through the assembly.
  * @param {string} deployId - A concrete deploy id.
  * @returns {Array<{id: string, suite?: string, path?: string}>}
  */
-const deployReports = (deployId) =>
-  deployCoverageReports(JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')));
+const deployReports = (deployId) => {
+  Underpost.repo.sparseCheckoutDirectory(`conf/${deployId}`);
+  return deployCoverageReports(
+    JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+  );
+};
+
+/**
+ * Runs, once each, the test suites the deploy ids' coverage reports name. A product suite
+ * imports the modules its catalog pins, so those dependencies are installed into this
+ * checkout first — the same install a product deploy performs before it builds.
+ * @param {string[]} deployIds - Concrete deploy ids.
+ */
+const runDeployCoverage = async (deployIds) => {
+  const suites = new Set();
+  for (const deployId of deployIds) {
+    await installDeployDependencies(deployId);
+    for (const { suite } of deployReports(deployId)) if (suite) suites.add(suite);
+  }
+  for (const suite of suites) shellExec(coverageReportCommand({ suite }));
+};
 
 /**
  * Carries this build stage's coverage HTML reports into the assembled template, so every
@@ -320,10 +345,7 @@ program
     // Tests run here, in the build stage, and once per declared suite: the artifact carries
     // each report so no container ever has to produce its own. Refreshing is opt-in because
     // a template assembly is not otherwise a test run.
-    if (options.coverage) {
-      const suites = new Set(deployList.flatMap(deployReports).flatMap(({ suite }) => (suite ? [suite] : [])));
-      for (const suite of suites) shellExec(coverageReportCommand({ suite }));
-    }
+    if (options.coverage) await runDeployCoverage(deployList);
 
     for (const deployId of deployList) {
       // Reconstruct the base template from 0 before each deploy id so neither a previous

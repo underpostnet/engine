@@ -79,7 +79,7 @@ jobs:
           cd engine
           git clone --depth 1 --no-checkout https://$GITHUB_TOKEN@github.com/underpostnet/engine-private.git ./engine-private
           cd ./engine-private && git sparse-checkout set conf/dd-test && git checkout && cd ..
-          node bin/build dd-test development
+          node bin/build dd-test development --coverage
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-test.git ./.git

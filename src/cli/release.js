@@ -547,7 +547,9 @@ class UnderpostRelease {
       logger.info(`CI push commit message: ${commitMsg}`);
       shellExec(`node engine/bin clone --bare ${githubOrg}/${repoName}`);
       shellCd('/home/dd/engine');
-      shellExec(`node bin/build ${buildTarget}`);
+      // `--coverage` runs the suites the deploy's `docs.coverage` names so the published
+      // source carries the reports; without it the pod serves the unavailable page.
+      shellExec(`node bin/build ${buildTarget} --coverage`);
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`rm -rf ./.git`);
       shellExec(`mv ../${repoName}.git ./.git`);

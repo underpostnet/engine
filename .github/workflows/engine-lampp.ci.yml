@@ -79,7 +79,7 @@ jobs:
           cd engine
           git clone --depth 1 --no-checkout https://$GITHUB_TOKEN@github.com/underpostnet/engine-private.git ./engine-private
           cd ./engine-private && git sparse-checkout set conf/dd-lampp && git checkout && cd ..
-          node bin/build dd-lampp development
+          node bin/build dd-lampp development --coverage
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-lampp.git ./.git

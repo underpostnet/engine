@@ -42,6 +42,11 @@ jobs:
       - name: Install project dependencies
         run: npm install
 
+      # The cyberia tier imports the modules its catalog pins (jimp, pngjs, ethers, ...),
+      # which the engine manifest does not carry.
+      - name: Install cyberia catalog dependencies
+        run: node bin package dd-cyberia --install
+
       # Set the COVERAGE_MIN repository variable to gate below the shipped
       # default while the suite is catching up to it.
       - name: Run tests and enforce coverage threshold

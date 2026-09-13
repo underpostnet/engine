@@ -307,7 +307,9 @@ describe('release pipeline commands', () => {
         commands = [];
         const { triggerCmd } = await UnderpostRelease.API.ci(deployId, 'fixture message');
         expect(triggerCmd, deployId).to.include('/engine-cyberia');
-        expect(commands, deployId).to.include('node bin/build dd-cyberia');
+        // `--coverage`: the published source must carry the reports the deploy declares, or
+        // every pod started from it serves the unavailable page.
+        expect(commands, deployId).to.include('node bin/build dd-cyberia --coverage');
       }
     });
 
