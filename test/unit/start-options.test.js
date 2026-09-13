@@ -37,6 +37,18 @@ describe('start receives every flag its command registers', () => {
     expect(buildContract).to.include('{ force: Underpost.state.isInsideContainer() }');
   });
 
+  it('withdraws the ephemeral engine-private clone once a production container is serving', () => {
+    // Regression: the domain-split withdraw passed `force: false` to every domain, and only
+    // `host clean --force` removes `engine-private` — the clone outlived the boot in the pod.
+    const runStart = source.indexOf('async run(');
+    const withdraw = source.slice(
+      source.indexOf('for (const domain of', runStart),
+      source.indexOf('setTimeout', runStart),
+    );
+    expect(withdraw).to.include('[Underpost.secret, Underpost.host, Underpost.app]');
+    expect(withdraw).to.include('force: domain === Underpost.host');
+  });
+
   it('runs the container in one phase, with no re-entry through the global CLI', () => {
     // The pod's own bootstrap replaces the checkout and links the CLI before `start` is
     // invoked, so re-execing `underpost start` here only pulled and installed a second time.

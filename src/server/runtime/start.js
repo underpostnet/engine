@@ -333,10 +333,19 @@ class UnderpostStartUp {
       const result = await awaitDeployMonitor(true);
       if (result === true) {
         // Withdraw every domain's local traces once the deployment is serving. Three calls
-        // rather than one cross-domain sweep: each domain owns what it put on disk.
+        // rather than one cross-domain sweep: each domain owns what it put on disk. Only the
+        // host domain is forced: its `--force` removes the ephemeral `engine-private` clone,
+        // which must not outlive the boot inside a container. For the other two, `--force`
+        // reaches into the cluster (the app Secret, secret purges) and is never wanted here.
         if (env === 'production' && Underpost.state.isInsideContainer())
           for (const domain of [Underpost.secret, Underpost.host, Underpost.app])
-            domain.clean({ env, namespace: 'default', args: {}, dryRun: false, force: false });
+            domain.clean({
+              env,
+              namespace: 'default',
+              args: {},
+              dryRun: false,
+              force: domain === Underpost.host,
+            });
         setTimeout(() => {
           setRuntimeStatus(deployId, env, RUNTIME_STATUS.RUNNING);
           setStartContainerStatus(deployId, env);
