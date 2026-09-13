@@ -227,7 +227,7 @@ class AppShellUnderpost {
       titleRender: () => {
         return '';
       },
-      mode: 'slide-menu',
+      mode: 'slide-menu-right',
       RouterInstance,
       searchCustomImgClass: 'underpost-menu-icon',
       htmlMainBody: async () => {

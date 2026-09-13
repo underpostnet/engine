@@ -26,8 +26,6 @@ class AppShellCryptokoyn {
     const RouterInstance = RouterCryptokoyn.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-
-    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = undefined; // 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',

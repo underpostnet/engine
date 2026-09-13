@@ -155,7 +155,7 @@ const main = () => {
           text-align: center;
           padding: 24px;
         }
-        .badge {
+        .status-badge {
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -168,7 +168,7 @@ const main = () => {
           margin-bottom: 26px;
           box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
         }
-        .badge .dot {
+        .status-badge .dot {
           width: 8px;
           height: 8px;
           background: var(--green);
@@ -296,7 +296,7 @@ const main = () => {
       </style>
       <div class="grid"></div>
       <main class="wrap">
-        <span class="badge"><span class="dot"></span> INSTANCE ${instanceLabel()}</span>
+        <span class="status-badge"><span class="dot"></span> INSTANCE ${instanceLabel()}</span>
         <div class="code" data-text="404">404</div>
         <div class="headline">SIGNAL LOST</div>
         <p class="sub">

@@ -58,8 +58,6 @@ class AppShellNexodev {
     const RouterInstance = RouterNexodev.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-
-    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
@@ -76,7 +74,7 @@ class AppShellNexodev {
               attrs: `data-id="blog"`,
               tabHref: `${getProxyPath()}blog`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-calendar',
@@ -88,7 +86,7 @@ class AppShellNexodev {
               attrs: `data-id="calendar"`,
               tabHref: `${getProxyPath()}calendar`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('calendar', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('calendar')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-dashboard',
@@ -100,7 +98,7 @@ class AppShellNexodev {
               attrs: `data-id="dashboard"`,
               tabHref: `${getProxyPath()}dashboard`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('dashboard', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('dashboard')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-stream',
@@ -112,7 +110,7 @@ class AppShellNexodev {
               attrs: `data-id="stream"`,
               tabHref: `${getProxyPath()}stream`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('stream', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('stream')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-docs',
@@ -132,7 +130,7 @@ class AppShellNexodev {
               attrs: `data-id="docs"`,
               tabHref: `${getProxyPath()}docs`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
             })}
             <div class="abs menu-btn-container-children-docs"></div>
             ${await BtnIcon.instance({
@@ -145,7 +143,7 @@ class AppShellNexodev {
               attrs: `data-id="content"`,
               tabHref: `${getProxyPath()}content`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('content', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('content')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-cloud',
@@ -157,7 +155,7 @@ class AppShellNexodev {
               attrs: `data-id="cloud"`,
               tabHref: `${getProxyPath()}cloud`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-chat',
@@ -169,13 +167,12 @@ class AppShellNexodev {
               ${await Badge.instance({
                 id: 'main-btn-chat',
                 type: 'circle-red',
-                style: badgeNotificationMenuStyle,
-                classList: 'hide',
+                classList: 'hide badge-notification-menu',
               })}`,
               attrs: `data-id="chat"`,
               tabHref: `${getProxyPath()}chat`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('chat', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('chat')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-settings',
@@ -187,7 +184,7 @@ class AppShellNexodev {
               attrs: `data-id="settings"`,
               tabHref: `${getProxyPath()}settings`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
@@ -200,7 +197,7 @@ class AppShellNexodev {
               attrs: `data-id="home"`,
               tabHref: `${getProxyPath()}`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-log-in',
@@ -212,7 +209,7 @@ class AppShellNexodev {
               attrs: `data-id="log-in"`,
               tabHref: `${getProxyPath()}log-in`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-sign-up',
@@ -224,7 +221,7 @@ class AppShellNexodev {
               attrs: `data-id="sign-up"`,
               tabHref: `${getProxyPath()}sign-up`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-log-out',
@@ -236,7 +233,7 @@ class AppShellNexodev {
               attrs: `data-id="log-out"`,
               tabHref: `${getProxyPath()}log-out`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
               style: 'display: none',
             })}
             ${await BtnIcon.instance({
@@ -250,7 +247,7 @@ class AppShellNexodev {
               attrs: `data-id="account"`,
               tabHref: `${getProxyPath()}account`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-wallet',
@@ -262,7 +259,7 @@ class AppShellNexodev {
               attrs: `data-id="wallet"`,
               tabHref: `${getProxyPath()}wallet`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('wallet', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('wallet')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-recover hide',
@@ -274,7 +271,7 @@ class AppShellNexodev {
               attrs: `data-id="recover"`,
               tabHref: `${getProxyPath()}recover`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-default-management',
@@ -286,7 +283,7 @@ class AppShellNexodev {
               attrs: `data-id="default-management"`,
               tabHref: `${getProxyPath()}default-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('default-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('default-management')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-user-management',
@@ -298,7 +295,7 @@ class AppShellNexodev {
               attrs: `data-id="user-management"`,
               tabHref: `${getProxyPath()}user-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('user-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('user-management')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-instance-management',
@@ -310,7 +307,7 @@ class AppShellNexodev {
               attrs: `data-id="instance-management"`,
               tabHref: `${getProxyPath()}instance-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('instance-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('instance-management')),
             })}
             ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-cron-management',
@@ -329,7 +326,7 @@ class AppShellNexodev {
               attrs: `data-id="cron-management"`,
               tabHref: `${getProxyPath()}cron-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cron-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cron-management')),
             })}
           </div>
         </div>

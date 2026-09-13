@@ -56,10 +56,6 @@ class RouterCyberiaPortal {
         title: 'cyberia-entity-engine',
         render: () => s(`.main-btn-cyberia-entity-engine`).click(),
       },
-      '/fallback-world-engine': {
-        title: 'fallback-world-engine',
-        render: () => s(`.main-btn-fallback-world-engine`).click(),
-      },
       '/instance-selection': {
         title: 'instance-selection',
         render: () => s(`.main-btn-instance-selection`).click(),

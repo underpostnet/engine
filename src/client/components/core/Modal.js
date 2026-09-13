@@ -415,16 +415,18 @@ class Modal {
               },
               { key: `slide-menu-${idModal}` },
             );
-            // The fixed hamburger only opens the menu: it shows while the top bar is collapsed
-            // and the menu is closed. An open menu (50px or full) carries its own controls and
-            // already pushes the views aside, so neither the button nor the title padding apply.
+            // The fixed hamburger stands in for the top bar's while it is collapsed, opening and
+            // closing the menu alike. Its 50px corner is kept clear two ways: the menu content is
+            // padded down while it shows, and a view title is padded right only while the menu
+            // is closed — an open menu (50px or full) already pushes the views aside.
             const syncFixedMenuButton = () => {
               const fixed = s(`.main-btn-menu-top-fixed-container`);
               if (!fixed) return;
               const collapsed = s(`.main-body-btn-ui-close`) && s(`.main-body-btn-ui-close`).classList.contains('hide');
-              const active = collapsed && Modal.Data[idModal][options.mode].width === 0;
-              fixed.classList[active ? 'remove' : 'add']('hide');
-              s('body').classList[active ? 'add' : 'remove']('main-btn-menu-top-fixed-active');
+              const menuClosed = Modal.Data[idModal][options.mode].width === 0;
+              fixed.classList[collapsed ? 'remove' : 'add']('hide');
+              s('body').classList[collapsed ? 'add' : 'remove']('main-btn-menu-top-fixed-active');
+              s('body').classList[collapsed && menuClosed ? 'add' : 'remove']('main-btn-menu-top-fixed-title-offset');
             };
             barConfig.buttons.menu.onClick = () => {
               Modal.Data[idModal][options.mode].width = slideMenuWidth;
@@ -548,17 +550,24 @@ class Modal {
                       ${await BtnIcon.instance({
                         style: `height: 100%`,
                         class: `in fll main-btn-menu-top action-bar-box action-btn-center-top-fixed`,
-                        label: html`<div class="abs center">${barConfig.buttons.menu.label}</div>`,
+                        label: html`<div class="abs center">
+                          <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
+                          <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
+                        </div>`,
                       })}
                     </div>
                     <style>
+                      /* The menu content starts below the fixed hamburger while it shows. */
+                      body.main-btn-menu-top-fixed-active .html-${idModal} {
+                        padding-top: ${originHeightTopBar}px;
+                      }
                       /* View modals sit at top: 0 while the top bar is collapsed; keep their
                          title clear of the fixed hamburger. The padding eases at the same pace
                          the views slide so the title moves once, not a jump and a slide back. */
                       .title-main-modal {
                         transition: padding-left 0.3s;
                       }
-                      body.main-btn-menu-top-fixed-active .title-main-modal {
+                      body.main-btn-menu-top-fixed-title-offset .title-main-modal {
                         padding-left: ${originHeightTopBar}px;
                       }
                     </style>
@@ -2884,28 +2893,18 @@ const renderViewTitle = (
     </div>`;
 };
 
-const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
-  const option = {
-    id: `tooltip-content-main-btn-${id}`,
-    text: `${Translate.instance(`${id}`)}`,
-    classList: 'tooltip-menu',
-    style: { top: `-40px` },
-  };
-  switch (sideKey) {
-    case 'left':
-      option.style.left = '60px';
-
-      break;
-
-    case 'right':
-      option.style.right = '60px';
-      break;
-
-    default:
-      break;
-  }
-  return option;
-};
+/**
+ * Tooltip badge for a collapsed menu button. ToolTip places it beside the button on the side
+ * the menu leaves free, read from the menu mode when it shows — so a shell never pins an
+ * offset that only holds for one of 'slide-menu' or 'slide-menu-right'.
+ * @param {string} id - Translation key and tooltip id suffix.
+ * @param {'left'|'right'} [sideKey] - Forces the side the menu sits on; omit to follow the mode.
+ */
+const buildBadgeToolTipMenuOption = (id, sideKey) => ({
+  id: `tooltip-content-main-btn-${id}`,
+  text: `${Translate.instance(`${id}`)}`,
+  classList: `tooltip-menu${sideKey ? ` tooltip-menu-side-${sideKey}` : ''}`,
+});
 
 const isSubMenuOpen = (subMenuId) => {
   return s(`.down-arrow-submenu-${subMenuId}`) && s(`.down-arrow-submenu-${subMenuId}`).style.rotate === '180deg';

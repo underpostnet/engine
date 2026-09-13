@@ -53,22 +53,29 @@ const CssCommonCore = async () => {
       .btn-label-content {
         top: 15px;
       }
+      /* Badge: one dark chip in every theme, so its lettering is always white — a caller
+         only sets a color when it also sets the background (see Badge.instance style). */
       .badge {
         min-width: 20px;
         height: 20px;
         border-radius: 3px;
         background: #3b434b;
+        color: white;
         position: relative;
         font-size: 12px;
         font-family: arial;
       }
       .badge-text {
-        /* color: white; */
         padding: 3px 6px 0px 6px;
       }
       .badge-notification-circle-red {
         background: #bd0c0c;
         border-radius: 50%;
+      }
+      /* Unread dot over a menu button icon; the label reads left-to-right in both menu modes. */
+      .badge-notification-menu {
+        top: -33px;
+        left: 24px;
       }
       .top-box-profile-container {
         top: 0px;

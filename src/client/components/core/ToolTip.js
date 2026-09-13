@@ -58,6 +58,21 @@ class ToolTip {
       const tooltipRect = tooltipEl.getBoundingClientRect();
       let top = containerRect.bottom + window.scrollY + 5;
       let left = containerRect.left + window.scrollX + containerRect.width / 2 - tooltipRect.width / 2;
+      if (options.useMenuBtn) {
+        // Beside the collapsed menu button, on the side the menu leaves free: a right-hand menu
+        // sits on the window edge, so its tooltips open leftwards. A shell may pin the side.
+        const pinned = tooltipEl.querySelector('.tooltip-menu-side-right')
+          ? 'right'
+          : tooltipEl.querySelector('.tooltip-menu-side-left')
+            ? 'left'
+            : null;
+        const menuSide = pinned || (Modal.Data['modal-menu'].options.mode === 'slide-menu-right' ? 'right' : 'left');
+        top = containerRect.top + window.scrollY + (containerRect.height - tooltipRect.height) / 2;
+        left =
+          menuSide === 'right'
+            ? containerRect.left + window.scrollX - tooltipRect.width - 10
+            : containerRect.right + window.scrollX + 10;
+      }
       // Adjust if it goes off-screen
       if (left < 0) left = 5;
       if (left + tooltipRect.width > window.innerWidth) {

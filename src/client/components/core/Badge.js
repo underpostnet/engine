@@ -7,7 +7,6 @@ class Badge {
   static async instance(options = { id: '', type: 'circle-red', classList: '', text: '', style: '' }) {
     if (!options.id) options.id = getId(Badge.Tokens, 'badge-');
     else options.id = 'badge-' + options.id;
-    if (options && options.style && !options.style.color) options.style.color = 'white';
     if (!options.classList) options.classList = '';
     const { id, type } = options;
     Badge.Tokens[id] = { ...options };
