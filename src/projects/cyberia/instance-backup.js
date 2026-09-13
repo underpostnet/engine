@@ -167,6 +167,26 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options }) {
   if (!existing && objectLayer._id) await ObjectLayer.deleteOne({ _id: objectLayer._id });
   await ObjectLayer.upsertByItemId(objectLayer);
 
+  // An atlas restored without its minified render cannot be served, and a render cut from the
+  // frames alone is refused wherever the stored layout moved: regenerate the whole atlas from
+  // the frames just restored, and relink the object layer to it.
+  if (atlas && !atlas.minifyFileId && renderFrames) {
+    const live = await ObjectLayer.findByItemId(itemId);
+    const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+      itemKey: itemId,
+      objectLayerRenderFrames: renderFrames,
+      options,
+    });
+    live.atlasSpriteSheetId = atlasDoc._id;
+    if (!live.data.render) live.data.render = {};
+    live.data.render.cid = atlasCid;
+    live.data.render.metadataCid = atlasMetadataCid;
+    live.markModified('data.render');
+    await live.save();
+    await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer: live, options });
+    logger.info(`Rebuilt the atlas of '${itemId}': the backup carried no minified render`);
+  }
+
   // 3. The static frame PNGs the web client serves, from the same render frames.
   let staticFiles = 0;
   const itemType = objectLayer.data?.item?.type;

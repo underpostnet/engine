@@ -2986,8 +2986,10 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   if (fs.existsSync(replicaSrcDir))
     for (const entry of fs.readdirSync(replicaSrcDir))
       if (entry.match(deployId)) fs.copySync(`${replicaSrcDir}/${entry}`, `${privateRepoPath}/replica/${entry}`);
-
-  for (const extraPath of extraPaths) fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
+  for (const extraPath of extraPaths) {
+    fs.removeSync(`${privateRepoPath}/${extraPath}`);
+    fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
+  }
 
   shellExec(
     `cd ${privateRepoPath}` +

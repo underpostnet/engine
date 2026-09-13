@@ -712,6 +712,23 @@ describe('private conf sync', () => {
     expect(copied).to.include('./engine-private/catalog/items.json -> ../engine-core-private/catalog/items.json');
   });
 
+  // Regression: an instance backup that dropped an item left the item's stale atlas in the
+  // mirror, and the pod restored it over the current one from another instance.
+  it('replaces each payload entry in the checkout instead of merging into it', () => {
+    const calls = [];
+    checkout({ present: true });
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    vi.spyOn(fs, 'removeSync').mockImplementation((target) => calls.push(`remove ${target}`));
+    vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => calls.push(`copy ${src} -> ${dest}`));
+    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core', ['cyberia-instances/TEST']));
+    const remove = calls.indexOf('remove ../engine-core-private/cyberia-instances/TEST');
+    const copy = calls.indexOf(
+      'copy ./engine-private/cyberia-instances/TEST -> ../engine-core-private/cyberia-instances/TEST',
+    );
+    expect(remove).to.be.greaterThan(-1);
+    expect(copy).to.be.greaterThan(remove);
+  });
+
   it('mirrors the cron conf the checkout declares', () => {
     const copied = [];
     checkout({ present: true, cronId: 'dd-cron' });

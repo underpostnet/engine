@@ -2703,6 +2703,7 @@ try {
 
         // 3. Import AtlasSpriteSheet
         const atlasDir = `${backupDir}/atlas-sprite-sheets`;
+        const atlasesWithoutMinify = new Set();
         if (fs.existsSync(atlasDir)) {
           const atlasFiles = fs.readdirSync(atlasDir).filter((f) => f.endsWith('.json'));
           let atlasCount = 0;
@@ -2717,10 +2718,14 @@ try {
           }
           logger.info(`Imported ${atlasCount} AtlasSpriteSheet document(s)`);
           // A backup from before the still existed restores without one; cut each from its render.
+          // An atlas restored without its minified render is rebuilt whole once its object
+          // layer is in place, below.
           let stillCount = 0;
           for (const f of atlasFiles) {
-            const itemKey = fs.readJsonSync(`${atlasDir}/${f}`).metadata?.itemKey;
+            const atlasData = fs.readJsonSync(`${atlasDir}/${f}`);
+            const itemKey = atlasData.metadata?.itemKey;
             if (!itemKey) continue;
+            if (!atlasData.minifyFileId) atlasesWithoutMinify.add(itemKey);
             const { status } = await AtlasSpriteSheetStore.syncIdlePreview({ itemKey, options: { host, path } });
             if (status === 'updated') stillCount++;
           }
@@ -2755,6 +2760,36 @@ try {
             olCount++;
           }
           logger.info(`Imported ${olCount} ObjectLayer document(s)`);
+        }
+
+        // 4a. An atlas the backup restored without its minified render cannot be served: the
+        //     client runtime pairs the blob with the metadata, so a render cut from the frames
+        //     alone would be refused wherever the stored layout moved. Regenerate the whole
+        //     atlas from the frames the backup carries, and relink the object layer to it the
+        //     way `ol --to-atlas-sprite-sheet` does.
+        for (const itemKey of atlasesWithoutMinify) {
+          try {
+            const objectLayer = await ObjectLayer.findByItemId(itemKey).populate('objectLayerRenderFramesId');
+            if (!objectLayer?.objectLayerRenderFramesId) {
+              logger.warn(`Backup atlas '${itemKey}' has no minified render and no render frames to rebuild it from`);
+              continue;
+            }
+            const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+              itemKey,
+              objectLayerRenderFrames: objectLayer.objectLayerRenderFramesId,
+              options: { host, path },
+            });
+            objectLayer.atlasSpriteSheetId = atlasDoc._id;
+            if (!objectLayer.data.render) objectLayer.data.render = {};
+            objectLayer.data.render.cid = atlasCid;
+            objectLayer.data.render.metadataCid = atlasMetadataCid;
+            objectLayer.markModified('data.render');
+            await objectLayer.save();
+            await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer, options: { host, path } });
+            logger.info(`Rebuilt the atlas of '${itemKey}': the backup carried no minified render`);
+          } catch (rebuildError) {
+            logger.error(`Atlas rebuild failed for '${itemKey}': ${rebuildError.message}`);
+          }
         }
 
         // 4b. Regenerate static frame PNGs from imported render-frames + object-layer documents.

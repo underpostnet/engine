@@ -1,8 +1,43 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { atlasBackupFileKey, readObjectLayerBackup } from '../../src/projects/cyberia/instance-backup.js';
+
+// The restore path only routes documents; the collections are in-memory stand-ins, IPFS is
+// unreachable, and the static frame writer is a no-op, so what is asserted is the routing.
+const models = {};
+vi.mock('../../src/db/DataBaseProvider.js', () => ({
+  DataBaseProviderService: { getModel: (name) => models[name] },
+}));
+vi.mock('../../src/api/ipfs/ipfs.service.js', () => ({ createPinRecord: async () => ({}) }));
+vi.mock('../../src/projects/cyberia/ipfs-client.js', () => ({ IpfsClient: { addToIpfs: async () => null } }));
+vi.mock('../../src/projects/cyberia/object-layer.js', () => ({
+  ObjectLayerEngine: { writeStaticFrameAssets: async () => [], computeAndSaveFinalSha256: async () => ({}) },
+}));
+
+const { AtlasSpriteSheetStore } = await import('../../src/projects/cyberia/atlas-sprite-sheet-store.js');
+const { atlasBackupFileKey, readObjectLayerBackup, restoreObjectLayerBackup } =
+  await import('../../src/projects/cyberia/instance-backup.js');
+
+/** A collection that remembers what was created and hands the last upsert back as the live document. */
+const collection = () => {
+  const created = [];
+  let live = null;
+  const query = (value) => Object.assign(Promise.resolve(value), { populate: () => Promise.resolve(value) });
+  return {
+    created,
+    deleteOne: async () => ({ deletedCount: 0 }),
+    create: async (doc) => (created.push(doc), doc),
+    findByItemId: () => query(live),
+    upsertByItemId: async (doc) => {
+      live = { ...doc, markModified() {}, save: async () => live };
+      return live;
+    },
+    get live() {
+      return live;
+    },
+  };
+};
 
 let backupDir;
 const write = (rel, value) => writeFile(join(backupDir, rel), Buffer.isBuffer(value) ? value : JSON.stringify(value));
@@ -90,5 +125,53 @@ describe('reading one object layer out of an instance backup', () => {
     expect(backup.renderFrames).toBeNull();
     expect(backup.files).toEqual([]);
     expect(backup.payloads.size).toBe(0);
+  });
+});
+
+describe('restoring one object layer from an instance backup', () => {
+  let persist;
+  let idle;
+
+  beforeEach(() => {
+    for (const name of ['ObjectLayer', 'ObjectLayerRenderFrames', 'AtlasSpriteSheet', 'File'])
+      models[name] = collection();
+    persist = vi.spyOn(AtlasSpriteSheetStore, 'persist').mockResolvedValue({
+      atlasDoc: { _id: 'at-rebuilt' },
+      atlasCid: 'cid-rebuilt-png',
+      atlasMetadataCid: 'cid-rebuilt-meta',
+    });
+    idle = vi.spyOn(AtlasSpriteSheetStore, 'syncIdlePreview').mockResolvedValue({ status: 'unchanged' });
+    vi.spyOn(AtlasSpriteSheetStore, 'pruneOrphanRenders').mockResolvedValue(0);
+  });
+
+  afterAll(() => vi.restoreAllMocks());
+
+  it('keeps the atlas the backup carries when it holds its minified render', async () => {
+    await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
+    expect(models.AtlasSpriteSheet.created[0].minifyFileId).toBe('f-min');
+    expect(persist).not.toHaveBeenCalled();
+    expect(idle).toHaveBeenCalledWith({ itemKey: 'hatchet', options: {} });
+    expect(models.ObjectLayer.live.data.render).toEqual({ cid: 'cid-png', metadataCid: 'cid-meta' });
+  });
+
+  // Regression: a backup written before the minified render existed restored an atlas the
+  // blob route could not serve, and the client runtime got a 500 for every entity wearing it.
+  it('rebuilds the atlas a backup restores without its minified render and relinks the item', async () => {
+    await write('object-layers/relic.json', {
+      _id: 'ol3',
+      objectLayerRenderFramesId: 'rf3',
+      atlasSpriteSheetId: 'at3',
+      data: { item: { id: 'relic', type: 'skin' }, render: { cid: 'cid-old-png', metadataCid: 'cid-old-meta' } },
+    });
+    const frames = { _id: 'rf3', frames: { down_idle: [] }, colors: [], frame_duration: 100 };
+    await write('render-frames/relic.json', frames);
+    await write('atlas-sprite-sheets/relic.json', { _id: 'at3', fileId: 'f-relic', minifyFileId: null });
+
+    await restoreObjectLayerBackup({ backupDir, itemId: 'relic', options: {} });
+
+    expect(persist).toHaveBeenCalledWith({ itemKey: 'relic', objectLayerRenderFrames: frames, options: {} });
+    const { live } = models.ObjectLayer;
+    expect(live.atlasSpriteSheetId).toBe('at-rebuilt');
+    expect(live.data.render).toEqual({ cid: 'cid-rebuilt-png', metadataCid: 'cid-rebuilt-meta' });
   });
 });
