@@ -37,15 +37,16 @@ cyberia ol [item-id] [options]
 
 | Option                                                                               | Description                                                                |
 | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `--import`                                                                           | Import specific item-id(s), comma-separated, from the asset directory      |
-| `--import-types [types]`                                                             | Batch import by type (e.g. `skin,floors`) or `all`                         |
+| `--import`                                                                           | Import specific item-id(s), comma-separated; needs one source below        |
+| `--instance <code>`                                                                  | Source `--import` from that instance backup under `engine-private`         |
+| `--from-directory`                                                                   | Source `--import` / `--import-types` from the asset directory              |
+| `--import-types [types]`                                                             | Batch import by type (e.g. `skin,floors`) or `all`; needs `--from-directory` |
 | `--generate`                                                                         | Generate procedural layers from a semantic item-id (e.g. `floor-desert`)   |
 | `--count <n>` / `--density <0..1>`                                                   | Shape count multiplier (default `3`) / density (default `0.5`)             |
 | `--seed <seed>`                                                                      | Deterministic seed for `--generate` (e.g. `fx-42`)                         |
 | `--frame-index <n>` / `--frame-count <n>`                                            | Start frame (default `0`) / frame count (default `1`)                      |
 | `--to-atlas-sprite-sheet [dim]`                                                      | Rebuild both atlas renders for the selected items                          |
-| `--minify`                                                                           | Refresh the minified atlas render the client downloads                     |
-| `--instance <code>`                                                                  | Narrows `--minify` and `--to-atlas-sprite-sheet` to one instance           |
+| `--minify`                                                                           | Refresh the minified render and the idle still; `--instance` narrows it    |
 | `--upscale <px-factor>`                                                              | Pixels per cell of the human-resolution render; alone, rebuilds it         |
 | `--normalize-stats`                                                                  | Clamp the stats of every layer the action writes to its item type's bounds |
 | `--random-stats`                                                                     | Regenerate the stats of every layer the action writes at random            |
@@ -54,15 +55,18 @@ cyberia ol [item-id] [options]
 | `--show-atlas-sprite-sheet`                                                          | Display the atlas PNG for the item                                         |
 | `--drop`                                                                             | Drop existing data before importing (or standalone)                        |
 | `--client-public` / `--git-clean`                                                    | With `--drop`: also remove static asset folders / run clean                |
-| `--env-path <path>` · `--mongo-host <host>` · `--dev` · `--storage-file-path <path>` | env / DB / dev / filter overrides                                          |
+| `--env-path <path>` · `--mongo-host <host>` · `--dev`                                | env / DB / dev overrides                                                   |
 
 ```bash
-# Import specific items
-cyberia ol hatchet,sword --import --env-path ./engine-private/conf/dd-cyberia/.env.development
+# Restore specific items from an instance backup: the backup is the authority for the item
+cyberia ol hatchet,sword --instance FOREST --import
 
-# Batch import by type, or everything
-cyberia ol --import-types skin,floors
-cyberia ol --import-types all
+# Import specific items from the asset directory
+cyberia ol hatchet,sword --from-directory --import --env-path ./engine-private/conf/dd-cyberia/.env.development
+
+# Batch import by type, or everything, from the asset directory
+cyberia ol --from-directory --import-types skin,floors
+cyberia ol --from-directory --import-types all
 
 # Procedural generation
 cyberia ol floor-desert --generate --seed fx-42
@@ -77,16 +81,16 @@ cyberia ol hatchet --to-atlas-sprite-sheet --upscale 40
 cyberia ol --instance TEST --upscale 20
 cyberia ol --to-atlas-sprite-sheet
 
-# Refresh the minified render the client downloads
+# Refresh the minified render the client downloads and the idle still every preview shows
 cyberia ol hatchet --minify
 cyberia ol --minify --instance FOREST
 
 # Balance stats on every layer an action writes
 cyberia ol --minify --instance FOREST --normalize-stats
-cyberia ol hatchet --import --random-stats --normalize-stats --max-stat 10
+cyberia ol hatchet --from-directory --import --random-stats --normalize-stats --max-stat 10
 
 # Drop + re-import a single item, including static folders
-cyberia ol hatchet --drop --client-public --import
+cyberia ol hatchet --drop --client-public --from-directory --import
 ```
 
 ---
@@ -237,7 +241,7 @@ Map, action and quest codes are namespaced under the instance code (`fallback-ma
 `PROC-1-map-0`) so successive captures never overwrite each other; `--keep-fallback-codes` writes
 the canonical codes verbatim instead. Sprites are the one thing a capture cannot synthesise: when a
 referenced item id has no `ObjectLayer` document the command aborts and names the ids to import with
-`cyberia ol <ids> --import`. Staged fallback default items live only in the serving engine process,
+`cyberia ol <ids> --from-directory --import`. Staged fallback default items live only in the serving engine process,
 so pass `--fallback-url http://localhost:4001` to capture a live world rather than regenerating it.
 
 ---

@@ -351,7 +351,11 @@ try {
     .option('--show-atlas-sprite-sheet', 'Show consolidated atlas sprite sheet PNG for given item-id')
     .option(
       '--import',
-      'Import specific item-id(s) passed as comma-separated command argument (e.g. ol hatchet,sword --import)',
+      'Import specific item-id(s) passed as comma-separated command argument (e.g. ol hatchet,sword --instance FOREST --import); with --from-directory, from the asset directory instead',
+    )
+    .option(
+      '--from-directory',
+      'Source --import and --import-types from src/client/public/cyberia/assets/<type>/<item-id>/<direction>/<frame>.png',
     )
     .option(
       '--minify',
@@ -384,7 +388,10 @@ try {
       `Pixels per cell of the human-resolution atlas render; on its own it rebuilds that render (default: ${DEFAULT_ATLAS_UPSCALE_FACTOR})`,
       parseInt,
     )
-    .option('--import-types [object-layer-type]', 'Batch import by object layer type e.g. skin,floors or all')
+    .option(
+      '--import-types [object-layer-type]',
+      'Batch import by object layer type from the asset directory, needs --from-directory (e.g. skin,floors or all)',
+    )
     .option('--show-frame [direction-frame]', 'View object layer frame for given item-id e.g. 08_0 (default: 08_0)')
     .option('--generate', 'Generate procedural object layers from semantic item-id (e.g. floor-desert)')
     .option('--count <count>', 'Shape element count multiplier for --generate (default: 3)', parseFloat)
@@ -394,7 +401,6 @@ try {
     .option('--density <density>', 'Density factor 0..1 for --generate (default: 0.5)', parseFloat)
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
-    .option('--storage-file-path <storage-file-path>', 'Storage file path override')
     .option('--drop', 'Drop existing data before importing')
     .option('--client-public', 'When used with --drop, also remove static asset folders for dropped items')
     .option('--git-clean', 'When used with --drop, run underpost clean on the cyberia asset directory')
@@ -407,6 +413,7 @@ try {
        * @param {string|undefined} itemId - Optional item ID argument.
        * @param {Object} options - Command options parsed by Commander.
        * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
+       * @param {boolean} options.fromDirectory - Source --import and --import-types from the asset directory.
        * @param {boolean} options.minify - Refresh the minified atlas render of stored item(s).
        * @param {string} options.instance - Instance code whose object layers --minify reprocesses.
        * @param {boolean} options.normalizeStats - Clamp the stats of every object layer the action writes to its type's bounds.
@@ -418,7 +425,6 @@ try {
        * @param {boolean|string} options.showFrame - Direction-frame string (e.g., '08_0') or `true` for default.
        * @param {string} options.envPath - Path to the `.env` file.
        * @param {string} options.mongoHost - MongoDB host override.
-       * @param {string} options.storageFilePath - Path to a storage filter JSON file.
        * @param {boolean|string} options.toAtlasSpriteSheet - Atlas dimension or `true` for auto-calc.
        * @param {boolean} options.showAtlasSpriteSheet - Whether to display the atlas sprite sheet.
        * @param {boolean} options.drop - Whether to drop existing data before importing.
@@ -438,6 +444,7 @@ try {
         itemId,
         options = {
           import: false,
+          fromDirectory: false,
           minify: false,
           instance: '',
           upscale: DEFAULT_ATLAS_UPSCALE_FACTOR,
@@ -447,7 +454,6 @@ try {
           showFrame: '',
           envPath: '',
           mongoHost: '',
-          storageFilePath: '',
           toAtlasSpriteSheet: '',
           showAtlasSpriteSheet: false,
           drop: false,
@@ -706,9 +712,6 @@ try {
           }
         }
 
-        /** @type {Object|null} */
-        const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
-
         // ── Handle --minify (stored item-id(s)) ──────────────────────────
         // Refreshes only the minified atlas render, the one the client runtime
         // downloads. It reads its item ids from the collection, so it never
@@ -804,14 +807,27 @@ try {
           logger.info(`Instance restore done: ${restored}/${itemIds.length} item(s)`);
         }
 
-        // ── Handle --import (specific item-id(s)) ────────────────────────
-        if (options.import && !options.instance) {
+        if (options.import && !options.instance === !options.fromDirectory) {
+          logger.error(
+            '--import takes exactly one source: --instance <code> for a backup, or --from-directory for the asset tree',
+          );
+          process.exit(1);
+        }
+        if (options.importTypes && !options.fromDirectory) {
+          logger.error('--import-types reads the asset tree and needs --from-directory');
+          process.exit(1);
+        }
+
+        // ── Handle --import --from-directory (specific item-id(s)) ────────
+        if (options.import && options.fromDirectory) {
           const itemIds = parseItemIds(itemId);
           if (itemIds.length === 0) {
-            logger.error('item-id is required for --import (comma-separated item IDs, e.g. ol hatchet,sword --import)');
+            logger.error(
+              'item-id is required for --import --from-directory (comma-separated item IDs, e.g. ol hatchet,sword --from-directory --import)',
+            );
             process.exit(1);
           }
-          logger.info(`Importing specific item(s): ${itemIds.join(', ')}`);
+          logger.info(`Importing specific item(s) from the asset directory: ${itemIds.join(', ')}`);
 
           for (const currentItemId of itemIds) {
             const found = findAssetFolder(currentItemId);
@@ -884,12 +900,6 @@ try {
             await pngDirectoryIteratorByObjectLayerType(
               argItemType,
               async ({ path: framePath, objectLayerType, objectLayerId, direction, frame }) => {
-                if (
-                  storage &&
-                  !storage[`src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/08/0.png`]
-                )
-                  return;
-
                 // Skip items that already exist in the database (bulk import only)
                 if (isImportAll && existingItemIds.has(objectLayerId)) return;
 
@@ -1763,7 +1773,7 @@ try {
           logger.error(
             `Capture aborted: ${capture.missingObjectLayerItemIds.length} referenced item id(s) have no ObjectLayer in MongoDB:`,
             capture.missingObjectLayerItemIds.join(', '),
-            `— run \`node bin/cyberia ol ${capture.missingObjectLayerItemIds.join(' ')} --import\` (or ` +
+            `— run \`node bin/cyberia ol ${capture.missingObjectLayerItemIds.join(',')} --from-directory --import\` (or ` +
               '`node bin/cyberia run-workflow import-default-items`) first.',
           );
           await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
