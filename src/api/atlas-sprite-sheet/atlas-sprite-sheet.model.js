@@ -69,16 +69,20 @@ const DirectionFramesSchema = new Schema(
   { _id: false },
 );
 /**
- * One atlas per item key, kept in two renders of one layout.
+ * One atlas per item key, kept in two renders of one layout, plus the still that
+ * stands in for the item wherever a single picture is wanted.
  *
  * `fileId` is the human-resolution PNG, at `metadata.upscaleFactor` pixels per
  * cell. `minifyFileId` is the PNG the client runtime downloads through
  * `GET /atlas-sprite-sheet/blob/:itemKey`, at `metadata.cellPixelDim` pixels per
  * cell. `metadata` describes the minified render, so blob and metadata agree.
+ * `idlePreviewFileId` is the first down-idle frame cut out of `fileId`, served by
+ * `GET /atlas-sprite-sheet/idle-preview/:itemKey` to every editor and overlay.
  *
  * @typedef {Object} AtlasSpriteSheet
  * @property {Types.ObjectId} fileId - Reference to the human-resolution PNG File document
  * @property {Types.ObjectId} [minifyFileId] - Reference to the minified PNG File document
+ * @property {Types.ObjectId} [idlePreviewFileId] - Reference to the down-idle still File document
  * @property {string} [cid] - IPFS Content Identifier for the atlas PNG
  * @property {Object} metadata - Atlas sprite sheet metadata
  * @property {string} metadata.itemKey - Item identifier key for texture reference
@@ -101,6 +105,12 @@ const AtlasSpriteSheetSchema = new Schema(
     },
     // Absent until `cyberia ol --minify` renders it for this item.
     minifyFileId: {
+      type: Schema.Types.ObjectId,
+      ref: 'File',
+      default: null,
+    },
+    // The down-idle still every preview reads; absent until an atlas write fills it.
+    idlePreviewFileId: {
       type: Schema.Types.ObjectId,
       ref: 'File',
       default: null,
@@ -130,6 +140,7 @@ const AtlasSpriteSheetSchema = new Schema(
 AtlasSpriteSheetSchema.index({ 'metadata.itemKey': 1 }, { unique: true });
 AtlasSpriteSheetSchema.index({ fileId: 1 });
 AtlasSpriteSheetSchema.index({ minifyFileId: 1 });
+AtlasSpriteSheetSchema.index({ idlePreviewFileId: 1 });
 // Pre-save validation
 AtlasSpriteSheetSchema.pre('save', function () {
   if (!this.fileId || !this.metadata) {
@@ -145,6 +156,7 @@ class AtlasSpriteSheetDto {
         _id: 1,
         fileId: 1,
         minifyFileId: 1,
+        idlePreviewFileId: 1,
         cid: 1,
         metadata: 1,
         createdAt: 1,

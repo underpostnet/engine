@@ -1,7 +1,7 @@
 /**
  * Persistence for the atlas sprite sheet of one object layer item.
  *
- * Owns the AtlasSpriteSheet document, the two File blobs it points at, and the
+ * Owns the AtlasSpriteSheet document, the File blobs it points at, and the
  * IPFS pins of the atlas PNG and its metadata. Every writer — the REST service
  * and the Cyberia CLI — goes through here, so one item key always resolves to
  * one atlas.
@@ -31,7 +31,7 @@ export const ATLAS_FILE_FIELDS = fileRefFields('atlas-sprite-sheet');
  * @constant {RegExp}
  * @memberof CyberiaAtlasSpriteSheetStore
  */
-const ATLAS_RENDER_NAME = /-(atlas|minify)\.png$/;
+const ATLAS_RENDER_NAME = /-(atlas|minify|idle)\.png$/;
 
 /**
  * MFS paths of the IPFS content an item key owns.
@@ -53,7 +53,7 @@ export const atlasMfsPaths = (itemKey) => ({
  * id, and the writer deletes the one it replaced.
  *
  * @param {string} itemKey - Object layer item id.
- * @param {string} role - Render role, `atlas` or `minify`.
+ * @param {string} role - Render role: `atlas`, `minify` or `idle`.
  * @param {string} md5 - Hex MD5 of the PNG bytes.
  * @returns {import('mongoose').Types.ObjectId}
  * @memberof CyberiaAtlasSpriteSheetStore
@@ -67,7 +67,7 @@ const atlasFileId = (itemKey, role, md5) =>
  *
  * @param {Object} File - Mongoose File model.
  * @param {string} itemKey - Object layer item id.
- * @param {string} role - Render role, `atlas` or `minify`.
+ * @param {string} role - Render role: `atlas`, `minify` or `idle`.
  * @param {Buffer} buffer - PNG bytes.
  * @returns {Promise<import('mongoose').Types.ObjectId>} The File id.
  * @memberof CyberiaAtlasSpriteSheetStore
@@ -77,6 +77,22 @@ const upsertRenderFile = async (File, itemKey, role, buffer) => {
   const _id = atlasFileId(itemKey, role, payload.md5);
   await File.updateOne({ _id }, { $setOnInsert: { ...payload, _id } }, { upsert: true });
   return _id;
+};
+
+/**
+ * Writes the idle-preview still cut from a human-resolution render, or returns null
+ * for an atlas with no frame to cut.
+ *
+ * @param {Object} File - Mongoose File model.
+ * @param {string} itemKey - Object layer item id.
+ * @param {Buffer} buffer - PNG bytes of the human-resolution render.
+ * @param {Object} metadata - Atlas metadata describing that render's layout.
+ * @returns {Promise<import('mongoose').Types.ObjectId|null>}
+ * @memberof CyberiaAtlasSpriteSheetStore
+ */
+const upsertIdlePreview = async (File, itemKey, buffer, metadata) => {
+  const still = await AtlasSpriteSheetGenerator.idlePreviewFromAtlas(buffer, metadata);
+  return still ? await upsertRenderFile(File, itemKey, 'idle', still) : null;
 };
 
 /**
@@ -187,6 +203,7 @@ export class AtlasSpriteSheetStore {
 
     const fileId = await upsertRenderFile(File, itemKey, 'atlas', buffer);
     const minifyFileId = await upsertRenderFile(File, itemKey, 'minify', minifyBuffer);
+    const idlePreviewFileId = await upsertIdlePreview(File, itemKey, buffer, metadata);
 
     const mfsPaths = atlasMfsPaths(itemKey);
     const atlasCid = await pin({
@@ -205,14 +222,15 @@ export class AtlasSpriteSheetStore {
     let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
     const previousFileIds = atlasDoc ? ATLAS_FILE_FIELDS.map((field) => atlasDoc[field]) : [];
 
+    const renders = { fileId, minifyFileId, idlePreviewFileId };
     if (atlasDoc) {
-      atlasDoc.set({ fileId, minifyFileId, cid: atlasCid, metadata });
+      atlasDoc.set({ ...renders, cid: atlasCid, metadata });
       await atlasDoc.save();
     } else {
-      atlasDoc = await new AtlasSpriteSheet({ fileId, minifyFileId, cid: atlasCid, metadata }).save();
+      atlasDoc = await new AtlasSpriteSheet({ ...renders, cid: atlasCid, metadata }).save();
     }
 
-    await deleteReplacedFiles(File, previousFileIds, [fileId, minifyFileId]);
+    await deleteReplacedFiles(File, previousFileIds, Object.values(renders));
 
     return { atlasDoc, metadata, atlasCid, atlasMetadataCid };
   }
@@ -336,5 +354,38 @@ export class AtlasSpriteSheetStore {
     await deleteReplacedFiles(File, [previousId], [minifyFileId]);
 
     return { status: 'updated', minifyFileId };
+  }
+
+  /**
+   * Fills or refreshes the idle-preview still of a stored atlas from the render it already
+   * holds, so an atlas written before the still existed gains one without a regeneration.
+   *
+   * @static
+   * @param {Object} params
+   * @param {string} params.itemKey - Object layer item id.
+   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @returns {Promise<{ status: 'updated'|'unchanged'|'missing', idlePreviewFileId?: import('mongoose').Types.ObjectId }>}
+   * @memberof CyberiaAtlasSpriteSheetStore
+   */
+  static async syncIdlePreview({ itemKey, options }) {
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
+    const File = DataBaseProviderService.getModel('File', options);
+
+    const atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
+    // Hydrated, not lean: a lean read hands back a BSON Binary the decoder cannot open.
+    const render = atlasDoc?.fileId ? await File.findById(atlasDoc.fileId) : null;
+    if (!render?.data) return { status: 'missing' };
+
+    const metadata = atlasDoc.metadata.toObject ? atlasDoc.metadata.toObject() : atlasDoc.metadata;
+    const previousId = atlasDoc.idlePreviewFileId;
+    const idlePreviewFileId = await upsertIdlePreview(File, itemKey, Buffer.from(render.data), metadata);
+    if (previousId && String(previousId) === String(idlePreviewFileId)) {
+      return { status: 'unchanged', idlePreviewFileId };
+    }
+
+    await AtlasSpriteSheet.updateOne({ _id: atlasDoc._id }, { $set: { idlePreviewFileId } });
+    await deleteReplacedFiles(File, [previousId], [idlePreviewFileId]);
+
+    return { status: 'updated', idlePreviewFileId };
   }
 }

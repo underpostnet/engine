@@ -3,7 +3,8 @@
     "api": "atlas-sprite-sheet",
     "model": {
       "fileId": true,
-      "minifyFileId": true
+      "minifyFileId": true,
+      "idlePreviewFileId": true
     }
   },
   {

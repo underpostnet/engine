@@ -23,6 +23,11 @@ class AtlasSpriteSheetRouter {
       async (req, res) => await AtlasSpriteSheetController.deleteByObjectLayerId(req, res, options),
     );
     router.get(`/blob/:itemKey`, async (req, res) => await AtlasSpriteSheetController.blob(req, res, options));
+    // The down-idle still of an item, for every editor and overlay that shows one picture of it.
+    router.get(
+      `/idle-preview/:itemKey`,
+      async (req, res) => await AtlasSpriteSheetController.idlePreview(req, res, options),
+    );
     // Metadata endpoints: returns itemKey, atlasWidth, atlasHeight, cellPixelDim, frames (no fileId).
     // Client fetches /metadata/:itemKey once, caches it, then fetches /blob/:itemKey for the PNG.
     router.get(

@@ -38,6 +38,9 @@ class FakeFiles {
     for (const id of $in) this.docs.delete(String(id));
     return { deletedCount: $in.length };
   }
+  async findById(id) {
+    return this.docs.get(String(id)) ?? null;
+  }
   get size() {
     return this.docs.size;
   }
@@ -97,7 +100,7 @@ describe('atlas sprite sheet store', () => {
     newAtlasModel(files);
   });
 
-  it('stores both renders and describes the minified one', async () => {
+  it('stores both renders, the idle still, and describes the minified one', async () => {
     const { atlasDoc } = await AtlasSpriteSheetStore.persist({
       itemKey: 'hatchet',
       objectLayerRenderFrames: twoFrames,
@@ -106,20 +109,20 @@ describe('atlas sprite sheet store', () => {
 
     expect(atlasDoc.metadata.cellPixelDim).toBe(1);
     expect(atlasDoc.metadata.upscaleFactor).toBe(20);
-    expect(String(atlasDoc.fileId)).not.toBe(String(atlasDoc.minifyFileId));
-    expect(files.size).toBe(2);
-    expect(files.has(atlasDoc.fileId)).toBe(true);
-    expect(files.has(atlasDoc.minifyFileId)).toBe(true);
+    const ids = [atlasDoc.fileId, atlasDoc.minifyFileId, atlasDoc.idlePreviewFileId].map(String);
+    expect(new Set(ids).size).toBe(3);
+    expect(files.size).toBe(3);
+    for (const id of ids) expect(files.has(id)).toBe(true);
   });
 
   it('leaves the same item untouched when persist reruns on unchanged frames', async () => {
+    const renders = (doc) => [doc.fileId, doc.minifyFileId, doc.idlePreviewFileId].map(String);
     const first = await AtlasSpriteSheetStore.persist({ itemKey: 'hatchet', objectLayerRenderFrames: twoFrames });
-    const before = [String(first.atlasDoc.fileId), String(first.atlasDoc.minifyFileId)];
 
     const second = await AtlasSpriteSheetStore.persist({ itemKey: 'hatchet', objectLayerRenderFrames: twoFrames });
 
-    expect([String(second.atlasDoc.fileId), String(second.atlasDoc.minifyFileId)]).toEqual(before);
-    expect(files.size).toBe(2);
+    expect(renders(second.atlasDoc)).toEqual(renders(first.atlasDoc));
+    expect(files.size).toBe(3);
   });
 
   it('deletes the File it replaces when the upscale factor changes', async () => {
@@ -130,6 +133,7 @@ describe('atlas sprite sheet store', () => {
     });
     const firstFileId = String(first.atlasDoc.fileId);
     const firstMinifyFileId = String(first.atlasDoc.minifyFileId);
+    const firstIdlePreviewFileId = String(first.atlasDoc.idlePreviewFileId);
 
     const second = await AtlasSpriteSheetStore.persist({
       itemKey: 'hatchet',
@@ -139,9 +143,49 @@ describe('atlas sprite sheet store', () => {
 
     expect(String(second.atlasDoc.fileId)).not.toBe(firstFileId);
     expect(files.has(firstFileId)).toBe(false);
-    // The minified render does not move with the upscale factor.
+    // The minified render does not move with the upscale factor; the still, cut from the
+    // human-resolution render, does.
     expect(String(second.atlasDoc.minifyFileId)).toBe(firstMinifyFileId);
-    expect(files.size).toBe(2);
+    expect(String(second.atlasDoc.idlePreviewFileId)).not.toBe(firstIdlePreviewFileId);
+    expect(files.has(firstIdlePreviewFileId)).toBe(false);
+    expect(files.size).toBe(3);
+  });
+
+  it('cuts the still from the down-idle frame, and from any frame when there is none', async () => {
+    const { atlasDoc } = await AtlasSpriteSheetStore.persist({
+      itemKey: 'hatchet',
+      objectLayerRenderFrames: twoFrames,
+    });
+    expect(atlasDoc.idlePreviewFileId).toBeTruthy();
+
+    const onlyUp = renderFrames({ up_idle: [frame] });
+    const { atlasDoc: upOnly } = await AtlasSpriteSheetStore.persist({
+      itemKey: 'hatchet',
+      objectLayerRenderFrames: onlyUp,
+    });
+    expect(upOnly.idlePreviewFileId).toBeTruthy();
+  });
+
+  it('fills a missing still from the render the atlas already holds, then is a no-op', async () => {
+    const atlases = models.AtlasSpriteSheet.store;
+    await AtlasSpriteSheetStore.persist({ itemKey: 'hatchet', objectLayerRenderFrames: twoFrames });
+    const expected = String(atlases.doc.idlePreviewFileId);
+    // An atlas written before the still existed: the field is empty and the File is gone.
+    await models.AtlasSpriteSheet.updateOne({}, { $set: { idlePreviewFileId: null } });
+    files.docs.delete(expected);
+
+    const filled = await AtlasSpriteSheetStore.syncIdlePreview({ itemKey: 'hatchet' });
+    expect(filled.status).toBe('updated');
+    expect(String(atlases.doc.idlePreviewFileId)).toBe(expected);
+    expect(files.has(expected)).toBe(true);
+
+    const again = await AtlasSpriteSheetStore.syncIdlePreview({ itemKey: 'hatchet' });
+    expect(again.status).toBe('unchanged');
+    expect(files.size).toBe(3);
+  });
+
+  it('reports a missing atlas or render instead of inventing a still', async () => {
+    expect((await AtlasSpriteSheetStore.syncIdlePreview({ itemKey: 'nothing' })).status).toBe('missing');
   });
 
   it('reports a missing atlas instead of creating one', async () => {
@@ -185,7 +229,7 @@ describe('atlas sprite sheet store', () => {
 
     expect(result.status).toBe('unchanged');
     expect(String(atlases.doc.minifyFileId)).toBe(String(before));
-    expect(files.size).toBe(2);
+    expect(files.size).toBe(3);
   });
 
   it('refuses to write when the render frames moved the atlas layout', async () => {
@@ -241,6 +285,7 @@ const atlasDoc = (itemKey, suffix) => ({
   cid: `cid-${itemKey}`,
   fileId: `${itemKey}-atlas-${suffix}`,
   minifyFileId: `${itemKey}-minify-${suffix}`,
+  idlePreviewFileId: `${itemKey}-idle-${suffix}`,
   metadata: { itemKey },
 });
 
@@ -255,20 +300,22 @@ describe('purging an atlas', () => {
     files = fakeCollection([
       renderFile('hatchet-atlas-1', 'hatchet', 'atlas'),
       renderFile('hatchet-minify-1', 'hatchet', 'minify'),
+      renderFile('hatchet-idle-1', 'hatchet', 'idle'),
       renderFile('sword-atlas-1', 'sword', 'atlas'),
       renderFile('sword-minify-1', 'sword', 'minify'),
+      renderFile('sword-idle-1', 'sword', 'idle'),
     ]);
     models.AtlasSpriteSheet = atlases;
     models.File = files;
   });
 
-  it('takes both renders of the item, not only the human-resolution one', async () => {
+  it('takes every render of the item, not only the human-resolution one', async () => {
     // Regression: the CLI drop named `fileId` alone, so every minified render the client
     // downloads stayed in the File collection with nothing left pointing at it.
     const result = await AtlasSpriteSheetStore.purge({ itemKeys: ['hatchet'] });
 
-    expect(result).toEqual({ atlases: 1, files: 2, cids: ['cid-hatchet'] });
-    expect(files.docs.map((doc) => doc._id)).toEqual(['sword-atlas-1', 'sword-minify-1']);
+    expect(result).toEqual({ atlases: 1, files: 3, cids: ['cid-hatchet'] });
+    expect(files.docs.map((doc) => doc._id)).toEqual(['sword-atlas-1', 'sword-minify-1', 'sword-idle-1']);
     expect(atlases.docs.map((doc) => doc.metadata.itemKey)).toEqual(['sword']);
   });
 
@@ -278,7 +325,7 @@ describe('purging an atlas', () => {
     const result = await AtlasSpriteSheetStore.purge({ atlasIds: [linked._id] });
 
     expect(result.atlases).toBe(1);
-    expect(result.files).toBe(2);
+    expect(result.files).toBe(3);
     expect(atlases.docs).toHaveLength(1);
   });
 
@@ -286,14 +333,14 @@ describe('purging an atlas', () => {
     const result = await AtlasSpriteSheetStore.purge({ all: true });
 
     expect(result.atlases).toBe(2);
-    expect(result.files).toBe(4);
+    expect(result.files).toBe(6);
     expect(files.docs).toHaveLength(0);
   });
 
   it('deletes nothing when no selector is given', async () => {
     expect(await AtlasSpriteSheetStore.purge({})).toEqual({ atlases: 0, files: 0, cids: [] });
     expect(atlases.docs).toHaveLength(2);
-    expect(files.docs).toHaveLength(4);
+    expect(files.docs).toHaveLength(6);
   });
 
   it('reports zeros on a rerun instead of failing', async () => {
@@ -321,8 +368,10 @@ describe('pruning renders left behind by an earlier drop', () => {
     const atlases = fakeCollection([atlasDoc('sword', 1)]);
     const files = fakeCollection([
       renderFile('hatchet-minify-1', 'hatchet', 'minify'),
+      renderFile('hatchet-idle-1', 'hatchet', 'idle'),
       renderFile('sword-atlas-1', 'sword', 'atlas'),
       renderFile('sword-minify-1', 'sword', 'minify'),
+      renderFile('sword-idle-1', 'sword', 'idle'),
       { _id: 'thumbnail-1', name: 'map-thumbnail.png' },
     ]);
     models.AtlasSpriteSheet = atlases;
@@ -330,8 +379,13 @@ describe('pruning renders left behind by an earlier drop', () => {
 
     const removed = await AtlasSpriteSheetStore.pruneOrphanRenders({});
 
-    expect(removed).toBe(1);
-    expect(files.docs.map((doc) => doc._id)).toEqual(['sword-atlas-1', 'sword-minify-1', 'thumbnail-1']);
+    expect(removed).toBe(2);
+    expect(files.docs.map((doc) => doc._id)).toEqual([
+      'sword-atlas-1',
+      'sword-minify-1',
+      'sword-idle-1',
+      'thumbnail-1',
+    ]);
   });
 
   it('is a no-op on a collection that leaked nothing', async () => {
@@ -339,9 +393,10 @@ describe('pruning renders left behind by an earlier drop', () => {
     models.File = fakeCollection([
       renderFile('sword-atlas-1', 'sword', 'atlas'),
       renderFile('sword-minify-1', 'sword', 'minify'),
+      renderFile('sword-idle-1', 'sword', 'idle'),
     ]);
 
     expect(await AtlasSpriteSheetStore.pruneOrphanRenders({})).toBe(0);
-    expect(models.File.docs).toHaveLength(2);
+    expect(models.File.docs).toHaveLength(3);
   });
 });

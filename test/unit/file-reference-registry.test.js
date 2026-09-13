@@ -45,7 +45,7 @@ const collection = (docs) => ({
 
 describe('the File reference registry', () => {
   it('answers the fields of a registered api and nothing for an unregistered one', () => {
-    expect(fileRefFields('atlas-sprite-sheet')).to.deep.equal(['fileId', 'minifyFileId']);
+    expect(fileRefFields('atlas-sprite-sheet')).to.deep.equal(['fileId', 'minifyFileId', 'idlePreviewFileId']);
     expect(fileRefFields('cyberia-map')).to.deep.equal(['thumbnail', 'preview']);
     expect(fileRefFields('object-layer')).to.deep.equal([]);
     expect(fileRefApis()).to.include('cyberia-audio');

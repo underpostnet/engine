@@ -7,8 +7,12 @@
 
 import { Jimp, rgbaToInt } from 'jimp';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { getKeyframeDirectionsByCode } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
+
+/** Direction code of the still an item is previewed by: down idle. */
+export const IDLE_PREVIEW_DIRECTION_CODE = '08';
 
 /**
  * Pixels per cell of the human-resolution atlas, when no factor is given.
@@ -267,6 +271,44 @@ export class AtlasSpriteSheetGenerator {
       minifyBuffer: await minifyImage.getBuffer('image/png'),
       metadata,
     };
+  }
+
+  /**
+   * The frame an item is previewed by: the first frame of the first down-idle keyframe the
+   * atlas carries, or the first frame of any direction when it has none.
+   *
+   * @static
+   * @param {Object} metadata - Atlas metadata as {@link generateAtlas} returns it.
+   * @returns {{x:number,y:number,width:number,height:number}|null} Frame box in minified cells.
+   * @memberof CyberiaAtlasSpriteSheetGenerator
+   */
+  static idlePreviewFrame(metadata) {
+    const frames = metadata?.frames ?? {};
+    const preferred = getKeyframeDirectionsByCode(IDLE_PREVIEW_DIRECTION_CODE);
+    for (const direction of [...preferred, ...Object.keys(frames)]) {
+      const frame = frames[direction]?.[0];
+      if (frame) return frame;
+    }
+    return null;
+  }
+
+  /**
+   * Cuts the idle-preview still out of the human-resolution render, using the same layout
+   * `metadata.frames` describes for the minified one scaled by `metadata.upscaleFactor`.
+   *
+   * @static
+   * @param {Buffer} buffer - PNG bytes of the human-resolution atlas render.
+   * @param {Object} metadata - Atlas metadata as {@link generateAtlas} returns it.
+   * @returns {Promise<Buffer|null>} PNG bytes of the still, or null when the atlas has no frame.
+   * @memberof CyberiaAtlasSpriteSheetGenerator
+   */
+  static async idlePreviewFromAtlas(buffer, metadata) {
+    const frame = AtlasSpriteSheetGenerator.idlePreviewFrame(metadata);
+    if (!frame) return null;
+    const scale = Number(metadata.upscaleFactor) || 1;
+    const image = await Jimp.read(buffer);
+    image.crop({ x: frame.x * scale, y: frame.y * scale, w: frame.width * scale, h: frame.height * scale });
+    return await image.getBuffer('image/png');
   }
 
   /**

@@ -93,22 +93,34 @@ const purgeAtlasDoc = async ({ atlasDoc, options, itemKey, metadataCid }) => {
 class AtlasSpriteSheetService {
   // Serves the minified render, the one `metadata` describes. The client runtime
   // pairs this blob with GET /metadata/:itemKey, so the two must be the same layout.
-  static blob = async (req, res, options) => {
+  /* One render of an item's atlas, by the File field that holds it. */
+  static render = async ({ itemKey, field, label }, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
     const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProviderService.getModel('File', options);
 
-    const itemKey = req.params.itemKey;
     const atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey }).lean();
     if (!atlasDoc) throw new Error(`Atlas not found for itemKey: ${itemKey}`);
-    if (!atlasDoc.minifyFileId) throw new Error(`Minified atlas render missing for itemKey: ${itemKey}`);
+    if (!atlasDoc[field]) throw new Error(`${label} missing for itemKey: ${itemKey}`);
 
-    const fileDoc = await File.findById(atlasDoc.minifyFileId);
+    const fileDoc = await File.findById(atlasDoc[field]);
     if (!fileDoc || !fileDoc.data) throw new Error(`File not found for atlas itemKey: ${itemKey}`);
 
     return { buffer: Buffer.from(fileDoc.data), mimetype: fileDoc.mimetype || 'image/png', name: fileDoc.name };
   };
+
+  static blob = (req, res, options) =>
+    AtlasSpriteSheetService.render(
+      { itemKey: req.params.itemKey, field: 'minifyFileId', label: 'Minified atlas render' },
+      options,
+    );
+
+  static idlePreview = (req, res, options) =>
+    AtlasSpriteSheetService.render(
+      { itemKey: req.params.itemKey, field: 'idlePreviewFileId', label: 'Idle preview' },
+      options,
+    );
   static generate = async (req, res, options, generateOptions = {}) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
