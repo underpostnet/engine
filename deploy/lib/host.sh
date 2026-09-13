@@ -176,7 +176,7 @@ has_changes() {
 pod_bootstrap_cmd() {
     local deploy_id="$1"
     local env="${2:-production}"
-    local repo="${3:-underpostnet/engine-test-${deploy_id#dd-}}"
+    local repo="${3:-underpostnet/engine-${deploy_id#dd-}}"
     local name="${repo##*/}"
 
     printf '%s' "cd /home/dd, \
