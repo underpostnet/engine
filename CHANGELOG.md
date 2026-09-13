@@ -1,6 +1,131 @@
 # Changelog
 
-## 2026-09-01
+## 2026-09-13
+
+### test-unit
+
+- Skip cyberia product suites where the tree does not ship them ([93c4f0906](https://github.com/underpostnet/engine/commit/93c4f0906386427982318beb73b7ae5741010ae7))
+
+### client-core
+
+- Add top-left hamburger menu button while the top bar is collapsed ([43b00dcd1](https://github.com/underpostnet/engine/commit/43b00dcd1dd6da58cc9513e03ff7f0c88a2bd3a4))
+
+### Cyberia
+
+- Fix minified atlas sprite sheet workload and validations ([b64cbf23a](https://github.com/underpostnet/engine/commit/b64cbf23a48229804996c7a95d544f96e64bfbf7))
+- Reuse authored cells when importing an object layer ([117e0e620](https://github.com/underpostnet/engine/commit/117e0e620394f6c4508222c75ee5220f1e9ca0b0))
+- Stage direction frames at one uniform size for webp ([82b4acac6](https://github.com/underpostnet/engine/commit/82b4acac60dff445c02756ff049005adb23cb5e0))
+- Preview items and entity maps by the atlas idle still ([c5fb8ae62](https://github.com/underpostnet/engine/commit/c5fb8ae621eb04e55f8fa399435eb7e513cbd066))
+- Cut an idle-preview still from each atlas render ([0402a1243](https://github.com/underpostnet/engine/commit/0402a12437dab4652be58a085eed5b6fb0fdfc96))
+- Wire signed stats and entity levels through boot payloads ([56000de95](https://github.com/underpostnet/engine/commit/56000de95ccd9120f3fefa874c49a43570a59a90))
+- Add entity levels and progression rules to the game defaults ([208530c45](https://github.com/underpostnet/engine/commit/208530c4568b91c30d478c7daac88457080f0cd1))
+- Sign stat modifiers in the shared contract ([29df5fc49](https://github.com/underpostnet/engine/commit/29df5fc492efa0ab6128e0513a492225e9e5ff31))
+- Preview both atlas renders in the object-layer viewer ([8e8441f6e](https://github.com/underpostnet/engine/commit/8e8441f6e3565db1d050bd05f482d349c7c06c04))
+- Read the audio File fields from the reference registry ([0e3ca2903](https://github.com/underpostnet/engine/commit/0e3ca29035e77c79851f5de1d8423be75e815785))
+- Take the atlas renders when collapsing duplicate layers ([8dcc9ed1a](https://github.com/underpostnet/engine/commit/8dcc9ed1a5c5fc5b9670eb5c56514c2b0e193235))
+- Purge an atlas and its renders through the store ([943e9e4c5](https://github.com/underpostnet/engine/commit/943e9e4c585d26a1e68cf193824df035ef3d7a3f))
+- Add the File reference registry module ([6b7610101](https://github.com/underpostnet/engine/commit/6b76101013de960c4d16b7daab04ebd98b041d9e))
+- Navigate editors by instance code and item id ([d87a56818](https://github.com/underpostnet/engine/commit/d87a568188d01f04b2b083205a9118e282f9742c))
+- Store two atlas renders and refresh the minified one ([73ffe183e](https://github.com/underpostnet/engine/commit/73ffe183e913111f98e30c16117139ecfb9da112))
+- Bind item-pickup and craft audio events ([3b0f1069d](https://github.com/underpostnet/engine/commit/3b0f1069d0134d504572f1270d6865f408670255))
+- Add dropChance to entity-type-default overrides ([5014c7e33](https://github.com/underpostnet/engine/commit/5014c7e338cb58c8c57f5d354dfb858e9df78017))
+- Generate pixel-faithful sprite sheet atlases ([dfba47760](https://github.com/underpostnet/engine/commit/dfba47760f30bc667a83afe7d06f5414c4173404))
+- Resolve object-layer item identity and map previews ([2bd4f88d1](https://github.com/underpostnet/engine/commit/2bd4f88d161689f2b83d3ddf539fd10dc41b4323))
+- Reference entity-type defaults by id and derive skills from content ([f669fa94f](https://github.com/underpostnet/engine/commit/f669fa94f18afa91762ae7662fe443a101cd65a5))
+- Add audio assets and per-map audio configuration ([3ec20cb33](https://github.com/underpostnet/engine/commit/3ec20cb336a320b6167250aac7bca11a629babc9))
+- Fix mentions of wasm-driver.py ([d748d11dc](https://github.com/underpostnet/engine/commit/d748d11dc584a7640742b57e641d3619b18c4d46))
+- Cleared coments ([602f984a0](https://github.com/underpostnet/engine/commit/602f984a0c4d78ab79a9b054d080469b988b4d3f))
+
+### cyberia-client
+
+- Surface featured worlds on the portal landing ([90c528be5](https://github.com/underpostnet/engine/commit/90c528be5ab45b906558f85cac3894a6368d6143))
+
+### object-layer-engine
+
+- Add axis rulers and cursor readout to the pixel canvas ([cd4955c6b](https://github.com/underpostnet/engine/commit/cd4955c6baec17f58bda37d84bbd387949b50093))
+- Add cut, copy, paste, and scale tools with toolbar UI fixes ([e215b3583](https://github.com/underpostnet/engine/commit/e215b3583fd73557c803b7d321e2054ffb85e620))
+
+### cyberia-docs
+
+- Document the idle-preview still ([4344d73b9](https://github.com/underpostnet/engine/commit/4344d73b952cf1baea6f05c2ca0f12e37ffcc205))
+- Document the signed stat contract and progression ([b7a4c3301](https://github.com/underpostnet/engine/commit/b7a4c33018636557ec8a12c921fb6a16fd790868))
+- Reflow the audio option table and emphasis ([8358fe5e8](https://github.com/underpostnet/engine/commit/8358fe5e8c5ee7d5edfca81e6ac2ed7a0215f3f0))
+- Document the ol atlas renders and rebuild options ([888c7bcbf](https://github.com/underpostnet/engine/commit/888c7bcbf58b8c430e2ab13f4b6d68614a974051))
+- Reflow tables and emphasis across the architecture docs ([64c7e3a2d](https://github.com/underpostnet/engine/commit/64c7e3a2d17e77baac1af791be15c03ecce43acc))
+- Document the Data Server URL as a required command-line flag ([28c4a51e4](https://github.com/underpostnet/engine/commit/28c4a51e40d78801dde85af4d10eac0e43f5f805))
+- Document Data Server flags and manifest CLI ([74a09d397](https://github.com/underpostnet/engine/commit/74a09d3977a5c40037ca66b0db5fa4b4d6e15e47))
+
+### cyberia-cli
+
+- Carry the idle still through ol minify and backups ([f41f66f52](https://github.com/underpostnet/engine/commit/f41f66f52fc5cf59f7cc5c55f8dbd1e27e2a67c8))
+- Require an explicit source for the ol import commands ([b7c759a2e](https://github.com/underpostnet/engine/commit/b7c759a2ec58e44830a3ce02b6cfd3bfaa68b958))
+- Implement restore OL backup workflow for a single itemId version instance and related document ([293a62db2](https://github.com/underpostnet/engine/commit/293a62db207e55027ed23343ee5c35c14f297c02))
+- Add copy manifests in cyberia-instance repository build workflow ([0f40c2b82](https://github.com/underpostnet/engine/commit/0f40c2b8245ca3e9a7c3e28ea6732228766d820e))
+- Rework sync-src as a bidirectional dry-run mirror ([6f05a7dc6](https://github.com/underpostnet/engine/commit/6f05a7dc6ccfc3a801e6542a0a9321f5de5ab9d9))
+- Integrated the cyberia public assets folders module into the cyberia repo's publish workflows ([7e5c0e0a7](https://github.com/underpostnet/engine/commit/7e5c0e0a729463e981339cb98336399f0925598a))
+- Integrated the cyberia-audio project module into the cyberia repo publish workflows ([07993ee93](https://github.com/underpostnet/engine/commit/07993ee934fd5c8dc781c886d1b6dc0b20819f57))
+
+### engine
+
+- Publish per-suite coverage reports as deploy artifacts ([f37be7ba6](https://github.com/underpostnet/engine/commit/f37be7ba6ed145e17713e8ba136c26b25dabc8f9))
+- Resolve instances and maps by their codes ([2daca38b8](https://github.com/underpostnet/engine/commit/2daca38b8a118ed229d672367b43cc32a3c91468))
+- Lower the default request timeouts to ten seconds ([9fbb5c844](https://github.com/underpostnet/engine/commit/9fbb5c8448cc3b6ab86d952f0be611bd26789950))
+- Publish products with the engine runtime dependency set ([8bd9a12a3](https://github.com/underpostnet/engine/commit/8bd9a12a38d419cf475f9d881906d44abd92c51f))
+- Redact adjacent credentials in service error messages ([e8ad83ae6](https://github.com/underpostnet/engine/commit/e8ad83ae65f74f9159df412056a0dbca7113fc5b))
+- Fail downloads that stop short of their declared length ([2cb52c254](https://github.com/underpostnet/engine/commit/2cb52c254ba8d2de89cbc1103807361e45733c36))
+- Replace adm-zip with jszip and shared archive helpers ([14e4857c4](https://github.com/underpostnet/engine/commit/14e4857c4ccc52707c5f08fc686d1e7d25ac2a53))
+- Allow cross-origin reads on CRUD controllers ([7100c5ee4](https://github.com/underpostnet/engine/commit/7100c5ee40aa6a175de1e24eb0f79b485767df6d))
+
+### test
+
+- Fix cyberia stat-contract coverall ([faf4f4378](https://github.com/underpostnet/engine/commit/faf4f4378c54bc9fb6ca8e405d08b904a7f023d6))
+- Move sprite atlas and object-layer minify tests to the cyberia tier ([931d98277](https://github.com/underpostnet/engine/commit/931d9827777b49ac01a81b961281ca51c2ff6e0f))
+
+### cli-cyberia
+
+- Add the stat balancing policies and contract generation to the CLI ([d6f477f59](https://github.com/underpostnet/engine/commit/d6f477f59ac18cd16cfd42c9e4a61b1d73282953))
+- Route drops and imports through the atlas store purge ([0a103f6e8](https://github.com/underpostnet/engine/commit/0a103f6e8bb2f56946ec9a61e9bfa17194076734))
+- Rework the ol command on the stored atlas renders ([73b5c2fa2](https://github.com/underpostnet/engine/commit/73b5c2fa2362d4415d0f95b3431d5f17a4b7ec07))
+- Sync the cyberia-instances checkout on publish with cmt --switch-repo ([66ffde978](https://github.com/underpostnet/engine/commit/66ffde9787b055f6f2d48866ccff602b6f02873a))
+- Keep CLI-name arguments through the underpost reroute ([e898bf498](https://github.com/underpostnet/engine/commit/e898bf4982e98b3368e784be65abc8aec1c70033))
+- Add ol --minify reprocessing scoped to instances ([9b19bfc1e](https://github.com/underpostnet/engine/commit/9b19bfc1eaf2c93d4f0c7001eca1c64ada5ca9a3))
+
+### docs
+
+- Regenerate the CLI references for the storage and bundle options ([4ce71e989](https://github.com/underpostnet/engine/commit/4ce71e989d72343bc4dbe9c11b1325a56fa9a6f7))
+
+### cli
+
+- Warn when a container resolves no OCI env overlay ([20dcb3897](https://github.com/underpostnet/engine/commit/20dcb3897a39858d5fddb76c0953193b569cf692))
+- Rework push-bundle and pull-bundle as one client bundle transport ([ead02902b](https://github.com/underpostnet/engine/commit/ead02902be3cb0f05d3ef583824513c984b2a1e5))
+- Rework fs selection around storage manifests ([26471a64b](https://github.com/underpostnet/engine/commit/26471a64bf604473499c9d7c928a28e02020bb37))
+- Resolve instance root path from conf in instance-build-manifest ([fd08a771b](https://github.com/underpostnet/engine/commit/fd08a771bc520023643d95bd37f752a37cc64aa2))
+- Deploy Mongo Express through the cluster command ([4a9d03fbb](https://github.com/underpostnet/engine/commit/4a9d03fbb1c04432b60d609243f35b8dd42b1154))
+
+### cli-wireguard
+
+- Install the landed source before any step runs it ([96db68293](https://github.com/underpostnet/engine/commit/96db682935569eb7bbb556d7bc97b3499e936cae))
+
+### deploy
+
+- Consolidate deploy scripts on shared constants and bundle sync ([dd9d1d368](https://github.com/underpostnet/engine/commit/dd9d1d3682569ed4f86055ba41613ab2cb06d327))
+- Stream the deploy log verbatim in a new debug mode ([1d41af6c0](https://github.com/underpostnet/engine/commit/1d41af6c01c51d79de468d6002dd42c31b19c20c))
+- Fix git track storage in dd-cyberia sync-deploy ([3ed3c297d](https://github.com/underpostnet/engine/commit/3ed3c297df5172edc2b6c5111a270b8bd522bf2a))
+
+### runtime-cyberia-server
+
+- Upgrade go version v1.25 ([2a14dd26a](https://github.com/underpostnet/engine/commit/2a14dd26ac32fb109c7b1b0c833956bca12c70eb))
+- Pass Data Server endpoints to cyberia-server as flags ([c8b4a1b54](https://github.com/underpostnet/engine/commit/c8b4a1b54174954a864301b062caea81c06e9762))
+
+### runtime-cyberia-client
+
+- Add CYBERIA_DATA_SERVER_URL on cyberia-client dockerfiles runtime ([99738cc80](https://github.com/underpostnet/engine/commit/99738cc809a56e716d3cb2729c63aa7495033d3c))
+
+### package
+
+- Update qs version >= 6.16.0 via overrides ([b7697d52b](https://github.com/underpostnet/engine/commit/b7697d52b87589edbf5ba36f44e7b8db2195cd16))
+
+## New release v:3.3.73 (2026-09-01)
 
 ### test
 
@@ -818,44 +943,4 @@
 
 - Add checkbox removeOnClick and enhance ui / ux ([5b557256f](https://github.com/underpostnet/engine/commit/5b557256fd17790913e9628440bd6e125d92ee0d))
 - Add in client component MapEngineCyberia.js renameFilteredObjectLayerItemId with random factor ([c6519a1c0](https://github.com/underpostnet/engine/commit/c6519a1c0b3dfab9ba7856e3dd03914bd14a846a))
-
-## New release v:3.2.30 (2026-06-25)
-
-### server
-
-- Add only build client in development mode in normal server run start up ([a332ae458](https://github.com/underpostnet/engine/commit/a332ae458f79458c7911a4a158037ada250d3af6))
-
-### cli-start
-
-- Add start-container-status in start pipeline to insulate readinessProbe monitor server status, prevent external overwritten status ([75f67cf3f](https://github.com/underpostnet/engine/commit/75f67cf3fcbc07716415caac4e67ab91abb05985))
-
-### cyberia-cli
-
-- Enhance cyberia-saga variety theme separate custom prompt of random subject theme ([1945a2553](https://github.com/underpostnet/engine/commit/1945a2553780d1d3b5fa20e40eedcc7d0b1ecd9c))
-- Enhance cyberia-saga variety theme handle and prompt seed customization ([a335d3e20](https://github.com/underpostnet/engine/commit/a335d3e20025f8e714ff98fdc27d7895970187b5))
-
-### db
-
-- Improve wait status ready mongo pods in bootstrap methods ([6805e35c2](https://github.com/underpostnet/engine/commit/6805e35c22e43315c14dc9e7457ca3d599877ea8))
-
-### cli-env
-
-- Add keepKeys array options in clean env method ([5b3be0bca](https://github.com/underpostnet/engine/commit/5b3be0bca14a0ccfa64740aff12d2af17a7c29ce))
-
-### repository
-
-- Add getRemoteUrl and switchRemote repository methods in repository cli ([0412b9986](https://github.com/underpostnet/engine/commit/0412b998683a8369833eb363f8c9953744ae1a3a))
-
-### deploy
-
-- Enhance node customization in default deployment and custom instance workloads ([31c6b6d3b](https://github.com/underpostnet/engine/commit/31c6b6d3b397229b0216f82b8aef29b6941e474e))
-- Fix node affinity assignment in volume mount factory ([9ec1ef931](https://github.com/underpostnet/engine/commit/9ec1ef9313ac0dbb5993cd3f158d2d01eae7dec5))
-
-### cli-run
-
-- Add flag ssh key path to customize key usage for ssh operations in deployments pipelines ([861cd7373](https://github.com/underpostnet/engine/commit/861cd73734d3442783419af4403bbb8e88711f19))
-
-### start-cli
-
-- Improve underpost container status persistence ([bff2e8f8d](https://github.com/underpostnet/engine/commit/bff2e8f8d65c6a2fe8572fe0bc9c42b9566db918))
 

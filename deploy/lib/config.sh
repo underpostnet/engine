@@ -26,4 +26,4 @@ DEPLOY_SSH_KEY_PATH="${DEPLOY_SSH_KEY_PATH:-/home/dd/tmp/897as9dxhaskd9}"
 
 # The published image the WordPress deploys run. Pinned rather than derived from the checkout's
 # version: a tag is only deployable once the release workflow has published it.
-DEPLOY_WP_IMAGE="${DEPLOY_WP_IMAGE:-underpost/wp:v3.3.73}"
+DEPLOY_WP_IMAGE="${DEPLOY_WP_IMAGE:-underpost/wp:v3.3.76}"
