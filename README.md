@@ -18,7 +18,7 @@
 <!-- CI/CD and health -->
 <div align="center">
 
-[![Node.js CI](https://img.shields.io/github/actions/workflow/status/underpostnet/engine/docker-image.ci.yml?branch=master&label=Node.js%20CI)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://img.shields.io/github/actions/workflow/status/underpostnet/engine/coverall.ci.yml?branch=master&label=Test)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.3.76)](https://socket.dev/npm/package/underpost/overview/3.3.76)
+[![Node.js CI](https://img.shields.io/github/actions/workflow/status/underpostnet/engine/docker-image.ci.yml?branch=master&label=Node.js%20CI)](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml) [![Test](https://img.shields.io/github/actions/workflow/status/underpostnet/engine/coverall.ci.yml?branch=master&label=Test)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/3.3.77)](https://socket.dev/npm/package/underpost/overview/3.3.77)
 
 </div>
 
@@ -97,7 +97,7 @@ npm run dev
 <!-- cli-index-start -->
 ## Underpost CLI
 
-> underpost ci/cd cli v3.3.76
+> underpost ci/cd cli v3.3.77
 
 **Usage:** `underpost [options] [command]`
 

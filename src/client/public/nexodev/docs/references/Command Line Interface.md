@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.3.76
+> underpost ci/cd cli v3.3.77
 
 **Usage:** `underpost [options] [command]`
 
@@ -1173,7 +1173,7 @@ Runs the test tiers locally, inside deployment pods, or as a cluster Job with Al
 
 | Argument | Description |
 | --- | --- |
-| `suite` | A comma-separated list of suites or tiers to run. Suites: unit, infra, app, cyberia, contracts, all. Tiers: unit, infra:1-security, infra:2-network, infra:3-cluster, infra:4-ingress, infra:5-observability, app, cyberia, contracts. Defaults to every tier, in tier order. (default: "") |
+| `suite` | A comma-separated list of suites or tiers to run. Suites: unit, cyberia, infra, app, contracts, all. Tiers: unit, cyberia:unit, infra:1-security, infra:2-network, infra:3-cluster, infra:4-ingress, infra:5-observability, app, cyberia:app, contracts. Defaults to every tier, in tier order. (default: "") |
 
 #### Options
 
