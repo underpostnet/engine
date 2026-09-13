@@ -8,6 +8,7 @@ import {
   getPathsSSR,
   syncPrivateConf,
   syncDeployIdSources,
+  syncDeployIdSourcesBack,
   buildTemplate,
   updatePrivateEngineTestRepo,
 } from '../src/server/runtime/conf.js';
@@ -38,13 +39,16 @@ const basePath = '../pwa-microservices-template';
  * SSR assets, manifests, and packaging declared by its conf into the template repo.
  * @param {string} confName - A concrete deploy id (e.g. `dd-prototype`).
  */
-const buildDeployTemplate = async (confName) => {
+const buildDeployTemplate = async (confName, { force = false } = {}) => {
   const repoName = Underpost.repo.engineRepoFactory(confName);
   const catalog = await loadDeployCatalog(confName);
 
   if (catalog.sourceMoves.length) {
     Underpost.repo.sparseCheckoutDirectory(`conf/${confName}`);
-    if (catalog.sourceMoves.some(([src]) => !fs.existsSync(src))) Underpost.repo.pullSourceRepo(repoName);
+    // Only a path neither tree holds needs the repo: one the engine holds is mirrored out.
+    // --force pulls regardless, to bring the repo up to date before the mirror.
+    if (force || catalog.sourceMoves.some(([src, dest]) => !fs.existsSync(src) && !fs.existsSync(dest)))
+      Underpost.repo.pullSourceRepo(repoName);
   }
   syncDeployIdSources(catalog.sourceMoves);
 
@@ -272,6 +276,16 @@ program
     'After assembling each deploy id, publish it to its private test source repo (underpostnet/engine-test-<id>) for isolated test deploys.',
     false,
   )
+  .option(
+    '--force',
+    'Always pull each deploy id source repo (e.g. ../engine-prototype) before syncing its sourceMoves, instead of only when a path is missing from both trees.',
+    false,
+  )
+  .option(
+    '--sync-sources',
+    'Copy each deploy id catalog sourceMoves path from this tree back to its source repo (e.g. ../engine-prototype) and exit (no template assembly). The engine ignores these paths, so the change is reviewed and committed there.',
+    false,
+  )
   .action(async (confName, env, options) => {
     const deployList = resolveDeployList(confName);
     logger.info('Build repository', { confName, basePath, deployList, conf: !!options.conf });
@@ -280,6 +294,25 @@ program
       for (const deployId of deployList) {
         const { privateConfPaths } = await loadDeployCatalog(deployId);
         syncPrivateConf(deployId, privateConfPaths);
+      }
+      return;
+    }
+
+    if (options.syncSources) {
+      for (const deployId of deployList) {
+        const { sourceMoves } = await loadDeployCatalog(deployId);
+        if (!sourceMoves.length) {
+          logger.warn('No sourceMoves declared; nothing to sync back', { deployId });
+          continue;
+        }
+        const mirrored = syncDeployIdSourcesBack(sourceMoves);
+        for (const src of mirrored) logger.info('Build sync source', src);
+        if (mirrored.length !== sourceMoves.length)
+          logger.warn('Some declared sources are not in this tree and were left as they are in the source repo', {
+            deployId,
+            hint: `node bin/build ${deployId}`,
+            skipped: sourceMoves.length - mirrored.length,
+          });
       }
       return;
     }
@@ -297,7 +330,7 @@ program
       // build run nor the deploy id assembled before this one leaks into it. Opt out with
       // --no-template-rebuild.
       if (options.templateRebuild) await buildTemplate({ toPath: basePath });
-      await buildDeployTemplate(deployId);
+      await buildDeployTemplate(deployId, { force: options.force });
       bundleDeployCoverage(deployId);
       // Publish the just-assembled tree to the deploy id's private test repo so a
       // pod started with `--private-test-repo` clones this work-in-progress source.

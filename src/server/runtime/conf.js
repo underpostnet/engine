@@ -3001,14 +3001,41 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
 };
 
 /**
- * Moves a deploy's public template sources into the engine working tree ahead of
- * the build copy step. Idempotent and safe to rerun: each move is guarded by
- * `existsSync`, so already-moved or absent sources are skipped rather than throwing.
- * The `[src, dest]` pairs come from the deploy's product catalog (passed in), so
- * this module stays product-agnostic.
+ * Mirrors a deploy's public template sources from the engine working tree to the source
+ * repo they came from. The engine ignores every one of these paths, so an edit made there
+ * never reaches a diff; the source repo is where it is reviewed and committed. Each path
+ * the engine holds is replaced wholesale there (removed, then copied) so the source repo's
+ * `git status` reads as exactly the engine tree's state, deletions included. The engine
+ * copies stay in place: this is a copy, not a move. A path the engine tree does not hold
+ * is left untouched in the source repo rather than deleted.
+ *
+ * @method syncDeployIdSourcesBack
+ * @param {Array<[string, string]>} [sourceMoves=[]] - Public `[src, dest]` pairs.
+ * @returns {string[]} The source paths that were mirrored.
+ * @memberof ServerConfBuilder
+ */
+const syncDeployIdSourcesBack = (sourceMoves = []) => {
+  const mirrored = [];
+  for (const [src, dest] of sourceMoves) {
+    if (!fs.existsSync(dest)) continue;
+    fs.removeSync(src);
+    fs.copySync(dest, src);
+    mirrored.push(src);
+  }
+  return mirrored;
+};
+
+/**
+ * Brings a deploy's public template sources into line ahead of the build copy step. The
+ * engine working tree is the working copy and the source repo its git view, so a path the
+ * engine already holds is mirrored out to the repo ({@link syncDeployIdSourcesBack}) and
+ * only a path the engine lacks is copied in. Nothing is moved: the repo's working tree
+ * keeps every file, so a build never leaves it reading as wholesale deletions, and an
+ * engine-side edit is never overwritten by the repo's copy. Safe to rerun: each step is
+ * guarded by `existsSync`.
  *
  * @method syncDeployIdSources
- * @param {Array<[string, string]>} [sourceMoves=[]] - Public `[src, dest]` move pairs.
+ * @param {Array<[string, string]>} [sourceMoves=[]] - Public `[src, dest]` pairs.
  * @returns {boolean} `true` when any sources were declared, else `false`.
  * @memberof ServerConfBuilder
  */
@@ -3016,7 +3043,8 @@ const syncDeployIdSources = (sourceMoves = []) => {
   if (!sourceMoves.length) return false;
   for (const dir of ['src/api', 'src/client/components', 'src/client/public', 'src/client/services'])
     fs.mkdirSync(dir, { recursive: true });
-  for (const [src, dest] of sourceMoves) if (fs.existsSync(src)) fs.moveSync(src, dest, { overwrite: true });
+  syncDeployIdSourcesBack(sourceMoves);
+  for (const [src, dest] of sourceMoves) if (!fs.existsSync(dest) && fs.existsSync(src)) fs.copySync(src, dest);
   return true;
 };
 
@@ -3448,6 +3476,7 @@ export {
   waitForPort,
   syncPrivateConf,
   syncDeployIdSources,
+  syncDeployIdSourcesBack,
   gitOriginRepositoryName,
   ensureTemplateCheckout,
   pruneTemplateWorkTree,

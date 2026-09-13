@@ -35,6 +35,7 @@ import {
   resolveHostKeyContext,
   resolveReplicaCount,
   syncDeployIdSources,
+  syncDeployIdSourcesBack,
   syncPrivateConf,
   updatePrivateEngineTestRepo,
   updatePrivateTemplateRepo,
@@ -757,17 +758,50 @@ describe('private conf sync', () => {
     expect(syncDeployIdSources([])).to.equal(false);
   });
 
-  it('moves every declared source that is present, skipping the rest', () => {
-    const moved = [];
-    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}`.includes('present'));
-    vi.spyOn(fs, 'moveSync').mockImplementation((src, dest) => moved.push(`${src} -> ${dest}`));
+  it('copies in only the sources the engine tree lacks, and never moves', () => {
+    // Regression: the repo copy used to be moved over the engine copy, so a build discarded
+    // every edit made in the engine tree and left the repo reading as wholesale deletions.
+    const calls = [];
+    const present = new Set(['../engine-x/src/new.js', '../engine-x/src/edited.js', 'src/api/edited.js']);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => present.has(`${filePath}`));
+    vi.spyOn(fs, 'removeSync').mockImplementation((target) => calls.push(`remove ${target}`));
+    vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => calls.push(`copy ${src} -> ${dest}`));
+    vi.spyOn(fs, 'moveSync').mockImplementation(() => calls.push('move'));
     expect(
       syncDeployIdSources([
-        ['src/present.js', 'src/api/present.js'],
-        ['src/absent.js', 'src/api/absent.js'],
+        ['../engine-x/src/new.js', 'src/api/new.js'],
+        ['../engine-x/src/edited.js', 'src/api/edited.js'],
+        ['../engine-x/src/absent.js', 'src/api/absent.js'],
       ]),
     ).to.equal(true);
-    expect(moved).to.deep.equal(['src/present.js -> src/api/present.js']);
+    expect(calls).to.deep.equal([
+      // The engine copy wins: it is mirrored out before anything is copied in.
+      'remove ../engine-x/src/edited.js',
+      'copy src/api/edited.js -> ../engine-x/src/edited.js',
+      'copy ../engine-x/src/new.js -> src/api/new.js',
+    ]);
+  });
+
+  it('mirrors every source the tree holds back to its repo, replacing it whole', () => {
+    // The engine ignores the moved-in paths, so the source repo is the only place a change to
+    // them is diffed; replacing rather than overlaying makes deletions reach that diff too.
+    const calls = [];
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}`.includes('present'));
+    vi.spyOn(fs, 'removeSync').mockImplementation((target) => calls.push(`remove ${target}`));
+    vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => calls.push(`copy ${src} -> ${dest}`));
+    vi.spyOn(fs, 'moveSync').mockImplementation(() => calls.push('move'));
+    expect(
+      syncDeployIdSourcesBack([
+        ['../engine-x/src/present.js', 'src/api/present.js'],
+        ['../engine-x/src/absent.js', 'src/api/absent.js'],
+      ]),
+    ).to.deep.equal(['../engine-x/src/present.js']);
+    expect(calls).to.deep.equal([
+      'remove ../engine-x/src/present.js',
+      'copy src/api/present.js -> ../engine-x/src/present.js',
+    ]);
+    expect(syncDeployIdSourcesBack()).to.deep.equal([]);
   });
 });
 

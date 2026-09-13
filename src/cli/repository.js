@@ -2160,13 +2160,13 @@ Prevent build private config repo.`,
 
     /**
      * Ensures a deploy's public source repo (e.g. `engine-prototype`) is present
-     * next to the engine and reset to a pristine HEAD, so catalog `sourceMoves`
-     * can (re)pull custom sources even after a previous build moved them out of
-     * the source tree.
+     * next to the engine, so catalog `sourceMoves` the engine tree lacks can be
+     * copied in.
      *
-     * Clones `../<repoName>` when missing; otherwise restores a clean checkout
-     * (`git checkout .` brings back any moved-out tracked files) and pulls latest.
-     * Mirrors the sibling-repo handling used by `syncPrivateConf`.
+     * Clones `../<repoName>` when missing; otherwise fast-forwards it. The working
+     * tree is never reset: it is the git view of edits made in the engine tree,
+     * which ignores those paths, so a pending change there is review material, not
+     * something to discard.
      *
      * @param {string} repoName - Public source repo name (e.g. `engine-prototype`).
      * @returns {boolean} `true` when the repo is available on disk.
@@ -2182,9 +2182,7 @@ Prevent build private config repo.`,
       } else {
         const repoAbsPath = path.resolve(repoPath);
         shellExec(`git config --global --add safe.directory '${repoAbsPath}'`);
-        shellExec(`cd ${repoPath} && git checkout . && git clean -f -d && underpost pull . ${gitUri}`, {
-          silent: true,
-        });
+        shellExec(`cd ${repoPath} && underpost pull . ${gitUri}`, { silent: true });
       }
       return fs.existsSync(repoPath);
     },

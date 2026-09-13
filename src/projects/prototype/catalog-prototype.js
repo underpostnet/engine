@@ -1,8 +1,10 @@
 /**
  * Prototype content catalog.
  *
- * A per-deploy product catalog for `dd-prototype` ERP/CRM prototype sources
- * to be moved into the template for the `dd-prototype` PWA microservices template.
+ * A per-deploy product catalog for `dd-prototype` ERP/CRM prototype sources. Each
+ * `[src, dest]` pair names the path in `../engine-prototype` and its place in the engine
+ * tree; the engine ignores the latter, so the tree is the working copy and the repo its
+ * git view (`node bin/build dd-prototype --sync-sources` mirrors one to the other).
  * @module src/projects/prototype/catalog-prototype.js
  * @namespace PrototypeCatalog
  */
