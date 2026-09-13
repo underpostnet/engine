@@ -345,6 +345,18 @@ export class ObjectLayerEngine {
    * @returns {Promise<BuildFromDirectoryResult>} The assembled render frames data and object layer data.
    * @memberof CyberiaObjectLayer
    */
+  static objectLayerDataFactory({ metadata, objectLayerType, objectLayerId }) {
+    const item = { id: objectLayerId, type: objectLayerType, description: '', activable: true };
+    if (!metadata?.data) return { data: { item, stats: generateRandomStats(), ledger: { type: 'OFF_CHAIN' } } };
+    return {
+      data: {
+        item: metadata.data.item || item,
+        stats: validateStats(metadata.data.stats ?? generateRandomStats()),
+        ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
+      },
+    };
+  }
+
   static async buildObjectLayerDataFromDirectory({ folder, objectLayerType, objectLayerId, metadataOverride = null }) {
     let metadata = metadataOverride;
 
@@ -359,11 +371,21 @@ export class ObjectLayerEngine {
     // Build objectLayerRenderFramesData
     let objectLayerRenderFramesData;
     if (metadata && metadata.objectLayerRenderFramesData) {
+      // The editor states each frame cell for cell, with its own width and height. The PNGs
+      // beside it are what the client serves, not a source to re-derive the cells from: a
+      // decode has to guess the cell size, and a guess resamples every frame it is wrong for.
+      const { frames, colors, frame_duration } = metadata.objectLayerRenderFramesData;
+      const authored = frames && colors && Object.values(frames).some((direction) => direction?.length > 0);
       objectLayerRenderFramesData = {
-        frame_duration: metadata.objectLayerRenderFramesData.frame_duration || 250,
-        frames: {},
-        colors: [],
+        frame_duration: frame_duration || 250,
+        frames: authored ? frames : {},
+        colors: authored ? colors : [],
       };
+      if (authored)
+        return {
+          objectLayerRenderFramesData,
+          objectLayerData: ObjectLayerEngine.objectLayerDataFactory({ metadata, objectLayerType, objectLayerId }),
+        };
     } else if (metadata && metadata.data && metadata.data.render) {
       objectLayerRenderFramesData = {
         frame_duration: metadata.data.render.frame_duration || 250,
@@ -378,35 +400,7 @@ export class ObjectLayerEngine {
       };
     }
 
-    // Build objectLayerData
-    let objectLayerData;
-    if (metadata && metadata.data) {
-      objectLayerData = {
-        data: {
-          item: metadata.data.item || {
-            id: objectLayerId,
-            type: objectLayerType,
-            description: '',
-            activable: true,
-          },
-          stats: validateStats(metadata.data.stats ?? generateRandomStats()),
-          ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
-        },
-      };
-    } else {
-      objectLayerData = {
-        data: {
-          item: {
-            id: objectLayerId,
-            type: objectLayerType,
-            description: '',
-            activable: true,
-          },
-          stats: generateRandomStats(),
-          ledger: { type: 'OFF_CHAIN' },
-        },
-      };
-    }
+    const objectLayerData = ObjectLayerEngine.objectLayerDataFactory({ metadata, objectLayerType, objectLayerId });
 
     // Process all PNG files from direction sub-folders
     if (fs.existsSync(folder)) {
