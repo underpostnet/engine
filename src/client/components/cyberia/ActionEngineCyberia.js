@@ -13,7 +13,7 @@ import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.
 import { CyberiaActionService } from '../../services/cyberia-action/cyberia-action.service.js';
 import { CyberiaDialogueService } from '../../services/cyberia-dialogue/cyberia-dialogue.service.js';
 import { CyberiaSkillService } from '../../services/cyberia-skill/cyberia-skill.service.js';
-import { QUEST_STEPS_TYPES, getDefaultCyberiaItemById, SKILL_LOGIC_IDS } from './SharedDefaultsCyberia.js';
+import { QUEST_STEPS_TYPES, SKILL_LOGIC_IDS } from './SharedDefaultsCyberia.js';
 
 const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
 // DropDown invokes optionData.onClick on selection, so every option (including
@@ -139,40 +139,16 @@ class ActionEngineCyberia {
     if (ActionEngineCyberia.imageCache[itemId]) return;
     ActionEngineCyberia.imageCache[itemId] = { img: null, loaded: false, error: false };
 
-    const loadImage = (type, id) => {
-      const img = new Image();
-      img.onload = () => {
-        ActionEngineCyberia.imageCache[itemId].img = img;
-        ActionEngineCyberia.imageCache[itemId].loaded = true;
-        if (onLoad) onLoad();
-      };
-      img.onerror = () => {
-        ActionEngineCyberia.imageCache[itemId].error = true;
-      };
-      img.src = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
+    const img = new Image();
+    img.onload = () => {
+      ActionEngineCyberia.imageCache[itemId].img = img;
+      ActionEngineCyberia.imageCache[itemId].loaded = true;
+      if (onLoad) onLoad();
     };
-
-    const sharedItem = getDefaultCyberiaItemById(itemId)?.item;
-    if (sharedItem?.type && sharedItem?.id) {
-      loadImage(sharedItem.type, sharedItem.id);
-      return;
-    }
-
-    ObjectLayerService.get({
-      limit: 1,
-      filterModel: { 'data.item.id': { filterType: 'text', type: 'equals', filter: itemId } },
-    })
-      .then((res) => {
-        const doc = res?.data?.data?.[0];
-        if (!doc || !doc.data?.item?.type || !doc.data?.item?.id) {
-          ActionEngineCyberia.imageCache[itemId].error = true;
-          return;
-        }
-        loadImage(doc.data.item.type, doc.data.item.id);
-      })
-      .catch(() => {
-        ActionEngineCyberia.imageCache[itemId].error = true;
-      });
+    img.onerror = () => {
+      ActionEngineCyberia.imageCache[itemId].error = true;
+    };
+    img.src = `${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${itemId}`;
   }
 
   static preloadMapObjectLayers(onLoad) {

@@ -8,8 +8,8 @@
  * browser editor — the procedural fallback world — still get a `preview`
  * image for the client's Instance Map node backgrounds.
  *
- * Frames come from the same place the browser reads them:
- *   src/client/public/cyberia/assets/{itemType}/{itemId}/08/0.png
+ * Every entity is drawn by its items' idle-preview stills, the same picture the
+ * editors show, read from the atlas the item key resolves to.
  *
  * Previews are pure functions of the map's entity list, so results are cached
  * in memory keyed by a content hash — the fallback world is regenerated (and
@@ -19,92 +19,56 @@
  */
 
 import crypto from 'crypto';
-import fs from 'fs-extra';
 import sharp from 'sharp';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
-import {
-  ENTITY_TYPE_TO_ITEM_TYPES,
-  getDefaultCyberiaItemById,
-} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
-
-const ASSET_ROOT = './src/client/public/cyberia/assets';
-/** Direction/frame the editor previews with (08 = down_idle, frame 0). */
-const PREVIEW_DIRECTION = '08';
-const PREVIEW_FRAME = '0.png';
 
 /** Node backgrounds are small; render cells down so a 64×64 map stays cheap. */
 const DEFAULT_CELL_PX = 8;
 const MAX_SIDE_PX = 1024;
 
-/** Item-type directories under ASSET_ROOT, read once. */
-let assetTypeDirs = null;
-
-async function itemTypeDirs() {
-  if (assetTypeDirs) return assetTypeDirs;
-  try {
-    const entries = await fs.readdir(ASSET_ROOT, { withFileTypes: true });
-    assetTypeDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
-  } catch (error) {
-    logger.warn(`map preview: cannot read asset root: ${error.message}`);
-    assetTypeDirs = [];
-  }
-  return assetTypeDirs;
-}
-
 /**
- * itemId → on-disk frame path, or null when no asset exists.
- *
- * The defaults registry only knows canonical items; saga-generated ones live on
- * disk without an entry, so the item type is resolved by probing — registry
- * first, then the types this entity type allows, then any remaining directory.
+ * Idle-still cache: itemId → Buffer | null. The still is keyed by item id on the
+ * atlas, so no type has to be known or probed to find it.
  */
-const framePathCache = new Map();
+const stillCache = new Map();
 
-async function resolveFramePath(itemId, entityType) {
-  const key = `${itemId}:${entityType || ''}`;
-  if (framePathCache.has(key)) return framePathCache.get(key);
-
-  const candidates = [];
-  const pushType = (type) => {
-    if (type && !candidates.includes(type)) candidates.push(type);
-  };
-
-  pushType(getDefaultCyberiaItemById(itemId)?.item?.type);
-  for (const type of ENTITY_TYPE_TO_ITEM_TYPES[entityType] || []) pushType(type);
-  for (const type of await itemTypeDirs()) pushType(type);
-
-  let found = null;
-  for (const type of candidates) {
-    const path = `${ASSET_ROOT}/${type}/${itemId}/${PREVIEW_DIRECTION}/${PREVIEW_FRAME}`;
-    if (await fs.pathExists(path)) {
-      found = path;
-      break;
-    }
+async function idleStill(itemId, options) {
+  if (stillCache.has(itemId)) return stillCache.get(itemId);
+  let buffer = null;
+  try {
+    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
+    const File = DataBaseProviderService.getModel('File', options);
+    const atlas = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemId }, { idlePreviewFileId: 1 }).lean();
+    const file = atlas?.idlePreviewFileId ? await File.findById(atlas.idlePreviewFileId, { data: 1 }) : null;
+    if (file?.data) buffer = Buffer.from(file.data);
+  } catch (error) {
+    logger.warn(`map preview: idle still lookup failed for "${itemId}": ${error.message}`);
   }
-  framePathCache.set(key, found);
-  return found;
+  stillCache.set(itemId, buffer);
+  return buffer;
 }
 
 /**
- * Resized-frame cache: `${framePath}:${w}x${h}` → Buffer | null.
+ * Resized-frame cache: `${itemId}:${w}x${h}` → Buffer | null.
  * A map tiles thousands of floor cells from a handful of distinct items, so
- * resizing once per (frame, size) is the difference between fast and unusable.
+ * resizing once per (item, size) is the difference between fast and unusable.
  */
 const frameCache = new Map();
 
-async function resizedFrame(itemId, entityType, width, height) {
-  const framePath = await resolveFramePath(itemId, entityType);
-  if (!framePath) return null;
+async function resizedFrame(itemId, width, height, options) {
+  const still = await idleStill(itemId, options);
+  if (!still) return null;
 
-  const key = `${framePath}:${width}x${height}`;
+  const key = `${itemId}:${width}x${height}`;
   if (frameCache.has(key)) return frameCache.get(key);
 
   let buffer = null;
   try {
     // `nearest` keeps the pixel-art edges crisp at small sizes.
-    buffer = await sharp(framePath).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
+    buffer = await sharp(still).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
   } catch (error) {
     logger.warn(`map preview: frame render failed for "${itemId}": ${error.message}`);
   }
@@ -182,8 +146,7 @@ function mapPreviewHash(map, cellPx) {
     e.dimX,
     e.dimY,
     (e.objectLayerItemIds || []).join(','),
-    // Drives frame-path resolution, and the colour is the render fallback.
-    e.entityType || '',
+    // The colour is the render fallback for an entity whose items have no still.
     e.color || '',
   ]);
   return crypto
@@ -198,9 +161,10 @@ function mapPreviewHash(map, cellPx) {
  * @param {object} map               CyberiaMap-shaped (code, gridX/gridY, entities).
  * @param {object} [opts]
  * @param {number} [opts.cellPx=8]   Pixels per grid cell in the output.
+ * @param {object} [opts.options]    Router options ({ host, path }) the stills are read with.
  * @returns {Promise<Buffer|null>}   PNG buffer, or null when nothing rendered.
  */
-async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX } = {}) {
+async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = {}) {
   const gridX = map?.gridX || 0;
   const gridY = map?.gridY || 0;
   if (gridX <= 0 || gridY <= 0) return null;
@@ -211,8 +175,8 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX } = {}) {
   const width = gridX * cell;
   const height = gridY * cell;
 
-  // Every entity of every entityType in the array renders something: its layer
-  // frames when they resolve on disk, otherwise a flat fill of its colour.
+  // Every entity of every entityType in the array renders something: its items'
+  // stills when the atlases hold them, otherwise a flat fill of its colour.
   const composites = [];
   for (const entity of map.entities || []) {
     const left = Math.round((entity.initCellX || 0) * cell);
@@ -224,7 +188,7 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX } = {}) {
     // Stack the entity's layers in declaration order, exactly like the editor.
     let drew = false;
     for (const itemId of entity.objectLayerItemIds || []) {
-      const input = await resizedFrame(itemId, entity.entityType, w, h);
+      const input = await resizedFrame(itemId, w, h, options);
       if (input) {
         composites.push({ input, left, top });
         drew = true;

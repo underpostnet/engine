@@ -14,7 +14,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getProxyPath, getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
-import { ENTITY_TYPES, ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX, validateEntityLevel, getDefaultCyberiaItemById } from './SharedDefaultsCyberia.js';
+import { ENTITY_TYPES, ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX, validateEntityLevel } from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -452,41 +452,16 @@ class MapEngineCyberia {
     if (MapEngineCyberia.imageCache[itemId]) return;
     MapEngineCyberia.imageCache[itemId] = { img: null, loaded: false, error: false };
 
-    const loadImage = (type, id) => {
-      const img = new Image();
-      img.onload = () => {
-        MapEngineCyberia.imageCache[itemId].img = img;
-        MapEngineCyberia.imageCache[itemId].loaded = true;
-        if (onLoad) onLoad();
-      };
-      img.onerror = () => {
-        MapEngineCyberia.imageCache[itemId].error = true;
-      };
-      img.src = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
+    const img = new Image();
+    img.onload = () => {
+      MapEngineCyberia.imageCache[itemId].img = img;
+      MapEngineCyberia.imageCache[itemId].loaded = true;
+      if (onLoad) onLoad();
     };
-
-    const sharedItem = getDefaultCyberiaItemById(itemId)?.item;
-    if (sharedItem?.type && sharedItem?.id) {
-      loadImage(sharedItem.type, sharedItem.id);
-      return;
-    }
-
-    ObjectLayerService.get({
-      limit: 1,
-      filterModel: { 'data.item.id': { filterType: 'text', type: 'equals', filter: itemId } },
-    })
-      .then((res) => {
-        const doc = res?.data?.data?.[0];
-        if (!doc || !doc.data?.item?.type || !doc.data?.item?.id) {
-          MapEngineCyberia.imageCache[itemId].error = true;
-          return;
-        }
-        const { type, id } = doc.data.item;
-        loadImage(type, id);
-      })
-      .catch(() => {
-        MapEngineCyberia.imageCache[itemId].error = true;
-      });
+    img.onerror = () => {
+      MapEngineCyberia.imageCache[itemId].error = true;
+    };
+    img.src = `${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${itemId}`;
   }
 
   static renderGrid(canvas, cols, rows, cellW, cellH, showGrid = true) {

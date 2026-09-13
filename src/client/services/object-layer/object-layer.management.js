@@ -117,8 +117,8 @@ class ObjectLayerManagement {
           return;
         }
 
-        const { type, id } = data.data.item;
-        const imagePath = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
+        const { id } = data.data.item;
+        const imagePath = `${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${id}`;
 
         // Container with both image and fallback
         this.eGui.innerHTML = html`

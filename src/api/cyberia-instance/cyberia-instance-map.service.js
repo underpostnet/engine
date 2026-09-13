@@ -358,7 +358,7 @@ const resolveInstanceWorld = async (instanceCode, options) => {
       entityDefaults: mergeEntityDefaults(),
       // The procedural world has no editor pass, so its node backgrounds render
       // here and are served from the in-memory preview cache.
-      previewCachedMapCodes: new Set(await cacheWorldMapPreviews(instanceCode, world.maps)),
+      previewCachedMapCodes: new Set(await cacheWorldMapPreviews(instanceCode, world.maps, { options })),
       fallback: true,
     };
   }
@@ -426,7 +426,7 @@ class CyberiaInstanceMapService {
         if (stored?.data) return stored.data;
       }
 
-      const rendered = await renderMapPreviewPng(map);
+      const rendered = await renderMapPreviewPng(map, { options });
       if (rendered) {
         const file = await new File(FileFactory.create(rendered, `${mapCode}-preview.png`)).save();
         await CyberiaMap.updateOne({ _id: map._id }, { $set: { preview: file._id } });
@@ -439,7 +439,7 @@ class CyberiaInstanceMapService {
     if (!png) {
       // Cold cache: regenerate the world so the preview exists, then serve it.
       const { maps } = await resolveInstanceWorld(instanceCode, options);
-      await cacheWorldMapPreviews(instanceCode, maps);
+      await cacheWorldMapPreviews(instanceCode, maps, { options });
       png = getCachedMapPreview(instanceCode, mapCode);
     }
     if (!png) throw new Error(`No cached preview for map "${mapCode}"`);

@@ -45,7 +45,6 @@ class EntityEngineCyberia {
   // itemId → item type. A sprite lives under its type, so an item id alone cannot be previewed.
   // Types never change, so this is a cache that only ever grows: ids reach it from the list and
   // from every id added in the form, which is what makes a just-picked item preview immediately.
-  static itemTypes = new Map();
 
   static gridId = 'entity-engine-grid';
 
@@ -190,9 +189,6 @@ class EntityEngineCyberia {
     }
     list.push(itemId);
     EntityEngineCyberia.setSingleDropdownValue(pickerId, '');
-    // An id picked here — an object layer created after the list loaded, say — is unknown to the
-    // type cache, and an unresolved type is an item with no preview. Resolve it before drawing.
-    await EntityEngineCyberia.ensureItemTypes([itemId]);
     await EntityEngineCyberia.renderItemList(field);
   }
 
@@ -307,7 +303,6 @@ class EntityEngineCyberia {
       quantity: 1,
     });
     EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.overrideItemPicker, '');
-    await EntityEngineCyberia.ensureItemTypes([itemId]);
     await EntityEngineCyberia.renderOverrideList();
   }
 
@@ -392,10 +387,8 @@ class EntityEngineCyberia {
       html`<div style="width:${size}px;height:${size}px;display:${display};align-items:center;justify-content:center;">
         <i class="fas fa-image" style="font-size:${Math.round(size / 2)}px;color:#999;"></i>
       </div>`;
-    const type = EntityEngineCyberia.itemTypes.get(itemId);
-    if (!type) return placeholder('flex');
     return html`<img
-        src="${getProxyPath()}assets/${type}/${itemId}/08/0.png"
+        src="${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${itemId}"
         style="width:${size}px;height:${size}px;display:block;image-rendering:pixelated;"
         alt="${itemId}"
         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
@@ -505,22 +498,6 @@ class EntityEngineCyberia {
     };
   }
 
-  // Resolves only what the cache is missing, so a repeated refresh costs nothing and an id added
-  // in the form keeps its type instead of being dropped by the next list load.
-  static async ensureItemTypes(itemIds) {
-    const missing = [...new Set(itemIds)].filter((id) => id && !EntityEngineCyberia.itemTypes.has(id));
-    if (missing.length === 0) return;
-    const result = await ObjectLayerService.searchItemIds({ ids: missing });
-    for (const { id, type } of result?.data?.items || []) EntityEngineCyberia.itemTypes.set(id, type);
-  }
-
-  // One resolve for every id the list shows, so the grid renders without a request per cell.
-  static async refreshItemTypes(docs) {
-    await EntityEngineCyberia.ensureItemTypes(
-      docs.flatMap((doc) => Object.values(EntityEngineCyberia.ITEM_FIELD_KEYS).flatMap((key) => doc[key] || [])),
-    );
-  }
-
   // The link lives on CyberiaInstanceConf.entityDefaults, so one conf read answers it for every
   // row at once — there is no second place to ask, and nothing to keep in sync.
   static async refreshInstanceLinks() {
@@ -544,7 +521,6 @@ class EntityEngineCyberia {
       EntityEngineCyberia.refreshInstanceLinks(),
     ]);
     EntityEngineCyberia.listCache = res?.data?.data || [];
-    await EntityEngineCyberia.refreshItemTypes(EntityEngineCyberia.listCache);
     const rows = EntityEngineCyberia.listCache.map((d) => EntityEngineCyberia.toRow(d));
     if (AgGrid.grids[EntityEngineCyberia.gridId])
       AgGrid.grids[EntityEngineCyberia.gridId].setGridOption('rowData', rows);
