@@ -162,19 +162,23 @@ const enrichWithLiveStatus = async (instances, opts) => {
 // the instance catalogue, then (when `liveStatus`) overlays real Online/Busy/
 // Full/Maintenance/Offline from each world's metrics API. Swap the whole thing
 // via `render({ fetchInstances })` to source instances from anywhere.
+// `limit` keeps only the first N catalogue entries *before* the live overlay so
+// lightweight consumers (the portal landing) don't probe every world's metrics.
 const defaultInstanceProvider = async ({
   clientBaseUrl = DEFAULT_CLIENT_BASE_URL,
   serverBaseUrl = DEFAULT_SERVER_BASE_URL,
   defaultInstanceCode = DEFAULT_INSTANCE_CODE,
   liveStatus = true,
+  limit,
 } = {}) => {
   const res = await CyberiaInstanceService.get({ sort: 'createdAt', order: 'asc', limit: 60, fallback: true });
   if (!res || res.status !== 'success') throw new Error(res?.message || 'Could not load instances');
   const raw = res.data;
   const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
-  const instances = list
+  let instances = list
     .filter((doc) => doc && doc.status !== 'archived')
     .map((doc) => normalizeInstance(doc, { clientBaseUrl }));
+  if (Number.isInteger(limit) && limit > 0) instances = instances.slice(0, limit);
   if (liveStatus && instances.length > 0) await enrichWithLiveStatus(instances, { serverBaseUrl, defaultInstanceCode });
   return instances;
 };
@@ -895,6 +899,8 @@ class InstanceSelectionView {
 export {
   InstanceSelectionView,
   defaultInstanceProvider,
+  placeholderThumbnail,
+  DEFAULT_CLIENT_BASE_URL,
   normalizeInstance,
   resolveStatus,
   statusFromMetrics,
