@@ -950,7 +950,12 @@ Prevent build private config repo.`,
       confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
       const targetConfPath = `./conf${defaultConf ? '' : `.${deployId}`}.js`;
       fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
-      shellExec(`prettier --write ${targetConfPath}`);
+      // A host tool, not a dependency: without it the manifest stays valid, only unformatted.
+      if (
+        `${shellExec('command -v prettier', { silent: true, silentOnError: true, stdout: true, disableLog: true }) ?? ''}`.trim()
+      )
+        shellExec(`prettier --write ${shellArgumentFactory(targetConfPath)}`);
+      else logger.warn('prettier is not on PATH; conf manifest left unformatted', { targetConfPath });
     },
 
     /**
@@ -1985,7 +1990,7 @@ Prevent build private config repo.`,
             `export GITHUB_TOKEN='${githubToken.replace(/'/g, "'\\''")}'`,
             `export GITHUB_USERNAME='${githubUsername.replace(/'/g, "'\\''")}'`,
             `git config --global --add safe.directory '${siteRoot}' 2>/dev/null || true`,
-            `cd '${siteRoot}' && git add -A && git commit -m 'backup $(date -u +%Y-%m-%dT%H:%M:%SZ)' || true`,
+            `cd '${siteRoot}' && git add -A && git commit -m "backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`,
             `cd '${siteRoot}' && underpost push . ${githubUsername}/${repoName}`,
             `cd /home/dd/engine && node bin host clean --force`,
           ].join(' && ');

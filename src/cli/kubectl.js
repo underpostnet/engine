@@ -7,7 +7,7 @@
  */
 
 import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
-import { shellExec, sleepSync } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec, sleepSync } from '../server/runtime/process.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
 
@@ -275,7 +275,8 @@ class UnderpostKubectl {
     },
 
     /**
-     * Runs a shell command inside a pod container via `kubectl exec`.
+     * Runs a shell command inside a pod container via `kubectl exec`. The command is quoted as one
+     * argument, so the pod's shell parses it and the host shell never expands it.
      * @param {object} params
      * @param {string} params.podName - Target pod name.
      * @param {string} params.namespace - Pod namespace.
@@ -287,7 +288,7 @@ class UnderpostKubectl {
      * @memberof UnderpostKubectl
      */
     exec({ podName, namespace, command, retries = DEFAULT_POD_RETRIES, timeoutSeconds = 0 }) {
-      const kubectlCmd = `sudo kubectl exec -n ${namespace} -i ${podName} -- sh -c "${command}"`;
+      const kubectlCmd = `sudo kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- sh -c ${shellArgumentFactory(command)}`;
       return Underpost.kubectl.run(kubectlCmd, {
         context: `exec in pod ${podName}`,
         retries,

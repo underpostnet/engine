@@ -320,8 +320,8 @@ const pullClientBundle = async ({ deployId, hosts = [], dev = false }) => {
 
     // The previous deployment's document root can be owned by the web server user, so the
     // replace goes through sudo; the extracted tree this process just wrote does not.
-    shellExec(`sudo rm -rf ${publicPath}`);
-    if (routePath !== '/') shellExec(`sudo mkdir -p public/${host}`);
+    shellExec(`sudo rm -rf ${shellArgumentFactory(publicPath)}`);
+    if (routePath !== '/') shellExec(`sudo mkdir -p ${shellArgumentFactory(`public/${host}`)}`);
     fs.copySync(outputPath, publicPath);
 
     logger.info('pulled bundle', { host, routePath, publicPath });
