@@ -205,9 +205,24 @@ describe('sops encrypted secret store', () => {
     });
   });
 
-  describe('GIT_AUTH_TOKEN rotation', () => {
+  describe('GitHub Actions secret rotation', () => {
     const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
+    const methodBody = (signature) => {
+      const start = secretsSource.indexOf(signature);
+      expect(start, `${signature} not found`).to.be.greaterThan(-1);
+      return secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+    };
     const saved = {};
+    const TARGET_KEYS = [
+      'ENGINE_SRC_REPO',
+      'ENGINE_SRC_PRIVATE_REPO',
+      'GITHUB_USERNAME',
+      'GITHUB_TARGET_TYPE',
+      'GITHUB_ORG_NAME',
+      'GITHUB_SECRET_TOKEN',
+      'GIT_AUTH_TOKEN',
+      'NPM_TOKEN',
+    ];
 
     // `instanceRepos` reads `./engine-private/conf/<deployId>/conf.instances.json`, and
     // engine-private is a private repository absent from a CI checkout. A real deploy's
@@ -232,9 +247,8 @@ describe('sops encrypted secret store', () => {
     });
 
     beforeEach(() => {
-      for (const key of ['ENGINE_SRC_REPO', 'ENGINE_SRC_PRIVATE_REPO', 'GITHUB_USERNAME', 'GIT_AUTH_TOKEN'])
-        saved[key] = process.env[key];
-      for (const key of Object.keys(saved)) delete process.env[key];
+      for (const key of TARGET_KEYS) saved[key] = process.env[key];
+      for (const key of TARGET_KEYS) delete process.env[key];
     });
 
     afterEach(() => {
@@ -243,11 +257,57 @@ describe('sops encrypted secret store', () => {
         else process.env[key] = value;
     });
 
+    describe('target resolution', () => {
+      it('defaults to the user account, at the repository level, under the gh login', () => {
+        expect(sops().githubTargetFactory({})).to.deep.equal({
+          type: 'user',
+          owner: 'underpostnet',
+          level: 'repo',
+          token: '',
+        });
+      });
+
+      it('takes the user owner from ENGINE_SRC_REPO, then GITHUB_USERNAME', () => {
+        process.env.GITHUB_USERNAME = 'someone';
+        expect(sops().githubTargetFactory({}).owner).to.equal('someone');
+        process.env.ENGINE_SRC_REPO = 'acme/engine-lampp';
+        expect(sops().githubTargetFactory({}).owner).to.equal('acme');
+        expect(sops().githubTargetFactory({ owner: 'explicit' }).owner).to.equal('explicit');
+      });
+
+      it('addresses an organization through GITHUB_TARGET_TYPE and GITHUB_ORG_NAME', () => {
+        process.env.GITHUB_TARGET_TYPE = 'org';
+        process.env.GITHUB_ORG_NAME = 'acme-org';
+        process.env.GITHUB_SECRET_TOKEN = 'github_pat_organizationWriter0000000000';
+        expect(sops().githubTargetFactory({})).to.deep.equal({
+          type: 'org',
+          owner: 'acme-org',
+          level: 'repo',
+          token: 'github_pat_organizationWriter0000000000',
+        });
+        expect(sops().githubTargetFactory({ level: 'org' }).level).to.equal('org');
+        // --args wins over the environment, so one run can address the other account type.
+        expect(sops().githubTargetFactory({ target: 'user' }).owner).to.equal('underpostnet');
+      });
+
+      it('refuses an organization target without an organization, and an organization level without an organization target', () => {
+        expect(() => sops().githubTargetFactory({ target: 'org' })).to.throw(/GITHUB_ORG_NAME/);
+        expect(() => sops().githubTargetFactory({ level: 'org' })).to.throw(/target=org/);
+        expect(() => sops().githubTargetFactory({ target: 'team' })).to.throw(/user or org/);
+        expect(() => sops().githubTargetFactory({ level: 'enterprise' })).to.throw(/repo or org/);
+      });
+
+      it('hands GITHUB_SECRET_TOKEN to gh as GH_TOKEN and otherwise leaves the login alone', () => {
+        expect(sops().ghEnvFactory({ token: 'github_pat_x' })).to.include({ GH_TOKEN: 'github_pat_x' });
+        expect(sops().ghEnvFactory({ token: '' })).to.equal(process.env);
+      });
+    });
+
     it('targets the private conf repo, both engine sources and the package mirror of a deploy', () => {
       // Same naming `deploy_id_from_repo` resolves in deploy/lib/host.sh, reached through the
       // repository domain rather than re-derived here. dd-core declares no instances, so this is
       // the naming-derived set on its own.
-      expect(sops().gitAuthTokenTargets({ deployId: 'dd-core', owner: 'acme' })).to.deep.equal([
+      expect(sops().actionsSecretTargets({ deployId: 'dd-core', owner: 'acme' })).to.deep.equal([
         'acme/engine-core-private',
         'acme/engine-core',
         'acme/engine-test-core',
@@ -257,26 +317,45 @@ describe('sops encrypted secret store', () => {
 
     it('keeps an instance repository under the owner it declares, not the derived one', () => {
       // metadata.repository is an explicit slug, so it outranks the --args owner used for naming.
-      expect(sops().gitAuthTokenTargets({ deployId: FIXTURE_DEPLOY, owner: 'acme' })).to.include(
+      expect(sops().actionsSecretTargets({ deployId: FIXTURE_DEPLOY, owner: 'acme' })).to.include(
         FIXTURE_INSTANCE_REPOS[0],
+      );
+    });
+
+    it('re-owns every derived and declared repository under an organization target', () => {
+      process.env.ENGINE_SRC_REPO = 'underpostnet/engine-fixture-sops';
+      process.env.ENGINE_SRC_PRIVATE_REPO = 'underpostnet/engine-private';
+      const targets = sops().actionsSecretTargets({ deployId: FIXTURE_DEPLOY, target: 'org', owner: 'acme-org' });
+      expect(targets).to.deep.equal([
+        'acme-org/engine-fixture-sops-private',
+        'acme-org/engine-fixture-sops',
+        'acme-org/engine-test-fixture-sops',
+        'acme-org/engine-ghpkg-fixture-sops',
+        'acme-org/fixture-sops-server',
+        'acme-org/fixture-sops-client',
+        'acme-org/engine-private',
+      ]);
+      // An explicit extra target is taken as written.
+      expect(sops().actionsSecretTargets({ target: 'org', owner: 'acme-org', repos: 'other/one' })).to.include(
+        'other/one',
       );
     });
 
     it('includes the ghpkg package mirror the engine repository publishes into', () => {
       // .github/workflows/ghpkg.ci.yml builds engine-ghpkg-<conf_id>, whose own workflows read
-      // the same token; the monorepo has no ghpkg of its own.
-      expect(sops().gitAuthTokenTargets({ deployId: 'dd-cyberia', owner: 'acme' })).to.include(
+      // the same secrets; the monorepo has no ghpkg of its own.
+      expect(sops().actionsSecretTargets({ deployId: 'dd-cyberia', owner: 'acme' })).to.include(
         'acme/engine-ghpkg-cyberia',
       );
-      expect(sops().gitAuthTokenTargets({ owner: 'acme' })).to.not.include('acme/engine-ghpkg');
+      expect(sops().actionsSecretTargets({ owner: 'acme' })).to.not.include('acme/engine-ghpkg');
     });
 
     it("includes every repository the deploy's instances are built from", () => {
       // dd-cyberia builds from cyberia-server and cyberia-client; rotating only the engine repos
-      // would leave half the deploy on the previous token.
+      // would leave half the deploy on the previous value.
       const declared = Underpost.repo.instanceRepos(FIXTURE_DEPLOY);
       expect(declared, `${FIXTURE_DEPLOY} declares no instance repositories`).to.deep.equal(FIXTURE_INSTANCE_REPOS);
-      expect(sops().gitAuthTokenTargets({ deployId: FIXTURE_DEPLOY })).to.include.members(declared);
+      expect(sops().actionsSecretTargets({ deployId: FIXTURE_DEPLOY })).to.include.members(declared);
     });
 
     it('contributes nothing for a deploy that declares no instances', () => {
@@ -285,10 +364,20 @@ describe('sops encrypted secret store', () => {
     });
 
     it('resolves the `template` meta id to the template lineage, not through conf-id naming', () => {
-      expect(sops().gitAuthTokenTargets({ deployId: 'template', owner: 'acme' })).to.deep.equal([
+      expect(sops().actionsSecretTargets({ deployId: 'template', owner: 'acme' })).to.deep.equal([
         'acme/pwa-microservices-template',
         'acme/pwa-microservices-template-ghpkg',
         'acme/engine',
+      ]);
+      // In a list too, so one rotation covers a product and the template it was built from.
+      expect(sops().actionsSecretTargets({ deployId: 'template|dd-core', owner: 'acme' })).to.deep.equal([
+        'acme/pwa-microservices-template',
+        'acme/pwa-microservices-template-ghpkg',
+        'acme/engine',
+        'acme/engine-core-private',
+        'acme/engine-core',
+        'acme/engine-test-core',
+        'acme/engine-ghpkg-core',
       ]);
     });
 
@@ -300,17 +389,17 @@ describe('sops encrypted secret store', () => {
         'acme/engine-ghpkg-lampp',
       ];
       for (const reference of ['dd-lampp', 'engine-lampp', 'engine-test-lampp', 'engine-lampp-private'])
-        expect(sops().gitAuthTokenTargets({ deployId: reference, owner: 'acme' }), reference).to.deep.equal(expected);
+        expect(sops().actionsSecretTargets({ deployId: reference, owner: 'acme' }), reference).to.deep.equal(expected);
     });
 
     it('falls back to the monorepo pair, deduplicated, when no deploy is named', () => {
-      expect(sops().gitAuthTokenTargets({ owner: 'acme' })).to.deep.equal(['acme/engine-private', 'acme/engine']);
+      expect(sops().actionsSecretTargets({ owner: 'acme' })).to.deep.equal(['acme/engine-private', 'acme/engine']);
     });
 
     it('takes the deploy and owner from the deploy environment when none is passed', () => {
       process.env.ENGINE_SRC_REPO = 'acme/engine-test-fixture-sops';
       process.env.ENGINE_SRC_PRIVATE_REPO = 'acme/engine-private';
-      expect(sops().gitAuthTokenTargets({})).to.deep.equal([
+      expect(sops().actionsSecretTargets({})).to.deep.equal([
         'acme/engine-fixture-sops-private',
         'acme/engine-fixture-sops',
         'acme/engine-test-fixture-sops',
@@ -324,7 +413,7 @@ describe('sops encrypted secret store', () => {
       // `dd` is the meta id every runner reads as "all of dd.routes"; the rotation must cover the
       // same fleet the cluster deploys, resolved through the one reader rather than a second parse.
       const routed = resolveDeployList('dd');
-      const targets = sops().gitAuthTokenTargets({ deployId: 'dd', owner: 'acme' });
+      const targets = sops().actionsSecretTargets({ deployId: 'dd', owner: 'acme' });
       expect(routed.length, 'no deploy routes to fan out over').to.be.greaterThan(0);
       expect(targets).to.have.lengthOf(new Set(targets).size);
       for (const deployId of routed) {
@@ -338,7 +427,7 @@ describe('sops encrypted secret store', () => {
     });
 
     it('accepts an explicit multi-deploy list, in route-table order', () => {
-      expect(sops().gitAuthTokenTargets({ deployId: `${FIXTURE_DEPLOY}|dd-lampp`, owner: 'acme' })).to.deep.equal([
+      expect(sops().actionsSecretTargets({ deployId: `${FIXTURE_DEPLOY}|dd-lampp`, owner: 'acme' })).to.deep.equal([
         'acme/engine-fixture-sops-private',
         'acme/engine-fixture-sops',
         'acme/engine-test-fixture-sops',
@@ -353,61 +442,79 @@ describe('sops encrypted secret store', () => {
 
     it('unions repositories two deploys share instead of rotating them twice', () => {
       process.env.ENGINE_SRC_PRIVATE_REPO = 'acme/engine-private';
-      const targets = sops().gitAuthTokenTargets({ deployId: `${FIXTURE_DEPLOY}|dd-lampp`, owner: 'acme' });
+      const targets = sops().actionsSecretTargets({ deployId: `${FIXTURE_DEPLOY}|dd-lampp`, owner: 'acme' });
       expect(targets.filter((slug) => slug === 'acme/engine-private')).to.have.lengthOf(1);
     });
 
     it('separates extra targets on characters --args does not split on', () => {
-      const targets = sops().gitAuthTokenTargets({ owner: 'acme', repos: 'other/one|other/two;other/three' });
+      const targets = sops().actionsSecretTargets({ owner: 'acme', repos: 'other/one|other/two;other/three' });
       expect(targets).to.include.members(['other/one', 'other/two', 'other/three']);
     });
 
     it('drops an unresolvable extra target instead of failing the whole rotation', () => {
-      const targets = sops().gitAuthTokenTargets({ owner: 'acme', repos: 'not-a-slug|other/one' });
+      const targets = sops().actionsSecretTargets({ owner: 'acme', repos: 'not-a-slug|other/one' });
       expect(targets).to.include('other/one');
       expect(targets).to.not.include('not-a-slug');
     });
 
     it('reports the plan without contacting GitHub or writing anything on a dry run', () => {
-      // Same reasoning as the 'GIT_AUTH_TOKEN token sources' dry-run test: the reported fields
-      // don't depend on gh reachability, so probing is stubbed to keep this test from reaching the
-      // real GitHub API through whatever `gh` session happens to be authenticated on this machine.
+      // The reported fields do not depend on gh reachability, so probing is stubbed to keep this
+      // test from reaching the real GitHub API through whatever `gh` session happens to be
+      // authenticated on this machine.
       const hasBinary = vi.spyOn(sops(), 'hasBinary').mockReturnValue(false);
+      const read = vi.spyOn(Underpost.host, 'read').mockReturnValue({ NPM_TOKEN: 'npm_fixture' });
       try {
-        const report = sops().rotateGitAuthToken({ deployId: FIXTURE_DEPLOY, owner: 'acme', dryRun: true });
+        const report = sops().rotateActionsSecrets({
+          keys: 'GIT_AUTH_TOKEN|NPM_TOKEN',
+          deployId: FIXTURE_DEPLOY,
+          owner: 'acme',
+          dryRun: true,
+        });
+        expect(report.keys).to.deep.equal(['GIT_AUTH_TOKEN', 'NPM_TOKEN']);
         expect(report.targets).to.have.lengthOf(4 + FIXTURE_INSTANCE_REPOS.length);
-        expect(report.rotated).to.deep.equal([]);
+        expect(report.written).to.deep.equal({});
         expect(report.manifest).to.equal('');
-        expect(report.tokenSource).to.equal('');
+        expect(report.sources.NPM_TOKEN).to.equal('host configuration');
+        expect(report.target).to.include({ type: 'user', owner: 'acme', level: 'repo' });
       } finally {
         hasBinary.mockRestore();
+        read.mockRestore();
       }
     });
 
-    it('takes a piped token, ahead of an inherited environment holding the outgoing one', () => {
-      const start = secretsSource.indexOf('    stageGitAuthToken(stagePath, options = {}) {');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+    it('rejects names GitHub cannot hold, and one value spread over several keys', () => {
+      expect(() => sops().rotateActionsSecrets({ keys: 'GITHUB_MINE', owner: 'acme' })).to.throw(/GITHUB_ prefix/);
+      expect(() => sops().rotateActionsSecrets({ keys: 'bad-name', owner: 'acme' })).to.throw(/letters, digits/);
+      expect(() => sops().rotateActionsSecrets({ keys: '', owner: 'acme' })).to.throw(/at least one secret name/);
+      expect(() =>
+        sops().rotateActionsSecrets({ keys: 'NPM_TOKEN|NPM_USER', value: 'one', owner: 'acme', dryRun: true }),
+      ).to.throw(/one value/);
+    });
+
+    it('takes a piped value, ahead of an inherited environment holding the outgoing one', () => {
+      const body = methodBody('    stageActionsSecret(stagePath, key, options = {}, hostValues = {}) {');
       expect(body).to.include('stdinIsRedirected()');
       expect(body).to.include("fs.readFileSync(0, 'utf8')");
       expect(body.indexOf("source = 'piped stdin'")).to.be.lessThan(body.indexOf('} else if (inherited) {'));
+      // The durable host configuration is the last implicit source before a prompt.
+      expect(body.indexOf('} else if (inherited) {')).to.be.lessThan(body.indexOf('} else if (hostValue) {'));
     });
 
     it('reads stdin only when it is piped or redirected, never a terminal or /dev/null', () => {
       // fstat rather than isTTY: `< /dev/null` is not a TTY either, and reading it would strand
-      // the rotation on an empty token instead of falling through to the next source.
+      // the rotation on an empty value instead of falling through to the next source.
       expect(secretsSource).to.include('stat.isFIFO() || stat.isFile()');
     });
 
     it('names piped stdin as the planned source without consuming it', () => {
-      expect(sops().plannedTokenSource({ token: 'ghp_explicit' })).to.equal('--args token');
-      expect(sops().plannedTokenSource({})).to.be.a('string').and.not.equal('');
+      expect(sops().plannedSecretSource('NPM_TOKEN', { value: 'npm_explicit' })).to.equal('--args value');
+      expect(sops().plannedSecretSource('NPM_TOKEN', {})).to.be.a('string').and.not.equal('');
     });
 
     it('treats `gh auth status` as advisory, gating on target reachability instead', () => {
       // A logged-in account whose token merely lacks an optional scope still exits non-zero here,
       // so making it the gate blocks a rotation that would have worked.
-      const start = secretsSource.indexOf('    rotateGitAuthToken(options = {}) {');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      const body = methodBody('    rotateActionsSecrets(options = {}) {');
       expect(body).to.include('if (!ghAuthenticated)');
       expect(body).to.not.match(/if \(!ghAuthenticated\)\s*\n?\s*throw/);
       expect(body).to.include('probed.reachable.length === 0');
@@ -421,46 +528,58 @@ describe('sops encrypted secret store', () => {
     it('names a shadowing GH_TOKEN/GITHUB_TOKEN as the likely cause of a dead credential', () => {
       // gh prefers these over the stored login, and `host load` exports GITHUB_TOKEN on every
       // engine node — so a stale one turns a working `gh auth login` into 15 unreachable targets.
+      // An explicit GITHUB_SECRET_TOKEN is the chosen credential, so nothing shadows it.
       expect(secretsSource).to.include("['GH_TOKEN', 'GITHUB_TOKEN'].filter(");
       expect(secretsSource).to.include('is set here, and gh uses it in preference to the account');
+      expect(methodBody('    rotateActionsSecrets(options = {}) {')).to.include('target.token\n        ? []');
     });
 
-    it('probes before staging the token, so an unreachable set never prompts for one', () => {
-      const start = secretsSource.indexOf('    rotateGitAuthToken(options = {}) {');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
-      expect(body.indexOf('probeGitAuthTokenTargets(targets)')).to.be.lessThan(
-        body.indexOf('stageGitAuthToken(stagePath, options)'),
+    it('probes before staging any value, so an unreachable set never prompts for one', () => {
+      const body = methodBody('    rotateActionsSecrets(options = {}) {');
+      expect(body.indexOf('probeActionsSecretTargets(targets, target)')).to.be.lessThan(
+        body.indexOf('stageActionsSecret(stagePath, key, options, hostValues)'),
       );
     });
 
-    it('hands the token to gh on stdin, never as a command argument', () => {
-      // A token in the command string is a token in the process table and in the command log.
-      expect(secretsSource).to.include('gh secret set ${GIT_AUTH_TOKEN_KEY} --repo "${repo}" < "${stagePath}"');
-      expect(secretsSource).to.not.include('gh secret set ${GIT_AUTH_TOKEN_KEY} --body');
+    it('hands the value to gh on stdin, never as a command argument', () => {
+      // A value in the command string is a value in the process table and in the command log.
+      expect(secretsSource).to.include('gh secret set ${key} ${scope} < "${stagePath}"');
+      expect(secretsSource).to.not.include('gh secret set ${key} --body');
+    });
+
+    it('writes one organization secret for the organization repositories and repository secrets elsewhere', () => {
+      const body = methodBody('    writeActionsSecret({ key, stagePath, target, repos }) {');
+      expect(body).to.include('--org "${target.owner}" --visibility selected --repos');
+      expect(body).to.include("repos.filter((slug) => slug.split('/')[0] === target.owner)");
+      expect(body).to.include('--repo "${repo}"');
     });
 
     it('runs the gh write under pipefail with the command kept out of the log', () => {
-      const start = secretsSource.indexOf('    rotateGitAuthToken(options = {}) {');
-      expect(start, 'rotateGitAuthToken() not found').to.be.greaterThan(-1);
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      const body = methodBody('    writeActionsSecret({ key, stagePath, target, repos }) {');
       expect(body).to.include("bash -c 'set -o pipefail; gh secret set");
       expect(body).to.include('disableLog: true');
-      expect(body).to.include('shred -u "${stagePath}"');
+      expect(methodBody('    rotateActionsSecrets(options = {}) {')).to.include(
+        'shred -u "${ACTIONS_SECRET_STAGE_DIR}"/*',
+      );
     });
 
-    it('stages the token on tmpfs at mode 600 rather than through a shell heredoc', () => {
-      expect(secretsSource).to.include("const GIT_AUTH_TOKEN_STAGE_DIR = '/dev/shm/underpost-git-auth';");
-      const start = secretsSource.indexOf('    stageGitAuthToken(stagePath, options = {}) {');
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+    it('stages every value on tmpfs at mode 600 rather than through a shell heredoc', () => {
+      expect(secretsSource).to.include("const ACTIONS_SECRET_STAGE_DIR = '/dev/shm/underpost-actions-secret';");
+      const body = methodBody('    stageActionsSecret(stagePath, key, options = {}, hostValues = {}) {');
       expect(body).to.include('writeStageFileSync(stagePath');
       // GITHUB_TOKEN is what gh authenticates with — on a rotation that is the outgoing token.
       expect(body).to.not.include('process.env.GITHUB_TOKEN');
     });
 
+    it('validates the token shape for GIT_AUTH_TOKEN only', () => {
+      expect(secretsSource).to.include('ACTIONS_SECRET_POLICIES[key]?.validate?.(value)');
+      expect(secretsSource).to.match(
+        /const ACTIONS_SECRET_POLICIES = Object\.freeze\(\{\n  \[GIT_AUTH_TOKEN_KEY\]: \{/,
+      );
+    });
+
     it('replaces the stored manifest through the validating atomic encrypt path', () => {
-      const start = secretsSource.indexOf("    writeGitAuthTokenManifest(token, namespace = 'default') {");
-      expect(start, 'writeGitAuthTokenManifest() not found').to.be.greaterThan(-1);
-      const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
+      const body = methodBody("    writeGitAuthTokenManifest(token, namespace = 'default') {");
       expect(body).to.include('Underpost.secret.encrypt(plaintextPath, namespace, { force: true })');
     });
 
@@ -469,15 +588,12 @@ describe('sops encrypted secret store', () => {
       expect(EXECUTION_PROFILES.HERMETIC_BUILD.permits).to.not.include('net');
     });
 
-    it('rejects a credential the verb does not rotate, and a rotation with no target', () => {
-      expect(() => sops().rotate({ args: { secret: 'AWS_SECRET_ACCESS_KEY' } })).to.throw(
-        /GIT_AUTH_TOKEN is the only one it rotates/,
-      );
+    it('rejects a rotation with no target', () => {
       expect(() => sops().rotate({ args: {} })).to.throw(/rotate requires a target/);
     });
   });
 
-  describe('GIT_AUTH_TOKEN token sources', () => {
+  describe('Actions secret value sources', () => {
     const saved = {};
 
     beforeEach(() => {
@@ -490,31 +606,45 @@ describe('sops encrypted secret store', () => {
       else process.env.GIT_AUTH_TOKEN = saved.env;
     });
 
-    it('prefers an explicit token over every implicit source', () => {
+    it('prefers an explicit value over every implicit source', () => {
       process.env.GIT_AUTH_TOKEN = 'ghp_fromEnvironment';
-      expect(sops().plannedTokenSource({ token: 'ghp_explicit' })).to.equal('--args token');
+      expect(sops().plannedSecretSource('GIT_AUTH_TOKEN', { value: 'ghp_explicit' })).to.equal('--args value');
     });
 
-    it('falls back through the environment to a prompt', () => {
+    it('falls back through the environment and the host configuration to a prompt', () => {
       process.env.GIT_AUTH_TOKEN = 'ghp_fromEnvironment';
-      expect(sops().plannedTokenSource({})).to.equal('GIT_AUTH_TOKEN environment');
+      expect(sops().plannedSecretSource('GIT_AUTH_TOKEN', {})).to.equal('GIT_AUTH_TOKEN environment');
       delete process.env.GIT_AUTH_TOKEN;
-      expect(sops().plannedTokenSource({})).to.match(/interactive prompt|unavailable/);
+      expect(sops().plannedSecretSource('GIT_AUTH_TOKEN', {}, { GIT_AUTH_TOKEN: 'ghp_host' })).to.equal(
+        'host configuration',
+      );
+      expect(sops().plannedSecretSource('GIT_AUTH_TOKEN', {})).to.match(/interactive prompt|unavailable/);
+    });
+
+    it('pins the host configuration with source=host, even when the environment holds a value', () => {
+      process.env.GIT_AUTH_TOKEN = 'ghp_fromEnvironment';
+      expect(sops().plannedSecretSource('GIT_AUTH_TOKEN', { source: 'host' }, { GIT_AUTH_TOKEN: 'x' })).to.equal(
+        'host configuration',
+      );
+      expect(sops().plannedSecretSource('GIT_AUTH_TOKEN', { source: 'host' }, {})).to.match(/not in the host/);
     });
 
     it('does not prompt or write on a dry run', () => {
-      // Report fields under dryRun are independent of gh reachability (see rotateGitAuthToken's
-      // early return), so probing is stubbed out here rather than left to whatever `gh` happens to
-      // be installed and authenticated as on the machine running the suite — otherwise this reaches
-      // the real GitHub API for a probe of the fictitious 'acme/dd-cyberia' target.
       const hasBinary = vi.spyOn(sops(), 'hasBinary').mockReturnValue(false);
+      const read = vi.spyOn(Underpost.host, 'read').mockReturnValue({});
       try {
-        const report = sops().rotateGitAuthToken({ deployId: 'dd-cyberia', owner: 'acme', dryRun: true });
-        expect(report.tokenSource).to.equal('');
-        expect(report.rotated).to.deep.equal([]);
+        const report = sops().rotateActionsSecrets({
+          keys: 'GIT_AUTH_TOKEN',
+          deployId: 'dd-cyberia',
+          owner: 'acme',
+          dryRun: true,
+        });
+        expect(report.written).to.deep.equal({});
         expect(report.manifest).to.equal('');
+        expect(report.sources.GIT_AUTH_TOKEN).to.be.a('string').and.not.equal('');
       } finally {
         hasBinary.mockRestore();
+        read.mockRestore();
       }
     });
   });

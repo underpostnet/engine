@@ -27,14 +27,23 @@ const SOPS_ENCRYPTED_REGEX = '^(data|stringData)$';
 const SOPS_VERSION = 'v3.10.2';
 const AGE_VERSION = 'v1.2.1';
 
-// The GitHub-side credential CI workflows and cross-repository checkouts authenticate with. The
-// stored manifest keeps this file's kebab-case naming, while the data key keeps the environment
-// spelling so a workload consumes it through `envFrom` unchanged. Deliberately absent from
-// MANAGED_SECRETS: its authoritative home is the GitHub Actions secret store, and the encrypted
-// manifest is an optional mirror rather than the origin.
+// GitHub Actions secrets this domain distributes to a deploy's repositories. `GIT_AUTH_TOKEN` is
+// the one with a mirror in the encrypted store: the stored manifest keeps this file's kebab-case
+// naming, while the data key keeps the environment spelling so a workload consumes it through
+// `envFrom` unchanged. Deliberately absent from MANAGED_SECRETS: its authoritative home is the
+// GitHub Actions secret store, and the encrypted manifest is an optional mirror rather than the origin.
 const GIT_AUTH_TOKEN_KEY = 'GIT_AUTH_TOKEN';
 const GIT_AUTH_TOKEN_SECRET = 'git-auth-token';
-const GIT_AUTH_TOKEN_STAGE_DIR = '/dev/shm/underpost-git-auth';
+const ACTIONS_SECRET_STAGE_DIR = '/dev/shm/underpost-actions-secret';
+// Where the writes go: the account type, its owner, and the credential `gh` runs under.
+const GITHUB_TARGET_ENV = Object.freeze({
+  type: 'GITHUB_TARGET_TYPE',
+  user: 'GITHUB_USERNAME',
+  org: 'GITHUB_ORG_NAME',
+  token: 'GITHUB_SECRET_TOKEN',
+});
+const GITHUB_TARGET_TYPES = ['user', 'org'];
+const GITHUB_SECRET_LEVELS = ['repo', 'org'];
 
 // The second meta id alongside `dd`. The template lineage is not a deploy, so it carries no conf
 // id and resolves to its own repositories rather than through the `engine-<conf-id>` naming.
@@ -251,6 +260,22 @@ const stdinIsRedirected = () => {
 
 const looksLikeGitHubToken = (token) => /^(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})$/.test(token);
 
+// Per-key rules on top of the generic write. A token is checked for shape; any other value is
+// opaque and taken as given.
+const ACTIONS_SECRET_POLICIES = Object.freeze({
+  [GIT_AUTH_TOKEN_KEY]: {
+    validate(value) {
+      if (/\s/.test(value))
+        throw new Error(`[secret] the replacement ${GIT_AUTH_TOKEN_KEY} contains whitespace; it is not a token`);
+      if (!looksLikeGitHubToken(value))
+        logger.warn(
+          `The replacement ${GIT_AUTH_TOKEN_KEY} does not match a known GitHub token shape ` +
+            `(ghp_…, gho_…, github_pat_…). Continuing — GitHub token formats have changed before.`,
+        );
+    },
+  },
+});
+
 /**
  * @class UnderpostSecret
  * @description Manages the secrets of the application.
@@ -368,45 +393,42 @@ class UnderpostSecret {
      * Replaces the current projection: either the Age identity the store is sealed to, or the
      * value of a credential itself.
      *
-     * `--args secret=GIT_AUTH_TOKEN` selects the credential rotation — the GitHub Actions secret
-     * every repository of a deploy authenticates with, mirrored into the encrypted store.
-     * Without it the recipient rotation runs, which re-keys stored manifests onto a new Age
-     * recipient: secret values are unchanged there, so no workload restart is needed.
+     * `--args secret=<NAME|NAME>` selects the credential rotation — GitHub Actions secrets on
+     * every repository of a deploy, under a user account or an organization, with `GIT_AUTH_TOKEN`
+     * mirrored into the encrypted store. Without it the recipient rotation runs, which re-keys
+     * stored manifests onto a new Age recipient: secret values are unchanged there, so no
+     * workload restart is needed.
      * @param {object} context - Normalized domain context. Requires either
-     *   `--args secret=GIT_AUTH_TOKEN` (with `token=`, `deploy-id=`, `owner=`, `repos=`,
-     *   `store=true`, `apply=true`) or `--args recipient=age1...` (with `prune=true` to revoke
-     *   previous recipients and `keep=` to retain named ones).
+     *   `--args secret=<NAME|NAME>` (with `value=`, `source=host`, `deploy-id=`, `target=`,
+     *   `owner=`, `level=`, `repos=`, `store=true`, `apply=true`) or `--args recipient=age1...`
+     *   (with `prune=true` to revoke previous recipients and `keep=` to retain named ones).
      * @returns {*} The rotation result.
      * @memberof UnderpostSecret
      */
     rotate(context = {}) {
       context = domainContextFactory(context);
-      const secret = `${context.args.secret ?? ''}`.trim();
-      if (secret) {
-        if (secret.toUpperCase() !== GIT_AUTH_TOKEN_KEY)
-          // Phrased without a `secret=<value>` pair on purpose: the log redactor treats one as a
-          // credential and would replace the very name the operator needs to read back.
-          throw new Error(
-            `[secret] rotate does not know the credential '${secret}'; ${GIT_AUTH_TOKEN_KEY} is the only one ` +
-              `it rotates. Re-key the store's encryption identity with --args recipient=age1... instead.`,
-          );
-        return Underpost.secret.rotateGitAuthToken({
+      const keys = `${context.args.secret ?? ''}`.trim();
+      if (keys)
+        return Underpost.secret.rotateActionsSecrets({
+          keys,
           namespace: context.namespace,
+          env: context.env,
           dryRun: context.dryRun,
-          token: context.args.token,
+          value: context.args.value,
+          source: context.args.source,
           deployId: context.args['deploy-id'] ?? context.args.deployId,
+          target: context.args.target,
           owner: context.args.owner,
+          level: context.args.level,
           repos: context.args.repos,
           store: context.args.store,
           apply: context.args.apply,
         });
-      }
       const recipient = `${context.args.recipient ?? ''}`.trim();
       if (!recipient)
         throw new Error(
           '[secret] rotate requires a target: --args recipient=<age-public-key> re-keys the store onto a new ' +
-            `Age identity, and the 'secret' parameter rotates a credential value (${GIT_AUTH_TOKEN_KEY} is the ` +
-            'one it supports).',
+            'Age identity, and --args secret=<NAME|NAME> writes GitHub Actions secrets.',
         );
       return Underpost.secret.rotateRecipient(recipient, {
         namespace: context.namespace,
@@ -1641,10 +1663,69 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method gitAuthTokenTargets
-     * @description Resolves every GitHub repository that carries a deploy's `GIT_AUTH_TOKEN`:
-     * the private configuration repository its conf lives in, and the engine source repositories
-     * it deploys from — production and test, which are one deploy under two names.
+     * @method githubTargetFactory
+     * @description Resolves where GitHub Actions secrets are written: the account type, the
+     * owner every derived repository name resolves under, the level the writes land at, and the
+     * credential `gh` runs under.
+     *
+     * `GITHUB_TARGET_TYPE` selects `user` or `org`, and the owner follows it: `GITHUB_USERNAME`
+     * (after the owner of `ENGINE_SRC_REPO`, so a node keeps addressing the fleet it was
+     * provisioned from) or `GITHUB_ORG_NAME`. An explicit `owner` overrides both.
+     * `GITHUB_SECRET_TOKEN` is the PAT the writes authenticate with — `repo` scope, plus
+     * `admin:org` for organization secrets; unset, `gh` uses the account `gh auth login` stored.
+     *
+     * `level` is where a value lands. `repo` writes each repository's own secret and works for
+     * both account types. `org` writes one organization secret visible to the resolved
+     * repositories; it needs an organization, and a free organization cannot share it with its
+     * private repositories.
+     * @param {object} [options={}] - Resolution options.
+     * @param {string} [options.target] - `user` or `org`; `GITHUB_TARGET_TYPE` otherwise.
+     * @param {string} [options.owner] - Explicit owner.
+     * @param {string} [options.level] - `repo` or `org`; `repo` otherwise.
+     * @returns {{type: string, owner: string, level: string, token: string}} The target.
+     * @memberof UnderpostSecret
+     */
+    githubTargetFactory(options = {}) {
+      const read = (key) => `${process.env[key] ?? ''}`.trim();
+      const type = (`${options.target ?? ''}`.trim() || read(GITHUB_TARGET_ENV.type) || 'user').toLowerCase();
+      if (!GITHUB_TARGET_TYPES.includes(type))
+        throw new Error(`[secret] unknown GitHub target type '${type}'; expected ${GITHUB_TARGET_TYPES.join(' or ')}`);
+      const level = (`${options.level ?? ''}`.trim() || 'repo').toLowerCase();
+      if (!GITHUB_SECRET_LEVELS.includes(level))
+        throw new Error(`[secret] unknown secret level '${level}'; expected ${GITHUB_SECRET_LEVELS.join(' or ')}`);
+      if (level === 'org' && type !== 'org')
+        throw new Error(`[secret] an organization secret needs ${GITHUB_TARGET_ENV.type}=org or --args target=org`);
+      const envSource = read('ENGINE_SRC_REPO');
+      const owner =
+        `${options.owner ?? ''}`.trim() ||
+        (type === 'org'
+          ? read(GITHUB_TARGET_ENV.org)
+          : (envSource.includes('/') ? envSource.split('/')[0] : '') || read(GITHUB_TARGET_ENV.user) || 'underpostnet');
+      if (!owner)
+        throw new Error(
+          `[secret] ${GITHUB_TARGET_ENV.type}=org needs ${GITHUB_TARGET_ENV.org}, or --args owner=<organization>`,
+        );
+      return { type, owner, level, token: read(GITHUB_TARGET_ENV.token) };
+    },
+
+    /**
+     * @method ghEnvFactory
+     * @description The environment `gh` runs under. `GITHUB_SECRET_TOKEN` travels as `GH_TOKEN`,
+     * so the writes authenticate as the credential chosen for them rather than as whatever token
+     * the shell exports.
+     * @param {{token?: string}} [target={}] - Resolved target.
+     * @returns {NodeJS.ProcessEnv} Child environment.
+     * @memberof UnderpostSecret
+     */
+    ghEnvFactory(target = {}) {
+      return target.token ? { ...process.env, GH_TOKEN: target.token } : process.env;
+    },
+
+    /**
+     * @method actionsSecretTargets
+     * @description Resolves every GitHub repository that carries a deploy's Actions secrets:
+     * the private configuration repository its conf lives in, and the engine source
+     * repositories it deploys from — production and test, which are one deploy under two names.
      *
      * Naming is delegated to {@link UnderpostRepository} rather than re-derived here, so a
      * rotation targets exactly the repositories `run pull` and `deploy/lib/host.sh` resolve for
@@ -1655,32 +1736,34 @@ UNDERPOST_SOPS_ENV_EOF`,
      * Each deploy contributes its private conf repository, its production and test engine sources,
      * its `engine-ghpkg-<conf-id>` package mirror, and every `metadata.repository` its
      * `conf.instances.json` declares — an instance is a separate product with its own workflows
-     * reading the same token. Derived names that do not exist are dropped by the reachability
+     * reading the same secrets. Derived names that do not exist are dropped by the reachability
      * probe, so no separate existence check is needed here.
      *
+     * Every name resolves under the owner {@link githubTargetFactory} chose. Under an
+     * organization target a declared slug — an instance repository, `ENGINE_SRC_REPO` — is
+     * re-owned too: the organization mirrors carry the same repository names, and a write that
+     * followed the declared owner would land on the account being migrated away from.
+     *
      * `dd` fans out across `engine-private/deploy/dd.routes`, so one rotation covers the whole
-     * fleet. `template` is the second meta id: the template lineage carries no conf id, so it
-     * resolves to `pwa-microservices-template`, its `-ghpkg` mirror, and `engine`. The union is
-     * deduplicated: deploys share repositories, and one listed twice would be rotated twice.
+     * fleet. `template` is the second meta id, usable alone or in a list: the template lineage
+     * carries no conf id, so it resolves to `pwa-microservices-template`, its `-ghpkg` mirror, and
+     * `engine`. The union is deduplicated: deploys share repositories, and one listed twice would
+     * be written twice.
      * @param {object} [options={}] - Resolution options.
      * @param {string} [options.deployId] - Deploy id, any repository reference naming it, a list
      *   separated by `|`, `;` or whitespace, the meta id `dd` for every deploy in
      *   `engine-private/deploy/dd.routes`, or `template` for the template lineage. Falls back to
      *   `ENGINE_SRC_REPO`, then the monorepo pair.
-     * @param {string} [options.owner] - GitHub owner. Falls back to the owner of `ENGINE_SRC_REPO`,
-     *   then `GITHUB_USERNAME`, then `underpostnet`.
+     * @param {string} [options.owner] - GitHub owner; see {@link githubTargetFactory}.
+     * @param {string} [options.target] - Account type; see {@link githubTargetFactory}.
      * @param {string} [options.repos] - Extra targets separated by `|`, `;` or whitespace —
-     *   `--args` itself splits on commas, so a list there cannot use one.
+     *   `--args` itself splits on commas, so a list there cannot use one. Taken as written.
      * @returns {Array<string>} Deduplicated `owner/repo` slugs, private configuration first.
      * @memberof UnderpostSecret
      */
-    gitAuthTokenTargets(options = {}) {
+    actionsSecretTargets(options = {}) {
+      const { type, owner } = Underpost.secret.githubTargetFactory(options);
       const envSource = `${process.env.ENGINE_SRC_REPO ?? ''}`.trim();
-      const owner =
-        `${options.owner ?? ''}`.trim() ||
-        (envSource.includes('/') ? envSource.split('/')[0] : '') ||
-        process.env.GITHUB_USERNAME ||
-        'underpostnet';
       const requested = `${options.deployId ?? ''}`.trim() || envSource;
       // `dd` is the meta id every runner reads as "all of dd.routes", resolved through the one
       // reader the cluster deploys from — a rotation that parsed the route table itself could
@@ -1696,31 +1779,34 @@ UNDERPOST_SOPS_ENV_EOF`,
             `rather than the fleet. Check out engine-private, or name the deploys explicitly with ` +
             `--args "deploy-id=dd-one|dd-two".`,
         );
+      const reowned = (slug) => (type === 'org' && slug ? `${owner}/${slug.split('/').pop()}` : slug);
       const candidates = [];
       // Unioned and deduplicated: deploys share repositories (every one of them pairs with the
       // same engine-private when ENGINE_SRC_PRIVATE_REPO names it), and a repository listed twice
-      // would be rotated twice.
-      if (requested === TEMPLATE_ALIAS) candidates.push(...TEMPLATE_REPOS.map((repo) => `${owner}/${repo}`));
-      else
-        for (const reference of references.length > 0 ? references : ['']) {
-          const confId = Underpost.repo.confIdFactory(reference);
-          const source = `${owner}/${Underpost.repo.engineRepoFactory(confId)}`;
-          const ghpkg = Underpost.repo.ghpkgRepoFactory(confId);
-          candidates.push(
-            // Paired off the source rather than named on its own, so the conf repository and the
-            // engine it configures can never be resolved apart.
-            Underpost.repo.enginePairFactory({ engine: source, account: owner }).enginePrivate,
-            source,
-            `${owner}/${Underpost.repo.engineRepoFactory(confId, { test: true })}`,
-            // The ghpkg mirror and the instance repositories run their own workflows against the
-            // same token, so a rotation that skipped them would leave half the deploy behind.
-            ...(ghpkg ? [`${owner}/${ghpkg}`] : []),
-            ...(confId ? Underpost.repo.instanceRepos(`dd-${confId}`) : []),
-          );
+      // would be written twice.
+      for (const reference of references.length > 0 ? references : ['']) {
+        if (reference === TEMPLATE_ALIAS) {
+          candidates.push(...TEMPLATE_REPOS.map((repo) => `${owner}/${repo}`));
+          continue;
         }
+        const confId = Underpost.repo.confIdFactory(reference);
+        const source = `${owner}/${Underpost.repo.engineRepoFactory(confId)}`;
+        const ghpkg = Underpost.repo.ghpkgRepoFactory(confId);
+        candidates.push(
+          // Paired off the source rather than named on its own, so the conf repository and the
+          // engine it configures can never be resolved apart.
+          Underpost.repo.enginePairFactory({ engine: source, account: owner }).enginePrivate,
+          source,
+          `${owner}/${Underpost.repo.engineRepoFactory(confId, { test: true })}`,
+          // The ghpkg mirror and the instance repositories run their own workflows against the
+          // same secrets, so a rotation that skipped them would leave half the deploy behind.
+          ...(ghpkg ? [`${owner}/${ghpkg}`] : []),
+          ...(confId ? Underpost.repo.instanceRepos(`dd-${confId}`).map(reowned) : []),
+        );
+      }
       candidates.push(
-        `${process.env.ENGINE_SRC_PRIVATE_REPO ?? ''}`.trim(),
-        envSource,
+        reowned(`${process.env.ENGINE_SRC_PRIVATE_REPO ?? ''}`.trim()),
+        reowned(envSource),
         ...`${options.repos ?? ''}`.split(/[,|;\s]+/),
       );
       const targets = [];
@@ -1739,34 +1825,47 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method plannedTokenSource
-     * @description Names the source a rotation would take its token from, without reading,
-     * minting or prompting for anything. Pure, so `--dry-run` can report the plan truthfully.
+     * @method plannedSecretSource
+     * @description Names the source a key's value would come from, without reading, prompting
+     * for or consuming anything. Pure, so `--dry-run` can report the plan truthfully.
+     *
+     * Sources, in order: `--args value=`, piped stdin, the key's own environment variable, the
+     * host configuration (`engine-private/deploy/scopes/*.env.<env>`), then a no-echo terminal
+     * prompt. `source=host` pins the host configuration, so automation cannot take a stale
+     * export by mistake.
+     * @param {string} key - Secret name.
      * @param {object} [options={}] - Rotation options.
-     * @param {string} [options.token] - Token supplied through `--args token=`.
+     * @param {string} [options.value] - Value supplied through `--args value=`.
+     * @param {string} [options.source] - `host` to read the host configuration only.
+     * @param {Object<string, string>} [hostValues={}] - The host configuration.
      * @returns {string} Human-readable source name.
      * @memberof UnderpostSecret
      */
-    plannedTokenSource(options = {}) {
-      if (`${options.token ?? ''}`.trim()) return '--args token';
+    plannedSecretSource(key, options = {}, hostValues = {}) {
+      const hostValue = `${hostValues[key] ?? ''}`.trim();
+      if (options.source === 'host')
+        return hostValue ? 'host configuration' : '(unavailable: not in the host configuration)';
+      if (`${options.value ?? ''}`.trim()) return '--args value';
       if (stdinIsRedirected()) return 'piped stdin';
-      if (`${process.env[GIT_AUTH_TOKEN_KEY] ?? ''}`.trim()) return `${GIT_AUTH_TOKEN_KEY} environment`;
-      return process.stdin.isTTY ? 'interactive prompt' : '(unavailable: no token, nothing piped, no terminal)';
+      if (`${process.env[key] ?? ''}`.trim()) return `${key} environment`;
+      if (hostValue) return 'host configuration';
+      return process.stdin.isTTY ? 'interactive prompt' : '(unavailable: no value, nothing piped, no terminal)';
     },
 
     /**
-     * @method probeGitAuthTokenTargets
-     * @description Splits resolved targets into those the current `gh` credential can actually
-     * reach and those it cannot, without writing anything.
+     * @method probeActionsSecretTargets
+     * @description Splits resolved targets into those the `gh` credential can actually reach
+     * and those it cannot, without writing anything.
      *
      * A deploy does not necessarily own every repository its naming implies — a test source repo
      * often does not exist — so this is what keeps a fleet fan-out from aborting on the first
      * absent one, and what lets `--dry-run` report the real target set rather than the derived one.
      * @param {Array<string>} targets - `owner/repo` slugs.
+     * @param {{token?: string}} [target={}] - Resolved target, for the credential.
      * @returns {{reachable: Array<string>, unreachable: Array<string>}} The split.
      * @memberof UnderpostSecret
      */
-    probeGitAuthTokenTargets(targets = []) {
+    probeActionsSecretTargets(targets = [], target = {}) {
       const reachable = [];
       const unreachable = [];
       for (const repo of targets) {
@@ -1775,6 +1874,7 @@ UNDERPOST_SOPS_ENV_EOF`,
           silent: true,
           silentOnError: true,
           disableLog: true,
+          env: Underpost.secret.ghEnvFactory(target),
         });
         if (`${view}`.trim()) reachable.push(repo);
         else {
@@ -1786,53 +1886,65 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method stageGitAuthToken
-     * @description Materializes the replacement token onto tmpfs at mode 600 — the single source
-     * both the GitHub write and the manifest write read from.
+     * @method stageActionsSecret
+     * @description Materializes one value onto tmpfs at mode 600 — the single source the GitHub
+     * write and, for `GIT_AUTH_TOKEN`, the manifest write read from.
      *
      * The value never travels as a command argument: `gh secret set` takes it on stdin and the
      * manifest is built by Node, so it reaches neither the process table nor the command log. An
      * interactive prompt writes straight into the staged file for the same reason — captured
      * stdout is logged, a file is not.
      *
-     * Sources, in order: `--args token=`, piped stdin, the `GIT_AUTH_TOKEN` environment, then a
-     * no-echo terminal prompt. Piping is the one that keeps a token out of both the process table
-     * and the shell history, so it is what automation should use.
-     * @param {string} stagePath - tmpfs path to write the token to.
-     * @param {object} [options={}] - Token sources.
-     * @param {string} [options.token] - The token itself, from `--args token=`.
-     * @returns {{token: string, source: string}} The staged token and where it came from.
+     * Sources are the ones {@link plannedSecretSource} names, in that order. Piping is the one
+     * that keeps a value out of both the process table and the shell history; the host
+     * configuration is the one automation reads, because it is the durable record.
+     * @param {string} stagePath - tmpfs path to write the value to.
+     * @param {string} key - Secret name.
+     * @param {object} [options={}] - Value sources; see {@link plannedSecretSource}.
+     * @param {Object<string, string>} [hostValues={}] - The host configuration.
+     * @returns {{value: string, source: string}} The staged value and where it came from.
      * @memberof UnderpostSecret
      */
-    stageGitAuthToken(stagePath, options = {}) {
+    stageActionsSecret(stagePath, key, options = {}, hostValues = {}) {
       // `GITHUB_TOKEN` is deliberately not a source: it is the credential `gh` authenticates
       // *with*, which during a rotation is the outgoing token. Reading it here would re-set the
       // value being replaced and report a rotation that never happened.
-      const provided = `${options.token ?? ''}`.trim();
-      const inherited = `${process.env[GIT_AUTH_TOKEN_KEY] ?? ''}`.trim();
+      const provided = `${options.value ?? ''}`.trim();
+      const inherited = `${process.env[key] ?? ''}`.trim();
+      const hostValue = `${hostValues[key] ?? ''}`.trim();
       let source;
-      if (provided) {
+      if (options.source === 'host') {
+        if (!hostValue)
+          throw new Error(
+            `[secret] ${key} is not in the host configuration (${Underpost.host.sourceLabel(options.env)})`,
+          );
+        writeStageFileSync(stagePath, hostValue);
+        source = 'host configuration';
+      } else if (provided) {
         writeStageFileSync(stagePath, provided);
-        source = '--args token';
+        source = '--args value';
       } else if (stdinIsRedirected()) {
-        // Ahead of the environment: a pipe is what the operator chose for this run, while
-        // GIT_AUTH_TOKEN may be an inherited export still holding the outgoing token.
+        // Ahead of the environment: a pipe is what the operator chose for this run, while the
+        // environment may be an inherited export still holding the outgoing value.
         writeStageFileSync(stagePath, fs.readFileSync(0, 'utf8'));
         source = 'piped stdin';
       } else if (inherited) {
         writeStageFileSync(stagePath, inherited);
-        source = `${GIT_AUTH_TOKEN_KEY} environment`;
+        source = `${key} environment`;
+      } else if (hostValue) {
+        writeStageFileSync(stagePath, hostValue);
+        source = 'host configuration';
       } else {
         if (!process.stdin.isTTY)
           throw new Error(
-            `[secret] rotate needs the replacement token: pipe it in ` +
-              `(printf %s "$TOKEN" | node bin secret rotate …), pass --args token=<token>, export ` +
-              `${GIT_AUTH_TOKEN_KEY}, or run this from a terminal to be prompted.`,
+            `[secret] rotate needs a value for ${key}: pipe it in ` +
+              `(printf %s "$VALUE" | node bin secret rotate …), pass --args value=<value>, export ${key}, ` +
+              `declare it in the host configuration with --args source=host, or run this from a terminal to be prompted.`,
           );
         // Created empty first so the file exists at mode 600 before anything is read into it.
         writeStageFileSync(stagePath, '');
         shellExec(
-          `bash -c 'set -o pipefail; umask 077; read -rsp "New ${GIT_AUTH_TOKEN_KEY}: " value </dev/tty; ` +
+          `bash -c 'set -o pipefail; umask 077; read -rsp "New ${key}: " value </dev/tty; ` +
             `echo >/dev/tty; printf %s "$value" > "${stagePath}"'`,
           { disableLog: true },
         );
@@ -1840,17 +1952,56 @@ UNDERPOST_SOPS_ENV_EOF`,
       }
 
       const raw = fs.readFileSync(stagePath, 'utf8');
-      const token = raw.replace(/\r?\n$/, '');
-      if (!token) throw new Error(`[secret] the replacement ${GIT_AUTH_TOKEN_KEY} is empty`);
-      if (/\s/.test(token))
-        throw new Error(`[secret] the replacement ${GIT_AUTH_TOKEN_KEY} contains whitespace; it is not a token`);
-      if (token !== raw) writeStageFileSync(stagePath, token);
-      if (!looksLikeGitHubToken(token))
-        logger.warn(
-          `The replacement ${GIT_AUTH_TOKEN_KEY} does not match a known GitHub token shape ` +
-            `(ghp_…, gho_…, github_pat_…). Continuing — GitHub token formats have changed before.`,
+      const value = raw.replace(/\r?\n$/, '');
+      if (!value) throw new Error(`[secret] the value for ${key} is empty`);
+      if (value !== raw) writeStageFileSync(stagePath, value);
+      ACTIONS_SECRET_POLICIES[key]?.validate?.(value);
+      return { value, source };
+    },
+
+    /**
+     * @method writeActionsSecret
+     * @description Writes one staged value to GitHub. At the `repo` level every repository gets
+     * its own secret. At the `org` level the organization's repositories share one organization
+     * secret whose visibility is exactly that set, and a repository under another owner still
+     * gets its own — an instance declared outside the organization is not left behind.
+     *
+     * The value arrives on stdin from the staged file, never as an argument, and the command is
+     * kept out of the log.
+     * @param {object} params - Write parameters.
+     * @param {string} params.key - Secret name.
+     * @param {string} params.stagePath - tmpfs file holding the value.
+     * @param {{owner: string, level: string, token?: string}} params.target - Resolved target.
+     * @param {Array<string>} params.repos - Reachable `owner/repo` slugs.
+     * @returns {{written: Array<string>, failed: Array<string>}} Repositories covered and not.
+     * @memberof UnderpostSecret
+     */
+    writeActionsSecret({ key, stagePath, target, repos }) {
+      const env = Underpost.secret.ghEnvFactory(target);
+      const written = [];
+      const failed = [];
+      const write = (scope, covered) => {
+        try {
+          shellExec(`bash -c 'set -o pipefail; gh secret set ${key} ${scope} < "${stagePath}"'`, {
+            silent: true,
+            disableLog: true,
+            env,
+          });
+          written.push(...covered);
+          logger.info(`${key} set on ${covered.join(', ')}`);
+        } catch (error) {
+          failed.push(...covered);
+          logger.error(`${key} could not be set on ${covered.join(', ')}`, { error: error.message });
+        }
+      };
+      const shared = target.level === 'org' ? repos.filter((slug) => slug.split('/')[0] === target.owner) : [];
+      if (shared.length > 0)
+        write(
+          `--org "${target.owner}" --visibility selected --repos "${shared.map((slug) => slug.split('/')[1]).join(',')}"`,
+          shared,
         );
-      return { token, source };
+      for (const repo of repos.filter((slug) => !shared.includes(slug))) write(`--repo "${repo}"`, [repo]);
+      return { written, failed };
     },
 
     /**
@@ -1869,7 +2020,7 @@ UNDERPOST_SOPS_ENV_EOF`,
      * @memberof UnderpostSecret
      */
     writeGitAuthTokenManifest(token, namespace = 'default') {
-      const stageDir = stageDirSync(GIT_AUTH_TOKEN_STAGE_DIR);
+      const stageDir = stageDirSync(ACTIONS_SECRET_STAGE_DIR);
       const plaintextPath = `${stageDir}/${GIT_AUTH_TOKEN_SECRET}.yaml`;
       writeStageFileSync(
         plaintextPath,
@@ -1893,14 +2044,15 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method rotateGitAuthToken
-     * @description Replaces the `GIT_AUTH_TOKEN` Actions secret on every repository a deploy
-     * authenticates with, and records the new value in the encrypted store.
+     * @method rotateActionsSecrets
+     * @description Writes one or more GitHub Actions secrets to every repository a deploy
+     * authenticates with, under a user account or an organization, and records `GIT_AUTH_TOKEN`
+     * in the encrypted store when it is mirrored there.
      *
-     * GitHub is written first and the store second, because the token is only real once GitHub
-     * holds it: a store that leads GitHub records a credential no workflow can use, while a
+     * GitHub is written first and the store second, because a credential is only real once
+     * GitHub holds it: a store that leads GitHub records a value no workflow can use, while a
      * GitHub that leads the store converges on the next run. Every write is idempotent, so a run
-     * that failed part way is re-runnable with the same token.
+     * that failed part way is re-runnable with the same values.
      *
      * A target that does not resolve is reported and skipped rather than aborting the rotation —
      * a deploy does not necessarily own every repository its naming implies, and a missing test
@@ -1908,65 +2060,111 @@ UNDERPOST_SOPS_ENV_EOF`,
      * fails to write is collected and raised at the end, after the repositories that did succeed
      * are on record.
      *
-     * The token never appears as a command argument: `gh secret set` reads it from a tmpfs file
-     * on stdin, so it reaches neither the process table nor the command log.
-     *
      * Usage:
-     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd-cyberia"
+     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,deploy-id=dd-cyberia"
      *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd" --dry-run   # whole fleet
-     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd"
+     *   node bin secret rotate --args "secret=SOCKET_CLI_API_TOKEN|SOCKET_CLI_ORG_SLUG|NPM_TOKEN,source=host,deploy-id=dd"
+     *   node bin secret rotate --args "secret=NPM_TOKEN,source=host,target=org,level=org,deploy-id=template"
      *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,store=true,apply=true"
      * @param {object} [options={}] - Rotation options.
-     * @param {string} [options.token] - Replacement token. When omitted: piped stdin, then the
-     *   `GIT_AUTH_TOKEN` environment, then a no-echo terminal prompt.
+     * @param {string} [options.keys] - Secret names, separated by `|`, `;` or whitespace.
+     * @param {string} [options.value] - The value, for a single key. When omitted: piped stdin,
+     *   then the key's environment variable, then the host configuration, then a no-echo prompt.
+     * @param {string} [options.source] - `host` reads the host configuration only.
+     * @param {string} [options.env='production'] - Environment the host configuration is read for.
      * @param {string} [options.deployId] - Deploy id, a list separated by `|`, `;` or whitespace,
      *   `dd` for every deploy in `engine-private/deploy/dd.routes`, or `template`.
+     * @param {string} [options.target] - `user` or `org`; see {@link githubTargetFactory}.
      * @param {string} [options.owner] - GitHub owner for the resolved repository names.
+     * @param {string} [options.level] - `repo` or `org`; see {@link githubTargetFactory}.
      * @param {string} [options.repos] - Extra `owner/repo` targets, separated by `|`, `;` or space.
      * @param {string} [options.namespace='default'] - Store namespace for the mirrored manifest.
-     * @param {boolean} [options.store=false] - Mirror into the encrypted store even when no
-     *   manifest is stored yet. An existing manifest is always updated.
+     * @param {boolean} [options.store=false] - Mirror `GIT_AUTH_TOKEN` into the encrypted store
+     *   even when no manifest is stored yet. An existing manifest is always updated.
      * @param {boolean} [options.apply=false] - Project the updated manifest into the cluster.
      * @param {boolean} [options.dryRun=false] - Report the plan without contacting GitHub,
      *   prompting, or writing anything.
-     * @returns {{targets: Array<string>, rotated: Array<string>, unreachable: Array<string>,
-     *   failed: Array<string>, manifest: string, store: boolean, tokenSource: string}} Outcome.
+     * @returns {{target: object, keys: Array<string>, targets: Array<string>,
+     *   written: Object<string, Array<string>>, unreachable: Array<string>,
+     *   failed: Object<string, Array<string>>, sources: Object<string, string>, manifest: string,
+     *   store: boolean}} Outcome.
      * @memberof UnderpostSecret
      */
-    rotateGitAuthToken(options = {}) {
+    rotateActionsSecrets(options = {}) {
+      const keys = [
+        ...new Set(
+          `${options.keys ?? ''}`
+            .split(/[|;\s]+/)
+            .map((key) => key.trim().toUpperCase())
+            .filter(Boolean),
+        ),
+      ];
+      if (keys.length === 0) throw new Error('[secret] rotate needs at least one secret name in --args secret=');
+      const invalid = keys.filter((key) => !/^(?!GITHUB_)[A-Z_][A-Z0-9_]*$/.test(key));
+      if (invalid.length > 0)
+        throw new Error(
+          `[secret] ${invalid.join(', ')} cannot name a GitHub Actions secret: letters, digits and underscores ` +
+            `only, and the GITHUB_ prefix is reserved by GitHub.`,
+        );
       const namespace = options.namespace || 'default';
-      const targets = Underpost.secret.gitAuthTokenTargets(options);
+      const target = Underpost.secret.githubTargetFactory(options);
+      const targets = Underpost.secret.actionsSecretTargets(options);
       if (targets.length === 0)
         throw new Error(
-          `[secret] no repository resolved for ${GIT_AUTH_TOKEN_KEY} rotation. Name the deploy with ` +
+          `[secret] no repository resolved for ${keys.join(', ')}. Name the deploy with ` +
             `--args deploy-id=<id>, or the repositories with --args "repos=owner/repo|owner/other".`,
         );
-      const stored = Underpost.secret.has(GIT_AUTH_TOKEN_SECRET, namespace);
-      const store = stored || options.store === true || `${options.store}` === 'true';
+      if (keys.length > 1 && (`${options.value ?? ''}`.trim() || stdinIsRedirected()))
+        throw new Error(
+          `[secret] --args value= and piped stdin carry one value; with ${keys.length} keys read the ` +
+            `environment or the host configuration (--args source=host).`,
+        );
+      const hostValues = Underpost.host.read(options.env || 'production');
+      const mirrorsToken = keys.includes(GIT_AUTH_TOKEN_KEY);
+      const stored = mirrorsToken && Underpost.secret.has(GIT_AUTH_TOKEN_SECRET, namespace);
+      const store = mirrorsToken && (stored || options.store === true || `${options.store}` === 'true');
       const ghReady = Underpost.secret.hasBinary('gh');
+      const ghEnv = Underpost.secret.ghEnvFactory(target);
       // Advisory, not a gate: `gh auth status` also exits non-zero for a logged-in account whose
       // token merely lacks an optional scope. Reachability of the targets is the real
       // precondition, so this is captured to explain a failure rather than to cause one.
       const ghAuth = ghReady
-        ? shellExec(`gh auth status 2>&1`, { silent: true, silentOnError: true, disableLog: true })
+        ? shellExec(`gh auth status 2>&1`, { silent: true, silentOnError: true, disableLog: true, env: ghEnv })
         : null;
       const ghAuthenticated = ghAuth?.code === 0;
       const ghAuthOutput = `${ghAuth?.stdout ?? ''}`.trim() || '(no output)';
       // gh prefers GH_TOKEN/GITHUB_TOKEN over the account `gh auth login` stored, and this engine's
       // own host store exports GITHUB_TOKEN — so a stale one silently shadows a working login and
-      // every probe fails against a credential the operator never chose.
-      const shadowing = ['GH_TOKEN', 'GITHUB_TOKEN'].filter((key) => `${process.env[key] ?? ''}`.trim());
+      // every probe fails against a credential the operator never chose. An explicit
+      // GITHUB_SECRET_TOKEN is that choice, so nothing shadows it.
+      const shadowing = target.token
+        ? []
+        : ['GH_TOKEN', 'GITHUB_TOKEN'].filter((key) => `${process.env[key] ?? ''}`.trim());
+      const sources = Object.fromEntries(
+        keys.map((key) => [key, Underpost.secret.plannedSecretSource(key, options, hostValues)]),
+      );
+      // Rendered as lines rather than keyed by secret name: the log redactor blanks any field
+      // whose name carries "token", which would hide the very labels the operator reads.
+      const lines = (byKey) => keys.map((key) => `${key} <- ${[].concat(byKey[key] ?? []).join(', ')}`);
+      const where = {
+        type: target.type,
+        owner: target.owner,
+        level: target.level,
+        via: target.token ? GITHUB_TARGET_ENV.token : 'gh auth login',
+      };
 
       if (options.dryRun) {
         // Probing is a read, so the plan reports the targets that actually exist rather than the
-        // ones the naming derived. Nothing is minted, prompted for, or written.
-        const probed = ghReady ? Underpost.secret.probeGitAuthTokenTargets(targets) : null;
-        logger.info(`[dry-run] ${GIT_AUTH_TOKEN_KEY} rotation plan`, {
+        // ones the naming derived. Nothing is prompted for or written.
+        const probed = ghReady ? Underpost.secret.probeActionsSecretTargets(targets, target) : null;
+        logger.info(`[dry-run] Actions secret rotation plan`, {
+          keys,
+          target: where,
           targets,
-          wouldRotate: probed ? probed.reachable : '(not probed)',
+          wouldWrite: probed ? probed.reachable : '(not probed)',
           unreachable: probed ? probed.unreachable : '(not probed)',
           namespace,
-          from: Underpost.secret.plannedTokenSource(options),
+          from: lines(sources),
           gh: ghReady ? (ghAuthenticated ? 'authenticated' : 'not authenticated') : 'missing',
           manifest: store ? Underpost.secret.manifestPath(GIT_AUTH_TOKEN_SECRET, namespace) : '(store untouched)',
           storedManifest: stored,
@@ -1975,113 +2173,108 @@ UNDERPOST_SOPS_ENV_EOF`,
         else if (!ghAuthenticated)
           logger.warn('gh is not authenticated, so no target could be probed. Run `gh auth login`.');
         return {
+          target,
+          keys,
           targets,
-          rotated: [],
+          written: {},
           unreachable: probed ? probed.unreachable : [],
-          failed: [],
+          failed: {},
+          sources,
           manifest: '',
           store,
-          tokenSource: '',
         };
       }
 
       if (!ghReady)
         throw new Error(
           `gh not found in PATH. Install the GitHub CLI (https://cli.github.com), then authenticate it with ` +
-            `\`gh auth login\` before rotating ${GIT_AUTH_TOKEN_KEY}.`,
+            `\`gh auth login\` or set ${GITHUB_TARGET_ENV.token} before rotating ${keys.join(', ')}.`,
         );
       if (!ghAuthenticated)
         logger.warn(`\`gh auth status\` exited non-zero; continuing if the targets are reachable.`, {
           status: ghAuthOutput,
         });
 
-      // Probed before the token is staged: nothing can be written to an unreachable set, and
+      // Probed before any value is staged: nothing can be written to an unreachable set, and
       // prompting for a credential that has nowhere to go wastes the operator's paste.
-      const probed = Underpost.secret.probeGitAuthTokenTargets(targets);
+      const probed = Underpost.secret.probeActionsSecretTargets(targets, target);
       if (probed.reachable.length === 0)
         throw new Error(
           `None of the ${targets.length} target(s) is reachable with the current gh credential, so ` +
-            `${GIT_AUTH_TOKEN_KEY} was not rotated and nothing was written. Writing an Actions secret ` +
-            `needs the \`repo\` scope and admin on each repository.\n` +
+            `${keys.join(', ')} was not rotated and nothing was written. Writing an Actions secret ` +
+            `needs the \`repo\` scope and admin on each repository` +
+            `${target.level === 'org' ? ', and \`admin:org\` for an organization secret' : ''}.\n` +
             `Targets: ${targets.join(', ')}\n` +
             (shadowing.length
               ? `${shadowing.join(' and ')} is set here, and gh uses it in preference to the account ` +
                 `\`gh auth login\` stored. If gh calls it invalid below, run \`unset ` +
-                `${shadowing.join(' ')}\` and try again.\n`
+                `${shadowing.join(' ')}\`, or set ${GITHUB_TARGET_ENV.token}, and try again.\n`
               : '') +
             `\`gh auth status\` reports:\n${ghAuthOutput}`,
         );
 
-      stageDirSync(GIT_AUTH_TOKEN_STAGE_DIR);
-      const stagePath = `${GIT_AUTH_TOKEN_STAGE_DIR}/${GIT_AUTH_TOKEN_KEY}`;
-      const rotated = [];
+      stageDirSync(ACTIONS_SECRET_STAGE_DIR);
+      const written = {};
+      const failed = {};
       const unreachable = probed.unreachable;
-      const failed = [];
       let manifest = '';
-      let tokenSource = '';
       try {
-        const staged = Underpost.secret.stageGitAuthToken(stagePath, options);
-        tokenSource = staged.source;
-        logger.info(`Rotating ${GIT_AUTH_TOKEN_KEY}`, { targets, namespace, from: tokenSource, store });
+        for (const key of keys) {
+          const stagePath = `${ACTIONS_SECRET_STAGE_DIR}/${key}`;
+          const staged = Underpost.secret.stageActionsSecret(stagePath, key, options, hostValues);
+          sources[key] = staged.source;
+          logger.info(`Rotating ${key}`, { targets: probed.reachable, target: where, from: staged.source });
+          const outcome = Underpost.secret.writeActionsSecret({ key, stagePath, target, repos: probed.reachable });
+          written[key] = outcome.written;
+          failed[key] = outcome.failed;
 
-        for (const repo of probed.reachable) {
-          try {
-            // The token arrives on stdin from the staged file, never as an argument.
-            shellExec(
-              `bash -c 'set -o pipefail; gh secret set ${GIT_AUTH_TOKEN_KEY} --repo "${repo}" < "${stagePath}"'`,
-              { silent: true, disableLog: true },
-            );
-            rotated.push(repo);
-            logger.info(`${GIT_AUTH_TOKEN_KEY} set on ${repo}`);
-          } catch (error) {
-            failed.push(repo);
-            logger.error(`${GIT_AUTH_TOKEN_KEY} could not be set on ${repo}`, { error: error.message });
+          if (key === GIT_AUTH_TOKEN_KEY && outcome.written.length > 0) {
+            if (store) manifest = Underpost.secret.writeGitAuthTokenManifest(staged.value, namespace);
+            else
+              logger.info(
+                `No ${GIT_AUTH_TOKEN_SECRET} manifest in ns/${namespace}; the store was left untouched. ` +
+                  `Pass --args store=true to mirror this token into it.`,
+              );
+            if (manifest && (options.apply === true || `${options.apply}` === 'true'))
+              Underpost.secret.applyIfPresent(GIT_AUTH_TOKEN_SECRET, namespace);
           }
         }
-
-        if (rotated.length === 0)
-          throw new Error(
-            `${GIT_AUTH_TOKEN_KEY} could not be written to any of the ${probed.reachable.length} reachable ` +
-              `target(s): ${probed.reachable.join(', ')}. The encrypted store was left untouched, so it still ` +
-              `records the credential GitHub is running on.`,
-          );
-
-        if (store) manifest = Underpost.secret.writeGitAuthTokenManifest(staged.token, namespace);
-        else
-          logger.info(
-            `No ${GIT_AUTH_TOKEN_SECRET} manifest in ns/${namespace}; the store was left untouched. ` +
-              `Pass --args store=true to mirror this token into it.`,
-          );
-
-        if (manifest && (options.apply === true || `${options.apply}` === 'true'))
-          Underpost.secret.applyIfPresent(GIT_AUTH_TOKEN_SECRET, namespace);
       } finally {
-        shellExec(`shred -u "${stagePath}" 2>/dev/null || rm -f "${stagePath}"`, {
+        shellExec(`shred -u "${ACTIONS_SECRET_STAGE_DIR}"/* 2>/dev/null || rm -f "${ACTIONS_SECRET_STAGE_DIR}"/*`, {
           silentOnError: true,
           silent: true,
           disableLog: true,
         });
-        fs.removeSync(GIT_AUTH_TOKEN_STAGE_DIR);
+        fs.removeSync(ACTIONS_SECRET_STAGE_DIR);
       }
 
-      const report = { targets, rotated, unreachable, failed, manifest, store, tokenSource };
-      if (failed.length > 0)
+      const report = { target, keys, targets, written, unreachable, failed, sources, manifest, store };
+      const unwritten = keys.filter((key) => written[key].length === 0);
+      if (unwritten.length > 0)
         throw new Error(
-          `${GIT_AUTH_TOKEN_KEY} was rotated on ${rotated.join(', ')} but failed on ${failed.join(', ')}. ` +
-            `Those repositories still hold the previous token, so the fleet is split across two credentials. ` +
-            `Re-run once resolved: every target is written again, and a minted token is reissued, so the ` +
-            `fleet converges on one value either way.`,
+          `${unwritten.join(', ')} could not be written to any of the ${probed.reachable.length} reachable ` +
+            `target(s): ${probed.reachable.join(', ')}.` +
+            (mirrorsToken
+              ? ` The encrypted store was left untouched, so it still records the credential GitHub is running on.`
+              : ''),
         );
-      // Built explicitly rather than spread from `report`: the redactor blanks any field whose
-      // name carries "token", which would hide the source label behind [REDACTED].
-      logger.info(`${GIT_AUTH_TOKEN_KEY} rotation complete`, {
+      const split = keys.filter((key) => failed[key].length > 0);
+      if (split.length > 0)
+        throw new Error(
+          split
+            .map((key) => `${key} was rotated on ${written[key].join(', ')} but failed on ${failed[key].join(', ')}.`)
+            .join(' ') +
+            ` Those repositories still hold the previous value, so the fleet is split across two credentials. ` +
+            `Re-run once resolved: every target is written again, so the fleet converges on one value either way.`,
+        );
+      logger.info(`Actions secret rotation complete`, {
+        target: where,
         targets,
-        rotated,
+        written: lines(written),
         unreachable,
-        failed,
         manifest,
         store,
-        from: tokenSource,
+        from: lines(sources),
       });
       return report;
     },

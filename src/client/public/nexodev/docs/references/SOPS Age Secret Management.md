@@ -726,9 +726,11 @@ node bin secret load                                      # store -> local runti
 node bin secret publish --args path=./plaintext.yaml      # plaintext -> encrypted store
 node bin secret rotate --args recipient=age1...           # re-key onto a new Age recipient
 node bin secret rotate --args "recipient=age1...,prune=true" --force
-node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd-cyberia"
-node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd"   # whole dd.routes fleet
+node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,deploy-id=dd-cyberia"
+node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,deploy-id=dd"   # whole dd.routes fleet
 node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd" --dry-run
+node bin secret rotate --args "secret=SOCKET_CLI_API_TOKEN|SOCKET_CLI_ORG_SLUG|NPM_TOKEN,source=host,deploy-id=dd"
+node bin secret rotate --args "secret=NPM_TOKEN,source=host,target=org,deploy-id=template"   # organization mirrors
 node bin secret clean --args names=postgres-secret --force          # archives the manifest
 node bin secret clean --args "names=postgres-secret,delete=true" --force
 
@@ -1006,38 +1008,48 @@ install -m 0600 ~/.config/sops/age/keys-new.txt ~/.config/sops/age/keys.txt
 git -C engine-private commit -am "secrets: revoke compromised age recipient" && git -C engine-private push
 ```
 
-### Rotating `GIT_AUTH_TOKEN`
+### Rotating GitHub Actions secrets
 
-The same verb rotates a credential **value**, selected with `--args secret=`. `GIT_AUTH_TOKEN` is
-the GitHub token CI workflows and cross-repository checkouts authenticate with, so its
-authoritative home is the GitHub Actions secret store rather than this one — the encrypted
-manifest is an optional mirror.
+The same verb rotates a credential **value**, selected with `--args secret=`. It writes any
+GitHub Actions secret — `GIT_AUTH_TOKEN`, `NPM_TOKEN`, `SOCKET_CLI_API_TOKEN`, `SOCKET_CLI_ORG_SLUG`
+— to every repository of a deploy, under a personal account or an organization. `GIT_AUTH_TOKEN`
+is the one with a mirror in this store: its authoritative home is the GitHub Actions secret store,
+and the encrypted manifest is optional.
 
 ```bash
 # Preview: which repositories the rotation touches. Contacts nothing, prompts for nothing.
 node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd-cyberia" --dry-run
 
-# Rotate. Omit token= to mint one from the GitHub App, or be prompted with no echo.
-node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,deploy-id=dd-cyberia"
+# Rotate one token. Omit value= to pipe it, read it from the environment, or be prompted with no echo.
+node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,deploy-id=dd-cyberia"
 
 # Mirror the new value into the encrypted store and project it into the cluster.
-node bin secret rotate --args "secret=GIT_AUTH_TOKEN,token=<new>,store=true,apply=true"
+node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,store=true,apply=true"
+
+# Sync several keys from the host configuration to the whole fleet, no prompt, no export.
+node bin secret rotate --args "secret=SOCKET_CLI_API_TOKEN|SOCKET_CLI_ORG_SLUG|NPM_TOKEN,source=host,deploy-id=dd" --env production
 ```
 
-#### Where the new token comes from
+A secret name is letters, digits and underscores; the `GITHUB_` prefix is reserved by GitHub.
+Several names separate with `|`, `;` or whitespace, because `--args` splits on commas.
 
-GitHub exposes no API for creating a personal access token, so you generate the PAT yourself at
+#### Where the value comes from
+
+GitHub exposes no API for creating a personal access token, so you generate a PAT yourself at
 `github.com/settings/tokens` and the CLI distributes it. Sources are tried in this order:
 
-| Order | Source                  | When                                          |
-| ----- | ----------------------- | --------------------------------------------- |
-| 1     | `--args token=<token>`  | Always wins.                                  |
-| 2     | Piped stdin             | fd 0 is a pipe or a redirected file.          |
-| 3     | `$GIT_AUTH_TOKEN`       | Exported in the environment.                  |
-| 4     | No-echo terminal prompt | Interactive session, nothing above available. |
+| Order | Source                                                        | When                                          |
+| ----- | ------------------------------------------------------------- | --------------------------------------------- |
+| 1     | `--args value=<value>`                                        | Always wins. One key only.                    |
+| 2     | Piped stdin                                                   | fd 0 is a pipe or a redirected file. One key. |
+| 3     | `$<KEY>`                                                      | Exported in the environment.                  |
+| 4     | Host configuration `engine-private/deploy/scopes/*.env.<env>` | The key is declared there (`--env`).          |
+| 5     | No-echo terminal prompt                                       | Interactive session, nothing above available. |
 
-Piping is what automation should use — it is the only source that keeps the token out of both the
-process table and the shell history:
+`source=host` reads source 4 only. It is what automation uses: the scope files are the durable
+record, and a stale export cannot outrank them.
+
+Piping is the source that keeps a value out of both the process table and the shell history:
 
 ```bash
 printf %s "$TOKEN" | node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd"
@@ -1045,13 +1057,50 @@ printf %s "$TOKEN" | node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy
 
 Stdin is read only when fd 0 is a pipe or a redirected file, decided by `fstat` rather than
 `isTTY`: `< /dev/null` is not a terminal either, and reading it would strand the rotation on an
-empty token instead of falling through to the next source.
+empty value instead of falling through to the next source.
 
 > Stdin deliberately outranks `$GIT_AUTH_TOKEN`. A pipe is what you chose for this run, whereas an
 > exported `GIT_AUTH_TOKEN` is very often the **outgoing** token — inside a workflow that maps
 > `GIT_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}`, taking it would re-set the value being replaced
 > and report a rotation that never happened. (`$GITHUB_TOKEN` is excluded as a source entirely, for
 > the same reason: it is what `gh` authenticates _with_.)
+
+#### Where the value goes: user account or organization
+
+The target is resolved from the host configuration, so one setting moves every rotation from the
+personal account to the organization. `--args target=`, `owner=` and `level=` override it per run.
+
+| Variable              | Values          | Effect                                                                                                                                |
+| --------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TARGET_TYPE`  | `user` \| `org` | Account type the derived repository names resolve under. Default `user`.                                                              |
+| `GITHUB_USERNAME`     | account login   | Owner for `user`, after the owner of `ENGINE_SRC_REPO`. Default `underpostnet`.                                                       |
+| `GITHUB_ORG_NAME`     | organization    | Owner for `org`. Required with `GITHUB_TARGET_TYPE=org`.                                                                              |
+| `GITHUB_SECRET_TOKEN` | PAT             | Credential `gh` writes with, passed as `GH_TOKEN`. `repo` scope; `admin:org` too for `level=org`. Unset: the `gh auth login` account. |
+
+All four are host-scope keys (`engine-private/deploy/scopes/host.env.production`), as are
+`SOCKET_CLI_API_TOKEN` and `SOCKET_CLI_ORG_SLUG`; `NPM_TOKEN` is a publishing-scope key. `host load`
+projects them into the host store, and `source=host` reads them from the files directly.
+
+`level=` decides where a value lands:
+
+| Level  | Write                                                                                                                                                                 | Works for                                                                         |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `repo` | `gh secret set KEY --repo owner/repo`, once per repository. Default.                                                                                                  | Both account types.                                                               |
+| `org`  | `gh secret set KEY --org ORG --visibility selected --repos a,b`, one secret for the organization's repositories; a repository under another owner still gets its own. | Organizations. A free organization cannot share it with its private repositories. |
+
+Under an organization target every derived name — and every declared one, an instance repository
+or `ENGINE_SRC_REPO` — is re-owned to the organization: the mirrors carry the same repository
+names, and a write that followed the declared owner would land on the account being migrated from.
+Names the organization does not hold are dropped by the reachability probe, like any other.
+
+```bash
+# The organization mirrors of the template lineage, from the host configuration.
+GITHUB_TARGET_TYPE=org GITHUB_ORG_NAME=underpost \
+  node bin secret rotate --args "secret=NPM_TOKEN|GIT_AUTH_TOKEN,source=host,deploy-id=template" --dry-run
+
+# One organization secret, visible to the deploy's repositories only.
+node bin secret rotate --args "secret=NPM_TOKEN,source=host,target=org,owner=underpost,level=org,deploy-id=dd-cyberia"
+```
 
 #### Rotating the whole fleet
 
@@ -1063,10 +1112,10 @@ so a repository two deploys share is rotated once.
 
 ```bash
 # 1. See the whole target set first. dd.routes decides it; targets are probed read-only,
-#    and nothing is minted, prompted for, or written.
+#    and nothing is prompted for or written.
 node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd" --dry-run
 
-# 2. Rotate the fleet. Mints from the App when configured, else prompts with no echo.
+# 2. Rotate the fleet. Reads the environment or the host configuration, else prompts with no echo.
 node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd"
 
 # 3. Or a subset — `|`, `;` or whitespace, since --args splits on commas.
@@ -1100,15 +1149,16 @@ same set. Each deploy contributes:
 | `metadata.repository` per instance | Every entry in `engine-private/conf/<deploy-id>/conf.instances.json`. |
 
 An instance is a separate product with its own repository and its own workflows reading the same
-token — `dd-cyberia` builds from `cyberia-server` and `cyberia-client` — so a rotation that
-covered only the engine repositories would leave half the deploy on the previous credential. An
-instance keeps the owner its `metadata.repository` declares, which outranks `owner=`.
+secrets — `dd-cyberia` builds from `cyberia-server` and `cyberia-client` — so a rotation that
+covered only the engine repositories would leave half the deploy on the previous credential. Under
+a user target an instance keeps the owner its `metadata.repository` declares, which outranks
+`owner=`; under an organization target it is re-owned like every other name.
 
 Derived names that do not exist on GitHub are dropped by the reachability probe, so there is no
 separate existence check: a deploy with no ghpkg mirror or no test source simply contributes
 fewer targets. `owner=` overrides the GitHub owner for the derived names, and
-`repos=owner/one|owner/two` adds targets — with `|`, `;` or whitespace, because `--args` splits
-on commas.
+`repos=owner/one|owner/two` adds targets, taken as written — with `|`, `;` or whitespace, because
+`--args` splits on commas.
 
 `template` is the second meta id alongside `dd`. The template lineage carries no conf id, so it
 resolves to its own repositories rather than through `engine-<conf-id>` naming:
@@ -1120,35 +1170,39 @@ node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=template" --dry-r
 #   engine
 ```
 
-| Parameter    | Effect                                                                                 |
-| ------------ | -------------------------------------------------------------------------------------- |
-| `token=`     | The replacement token. Omit it to mint one, or fall back to the prompt below.          |
-| `deploy-id=` | The deploy(s) to rotate: an id, a `\|`-separated list, or `dd` for all of `dd.routes`. |
-| `owner=`     | GitHub owner. Falls back to `$ENGINE_SRC_REPO`'s, then `$GITHUB_USERNAME`.             |
-| `repos=`     | Extra `owner/repo` targets, separated by `\|`, `;` or whitespace.                      |
-| `store=true` | Mirror into the encrypted store even when no manifest exists yet.                      |
-| `apply=true` | Project the updated manifest into the cluster.                                         |
+| Parameter     | Effect                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------- |
+| `secret=`     | The secret name(s), `\|`-separated.                                                                           |
+| `value=`      | The value, for a single key. Omit it to fall through the sources above.                                       |
+| `source=host` | Read the host configuration only.                                                                             |
+| `deploy-id=`  | The deploy(s) to rotate: an id, a `\|`-separated list, `dd` for all of `dd.routes`, or `template`.            |
+| `target=`     | `user` or `org`. Falls back to `$GITHUB_TARGET_TYPE`, then `user`.                                            |
+| `owner=`      | GitHub owner. Falls back to `$GITHUB_ORG_NAME` (org) or `$ENGINE_SRC_REPO`'s, then `$GITHUB_USERNAME` (user). |
+| `level=`      | `repo` (default) or `org`.                                                                                    |
+| `repos=`      | Extra `owner/repo` targets, separated by `\|`, `;` or whitespace.                                             |
+| `store=true`  | `GIT_AUTH_TOKEN`: mirror into the encrypted store even when no manifest exists yet.                           |
+| `apply=true`  | `GIT_AUTH_TOKEN`: project the updated manifest into the cluster.                                              |
 
 Requires the GitHub CLI, authenticated as an account holding **admin** on the targets — writing
 an Actions secret needs it:
 
 ```bash
-gh auth login          # or: GH_TOKEN=… (the credential gh authenticates *with*, not the new token)
+gh auth login          # or: GITHUB_SECRET_TOKEN=… (the credential gh writes with, not the new value)
 gh auth status
 ```
 
 Behaviour worth knowing before you run it:
 
-- **GitHub is written first, the store second.** The token is only real once GitHub holds it. A
-  store that leads GitHub records a credential no workflow can use; a GitHub that leads the store
+- **GitHub is written first, the store second.** A credential is only real once GitHub holds it.
+  A store that leads GitHub records a value no workflow can use; a GitHub that leads the store
   converges on the next run. Every write is idempotent, so a partially failed rotation is
-  re-runnable with the same token.
+  re-runnable with the same values.
 - **An unreachable target is skipped, not fatal.** A deploy does not necessarily own every
   repository its naming implies — a test source repo often does not exist — and a missing one must
   not leave the private conf repo un-rotated. Targets that resolve but fail to write are collected
   and raised at the end, after the successful ones are on record. If _nothing_ rotated, the store
   is left untouched so it keeps recording the credential GitHub is actually running on.
-- **The token is never a command argument.** It is staged on tmpfs at mode 600, handed to
+- **The value is never a command argument.** It is staged on tmpfs at mode 600, handed to
   `gh secret set` on stdin, and shredded afterwards — so it reaches neither the process table nor
   the command log. `$GITHUB_TOKEN` is deliberately _not_ a source for the new value: it is what
   `gh` authenticates with, which during a rotation is the outgoing token.
