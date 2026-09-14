@@ -4,7 +4,7 @@ import { FileController } from './file.controller.js';
 
 class FileRouter {
   /**
-   * authenticated writes, admin-only deletes.
+   * authenticated writes, admin-only deletes and full listing.
    * @param {import('../types.js').RouterOptions} options
    * @returns {import('express').Router}
    */
@@ -13,6 +13,12 @@ class FileRouter {
     router.post(`/:id`, options.authMiddleware, async (req, res) => await FileController.post(req, res, options));
     router.post(`/`, options.authMiddleware, async (req, res) => await FileController.post(req, res, options));
     router.get(`/blob/:id`, async (req, res) => await FileController.get(req, res, options));
+    router.get(
+      `/all`,
+      options.authMiddleware,
+      adminGuard,
+      async (req, res) => await FileController.get(req, res, options),
+    );
     router.get(`/:id`, async (req, res) => await FileController.get(req, res, options));
     router.get(`/`, async (req, res) => await FileController.get(req, res, options));
     router.delete(
