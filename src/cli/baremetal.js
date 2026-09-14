@@ -3389,7 +3389,7 @@ fi
         throw new Error('Invalid token format');
       }
 
-      logger.info('Maas api token generated', { consumer_key, consumer_secret, token_key, token_secret });
+      logger.info('Maas api token generated', { consumer_key, token_key });
       return { consumer_key, consumer_secret, token_key, token_secret };
     },
 
