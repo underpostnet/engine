@@ -832,7 +832,6 @@ class SearchBox {
 
       .search-result-route {
         padding: 10px 12px;
-        margin: 2px;
         text-align: left;
         min-height: 40px;
       }

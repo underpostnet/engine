@@ -129,6 +129,9 @@ class Modal {
   /** @type {Object.<string, ModalDataEntry>} */
   static Data = {};
 
+  /** @type {Function|null} Recomputes visibility of the search/home toggle button; set once the slide-menu modal renders it. */
+  static updateBarCustomVisibility = null;
+
   /**
    * Bottom offset of the slide-menu area for the given options.
    * @param {ModalRenderOptions} options
@@ -297,6 +300,9 @@ class Modal {
               route: options.route,
               RouterInstance: options.RouterInstance,
             });
+            // Path just changed away from (or back to) home — recompute the search/home
+            // toggle's visibility instead of leaving it stuck on its last computed state.
+            setTimeout(() => Modal.updateBarCustomVisibility?.());
           }
 
           break;
@@ -428,6 +434,28 @@ class Modal {
               s('body').classList[collapsed ? 'add' : 'remove']('main-btn-menu-top-fixed-active');
               s('body').classList[collapsed && menuClosed ? 'add' : 'remove']('main-btn-menu-top-fixed-title-offset');
             };
+            // Hides the search/home toggle only while it's showing the "close" (home) icon
+            // AND the body is already scrolled to top — nothing left for it to do there.
+            // Reactive: called on every scroll tick and state change, so it restores to its
+            // normal visible state the moment either condition stops holding.
+            const updateBarCustomVisibility = () => {
+              const barCustom = s(`.main-body-btn-bar-custom`);
+              if (!barCustom || !options?.slideMenuTopBarBannerFix) return;
+              const mainBody = s(`.main-body`);
+              const atTop = !!mainBody && mainBody.scrollTop <= 0;
+              const bannerFix = s(`.slide-menu-top-bar-fix`);
+              const bannerVisible = !!bannerFix && parseInt(bannerFix.style.top, 10) >= 0;
+              const isHomePath = location.pathname === getProxyPath();
+              // Never hide while the open (magnifying-glass) icon is showing — that's the
+              // idle "click to search" state, not the "close/home" state this hide targets.
+              const openIconHidden =
+                !!s(`.main-body-btn-ui-bar-custom-open`) &&
+                s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide');
+              barCustom.classList[bannerVisible && isHomePath && atTop && openIconHidden ? 'add' : 'remove']('hide');
+            };
+            // Exposed statically so other code paths (e.g. opening a view/route) can force a
+            // recompute — otherwise the hidden state goes stale once the path stops being home.
+            Modal.updateBarCustomVisibility = updateBarCustomVisibility;
             barConfig.buttons.menu.onClick = () => {
               Modal.Data[idModal][options.mode].width = slideMenuWidth;
               s(`.btn-menu-${idModal}`).classList.add('hide');
@@ -587,12 +615,22 @@ class Modal {
                   s(`.main-body-btn-ui-bar-custom-open`).classList.remove('hide');
                   s(`.main-body-btn-ui-bar-custom-close`).classList.add('hide');
                   s(`.slide-menu-top-bar-fix`).style.top = '0px';
+
+                  setTimeout(async () => {
+                    await Modal.onHomeRouterEvent();
+                    const mainBody = s(`.main-body`);
+                    if (mainBody && mainBody.scrollTop > 0) {
+                      mainBody.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                    updateBarCustomVisibility();
+                  });
                 } else {
                   s(`.main-body-btn-ui-bar-custom-open`).classList.add('hide');
                   s(`.main-body-btn-ui-bar-custom-close`).classList.remove('hide');
                   s(`.slide-menu-top-bar-fix`).style.top = '-100px';
                   s(`.top-bar-search-box-container`).click();
                 }
+                updateBarCustomVisibility();
                 if (Modal.mobileModal()) {
                   btnCloseEvent();
                 }
@@ -649,6 +687,7 @@ class Modal {
                   );
                 }
               };
+              updateBarCustomVisibility();
               Modal.setTopBannerLink();
             });
 
@@ -1160,6 +1199,7 @@ class Modal {
                   } catch (e) {}
                 }
                 Modal.removeModal(searchBoxHistoryId);
+                updateBarCustomVisibility();
               };
               s('.top-bar-search-box').onblur = () => {
                 hoverFocusCtl.checkDismiss();
@@ -1662,6 +1702,8 @@ class Modal {
                   removeEvent();
                 }
               });
+              Scroll.setEvent('.main-body', () => updateBarCustomVisibility());
+              updateBarCustomVisibility();
               setTimeout(window.onresize);
               setRouterReady();
             });
