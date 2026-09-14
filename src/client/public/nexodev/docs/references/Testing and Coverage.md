@@ -17,7 +17,7 @@ test/
     cyberia/                         Cyberia MMO extension, pure functions
   integration/
     infra/
-      1-security/                    SELinux, systemd units, SOPS secret store
+      1-security/                    SELinux, systemd units, SOPS secret store, Socket audit
       2-network/                     WireGuard edge transport
       3-cluster/                     instance clustering, node placement
       4-ingress/                     gateways, ingress, routes, traffic plans

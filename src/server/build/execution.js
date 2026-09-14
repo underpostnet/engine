@@ -154,10 +154,23 @@ const HOST_WRITE_BINARIES = new Set([
   'haproxy',
 ]);
 
-// `gh` reaches a remote service and writes to it (`gh secret set`, `gh release create`), so it
-// is a network effect rather than local filesystem work — an unclassified binary would default
-// to `fs` and run under HERMETIC_BUILD.
-const NET_BINARIES = new Set(['curl', 'wget', 'ssh', 'scp', 'sftp', 'rsync', 'nc', 'ping', 'dig', 'nslookup', 'gh']);
+// `gh` and `socket` reach a remote service and write to it (`gh secret set`, `socket scan create`),
+// so they are a network effect rather than local filesystem work — an unclassified binary would
+// default to `fs` and run under HERMETIC_BUILD.
+const NET_BINARIES = new Set([
+  'curl',
+  'wget',
+  'ssh',
+  'scp',
+  'sftp',
+  'rsync',
+  'nc',
+  'ping',
+  'dig',
+  'nslookup',
+  'gh',
+  'socket',
+]);
 
 const CLUSTER_BINARIES = new Set(['kubectl', 'helm']);
 
@@ -200,7 +213,8 @@ const classifySegment = (segment) => {
   // Leading `VAR=value` assignments are not the command.
   let start = 0;
   while (start < bare.length && /^[A-Z_][A-Z0-9_]*=/i.test(bare[start])) start++;
-  const binary = nodePath.basename(bare[start] ?? '');
+  // A quoted binary path (`'/x/.bin/socket' scan`) names the same binary as the bare one.
+  const binary = nodePath.basename(bare[start] ?? '').replace(/^['"]|['"]$/g, '');
   const rest = bare.slice(start);
 
   if (CLUSTER_BINARIES.has(binary)) {

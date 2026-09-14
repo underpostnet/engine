@@ -128,8 +128,9 @@ const TEST_TIERS = [
       'src/server/ops/systemd.js',
       'src/server/security/container-storage.js',
       'src/server/security/selinux.js',
+      'src/server/security/socketsecurity.js',
     ],
-    description: 'SELinux policy, systemd units and the SOPS secret store.',
+    description: 'SELinux policy, systemd units, the SOPS secret store and the Socket supply-chain audit.',
   },
   {
     name: 'infra:2-network',

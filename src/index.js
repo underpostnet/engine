@@ -25,6 +25,7 @@ import UnderpostPackage from './cli/package.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
 import UnderpostSecret from './cli/secrets.js';
+import UnderpostSocketSecurity from './cli/socketsecurity.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostState from './cli/state.js';
 import UnderpostStatic from './cli/static.js';
@@ -384,6 +385,16 @@ class Underpost {
   static get package() {
     return UnderpostPackage.API;
   }
+
+  /**
+   * Socket supply-chain security cli API
+   * @static
+   * @type {UnderpostSocketSecurity.API}
+   * @memberof Underpost
+   */
+  static get socketSecurity() {
+    return UnderpostSocketSecurity.API;
+  }
 }
 
 if (!process.version || !process.version.startsWith(`${Underpost.majorNodejsVersion}.`))
@@ -422,6 +433,7 @@ export {
   UnderpostRepository,
   UnderpostRun,
   UnderpostSecret,
+  UnderpostSocketSecurity,
   UnderpostSSH,
   UnderpostState,
   UnderpostDns,

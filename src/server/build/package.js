@@ -6,18 +6,45 @@
  */
 
 import fs from 'fs-extra';
+import { builtinModules } from 'node:module';
 import os from 'node:os';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loggerFactory } from '../ops/logger.js';
 import { shellArgumentFactory, shellExec } from '../runtime/process.js';
-import { loadDeployCatalog } from './catalog.js';
+import { loadDeployCatalog, loadProductCatalogs } from './catalog.js';
 
 const logger = loggerFactory(import.meta);
 const ENGINE_PACKAGE_PATH = fileURLToPath(new URL('../../../', import.meta.url));
 const STAGED_CLI_PACKAGE = 'underpost-cli.tgz';
 const DEPLOY_CONF_ROOT = './engine-private/conf';
 const DEPLOY_MANIFEST_INDENT = 4;
+
+/**
+ * Modules a production install executes: the CLI, the servers, the client build, and the
+ * browser bundles the build compiles. What they import statically has to resolve from
+ * `dependencies`, because the runtime images install the package with `--omit=dev`.
+ * @constant {string[]}
+ * @memberof PackageBuilder
+ */
+const RUNTIME_ENTRY_POINTS = [
+  'bin/index.js',
+  'src/server.js',
+  'src/api.js',
+  'src/proxy.js',
+  'src/client.build.js',
+  'src/client/*.index.js',
+  'src/client/sw/*.js',
+  // Loaded by name from a deploy's configuration, so no static import reaches them.
+  'src/api/*/*.js',
+  'src/ws/*/*.js',
+  'src/grpc/*/*.js',
+  'src/projects/*/*.js',
+];
+const STATIC_IMPORT = /^\s*(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"\n]+)['"]|^\s*import\s*['"]([^'"\n]+)['"]/gm;
+const DYNAMIC_IMPORT = /\bimport\(\s*['"]([^'"\n]+)['"]\s*\)/g;
+const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm;
+const BUILTINS = new Set(builtinModules);
 
 /**
  * Packs an npm package into a build context under a stable file name.
@@ -485,22 +512,155 @@ const installDeployDependencies = async (deployId, catalog) => {
   return specs;
 };
 
+/**
+ * The package a bare import specifier names; empty for relative, absolute and builtin ones.
+ * @param {string} specifier - Import specifier.
+ * @returns {string} Package name.
+ * @memberof PackageBuilder
+ */
+const importPackageNameFactory = (specifier = '') => {
+  if (/^(\.|\/|node:|data:|[a-z]+:\/\/)/.test(specifier)) return '';
+  const segments = specifier.split('/');
+  const name = specifier.startsWith('@') ? segments.slice(0, 2).join('/') : segments[0];
+  return BUILTINS.has(name) ? '' : name;
+};
+
+const resolveRelativeImport = (importer, specifier) => {
+  const target = nodePath.resolve(nodePath.dirname(importer), specifier);
+  return [target, `${target}.js`, `${target}/index.js`].find(
+    (candidate) => /\.(m|c)?js$/.test(candidate) && fs.existsSync(candidate) && fs.statSync(candidate).isFile(),
+  );
+};
+
+const expandEntryPoints = (root, patterns) => {
+  const expand = (base, segments) => {
+    if (segments.length === 0) return fs.existsSync(base) && fs.statSync(base).isFile() ? [base] : [];
+    const [segment, ...rest] = segments;
+    if (!segment.includes('*')) return expand(nodePath.join(base, segment), rest);
+    if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return [];
+    const matcher = new RegExp(`^${segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
+    return fs
+      .readdirSync(base)
+      .filter((entry) => matcher.test(entry))
+      .flatMap((entry) => expand(nodePath.join(base, entry), rest));
+  };
+  return patterns.flatMap((pattern) => expand(root, pattern.split('/')));
+};
+
+/**
+ * Walks the static import graph from the runtime entry points and collects the packages it
+ * reaches. A dynamic `import('name')` is recorded as lazy: it loads on one code path only, so it
+ * does not bind a production install the way a static import does.
+ * @param {object} [params]
+ * @param {string} [params.root] - Package root.
+ * @param {string[]} [params.entryPoints] - Entry point paths or `dir/*.js` patterns, relative to root.
+ * @returns {{files: string[], packages: Record<string, string[]>, lazyPackages: Record<string, string[]>}} Importers by package, relative to root.
+ * @memberof PackageBuilder
+ */
+const runtimeImportGraphFactory = ({ root = ENGINE_PACKAGE_PATH, entryPoints = RUNTIME_ENTRY_POINTS } = {}) => {
+  const queue = expandEntryPoints(root, entryPoints);
+  const files = new Set();
+  const packages = {};
+  const lazyPackages = {};
+  const record = (registry, name, importer) => {
+    const importers = (registry[name] ??= []);
+    const relative = nodePath.relative(root, importer);
+    if (!importers.includes(relative)) importers.push(relative);
+  };
+
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (files.has(file)) continue;
+    files.add(file);
+    const source = fs.readFileSync(file, 'utf8').replace(COMMENT, '');
+    for (const [pattern, registry] of [
+      [STATIC_IMPORT, packages],
+      [DYNAMIC_IMPORT, lazyPackages],
+    ]) {
+      for (const match of source.matchAll(pattern)) {
+        const specifier = match[1] ?? match[2];
+        const name = importPackageNameFactory(specifier);
+        if (name) record(registry, name, file);
+        else if (specifier.startsWith('.')) {
+          const resolved = resolveRelativeImport(file, specifier);
+          if (resolved && !files.has(resolved)) queue.push(resolved);
+        }
+      }
+    }
+  }
+
+  for (const name of Object.keys(lazyPackages)) if (packages[name]) delete lazyPackages[name];
+  return {
+    files: [...files].map((file) => nodePath.relative(root, file)).sort(),
+    packages: Object.fromEntries(Object.entries(packages).sort(([a], [b]) => a.localeCompare(b))),
+    lazyPackages: Object.fromEntries(Object.entries(lazyPackages).sort(([a], [b]) => a.localeCompare(b))),
+  };
+};
+
+/**
+ * Checks a manifest against the runtime import graph: every package the graph reaches
+ * statically must be declared in `dependencies`, or be pinned by a product catalog for the
+ * deploys that load its modules. A package reached only lazily is reported, not counted as a
+ * violation.
+ * @param {object} [params]
+ * @param {string} [params.root] - Package root.
+ * @param {object} [params.packageJson] - Manifest to check; read from root otherwise.
+ * @param {object[]} [params.catalogs] - Product catalogs; every one in the tree otherwise.
+ * @returns {Promise<{dependencies: number, devDependencies: number, runtime: string[], lazy: string[], misplaced: Array<{name: string, declaredIn: string, importers: string[]}>}>} Audit result.
+ * @memberof PackageBuilder
+ */
+const auditRuntimeDependencies = async ({
+  root = ENGINE_PACKAGE_PATH,
+  packageJson = readManifest(nodePath.join(root, 'package.json')),
+  catalogs,
+} = {}) => {
+  const { packages, lazyPackages } = runtimeImportGraphFactory({ root });
+  const dependencies = packageJson.dependencies ?? {};
+  const devDependencies = packageJson.devDependencies ?? {};
+  const catalogDependencies = Object.assign(
+    {},
+    ...(catalogs ?? (await loadProductCatalogs())).map((catalog) => catalog.packageDependencies ?? {}),
+  );
+  const declaredIn = (name) =>
+    dependencies[name]
+      ? 'dependencies'
+      : catalogDependencies[name]
+        ? 'catalog'
+        : devDependencies[name]
+          ? 'devDependencies'
+          : 'none';
+  const misplaced = Object.entries(packages)
+    .map(([name, importers]) => ({ name, declaredIn: declaredIn(name), importers }))
+    .filter(({ declaredIn: origin }) => origin !== 'dependencies' && origin !== 'catalog');
+  return {
+    dependencies: Object.keys(dependencies).length,
+    devDependencies: Object.keys(devDependencies).length,
+    runtime: Object.keys(packages),
+    lazy: Object.keys(lazyPackages).map((name) => `${name} (${declaredIn(name)})`),
+    misplaced,
+  };
+};
+
 export {
   DEPLOY_CONF_ROOT,
   DEPLOY_MANIFEST_INDENT,
+  RUNTIME_ENTRY_POINTS,
   STAGED_CLI_PACKAGE,
+  auditRuntimeDependencies,
   buildDeployPackageJson,
   buildProductPackageJson,
   deployDependencySpecsFactory,
   deployPackageNameFactory,
   deployPackagePathFactory,
   deployStartScriptFactory,
+  importPackageNameFactory,
   installDeployDependencies,
   packageRepositoryFactory,
   productDevDependenciesFactory,
   productPackageOptionsFactory,
   publishedProductPackageJson,
   renamePackage,
+  runtimeImportGraphFactory,
   setPackageRepository,
   stageCliPackage,
   stagePackageArchive,

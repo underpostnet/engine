@@ -60,6 +60,8 @@ const CONFIG_OWNERSHIP = Object.freeze([
   { match: /^(GITHUB_|DEFAULT_SSH_|FORWARD_PROXY_|DEFAULT_DEPLOY_)/, owner: 'host' },
   { match: /^(GF_SECURITY_|CLUSTER_MAILER_)/, owner: 'host' },
   { match: /^UNDERPOST_EVENT_TOKEN$/, owner: 'host' },
+  // The Socket audit runs on hosts and in CI, never in a workload.
+  { match: /^SOCKET_CLI_/, owner: 'host' },
 
   { match: /^(DB_|MARIADB_|VALKEY_)/, owner: 'app' },
   { match: /^(JWT_SECRET|ACCESS_EXPIRE_MINUTES|REFRESH_EXPIRE_MINUTES|PORT|DEPLOY_ID)$/, owner: 'app' },

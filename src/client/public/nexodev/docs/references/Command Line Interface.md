@@ -50,6 +50,7 @@
 | [`lxd`](#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
 | [`package`](#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
+| [`socketsecurity`](#underpost-socketsecurity) | Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
 | [`release`](#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
 
 ## Command reference
@@ -1381,6 +1382,32 @@ Generates the package manifests a deploy id owns, from the engine manifest and t
 | `--rename <name>` | Renames this checkout's package, in its manifest and its lockfile. |
 | `--set-repo <owner/repo>` | Points this checkout's package at a repository. |
 | `--dry-run` | For --sync: resolves the manifests without writing them. |
+| `-h, --help` | display help for command |
+
+---
+
+### underpost socketsecurity
+
+Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code).
+
+**Usage:** `underpost socketsecurity [options]`
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--audit` | Audits the checkout (default). Dependency security: segregation, npm audit, the Socket patch scan and, with SOCKET_CLI_API_TOKEN set, the Socket full scan. Source code risk: full scan alerts on this project's own packages, as refactoring tasks. Writes the JSON and Markdown reports. |
+| `--reach` | Runs the full application reachability analysis with the Socket scan (tier 1 evidence). |
+| `--ci` | Audits, then exits non-zero when the Socket scan violates the organization policy or a finding remains at --fail-on. |
+| `--fail-on <severity>` | Severity --ci fails at. One of: critical, high, moderate, low, info. Defaults to high. |
+| `--fix` | Runs the remediation pass before the audit: npm audit fix, every available Socket patch, socket fix without major upgrades, socket patch apply. |
+| `--major` | With --fix: lets socket fix apply major upgrades. |
+| `--patch-scan` | Lists the Socket patches available for the installed packages. |
+| `--patch-get <identifier>` | Downloads one patch (UUID, CVE, GHSA or PURL) into .socket/manifest.json and applies it. |
+| `--patch-apply` | Applies the patch manifest; the prepare hook. A host without the Socket CLI skips it. |
+| `--patch-setup` | Installs the prepare hook in package.json. |
+| `--out <dir>` | Report directory (default: security-reports). |
+| `--dry-run` | Previews --patch-setup; verifies --patch-apply without writing. |
 | `-h, --help` | display help for command |
 
 ---

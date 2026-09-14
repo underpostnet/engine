@@ -95,6 +95,9 @@ describe('configuration scope ownership', () => {
     // A projection is an edit to the ownership table, so it is reviewable.
     expect(configOwnershipFactory('GITHUB_TOKEN')).to.deep.equal({ owner: 'host', projectedTo: ['cron'] });
     expect(configOwnershipFactory('GF_SECURITY_ADMIN_PASSWORD')).to.deep.equal({ owner: 'host', projectedTo: [] });
+    // The GitHub target of the secret writes and the Socket audit stay on the host.
+    for (const key of ['GITHUB_TARGET_TYPE', 'GITHUB_ORG_NAME', 'GITHUB_SECRET_TOKEN', 'SOCKET_CLI_API_TOKEN'])
+      expect(configOwnershipFactory(key), key).to.deep.equal({ owner: 'host', projectedTo: [] });
     // Both are host-owned; only one reaches cron.
     expect(scopeReceivesKey('GITHUB_TOKEN', 'cron')).to.equal(true);
     expect(scopeReceivesKey('GF_SECURITY_ADMIN_PASSWORD', 'cron')).to.equal(false);

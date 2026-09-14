@@ -61,6 +61,7 @@ describe('command capability classification', () => {
     expect(classifyCommand('sudo dnf install -y cockpit')).to.equal('host:write');
     expect(classifyCommand('sudo systemctl enable --now cockpit.socket')).to.equal('host:write');
     expect(classifyCommand('curl https://example.com')).to.equal('net');
+    expect(classifyCommand("'/x/node_modules/.bin/socket' 'scan' 'create' '--json' '.'")).to.equal('net');
     expect(classifyCommand('git add .')).to.equal('git');
   });
 

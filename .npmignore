@@ -6,6 +6,7 @@
 /logs
 /build
 /coverage
+/security-reports
 # Real environment files. `/.env` alone left `.env.development`/`.env.production`/`.env.test`
 # in the tarball, and this package is installed into the runtime images — every one of them
 # would ship those credentials. `.env.example` is the documented template and stays.

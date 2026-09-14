@@ -8,6 +8,7 @@
 /logs
 /build
 /coverage
+/security-reports
 /allure-results
 /.env
 /.underpost

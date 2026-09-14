@@ -7,6 +7,7 @@ import { commitData } from '../client/components/core/CommonJs.js';
 import { registerDomainCommand } from './domains.js';
 import { TEST_TIERS, testSuiteNames } from '../server/build/testing.js';
 import { EXECUTION_PROFILES, profileFromOptionsFactory, setExecutionProfile } from '../server/build/execution.js';
+import { SEVERITIES } from '../server/security/socketsecurity.js';
 
 import Underpost from '../index.js';
 
@@ -1402,6 +1403,41 @@ program
       'product catalog, and installs the dependencies that catalog pins.',
   )
   .action(Underpost.package.callback);
+
+program
+  .command('socketsecurity')
+  .option(
+    '--audit',
+    "Audits the checkout (default). Dependency security: segregation, npm audit, the Socket patch scan and, with SOCKET_CLI_API_TOKEN set, the Socket full scan of the dependency manifests. Source code risk: with SOCKET_CLI_API_TOKEN set, the alerts Socket's registry analysis raises on this project's own published package, as refactoring tasks. Writes the JSON and Markdown reports.",
+  )
+  .option(
+    '--reach',
+    'Runs the full application reachability analysis over the local working tree with the Socket scan (tier 1 evidence); no pushed commit is needed.',
+  )
+  .option(
+    '--ci',
+    'Audits, then exits non-zero when the Socket scan violates the organization policy or a finding remains at --fail-on.',
+  )
+  .option('--fail-on <severity>', `Severity --ci fails at. One of: ${SEVERITIES.join(', ')}. Defaults to high.`)
+  .option(
+    '--fix',
+    'Runs the remediation pass before the audit: npm audit fix, every available Socket patch, socket fix without major upgrades, socket patch apply.',
+  )
+  .option('--major', 'With --fix: lets socket fix apply major upgrades.')
+  .option('--patch-scan', 'Lists the Socket patches available for the installed packages.')
+  .option(
+    '--patch-get <identifier>',
+    'Downloads one patch (UUID, CVE, GHSA or PURL) into .socket/manifest.json and applies it.',
+  )
+  .option('--patch-apply', 'Applies the patch manifest; the prepare hook. A host without the Socket CLI skips it.')
+  .option('--patch-setup', 'Installs the prepare hook in package.json.')
+  .option('--out <dir>', 'Report directory (default: security-reports).')
+  .option('--dry-run', 'Previews --patch-setup; verifies --patch-apply without writing.')
+  .description(
+    'Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, ' +
+      "security patches in .socket/manifest.json) and source code risk (alerts on this project's own code).",
+  )
+  .action(Underpost.socketSecurity.callback);
 
 program
   .command('release')

@@ -71,6 +71,7 @@ const loadDeployCatalog = async (deployId) => {
  */
 const loadProductCatalogs = async () => {
   const catalogs = [];
+  if (!fs.existsSync('./src/projects')) return catalogs;
   for (const file of await fs.readdir('./src/projects')) {
     if (file === 'underpost') continue;
     const mod = await import(`../../projects/${file}/catalog-${file}.js`);
