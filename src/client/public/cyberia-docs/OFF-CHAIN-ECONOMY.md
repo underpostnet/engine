@@ -13,50 +13,48 @@
 Cyberia Online uses the **Fountain & Sink** economy — the industry standard for sustainable in-game economies, pioneered by _Ultima Online_ and refined in _EVE Online_ and _World of Warcraft_.
 
 ```
-                ┌─────────────────────────────┐
-                │         FOUNTAINS           │
-                │  (inject coins into economy) │
-                │                             │
-                │  botSpawnCoins  ──► Bot      │
-                │  playerSpawnCoins ► Player   │
-                └──────────────┬──────────────┘
-                               │ new coins
+                    ┌──────────────────────┐
+                    │      FOUNTAINS       │
+                    │   Supply Creation ↑  │
+                    │                      │
+                    │ • botSpawnCoins      │
+                    │ • playerSpawnCoins   │
+                    └──────────┬───────────┘
+                               │
                                ▼
-                ┌──────────────────────────────┐
-                │      CIRCULATING SUPPLY      │
-                │   (player & bot wallets)     │
-                └──────┬───────────────────────┘
-                       │
-          ┌────────────┴────────────┐
-          │   KILL LOOT             │  zero-sum drop race
-          │   victim stake → grid drop    │
-          │   contributors race to collect│
-          │   (players + bots, any victim)│
-          │                         │
-          │  PvE: coinKillPercentVsBot    │
-          │  PvP: coinKillPercentVsPlayer │
-          │  floor: coinKillMinAmount     │
-          └────────────┬────────────┘
-                       │
-                ┌──────▼──────────────────────┐
-                │           SINKS             │
-                │   (destroy coins — alpha=0) │
-                │                             │
-                │  respawnCostPercent         │
-                │  portalFee                  │
-                │  craftingFeePercent         │
-                └─────────────────────────────┘
+                    ┌──────────────────────┐
+                    │  CIRCULATING SUPPLY  │
+                    │  Active Coin Supply  │
+                    └──────────┬───────────┘
+                               │
+                  ┌────────────┴────────────┐
+                  │                         │
+                  ▼                         ▼
+       ┌─────────────────────┐   ┌─────────────────────┐
+       │  TRANSFERS & LOOT   │   │        SINKS        │
+       │                     │   │                     │
+       │   Supply moves ↔    │   │   Supply destroyed ↓│
+       │                     │   │                     │
+       │ • PvP / PvE loot    │   │ • respawn cost      │
+       │ • kill rewards      │   │ • portal fee        │
+       │ • minimum loot      │   │ • crafting fee      │
+       └─────────────────────┘   └─────────────────────┘
+                  │                         │
+                  │                         ▼
+                  │                Circulating Supply ↓
+                  │
+                  └──────────────► Wallet Redistribution
 ```
 
 ### Core Rules
 
-| Rule                          | Description                                                                                     |
-| ----------------------------- | ----------------------------------------------------------------------------------------------- |
-| **Bots are infinite mint**    | Every bot respawn resets wallet to `botSpawnCoins`. Supply bounded by player kill rate.         |
-| **Players are zero-sum**      | A player kill scatters the victim's coins as a grid drop but creates no new ones — redistribution only. A player who dies to bots still drops coins (per `coinKillPercentVsPlayer`); the contributing bots may reclaim them. |
-| **Loot is a contributor race**| Every kill scatters the victim's configured `dropItemIds` (plus coins where the entity carries them); only damage contributors may collect, and the first eligible collider wins. Damage amount is irrelevant — only contribution counts. The contributor set is tracked uniformly for **any** victim (player, bot, resource) and includes both players and the bots that dealt damage: a contributing player collects on collision, a contributing bot has the loot transferred to it on collision. A death with no contributor drops nothing. |
-| **Kill floor**                | `coinKillMinAmount` guarantees every successful kill pays out even against a near-empty wallet. |
-| **Sinks scale with activity** | Fees burn a fraction — more activity = more burn, preventing indefinite inflation.              |
+| Rule                           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bots are infinite mint**     | Every bot respawn resets wallet to `botSpawnCoins`. Supply bounded by player kill rate.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Players are zero-sum**       | A player kill scatters the victim's coins as a grid drop but creates no new ones — redistribution only. A player who dies to bots still drops coins (per `coinKillPercentVsPlayer`); the contributing bots may reclaim them.                                                                                                                                                                                                                                                                                                                    |
+| **Loot is a contributor race** | Every kill scatters the victim's configured `dropItemIds` (plus coins where the entity carries them); only damage contributors may collect, and the first eligible collider wins. Damage amount is irrelevant — only contribution counts. The contributor set is tracked uniformly for **any** victim (player, bot, resource) and includes both players and the bots that dealt damage: a contributing player collects on collision, a contributing bot has the loot transferred to it on collision. A death with no contributor drops nothing. |
+| **Kill floor**                 | `coinKillMinAmount` guarantees every successful kill pays out even against a near-empty wallet.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Sinks scale with activity**  | Fees burn a fraction — more activity = more burn, preventing indefinite inflation.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ---
 
@@ -123,15 +121,15 @@ All economy logic is encapsulated in a single file enforcing the single-source p
 
 ### Method Reference
 
-| Method                                | Caller                             | Description                                          |
-| ------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| `FountainInitPlayer(player)`          | `handlers.go` on WebSocket connect | Credits `playerSpawnCoins` to new player             |
-| `FountainInitBot(bot)`                | `collision.go` on bot respawn      | Resets bot wallet to `botSpawnCoins` (infinite mint) |
-| `botCoinDropAmount(bot)`              | `collision.go handleBotDeath`      | Coin stake a dead bot scatters as a grid drop        |
-| `pvpCoinDropAmount(player)`           | `collision.go handlePlayerDeath`   | Coin stake a dead player scatters as a grid drop     |
-| `SinkRespawnCost(player)`             | `collision.go handlePlayerDeath`   | Burns `respawnCostPercent`% of player coins          |
-| `SinkPortalFee(player)`               | Portal handler                     | Burns flat `portalFee` coins on portal use           |
-| `SinkCraftingFee(player, item)`       | Craft handler                      | Burns `craftingFeePercent`% on crafting              |
+| Method                          | Caller                             | Description                                          |
+| ------------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `FountainInitPlayer(player)`    | `handlers.go` on WebSocket connect | Credits `playerSpawnCoins` to new player             |
+| `FountainInitBot(bot)`          | `collision.go` on bot respawn      | Resets bot wallet to `botSpawnCoins` (infinite mint) |
+| `botCoinDropAmount(bot)`        | `collision.go handleBotDeath`      | Coin stake a dead bot scatters as a grid drop        |
+| `pvpCoinDropAmount(player)`     | `collision.go handlePlayerDeath`   | Coin stake a dead player scatters as a grid drop     |
+| `SinkRespawnCost(player)`       | `collision.go handlePlayerDeath`   | Burns `respawnCostPercent`% of player coins          |
+| `SinkPortalFee(player)`         | Portal handler                     | Burns flat `portalFee` coins on portal use           |
+| `SinkCraftingFee(player, item)` | Craft handler                      | Burns `craftingFeePercent`% on crafting              |
 
 ### Kill Loot Logic
 
@@ -222,14 +220,14 @@ Offset  Size  Field
  15      str  itemId bytes
 ```
 
-| `fct_type` | Constant            | Color  | Display        | Status |
-| ---------- | ------------------- | ------ | -------------- | ------ |
-| `0x00`     | `FCTTypeDamage`     | Red    | `-N` HP lost   | active |
-| `0x01`     | `FCTTypeRegen`      | Green  | `+N` HP gained | active |
-| `0x02`     | `FCTTypeCoinGain`   | Yellow | `+N` coins     | retired |
-| `0x03`     | `FCTTypeCoinLoss`   | Yellow | `-N` coins     | retired |
-| `0x04`     | `FCTTypeItemGain`   | Cyan   | `+N ItemID`    | retired |
-| `0x05`     | `FCTTypeItemLoss`   | Purple | `-N ItemID`    | retired |
+| `fct_type` | Constant          | Color  | Display        | Status  |
+| ---------- | ----------------- | ------ | -------------- | ------- |
+| `0x00`     | `FCTTypeDamage`   | Red    | `-N` HP lost   | active  |
+| `0x01`     | `FCTTypeRegen`    | Green  | `+N` HP gained | active  |
+| `0x02`     | `FCTTypeCoinGain` | Yellow | `+N` coins     | retired |
+| `0x03`     | `FCTTypeCoinLoss` | Yellow | `-N` coins     | retired |
+| `0x04`     | `FCTTypeItemGain` | Cyan   | `+N ItemID`    | retired |
+| `0x05`     | `FCTTypeItemLoss` | Purple | `-N ItemID`    | retired |
 
 One uniform visibility rule: **every combat FCT (damage and regen, on any
 entity — player, bot, or resource) is broadcast with its exact amount to every
