@@ -414,14 +414,15 @@ const getTerminalPid = () => {
 };
 /**
  * Copies text content to the system clipboard using clipboardy.
- * Logs the copied content for confirmation.
+ * Logs only the copied length: the content is often a password or a command carrying one.
  * @memberof Process
  * @param {string} [data='🦄'] - The data to copy. Defaults to '🦄'.
  * @returns {void}
  */
 function pbcopy(data) {
-  clipboard.writeSync(data || '🦄');
-  logger.info(`copied to clipboard`, clipboard.readSync());
+  const content = data || '🦄';
+  clipboard.writeSync(content);
+  logger.info(`copied to clipboard`, { characters: `${content}`.length });
 }
 export {
   installRootFile,
