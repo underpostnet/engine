@@ -100,10 +100,14 @@ jobs:
             node ../engine/bin push . underpostnet/pwa-microservices-template
           fi
 
+      # A failed dispatch fails the run: its success is what the organization mirror waits on.
       - name: Dispatch all engine CIs
+        env:
+          # Never interpolated into the script: a dispatch input is free text.
+          DEPLOY_CONF_ID: ${{ github.event.inputs.deploy_conf_id }}
+          DEPLOY_TYPE: ${{ github.event.inputs.deploy_type }}
+          GIT_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
         run: |
-          DEPLOY_CONF_ID="${{ github.event.inputs.deploy_conf_id }}"
-          DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
           for ENGINE in engine-core engine-prototype engine-cyberia engine-lampp engine-test; do
             SYNC="false"
             DT=""
@@ -120,9 +124,9 @@ jobs:
               if (process.env.MSG) i.message = process.env.MSG;
               process.stdout.write(JSON.stringify({ ref: "master", inputs: i }));
             ')
-            curl -s -X POST \
+            curl -sS -f -X POST \
               -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
+              -H "Authorization: token ${GIT_AUTH_TOKEN}" \
               "https://api.github.com/repos/underpostnet/engine/actions/workflows/${ENGINE}.ci.yml/dispatches" \
               -d "$PAYLOAD"
           done

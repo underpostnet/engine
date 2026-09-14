@@ -9,7 +9,8 @@ permissions:
   id-token: write
 jobs:
   build-and-publish:
-    # prevents this action from running on forks
+    # The unscoped `cyberia` package has one publisher: a version can be published once, and the
+    # organization mirror publishes the owner-scoped package from its ghpkg repository.
     if: github.repository == 'underpostnet/engine-cyberia'
     runs-on: ubuntu-latest
     permissions:
@@ -60,8 +61,11 @@ jobs:
         run: npm publish --provenance --access public
 
   build-and-publish-ghpkg:
-    # prevents this action from running on forks
-    if: github.repository == 'underpostnet/engine-ghpkg-cyberia'
+    # The scoped package takes the repository owner as its scope, so the personal account and the
+    # organization mirror each publish their own; any other owner is a fork.
+    if: >-
+      github.event.repository.name == 'engine-ghpkg-cyberia' &&
+      contains(fromJSON('["underpostnet","underpost"]'), github.repository_owner)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -74,10 +78,16 @@ jobs:
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
-          scope: '@underpostnet'
+          scope: '@${{ github.repository_owner }}'
 
       - name: Install Dependencies
         run: npm ci
+
+      # The committed manifest names the personal account. Provenance is refused when the
+      # manifest's repository differs from the one the workflow runs in, and GitHub Packages
+      # accepts only the owner's scope, so both follow the owner here — a no-op on the source.
+      - name: Align the package identity with the repository owner
+        run: node bin package --rename "@${{ github.repository_owner }}/cyberia" --set-repo "${{ github.repository }}"
 
       # The repository declares the engine's runtime dependencies because it runs the engine
       # source it ships; a registry consumer gets them through `underpost` instead. This restores
@@ -111,13 +121,12 @@ jobs:
         with:
           node-version: '24.x'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@underpostnet'
+          scope: '@${{ github.repository_owner }}'
 
       - name: Publish to GitHub Packages
-        run: |
-          npm config set //npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}" > ~/.npmrc
-          echo "@underpostnet:registry=https://npm.pkg.github.com" >> ~/.npmrc
-          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "@${{ github.repository_owner }}:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          npm publish

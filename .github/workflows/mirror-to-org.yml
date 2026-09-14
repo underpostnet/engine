@@ -1,0 +1,103 @@
+name: CI | Mirror to organization
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: 'Space-separated repository names to mirror (default: vars.MIRROR_REPOS)'
+        required: false
+        default: ''
+  # Fires only in the repository that owns the triggering workflow, and reads this file from the
+  # default branch of that repository.
+  workflow_run:
+    workflows: ['CI | Publish npm repository package']
+    types: [completed]
+    branches: [master]
+permissions:
+  contents: read
+  actions: read
+# One mirror run at a time: two concurrent force-syncs could land out of order.
+concurrency:
+  group: mirror-to-org
+  cancel-in-progress: false
+jobs:
+  gate:
+    # A workflow_run job runs with this repository's secrets whatever triggered it, so a pull
+    # request run, a fork head or a failed run never reaches the mirror.
+    if: >-
+      github.repository == 'underpostnet/engine' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event != 'pull_request' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.plan.outputs.repos }}
+    steps:
+      - name: Resolve the repositories to mirror
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REQUESTED: ${{ github.event.inputs.repos }}
+          DEFAULT_REPOS: ${{ vars.MIRROR_REPOS || 'pwa-microservices-template pwa-microservices-template-ghpkg engine-cyberia engine-ghpkg-cyberia' }}
+        run: |
+          set -euo pipefail -f
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            # The package job runs only on a release commit or a dispatch; a run whose job was
+            # skipped still concludes success, so the job itself has to have succeeded.
+            published=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs" \
+              --jq '[.jobs[] | select(.conclusion == "success")] | length')
+            if [ "$published" = "0" ]; then
+              echo "::notice::Run $RUN_ID published nothing; no mirror."
+              exit 0
+            fi
+          fi
+          repos=()
+          for repo in ${REQUESTED:-$DEFAULT_REPOS}; do
+            if ! [[ "$repo" =~ ^[A-Za-z0-9._-]+$ ]]; then
+              echo "::error::'$repo' is not a repository name."
+              exit 1
+            fi
+            repos+=("$repo")
+          done
+          echo "repos=$(printf '%s\n' "${repos[@]}" | jq -Rnc '[inputs | select(length > 0)]')" >> "$GITHUB_OUTPUT"
+
+  mirror:
+    needs: gate
+    if: needs.gate.outputs.repos != '' && needs.gate.outputs.repos != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJSON(needs.gate.outputs.repos) }}
+    env:
+      SOURCE_OWNER: ${{ github.repository_owner }}
+      MIRROR_ORG: ${{ vars.MIRROR_ORG || 'underpost' }}
+      MIRROR_REPO: ${{ matrix.repo }}
+      # MIRROR_TOKEN: a PAT with contents and workflow write on the organization repositories and
+      # read on the sources. GIT_AUTH_TOKEN stands in where one credential covers both accounts.
+      GH_TOKEN: ${{ secrets.MIRROR_TOKEN || secrets.GIT_AUTH_TOKEN }}
+    steps:
+      - name: Force-sync every branch and tag
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::No MIRROR_TOKEN or GIT_AUTH_TOKEN secret."
+            exit 1
+          fi
+          if ! gh api "repos/$MIRROR_ORG/$MIRROR_REPO" --silent; then
+            echo "::notice::$MIRROR_ORG/$MIRROR_REPO does not exist or is not reachable; nothing mirrored."
+            exit 0
+          fi
+          # gh serves the credential to git from GH_TOKEN, so it never enters a URL or git config.
+          gh auth setup-git
+          git clone --mirror --quiet "https://github.com/$SOURCE_OWNER/$MIRROR_REPO.git" source.git
+          git -C source.git push --force --prune "https://github.com/$MIRROR_ORG/$MIRROR_REPO.git" \
+            'refs/heads/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'
+          echo "::notice::$SOURCE_OWNER/$MIRROR_REPO mirrored to $MIRROR_ORG/$MIRROR_REPO"
