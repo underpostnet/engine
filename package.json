@@ -66,7 +66,7 @@
     "@neodrag/vanilla": "^2.3.1",
     "@vitest/coverage-v8": "5.0.0",
     "ag-grid-community": "^36.1.0",
-    "allure-vitest": "3.12.0",
+    "allure-vitest": "3.12.1",
     "axios": "^1.20.0",
     "bumpp": "^12.3.0",
     "chai": "^6.2.2",
