@@ -12,9 +12,13 @@ jobs:
     if: |
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
+       github.repository == 'underpost/engine' ||
        github.repository == 'underpostnet/pwa-microservices-template' ||
+       github.repository == 'underpost/pwa-microservices-template' ||
        github.repository == 'underpostnet/pwa-microservices-template-ghpkg' ||
-       github.repository == 'underpostnet/engine-test-test')
+       github.repository == 'underpost/pwa-microservices-template-ghpkg' ||
+       github.repository == 'underpostnet/engine-test-test' ||
+       github.repository == 'underpost/engine-test-test')
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -62,9 +66,13 @@ jobs:
       !cancelled() &&
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
+       github.repository == 'underpost/engine' ||
        github.repository == 'underpostnet/pwa-microservices-template' ||
+       github.repository == 'underpost/pwa-microservices-template' ||
        github.repository == 'underpostnet/pwa-microservices-template-ghpkg' ||
-       github.repository == 'underpostnet/engine-test-test')
+       github.repository == 'underpost/pwa-microservices-template-ghpkg' ||
+       github.repository == 'underpostnet/engine-test-test' ||
+       github.repository == 'underpost/engine-test-test')
     runs-on: ubuntu-latest
     steps:
       # Coveralls reads the commit and branch metadata from the checkout.
@@ -95,9 +103,13 @@ jobs:
       !cancelled() &&
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine' ||
+       github.repository == 'underpost/engine' ||
        github.repository == 'underpostnet/pwa-microservices-template' ||
+       github.repository == 'underpost/pwa-microservices-template' ||
        github.repository == 'underpostnet/pwa-microservices-template-ghpkg' ||
-       github.repository == 'underpostnet/engine-test-test')
+       github.repository == 'underpost/pwa-microservices-template-ghpkg' ||
+       github.repository == 'underpostnet/engine-test-test' ||
+       github.repository == 'underpost/engine-test-test')
     runs-on: ubuntu-latest
     steps:
       - name: Notify Coveralls Finished

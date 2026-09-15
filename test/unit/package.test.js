@@ -331,6 +331,15 @@ describe('the manifest a product publishes to npm', () => {
     ).to.deep.equal({ underpost: '^4.0.0' });
   });
 
+  it('lets a GitHub Packages publish pin the engine under its scoped package name', () => {
+    expect(
+      publishedProductPackageJson({
+        packageJson: { version: '3.3.73' },
+        underpostPackageName: '@underpost/underpost',
+      }).dependencies,
+    ).to.deep.equal({ '@underpost/underpost': '^3.3.73' });
+  });
+
   it('refuses a manifest it cannot pin the engine CLI from', () => {
     expect(() => publishedProductPackageJson()).to.throw('packageJson');
     expect(() => publishedProductPackageJson({ packageJson: { name: 'cyberia' } })).to.throw('version');

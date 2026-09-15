@@ -15,8 +15,11 @@ jobs:
     if: |
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine-cyberia' ||
+       github.repository == 'underpost/engine-cyberia' ||
        github.repository == 'underpostnet/engine-ghpkg-cyberia' ||
-       github.repository == 'underpostnet/engine-test-cyberia')
+       github.repository == 'underpost/engine-ghpkg-cyberia' ||
+       github.repository == 'underpostnet/engine-test-cyberia' ||
+       github.repository == 'underpost/engine-test-cyberia')
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -74,8 +77,11 @@ jobs:
       !cancelled() &&
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine-cyberia' ||
+       github.repository == 'underpost/engine-cyberia' ||
        github.repository == 'underpostnet/engine-ghpkg-cyberia' ||
-       github.repository == 'underpostnet/engine-test-cyberia')
+       github.repository == 'underpost/engine-ghpkg-cyberia' ||
+       github.repository == 'underpostnet/engine-test-cyberia' ||
+       github.repository == 'underpost/engine-test-cyberia')
     runs-on: ubuntu-latest
     steps:
       # Coveralls reads the commit and branch metadata from the checkout.
@@ -106,8 +112,11 @@ jobs:
       !cancelled() &&
       github.actor != 'dependabot[bot]' &&
       (github.repository == 'underpostnet/engine-cyberia' ||
+       github.repository == 'underpost/engine-cyberia' ||
        github.repository == 'underpostnet/engine-ghpkg-cyberia' ||
-       github.repository == 'underpostnet/engine-test-cyberia')
+       github.repository == 'underpost/engine-ghpkg-cyberia' ||
+       github.repository == 'underpostnet/engine-test-cyberia' ||
+       github.repository == 'underpost/engine-test-cyberia')
     runs-on: ubuntu-latest
     steps:
       - name: Notify Coveralls Finished

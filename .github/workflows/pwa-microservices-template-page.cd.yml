@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.repository == 'underpostnet/pwa-microservices-template-ghpkg'
+    if: (github.repository == 'underpostnet/pwa-microservices-template-ghpkg' || github.repository == 'underpost/pwa-microservices-template-ghpkg')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

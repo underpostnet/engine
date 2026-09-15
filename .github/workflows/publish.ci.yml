@@ -11,7 +11,7 @@ jobs:
   build-and-publish:
     # The unscoped `underpost` package has one publisher: a version can be published once, and
     # the organization mirror publishes the owner-scoped package from its ghpkg repository.
-    if: github.repository == 'underpostnet/pwa-microservices-template'
+    if: (github.repository == 'underpostnet/pwa-microservices-template' || github.repository == 'underpost/pwa-microservices-template')
     runs-on: ubuntu-latest
     permissions:
       contents: write

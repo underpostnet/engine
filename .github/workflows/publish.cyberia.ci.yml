@@ -11,7 +11,7 @@ jobs:
   build-and-publish:
     # The unscoped `cyberia` package has one publisher: a version can be published once, and the
     # organization mirror publishes the owner-scoped package from its ghpkg repository.
-    if: github.repository == 'underpostnet/engine-cyberia'
+    if: (github.repository == 'underpostnet/engine-cyberia' || github.repository == 'underpost/engine-cyberia')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -90,9 +90,10 @@ jobs:
         run: node bin package --rename "@${{ github.repository_owner }}/cyberia" --set-repo "${{ github.repository }}"
 
       # The repository declares the engine's runtime dependencies because it runs the engine
-      # source it ships; a registry consumer gets them through `underpost` instead. This restores
-      # the manifest the package published before that split, and only in the tarball — after
-      # `npm ci`, so the lockfile the checkout installs from is the repository's own.
+      # source it ships; a registry consumer gets them through `@underpost/underpost` instead,
+      # because the scoped package is what GitHub Packages resolves. This restores the manifest
+      # the package published before that split, and only in the tarball — after `npm ci`, so
+      # the lockfile the checkout installs from is the repository's own.
       - name: Restore the published dependency set
         run: |
           node --input-type=module -e '
@@ -103,6 +104,7 @@ jobs:
             const published = publishedProductPackageJson({
               packageJson,
               catalog: await loadDeployCatalog("dd-cyberia"),
+              underpostPackageName: "@${{ github.repository_owner }}/underpost",
             });
             fs.writeFileSync("./package.json", JSON.stringify(published, null, DEPLOY_MANIFEST_INDENT) + "\n", "utf8");
             console.log("published manifest", {

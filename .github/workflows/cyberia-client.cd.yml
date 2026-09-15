@@ -16,7 +16,8 @@ permissions:
 jobs:
   deploy:
     if: >-
-      github.repository == 'underpostnet/cyberia-client'
+      (github.repository == 'underpostnet/cyberia-client' ||
+       github.repository == 'underpost/cyberia-client')
       && github.event.inputs.job == 'deploy'
     name: Remote SSH deployment
     runs-on: ubuntu-latest

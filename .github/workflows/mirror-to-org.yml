@@ -25,7 +25,7 @@ jobs:
     # A workflow_run job runs with this repository's secrets whatever triggered it, so a pull
     # request run, a fork head or a failed run never reaches the mirror.
     if: >-
-      github.repository == 'underpostnet/engine' &&
+      (github.repository == 'underpostnet/engine' || github.repository == 'underpost/engine') &&
       (
         github.event_name == 'workflow_dispatch' ||
         (

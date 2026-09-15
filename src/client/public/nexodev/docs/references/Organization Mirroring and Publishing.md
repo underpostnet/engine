@@ -101,8 +101,9 @@ Provenance is refused when `repository.url` in the manifest differs from the rep
 workflow runs in, and GitHub Packages accepts only the owner's scope; the committed manifest
 names the personal account, so the organization run rewrites both. On the source the command
 changes nothing. The cyberia jobs then restore the published dependency set
-(`publishedProductPackageJson`) as before, so the tarball declares `underpost` and the catalog
-pins rather than the engine's runtime set.
+(`publishedProductPackageJson`) as before, so the tarball declares the engine package and the
+catalog pins rather than the engine's runtime set: `underpost` on npm, `@underpost/underpost`
+for the GitHub Packages publish.
 
 Prerequisites on the organization side:
 

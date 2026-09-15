@@ -221,17 +221,23 @@ const buildProductPackageJson = ({
  * @param {object} params.packageJson - The repository's manifest.
  * @param {object} [params.catalog] - That product's catalog.
  * @param {string} [params.underpostVersion] - Engine CLI version to pin; the manifest's own otherwise.
+ * @param {string} [params.underpostPackageName] - The engine package the tarball depends on; `underpost` otherwise.
  * @returns {object} The manifest to publish.
  * @memberof PackageBuilder
  */
-const publishedProductPackageJson = ({ packageJson, catalog = {}, underpostVersion = '' } = {}) => {
+const publishedProductPackageJson = ({
+  packageJson,
+  catalog = {},
+  underpostVersion = '',
+  underpostPackageName = 'underpost',
+} = {}) => {
   if (!packageJson || typeof packageJson !== 'object')
     throw new TypeError('publishedProductPackageJson requires packageJson');
 
   const version = `${underpostVersion || packageJson.version || ''}`.replace(/^v/, '');
   if (!version) throw new TypeError('publishedProductPackageJson requires a version to pin the engine CLI at');
 
-  const dependencies = { underpost: `^${version}`, ...(catalog.packageDependencies ?? {}) };
+  const dependencies = { [underpostPackageName]: `^${version}`, ...(catalog.packageDependencies ?? {}) };
   const devDependencies = productDevDependenciesFactory({
     engineDependencies: packageJson.dependencies,
     engineDevDependencies: packageJson.devDependencies,

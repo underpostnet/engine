@@ -21,7 +21,8 @@ permissions:
 jobs:
   pwa-microservices-template-ghpk:
     if: >-
-      github.repository == 'underpostnet/pwa-microservices-template' &&
+      (github.repository == 'underpostnet/pwa-microservices-template' ||
+       github.repository == 'underpost/pwa-microservices-template') &&
        (
          startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')
          || 
@@ -110,7 +111,7 @@ jobs:
             -d "$MIRROR_PAYLOAD"
 
   engine-ghpkg:
-    if: github.repository == 'underpostnet/engine' && github.event_name == 'workflow_dispatch'
+    if: (github.repository == 'underpostnet/engine' || github.repository == 'underpost/engine') && github.event_name == 'workflow_dispatch'
     name: Build engine ${{ github.event.inputs.conf_id || 'cyberia' }} ghpkg repository
     runs-on: ubuntu-latest
     container:
