@@ -21,8 +21,7 @@ permissions:
 jobs:
   pwa-microservices-template-ghpk:
     if: >-
-      (github.repository == 'underpostnet/pwa-microservices-template' ||
-       github.repository == 'underpost/pwa-microservices-template') &&
+      (github.repository == 'underpostnet/pwa-microservices-template') &&
        (
          startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')
          || 
