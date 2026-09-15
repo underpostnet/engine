@@ -146,15 +146,17 @@ SSRComponent = () => html`
         background-position: 80px 0;
       }
     }
+    /* Dark bars (#121212): a translucent white band reads as a moving highlight on them, where
+       near-black stops only darkened the bar and hid the animation. */
     .ssr-shimmer-dark {
       height: 100%;
       background-image: linear-gradient(
         to right,
-        rgb(5, 5, 5, 0.5) 0%,
-        rgba(10, 10, 10, 0.5) 30%,
-        rgba(15, 15, 15, 0.5) 40%,
-        rgba(10, 10, 10, 0.5) 70%,
-        rgba(5, 5, 5, 0.5) 100%
+        rgba(255, 255, 255, 0.03) 0%,
+        rgba(255, 255, 255, 0.07) 30%,
+        rgba(255, 255, 255, 0.16) 45%,
+        rgba(255, 255, 255, 0.07) 60%,
+        rgba(255, 255, 255, 0.03) 100%
       );
       animation: ssr-shimmer-dark 3s linear infinite;
     }
@@ -170,11 +172,11 @@ SSRComponent = () => html`
       height: 100%;
       background-image: linear-gradient(
         to right,
-        rgb(5, 5, 5, 0.5) 0%,
-        rgba(10, 10, 10, 0.5) 30%,
-        rgba(15, 15, 15, 0.5) 40%,
-        rgba(10, 10, 10, 0.5) 70%,
-        rgba(5, 5, 5, 0.5) 100%
+        rgba(255, 255, 255, 0.03) 0%,
+        rgba(255, 255, 255, 0.07) 30%,
+        rgba(255, 255, 255, 0.16) 45%,
+        rgba(255, 255, 255, 0.07) 60%,
+        rgba(255, 255, 255, 0.03) 100%
       );
       animation: ssr-shimmer-dark-search-box 3s linear infinite;
     }

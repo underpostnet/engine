@@ -1,3 +1,6 @@
+// Skeleton of the Underpost app shell as it first paints: `barMode: 'top-bottom-bar'` with a left
+// `slide-menu` (closed). Keep the boxes on the 50px grid the live bars use so nothing jumps when
+// the shell replaces this.
 SSRComponent = ({ backgroundImage }) => html`
   ${backgroundImage
     ? html`<style>
@@ -7,38 +10,56 @@ SSRComponent = ({ backgroundImage }) => html`
       </style>`
     : ''}
   <style>
-    .ssr-top-bar {
+    body {
+      background: #222121;
+    }
+    .ssr-top-bar,
+    .ssr-bottom-bar {
       background: #121212;
-      height: 100px;
+      width: 100%;
+      height: 50px;
+      left: 0px;
+    }
+    .ssr-top-bar {
+      top: 0px;
+    }
+    .ssr-bottom-bar {
+      bottom: 0px;
     }
     .ssr-btn {
+      top: 5px;
       height: 40px;
       width: 40px;
     }
-    .ssr-btn-0 {
-      top: 55px;
-      right: 5px;
-    }
-    .ssr-btn-1 {
-      top: 55px;
-      right: 55px;
-    }
-    .ssr-btn-2 {
-      top: 55px;
-      right: 105px;
-    }
-    .ssr-btn-3 {
-      top: 55px;
+    /* Top bar: app icon, then the search box beside it, profile on the right. */
+    .ssr-btn-app-icon {
       left: 5px;
     }
-    .ssr-btn-4 {
-      top: 5px;
-      left: 5px;
-    }
-    .ssr-btn-5 {
-      top: 5px;
+    .ssr-btn-profile {
       right: 5px;
       border-radius: 50%;
+    }
+    .ssr-top-bar .ssr-search-box {
+      left: 55px;
+    }
+    /* Bottom bar: the menu hamburger on the left; left/right/home/theme/lang on the right. */
+    .ssr-btn-menu {
+      left: 5px;
+    }
+    .ssr-btn-nav-0 {
+      right: 5px;
+    }
+    .ssr-btn-nav-1 {
+      right: 55px;
+    }
+    .ssr-btn-nav-2 {
+      right: 105px;
+    }
+    .ssr-btn-nav-3 {
+      right: 155px;
+    }
+    .ssr-btn-nav-4 {
+      right: 205px;
     }
     .ssr-loader {
       width: auto;
@@ -72,18 +93,26 @@ SSRComponent = ({ backgroundImage }) => html`
   </style>
   <div class="ssr-background-image"></div>
   <div class="ssr-abs ssr-background" style="opacity: 1">
-    <div class="ssr-in ssr-top-bar">
-      ${new Array(6)
-        .fill()
+    <div class="ssr-abs ssr-top-bar">
+      ${['app-icon', 'profile']
         .map(
-          (v, i) =>
-            html`<div class="ssr-abs ssr-btn ssr-btn-${i}">
+          (id) =>
+            html`<div class="ssr-abs ssr-btn ssr-btn-${id}">
               <div class="ssr-shimmer-dark"></div>
             </div>`,
         )
         .join('')}
-
       <div class="ssr-abs ssr-search-box"><div class="ssr-shimmer-dark-search-box"></div></div>
+    </div>
+    <div class="ssr-abs ssr-bottom-bar">
+      ${['menu', 'nav-0', 'nav-1', 'nav-2', 'nav-3', 'nav-4']
+        .map(
+          (id) =>
+            html`<div class="ssr-abs ssr-btn ssr-btn-${id}">
+              <div class="ssr-shimmer-dark"></div>
+            </div>`,
+        )
+        .join('')}
     </div>
     <div class="ssr-abs ssr-center ssr-loader"><div class="loader"></div></div>
   </div>
