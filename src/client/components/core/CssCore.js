@@ -16,6 +16,9 @@ const CssCommonCore = async () => {
     );
   await AgGrid.RenderStyle();
   return html`<style>
+      .top-bar {
+        transition: 0.3s;
+      }
       .top-bar-app-icon {
         width: 40px;
         height: 40px;

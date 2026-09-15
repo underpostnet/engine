@@ -231,6 +231,10 @@ class Modal {
     const originHeightTopBar = 50;
     options.heightBottomBar = 0;
     options.heightTopBar = 100;
+    // A view sits under its slide menu's bars, so it follows that menu's bar mode unless it
+    // names one — otherwise a 'top-bottom-bar' shell opens every view 100px down instead of 50px.
+    if (options && !options.barMode && options.slideMenu && Modal.Data[options.slideMenu]?.options?.barMode)
+      options.barMode = Modal.Data[options.slideMenu].options.barMode;
     if (options && options.barMode && options.barMode === 'top-bottom-bar') {
       options.heightTopBar = 50;
       options.heightBottomBar = 50;
@@ -325,9 +329,14 @@ class Modal {
                       padding: 5px;
                     }
                     .default-slide-menu-top-bar-fix-title-container-text {
-                      font-size: 26px;
-                      top: 8px;
                       color: ${darkTheme ? '#ffffff' : '#000000'};
+                    }
+                    /* Themes size and offset the title for the 100px banner with !important;
+                       the 50px one has to win over them or the title spills into the menu. */
+                    .slide-menu-top-bar-fix .default-slide-menu-top-bar-fix-title-container-text {
+                      font-size: 26px !important;
+                      top: 8px !important;
+                      left: 0px !important;
                     }
                   </style>`;
                 } else {
@@ -480,6 +489,10 @@ class Modal {
               }
               syncFixedMenuButton();
               Responsive.triggerChanged(`slide-menu-${idModal}`);
+              if (options.onExtendMenu) options.onExtendMenu();
+              Object.keys(this.Data[idModal].onExtendMenuListener).map((keyListener) =>
+                this.Data[idModal].onExtendMenuListener[keyListener](),
+              );
             };
             barConfig.buttons.close.onClick = () => {
               Modal.Data[idModal][options.mode].width = 0;
@@ -504,6 +517,10 @@ class Modal {
               }
               syncFixedMenuButton();
               Responsive.triggerChanged(`slide-menu-${idModal}`);
+              if (options.onCollapseMenu) options.onCollapseMenu();
+              Object.keys(this.Data[idModal].onCollapseMenuListener).map((keyListener) =>
+                this.Data[idModal].onCollapseMenuListener[keyListener](),
+              );
             };
             transition += `, width 0.3s`;
 
@@ -560,14 +577,11 @@ class Modal {
                 Modal.actionBtnCenter();
               };
 
-              // Fixed top-left hamburger, shown only while the top bar is collapsed
-              // (main-body-btn-ui-close hidden). Not needed for 'top-bottom-bar' which
-              // keeps its own center action button in the bottom bar.
-              if (
-                idModal === 'modal-menu' &&
-                options.mode !== 'slide-menu-right' &&
-                options.barMode !== 'top-bottom-bar'
-              ) {
+              // Fixed top-left hamburger, shown only while the bars are collapsed
+              // (main-body-btn-ui-close hidden): it stands in for the left menu hamburger the
+              // collapse hid — the top bar's, or the bottom bar's under 'top-bottom-bar'. A right
+              // menu keeps its floating .main-body-btn-menu beside the menu edge instead.
+              if (idModal === 'modal-menu' && options.mode !== 'slide-menu-right') {
                 append(
                   'body',
                   html`
@@ -617,7 +631,9 @@ class Modal {
                   s(`.slide-menu-top-bar-fix`).style.top = '0px';
 
                   setTimeout(async () => {
-                    await Modal.onHomeRouterEvent();
+                    setTimeout(() => {
+                      s(`.action-btn-home`).click();
+                    });
                     const mainBody = s(`.main-body`);
                     if (mainBody && mainBody.scrollTop > 0) {
                       mainBody.scrollTo({ top: 0, behavior: 'smooth' });
@@ -636,8 +652,15 @@ class Modal {
                 }
               };
 
-              let _heightTopBar, _heightBottomBar, _topMenu;
+              let _heightTopBar, _heightBottomBar, _topMenu, _barsAnimationTimeout;
+              // The layout offsets below are set inline, so they only ease while this class is on.
+              const animateBarsToggle = () => {
+                s('body').classList.add('ui-bars-animating');
+                clearTimeout(_barsAnimationTimeout);
+                _barsAnimationTimeout = setTimeout(() => s('body').classList.remove('ui-bars-animating'), 300);
+              };
               s(`.main-body-btn-ui`).onclick = () => {
+                animateBarsToggle();
                 if (s(`.main-body-btn-ui-open`).classList.contains('hide')) {
                   s(`.main-body-btn-ui-open`).classList.remove('hide');
                   s(`.main-body-btn-ui-close`).classList.add('hide');
@@ -646,8 +669,7 @@ class Modal {
                   _topMenu = newInstance(s(`.modal-menu`).style.top);
                   options.heightTopBar = 0;
                   options.heightBottomBar = 0;
-                  s(`.slide-menu-top-bar`).classList.add('hide');
-                  s(`.bottom-bar`).classList.add('hide');
+                  s('body').classList.add('ui-bars-collapsed');
                   syncFixedMenuButton();
                   s(`.modal-menu`).style.top = '0px';
                   s(`.main-body-btn-container`).style.top = '50px';
@@ -662,8 +684,7 @@ class Modal {
                   options.heightBottomBar = _heightBottomBar;
                   s(`.modal-menu`).style.top = _topMenu;
                   s(`.main-body-btn-container`).style.top = `${options.heightTopBar + 50}px`;
-                  s(`.slide-menu-top-bar`).classList.remove('hide');
-                  s(`.bottom-bar`).classList.remove('hide');
+                  s('body').classList.remove('ui-bars-collapsed');
                   syncFixedMenuButton();
                   s(`.main-body`).style.top = `${options.heightTopBar}px`;
                   s(`.main-body`).style.height = `${windowGetH() - options.heightTopBar}px`;
@@ -694,7 +715,55 @@ class Modal {
             const inputSearchBoxId = `top-bar-search-box`;
             append(
               'body',
-              html` <div class="fix modal slide-menu-top-bar">
+              html`<style>
+                  /* Collapsing slides the bars off-screen instead of removing them; they turn
+                     invisible only once the slide ends, so no hidden control stays focusable. */
+                  .slide-menu-top-bar,
+                  .bottom-bar {
+                    transition:
+                      transform 0.3s ease,
+                      opacity 0.3s ease,
+                      visibility 0s linear 0s !important;
+                  }
+                  body.ui-bars-collapsed .slide-menu-top-bar {
+                    transform: translateY(-100%);
+                  }
+                  body.ui-bars-collapsed .bottom-bar {
+                    transform: translateY(100%) !important;
+                  }
+                  /* A bottom bar rendered inside the top bar leaves with it. */
+                  body.ui-bars-collapsed .slide-menu-top-bar .bottom-bar {
+                    transform: none !important;
+                  }
+                  body.ui-bars-collapsed .slide-menu-top-bar,
+                  body.ui-bars-collapsed .bottom-bar {
+                    visibility: hidden;
+                    pointer-events: none;
+                    transition:
+                      transform 0.3s ease,
+                      opacity 0.3s ease,
+                      visibility 0s linear 0.3s !important;
+                  }
+                  body.ui-bars-animating .main-body,
+                  body.ui-bars-animating .main-body-btn-container {
+                    transition:
+                      top 0.3s ease,
+                      left 0.3s ease,
+                      height 0.3s ease,
+                      opacity 0.3s ease !important;
+                  }
+                  @media (prefers-reduced-motion: reduce) {
+                    .slide-menu-top-bar,
+                    .bottom-bar,
+                    body.ui-bars-collapsed .slide-menu-top-bar,
+                    body.ui-bars-collapsed .bottom-bar,
+                    body.ui-bars-animating .main-body,
+                    body.ui-bars-animating .main-body-btn-container {
+                      transition: none !important;
+                    }
+                  }
+                </style>
+                <div class="fix modal slide-menu-top-bar">
                 <div
                   class="fl top-bar  ${options.barClass ? options.barClass : ''}"
                   style="height: ${originHeightTopBar}px;"
@@ -787,24 +856,28 @@ class Modal {
                     </div>`
                   : ''}
                 ${idModal === 'modal-menu' && options.mode !== 'slide-menu-right'
-                  ? html`<div
-                        class="abs main-btn-menu-top-container"
-                        style="bottom: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
-                      >
-                        ${await BtnIcon.instance({
-                          style: `height: 100%`,
-                          class: `in fll main-btn-menu-top action-bar-box action-btn-center-top`,
-                          label: html`<div class="abs center">
-                            <i class="far fa-square btn-bar-center-icon-square hide"></i>
-                            <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
-                            <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
-                          </div>`,
-                        })}
-                      </div>
+                  ? html`${options.barMode === 'top-bottom-bar'
+                        ? ''
+                        : html`<div
+                            class="abs main-btn-menu-top-container"
+                            style="bottom: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
+                          >
+                            ${await BtnIcon.instance({
+                              style: `height: 100%`,
+                              class: `in fll main-btn-menu-top action-bar-box action-btn-center-top`,
+                              label: html`<div class="abs center">
+                                <i class="far fa-square btn-bar-center-icon-square hide"></i>
+                                <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
+                                <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
+                              </div>`,
+                            })}
+                          </div>`}
 
                       <style>
+                        /* Under 'top-bottom-bar' the left menu hamburger is the bottom bar's, so the
+                           banner has no top bar button to clear. */
                         .a-link-top-banner {
-                          padding-left: 35px;
+                          padding-left: ${options.barMode === 'top-bottom-bar' ? 0 : 35}px;
                         }
                         .main-body-btn-bar-custom {
                           top: 50px !important;
@@ -828,7 +901,11 @@ class Modal {
               }
               s(`.main-btn-sign-up`).click();
             });
-            if (idModal === 'modal-menu' && options.mode !== 'slide-menu-right') {
+            if (
+              idModal === 'modal-menu' &&
+              options.mode !== 'slide-menu-right' &&
+              options.barMode !== 'top-bottom-bar'
+            ) {
               EventsUI.onClick(`.action-btn-center-top`, (e) => {
                 e.preventDefault();
                 Modal.actionBtnCenter();
@@ -1425,10 +1502,15 @@ class Modal {
                   >
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
-                      class: `in fl${
-                        options.mode === 'slide-menu-right' ? 'r' : 'l'
-                      } main-btn-menu action-bar-box action-btn-center ${
-                        options?.disableTools?.includes('center') ? 'hide' : ''
+                      // The left menu hamburger under 'top-bottom-bar'. Otherwise a left menu is
+                      // toggled from the top bar and a right menu from the floating
+                      // .main-body-btn-menu, so a copy here would only duplicate one of them.
+                      class: `in fl${options.mode === 'slide-menu-right' ? 'r' : 'l'} main-btn-menu action-bar-box action-btn-center ${
+                        options?.disableTools?.includes('center') ||
+                        options.mode === 'slide-menu-right' ||
+                        options.barMode !== 'top-bottom-bar'
+                          ? 'hide'
+                          : ''
                       }`,
                       label: html`
                         <div class="${contentIconClass}">

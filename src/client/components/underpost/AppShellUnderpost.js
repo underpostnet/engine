@@ -227,7 +227,9 @@ class AppShellUnderpost {
       titleRender: () => {
         return '';
       },
-      mode: 'slide-menu-right',
+      // mode: 'slide-menu-right',
+      barMode: 'top-bottom-bar',
+      mode: 'slide-menu',
       RouterInstance,
       searchCustomImgClass: 'underpost-menu-icon',
       htmlMainBody: async () => {
@@ -305,6 +307,17 @@ class AppShellUnderpost {
         return panelFormInstance;
       },
     });
+    for (const eventFn of ['onCollapseMenuListener', 'onExtendMenuListener', 'onExpandUiListener', 'onCloseListener']) {
+      Modal.Data['modal-menu'][eventFn]['underpost-panel-form-padding'] = (arg) => {
+        console.error(eventFn, arg);
+        if (s(`.underpost-panel-form-container`))
+          s(`.underpost-panel-form-container`).style.paddingLeft =
+            !s('.main-body-btn-ui-open').classList.contains('hide') &&
+            s(`.btn-bar-center-icon-close`).classList.contains('hide')
+              ? '50px'
+              : '0px';
+      };
+    }
 
     ThemeEvents['underpost-main-theme-event'] = () => {
       const srcLogo = darkTheme

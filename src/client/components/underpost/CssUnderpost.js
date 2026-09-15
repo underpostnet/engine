@@ -49,6 +49,9 @@ const CssCommonUnderpost = async () => {
         font-family: 'retro-font-cta';
         src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
       }
+      .default-slide-menu-top-bar-fix-title-container {
+        top: 10px;
+      }
 
       /* Landing Page & Object Viewer Styles */
       .landing-container {
@@ -176,6 +179,15 @@ const CssCommonUnderpost = async () => {
       .underpost-panel-subtitle {
         top: 3px !important;
       }
+      /* Clears the fixed hamburger at the pace the bars slide. */
+      .underpost-panel-form-container {
+        transition: padding-left 0.3s ease;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .underpost-panel-form-container {
+          transition: none;
+        }
+      }
       .underpost-panel-cell,
       .underpost-panel-cell p,
       .underpost-panel-cell span,
@@ -236,15 +248,15 @@ class CssUnderpostDark {
           button:hover,
           .a-btn:hover {
             background: #212020;
+            color: #ffcc00 !important;
           }
           .action-bar-box {
             color: white;
           }
           .default-slide-menu-top-bar-fix-title-container-text {
-            color: black !important;
+            color: white !important;
           }
         </style>
-        ${borderChar(2, `#f70808`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
   };
@@ -262,6 +274,7 @@ class CssUnderpostLight {
           button:hover,
           .a-btn:hover {
             background: #d8d8d8;
+            color: #ffcc00 !important;
           }
 
           .action-bar-box {
