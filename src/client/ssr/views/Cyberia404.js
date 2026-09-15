@@ -9,12 +9,16 @@
 //   /TEST/<bad>   → the TEST 404   (return → /TEST/)
 //   /<bad>        → the default 404 (return → /)
 //
+// The page never touches the URL. The gateway delivers it by intercepting the
+// workload's 404, so the address bar must keep the URI the client requested —
+// rewriting it to `<base>/404` would present the status page as a destination.
+//
 // Base path resolution (first hit wins):
 //   1. window.CYBERIA_BASE_PATH — injected by the serving layer from the
 //      deployment's CYBERIA_BASE_PATH env ("/FOREST", "/TEST", "" for default).
 //      Authoritative: only the runtime knows its own instance prefix, since the
 //      reverse proxy strips it before the backend sees the request.
-//   2. Fallback: the first URL path segment, minus a trailing "/404".
+//   2. Fallback: the first URL path segment (none for a bare "/404").
 //
 // Visual contract: cyberpunk-MMORPG pixel art — Press Start 2P / VT323, neon
 // cyan/magenta on near-black, hard edges, scanlines, RGB-split glitch. Fully
@@ -25,8 +29,7 @@ const s = (el) => document.querySelector(el);
 const append = (el, htmlStr) => s(el).insertAdjacentHTML('beforeend', htmlStr);
 
 // The instance sub-path this 404 belongs to ("/FOREST", "/TEST", or "" default).
-// Prefer the injected value; fall back to the first URL segment (dropping a
-// trailing "/404" so the page is idempotent once already normalised).
+// Prefer the injected value; fall back to the first URL segment.
 const basePath = () => {
   const injected = window.CYBERIA_BASE_PATH;
   if (typeof injected === 'string') return injected === '/' ? '' : injected.replace(/\/$/, '');
@@ -35,7 +38,6 @@ const basePath = () => {
 };
 
 const homeHref = () => `${basePath()}/`;
-const notFoundHref = () => `${basePath()}/404`;
 
 // Instance label shown on the badge — the code the sub-path maps to, or MAIN.
 const instanceLabel = () => {
@@ -44,11 +46,6 @@ const instanceLabel = () => {
 };
 
 const main = () => {
-  // Normalise the URL to <base>/404 so a bad path reads as the instance's 404
-  // (e.g. /FOREST/nope → /FOREST/404) without a server round-trip or a loop.
-  const target = notFoundHref();
-  if (window.location.pathname !== target) window.history.replaceState(null, '', target + window.location.search);
-
   append(
     'body',
     html`
@@ -322,7 +319,6 @@ SSRComponent = () =>
       const append = ${append};
       const basePath = ${basePath};
       const homeHref = ${homeHref};
-      const notFoundHref = ${notFoundHref};
       const instanceLabel = ${instanceLabel};
       const main = ${main};
       window.onload = main;
