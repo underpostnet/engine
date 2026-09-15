@@ -27,7 +27,7 @@ spec:
         spec:
           containers:
             - name: dd-cron-vultr
-              image: underpost/underpost-engine:v3.3.77
+              image: underpost/underpost-engine:v3.4.0
               command:
                 - /bin/sh
                 - -c

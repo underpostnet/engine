@@ -1,6 +1,80 @@
 # Changelog
 
-## 2026-09-13
+## 2026-09-15
+
+### github-actions
+
+- Remove Git LFS from GitLab mirror push pipeline ([8be008098](https://github.com/underpostnet/engine/commit/8be008098439082de109e4b702d3c9b8b786064d))
+- Drop the template Pages auto-enablement and owner build override ([c6e9dfd08](https://github.com/underpostnet/engine/commit/c6e9dfd08648d09ff2b21594467538339d2486f1))
+- Publish the template Pages under the triggering owner ([bbdbce2e4](https://github.com/underpostnet/engine/commit/bbdbce2e460e8f7b4a345b9580172dc65225fb9a))
+- Scope the template package publish to the underpostnet owner ([7bea0bdee](https://github.com/underpostnet/engine/commit/7bea0bdee5479d48dbae55edd251c41bd2e0f195))
+- Add new owner repository scope based on organization ([7d9fdde93](https://github.com/underpostnet/engine/commit/7d9fdde9345b6dc6681e7b27be3f536246bc03c9))
+- Dispatch the org mirror per pushed repository ([cdc80e951](https://github.com/underpostnet/engine/commit/cdc80e951b090832b6edc6ea103215e9f8bdd97a))
+- Reject staged node_modules in the template package publish ([2040f7717](https://github.com/underpostnet/engine/commit/2040f7717fc7a0a1ba02d80e5bd3ba57194848f9))
+- Mirror releases to the organization with owner-scoped packages ([34eaadaf8](https://github.com/underpostnet/engine/commit/34eaadaf8545f6878b9a76759a5510f14d8469e8))
+
+### engine-cyberia
+
+- Add the GitHub org name to the compose environment ([4331754f1](https://github.com/underpostnet/engine/commit/4331754f1003247610ac09f62e120e90139250f4))
+
+### cyberia-docs
+
+- Document the wasm-driver stream diagnostic flags ([9f4e122ef](https://github.com/underpostnet/engine/commit/9f4e122efd6f01305adbdb03ef9793c8b913e6fd))
+- Reflow the economy and platform architecture docs ([f7ce74cd2](https://github.com/underpostnet/engine/commit/f7ce74cd202cd9617698188b2e6265ff7c94c66e))
+
+### ssr-cyberia
+
+- Keep the Cyberia 404 page on the requested URI ([3449cf79d](https://github.com/underpostnet/engine/commit/3449cf79d3e60bb63a9f04a6a166cc4f463b787c))
+
+### client
+
+- Add a default NotFound status page for PWA clients ([6d646ded8](https://github.com/underpostnet/engine/commit/6d646ded8431dc8e44bd6be25267e5ce62f76cd2))
+- Mirror the Underpost 50px top and bottom bars in the SSR splash ([7cc74f207](https://github.com/underpostnet/engine/commit/7cc74f2071863836a48ae877d13dc70c7c318dc4))
+
+### deploy
+
+- Pin the per-deploy engine source repositories in the sync deploys ([e0d01e2c1](https://github.com/underpostnet/engine/commit/e0d01e2c16f224cf7766b8e4aafa0429dca9a02c))
+- Open the merged stream before the error stream in run_quiet ([ce2b9eba9](https://github.com/underpostnet/engine/commit/ce2b9eba997792f27ecfc621c551f15ad58896b6))
+
+### cli-release
+
+- Run security audit and clean deploy ID artifacts in release pipeline ([4163efe74](https://github.com/underpostnet/engine/commit/4163efe745025a70de1b64f1e30294bf1ec29db7))
+
+### package
+
+- Move nodemon to base dependencies ([7732e00ad](https://github.com/underpostnet/engine/commit/7732e00adbddc2a56f8d2f918accc1316cd687b1))
+
+### deploy-cyberia
+
+- Simplify sync-deploy script using build conf ([65b5d8c05](https://github.com/underpostnet/engine/commit/65b5d8c05d47f43d8e49fa6eb8a4644b85b57f2e))
+
+### engine
+
+- Keep non-literal dynamic imports out of the esbuild graph walk ([9b5634567](https://github.com/underpostnet/engine/commit/9b5634567f2d13e534b694ec733f0c420234d3b0))
+- Walk the runtime import graph with esbuild instead of regexes ([067c86467](https://github.com/underpostnet/engine/commit/067c8646715fbcf39b194c9b7a0c3c5b4b845313))
+- Generate the template .gitignore from the engine rules ([4f12f11e0](https://github.com/underpostnet/engine/commit/4f12f11e0070db426cec2f8fe8f4708278087029))
+- Log the copied clipboard length instead of its content ([6541792db](https://github.com/underpostnet/engine/commit/6541792dba3366b2fbb3db5cd229c99adb38cfc8))
+
+### client-core
+
+- Shell the Underpost menu around the sliding top and bottom bars ([a748e88b9](https://github.com/underpostnet/engine/commit/a748e88b987b4d36a8b5ff50bb4896c42c5b85b8))
+- Add updateBarCustomVisibility to home button toggle to restore top scroll ([451e5ce62](https://github.com/underpostnet/engine/commit/451e5ce62542c47ab574970c2446f3fd60ea0747))
+
+### cli
+
+- Redact the Maas token secret from the baremetal log ([4f8c55c76](https://github.com/underpostnet/engine/commit/4f8c55c76f278d059e730bfe95f5193fb1d41cee))
+- Quote host command arguments in repository writes and pod exec ([ce5b59260](https://github.com/underpostnet/engine/commit/ce5b5926087980664f09ab516dfcc5a5d130034a))
+- Add the Socket.dev supply-chain audit command ([8294fb557](https://github.com/underpostnet/engine/commit/8294fb557ac19e65627b6534509c1b31c7231f30))
+
+### api
+
+- Gate the full file listing behind the admin guard ([32872740a](https://github.com/underpostnet/engine/commit/32872740ab91e2c3986bef843c6a5b931e222af3))
+
+### cli-secrets
+
+- Rotate GitHub Actions secrets under user and org targets ([3676dcdf5](https://github.com/underpostnet/engine/commit/3676dcdf5f5b194ccaedfabb9fdeea32658e082c))
+
+## New release v:3.3.77 (2026-09-13)
 
 ### test
 
@@ -717,143 +791,4 @@
 ### cyberia-client
 
 - Fix instance selection play URL for default instance code ([efec4a34e](https://github.com/underpostnet/engine/commit/efec4a34edbfb3aae780a42b02ad64d4d93791a1))
-
-## New release v:3.2.80 (2026-07-23)
-
-### engine-cyberia
-
-- Implement dynamically build cyberia instance package.json full reference ([4127836f0](https://github.com/underpostnet/engine/commit/4127836f0f2cf2d74f1762fb1379921b283c3429))
-- Fix missing add cyberia dependency in engine-cyberia docker image ([b3d6c4dec](https://github.com/underpostnet/engine/commit/b3d6c4decc23b72ede1958cd158a82a356f10b70))
-- Fix dynamic build instance codes logic ([cb380b335](https://github.com/underpostnet/engine/commit/cb380b3354eaa720ee225c66e17270737616f081))
-- Refactor INSTANCE_CODES Dynamic build inputs access docker image workflows ([bf1cb6c74](https://github.com/underpostnet/engine/commit/bf1cb6c7466415982b34176b70050622a6681acf))
-- Add map preview PNG rendering and preview route in instance map API ([82150a18a](https://github.com/underpostnet/engine/commit/82150a18ad627f29425cb60aaa08850762f18f69))
-- Add multi-instance code support in Dockerfiles with saga copying ([6b902ba86](https://github.com/underpostnet/engine/commit/6b902ba860b235d00b0b69244f9f25c6f589d128))
-- Add multi-instance topology and per-variant compose routing ([4336c024c](https://github.com/underpostnet/engine/commit/4336c024cb3f98e394cc06f5bab038a93d9b3e4b))
-- Add hot reload endpoint and map preview route ([3c7658911](https://github.com/underpostnet/engine/commit/3c76589115d907a74d42081c753fd7f3bf5be946))
-- Add map preview caching for fallback world nodes ([55052ec54](https://github.com/underpostnet/engine/commit/55052ec54119ccb06366dae712f23cd503de91f0))
-- Fix demo quests with actions quest related ([c41feae1a](https://github.com/underpostnet/engine/commit/c41feae1a408b7b9ec56abdd29978b0177c44dfa))
-- Add REST boot fallback endpoints for gRPC CyberiaDataService ([57b698836](https://github.com/underpostnet/engine/commit/57b6988369a0492c18c2df3155630af5a2e8fbb6))
-- Add portalSubtype field and refactor instance map with presence POI system ([fa551a11d](https://github.com/underpostnet/engine/commit/fa551a11dba7cedf18f1cca1bcdb0c11d7a1b57f))
-- Add map preview for Instance Map node backgrounds ([849095cf2](https://github.com/underpostnet/engine/commit/849095cf21fc52e7666be102054b7abfd3b7e738))
-- Add instance map REST endpoints (static graph + dynamic provider activity) ([dc83f8dc0](https://github.com/underpostnet/engine/commit/dc83f8dc03a1ed4aeea606bc3b2aed746cc09336))
-- Update cyberia base lore and introduce Fragmentation concept and refactor  weakness narrative of nova faction ([823d69cc9](https://github.com/underpostnet/engine/commit/823d69cc99fb410e5d4a7161baeff28b4f9f6684))
-- Add more demo quests to fallback world ([d0de569bd](https://github.com/underpostnet/engine/commit/d0de569bd2ab987ff7881263f80ab8953ef4f241))
-- Increase portalHoldTimeMs default value ([5d8028120](https://github.com/underpostnet/engine/commit/5d802812012c53942f699763dba24948865f4936))
-
-### cli-release
-
-- Add cyberia docker-compose bump version file match ([f3eeefeea](https://github.com/underpostnet/engine/commit/f3eeefeeabe377fe4c5db65e1d2d480841f9d2cd))
-
-### cyberia-client
-
-- Add instance selection view and portal navigation ([9f8ebc5d1](https://github.com/underpostnet/engine/commit/9f8ebc5d147225e0710923392f9b659e20725e60))
-- Improve cyberia portal landing ([57dbaed22](https://github.com/underpostnet/engine/commit/57dbaed228b2ae58202729b6ac9d751c0405a93f))
-- Add Instance sub-path dashboard prefix handle ([958f65929](https://github.com/underpostnet/engine/commit/958f65929a42084c0d4cf3876d3a4fef1fdc7236))
-- Add hot reload UI in instance editor ([ee90a2018](https://github.com/underpostnet/engine/commit/ee90a20180fa8c88f249f3efec0a7fb6258f9e5f))
-- Replace stat icons with PNG images in object layer engine ([7f03972ef](https://github.com/underpostnet/engine/commit/7f03972efcae0ce99493cf65ed96333a59616320))
-- Add center action button to menu modal ([f70ba2d3c](https://github.com/underpostnet/engine/commit/f70ba2d3cb8022f3f2873f0c36fe1cd792dd29d2))
-- Update default fontFamily in SharedDefaultsCyberia module ([868dffa9f](https://github.com/underpostnet/engine/commit/868dffa9f8effb15f694cb8e3f5dd135410243dc))
-
-### cyberia-api
-
-- Add fallback TEST world to instance selection list ([b93f30586](https://github.com/underpostnet/engine/commit/b93f3058694eafc384ac5b50d24093f4a30f6f00))
-
-### github-actions
-
-- Fix cyberia github package publish workflow ([fc1bac41d](https://github.com/underpostnet/engine/commit/fc1bac41daf1029962b71d45e73d32780c3b45a5))
-- Fix cyberia-client 404 page build ([a55bcb797](https://github.com/underpostnet/engine/commit/a55bcb797166ecb6d93ccb0ac6814b7b31c6138e))
-- Update engine-cyberia.cd.yml clean assets directory ([ce365cf77](https://github.com/underpostnet/engine/commit/ce365cf77c325a69df1d3614332f9f584c6cd0e3))
-- Update engine-cyberia CD workflow add pull storage assets ([0ee2404f1](https://github.com/underpostnet/engine/commit/0ee2404f1506ce8f4221602b3c73b4a704a1a44d))
-- Fix npm install command in engine-cyberia CD workflow ([7974ab422](https://github.com/underpostnet/engine/commit/7974ab422d64c482a53a745a834b58b3e623d85d))
-- Add image-pull-policy Always in cyberia-server and cyberia-client CD pipeline ([a134c5be2](https://github.com/underpostnet/engine/commit/a134c5be23b067e9fcc7ed8589243d341ca9607a))
-- Set default variant of underpost engine docker image in release workflow ([f3e47bdc6](https://github.com/underpostnet/engine/commit/f3e47bdc660d1074ab04a48a769e9cbf512eb4f8))
-
-### cli-cyberia
-
-- Add multi-instance sub-path support to hot reload trigger ([f0e0fda7a](https://github.com/underpostnet/engine/commit/f0e0fda7aa23e38466024c0258a17e94386fab9c))
-- Add build-cyberia-404 workflow and 404 page ([51d35594f](https://github.com/underpostnet/engine/commit/51d35594f76e15b4385084d3b7a1d696b0faaf8d))
-- Add Dynamically resolve instance codes in build-manifest runner ([97997df14](https://github.com/underpostnet/engine/commit/97997df14d16ff485fd30001a54f99cc9227b69b))
-- Refactor multi-instance conf structure and respective workflows ([0e607e4c5](https://github.com/underpostnet/engine/commit/0e607e4c5d269fb1048b0ab510e2a90174c4520b))
-- Add --reset option to dev-env runner ([77f17140c](https://github.com/underpostnet/engine/commit/77f17140c7399470d700126fd0d5ccd583fa8323))
-- Add revert option and multi-instance publish support with default-items asset copy ([0913117af](https://github.com/underpostnet/engine/commit/0913117af06d034387c5958bf73c0e652316e94e))
-- Add UNDERPOST_DEPLOY_NODE env for deterministic deploy node resolution ([41bb08ffb](https://github.com/underpostnet/engine/commit/41bb08ffb1e75721962ae2c69414e7adb5266c46))
-- Add in import-default-items runner import FOREST dev instance ([d3bf87a1f](https://github.com/underpostnet/engine/commit/d3bf87a1f72ee97b9cc67bc131a21e9169f7eb11))
-
-### client-cyberia
-
-- Redesign server metrics dashboard with pixel-art assets and theme toggle ([563783093](https://github.com/underpostnet/engine/commit/5637830934d1f684c04eddbed2eb01030f3ae28b))
-- Update location href of enter button in landing cyberia portal ([1c9efd550](https://github.com/underpostnet/engine/commit/1c9efd5505a161c2de83b77dac16f6a81065263a))
-- Improve cyberia portal landing with new hero section ([024d76b62](https://github.com/underpostnet/engine/commit/024d76b62faee3f04d70c4d303ac486697e40876))
-
-### cli-run
-
-- Fix instance promote handle multi variant paths ([c23e75021](https://github.com/underpostnet/engine/commit/c23e75021d4bbf6e24cdb45102b344743712b3a6))
-- Add flag 'branch' in default runner options ([4e7a63dfb](https://github.com/underpostnet/engine/commit/4e7a63dfbb8c492e31e53bafbb23586a46aa59ad))
-
-### cli-repository
-
-- Add init local repo in cmt cli ([0255eb053](https://github.com/underpostnet/engine/commit/0255eb05354edd33741721311f012b339351370b))
-
-### cli-deploy
-
-- Fix multi-instance blue/green deployment build manifests ([99a9b5265](https://github.com/underpostnet/engine/commit/99a9b5265257856a6df2ed2d9425ddaba834d8bf))
-
-### cli-fs
-
-- Remove redundant logs ([23761d607](https://github.com/underpostnet/engine/commit/23761d607bbc62a1d6a892faa66a448496ece8d7))
-
-### hardhat
-
-- Update supply-chain dependency: overrides adm-zip to version 0.6.0 ([fe5d98996](https://github.com/underpostnet/engine/commit/fe5d989964e768911d0c2eaa62d8d918f5421025))
-
-### cyberia-docs
-
-- Document OFF-CHAIN economy players + bots, any victim loot ([dbc4efa36](https://github.com/underpostnet/engine/commit/dbc4efa365c0e61b6dff32dd00ee5593aa064968))
-- Document path-based multi-instance deployments ([b028657f4](https://github.com/underpostnet/engine/commit/b028657f4c79280d53674e034e396e44e9d8eae4))
-- Document REST boot fallback and gRPC transport refactor ([a4b8006cc](https://github.com/underpostnet/engine/commit/a4b8006cc3240f65ff22fff8b089277032c21add))
-- Update docs to reflect presence POI architecture and instance map changes ([140568b80](https://github.com/underpostnet/engine/commit/140568b808f32a83037841cbe741c18af2b0b743))
-- Document instance map API, data flow and client overlay integration ([a8f7c8ea5](https://github.com/underpostnet/engine/commit/a8f7c8ea58848b92cbe9ce0febb3a8bcc9692524))
-- Update Off chain economy concepts from transfer to loot drop race ([e93cafc83](https://github.com/underpostnet/engine/commit/e93cafc836d58148d4439126a650a20e7ff5d5ce))
-
-### client
-
-- Fix slide menu title style in dark/light themes ([22c1224d5](https://github.com/underpostnet/engine/commit/22c1224d5b4d50ad466c2988bb2c5e6cd7c30860))
-- FIx center action button to menu modal ([94d6940ed](https://github.com/underpostnet/engine/commit/94d6940ed5d9e7eff72c039f6e22cc64e47d1a90))
-
-### cyberia-saga
-
-- Add persistInstance helper for saga instance persistence ([3f124c8b5](https://github.com/underpostnet/engine/commit/3f124c8b57f6a4f75051cfa9771c38cf9989aa75))
-
-### cyberia-cli
-
-- Migrate IPFS registry to mfsPath unique key ([e15cfda51](https://github.com/underpostnet/engine/commit/e15cfda511c674a4c0f8e77901f7df4d59a6e50d))
-- Add clean option in import default items in runner ([9cca28ab9](https://github.com/underpostnet/engine/commit/9cca28ab93178cf2ee06f4d5e7b199a612f9e360))
-- Improve import default items add base saga collection ingestion ([ffe822423](https://github.com/underpostnet/engine/commit/ffe822423c60ce3c103d533be00200ae9a406aa2))
-- Add publish cross repositories push operation workflow ([69e39292e](https://github.com/underpostnet/engine/commit/69e39292e614d577eae4ad8362e8ec80e1282b9a))
-- Fix build-manifest copy docker-compose related files ([b3e252fc7](https://github.com/underpostnet/engine/commit/b3e252fc7d61c2b91f65a199351a32dfb05d87ff))
-
-### ci
-
-- Add latest tag to Docker image build and push workflows ([36dc44fc3](https://github.com/underpostnet/engine/commit/36dc44fc304eafcd67ad4b2743c2c3254b72b9a0))
-
-### grpc-cyberia
-
-- Refactor gRPC server to delegate world-load to shared instance-data module ([740577994](https://github.com/underpostnet/engine/commit/7405779948cbd82383efb18efc928fc10ba0341e))
-- Fix itemsId load in fallback world to ensure based in Own-model collections (CyberiaSkill, CyberiaEntityTypeDefault) ([ca4ffbb95](https://github.com/underpostnet/engine/commit/ca4ffbb956cb1e6f19601e35c3ceee8ca71ab49b))
-
-### api
-
-- Centralize Express middleware and controller/router helpers for engine APIs in src/server/middlewares.js ([1dda3de9d](https://github.com/underpostnet/engine/commit/1dda3de9ddd016acbe5f33d239d0a547445cf6c6))
-
-### dependencies
-
-- Update typescript version for compatibility with typedocs ([433b68207](https://github.com/underpostnet/engine/commit/433b6820757cce0c8eadb4cca3b64425cdfa9c05))
-
-### docs
-
-- Update README.md Rocky badge to v9.8 ([f7f31a1aa](https://github.com/underpostnet/engine/commit/f7f31a1aa9257db338c02d2a57d718136216b5f1))
-
-### cluster
-
-- Fix Helm installation in node bin cluster init host workflow ([f7e141c71](https://github.com/underpostnet/engine/commit/f7e141c71d2c6284cb798a985c1f318e77b5293e))
 

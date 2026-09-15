@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-blue
-          image: underpost/underpost-engine:v3.3.77
+          image: underpost/underpost-engine:v3.4.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:

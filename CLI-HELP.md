@@ -1,6 +1,6 @@
 ## Underpost CLI
 
-> underpost ci/cd cli v3.3.77
+> underpost ci/cd cli v3.4.0
 
 **Usage:** `underpost [options] [command]`
 
@@ -1396,8 +1396,8 @@ Security audit through Socket.dev: dependency security (advisories, supply chain
 
 | Option | Description |
 | --- | --- |
-| `--audit` | Audits the checkout (default). Dependency security: segregation, npm audit, the Socket patch scan and, with SOCKET_CLI_API_TOKEN set, the Socket full scan. Source code risk: full scan alerts on this project's own packages, as refactoring tasks. Writes the JSON and Markdown reports. |
-| `--reach` | Runs the full application reachability analysis with the Socket scan (tier 1 evidence). |
+| `--audit` | Audits the checkout (default). Dependency security: segregation, npm audit, the Socket patch scan and, with SOCKET_CLI_API_TOKEN set, the Socket full scan of the dependency manifests. Source code risk: with SOCKET_CLI_API_TOKEN set, the alerts Socket's registry analysis raises on this project's own published package, as refactoring tasks. Writes the JSON and Markdown reports. |
+| `--reach` | Runs the full application reachability analysis over the local working tree with the Socket scan (tier 1 evidence); no pushed commit is needed. |
 | `--ci` | Audits, then exits non-zero when the Socket scan violates the organization policy or a finding remains at --fail-on. |
 | `--fail-on <severity>` | Severity --ci fails at. One of: critical, high, moderate, low, info. Defaults to high. |
 | `--fix` | Runs the remediation pass before the audit: npm audit fix, every available Socket patch, socket fix without major upgrades, socket patch apply. |
