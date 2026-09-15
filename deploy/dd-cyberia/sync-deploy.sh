@@ -23,13 +23,9 @@ UNDERPOST_ASSETS=src/client/public/underpost
 # from source, which is the behaviour this script had before bundle mode existed.
 BUNDLE_MODE="${BUNDLE_MODE:-1}"
 BUNDLE_SPLIT="${BUNDLE_SPLIT:-8}"
-# Where push-bundle records the uploaded keys, relative to a conf checkout root.
-BUNDLE_MANIFEST_PATH="conf/$DEPLOY_ID/storage.bundle.json"
 # `mv` into a directory that already exists nests the checkout inside it rather than replacing
 # it, and the pod would then load whatever conf the image carried.
 POD_SRC_PRIVATE_DIR="${POD_SRC_PRIVATE_REPO##*/}"
-# Sibling of the engine checkout, so the publish work tree is never part of it.
-POD_PRIVATE_CHECKOUT="../$POD_SRC_PRIVATE_DIR"
 
 main() {
     deploy_start "Starting remote sync and deploy"
@@ -102,37 +98,20 @@ main() {
 
     # Follows the manifest step: the client renders from the conf.ssr.json that build-manifest
     # writes, so a bundle pushed before it would ship the previous SSR views. The uploaded keys
-    # are recorded in engine-private/conf/$DEPLOY_ID/storage.bundle.json, which the pod reads
-    # back through its own conf repository.
+    # are recorded in engine-private/conf/$DEPLOY_ID/storage.bundle.json.
     if [ "$BUNDLE_MODE" = "1" ]; then
         deploy_step "Push $DEPLOY_ID client bundle" \
             sudo -n -- /bin/bash -lc \
             "cd $ENGINE_ROOT && node bin run push-bundle \
               --deploy-id $DEPLOY_ID \
               --split $BUNDLE_SPLIT"
-
-        # push-bundle records the keys in the host's own conf checkout, but the pod replaces
-        # ./engine-private with a clone of its conf repository — so the manifest is published
-        # there too, or the pod reads an empty one and restores nothing. Cloning from the engine
-        # root keeps `underpost clone` reading this checkout's credentials, and the work tree is
-        # then moved out so it is never part of the engine checkout.
-        deploy_step "Stage $DEPLOY_ID bundle manifest" \
-            sudo -n -- /bin/bash -lc \
-            "cd $ENGINE_ROOT && rm -rf $POD_PRIVATE_CHECKOUT \
-              && node bin clone $POD_SRC_PRIVATE_REPO \
-              && mv ./$POD_SRC_PRIVATE_DIR $POD_PRIVATE_CHECKOUT \
-              && mkdir -p $POD_PRIVATE_CHECKOUT/conf/$DEPLOY_ID \
-              && cp ./engine-private/$BUNDLE_MANIFEST_PATH $POD_PRIVATE_CHECKOUT/$BUNDLE_MANIFEST_PATH"
-
-        # A rerun that uploads the same keys leaves the manifest byte-identical, and committing
-        # nothing fails the step.
-        if [ "$(has_changes $POD_PRIVATE_CHECKOUT "$ENGINE_ROOT")" = "1" ]; then
-            deploy_step "Publish $DEPLOY_ID bundle manifest" \
-                sudo -n -- /bin/bash -lc \
-                "cd $ENGINE_ROOT && node bin cmt $POD_PRIVATE_CHECKOUT feat 'Update $DEPLOY_ID bundle manifest' \
-                  && node bin push $POD_PRIVATE_CHECKOUT $POD_SRC_PRIVATE_REPO"
-        fi
     fi
+
+    # The pod replaces ./engine-private with a clone of its conf repository, so this publishes
+    # the deploy's conf there — the bundle manifest included — before the pod starts.
+    deploy_step "Build $DEPLOY_ID configuration" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 
     # Two commands, one bootstrap: `pod_bootstrap_cmd` replaces the image's engine with this
     # deploy's source and repoints the global bin at it — without that, the first step needing

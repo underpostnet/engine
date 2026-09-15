@@ -309,7 +309,6 @@ class AppShellUnderpost {
     });
     for (const eventFn of ['onCollapseMenuListener', 'onExtendMenuListener', 'onExpandUiListener', 'onCloseListener']) {
       Modal.Data['modal-menu'][eventFn]['underpost-panel-form-padding'] = (arg) => {
-        console.error(eventFn, arg);
         if (s(`.underpost-panel-form-container`))
           s(`.underpost-panel-form-container`).style.paddingLeft =
             !s('.main-body-btn-ui-open').classList.contains('hide') &&
