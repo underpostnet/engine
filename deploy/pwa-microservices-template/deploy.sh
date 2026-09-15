@@ -11,6 +11,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 DEPLOY_ID=dd-github-pages
 
+# `bin new --default-conf --conf-workflow-id $DEPLOY_ID` (src/cli/repository.js) keys the
+# generated conf off this same variable, defaulting to underpostnet when unset — kept in step so
+# a checkout under any GitHub owner (underpost, underpostnet, ...) builds and uploads its own
+# `<owner>.github.io` pages instead of always the default owner's.
+GITHUB_PAGES_HOST="${GITHUB_USERNAME:-underpostnet}.github.io"
+
 main() {
     deploy_start "Starting github pages deploy"
 
@@ -41,7 +47,7 @@ main() {
         node bin app load --env production --args deploy-id=$DEPLOY_ID
 
     deploy_step "Build $DEPLOY_ID client" \
-        env NODE_ENV=production node bin client $DEPLOY_ID '' underpostnet.github.io /pwa-microservices-template-ghpkg
+        env NODE_ENV=production node bin client $DEPLOY_ID '' $GITHUB_PAGES_HOST /pwa-microservices-template-ghpkg
 }
 
 main "$@"

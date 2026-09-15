@@ -10,6 +10,10 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Lets Setup Pages create the Pages site itself (build type: GitHub Actions) the first time
+  # this workflow runs against a repository, instead of requiring someone to click it on once by
+  # hand in Settings > Pages for every owner (underpost, underpostnet, ...) this can run under.
+  administration: write
 
 concurrency:
   group: 'pages'
@@ -33,6 +37,12 @@ jobs:
       #   run: git lfs checkout
 
       - name: Build the site
+        env:
+          # deploy.sh (and, through it, `bin new --default-conf --conf-workflow-id
+          # dd-github-pages`) keys the generated conf and the build's target host off this, so
+          # the site is built under the actual triggering owner's `<owner>.github.io` instead of
+          # always underpostnet's.
+          GITHUB_USERNAME: ${{ github.repository_owner }}
         run: bash deploy/pwa-microservices-template/deploy.sh
       # git lfs install
       # git lfs track
@@ -40,11 +50,16 @@ jobs:
       # git lfs pull
       - name: Setup Pages
         uses: actions/configure-pages@v6
+        with:
+          # Auto-creates the Pages site (build type: GitHub Actions) the first time this runs
+          # for a given owner/repo; without it, a repository that has never had Pages enabled
+          # by hand in Settings fails here with "Get Pages site failed ... Not Found".
+          enablement: true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
           # Upload entire repository
-          path: './public/underpostnet.github.io/pwa-microservices-template-ghpkg/'
+          path: './public/${{ github.repository_owner }}.github.io/pwa-microservices-template-ghpkg/'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
