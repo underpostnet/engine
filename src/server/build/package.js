@@ -41,9 +41,6 @@ const RUNTIME_ENTRY_POINTS = [
   'src/grpc/*/*.js',
   'src/projects/*/*.js',
 ];
-const STATIC_IMPORT = /^\s*(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"\n]+)['"]|^\s*import\s*['"]([^'"\n]+)['"]/gm;
-const DYNAMIC_IMPORT = /\bimport\(\s*['"]([^'"\n]+)['"]\s*\)/g;
-const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm;
 const BUILTINS = new Set(builtinModules);
 
 /**
@@ -525,75 +522,63 @@ const importPackageNameFactory = (specifier = '') => {
   return BUILTINS.has(name) ? '' : name;
 };
 
-const resolveRelativeImport = (importer, specifier) => {
-  const target = nodePath.resolve(nodePath.dirname(importer), specifier);
-  return [target, `${target}.js`, `${target}/index.js`].find(
-    (candidate) => /\.(m|c)?js$/.test(candidate) && fs.existsSync(candidate) && fs.statSync(candidate).isFile(),
-  );
-};
-
-const expandEntryPoints = (root, patterns) => {
-  const expand = (base, segments) => {
-    if (segments.length === 0) return fs.existsSync(base) && fs.statSync(base).isFile() ? [base] : [];
-    const [segment, ...rest] = segments;
-    if (!segment.includes('*')) return expand(nodePath.join(base, segment), rest);
-    if (!fs.existsSync(base) || !fs.statSync(base).isDirectory()) return [];
-    const matcher = new RegExp(`^${segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
-    return fs
-      .readdirSync(base)
-      .filter((entry) => matcher.test(entry))
-      .flatMap((entry) => expand(nodePath.join(base, entry), rest));
-  };
-  return patterns.flatMap((pattern) => expand(root, pattern.split('/')));
-};
-
 /**
- * Walks the static import graph from the runtime entry points and collects the packages it
- * reaches. A dynamic `import('name')` is recorded as lazy: it loads on one code path only, so it
- * does not bind a production install the way a static import does.
+ * Walks the import graph from the runtime entry points and collects the packages it reaches.
+ * esbuild parses every module, so an import-shaped line inside a string or a comment is not an
+ * import. A dynamic `import('name')` is recorded as lazy: it loads on one code path only, so it
+ * does not bind a production install the way a static import does. Non-code assets stay out of
+ * the graph.
  * @param {object} [params]
  * @param {string} [params.root] - Package root.
- * @param {string[]} [params.entryPoints] - Entry point paths or `dir/*.js` patterns, relative to root.
- * @returns {{files: string[], packages: Record<string, string[]>, lazyPackages: Record<string, string[]>}} Importers by package, relative to root.
+ * @param {string[]} [params.entryPoints] - Entry point paths or glob patterns, relative to root.
+ * @returns {Promise<{files: string[], packages: Record<string, string[]>, lazyPackages: Record<string, string[]>}>} Importers by package, relative to root.
  * @memberof PackageBuilder
  */
-const runtimeImportGraphFactory = ({ root = ENGINE_PACKAGE_PATH, entryPoints = RUNTIME_ENTRY_POINTS } = {}) => {
-  const queue = expandEntryPoints(root, entryPoints);
-  const files = new Set();
+const runtimeImportGraphFactory = async ({ root = ENGINE_PACKAGE_PATH, entryPoints = RUNTIME_ENTRY_POINTS } = {}) => {
+  const esbuild = await import('esbuild');
+  const { metafile } = await esbuild.build({
+    absWorkingDir: nodePath.resolve(root),
+    entryPoints: entryPoints.flatMap((pattern) => fs.globSync(pattern, { cwd: root })),
+    bundle: true,
+    write: false,
+    metafile: true,
+    logLevel: 'silent',
+    platform: 'node',
+    format: 'esm',
+    packages: 'external',
+    outdir: nodePath.join(os.tmpdir(), 'underpost-runtime-graph'),
+    plugins: [
+      {
+        name: 'code-only',
+        setup(build) {
+          build.onResolve({ filter: /\.[^./\\]+$/ }, (args) =>
+            /\.(?:[cm]?js|json)$/.test(args.path) ? undefined : { path: args.path, external: true },
+          );
+        },
+      },
+    ],
+  });
   const packages = {};
   const lazyPackages = {};
-  const record = (registry, name, importer) => {
-    const importers = (registry[name] ??= []);
-    const relative = nodePath.relative(root, importer);
-    if (!importers.includes(relative)) importers.push(relative);
-  };
-
-  while (queue.length > 0) {
-    const file = queue.shift();
-    if (files.has(file)) continue;
-    files.add(file);
-    const source = fs.readFileSync(file, 'utf8').replace(COMMENT, '');
-    for (const [pattern, registry] of [
-      [STATIC_IMPORT, packages],
-      [DYNAMIC_IMPORT, lazyPackages],
-    ]) {
-      for (const match of source.matchAll(pattern)) {
-        const specifier = match[1] ?? match[2];
-        const name = importPackageNameFactory(specifier);
-        if (name) record(registry, name, file);
-        else if (specifier.startsWith('.')) {
-          const resolved = resolveRelativeImport(file, specifier);
-          if (resolved && !files.has(resolved)) queue.push(resolved);
-        }
-      }
+  for (const [file, input] of Object.entries(metafile.inputs))
+    for (const { path, kind, external } of input.imports) {
+      const name = external ? importPackageNameFactory(path) : '';
+      if (!name) continue;
+      const importers = ((kind === 'dynamic-import' ? lazyPackages : packages)[name] ??= []);
+      if (!importers.includes(file)) importers.push(file);
     }
-  }
 
   for (const name of Object.keys(lazyPackages)) if (packages[name]) delete lazyPackages[name];
+  const sorted = (registry) =>
+    Object.fromEntries(
+      Object.entries(registry)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, importers]) => [name, importers.sort()]),
+    );
   return {
-    files: [...files].map((file) => nodePath.relative(root, file)).sort(),
-    packages: Object.fromEntries(Object.entries(packages).sort(([a], [b]) => a.localeCompare(b))),
-    lazyPackages: Object.fromEntries(Object.entries(lazyPackages).sort(([a], [b]) => a.localeCompare(b))),
+    files: Object.keys(metafile.inputs).sort(),
+    packages: sorted(packages),
+    lazyPackages: sorted(lazyPackages),
   };
 };
 
@@ -614,7 +599,7 @@ const auditRuntimeDependencies = async ({
   packageJson = readManifest(nodePath.join(root, 'package.json')),
   catalogs,
 } = {}) => {
-  const { packages, lazyPackages } = runtimeImportGraphFactory({ root });
+  const { packages, lazyPackages } = await runtimeImportGraphFactory({ root });
   const dependencies = packageJson.dependencies ?? {};
   const devDependencies = packageJson.devDependencies ?? {};
   const catalogDependencies = Object.assign(

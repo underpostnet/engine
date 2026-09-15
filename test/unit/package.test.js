@@ -476,6 +476,10 @@ describe('runtime dependency audit', () => {
         "// import legacy from 'legacy-tool';",
         "export const bump = () => import('bumpp');",
         "export * from './lib/index.js';",
+        // Source text a command writes to disk and runs elsewhere; not an import of this module.
+        'export const script = `',
+        "  import hre from 'hardhat';",
+        '`;',
       ].join('\n'),
     );
     fs.outputFileSync(
@@ -506,10 +510,10 @@ describe('runtime dependency audit', () => {
       expect(importPackageNameFactory(specifier), specifier).to.equal('');
   });
 
-  it('walks the static graph from the entry points and records dynamic imports as lazy', () => {
+  it('walks the static graph from the entry points and records dynamic imports as lazy', async () => {
     const root = tree();
     try {
-      const graph = runtimeImportGraphFactory({ root });
+      const graph = await runtimeImportGraphFactory({ root });
       expect(graph.files).to.deep.equal([
         'bin/index.js',
         'src/api/user/user.router.js',
@@ -548,12 +552,17 @@ describe('runtime dependency audit', () => {
     }
   });
 
-  it('keeps every package this engine imports at runtime in dependencies', async () => {
-    // A production install omits devDependencies, so a runtime import from there breaks the
-    // published CLI at load time.
-    const audit = await auditRuntimeDependencies();
-    expect(audit.misplaced).to.deep.equal([]);
-    expect(audit.runtime).to.include.members(['commander', 'esbuild', 'express', 'mongoose']);
-    expect(audit.runtime).to.not.include.members(['vitest', 'chai', 'nodemon', 'bumpp']);
-  });
+  it(
+    'keeps every package this engine imports at runtime in dependencies',
+    async () => {
+      // A production install omits devDependencies, so a runtime import from there breaks the
+      // published CLI at load time. This bundles the whole engine from its real entry points
+      // with esbuild, which comfortably clears the 5s default on a slower CI runner.
+      const audit = await auditRuntimeDependencies();
+      expect(audit.misplaced).to.deep.equal([]);
+      expect(audit.runtime).to.include.members(['commander', 'esbuild', 'express', 'mongoose']);
+      expect(audit.runtime).to.not.include.members(['vitest', 'chai', 'nodemon', 'bumpp']);
+    },
+    30000,
+  );
 });
