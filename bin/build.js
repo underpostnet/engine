@@ -10,6 +10,7 @@ import {
   syncDeployIdSources,
   syncDeployIdSourcesBack,
   buildTemplate,
+  templateGitignoreFactory,
   updatePrivateEngineTestRepo,
 } from '../src/server/runtime/conf.js';
 import { resolveDeployList } from '../src/server/network/router.js';
@@ -207,10 +208,7 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
   if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
   }
-  fs.writeFileSync(
-    `${basePath}/.gitignore`,
-    fs.readFileSync(`.gitignore`, 'utf8').split('# Ignore ERP / CRM custom prototypes src')[0],
-  );
+  fs.writeFileSync(`${basePath}/.gitignore`, templateGitignoreFactory());
 
   // Process catalog copies — each [src, dest] pair is copied from engine root to the template target.
   if (catalog.copies && catalog.copies.length) {

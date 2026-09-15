@@ -3127,6 +3127,24 @@ const pruneTemplateWorkTree = (toPath, preservedEntries = []) => {
 };
 
 /**
+ * Marker in the engine `.gitignore` where the engine-only prototype rules start.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const GITIGNORE_PROTOTYPE_BOUNDARY = '# Ignore ERP / CRM custom prototypes src';
+
+/**
+ * The `.gitignore` a generated repository carries: the engine rules before the prototype
+ * boundary. Without it, `git add .` after an install commits `node_modules`.
+ * @method templateGitignoreFactory
+ * @param {string} [source='.gitignore'] - Engine `.gitignore` path.
+ * @returns {string} File content.
+ * @memberof ServerConfBuilder
+ */
+const templateGitignoreFactory = (source = '.gitignore') =>
+  fs.readFileSync(source, 'utf8').split(GITIGNORE_PROTOTYPE_BOUNDARY)[0];
+
+/**
  * Rebuilds the standalone `pwa-microservices-template` from scratch out of the current
  * engine source tree.
  *
@@ -3183,6 +3201,8 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
 
   fs.copySync(`./.vscode`, `${toPath}/.vscode`);
   fs.copySync(`./src/client/public/default`, `${toPath}/src/client/public/default`);
+  // The walker filter above drops every `.git*` entry, `.gitignore` included.
+  fs.writeFileSync(`${toPath}/.gitignore`, templateGitignoreFactory(`${srcPath}/.gitignore`), 'utf8');
 
   // Preserve the template's own README + package.json identity before merging engine metadata.
   for (const checkoutPath of ['README.md', 'package.json']) shellExec(`cd ${toPath} && git checkout ${checkoutPath}`);
@@ -3480,6 +3500,7 @@ export {
   gitOriginRepositoryName,
   ensureTemplateCheckout,
   pruneTemplateWorkTree,
+  templateGitignoreFactory,
   buildTemplate,
   updatePrivateTemplateRepo,
   updatePrivateEngineTestRepo,

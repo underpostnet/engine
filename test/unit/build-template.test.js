@@ -11,6 +11,7 @@ import {
   ensureTemplateCheckout,
   gitOriginRepositoryName,
   pruneTemplateWorkTree,
+  templateGitignoreFactory,
   validateTemplatePath,
 } from '../../src/server/runtime/conf.js';
 import { TEMPLATE_PRESERVED_ENTRIES } from '../../src/projects/underpost/catalog-underpost.js';
@@ -52,6 +53,29 @@ describe('template checkout guard', () => {
     const plain = fs.mkdtempSync(`${os.tmpdir()}/underpost-plain-`);
     created.push(plain);
     expect(gitOriginRepositoryName(plain)).to.equal(null);
+  });
+});
+
+describe('template .gitignore', () => {
+  it('carries the engine rules and stops before the prototype rules', () => {
+    const content = templateGitignoreFactory();
+    expect(content).to.match(/^\/node_modules$/m);
+    expect(content).to.not.include('# Ignore ERP / CRM custom prototypes src');
+    expect(content).to.not.include('*healthcare*');
+  });
+
+  it('keeps an install out of the next commit', () => {
+    const path = gitCheckout();
+    try {
+      fs.writeFileSync(`${path}/.gitignore`, templateGitignoreFactory());
+      fs.outputFileSync(`${path}/node_modules/probe/index.js`, 'module.exports = 1;\n');
+      fs.outputFileSync(`${path}/package.json`, '{}\n');
+      execSync('git add .', { cwd: path });
+      const staged = execSync('git diff --cached --name-only', { cwd: path, encoding: 'utf8' }).trim().split('\n');
+      expect(staged).to.have.members(['.gitignore', 'package.json']);
+    } finally {
+      fs.removeSync(path);
+    }
   });
 });
 
