@@ -340,6 +340,14 @@ wasm-driver.py --data-server-url=<origin>
 required: the client asserts and stops if it is absent. There is no environment
 fallback, no config file and no runtime override.
 
+`wasm-driver.py` appends any other flag to the client argv. `fetch_init()` reads
+two stream diagnostics:
+
+| Flag                                  | Effect                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| `--stream-disable=<mode>[,<mode>...]` | Turns off `audio`, `audio-network`, `audio-runtime`, `atlas` or `dynamic` streaming. |
+| `--stream-profile`                    | Records stream events in `Module.streamTrace` (30,000-entry ring, read in DevTools). |
+
 ### Constants (`src/config.h`)
 
 | Constant                    | Default        | Description                                                                                                      |
