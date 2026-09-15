@@ -516,3 +516,41 @@ function render(output, columns, lines) {
 
   return screen.filter((line) => line.trim().length > 0);
 }
+
+describe('run_quiet stream wiring', () => {
+  let wiringDir;
+
+  beforeEach(() => {
+    wiringDir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-quiet-wiring-'));
+  });
+
+  afterEach(() => fs.removeSync(wiringDir));
+
+  // A command that finishes before tee holds the merged writer lets awk read EOF, and tee then
+  // blocks on an open with no reader until the 10 s drain kills it. A delay between tee's two
+  // opens, in the order the helper declares them, turns that scheduling race into a certainty.
+  it('finishes a short command even when tee opens its streams late', () => {
+    const wiring = /^(\s*)tee -a "\$error_log" (\S+) (\S+) &$/m;
+    const source = fs.readFileSync(loggingLib, 'utf8');
+    const [line, indent, first, second] = source.match(wiring) ?? [];
+    expect(line, 'tee wiring line').to.be.a('string');
+    const delayedLib = path.join(wiringDir, 'logging.sh');
+    fs.writeFileSync(
+      delayedLib,
+      source.replace(line, `${indent}{ sleep 0.3; exec tee -a "$error_log" ${second}; } ${first} &`),
+    );
+    const env = { ...process.env, TERM: 'xterm' };
+    for (const key of ['GITHUB_ACTIONS', 'RUN_QUIET_CI', 'RUN_QUIET_DEBUG']) delete env[key];
+
+    const started = Date.now();
+    execFileSync(
+      'bash',
+      [
+        '-c',
+        `source ${JSON.stringify(delayedLib)}; run_quiet "Sync probe" "Target pod:" 14 bash -c 'echo out; echo err >&2'`,
+      ],
+      { env, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    expect(Date.now() - started).to.be.below(5000);
+  }, 20_000);
+});

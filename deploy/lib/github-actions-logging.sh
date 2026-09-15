@@ -537,8 +537,9 @@ run_quiet() {
 
     # stderr is duplicated: on its own for the native error and stack trace, and
     # into the merged stream so both the debug log and the filter see it in
-    # chronological order with stdout.
-    tee -a "$error_log" <"$fifo_dir/stderr" >"$fifo_dir/merged" &
+    # chronological order with stdout. tee opens the merged writer first: if a short command
+    # closes the stream before it, awk reads EOF and tee blocks until the drain kills it.
+    tee -a "$error_log" >"$fifo_dir/merged" <"$fifo_dir/stderr" &
     stderr_pid=$!
 
     "$@" >"$fifo_dir/merged" 2>"$fifo_dir/stderr" || status=$?
