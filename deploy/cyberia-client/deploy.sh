@@ -8,6 +8,8 @@ source "$SCRIPT_DIR/../lib/host.sh"
 DEPLOY_ID=dd-cyberia
 INSTANCE_ID=mmo-client
 TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
+ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-cyberia}"
+ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 
 main() {
     deploy_start "Starting remote deploy"
@@ -15,24 +17,24 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     deploy_step "Build $DEPLOY_ID configuration" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 
     deploy_step "Wait for target node readiness" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
 
     deploy_step "Wait for ingress rollout" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-ingress -n default --timeout=5m"
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-ingress -n default --timeout=5m"
 
     deploy_step "Wait for gateway rollout" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-gateway -n default --timeout=5m"
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-gateway -n default --timeout=5m"
 
     deploy_step "Deploy $DEPLOY_ID $INSTANCE_ID instance" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run instance \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin run instance \
           --kubeadm \
           ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
           --gateway-api \
@@ -40,7 +42,7 @@ main() {
           --ingress-node ${INGRESS_NODE} \
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
           --deploy-id $DEPLOY_ID \
-          --instance-id $INSTANCE_ID"
+    --instance-id $INSTANCE_ID"
 }
 
 main "$@"

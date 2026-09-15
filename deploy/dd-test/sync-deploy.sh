@@ -11,6 +11,7 @@ TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
 # The source the pod bootstraps from; the host takes the same pair through prepare_host.
 ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-test}"
+ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 
 main() {
     deploy_start "Starting remote sync and deploy"

@@ -8,6 +8,8 @@ source "$SCRIPT_DIR/../lib/host.sh"
 DEPLOY_ID=dd-core
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
 TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
+ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-core}"
+ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 
 main() {
     deploy_start "Starting remote sync and deploy"
@@ -15,19 +17,19 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV), \
-        underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --skip-pull-repo-base"
+    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
+    underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --skip-pull-repo-base"
 
     deploy_step "Sync $DEPLOY_ID cluster" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run sync \
+    sudo -n -- /bin/bash -lc \
+    "cd $ENGINE_ROOT && node bin run sync \
           --deploy-id $DEPLOY_ID \
           --kubeadm \
           ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
           --gateway-api \
           --ingress-node ${INGRESS_NODE} \
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
-          --cmd '${pod_cmd}'"
+    --cmd '${pod_cmd}'"
 }
 
 main "$@"
