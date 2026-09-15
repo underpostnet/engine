@@ -125,7 +125,8 @@
     "workbox-expiration": "^7.4.1",
     "workbox-precaching": "^7.4.1",
     "workbox-routing": "^7.4.1",
-    "workbox-strategies": "^7.4.1"
+    "workbox-strategies": "^7.4.1",
+    "nodemon": "^3.0.1"
   },
   "devDependencies": {
     "@socketsecurity/cli": "1.1.171",
@@ -133,7 +134,6 @@
     "allure-vitest": "3.12.1",
     "bumpp": "^12.3.0",
     "chai": "^6.2.2",
-    "nodemon": "^3.0.1",
     "vitest": "5.0.0"
   },
   "publishConfig": {
