@@ -102,6 +102,12 @@ jobs:
           git status
           git commit -m "$LAST_COMMIT_MESSAGE"
           node bin push . underpostnet/pwa-microservices-template-ghpkg
+          MIRROR_PAYLOAD=$(REPO=pwa-microservices-template-ghpkg node -e 'process.stdout.write(JSON.stringify({ ref: "master", inputs: { repos: process.env.REPO } }))')
+          curl -sS -f -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/underpostnet/engine/actions/workflows/mirror-to-org.yml/dispatches" \
+            -d "$MIRROR_PAYLOAD"
 
   engine-ghpkg:
     if: github.repository == 'underpostnet/engine' && github.event_name == 'workflow_dispatch'
@@ -183,4 +189,10 @@ jobs:
           else
             git commit -m "$LAST_COMMIT_MESSAGE"
             node ../engine/bin push . underpostnet/$GHPKG_REPO
+            MIRROR_PAYLOAD=$(REPO="$GHPKG_REPO" node -e 'process.stdout.write(JSON.stringify({ ref: "master", inputs: { repos: process.env.REPO } }))')
+            curl -sS -f -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${GITHUB_TOKEN}" \
+              "https://api.github.com/repos/underpostnet/engine/actions/workflows/mirror-to-org.yml/dispatches" \
+              -d "$MIRROR_PAYLOAD"
           fi

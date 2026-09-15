@@ -30,27 +30,37 @@ two packages with two provenance origins.
 
 It runs in exactly two cases:
 
-| Trigger             | Condition                                                                                                                                                                         |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workflow_dispatch` | Manual, from the UI, `gh workflow run` or the API. Input `repos` narrows the set.                                                                                                 |
-| `workflow_run`      | `CI \| Publish npm repository package` (`npmpkg.ci.yml`) completed with `success` on `master`, from a push or a dispatch in `underpostnet/engine`, and its package job succeeded. |
+| Trigger             | Condition                                                                                                                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workflow_dispatch` | Manual, from the UI, `gh workflow run` or the API. Input `repos` narrows the set; without it, `vars.MIRROR_REPOS`.                                                                                                      |
+| `workflow_run`      | `CI \| Publish npm repository package` (`npmpkg.ci.yml`) completed with `success` on `master`, from a push or a dispatch in `underpostnet/engine`, and its package job succeeded. Mirrors `pwa-microservices-template`. |
 
-The last condition matters: `npmpkg.ci.yml` runs on every push, and a run whose package job was
-skipped also concludes `success`. The gate job reads the triggering run's jobs through the API and
+The `workflow_run` condition matters: `npmpkg.ci.yml` runs on every push, and a run whose package job
+was skipped also concludes `success`. The gate job reads the triggering run's jobs through the API and
 mirrors nothing unless one of them succeeded. A `pull_request` run and a fork head never pass the
 gate, because a `workflow_run` job holds this repository's secrets whatever triggered it.
+
+`npmpkg.ci.yml` pushes only the template. The other repositories are pushed later by the workflows
+it starts, and each one dispatches the mirror for the repository it just pushed, so a mirror never
+copies a state whose build has not finished:
+
+| Producer                      | Pushes                                          | Dispatches `repos=`                |
+| ----------------------------- | ----------------------------------------------- | ---------------------------------- |
+| `ghpkg.ci.yml` (template job) | `underpostnet/pwa-microservices-template-ghpkg` | `pwa-microservices-template-ghpkg` |
+| `engine-cyberia.ci.yml`       | `underpostnet/engine-cyberia`                   | `engine-cyberia`                   |
+| `ghpkg.ci.yml` (engine job)   | `underpostnet/engine-ghpkg-<conf-id>`           | `engine-ghpkg-<conf-id>`           |
 
 ```bash
 gh workflow run mirror-to-org.yml -R underpostnet/engine                         # every repository
 gh workflow run mirror-to-org.yml -R underpostnet/engine -f repos="engine-cyberia"
 ```
 
-| Input                    | Where            | Purpose                                                                                   |
-| ------------------------ | ---------------- | ----------------------------------------------------------------------------------------- |
-| `vars.MIRROR_ORG`        | Actions variable | Target organization. Default `underpost`.                                                 |
-| `vars.MIRROR_REPOS`      | Actions variable | Space-separated repository names. Default: the four repositories above.                   |
-| `secrets.MIRROR_TOKEN`   | Actions secret   | PAT: read on the sources; contents and `workflow` write on the organization repositories. |
-| `secrets.GIT_AUTH_TOKEN` | Actions secret   | Fallback credential when one PAT already covers both accounts.                            |
+| Input                    | Where            | Purpose                                                                                                                                        |
+| ------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vars.MIRROR_ORG`        | Actions variable | Target organization. Default `underpost`.                                                                                                      |
+| `vars.MIRROR_REPOS`      | Actions variable | Space-separated repository names. Default: the four repositories above.                                                                        |
+| `secrets.MIRROR_TOKEN`   | Actions secret   | PAT: read on the sources; contents and `workflow` write on the organization repositories.                                                      |
+| `secrets.GIT_AUTH_TOKEN` | Actions secret   | Fallback credential when one PAT already covers both accounts. Producers dispatch with it: it needs `actions: write` on `underpostnet/engine`. |
 
 Rules the job applies:
 
@@ -63,10 +73,11 @@ Rules the job applies:
   breaks the sync. Pushing `.github/workflows` changes needs the `workflow` scope.
 - The push uses a PAT, so the mirror's own workflows run on the synced tags. That is what lets
   the organization publish.
-- `npmpkg.ci.yml` updates `pwa-microservices-template` itself; the other three repositories are
-  updated by workflows it dispatches, which finish later. A mirror run copies their state at that
-  moment, and the next run or a manual dispatch converges them. `npmpkg.ci.yml` fails when a
-  dispatch fails, so a successful run means every downstream build was started.
+- A producer dispatches the mirror only after its push succeeds, and fails its job when the
+  dispatch fails. `npmpkg.ci.yml` fails when a downstream dispatch fails, so a successful run
+  means every downstream build was started.
+- Runs are serialized per requested repository set, so dispatches from several producers queue
+  instead of cancelling each other.
 
 ---
 

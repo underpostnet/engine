@@ -15,9 +15,10 @@ on:
 permissions:
   contents: read
   actions: read
-# One mirror run at a time: two concurrent force-syncs could land out of order.
+# One run at a time per repository set: concurrent force-syncs of one repository could land out of
+# order, and a single group would cancel a dispatch queued behind another producer's.
 concurrency:
-  group: mirror-to-org
+  group: mirror-to-org-${{ github.event.inputs.repos || github.event_name }}
   cancel-in-progress: false
 jobs:
   gate:
@@ -56,6 +57,9 @@ jobs:
               echo "::notice::Run $RUN_ID published nothing; no mirror."
               exit 0
             fi
+            # The run pushed only the template. Each other repository dispatches this workflow
+            # after its own push, so the mirror never copies a state its build has not finished.
+            REQUESTED=pwa-microservices-template
           fi
           repos=()
           for repo in ${REQUESTED:-$DEFAULT_REPOS}; do

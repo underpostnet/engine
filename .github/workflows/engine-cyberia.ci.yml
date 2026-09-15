@@ -97,6 +97,12 @@ jobs:
           else
             git commit -m "$LAST_COMMIT_MESSAGE"
             node ../engine/bin push . underpostnet/engine-cyberia
+            MIRROR_PAYLOAD=$(REPO=engine-cyberia node -e 'process.stdout.write(JSON.stringify({ ref: "master", inputs: { repos: process.env.REPO } }))')
+            curl -sS -f -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${GITHUB_TOKEN}" \
+              "https://api.github.com/repos/underpostnet/engine/actions/workflows/mirror-to-org.yml/dispatches" \
+              -d "$MIRROR_PAYLOAD"
             echo "[INFO] Dispatching canonical github package build engine-ghpkg-cyberia"
             GHPKG_PAYLOAD=$(MSG="$LAST_COMMIT_MESSAGE" node -e '
               const i = { conf_id: "cyberia" };
