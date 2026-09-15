@@ -42,6 +42,8 @@ const RUNTIME_ENTRY_POINTS = [
   'src/projects/*/*.js',
 ];
 const BUILTINS = new Set(builtinModules);
+// A dynamic import whose argument is not a string literal; esbuild would expand it into a glob.
+const NON_LITERAL_IMPORT = /\bimport\((?!\s*(['"])[^'"\n]*\1\s*\))/g;
 
 /**
  * Packs an npm package into a build context under a stable file name.
@@ -527,7 +529,8 @@ const importPackageNameFactory = (specifier = '') => {
  * esbuild parses every module, so an import-shaped line inside a string or a comment is not an
  * import. A dynamic `import('name')` is recorded as lazy: it loads on one code path only, so it
  * does not bind a production install the way a static import does. Non-code assets stay out of
- * the graph.
+ * the graph, and a non-literal dynamic import is not expanded: esbuild fails on a glob with no
+ * match, and the modules such imports load are entry points already.
  * @param {object} [params]
  * @param {string} [params.root] - Package root.
  * @param {string[]} [params.entryPoints] - Entry point paths or glob patterns, relative to root.
@@ -548,6 +551,15 @@ const runtimeImportGraphFactory = async ({ root = ENGINE_PACKAGE_PATH, entryPoin
     packages: 'external',
     outdir: nodePath.join(os.tmpdir(), 'underpost-runtime-graph'),
     plugins: [
+      {
+        name: 'literal-dynamic-imports',
+        setup(build) {
+          build.onLoad({ filter: /\.[cm]?js$/ }, (args) => ({
+            contents: fs.readFileSync(args.path, 'utf8').replace(NON_LITERAL_IMPORT, 'import(__dynamic__||'),
+            loader: 'js',
+          }));
+        },
+      },
       {
         name: 'code-only',
         setup(build) {
