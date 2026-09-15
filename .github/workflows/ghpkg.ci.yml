@@ -94,6 +94,11 @@ jobs:
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
           git add .
+          # Installed modules never enter the package repository; a deletion is the cleanup and passes.
+          if git diff --cached --name-only --diff-filter=AM | grep -q '^node_modules/'; then
+            echo "::error::node_modules is staged for commit; the template .gitignore must ignore it."
+            exit 1
+          fi
           git status
           git commit -m "$LAST_COMMIT_MESSAGE"
           node bin push . underpostnet/pwa-microservices-template-ghpkg
