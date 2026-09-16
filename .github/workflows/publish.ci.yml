@@ -33,7 +33,23 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # npm accepts a version once: a rerun skips the registry and goes on to the steps after it.
+      - name: Check whether this version is already on npm
+        id: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          NAME=$(node -p 'require("./package.json").name')
+          VERSION=$(node -p 'require("./package.json").version')
+          if [ "$(npm view "$NAME@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "::notice::$NAME@$VERSION is already on npm; skipping it."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.npm.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
@@ -75,7 +91,23 @@ jobs:
       - name: Align the package identity with the repository owner
         run: node bin package --rename "@${{ github.repository_owner }}/underpost" --set-repo "${{ github.repository }}"
 
+      # npm accepts a version once: when it is already there, go straight to GitHub Packages.
+      - name: Check whether this version is already on npm
+        id: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          NAME=$(node -p 'require("./package.json").name')
+          VERSION=$(node -p 'require("./package.json").version')
+          if [ "$(npm view "$NAME@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "::notice::$NAME@$VERSION is already on npm; skipping it."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.npm.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
