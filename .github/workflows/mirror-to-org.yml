@@ -1,4 +1,7 @@
 name: CI | Mirror to organization
+# The organization publishes only the owner-scoped packages, so only their ghpkg repositories are
+# mirrored. Each producer dispatches this workflow after its own push succeeds, so a mirror never
+# copies a state whose build has not finished.
 on:
   workflow_dispatch:
     inputs:
@@ -6,15 +9,8 @@ on:
         description: 'Space-separated repository names to mirror (default: vars.MIRROR_REPOS)'
         required: false
         default: ''
-  # Fires only in the repository that owns the triggering workflow, and reads this file from the
-  # default branch of that repository.
-  workflow_run:
-    workflows: ['CI | Publish npm repository package']
-    types: [completed]
-    branches: [master]
 permissions:
   contents: read
-  actions: read
 # One run at a time per repository set: concurrent force-syncs of one repository could land out of
 # order, and a single group would cancel a dispatch queued behind another producer's.
 concurrency:
@@ -22,18 +18,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   gate:
-    # A workflow_run job runs with this repository's secrets whatever triggered it, so a pull
-    # request run, a fork head or a failed run never reaches the mirror.
-    if: >-
-      (github.repository == 'underpostnet/engine' || github.repository == 'underpost/engine') &&
-      (
-        github.event_name == 'workflow_dispatch' ||
-        (
-          github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.event != 'pull_request' &&
-          github.event.workflow_run.head_repository.full_name == github.repository
-        )
-      )
+    if: github.repository == 'underpostnet/engine' || github.repository == 'underpost/engine'
     runs-on: ubuntu-latest
     outputs:
       repos: ${{ steps.plan.outputs.repos }}
@@ -41,26 +26,10 @@ jobs:
       - name: Resolve the repositories to mirror
         id: plan
         env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
           REQUESTED: ${{ github.event.inputs.repos }}
-          DEFAULT_REPOS: ${{ vars.MIRROR_REPOS || 'pwa-microservices-template pwa-microservices-template-ghpkg engine-cyberia engine-ghpkg-cyberia' }}
+          DEFAULT_REPOS: ${{ vars.MIRROR_REPOS || 'pwa-microservices-template-ghpkg engine-ghpkg-cyberia' }}
         run: |
           set -euo pipefail -f
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
-            # The package job runs only on a release commit or a dispatch; a run whose job was
-            # skipped still concludes success, so the job itself has to have succeeded.
-            published=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs" \
-              --jq '[.jobs[] | select(.conclusion == "success")] | length')
-            if [ "$published" = "0" ]; then
-              echo "::notice::Run $RUN_ID published nothing; no mirror."
-              exit 0
-            fi
-            # The run pushed only the template. Each other repository dispatches this workflow
-            # after its own push, so the mirror never copies a state its build has not finished.
-            REQUESTED=pwa-microservices-template
-          fi
           repos=()
           for repo in ${REQUESTED:-$DEFAULT_REPOS}; do
             if ! [[ "$repo" =~ ^[A-Za-z0-9._-]+$ ]]; then

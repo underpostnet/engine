@@ -100,7 +100,6 @@ jobs:
             node ../engine/bin push . underpostnet/pwa-microservices-template
           fi
 
-      # A failed dispatch fails the run: its success is what the organization mirror waits on.
       - name: Dispatch all engine CIs
         env:
           # Never interpolated into the script: a dispatch input is free text.

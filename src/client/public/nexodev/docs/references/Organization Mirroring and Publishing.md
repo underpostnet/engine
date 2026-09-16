@@ -1,9 +1,9 @@
 # Organization Mirroring and Publishing
 
 The personal account `underpostnet` holds the source repositories. The organization `underpost`
-holds a force-synced mirror of each one, and publishes the organization-scoped packages from it.
-Three pieces make that work: the mirror workflow, owner-aware publish workflows, and the Actions
-secrets each side needs.
+holds a force-synced mirror of each ghpkg repository, and publishes the organization-scoped
+packages from it. Three pieces make that work: the mirror workflow, owner-aware publish workflows,
+and the Actions secrets each side needs.
 
 ---
 
@@ -11,14 +11,14 @@ secrets each side needs.
 
 | Source (`underpostnet`)            | Mirror (`underpost`)               | Publishes                                                        |
 | ---------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| `pwa-microservices-template`       | `pwa-microservices-template`       | source: `underpost` on npm. Mirror: nothing.                     |
+| `pwa-microservices-template`       | Not mirrored.                      | `underpost` on npm, from the source only.                        |
 | `pwa-microservices-template-ghpkg` | `pwa-microservices-template-ghpkg` | `@<owner>/underpost` on npm and GitHub Packages, from each side. |
-| `engine-cyberia`                   | `engine-cyberia`                   | source: `cyberia` on npm. Mirror: nothing.                       |
+| `engine-cyberia`                   | Not mirrored.                      | `cyberia` on npm, from the source only.                          |
 | `engine-ghpkg-cyberia`             | `engine-ghpkg-cyberia`             | `@<owner>/cyberia` on npm and GitHub Packages, from each side.   |
 
-An unscoped package name has one publisher, because npm accepts a version once. The scoped
-package takes the repository owner as its scope, so `@underpostnet/...` and `@underpost/...` are
-two packages with two provenance origins.
+An unscoped package name has one publisher, because npm accepts a version once, so its repository
+is not mirrored. The scoped package takes the repository owner as its scope, so `@underpostnet/...`
+and `@underpost/...` are two packages with two provenance origins.
 
 ---
 
@@ -28,44 +28,34 @@ two packages with two provenance origins.
 `vars.MIRROR_REPOS` it clones `underpostnet/<repo>` with `--mirror` and force-syncs
 `refs/heads/*` and `refs/tags/*` into `underpost/<repo>`, pruning refs the source no longer has.
 
-It runs in exactly two cases:
+It runs only on `workflow_dispatch`: manually, from the UI, `gh workflow run` or the API. Input
+`repos` narrows the set; without it, `vars.MIRROR_REPOS`.
 
-| Trigger             | Condition                                                                                                                                                                                                               |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workflow_dispatch` | Manual, from the UI, `gh workflow run` or the API. Input `repos` narrows the set; without it, `vars.MIRROR_REPOS`.                                                                                                      |
-| `workflow_run`      | `CI \| Publish npm repository package` (`npmpkg.ci.yml`) completed with `success` on `master`, from a push or a dispatch in `underpostnet/engine`, and its package job succeeded. Mirrors `pwa-microservices-template`. |
-
-The `workflow_run` condition matters: `npmpkg.ci.yml` runs on every push, and a run whose package job
-was skipped also concludes `success`. The gate job reads the triggering run's jobs through the API and
-mirrors nothing unless one of them succeeded. A `pull_request` run and a fork head never pass the
-gate, because a `workflow_run` job holds this repository's secrets whatever triggered it.
-
-`npmpkg.ci.yml` pushes only the template. The other repositories are pushed later by the workflows
-it starts, and each one dispatches the mirror for the repository it just pushed, so a mirror never
-copies a state whose build has not finished:
+Each ghpkg repository is pushed by a producer, which dispatches the mirror for the repository it
+just pushed, so a mirror never copies a state whose build has not finished:
 
 | Producer                      | Pushes                                          | Dispatches `repos=`                |
 | ----------------------------- | ----------------------------------------------- | ---------------------------------- |
 | `ghpkg.ci.yml` (template job) | `underpostnet/pwa-microservices-template-ghpkg` | `pwa-microservices-template-ghpkg` |
-| `engine-cyberia.ci.yml`       | `underpostnet/engine-cyberia`                   | `engine-cyberia`                   |
 | `ghpkg.ci.yml` (engine job)   | `underpostnet/engine-ghpkg-<conf-id>`           | `engine-ghpkg-<conf-id>`           |
+
+The template job runs in `underpostnet/pwa-microservices-template` once `npmpkg.ci.yml` has pushed
+it; the engine job runs once `engine-cyberia.ci.yml` has pushed `underpostnet/engine-cyberia`.
 
 ```bash
 gh workflow run mirror-to-org.yml -R underpostnet/engine                         # every repository
-gh workflow run mirror-to-org.yml -R underpostnet/engine -f repos="engine-cyberia"
+gh workflow run mirror-to-org.yml -R underpostnet/engine -f repos="engine-ghpkg-cyberia"
 ```
 
 | Input                    | Where            | Purpose                                                                                                                                        |
 | ------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `vars.MIRROR_ORG`        | Actions variable | Target organization. Default `underpost`.                                                                                                      |
-| `vars.MIRROR_REPOS`      | Actions variable | Space-separated repository names. Default: the four repositories above.                                                                        |
+| `vars.MIRROR_REPOS`      | Actions variable | Space-separated repository names. Default: the two ghpkg repositories above.                                                                   |
 | `secrets.MIRROR_TOKEN`   | Actions secret   | PAT: read on the sources; contents and `workflow` write on the organization repositories.                                                      |
 | `secrets.GIT_AUTH_TOKEN` | Actions secret   | Fallback credential when one PAT already covers both accounts. Producers dispatch with it: it needs `actions: write` on `underpostnet/engine`. |
 
 Rules the job applies:
 
-- `workflow_run` reads `mirror-to-org.yml` from the default branch of `underpostnet/engine`. A change
-  to the trigger takes effect once it is on `master`.
 - It mirrors only into a repository that exists and that the token reaches. Create the
   organization repository to opt it in, and add its name to `vars.MIRROR_REPOS` if it is not a default.
 - The credential reaches git through `gh auth setup-git`, never through a URL or git config.
@@ -74,8 +64,7 @@ Rules the job applies:
 - The push uses a PAT, so the mirror's own workflows run on the synced tags. That is what lets
   the organization publish.
 - A producer dispatches the mirror only after its push succeeds, and fails its job when the
-  dispatch fails. `npmpkg.ci.yml` fails when a downstream dispatch fails, so a successful run
-  means every downstream build was started.
+  dispatch fails.
 - Runs are serialized per requested repository set, so dispatches from several producers queue
   instead of cancelling each other.
 
@@ -104,6 +93,11 @@ changes nothing. The cyberia jobs then restore the published dependency set
 (`publishedProductPackageJson`) as before, so the tarball declares the engine package and the
 catalog pins rather than the engine's runtime set: `underpost` on npm, `@underpost/underpost`
 for the GitHub Packages publish.
+
+Before every npm publish, each job asks the registry for `<name>@<version>` as the manifest now
+stands. npm accepts a version once, so when it is already there the npm publish is skipped and the
+job goes on: the ghpkg job straight to GitHub Packages, the template job to the release CD
+dispatch. A rerun after a partial failure therefore finishes instead of failing on npm.
 
 Prerequisites on the organization side:
 
