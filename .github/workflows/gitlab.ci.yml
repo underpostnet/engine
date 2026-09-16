@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   pwa-microservices-template:
-    if: github.repository == 'underpost/pwa-microservices-template'
+    if: github.repository == 'underpostnet/pwa-microservices-template'
     name: Update gitlab repo package Jobs
     runs-on: ubuntu-latest
 
