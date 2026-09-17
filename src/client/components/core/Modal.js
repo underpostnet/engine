@@ -2312,7 +2312,10 @@ class Modal {
       }
       setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
     };
-    s(`.btn-maximize-${idModal}`).onclick = () => {
+    // Animated from wherever the modal is when a click maximizes it; placed outright when it is
+    // the modal's own `maximize` option at creation, so a view does not slide in from the corner
+    // it was appended at.
+    const maximize = ({ animate = true } = {}) => {
       const modal = s(`.${idModal}`);
       if (!modal) return;
 
@@ -2321,8 +2324,8 @@ class Modal {
         dragInstance.updateOptions({ disabled: true });
       }
 
-      modal.style.transition = '0.3s';
-      setTimeout(() => (modal ? (modal.style.transition = transition) : null), 300);
+      modal.style.transition = animate ? '0.3s' : 'none';
+      setTimeout(() => (modal ? (modal.style.transition = transition) : null), animate ? 300 : 0);
 
       s(`.btn-maximize-${idModal}`).style.display = 'none';
       s(`.btn-restore-${idModal}`).style.display = null;
@@ -2335,8 +2338,7 @@ class Modal {
           : this.Data[options.slideMenu]['slide-menu-right']
             ? 'slide-menu-right'
             : 'slide-menu-left';
-        // Width and left follow the menu: animated when the menu opens or closes, but placed
-        // outright the first time so the view does not slide in from the corner it was appended at.
+        // Width and left follow the menu, animated when the menu opens or closes.
         const placeBesideMenu = ({ animate }) => {
           const menuWidth = this.Data[options.slideMenu][idSlide].width;
           // A left 'top-bottom-bar' menu keeps its floating button column beside its edge; the
@@ -2364,7 +2366,7 @@ class Modal {
             : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
         };
 
-        placeBesideMenu({ animate: false });
+        placeBesideMenu({ animate });
         syncViewBounds();
         this.Data[idModal].slideMenu = {
           callBack: () => placeBesideMenu({ animate: true }),
@@ -2380,6 +2382,7 @@ class Modal {
       }
       dragInstance = setDragInstance();
     };
+    s(`.btn-maximize-${idModal}`).onclick = () => maximize();
 
     const btnMenuEvent = () => {
       Modal.menuTextLabelAnimation(idModal);
@@ -2392,7 +2395,7 @@ class Modal {
     s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
 
     dragInstance = setDragInstance();
-    if (options && options.maximize) s(`.btn-maximize-${idModal}`).click();
+    if (options && options.maximize) maximize({ animate: false });
     if (options.observer) {
       this.Data[idModal].observerCallBack = () => {
         // logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
@@ -2585,9 +2588,53 @@ class Modal {
    */
   static async RenderConfirm(options) {
     const { id } = options;
+    // In: the backdrop fades up under a dialog that rises and scales into place. Out: the dialog
+    // sinks and fades while the backdrop fades, and both leave the DOM — and the promise settles
+    // — only once that is over, so an answer never cuts straight to the page behind. The style
+    // tag shares the modal's `style-${id}` class so `removeModal` clears it with the rest.
+    const enterMs = 220;
+    const exitMs = 160;
     append(
       'body',
       html`
+        <style class="style-${id}">
+          .confirm-modal-in-${id} {
+            animation: confirm-modal-in ${enterMs}ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+          }
+          .confirm-modal-out-${id} {
+            animation: confirm-modal-out ${exitMs}ms ease-in both;
+            pointer-events: none;
+          }
+          @keyframes confirm-modal-in {
+            from {
+              opacity: 0;
+              transform: translateY(14px) scale(0.94);
+            }
+            to {
+              opacity: 1;
+              transform: none;
+            }
+          }
+          @keyframes confirm-modal-out {
+            from {
+              opacity: 1;
+              transform: none;
+            }
+            to {
+              opacity: 0;
+              transform: translateY(8px) scale(0.96);
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .confirm-modal-in-${id},
+            .confirm-modal-out-${id} {
+              animation-duration: 1ms;
+            }
+            .background-confirm-modal-${id} {
+              transition-duration: 1ms !important;
+            }
+          }
+        </style>
         <div
           class="fix background-confirm-modal-${id}"
           style="${renderCssAttr({
@@ -2598,19 +2645,16 @@ class Modal {
               height: '100%',
               top: '0px',
               left: '0px',
-              transition: '0.3s',
-              opacity: '1',
+              transition: `opacity ${enterMs}ms ease`,
+              opacity: '0',
             },
           })}"
         ></div>
       `,
     );
-    const removeBackgroundConfirmModal = () => {
-      s(`.background-confirm-modal-${id}`).style.opacity = '0';
-      setTimeout(() => {
-        s(`.background-confirm-modal-${id}`).remove();
-      });
-    };
+    requestAnimationFrame(() => {
+      if (s(`.background-confirm-modal-${id}`)) s(`.background-confirm-modal-${id}`).style.opacity = '1';
+    });
 
     return new Promise(async (resolve, reject) => {
       const { barConfig } = await Themes[Css.currentTheme]();
@@ -2657,27 +2701,49 @@ class Modal {
         ...options,
         html: htmlRender,
       });
+      // The animation outranks the inline opacity `Modal.instance` fades with, so the dialog
+      // follows this curve alone; the class comes off afterwards so it holds no transform.
+      const dialog = s(`.${id}`);
+      if (dialog) {
+        dialog.classList.add(`confirm-modal-in-${id}`);
+        dialog.addEventListener(
+          'animationend',
+          (e) => e.target === dialog && dialog.classList.remove(`confirm-modal-in-${id}`),
+          { once: true },
+        );
+      }
 
-      const end = () => {
-        removeBackgroundConfirmModal();
-        Modal.removeModal(id);
+      // Only the first answer counts: a second click while the dialog is leaving is ignored.
+      let closing = false;
+      const end = (status) => {
+        if (closing) return;
+        closing = true;
+        const background = s(`.background-confirm-modal-${id}`);
+        if (background) {
+          background.style.pointerEvents = 'none';
+          background.style.transition = `opacity ${exitMs}ms ease`;
+          background.style.opacity = '0';
+        }
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          if (background) background.remove();
+          Modal.removeModal(id);
+          resolve({ status });
+        };
+        const modal = s(`.${id}`);
+        if (!modal) return finish();
+        modal.classList.remove(`confirm-modal-in-${id}`);
+        modal.classList.add(`confirm-modal-out-${id}`);
+        modal.addEventListener('animationend', (e) => e.target === modal && finish());
+        // Should the animation never report back (element detached, animations disabled).
+        setTimeout(finish, exitMs + 50);
       };
-      barConfig.buttons.close.onClick = () => {
-        end();
-        resolve({ status: 'cancelled' });
-      };
-      s(`.background-confirm-modal-${id}`).onclick = () => {
-        end();
-        resolve({ status: 'cancelled' });
-      };
-      s(`.btn-cancel-${id}`).onclick = () => {
-        end();
-        resolve({ status: 'cancelled' });
-      };
-      s(`.btn-confirm-${id}`).onclick = () => {
-        end();
-        resolve({ status: 'confirm' });
-      };
+      barConfig.buttons.close.onClick = () => end('cancelled');
+      s(`.background-confirm-modal-${id}`).onclick = () => end('cancelled');
+      s(`.btn-cancel-${id}`).onclick = () => end('cancelled');
+      s(`.btn-confirm-${id}`).onclick = () => end('confirm');
     });
   }
 
