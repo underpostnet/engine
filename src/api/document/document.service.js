@@ -10,12 +10,53 @@
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
-import { uniqueArray } from '../../client/components/core/CommonJs.js';
+import { isValidStableSlug } from '../../client/components/core/CommonJs.js';
 import { getBearerToken, verifyJWT } from '../../server/security/auth.js';
-import { isValidObjectId } from 'mongoose';
 import { FileCleanup } from '../file/file.service.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * Verified user behind the request's bearer token; anonymous (`null`) when absent or invalid, so
+ * public reads never fail on a stale token.
+ * @param {import('express').Request} req
+ * @param {object} options
+ * @returns {object|null}
+ */
+const requestUser = (req, options) => {
+  const token = getBearerToken(req);
+  if (!token) return null;
+  try {
+    return verifyJWT(token, options);
+  } catch (error) {
+    logger.warn('Invalid token for public document read', error.message);
+    return null;
+  }
+};
+
+const documentNotFound = () => Object.assign(new Error('Document not found'), { status: 404 });
+
+/**
+ * Resolves a document by its public slug under the single-document read rule. A document that
+ * exists but is not readable answers exactly like a missing one.
+ * @param {import('express').Request} req
+ * @param {object} options
+ * @param {string} stableSlug
+ * @param {object} [scope] - Extra filter narrowing the lookup (a panel tag).
+ * @returns {Promise<object>} Public document shape.
+ */
+const findReadableByStableSlug = async (req, options, stableSlug, scope = {}) => {
+  if (!isValidStableSlug(stableSlug)) throw documentNotFound();
+  /** @type {import('./document.model.js').DocumentModel} */
+  const Document = DataBaseProviderService.getModel('Document', options);
+  const user = requestUser(req, options);
+  const document = await Document.findOne({ stableSlug, ...scope })
+    .populate(DocumentDto.populate.file())
+    .populate(DocumentDto.populate.mdFile())
+    .populate(DocumentDto.populate.user());
+  if (!document || !DocumentDto.isReadableBy(document, user)) throw documentNotFound();
+  return DocumentDto.toPublic(document, user);
+};
 
 /**
  * Document Service for handling REST API document operations.
@@ -48,8 +89,27 @@ class DocumentService {
         req.body.isPublic = isPublic;
         req.body.tags = tags;
 
-        return await new Document(req.body).save();
+        return await Document.createWithStableSlug(req.body);
     }
+  };
+
+  /**
+   * GET /slug/:stableSlug - One document by its public URL identity. Serves both public views of a
+   * document — its panel entry and its standalone content — which differ only in presentation.
+   * @async
+   * @function getBySlug
+   * @memberof DocumentService
+   * @param {Object} req - Express request object. `query.idPanel` optionally scopes the lookup to
+   *   the documents published in one panel.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Public document shape.
+   * @throws {Error} 404 when missing, outside the requested panel, or not readable by the requester.
+   */
+  static getBySlug = async (req, res, options) => {
+    const { idPanel } = req.query;
+    if (idPanel !== undefined && typeof idPanel !== 'string') throw documentNotFound();
+    return await findReadableByStableSlug(req, options, req.params.stableSlug, idPanel ? { tags: idPanel } : {});
   };
 
   /**
@@ -105,16 +165,7 @@ class DocumentService {
 
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
 
-      const token = getBearerToken(req);
-      let user;
-      if (token) {
-        try {
-          user = verifyJWT(token, options);
-        } catch (error) {
-          logger.warn('Invalid token for high-query search', error.message);
-          user = null;
-        }
-      }
+      const user = requestUser(req, options);
 
       // Validate and sanitize limit parameter
       let limit = 10;
@@ -138,7 +189,7 @@ class DocumentService {
         const data = await Document.find(queryPayload)
           .sort({ createdAt: -1 })
           .limit(limit)
-          .select('_id title tags createdAt userId isPublic')
+          .select('_id title stableSlug tags createdAt userId isPublic')
           .populate(DocumentDto.populate.user())
           .lean();
 
@@ -242,7 +293,7 @@ class DocumentService {
       const data = await Document.find(queryPayload)
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('_id title tags createdAt userId isPublic')
+        .select('_id title stableSlug tags createdAt userId isPublic')
         .populate(DocumentDto.populate.user())
         .lean();
 
@@ -280,16 +331,7 @@ class DocumentService {
         logger.warn('No publishers (admin/moderator) found for public tag search');
       }
 
-      const token = getBearerToken(req);
-      let user;
-      if (token) {
-        try {
-          user = verifyJWT(token, options);
-        } catch (error) {
-          logger.warn('Invalid token for public search', error.message);
-          user = null;
-        }
-      }
+      const user = requestUser(req, options);
 
       // Parse requested tags
       const requestedTagsRaw = req.query['tags']
@@ -336,34 +378,14 @@ class DocumentService {
         queryPayload = {
           $or: orConditions,
         };
-
-        // Add cid filter outside $or block if present
-        if (req.query.cid) {
-          queryPayload._id = {
-            $in: req.query.cid.split(',').filter((cid) => isValidObjectId(cid)),
-          };
-        }
       } else {
         // Unauthenticated user: only public documents from publishers
         // If 'public' tag requested, it's redundant but handled by isPublic: true
-        // When cid is provided, we relax the publisher filter and check in post-processing
-        const cidList = req.query.cid ? req.query.cid.split(',').filter((cid) => isValidObjectId(cid)) : null;
-
-        if (cidList && cidList.length > 0) {
-          // For cid queries, just filter by public and tags, check publisher in post-processing
-          queryPayload = {
-            _id: { $in: cidList },
-            isPublic: true,
-            ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
-          };
-        } else {
-          // For non-cid queries, filter by publisher at query level
-          queryPayload = {
-            userId: { $in: publisherUsers.map((p) => p._id) },
-            isPublic: true,
-            ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
-          };
-        }
+        queryPayload = {
+          userId: { $in: publisherUsers.map((p) => p._id) },
+          isPublic: true,
+          ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
+        };
       }
 
       // sort in descending (-1) order by length
@@ -391,23 +413,7 @@ class DocumentService {
       const lastId = lastDoc ? lastDoc._id : null;
 
       return {
-        data: data.map((doc) => {
-          const docObj = doc.toObject ? doc.toObject() : doc;
-          let userInfo = docObj.userId;
-          const isPublisher = userInfo && (userInfo.role === 'admin' || userInfo.role === 'moderator');
-          const isOwnDoc = user && user._id.toString() === docObj.userId._id.toString();
-          if ((!docObj.isPublic || !isPublisher) && !isOwnDoc) userInfo = undefined;
-          return {
-            ...docObj,
-            userId: {
-              ...userInfo,
-              role: undefined,
-              email: undefined,
-            },
-            tags: DocumentDto.filterPublicTag(docObj.tags),
-            totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
-          };
-        }),
+        data: data.map((doc) => DocumentDto.toPublic(doc, user)),
         lastId,
       };
     }

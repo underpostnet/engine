@@ -10,9 +10,10 @@ class DocumentRouter {
   static router(options) {
     const router = express.Router();
     const authOnly = [options.authMiddleware];
-    // Public listings — must come before the guarded generic /:id routes.
+    // Public reads — must come before the guarded generic /:id routes.
     router.get(`/public/high`, async (req, res) => await DocumentController.get(req, res, options));
     router.get(`/public`, async (req, res) => await DocumentController.get(req, res, options));
+    router.get(`/slug/:stableSlug`, async (req, res) => await DocumentController.getBySlug(req, res, options));
     router.patch(`/:id/copy-share-link`, async (req, res) => await DocumentController.patch(req, res, options));
     router.patch(
       `/:id/toggle-public`,

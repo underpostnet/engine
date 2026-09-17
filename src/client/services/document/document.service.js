@@ -48,6 +48,12 @@ class DocumentService {
           return reject(error);
         });
     });
+  /**
+   * One document by its public URL identity, optionally only if it belongs to a panel.
+   * @param {{ stableSlug: string, idPanel?: string }} options
+   */
+  static getBySlug = ({ stableSlug, idPanel }) =>
+    DocumentService.get({ id: `slug/${encodeURIComponent(stableSlug)}`, ...(idPanel ? { params: { idPanel } } : {}) });
   static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
