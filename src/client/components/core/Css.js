@@ -5,6 +5,7 @@ import { Modal } from './Modal.js';
 import { Translate } from './Translate.js';
 import { append, htmls, s, sa } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
+import { windowGetW } from './windowGetDimensions.js';
 let ThemesScope = [];
 // https://css.github.io/csso/csso.html
 // https://www.fontspace.com/
@@ -290,8 +291,64 @@ const renderStatus = (status, options) => {
   }
 };
 const dynamicColTokens = {};
+// The column widths a layout type takes at a given container width.
+const dynamicColRules = ({ id, type, width, limitCol }) => {
+  switch (type) {
+    case 'a-50-b-50':
+      return width < limitCol
+        ? css`
+            .${id}-col-a, .${id}-col-b {
+              width: 100%;
+            }
+          `
+        : css`
+            .${id}-col-a {
+              width: 50%;
+            }
+            .${id}-col-b {
+              width: 50%;
+            }
+          `;
+    case 'search-inputs':
+      return width < limitCol
+        ? css`
+            .${id}-col-a, .${id}-col-b, .${id}-col-c, .${id}-col-d {
+              width: 100%;
+            }
+          `
+        : css`
+            .${id}-col-a {
+              width: 30%;
+            }
+            .${id}-col-b {
+              width: 30%;
+            }
+            .${id}-col-c {
+              width: 30%;
+            }
+            .${id}-col-d {
+              width: 10%;
+            }
+          `;
+    default:
+      return width < 900
+        ? css`
+            .${id}-col-a, .${id}-col-b {
+              width: 100%;
+            }
+          `
+        : css`
+            .${id}-col-a {
+              width: 30%;
+            }
+            .${id}-col-b {
+              width: 70%;
+            }
+          `;
+  }
+};
 const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 900 }) => {
-  const { containerSelector, id } = options;
+  const { containerSelector, id, type } = options;
   const limitCol = options?.limit ? options.limit : 900;
   if (!(id in dynamicColTokens)) dynamicColTokens[id] = {};
   dynamicColTokens[id].options = options;
@@ -299,83 +356,10 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
   setTimeout(() => {
     dynamicColTokens[id].observer = new ResizeObserver(() => {
       if (s(`.${containerSelector}`)) {
-        switch (options.type) {
-          case 'a-50-b-50':
-            if (s(`.${containerSelector}`).offsetWidth < limitCol)
-              htmls(
-                `.style-${id}-col`,
-                css`
-                  .${id}-col-a, .${id}-col-b {
-                    width: 100%;
-                  }
-                `,
-              );
-            else
-              htmls(
-                `.style-${id}-col`,
-                css`
-                  .${id}-col-a {
-                    width: 50%;
-                  }
-                  .${id}-col-b {
-                    width: 50%;
-                  }
-                `,
-              );
-            break;
-          case 'search-inputs':
-            if (s(`.${containerSelector}`).offsetWidth < limitCol)
-              htmls(
-                `.style-${id}-col`,
-                css`
-                  .${id}-col-a, .${id}-col-b, .${id}-col-c, .${id}-col-d {
-                    width: 100%;
-                  }
-                `,
-              );
-            else
-              htmls(
-                `.style-${id}-col`,
-                css`
-                  .${id}-col-a {
-                    width: 30%;
-                  }
-                  .${id}-col-b {
-                    width: 30%;
-                  }
-                  .${id}-col-c {
-                    width: 30%;
-                  }
-                  .${id}-col-d {
-                    width: 10%;
-                  }
-                `,
-              );
-            break;
-          default:
-            if (s(`.${containerSelector}`).offsetWidth < 900)
-              htmls(
-                `.style-${id}-col`,
-                css`
-                  .${id}-col-a, .${id}-col-b {
-                    width: 100%;
-                  }
-                `,
-              );
-            else
-              htmls(
-                `.style-${id}-col`,
-                css`
-                  .${id}-col-a {
-                    width: 30%;
-                  }
-                  .${id}-col-b {
-                    width: 70%;
-                  }
-                `,
-              );
-            break;
-        }
+        htmls(
+          `.style-${id}-col`,
+          dynamicColRules({ id, type, width: s(`.${containerSelector}`).offsetWidth, limitCol }),
+        );
       } else {
         dynamicColTokens[id].observer.disconnect();
         delete dynamicColTokens[id];
@@ -384,7 +368,13 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
     });
     dynamicColTokens[id].observer.observe(s(`.${containerSelector}`));
   });
-  return html` <style class="style-${id}-col"></style>`;
+  // First paint already carries a column rule — measured from the container being re-rendered, or
+  // from the viewport — so the observer only corrects, instead of every render stacking the
+  // columns and then snapping them side by side.
+  const initialWidth = s(`.${containerSelector}`)?.offsetWidth || windowGetW();
+  return html` <style class="style-${id}-col">
+    ${dynamicColRules({ id, type, width: initialWidth, limitCol })}
+  </style>`;
 };
 const renderBubbleDialog = async function (
   options = {
