@@ -30,14 +30,14 @@ const SW_URL = () => `${getProxyPath()}sw.js`;
  * @memberof PwaWorker
  */
 class PwaWorker {
-  /** App title sourced from <title>. @type {string} */
+  /** The site name page titles end with: `renderPayload.siteName`, else the shell's <title>. @type {string} */
   title = '';
 
   /** Router instance reference, set during bootstrap. @type {object | null} */
   RouterInstance = null;
 
   constructor() {
-    this.title = `${s('title').textContent}`;
+    this.title = `${window.renderPayload?.siteName ?? s('title').textContent}`;
     if (!window.renderPayload?.dev) {
       console.log = () => null;
       console.error = () => null;

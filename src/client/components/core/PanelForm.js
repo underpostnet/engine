@@ -1,4 +1,4 @@
-import { getCapVariableName, newInstance, PublicRoutes, range, timer, uniqueArray } from './CommonJs.js';
+import { capFirst, getCapVariableName, newInstance, PublicRoutes, range, timer, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
 import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { Panel } from './Panel.js';
@@ -19,6 +19,7 @@ import {
   navigatePublicRoute,
   presentPublicRoute,
   publicRoutePath,
+  setDocTitle,
 } from './Router.js';
 import { Scroll } from './Scroll.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
@@ -523,11 +524,13 @@ class PanelForm {
                   : message,
               status: status,
             });
-            // The panel now shows only the saved documents: a single one is an entry with its own URL,
-            // anything else re-renders the listing on the next update.
+            // The panel now shows only the saved documents: a single one is an entry with its own URL
+            // — the slug the server derived from its (possibly new) title — and title; anything else
+            // re-renders the listing on the next update.
             if (status === 'success') {
               if (options.entryHost && documents.length === 1) {
                 presentPublicRoute('entry', documents[0].stableSlug, { idModal: options.parentIdModal });
+                setDocTitle(PublicRoutes.entry.namespace, capFirst(`${documents[0].title}`.trim()));
                 renderedEntrySlug = documents[0].stableSlug;
               } else renderedEntrySlug = null;
             }
@@ -558,6 +561,9 @@ class PanelForm {
           // An unknown or unreadable entry renders the panel's empty state rather than an error.
           result = await DocumentService.getBySlug({ stableSlug: entrySlug, idPanel });
           documents = result.status === 'success' ? [result.data] : [];
+          // The entry titles its path, as the server titled the shell it served for it.
+          if (documents[0]?.title && getPublicRouteParam('entry') === entrySlug)
+            setDocTitle(PublicRoutes.entry.namespace, capFirst(documents[0].title.trim()));
           lastId = null;
           result = { status: 'success' };
         } else {

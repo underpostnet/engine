@@ -725,6 +725,10 @@ const buildClient = async (
         repository: repositoryIdentityFactory(),
         // The reports the docs menu offers, each published at /docs/coverage/<id>.
         coverage: coverageReportsFactory(docs).map(({ id, label }) => ({ id, label })),
+        // The name page titles end with (`<view> | <site>`), the same one the server ends an
+        // entry's rendered title with; the shell's own <title> no longer says it, as a served
+        // entry's title is the entry's.
+        ...(metadata?.siteName || metadata?.title ? { siteName: metadata.siteName || metadata.title } : undefined),
         ...(isDevelopment ? { dev: true } : undefined),
       };
 

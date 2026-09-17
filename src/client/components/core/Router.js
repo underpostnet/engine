@@ -17,7 +17,7 @@
 
 import { titleFormatted, PublicRoutes, parsePublicRoute, publicRoutePathFactory } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { htmls, s } from './VanillaJs.js';
+import { s } from './VanillaJs.js';
 import { Modal, subMenuHandler } from './Modal.js';
 import { Worker } from './Worker.js';
 
@@ -213,16 +213,44 @@ const sanitizeRoute = (route) =>
         .replaceAll(getProxyPath().replaceAll('/', ''), '');
 
 /**
+ * The titles views declared for the paths they present (the entry a panel loaded), keyed by path:
+ * a public route is titled for its resource on first render and whenever its view returns to the
+ * front, the way the server titled the shell it served for that path.
+ */
+const viewTitles = {};
+let servedTitleKept = false;
+
+/**
+ * The shell served for a public route arrives titled for its resource (`<title> | <site>`): the
+ * first title change keeps that title for its path, so the first render shows it rather than the
+ * route's label. A shell built for a static view is titled with the site name alone.
+ */
+const keepServedTitle = () => {
+  servedTitleKept = true;
+  const servedTitle = s('title')?.textContent ?? '';
+  const siteSuffix = ` | ${Worker.title}`;
+  if (servedTitle.length > siteSuffix.length && servedTitle.endsWith(siteSuffix))
+    viewTitles[window.location.pathname] = servedTitle.slice(0, -siteSuffix.length);
+};
+
+/**
  * Sets the document title and updates the active state of the main menu button corresponding to the route.
- * The title is formatted and appended with the main application title from `Worker.title` if it's not already present.
+ * The title is the one declared for the current path, else the formatted route, and ends with the
+ * site name (`Worker.title`): always for a declared title, so it reads as the server renders it,
+ * and for a route label unless the label already names the site.
  * @param {string} route - The current route string.
+ * @param {string} [title] - The title of the resource the current path presents, kept for the path.
  * @memberof PwaRouter
  */
-const setDocTitle = (route) => {
+const setDocTitle = (route, title) => {
   let _route = sanitizeRoute(route);
   // logger.warn('setDocTitle', _route);
-  const title = titleFormatted(_route);
-  htmls('title', html`${title}${title.match(Worker.title.toLowerCase()) ? '' : ` | ${Worker.title}`}`);
+  if (!servedTitleKept) keepServedTitle();
+  if (title) viewTitles[window.location.pathname] = title;
+  const viewTitle = viewTitles[window.location.pathname];
+  const label = viewTitle ?? titleFormatted(_route);
+  const suffixed = viewTitle !== undefined || !label.match(Worker.title.toLowerCase());
+  document.title = `${label}${suffixed ? ` | ${Worker.title}` : ''}`;
 
   const btnSelector = _route === 'u' ? 'public-profile' : _route;
   if (s(`.main-btn-${btnSelector}`)) {
