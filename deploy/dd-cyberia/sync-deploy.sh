@@ -134,6 +134,10 @@ main() {
     if [ "$BUNDLE_MODE" = "1" ]; then
         start_flags="$start_flags --pull-bundle"
     fi
+    # `db --migrate-stable-slugs` gives every document on each host serving the document api
+    # its `/entry` and `/content` URL slug — a panel title without one is a dead link. It runs
+    # after the imports so a re-imported database is covered too, and is idempotent: a document
+    # that has a slug keeps it, so on a deploy with nothing to backfill it only checks.
     pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
         underpost clone ${POD_SRC_PRIVATE_REPO}, \
         sudo rm -rf ./engine-private, \
@@ -144,6 +148,7 @@ main() {
         node bin/cyberia instance amethyst-strata-expansion --import --env-path .env, \
         node bin/cyberia instance FOREST --import --env-path .env, \
         node bin/cyberia instance TEST --import --env-path .env, \
+        underpost db $DEPLOY_ID --migrate-stable-slugs, \
         underpost start $DEPLOY_ID $DEPLOY_ENV $start_flags"
 
     deploy_step "Sync $DEPLOY_ID cluster" \
