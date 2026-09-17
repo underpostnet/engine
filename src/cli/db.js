@@ -579,6 +579,7 @@ class UnderpostDB {
      * @param {boolean} [options.forceClone=false] - Whether to force re-clone Git repository.
      * @param {boolean} [options.cleanFsCollection=false] - Clean orphaned File documents flag.
      * @param {boolean} [options.cleanFsDryRun=false] - Dry run mode flag (use with cleanFsCollection).
+     * @param {boolean} [options.migrateStableSlugs=false] - Assign every Document its public `stableSlug`.
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.k3s=false] - k3s cluster flag.
      * @param {boolean} [options.kubeadm=false] - kubeadm cluster flag.
@@ -607,6 +608,7 @@ class UnderpostDB {
         forceClone: false,
         cleanFsCollection: false,
         cleanFsDryRun: false,
+        migrateStableSlugs: false,
         dev: false,
         k3s: false,
         kubeadm: false,
@@ -637,6 +639,15 @@ class UnderpostDB {
               env: options.dev ? 'development' : 'production',
             });
           }
+          return;
+        }
+
+        if (options.migrateStableSlugs) {
+          await Underpost.db.migrateStableSlugs(deployList, {
+            hosts: options.hosts,
+            paths: options.paths,
+            dev: options.dev,
+          });
           return;
         }
 
@@ -1482,6 +1493,62 @@ class UnderpostDB {
       } catch (error) {
         logger.error('File collection cleanup failed', { error: error.message });
         throw error;
+      }
+    },
+
+    /**
+     * Gives every Document a unique `stableSlug` — its `/entry` and `/content` URL identity — on
+     * each deployment that serves the document api. One-shot and idempotent: a document that has
+     * a slug keeps it, so the command can be re-run after an interruption or on a replica that
+     * already ran it. Runs outside the application so a large collection never gates startup.
+     * @method migrateStableSlugs
+     * @memberof UnderpostDB
+     * @param {string} [deployList='dd'] - Comma-separated list of deployment IDs.
+     * @param {Object} [options={}] - Migration options.
+     * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter.
+     * @param {string} [options.paths=''] - Comma-separated list of paths to filter.
+     * @param {boolean} [options.dev=false] - Read the development environment files.
+     * @return {Promise<void>} Resolves when every selected deployment has been migrated.
+     */
+    async migrateStableSlugs(deployList = 'dd', options = { hosts: '', paths: '', dev: false }) {
+      if (options.dev) process.env.NODE_ENV = 'development';
+      loadCronDeployEnv();
+      if (deployList === 'dd') deployList = readDeployRoutes().join(',');
+      const filterHosts = options.hosts ? options.hosts.split(',').map((h) => h.trim()) : [];
+      const filterPaths = options.paths ? options.paths.split(',').map((p) => p.trim()) : [];
+      const connectionsToClose = [];
+      try {
+        for (const _deployId of deployList.split(',')) {
+          const deployId = _deployId.trim();
+          if (!deployId) continue;
+          const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+          if (!fs.existsSync(confServerPath)) {
+            logger.error('Configuration file not found', { path: confServerPath });
+            continue;
+          }
+          const confServer = loadConfServerJson(confServerPath, { resolve: true });
+          for (const host of Object.keys(confServer)) {
+            if (filterHosts.length > 0 && !filterHosts.includes(host)) continue;
+            for (const path of Object.keys(confServer[host])) {
+              if (filterPaths.length > 0 && !filterPaths.includes(path)) continue;
+              const { db, apis } = confServer[host][path];
+              if (!db || !apis || !apis.includes('document')) continue;
+              const dbProvider = await DataBaseProviderService.load({ apis, host, path, db });
+              connectionsToClose.push({ host, path, dbProvider });
+              const result = await dbProvider.models.Document.ensureStableSlugs();
+              logger.info('Document stable slugs migrated', { deployId, host, path, ...result });
+              if (result.remaining) logger.error('Documents still missing a stable slug', { host, path, ...result });
+            }
+          }
+        }
+      } finally {
+        for (const { host, path, dbProvider } of connectionsToClose) {
+          try {
+            await dbProvider.close();
+          } catch (error) {
+            logger.error('Error closing connection', { host, path, error: error.message });
+          }
+        }
       }
     },
 

@@ -565,6 +565,10 @@ program
     '--clean-fs-dry-run',
     'Dry run mode - shows what would be deleted without actually deleting (use with --clean-fs-collection).',
   )
+  .option(
+    '--migrate-stable-slugs',
+    'Assigns every Document its public URL slug (stableSlug) and builds the unique index; idempotent, one-shot.',
+  )
   .option('--dev', 'Sets the development cli context')
   .option('--kubeadm', 'Enables the kubeadm context for database operations.')
   .option('--kind', 'Enables the kind context for database operations.')
