@@ -121,12 +121,24 @@ class LoadingAnimation {
       htmls('.ssr-loading-bar', html`<div class="ssr-loading-bar-block ssr-blink-bar"></div>`);
     },
   };
+  // One-shot callbacks keyed by owner, run when the splash lifts: what rendered under it and wants
+  // to animate in (see PanelForm) starts then rather than unseen.
+  static onRemoveSplashScreen = {};
+  static splashScreenVisible(backgroundContainer = '.ssr-background') {
+    return !!s(backgroundContainer) && s(backgroundContainer).style.display !== 'none';
+  }
   static removeSplashScreen(backgroundContainer, callBack) {
     if (s(`.clean-cache-container`)) s(`.clean-cache-container`).style.display = 'none';
     if (!backgroundContainer) backgroundContainer = '.ssr-background';
     if (s(backgroundContainer)) {
       s(backgroundContainer).style.display = 'none';
       if (callBack) callBack();
+    }
+    if (s(`.main-body-btn-container`)) s(`.main-body-btn-container`).classList.remove('hide');
+    for (const key of Object.keys(LoadingAnimation.onRemoveSplashScreen)) {
+      const event = LoadingAnimation.onRemoveSplashScreen[key];
+      delete LoadingAnimation.onRemoveSplashScreen[key];
+      event();
     }
   }
   static RenderCurrentSrcLoad(event) {

@@ -5,7 +5,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
 import { getId } from './CommonJs.js';
-import { setPath, getProxyPath, getQueryParams, extractUsernameFromPath, RouterEvents } from './Router.js';
+import { getProxyPath, getPublicRouteParam, getViewPath, presentPublicRoute } from './Router.js';
 
 class PublicProfile {
   static Data = {};
@@ -36,7 +36,7 @@ class PublicProfile {
       this._cleanupProfileData({ idModal });
 
       // Re-render the profile content with new user
-      const newContent = await this.instance({ ...options, disableUpdate: true });
+      const newContent = await this.instance(options);
 
       // Update modal content using Modal.writeHTML with smooth transition
       Modal.writeHTML({ idModal, html: newContent });
@@ -188,7 +188,8 @@ class PublicProfile {
   }
 
   /**
-   * @param {{ idModal?: string, user: { _id?: string, username?: string } }} options
+   * @param {{ idModal?: string, user: { _id?: string, username?: string } }} options - `user.username`
+   *   is the canonical identity, taken by the caller from `/u/:username` or the signed-in user.
    */
   static async instance(
     options = {
@@ -196,7 +197,7 @@ class PublicProfile {
       user: {},
     },
   ) {
-    let {
+    const {
       user: { _id: userId, username },
     } = options;
     const idModal = options.idModal || getId();
@@ -205,20 +206,6 @@ class PublicProfile {
     const profileImageClass = `${profileId}-image`;
     const profileContainerId = `${profileId}-container`;
     const cardId = `${profileId}-card`;
-
-    if (!options.disableUpdate) {
-      const queryParams = getQueryParams();
-      const usernameFromPath = extractUsernameFromPath();
-      const cid = usernameFromPath || queryParams.cid || username;
-      const existingModal = s(`.${idModal}`);
-      if (existingModal && Modal.Data[idModal]) {
-        await PublicProfile.Update({
-          idModal,
-          user: { username: cid },
-        });
-        return;
-      } else username = cid;
-    }
 
     // Initialize data structure (Modal.Data pattern)
     if (!PublicProfile.Data[profileId]) {
@@ -481,7 +468,7 @@ class PublicProfile {
     // Fetch public user data
     let userData = null;
     try {
-      const result = await UserService.get({ id: `u/${username}` });
+      const result = await UserService.get({ id: `username/${encodeURIComponent(username)}` });
       setTimeout(() => {
         Modal.Data[idModal].onObserverListener['profile-card-observer'] = () => {
           const modalHeight = s(`.${idModal}`).offsetHeight;
@@ -499,11 +486,12 @@ class PublicProfile {
         // Track the currently displayed username for back/forward navigation
         PublicProfile.currentUsername = userData.username || username;
 
-        // Update browser history to show clean URL after successful data fetch
-        if (userData.username) {
-          const cleanPath = `${getProxyPath()}u/${username}`;
-          setPath(cleanPath, { replace: true });
-        }
+        // Canonicalize the URL (`/u` → `/u/<username>`) while it is still this view's or a profile's.
+        if (
+          userData.username &&
+          (getPublicRouteParam('profile') !== null || location.pathname === getViewPath(idModal))
+        )
+          presentPublicRoute('profile', userData.username, { idModal, replace: true });
       } else {
         if (result.message && result.message.toLowerCase().match('private'))
           return renderErrorState(
@@ -854,41 +842,6 @@ class PublicProfile {
         </div>
       </div>
     `;
-  }
-
-  /**
-   * @param {{ idModal?: string }} options
-   */
-  static async Router(options = { idModal: '' }) {
-    const idModal = options.idModal || 'modal-public-profile';
-    // Register RouterEvents listener for back/forward navigation between profiles
-    // This ensures the profile updates when the user navigates through browser history
-    // Note: route id is 'u', modal id is 'modal-public-profile', button class is 'main-btn-public-profile'
-    RouterEvents[`${idModal}-navigation`] = async ({ route }) => {
-      if (route === 'u') {
-        const usernameFromPath = extractUsernameFromPath();
-        const queryParams = getQueryParams();
-        const cid = usernameFromPath || queryParams.cid;
-
-        if (!cid) return;
-
-        // Check if modal exists (could be behind another view modal like settings)
-        if (s(`.${idModal}`) && Modal.Data[idModal]) {
-          // Modal exists - bring to front and update if username changed
-          const currentUsername = PublicProfile.currentUsername;
-          if (currentUsername !== cid)
-            await PublicProfile.Update({
-              idModal,
-              user: { username: cid },
-            });
-        } else {
-          // Modal doesn't exist - open it
-          if (s('.main-btn-public-profile')) {
-            s('.main-btn-public-profile').click();
-          }
-        }
-      }
-    };
   }
 }
 

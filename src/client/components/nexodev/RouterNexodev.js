@@ -14,6 +14,7 @@ class RouterNexodev {
         render: () => Modal.onHomeRouterEvent(),
       },
       '/blog': { title: 'blog', render: () => s(`.main-btn-blog`).click() },
+      '/entry': { title: 'entry', render: () => s(`.main-btn-blog`).click() },
       '/dashboard': { title: 'dashboard', render: () => s(`.main-btn-dashboard`).click() },
       '/content': { title: 'content', render: () => s(`.main-btn-content`).click() },
       '/cloud': { title: 'cloud', render: () => s(`.main-btn-cloud`).click() },

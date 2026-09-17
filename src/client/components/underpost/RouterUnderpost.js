@@ -4,7 +4,7 @@ import { s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const BannerAppTemplate = html`underpost.net`;
+const BannerAppTemplate = html`underpost`;
 
 class RouterUnderpost {
   static routes() {
@@ -29,6 +29,8 @@ class RouterUnderpost {
         render: () => s(`.main-btn-account`).click(),
       },
       '/u': { title: 'public-profile', render: () => s(`.main-btn-public-profile`).click() },
+      // The home panel hosts entries: show it without leaving `/entry/:stableSlug`.
+      '/entry': { title: 'entry', render: () => Modal.onHomeRouterEvent({ keepPath: true }) },
       '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
       '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
       '/content': { title: 'content', render: () => s(`.main-btn-content`).click() },

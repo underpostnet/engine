@@ -949,6 +949,71 @@ const commonModeratorGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnu
 const commonUserGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('user');
 const commonGuestGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('guest');
 
+const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const USERNAME_MIN_LENGTH = 2;
+const USERNAME_MAX_LENGTH = 20;
+
+const STABLE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const STABLE_SLUG_MAX_LENGTH = 80;
+
+const isValidUsername = (value) =>
+  typeof value === 'string' &&
+  value.length >= USERNAME_MIN_LENGTH &&
+  value.length <= USERNAME_MAX_LENGTH &&
+  USERNAME_PATTERN.test(value);
+
+const isValidStableSlug = (value) =>
+  typeof value === 'string' && value.length <= STABLE_SLUG_MAX_LENGTH && STABLE_SLUG_PATTERN.test(value);
+
+/**
+ * Canonical public routes: the only URLs that carry a resource's identity, always as a path segment.
+ * Shared by the client router and the server's PWA fallback. `entry` and `content` are two views of
+ * one Document, resolved by its single persisted `stableSlug`.
+ * @memberof CommonJS
+ */
+const PublicRoutes = {
+  profile: { namespace: 'u', param: 'username', isValid: isValidUsername },
+  entry: { namespace: 'entry', param: 'stableSlug', isValid: isValidStableSlug },
+  content: { namespace: 'content', param: 'stableSlug', isValid: isValidStableSlug },
+};
+
+/**
+ * @param {string} pathname
+ * @param {string} [proxyPath='/'] - The app's sub-path, with leading and trailing slash.
+ * @returns {{ name: string, namespace: string, params: Object<string, string> } | null} `null` unless
+ *   the path is exactly `<proxyPath><namespace>/<valid param>`.
+ * @memberof CommonJS
+ */
+const parsePublicRoute = (pathname, proxyPath = '/') => {
+  if (typeof pathname !== 'string' || !pathname.startsWith(proxyPath)) return null;
+  const segments = pathname.slice(proxyPath.length).split('/').filter(Boolean);
+  if (segments.length !== 2) return null;
+  const [namespace, encodedParam] = segments;
+  const name = Object.keys(PublicRoutes).find((key) => PublicRoutes[key].namespace === namespace);
+  if (!name) return null;
+  let value;
+  try {
+    value = decodeURIComponent(encodedParam);
+  } catch (error) {
+    return null;
+  }
+  if (!PublicRoutes[name].isValid(value)) return null;
+  return { name, namespace, params: { [PublicRoutes[name].param]: value } };
+};
+
+/**
+ * @param {string} name - A `PublicRoutes` key.
+ * @param {string} value - The route parameter.
+ * @param {string} [proxyPath='/']
+ * @returns {string | null} The canonical path, `null` for an unknown route or invalid parameter.
+ * @memberof CommonJS
+ */
+const publicRoutePathFactory = (name, value, proxyPath = '/') => {
+  const route = PublicRoutes[name];
+  if (!route || !route.isValid(value)) return null;
+  return `${proxyPath}${route.namespace}/${encodeURIComponent(value)}`;
+};
+
 export {
   s4,
   range,
@@ -1011,4 +1076,14 @@ export {
   userRoleEnum,
   commitData,
   emotionsData,
+  USERNAME_PATTERN,
+  USERNAME_MIN_LENGTH,
+  USERNAME_MAX_LENGTH,
+  STABLE_SLUG_PATTERN,
+  STABLE_SLUG_MAX_LENGTH,
+  isValidUsername,
+  isValidStableSlug,
+  PublicRoutes,
+  parsePublicRoute,
+  publicRoutePathFactory,
 };

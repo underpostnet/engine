@@ -8,8 +8,8 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { htmls, s } from '../core/VanillaJs.js';
-import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
+import { append, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
 import { AppStoreUnderpost } from './AppStoreUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RouterUnderpost.js';
@@ -72,7 +72,7 @@ class AppShellUnderpost {
                 tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
               })}
           ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+            class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
@@ -239,6 +239,7 @@ class AppShellUnderpost {
           defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
           appStore: AppStoreUnderpost,
           route: 'home',
+          entryHost: true,
           share: {
             copyLink: true,
             copySourceMd: true,
@@ -254,14 +255,6 @@ class AppShellUnderpost {
             return DocumentSearchProvider.search(query, {
               ...context,
               idPanel: 'underpost-panel', // Filter documents by panel tag
-            });
-          },
-          onClick: (result, context) => {
-            DocumentSearchProvider.onClick(result, {
-              ...context,
-              RouterInstance,
-              currentRoute: 'home',
-              updatePanel: PanelForm.Data['underpost-panel'].updatePanel,
             });
           },
         });
@@ -307,16 +300,6 @@ class AppShellUnderpost {
         return panelFormInstance;
       },
     });
-    for (const eventFn of ['onCollapseMenuListener', 'onExtendMenuListener', 'onExpandUiListener', 'onCloseListener']) {
-      Modal.Data['modal-menu'][eventFn]['underpost-panel-form-padding'] = (arg) => {
-        if (s(`.underpost-panel-form-container`))
-          s(`.underpost-panel-form-container`).style.paddingLeft =
-            !s('.main-body-btn-ui-open').classList.contains('hide') &&
-            s(`.btn-bar-center-icon-close`).classList.contains('hide')
-              ? '50px'
-              : '0px';
-      };
-    }
 
     ThemeEvents['underpost-main-theme-event'] = () => {
       const srcLogo = darkTheme
@@ -326,29 +309,52 @@ class AppShellUnderpost {
       if (s('.action-btn-app-icon-render'))
         htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
 
-      if (s(`.style-ssr-background-image`)) {
+      if (s(`.style-ssr-background`)) {
         if (darkTheme) {
           htmls(
-            `.style-ssr-background-image`,
+            `.style-ssr-background`,
             css`
-              .ssr-background-image {
-                background: #191919;
+              body {
+                background: #191919 !important;
               }
             `,
           );
         } else {
           htmls(
-            `.style-ssr-background-image`,
+            `.style-ssr-background`,
             css`
-              .ssr-background-image {
-                background: #e8e8e8;
+              body {
+                background: #e8e8e8 !important;
               }
             `,
           );
         }
       }
     };
-    setTimeout(ThemeEvents['underpost-main-theme-event']);
+    setTimeout(() => {
+      ThemeEvents['underpost-main-theme-event']();
+      setTimeout(() => {
+        s(`.action-btn-home`).classList.add('hide');
+      });
+      const customReloadBtnId = 'underpost-reload';
+      append(
+        '.main-body-btn-container',
+        html`
+          <div class="abs main-body-btn main-body-btn-${customReloadBtnId}" style="bottom: -50px; left: 0px">
+            <div class="abs center"><i class="fas fa-sync-alt"></i></div>
+          </div>
+        `,
+      );
+      EventsUI.onClick(`.main-body-btn-${customReloadBtnId}`, async () => {
+        s('.main-btn-home').click();
+        setTimeout(() => {
+          const mainBody = s(`.main-body`);
+          if (mainBody && mainBody.scrollTop > 0) {
+            mainBody.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 50);
+      });
+    });
 
     AppShellUnderpost.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
@@ -518,31 +524,15 @@ class AppShellUnderpost {
       });
     });
 
-    PublicProfile.Router();
-
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = 'modal-public-profile';
-      const loggedInUser = AppStoreUnderpost.Data.user.main.model.user;
+      // `/u/:username`, or the signed-in user's own profile on a bare `/u`
+      const username = getPublicRouteParam('profile') || AppStoreUnderpost.Data.user.main.model.user.username;
 
-      // Determine the target username: prefer URL path/query over logged-in user
-      const usernameFromPath = extractUsernameFromPath();
-      const queryParams = getQueryParams();
-      const targetUsername = usernameFromPath || queryParams.cid || loggedInUser.username || null;
-
-      // Create user object with the target username for rendering
-      const targetUser = targetUsername ? { username: targetUsername } : loggedInUser;
-
-      // Check if modal already exists
-      const existingModal = s(`.${idModal}`);
-      if (existingModal) {
-        if (targetUsername) {
-          await PublicProfile.Update({
-            idModal: 'modal-public-profile',
-            user: { username: targetUsername },
-          });
-          return;
-        }
+      if (s(`.${idModal}`) && username && username !== PublicProfile.currentUsername) {
+        await PublicProfile.Update({ idModal, user: { username } });
+        return;
       }
 
       await Modal.instance({
@@ -557,7 +547,7 @@ class AppShellUnderpost {
         html: async () =>
           await PublicProfile.instance({
             idModal,
-            user: targetUser,
+            user: { username },
           }),
         handleType: 'bar',
         maximize: true,
@@ -588,17 +578,12 @@ class AppShellUnderpost {
     });
 
     EventsUI.onClick(`.main-btn-content`, async () => {
-      let subModalId = '';
-      const path =
-        location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
-
-      if (path.split('/').pop() === 'content' && getQueryParams().cid) {
-        subModalId = `-${getQueryParams().cid}`;
-      }
+      const stableSlug = getPublicRouteParam('content');
+      const idModal = `modal-content${stableSlug ? `-${stableSlug}` : ''}`;
 
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.instance({
-        id: `modal-content${subModalId}`,
+        id: idModal,
         route: 'content',
         barConfig,
         title: renderViewTitle({
@@ -607,13 +592,13 @@ class AppShellUnderpost {
         }),
         html: async () =>
           await Content.instance({
-            idModal: `modal-content${subModalId}`,
+            idModal,
+            stableSlug,
             titleIcon: html`<img
               class="inl underpost-menu-icon-modal"
               src="${getProxyPath()}assets/ui-icons/doc.png"
             />`,
           }),
-        query: true,
         observer: true,
         handleType: 'bar',
         maximize: true,

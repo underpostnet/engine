@@ -8,7 +8,7 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { CoreService, getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
-import { getQueryParams, setPath } from './Router.js';
+import { navigate } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -50,14 +50,18 @@ const attachMarkdownLinkHandlers = (containerSelector) => {
         window.open(href, '_blank', 'noopener,noreferrer');
       }
     } else {
-      setPath(href);
+      navigate(href);
     }
   });
 };
 
 class Content {
-  static async instance(options = { idModal: '', titleIcon: '' }) {
-    const { idModal } = options;
+  /**
+   * @param {{ idModal: string, titleIcon?: string, stableSlug?: string }} options - The slug comes from
+   *   the `/content/:stableSlug` route; without one the view shows its not-found state.
+   */
+  static async instance(options = { idModal: '', titleIcon: '', stableSlug: '' }) {
+    const { idModal, stableSlug } = options;
     setTimeout(async () => {
       try {
         Modal.Data[idModal].onObserverListener[`main-content-observer`] = () => {
@@ -69,19 +73,17 @@ class Content {
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
         s(`.error-${idModal}`).classList.add('hide');
         s(`.ssr-shimmer-content-${idModal}`).classList.remove('hide');
-        const queryParams = getQueryParams();
         let documentObj, file, md;
 
-        if (!queryParams.cid) throw new Error(`no-result-found`);
+        if (!stableSlug) throw new Error(`no-result-found`);
 
         {
-          const { data: responseData, status, message } = await DocumentService.get({ id: queryParams.cid });
-          const data = Array.isArray(responseData) ? responseData : responseData?.data || [];
-          if (status !== 'success' || !data || !data[0]) {
+          const { data, status, message } = await DocumentService.getBySlug({ stableSlug });
+          if (status !== 'success' || !data) {
             logger.error(message);
             throw new Error(`no-result-found`);
           }
-          documentObj = data[0];
+          documentObj = data;
         }
 
         // Get file metadata (does not include buffer data)

@@ -9,7 +9,7 @@ import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } 
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
+import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
 import { AppStoreDefault } from './AppStoreDefault.js';
 import Sortable from 'sortablejs';
 import { RouterDefault, BannerAppTemplate } from './RouterDefault.js';
@@ -562,21 +562,12 @@ class AppShellDefault {
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = 'modal-public-profile';
-      const user = AppStoreDefault.Data.user.main.model.user;
+      // `/u/:username`, or the signed-in user's own profile on a bare `/u`
+      const username = getPublicRouteParam('profile') || AppStoreDefault.Data.user.main.model.user.username;
 
-      // Check if modal already exists
-      const existingModal = s(`.${idModal}`);
-      if (existingModal) {
-        const usernameFromPath = extractUsernameFromPath();
-        const queryParams = getQueryParams();
-        const cid = usernameFromPath || queryParams.cid || user.username || null;
-        if (cid) {
-          await PublicProfile.Update({
-            idModal: 'modal-public-profile',
-            user: { username: cid },
-          });
-          return;
-        }
+      if (s(`.${idModal}`) && username && username !== PublicProfile.currentUsername) {
+        await PublicProfile.Update({ idModal, user: { username } });
+        return;
       }
 
       await Modal.instance({
@@ -591,7 +582,7 @@ class AppShellDefault {
         html: async () =>
           await PublicProfile.instance({
             idModal,
-            user,
+            user: { username },
           }),
         handleType: 'bar',
         maximize: true,
@@ -709,6 +700,7 @@ class AppShellDefault {
       await Modal.instance({
         id: idModal,
         route: routeModal,
+        publicRoute: 'entry',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-file-invoice"></i>`,
@@ -724,6 +716,7 @@ class AppShellDefault {
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
               route: routeModal,
+              entryHost: true,
             });
           });
         },

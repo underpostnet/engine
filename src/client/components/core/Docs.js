@@ -1,5 +1,5 @@
 import { Css, darkTheme, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
-import { Modal, renderViewTitle } from './Modal.js';
+import { Modal, SUBMENU_SELECTION_QUERY_KEY, renderViewTitle } from './Modal.js';
 import { coverallsUrl, githubPagesUrl, githubUrl, packageRepository } from './Repository.js';
 import { Responsive } from './Responsive.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
@@ -259,26 +259,31 @@ class Docs {
     const { idModal } = options;
     Docs.Tokens[idModal] = options;
     setTimeout(() => {
-      // An external entry leaves the app; the rest open in a framed modal on their own route.
+      // An external entry leaves the app; the rest open in a framed modal on their own route. The
+      // framed section is view state of `/docs` (the documents have static URLs of their own), kept
+      // under the submenu key: `/docs?cid=src` is a published deep link.
       for (const docData of Docs.Data) {
         s(`.btn-docs-${docData.type}`).onclick = async () => {
           if (docData.external) return (location.href = docData.url());
-          setQueryPath({ path: 'docs', queryPath: docData.type });
+          setQueryPath({ path: 'docs', queryPath: docData.type }, SUBMENU_SELECTION_QUERY_KEY);
           await Docs.RenderModal(docData.type, idModal);
         };
       }
-      listenQueryPathInstance({
-        id: options.idModal,
-        routeId: 'docs',
-        event: (path) => {
-          if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
-          if (Modal.mobileModal()) {
-            setTimeout(() => {
-              s(`.btn-close-modal-menu`).click();
-            });
-          }
+      listenQueryPathInstance(
+        {
+          id: options.idModal,
+          routeId: 'docs',
+          event: (path) => {
+            if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
+            if (Modal.mobileModal()) {
+              setTimeout(() => {
+                s(`.btn-close-modal-menu`).click();
+              });
+            }
+          },
         },
-      });
+        SUBMENU_SELECTION_QUERY_KEY,
+      );
     });
     // The coverage icons are tinted to the theme's text colour, so they follow theme changes.
     ThemeEvents['doc-icon-coverage'] = () => {

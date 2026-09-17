@@ -15,7 +15,7 @@ import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { copyData, downloadFile, s } from './VanillaJs.js';
-import { getProxyPath, getQueryParams, setPath, setQueryParams, listenQueryParamsChange } from './Router.js';
+import { getQueryParams, navigatePublicRoute, setPath, setQueryParams, listenQueryParamsChange } from './Router.js';
 const logger = loggerFactory(import.meta);
 class LoadFolderRenderer {
   eGui;
@@ -516,8 +516,6 @@ class FileExplorer {
           </div>
         `;
         setTimeout(() => {
-          const uri = `${getProxyPath()}content/?cid=${params.data._id}`;
-          const url = `${window.location.origin}${uri}`;
           const originObj = documentInstance.find((d) => d._id === params.data._id);
           const blobUri =
             originObj && originObj.fileId
@@ -531,6 +529,8 @@ class FileExplorer {
             s(`.btn-file-view-${params.data._id}`).classList.add('hide');
             s(`.btn-file-copy-content-link-${params.data._id}`).classList.add('hide');
           }
+          // A document from before slugs existed has no public URL until it is migrated.
+          if (originObj && !originObj.stableSlug) s(`.btn-file-view-${params.data._id}`).classList.add('hide');
           // Disable download button if no generic file
           if (!hasGenericFile) {
             const dlBtn = s(`.btn-file-download-${params.data._id}`);
@@ -560,10 +560,7 @@ class FileExplorer {
           }
           EventsUI.onClick(`.btn-file-view-${params.data._id}`, async (e) => {
             e.preventDefault();
-            if (location.href !== url) {
-              setPath(uri);
-              s(`.main-btn-content`).click();
-            }
+            navigatePublicRoute('content', originObj.stableSlug);
           });
           EventsUI.onClick(`.btn-file-copy-content-link-${params.data._id}`, async (e) => {
             e.preventDefault();

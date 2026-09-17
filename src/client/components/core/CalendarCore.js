@@ -12,6 +12,10 @@ import { Translate } from './Translate.js';
 import { append, getTimeZone, htmls, s } from './VanillaJs.js';
 // https://fullcalendar.io/docs/event-object
 const daysOfWeekOptions = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+// The focused event is view state of the calendar route: events are private to their creator and
+// have no public URL, so the selection stays a query parameter.
+const EVENT_QUERY_KEY = 'event';
+const selectedEventId = () => getQueryParams()[EVENT_QUERY_KEY] || '';
 const eventDateFactory = (event) =>
   newInstance({
     event: { ...event.extendedProps, title: event.title },
@@ -32,7 +36,7 @@ class CalendarCore {
     const titleIcon = html`<i class="fas fa-calendar-alt"></i>`;
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
-        id: `${getQueryParams().cid ? getQueryParams().cid : Auth.getToken() ? 'creatorUser' : ''}`,
+        id: `${selectedEventId() || (Auth.getToken() ? 'creatorUser' : '')}`,
       });
       NotificationManager.Push({
         html: result.status === 'success' ? Translate.instance('success-get-events-scheduler') : result.message,
@@ -100,7 +104,7 @@ class CalendarCore {
           if (options.eventClick) return await options.eventClick(dateData, args);
           const eventId = dateData.event._id || args.event.id;
           if (!eventId || !options.route) return;
-          setQueryPath({ path: options.route, queryPath: eventId });
+          setQueryPath({ path: options.route, queryPath: eventId }, EVENT_QUERY_KEY);
           if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
           s(`.calendar-container-${options.idModal}`)?.classList.add('hide');
           s(`.main-body-calendar-${options.idModal}`)?.classList.remove('hide');
@@ -212,7 +216,7 @@ class CalendarCore {
           filesData: () => CalendarCore.Data[options.idModal].filesData,
           onClick: async function ({ payload }) {
             if (options.route) {
-              setQueryPath({ path: options.route, queryPath: payload._id });
+              setQueryPath({ path: options.route, queryPath: payload._id }, EVENT_QUERY_KEY);
               if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
               await CalendarCore.Data[options.idModal].updatePanel();
             }
@@ -282,7 +286,7 @@ class CalendarCore {
                   CalendarCore.Data[options.idModal].data.push(data);
                   CalendarCore.Data[options.idModal].filesData.push(filesData);
                 }
-                setQueryPath({ path: options.route, queryPath: documentData._id });
+                setQueryPath({ path: options.route, queryPath: documentData._id }, EVENT_QUERY_KEY);
                 if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
                 await CalendarCore.Data[options.idModal].updatePanel();
               }
@@ -310,7 +314,7 @@ class CalendarCore {
                   html: status,
                   status,
                 });
-                setQueryPath({ path: options.route, queryPath: '' });
+                setQueryPath({ path: options.route, queryPath: '' }, EVENT_QUERY_KEY);
                 await CalendarCore.Data[options.idModal].updatePanel();
                 return { status };
               }
@@ -320,11 +324,11 @@ class CalendarCore {
         })}
         <div class="in" style="margin-bottom: 100px"></div>`;
     };
-    let lastCid;
+    let lastEventId;
     CalendarCore.Data[options.idModal].updatePanel = async () => {
-      const cid = getQueryParams().cid ? getQueryParams().cid : '';
-      if (lastCid === cid) return;
-      lastCid = cid;
+      const eventId = selectedEventId();
+      if (lastEventId === eventId) return;
+      lastEventId = eventId;
       if (s(`.main-body-calendar-${options.idModal}`)) {
         // if (Auth.getToken())
         // else getSSRData();
@@ -333,17 +337,20 @@ class CalendarCore {
       }
     };
     if (options.route) {
-      listenQueryPathInstance({
-        id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
-        routeId: options.route,
-        event: async (path) => {
-          CalendarCore.Data[options.idModal].updatePanel();
+      listenQueryPathInstance(
+        {
+          id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
+          routeId: options.route,
+          event: async (path) => {
+            CalendarCore.Data[options.idModal].updatePanel();
+          },
         },
-      });
+        EVENT_QUERY_KEY,
+      );
       if (!options.parentIdModal)
         Modal.Data['modal-menu'].onHome[idPanel] = async () => {
-          lastCid = undefined;
-          setQueryPath({ path: options.route, queryPath: '' });
+          lastEventId = undefined;
+          setQueryPath({ path: options.route, queryPath: '' }, EVENT_QUERY_KEY);
           await CalendarCore.Data[idPanel].updatePanel();
         };
     }

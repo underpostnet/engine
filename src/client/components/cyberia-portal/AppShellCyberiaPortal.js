@@ -11,6 +11,7 @@ import {
   buildBadgeToolTipMenuOption,
   isSubMenuOpen,
   Modal,
+  SUBMENU_SELECTION_QUERY_KEY,
   renderMenuLabel,
   renderViewTitle,
   subMenuRender,
@@ -535,7 +536,7 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-docs`, async (e) => {
       if (!isSubMenuOpen('docs') || e.isTrusted) {
-        if (e.isTrusted) setQueryParams({ cid: '' });
+        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
         await subMenuRender('docs');
       }
 

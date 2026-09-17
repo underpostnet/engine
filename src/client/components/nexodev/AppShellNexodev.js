@@ -21,6 +21,7 @@ import {
   buildBadgeToolTipMenuOption,
   isSubMenuOpen,
   Modal,
+  SUBMENU_SELECTION_QUERY_KEY,
   renderMenuLabel,
   renderViewTitle,
   subMenuRender,
@@ -46,7 +47,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { InstanceManagement } from '../../services/instance/instance.management.js';
 import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
-import { getProxyPath, getQueryParams, setQueryParams } from '../core/Router.js';
+import { getProxyPath, getPublicRouteParam, setQueryParams } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
 import { Scroll } from '../core/Scroll.js';
 
@@ -507,6 +508,7 @@ class AppShellNexodev {
       await Modal.instance({
         id: idModal,
         route: routeModal,
+        publicRoute: 'entry',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-file-invoice"></i>`,
@@ -522,6 +524,7 @@ class AppShellNexodev {
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
               route: routeModal,
+              entryHost: true,
             });
           });
         },
@@ -655,17 +658,12 @@ class AppShellNexodev {
     });
 
     EventsUI.onClick(`.main-btn-content`, async () => {
-      let subModalId = '';
-      const path =
-        location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
-
-      if (path.split('/').pop() === 'content' && getQueryParams().cid) {
-        subModalId = `-${getQueryParams().cid}`;
-      }
+      const stableSlug = getPublicRouteParam('content');
+      const idModal = `modal-content${stableSlug ? `-${stableSlug}` : ''}`;
 
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.instance({
-        id: `modal-content${subModalId}`,
+        id: idModal,
         route: 'content',
         barConfig,
         title: renderViewTitle({
@@ -674,9 +672,9 @@ class AppShellNexodev {
         }),
         html: async () =>
           await Content.instance({
-            idModal: `modal-content${subModalId}`,
+            idModal,
+            stableSlug,
           }),
-        query: true,
         observer: true,
         handleType: 'bar',
         maximize: true,
@@ -750,7 +748,7 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-docs`, async (e) => {
       if (!isSubMenuOpen('docs') || e.isTrusted) {
-        if (e.isTrusted) setQueryParams({ cid: '' });
+        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
         await subMenuRender('docs');
       }
 

@@ -4,6 +4,8 @@ import { Css, Themes } from '../core/Css.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { listenQueryPathInstance, setQueryPath } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
+// The open demo is view state of `/lab-gallery`; the demos have no URL of their own here.
+const LAB_QUERY_KEY = 'lab';
 class LabGalleryUnderpost {
   static Tokens = {};
   static View = [
@@ -27,7 +29,7 @@ class LabGalleryUnderpost {
         s(`.btn-${viewLabId}`).onclick = async () => {
           const ModalId = `modal-${viewLabId}`;
           const { barConfig } = await Themes[Css.currentTheme]();
-          setQueryPath({ path: 'lab-gallery', queryPath: view.path });
+          setQueryPath({ path: 'lab-gallery', queryPath: view.path }, LAB_QUERY_KEY);
           await Modal.instance({
             barConfig,
             title: renderViewTitle({
@@ -62,17 +64,20 @@ class LabGalleryUnderpost {
         <div class="in iframe-${viewLabId} hide"></div>
       `;
     }
-    listenQueryPathInstance({
-      id,
-      routeId: 'lab-gallery',
-      event: (path) => {
-        const indexView = LabGalleryUnderpost.View.findIndex((view) => view.path === path);
-        if (indexView > -1) {
-          const viewLabId = `${id}-${indexView}`;
-          if (s(`.btn-${viewLabId}`)) s(`.btn-${viewLabId}`).click();
-        }
+    listenQueryPathInstance(
+      {
+        id,
+        routeId: 'lab-gallery',
+        event: (path) => {
+          const indexView = LabGalleryUnderpost.View.findIndex((view) => view.path === path);
+          if (indexView > -1) {
+            const viewLabId = `${id}-${indexView}`;
+            if (s(`.btn-${viewLabId}`)) s(`.btn-${viewLabId}`).click();
+          }
+        },
       },
-    });
+      LAB_QUERY_KEY,
+    );
     return render;
   }
 }

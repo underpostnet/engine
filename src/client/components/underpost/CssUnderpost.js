@@ -233,7 +233,8 @@ const CssCommonUnderpost = async () => {
       }
     </style>
 
-    <div class="ag-grid-style"></div>`;
+    <div class="ag-grid-style"></div>
+    <style class="style-ssr-background"></style>`;
 };
 
 class CssUnderpostDark {

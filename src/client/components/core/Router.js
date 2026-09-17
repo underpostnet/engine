@@ -1,10 +1,21 @@
 /**
  * Router module for handling routing in a PWA application.
+ *
+ * URL architecture: the path is canonical identity, the query is optional state.
+ *
+ * - A resource with a public URL is identified only by a path parameter, through the `PublicRoutes`
+ *   table shared with the server (`/u/:username`, `/entry/:stableSlug`, `/content/:stableSlug`).
+ *   Components neither build nor parse these paths themselves: they call `publicRoutePath`,
+ *   `navigatePublicRoute`, `presentPublicRoute` and `getPublicRouteParam`.
+ * - The query string carries view and request state a page can present with or without —
+ *   pagination, filters, search terms, a selected tab, the item a view is focused on
+ *   (`setQueryParams`, `setQueryPath`). It never identifies the resource a page is about; a
+ *   resource that needs a shareable URL belongs in `PublicRoutes`.
  * @module src/client/components/core/Router.js
  * @namespace PwaRouter
  */
 
-import { titleFormatted } from './CommonJs.js';
+import { titleFormatted, PublicRoutes, parsePublicRoute, publicRoutePathFactory } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { htmls, s } from './VanillaJs.js';
 import { Modal, subMenuHandler } from './Modal.js';
@@ -20,6 +31,14 @@ const logger = loggerFactory(import.meta, { trace: true });
  * @memberof PwaRouter
  */
 let _activeRoutes = null;
+
+/**
+ * @type {object | null}
+ * @description The router instance `LoadRouter` started, so in-app navigation dispatches exactly
+ * like a history traversal.
+ * @memberof PwaRouter
+ */
+let _routerInstance = null;
 
 /**
  * Registers the active routes function for the current app.
@@ -223,27 +242,18 @@ const setDocTitle = (route) => {
 const Router = function (options = { Routes: () => {}, e: new PopStateEvent() }) {
   const { e, Routes } = options;
   const proxyPath = getProxyPath();
-  let path = window.location.pathname;
-  // logger.info(options);
+  const publicRoute = getPublicRoute();
+  // A dynamic public path renders its namespace's route; its parameter travels on the event.
+  let matchPath = publicRoute ? `${proxyPath}${publicRoute.namespace}` : window.location.pathname;
+  if (matchPath[matchPath.length - 1] !== '/') matchPath = `${matchPath}/`;
 
   for (let route of Object.keys(Routes())) {
     route = route.slice(1);
     let pushPath = `${proxyPath}${route}`;
-
-    if (path[path.length - 1] !== '/') path = `${path}/`;
-    // Handle clean profile URLs: match /u/username with /u route
-    let matchPath = path;
-    if (route === 'u' && path.startsWith(`${proxyPath}u/`) && path !== `${proxyPath}u/`) {
-      handleCleanProfileUrl(path);
-      matchPath = `${proxyPath}u/`;
-    }
-
-    if (matchPath[matchPath.length - 1] !== '/') matchPath = `${matchPath}/`;
     if (pushPath[pushPath.length - 1] !== '/') pushPath = `${pushPath}/`;
 
-    const routerEvent = { path: matchPath, pushPath, route };
-
     if (matchPath === pushPath) {
+      const routerEvent = { path: matchPath, pushPath, route, publicRoute };
       for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
       subMenuHandler(Object.keys(Routes()), route);
       setDocTitle(route);
@@ -261,6 +271,7 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
 const LoadRouter = async function (RouterInstance) {
   await RouterReady;
   if (RouterInstance.Routes) registerRoutes(RouterInstance.Routes);
+  _routerInstance = RouterInstance;
   Router(RouterInstance);
   window.onpopstate = (e) => {
     Router({ ...RouterInstance, e });
@@ -275,15 +286,16 @@ const LoadRouter = async function (RouterInstance) {
 };
 
 /**
- * Sets the URL path with a specific query parameter, commonly used for content IDs.
- * This function constructs a new URI based on the proxy path, a given path, and an optional query parameter.
+ * Sets a route's path with one view-state query parameter: the item a view is focused on inside
+ * its own route (a docs section, a calendar event). Not for resource identity — that is a
+ * `PublicRoutes` path.
  * @param {object} [options={ path: '', queryPath: '' }] - The path options.
  * @param {string} [options.path=''] - The base path segment.
- * @param {string} [options.queryPath=''] - The query parameter value.
- * @param {string} [queryKey='cid'] - The query parameter key.
+ * @param {string} [options.queryPath=''] - The query parameter value; empty clears it.
+ * @param {string} queryKey - The query parameter key, named for what the view selects.
  * @memberof PwaRouter
  */
-const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', navOptions = {}) => {
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey, navOptions = {}) => {
   const { queryPath, path } = options;
   const { replace = false } = navOptions;
   const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}`}${
@@ -302,59 +314,91 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', n
 };
 
 /**
- * Extracts username from clean public profile URLs like /u/username.
- * @param {string} [pathname] - The pathname to extract from (defaults to current pathname).
- * @returns {string|null} The username if found, null otherwise.
+ * The dynamic public route (`profile`, `entry`, `content`) a path presents.
+ * @param {string} [pathname] - Defaults to the current location.
+ * @returns {{ name: string, namespace: string, params: Object<string, string> } | null}
  * @memberof PwaRouter
  */
-const extractUsernameFromPath = (pathname = window.location.pathname) => {
-  const proxyPath = getProxyPath();
-  const cleanPathPrefix = `${proxyPath}u/`.replace(/\/+/g, '/');
+const getPublicRoute = (pathname = window.location.pathname) => parsePublicRoute(pathname, getProxyPath());
 
-  if (pathname.startsWith(cleanPathPrefix)) {
-    const username = pathname.slice(cleanPathPrefix.length).split('/')[0];
-    return username || null;
-  }
-  return null;
+/**
+ * @param {string} name - A `PublicRoutes` key.
+ * @returns {string|null} The current location's parameter for that route, `null` on any other path.
+ * @memberof PwaRouter
+ */
+const getPublicRouteParam = (name) => {
+  const route = getPublicRoute();
+  return route && route.name === name ? route.params[PublicRoutes[name].param] : null;
 };
 
 /**
- * Handles direct navigation to clean public profile URLs.
- * Converts clean URLs like /u/username to internal query format for SPA.
- * @param {string} [pathname] - The pathname to handle (defaults to current pathname).
- * @returns {boolean} True if this was a public profile URL that was handled.
+ * @param {string} name - A `PublicRoutes` key.
+ * @param {string} value - The route parameter.
+ * @returns {string|null} Canonical path under the app's proxy path, `null` for an invalid parameter.
  * @memberof PwaRouter
  */
-const handleCleanProfileUrl = (pathname = window.location.pathname) => {
-  const username = extractUsernameFromPath(pathname);
-  if (username) {
-    // Convert clean URL to internal query format for data fetching
-    // Don't modify history - just return the username for the caller to use
-    return username;
-  }
-  return null;
+const publicRoutePath = (name, value) => publicRoutePathFactory(name, value, getProxyPath());
+
+/**
+ * Pushes (or replaces) a path and renders it, the same way a history traversal does.
+ * @param {string} path
+ * @param {{ replace?: boolean }} [options]
+ * @memberof PwaRouter
+ */
+const navigate = (path, { replace = false } = {}) => {
+  if (path === window.location.pathname) return;
+  setPath(path, { replace });
+  if (_routerInstance) Router(_routerInstance);
 };
 
 /**
- * Navigates to a public profile URL without adding intermediate query URLs to history.
- * This ensures clean back/forward navigation between profiles.
- * @param {string} username - The username to navigate to.
- * @param {object} [options={}] - Navigation options.
- * @param {boolean} [options.replace=false] - If true, replaces current history entry instead of pushing.
+ * Navigates to a dynamic public route.
+ * @param {string} name - A `PublicRoutes` key.
+ * @param {string} value - The route parameter.
+ * @param {{ replace?: boolean }} [options]
+ * @returns {string|null} The path navigated to, `null` for an invalid parameter.
  * @memberof PwaRouter
  */
-const navigateToProfile = (username, options = {}) => {
-  const { replace = false } = options;
-  if (!username) return;
-
-  const cleanPath = `${getProxyPath()}u/${username}`;
-  const currentPath = window.location.pathname;
-
-  // If we're already on this profile's clean URL, no navigation needed
-  if (currentPath === cleanPath) return;
-  // Navigate directly to clean URL, avoiding intermediate ?cid= URLs in history
-  setPath(cleanPath, { replace });
+const navigatePublicRoute = (name, value, options = {}) => {
+  const path = publicRoutePath(name, value);
+  if (path) navigate(path, options);
+  return path;
 };
+
+/**
+ * Records a public route as the one a view already shows, without rendering again: the URL
+ * catches up with state the component has just rendered (a canonical username, a saved entry).
+ * @param {string} name - A `PublicRoutes` key.
+ * @param {string} value - The route parameter.
+ * @param {{ idModal?: string, replace?: boolean }} [options]
+ * @memberof PwaRouter
+ */
+const presentPublicRoute = (name, value, { idModal, replace = false } = {}) => {
+  const path = publicRoutePath(name, value);
+  if (!path) return;
+  setViewPath(idModal, path);
+  setPath(path, { replace });
+};
+
+/**
+ * @param {string} [idModal]
+ * @param {string} path - The path the view presents.
+ * @memberof PwaRouter
+ */
+const setViewPath = (idModal, path) => {
+  if (idModal && Modal.Data[idModal]) Modal.Data[idModal].path = path;
+};
+
+/**
+ * The path a view last presented, so bringing it back to the front restores its resource and not
+ * just its bare route. The home view (`main-body`) presents the app root unless a public route
+ * rendered into it.
+ * @param {string} idModal
+ * @returns {string}
+ * @memberof PwaRouter
+ */
+const getViewPath = (idModal) =>
+  Modal.Data[idModal]?.path ?? `${getProxyPath()}${Modal.Data[idModal]?.options?.route ?? ''}`;
 
 /**
  * Registers a listener for route changes that specifically watches for a `queryKey` parameter
@@ -363,10 +407,10 @@ const navigateToProfile = (username, options = {}) => {
  * @param {string} options.id - A unique ID for the listener.
  * @param {string} options.routeId - The route ID to listen for.
  * @param {function(string): void} options.event - The callback function to execute with the query path value (or an empty string if not found).
- * @param {string} [queryKey='cid'] - The query parameter key to look for.
+ * @param {string} queryKey - The view-state query parameter key `setQueryPath` writes for this route.
  * @memberof PwaRouter
  */
-const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
+const listenQueryPathInstance = ({ id, routeId, event }, queryKey) => {
   RouterEvents[id] = ({ path, pushPath, proxyPath, route }) => {
     if ((route === '' && routeId === 'home') || (route && routeId && route === routeId)) {
       setTimeout(() => {
@@ -422,36 +466,40 @@ const closeModalRouteChangeEvent = (options = {}) => {
 
   for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event]();
   if (topModalId) Modal.setTopModalCallback(topModalId);
-  setPath(`${getProxyPath()}${Modal.Data[topModalId]?.options?.route ?? ''}`);
+  setPath(getViewPath(topModalId ?? 'main-body'));
   setDocTitle(Modal.Data[topModalId]?.options?.route ?? '');
 };
 
 /**
  * Handles routing for modals that are meant to be displayed as a "view" (e.g., a full-page modal).
- * It updates the URL to reflect the modal's route.
+ * It updates the URL to reflect the modal's route and records the path the view presents.
  * @param {object} [options={ route: 'home' }] - The options for handling the modal view route.
  * @param {string} options.route - The route associated with the modal view.
+ * @param {string} [options.idModal] - The view's modal id.
+ * @param {string} [options.publicRoute] - A `PublicRoutes` key the view also presents (a blog view
+ *   showing `/entry/:stableSlug`).
  * @memberof PwaRouter
  */
-const handleModalViewRoute = (options = { RouterInstance: { Routes: () => {} }, route: '' }) => {
-  const { route, RouterInstance } = options;
+const handleModalViewRoute = (
+  options = { RouterInstance: { Routes: () => {} }, route: '', idModal: '', publicRoute: '' },
+) => {
+  const { route, RouterInstance, idModal, publicRoute } = options;
   if (!route) return;
 
   let path = window.location.pathname;
   if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
-  const proxyPath = getProxyPath();
-  const newPath = `${proxyPath}${route}`;
+  const newPath = `${getProxyPath()}${route}`;
   if (RouterInstance && RouterInstance.Routes) subMenuHandler(Object.keys(RouterInstance.Routes()), route);
 
-  // Check if we're already on this route or a sub-path of it (e.g., /u/username for route 'u')
-  // Don't push to history if already on the route or its sub-path
-  const routeBasePath = `${proxyPath}${route}`;
-  const isOnRouteOrSubPath = path === newPath || path.startsWith(`${routeBasePath}/`);
+  // Already on the view's route, a resource under it (`/u/alice` for 'u'), or a public route it presents.
+  const presentsCurrentPath =
+    path === newPath || path.startsWith(`${newPath}/`) || (!!publicRoute && getPublicRoute()?.name === publicRoute);
 
-  if (!isOnRouteOrSubPath) {
+  if (!presentsCurrentPath) {
     setPath(newPath);
     setDocTitle(newPath);
   }
+  setViewPath(idModal, presentsCurrentPath ? path : newPath);
 };
 
 /**
@@ -499,15 +547,19 @@ const setQueryParams = (newParams, options = { replace: true }) => {
 export {
   RouterEvents,
   registerRoutes,
-  navigateToProfile,
   closeModalRouteChangeEvents,
   coreUI,
   Router,
   setDocTitle,
   LoadRouter,
   setQueryPath,
-  extractUsernameFromPath,
-  handleCleanProfileUrl,
+  getPublicRoute,
+  getPublicRouteParam,
+  publicRoutePath,
+  navigate,
+  navigatePublicRoute,
+  presentPublicRoute,
+  getViewPath,
   listenQueryPathInstance,
   closeModalRouteChangeEvent,
   handleModalViewRoute,

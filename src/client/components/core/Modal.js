@@ -23,6 +23,7 @@ import {
   coreUI,
   sanitizeRoute,
   getQueryParams,
+  getViewPath,
   setRouterReady,
 } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -39,6 +40,9 @@ import { SearchBox } from './SearchBox.js';
 import { createModalEvents } from './ClientEvents.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
+
+/** Query key a submenu's route uses for the item it shows (`Docs`: the framed document). */
+const SUBMENU_SELECTION_QUERY_KEY = 'cid';
 
 /**
  * @typedef {object} ModalBarButton
@@ -61,7 +65,7 @@ const logger = loggerFactory(import.meta, { trace: true });
  * @property {string} [handleType='bar'] - Drag handle type ('bar' or default full).
  * @property {string} [mode=''] - Layout mode: 'view', 'slide-menu', 'slide-menu-right', 'slide-menu-left', 'dropNotification'.
  * @property {object} [RouterInstance={}] - Router instance for route-aware modals.
- * @property {string[]} [disableTools=[]] - Tool ids to hide ('app-icon', 'text-box', 'profile', 'center', 'lang', 'theme', 'navigator').
+ * @property {string[]} [disableTools=[]] - Tool ids to hide ('app-icon', 'text-box', 'profile', 'lang', 'theme', 'navigator').
  * @property {boolean} [observer=false] - Attach a ResizeObserver to the modal element.
  * @property {boolean} [disableBoxShadow=false] - Remove box shadow from the modal.
  * @property {boolean} [dragDisabled=false] - Disable dragging.
@@ -79,6 +83,7 @@ const logger = loggerFactory(import.meta, { trace: true });
  * @property {string} [selector='body'] - Parent selector for insertion.
  * @property {string} [slideMenu=''] - Id of the slide-menu modal this view should attach to.
  * @property {string} [route=''] - URL path segment for view-mode route tracking.
+ * @property {string} [publicRoute=''] - `PublicRoutes` key a view also presents (e.g. 'entry' for a blog view).
  * @property {string} [status=''] - Status icon descriptor rendered in the bar.
  * @property {boolean} [zIndexSync=false] - Enable z-index management for stacked view modals.
  * @property {boolean} [query=false] - Snapshot the current query string into modal data.
@@ -251,12 +256,26 @@ class Modal {
     const heightDefaultTopBar = 50;
     const heightDefaultBottomBar = 0;
     const idModal = options.id ? options.id : getId(this.Data, 'modal-');
+    // The floating .main-body-btn-container (bars toggle, hamburger, search/home) hugs the menu's
+    // free edge: a right menu's left edge, or a left menu's right edge under 'top-bottom-bar'.
+    // Only a left 'modal-menu' under the default 100px top bar keeps its hamburger in the top bar,
+    // leaving the container pinned to the screen's right edge without one.
+    const menuRight = !!options.mode?.match('right');
+    const topBarHamburger = idModal === 'modal-menu' && !menuRight && options.barMode !== 'top-bottom-bar';
+    const floatingBtnSide = !menuRight && options.barMode === 'top-bottom-bar' ? 'left' : 'right';
+    const floatingBtnWidth = 50;
+    const setFloatingBtnOffset = (open) => {
+      if (!s(`.main-body-btn-container`)) return;
+      const hugsMenu = menuRight || floatingBtnSide === 'left';
+      s(`.main-body-btn-container`).style[floatingBtnSide] = `${open && hugsMenu ? slideMenuWidth : 0}px`;
+    };
     const { bus: eventBus, channels: eventChannels } = createModalEvents();
     this.Data[idModal] = {
       options,
       events: eventBus,
       ...eventChannels,
       homeModals: options.homeModals ? options.homeModals : [],
+      floatingBtnSide,
       query: options.query ? `${window.location.search}` : undefined,
       getTop: () => Modal.getModalTop(options, heightDefaultBottomBar),
       getHeight: () => Modal.getModalHeight(options, heightDefaultTopBar, heightDefaultBottomBar),
@@ -303,6 +322,8 @@ class Modal {
             handleModalViewRoute({
               route: options.route,
               RouterInstance: options.RouterInstance,
+              idModal,
+              publicRoute: options.publicRoute,
             });
             // Path just changed away from (or back to) home — recompute the search/home
             // toggle's visibility instead of leaving it stuck on its last computed state.
@@ -313,6 +334,9 @@ class Modal {
         case 'slide-menu':
         case 'slide-menu-right':
         case 'slide-menu-left':
+          // The menu starts closed; a view maximized before the first close event lays out against
+          // this width rather than against `undefined`.
+          Modal.Data[idModal][options.mode].width = 0;
           (async () => {
             if (!options.slideMenuTopBarBannerFix) {
               options.slideMenuTopBarBannerFix = async () => {
@@ -414,18 +438,14 @@ class Modal {
                 }
                 s(`.${idModal}`).style.height = `${Modal.Data[idModal].getHeight()}px`;
                 s(`.${idModal}`).style.left = Modal.Data[idModal].getMenuLeftStyle({
-                  open: s(`.btn-bar-center-icon-menu`).classList.contains('hide') ? true : false,
+                  open: Modal.Data[idModal][options.mode].width > 0,
                 });
+                // The overlay dims the main body only while a mobile menu covers it at full width;
+                // closed, or collapsed to its 50px icon rail, leaves the body usable underneath.
                 if (s(`.main-body-top`)) {
-                  if (Modal.mobileModal()) {
-                    if (
-                      s(`.btn-menu-${idModal}`).classList.contains('hide') &&
-                      collapseSlideMenuWidth !== slideMenuWidth
-                    )
-                      s(`.main-body-top`).classList.remove('hide');
-                    if (s(`.btn-close-${idModal}`).classList.contains('hide'))
-                      s(`.main-body-top`).classList.add('hide');
-                  } else if (!s(`.main-body-top`).classList.contains('hide')) s(`.main-body-top`).classList.add('hide');
+                  const menuOpen = s(`.btn-menu-${idModal}`).classList.contains('hide');
+                  const covers = Modal.mobileModal() && menuOpen && slideMenuWidth !== collapseSlideMenuWidth;
+                  s(`.main-body-top`).classList[covers ? 'remove' : 'add']('hide');
                 }
               },
               { key: `slide-menu-${idModal}` },
@@ -479,9 +499,7 @@ class Modal {
                 sa(`.btn-bar-center-icon-menu`).forEach((el) => el.classList.add('hide'));
               }
 
-              s(`.main-body-btn-container`).style[
-                true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
-              ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
+              setFloatingBtnOffset(true);
               if (options.mode === 'slide-menu-right') {
                 s(`.${idModal}`).style.left = `${windowGetW() - originSlideMenuWidth}px`;
               } else {
@@ -507,9 +525,7 @@ class Modal {
                 sa(`.btn-bar-center-icon-menu`).forEach((el) => el.classList.remove('hide'));
                 sa(`.btn-bar-center-icon-close`).forEach((el) => el.classList.add('hide'));
               }
-              s(`.main-body-btn-container`).style[
-                true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
-              ] = `${0}px`;
+              setFloatingBtnOffset(false);
               if (options.mode === 'slide-menu-right') {
                 s(`.${idModal}`).style.left = `${windowGetW() + originSlideMenuWidth}px`;
               } else {
@@ -530,27 +546,17 @@ class Modal {
                 'body',
                 html`
                   <div
-                    class="abs main-body-btn-container"
-                    style="top: ${options.heightTopBar + 50}px; z-index: 9; ${true ||
-                    (options.mode && options.mode.match('right'))
-                      ? 'right'
-                      : 'left'}: 0px; width: 50px; height: 150px; transition: .3s"
+                    class="abs main-body-btn-container hide"
+                    style="top: ${options.heightTopBar +
+                    50}px; z-index: 9; ${floatingBtnSide}: 0px; width: ${floatingBtnWidth}px; height: 150px; transition: .3s"
                   >
-                    <div
-                      class="abs main-body-btn main-body-btn-ui"
-                      style="top: 0px; ${true || (options.mode && options.mode.match('right')) ? 'right' : 'left'}: 0px"
-                    >
+                    <div class="abs main-body-btn main-body-btn-ui" style="top: 0px; ${floatingBtnSide}: 0px">
                       <div class="abs center">
                         <i class="fas fa-caret-down main-body-btn-ui-open hide"></i>
                         <i class="fas fa-caret-up main-body-btn-ui-close"></i>
                       </div>
                     </div>
-                    <div
-                      class="abs main-body-btn main-body-btn-menu"
-                      style="top: 50px; ${true || (options.mode && options.mode.match('right'))
-                        ? 'right'
-                        : 'left'}: 0px"
-                    >
+                    <div class="abs main-body-btn main-body-btn-menu" style="top: 50px; ${floatingBtnSide}: 0px">
                       <div class="abs center">
                         <i class="fa-solid fa-xmark hide main-body-btn-ui-menu-close"></i>
                         <i class="fa-solid fa-bars main-body-btn-ui-menu-menu"></i>
@@ -560,9 +566,7 @@ class Modal {
                       class="abs main-body-btn main-body-btn-bar-custom ${options?.slideMenuTopBarBannerFix
                         ? ''
                         : 'hide'}"
-                      style="top: 100px; ${true || (options.mode && options.mode.match('right'))
-                        ? 'right'
-                        : 'left'}: 0px"
+                      style="top: 100px; ${floatingBtnSide}: 0px"
                     >
                       <div class="abs center">
                         <i class="fa-solid fa-magnifying-glass main-body-btn-ui-bar-custom-open"></i>
@@ -578,10 +582,9 @@ class Modal {
               };
 
               // Fixed top-left hamburger, shown only while the bars are collapsed
-              // (main-body-btn-ui-close hidden): it stands in for the left menu hamburger the
-              // collapse hid — the top bar's, or the bottom bar's under 'top-bottom-bar'. A right
-              // menu keeps its floating .main-body-btn-menu beside the menu edge instead.
-              if (idModal === 'modal-menu' && options.mode !== 'slide-menu-right') {
+              // (main-body-btn-ui-close hidden): it stands in for the top bar's hamburger the
+              // collapse hid. Every other layout keeps its floating .main-body-btn-menu instead.
+              if (topBarHamburger) {
                 append(
                   'body',
                   html`
@@ -634,10 +637,12 @@ class Modal {
                     setTimeout(() => {
                       s(`.action-btn-home`).click();
                     });
-                    const mainBody = s(`.main-body`);
-                    if (mainBody && mainBody.scrollTop > 0) {
-                      mainBody.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
+                    setTimeout(() => {
+                      const mainBody = s(`.main-body`);
+                      if (mainBody && mainBody.scrollTop > 0) {
+                        mainBody.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }, 50);
                     updateBarCustomVisibility();
                   });
                 } else {
@@ -764,130 +769,128 @@ class Modal {
                   }
                 </style>
                 <div class="fix modal slide-menu-top-bar">
-                <div
-                  class="fl top-bar  ${options.barClass ? options.barClass : ''}"
-                  style="height: ${originHeightTopBar}px;"
-                >
-                  ${await BtnIcon.instance({
-                    style: `height: 100%`,
-                    class: 'in fll main-btn-menu action-bar-box action-btn-close hide',
-                    label: html` <div class="${contentIconClass} action-btn-close-render">
-                      <i class="fa-solid fa-xmark"></i>
-                    </div>`,
-                  })}
-                  ${await BtnIcon.instance({
-                    style: `height: 100%`,
-                    class: `in fll main-btn-menu action-bar-box action-btn-app-icon ${
-                      options?.disableTools?.includes('app-icon') ? 'hide' : ''
-                    }`,
-                    label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
-                  })}
-                  <form
-                    class="in fll top-bar-search-box-container hover ${options?.disableTools?.includes('text-box')
-                      ? 'hide'
-                      : ''}"
-                  >
-                    ${await Input.instance({
-                      id: inputSearchBoxId,
-                      autocomplete: 'off',
-                      placeholder: Modal.mobileModal()
-                        ? Translate.instance('search', '.top-bar-search-box')
-                        : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.instance('search')}`,
-                      placeholderIcon: html`<div
-                        class="in fll"
-                        style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px;"
-                      >
-                        <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
-                        ${!Modal.mobileModal()
-                          ? html` <div
-                              class="inl wfm key-shortcut-container-info"
-                              style="${renderCssAttr({ style: { top: '10px', left: '60px' } })}"
-                            >
-                              ${await Badge.instance({
-                                id: 'shortcut-key-info-search',
-                                text: 'Shift',
-                                classList: 'inl',
-                                style: { 'z-index': 1 },
-                              })}
-                              ${await Badge.instance({
-                                id: 'shortcut-key-info-search',
-                                text: '+',
-                                classList: 'inl',
-                                style: { 'z-index': 1, background: 'none', color: '#5f5f5f' },
-                              })}
-                              ${await Badge.instance({
-                                id: 'shortcut-key-info-search',
-                                text: 'k',
-                                classList: 'inl',
-                                style: { 'z-index': 1 },
-                              })}
-                            </div>`
-                          : ''}
-                      </div>`,
-                      inputClass: 'in fll',
-                      // containerClass: '',
-                    })}
-                  </form>
                   <div
-                    class="abs top-box-profile-container ${options?.disableTools?.includes('profile') ? 'hide' : ''}"
+                    class="fl top-bar  ${options.barClass ? options.barClass : ''}"
+                    style="height: ${originHeightTopBar}px;"
                   >
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
-                      class: 'in fll session-in-log-in main-btn-menu action-bar-box action-btn-profile-log-in',
-                      label: html` <div class="${contentIconClass} action-btn-profile-log-in-render"></div>`,
+                      class: 'in fll main-btn-menu action-bar-box action-btn-close hide',
+                      label: html` <div class="${contentIconClass} action-btn-close-render">
+                        <i class="fa-solid fa-xmark"></i>
+                      </div>`,
                     })}
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
-                      class: 'in fll session-in-log-out main-btn-menu action-bar-box action-btn-profile-log-out',
-                      label: html` <div class="${contentIconClass} action-btn-profile-log-out-render">
-                        <i class="fas fa-user-plus"></i>
-                      </div>`,
+                      class: `in fll main-btn-menu action-bar-box action-btn-app-icon ${
+                        options?.disableTools?.includes('app-icon') ? 'hide' : ''
+                      }`,
+                      label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
                     })}
-                  </div>
-                </div>
-                ${options?.slideMenuTopBarBannerFix
-                  ? html`<div
-                      class="abs modal slide-menu-top-bar-fix"
-                      style="height: ${options.heightTopBar}px; top: 0px"
+                    <form
+                      class="in fll top-bar-search-box-container hover ${options?.disableTools?.includes('text-box')
+                        ? 'hide'
+                        : ''}"
                     >
-                      <a class="a-link-top-banner fl">
-                        <div class="inl">${await options.slideMenuTopBarBannerFix()}</div></a
+                      ${await Input.instance({
+                        id: inputSearchBoxId,
+                        autocomplete: 'off',
+                        placeholder: Modal.mobileModal()
+                          ? Translate.instance('search', '.top-bar-search-box')
+                          : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.instance('search')}`,
+                        placeholderIcon: html`<div
+                          class="in fll"
+                          style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px;"
+                        >
+                          <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
+                          ${!Modal.mobileModal()
+                            ? html` <div
+                                class="inl wfm key-shortcut-container-info"
+                                style="${renderCssAttr({ style: { top: '10px', left: '60px' } })}"
+                              >
+                                ${await Badge.instance({
+                                  id: 'shortcut-key-info-search',
+                                  text: 'Shift',
+                                  classList: 'inl',
+                                  style: { 'z-index': 1 },
+                                })}
+                                ${await Badge.instance({
+                                  id: 'shortcut-key-info-search',
+                                  text: '+',
+                                  classList: 'inl',
+                                  style: { 'z-index': 1, background: 'none', color: '#5f5f5f' },
+                                })}
+                                ${await Badge.instance({
+                                  id: 'shortcut-key-info-search',
+                                  text: 'k',
+                                  classList: 'inl',
+                                  style: { 'z-index': 1 },
+                                })}
+                              </div>`
+                            : ''}
+                        </div>`,
+                        inputClass: 'in fll',
+                        // containerClass: '',
+                      })}
+                    </form>
+                    <div
+                      class="abs top-box-profile-container ${options?.disableTools?.includes('profile') ? 'hide' : ''}"
+                    >
+                      ${await BtnIcon.instance({
+                        style: `height: 100%`,
+                        class: 'in fll session-in-log-in main-btn-menu action-bar-box action-btn-profile-log-in',
+                        label: html` <div class="${contentIconClass} action-btn-profile-log-in-render"></div>`,
+                      })}
+                      ${await BtnIcon.instance({
+                        style: `height: 100%`,
+                        class: 'in fll session-in-log-out main-btn-menu action-bar-box action-btn-profile-log-out',
+                        label: html` <div class="${contentIconClass} action-btn-profile-log-out-render">
+                          <i class="fas fa-user-plus"></i>
+                        </div>`,
+                      })}
+                    </div>
+                  </div>
+                  ${options?.slideMenuTopBarBannerFix
+                    ? html`<div
+                        class="abs modal slide-menu-top-bar-fix"
+                        style="height: ${options.heightTopBar}px; top: 0px"
                       >
-                    </div>`
-                  : ''}
-                ${idModal === 'modal-menu' && options.mode !== 'slide-menu-right'
-                  ? html`${options.barMode === 'top-bottom-bar'
-                        ? ''
-                        : html`<div
-                            class="abs main-btn-menu-top-container"
-                            style="bottom: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
-                          >
-                            ${await BtnIcon.instance({
-                              style: `height: 100%`,
-                              class: `in fll main-btn-menu-top action-bar-box action-btn-center-top`,
-                              label: html`<div class="abs center">
-                                <i class="far fa-square btn-bar-center-icon-square hide"></i>
-                                <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
-                                <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
-                              </div>`,
-                            })}
-                          </div>`}
+                        <a class="a-link-top-banner fl">
+                          <div class="inl">${await options.slideMenuTopBarBannerFix()}</div></a
+                        >
+                      </div>`
+                    : ''}
+                  ${topBarHamburger
+                    ? html`<div
+                          class="abs main-btn-menu-top-container"
+                          style="bottom: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
+                        >
+                          ${await BtnIcon.instance({
+                            style: `height: 100%`,
+                            class: `in fll main-btn-menu-top action-bar-box action-btn-center-top`,
+                            label: html`<div class="abs center">
+                              <i class="far fa-square btn-bar-center-icon-square hide"></i>
+                              <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
+                              <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
+                            </div>`,
+                          })}
+                        </div>
 
-                      <style>
-                        /* Under 'top-bottom-bar' the left menu hamburger is the bottom bar's, so the
-                           banner has no top bar button to clear. */
-                        .a-link-top-banner {
-                          padding-left: ${options.barMode === 'top-bottom-bar' ? 0 : 35}px;
-                        }
-                        .main-body-btn-bar-custom {
-                          top: 50px !important;
-                        }
-                        .main-body-btn-menu {
-                          display: none;
-                        }
-                      </style>`
-                  : ''}
-              </div>`,
+                        <style>
+                          /* The top bar owns the hamburger here, so the floating container drops its
+                           copy and closes the gap it leaves. */
+                          .a-link-top-banner {
+                            padding-left: 35px;
+                          }
+                          .main-body-btn-bar-custom {
+                            top: 50px !important;
+                          }
+                          .main-body-btn-menu {
+                            display: none;
+                          }
+                        </style>`
+                    : ''}
+                </div>`,
             );
             EventsUI.onClick(`.action-btn-profile-log-in`, () => {
               if (Modal.mobileModal() && s(`.btn-close-search-box-history`)) {
@@ -901,11 +904,7 @@ class Modal {
               }
               s(`.main-btn-sign-up`).click();
             });
-            if (
-              idModal === 'modal-menu' &&
-              options.mode !== 'slide-menu-right' &&
-              options.barMode !== 'top-bottom-bar'
-            ) {
+            if (topBarHamburger) {
               EventsUI.onClick(`.action-btn-center-top`, (e) => {
                 e.preventDefault();
                 Modal.actionBtnCenter();
@@ -1179,7 +1178,7 @@ class Modal {
                         this.mobileModal() && windowGetW() < 445
                           ? `${windowGetH() - originHeightTopBar}px !important`
                           : '300px !important',
-                      'z-index': 7,
+                      'z-index': 9,
                     },
                     class: 'search-history-modal',
                     dragDisabled: true,
@@ -1502,26 +1501,6 @@ class Modal {
                   >
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
-                      // The left menu hamburger under 'top-bottom-bar'. Otherwise a left menu is
-                      // toggled from the top bar and a right menu from the floating
-                      // .main-body-btn-menu, so a copy here would only duplicate one of them.
-                      class: `in fl${options.mode === 'slide-menu-right' ? 'r' : 'l'} main-btn-menu action-bar-box action-btn-center ${
-                        options?.disableTools?.includes('center') ||
-                        options.mode === 'slide-menu-right' ||
-                        options.barMode !== 'top-bottom-bar'
-                          ? 'hide'
-                          : ''
-                      }`,
-                      label: html`
-                        <div class="${contentIconClass}">
-                          <i class="far fa-square btn-bar-center-icon-square hide"></i>
-                          <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
-                          <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
-                        </div>
-                      `,
-                    })}
-                    ${await BtnIcon.instance({
-                      style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-lang ${
                         options?.disableTools?.includes('lang') ? 'hide' : ''
                       }`,
@@ -1594,10 +1573,6 @@ class Modal {
                 EventsUI.onClick(`.action-btn-left`, (e) => {
                   e.preventDefault();
                   window.history.back();
-                });
-                EventsUI.onClick(`.action-btn-center`, (e) => {
-                  e.preventDefault();
-                  Modal.actionBtnCenter();
                 });
                 EventsUI.onClick(`.action-btn-right`, (e) => {
                   e.preventDefault();
@@ -1952,7 +1927,7 @@ class Modal {
             </div>
           </div>
 
-          <div class="in html-${idModal}">
+          <div class="in html-modal html-${idModal}">
             ${options.mode && options.mode.match('slide-menu')
               ? html`<div
                   class="stq modal"
@@ -2046,9 +2021,7 @@ class Modal {
             slideMenuWidth = collapseSlideMenuWidth;
             s(`.${idModal}`).style.width = `${slideMenuWidth}px`;
             sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
-            s(`.main-body-btn-container`).style[
-              true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
-            ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
+            setFloatingBtnOffset(Modal.Data[idModal][options.mode].width > 0);
             sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
             if (options.onCollapseMenu) options.onCollapseMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
@@ -2066,9 +2039,7 @@ class Modal {
             slideMenuWidth = originSlideMenuWidth;
             s(`.${idModal}`).style.width = `${slideMenuWidth}px`;
             sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
-            s(`.main-body-btn-container`).style[
-              true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
-            ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
+            setFloatingBtnOffset(Modal.Data[idModal][options.mode].width > 0);
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
 
             Modal.menuTextLabelAnimation(idModal);
@@ -2250,6 +2221,19 @@ class Modal {
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
 
+    // A maximized view beside a left 'top-bottom-bar' menu has the floating button column over its
+    // content (its title bar sits above the column), so only the content shifts past it.
+    const syncViewHtmlOffset = (maximized) => {
+      const htmlEl = s(`.html-${idModal}`);
+      if (!htmlEl || options.mode !== 'view') return;
+      const offset =
+        maximized && options.slideMenu && this.Data[options.slideMenu]?.floatingBtnSide === 'left'
+          ? floatingBtnWidth
+          : 0;
+      htmlEl.style.left = offset ? `${offset}px` : '';
+      htmlEl.style.width = offset ? `calc(100% - ${offset}px)` : '';
+    };
+
     // Minimize button handler
     s(`.btn-minimize-${idModal}`).onclick = () => {
       const modal = s(`.${idModal}`);
@@ -2258,6 +2242,7 @@ class Modal {
       if (options.slideMenu) {
         delete this.Data[idModal].slideMenu;
       }
+      syncViewHtmlOffset(false);
 
       // Keep drag enabled when minimized
       if (dragInstance) {
@@ -2294,6 +2279,7 @@ class Modal {
       if (options.slideMenu) {
         delete this.Data[idModal].slideMenu;
       }
+      syncViewHtmlOffset(false);
 
       // Re-enable dragging
       if (dragInstance) {
@@ -2349,36 +2335,42 @@ class Modal {
           : this.Data[options.slideMenu]['slide-menu-right']
             ? 'slide-menu-right'
             : 'slide-menu-left';
-        const callBack = () => {
-          s(`.${idModal}`).style.transition = '0.3s';
-          s(`.${idModal}`).style.width = `${windowGetW() - this.Data[options.slideMenu][idSlide].width}px`;
-          s(`.${idModal}`).style.left =
-            idSlide === 'slide-menu-right' ? `0px` : `${this.Data[options.slideMenu][idSlide].width}px`;
-          setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
+        // Width and left follow the menu: animated when the menu opens or closes, but placed
+        // outright the first time so the view does not slide in from the corner it was appended at.
+        const placeBesideMenu = ({ animate }) => {
+          const menuWidth = this.Data[options.slideMenu][idSlide].width;
+          // A left 'top-bottom-bar' menu keeps its floating button column beside its edge; the
+          // main body starts past that column instead of sliding under it.
+          const floatingBtnGap =
+            idModal === 'main-body' && this.Data[options.slideMenu].floatingBtnSide === 'left' ? floatingBtnWidth : 0;
+          s(`.${idModal}`).style.transition = animate ? '0.3s' : 'none';
+          s(`.${idModal}`).style.width = `${windowGetW() - menuWidth - floatingBtnGap}px`;
+          s(`.${idModal}`).style.left = idSlide === 'slide-menu-right' ? `0px` : `${menuWidth + floatingBtnGap}px`;
+          syncViewHtmlOffset(true);
+          setTimeout(
+            () => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null),
+            animate ? 300 : 0,
+          );
+        };
+        const syncViewBounds = () => {
+          if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
+          if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
+            s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
+              ? `${windowGetH()}px`
+              : `${Modal.Data[idModal].getHeight()}px`;
+          }
+          s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
+            ? `0px`
+            : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
         };
 
-        callBack();
+        placeBesideMenu({ animate: false });
+        syncViewBounds();
         this.Data[idModal].slideMenu = {
-          callBack,
+          callBack: () => placeBesideMenu({ animate: true }),
           id: options.slideMenu,
         };
-        Responsive.onChanged(
-          () => {
-            setTimeout(() => {
-              if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
-              if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
-                s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
-                  ? `${windowGetH()}px`
-                  : `${Modal.Data[idModal].getHeight()}px`;
-              }
-              s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
-                ? `0px`
-                : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
-            });
-          },
-          { key: 'h-ui-hide-' + idModal },
-        );
-        Responsive.triggerChanged('h-ui-hide-' + idModal);
+        Responsive.onChanged(() => setTimeout(syncViewBounds), { key: 'h-ui-hide-' + idModal });
       } else {
         Responsive.offChanged('h-ui-hide-' + idModal);
         s(`.${idModal}`).style.width = '100%';
@@ -2434,8 +2426,11 @@ class Modal {
   /** @type {Object.<string, object>} */
   static subMenuBtnClass = {};
 
-  /** Navigate to the home route and close all non-home modals. */
-  static onHomeRouterEvent = async () => {
+  /**
+   * Navigate to the home route and close all non-home modals.
+   * @param {{ keepPath?: boolean }} [options] - `keepPath` leaves the current path and title in place.
+   */
+  static onHomeRouterEvent = async ({ keepPath = false } = {}) => {
     // 1. Get list of modals to close.
     const modalsToClose = Object.keys(Modal.Data).filter((idModal) => {
       const modal = Modal.Data[idModal];
@@ -2453,9 +2448,14 @@ class Modal {
       return true;
     });
 
-    // 2. Navigate to home first, creating a new history entry.
-    setPath(`${getProxyPath()}${location.search ?? ''}${location.hash ?? ''}`);
-    setDocTitle();
+    // 2. Navigate to home first, creating a new history entry — unless the home view is rendering a
+    // public route of its own (`/entry/:stableSlug`), whose path must stay. Either way the home view
+    // records what it presents, so closing a view stacked on it comes back here.
+    if (!keepPath) {
+      setPath(`${getProxyPath()}${location.search ?? ''}${location.hash ?? ''}`);
+      setDocTitle();
+    }
+    if (Modal.Data['main-body']) Modal.Data['main-body'].path = keepPath ? location.pathname : undefined;
 
     // 3. Close the modals without them affecting the URL.
     for (const id of modalsToClose) {
@@ -2502,9 +2502,7 @@ class Modal {
       this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
         if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
           if (this.Data[idModal].options.route)
-            setPath(
-              `${getProxyPath()}${this.Data[idModal].options.route}${location.search ?? ''}${location.hash ?? ''}`,
-            );
+            setPath(`${getViewPath(idModal)}${location.search ?? ''}${location.hash ?? ''}`);
           cleanTopModal();
           setTopModal();
         }
@@ -3112,19 +3110,18 @@ const subMenuHandler = (routes, route) => {
     }
   }
   setTimeout(() => {
-    let cid = getQueryParams().cid;
-    if (cid && cid.includes(',')) {
-      cid = cid.split(',')[0];
-    }
+    // A submenu marks the item its route currently shows: Docs keeps that in `?cid=<type>`.
+    const selection = getQueryParams()[SUBMENU_SELECTION_QUERY_KEY];
     if (s(`.main-sub-btn-active`)) s(`.main-sub-btn-active`).classList.remove('main-sub-btn-active');
-    if (cid && s(`.btn-${route}-${cid}`)) {
-      s(`.btn-${route}-${cid}`).classList.add('main-sub-btn-active');
+    if (selection && s(`.btn-${route}-${selection}`)) {
+      s(`.btn-${route}-${selection}`).classList.add('main-sub-btn-active');
     }
   });
 };
 
 export {
   Modal,
+  SUBMENU_SELECTION_QUERY_KEY,
   renderMenuLabel,
   renderViewTitle,
   buildBadgeToolTipMenuOption,

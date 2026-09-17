@@ -7,7 +7,7 @@ import { append, copyData, getDataFromInputFile, htmls, s, sa } from './VanillaJ
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
-import { dynamicCol } from './Css.js';
+import { dynamicCol, imageShimmer } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { RichText } from './RichText.js';
@@ -17,8 +17,7 @@ import { Content, attachMarkdownLinkHandlers } from './Content.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { getProxyPath, setQueryPath, navigateToProfile } from './Router.js';
-import { PublicProfile } from './PublicProfile.js';
+import { navigatePublicRoute, publicRoutePath } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -36,6 +35,7 @@ class Panel {
       originData: () => [],
       filesData: () => [],
       onClick: () => {},
+      entryPath: undefined,
       share: {
         copyLink: false,
         copySourceMd: false,
@@ -83,9 +83,10 @@ class Panel {
       const obj = newInstance(payload);
       if ('_id' in obj) obj.id = obj._id;
       const { id } = obj;
+      const entryPath = options.entryPath ? options.entryPath(obj) : null;
 
       setTimeout(async () => {
-        if (!s(`.${idPanel}`)) return;
+        if (!s(`.${idPanel}`) || obj.ssr) return;
         LoadingAnimation.spinner.play(`.${idPanel}-img-spinner-${id}`, 'dual-ring');
         if (options && options.callBackPanelRender)
           await options.callBackPanelRender({
@@ -98,12 +99,12 @@ class Panel {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
-        if (options.share && options.share.copyLink) {
+        if (entryPath && options.share && options.share.copyLink) {
           EventsUI.onClick(
             `.${idPanel}-btn-copy-share-${id}`,
             async (e) => {
               try {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?cid=${obj._id}`;
+                const shareUrl = `${window.location.origin}${entryPath}`;
                 await copyData(shareUrl);
                 await NotificationManager.Push({
                   status: 'success',
@@ -294,24 +295,9 @@ class Panel {
           setTimeout(() => {
             const links = sa(`.creator-profile-link-${id}`);
             links.forEach((link) => {
-              link.onclick = async (e) => {
+              link.onclick = (e) => {
                 e.preventDefault();
-                const username = link.getAttribute('data-id');
-                // Check if public profile modal is already open
-                const currentModal = s('.modal-public-profile');
-                if (currentModal) {
-                  // Modal is already open, update the profile content dynamically
-                  // Navigate to clean URL without intermediate ?cid= in history
-                  navigateToProfile(username, { replace: false });
-                  await PublicProfile.Update({
-                    idModal: 'modal-public-profile',
-                    user: { username },
-                  });
-                } else {
-                  // Modal is not open, navigate to clean URL and open modal
-                  navigateToProfile(username, { replace: false });
-                  if (s('.main-btn-public-profile')) s('.main-btn-public-profile').click();
-                }
+                navigatePublicRoute('profile', link.getAttribute('data-id'));
               };
             });
           });
@@ -321,10 +307,12 @@ class Panel {
 
       // Check if document is public (from obj.isPublic field)
       const isPublic = obj.isPublic === true;
-      // Visibility icon: globe for public, padlock for private
-      const visibilityIcon = isPublic
-        ? '<i class="fas fa-globe" title="Public document"></i>'
-        : '<i class="fas fa-lock" title="Private document"></i>';
+      // Visibility icon: globe for public, padlock for private; a skeleton item has neither.
+      const visibilityIcon = obj.ssr
+        ? ''
+        : isPublic
+          ? '<i class="fas fa-globe" title="Public document"></i>'
+          : '<i class="fas fa-lock" title="Private document"></i>';
 
       return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}" style="position: relative;">
         <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
@@ -353,6 +341,18 @@ class Panel {
         </div>
         <div class="in container-${idPanel}-${id}">
           <div class="panel-visibility-icon">${visibilityIcon}</div>
+          ${options.showCreatorProfile && obj.ssr
+            ? html`<div
+                class="creator-profile-header"
+                style="padding: 10px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;"
+              >
+                <div class="ssr-shimmer-search-box" style="width: 36px; height: 36px; border-radius: 50%;"></div>
+                <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+                  <div class="ssr-shimmer-search-box" style="width: 120px; height: 14px; border-radius: 6px;"></div>
+                  <div class="ssr-shimmer-search-box" style="width: 80px; height: 11px; border-radius: 6px;"></div>
+                </div>
+              </div>`
+            : ''}
           ${options.showCreatorProfile && obj.userInfo
             ? html`<div
                 class="creator-profile-header creator-profile-header-${id}"
@@ -363,7 +363,7 @@ class Panel {
                   : 'rgba(0,0,0,0.02)'}; border-radius: 4px 4px 0 0;"
               >
                 <a
-                  href="${getProxyPath()}u/${obj.userInfo.username}"
+                  href="${publicRoutePath('profile', obj.userInfo.username) ?? ''}"
                   class="creator-profile-link-${id}"
                   data-id="${obj.userInfo.username}"
                   style="display: flex;"
@@ -388,7 +388,7 @@ class Panel {
                 </a>
                 <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
                   <a
-                    href="${getProxyPath()}u/${obj.userInfo.username}"
+                    href="${publicRoutePath('profile', obj.userInfo.username) ?? ''}"
                     class="creator-username creator-profile-link-${id}"
                     data-id="${obj.userInfo.username}"
                     style="font-size: 14px; font-weight: 600; color: ${darkTheme
@@ -409,7 +409,7 @@ class Panel {
           <div class="in ${idPanel}-head">
             <div class="in ${idPanel}-title">
               ${options.titleIcon}
-              <a href="?cid=${payload._id}" class="a-title-${idPanel} a-${payload._id}">
+              <a ${entryPath ? `href="${entryPath}"` : ''} class="a-title-${idPanel} a-${payload._id}">
                 ${titleKey ? obj[titleKey] : ''}</a
               >
             </div>
@@ -420,7 +420,7 @@ class Panel {
           </div>
           <div class="fl">
             <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-a ${idPanel}-cell-col-a-${id}">
-              <div class="abs center ${idPanel}-img-spinner-${id}"></div>
+              ${obj.ssr ? imageShimmer() : html`<div class="abs center ${idPanel}-img-spinner-${id}"></div>`}
             </div>
             <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-b">
               ${Object.keys(obj)
@@ -560,12 +560,12 @@ class Panel {
             </div>
           </div>
         </div>
-        ${options.share && (options.share.copyLink || options.share.copySourceMd)
+        ${options.share && ((options.share.copyLink && entryPath) || options.share.copySourceMd)
           ? html`<div
               class="${idPanel}-share-btn-container ${idPanel}-share-btn-container-${id}"
               style="position: absolute; bottom: 8px; right: 8px; z-index: 2; display: flex; gap: 8px;"
             >
-              ${options.share.copyLink
+              ${options.share.copyLink && entryPath
                 ? html`<div style="position: relative;">
                     <button
                       class="btn-icon ${idPanel}-btn-copy-share-${id}"
@@ -947,11 +947,8 @@ class Panel {
       }
     };
 
-    // Add theme change listener
+    // The styles render inline below so the panel paints laid out; this only follows theme changes.
     ThemeEvents[`${idPanel}-theme`] = themeChangeHandler;
-
-    // Initial styles
-    setTimeout(ThemeEvents[`${idPanel}-theme`]);
 
     return html`
       <style>
@@ -1072,7 +1069,9 @@ class Panel {
           }
         }
       </style>
-      <style class="${idPanel}-styles"></style>
+      <style class="${idPanel}-styles">
+        ${darkTheme ? getDarkStyles(idPanel, scrollClassContainer) : getLightStyles(idPanel, scrollClassContainer)}
+      </style>
       <style class="${idPanel}-tag-styles">
         .panel-tag-clickable:hover {
           background: ${(() => {

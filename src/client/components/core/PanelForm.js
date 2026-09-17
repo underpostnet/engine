@@ -1,15 +1,25 @@
-import { getCapVariableName, newInstance, random, range, timer, uniqueArray } from './CommonJs.js';
+import { getCapVariableName, newInstance, PublicRoutes, range, timer, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
-import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s } from './VanillaJs.js';
+import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { getSrcFromFileData } from './Input.js';
-import { imageShimmer, renderCssAttr, darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
+import { renderCssAttr, darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
-import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath, getQueryParams } from './Router.js';
+import {
+  RouterEvents,
+  closeModalRouteChangeEvents,
+  getProxyPath,
+  getPublicRoute,
+  getPublicRouteParam,
+  navigate,
+  navigatePublicRoute,
+  presentPublicRoute,
+  publicRoutePath,
+} from './Router.js';
 import { Scroll } from './Scroll.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
@@ -72,6 +82,7 @@ class PanelForm {
       appStore: {},
       parentIdModal: undefined,
       route: 'home',
+      entryHost: false,
       htmlFormHeader: async () => '',
       firsUpdateEvent: async () => {},
       share: {
@@ -82,6 +93,9 @@ class PanelForm {
     },
   ) {
     const { idPanel, defaultUrlImage, appStore } = options;
+    // The panel hosting `/entry/:stableSlug` lists one entry while that route is current.
+    const currentEntrySlug = () => (options.entryHost ? getPublicRouteParam('entry') || '' : '');
+    const hostPath = () => `${getProxyPath()}${options.route === 'home' ? '' : options.route}`;
     // Authenticated users don't need 'public' tag - they see all their own posts
     // Only include 'public' for unauthenticated users (handled by backend)
     let prefixTags = [idPanel];
@@ -161,19 +175,9 @@ class PanelForm {
         formContainerClass: 'session-in-log-in',
         share: options.share,
         showCreatorProfile: options.showCreatorProfile,
-        onClick: async function ({ payload }) {
-          if (options.route) {
-            setQueryPath({ path: options.route, queryPath: payload._id });
-            if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
-            if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
-          }
-        },
+        entryPath: options.entryHost ? (entry) => publicRoutePath('entry', entry.stableSlug) : undefined,
+        onClick: options.entryHost ? ({ payload }) => navigatePublicRoute('entry', payload.stableSlug) : undefined,
         callBackPanelRender: async function (options) {
-          if (options.data.ssr) {
-            return await options.htmlRender({
-              render: imageShimmer(),
-            });
-          }
           // Get the filesData for this item
           const filesDataItem = PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id);
           // Priority 1: Check if there's an actual file (not markdown content)
@@ -230,36 +234,10 @@ class PanelForm {
                 html: status,
                 status,
               });
-              // Handle cid query param update (supports comma-separated list)
-              if (status === 'success') {
-                const currentCid = getQueryParams().cid;
-                if (currentCid) {
-                  // Parse cid as comma-separated list
-                  const cidList = currentCid
-                    .split(',')
-                    .map((id) => id.trim())
-                    .filter((id) => id);
-                  // Remove the deleted panel's id from the list
-                  const updatedCidList = cidList.filter((id) => id !== data.id);
-                  if (updatedCidList.length !== cidList.length) {
-                    // Wait for DOM cleanup before updating query
-                    if (updatedCidList.length === 0) {
-                      // No cids remain, clear query and reload panels with limit
-                      logger.warn('All cids removed, clearing query');
-                      setQueryPath({ path: options.route, queryPath: '' });
-                      if (options.parentIdModal) Modal.Data[options.parentIdModal].query = window.location.search;
-                      if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
-                    } else {
-                      // Update query params with remaining cids only (without ?cid= prefix)
-                      const cidValue = updatedCidList.join(',');
-                      setQueryPath({ path: options.route, queryPath: cidValue });
-                      const actualQuery = window.location.search;
-                      if (options.parentIdModal) Modal.Data[options.parentIdModal].query = actualQuery;
-                    }
-                  }
-                  // Return early to skip smart deletion logic when cid is present
-                  return { status };
-                }
+              // The deleted entry was the one on screen: fall back to the panel's full listing.
+              if (status === 'success' && currentEntrySlug()) {
+                navigate(hostPath());
+                return { status };
               }
               // Smart deletion: remove from arrays and intelligently load more if needed
               if (status === 'success') {
@@ -287,13 +265,8 @@ class PanelForm {
                     // List was empty, render all panels
                     if (panelData.data.length > 0) {
                       const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
-                      htmls(
-                        containerSelector,
-                        html`
-                          <div class="in">${await panelRender({ data: panelData.data })}</div>
-                          <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
-                        `,
-                      );
+                      htmls(containerSelector, await renderLoadedPanels());
+                      revealPanels();
                       // Show spinner if there's potentially more data
                       const lastOriginItem = panelData.originData[panelData.originData.length - 1];
                       if (
@@ -318,6 +291,7 @@ class PanelForm {
                     if (newItems.length > 0) {
                       for (const item of newItems)
                         append(`.${idPanel}-render`, await Panel.Tokens[idPanel].renderPanel(item));
+                      revealPanels();
                     }
                   }
                 }
@@ -498,6 +472,7 @@ class PanelForm {
                 fileId: file ? URL.createObjectURL(file) : undefined,
                 _id: documentData._id,
                 id: documentData._id,
+                stableSlug: documentData.stableSlug,
                 createdAt: documentData.createdAt,
                 // Use server response data - backend has already processed tags and isPublic
                 isPublic: documentData.isPublic || false,
@@ -548,8 +523,14 @@ class PanelForm {
                   : message,
               status: status,
             });
-            setQueryPath({ path: options.route, queryPath: documents.map((d) => d._id).join(',') });
-            if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
+            // The panel now shows only the saved documents: a single one is an entry with its own URL,
+            // anything else re-renders the listing on the next update.
+            if (status === 'success') {
+              if (options.entryHost && documents.length === 1) {
+                presentPublicRoute('entry', documents[0].stableSlug, { idModal: options.parentIdModal });
+                renderedEntrySlug = documents[0].stableSlug;
+              } else renderedEntrySlug = null;
+            }
             return { data: documents, status, message };
           },
         },
@@ -558,9 +539,9 @@ class PanelForm {
       const panelData = PanelForm.Data[idPanel];
       logger.warn('getPanelData called, isLoadMore:', isLoadMore);
       try {
-        const cidQuery = getQueryParams().cid;
-        // When cid query exists, bypass pagination and loading checks
-        if (!cidQuery) {
+        const entrySlug = currentEntrySlug();
+        // A single entry bypasses pagination and loading checks
+        if (!entrySlug) {
           if (panelData.loading || !panelData.hasMore) {
             logger.warn('getPanelData early return - loading:', panelData.loading, 'hasMore:', panelData.hasMore);
             return;
@@ -572,29 +553,30 @@ class PanelForm {
           panelData.skip = 0;
           panelData.hasMore = true;
         }
-        // When cid query exists, don't apply skip/limit pagination
-        const params = {
-          tags: prefixTags.join(','),
-          ...(cidQuery && { cid: cidQuery }),
-        };
-        // Only apply pagination when there's no cid query
-        if (!cidQuery) {
-          params.skip = panelData.skip;
-          params.limit = panelData.limit;
+        let result, documents, lastId;
+        if (entrySlug) {
+          // An unknown or unreadable entry renders the panel's empty state rather than an error.
+          result = await DocumentService.getBySlug({ stableSlug: entrySlug, idPanel });
+          documents = result.status === 'success' ? [result.data] : [];
+          lastId = null;
+          result = { status: 'success' };
+        } else {
+          result = await DocumentService.get({
+            params: { tags: prefixTags.join(','), skip: panelData.skip, limit: panelData.limit },
+            id: 'public/',
+          });
+          documents = result.data?.data ?? [];
+          lastId = result.data?.lastId ?? null;
         }
-        const result = await DocumentService.get({
-          params,
-          id: 'public/',
-        });
         if (result.status === 'success') {
           if (!isLoadMore) {
             panelData.originData = [];
             panelData.filesData = [];
             panelData.data = [];
           }
-          panelData.originData.push(...newInstance(result.data.data));
-          panelData.lasIdAvailable = result.data.lastId;
-          for (const documentObject of result.data.data) {
+          panelData.originData.push(...newInstance(documents));
+          panelData.lasIdAvailable = lastId;
+          for (const documentObject of documents) {
             let mdFileId, fileId;
             let mdBlob, fileBlob;
             let mdPlain, filePlain;
@@ -668,6 +650,7 @@ class PanelForm {
                   appStore.Data.user?.main?.model?.user?._id &&
                   documentObject.userId._id === appStore.Data.user.main.model.user._id,
                 _id: documentObject._id,
+                stableSlug: documentObject.stableSlug,
                 totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
                 isPublic: documentObject.isPublic || false,
               });
@@ -702,21 +685,21 @@ class PanelForm {
                   appStore.Data.user?.main?.model?.user?._id &&
                   documentObject.userId._id === appStore.Data.user.main.model.user._id,
                 _id: documentObject._id,
+                stableSlug: documentObject.stableSlug,
                 totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
                 isPublic: documentObject.isPublic || false,
               });
             }
           }
-          // Only update pagination when not using cid query
-          if (!cidQuery) {
-            panelData.skip += result.data.data.length;
-            panelData.hasMore = result.data.data.length === panelData.limit;
+          if (!entrySlug) {
+            panelData.skip += documents.length;
+            panelData.hasMore = documents.length === panelData.limit;
           } else {
-            // When cid query is used, disable infinite scroll
+            // A single entry has nothing further to scroll to
             panelData.hasMore = false;
           }
-          const lastItem = result.data.data[result.data.data.length - 1];
-          if (result.data.data.length === 0 || (lastItem && lastItem._id === panelData.lasIdAvailable)) {
+          const lastItem = documents[documents.length - 1];
+          if (documents.length === 0 || (lastItem && lastItem._id === panelData.lasIdAvailable)) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
             panelData.hasMore = false;
           }
@@ -734,62 +717,106 @@ class PanelForm {
       panelData.loading = false;
       LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
     };
-    const renderSSRPanelData = async () =>
-      await panelRender({
-        data: range(0, 0).map((i) => ({
-          id: i,
-          title: html`<div class="fl">
-            <div
-              class="in fll ssr-shimmer-search-box"
-              style="${renderCssAttr({
-                style: {
-                  width: '80%',
-                  height: '30px',
-                  top: '-13px',
-                  left: '10px',
-                },
-              })}"
-            ></div>
-          </div>`,
-          createdAt: html`<div class="fl">
-            <div
-              class="in fll ssr-shimmer-search-box"
-              style="${renderCssAttr({
-                style: {
-                  width: '50%',
-                  height: '30px',
-                  left: '-5px',
-                },
-              })}"
-            ></div>
-          </div>`,
-          mdFileId: html`<div class="fl section-mp">
-            <div
-              class="in fll ssr-shimmer-search-box"
-              style="${renderCssAttr({
-                style: {
-                  width: '80%',
-                  height: '30px',
-                },
-              })}"
-            ></div>
-          </div>`.repeat(random(2, 4)),
-          ssr: true,
-        })),
+    // Items fade down into place one after another, top to bottom, skeleton and loaded alike: each
+    // starts hidden just above its slot and the next one begins a step later. Only items not yet
+    // revealed take part, so a page the infinite scroll appends staggers from its own first item,
+    // not from the top. The animation class comes off again once it has played, so a settled item
+    // keeps no transform of its own (a filling animation would leave it as a containing block).
+    // While the splash still covers the shell the reveal waits for it to lift, or it would play
+    // unseen: the main body's skeleton at boot, and whatever loads before the splash goes.
+    const PANEL_FADE_STEP_MS = 90;
+    const panelFadeStyle = html`<style>
+      .${idPanel}-fade-in {
+        animation: ${idPanel}-fade-in 0.45s ease-out both;
+      }
+      @keyframes ${idPanel}-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(-16px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .${idPanel}-fade-in {
+          animation: none;
+        }
+      }
+    </style>`;
+    const revealPanels = () => {
+      if (LoadingAnimation.splashScreenVisible()) {
+        LoadingAnimation.onRemoveSplashScreen[idPanel] = revealPanels;
+        return;
+      }
+      sa(`.${idPanel}-render > .${idPanel}:not(.${idPanel}-revealed)`).forEach((item, index) => {
+        item.classList.add(`${idPanel}-revealed`, `${idPanel}-fade-in`);
+        item.style.animationDelay = `${index * PANEL_FADE_STEP_MS}ms`;
+        const onEnd = (e) => {
+          // Animations inside the item (spinners, shimmers) bubble here too; only ours counts.
+          if (e.target !== item || e.animationName !== `${idPanel}-fade-in`) return;
+          item.removeEventListener('animationend', onEnd);
+          item.classList.remove(`${idPanel}-fade-in`);
+          item.style.animationDelay = '';
+        };
+        item.addEventListener('animationend', onEnd);
       });
+    };
+    // Skeleton shown while the panel loads: entry-shaped items with fixed line lengths — one for
+    // a single entry, a page's worth for the listing — so it paints once and holds still until the
+    // data replaces it.
+    const skeletonLine = (width, height, margin = '0') =>
+      html`<div
+        class="inl ssr-shimmer-search-box"
+        style="${renderCssAttr({ style: { width, height, margin, 'border-radius': '6px', 'vertical-align': 'middle' } })}"
+      ></div>`;
+    const renderSSRPanelData = async () =>
+      html`<div class="in ${idPanel}-skeleton">
+        ${panelFadeStyle}
+        ${await panelRender({
+          data: range(0, currentEntrySlug() ? 0 : PanelForm.Data[idPanel].limit - 1).map((id) => ({
+            id,
+            title: skeletonLine('60%', '20px'),
+            createdAt: skeletonLine('35%', '12px'),
+            mdFileId: html`<div class="in section-mp">
+              ${['100%', '92%', '76%'].map((width) => skeletonLine(width, '14px', '6px 0')).join('')}
+            </div>`,
+            ssr: true,
+          })),
+        })}
+      </div>`;
+    // The loaded list: the fade rules, the rendered panels and the placeholder the spinner uses.
+    const renderLoadedPanels = async () => html`
+      ${panelFadeStyle}
+      <div class="in">${await panelRender({ data: PanelForm.Data[idPanel].data })}</div>
+      <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
+    `;
     let firsUpdateEvent = false;
-    let lastCid;
+    // Entry slug the panel last rendered ('' for the listing); `null` forces the next update to render.
+    let renderedEntrySlug = null;
     let lastUserId;
     let loadingGetData = false;
+    // The panel's own routes: its listing route, and `/entry/…` when it hosts entries.
+    const panelRoute = options.route === 'home' ? '' : options.route;
+    const isPanelRoute = (route) => route === panelRoute || (options.entryHost && route === PublicRoutes.entry.namespace);
+    const currentRoute = () => {
+      const publicRoute = getPublicRoute();
+      if (publicRoute) return publicRoute.namespace;
+      return window.location.pathname.slice(getProxyPath().length).replace(/\/+$/, '');
+    };
+    // A view closing restores the path of whatever is now on top. Only refresh when that is this
+    // panel: a settings view closing over a profile that sits over an entry must not re-list the
+    // panel under the profile (and leave that listing there if the profile closes mid-load).
     closeModalRouteChangeEvents[idPanel] = () => {
       setTimeout(() => {
-        PanelForm.Data[idPanel].updatePanel();
+        if (!options.route || isPanelRoute(currentRoute())) PanelForm.Data[idPanel].updatePanel();
       });
     };
     PanelForm.Data[idPanel].updatePanel = async (...args) => {
       const _updatePanel = async (...args) => {
         try {
-          const cid = getQueryParams().cid ? getQueryParams().cid : '';
+          const entrySlug = currentEntrySlug();
           const forceUpdate =
             appStore.Data.user.main.model &&
             appStore.Data.user.main.model.user &&
@@ -798,22 +825,19 @@ class PanelForm {
           logger.warn(
             {
               idPanel,
-              cid,
+              entrySlug,
               forceUpdate,
             },
             appStore.Data.user?.main?.model?.user
               ? JSON.stringify(appStore.Data.user.main.model.user, null, 4)
               : 'No user data',
           );
-          // Normalize empty values for comparison (undefined, null, '' should all be treated as empty)
-          const normalizedCid = cid || '';
-          const normalizedLastCid = lastCid || '';
-          if (loadingGetData || (normalizedLastCid === normalizedCid && !forceUpdate)) return;
+          if (loadingGetData || (renderedEntrySlug === entrySlug && !forceUpdate)) return;
           loadingGetData = true;
           lastUserId = appStore.Data.user?.main?.model?.user?._id
             ? newInstance(appStore.Data.user.main.model.user._id)
             : null;
-          lastCid = cid;
+          renderedEntrySlug = entrySlug;
           logger.warn('instance render panel data');
           PanelForm.Data[idPanel] = {
             ...PanelForm.Data[idPanel],
@@ -824,18 +848,15 @@ class PanelForm {
             hasMore: true,
             loading: false,
           };
-          // Always reset skip to 0 when reloading (whether cid exists or not)
           PanelForm.Data[idPanel].skip = 0;
           const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
-          htmls(containerSelector, await renderSSRPanelData());
+          if (!s(`${containerSelector} .${idPanel}-skeleton`)) {
+            htmls(containerSelector, await renderSSRPanelData());
+            revealPanels();
+          }
           await getPanelData();
-          htmls(
-            containerSelector,
-            html`
-              <div class="in">${await panelRender({ data: PanelForm.Data[idPanel].data })}</div>
-              <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
-            `,
-          );
+          htmls(containerSelector, await renderLoadedPanels());
+          revealPanels();
           const lastOriginItem = PanelForm.Data[idPanel].originData[PanelForm.Data[idPanel].originData.length - 1];
           if (
             !PanelForm.Data[idPanel].lasIdAvailable ||
@@ -848,7 +869,7 @@ class PanelForm {
           if (PanelForm.Data[idPanel].removeScrollEvent) {
             PanelForm.Data[idPanel].removeScrollEvent();
           }
-          if (cid) {
+          if (entrySlug) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
             return;
           }
@@ -863,6 +884,7 @@ class PanelForm {
               if (newItems.length > 0) {
                 for (const item of newItems)
                   append(`.${idPanel}-render`, await Panel.Tokens[idPanel].renderPanel(item));
+                revealPanels();
               }
             }
           });
@@ -879,17 +901,14 @@ class PanelForm {
       loadingGetData = false;
     };
     if (options.route) {
-      listenQueryPathInstance({
-        id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
-        routeId: options.route,
-        event: async (path) => {
-          // Don't manually clear arrays - updatePanel() will handle it if needed
-          await PanelForm.Data[idPanel].updatePanel();
-        },
-      });
+      RouterEvents[`panel-form-${idPanel}`] = ({ route }) => {
+        if (isPanelRoute(route)) setTimeout(() => PanelForm.Data[idPanel].updatePanel());
+      };
+      // A panel inside a view is created after the router rendered its route, so it loads itself.
+      if (panelRoute) setTimeout(() => PanelForm.Data[idPanel].updatePanel());
       if (!options.parentIdModal)
         Modal.Data['modal-menu'].onHome[idPanel] = async () => {
-          lastCid = undefined;
+          renderedEntrySlug = null;
           lastUserId = undefined;
           PanelForm.Data[idPanel] = {
             ...PanelForm.Data[idPanel],
@@ -901,14 +920,16 @@ class PanelForm {
             hasMore: true,
             loading: false,
           };
-          setQueryPath({ path: options.route, queryPath: options.route === 'home' ? '?' : '' });
           await PanelForm.Data[idPanel].updatePanel();
         };
     }
     if (options.parentIdModal) {
       htmls(`.html-${options.parentIdModal}`, await renderSSRPanelData());
+      revealPanels();
       return '';
     }
+    // The shell inserts this skeleton into the main body under the splash; it fades in once that lifts.
+    LoadingAnimation.onRemoveSplashScreen[idPanel] = revealPanels;
     return await renderSSRPanelData();
   }
 }

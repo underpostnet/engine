@@ -9,10 +9,9 @@
 import { loggerFactory } from '../core/Logger.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath } from '../core/Router.js';
+import { navigatePublicRoute } from '../core/Router.js';
 import { Css, ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { s } from '../core/VanillaJs.js';
-import { Modal } from '../core/Modal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -50,7 +49,7 @@ const DocumentSearchProvider = {
    * @param {object} [context.options] - Additional search options.
    * @param {string} [context.idPanel] - Panel ID to filter documents by tag.
    * @returns {Promise<Array<object>>} Promise resolving to array of search result objects.
-   * @returns {Promise<Array<{id: string, type: string, title: string, tags: Array<string>, createdAt: string, data: object}>>}
+   * @returns {Promise<Array<{id: string, stableSlug: string, type: string, title: string, tags: Array<string>, createdAt: string, data: object}>>}
    */
   search: async (query, context) => {
     // Minimum match requirement: allow 1 character for maximum results
@@ -70,6 +69,7 @@ const DocumentSearchProvider = {
       if (response.status === 'success' && response.data && response.data.data) {
         return response.data.data.map((doc) => ({
           id: doc._id,
+          stableSlug: doc.stableSlug,
           type: 'document',
           title: doc.title || 'Untitled',
           tags: doc.tags || [],
@@ -192,49 +192,20 @@ const DocumentSearchProvider = {
   },
 
   /**
-   * Handles click events on document search results.
-   * Loads the selected document into the Underpost panel using SPA navigation.
-   * Prevents duplicate history entries if already viewing the same document.
+   * Handles click events on document search results: navigates to the document's panel entry,
+   * which the router renders like any other visit to `/entry/:stableSlug`.
    * @memberof DocumentSearchProviderClient.DocumentSearchProvider
    * @param {object} result - The search result object that was clicked.
-   * @param {string} result.id - Document ID to load.
+   * @param {string} result.stableSlug - Public slug of the document.
    * @param {string} result.title - Document title for logging.
-   * @param {object} context - Click context object with navigation helpers.
-   * @param {object} [context.RouterInstance] - Router instance for SPA navigation.
-   * @param {string} [context.currentRoute] - Current route name (e.g., 'home').
-   * @param {Function} [context.updatePanel] - Function to update the panel with new document.
    * @returns {void}
    */
-  onClick: async (result, context) => {
-    if (!result || !result.id) {
+  onClick: (result) => {
+    if (!result || !navigatePublicRoute('entry', result.stableSlug)) {
       logger.warn('Invalid document result');
       return;
     }
-
-    logger.info(`Document clicked: ${result.id} - ${result.title}`);
-
-    // Close any open modal views (like Settings, Account, etc.) before navigating
-    // This ensures we return to home view when clicking a search result
-    await Modal.onHomeRouterEvent();
-
-    // Check if we're already on this document to prevent duplicate history
-    const currentUrl = new URL(window.location.href);
-    const currentCid = currentUrl.searchParams.get('cid');
-
-    // Only update URL and history if cid is different
-    if (currentCid !== result.id) {
-      // SPA Navigation: Update panel without page reload
-      const path = getProxyPath();
-      const queryPath = `?cid=${result.id}`;
-
-      // Update browser history without reload
-      window.history.pushState({}, '', `${path}${queryPath}`);
-
-      // Trigger PanelForm update with the document CID
-      if (context.updatePanel) context.updatePanel(result.id);
-    } else {
-      logger.info('Already on this document, not creating duplicate history');
-    }
+    logger.info(`Document clicked: ${result.stableSlug} - ${result.title}`);
   },
 
   /**
