@@ -171,7 +171,7 @@ class UserRouter {
       return await UserController.get(req, res, options);
     });
 
-    router.get(`/u/:username`, async (req, res) => {
+    router.get(`/username/:username`, async (req, res) => {
       /*
         #swagger.ignore = true
       */
@@ -347,15 +347,6 @@ class UserRouter {
         #swagger.ignore = true
       */
       return await UserController.delete(req, res, options);
-    });
-
-    // Username public profile redirect — registered directly on the app so the
-    // /u/:username shortlink works outside the API path prefix.
-    options.app.get(`${options.path === '/' ? '' : options.path}/u/:username`, async (req, res, next) => {
-      /*
-        #swagger.ignore = true
-      */
-      return res.redirect(`${options.path === '/' ? '' : options.path}/u?cid=${req.params.username}`);
     });
 
     return router;

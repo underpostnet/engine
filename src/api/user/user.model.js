@@ -1,6 +1,11 @@
 import { Schema, model } from 'mongoose';
 import validator from 'validator';
-import { userRoleEnum } from '../../client/components/core/CommonJs.js';
+import {
+  userRoleEnum,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  USERNAME_PATTERN,
+} from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 const UserSchema = new Schema(
@@ -27,17 +32,16 @@ const UserSchema = new Schema(
       validate: [
         {
           validator: function (username) {
-            // Allow only alphanumeric characters, hyphens, and underscores (URI-safe)
-            return /^[a-zA-Z0-9_-]+$/.test(username);
+            // URI-safe: the username is the `/u/:username` path segment
+            return USERNAME_PATTERN.test(username);
           },
           message: 'Username can only contain letters, numbers, hyphens, and underscores',
         },
         {
           validator: function (username) {
-            // Length validation
-            return username && username.length >= 2 && username.length <= 20;
+            return username && username.length >= USERNAME_MIN_LENGTH && username.length <= USERNAME_MAX_LENGTH;
           },
-          message: 'Username must be between 2 and 20 characters',
+          message: `Username must be between ${USERNAME_MIN_LENGTH} and ${USERNAME_MAX_LENGTH} characters`,
         },
       ],
     },

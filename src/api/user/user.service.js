@@ -27,7 +27,7 @@ import validator from 'validator';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
-import { timer } from '../../client/components/core/CommonJs.js';
+import { isValidUsername, timer } from '../../client/components/core/CommonJs.js';
 import { GuestService } from './guest.service.js';
 import { resolveHostKeyContext } from '../../server/runtime/conf.js';
 
@@ -279,13 +279,15 @@ class UserService {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProviderService.getModel('User', options);
 
-    if (req.path.startsWith('/u/')) {
-      // First lookup user by username
+    if (req.path.startsWith('/username/')) {
+      const userNotFound = () => Object.assign(new Error('User not found'), { status: 404 });
+      if (!isValidUsername(req.params.username)) throw userNotFound();
       const userByUsername = await User.findOne({
         username: req.params.username,
       });
-      if (!userByUsername) throw new Error('User not found');
-      if (!userByUsername.publicProfile) throw new Error('Public profile is private');
+      if (!userByUsername) throw userNotFound();
+      if (!userByUsername.publicProfile)
+        throw Object.assign(new Error('Public profile is private'), { status: 403 });
 
       // Then fetch complete public data by ID
       const user = await User.findOne({
