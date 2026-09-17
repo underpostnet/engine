@@ -10,6 +10,7 @@ class LogOutUnderpost {
 
     PanelForm.Data['underpost-panel'].updatePanel();
     if (s(`.main-btn-cloud`)) s(`.main-btn-cloud`).classList.add('hide');
+    if (s(`.main-btn-user-management`)) s(`.main-btn-user-management`).classList.add('hide');
   }, { key: 'LogOutUnderpost' });
   }
 }

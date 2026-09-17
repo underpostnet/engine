@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance } from '../core/CommonJs.js';
+import { commonAdminGuard, getId, newInstance } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -26,6 +26,7 @@ import { PublicProfile } from '../core/PublicProfile.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Content } from '../core/Content.js';
+import { UserManagement } from '../../services/user/user.management.js';
 
 class AppShellUnderpost {
   static Data = {};
@@ -170,6 +171,19 @@ class AppShellUnderpost {
             tabHref: `${getProxyPath()}cloud`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud')),
+          })}
+          ${await BtnIcon.instance({
+            // Admins only: shown by the log-in handler for an admin session, hidden again on log-out.
+            class: 'in wfa main-btn-menu main-btn-user-management hide',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-users-cog inl underpost-menu-icon"></i>`,
+              text: html`<span class="menu-label-text">${Translate.instance('user-management')}</span>`,
+            }),
+            attrs: `data-id="user-management"`,
+            tabHref: `${getProxyPath()}user-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('user-management')),
           })}
           ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -624,6 +638,28 @@ class AppShellUnderpost {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-user-management`, async () => {
+      // The route reaches here for anyone; only an admin session opens the view, the rest go home.
+      if (!commonAdminGuard(AppStoreUnderpost.Data.user?.main?.model?.user?.role)) return Modal.onHomeRouterEvent();
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-user-management',
+        route: 'user-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-users-cog inl underpost-menu-icon-modal"></i>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('user-management')}</span>`,
+        }),
+        html: async () => await UserManagement.instance({ appStore: AppStoreUnderpost }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
       });
     });
 

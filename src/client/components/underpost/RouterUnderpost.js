@@ -32,6 +32,7 @@ class RouterUnderpost {
       // The home panel hosts entries: show it without leaving `/entry/:stableSlug`.
       '/entry': { title: 'entry', render: () => Modal.onHomeRouterEvent({ keepPath: true }) },
       '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
+      '/user-management': { title: 'user-management', render: () => s(`.main-btn-user-management`).click() },
       '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
       '/content': { title: 'content', render: () => s(`.main-btn-content`).click() },
       '/cloud': { title: 'cloud', render: () => s(`.main-btn-cloud`).click() },

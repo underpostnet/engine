@@ -149,6 +149,13 @@ const CssCommonUnderpost = async () => {
         width: 30px;
         height: 30px;
       }
+      /* A glyph icon sits in the same box as the image icons. */
+      i.underpost-menu-icon,
+      i.underpost-menu-icon-modal {
+        font-size: 22px;
+        line-height: 30px;
+        text-align: center;
+      }
       .underpost-text-title-modal {
         top: -10px;
       }
