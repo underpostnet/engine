@@ -419,6 +419,96 @@ function hexToRgbA(hex) {
 const htmlStrSanitize = (str) => (str ? str.replace(/<\/?[^>]+(>|$)/g, '').trim() : '');
 
 /**
+ * Escapes a value for use as text or an attribute value in a rendered template.
+ * @param {*} value
+ * @returns {string}
+ * @memberof VanillaJS
+ */
+const escapeHtml = (value) =>
+  `${value ?? ''}`
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/** Elements user content may carry: what Markdown renders to, plus the inline and media HTML a post may embed. */
+const SAFE_HTML_TAGS = new Set(
+  (
+    'a abbr audio b blockquote br caption code col colgroup dd del details div dl dt em figcaption figure ' +
+    'h1 h2 h3 h4 h5 h6 hr i img input ins kbd li mark ol p picture pre q s samp section small source span ' +
+    'strike strong sub summary sup table tbody td tfoot th thead tr u ul var video'
+  ).split(' '),
+);
+/**
+ * Elements dropped with their content: a raw-text element (`style`, `script`, `textarea`, …) left
+ * open swallows the rest of the page it lands in, the others run or embed foreign content. Any other
+ * element outside the safe set is unwrapped, keeping its text.
+ */
+const DROPPED_HTML_TAGS = new Set(
+  'script style template iframe frame frameset object embed applet noscript title textarea select option xmp plaintext svg math head'.split(
+    ' ',
+  ),
+);
+const SAFE_HTML_ATTRIBUTES = new Set(
+  'href src poster cite alt title class style width height align colspan rowspan scope start type checked disabled lang dir target loading controls open datetime'.split(
+    ' ',
+  ),
+);
+const URL_HTML_ATTRIBUTES = new Set(['href', 'src', 'poster', 'cite']);
+const SAFE_URL_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
+
+// Browsers drop whitespace and control characters from a URL before reading its scheme, so they
+// are dropped before the scheme is checked here as well.
+const isSafeUrl = (value, { image = false } = {}) => {
+  const url = value.replace(/[\s\u0000-\u001f\u007f]/g, '');
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url);
+  if (!scheme) return true;
+  if (SAFE_URL_SCHEMES.has(scheme[1].toLowerCase())) return true;
+  return image && /^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(url);
+};
+
+/**
+ * Reduces HTML from user content (a Markdown body, which passes raw HTML through) to the elements
+ * and attributes it may safely carry: no scripts, styles, embeds, event handlers or scripted URLs,
+ * and never an open raw-text element that would swallow the page around it.
+ * @param {string} html
+ * @returns {string} The sanitized markup.
+ * @memberof VanillaJS
+ */
+const sanitizeHtml = (html) => {
+  const { body } = new DOMParser().parseFromString(`<body>${html ?? ''}`, 'text/html');
+  const walk = (parent) => {
+    for (const node of Array.from(parent.childNodes)) {
+      if (node.nodeType === Node.COMMENT_NODE) {
+        node.remove();
+        continue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      const tag = node.localName;
+      if (DROPPED_HTML_TAGS.has(tag)) {
+        node.remove();
+        continue;
+      }
+      walk(node);
+      if (!SAFE_HTML_TAGS.has(tag)) {
+        node.replaceWith(...node.childNodes);
+        continue;
+      }
+      for (const { name, value } of Array.from(node.attributes))
+        if (
+          !SAFE_HTML_ATTRIBUTES.has(name) ||
+          (URL_HTML_ATTRIBUTES.has(name) && !isSafeUrl(value, { image: tag === 'img' && name === 'src' }))
+        )
+          node.removeAttribute(name);
+      if (tag === 'a' && node.hasAttribute('target')) node.setAttribute('rel', 'noopener noreferrer');
+    }
+  };
+  walk(body);
+  return body.innerHTML;
+};
+
+/**
  * Query selector inside an iframe. Allows obtaining a single element that is
  * inside an iframe in order to execute events on it.
  * Note: the iframe must be same-origin for this to work.
@@ -482,4 +572,6 @@ export {
   getLang,
   hexToRgbA,
   htmlStrSanitize,
+  escapeHtml,
+  sanitizeHtml,
 };

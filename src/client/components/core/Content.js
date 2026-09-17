@@ -1,6 +1,15 @@
 import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
-import { append, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
+import {
+  append,
+  escapeHtml,
+  getBlobFromUint8ArrayFile,
+  getRawContentFile,
+  htmls,
+  s,
+  sa,
+  sanitizeHtml,
+} from './VanillaJs.js';
 import { s4 } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
@@ -11,6 +20,15 @@ import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from '.
 import { navigate } from './Router.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * The HTML a Markdown body renders to, wherever a document body is shown. `marked` passes the raw
+ * HTML an author writes through, so the result is sanitized: a stray `<style>` or `<script>` in a
+ * post would otherwise swallow, or run inside, the panel around it.
+ * @param {string} markdown
+ * @returns {string}
+ */
+const renderMarkdown = (markdown) => sanitizeHtml(marked.parse(`${markdown ?? ''}`));
 
 const attachMarkdownLinkHandlers = (containerSelector) => {
   const container = s(containerSelector);
@@ -239,7 +257,7 @@ class Content {
           {
             const content = await Content.getFileContent(file, options);
             render += html`<div class="${options.class} markdown-content" ${styleFactory(options.style)}>
-              ${marked.parse(content)}
+              ${renderMarkdown(content)}
             </div>`;
           }
           break;
@@ -295,7 +313,9 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
         default:
           {
             const content = await Content.getFileContent(file, options);
-            render += html`<div class="in ${options.class}" ${styleFactory(options.style)}>${content}</div>`;
+            render += html`<div class="in ${options.class}" ${styleFactory(options.style)}>
+              ${escapeHtml(content)}
+            </div>`;
           }
           break;
       }
@@ -348,4 +368,4 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
   }
 }
 
-export { Content, attachMarkdownLinkHandlers };
+export { Content, attachMarkdownLinkHandlers, renderMarkdown };

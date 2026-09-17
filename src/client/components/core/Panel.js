@@ -3,7 +3,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
 import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
-import { append, copyData, getDataFromInputFile, htmls, s, sa } from './VanillaJs.js';
+import { append, copyData, escapeHtml, getDataFromInputFile, htmls, s, sa } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
@@ -410,7 +410,10 @@ class Panel {
             <div class="in ${idPanel}-title">
               ${options.titleIcon}
               <a ${entryPath ? `href="${entryPath}"` : ''} class="a-title-${idPanel} a-${payload._id}">
-                ${titleKey ? obj[titleKey] : ''}</a
+                ${
+                  // A skeleton item's title is the panel's own shimmer markup; a loaded item's is user text.
+                  titleKey ? (obj.ssr ? obj[titleKey] : escapeHtml(obj[titleKey])) : ''
+                }</a
               >
             </div>
             <div class="in ${idPanel}-subtitle">

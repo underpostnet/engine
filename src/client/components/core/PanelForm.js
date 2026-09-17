@@ -1,11 +1,11 @@
 import { capFirst, getCapVariableName, newInstance, PublicRoutes, range, timer, uniqueArray } from './CommonJs.js';
-import { marked } from 'marked';
 import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { getSrcFromFileData } from './Input.js';
+import { renderMarkdown } from './Content.js';
 import { renderCssAttr, darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
@@ -378,7 +378,7 @@ class PanelForm {
             const baseNewDoc = newInstance(data);
             baseNewDoc.tags = tags.filter((t) => !prefixTags.includes(t));
             baseNewDoc.mdFileId = hasMdContent
-              ? `<div class="markdown-content">${marked.parse(data.mdFileId)}</div>`
+              ? `<div class="markdown-content">${renderMarkdown(data.mdFileId)}</div>`
               : null;
             baseNewDoc.userId = appStore.Data.user?.main?.model?.user?._id;
             // Ensure profileImageId is properly formatted as object with _id property
@@ -598,7 +598,7 @@ class PanelForm {
                     mdPlain = await blobArray[0].text();
                     // Parse markdown with proper error handling
                     try {
-                      parsedMarkdown = mdPlain ? `<div class="markdown-content">${marked.parse(mdPlain)}</div>` : '';
+                      parsedMarkdown = mdPlain ? `<div class="markdown-content">${renderMarkdown(mdPlain)}</div>` : '';
                     } catch (parseError) {
                       logger.error('Error parsing markdown for document:', documentObject._id, parseError);
                       parsedMarkdown = `<p><strong>Error rendering markdown:</strong> ${parseError.message}</p>`;
