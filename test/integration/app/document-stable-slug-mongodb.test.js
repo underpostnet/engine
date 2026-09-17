@@ -4,7 +4,8 @@
  * @module document-stable-slug-mongodb.test
  * @description Runs the Document `stableSlug` lifecycle against a real MongoDB server with the
  * real Mongoose schema: the unique partial index, duplicate-key handling, every Mongoose create
- * path, concurrent creation of one title, title edits, and the one-shot migration — on legacy
+ * path, concurrent creation of one title, title edits (the slug follows the title, and stays put
+ * for a rename of the same words), and the one-shot migration — on legacy
  * documents, on duplicated slugs, over a large collection, twice, and across a reconnect.
  *
  * Needs a `mongod` binary: `UNDERPOST_MONGOD_BIN`, or one on PATH. Skipped otherwise, so the tier
@@ -96,16 +97,52 @@ describe.skipIf(!mongodBinary)('Document stable slugs on MongoDB', () => {
   });
 
   describe('update semantics', () => {
-    it('keeps the slug when the title changes, through save and through findByIdAndUpdate', async () => {
+    it('moves the slug with the title, through save and through the REST update, past a taken slug', async () => {
       await Document.ensureStableSlugs();
       const doc = await Document.create({ title: 'How to Chat With GPT' });
+      await Document.create({ title: 'How to Chat With GPT Efficiently' });
       doc.title = 'How to Chat With GPT Efficiently';
-      doc.stableSlug = 'how-to-chat-with-gpt-efficiently';
       await doc.save();
-      await Document.findByIdAndUpdate(doc._id, { title: 'Renamed twice', stableSlug: 'renamed-twice' });
+      expect(doc.stableSlug).to.equal('how-to-chat-with-gpt-efficiently-2');
+      const renamed = await Document.updateWithStableSlug(await Document.findById(doc._id), {
+        title: 'Renamed twice',
+        stableSlug: 'hijacked',
+      });
+      expect(renamed.stableSlug).to.equal('renamed-twice');
       const stored = await Document.findById(doc._id);
       expect(stored.title).to.equal('Renamed twice');
-      expect(stored.stableSlug).to.equal('how-to-chat-with-gpt');
+      expect(stored.stableSlug).to.equal('renamed-twice');
+      expect(await Document.countDocuments({ stableSlug: 'how-to-chat-with-gpt' })).to.equal(0);
+    });
+
+    it('keeps the slug for a rename of the same words and for an edit of another field', async () => {
+      await Document.ensureStableSlugs();
+      await Document.create({ title: 'Launch Notes' });
+      const doc = await Document.create({ title: 'Launch Notes' });
+      expect(doc.stableSlug).to.equal('launch-notes-2');
+      const same = await Document.updateWithStableSlug(await Document.findById(doc._id), {
+        title: 'launch notes!',
+        isPublic: true,
+      });
+      expect(same.stableSlug).to.equal('launch-notes-2');
+      expect(same.isPublic).to.equal(true);
+      doc.tags = ['guides'];
+      await doc.save();
+      expect((await Document.findById(doc._id)).stableSlug).to.equal('launch-notes-2');
+    });
+
+    it('resolves concurrent renames to one title to distinct slugs under the unique index', async () => {
+      await Document.ensureStableSlugs();
+      const created = await Promise.all(Array.from({ length: 6 }, (_, i) => Document.create({ title: `Draft ${i}` })));
+      const renamed = await Promise.all(
+        created.map(async (doc) =>
+          Document.updateWithStableSlug(await Document.findById(doc._id), { title: 'Release' }),
+        ),
+      );
+      const slugs = renamed.map((doc) => doc.stableSlug).sort();
+      expect(new Set(slugs).size).to.equal(6);
+      expect(slugs).to.include.members(['release', 'release-2', 'release-6']);
+      expect(await Document.countDocuments({ stableSlug: { $regex: /^draft-/ } })).to.equal(0);
     });
 
     it('lets a document from before the field existed be saved before it is migrated', async () => {

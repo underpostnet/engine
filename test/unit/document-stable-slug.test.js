@@ -4,8 +4,9 @@
  * @module document-stable-slug.test
  * @description Covers the Document `stableSlug` lifecycle in `src/api/document/document.model.js`:
  * assignment on create, deterministic suffixes for duplicate titles, re-resolution when
- * concurrent inserts race for one slug, stability across title edits, and the idempotent
- * backfill that migrates documents created before the field existed.
+ * concurrent inserts race for one slug, the slug following a title edit (and staying put for one
+ * that keeps the title's words), and the idempotent backfill that migrates documents created
+ * before the field existed.
  *
  * The statics run against an in-memory model whose writes enforce the unique slug index the
  * way MongoDB does — the check and the insert are one step, and a loser gets E11000 — whose reads
@@ -19,7 +20,7 @@
 
 import { expect } from 'chai';
 import { Types } from 'mongoose';
-import { DocumentModel, DocumentSchema } from '../../src/api/document/document.model.js';
+import { DocumentModel, DocumentSchema, isSlugOfTitle } from '../../src/api/document/document.model.js';
 
 const duplicateSlug = (stableSlug) =>
   Object.assign(
@@ -170,16 +171,91 @@ describe('stable slug on create', () => {
 });
 
 describe('stable slug after create', () => {
-  it('keeps the slug when the title changes', () => {
-    const doc = DocumentModel.hydrate({
-      _id: new Types.ObjectId(),
-      title: 'How to Chat With GPT',
-      stableSlug: 'how-to-chat-with-gpt',
+  // The hook resolves through the model's slug lookup; here it answers from a fixed set of taken slugs.
+  const withTakenSlugs = async (taken, run) => {
+    const { nextStableSlug } = DocumentModel;
+    const lookups = [];
+    DocumentModel.nextStableSlug = async (title) => {
+      lookups.push(title);
+      const { Documents } = inMemoryDocuments(taken.map((stableSlug) => ({ stableSlug, createdAt: new Date() })));
+      return await Documents.nextStableSlug(title);
+    };
+    try {
+      return await run(lookups);
+    } finally {
+      DocumentModel.nextStableSlug = nextStableSlug;
+    }
+  };
+  const loaded = (title, stableSlug) => DocumentModel.hydrate({ _id: new Types.ObjectId(), title, stableSlug });
+
+  it('tells whether a slug derives from a title, base or numbered candidate', () => {
+    expect(isSlugOfTitle('how-to-chat-with-gpt', 'How to chat with GPT?')).to.equal(true);
+    expect(isSlugOfTitle('how-to-chat-with-gpt-3', 'How to Chat With GPT')).to.equal(true);
+    expect(isSlugOfTitle('top-10', 'Top 10')).to.equal(true);
+    expect(isSlugOfTitle('how-to-chat-with-gpt', 'How to chat with GPT efficiently')).to.equal(false);
+    expect(isSlugOfTitle('launch-notes-2', 'Launch')).to.equal(false);
+    for (const stableSlug of [undefined, null, '']) expect(isSlugOfTitle(stableSlug, 'x')).to.equal(false);
+  });
+
+  it('moves the slug to the new title on a title edit', async () => {
+    await withTakenSlugs(['how-to-chat-with-gpt', 'how-to-chat-with-gpt-efficiently'], async (lookups) => {
+      const doc = loaded('How to Chat With GPT', 'how-to-chat-with-gpt');
+      doc.title = 'How to Chat With GPT Efficiently';
+      await doc.validate();
+      expect(doc.stableSlug).to.equal('how-to-chat-with-gpt-efficiently-2');
+      expect(lookups).to.deep.equal(['How to Chat With GPT Efficiently']);
     });
-    doc.title = 'How to Chat With GPT Efficiently';
-    doc.stableSlug = 'how-to-chat-with-gpt-efficiently';
-    expect(doc.title).to.equal('How to Chat With GPT Efficiently');
-    expect(doc.stableSlug).to.equal('how-to-chat-with-gpt');
+  });
+
+  it('keeps the slug for an edit that keeps the title’s words, and for an edit of another field', async () => {
+    await withTakenSlugs([], async (lookups) => {
+      const doc = loaded('How to Chat With GPT', 'how-to-chat-with-gpt-2');
+      doc.title = 'how to chat with GPT!';
+      await doc.validate();
+      const other = loaded('How to Chat With GPT', 'how-to-chat-with-gpt');
+      other.isPublic = true;
+      await other.validate();
+      expect(doc.stableSlug).to.equal('how-to-chat-with-gpt-2');
+      expect(other.stableSlug).to.equal('how-to-chat-with-gpt');
+      expect(lookups).to.deep.equal([]);
+    });
+  });
+
+  it('assigns a slug to a document from before the field existed when its title is edited', async () => {
+    await withTakenSlugs(['old-post'], async () => {
+      const legacy = DocumentModel.hydrate({ _id: new Types.ObjectId(), title: 'Old post' });
+      legacy.title = 'Old post, revised';
+      await legacy.validate();
+      expect(legacy.stableSlug).to.equal('old-post-revised');
+    });
+  });
+
+  it('updates through the REST path with a client-supplied slug ignored, re-resolving a conflict', async () => {
+    const saves = [];
+    const document = {
+      set(data) {
+        Object.assign(this, data);
+      },
+      async save() {
+        saves.push({ ...this });
+        if (saves.length === 1) throw duplicateSlug('taken');
+        return this;
+      },
+    };
+    const saved = await DocumentModel.updateWithStableSlug(document, {
+      title: 'Renamed',
+      stableSlug: 'hijacked',
+      isPublic: true,
+    });
+    expect(saved.title).to.equal('Renamed');
+    expect(saved.isPublic).to.equal(true);
+    expect(saved).to.not.have.property('stableSlug');
+    expect(saves).to.have.length(2);
+    const other = await DocumentModel.updateWithStableSlug(
+      { set() {}, save: async () => Promise.reject(new Error('boom')) },
+      {},
+    ).catch((error) => error);
+    expect(other.message).to.equal('boom');
   });
 
   it('rejects a slug outside the route format', async () => {

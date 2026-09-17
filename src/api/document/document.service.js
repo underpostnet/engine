@@ -567,7 +567,8 @@ class DocumentService {
         req.body.isPublic = isPublic;
         req.body.tags = tags;
 
-        return await Document.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+        // A renamed document answers under its new title's slug; the client presents that path.
+        return await Document.updateWithStableSlug(document, req.body);
       }
     }
   };
