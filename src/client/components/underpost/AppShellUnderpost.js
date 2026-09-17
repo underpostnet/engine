@@ -18,7 +18,6 @@ import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
-import { githubUrl, repositoryIdentity } from '../core/Repository.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { SearchBox } from '../core/SearchBox.js';
 import { DocumentSearchProvider } from './DocumentSearchProvider.js';
@@ -34,6 +33,7 @@ class AppShellUnderpost {
     const id = getId(AppShellUnderpost.Data, 'menu-');
     AppShellUnderpost.Data[id] = {};
     const RouterInstance = RouterUnderpost.instance();
+    const githubUrl = 'https://github.com/underpost';
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
@@ -229,7 +229,7 @@ class AppShellUnderpost {
               text: html`<span class="menu-label-text">${Translate.instance('github')}</span>`,
             }),
             attrs: `data-id="github"`,
-            tabHref: githubUrl(),
+            tabHref: githubUrl,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('github')),
           })}
@@ -717,7 +717,7 @@ class AppShellUnderpost {
     });
 
     EventsUI.onClick(`.main-btn-github`, async () => {
-      location.href = githubUrl(repositoryIdentity().template);
+      location.href = githubUrl;
     });
   }
 }
