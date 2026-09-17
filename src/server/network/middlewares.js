@@ -19,20 +19,35 @@ const logger = loggerFactory(import.meta);
  * build (`<ns>/index.html`), since the shell loads its bundle relative to that directory. The
  * client router resolves the parameter. A malformed parameter, or an app that declares no view for
  * the namespace, falls through to the 404 terminator. The parameter never reaches the filesystem.
+ *
+ * An entry's shell is served with the entry's own metadata in its head when the instance has an
+ * entry renderer (`entryShellRendererFactory`): the initial HTML then already describes the
+ * document to crawlers and preview services. What that head says depends on who asks (a private
+ * entry is described to its owner only), so the response varies on the authorization header.
  * @method publicRouteFallbackFactory
- * @param {{ root: string, path?: string }} config - Static root and the instance's proxy sub-path.
+ * @param {{ root: string, path?: string, renderEntry?: Function }} config - Static root, the
+ *   instance's proxy sub-path, and the entry renderer of an instance that resolves documents.
  * @returns {import('express').RequestHandler}
  * @memberof Middlewares
  */
-const publicRouteFallbackFactory = ({ root, path = '/' }) => {
+const publicRouteFallbackFactory = ({ root, path = '/', renderEntry }) => {
   const prefix = path === '/' ? '' : path;
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const route = parsePublicRoute(req.path, `${prefix}/`);
     if (!route) return next();
     const shell = nodePath.resolve(root, `.${prefix}`, route.namespace, 'index.html');
     if (!fs.existsSync(shell)) return next();
-    return res.sendFile(shell);
+    if (route.name !== 'entry' || !renderEntry) return res.sendFile(shell);
+    try {
+      const html = await renderEntry(req, await fs.readFile(shell, 'utf8'), route.params.stableSlug);
+      // Revalidated on every use like the static shell; what an authorized requester sees is theirs.
+      res.set('Cache-Control', `${req.headers.authorization ? 'private' : 'public'}, max-age=0`);
+      res.set('Vary', 'Authorization');
+      return res.type('html').send(html);
+    } catch (error) {
+      return next(error);
+    }
   };
 };
 

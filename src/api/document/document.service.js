@@ -38,7 +38,8 @@ const documentNotFound = () => Object.assign(new Error('Document not found'), { 
 
 /**
  * Resolves a document by its public slug under the single-document read rule. A document that
- * exists but is not readable answers exactly like a missing one.
+ * exists but is not readable answers exactly like a missing one. The one lookup behind every
+ * consumer of a slug: the API route and the metadata of the served `/entry/:stableSlug` shell.
  * @param {import('express').Request} req
  * @param {object} options
  * @param {string} stableSlug
@@ -637,4 +638,4 @@ class DocumentService {
   };
 }
 
-export { DocumentService };
+export { DocumentService, findReadableByStableSlug };

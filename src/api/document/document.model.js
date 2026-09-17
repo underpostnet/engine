@@ -262,7 +262,8 @@ class DocumentDto {
       return {
         path: 'userId',
         model: 'User',
-        select: '_id role username profileImageId briefDescription',
+        // `publicProfile` says whether `/u/:username` answers, so a link to it is only made when it does.
+        select: '_id role username profileImageId briefDescription publicProfile',
         populate: {
           path: 'profileImageId',
           model: 'File',

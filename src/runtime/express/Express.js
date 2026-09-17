@@ -26,6 +26,7 @@ import { shellExec } from '../../server/runtime/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
 import { publicRouteFallbackFactory } from '../../server/network/middlewares.js';
+import { entryShellRendererFactory } from '../../server/network/entry-metadata.js';
 
 import Underpost from '../../index.js';
 
@@ -61,6 +62,7 @@ class ExpressService {
    * @param {string} config.redirectTarget - The full target URL for redirection (used if `redirect` is true).
    * @param {string} config.rootHostPath - The root path for public host assets (e.g., `/public/hostname`).
    * @param {object} config.confSSR - The SSR configuration object, used to look up Mailer templates.
+   * @param {object} [config.metadata] - The client's `metadata` block (site name, description, social image): the site-level values of an entry's rendered head.
    * @param {import('prom-client').Counter<string>} config.promRequestCounter - Prometheus request counter instance.
    * @param {import('prom-client').Registry} config.promRegister - Prometheus register instance for metrics.
    * @returns {Promise<{portsUsed: number}>} An object indicating how many additional ports were used (e.g., for PeerServer).
@@ -85,6 +87,7 @@ class ExpressService {
     redirectTarget,
     rootHostPath,
     confSSR,
+    metadata,
     promRequestCounter,
     promRegister,
   }) {
@@ -153,8 +156,16 @@ class ExpressService {
     // The PWA shell for the dynamic public routes is the same built document a static view is,
     // served under the same headers: the security middleware below applies a nonce CSP that the
     // shell's inline scripts cannot satisfy. Only its own namespaces match, so no API route,
-    // asset or document is ever answered with it.
-    app.use(publicRouteFallbackFactory({ root: directory ? directory : `.${rootHostPath}`, path }));
+    // asset or document is ever answered with it. An instance that resolves documents itself
+    // (its own database, the document API) renders each entry's metadata into its shell.
+    const resolvesDocuments = !apiBaseHost && !!db && Array.isArray(apis) && apis.includes('document');
+    app.use(
+      publicRouteFallbackFactory({
+        root: directory ? directory : `.${rootHostPath}`,
+        path,
+        renderEntry: resolvesDocuments ? entryShellRendererFactory({ host, path, metadata }) : undefined,
+      }),
+    );
 
     // Handle redirection-only instances
     if (redirect) {

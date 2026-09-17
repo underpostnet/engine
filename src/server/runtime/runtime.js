@@ -49,6 +49,7 @@ const buildRuntime = async () => {
   // Load Configuration — resolve env: secret references at actual server runtime
   const confServer = readConfJson(deployId, 'server', { resolve: true, loadReplicas: true });
   const confSSR = readConfJson(deployId, 'ssr');
+  const confClient = readConfJson(deployId, 'client');
 
   // Iterate through hosts and paths
   for (const host of Object.keys(confServer)) {
@@ -125,6 +126,7 @@ const buildRuntime = async () => {
             redirectTarget,
             rootHostPath,
             confSSR,
+            metadata: confClient[client]?.metadata,
             promRequestCounter: requestCounter,
             promRegister: promClient.register,
           });
