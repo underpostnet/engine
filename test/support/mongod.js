@@ -11,15 +11,11 @@
 import os from 'os';
 import net from 'net';
 import nodePath from 'path';
-import { spawn, spawnSync } from 'child_process';
+import { spawn } from 'child_process';
 import fs from 'fs-extra';
+import { findBinary } from './binary.js';
 
-const mongodBinary = (() => {
-  if (process.env.UNDERPOST_MONGOD_BIN && fs.existsSync(process.env.UNDERPOST_MONGOD_BIN))
-    return process.env.UNDERPOST_MONGOD_BIN;
-  const found = spawnSync('which', ['mongod'], { encoding: 'utf8' }).stdout.trim();
-  return found || null;
-})();
+const mongodBinary = findBinary('mongod', 'UNDERPOST_MONGOD_BIN');
 
 const freePort = () =>
   new Promise((resolve, reject) => {

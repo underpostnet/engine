@@ -7,7 +7,8 @@
  * through direct navigation, refresh, in-app navigation, back/forward, not-found and private
  * answers, copied share links, and a view stacked on top and closed again.
  *
- * Needs three things, and skips itself without any of them: a Firefox binary
+ * Needs four things, and skips itself without any of them: the `puppeteer-core` driver, which is
+ * not a declared dependency (`npm install --no-save puppeteer-core`), a Firefox binary
  * (`UNDERPOST_BROWSER_BIN`, or `firefox` on PATH), a `mongod` binary (see `test/support/mongod.js`),
  * and the Underpost client built at `public/underpost.net`
  * (`node bin client dd-cyberia '' underpost.net / --dev --lite-build`).
@@ -16,23 +17,18 @@
  */
 
 import nodePath from 'path';
-import { spawnSync } from 'child_process';
 import fs from 'fs-extra';
 import express from 'express';
-import puppeteer from 'puppeteer-core';
 import { expect } from 'chai';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { applySecurity, authMiddlewareFactory } from '../../../src/server/security/auth.js';
 import { publicRouteFallbackFactory } from '../../../src/server/network/middlewares.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
+import { findBinary } from '../../support/binary.js';
 
+const puppeteer = await import('puppeteer-core').then((module) => module.default).catch(() => null);
 const clientRoot = nodePath.resolve('public/underpost.net');
-const browserBinary = (() => {
-  if (process.env.UNDERPOST_BROWSER_BIN && fs.existsSync(process.env.UNDERPOST_BROWSER_BIN))
-    return process.env.UNDERPOST_BROWSER_BIN;
-  const found = spawnSync('which', ['firefox'], { encoding: 'utf8' }).stdout.trim();
-  return found || null;
-})();
+const browserBinary = findBinary('firefox', 'UNDERPOST_BROWSER_BIN');
 const clientBuilt = fs.existsSync(nodePath.join(clientRoot, 'entry', 'index.html'));
 
 const context = { host: 'underpost.net', path: '/' };
@@ -79,7 +75,7 @@ const seed = async ({ User, File, Document }) => {
   return { alice, bob, guide, draft };
 };
 
-describe.skipIf(!browserBinary || !mongodBinary || !clientBuilt)('public routes in the browser', () => {
+describe.skipIf(!puppeteer || !browserBinary || !mongodBinary || !clientBuilt)('public routes in the browser', () => {
   let mongod;
   let server;
   let baseUrl;
