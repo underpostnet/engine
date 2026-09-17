@@ -1,7 +1,21 @@
 // Skeleton of the Underpost app shell as it first paints: `barMode: 'top-bottom-bar'` with a left
 // `slide-menu` (closed). Keep the boxes on the 50px grid the live bars use so nothing jumps when
 // the shell replaces this.
+//
+// Painted in the theme the app will load — `_theme` in localStorage, the key `Css.loadThemes`
+// reads — so a light-theme user does not see a dark skeleton flash. Dark is the default, as it is
+// for the app. The script runs before the skeleton markup is parsed, so the class is on <html>
+// before anything below it paints.
 SSRComponent = ({ backgroundImage }) => html`
+  <script>
+    (() => {
+      let theme = 'dark';
+      try {
+        if (/light/.test(localStorage.getItem('_theme') || '')) theme = 'light';
+      } catch (error) {}
+      document.documentElement.classList.add('ssr-theme-' + theme);
+    })();
+  </script>
   ${backgroundImage
     ? html`<style>
         .ssr-background-image {
@@ -19,6 +33,22 @@ SSRComponent = ({ backgroundImage }) => html`
       width: 100%;
       height: 50px;
       left: 0px;
+    }
+    /* Light theme: the app's #e8e8e8 body under white bars, with the light shimmer band. */
+    html.ssr-theme-light body {
+      background: #e8e8e8;
+    }
+    html.ssr-theme-light .ssr-top-bar,
+    html.ssr-theme-light .ssr-bottom-bar {
+      background: #ffffff;
+    }
+    html.ssr-theme-light .ssr-shimmer-dark,
+    html.ssr-theme-light .ssr-shimmer-dark-search-box {
+      background-image: var(--ssr-shimmer-light);
+    }
+    html.ssr-theme-light .loader {
+      --c: no-repeat linear-gradient(#9a9a9a 0 0);
+      background: var(--c), var(--c), #c9c9c9;
     }
     .ssr-top-bar {
       top: 0px;
@@ -60,6 +90,26 @@ SSRComponent = ({ backgroundImage }) => html`
     }
     .ssr-btn-nav-4 {
       right: 205px;
+    }
+    /* Floating column beside the closed menu (the live .main-body-btn-container, hidden until the
+       splash lifts): bars toggle, hamburger and search stacked from 100px down the left edge. */
+    .ssr-float-bar {
+      top: 100px;
+      left: 0px;
+      width: 50px;
+      height: 150px;
+    }
+    .ssr-btn-float-0 {
+      top: 5px;
+    }
+    .ssr-btn-float-1 {
+      top: 55px;
+    }
+    .ssr-btn-float-2 {
+      top: 105px;
+    }
+    .ssr-float-bar .ssr-btn {
+      left: 5px;
     }
     .ssr-loader {
       width: auto;
@@ -106,6 +156,16 @@ SSRComponent = ({ backgroundImage }) => html`
     </div>
     <div class="ssr-abs ssr-bottom-bar">
       ${['menu', 'nav-0', 'nav-1', 'nav-2', 'nav-3', 'nav-4']
+        .map(
+          (id) =>
+            html`<div class="ssr-abs ssr-btn ssr-btn-${id}">
+              <div class="ssr-shimmer-dark"></div>
+            </div>`,
+        )
+        .join('')}
+    </div>
+    <div class="ssr-abs ssr-float-bar">
+      ${['float-0', 'float-1', 'float-2']
         .map(
           (id) =>
             html`<div class="ssr-abs ssr-btn ssr-btn-${id}">

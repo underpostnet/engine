@@ -127,15 +127,29 @@ SSRComponent = () => html`
       width: 100%;
       z-index: 11;
     }
-    .ssr-shimmer {
-      height: 100%;
-      background-image: linear-gradient(
+    /* The two shimmer bands: a translucent white band on light bars, and a fainter one for dark
+       bars (#121212), where near-black stops only darkened the bar and hid the animation. A splash
+       swaps them per theme through these properties. */
+    :root {
+      --ssr-shimmer-light: linear-gradient(
         to right,
         rgb(255, 255, 255, 0.5) 0%,
         rgba(200, 200, 200, 0.5) 30%,
         rgba(220, 220, 220, 0.5) 50%,
         rgba(255, 255, 255, 0.5) 100%
       );
+      --ssr-shimmer-dark: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.03) 0%,
+        rgba(255, 255, 255, 0.07) 30%,
+        rgba(255, 255, 255, 0.16) 45%,
+        rgba(255, 255, 255, 0.07) 60%,
+        rgba(255, 255, 255, 0.03) 100%
+      );
+    }
+    .ssr-shimmer {
+      height: 100%;
+      background-image: var(--ssr-shimmer-light);
       animation: ssr-shimmer 3s linear infinite;
     }
     @keyframes ssr-shimmer {
@@ -146,18 +160,9 @@ SSRComponent = () => html`
         background-position: 80px 0;
       }
     }
-    /* Dark bars (#121212): a translucent white band reads as a moving highlight on them, where
-       near-black stops only darkened the bar and hid the animation. */
     .ssr-shimmer-dark {
       height: 100%;
-      background-image: linear-gradient(
-        to right,
-        rgba(255, 255, 255, 0.03) 0%,
-        rgba(255, 255, 255, 0.07) 30%,
-        rgba(255, 255, 255, 0.16) 45%,
-        rgba(255, 255, 255, 0.07) 60%,
-        rgba(255, 255, 255, 0.03) 100%
-      );
+      background-image: var(--ssr-shimmer-dark);
       animation: ssr-shimmer-dark 3s linear infinite;
     }
     @keyframes ssr-shimmer-dark {
@@ -170,14 +175,7 @@ SSRComponent = () => html`
     }
     .ssr-shimmer-dark-search-box {
       height: 100%;
-      background-image: linear-gradient(
-        to right,
-        rgba(255, 255, 255, 0.03) 0%,
-        rgba(255, 255, 255, 0.07) 30%,
-        rgba(255, 255, 255, 0.16) 45%,
-        rgba(255, 255, 255, 0.07) 60%,
-        rgba(255, 255, 255, 0.03) 100%
-      );
+      background-image: var(--ssr-shimmer-dark);
       animation: ssr-shimmer-dark-search-box 3s linear infinite;
     }
     @keyframes ssr-shimmer-dark-search-box {
@@ -190,13 +188,7 @@ SSRComponent = () => html`
     }
     .ssr-shimmer-search-box {
       height: 100%;
-      background-image: linear-gradient(
-        to right,
-        rgb(255, 255, 255, 0.5) 0%,
-        rgba(200, 200, 200, 0.5) 30%,
-        rgba(220, 220, 220, 0.5) 50%,
-        rgba(255, 255, 255, 0.5) 100%
-      );
+      background-image: var(--ssr-shimmer-light);
       animation: ssr-shimmer-search-box 3s linear infinite;
     }
     @keyframes ssr-shimmer-search-box {
