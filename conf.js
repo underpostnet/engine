@@ -96,6 +96,7 @@ const DefaultConf = /**/ {
         { client: 'Default', ssr: 'Default', path: '/404', title: '404 Not Found' },
         { client: 'Default', ssr: 'Default', path: '/500', title: '500 Server Error' },
         { path: '/blog', client: 'Default', ssr: 'Default' },
+        { path: '/entry', client: 'Default', ssr: 'Default' },
         { path: '/chat', client: 'Default', ssr: 'Default' },
       ],
       dists: [

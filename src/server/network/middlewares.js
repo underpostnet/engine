@@ -5,10 +5,36 @@
  * @namespace Middlewares
  */
 
+import fs from 'fs-extra';
+import nodePath from 'path';
 import { loggerFactory } from '../ops/logger.js';
 import { moderatorGuard, adminGuard } from '../security/auth.js';
+import { parsePublicRoute } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * Serves the PWA shell for dynamic public routes (`/u/:username`, `/entry/:stableSlug`,
+ * `/content/:stableSlug`), whose resources have no file on disk: the namespace view's own
+ * build (`<ns>/index.html`), since the shell loads its bundle relative to that directory. The
+ * client router resolves the parameter. A malformed parameter, or an app that declares no view for
+ * the namespace, falls through to the 404 terminator. The parameter never reaches the filesystem.
+ * @method publicRouteFallbackFactory
+ * @param {{ root: string, path?: string }} config - Static root and the instance's proxy sub-path.
+ * @returns {import('express').RequestHandler}
+ * @memberof Middlewares
+ */
+const publicRouteFallbackFactory = ({ root, path = '/' }) => {
+  const prefix = path === '/' ? '' : path;
+  return (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const route = parsePublicRoute(req.path, `${prefix}/`);
+    if (!route) return next();
+    const shell = nodePath.resolve(root, `.${prefix}`, route.namespace, 'index.html');
+    if (!fs.existsSync(shell)) return next();
+    return res.sendFile(shell);
+  };
+};
 
 /**
  * The public-read CORS policy: reflect the request origin (or allow any)
@@ -100,7 +126,7 @@ const sendBlob = (req, res, { buffer, mimetype, filename, disposition = 'inline'
  * Wraps a controller body with error logging and the error response envelope.
  * @method controllerHandler
  * @param {(req, res, options) => Promise<any>} fn
- * @param {{ errorStatus?: number }} [config]
+ * @param {{ errorStatus?: number }} [config] - Status used when the error carries no `status` of its own.
  * @returns {Function} Async Express-compatible controller handler.
  * @memberof Middlewares
  */
@@ -111,7 +137,7 @@ const controllerHandler =
       return await fn(req, res, options);
     } catch (error) {
       logger.error(error, error.stack);
-      return sendError(res, error, errorStatus);
+      return sendError(res, error, error.status ?? errorStatus);
     }
   };
 
@@ -210,4 +236,5 @@ export {
   serviceHandler,
   buildCrudController,
   registerCrudRoutes,
+  publicRouteFallbackFactory,
 };

@@ -25,6 +25,7 @@ import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js
 import { shellExec } from '../../server/runtime/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
+import { publicRouteFallbackFactory } from '../../server/network/middlewares.js';
 
 import Underpost from '../../index.js';
 
@@ -149,6 +150,11 @@ class ExpressService {
         },
       }),
     );
+    // The PWA shell for the dynamic public routes is the same built document a static view is,
+    // served under the same headers: the security middleware below applies a nonce CSP that the
+    // shell's inline scripts cannot satisfy. Only its own namespaces match, so no API route,
+    // asset or document is ever answered with it.
+    app.use(publicRouteFallbackFactory({ root: directory ? directory : `.${rootHostPath}`, path }));
 
     // Handle redirection-only instances
     if (redirect) {
