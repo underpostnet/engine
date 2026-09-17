@@ -14,6 +14,10 @@ DEPLOY_IMAGE="${DEPLOY_IMAGE:-underpost/engine-cyberia:latest}"
 ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-cyberia}"
 ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 POD_SRC_PRIVATE_REPO="${POD_SRC_PRIVATE_REPO:-underpostnet/engine-cyberia-private}"
+# The product checkouts `bin/cyberia` reads beside the engine, brought to their tip once the
+# engine itself is at HEAD.
+CYBERIA_SERVER_REPO="${CYBERIA_SERVER_REPO:-underpostnet/cyberia-server}"
+CYBERIA_CLIENT_REPO="${CYBERIA_CLIENT_REPO:-underpostnet/cyberia-client}"
 
 CYBERIA_ASSETS=src/client/public/cyberia
 UNDERPOST_ASSETS=src/client/public/underpost
@@ -31,6 +35,9 @@ main() {
     deploy_start "Starting remote sync and deploy"
 
     prepare_host "$ENGINE_ROOT"
+
+    sync_checkout "$CYBERIA_SERVER_REPO" "$ENGINE_ROOT"
+    sync_checkout "$CYBERIA_CLIENT_REPO" "$ENGINE_ROOT"
 
     deploy_step "Clean cyberia public assets" \
         sudo -n -- /bin/bash -lc \

@@ -10,11 +10,18 @@ INSTANCE_ID=mmo-server
 TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-cyberia}"
 ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
+# The product checkouts `bin/cyberia` reads beside the engine, brought to their tip once the
+# engine itself is at HEAD.
+CYBERIA_SERVER_REPO="${CYBERIA_SERVER_REPO:-underpostnet/cyberia-server}"
+CYBERIA_CLIENT_REPO="${CYBERIA_CLIENT_REPO:-underpostnet/cyberia-client}"
 
 main() {
     deploy_start "Starting remote deploy"
 
     prepare_host "$ENGINE_ROOT"
+
+    sync_checkout "$CYBERIA_SERVER_REPO" "$ENGINE_ROOT"
+    sync_checkout "$CYBERIA_CLIENT_REPO" "$ENGINE_ROOT"
 
     deploy_step "Build $DEPLOY_ID configuration" \
     sudo -n -- /bin/bash -lc \

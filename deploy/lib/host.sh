@@ -132,6 +132,27 @@ prepare_host() {
         sudo -n -- /bin/bash -lc "cd $engine_root && node bin host load"
 }
 
+# Brings a sibling checkout under the engine root to the tip of its repository, whatever state
+# it is in: a clone when `<engine-root>/<repo-name>` is not a git repository yet, and otherwise
+# `cmt --switch-repo`, which repoints `origin` and force-pulls the remote's default branch over
+# the working tree. Replaced rather than reconciled for the same reason `run pull` replaces the
+# engine itself: the checkout is a projection of its remote, never a place work is authored, so
+# one that has drifted onto commits of its own is brought back, not refused.
+#
+# The check runs inside the same sudo shell as the clone or switch so both read the tree root
+# owns. `clone` lands the checkout at `./<repo-name>`, which is where `bin/cyberia` expects it.
+#
+# Usage: sync_checkout <owner/repo> [engine-root]
+sync_checkout() {
+    local repo="$1"
+    local engine_root="${2:-$ENGINE_ROOT}"
+    local name="${repo##*/}"
+
+    deploy_step "Sync $name checkout ($repo)" \
+        sudo -n -- /bin/bash -lc \
+        "cd $engine_root && if [ -d ./$name/.git ]; then node bin cmt ./$name --switch-repo $repo; else node bin clone $repo; fi"
+}
+
 # Whether a tracked path carries uncommitted changes, as `1` or empty.
 #
 # An asset repository is committed only when it actually changed, so this stays outside
