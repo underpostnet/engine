@@ -6,7 +6,7 @@ SSRComponent = () =>
     <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#0551C4" />
-    <meta name="application-name" content="Item Ledger" />
+    <meta name="application-name" content="ItemLedger" />
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png" />
     <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png" />
     <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png" />
@@ -20,7 +20,7 @@ SSRComponent = () =>
     <link rel="apple-touch-icon" sizes="1024x1024" href="/apple-touch-icon-1024x1024.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Item Ledger" />
+    <meta name="apple-mobile-web-app-title" content="ItemLedger" />
     <link
       rel="apple-touch-startup-image"
       media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"

@@ -2,12 +2,13 @@
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "Item Ledger",
+    "name": "ItemLedger",
     "url": "https://itemledger.com",
-    "description": "Canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. Item search, provenance, and marketplace.",
+    "description": "On-chain Object Layer registry, ownership and provenance projections: canonical Object Layer CIDs bound to ERC-1155 token types, with supply and holder projections. Pre-Alpha.",
     "applicationCategory": "BlockchainApplication",
     "operatingSystem": "All",
     "browserRequirements": "Requires JavaScript. Requires HTML5.",
+    "isAccessibleForFree": true,
     "offers": {
       "@type": "Offer",
       "price": "0",
@@ -16,26 +17,43 @@
     "author": {
       "@type": "Organization",
       "name": "Underpost",
-      "url": "https://github.com/underpostnet"
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
     },
-    "keywords": "itemledger, object layer, NFT, ERC-1155, metadata, IPFS, registry, marketplace",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "softwareHelp": {
+      "@type": "CreativeWork",
+      "name": "ItemLedger documentation",
+      "url": "https://itemledger.com/docs?cid=guide&doc=item-ledger/overview/index"
+    },
+    "featureList": [
+      "Registration of a canonical Object Layer as an asset",
+      "Token id derived from the Object Layer CID",
+      "Ownership and supply projections from ledger state",
+      "Provenance of every registered definition"
+    ],
+    "keywords": "itemledger, object layer, registry, ERC-1155, token, provenance, ownership, IPFS, CID",
     "image": "https://itemledger.com/apple-touch-icon.png",
     "inLanguage": "en"
   },
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Item Ledger",
+    "name": "ItemLedger",
     "url": "https://itemledger.com",
     "logo": "https://itemledger.com/android-chrome-512x512.png",
-    "description": "Canonical registry and IPFS indexer for Object Layer items in the Cyberia Online ecosystem.",
-    "sameAs": [
-      "https://github.com/underpostnet"
-    ],
-    "founder": {
+    "description": "The domain that binds canonical Object Layer CIDs to ERC-1155 token types and projects ownership and provenance.",
+    "sameAs": ["https://github.com/underpost"],
+    "parentOrganization": {
       "@type": "Organization",
       "name": "Underpost",
-      "url": "https://github.com/underpostnet"
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
     }
   },
   {
@@ -44,26 +62,34 @@
     "mainEntity": [
       {
         "@type": "Question",
-        "name": "What is Item Ledger?",
+        "name": "What is ItemLedger?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Item Ledger is the canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. It provides item search, provenance tracking, and marketplace functionality."
+          "text": "ItemLedger is the bridge between canonical Object Layers and their economic representation. It registers a definition as an asset, binds it to an ERC-1155 token type, and projects ownership and provenance from ledger state."
         }
       },
       {
         "@type": "Question",
-        "name": "What token standard does Item Ledger use?",
+        "name": "How is a token id assigned?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Item Ledger uses the ERC-1155 multi-token standard, supporting both semi-fungible and non-fungible tokens for in-game items, equipment, and collectibles within the Cyberia Online ecosystem."
+          "text": "The token id is derived from the canonical Object Layer CID: uint256(sha256(cid)). The same content always gets the same token id. Different definitions get different token ids even when they share an item name."
         }
       },
       {
         "@type": "Question",
-        "name": "How does Item Ledger use IPFS?",
+        "name": "Where does ownership live?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Item Ledger indexes and resolves item metadata stored on IPFS (InterPlanetary File System), ensuring decentralized, persistent, and verifiable storage for all Object Layer item data and assets."
+          "text": "Ownership is the ERC-1155 balance of each holder on-chain. ItemLedger indexes it. The Object Layer content itself never carries an owner."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I register an asset today?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Not on a public network. ItemLedger is Pre-Alpha: the registration path, the projections and the contract are written and tested, but no public network holds a deployment, so every on-chain read is unavailable until one does."
         }
       }
     ]

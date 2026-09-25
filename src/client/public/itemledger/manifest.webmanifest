@@ -1,7 +1,7 @@
 {
-  "name": "Item Ledger",
-  "short_name": "Item Ledger",
-  "description": "Canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. Item search, provenance, and marketplace.",
+  "name": "ItemLedger",
+  "short_name": "ItemLedger",
+  "description": "ItemLedger — registry, indexing, provenance and ownership bridge for Object Layers: canonical Object Layer CIDs bound to ERC-1155 token types, supply and holders. Cyberia Online is the first participating runtime.",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",
