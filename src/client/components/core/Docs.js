@@ -1,8 +1,14 @@
 import { Css, darkTheme, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { Modal, SUBMENU_SELECTION_QUERY_KEY, renderViewTitle } from './Modal.js';
-import { coverallsUrl, githubPagesUrl, githubUrl, packageRepository } from './Repository.js';
+import { coverallsUrl, githubPagesUrl, packageRepository, releaseUrl } from './Repository.js';
 import { Responsive } from './Responsive.js';
-import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
+import {
+  listenQueryPathInstance,
+  setQueryPath,
+  closeModalRouteChangeEvent,
+  getProxyPath,
+  getQueryParams,
+} from './Router.js';
 import { s, sIframe } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 class Docs {
@@ -13,12 +19,14 @@ class Docs {
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
     const parentBarMode = parentModal.options.barMode;
+    // A shell that draws from an icon set titles the view with it; the rest with the entry's icon.
+    const { viewTitle } = Docs.Tokens[parentModalId] ?? {};
     await Modal.instance({
       barConfig,
-      title: renderViewTitle(docData),
+      title: viewTitle ? viewTitle(docData) : renderViewTitle(docData),
       id: ModalId,
       html: async () => {
-        if (docData.renderHtml) return await docData.renderHtml();
+        if (docData.renderHtml) return await docData.renderHtml(Docs.Tokens[parentModalId] ?? {});
         return html`
           <style>
             .iframe-${ModalId} {
@@ -194,8 +202,26 @@ class Docs {
       text: label,
       url: () => `${getProxyPath()}docs/coverage/${id}`,
     }));
+  /** The entries the shell deploys: every type it did not disable. */
   static get Data() {
+    const disabled = Docs.Tokens['modal-docs']?.disabled ?? [];
+    return Docs.entries.filter(({ type }) => !disabled.includes(type));
+  }
+  static get entries() {
     return [
+      {
+        type: 'guide',
+        icon: html`<i class="fa-solid fa-book"></i>`,
+        text: 'Documentation',
+        url: function () {
+          return `${getProxyPath()}docs`;
+        },
+        // The shell names the domain the view navigates; its documents are the only ones listed.
+        renderHtml: async ({ domain = '' } = {}) => {
+          const { Documentation } = await import('./Documentation.js');
+          return await Documentation.instance({ path: getQueryParams().doc ?? '', domain });
+        },
+      },
       {
         type: 'repo',
         external: true,
@@ -204,7 +230,7 @@ class Docs {
         url: function () {
           const tokenOpts = Docs.Tokens['modal-docs'];
           if (tokenOpts && tokenOpts.lastReleaseUrl) return tokenOpts.lastReleaseUrl();
-          return githubUrl(packageRepository());
+          return releaseUrl();
         },
       },
       {
@@ -255,19 +281,81 @@ class Docs {
     ];
   }
   static Tokens = {};
+  /** What each entry's landing card says under its title. A coverage report names its run. */
+  static CARD_DESCRIPTIONS = {
+    guide: 'Overview, explanations, how-to guides and reference of this domain',
+    repo: 'The latest published release and its changelog',
+    demo: 'The live application, running the latest release',
+    src: 'Reference generated from the source, with the design documents',
+    api: 'The REST API reference: every endpoint, request and response',
+    'coverage-link': 'Test coverage history on Coveralls',
+  };
+  static cardDescription = ({ type, text }) => Docs.CARD_DESCRIPTIONS[type] ?? `Test coverage report: ${text}`;
+  /**
+   * The `assets/ui-icons` image each entry type is drawn with, for a shell that draws its menu
+   * from that set: the closest match the set holds. A coverage report reads as a check.
+   */
+  static UI_ICONS = {
+    guide: 'dude',
+    repo: 'github',
+    demo: 'forward',
+    src: 'doc',
+    api: 'reload',
+    'coverage-link': 'star',
+  };
+  /**
+   * Draws the entries from the `assets/ui-icons` set with the classes a shell draws its own
+   * entries with: the menu icon class in the submenu and on the landing cards, and the shell's
+   * `-modal` icon and title-text classes in a document view's title.
+   * @param {object} options
+   * @param {string} options.iconClass - The shell's menu icon class, e.g. `cyberia-menu-icon`.
+   * @param {string} [options.modalIconClass] - The view title icon class; `<iconClass>-modal` by convention.
+   * @param {string} [options.modalTextClass] - The view title text class; `<prefix>-text-title-modal` by convention.
+   * @returns {{subMenuIcon: (type: string) => string, viewTitle: (docData: object) => string}} `Docs.instance` options.
+   */
+  static uiIcons = ({
+    iconClass,
+    modalIconClass = `${iconClass}-modal`,
+    modalTextClass = `${iconClass.replace(/-menu-icon$/, '')}-text-title-modal`,
+  }) => {
+    const src = (type) =>
+      `${getProxyPath()}assets/ui-icons/${Docs.UI_ICONS[type] ?? (type.startsWith('coverage-') ? 'check' : 'doc')}.png`;
+    return {
+      subMenuIcon: (type) => html`<img class="inl ${iconClass}" src="${src(type)}" />`,
+      viewTitle: ({ type, text }) =>
+        renderViewTitle({
+          icon: html`<img class="inl ${modalIconClass}" src="${src(type)}" />`,
+          text: html`<span class="inl ${modalTextClass}">${text}</span>`,
+        }),
+    };
+  };
+  /**
+   * The docs landing and submenu of one shell.
+   * @param {object} options
+   * @param {string} options.idModal - Id of the modal the landing renders in.
+   * @param {string} [options.domain] - Documentation domain the shell owns, e.g. `object-layer`.
+   * @param {string[]} [options.disabled] - Entry types this shell does not deploy.
+   */
   static async instance(options = {}) {
     const { idModal } = options;
     Docs.Tokens[idModal] = options;
+    // An external entry leaves the app; the rest open in a framed modal on their own route. The
+    // framed section is view state of `/docs` (the documents have static URLs of their own), kept
+    // under the submenu key: `/docs?cid=src` is a published deep link.
+    const openDoc = async (docData) => {
+      if (docData.external) return (location.href = docData.url());
+      // A deep link that already selects this entry keeps the rest of its state: `doc`, an anchor.
+      if (getQueryParams()[SUBMENU_SELECTION_QUERY_KEY] !== docData.type)
+        setQueryPath({ path: 'docs', queryPath: docData.type }, SUBMENU_SELECTION_QUERY_KEY);
+      await Docs.RenderModal(docData.type, idModal);
+    };
     setTimeout(() => {
-      // An external entry leaves the app; the rest open in a framed modal on their own route. The
-      // framed section is view state of `/docs` (the documents have static URLs of their own), kept
-      // under the submenu key: `/docs?cid=src` is a published deep link.
       for (const docData of Docs.Data) {
-        s(`.btn-docs-${docData.type}`).onclick = async () => {
-          if (docData.external) return (location.href = docData.url());
-          setQueryPath({ path: 'docs', queryPath: docData.type }, SUBMENU_SELECTION_QUERY_KEY);
-          await Docs.RenderModal(docData.type, idModal);
-        };
+        const btnEl = s(`.btn-docs-${docData.type}`);
+        // A shell can own the docs view without owning a docs submenu; then the landing cards
+        // are the only entry points.
+        if (!btnEl) continue;
+        btnEl.onclick = () => openDoc(docData);
       }
       listenQueryPathInstance(
         {
@@ -293,57 +381,23 @@ class Docs {
     // Build submenu items and populate — submenu system is owned by Modal
     Modal.subMenuPopulate('docs', await Modal.buildSubMenuItemsHtml('docs', Docs.Data, options));
 
-    const landingCards = [
-      {
-        id: 'getting-started',
-        icon: 'rocket',
-        title: 'Getting Started',
-        description: 'Learn the basics and get started with our platform',
-        docType: 'src',
-      },
-      {
-        id: 'api-docs',
-        icon: 'code',
-        title: 'API Reference',
-        description: 'Detailed documentation of our API endpoints',
-        docType: 'api',
-      },
-      {
-        id: 'guides',
-        icon: 'book',
-        title: 'Guides',
-        description: 'Step-by-step tutorials and how-to guides',
-        docType: 'src',
-      },
-      {
-        id: 'demo',
-        icon: 'laptop-code',
-        title: 'Demo',
-        description: 'Practical examples and code snippets',
-        docType: 'demo',
-      },
-      {
-        id: 'faq',
-        icon: 'question-circle',
-        title: 'FAQ',
-        description: 'Frequently asked questions',
-        docType: 'src',
-      },
-      {
-        id: 'community',
-        icon: 'users',
-        title: 'Community',
-        description: 'Join our developer community',
-        docType: 'repo',
-      },
-    ];
+    // One card per deployed entry: the landing and the submenu offer the same places, drawn with
+    // the same icon when the shell draws from an image set.
+    const landingCards = Docs.Data.map((docData) => ({
+      id: docData.type,
+      docType: docData.type,
+      icon: options.subMenuIcon ? options.subMenuIcon(docData.type) : docData.icon,
+      title: docData.text,
+      description: Docs.cardDescription(docData),
+    }));
 
     // A card resolves to a documented entry, never to a URL of its own: the
     // submenu button and the card must open the same place.
-    const openLandingCard = (docType) => {
+    const openLandingCard = async (docType) => {
       const btn = s(`.btn-docs-${docType}`);
       if (btn) return btn.click();
-      location.href = Docs.Data.find((d) => d.type === docType).url();
+      const docData = Docs.Data.find((d) => d.type === docType);
+      if (docData) await openDoc(docData);
     };
 
     setTimeout(() => {
@@ -363,6 +417,18 @@ class Docs {
 
     return html`
       <style>
+        /* The landing owns its entrance: a shell without this keyframe would leave every card
+           at its starting opacity, and the view would look empty. */
+        @keyframes docs-fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
         .docs-landing {
           padding: 2rem;
           max-width: 1200px;
@@ -373,7 +439,7 @@ class Docs {
           text-align: center;
           margin-bottom: 3rem;
           opacity: 0;
-          animation: fadeInUp 0.6s ease-out forwards;
+          animation: docs-fade-in-up 0.6s ease-out forwards;
         }
         .docs-header h1 {
           font-size: 2.5rem;
@@ -391,7 +457,7 @@ class Docs {
         .docs-card-container {
           cursor: pointer;
           opacity: 0;
-          animation: fadeInUp 0.6s ease-out forwards;
+          animation: docs-fade-in-up 0.6s ease-out forwards;
           border-radius: 8px;
         }
         .docs-card-container:focus-visible {
@@ -424,6 +490,12 @@ class Docs {
           justify-content: center;
           margin: 0 0 1.25rem;
           transition: transform 0.25s ease;
+        }
+        /* A menu-sized image grows to the card; the menu offset it carries does not apply here. */
+        .card-icon img {
+          position: static;
+          width: 40px;
+          height: 40px;
         }
         .docs-card-container:hover .card-icon {
           transform: scale(1.08);
@@ -487,9 +559,7 @@ class Docs {
                   aria-label="${title}: ${description}"
                 >
                   <li class="docs-card box-content-border hover">
-                    <div class="card-icon">
-                      <i class="fas fa-${icon}" aria-hidden="true"></i>
-                    </div>
+                    <div class="card-icon" aria-hidden="true">${icon}</div>
                     <div class="card-content">
                       <h3>${title}</h3>
                       <p>${description}</p>

@@ -971,6 +971,39 @@ const isValidStableSlug = (value) =>
  * one Document, resolved by its single persisted `stableSlug`.
  * @memberof CommonJS
  */
+/**
+ * The anchors of a document's headings, GitHub-style, in reading order: lowercase, punctuation
+ * dropped, spaces as hyphens, and a repeated heading numbered `-1`, `-2`. The renderer and the
+ * documentation validator both read anchors from here, so a link the validator accepts resolves.
+ * @returns {(text: string) => string} Anchor of the next heading, given its rendered text.
+ * @memberof CommonJS
+ */
+const anchorFactory = () => {
+  const seen = new Map();
+  return (text) => {
+    const base = `${text ?? ''}`
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+      .replace(/\s/g, '-');
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    return count ? `${base}-${count}` : base;
+  };
+};
+
+/**
+ * The link to one authored document in the docs view: `/docs?cid=guide&doc=<identity>`. The build
+ * rewrites every document link to it and the view navigates by it, so the two never disagree.
+ * @param {string} proxyPath - The app's sub-path, with leading and trailing slash.
+ * @param {string} path - Document identity, `<domain>/<category>/<slug>`.
+ * @param {string} [anchor] - Heading anchor inside the document.
+ * @returns {string}
+ * @memberof CommonJS
+ */
+const documentationHref = (proxyPath, path, anchor = '') =>
+  `${proxyPath}docs?cid=guide&doc=${encodeURIComponent(path).replace(/%2F/g, '/')}${anchor ? `#${anchor}` : ''}`;
+
 const PublicRoutes = {
   profile: { namespace: 'u', param: 'username', isValid: isValidUsername },
   entry: { namespace: 'entry', param: 'stableSlug', isValid: isValidStableSlug },
@@ -1015,6 +1048,8 @@ const publicRoutePathFactory = (name, value, proxyPath = '/') => {
 };
 
 export {
+  anchorFactory,
+  documentationHref,
   s4,
   range,
   random,

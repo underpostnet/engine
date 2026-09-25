@@ -5,7 +5,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { getSrcFromFileData } from './Input.js';
-import { renderMarkdown } from './Content.js';
+import { renderMarkdown } from './Markdown.js';
 import { renderCssAttr, darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';

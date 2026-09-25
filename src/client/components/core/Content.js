@@ -1,15 +1,5 @@
-import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
-import {
-  append,
-  escapeHtml,
-  getBlobFromUint8ArrayFile,
-  getRawContentFile,
-  htmls,
-  s,
-  sa,
-  sanitizeHtml,
-} from './VanillaJs.js';
+import { append, escapeHtml, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { s4 } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
@@ -17,61 +7,9 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { CoreService, getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
-import { navigate } from './Router.js';
+import { attachMarkdownLinkHandlers, renderMarkdown } from './Markdown.js';
 
 const logger = loggerFactory(import.meta);
-
-/**
- * The HTML a Markdown body renders to, wherever a document body is shown. `marked` passes the raw
- * HTML an author writes through, so the result is sanitized: a stray `<style>` or `<script>` in a
- * post would otherwise swallow, or run inside, the panel around it.
- * @param {string} markdown
- * @returns {string}
- */
-const renderMarkdown = (markdown) => sanitizeHtml(marked.parse(`${markdown ?? ''}`));
-
-const attachMarkdownLinkHandlers = (containerSelector) => {
-  const container = s(containerSelector);
-  if (!container || container.dataset.mdLinkHandler) return;
-  container.dataset.mdLinkHandler = 'true';
-
-  container.addEventListener('click', async (e) => {
-    const link = e.target.closest('.markdown-content a[href]');
-    if (!link) return;
-
-    const href = link.getAttribute('href');
-    if (!href || href.startsWith('#')) return;
-
-    e.preventDefault();
-    const isExternal = href.startsWith('http://') || href.startsWith('https://');
-
-    if (isExternal) {
-      const result = await Modal.RenderConfirm({
-        id: `external-link-${s4()}`,
-        html: async () => html`
-          <div class="in section-mp" style="text-align: center; padding: 20px;">
-            <p>${Translate.instance('external-link-warning')}</p>
-            <p style="word-break: break-all; margin-top: 10px;"><strong>${href}</strong></p>
-          </div>
-        `,
-        icon: html`<i class="fas fa-external-link-alt"></i>`,
-        style: {
-          width: '350px',
-          height: '500px',
-          overflow: 'auto',
-          'z-index': '11',
-          resize: 'none',
-        },
-      });
-
-      if (result && result.status === 'confirm') {
-        window.open(href, '_blank', 'noopener,noreferrer');
-      }
-    } else {
-      navigate(href);
-    }
-  });
-};
 
 class Content {
   /**
@@ -368,4 +306,4 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
   }
 }
 
-export { Content, attachMarkdownLinkHandlers, renderMarkdown };
+export { Content };

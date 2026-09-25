@@ -1934,7 +1934,7 @@ class Modal {
                   style="${renderCssAttr({ style: { height: '50px', 'z-index': 1, top: '0px' } })}"
                 >
                   ${await BtnIcon.instance({
-                    style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
+                    style: renderCssAttr({ style: { height: '100%' } }),
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-mode`,
                     label: html` <div class="abs center">
                       <i
@@ -1950,7 +1950,7 @@ class Modal {
                     </div>`,
                   })}
                   ${await BtnIcon.instance({
-                    style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
+                    style: renderCssAttr({ style: { height: '100%' } }),
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
                     label: html`<div class="abs center"><i class="fas fa-undo-alt"></i></div>`,
                   })}
@@ -2139,8 +2139,12 @@ class Modal {
         return null;
       }
 
-      // Ensure the modal has position: absolute for proper dragging
-      if (window.getComputedStyle(modal).position !== 'absolute') {
+      // A dragged modal moves inside the page; a maximized view keeps the fixed bounds
+      // `Modal.placeView` gives it, so its position is left alone.
+      if (
+        !(options.slideMenu && Modal.isMaximized(idModal)) &&
+        window.getComputedStyle(modal).position !== 'absolute'
+      ) {
         modal.style.position = 'absolute';
       }
 
@@ -2294,8 +2298,9 @@ class Modal {
       s(`.btn-minimize-${idModal}`).style.display = null;
       s(`.btn-maximize-${idModal}`).style.display = null;
 
-      // Restore original dimensions and position
+      // Restore original dimensions and position: a floating modal lives in the page again.
       this.Data[idModal].center();
+      modal.style.position = 'absolute';
       modal.style.transform = '';
       modal.style.height = `${height}px`;
       modal.style.left = left;
@@ -2354,25 +2359,13 @@ class Modal {
             animate ? 300 : 0,
           );
         };
-        const syncViewBounds = () => {
-          if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
-          if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
-            s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
-              ? `${windowGetH()}px`
-              : `${Modal.Data[idModal].getHeight()}px`;
-          }
-          s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
-            ? `0px`
-            : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
-        };
-
         placeBesideMenu({ animate });
-        syncViewBounds();
         this.Data[idModal].slideMenu = {
           callBack: () => placeBesideMenu({ animate: true }),
           id: options.slideMenu,
         };
-        Responsive.onChanged(() => setTimeout(syncViewBounds), { key: 'h-ui-hide-' + idModal });
+        Modal.placeView(idModal);
+        Responsive.onChanged(() => setTimeout(() => Modal.placeView(idModal)), { key: 'h-ui-hide-' + idModal });
       } else {
         Responsive.offChanged('h-ui-hide-' + idModal);
         s(`.${idModal}`).style.width = '100%';
@@ -2836,10 +2829,13 @@ class Modal {
   /**
    * Injects pre-built submenu item HTML into the submenu container and syncs
    * the collapse state so labels are hidden when the menu is icon-only.
+   * Does nothing when the shell renders no container for `subMenuId`.
    * @param {string} subMenuId
    * @param {string} itemsHtml
    */
   static subMenuPopulate = (subMenuId, itemsHtml) => {
+    // A shell can own a view without owning a submenu for it; then there is nothing to populate.
+    if (!s(`.menu-btn-container-children-${subMenuId}`)) return;
     htmls(`.menu-btn-container-children-${subMenuId}`, itemsHtml);
     const _menuMode = Modal.Data['modal-menu']?.options?.mode;
     const _collapseIndicatorClass =
@@ -2991,29 +2987,35 @@ class Modal {
     s(`.modal-menu`).classList.remove('hide');
   }
 
+  /** A modal is maximized while its restore button offers the way back. */
+  static isMaximized(idModal) {
+    const restoreEl = s(`.btn-restore-${idModal}`);
+    return !!restoreEl && restoreEl.style.display !== 'none';
+  }
+
+  /**
+   * Places a maximized slide-menu view: anchored to the viewport, between the bars, with no drag
+   * offset left on it. Every view of the shell takes its bounds from here.
+   * @param {string} idModal
+   */
+  static placeView(idModal) {
+    const modalData = this.Data[idModal];
+    const modalEl = s(`.${idModal}`);
+    if (!modalData || !modalEl || !modalData.slideMenu || !Modal.isMaximized(idModal)) return;
+    const barsHidden = !!s(`.main-body-btn-ui-close`)?.classList.contains('hide');
+    modalEl.style.position = 'fixed';
+    modalEl.style.translate = '0px 0px';
+    modalEl.style.transform = '';
+    modalEl.style.top = barsHidden ? '0px' : `${modalData.options.heightTopBar ?? 50}px`;
+    modalEl.style.height = `${modalData.getHeight()}px`;
+  }
+
   /**
    * Re-applies canonical top/height layout for maximized slide-menu-backed view modals.
    * This avoids iframe navigation leaving view containers offset at the top.
    */
   static syncViewLayout() {
-    const modalMenuOptions = this.Data['modal-menu']?.options || {};
-    const uiCollapsed = !!s(`.main-body-btn-ui-close`) && s(`.main-body-btn-ui-close`).classList.contains('hide');
-    const topOffset = uiCollapsed ? 0 : modalMenuOptions.heightTopBar ? modalMenuOptions.heightTopBar : 50;
-    const bottomOffset = uiCollapsed ? 0 : modalMenuOptions.heightBottomBar ? modalMenuOptions.heightBottomBar : 0;
-    const height = `${windowGetH() - topOffset - bottomOffset}px`;
-
-    Object.keys(this.Data).forEach((idModal) => {
-      const modalData = this.Data[idModal];
-      const modalEl = s(`.${idModal}`);
-      if (!modalData || !modalEl || !modalData.slideMenu) return;
-      if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display === 'none') return;
-
-      modalEl.style.position = 'fixed';
-      modalEl.style.translate = '0px 0px';
-      modalEl.style.transform = '';
-      modalEl.style.top = `${topOffset}px`;
-      modalEl.style.height = height;
-    });
+    Object.keys(this.Data).forEach((idModal) => Modal.placeView(idModal));
 
     for (const id of coreUI) {
       const key = `view-${id}`;
@@ -3098,7 +3100,7 @@ const isSubMenuOpen = (subMenuId) => {
   return s(`.down-arrow-submenu-${subMenuId}`) && s(`.down-arrow-submenu-${subMenuId}`).style.rotate === '180deg';
 };
 
-const subMenuRender = async (subMenuId) => {
+const subMenuRender = async (subMenuId, forceOpen) => {
   const _hBtn = 51;
   const menuBtn = s(`.main-btn-${subMenuId}`);
   const menuContainer = s(`.menu-btn-container-children-${subMenuId}`);
@@ -3128,7 +3130,9 @@ const subMenuRender = async (subMenuId) => {
   menuBtn.style.transition = '.3s';
   arrow.style.transition = '.3s';
 
-  if (isSubMenuOpen(subMenuId)) {
+  const shouldOpen = forceOpen ?? !isSubMenuOpen(subMenuId);
+
+  if (!shouldOpen) {
     // Close animation
     menuContainer.style.overflow = 'hidden';
     menuContainer.style.height = '0px';
@@ -3167,6 +3171,21 @@ const subMenuRender = async (subMenuId) => {
   }, 500);
 };
 
+const sortableSubMenuEvents = (subMenuIds) => {
+  let openSubMenuIds = [];
+
+  return {
+    onStart: () => {
+      openSubMenuIds = subMenuIds.filter(isSubMenuOpen);
+      for (const subMenuId of openSubMenuIds) subMenuRender(subMenuId, false);
+    },
+    onEnd: () => {
+      for (const subMenuId of openSubMenuIds) subMenuRender(subMenuId, true);
+      openSubMenuIds = [];
+    },
+  };
+};
+
 const subMenuHandler = (routes, route) => {
   route = sanitizeRoute(route);
   for (let _route of routes) {
@@ -3192,6 +3211,7 @@ export {
   renderViewTitle,
   buildBadgeToolTipMenuOption,
   subMenuRender,
+  sortableSubMenuEvents,
   isSubMenuOpen,
   subMenuHandler,
 };
