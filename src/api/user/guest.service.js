@@ -33,7 +33,6 @@ const buildGuestUser = (options) => {
     role,
     emailConfirmed: false,
     profileImageId: null,
-    publicKey: [],
     phoneNumbers: [],
     activeSessions: [],
     failedLoginAttempts: 0,

@@ -13,7 +13,7 @@ import { getProxyPath } from '../core/Router.js';
 import { AppStoreCryptokoyn } from './AppStoreCryptokoyn.js';
 import Sortable from 'sortablejs';
 import { RouterCryptokoyn, BannerAppTemplate } from './RouterCryptokoyn.js';
-import { Wallet } from '../core/Wallet.js';
+import { WalletView } from '../wallet/WalletView.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsCryptokoyn } from './SettingsCryptokoyn.js';
 import { Recover } from '../core/Recover.js';
@@ -293,7 +293,7 @@ class AppShellCryptokoyn {
           icon: html`<img class="inl cryptokoyn-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wallet.png" />`,
           text: `<span class='inl cryptokoyn-text-title-modal'>${Translate.instance('wallet')}</span>`,
         }),
-        html: async () => await Wallet.instance({ idModal: 'modal-wallet' }),
+        html: async () => await WalletView.instance({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

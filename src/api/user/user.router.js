@@ -30,7 +30,6 @@ class UserRouter {
             password: hashedPassword,
             role: 'admin',
             emailConfirmed: true,
-            publicKey: [],
           });
           logger.warn('Default admin user created. Please change the default password immediately!', {
             username: result._doc.username,

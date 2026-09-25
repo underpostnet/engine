@@ -69,14 +69,11 @@ const UserSchema = new Schema(
         number: { type: String },
       },
     ],
-    publicKey: {
-      type: [
-        {
-          type: Schema.Types.ObjectId,
-          ref: 'Crypto',
-        },
-      ],
-      default: [],
+    // The wallet identity this user signs in with. Public metadata only; the key stays with
+    // the user, and the account record lives in the WalletAccount collection.
+    wallet: {
+      accountId: { type: String, default: '', trim: true },
+      address: { type: String, default: '', trim: true, lowercase: true },
     },
     associatedCompanies: [
       {

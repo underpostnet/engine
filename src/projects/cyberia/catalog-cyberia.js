@@ -43,7 +43,6 @@ export default {
     pngjs: '^7.0.0',
     jimp: '^1.6.0',
     sharp: '^0.35.4',
-    ethers: '~6.16.0',
   },
   packageScripts: {
     'docker:generate': dockerScript('generate'),
