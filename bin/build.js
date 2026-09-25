@@ -26,6 +26,7 @@ import {
   coverageReportCommand,
   deployCoverageReports,
 } from '../src/server/build/coverage.js';
+import { canonicalDocsClient, docsReferencesFactory, typedocOptionsFactory } from '../src/server/build/docs.js';
 import { shellExec } from '../src/server/runtime/process.js';
 import Underpost from '../src/index.js';
 
@@ -110,6 +111,12 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
         fs.copySync(originPath, `${basePath}/src/client/public/${client}`);
       }
     }
+    // The documents and the TypeDoc readme the client docs build reads.
+    const { docs } = DefaultConf.client[client];
+    for (const originPath of [...docsReferencesFactory(docs), docs?.typedoc?.readme].filter(Boolean)) {
+      if (!fs.existsSync(originPath)) continue;
+      fs.copySync(originPath, `${basePath}/${originPath}`);
+    }
   }
 
   for (const client of Object.keys(DefaultConf.ssr)) {
@@ -149,11 +156,7 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
       );
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       // Canonical Cyberia doc; engine-cyberia/README.md is a generated copy — never hand-edited.
-      fs.writeFileSync(
-        `${basePath}/README.md`,
-        fs.readFileSync(`./src/client/public/cyberia-docs/CYBERIA.md`, 'utf8'),
-        'utf8',
-      );
+      fs.writeFileSync(`${basePath}/README.md`, fs.readFileSync(`./src/projects/cyberia/readme.md`, 'utf8'), 'utf8');
       copyTemplatePaths();
       break;
     }
@@ -189,9 +192,15 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
     );
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
 
-  if (fs.existsSync(`./typedoc.${confName}.json`)) {
-    fs.copyFileSync(`./typedoc.${confName}.json`, `${basePath}/typedoc.json`);
-    fs.copyFileSync(`./typedoc.${confName}.json`, `${basePath}/typedoc.${confName}.json`);
+  // The template carries the engine default config; a product overwrites it in place with the
+  // options its canonical client declares, so the product repo holds one root typedoc config.
+  const canonicalClient = canonicalDocsClient(DefaultConf.client);
+  if (canonicalClient) {
+    const typedocOptions = typedocOptionsFactory({ docs: DefaultConf.client[canonicalClient].docs });
+    if (typedocOptions) {
+      logger.info('Build typedoc config', { client: canonicalClient, to: `${basePath}/typedoc.json` });
+      fs.writeFileSync(`${basePath}/typedoc.json`, JSON.stringify(typedocOptions, null, 2), 'utf8');
+    }
   }
 
   if (fs.existsSync(`./manifests/deployment/${confName}-development`))
@@ -241,7 +250,7 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
 const deployReports = (deployId) => {
   Underpost.repo.sparseCheckoutDirectory(`conf/${deployId}`);
   return deployCoverageReports(
-    JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+    JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.client.json`, 'utf8')),
   );
 };
 

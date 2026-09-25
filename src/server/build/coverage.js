@@ -3,7 +3,7 @@
  * leaves each, where an assembled deploy artifact carries them, and what is published when
  * one was not carried.
  *
- * A deploy declares its reports in `conf.server.json` under `docs.coverage`, one entry per
+ * A deploy declares its reports in `conf.client.json` under `docs.coverage`, one entry per
  * report it publishes at `/docs/coverage/<id>`:
  *
  * - `{ id, label, suite }` — a test tier selection run by `node bin test <suite>`, whose HTML
@@ -41,7 +41,7 @@ const normalizeRoot = (root) => `${root ?? ''}`.replace(/\/+$/, '');
  * @method coverageReportsFactory
  * @description The reports a deploy's `docs` conf declares, validated: every entry names an
  * id and exactly one source, and no two entries publish under the same id.
- * @param {object} [docs] - The `docs` block of one `conf.server.json` route.
+ * @param {object} [docs] - The `docs` block of one `conf.client.json` client.
  * @returns {Array<{id: string, label: string, suite?: string, path?: string}>} Declared reports.
  * @throws {Error} When an entry is malformed or an id repeats.
  * @memberof UnderpostCoverage
@@ -61,23 +61,21 @@ const coverageReportsFactory = (docs = {}) => {
 
 /**
  * @method deployCoverageReports
- * @description Every report a deploy declares across its routes, once each: two routes may
+ * @description Every report a deploy declares across its clients, once each: two clients may
  * publish the same report, never the same id with different sources.
- * @param {object} confServer - A parsed `conf.server.json`.
+ * @param {object} confClient - A parsed `conf.client.json`.
  * @returns {Array<{id: string, label: string, suite?: string, path?: string}>} Declared reports.
  * @throws {Error} When an id is declared with two different sources.
  * @memberof UnderpostCoverage
  */
-const deployCoverageReports = (confServer) => {
+const deployCoverageReports = (confClient) => {
   const reports = new Map();
-  for (const routes of Object.values(confServer)) {
-    for (const { docs } of Object.values(routes)) {
-      for (const report of coverageReportsFactory(docs)) {
-        const known = reports.get(report.id);
-        if (known && (known.suite !== report.suite || known.path !== report.path))
-          throw new Error(`[coverage] report id '${report.id}' is declared with two different sources`);
-        reports.set(report.id, report);
-      }
+  for (const { docs } of Object.values(confClient)) {
+    for (const report of coverageReportsFactory(docs)) {
+      const known = reports.get(report.id);
+      if (known && (known.suite !== report.suite || known.path !== report.path))
+        throw new Error(`[coverage] report id '${report.id}' is declared with two different sources`);
+      reports.set(report.id, report);
     }
   }
   return [...reports.values()];
