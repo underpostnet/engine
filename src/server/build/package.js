@@ -513,7 +513,8 @@ const installDeployDependencies = async (deployId, catalog) => {
     logger.warn('Deploy declares no catalog dependencies', { deployId });
     return specs;
   }
-  shellExec(`npm install ${specs.join(' ')}`);
+  // `--include=dev` keeps the checkout's dev dependencies when the CLI environment sets NODE_ENV=production.
+  shellExec(`npm install --include=dev ${specs.join(' ')}`);
   return specs;
 };
 
