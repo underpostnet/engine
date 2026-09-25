@@ -13,7 +13,6 @@ import dotenv from 'dotenv';
 import { registerStatCommands } from '../src/projects/cyberia/stat-commands.js';
 import { Command, InvalidArgumentError } from 'commander';
 import fs from 'fs-extra';
-import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/runtime/process.js';
 import { cli } from '../src/server/build/execution.js';
 import { loggerFactory } from '../src/server/ops/logger.js';
@@ -41,29 +40,69 @@ import {
 } from '../src/server/runtime/conf.js';
 import {
   ObjectLayerEngine,
-  resolveCanonicalCid,
+  resolveItemIdentity,
   pngDirectoryIteratorByObjectLayerType,
   buildImgFromTile,
 } from '../src/projects/cyberia/object-layer.js';
+import {
+  ITEM_DEFINITION_APIS,
+  boundItemIds,
+  catalogModels,
+  reconcileItemCatalog,
+  findBoundDefinition,
+  findBoundDefinitions,
+  seedItemCatalog,
+} from '../src/projects/cyberia/object-layer-catalog.js';
+import { pinContentReferences } from '../src/api/cyberia-item-catalog/item-ref.js';
+import { objectLayerTokenId, ownershipRecord } from '../src/api/item-ledger/item-ledger.model.js';
+import { sha256HexFromCid } from '../src/api/object-layer/object-layer.identity.js';
+import { ItemLedgerIndexer } from '../src/api/item-ledger/item-ledger.indexer.js';
+import { CyberiaObjectLayerProfile } from '../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/projects/cyberia/instance-data.js';
-import { atlasBackupFileKey, restoreObjectLayerBackup } from '../src/projects/cyberia/instance-backup.js';
-import { getKeyframeDirectionsByCode } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
-import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/projects/cyberia/atlas-sprite-sheet-generator.js';
-import { ATLAS_FILE_FIELDS, AtlasSpriteSheetStore } from '../src/projects/cyberia/atlas-sprite-sheet-store.js';
+import {
+  atlasFileIdsOf,
+  exportObjectLayerBackup,
+  fileBackup,
+  fileFromBackup,
+  restoreObjectLayerBackup,
+} from '../src/projects/cyberia/instance-backup.js';
+import { getKeyframeDirectionsByCode } from '../src/client/components/object-layer/ObjectLayerProtocol.js';
+import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
+import { AtlasSpriteSheetStore } from '../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { fileRefFields } from '../src/api/file/file.ref.js';
+import {
+  CONTENT_PARTITION,
+  activateContentRelease,
+  assertReleaseId,
+  contentReleaseRowFactory,
+  materializeWorkspace,
+  promoteContentRelease,
+  publishContentRelease,
+  pruneContentReleases,
+  releaseDbConf,
+  retireContentRelease,
+  rollbackContentRelease,
+  validateContentRelease,
+} from '../src/projects/cyberia/content-release.js';
+import { API_BASE_PATH } from '../src/server/domain/api-contract.js';
+import { dropConsumerCanonicalPins, isObjectLayerAuthority } from '../src/api/object-layer/object-layer.publication.js';
+import { purgeObjectLayers } from '../src/api/object-layer/object-layer.purge.js';
+import * as cyberiaStudio from '../src/projects/cyberia/object-layer.extension.js';
+import { consumedApisOf, ownsApi } from '../src/server/domain/consumed-api.js';
+import { validateDomainConf } from '../src/projects/cyberia/domain-ownership.js';
 import {
   generateMultiFrame,
   lookupSemantic,
   semanticRegistry,
 } from '../src/projects/cyberia/semantic-layer-generator.js';
-import { IpfsClient } from '../src/projects/cyberia/ipfs-client.js';
-import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
+import { createValkeyConnection } from '../src/db/valkey/Valkey.js';
+import { CacheService } from '../src/server/storage/cache.js';
 import { program as underpostProgram } from '../src/cli/index.js';
 import { generateSaga, importSaga } from '../src/projects/cyberia/generate-saga.js';
 import crypto from 'crypto';
+import os from 'os';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
-import { newInstance } from '../src/client/components/core/CommonJs.js';
 import {
   DefaultSkillConfig,
   DefaultCyberiaDialogues,
@@ -89,39 +128,288 @@ import {
 } from '../src/server/build/package.js';
 
 /**
- * Connect to the project MongoDB instance using the standard env / conf layout.
+ * The resolved server conf of the deploy the env names.
+ * @returns {Object}
+ */
+function deployConfServer() {
+  const confServerPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/conf.server.json`;
+  if (!fs.existsSync(confServerPath)) {
+    throw new Error(`Server config not found: ${confServerPath}. Ensure DEFAULT_DEPLOY_ID is set.`);
+  }
+  return loadConfServerJson(confServerPath, { resolve: true });
+}
+
+/**
+ * The host that owns the ItemLedger API, and its database: ledger records live there only.
+ * @param {Object} confServer - Resolved server conf.
+ * @param {string} [mongoHost] - Mongo host override.
+ * @returns {{host:string,path:string,db:Object}}
+ */
+function ledgerDbContext(confServer, mongoHost) {
+  const entry = Object.entries(confServer).find(([, paths]) => ownsApi(paths['/'], 'item-ledger'));
+  if (!entry) throw new Error('No host of this deploy owns the item-ledger API');
+  const [host] = entry;
+  const db = { ...entry[1]['/'].db };
+  db.host = mongoHost ? mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+  return { host, path: '/', db };
+}
+
+/**
+ * Opens the models a chain command writes: the Object Layer catalog of the Cyberia host and the
+ * ItemLedger projection of the ItemLedger host, each in its own database.
  *
  * @async
  * @function connectDbForChain
  * @param {Object} params
  * @param {string} params.envPath   – path to .env file.
  * @param {string} [params.mongoHost] – optional mongo host override.
- * @returns {Promise<{ ObjectLayer: import('mongoose').Model, host: string, path: string }>}
+ * @returns {Promise<{ObjectLayer: import('mongoose').Model, CyberiaItemCatalog: import('mongoose').Model, ItemLedger: import('mongoose').Model, host: string, path: string, ledger: {host:string,path:string}}>}
  * @memberof CyberiaCLI
  */
 async function connectDbForChain({ envPath, mongoHost }) {
+  const host = process.env.DEFAULT_DEPLOY_HOST;
+  const path = process.env.DEFAULT_DEPLOY_PATH;
+  const confServer = deployConfServer();
+  const db = { ...confServer[host][path].db };
+  db.host = mongoHost ? mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+  await DataBaseProviderService.load({ apis: ['object-layer', 'cyberia-item-catalog'], host, path, db });
+
+  const ledger = ledgerDbContext(confServer, mongoHost);
+  await DataBaseProviderService.load({ apis: ['item-ledger'], ...ledger });
+  const ItemLedger = DataBaseProviderService.getModel('item-ledger', ledger);
+  return { ...catalogModels({ host, path }), ItemLedger, host, path, ledger: { host: ledger.host, path: ledger.path } };
+}
+
+/** Closes both databases {@link connectDbForChain} opened. */
+async function closeChainDb(connection) {
+  for (const context of [connection, connection.ledger]) {
+    try {
+      await DataBaseProviderService.getProvider({ host: context.host, path: context.path }, 'mongoose').close();
+    } catch (_) {
+      /* ignore close errors */
+    }
+  }
+}
+
+/**
+ * JSON-RPC endpoint of a Hardhat network name, as `hardhat/hardhat.config.js` resolves it.
+ * @param {string} network
+ * @returns {string}
+ */
+function rpcUrlOf(network) {
+  const byNetwork = {
+    'besu-ibft2': process.env.BESU_IBFT2_RPC_URL || 'http://127.0.0.1:8545',
+    'besu-qbft': process.env.BESU_QBFT_RPC_URL || 'http://127.0.0.1:8545',
+    'besu-k8s': process.env.BESU_K8S_RPC_URL || 'http://127.0.0.1:30545',
+    hardhat: 'http://127.0.0.1:8545',
+  };
+  const url = byNetwork[network];
+  if (!url) {
+    logger.error(`Unknown network "${network}"; expected one of ${Object.keys(byNetwork).join(', ')}`);
+    process.exit(1);
+  }
+  return url;
+}
+
+/**
+ * Opens the ItemLedger projection models for the indexer, in the ItemLedger host's database.
+ * @param {{envPath:string,mongoHost?:string}} params
+ * @returns {Promise<{models:import('../src/api/item-ledger/item-ledger.indexer.js').IndexerModels,host:string,path:string}>}
+ */
+async function connectDbForIndexer({ envPath, mongoHost }) {
+  const { host, path, db } = ledgerDbContext(deployConfServer(), mongoHost);
+  const apis = ['item-ledger', 'item-ledger-transfer', 'item-ledger-balance', 'item-ledger-checkpoint'];
+  await DataBaseProviderService.load({ apis, host, path, db });
+  const models = Object.fromEntries(
+    ['ItemLedger', 'ItemLedgerTransfer', 'ItemLedgerBalance', 'ItemLedgerCheckpoint'].map((name) => [
+      name,
+      DataBaseProviderService.getModel(name, { host, path }),
+    ]),
+  );
+  return { models, host, path };
+}
+
+/**
+ * Reads the deployment artifact `chain deploy-contract` wrote for a network, or exits.
+ * @param {string} network - Hardhat network name.
+ * @returns {{address:string,chainId:string,network:string}}
+ */
+function readContractDeployment(network) {
+  const artifactPath = `./hardhat/deployments/${network}-ObjectLayerToken.json`;
+  if (!fs.existsSync(artifactPath)) {
+    logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+    process.exit(1);
+  }
+  return JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+}
+
+/**
+ * Records an on-chain registration as an ItemLedger binding. Opens the database when the
+ * caller holds no connection; a database that is unreachable only costs the index entry.
+ * @param {object} params
+ * @param {{ItemLedger:object,host:string,path:string}|null} params.db - Open connection, or null.
+ * @param {{address:string,chainId:string}} params.deployment - Contract deployment artifact.
+ * @param {{objectLayerCid:string,itemId:string,tokenId:string,txHash:string}} params.binding
+ * @param {string} params.envPath
+ * @param {string} [params.mongoHost]
+ * @param {boolean} [params.keepOpen=false] - Leave the connection open for further bindings.
+ */
+async function recordLedgerBinding({ db, deployment, binding, envPath, mongoHost, keepOpen = false }) {
+  let connection = db;
+  try {
+    if (!connection) connection = await connectDbForChain({ envPath, mongoHost });
+    const stored = await connection.ItemLedger.bind({
+      ...binding,
+      chainId: Number(deployment.chainId),
+      contractAddress: deployment.address,
+    });
+    logger.info(
+      `ItemLedger binding recorded: ${stored.objectLayerCid} → ${stored.chainId}/${stored.contractAddress}/${stored.tokenId}`,
+    );
+  } catch (bindErr) {
+    logger.warn(
+      `ItemLedger binding not recorded (${bindErr.message}); index it with "cyberia chain bind --cid ${binding.objectLayerCid}" once the database is reachable`,
+    );
+  } finally {
+    if (connection && !keepOpen) await closeChainDb(connection);
+  }
+}
+
+/**
+ * The db configuration of the deploy the env names, as the CLI connects to it: the cluster
+ * service host unless overridden, and the content partition of one release when asked.
+ * @param {Object} params
+ * @param {string} [params.envPath] - Env file; `./.env` when absent.
+ * @param {string} [params.mongoHost] - Mongo host override.
+ * @param {boolean} [params.dev] - Keep the development host and load `.env.development`.
+ * @param {string} [params.release] - Release id whose database the content partition binds to.
+ * @returns {{deployId:string,host:string,path:string,db:Object,valkey:Object,release:string,releaseDatabase:string,workspaceDatabase:string}}
+ */
+function resolveDeployDb({ envPath, mongoHost, dev, release } = {}) {
+  const envFile = envPath || './.env';
+  if (envPath && !fs.existsSync(envPath)) throw new Error(`Env file not found: ${envPath}`);
+  if (fs.existsSync(envFile)) dotenv.config({ path: envFile, override: true });
+  if (dev && process.env.DEFAULT_DEPLOY_ID) {
+    const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+    if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+  }
   const deployId = process.env.DEFAULT_DEPLOY_ID;
   const host = process.env.DEFAULT_DEPLOY_HOST;
   const path = process.env.DEFAULT_DEPLOY_PATH;
-
   const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-  if (!fs.existsSync(confServerPath)) {
-    throw new Error(`Server config not found: ${confServerPath}. Ensure DEFAULT_DEPLOY_ID is set.`);
-  }
+  if (!fs.existsSync(confServerPath)) throw new Error(`Server config not found: ${confServerPath}`);
   const confServer = loadConfServerJson(confServerPath, { resolve: true });
-  const { db } = confServer[host][path];
-
-  db.host = mongoHost ? mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
-
-  await DataBaseProviderService.load({
-    apis: ['object-layer'],
+  const hostConf = confServer[host][path];
+  let { db } = hostConf;
+  db.host = mongoHost ? mongoHost : dev ? db.host : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+  let releaseDatabase = '';
+  const workspaceDatabase = db.partitions?.[CONTENT_PARTITION]?.name ?? '';
+  if (release) ({ db, database: releaseDatabase } = releaseDbConf(db, release));
+  const owns = (api) => ownsApi(hostConf, api);
+  return {
+    deployId,
     host,
     path,
     db,
-  });
+    valkey: hostConf.valkey,
+    owns,
+    consumes: consumedApisOf(hostConf),
+    release: release || '',
+    releaseDatabase,
+    workspaceDatabase,
+  };
+}
 
-  const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
-  return { ObjectLayer, host, path };
+/**
+ * Refuses a destructive action unless the caller confirmed it with the deploy id it targets.
+ * @param {Object} options - Parsed command options.
+ * @param {string} deployId - The deploy the action would touch.
+ * @param {string} action - What would be destroyed, for the message.
+ */
+function assertDestructiveConfirmation(options, deployId, action) {
+  if (options.confirm === deployId) return;
+  logger.error(
+    `${action} destroys data of ${deployId}. Pass --confirm ${deployId} to run it. It is never part of a deploy.`,
+  );
+  process.exit(1);
+}
+
+/**
+ * Runs the idempotent ObjectLayer identity migration under the Cyberia profile, links every
+ * materialization to its definition by cid, binds every label that has one definition, and pins
+ * persisted content to the definitions it means.
+ * Exits when a label has several definitions and no binding.
+ * @param {import('../src/projects/cyberia/object-layer-catalog.js').CatalogModels} models
+ * @param {Object<string,import('mongoose').Model>} [contentModels={}] - Collections that pin references.
+ * @param {{host:string,path:string}} [context] - Host the models belong to; the Object Layer
+ *   authority states legacy documents canonical, a consumer states them drafts to publish.
+ */
+async function runIdentityMigration(models, contentModels = {}, context) {
+  const result = await models.ObjectLayer.migrateIdentity({
+    profile: CyberiaObjectLayerProfile,
+    origin: isObjectLayerAuthority(context) ? 'canonical' : 'draft',
+  });
+  if (result.migrated > 0) logger.info(`Migrated ${result.migrated} ObjectLayer document(s) to content identity`);
+  if (result.originsSet > 0) logger.info(`Stated the origin of ${result.originsSet} ObjectLayer document(s)`);
+  if (result.indexesDropped.length > 0)
+    logger.info(`Dropped legacy ObjectLayer index(es): ${result.indexesDropped.join(', ')}`);
+  if (result.bindings > 0) logger.info(`Recorded ${result.bindings} legacy ledger binding(s) in ItemLedger`);
+  for (const binding of result.unbound) {
+    logger.warn(
+      `Legacy on-chain ledger of "${binding.itemId}" (${binding.contractAddress} / ${binding.tokenId}) was dropped from the document; index it with "cyberia chain bind --cid ${binding.objectLayerCid}"`,
+    );
+  }
+  // Materializations reference their definition by cid; their indexes hold one per definition.
+  const materializations = {
+    AtlasSpriteSheet: DataBaseProviderService.getModel('AtlasSpriteSheet', context),
+    ObjectLayerRenderFrames: DataBaseProviderService.getModel('ObjectLayerRenderFrames', context),
+  };
+  const materialized = await models.ObjectLayer.migrateMaterializations(materializations);
+  if (materialized.linked > 0)
+    logger.info(`Linked ${materialized.linked} materialization(s) to their definition by cid`);
+  if (materialized.unowned > 0)
+    logger.warn(
+      `Removed ${materialized.unowned} materialization(s) no definition referenced; sweep their Files with "node bin db --clean-fs-collection"`,
+    );
+  for (const [name, Model] of Object.entries(materializations)) {
+    const indexesDropped = await Model.syncIndexes();
+    if (indexesDropped.length > 0) logger.info(`Dropped legacy ${name} index(es): ${indexesDropped.join(', ')}`);
+  }
+  const dropped = await dropConsumerCanonicalPins({
+    Ipfs: DataBaseProviderService.getModel('Ipfs', context),
+    options: context,
+  });
+  if (dropped > 0)
+    logger.info(`Dropped ${dropped} canonical-bytes pin record(s); the Object Layer authority holds them`);
+  const seeded = await seedItemCatalog(models);
+  if (seeded.bound > 0) logger.info(`Bound ${seeded.bound} item label(s) to their single definition`);
+  if (seeded.ambiguous.length > 0) {
+    for (const { itemId, cids } of seeded.ambiguous) {
+      logger.error(`Item "${itemId}" has ${cids.length} definitions and no binding: ${cids.join(', ')}`);
+    }
+    logger.error(
+      `Bind each label with POST /${API_BASE_PATH}/cyberia-item-catalog { itemId, objectLayerCid } before writing`,
+    );
+    process.exit(1);
+  }
+
+  await pinReferences(models, contentModels);
+}
+
+/**
+ * Pins every unpinned quest and action reference to the definition its label is bound to now,
+ * and moves every reference to a replaced definition onto its replacement.
+ * Idempotent: any other pinned reference keeps its definition.
+ * @param {import('../src/projects/cyberia/object-layer-catalog.js').CatalogModels} models
+ * @param {Object<string,import('mongoose').Model>} contentModels - Collections that pin references.
+ * @param {Map<string,string>} [replacements] - Replaced cid → the cid that replaces it.
+ */
+async function pinReferences(models, contentModels, replacements) {
+  const references = await pinContentReferences({ models: { ...models, ...contentModels }, replacements });
+  if (references.pinned > 0) logger.info(`Pinned ${references.pinned} content reference(s) to their definition`);
+  for (const { collection, code, itemId } of references.unbound) {
+    logger.warn(`${collection} "${code}" names unbound item "${itemId}"; bind the label to pin the reference`);
+  }
 }
 
 /**
@@ -282,7 +570,7 @@ const findAssetFolder = (itemId) => {
  * @param {string} params.action - The flag being served, for the log lines.
  * @returns {Promise<string[]>} Item ids to work on.
  */
-const selectScopedItemIds = async ({ ObjectLayer, itemId, instance, host, path, action }) => {
+const selectScopedItemIds = async ({ itemId, instance, host, path, action }) => {
   let storedItemIds;
   if (instance) {
     try {
@@ -293,8 +581,7 @@ const selectScopedItemIds = async ({ ObjectLayer, itemId, instance, host, path, 
     }
     logger.info(`Instance '${instance}' runs on ${storedItemIds.length} stored object layer(s)`);
   } else {
-    const storedDocs = await ObjectLayer.find({}, { 'data.item.id': 1 }).lean();
-    storedItemIds = storedDocs.map((doc) => doc?.data?.item?.id);
+    storedItemIds = await boundItemIds(catalogModels({ host, path }));
   }
 
   const { itemIds, missingItemIds } = ObjectLayerEngine.selectStoredItemIds({
@@ -302,7 +589,7 @@ const selectScopedItemIds = async ({ ObjectLayer, itemId, instance, host, path, 
     requestedItemIds: parseItemIds(itemId),
   });
 
-  const scope = instance ? `instance '${instance}'` : 'the ObjectLayer collection';
+  const scope = instance ? `instance '${instance}'` : 'the item catalog';
   if (missingItemIds.length > 0) logger.warn(`Not in ${scope}, skipped: ${missingItemIds.join(', ')}`);
   if (itemIds.length === 0) {
     logger.error(`No object layer of ${scope} matches the requested item-id(s) for ${action}`);
@@ -311,15 +598,80 @@ const selectScopedItemIds = async ({ ObjectLayer, itemId, instance, host, path, 
   return itemIds;
 };
 
-const CYBERIA_DOCKER_HOST_ALIASES = ['cyberia-client', 'cyberia-server', 'engine-cyberia'];
+/** Gateway names the compose stack publishes beside the deploy's own domains. */
+const CYBERIA_DOCKER_GATEWAY_ALIASES = ['cyberia-client', 'cyberia-server', 'engine-cyberia'];
+
+/**
+ * The public tree of every host the deploy serves, and the asset folders each one publishes to
+ * the instances repository — the one place the image build takes public assets from.
+ *
+ * Every root file travels: the manifest, the icons, the microdata and the sitemap each host
+ * serves from `/`. Beside them travel the named folders only, or every folder for a tree that
+ * carries nothing but what its host requests. `cyberia` and `underpost` hold art the deploy
+ * never serves — a gif bank, backgrounds, world sprites — so they name what they need.
+ *
+ * `cyberia` also fills the four clients that declare `publicCopyNonExistingFiles: "cyberia"`:
+ * its icons and fonts are what draws their menus.
+ */
+const PUBLIC_ASSET_FOLDERS_ALL = '*';
+const PUBLIC_ASSET_SYNC = Object.freeze({
+  cyberia: ['ui-icons', 'cursor', 'fonts', 'icons', 'splash', 'templates', 'util'],
+  underpost: ['splash', 'img', 'banner'],
+  itemledger: PUBLIC_ASSET_FOLDERS_ALL,
+  objectlayer: PUBLIC_ASSET_FOLDERS_ALL,
+  cryptokoyn: PUBLIC_ASSET_FOLDERS_ALL,
+});
+
+/**
+ * Publishes the public tree of every served host into the instances repository, which is where
+ * the image build and the volume take them from.
+ * @param {string} instancesRoot - Instances repository checkout.
+ */
+const publishPublicAssets = (instancesRoot) => {
+  for (const [publicClientId, declaredFolders] of Object.entries(PUBLIC_ASSET_SYNC)) {
+    const source = `./src/client/public/${publicClientId}`;
+    const target = `${instancesRoot}/public/${publicClientId}`;
+    if (!fs.existsSync(source)) {
+      logger.warn('Public tree not present in this checkout, skipping', { publicClientId });
+      continue;
+    }
+    for (const entry of fs.readdirSync(source, { withFileTypes: true }))
+      if (entry.isFile()) fs.copySync(`${source}/${entry.name}`, `${target}/${entry.name}`);
+    const assetFolders =
+      declaredFolders === PUBLIC_ASSET_FOLDERS_ALL
+        ? fs.existsSync(`${source}/assets`)
+          ? fs.readdirSync(`${source}/assets`)
+          : []
+        : declaredFolders;
+    for (const folder of assetFolders) {
+      if (!fs.existsSync(`${source}/assets/${folder}`)) {
+        logger.warn('Public asset folder not present in this checkout, skipping', { publicClientId, folder });
+        continue;
+      }
+      fs.copySync(`${source}/assets/${folder}`, `${target}/assets/${folder}`);
+    }
+  }
+};
+
+/**
+ * The names a host resolves to the compose proxy: the gateway aliases and every domain the
+ * deploy serves, read from the conf the engine itself boots from.
+ * @returns {string[]}
+ */
+const cyberiaDockerHostAliases = () => {
+  const confServerPath = './engine-private/conf/dd-cyberia/conf.server.json';
+  const domains = fs.existsSync(confServerPath) ? Object.keys(loadConfServerJson(confServerPath)) : [];
+  return [...CYBERIA_DOCKER_GATEWAY_ALIASES, ...domains];
+};
 
 const installCyberiaDockerHostAliases = () => {
+  const aliases = cyberiaDockerHostAliases();
   try {
-    const { changed } = etcHostFactory(CYBERIA_DOCKER_HOST_ALIASES, {
+    const { changed } = etcHostFactory(aliases, {
       append: true,
       blockId: 'dd-cyberia-docker-compose',
     });
-    return { aliases: CYBERIA_DOCKER_HOST_ALIASES, changed };
+    return { aliases, changed };
   } catch (error) {
     if (error?.code === 'EACCES' || error?.code === 'EPERM')
       throw new Error('Cannot update /etc/hosts for Cyberia Docker aliases. Re-run the workflow as root.');
@@ -346,9 +698,9 @@ try {
     .command('ol [item-id]')
     .option(
       '--to-atlas-sprite-sheet [dim]',
-      'Rebuild both atlas renders of stored object layers, optionally capped to a dimension (default: auto-calculated based on frame count)',
+      'Rebuild the render of stored object layers and publish the definitions that name it, optionally capped to a dimension (default: auto-calculated based on frame count)',
     )
-    .option('--show-atlas-sprite-sheet', 'Show consolidated atlas sprite sheet PNG for given item-id')
+    .option('--show-atlas-sprite-sheet', 'Save and open the primary render of the definition an item-id is bound to')
     .option(
       '--import',
       'Import specific item-id(s) passed as comma-separated command argument (e.g. ol hatchet,sword --instance FOREST --import); with --from-directory, from the asset directory instead',
@@ -358,12 +710,12 @@ try {
       'Source --import and --import-types from src/client/public/cyberia/assets/<type>/<item-id>/<direction>/<frame>.png',
     )
     .option(
-      '--minify',
-      'Refresh the minified atlas render the client downloads, for stored object layers (e.g. ol hatchet --minify, or ol --minify for all)',
+      '--sync-derived',
+      'Derive the upscaled render and the idle preview again from the primary render of stored object layers; the render contract never changes (e.g. ol hatchet --sync-derived, or ol --sync-derived for all)',
     )
     .option(
       '--instance <instance-code>',
-      'Limit --minify and --to-atlas-sprite-sheet to the object layers one instance runs on, or make --import restore item(s) from that instance backup under engine-private (e.g. ol hatchet --instance FOREST --import)',
+      'Limit --sync-derived and --to-atlas-sprite-sheet to the object layers one instance runs on, or make --import restore item(s) from that instance backup under engine-private (e.g. ol hatchet --instance FOREST --import)',
     )
     .option(
       '--normalize-stats',
@@ -385,7 +737,7 @@ try {
     )
     .option(
       '--upscale <px-factor>',
-      `Pixels per cell of the human-resolution atlas render; on its own it rebuilds that render (default: ${DEFAULT_ATLAS_UPSCALE_FACTOR})`,
+      `Pixels per cell of the upscaled derived render; the factor is part of the render metadata, so on its own it rebuilds the render (default: ${DEFAULT_ATLAS_UPSCALE_FACTOR})`,
       parseInt,
     )
     .option(
@@ -401,7 +753,9 @@ try {
     .option('--density <density>', 'Density factor 0..1 for --generate (default: 0.5)', parseFloat)
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
-    .option('--drop', 'Drop existing data before importing')
+    .option('--drop', 'Drop existing data before importing (needs --confirm <deploy-id>; never part of a deploy)')
+    .option('--confirm <deploy-id>', 'Confirm a destructive action against this deploy id')
+    .option('--release <release-id>', 'Work on the content release database of this id instead of the workspace')
     .option('--client-public', 'When used with --drop, also remove static asset folders for dropped items')
     .option('--git-clean', 'When used with --drop, run underpost clean on the cyberia asset directory')
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
@@ -414,13 +768,13 @@ try {
        * @param {Object} options - Command options parsed by Commander.
        * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
        * @param {boolean} options.fromDirectory - Source --import and --import-types from the asset directory.
-       * @param {boolean} options.minify - Refresh the minified atlas render of stored item(s).
-       * @param {string} options.instance - Instance code whose object layers --minify reprocesses.
+       * @param {boolean} options.syncDerived - Refresh the derived renders of stored item(s).
+       * @param {string} options.instance - Instance code whose object layers --sync-derived reprocesses.
        * @param {boolean} options.normalizeStats - Clamp the stats of every object layer the action writes to its type's bounds.
        * @param {boolean} options.randomStats - Regenerate the stats of every object layer the action writes.
        * @param {number} [options.minStat] - Lowest value --random-stats may draw.
        * @param {number} [options.maxStat] - Highest value --random-stats may draw.
-       * @param {number} options.upscale - Pixels per cell of the human-resolution atlas render.
+       * @param {number} options.upscale - Pixels per cell of the upscaled render.
        * @param {boolean|string} options.importTypes - Object layer types to batch import (e.g., 'all', 'skin,floor') or `false`.
        * @param {boolean|string} options.showFrame - Direction-frame string (e.g., '08_0') or `true` for default.
        * @param {string} options.envPath - Path to the `.env` file.
@@ -445,7 +799,7 @@ try {
         options = {
           import: false,
           fromDirectory: false,
-          minify: false,
+          syncDerived: false,
           instance: '',
           upscale: DEFAULT_ATLAS_UPSCALE_FACTOR,
           importTypes: false,
@@ -474,76 +828,51 @@ try {
           process.exit(1);
         }
 
-        if (!options.envPath) options.envPath = `./.env`;
-        if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
-
-        // --dev: force development environment (IPFS localhost, etc.)
-        if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
-          const deployDevEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
-          if (fs.existsSync(deployDevEnvPath)) {
-            dotenv.config({ path: deployDevEnvPath, override: true });
-          }
-        }
-
-        /** @type {string} */
-        const deployId = process.env.DEFAULT_DEPLOY_ID;
-        /** @type {string} */
-        const host = process.env.DEFAULT_DEPLOY_HOST;
-        /** @type {string} */
-        const path = process.env.DEFAULT_DEPLOY_PATH;
-
-        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        const confServer = loadConfServerJson(confServerPath, { resolve: true });
-        const { db } = confServer[host][path];
-
-        db.host = options.mongoHost
-          ? options.mongoHost
-          : options.dev
-            ? db.host
-            : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+        const { deployId, host, path, db, owns } = resolveDeployDb(options);
+        if (options.drop) assertDestructiveConfirmation(options, deployId, 'ol --drop');
 
         logger.info('env', {
           env: options.envPath,
           deployId,
           host,
           path,
+          release: options.release || '',
         });
 
-        // --instance reads the world the runtime reads, so its content collections load too.
+        // Content that pins Object Layer references is migrated with the collection, so its
+        // collections load for every flow. `--instance` reads the world the runtime reads.
+        const contentApis = ['cyberia-quest', 'cyberia-action'];
         const instanceApis = options.instance
-          ? [
-              'cyberia-instance',
-              'cyberia-instance-conf',
-              'cyberia-map',
-              'cyberia-quest',
-              'cyberia-action',
-              'cyberia-skill',
-              'cyberia-entity-type-default',
-            ]
+          ? ['cyberia-instance', 'cyberia-instance-conf', 'cyberia-map', 'cyberia-skill', 'cyberia-entity-type-default']
           : [];
 
         await DataBaseProviderService.load({
-          apis: ['object-layer', 'object-layer-render-frames', 'atlas-sprite-sheet', 'file', 'ipfs', ...instanceApis],
+          apis: [
+            ...ITEM_DEFINITION_APIS,
+            ...(owns('item-ledger') ? ['item-ledger'] : []),
+            ...contentApis,
+            ...instanceApis,
+          ],
           host,
           path,
           db,
         });
 
         /** @type {import('mongoose').Model} */
-        const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
-        /** @type {import('mongoose').Model} */
         const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
         /** @type {import('mongoose').Model} */
         const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
         /** @type {import('mongoose').Model} */
         const File = DataBaseProviderService.getModel('file', { host, path });
-        /** @type {import('mongoose').Model} */
-        const Ipfs = DataBaseProviderService.getModel('ipfs', { host, path });
 
         // A model handle binds to one connection, and the health monitor replaces that
         // connection when it drops. A batch that runs for minutes therefore resolves its
-        // model per item instead of holding the handle it started with.
-        const liveObjectLayer = () => DataBaseProviderService.getModel('object-layer', { host, path });
+        // models per item instead of holding the handles it started with.
+        const models = () => catalogModels({ host, path });
+        const contentModels = () => ({
+          CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
+          CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
+        });
 
         const rebuildAtlases = ObjectLayerEngine.selectAtlasRebuild(options);
 
@@ -565,25 +894,24 @@ try {
           logger.warn('--min-stat and --max-stat only bound --random-stats and --normalize-stats, ignored');
         }
 
-        if (options.instance && !options.minify && !rebuildAtlases && !options.import) {
-          logger.warn('--instance only narrows --minify and --to-atlas-sprite-sheet, or sources --import, ignored');
+        if (options.instance && !options.syncDerived && !rebuildAtlases && !options.import) {
+          logger.warn(
+            '--instance only narrows --sync-derived and --to-atlas-sprite-sheet, or sources --import, ignored',
+          );
         }
 
-        // Idempotent repair, run only before a flow that writes: collapse
-        // duplicates and make the data.item.id index unique, so every later
-        // write lands on one document. A read-only subcommand stays free of
-        // side effects; findByItemId resolves the same canonical document.
+        // Idempotent migration, run only before a flow that writes: every document carries
+        // its content identity and every label its binding before a write lands. A read-only
+        // subcommand stays free of side effects.
         if (
           options.import ||
-          options.minify ||
+          options.syncDerived ||
           options.importTypes ||
           options.drop ||
           options.generate ||
           rebuildAtlases
         ) {
-          const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
-          if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
-          if (indexUpgraded) logger.info('Upgraded data.item.id index to unique');
+          await runIdentityMigration(models(), contentModels(), { host, path });
         }
 
         if (options.drop) {
@@ -602,176 +930,74 @@ try {
             logger.info('Dropping ALL object layer data');
           }
 
-          // Build query filter: targeted or all. The atlas side of the drop is selected by
-          // the store, from the item keys and the links collected below.
-          const olFilter = isTargetedDrop ? { 'data.item.id': { $in: dropItemIds } } : {};
-
-          // Collect data before deletion
-          const olDocs = await ObjectLayer.find(olFilter, {
-            cid: 1,
-            'data.item.id': 1,
-            'data.item.type': 1,
-            'data.render': 1,
-            objectLayerRenderFramesId: 1,
-            atlasSpriteSheetId: 1,
-          }).lean();
-
-          const cidsToUnpin = new Set();
-          const itemIdsToClean = new Set();
-          const renderFrameIds = [];
-          const atlasIds = [];
-
-          for (const doc of olDocs) {
-            if (doc.cid) cidsToUnpin.add(doc.cid);
-            if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
-            if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
-            if (doc.data?.item?.id) itemIdsToClean.add(doc.data.item.id);
-            if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
-            if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
-          }
-
-          const olCount = olDocs.length;
-
-          // Delete targeted documents
-          if (isTargetedDrop) {
-            const olIds = olDocs.map((d) => d._id);
-            if (olIds.length > 0) await ObjectLayer.deleteMany({ _id: { $in: olIds } });
-            if (renderFrameIds.length > 0) await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
-          } else {
-            await ObjectLayer.deleteMany();
-            await ObjectLayerRenderFrames.deleteMany();
-          }
-
-          const rfCount = renderFrameIds.length;
-
-          // The atlas owns two renders and the store is what knows that: a drop naming
-          // `fileId` alone left every minified render unreachable in the File collection.
-          // Both selectors are passed, so an atlas linked by the object layer and one
-          // matching the item key are the same drop.
-          const purged = await AtlasSpriteSheetStore.purge({
-            itemKeys: isTargetedDrop ? dropItemIds : [],
-            atlasIds: isTargetedDrop ? atlasIds : [],
-            all: !isTargetedDrop,
-            options: { host, path },
+          // Every definition that carries a dropped label goes, with its label binding. The
+          // asset tree is the source a re-import reads, so only --client-public removes it.
+          const report = await purgeObjectLayers({
+            options: { host, path, extension: cyberiaStudio },
+            filter: isTargetedDrop ? { 'data.item.id': { $in: dropItemIds } } : {},
+            pruneOrphans: true,
+            assets: Boolean(options.clientPublic),
           });
-          for (const cid of purged.cids) cidsToUnpin.add(cid);
-          const atlasCount = purged.atlases;
-          // Renders an earlier drop left behind are unreachable by definition, so this
-          // drop takes them too instead of letting them accumulate.
-          const fileCount =
-            purged.files + (await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } }));
-
-          // Delete IPFS pin registry records for all collected CIDs
-          if (cidsToUnpin.size > 0) {
-            const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
-            logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
-          }
-
-          // Unpin CIDs from IPFS Cluster + Kubo and remove MFS directories
-          let unpinCount = 0;
-          let mfsCount = 0;
-          for (const cid of cidsToUnpin) {
-            const ok = await IpfsClient.unpinCid(cid);
-            if (ok) unpinCount++;
-          }
-          for (const itemKey of itemIdsToClean) {
-            const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
-            if (ok) mfsCount++;
-          }
 
           logger.info(
-            `Dropped: ${olCount} ObjectLayer, ${rfCount} RenderFrames, ${atlasCount} AtlasSpriteSheet, ${fileCount} File (atlas)`,
+            `Dropped: ${report.objectLayers} ObjectLayer, ${report.renderFrames} RenderFrames, ${report.atlases} AtlasSpriteSheet, ${report.files} File (atlas)`,
           );
           logger.info(
-            `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemIdsToClean.size} MFS paths removed`,
+            `IPFS cleanup: ${report.unpinned} CIDs unpinned, ${report.pinRecords} pin record(s) dropped, ${report.mfsPaths} MFS path(s) removed`,
           );
+          for (const { cid, itemId: keptItemId } of report.kept)
+            logger.warn(`Kept ${cid} ("${keptItemId}"): registered in ItemLedger`);
           if (options.gitClean) {
             shellExec(`cd src/client/public/cyberia && ${cli()} run clean .`);
             logger.info('Asset directory cleaned');
           }
-
-          // --client-public: remove static asset folders for dropped items
-          if (options.clientPublic) {
-            const srcBase = './src/client/public/cyberia/assets';
-            const publicBase = `./public/${host}${path}/assets`;
-            let removedCount = 0;
-            for (const doc of olDocs) {
-              const docItemId = doc.data?.item?.id;
-              const docItemType = doc.data?.item?.type;
-              if (!docItemId || !docItemType) continue;
-              for (const base of [srcBase, publicBase]) {
-                const folder = `${base}/${docItemType}/${docItemId}`;
-                if (fs.existsSync(folder)) {
-                  fs.removeSync(folder);
-                  removedCount++;
-                  logger.info(`Removed static folder: ${folder}`);
-                }
-              }
-            }
-            logger.info(`Static asset cleanup: ${removedCount} folder(s) removed`);
-          }
         }
 
-        // ── Handle --minify (stored item-id(s)) ──────────────────────────
-        // Refreshes only the minified atlas render, the one the client runtime
-        // downloads. It reads its item ids from the collection, so it never
-        // creates an object layer. With --random-stats every stored document
-        // in scope is rewritten, whether or not its render can be refreshed.
-        if (options.minify) {
+        // ── Handle --sync-derived (stored item-id(s)) ────────────────────
+        // Refreshes the renders derived from the primary render: the upscaled render and
+        // the idle preview. It reads its item ids from the collection, so it never creates an object
+        // layer, and it never changes a render contract. With --random-stats every stored document
+        // in scope is rewritten.
+        if (options.syncDerived) {
           const selectedItemIds = await selectScopedItemIds({
-            ObjectLayer,
             itemId,
             instance: options.instance,
             host,
             path,
-            action: '--minify',
+            action: '--sync-derived',
           });
 
-          logger.info(`Minify refresh for ${selectedItemIds.length} stored item(s)`);
-          const tally = { updated: 0, unchanged: 0, missing: 0, stale: 0, failed: [] };
+          logger.info(`Derived render refresh for ${selectedItemIds.length} stored item(s)`);
+          const tally = { updated: 0, unchanged: 0, missing: 0, failed: [] };
 
-          // Isolated per item, for the same reason the atlas rebuild is.
+          // Isolated per item, for the same reason the render rebuild is.
           for (const currentItemId of selectedItemIds) {
             try {
-              const objectLayer = await liveObjectLayer()
-                .findByItemId(currentItemId)
-                .populate('objectLayerRenderFramesId');
+              let objectLayer = await findBoundDefinition(models(), currentItemId);
               if (objectLayer && applyStatPolicy(objectLayer, statPolicy)) {
-                await objectLayer.save();
-                await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer, options: { host, path } });
+                objectLayer = await ObjectLayerEngine.publishItemDefinition({
+                  models: models(),
+                  payload: ObjectLayerEngine.payloadOf(objectLayer),
+                  options: { host, path },
+                });
               }
-              if (!objectLayer?.objectLayerRenderFramesId) {
-                logger.warn(`No render frames stored for '${currentItemId}', render skipped`);
-                tally.missing++;
-                continue;
-              }
-
-              const { status } = await AtlasSpriteSheetStore.syncMinifyRender({
-                itemKey: currentItemId,
-                objectLayerRenderFrames: objectLayer.objectLayerRenderFramesId,
+              const { status } = await AtlasSpriteSheetStore.syncDerivedRenders({
+                objectLayerCid: objectLayer?.cid,
                 options: { host, path },
               });
               tally[status]++;
-
-              if (status === 'missing') logger.warn(`No atlas stored for '${currentItemId}'; generate it first`);
-              else if (status === 'stale')
-                logger.warn(`Render frames of '${currentItemId}' moved the atlas layout; regenerate the atlas`);
-              else logger.info(`Minified render ${status} for '${currentItemId}'`);
-
-              const still = await AtlasSpriteSheetStore.syncIdlePreview({
-                itemKey: currentItemId,
-                options: { host, path },
-              });
-              if (still.status !== 'missing') logger.info(`Idle preview ${still.status} for '${currentItemId}'`);
-            } catch (minifyError) {
-              logger.error(`Minify failed for '${currentItemId}': ${minifyError.message}`);
+              if (status === 'missing')
+                logger.warn(`No render stored for '${currentItemId}'; build it with --to-atlas-sprite-sheet`);
+              else logger.info(`Derived renders ${status} for '${currentItemId}'`);
+            } catch (syncError) {
+              logger.error(`Derived render refresh failed for '${currentItemId}': ${syncError.message}`);
               tally.failed.push(currentItemId);
             }
           }
 
           logger.info(
-            `Minify done: ${tally.updated} updated, ${tally.unchanged} unchanged, ` +
-              `${tally.stale} stale, ${tally.missing} without an atlas, ${tally.failed.length} failed`,
+            `Derived render refresh done: ${tally.updated} updated, ${tally.unchanged} unchanged, ` +
+              `${tally.missing} without a render, ${tally.failed.length} failed`,
           );
           if (tally.failed.length > 0) {
             logger.warn(`Rerun for the failed item(s): ${tally.failed.join(',')}`);
@@ -797,6 +1023,7 @@ try {
           }
           logger.info(`Restoring ${itemIds.length} item(s) from instance backup '${options.instance}'`);
           let restored = 0;
+          const replacements = new Map();
           for (const currentItemId of itemIds) {
             try {
               const summary = await restoreObjectLayerBackup({
@@ -806,10 +1033,14 @@ try {
               });
               logger.info(`Restored '${currentItemId}' from backup`, summary);
               restored++;
+              if (summary.replaced) replacements.set(summary.replaced, summary.cid);
             } catch (restoreError) {
               logger.error(`Restore failed for '${currentItemId}': ${restoreError.message}`);
             }
           }
+          // The replaced atlases took their renders out of reach; prune what no atlas points at.
+          await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });
+          await pinReferences(models(), contentModels(), replacements);
           logger.info(`Instance restore done: ${restored}/${itemIds.length} item(s)`);
         }
 
@@ -863,15 +1094,14 @@ try {
               cellPixelDim: upscaleFactor,
             });
 
-            const { objectLayer } = await ObjectLayerEngine.persistObjectLayerDocuments({
-              ObjectLayer,
-              ObjectLayerRenderFrames,
+            const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
+              models: models(),
               objectLayerRenderFramesData,
               objectLayerData,
               persistOptions: { upscaleFactor, options: { host, path } },
             });
 
-            console.log((await ObjectLayer.findById(objectLayer._id).populate('objectLayerRenderFramesId')).toObject());
+            console.log(objectLayer.toObject());
           }
         }
 
@@ -889,14 +1119,11 @@ try {
            */
           const objectLayers = {};
 
-          // When importing all types, pre-fetch existing item IDs so we can skip them entirely
+          // When importing all types, pre-fetch the bound labels so they are skipped entirely
           /** @type {Set<string>} */
           const existingItemIds = new Set();
           if (isImportAll) {
-            const existingDocs = await ObjectLayer.find({}, { 'data.item.id': 1 }).lean();
-            for (const doc of existingDocs) {
-              if (doc.data?.item?.id) existingItemIds.add(doc.data.item.id);
-            }
+            for (const boundId of await boundItemIds(models())) existingItemIds.add(boundId);
             if (existingItemIds.size > 0) {
               logger.info(`Skipping ${existingItemIds.size} existing item(s): ${[...existingItemIds].join(', ')}`);
             }
@@ -945,9 +1172,8 @@ try {
 
             // A bulk import of every type skips atlas generation; `--to-atlas-sprite-sheet`
             // or a targeted `--import` builds the atlas for an item that needs one.
-            const { objectLayer } = await ObjectLayerEngine.persistObjectLayerDocuments({
-              ObjectLayer,
-              ObjectLayerRenderFrames,
+            const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
+              models: models(),
               objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
               objectLayerData: { data: entry.data },
               persistOptions: { generateAtlas: !isImportAll, upscaleFactor, options: { host, path } },
@@ -973,12 +1199,13 @@ try {
 
           logger.info(`Showing frame for item: ${itemId}, direction: ${direction}, frame: ${frameIndexNum}`);
 
-          const objectLayer = await ObjectLayer.findByItemId(itemId).populate('objectLayerRenderFramesId');
+          const objectLayer = await findBoundDefinition(models(), itemId);
           if (!objectLayer) {
-            logger.error(`ObjectLayer not found for item-id: ${itemId}`);
+            logger.error(`Item "${itemId}" is not bound to an Object Layer definition`);
             process.exit(1);
           }
-          if (!objectLayer.objectLayerRenderFramesId) {
+          const renderFrames = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
+          if (!renderFrames) {
             logger.error(`ObjectLayerRenderFrames not found for item: ${itemId}`);
             process.exit(1);
           }
@@ -990,7 +1217,7 @@ try {
           }
 
           const objectLayerFrameDirection = objectLayerFrameDirections[0];
-          const frames = objectLayer.objectLayerRenderFramesId.frames[objectLayerFrameDirection];
+          const frames = renderFrames.frames[objectLayerFrameDirection];
 
           if (!frames || frames.length === 0) {
             logger.error(`No frames found for direction: ${objectLayerFrameDirection}`);
@@ -1010,7 +1237,7 @@ try {
 
           await buildImgFromTile({
             tile: {
-              map_color: objectLayer.objectLayerRenderFramesId.colors,
+              map_color: renderFrames.colors,
               frame_matrix: frames[frameIndexNum],
             },
             cellPixelDim: upscaleFactor,
@@ -1023,10 +1250,10 @@ try {
         }
 
         // ── Handle --to-atlas-sprite-sheet ───────────────────────────────
-        // Rebuilds both atlas renders. The scope is the same selection --minify
-        // uses: the given item-id(s), one instance, or the whole collection.
-        // A bare --upscale asks for the same rebuild, since the factor only
-        // takes effect on the human-resolution render.
+        // Rebuilds the render and publishes the definition that names it. The scope is the
+        // same selection --sync-derived uses: the given item-id(s), one instance, or the whole
+        // collection. A bare --upscale asks for the same rebuild: the factor is part of the
+        // layout, so it is part of the render contract.
         if (rebuildAtlases) {
           /** @type {number|null} */
           const maxAtlasDim =
@@ -1045,7 +1272,6 @@ try {
           }
 
           const selectedItemIds = await selectScopedItemIds({
-            ObjectLayer,
             itemId,
             instance: options.instance,
             host,
@@ -1061,38 +1287,39 @@ try {
           // no-op for every item that already succeeded.
           for (const currentItemId of selectedItemIds) {
             try {
-              const objectLayer = await liveObjectLayer()
-                .findByItemId(currentItemId)
-                .populate('objectLayerRenderFramesId');
-              if (!objectLayer?.objectLayerRenderFramesId) {
+              const objectLayer = await findBoundDefinition(models(), currentItemId);
+              const renderFrames = objectLayer
+                ? await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean()
+                : null;
+              if (!renderFrames) {
                 logger.warn(`No render frames stored for '${currentItemId}', skipped`);
                 tally.skipped++;
                 continue;
               }
 
-              const { atlasDoc, metadata, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+              const rendered = await AtlasSpriteSheetStore.build({
                 itemKey: currentItemId,
-                objectLayerRenderFrames: objectLayer.objectLayerRenderFramesId,
+                objectLayerRenderFrames: renderFrames,
                 upscaleFactor,
                 maxAtlasDim,
                 options: { host, path },
               });
 
+              const { metadata } = rendered.atlas;
               const frameCount = Object.values(metadata.frames).reduce((sum, frames) => sum + frames.length, 0);
               logger.info(
                 `Atlas for '${currentItemId}': ${metadata.atlasWidth}x${metadata.atlasHeight} cells, ` +
                   `${frameCount} frames packed`,
               );
 
-              objectLayer.atlasSpriteSheetId = atlasDoc._id;
-              if (!objectLayer.data.render) objectLayer.data.render = {};
-              objectLayer.data.render.cid = atlasCid;
-              objectLayer.data.render.metadataCid = atlasMetadataCid;
-              objectLayer.markModified('data.render');
               applyStatPolicy(objectLayer, statPolicy);
-              await objectLayer.save();
-
-              await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer, options: { host, path } });
+              await ObjectLayerEngine.publishItemDefinition({
+                models: models(),
+                payload: ObjectLayerEngine.payloadOf(objectLayer),
+                renderFrames,
+                rendered,
+                options: { host, path },
+              });
               tally.rebuilt++;
             } catch (rebuildError) {
               logger.error(`Atlas rebuild failed for '${currentItemId}': ${rebuildError.message}`);
@@ -1118,18 +1345,14 @@ try {
 
           logger.info(`Looking up atlas sprite sheet for item: ${itemId}`);
 
-          // Find ObjectLayer by item-id
-          const objectLayer = await ObjectLayer.findByItemId(itemId);
+          const objectLayer = await findBoundDefinition(models(), itemId);
 
           if (!objectLayer) {
-            logger.error(`ObjectLayer not found for item-id: ${itemId}`);
+            logger.error(`Item "${itemId}" is not bound to an Object Layer definition`);
             process.exit(1);
           }
 
-          // Find atlas sprite sheet
-          const atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': objectLayer.data.item.id }).populate(
-            'fileId',
-          );
+          const atlasDoc = await AtlasSpriteSheet.findOne({ objectLayerCid: objectLayer.cid }).populate('fileId');
 
           if (!atlasDoc || !atlasDoc.fileId) {
             logger.error(
@@ -1139,11 +1362,10 @@ try {
           }
 
           const itemKey = objectLayer.data.item.id;
-          const outputPath = `./${itemKey}-atlas.png`;
+          const outputPath = `./${itemKey}-render.png`;
 
-          // Write file to disk
           await fs.writeFile(outputPath, atlasDoc.fileId.data);
-          logger.info(`Atlas sprite sheet saved to: ${outputPath}`);
+          logger.info(`Primary render ${objectLayer.data.render?.cid} saved to: ${outputPath}`);
 
           // Open with firefox
           shellExec(`firefox ${outputPath}`);
@@ -1230,23 +1452,22 @@ try {
             logger.info(`  → ${f}`);
           }
 
-          // 3. Persist ObjectLayer, render frames and the atlas, with every CID staged first
-          const { objectLayer } = await ObjectLayerEngine.persistObjectLayerDocuments({
-            ObjectLayer,
-            ObjectLayerRenderFrames,
+          // 3. Build the render, publish the definition, and store its render frames and atlas under its cid
+          const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
+            models: models(),
             objectLayerRenderFramesData: multiFrameResult.objectLayerRenderFramesData,
             objectLayerData: multiFrameResult.objectLayerData,
             persistOptions: { upscaleFactor, options: { host, path } },
           });
 
           logger.info(`ObjectLayer persisted to MongoDB: ${objectLayer._id} (item: ${objectLayer.data.item.id})`);
-          logger.info(`Final SHA-256: ${objectLayer.sha256}`);
-          if (objectLayer.cid) logger.info(`ObjectLayer data pinned to IPFS – CID: ${objectLayer.cid}`);
+          logger.info(`Content hash: ${objectLayer.contentHash}`);
+          logger.info(`Object Layer CID: ${objectLayer.cid}`);
 
-          // 4. Mirror the human-resolution atlas PNG into both static asset directories
-          if (objectLayer.atlasSpriteSheetId) {
-            const atlasDoc = await AtlasSpriteSheet.findById(objectLayer.atlasSpriteSheetId);
-            const atlasFile = atlasDoc ? await File.findById(atlasDoc.fileId) : null;
+          // 4. Mirror the upscaled render, else the primary render, into both static asset directories
+          const atlasDoc = await AtlasSpriteSheet.findOne({ objectLayerCid: objectLayer.cid });
+          if (atlasDoc) {
+            const atlasFile = await File.findById(atlasDoc.upscaleFileId ?? atlasDoc.fileId);
             if (atlasFile?.data) {
               for (const bp of [srcBasePath, publicBasePath]) {
                 const atlasOutputDir = nodePath.join(bp, 'assets', descriptor.itemType, uniqueItemId);
@@ -1285,7 +1506,15 @@ try {
       '--conf',
       'When used with --export or --import, only process cyberia-instance.json and cyberia-instance-conf.json',
     )
-    .option('--drop', 'Drop all documents associated with the instance code before importing or as a standalone action')
+    .option(
+      '--drop',
+      'Drop all documents associated with the instance code before importing or as a standalone action (needs --confirm <deploy-id>; never part of a deploy)',
+    )
+    .option('--confirm <deploy-id>', 'Confirm a destructive action against this deploy id')
+    .option(
+      '--release <release-id>',
+      'Import into, or export from, the content release database of this id instead of the workspace',
+    )
     .option(
       '--export-current-fallbackworld',
       'Capture the in-memory procedural fallback world as instance [instance-code]: materialize it into MongoDB (maps, conf, actions, quests, missing content defaults) and then export it',
@@ -1350,8 +1579,9 @@ try {
         logger.error(`Env file not found: ${options.envPath}`);
         process.exit(1);
       }
-      if (!options.envPath) options.envPath = `./.env`;
-      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+      // A missing `./.env` is not an error: a pod receives its environment from a Secret.
+      const envPath = options.envPath || './.env';
+      if (fs.existsSync(envPath)) dotenv.config({ path: envPath, override: true });
 
       if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
         const deployDevEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
@@ -1381,7 +1611,7 @@ try {
 
           fs.mkdirpSync(`/home/dd/cyberia-instances/conf/dd-cyberia`);
           fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/conf.server.dev.dev.json`,
+            `./engine-private/conf/dd-cyberia/conf.server.json`,
             `/home/dd/cyberia-instances/conf/dd-cyberia/conf.server.json`,
           );
           fs.copyFileSync(
@@ -1454,14 +1684,7 @@ try {
             `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
             `/home/dd/cyberia-instances/deployments/cyberia-server/.`,
           );
-          const folders = ['ui-icons', 'cursor', 'fonts', 'icons', 'splash', 'templates'];
-          for (const folder of folders)
-            fs.copySync(
-              `./src/client/public/cyberia/assets/${folder}`,
-              `/home/dd/cyberia-instances/public/cyberia/assets/${folder}`,
-            );
-          // fs.removeSync(`/home/dd/cyberia-instances/public/cyberia`);
-          // fs.mkdirpSync(`/home/dd/cyberia-instances/public/cyberia`);
+          publishPublicAssets(`/home/dd/cyberia-instances`);
           fs.mkdirpSync(`/home/dd/cyberia-instances/instances`);
           fs.mkdirpSync(`/home/dd/cyberia-instances/sagas`);
           for (const _instanceCode of instanceCode.split(',')) {
@@ -1539,16 +1762,17 @@ try {
         return;
       }
 
-      const confServer = loadConfServerJson(confServerPath, { resolve: true });
-      const { db } = confServer[host][path];
+      const { db, owns, releaseDatabase } = resolveDeployDb(options);
+      if (options.drop) assertDestructiveConfirmation(options, deployId, 'instance --drop');
 
-      db.host = options.mongoHost
-        ? options.mongoHost
-        : options.dev
-          ? db.host
-          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
-
-      logger.info('instance env', { env: options.envPath, deployId, host, path });
+      logger.info('instance env', {
+        env: options.envPath,
+        deployId,
+        host,
+        path,
+        release: options.release || '',
+        releaseDatabase,
+      });
 
       await DataBaseProviderService.load({
         apis: [
@@ -1564,11 +1788,8 @@ try {
           'cyberia-saga',
           'cyberia-audio',
           'cyberia-map-audio-conf',
-          'object-layer',
-          'object-layer-render-frames',
-          'atlas-sprite-sheet',
-          'file',
-          'ipfs',
+          ...ITEM_DEFINITION_APIS,
+          ...(owns('item-ledger') ? ['item-ledger'] : []),
         ],
         host,
         path,
@@ -1587,135 +1808,9 @@ try {
       const CyberiaAudio = DataBaseProviderService.getModel('cyberia-audio', { host, path });
       const CyberiaMapAudioConf = DataBaseProviderService.getModel('cyberia-map-audio-conf', { host, path });
       const ObjectLayer = DataBaseProviderService.getModel('object-layer', { host, path });
-      const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
-      const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
+      const CyberiaItemCatalog = DataBaseProviderService.getModel('cyberia-item-catalog', { host, path });
       const File = DataBaseProviderService.getModel('file', { host, path });
-      const Ipfs = DataBaseProviderService.getModel('ipfs', { host, path });
-
-      const toBuffer = (value) => {
-        if (!value) return null;
-        if (Buffer.isBuffer(value)) return value;
-        if (value.type === 'Buffer' && Array.isArray(value.data)) return Buffer.from(value.data);
-        if (value.buffer) return Buffer.from(value.buffer);
-        return Buffer.from(value);
-      };
-
-      const getCanonicalIpfsPaths = (itemKey) => ({
-        objectLayerData: `/object-layer/${itemKey}/${itemKey}_data.json`,
-        atlasSpriteSheet: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
-        atlasMetadata: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
-      });
-
-      // A canonical pin carries one `mfsPath`. `mfsPaths` (plural) is read too,
-      // because a backup that consolidated shared CIDs writes that field.
-      const collectMfsPaths = (doc = {}) => {
-        const paths = new Set();
-        if (doc.mfsPath) paths.add(doc.mfsPath);
-        for (const p of doc.mfsPaths || []) {
-          if (p) paths.add(p);
-        }
-        return [...paths];
-      };
-
-      const inferResourceType = (doc = {}) => {
-        if (doc.resourceType) return doc.resourceType;
-        for (const path of collectMfsPaths(doc)) {
-          if (path.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
-          if (path.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
-          if (path.endsWith('_data.json')) return 'object-layer-data';
-        }
-        return null;
-      };
-
-      const findInstanceRelatedIpfsDoc = (ipfsDocs, { linkedCid, resourceType, mfsPath }) =>
-        ipfsDocs.find(
-          (doc) =>
-            inferResourceType(doc) === resourceType &&
-            linkedCid &&
-            doc.cid === linkedCid &&
-            collectMfsPaths(doc).includes(mfsPath),
-        ) ||
-        ipfsDocs.find((doc) => inferResourceType(doc) === resourceType && linkedCid && doc.cid === linkedCid) ||
-        ipfsDocs.find((doc) => inferResourceType(doc) === resourceType && collectMfsPaths(doc).includes(mfsPath)) ||
-        null;
-
-      const upsertCanonicalPinEntry = (pinMap, { cid, resourceType, mfsPath = '' }) => {
-        if (!cid || !resourceType) return;
-        const nextPath = mfsPath || '';
-        // mfsPath uniquely identifies an item-id asset; when absent, fall back to
-        // cid+resourceType so path-less pins still dedupe.
-        const key = nextPath || `${resourceType}:${cid}`;
-        const existing = pinMap.get(key);
-        if (!existing) {
-          pinMap.set(key, { cid, resourceType, mfsPath: nextPath });
-          return;
-        }
-        // A new CID for the same mfsPath overwrites the previous association (last write wins).
-        existing.cid = cid;
-        existing.resourceType = resourceType;
-        if (nextPath) existing.mfsPath = nextPath;
-      };
-
-      const serialiseCanonicalPins = (pinMap) =>
-        [...pinMap.values()].map((entry) => ({
-          cid: entry.cid,
-          resourceType: entry.resourceType,
-          ...(entry.mfsPath ? { mfsPath: entry.mfsPath } : {}),
-        }));
-
-      // Bring the Ipfs collection in line with the mfsPath-unique model: collapse
-      // duplicate mfsPath rows, keeping the most recent, then sync indexes so the
-      // partial unique index on mfsPath is built. Safe to re-run.
-      const reconcileIpfsRegistryIndexes = async () => {
-        let removedDuplicates = 0;
-        const duplicateGroups = await Ipfs.aggregate([
-          { $match: { mfsPath: { $gt: '' } } },
-          { $sort: { updatedAt: -1, _id: -1 } },
-          { $group: { _id: '$mfsPath', keepId: { $first: '$_id' }, ids: { $push: '$_id' }, count: { $sum: 1 } } },
-          { $match: { count: { $gt: 1 } } },
-        ]);
-        for (const group of duplicateGroups) {
-          const staleIds = group.ids.filter((id) => String(id) !== String(group.keepId));
-          if (staleIds.length) {
-            const res = await Ipfs.deleteMany({ _id: { $in: staleIds } });
-            removedDuplicates += res?.deletedCount || 0;
-          }
-        }
-        try {
-          await Ipfs.syncIndexes();
-        } catch (err) {
-          logger.warn(
-            `IPFS registry index sync failed (mfsPath uniqueness may not be enforced): ${err?.message ?? err}`,
-          );
-        }
-        if (removedDuplicates) {
-          logger.info(
-            `IPFS registry reconciled: removed ${removedDuplicates} duplicate mfsPath record(s), kept newest association per path`,
-          );
-        }
-      };
-
-      const rewriteImportedCidReferences = async ({ oldCid, newCid, resourceType }) => {
-        if (!oldCid || !newCid || oldCid === newCid) return;
-
-        if (resourceType === 'object-layer-data') {
-          await ObjectLayer.updateMany({ cid: oldCid }, { $set: { cid: newCid } });
-          return;
-        }
-
-        if (resourceType === 'atlas-sprite-sheet') {
-          await AtlasSpriteSheet.updateMany({ cid: oldCid }, { $set: { cid: newCid } });
-          await ObjectLayer.updateMany({ 'data.render.cid': oldCid }, { $set: { 'data.render.cid': newCid } });
-          return;
-        }
-
-        if (resourceType === 'atlas-metadata') {
-          await ObjectLayer.updateMany(
-            { 'data.render.metadataCid': oldCid },
-            { $set: { 'data.render.metadataCid': newCid } },
-          );
-        }
-      };
+      const models = { ObjectLayer, CyberiaItemCatalog };
 
       // ── CAPTURE CURRENT FALLBACK WORLD ──────────────────────────────
       //
@@ -1733,7 +1828,9 @@ try {
           // process, so a faithful capture of a live world must read it back
           // over REST instead of regenerating it here.
           const base = options.fallbackUrl.replace(/\/+$/, '');
-          const worldUrl = base.includes('/fallback-world') ? base : `${base}/api/cyberia-instance/fallback-world`;
+          const worldUrl = base.includes('/fallback-world')
+            ? base
+            : `${base}/${API_BASE_PATH}/cyberia-instance/fallback-world`;
           logger.info('Fetching live fallback world', { url: worldUrl });
           const response = await fetch(worldUrl);
           if (!response.ok) {
@@ -1839,22 +1936,28 @@ try {
         fs.ensureDirSync(backupDir);
         // The export is a projection of what this instance references, never an archive of
         // everything it once did: a document that drops out of the world has to leave the
-        // directory with it, or the next import brings it back from the dead. Emptied up front,
-        // so a collection that exports nothing this run ends up empty rather than stale. The
-        // asset directories — files, ipfs, render-frames, atlas sheets — are content-addressed
-        // and expensive to refetch, so they keep what they have.
-        for (const collection of [
-          'maps',
-          'cyberia-map-audio-confs',
-          'cyberia-audio',
-          'cyberia-quests',
-          'cyberia-actions',
-          'cyberia-skills',
-          'cyberia-entity-type-defaults',
-          'cyberia-dialogues',
-          'object-layers',
-        ]) {
-          fs.emptyDirSync(`${backupDir}/${collection}`);
+        // directory with it, or the next import brings it back from the dead. Every directory is
+        // emptied up front and rewritten from the database. `ipfs/` is derived state (the render
+        // payloads are the atlas Files and metadata; the definition payload is the authority's),
+        // so it is not part of a backup. `--conf` rewrites two files and leaves the rest.
+        if (!options.conf) {
+          for (const collection of [
+            'maps',
+            'cyberia-map-audio-confs',
+            'cyberia-audio',
+            'cyberia-quests',
+            'cyberia-actions',
+            'cyberia-skills',
+            'cyberia-entity-type-defaults',
+            'cyberia-dialogues',
+            'object-layers',
+            'render-frames',
+            'atlas-sprite-sheets',
+            'files',
+          ]) {
+            fs.emptyDirSync(`${backupDir}/${collection}`);
+          }
+          fs.removeSync(`${backupDir}/ipfs`);
         }
         logger.info('Exporting instance', { code: instanceCode, backupDir });
 
@@ -1863,16 +1966,7 @@ try {
           if (!fileId) return;
           const file = await File.findById(fileId).lean();
           if (!file) return;
-          fs.ensureDirSync(`${backupDir}/files`);
-          const fileExport = { ...file };
-          // Handle both Node.js Buffer and BSON Binary types from .lean()
-          if (fileExport.data) {
-            const buf = Buffer.isBuffer(fileExport.data)
-              ? fileExport.data
-              : Buffer.from(fileExport.data.buffer || fileExport.data);
-            fileExport.data = { $base64: buf.toString('base64') };
-          }
-          fs.writeJsonSync(`${backupDir}/files/${fileKey}.json`, fileExport, { spaces: 2 });
+          fs.outputJsonSync(`${backupDir}/files/${fileKey}.json`, fileBackup(file), { spaces: 2 });
         };
 
         // 1. Save instance document + thumbnail
@@ -2117,250 +2211,17 @@ try {
           }
         }
 
-        // 5. Export object layers with related render frames, atlas, files, and IPFS records
+        // 5. Export object layers: each definition with its render frames, atlas and atlas Files.
         if (objectLayerItemIds.size > 0) {
-          const objectLayers = await ObjectLayer.find({
-            'data.item.id': { $in: [...objectLayerItemIds] },
-          }).lean();
-
-          fs.ensureDirSync(`${backupDir}/object-layers`);
-          fs.ensureDirSync(`${backupDir}/render-frames`);
-          fs.ensureDirSync(`${backupDir}/atlas-sprite-sheets`);
-          fs.ensureDirSync(`${backupDir}/ipfs`);
-          fs.ensureDirSync(`${backupDir}/ipfs/content`);
-
-          const canonicalPins = new Map();
-          const expectedObjectLayerIpfsRefs = [];
-          const ipfsPayloadFailures = [];
-          let ipfsPayloadExportCount = 0;
-          let ipfsPayloadAliasCount = 0;
-
-          const writeBackupPayload = (cid, payloadBuffer) => {
-            if (!cid) return false;
-            const payloadPath = `${backupDir}/ipfs/content/${cid}.bin`;
-            if (fs.existsSync(payloadPath)) return false;
-            fs.writeFileSync(payloadPath, payloadBuffer);
-            ipfsPayloadExportCount++;
-            return true;
-          };
-
-          const writeBackupPayloadAlias = ({ canonicalCid, linkedCid, payloadBuffer }) => {
-            if (!linkedCid || linkedCid === canonicalCid) return;
-            if (writeBackupPayload(linkedCid, payloadBuffer)) {
-              ipfsPayloadAliasCount++;
-            }
-          };
-
-          const exportCanonicalPayload = async ({ payloadBuffer, resourceType, mfsPath, filename, itemKey }) => {
-            const hashResult = await IpfsClient.hashBufferForIpfs(payloadBuffer, filename);
-            if (!hashResult?.cid) {
-              ipfsPayloadFailures.push({ itemKey, resourceType, mfsPath, reason: 'Failed to hash payload via Kubo' });
-              return null;
-            }
-
-            writeBackupPayload(hashResult.cid, payloadBuffer);
-            return hashResult.cid;
-          };
-
-          for (const ol of objectLayers) {
-            const itemKey = ol.data?.item?.id || ol._id.toString();
-            const itemPaths = getCanonicalIpfsPaths(itemKey);
-            const objectLayerExport = newInstance(ol);
-
-            if (!objectLayerExport.data.render) {
-              objectLayerExport.data.render = {};
-            }
-
-            // Export ObjectLayerRenderFrames
-            if (ol.objectLayerRenderFramesId) {
-              const rf = await ObjectLayerRenderFrames.findById(ol.objectLayerRenderFramesId).lean();
-              if (rf) {
-                fs.writeJsonSync(`${backupDir}/render-frames/${itemKey}.json`, rf, { spaces: 2 });
-              }
-            }
-
-            const atlas =
-              (ol.atlasSpriteSheetId ? await AtlasSpriteSheet.findById(ol.atlasSpriteSheetId).lean() : null) ||
-              (await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey }).lean());
-            if (atlas) {
-              const atlasExport = newInstance(atlas);
-              objectLayerExport.atlasSpriteSheetId = atlas._id;
-              // Every render travels with the atlas, so a restore leaves no reference dangling.
-              for (const field of ATLAS_FILE_FIELDS) {
-                if (atlas[field]) await exportFileDoc(atlas[field], atlasBackupFileKey(field, itemKey));
-              }
-
-              const atlasFile = atlas.fileId ? await File.findById(atlas.fileId).lean() : null;
-              const atlasBuffer = toBuffer(atlasFile?.data);
-              if (!atlasBuffer) {
-                ipfsPayloadFailures.push({
-                  itemKey,
-                  resourceType: 'atlas-sprite-sheet',
-                  mfsPath: itemPaths.atlasSpriteSheet,
-                  reason: 'Atlas File payload not found in MongoDB',
-                });
-                continue;
-              }
-
-              const atlasCid = await exportCanonicalPayload({
-                payloadBuffer: atlasBuffer,
-                resourceType: 'atlas-sprite-sheet',
-                mfsPath: itemPaths.atlasSpriteSheet,
-                filename: `${itemKey}_atlas_sprite_sheet.png`,
-                itemKey,
-              });
-              if (!atlasCid) continue;
-
-              const linkedAtlasCid = atlas.cid || ol.data?.render?.cid || atlasCid;
-              writeBackupPayloadAlias({
-                canonicalCid: atlasCid,
-                linkedCid: linkedAtlasCid,
-                payloadBuffer: atlasBuffer,
-              });
-              expectedObjectLayerIpfsRefs.push({
-                itemKey,
-                resourceType: 'atlas-sprite-sheet',
-                mfsPath: itemPaths.atlasSpriteSheet,
-                linkedCid: linkedAtlasCid,
-                fallbackCid: atlasCid,
-              });
-
-              const atlasMetadataBuffer = Buffer.from(stringify(atlasExport.metadata || {}), 'utf-8');
-              const atlasMetadataCid = await exportCanonicalPayload({
-                payloadBuffer: atlasMetadataBuffer,
-                resourceType: 'atlas-metadata',
-                mfsPath: itemPaths.atlasMetadata,
-                filename: `${itemKey}_atlas_sprite_sheet_metadata.json`,
-                itemKey,
-              });
-              if (!atlasMetadataCid) continue;
-
-              const linkedAtlasMetadataCid = ol.data?.render?.metadataCid || atlasMetadataCid;
-              writeBackupPayloadAlias({
-                canonicalCid: atlasMetadataCid,
-                linkedCid: linkedAtlasMetadataCid,
-                payloadBuffer: atlasMetadataBuffer,
-              });
-              expectedObjectLayerIpfsRefs.push({
-                itemKey,
-                resourceType: 'atlas-metadata',
-                mfsPath: itemPaths.atlasMetadata,
-                linkedCid: linkedAtlasMetadataCid,
-                fallbackCid: atlasMetadataCid,
-              });
-
-              atlasExport.cid = atlasCid;
-              objectLayerExport.data.render.cid = atlasCid;
-              objectLayerExport.data.render.metadataCid = atlasMetadataCid;
-              fs.writeJsonSync(`${backupDir}/atlas-sprite-sheets/${itemKey}.json`, atlasExport, { spaces: 2 });
-            } else {
-              if (objectLayerExport.data.render?.cid || objectLayerExport.data.render?.metadataCid) {
-                ipfsPayloadFailures.push({
-                  itemKey,
-                  resourceType: 'atlas-sprite-sheet',
-                  mfsPath: itemPaths.atlasSpriteSheet,
-                  reason: 'ObjectLayer references atlas CIDs but no AtlasSpriteSheet document exists',
-                });
-                continue;
-              }
-              delete objectLayerExport.data.render.cid;
-              delete objectLayerExport.data.render.metadataCid;
-            }
-
-            const objectLayerBuffer = Buffer.from(stringify(objectLayerExport.data || {}), 'utf-8');
-            const objectLayerCid = await exportCanonicalPayload({
-              payloadBuffer: objectLayerBuffer,
-              resourceType: 'object-layer-data',
-              mfsPath: itemPaths.objectLayerData,
-              filename: `${itemKey}_data.json`,
-              itemKey,
-            });
-            if (!objectLayerCid) continue;
-
-            const linkedObjectLayerCid = ol.cid || objectLayerCid;
-            writeBackupPayloadAlias({
-              canonicalCid: objectLayerCid,
-              linkedCid: linkedObjectLayerCid,
-              payloadBuffer: objectLayerBuffer,
-            });
-            expectedObjectLayerIpfsRefs.push({
-              itemKey,
-              resourceType: 'object-layer-data',
-              mfsPath: itemPaths.objectLayerData,
-              linkedCid: linkedObjectLayerCid,
-              fallbackCid: objectLayerCid,
-            });
-
-            objectLayerExport.cid = objectLayerCid;
-            fs.writeJsonSync(`${backupDir}/object-layers/${itemKey}.json`, objectLayerExport, { spaces: 2 });
+          const objectLayers = await findBoundDefinitions(models, [...objectLayerItemIds]);
+          for (const definition of objectLayers) {
+            const exported = await exportObjectLayerBackup({ backupDir, definition, options: { host, path } });
+            if (definition.data?.render?.cid && !exported.atlas)
+              logger.warn(
+                `'${exported.itemId}' names render ${definition.data.render.cid} but has no atlas to back up`,
+              );
           }
-
-          if (ipfsPayloadFailures.length > 0) {
-            for (const failure of ipfsPayloadFailures) {
-              logger.error('Canonical IPFS payload export failed', failure);
-            }
-            await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-            process.exit(1);
-          }
-
-          const relatedPinPaths = [
-            ...new Set(expectedObjectLayerIpfsRefs.map((entry) => entry.mfsPath).filter(Boolean)),
-          ];
-          const relatedPinCids = [
-            ...new Set(
-              expectedObjectLayerIpfsRefs.flatMap((entry) => [entry.linkedCid, entry.fallbackCid]).filter(Boolean),
-            ),
-          ];
-          const relatedIpfsDocs =
-            relatedPinPaths.length > 0 || relatedPinCids.length > 0
-              ? await Ipfs.find({
-                  $or: [
-                    ...(relatedPinPaths.length ? [{ mfsPath: { $in: relatedPinPaths } }] : []),
-                    ...(relatedPinCids.length ? [{ cid: { $in: relatedPinCids } }] : []),
-                  ],
-                }).lean()
-              : [];
-
-          let ipfsCollectionMatchCount = 0;
-          let ipfsCollectionFallbackCount = 0;
-
-          for (const ref of expectedObjectLayerIpfsRefs) {
-            const matchingDoc = findInstanceRelatedIpfsDoc(relatedIpfsDocs, ref);
-            const exportCid = matchingDoc?.cid || ref.linkedCid || ref.fallbackCid;
-
-            if (!exportCid) {
-              logger.warn('Skipping instance IPFS pin export because the ObjectLayer ref has no linked CID', {
-                itemKey: ref.itemKey,
-                resourceType: ref.resourceType,
-                mfsPath: ref.mfsPath,
-              });
-              continue;
-            }
-
-            upsertCanonicalPinEntry(canonicalPins, {
-              cid: exportCid,
-              resourceType: ref.resourceType,
-              mfsPath: ref.mfsPath,
-            });
-
-            if (matchingDoc) ipfsCollectionMatchCount++;
-            else ipfsCollectionFallbackCount++;
-          }
-
-          const sanitised = serialiseCanonicalPins(canonicalPins);
-          fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, sanitised, { spaces: 2 });
-          logger.info(
-            `Exported ${sanitised.length} instance-related Ipfs pin record(s) and ${ipfsPayloadExportCount} raw payload file(s)`,
-            {
-              matchedFromIpfsCollection: ipfsCollectionMatchCount,
-              fallbackFromObjectLayerRefs: ipfsCollectionFallbackCount,
-              rawPayloadAliases: ipfsPayloadAliasCount,
-            },
-          );
-
-          logger.info(`Exported ${objectLayers.length} ObjectLayer document(s)`, {
-            itemIds: [...objectLayerItemIds],
-          });
+          logger.info(`Exported ${objectLayers.length} ObjectLayer document(s)`, { itemIds: [...objectLayerItemIds] });
         } else {
           logger.info('No ObjectLayer references found in map entities');
         }
@@ -2383,16 +2244,17 @@ try {
 
         logger.info('Importing instance', { code: instanceCode, backupDir });
 
-        // A restore writes object layers, so collapse duplicates and make the
-        // data.item.id index unique first.
-        const { removedIds, indexUpgraded } = await ObjectLayer.ensureUniqueItemIdIndex();
-        if (removedIds.length > 0) logger.warn(`Removed ${removedIds.length} duplicate ObjectLayer document(s)`);
-        if (indexUpgraded) logger.info('Upgraded data.item.id index to unique');
+        // A restore writes object layers, so every stored document carries its content identity
+        // and every label its binding first.
+        await runIdentityMigration(models, { CyberiaQuest, CyberiaAction }, { host, path });
 
         // Item ids of this instance, from the imported object layers and the
         // instance doc. They backfill skills from DefaultSkillConfig when the
         // backup carries none.
         const importedItemIds = new Set();
+        const restoreFailures = [];
+        // Backup cid → the cid of the definition that replaced it: the content moves with it.
+        const replacements = new Map();
 
         // 0. Drop existing documents if --drop is set
         if (options.drop && !options.conf) {
@@ -2527,73 +2389,20 @@ try {
               const skillResult = await CyberiaSkill.deleteMany({ triggerItemId: { $in: [...dropOlItemIds] } });
               if (skillResult.deletedCount > 0)
                 logger.info(`Dropped ${skillResult.deletedCount} CyberiaSkill document(s)`);
-              const olDocs = await ObjectLayer.find(
-                { 'data.item.id': { $in: [...dropOlItemIds] } },
-                {
-                  cid: 1,
-                  'data.item.id': 1,
-                  'data.render': 1,
-                  objectLayerRenderFramesId: 1,
-                  atlasSpriteSheetId: 1,
-                },
-              ).lean();
-
-              const cidsToUnpin = new Set();
-              const renderFrameIds = [];
-              const atlasIds = [];
-              const itemKeysToClean = new Set();
-
-              for (const doc of olDocs) {
-                if (doc.cid) cidsToUnpin.add(doc.cid);
-                if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
-                if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
-                if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
-                if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
-                if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
-              }
-
-              // Delete AtlasSpriteSheet + every File render it owns, through the store that
-              // knows how many renders that is.
-              if (atlasIds.length > 0 || itemKeysToClean.size > 0) {
-                const purged = await AtlasSpriteSheetStore.purge({
-                  itemKeys: [...itemKeysToClean],
-                  atlasIds,
-                  options: { host, path },
-                });
-                for (const cid of purged.cids) cidsToUnpin.add(cid);
-                if (purged.files > 0) logger.info(`Dropped ${purged.files} File document(s) (atlas)`);
-                if (purged.atlases > 0) logger.info(`Dropped ${purged.atlases} AtlasSpriteSheet document(s)`);
-              }
-
-              // Delete RenderFrames
-              if (renderFrameIds.length > 0) {
-                const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
-                logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
-              }
-
-              // Delete IPFS pin records
-              if (cidsToUnpin.size > 0) {
-                const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
-                logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
-              }
-
-              // Unpin CIDs from IPFS Kubo + Cluster and remove MFS paths
-              let unpinCount = 0;
-              for (const cid of cidsToUnpin) {
-                const ok = await IpfsClient.unpinCid(cid);
-                if (ok) unpinCount++;
-              }
-              let mfsCount = 0;
-              for (const itemKey of itemKeysToClean) {
-                const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
-                if (ok) mfsCount++;
-              }
+              // The asset tree stays: it is the source this instance re-imports from.
+              const report = await purgeObjectLayers({
+                options: { host, path, extension: cyberiaStudio },
+                filter: { 'data.item.id': { $in: [...dropOlItemIds] } },
+                assets: false,
+              });
               logger.info(
-                `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
+                `Dropped: ${report.objectLayers} ObjectLayer, ${report.renderFrames} RenderFrames, ${report.atlases} AtlasSpriteSheet, ${report.files} File (atlas)`,
               );
-
-              const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
-              logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
+              logger.info(
+                `IPFS cleanup: ${report.unpinned} CIDs unpinned, ${report.pinRecords} pin record(s) dropped, ${report.mfsPaths} MFS path(s) removed`,
+              );
+              for (const { cid, itemId: keptItemId } of report.kept)
+                logger.warn(`Kept ${cid} ("${keptItemId}"): registered in ItemLedger`);
             }
 
             // Drop thumbnail File documents (instance + maps), excluding shared ones
@@ -2662,21 +2471,16 @@ try {
           return;
         }
 
-        // 1. Import File documents first (atlas PNG + thumbnail dependencies)
+        // 1. Import File documents: thumbnails, previews, audio. Atlas renders travel with their
+        //    object layer, below.
         const filesDir = `${backupDir}/files`;
         if (fs.existsSync(filesDir)) {
+          const atlasFileIds = atlasFileIdsOf(backupDir);
           const fileFiles = fs.readdirSync(filesDir).filter((f) => f.endsWith('.json'));
           let fileCount = 0;
           for (const f of fileFiles) {
-            const fileData = fs.readJsonSync(`${filesDir}/${f}`);
-            // Restore base64-encoded Buffer (handle both $base64 and { type: 'Buffer', data: [...] })
-            if (fileData.data) {
-              if (fileData.data.$base64) {
-                fileData.data = Buffer.from(fileData.data.$base64, 'base64');
-              } else if (fileData.data.type === 'Buffer' && Array.isArray(fileData.data.data)) {
-                fileData.data = Buffer.from(fileData.data.data);
-              }
-            }
+            const fileData = fileFromBackup(fs.readJsonSync(`${filesDir}/${f}`));
+            if (atlasFileIds.has(String(fileData._id))) continue;
             // preserveUUID: delete any existing doc with this _id then create with exact _id
             await File.deleteOne({ _id: fileData._id });
             await File.create(fileData);
@@ -2685,162 +2489,33 @@ try {
           logger.info(`Imported ${fileCount} File document(s)`);
         }
 
-        // 2. Import ObjectLayerRenderFrames
-        const rfDir = `${backupDir}/render-frames`;
-        if (fs.existsSync(rfDir)) {
-          const rfFiles = fs.readdirSync(rfDir).filter((f) => f.endsWith('.json'));
-          let rfCount = 0;
-          for (const f of rfFiles) {
-            const rfData = fs.readJsonSync(`${rfDir}/${f}`);
-            if (rfData._id) {
-              await ObjectLayerRenderFrames.deleteOne({ _id: rfData._id });
-              await ObjectLayerRenderFrames.create(rfData);
-              rfCount++;
-            }
-          }
-          logger.info(`Imported ${rfCount} ObjectLayerRenderFrames document(s)`);
-        }
-
-        // 3. Import AtlasSpriteSheet
-        const atlasDir = `${backupDir}/atlas-sprite-sheets`;
-        const atlasesWithoutMinify = new Set();
-        if (fs.existsSync(atlasDir)) {
-          const atlasFiles = fs.readdirSync(atlasDir).filter((f) => f.endsWith('.json'));
-          let atlasCount = 0;
-          for (const f of atlasFiles) {
-            const atlasData = fs.readJsonSync(`${atlasDir}/${f}`);
-            await AtlasSpriteSheet.deleteOne({ _id: atlasData._id });
-            if (atlasData.metadata?.itemKey) {
-              await AtlasSpriteSheet.deleteOne({ 'metadata.itemKey': atlasData.metadata.itemKey });
-            }
-            await AtlasSpriteSheet.create(atlasData);
-            atlasCount++;
-          }
-          logger.info(`Imported ${atlasCount} AtlasSpriteSheet document(s)`);
-          // A backup from before the still existed restores without one; cut each from its render.
-          // An atlas restored without its minified render is rebuilt whole once its object
-          // layer is in place, below.
-          let stillCount = 0;
-          for (const f of atlasFiles) {
-            const atlasData = fs.readJsonSync(`${atlasDir}/${f}`);
-            const itemKey = atlasData.metadata?.itemKey;
-            if (!itemKey) continue;
-            if (!atlasData.minifyFileId) atlasesWithoutMinify.add(itemKey);
-            const { status } = await AtlasSpriteSheetStore.syncIdlePreview({ itemKey, options: { host, path } });
-            if (status === 'updated') stillCount++;
-          }
-          if (stillCount) logger.info(`Filled ${stillCount} idle preview still(s)`);
-          // The replaced atlases took their renders out of reach; the imported ones are
-          // already stored, so what no atlas points at now is exactly the leftover.
-          await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });
-        }
-
-        // 4. Import object layers
+        // 2. Import object layers: each definition with its render frames, atlas, atlas Files,
+        //    render payloads and static frame PNGs, from one restore shared with `ol --instance`.
         const olDir = `${backupDir}/object-layers`;
         if (fs.existsSync(olDir)) {
-          const olFiles = fs.readdirSync(olDir).filter((f) => f.endsWith('.json'));
-          let olCount = 0;
-          for (const file of olFiles) {
-            const olData = fs.readJsonSync(`${olDir}/${file}`);
-            const olItemId = olData.data?.item?.id;
-            if (!olItemId) {
-              logger.warn(`Skipping object-layer file '${file}' — missing data.item.id`);
-              continue;
-            }
-            // preserveUUID only applies to items this database does not have yet.
-            // An item that already exists keeps its own _id and simply absorbs the
-            // backup's attribute values, so a restore can never fork data.item.id
-            // into two documents. sha256 needs no separate cleanup: it is derived
-            // from data, so an identical hash implies the same item id.
-            const existingOL = await ObjectLayer.findByItemId(olItemId);
-            if (!existingOL && olData._id) await ObjectLayer.deleteOne({ _id: olData._id });
-
-            await ObjectLayer.upsertByItemId(olData);
-            importedItemIds.add(olItemId);
-            olCount++;
-          }
-          logger.info(`Imported ${olCount} ObjectLayer document(s)`);
-        }
-
-        // 4a. An atlas the backup restored without its minified render cannot be served: the
-        //     client runtime pairs the blob with the metadata, so a render cut from the frames
-        //     alone would be refused wherever the stored layout moved. Regenerate the whole
-        //     atlas from the frames the backup carries, and relink the object layer to it the
-        //     way `ol --to-atlas-sprite-sheet` does.
-        for (const itemKey of atlasesWithoutMinify) {
-          try {
-            const objectLayer = await ObjectLayer.findByItemId(itemKey).populate('objectLayerRenderFramesId');
-            if (!objectLayer?.objectLayerRenderFramesId) {
-              logger.warn(`Backup atlas '${itemKey}' has no minified render and no render frames to rebuild it from`);
-              continue;
-            }
-            const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
-              itemKey,
-              objectLayerRenderFrames: objectLayer.objectLayerRenderFramesId,
-              options: { host, path },
-            });
-            objectLayer.atlasSpriteSheetId = atlasDoc._id;
-            if (!objectLayer.data.render) objectLayer.data.render = {};
-            objectLayer.data.render.cid = atlasCid;
-            objectLayer.data.render.metadataCid = atlasMetadataCid;
-            objectLayer.markModified('data.render');
-            await objectLayer.save();
-            await ObjectLayerEngine.computeAndSaveFinalSha256({ objectLayer, options: { host, path } });
-            logger.info(`Rebuilt the atlas of '${itemKey}': the backup carried no minified render`);
-          } catch (rebuildError) {
-            logger.error(`Atlas rebuild failed for '${itemKey}': ${rebuildError.message}`);
-          }
-        }
-
-        // 4b. Regenerate static frame PNGs from imported render-frames + object-layer documents.
-        //     Mirrors the writeStaticFrameAssets call in `ol --import` so src/client/public/cyberia
-        //     and the public/<host><path> deployment dir are populated even when the cyberia
-        //     asset directory was wiped (e.g. git clean / rm -rf).
-        const rfImportDir = `${backupDir}/render-frames`;
-        const olImportDir = `${backupDir}/object-layers`;
-        if (fs.existsSync(rfImportDir) && fs.existsSync(olImportDir)) {
-          const srcBasePath = './src/client/public/cyberia/';
-          const publicBasePath = `./public/${host}${path}`;
-          let staticWriteCount = 0;
-          const rfFileList = fs.readdirSync(rfImportDir).filter((f) => f.endsWith('.json'));
-          for (const rfFile of rfFileList) {
-            const rfData = fs.readJsonSync(`${rfImportDir}/${rfFile}`);
-            const itemId = nodePath.basename(rfFile, '.json');
-            const olFile = `${olImportDir}/${itemId}.json`;
-            if (!fs.existsSync(olFile)) {
-              logger.warn(`Skipping static asset generation for '${itemId}' — no matching object-layer file`);
-              continue;
-            }
-            const olData = fs.readJsonSync(olFile);
-            const itemType = olData.data?.item?.type;
-            if (!itemType) {
-              logger.warn(`Skipping static asset generation for '${itemId}' — missing data.item.type`);
-              continue;
-            }
-            // rfData matches the ObjectLayerRenderFrames schema: { frames, colors, frame_duration }
-            const objectLayerRenderFramesData = {
-              frames: rfData.frames || {},
-              colors: rfData.colors || [],
-              frame_duration: rfData.frame_duration ?? 100,
-            };
+          let staticFiles = 0;
+          let rebuilt = 0;
+          for (const file of fs.readdirSync(olDir).filter((f) => f.endsWith('.json'))) {
+            const olItemId = nodePath.basename(file, '.json');
             try {
-              const written = await ObjectLayerEngine.writeStaticFrameAssets({
-                basePaths: [srcBasePath, publicBasePath],
-                itemType,
-                itemId,
-                objectLayerRenderFramesData,
-                objectLayerData: olData,
-                cellPixelDim: DEFAULT_ATLAS_UPSCALE_FACTOR,
-              });
-              staticWriteCount += written.length;
-            } catch (err) {
-              logger.warn(`Failed to write static assets for '${itemId}': ${err.message}`);
+              const restored = await restoreObjectLayerBackup({ backupDir, itemId: olItemId, options: { host, path } });
+              importedItemIds.add(olItemId);
+              staticFiles += restored.staticFiles;
+              if (restored.rebuilt) rebuilt++;
+              if (restored.replaced) replacements.set(restored.replaced, restored.cid);
+            } catch (restoreError) {
+              restoreFailures.push(olItemId);
+              logger.error(`Restore failed for '${olItemId}': ${restoreError.message}`);
             }
           }
-          logger.info(`Static frame PNGs written: ${staticWriteCount} file(s) across src/client/public and public/`);
+          // The replaced atlases took their renders out of reach; prune what no atlas points at.
+          await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });
+          logger.info(
+            `Imported ${importedItemIds.size} ObjectLayer document(s) (${rebuilt} render(s) rebuilt), ${staticFiles} static frame PNG(s)`,
+          );
         }
 
-        // 5. Import maps (preserveUUID: delete by code then create with exact _id)
+        // 3. Import maps (preserveUUID: delete by code then create with exact _id)
         const mapsDir = `${backupDir}/maps`;
         if (fs.existsSync(mapsDir)) {
           const mapFiles = fs.readdirSync(mapsDir).filter((f) => f.endsWith('.json'));
@@ -2855,7 +2530,7 @@ try {
           logger.info(`Imported ${mapCount} CyberiaMap document(s)`);
         }
 
-        // 5a. Import audio assets, then the map bindings that reference them by code. Assets are
+        // 3a. Import audio assets, then the map bindings that reference them by code. Assets are
         //     upserted by code (they are global and may already be present from another import);
         //     their File documents were restored above with their original _id, so `fileId` still
         //     resolves. A binding whose asset is absent is kept: the code is the reference, and
@@ -2909,7 +2584,7 @@ try {
           logger.info(`Imported ${audioConfCount} CyberiaMapAudioConf document(s)`);
         }
 
-        // 6. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
+        // 4. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
         if (fs.existsSync(confImportPath)) {
           // Made whole and valid before the live conf is touched, so a backup the schema
@@ -2926,7 +2601,7 @@ try {
           logger.warn(`CyberiaInstanceConf backup not found: ${confImportPath}`);
         }
 
-        // 7. Import instance (preserveUUID: delete by code then create with exact _id)
+        // 5. Import instance (preserveUUID: delete by code then create with exact _id)
         const instancePath = `${backupDir}/cyberia-instance.json`;
         if (fs.existsSync(instancePath)) {
           const instanceData = fs.readJsonSync(instancePath);
@@ -2938,7 +2613,7 @@ try {
           logger.warn(`Instance file not found: ${instancePath}`);
         }
 
-        // 8. Import CyberiaDialogue documents
+        // 6. Import CyberiaDialogue documents
         const dialoguesDir = `${backupDir}/cyberia-dialogues`;
         if (fs.existsSync(dialoguesDir)) {
           const dialogueFiles = fs.readdirSync(dialoguesDir).filter((f) => f.endsWith('.json'));
@@ -2967,7 +2642,7 @@ try {
           logger.info(`Imported ${dialogueCount} CyberiaDialogue document(s)`);
         }
 
-        // 8b. Import CyberiaQuest documents (overwrite by code).
+        // 6b. Import CyberiaQuest documents (overwrite by code).
         const questsDir = `${backupDir}/cyberia-quests`;
         if (fs.existsSync(questsDir)) {
           const questFiles = fs.readdirSync(questsDir).filter((f) => f.endsWith('.json'));
@@ -2986,7 +2661,7 @@ try {
           logger.info(`Imported ${questCount} CyberiaQuest document(s)`);
         }
 
-        // 8c. Import CyberiaAction documents (overwrite by code).
+        // 6c. Import CyberiaAction documents (overwrite by code).
         const actionsDir = `${backupDir}/cyberia-actions`;
         if (fs.existsSync(actionsDir)) {
           const actionFiles = fs.readdirSync(actionsDir).filter((f) => f.endsWith('.json'));
@@ -3005,7 +2680,7 @@ try {
           logger.info(`Imported ${actionCount} CyberiaAction document(s)`);
         }
 
-        // 8d. Import CyberiaSkill documents (own model, overwrite by triggerItemId).
+        // 6d. Import CyberiaSkill documents (own model, overwrite by triggerItemId).
         const skillsDir = `${backupDir}/cyberia-skills`;
         if (fs.existsSync(skillsDir)) {
           const skillFiles = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.json'));
@@ -3050,7 +2725,7 @@ try {
         // orphan the export just removed, so the restored conf is compacted too.
         await CyberiaEntityTypeDefaultService.compactInstanceRefs({ host, path }, { instanceCode });
 
-        // 8e. Backfill missing skills from the canonical DefaultSkillConfig. Old
+        // 6e. Backfill missing skills from the canonical DefaultSkillConfig. Old
         //     backups predate the CyberiaSkill model and ship no skills/ dir, so
         //     any instance item that has a canonical skill (e.g. atlas_pistol_mk2,
         //     coin, hatchet) but no document yet is seeded from defaults. Existing
@@ -3071,7 +2746,7 @@ try {
           logger.info(`Backfilled ${backfilledSkillCount} CyberiaSkill document(s) from DefaultSkillConfig`);
         }
 
-        // 8f. Import CyberiaSaga documents (overwrite by code).
+        // 6f. Import CyberiaSaga documents (overwrite by code).
         const sagasDir = `${backupDir}/cyberia-sagas`;
         if (fs.existsSync(sagasDir)) {
           const sagaFiles = fs.readdirSync(sagasDir).filter((f) => f.endsWith('.json'));
@@ -3090,261 +2765,17 @@ try {
           logger.info(`Imported ${sagaCount} CyberiaSaga document(s)`);
         }
 
-        // 9. Restore IPFS pin records and payloads
-        const ipfsFile = `${backupDir}/ipfs/pins.json`;
-        if (fs.existsSync(ipfsFile)) {
-          await reconcileIpfsRegistryIndexes();
-          const ipfsDocs = fs.readJsonSync(ipfsFile);
-          const ipfsContentDir = `${backupDir}/ipfs/content`;
-          let ipfsCount = 0;
-          let ipfsSkipped = 0;
+        // 7. Pin the imported quests and actions to the definitions their labels are bound to now,
+        //    and move what they pin from a replaced backup definition onto its replacement.
+        await pinReferences(models, { CyberiaQuest, CyberiaAction }, replacements);
 
-          const backupPins = new Map();
-          for (const doc of ipfsDocs) {
-            const resourceType = inferResourceType(doc);
-            if (!resourceType) {
-              logger.warn(
-                `Ipfs record is missing resourceType and cannot be inferred (cid: ${doc.cid}, mfsPath: ${doc.mfsPath ?? '(none)'}) — skipping`,
-              );
-              ipfsSkipped++;
-              continue;
-            }
-
-            const mfsPaths = collectMfsPaths(doc);
-            if (mfsPaths.length === 0) {
-              upsertCanonicalPinEntry(backupPins, { cid: doc.cid, resourceType, mfsPath: '' });
-            } else {
-              for (const mfsPath of mfsPaths) {
-                upsertCanonicalPinEntry(backupPins, { cid: doc.cid, resourceType, mfsPath });
-              }
-            }
-          }
-
-          const backupPinEntries = serialiseCanonicalPins(backupPins);
-
-          if (fs.existsSync(ipfsContentDir)) {
-            let cidRewriteCount = 0;
-            let ipfsAlreadyPresent = 0;
-
-            for (const [index, doc] of backupPinEntries.entries()) {
-              const primaryPath = doc.mfsPath || '';
-              const payloadPath = `${ipfsContentDir}/${doc.cid}.bin`;
-
-              try {
-                const existing = await Ipfs.findOne(
-                  primaryPath ? { mfsPath: primaryPath } : { cid: doc.cid, resourceType: doc.resourceType },
-                )
-                  .select({ _id: 1 })
-                  .lean();
-                if (existing) {
-                  ipfsAlreadyPresent++;
-                  continue;
-                }
-
-                logger.info('IPFS raw payload restore start', {
-                  index: index + 1,
-                  total: backupPinEntries.length,
-                  cid: doc.cid,
-                  resourceType: doc.resourceType,
-                  mfsPath: primaryPath || null,
-                });
-
-                if (!fs.existsSync(payloadPath)) {
-                  logger.warn('IPFS raw payload file missing from backup', {
-                    cid: doc.cid,
-                    resourceType: doc.resourceType,
-                    mfsPath: primaryPath || null,
-                  });
-                  ipfsSkipped++;
-                  continue;
-                }
-
-                const addResult = await IpfsClient.addToIpfs(
-                  fs.readFileSync(payloadPath),
-                  nodePath.basename(primaryPath || doc.cid),
-                  primaryPath || undefined,
-                );
-
-                if (!addResult?.cid) {
-                  logger.warn('IPFS raw payload restore failed', {
-                    cid: doc.cid,
-                    resourceType: doc.resourceType,
-                    mfsPath: primaryPath || null,
-                  });
-                  ipfsSkipped++;
-                  continue;
-                }
-
-                const finalCid = addResult.cid;
-                if (doc.cid !== finalCid) {
-                  await rewriteImportedCidReferences({
-                    oldCid: doc.cid,
-                    newCid: finalCid,
-                    resourceType: doc.resourceType,
-                  });
-                  cidRewriteCount++;
-                  logger.warn('IPFS raw payload CID mismatch during import; rewriting imported references', {
-                    oldCid: doc.cid,
-                    newCid: finalCid,
-                    resourceType: doc.resourceType,
-                    mfsPath: primaryPath || null,
-                  });
-                }
-
-                // createPinRecord is an idempotent upsert keyed by mfsPath.
-                await createPinRecord({
-                  cid: finalCid,
-                  resourceType: doc.resourceType,
-                  mfsPath: primaryPath || '',
-                  options: { host, path },
-                });
-                ipfsCount++;
-              } catch (entryError) {
-                logger.warn('IPFS pin restore failed for one entry — skipping it, the import continues', {
-                  cid: doc.cid,
-                  resourceType: doc.resourceType,
-                  mfsPath: primaryPath || null,
-                  error: entryError?.message ?? String(entryError),
-                });
-                ipfsSkipped++;
-              }
-            }
-
-            logger.info(
-              `Imported ${ipfsCount} Ipfs pin record(s) from exact backup payloads` +
-                `${ipfsAlreadyPresent ? `, ${ipfsAlreadyPresent} already present (skipped)` : ''}` +
-                `${ipfsSkipped ? `, ${ipfsSkipped} skipped` : ''}`,
-            );
-            logger.info(
-              `IPFS raw payload restore: ${ipfsCount}/${backupPinEntries.length} record(s) restored${cidRewriteCount ? `, ${cidRewriteCount} CID rewrite(s)` : ''}`,
-            );
-          } else {
-            logger.warn(
-              'Backup has no raw IPFS payload files under ipfs/content/. Rebuilding a canonical IPFS layout from imported ObjectLayer, AtlasSpriteSheet, and File documents.',
-            );
-
-            const importedItemIds = fs.existsSync(olDir)
-              ? fs
-                  .readdirSync(olDir)
-                  .filter((f) => f.endsWith('.json'))
-                  .map((f) => nodePath.basename(f, '.json'))
-              : [];
-            const importedObjectLayers = importedItemIds.length
-              ? await ObjectLayer.find({ 'data.item.id': { $in: importedItemIds } }).lean()
-              : [];
-
-            let rebuiltObjectLayers = 0;
-
-            for (const [index, objectLayerDoc] of importedObjectLayers.entries()) {
-              const itemKey = objectLayerDoc.data?.item?.id || objectLayerDoc._id.toString();
-              const itemPaths = getCanonicalIpfsPaths(itemKey);
-              const updatedData = newInstance(objectLayerDoc.data || {});
-              if (!updatedData.render) updatedData.render = {};
-
-              logger.info('IPFS legacy canonical rebuild start', {
-                index: index + 1,
-                total: importedObjectLayers.length,
-                itemKey,
-              });
-
-              let atlasCid = '';
-              let atlasMetadataCid = '';
-
-              if (objectLayerDoc.atlasSpriteSheetId) {
-                const atlasDoc = await AtlasSpriteSheet.findById(objectLayerDoc.atlasSpriteSheetId).lean();
-                if (atlasDoc) {
-                  const atlasFile = atlasDoc.fileId ? await File.findById(atlasDoc.fileId).lean() : null;
-                  const atlasBuffer = toBuffer(atlasFile?.data);
-
-                  if (atlasBuffer) {
-                    const atlasAddResult = await IpfsClient.addBufferToIpfs(
-                      atlasBuffer,
-                      `${itemKey}_atlas_sprite_sheet.png`,
-                      itemPaths.atlasSpriteSheet,
-                    );
-                    if (atlasAddResult?.cid) {
-                      atlasCid = atlasAddResult.cid;
-                      await AtlasSpriteSheet.updateOne({ _id: atlasDoc._id }, { $set: { cid: atlasCid } });
-                      await createPinRecord({
-                        cid: atlasCid,
-                        resourceType: 'atlas-sprite-sheet',
-                        mfsPath: itemPaths.atlasSpriteSheet,
-                        options: { host, path },
-                      });
-                      ipfsCount++;
-                    } else {
-                      logger.warn(`Failed to rebuild atlas sprite sheet payload for '${itemKey}'`);
-                    }
-                  } else if (atlasDoc.fileId) {
-                    logger.warn(`Atlas File payload missing for '${itemKey}'`);
-                  }
-
-                  const atlasMetadataResult = await IpfsClient.addJsonToIpfs(
-                    atlasDoc.metadata || {},
-                    `${itemKey}_atlas_sprite_sheet_metadata.json`,
-                    itemPaths.atlasMetadata,
-                  );
-                  if (atlasMetadataResult?.cid) {
-                    atlasMetadataCid = atlasMetadataResult.cid;
-                    await createPinRecord({
-                      cid: atlasMetadataCid,
-                      resourceType: 'atlas-metadata',
-                      mfsPath: itemPaths.atlasMetadata,
-                      options: { host, path },
-                    });
-                    ipfsCount++;
-                  } else {
-                    logger.warn(`Failed to rebuild atlas metadata payload for '${itemKey}'`);
-                  }
-                }
-              }
-
-              if (atlasCid) {
-                updatedData.render.cid = atlasCid;
-              } else {
-                delete updatedData.render.cid;
-              }
-              if (atlasMetadataCid) {
-                updatedData.render.metadataCid = atlasMetadataCid;
-              } else {
-                delete updatedData.render.metadataCid;
-              }
-
-              const objectLayerAddResult = await IpfsClient.addJsonToIpfs(
-                updatedData,
-                `${itemKey}_data.json`,
-                itemPaths.objectLayerData,
-              );
-              if (objectLayerAddResult?.cid) {
-                await ObjectLayer.updateOne(
-                  { _id: objectLayerDoc._id },
-                  {
-                    $set: {
-                      cid: objectLayerAddResult.cid,
-                      data: updatedData,
-                    },
-                  },
-                );
-                await createPinRecord({
-                  cid: objectLayerAddResult.cid,
-                  resourceType: 'object-layer-data',
-                  mfsPath: itemPaths.objectLayerData,
-                  options: { host, path },
-                });
-                ipfsCount++;
-                rebuiltObjectLayers++;
-              } else {
-                logger.warn(`Failed to rebuild object-layer-data payload for '${itemKey}'`);
-                ipfsSkipped++;
-              }
-            }
-
-            logger.info(
-              `Legacy IPFS rebuild: ${rebuiltObjectLayers}/${importedObjectLayers.length} ObjectLayer payload(s) rebuilt, ${ipfsCount} canonical pin record(s) upserted${ipfsSkipped ? `, skipped ${ipfsSkipped}` : ''}`,
-            );
-          }
+        if (restoreFailures.length > 0) {
+          logger.error(`Instance import incomplete: ${restoreFailures.length} object layer(s) failed`, {
+            items: restoreFailures,
+          });
+          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+          process.exit(1);
         }
-
         logger.info('Instance import completed', { backupDir });
       }
 
@@ -3442,68 +2873,20 @@ try {
             const dialogueResult = await CyberiaDialogue.deleteMany({ code: { $in: dropDialogueCodes } });
             logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
 
-            const olDocs = await ObjectLayer.find(
-              { 'data.item.id': { $in: [...dropOlItemIds] } },
-              {
-                cid: 1,
-                'data.item.id': 1,
-                'data.render': 1,
-                objectLayerRenderFramesId: 1,
-                atlasSpriteSheetId: 1,
-              },
-            ).lean();
-
-            const cidsToUnpin = new Set();
-            const renderFrameIds = [];
-            const atlasIds = [];
-            const itemKeysToClean = new Set();
-
-            for (const doc of olDocs) {
-              if (doc.cid) cidsToUnpin.add(doc.cid);
-              if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
-              if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
-              if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
-              if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
-              if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
-            }
-
-            if (atlasIds.length > 0 || itemKeysToClean.size > 0) {
-              const purged = await AtlasSpriteSheetStore.purge({
-                itemKeys: [...itemKeysToClean],
-                atlasIds,
-                options: { host, path },
-              });
-              for (const cid of purged.cids) cidsToUnpin.add(cid);
-              if (purged.files > 0) logger.info(`Dropped ${purged.files} File document(s) (atlas)`);
-              if (purged.atlases > 0) logger.info(`Dropped ${purged.atlases} AtlasSpriteSheet document(s)`);
-            }
-
-            if (renderFrameIds.length > 0) {
-              const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
-              logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
-            }
-
-            if (cidsToUnpin.size > 0) {
-              const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
-              logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
-            }
-
-            let unpinCount = 0;
-            for (const cid of cidsToUnpin) {
-              const ok = await IpfsClient.unpinCid(cid);
-              if (ok) unpinCount++;
-            }
-            let mfsCount = 0;
-            for (const itemKey of itemKeysToClean) {
-              const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
-              if (ok) mfsCount++;
-            }
+            // The asset tree stays: it is the source this instance re-imports from.
+            const report = await purgeObjectLayers({
+              options: { host, path, extension: cyberiaStudio },
+              filter: { 'data.item.id': { $in: [...dropOlItemIds] } },
+              assets: false,
+            });
             logger.info(
-              `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
+              `Dropped: ${report.objectLayers} ObjectLayer, ${report.renderFrames} RenderFrames, ${report.atlases} AtlasSpriteSheet, ${report.files} File (atlas)`,
             );
-
-            const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
-            logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
+            logger.info(
+              `IPFS cleanup: ${report.unpinned} CIDs unpinned, ${report.pinRecords} pin record(s) dropped, ${report.mfsPaths} MFS path(s) removed`,
+            );
+            for (const { cid, itemId: keptItemId } of report.kept)
+              logger.warn(`Kept ${cid} ("${keptItemId}"): registered in ItemLedger`);
           }
 
           // Drop thumbnail File documents (instance + maps), excluding shared ones
@@ -3764,7 +3147,7 @@ try {
     .option('--thinking-level <level>', 'Gemini thinking level: low | medium | high (default: high)')
     .option(
       '--lore-path <path>',
-      'Override path to the base-lore doc (default: src/client/public/cyberia-docs/CYBERIA-LORE.md)',
+      'Override path to the base-lore doc (default: src/client/public/docs/cyberia/explanation/lore.md)',
     )
     .option(
       '--space-context <context>',
@@ -3846,7 +3229,7 @@ try {
             'cyberia-action',
             'cyberia-skill',
             'cyberia-instance',
-            'object-layer',
+            ...ITEM_DEFINITION_APIS,
           ],
           host,
           path,
@@ -3861,15 +3244,23 @@ try {
           CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
           CyberiaSkill: DataBaseProviderService.getModel('cyberia-skill', { host, path }),
           CyberiaInstance: DataBaseProviderService.getModel('cyberia-instance', { host, path }),
-          ObjectLayer: DataBaseProviderService.getModel('object-layer', { host, path }),
+          ...catalogModels({ host, path }),
         };
       }
 
       try {
+        // A saga writes the definitions its items run on, so the collection migrates first.
+        if (models)
+          await runIdentityMigration(
+            catalogModels({ host, path }),
+            { CyberiaQuest: models.CyberiaQuest, CyberiaAction: models.CyberiaAction },
+            { host, path },
+          );
         if (options.import) {
           await importSaga({
             file: options.import,
             models,
+            context: { host, path },
             dryRun: !!options.dryRun,
             out: options.out,
           });
@@ -3877,6 +3268,7 @@ try {
           await generateSaga({
             prompt: options.prompt,
             models,
+            context: { host, path },
             model: options.model,
             timeout: options.timeout,
             thinkingLevel: options.thinkingLevel,
@@ -4045,101 +3437,108 @@ try {
   chain
     .command('register')
     .description(
-      'Register an Object Layer item on-chain via the deployed ObjectLayerToken contract.\n' +
-        'When --from-db is set the canonical CID is resolved from MongoDB (fast-json-stable-stringify of objectLayer.data).\n' +
-        'This guarantees the on-chain metadataCid always matches the content-addressed IPFS payload.',
+      'Register an Object Layer on-chain via the deployed ObjectLayerToken contract.\n' +
+        'The token id is derived from the canonical Object Layer CID. Give the CID directly with --cid,\n' +
+        'or name a Cyberia item with --item-id --from-db to register its current definition.\n' +
+        'The ItemLedger binding is recorded in MongoDB when the database is reachable.',
     )
-    .requiredOption('--item-id <itemId>', 'Human-readable item identifier (e.g. "hatchet")')
-    .option('--metadata-cid <cid>', 'IPFS metadata CID for the item (ignored when --from-db is set)', '')
-    .option('--from-db', 'Resolve the canonical CID from the ObjectLayer MongoDB document (recommended)')
+    .option('--cid <olCid>', 'Canonical Object Layer CID to register')
+    .option('--item-id <itemId>', 'Cyberia item id whose current definition is registered (with --from-db)')
+    .option('--from-db', 'Resolve the canonical CID of --item-id from the ObjectLayer collection')
     .option('--supply <supply>', 'Initial token supply (1 = non-fungible, >1 = semi-fungible)', '1')
     .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
-    .option('--mongo-host <mongoHost>', 'MongoDB host override (used with --from-db)')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const deployment = readContractDeployment(options.network);
       const contractAddress = deployment.address;
 
-      // ── Resolve canonical CID ───────────────────────────────────────
-      let canonicalCid = options.metadataCid || '';
+      let objectLayerCid = options.cid || '';
+      let itemId = options.itemId || '';
+      let db = null;
 
-      if (options.fromDb) {
-        try {
-          const { ObjectLayer, host, path } = await connectDbForChain({
-            envPath: options.envPath,
-            mongoHost: options.mongoHost,
-          });
-          const resolved = await resolveCanonicalCid({
-            itemId: options.itemId,
-            ObjectLayer,
-            ipfsClient: IpfsClient,
-            options: { host, path },
-          });
-
-          if (options.metadataCid && options.metadataCid !== resolved.cid) {
-            logger.warn(
-              `Provided --metadata-cid "${options.metadataCid}" differs from canonical CID "${resolved.cid}" (source: ${resolved.source}).`,
-            );
-            logger.warn('Using the canonical CID to ensure on-chain integrity.');
-          }
-
-          canonicalCid = resolved.cid;
-          logger.info(`Canonical CID resolved (${resolved.source}): ${canonicalCid}`);
-          logger.info(`  SHA-256: ${resolved.sha256}`);
-
-          // Close the DB connection after resolving
-          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-        } catch (dbErr) {
-          logger.error(`Failed to resolve canonical CID from database: ${dbErr.message}`);
+      if (options.fromDb || (!objectLayerCid && itemId)) {
+        if (!itemId) {
+          logger.error('--from-db needs --item-id');
           process.exit(1);
         }
-      } else if (!canonicalCid) {
-        logger.warn(
-          'No --metadata-cid provided and --from-db not set. The on-chain metadataCid will be empty.\n' +
-            'Consider using --from-db to automatically resolve the canonical CID from the database.',
-        );
+        try {
+          db = await connectDbForChain({ envPath: options.envPath, mongoHost: options.mongoHost });
+          const resolved = await resolveItemIdentity({
+            itemId,
+            models: db,
+            options: { host: db.host, path: db.path },
+          });
+          if (objectLayerCid && objectLayerCid !== resolved.cid) {
+            logger.warn(
+              `--cid "${objectLayerCid}" differs from the current definition of "${itemId}" (${resolved.cid}).`,
+            );
+            logger.warn('Using the current definition.');
+          }
+          objectLayerCid = resolved.cid;
+          logger.info(`Object Layer CID of "${itemId}": ${objectLayerCid}`);
+          logger.info(`  Content hash: ${resolved.contentHash}`);
+        } catch (dbErr) {
+          logger.error(`Failed to resolve the Object Layer CID from the database: ${dbErr.message}`);
+          process.exit(1);
+        }
       }
 
-      logger.info(`Registering Object Layer item "${options.itemId}" on contract ${contractAddress}`);
-      logger.info(`  Metadata CID: ${canonicalCid || '(none)'}`);
+      if (!objectLayerCid) {
+        logger.error('Give --cid <olCid>, or --item-id <itemId> --from-db');
+        process.exit(1);
+      }
+
+      const tokenId = objectLayerTokenId(objectLayerCid);
+      const contentHash = `0x${sha256HexFromCid(objectLayerCid)}`;
+      logger.info(`Registering Object Layer ${objectLayerCid} on contract ${contractAddress}`);
+      logger.info(`  Content hash: ${contentHash}`);
+      logger.info(`  Token id: ${tokenId}`);
       logger.info(`  Supply: ${options.supply}`);
 
-      // Use a Hardhat script via inline JS to call registerObjectLayer
       const registerScript = `
         import hre from 'hardhat';
         const { ethers } = await hre.network.connect();
         async function main() {
           const [deployer] = await ethers.getSigners();
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
-          const tx = await token.registerObjectLayer(
-            deployer.address,
-            '${options.itemId}',
-            '${canonicalCid}',
-            ${options.supply},
-            '0x'
-          );
+          const tx = await token.registerObjectLayer(deployer.address, '${contentHash}', ${options.supply}, '0x');
           const receipt = await tx.wait();
-          const tokenId = await token.computeTokenId('${options.itemId}');
-          console.log('Registered tokenId:', tokenId.toString());
+          console.log('Registered tokenId:', (await token.computeTokenId('${contentHash}')).toString());
+          console.log('Object Layer CID:', await token.getObjectLayerCid('${tokenId}'));
           console.log('Tx hash:', receipt.hash);
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
       const tmpScript = './hardhat/scripts/_cli_register_tmp.js';
       fs.writeFileSync(tmpScript, registerScript, 'utf8');
+      let txHash = '';
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_register_tmp.js --network ${options.network}`);
+        const result = shellExec(
+          `cd hardhat && npx hardhat run scripts/_cli_register_tmp.js --network ${options.network}`,
+          {
+            silent: false,
+            silentOnError: true,
+          },
+        );
+        if (result.code !== 0) {
+          logger.error('On-chain registration failed');
+          process.exit(1);
+        }
+        txHash = /Tx hash: (0x[0-9a-fA-F]+)/.exec(result.stdout || '')?.[1] || '';
       } finally {
         fs.removeSync(tmpScript);
       }
+
+      await recordLedgerBinding({
+        db,
+        deployment,
+        binding: { objectLayerCid, itemId, tokenId, txHash },
+        envPath: options.envPath,
+        mongoHost: options.mongoHost,
+      });
     });
 
   chain
@@ -4438,7 +3837,7 @@ try {
   // ── balance: Query token balance for an address ─────────────────────────
   chain
     .command('balance')
-    .description('Query ERC-1155 token balance for an address (CKY fungible, semi-fungible, or non-fungible)')
+    .description('Read the ERC-1155 balance of an address: an ownership record projected from chain state')
     .requiredOption('--address <address>', 'Ethereum address to query')
     .option('--token-id <tokenId>', 'ERC-1155 token ID (default: 0 = CKY)', '0')
     .option('--network <network>', 'Hardhat network name', 'besu-k8s')
@@ -4446,13 +3845,7 @@ try {
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const deployment = readContractDeployment(options.network);
       const contractAddress = deployment.address;
 
       const balanceScript = `
@@ -4461,32 +3854,57 @@ try {
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
           const balance = await token.balanceOf('${options.address}', ${options.tokenId});
-          const itemId = await token.getItemId(${options.tokenId});
-          const metadataCid = await token.getMetadataCID(${options.tokenId});
+          const objectLayerCid = await token.getObjectLayerCid(${options.tokenId});
           let totalSupply;
           try { totalSupply = await token['totalSupply(uint256)'](${options.tokenId}); } catch (_) { totalSupply = 'N/A'; }
           console.log(JSON.stringify({
-            address: '${options.address}',
-            tokenId: '${options.tokenId}',
-            itemId: itemId || '(unregistered)',
             balance: balance.toString(),
-            formattedBalance: ${options.tokenId} === '0' || ${options.tokenId} === 0 ? ethers.formatEther(balance) + ' CKY' : balance.toString() + ' units',
+            objectLayerCid: objectLayerCid || '',
             totalSupply: totalSupply.toString(),
-            metadataCid: metadataCid || '(none)',
-          }, null, 2));
+          }));
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
       const tmpScript = './hardhat/scripts/_cli_balance_tmp.js';
       fs.writeFileSync(tmpScript, balanceScript, 'utf8');
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_balance_tmp.js --network ${options.network}`);
+        const result = shellExec(
+          `cd hardhat && npx hardhat run scripts/_cli_balance_tmp.js --network ${options.network}`,
+          {
+            silent: true,
+            silentOnError: true,
+          },
+        );
+        if (result.code !== 0) {
+          logger.error(`Balance read failed: ${result.stderr || result.stdout}`);
+          process.exit(1);
+        }
+        const read = JSON.parse((result.stdout || '').trim().split('\n').pop());
+        const ownership = ownershipRecord({
+          chainId: deployment.chainId,
+          contractAddress,
+          tokenId: options.tokenId,
+          ownerAddress: options.address,
+          balance: read.balance,
+        });
+        console.log(
+          JSON.stringify(
+            {
+              ...ownership,
+              objectLayerCid: read.objectLayerCid || (ownership.tokenId === '0' ? '(cryptokoyn)' : '(unregistered)'),
+              formattedBalance:
+                ownership.tokenId === '0' ? `${Number(read.balance) / 1e18} CKY` : `${read.balance} units`,
+              totalSupply: read.totalSupply,
+            },
+            null,
+            2,
+          ),
+        );
       } finally {
         fs.removeSync(tmpScript);
       }
     });
 
-  // ── transfer: Transfer ERC-1155 tokens between addresses ────────────────
   chain
     .command('transfer')
     .description('Transfer ERC-1155 tokens (CKY, semi-fungible resources, or non-fungible items)')
@@ -4597,15 +4015,18 @@ try {
   chain
     .command('batch-register')
     .description(
-      'Batch-register multiple Object Layer items on-chain in a single transaction.\n' +
-        'When --from-db is set, the canonical CID for every item is resolved from MongoDB\n' +
-        '(fast-json-stable-stringify of objectLayer.data), overriding any "cid" values in the JSON input.',
+      'Batch-register Object Layers on-chain in a single transaction.\n' +
+        'Each item names a canonical CID ("cid") or a Cyberia item id ("itemId"). With --from-db every\n' +
+        'item id resolves to the CID of its current definition. Bindings are recorded in ItemLedger.',
     )
-    .requiredOption('--items <json>', 'JSON array of items: [{"itemId":"wood","cid":"bafk...","supply":500000}, ...]')
-    .option('--from-db', 'Resolve canonical CIDs from the ObjectLayer MongoDB documents (recommended)')
+    .requiredOption(
+      '--items <json>',
+      'JSON array of items: [{"cid":"bafk...","supply":1}, {"itemId":"wood","supply":500000}]',
+    )
+    .option('--from-db', 'Resolve the CID of every "itemId" from the ObjectLayer collection')
     .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
-    .option('--mongo-host <mongoHost>', 'MongoDB host override (used with --from-db)')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -4618,65 +4039,52 @@ try {
         process.exit(1);
       }
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const deployment = readContractDeployment(options.network);
       const contractAddress = deployment.address;
 
-      // ── Resolve canonical CIDs when --from-db is set ────────────────
-      if (options.fromDb) {
-        let ObjectLayer, host, path;
+      let db = null;
+      const needsDb = options.fromDb || items.some((item) => !item.cid && item.itemId);
+      if (needsDb) {
         try {
-          ({ ObjectLayer, host, path } = await connectDbForChain({
-            envPath: options.envPath,
-            mongoHost: options.mongoHost,
-          }));
+          db = await connectDbForChain({ envPath: options.envPath, mongoHost: options.mongoHost });
         } catch (dbErr) {
           logger.error(`Failed to connect to database: ${dbErr.message}`);
           process.exit(1);
         }
-
         for (const item of items) {
+          if (!item.itemId) continue;
           try {
-            const resolved = await resolveCanonicalCid({
+            const resolved = await resolveItemIdentity({
               itemId: item.itemId,
-              ObjectLayer,
-              ipfsClient: IpfsClient,
-              options: { host, path },
+              models: db,
+              options: { host: db.host, path: db.path },
             });
-
             if (item.cid && item.cid !== resolved.cid) {
               logger.warn(
-                `Item "${item.itemId}": provided cid "${item.cid}" differs from canonical "${resolved.cid}" (${resolved.source}). Using canonical.`,
+                `Item "${item.itemId}": cid "${item.cid}" differs from its current definition ${resolved.cid}. Using the current one.`,
               );
             }
-
             item.cid = resolved.cid;
-            logger.info(`  "${item.itemId}" canonical CID (${resolved.source}): ${resolved.cid}`);
+            logger.info(`  "${item.itemId}" → ${resolved.cid}`);
           } catch (resolveErr) {
-            logger.error(`Failed to resolve canonical CID for "${item.itemId}": ${resolveErr.message}`);
+            logger.error(`Failed to resolve "${item.itemId}": ${resolveErr.message}`);
             process.exit(1);
           }
         }
-
-        try {
-          await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-        } catch (_) {
-          /* ignore close errors */
-        }
       }
 
-      const itemIds = items.map((i) => i.itemId);
-      const cids = items.map((i) => i.cid || '');
-      const supplies = items.map((i) => i.supply || 1);
+      const missing = items.filter((item) => !item.cid);
+      if (missing.length) {
+        logger.error(`Every item needs a "cid" or an "itemId" with --from-db: ${JSON.stringify(missing)}`);
+        process.exit(1);
+      }
 
-      logger.info(`Batch-registering ${items.length} items on contract ${contractAddress}`);
+      const contentHashes = items.map((item) => `0x${sha256HexFromCid(item.cid)}`);
+      const supplies = items.map((item) => item.supply || 1);
+
+      logger.info(`Batch-registering ${items.length} Object Layers on contract ${contractAddress}`);
       for (const item of items) {
-        logger.info(`  - ${item.itemId} (supply: ${item.supply || 1}, cid: ${item.cid || '(none)'})`);
+        logger.info(`  - ${item.cid} (token id: ${objectLayerTokenId(item.cid)}, supply: ${item.supply || 1})`);
       }
 
       const batchScript = `
@@ -4685,34 +4093,475 @@ try {
         async function main() {
           const [deployer] = await ethers.getSigners();
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
-          const itemIds = ${JSON.stringify(itemIds)};
-          const cids = ${JSON.stringify(cids)};
+          const contentHashes = ${JSON.stringify(contentHashes)};
           const supplies = ${JSON.stringify(supplies)};
-          const tx = await token.batchRegisterObjectLayers(
-            deployer.address,
-            itemIds,
-            cids,
-            supplies,
-            '0x'
-          );
+          const tx = await token.batchRegisterObjectLayers(deployer.address, contentHashes, supplies, '0x');
           const receipt = await tx.wait();
           console.log('Batch register tx hash:', receipt.hash);
-          for (const id of itemIds) {
-            const tokenId = await token.computeTokenId(id);
+          for (const contentHash of contentHashes) {
+            const tokenId = await token.computeTokenId(contentHash);
             const balance = await token.balanceOf(deployer.address, tokenId);
-            console.log('  ' + id + ' -> tokenId:', tokenId.toString(), '  balance:', balance.toString());
+            console.log('  ' + (await token.getObjectLayerCid(tokenId)) + ' -> tokenId:', tokenId.toString(), '  balance:', balance.toString());
           }
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
       const tmpScript = './hardhat/scripts/_cli_batch_register_tmp.js';
       fs.writeFileSync(tmpScript, batchScript, 'utf8');
+      let txHash = '';
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_batch_register_tmp.js --network ${options.network}`);
+        const result = shellExec(
+          `cd hardhat && npx hardhat run scripts/_cli_batch_register_tmp.js --network ${options.network}`,
+          { silent: false, silentOnError: true },
+        );
+        if (result.code !== 0) {
+          logger.error('On-chain batch registration failed');
+          process.exit(1);
+        }
+        txHash = /tx hash: (0x[0-9a-fA-F]+)/.exec(result.stdout || '')?.[1] || '';
       } finally {
         fs.removeSync(tmpScript);
       }
+
+      for (const item of items) {
+        await recordLedgerBinding({
+          db,
+          deployment,
+          binding: {
+            objectLayerCid: item.cid,
+            itemId: item.itemId || '',
+            tokenId: objectLayerTokenId(item.cid),
+            txHash,
+          },
+          envPath: options.envPath,
+          mongoHost: options.mongoHost,
+          keepOpen: true,
+        });
+      }
+      if (db) await closeChainDb(db);
     });
+
+  chain
+    .command('bind')
+    .description(
+      'Index an Object Layer that is already registered on-chain as an ItemLedger binding.\n' +
+        'Reads the contract to confirm the registration; sends no transaction.',
+    )
+    .requiredOption('--cid <olCid>', 'Canonical Object Layer CID')
+    .option('--item-id <itemId>', 'Semantic label to keep on the binding for discovery', '')
+    .option('--tx-hash <txHash>', 'Registration transaction hash, when known', '')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deployment = readContractDeployment(options.network);
+      const tokenId = objectLayerTokenId(options.cid);
+
+      const readScript = `
+        import hre from 'hardhat';
+        const { ethers } = await hre.network.connect();
+        async function main() {
+          const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
+          console.log(JSON.stringify({ cid: await token.getObjectLayerCid('${tokenId}') }));
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_bind_tmp.js';
+      fs.writeFileSync(tmpScript, readScript, 'utf8');
+      try {
+        const result = shellExec(
+          `cd hardhat && npx hardhat run scripts/_cli_bind_tmp.js --network ${options.network}`,
+          {
+            silent: true,
+            silentOnError: true,
+          },
+        );
+        if (result.code !== 0) {
+          logger.error(`Contract read failed: ${result.stderr || result.stdout}`);
+          process.exit(1);
+        }
+        const { cid } = JSON.parse((result.stdout || '').trim().split('\n').pop());
+        if (cid !== options.cid) {
+          logger.error(`Token id ${tokenId} is not registered for ${options.cid} on ${deployment.address}`);
+          process.exit(1);
+        }
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+
+      await recordLedgerBinding({
+        db: null,
+        deployment,
+        binding: { objectLayerCid: options.cid, itemId: options.itemId, tokenId, txHash: options.txHash },
+        envPath: options.envPath,
+        mongoHost: options.mongoHost,
+      });
+    });
+
+  chain
+    .command('index')
+    .description(
+      'Project ObjectLayerToken events into the ItemLedger collections: registrations, transfers\n' +
+        'and balances per owner. Idempotent and checkpointed: a rerun resumes after the last block it projected.',
+    )
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
+    .option('--confirmations <blocks>', 'Blocks behind the head the projection stays', '0')
+    .option('--batch-size <blocks>', 'Blocks per log query', '2000')
+    .option('--follow <ms>', 'Keep projecting, polling the head every <ms> milliseconds')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+      const deployment = readContractDeployment(options.network);
+      const { JsonRpcProvider } = await import('ethers');
+      const provider = new JsonRpcProvider(rpcUrlOf(options.network), Number(deployment.chainId));
+      const { models, host, path } = await connectDbForIndexer(options);
+      const indexer = new ItemLedgerIndexer({
+        provider,
+        chainId: Number(deployment.chainId),
+        contractAddress: deployment.address,
+        models,
+        confirmations: Number(options.confirmations),
+        batchSize: Number(options.batchSize),
+        startBlock: Number(deployment.blockNumber || 0),
+      });
+      const run = async () => {
+        const summary = await indexer.sync();
+        logger.info(
+          `Indexed blocks ${summary.fromBlock}..${summary.toBlock}: ${summary.registrations} registration(s), ${summary.transfers} transfer leg(s)`,
+        );
+      };
+      try {
+        await run();
+        while (options.follow) {
+          await new Promise((resolve) => setTimeout(resolve, Number(options.follow)));
+          await run();
+        }
+      } finally {
+        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+      }
+    });
+
+  chain
+    .command('reconcile')
+    .description('Reread every projected balance from the contract and correct the rows that drifted')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+      const deployment = readContractDeployment(options.network);
+      const { JsonRpcProvider } = await import('ethers');
+      const provider = new JsonRpcProvider(rpcUrlOf(options.network), Number(deployment.chainId));
+      const { models, host, path } = await connectDbForIndexer(options);
+      try {
+        const indexer = new ItemLedgerIndexer({
+          provider,
+          chainId: Number(deployment.chainId),
+          contractAddress: deployment.address,
+          models,
+        });
+        const result = await indexer.reconcile();
+        logger.info(`Reconciled ${result.checked} balance row(s); ${result.corrected.length} corrected`);
+        for (const row of result.corrected) {
+          logger.warn(`Token ${row.tokenId} of ${row.ownerAddress}: projected ${row.projected}, chain ${row.chain}`);
+        }
+      } finally {
+        await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+      }
+    });
+
+  // ─── Content releases ───────────────────────────────────────────────────────
+  // A deploy builds a candidate into its own database, validates it there and promotes it by
+  // pointer. Nothing here drops a served database; `prune` removes retired ones only.
+  const contentRelease = program
+    .command('content-release')
+    .description('Versioned Cyberia content: build a candidate release, validate, promote, roll back, prune');
+
+  const RELEASE_APIS = [
+    'cyberia-content-release',
+    'cyberia-server-registry',
+    'file',
+    'cyberia-item-catalog',
+    'object-layer',
+    'atlas-sprite-sheet',
+    'cyberia-quest',
+    'cyberia-action',
+    'cyberia-map',
+    'cyberia-entity-type-default',
+    'cyberia-instance',
+    'cyberia-instance-conf',
+  ];
+
+  const releaseEnvOptions = (command) =>
+    command
+      .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+      .option('--mongo-host <mongo-host>', 'Mongo host override')
+      .option('--dev', 'Force development environment');
+
+  /** Opens the release ledger (runtime database) and, when a release is named, that release's content. */
+  const openReleases = async (options, releaseId = '') => {
+    const context = resolveDeployDb({ ...options, release: releaseId });
+    await DataBaseProviderService.load({ apis: RELEASE_APIS, host: context.host, path: context.path, db: context.db });
+    const provider = DataBaseProviderService.getProvider({ host: context.host, path: context.path }, 'mongoose');
+    return { ...context, models: provider.models, connection: provider.connection, provider };
+  };
+
+  const printChecks = (validation) => {
+    for (const entry of validation.checks) {
+      const line = `${entry.ok ? 'ok  ' : 'FAIL'} ${entry.name} (${entry.count})`;
+      if (entry.ok) logger.info(line);
+      else logger.error(line);
+      for (const message of entry.findings) (entry.ok ? logger.info : logger.error)(`      ${message}`);
+    }
+  };
+
+  /** Validates the content the models read: a release, recorded in the ledger, or the workspace. */
+  const runValidation = async ({ models, host, path, consumes }, releaseId = '', { publish = false } = {}) => {
+    const publication = publish ? await publishContentRelease(models, { options: { host, path, consumes } }) : null;
+    const validation = await validateContentRelease(models, { options: { host, path, consumes } });
+    if (publication) {
+      validation.checks.unshift(publication);
+      validation.ok = validation.ok && publication.ok;
+      logger.info(`Published ${publication.created} new definition(s) to the Object Layer authority`);
+    }
+    printChecks(validation);
+    if (!releaseId) {
+      logger.info(`The workspace is ${validation.ok ? 'valid' : 'invalid'}`);
+      return validation;
+    }
+    const { manifest, dependencies, ...report } = validation;
+    await models.CyberiaContentRelease.updateOne(
+      { releaseId },
+      { $set: { validation: report, manifest, dependencies, status: validation.ok ? 'validated' : 'invalid' } },
+    );
+    logger.info(`Release ${releaseId} is ${validation.ok ? 'validated' : 'invalid'}`);
+    return validation;
+  };
+
+  releaseEnvOptions(
+    contentRelease
+      .command('build <release-id>')
+      .option('--bootstrap', 'Promote the release when it validates and no release is active yet (first deploy)')
+      .option('--from <source>', 'backups (the instance backups) or workspace (what the portal authored)', 'backups')
+      .option(
+        '--instances <codes>',
+        'Comma-separated instance codes to import from the backups',
+        'amethyst-strata-expansion,FOREST,TEST',
+      )
+      .description('Build the release database from its source, publish its definitions, then validate it'),
+  ).action(async (releaseId, options = {}) => {
+    const id = assertReleaseId(releaseId);
+    if (!['backups', 'workspace'].includes(options.from)) {
+      logger.error(`--from takes backups or workspace, not "${options.from}"`);
+      process.exit(1);
+    }
+    const release = await openReleases(options, id);
+    const { models, host, path, deployId, releaseDatabase, workspaceDatabase } = release;
+    const instances = options.instances
+      .split(',')
+      .map((code) => code.trim())
+      .filter(Boolean);
+    const existing = await models.CyberiaContentRelease.findOne({ releaseId: id }).lean();
+    // A promoted release is immutable: a rerun of the same deploy finds it built and leaves it.
+    if (existing && (existing.status === 'active' || existing.status === 'retired')) {
+      logger.info(`Release ${id} is ${existing.status}; already built, nothing to do`);
+      await release.provider.close();
+      process.exit(0);
+    }
+    const commit = shellExec('git rev-parse --short HEAD', { stdout: true, silent: true, silentOnError: true }).trim();
+    await models.CyberiaContentRelease.updateOne(
+      { releaseId: id },
+      {
+        $set: {
+          database: releaseDatabase,
+          status: 'candidate',
+          instances,
+          source: {
+            from: options.from,
+            engineVersion: JSON.parse(fs.readFileSync('./package.json', 'utf8')).version,
+            commit,
+            builtAt: new Date(),
+            builtBy: os.userInfo().username,
+          },
+        },
+        $setOnInsert: { releaseId: id },
+      },
+      { upsert: true },
+    );
+    logger.info(
+      `Building release ${id} of ${deployId} into ${releaseDatabase} from the ${options.from}`,
+      options.from === 'workspace' ? { workspace: workspaceDatabase } : { instances },
+    );
+
+    if (options.from === 'workspace') {
+      const copied = await materializeWorkspace({
+        connection: release.connection,
+        workspace: workspaceDatabase,
+        database: releaseDatabase,
+        apis: release.db.partitions[CONTENT_PARTITION].apis,
+      });
+      logger.info('Copied the workspace', copied);
+      // The release carries the instances the workspace holds, not the backup list.
+      await models.CyberiaContentRelease.updateOne(
+        { releaseId: id },
+        { $set: { instances: (await models.CyberiaInstance.find({}, { code: 1 }).lean()).map((doc) => doc.code) } },
+      );
+    } else {
+      const passthrough = [
+        options.envPath ? `--env-path ${options.envPath}` : '',
+        options.mongoHost ? `--mongo-host ${options.mongoHost}` : '',
+        options.dev ? '--dev' : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      // `instance --import` restores one backup directory per call.
+      for (const code of instances)
+        shellExec(`${process.execPath} ${process.argv[1]} instance ${code} --import --release ${id} ${passthrough}`);
+    }
+
+    const validation = await runValidation(release, id, { publish: true });
+    // A first deploy has no release to keep serving, so a validated one goes live at once.
+    if (validation.ok && options.bootstrap && !(await models.CyberiaContentRelease.active()))
+      await promoteContentRelease(models.CyberiaContentRelease, id);
+    await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    process.exit(validation.ok ? 0 : 1);
+  });
+
+  releaseEnvOptions(
+    contentRelease
+      .command('validate [release-id]')
+      .description('Run every check on a release and record the report; on the workspace when no release is named'),
+  ).action(async (releaseId, options = {}) => {
+    const id = releaseId ? assertReleaseId(releaseId) : '';
+    const release = await openReleases(options, id);
+    if (id && !(await release.models.CyberiaContentRelease.exists({ releaseId: id }))) {
+      logger.error(`Release ${id} does not exist`);
+      process.exit(1);
+    }
+    const validation = await runValidation(release, id);
+    await release.provider.close();
+    process.exit(validation.ok ? 0 : 1);
+  });
+
+  releaseEnvOptions(
+    contentRelease
+      .command('retire')
+      .description('Stop serving the active release: the runtime serves the workspace, and rollback re-promotes it'),
+  ).action(async (options = {}) => {
+    const release = await openReleases(options);
+    const retired = await retireContentRelease(release.models.CyberiaContentRelease);
+    const base = release.db.partitions?.[CONTENT_PARTITION]?.name ?? '';
+    logger.info(`Retired release: ${retired.releaseId}; the runtime serves ${base}`);
+    await release.provider.close();
+  });
+
+  releaseEnvOptions(
+    contentRelease
+      .command('promote <release-id>')
+      .description('Serve a validated release. Running engines rebind and reload the game servers'),
+  ).action(async (releaseId, options = {}) => {
+    const release = await openReleases(options);
+    const { active, retired } = await promoteContentRelease(release.models.CyberiaContentRelease, releaseId);
+    logger.info(
+      `Active release: ${active.releaseId} (${active.database})${retired ? `; rollback target: ${retired.releaseId}` : ''}`,
+    );
+    await release.provider.close();
+  });
+
+  releaseEnvOptions(
+    contentRelease.command('rollback').description('Serve the release that was active before the current one'),
+  ).action(async (options = {}) => {
+    const release = await openReleases(options);
+    const { active, retired } = await rollbackContentRelease(release.models.CyberiaContentRelease);
+    logger.info(
+      `Active release: ${active.releaseId} (${active.database})${retired ? `; retired: ${retired.releaseId}` : ''}`,
+    );
+    await release.provider.close();
+  });
+
+  releaseEnvOptions(
+    contentRelease.command('status').description('The active release and what this ledger holds'),
+  ).action(async (options = {}) => {
+    const release = await openReleases(options);
+    const active = await release.models.CyberiaContentRelease.active();
+    const base = release.db.partitions?.[CONTENT_PARTITION]?.name ?? '';
+    logger.info(
+      active
+        ? `Active release: ${active.releaseId} (${active.database})`
+        : `No release promoted; the runtime serves ${base}`,
+    );
+    // Ledger rows are data, so they go to stdout plainly, never through the logger.
+    for (const entry of await release.models.CyberiaContentRelease.find({}).sort({ createdAt: -1 }).lean())
+      console.log(contentReleaseRowFactory(entry));
+    await release.provider.close();
+  });
+
+  releaseEnvOptions(
+    contentRelease
+      .command('prune')
+      .option('--keep <n>', 'Retired releases to keep, newest first', parseInt, 2)
+      .description(
+        'Drop the databases of retired releases beyond --keep. The active release and the rollback target always stay',
+      ),
+  ).action(async (options = {}) => {
+    const release = await openReleases(options);
+    const removed = await pruneContentReleases({
+      CyberiaContentRelease: release.models.CyberiaContentRelease,
+      connection: release.connection,
+      context: { host: release.host, path: release.path },
+      baseDatabase: release.db.partitions?.[CONTENT_PARTITION]?.name ?? '',
+      keep: options.keep,
+    });
+    logger.info(removed.length ? `Pruned: ${removed.join(', ')}` : 'Nothing to prune');
+    await release.provider.close();
+  });
+
+  releaseEnvOptions(
+    contentRelease
+      .command('activate')
+      .description('Bind this process to the active release (what a running engine does on start and on promotion)'),
+  ).action(async (options = {}) => {
+    const release = await openReleases(options);
+    const result = await activateContentRelease({ host: release.host, path: release.path });
+    logger.info(
+      result ? `Serving ${result.releaseId || '(base)'} from ${result.database}` : 'No content partition on this host',
+    );
+    await release.provider.close();
+  });
+
+  const catalog = program.command('catalog').description('The Cyberia item catalog: the definition each label runs on');
+
+  releaseEnvOptions(
+    catalog
+      .command('reconcile')
+      .description('Unbind every label whose definition the Object Layer authority no longer offers. Idempotent'),
+  ).action(async (options = {}) => {
+    const { host, path, db, consumes } = resolveDeployDb(options);
+    await DataBaseProviderService.load({ apis: ['object-layer', 'cyberia-item-catalog'], host, path, db });
+    const result = await reconcileItemCatalog(catalogModels({ host, path }), { host, path, consumes });
+    for (const { itemId, objectLayerCid, reason } of result.unbound)
+      logger.info(`Unbound ${itemId} from ${objectLayerCid}: ${reason}`);
+    logger.info(`Checked ${result.checked} bindings, unbound ${result.unbound.length}`);
+    process.exit(0);
+  });
+
+  const cache = program.command('cache').description('The platform cache of this deploy host in Valkey');
+
+  releaseEnvOptions(
+    cache
+      .command('clear')
+      .description('Remove every cached value of this deploy host in this environment. MongoDB is untouched'),
+  ).action(async (options = {}) => {
+    const { host, path, valkey } = resolveDeployDb(options);
+    if (!valkey) throw new Error(`${host}${path} declares no valkey connection`);
+    await createValkeyConnection({ host, path }, valkey);
+    const removed = await CacheService.clear({ host, path });
+    logger.info(`Removed ${removed} cached values of ${host}${path} (${process.env.NODE_ENV || 'development'})`);
+    process.exit(0);
+  });
 
   const runner = program.command('run-workflow').description('Run a Cyberia script from the "scripts" directory');
 
@@ -4739,14 +4588,10 @@ try {
   runner
     .command('import-default-items')
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
-    .option(
-      '--mongo-host <mongo-host>',
-      'Mongo host override (forwarded to ol, seed-skills, seed-entities, seed-dialogues, seed-actions-quests, client-hints)',
-    )
-    .option('--clean', 'Clean the database before importing')
-    .description(
-      'Import default Object Layer items, skills, entity defaults, dialogues, actions/quests, and client-hints into MongoDB',
-    )
+    .option('--mongo-host <mongo-host>', 'Mongo host override, forwarded to every import')
+    .option('--clean', 'Drop the Object Layers and the content collections instead; needs --confirm <deploy-id>')
+    .option('--confirm <deploy-id>', 'Confirm --clean against this deploy id')
+    .description('Import the default content: the saga, then the instance backups of every default world')
     .action(async (options) => {
       // Pre-flight: every item id referenced by the fallback world must
       // exist in DefaultCyberiaItems. Drift here causes silent missing
@@ -4762,27 +4607,22 @@ try {
         process.exit(1);
       }
 
-      const devFlag = options.dev ? ' --dev' : '';
-      const mongoHostFlag = options.mongoHost ? ` --mongo-host ${options.mongoHost}` : '';
-      const instanceHintsCode = process.env.INSTANCE_CODE || 'cyberia-main';
-      const sagaCode = 'amethyst-strata-expansion';
+      const flags = `${options.dev ? ' --dev' : ''}${options.mongoHost ? ` --mongo-host ${options.mongoHost}` : ''}`;
       if (options.clean) {
-        shellExec(`node bin/cyberia ol --drop${devFlag}${mongoHostFlag}`);
-        shellExec(`node bin/cyberia run-workflow drop-db${devFlag}${mongoHostFlag}`);
+        // Each drop checks the confirmation against its own deploy id.
+        if (!options.confirm) {
+          logger.error('--clean destroys data. Pass --confirm <deploy-id> to run it. It is never part of a deploy.');
+          process.exit(1);
+        }
+        const confirm = ` --confirm ${options.confirm}`;
+        shellExec(`node bin/cyberia ol --drop${confirm}${flags}`);
+        shellExec(`node bin/cyberia run-workflow drop-db${confirm}${flags}`);
         return;
       }
-      shellExec(
-        `node bin/cyberia generate-saga --import engine-private/cyberia-sagas/${sagaCode}.json${devFlag}${mongoHostFlag}`,
-      );
-      // shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}${mongoHostFlag}`);
-      // shellExec(`node bin/cyberia run-workflow seed-skills${devFlag}${mongoHostFlag}`);
-      // shellExec(`node bin/cyberia run-workflow seed-entities${devFlag}${mongoHostFlag}`);
-      // shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}${mongoHostFlag}`);
-      // shellExec(`node bin/cyberia run-workflow seed-actions-quests${devFlag}${mongoHostFlag}`);
-      // shellExec(`node bin/cyberia client-hints ${instanceHintsCode} --seed-defaults${devFlag}${mongoHostFlag}`);
-      shellExec(`node bin/cyberia instance ${sagaCode} --import${devFlag}`);
-      shellExec(`node bin/cyberia instance FOREST --import${devFlag}`);
-      shellExec(`node bin/cyberia instance TEST --import${devFlag}`);
+      const sagaCode = 'amethyst-strata-expansion';
+      shellExec(`node bin/cyberia generate-saga --import engine-private/cyberia-sagas/${sagaCode}.json${flags}`);
+      for (const instanceCode of [sagaCode, 'FOREST', 'TEST'])
+        shellExec(`node bin/cyberia instance ${instanceCode} --import${flags}`);
     });
 
   runner
@@ -4794,10 +4634,10 @@ try {
   // Every file mirrored between this engine and a product checkout, engine path first. One
   // table for both directions, so a pair cannot be synced one way and forgotten the other.
   const cyberiaSrcSyncPairs = [
-    ['./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md'],
+    ['./src/client/public/docs/cyberia/explanation/game-server.md', './cyberia-server/README.md'],
     ['./src/runtime/cyberia-server/Dockerfile', './cyberia-server/Dockerfile'],
     ['./src/runtime/cyberia-server/Dockerfile.dev', './cyberia-server/Dockerfile.dev'],
-    ['./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md'],
+    ['./src/client/public/docs/cyberia/explanation/game-client.md', './cyberia-client/README.md'],
     ['./src/runtime/cyberia-client/Dockerfile', './cyberia-client/Dockerfile'],
     ['./src/runtime/cyberia-client/Dockerfile.dev', './cyberia-client/Dockerfile.dev'],
   ];
@@ -4834,6 +4674,24 @@ try {
       });
     });
 
+  runner
+    .command('validate-domains')
+    .option('--env <env>', 'Deploy environment; production also checks the cross-domain wiring', 'development')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.production')
+    .description('Check API ownership, content partitions, views and client components of the dd-cyberia domains')
+    .action((options = {}) => {
+      const envPath = options.envPath || `./engine-private/conf/dd-cyberia/.env.${options.env}`;
+      if (fs.existsSync(envPath)) dotenv.config({ path: envPath, override: true });
+      const errors = validateDomainConf({
+        confServer: loadConfServerJson('./engine-private/conf/dd-cyberia/conf.server.json', { resolve: true }),
+        confClient: fs.readJsonSync('./engine-private/conf/dd-cyberia/conf.client.json'),
+        env: options.env,
+      });
+      for (const error of errors) logger.error(error);
+      if (errors.length) process.exit(1);
+      logger.info(`dd-cyberia domain configuration is consistent (${options.env})`);
+    });
+
   runner.command('setup-workspace').action(() => {
     shellExec(`node bin fs src/client/public/cyberia --tracked --pull --deploy-id dd-cyberia`);
     shellExec(`node bin/deploy.js cyberia`);
@@ -4842,6 +4700,8 @@ try {
   });
 
   runner.command('e2e-build').action(() => {
+    shellExec(`node bin/cyberia stat-contract`);
+    shellExec(`node bin/cyberia run-workflow sync-src`);
     shellExec(`node bin run build-cluster-deployment-manifests`);
     shellExec(`node bin/cyberia run-workflow build-manifest`);
     shellExec(`node bin/cyberia run-workflow publish --dry-run`);
@@ -4947,35 +4807,17 @@ try {
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
-    .description('Drop all Cyberia collections and remove the File documents they reference')
+    .option('--confirm <deploy-id>', 'Confirm the drop against this deploy id')
+    .option('--release <release-id>', 'Drop the content of one release database instead of the workspace')
+    .option('--include-runtime', 'Also drop player progress. Off by default: content resets never touch runtime state')
+    .description(
+      'Bootstrap only: drop the Cyberia content collections and the File documents they reference. Needs --confirm <deploy-id>; never part of a deploy',
+    )
     .action(async (options = {}) => {
-      if (!options.envPath) options.envPath = `./.env`;
-      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+      const { deployId, host, path, db, releaseDatabase } = resolveDeployDb(options);
+      assertDestructiveConfirmation(options, deployId, 'drop-db');
 
-      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
-        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
-        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
-      }
-
-      const deployId = process.env.DEFAULT_DEPLOY_ID;
-      const host = process.env.DEFAULT_DEPLOY_HOST;
-      const path = process.env.DEFAULT_DEPLOY_PATH;
-
-      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-      if (!fs.existsSync(confServerPath)) {
-        logger.error(`Server config not found: ${confServerPath}`);
-        process.exit(1);
-      }
-      const confServer = loadConfServerJson(confServerPath, { resolve: true });
-      const { db } = confServer[host][path];
-
-      db.host = options.mongoHost
-        ? options.mongoHost
-        : options.dev
-          ? db.host
-          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
-
-      logger.info('drop-db', { deployId, host, path });
+      logger.info('drop-db', { deployId, host, path, release: options.release || '', releaseDatabase });
 
       const cyberiaCollections = [
         'cyberia-entity',
@@ -4984,7 +4826,6 @@ try {
         'cyberia-instance-conf',
         'cyberia-dialogue',
         'cyberia-quest',
-        'cyberia-quest-progress',
         'cyberia-action',
         'cyberia-skill',
         'cyberia-entity-type-default',
@@ -4992,6 +4833,7 @@ try {
         'cyberia-saga',
         'cyberia-audio',
         'cyberia-map-audio-conf',
+        ...(options.includeRuntime ? ['cyberia-quest-progress'] : []),
       ];
 
       // Every File _id a Cyberia document owns: instance and map thumbnails and previews, and the
@@ -5018,7 +4860,11 @@ try {
         }
       }
 
-      if (fileIds.size > 0) {
+      // Content in a release database shares the File store with every other release, so its
+      // Files cannot be proven unused here.
+      const partitioned = !!db.partitions?.[CONTENT_PARTITION]?.name;
+      if (partitioned) logger.info('Content Files are shared across releases; kept');
+      else if (fileIds.size > 0) {
         const result = await File.deleteMany({ _id: { $in: [...fileIds] } });
         logger.info(`Removed ${result.deletedCount} referenced File document(s)`);
       }
@@ -5718,8 +5564,8 @@ node bin image --path cyberia-client \
         fs.copySync('./deploy/lib', `./${project}/deploy/lib`);
         fs.copySync(scripts, `./${project}/deploy/${project}`);
       }
-      fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-CLIENT.md', './cyberia-client/README.md');
-      fs.copyFileSync('./src/client/public/cyberia-docs/CYBERIA-SERVER.md', './cyberia-server/README.md');
+      fs.copyFileSync('./src/client/public/docs/cyberia/explanation/game-client.md', './cyberia-client/README.md');
+      fs.copyFileSync('./src/client/public/docs/cyberia/explanation/game-server.md', './cyberia-server/README.md');
       fs.copyFileSync(
         './.github/workflows/cyberia-client.cd.yml',
         './cyberia-client/.github/workflows/cyberia-client.cd.yml',
@@ -5878,7 +5724,8 @@ node bin image --path cyberia-client \
         ...process.argv.slice(2, commandIndex).filter((token) => token !== 'underpost'),
         ...process.argv.slice(commandIndex),
       ];
-    if (!process.argv.includes('--plain')) logger.info('Rerouting to underpost cli...');
+    // Diagnostic output goes to stderr; stdout carries only what the rerouted command prints.
+    if (!process.argv.includes('--plain')) process.stderr.write('Rerouting to underpost cli...\n');
     try {
       await underpostProgram.parseAsync();
     } catch (err) {
