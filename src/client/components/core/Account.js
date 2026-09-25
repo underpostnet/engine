@@ -88,6 +88,7 @@ class Account {
           s(`.${inputData.id}`).value =
             !user[inputData.model] && inputData.defaultValue ? inputData.defaultValue : user[inputData.model];
         }
+        Account.renderRole(user);
         let lastUser;
         const submit = async () => {
           // Always get the current user from LogIn.Scope to avoid stale closure references
@@ -509,6 +510,15 @@ class Account {
         </div>
         <div class="in">
           ${await Input.instance({
+            id: `account-role`,
+            type: 'text',
+            label: html`<i class="fa-solid fa-id-badge"></i> ${Translate.instance('role')}`,
+            containerClass: 'inl section-mp width-mini-box input-container',
+            disabled: true,
+          })}
+        </div>
+        <div class="in">
+          ${await Input.instance({
             id: `account-brief-description`,
             label: html`<i class="fa-solid fa-pen-fancy"></i> ${Translate.instance('brief-description')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
@@ -577,6 +587,10 @@ class Account {
       if (user.emailConfirmed === true) s(`.account-email`).setAttribute('disabled', '');
     }
   }
+  /** The session's global role, shown as it is: the server assigns it, the form never sends it. */
+  static renderRole(user) {
+    if (s('.account-role')) s('.account-role').value = user?.role || 'guest';
+  }
   static instanceModalUiEvents = async (user) => null;
   static async updateForm(user) {
     if (!s(`.modal-account`)) return;
@@ -601,6 +615,7 @@ class Account {
     s(`.account-profile-image`).style.opacity = 0;
     for (const inputData of this.formData)
       if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = currentUser[inputData.model];
+    Account.renderRole(currentUser);
 
     // Update profile image - always show default avatar as fallback (skip for guest users)
     const profileImageElement = s(`.account-profile-image`);

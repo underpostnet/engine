@@ -207,6 +207,10 @@ class TranslateCore {
     Translate.Data['email'] = { en: 'Email', es: 'Correo Electronico' };
     Translate.Data['clear'] = { en: 'Reset', es: 'Limpiar' };
     Translate.Data['select-role'] = { en: 'Select Role', es: 'Seleccionar Rol' };
+    Translate.Data['role'] = { en: 'Role', es: 'Rol' };
+    Translate.Data['admin'] = { en: 'Administrator', es: 'Administrador' };
+    Translate.Data['moderator'] = { en: 'Moderator', es: 'Moderador' };
+    Translate.Data['guest'] = { en: 'Guest', es: 'Invitado' };
     Translate.Data['sign-up'] = { en: 'Sign Up', es: 'Registrarse' };
     Translate.Data['log-in'] = { en: 'Log In', es: 'Ingresar' };
     Translate.Data['log-out'] = { en: 'Log Out', es: 'Cerrar Sesión' };
@@ -247,6 +251,7 @@ class TranslateCore {
     Translate.Data['edit'] = { en: 'Edit', es: 'Editar' };
     Translate.Data['copy-share-link'] = { en: 'Copy share link', es: 'Copiar enlace compartido' };
     Translate.Data['link-copied'] = { en: 'Link copied to clipboard', es: 'Enlace copiado al portapapeles' };
+    Translate.Data['copy-markdown-source'] = { en: 'Copy markdown source', es: 'Copiar fuente markdown' };
     Translate.Data['error-copying-link'] = { en: 'Error copying link', es: 'Error al copiar enlace' };
     Translate.Data['unconfirmed'] = { en: 'unconfirmed', es: 'No confirmado' };
     Translate.Data['confirmed'] = { en: 'confirmed', es: 'Confirmado' };
@@ -270,6 +275,13 @@ class TranslateCore {
     Translate.Data['home'] = { en: 'Home', es: 'Inicio' };
     Translate.Data['calendar'] = { es: 'Calendario', en: 'Calendar' };
     Translate.Data['docs'] = { es: 'Documentacion', en: 'Documentation' };
+    Translate.Data['wallet'] = { en: 'Wallet', es: 'Billetera' };
+    Translate.Data['embedded-wallet'] = { en: 'Embedded wallet', es: 'Billetera integrada' };
+    Translate.Data['restore'] = { en: 'Restore', es: 'Restaurar' };
+    Translate.Data['unlock'] = { en: 'Unlock', es: 'Desbloquear' };
+    Translate.Data['lock'] = { en: 'Lock', es: 'Bloquear' };
+    Translate.Data['export'] = { en: 'Export', es: 'Exportar' };
+    Translate.Data['sign-in'] = { en: 'Sign in', es: 'Iniciar sesión' };
     Translate.Data['clean-cache'] = { es: 'Limpiar caché', en: 'Clean cache' };
     Translate.Data['add'] = { es: 'Agregar', en: 'Add' };
     Translate.Data['mode'] = { es: 'Modo', en: 'Mode' };
