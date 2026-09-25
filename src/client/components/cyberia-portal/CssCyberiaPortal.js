@@ -49,7 +49,9 @@ const CssCommonCyberia = async () => {
         font-family: 'retro-font-cta';
         src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
       }
-
+      .search-result-item {
+        font-family: 'retro-font-sensitive';
+      }
       /* Landing Page & Object Viewer Styles */
       .landing-container {
         display: flex;
@@ -190,7 +192,12 @@ const CssCommonCyberia = async () => {
       .input-container {
         width: 278px;
       }
+      .default-slide-menu-top-bar-fix-title-container-text {
+        font-size: 40px !important;
+        color: #ffcc00 !important;
+      }
     </style>
+    ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
 
     <div class="ag-grid-style"></div>`;
 };
@@ -200,25 +207,7 @@ class CssCyberiaDark {
   static dark = true;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonCyberia()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #212020;
-          }
-          .action-bar-box {
-            color: white;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
-            color: black !important;
-          }
-        </style>
-        ${borderChar(2, `#ffcc00`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-      `
-    );
+    return (await CssCommonCyberia()) + html` <style></style> `;
   };
 }
 
@@ -227,27 +216,7 @@ class CssCyberiaLight {
   static dark = false;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonCyberia()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #d8d8d8;
-          }
-
-          .action-bar-box {
-            color: black;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
-            color: #ffcc00 !important;
-          }
-        </style>
-        ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
-      `
-    );
+    return (await CssCommonCyberia()) + html` <style></style> `;
   };
 }
 

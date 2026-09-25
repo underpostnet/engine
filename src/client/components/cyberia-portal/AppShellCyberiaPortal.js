@@ -3,7 +3,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance, random } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { Docs } from '../core/Docs.js';
-import { githubUrl } from '../core/Repository.js';
+import { deployPackageReleaseUrl } from '../core/Repository.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -14,6 +14,7 @@ import {
   SUBMENU_SELECTION_QUERY_KEY,
   renderMenuLabel,
   renderViewTitle,
+  sortableSubMenuEvents,
   subMenuRender,
 } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
@@ -27,8 +28,8 @@ import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
-import { ObjectLayerEngineModal } from '../cyberia/ObjectLayerEngineModal.js';
-import { ObjectLayerEngineViewer } from '../cyberia/ObjectLayerEngineViewer.js';
+import { ObjectLayerEngineModal } from '../object-layer/ObjectLayerEngineModal.js';
+import { ObjectLayerEngineViewer } from '../object-layer/ObjectLayerEngineViewer.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
@@ -36,6 +37,7 @@ import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
+import { CyberiaObjectLayerProfile } from '../cyberia/ObjectLayerProfileCyberia.js';
 
 class AppShellCyberiaPortal {
   static Data = {};
@@ -45,6 +47,7 @@ class AppShellCyberiaPortal {
     const RouterInstance = RouterCyberiaPortal.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
+    const barMode = 'top-bottom-bar';
 
     await Modal.instance({
       id: 'modal-menu',
@@ -313,16 +316,19 @@ class AppShellCyberiaPortal {
       // mode: 'slide-menu-right',
       htmlMainBody: async () => await MainBodyCyberiaPortal.instance(),
       mode: 'slide-menu',
+      barMode,
       RouterInstance,
       searchCustomImgClass: 'cyberia-menu-icon',
     });
 
+    const sortableSubMenus = sortableSubMenuEvents(['docs']);
     AppShellCyberiaPortal.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
       fallbackOnBody: true,
       handle: '.handle-btn-container',
+      draggable: '.main-btn-menu',
       store: {
         /**
          * Get the order of elements. Called once during initialization.
@@ -347,6 +353,7 @@ class AppShellCyberiaPortal {
       // ghostClass: 'css-class',
       // Element dragging ended
       onEnd: function (/**Event*/ evt) {
+        sortableSubMenus.onEnd();
         // console.log('Sortable onEnd', evt);
         // console.log('evt.oldIndex', evt.oldIndex);
         // console.log('evt.newIndex', evt.newIndex);
@@ -364,6 +371,7 @@ class AppShellCyberiaPortal {
         // evt.clone; // the clone element
         // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
       },
+      onStart: sortableSubMenus.onStart,
     });
 
     ThemeEvents['portal-main-theme-event'] = () => {
@@ -552,10 +560,10 @@ class AppShellCyberiaPortal {
         html: async () =>
           await Docs.instance({
             idModal: 'modal-docs',
-            subMenuIcon: (type) =>
-              html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/arrow-right.png" />`,
+            ...Docs.uiIcons({ iconClass: 'cyberia-menu-icon' }),
+            domain: 'cyberia',
             demoUrl: () => `https://client.cyberiaonline.com/`,
-            lastReleaseUrl: () => githubUrl('engine-cyberia'),
+            lastReleaseUrl: deployPackageReleaseUrl,
           }),
         handleType: 'bar',
         observer: true,
@@ -628,6 +636,7 @@ class AppShellCyberiaPortal {
           await ObjectLayerEngineModal.instance({
             idModal: 'modal-object-layer-engine',
             appStore: AppStoreCyberiaPortal,
+            profile: CyberiaObjectLayerProfile,
           }),
         handleType: 'bar',
         maximize: true,
@@ -673,6 +682,7 @@ class AppShellCyberiaPortal {
         html: async () =>
           ObjectLayerEngineViewer.instance({
             appStore: AppStoreCyberiaPortal,
+            profile: CyberiaObjectLayerProfile,
           }),
         handleType: 'bar',
         maximize: true,
