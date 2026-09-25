@@ -6,7 +6,7 @@
 
 import { fileURLToPath } from 'url';
 import { getNpmRootPath } from '../server/runtime/environment.js';
-import { pbcopy, shellExec } from '../server/runtime/process.js';
+import { pbcopy, shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { loggerFactory, loggerMiddleware } from '../server/ops/logger.js';
 import fs from 'fs-extra';
 import path from 'path';
@@ -2788,7 +2788,10 @@ fi
       vendorData = '',
       isoUrl = '',
     }) {
-      shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}`);
+      // The hostname names one directory under the bootstrap root.
+      if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(hostname) || hostname.includes('..'))
+        throw new Error(`Invalid bootstrap hostname: '${hostname}'`);
+      shellExec(`mkdir -p ${shellArgumentFactory(`${bootstrapHttpServerPath}/${hostname}`)}`);
 
       Underpost.cloudInit.httpServerStaticFactory({ bootstrapHttpServerPath, hostname, cloudConfigSrc, vendorData });
       Underpost.kickstart.httpServerStaticFactory({ bootstrapHttpServerPath, hostname, kickstartSrc });
@@ -2802,11 +2805,13 @@ fi
         if (!fs.existsSync(isoCachePath)) {
           logger.info(`Downloading ISO to cache: ${isoUrl}`);
           shellExec(`mkdir -p ${isoCacheDir}`);
-          shellExec(`wget --progress=bar:force -O ${isoCachePath} "${isoUrl}"`);
+          shellExec(
+            `wget --progress=bar:force -O ${shellArgumentFactory(isoCachePath)} ${shellArgumentFactory(isoUrl)}`,
+          );
         }
 
         logger.info(`Copying ISO to bootstrap server: ${isoDestPath}`);
-        shellExec(`cp ${isoCachePath} ${isoDestPath}`);
+        shellExec(`cp ${shellArgumentFactory(isoCachePath)} ${shellArgumentFactory(isoDestPath)}`);
       }
     },
 

@@ -15,7 +15,7 @@ import {
 } from '../server/runtime/conf.js';
 import { pathPortAssignmentFactory } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
-import { shellExec } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { cli } from '../server/build/execution.js';
 import fs from 'fs-extra';
 import { DataBaseProviderService } from '../db/DataBaseProvider.js';
@@ -135,7 +135,7 @@ class UnderpostDB {
 
         // Always ensure the database exists first — required for WP even when no backup is available
         Underpost.kubectl.run(
-          `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
+          `kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- mariadb -p${shellArgumentFactory(password)} -e ${shellArgumentFactory(`CREATE DATABASE IF NOT EXISTS ${dbName};`)}`,
           { context: `create database ${dbName}` },
         );
 
@@ -427,14 +427,14 @@ class UnderpostDB {
         logger.info('Getting MongoDB collection statistics', { podName, dbName });
 
         // Use db.getSiblingDB() instead of 'use' command
-        const script = `db.getSiblingDB('${dbName}').getCollectionNames().map(function(c) { return { collection: c, count: db.getSiblingDB('${dbName}')[c].countDocuments() }; })`;
+        const script = `db.getSiblingDB(${JSON.stringify(dbName)}).getCollectionNames().map(function(c) { return { collection: c, count: db.getSiblingDB(${JSON.stringify(dbName)})[c].countDocuments() }; })`;
 
         // Execute the script
         const authFlags =
           user && password
-            ? ` --authenticationDatabase ${JSON.stringify(authDatabase)} -u ${JSON.stringify(user)} -p ${JSON.stringify(password)}`
+            ? ` --authenticationDatabase ${shellArgumentFactory(authDatabase)} -u ${shellArgumentFactory(user)} -p ${shellArgumentFactory(password)}`
             : '';
-        const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mongosh --quiet${authFlags} --eval "${script}"`;
+        const command = `sudo kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- mongosh --quiet${authFlags} --eval ${shellArgumentFactory(script)}`;
         const output = shellExec(command, { stdout: true, silent: true, silentOnError: true });
 
         if (!output || output.trim() === '') {
@@ -491,7 +491,8 @@ class UnderpostDB {
       try {
         logger.info('Getting MariaDB table statistics', { podName, dbName });
 
-        const command = `sudo kubectl exec -n ${namespace} -i ${podName} -- mariadb -u ${user} -p${password} ${dbName} -e "SELECT TABLE_NAME as 'table', TABLE_ROWS as 'count' FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME;" --skip-column-names --batch`;
+        const query = `SELECT TABLE_NAME as 'table', TABLE_ROWS as 'count' FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${`${dbName}`.replaceAll("'", "''")}' ORDER BY TABLE_NAME;`;
+        const command = `sudo kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- mariadb -u ${shellArgumentFactory(user)} -p${shellArgumentFactory(password)} ${shellArgumentFactory(dbName)} -e ${shellArgumentFactory(query)} --skip-column-names --batch`;
         const output = shellExec(command, { stdout: true, silent: true, disableLog: true, silentOnError: true });
 
         if (!output || output.trim() === '') {

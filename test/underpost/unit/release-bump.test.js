@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import shell from 'shelljs';
 
-import UnderpostRelease, { bumpAuxiliaryFiles } from '../../src/cli/release.js';
-import UnderpostRepository from '../../src/cli/repository.js';
-import { Dns } from '../../src/server/network/dns.js';
+import UnderpostRelease, { bumpAuxiliaryFiles } from '../../../src/cli/release.js';
+import UnderpostRepository from '../../../src/cli/repository.js';
+import { Dns } from '../../../src/server/network/dns.js';
 
 const DOC_ROOT = 'src/client/public';
 const VERSION_HEADER = /\*\*(?:Current )?[Vv]ersion:\*\* (\d+\.\d+\.\d+)/;
@@ -309,14 +309,14 @@ describe('release pipeline commands', () => {
         expect(triggerCmd, deployId).to.include('/engine-cyberia');
         // `--coverage`: the published source must carry the reports the deploy declares, or
         // every pod started from it serves the unavailable page.
-        expect(commands, deployId).to.include('node bin/build dd-cyberia --coverage');
+        expect(commands, deployId).to.include("node bin/build 'dd-cyberia' --coverage");
       }
     });
 
     it('replaces the template git directory with the bare clone of the target repository', async () => {
       await UnderpostRelease.API.ci('core', 'fixture message');
       expect(commands).to.include('rm -rf ./.git');
-      expect(commands).to.include('mv ../engine-core.git ./.git');
+      expect(commands).to.include("mv '../engine-core.git' ./.git");
       expect(commands).to.include('git config --local core.bare false');
       expect(directories).to.include('/home/dd/pwa-microservices-template');
     });
@@ -328,12 +328,17 @@ describe('release pipeline commands', () => {
         return { code: 0, stdout, stderr: '', toString: () => stdout };
       });
       const { triggerCmd } = await UnderpostRelease.API.ci('core');
-      expect(triggerCmd).to.include('git commit -m "generated message"');
+      expect(triggerCmd).to.include("git commit -m 'generated message'");
     });
 
     it('falls back to a generic message when the changelog yields nothing', async () => {
       const { triggerCmd } = await UnderpostRelease.API.ci('core', '   ');
-      expect(triggerCmd).to.include('git commit -m "Update engine-core repository"');
+      expect(triggerCmd).to.include("git commit -m 'Update engine-core repository'");
+    });
+
+    it('passes the commit message to git as one literal argument', async () => {
+      const { triggerCmd } = await UnderpostRelease.API.ci('core', "Quote `x`, $(id) and it's");
+      expect(triggerCmd).to.include(`git commit -m 'Quote \`x\`, $(id) and it'\\''s'`);
     });
   });
 
@@ -343,7 +348,7 @@ describe('release pipeline commands', () => {
       expect(commands).to.include('sudo rm -rf /home/dd/pwa-microservices-template');
       expect(commands).to.include('npm run build:template');
       expect(commands).to.include('git add .');
-      expect(triggerCmd).to.include('git commit -m "fixture message"');
+      expect(triggerCmd).to.include("git commit -m 'fixture message'");
     });
 
     it('falls back to the engine changelog message', async () => {
@@ -353,7 +358,7 @@ describe('release pipeline commands', () => {
         return { code: 0, stdout, stderr: '', toString: () => stdout };
       });
       const { triggerCmd } = await UnderpostRelease.API.pwa();
-      expect(triggerCmd).to.include('git commit -m "changelog line"');
+      expect(triggerCmd).to.include("git commit -m 'changelog line'");
     });
 
     it('falls back to a generic message', async () => {
@@ -371,8 +376,8 @@ describe('release pipeline commands', () => {
         // Host configuration, loaded by domain rather than by a hardcoded env-file path.
         expect(commands).to.include('node bin host load');
         expect(commands).to.include(`node bin cmt . ci package-pwa-microservices-template 'New release v:3.3.0'`);
-        expect(commands).to.include('node bin push . fixture-org/engine');
-        expect(commands).to.include('cd ./engine-private && node ../bin push . fixture-org/engine-private');
+        expect(commands).to.include("node bin push . 'fixture-org/engine'");
+        expect(commands).to.include("cd ./engine-private && node ../bin push . 'fixture-org/engine-private'");
       } finally {
         if (previous === undefined) delete process.env.GITHUB_USERNAME;
         else process.env.GITHUB_USERNAME = previous;

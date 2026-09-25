@@ -5,7 +5,7 @@
  * @namespace UnderpostCloudInit
  */
 
-import { shellExec } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/ops/logger.js';
 import { getNpmRootPath } from '../server/runtime/environment.js';
@@ -631,7 +631,7 @@ cat /etc/default/keyboard`,
     httpServerStaticFactory({ bootstrapHttpServerPath, hostname, cloudConfigSrc, vendorData = '' }) {
       if (!cloudConfigSrc) return;
       const dir = `${bootstrapHttpServerPath}/${hostname}/cloud-init`;
-      shellExec(`mkdir -p ${dir}`);
+      shellExec(`mkdir -p ${shellArgumentFactory(dir)}`);
       fs.writeFileSync(`${dir}/user-data`, cloudConfigSrc, 'utf8');
       fs.writeFileSync(`${dir}/meta-data`, `instance-id: ${hostname}\nlocal-hostname: ${hostname}`, 'utf8');
       fs.writeFileSync(`${dir}/vendor-data`, vendorData, 'utf8');

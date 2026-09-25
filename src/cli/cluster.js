@@ -7,7 +7,7 @@
 import { clusterTypeFactory, gatewayApiEnabledFactory, resolveReplicaCount } from '../server/runtime/conf.js';
 import { getNpmRootPath, HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
 import { loggerFactory } from '../server/ops/logger.js';
-import { shellExec } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
 import {
   runSELinuxCommands,
@@ -927,7 +927,7 @@ EOF
         shellExec(`rm -f ${tarPath}`);
       } else {
         // Kubeadm / K3s: pull directly into the active CRI runtime.
-        shellExec(crictlCommandFactory(`pull ${image}`, options));
+        shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(image)}`, options));
       }
     },
 

@@ -62,7 +62,7 @@ class UnderpostKubectl {
       // namespace, or no pods matching the filter must return an empty
       // list (not throw). silentOnError keeps the legacy contract.
       const raw = shellExec(
-        `sudo kubectl get ${kindType}${namespace ? ` -n ${namespace}` : ` --all-namespaces`} -o wide`,
+        `sudo kubectl get ${kindType}${namespace ? ` -n ${shellArgumentFactory(namespace)}` : ` --all-namespaces`} -o wide`,
         { stdout: true, disableLog: true, silent: true, silentOnError: true },
       );
 
@@ -181,11 +181,14 @@ class UnderpostKubectl {
       const probeOptions = { silent: true, silentOnError: true, disableLog: true };
       for (let attempt = 1; attempt <= attempts; attempt++) {
         shellExec(
-          `kubectl wait --for=condition=Ready pod/${podName} -n ${namespace} --timeout=${readyTimeoutSeconds}s`,
+          `kubectl wait --for=condition=Ready ${shellArgumentFactory(`pod/${podName}`)} -n ${shellArgumentFactory(namespace)} --timeout=${shellArgumentFactory(`${readyTimeoutSeconds}s`)}`,
           probeOptions,
         );
         const probe = shellExec(
-          withTimeout(`sudo kubectl exec -n ${namespace} -i ${podName} -- sh -c "exit 0"`, probeTimeoutSeconds),
+          withTimeout(
+            `sudo kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- sh -c "exit 0"`,
+            probeTimeoutSeconds,
+          ),
           probeOptions,
         );
         if (probe && probe.code === 0) return true;
@@ -219,12 +222,15 @@ class UnderpostKubectl {
     }) {
       const deadline = Date.now() + timeoutSeconds * 1000;
       while (Date.now() < deadline) {
-        const found = shellExec(`kubectl get pod ${podName} -n ${namespace} --ignore-not-found -o name`, {
-          stdout: true,
-          silent: true,
-          silentOnError: true,
-          disableLog: true,
-        });
+        const found = shellExec(
+          `kubectl get pod ${shellArgumentFactory(podName)} -n ${shellArgumentFactory(namespace)} --ignore-not-found -o name`,
+          {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+            disableLog: true,
+          },
+        );
         if (`${found || ''}`.trim()) return true;
         await timer(intervalMs);
       }
@@ -263,7 +269,7 @@ class UnderpostKubectl {
         }
 
         const result = shellExec(
-          `kubectl wait --for=condition=Ready pod/${podName} -n ${namespace} --timeout=${readyTimeoutSeconds}s`,
+          `kubectl wait --for=condition=Ready ${shellArgumentFactory(`pod/${podName}`)} -n ${shellArgumentFactory(namespace)} --timeout=${shellArgumentFactory(`${readyTimeoutSeconds}s`)}`,
           { silentOnError: true },
         );
         if (result.code !== 0) {
@@ -349,11 +355,14 @@ class UnderpostKubectl {
      * @memberof UnderpostKubectl
      */
     existsFile({ podName, path }) {
-      const result = shellExec(`kubectl exec ${podName} -- test -f ${path} && echo "true" || echo "false"`, {
-        stdout: true,
-        disableLog: true,
-        silent: true,
-      }).trim();
+      const result = shellExec(
+        `kubectl exec ${shellArgumentFactory(podName)} -- test -f ${shellArgumentFactory(path)} && echo "true" || echo "false"`,
+        {
+          stdout: true,
+          disableLog: true,
+          silent: true,
+        },
+      ).trim();
       return result === 'true';
     },
 

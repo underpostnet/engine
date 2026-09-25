@@ -10,7 +10,7 @@ import nodePath from 'path';
 import crypto from 'crypto';
 import { loggerFactory } from '../server/ops/logger.js';
 import Underpost from '../index.js';
-import { shellExec } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { crictlCommandFactory } from '../server/ops/cri.js';
 
 const logger = loggerFactory(import.meta);
@@ -113,7 +113,7 @@ class UnderpostImage {
         const file = nodePath.join(os.tmpdir(), `underpost-secret-${id}-${crypto.randomBytes(6).toString('hex')}`);
         fs.writeFileSync(file, String(value), { mode: 0o600 });
         secretTmpFiles.push(file);
-        secretFlags.push(`--secret id=${id},src=${file}`);
+        secretFlags.push(`--secret ${shellArgumentFactory(`id=${id},src=${file}`)}`);
       };
       // addBuildSecret('github_token', process.env.GITHUB_TOKEN);
       addBuildSecret('github_username', process.env.GITHUB_USERNAME);
@@ -140,15 +140,15 @@ class UnderpostImage {
       // non-sensitive values belong here.
       const buildArgFlags = Object.entries(options.buildArgs || {})
         .filter(([, v]) => v !== undefined && v !== null && v !== '')
-        .map(([k, v]) => `--build-arg ${k}=${JSON.stringify(String(v))}`);
+        .map(([k, v]) => `--build-arg ${shellArgumentFactory(`${k}=${v}`)}`);
       const buildArgStr = buildArgFlags.length ? ` ${buildArgFlags.join(' ')}` : '';
 
       if (path)
         try {
           shellExec(
-            `cd ${path} && sudo podman build -f ./${
-              dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
-            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretArgs}${buildArgStr} --network host`,
+            `cd ${shellArgumentFactory(path)} && sudo podman build -f ${shellArgumentFactory(
+              `./${dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'}`,
+            )} -t ${shellArgumentFactory(imageName)} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretArgs}${buildArgStr} --network host`,
           );
         } finally {
           for (const file of secretTmpFiles) {
@@ -164,14 +164,14 @@ class UnderpostImage {
       const loadTarget = kind === true || kubeadm === true || k3s === true || dockerCompose === true;
       if (podmanSave === true || loadTarget) {
         if (fs.existsSync(tarFile)) fs.removeSync(tarFile);
-        shellExec(`podman save -o ${tarFile} ${podManImg}`);
+        shellExec(`podman save -o ${shellArgumentFactory(tarFile)} ${shellArgumentFactory(podManImg)}`);
       }
-      if (kind === true) shellExec(`sudo kind load image-archive ${tarFile}`);
-      else if (kubeadm === true) shellExec(`sudo ctr -n k8s.io images import ${tarFile}`);
-      else if (k3s === true) shellExec(`sudo k3s ctr images import ${tarFile}`);
+      if (kind === true) shellExec(`sudo kind load image-archive ${shellArgumentFactory(tarFile)}`);
+      else if (kubeadm === true) shellExec(`sudo ctr -n k8s.io images import ${shellArgumentFactory(tarFile)}`);
+      else if (k3s === true) shellExec(`sudo k3s ctr images import ${shellArgumentFactory(tarFile)}`);
       // Independent of any cluster target: make the local image available to the
       // Docker daemon so `docker compose` can resolve it (e.g. ENGINE_CYBERIA_IMAGE).
-      if (dockerCompose === true) shellExec(`sudo docker load -i ${tarFile}`);
+      if (dockerCompose === true) shellExec(`sudo docker load -i ${shellArgumentFactory(tarFile)}`);
     },
     /**
      * @method importTar
@@ -197,19 +197,19 @@ class UnderpostImage {
       }
       const targets = [];
       if (kind === true) {
-        shellExec(`sudo kind load image-archive ${importTar}`);
+        shellExec(`sudo kind load image-archive ${shellArgumentFactory(importTar)}`);
         targets.push('kind');
       }
       if (kubeadm === true) {
-        shellExec(`sudo ctr -n k8s.io images import ${importTar}`);
+        shellExec(`sudo ctr -n k8s.io images import ${shellArgumentFactory(importTar)}`);
         targets.push('kubeadm');
       }
       if (k3s === true) {
-        shellExec(`sudo k3s ctr images import ${importTar}`);
+        shellExec(`sudo k3s ctr images import ${shellArgumentFactory(importTar)}`);
         targets.push('k3s');
       }
       if (dockerCompose === true) {
-        shellExec(`sudo docker load -i ${importTar}`);
+        shellExec(`sudo docker load -i ${shellArgumentFactory(importTar)}`);
         targets.push('docker-compose');
       }
       if (targets.length === 0)
@@ -232,7 +232,7 @@ class UnderpostImage {
     getCurrentLoaded(node = 'kind-worker', options = { spec: false, namespace: '' }) {
       if (options.spec) {
         const raw = shellExec(
-          `kubectl get pods ${options.namespace ? `--namespace ${options.namespace}` : `--all-namespaces`} -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+          `kubectl get pods ${options.namespace ? `--namespace ${shellArgumentFactory(options.namespace)}` : `--all-namespaces`} -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
           {
             stdout: true,
             silent: true,
@@ -249,7 +249,9 @@ class UnderpostImage {
       // Outside kind, target the live CRI endpoint explicitly: /etc/crictl.yaml
       // may still point at a CRI-O socket the host no longer runs.
       const raw = shellExec(
-        node === 'kind-worker' ? `docker exec -i ${node} crictl images` : crictlCommandFactory('images', options || {}),
+        node === 'kind-worker'
+          ? `docker exec -i ${shellArgumentFactory(node)} crictl images`
+          : crictlCommandFactory('images', options || {}),
         {
           stdout: true,
           silent: true,
@@ -315,12 +317,12 @@ class UnderpostImage {
     rm(options = { imageName: '', k3s: false, kubeadm: false, kind: false }) {
       let { imageName, k3s, kubeadm, kind } = options;
       if (kind === true) {
-        shellExec(`docker exec -i kind-control-plane crictl rmi ${imageName}`);
-        shellExec(`docker exec -i kind-worker crictl rmi ${imageName}`);
+        shellExec(`docker exec -i kind-control-plane crictl rmi ${shellArgumentFactory(imageName)}`);
+        shellExec(`docker exec -i kind-worker crictl rmi ${shellArgumentFactory(imageName)}`);
       } else if (kubeadm === true) {
-        shellExec(crictlCommandFactory(`rmi ${imageName}`));
+        shellExec(crictlCommandFactory(`rmi ${shellArgumentFactory(imageName)}`));
       } else if (k3s === true) {
-        shellExec(`sudo k3s ctr images rm ${imageName}`);
+        shellExec(`sudo k3s ctr images rm ${shellArgumentFactory(imageName)}`);
       }
     },
     /**
@@ -384,10 +386,10 @@ class UnderpostImage {
         return;
       }
       if (targetKind) {
-        shellExec(`docker pull ${image}`);
-        shellExec(`sudo kind load docker-image ${image}`);
+        shellExec(`docker pull ${shellArgumentFactory(image)}`);
+        shellExec(`sudo kind load docker-image ${shellArgumentFactory(image)}`);
       } else {
-        shellExec(crictlCommandFactory(`pull ${image}`, { k3s: targetK3s }));
+        shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(image)}`, { k3s: targetK3s }));
       }
     },
   };

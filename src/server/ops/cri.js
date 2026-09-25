@@ -7,7 +7,7 @@
  * @namespace CriEndpoint
  */
 
-import { shellExec } from '../runtime/process.js';
+import { shellArgumentFactory, shellExec } from '../runtime/process.js';
 
 const CRIO_SOCKET_PATH = '/var/run/crio/crio.sock';
 
@@ -63,7 +63,7 @@ const resolveCriSocket = (options = {}) => {
  * @memberof CriEndpoint
  */
 const crictlCommandFactory = (args, options = {}) => {
-  const socket = resolveCriSocket(options);
+  const socket = shellArgumentFactory(resolveCriSocket(options));
   return `sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint ${socket} --image-endpoint ${socket} ${args}`;
 };
 

@@ -12,7 +12,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
-import { pbcopy, shellCd, shellExec } from '../server/runtime/process.js';
+import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
 import { Dns } from '../server/network/dns.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
@@ -533,7 +533,7 @@ class UnderpostRelease {
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
       shellCd('/home/dd');
       shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
-      shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
+      shellExec(`node engine/bin clone ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`);
       // Use the message passed from the caller (engine repo changelog);
       // fall back to the engine repo's last commit if not provided.
       let commitMsg = message;
@@ -547,19 +547,19 @@ class UnderpostRelease {
       }
       commitMsg = (commitMsg || '').trim() || `Update ${repoName} repository`;
       logger.info(`CI push commit message: ${commitMsg}`);
-      shellExec(`node engine/bin clone --bare ${githubOrg}/${repoName}`);
+      shellExec(`node engine/bin clone --bare ${shellArgumentFactory(`${githubOrg}/${repoName}`)}`);
       shellCd('/home/dd/engine');
       // `--coverage` runs the suites the deploy's `docs.coverage` names so the published
       // source carries the reports; without it the pod serves the unavailable page.
-      shellExec(`node bin/build ${buildTarget} --coverage`);
+      shellExec(`node bin/build ${shellArgumentFactory(buildTarget)} --coverage`);
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`rm -rf ./.git`);
-      shellExec(`mv ../${repoName}.git ./.git`);
+      shellExec(`mv ${shellArgumentFactory(`../${repoName}.git`)} ./.git`);
       shellExec(`git config --local core.bare false`);
       shellExec(`git reset`);
       Underpost.repo.initLocalRepo({ path: '/home/dd/pwa-microservices-template' });
       return {
-        triggerCmd: `cd /home/dd/pwa-microservices-template && git add . && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`,
+        triggerCmd: `cd /home/dd/pwa-microservices-template && git add . && git commit -m ${shellArgumentFactory(commitMsg)} && node ../engine/bin push . ${shellArgumentFactory(`${githubOrg}/${repoName}`)}`,
       };
     },
 
@@ -592,15 +592,14 @@ class UnderpostRelease {
       commitMsg = (commitMsg || '').trim() || `Update pwa-microservices-template repository`;
       shellCd('/home/dd');
       shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
-      shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
+      shellExec(`node engine/bin clone ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`);
       shellCd('/home/dd/engine');
       shellExec(`npm run build:template`);
       shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`git add .`);
-      // shellExec(`git commit -m "${commitMsg}"`);
       return {
-        triggerCmd: `node bin push . ${githubOrg}/engine && cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/pwa-microservices-template`,
+        triggerCmd: `node bin push . ${shellArgumentFactory(`${githubOrg}/engine`)} && cd /home/dd/pwa-microservices-template && git commit -m ${shellArgumentFactory(commitMsg)} && node ../engine/bin push . ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`,
       };
     },
 
@@ -626,10 +625,14 @@ class UnderpostRelease {
       shellExec(`node bin host load`);
       shellExec(`node bin/build dd --conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
-      shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${version}'`);
+      shellExec(
+        `node bin cmt . ci package-pwa-microservices-template ${shellArgumentFactory(`New release v:${version}`)}`,
+      );
       shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
-      shellExec(`node bin push . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
+      shellExec(`node bin push . ${shellArgumentFactory(`${process.env.GITHUB_USERNAME}/engine`)}`);
+      shellExec(
+        `cd ./engine-private && node ../bin push . ${shellArgumentFactory(`${process.env.GITHUB_USERNAME}/engine-private`)}`,
+      );
     },
   };
 }
