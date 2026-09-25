@@ -10,37 +10,24 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
  * @title ObjectLayerToken
- * @dev A unified ERC-1155 multi-token contract for the Cyberia Online Object Layer ecosystem.
- *
- * A single ERC-1155 contract that represents both fungible and non-fungible tokens
- * within the Object Layer paradigm.
+ * @dev The ItemLedger ERC-1155 contract: one token type per registered Object Layer.
  *
  * Token ID semantics:
- *   - Token ID 0 (CRYPTOKOYN): Fungible in-game currency.
- *     Minted with 18-decimal supply; divisible and stackable.
- *   - Token IDs >= 1: Object Layer item tokens. Each token ID is derived from
- *     `uint256(keccak256(abi.encodePacked(namespace, itemId)))`.
+ *   - Token ID 0 (CRYPTOKOYN): fungible currency, minted with 18-decimal supply.
+ *   - Any other token ID is `uint256(contentHash)`, where `contentHash` is the sha2-256 of the
+ *     canonical Object Layer bytes: the digest the Object Layer CID carries. The same content
+ *     always gives the same token id; two definitions with different content give different
+ *     ids, whatever item label they share. No label, owner, contract or textual encoding
+ *     takes part in the derivation.
  *     - Supply of 1 → non-fungible (unique gear).
  *     - Supply > 1 → semi-fungible (stackable resources, consumables).
  *
- * Object Layer mapping:
- *   Each on-chain token ID corresponds to an off-chain ObjectLayer document whose
- *   `data.ledger` field references this contract:
- *     {
- *       "type": "ERC-1155",
- *       "address": "<this contract address>",
- *       "tokenId": "<uint256 token id>"
- *     }
+ * A registered definition is immutable: the token id is its content. The CID a token id
+ * resolves to is computed from the digest (CIDv1, raw, sha2-256, base32), never stored, never
+ * changed. Content lives on IPFS under that CID; ownership is the ERC-1155 balance of each holder.
  *
- *   The token URI resolves to `ipfs://{metadataCid}/{tokenId}.json` where
- *   metadataCid is the IPFS CID stored in `data.render.metadataCid`.
- *
- * Features:
- *   - Mint / batch-mint (owner only) — register new Object Layer items on-chain.
- *   - Burn / batch-burn — holders can destroy tokens.
- *   - Pause / unpause — owner can freeze all transfers (emergency governance).
- *   - Supply tracking — on-chain total supply per token ID via ERC1155Supply.
- *   - On-chain item registry — maps token IDs to IPFS metadata CIDs and item identifiers.
+ * The token URI resolves to `{baseURI}{objectLayerCid}`. The base URI is presentation
+ * configuration, the one mutable value here.
  *
  * Designed for deployment on Hyperledger Besu (IBFT2/QBFT) private networks via Hardhat.
  */
@@ -59,6 +46,16 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
    */
   uint256 public constant INITIAL_CRYPTOKOYN_SUPPLY = 10_000_000 * 1e18;
 
+  /**
+   * @dev Multicodec prefix of the Object Layer CID: CIDv1, raw codec, sha2-256, 32-byte digest.
+   */
+  bytes4 private constant CID_V1_RAW_SHA256_PREFIX = 0x01551220;
+
+  /**
+   * @dev Lower-case RFC 4648 base32 alphabet, the CIDv1 base32 multibase.
+   */
+  bytes private constant BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+
   // ──────────────────────────────────────────────────────────────────────
   // State
   // ──────────────────────────────────────────────────────────────────────
@@ -69,68 +66,35 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   string private _baseTokenURI;
 
   /**
-   * @dev Per-token-ID metadata CID override. When set, the full URI becomes
-   *      `{_baseTokenURI}{_tokenCIDs[id]}`.
+   * @dev Token ids registered as Object Layers.
    */
-  mapping(uint256 => string) private _tokenCIDs;
-
-  /**
-   * @dev Human-readable item identifier for each registered token ID.
-   *      Maps tokenId → itemId string (e.g. "hatchet", "gold-ore").
-   */
-  mapping(uint256 => string) private _itemIds;
-
-  /**
-   * @dev Reverse lookup: keccak256(itemId) → tokenId. Used to prevent duplicate registrations.
-   */
-  mapping(bytes32 => uint256) private _itemIdToTokenId;
-
-  /**
-   * @dev Counter tracking the next sequential token ID for auto-registration.
-   *      Starts at 1 because token ID 0 is reserved for CRYPTOKOYN.
-   */
-  uint256 private _nextTokenId;
+  mapping(uint256 => bool) private _registered;
 
   // ──────────────────────────────────────────────────────────────────────
   // Events
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Emitted when a new Object Layer item is registered on-chain.
-   * @param tokenId The ERC-1155 token ID assigned to this item.
-   * @param itemId The human-readable item identifier (e.g. "hatchet").
-   * @param metadataCid The IPFS CID pointing to the item's metadata JSON.
+   * @dev Emitted when an Object Layer is registered on-chain.
+   * @param tokenId The ERC-1155 token ID: the content hash as uint256.
+   * @param contentHash The sha2-256 of the canonical Object Layer bytes.
+   * @param objectLayerCid The canonical Object Layer CID.
    * @param initialSupply The number of tokens minted in the registration transaction.
    */
-  event ObjectLayerRegistered(uint256 indexed tokenId, string itemId, string metadataCid, uint256 initialSupply);
-
-  /**
-   * @dev Emitted when a token's metadata CID is updated.
-   * @param tokenId The ERC-1155 token ID whose metadata was updated.
-   * @param metadataCid The new IPFS CID.
-   */
-  event MetadataUpdated(uint256 indexed tokenId, string metadataCid);
+  event ObjectLayerRegistered(uint256 indexed tokenId, bytes32 contentHash, string objectLayerCid, uint256 initialSupply);
 
   // ──────────────────────────────────────────────────────────────────────
   // Constructor
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Deploys the contract, mints the initial CryptoKoyn supply to the deployer,
-   *      and registers token ID 0 as the fungible currency.
+   * @dev Deploys the contract and mints the initial CryptoKoyn supply to the deployer.
    * @param initialOwner The address that will own the contract and receive the initial supply.
    * @param baseURI The base URI prefix for metadata resolution (e.g. "ipfs://").
    */
   constructor(address initialOwner, string memory baseURI) ERC1155(baseURI) Ownable(initialOwner) {
     _baseTokenURI = baseURI;
-    _nextTokenId = 1;
-
-    // Register and mint the fungible currency token
-    _itemIds[CRYPTOKOYN] = 'cryptokoyn';
-    _itemIdToTokenId[keccak256(abi.encodePacked('cryptokoyn'))] = CRYPTOKOYN;
     _mint(initialOwner, CRYPTOKOYN, INITIAL_CRYPTOKOYN_SUPPLY, '');
-
-    emit ObjectLayerRegistered(CRYPTOKOYN, 'cryptokoyn', '', INITIAL_CRYPTOKOYN_SUPPLY);
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -138,16 +102,14 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Returns the metadata URI for a given token ID.
-   *      If a per-token CID is set, returns `{baseURI}{cid}`.
-   *      Otherwise falls back to the ERC-1155 default `{baseURI}{id}.json`.
+   * @dev Returns the metadata URI for a token ID: `{baseURI}{objectLayerCid}` for a
+   *      registered Object Layer, the ERC-1155 default otherwise.
    * @param tokenId The token ID to query.
    * @return The full metadata URI string.
    */
   function uri(uint256 tokenId) public view override returns (string memory) {
-    string memory tokenCid = _tokenCIDs[tokenId];
-    if (bytes(tokenCid).length > 0) {
-      return string(abi.encodePacked(_baseTokenURI, tokenCid));
+    if (_registered[tokenId]) {
+      return string(abi.encodePacked(_baseTokenURI, _cidOf(bytes32(tokenId))));
     }
     return super.uri(tokenId);
   }
@@ -161,124 +123,84 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     _setURI(newBaseURI);
   }
 
-  /**
-   * @dev Sets or updates the IPFS metadata CID for a specific token ID.
-   *      Only callable by the owner.
-   * @param tokenId The token ID to update.
-   * @param metadataCid The new IPFS CID string.
-   */
-  function setTokenMetadataCID(uint256 tokenId, string calldata metadataCid) external onlyOwner {
-    _tokenCIDs[tokenId] = metadataCid;
-    emit MetadataUpdated(tokenId, metadataCid);
-    emit URI(uri(tokenId), tokenId);
-  }
-
   // ──────────────────────────────────────────────────────────────────────
   // Object Layer Registration
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Computes the deterministic token ID for a given item identifier.
-   * @param itemId The human-readable item identifier string.
-   * @return The uint256 token ID derived from keccak256.
+   * @dev The token ID of an Object Layer: its content hash as a uint256.
+   * @param contentHash The sha2-256 of the canonical Object Layer bytes.
+   * @return The uint256 token ID.
    */
-  function computeTokenId(string calldata itemId) public pure returns (uint256) {
-    return uint256(keccak256(abi.encodePacked('cyberia.object-layer:', itemId)));
+  function computeTokenId(bytes32 contentHash) public pure returns (uint256) {
+    return uint256(contentHash);
   }
 
   /**
-   * @dev Registers a new Object Layer item on-chain and mints the initial supply.
-   *      The token ID is deterministically derived from the item identifier.
-   *      Reverts if the item identifier has already been registered.
+   * @dev The content hash a token ID represents.
+   * @param tokenId The token ID.
+   * @return The sha2-256 of the canonical Object Layer bytes.
+   */
+  function contentHashOf(uint256 tokenId) public pure returns (bytes32) {
+    return bytes32(tokenId);
+  }
+
+  /**
+   * @dev Registers an Object Layer on-chain and mints the initial supply.
+   *      Reverts if the content hash is zero, is the currency id, or is already registered.
    *
    *      For unique (non-fungible) items, set `initialSupply` to 1.
    *      For stackable (semi-fungible) items, set `initialSupply` > 1.
    *
    * @param to The address to receive the minted tokens.
-   * @param itemId The human-readable item identifier (e.g. "hatchet", "gold-ore").
-   * @param metadataCid The IPFS CID for the item's metadata JSON.
+   * @param contentHash The sha2-256 of the canonical Object Layer bytes.
    * @param initialSupply The number of tokens to mint.
    * @param data Additional data forwarded to the ERC-1155 receiver hook.
-   * @return tokenId The assigned ERC-1155 token ID.
+   * @return tokenId The ERC-1155 token ID.
    */
   function registerObjectLayer(
     address to,
-    string calldata itemId,
-    string calldata metadataCid,
+    bytes32 contentHash,
     uint256 initialSupply,
     bytes calldata data
   ) external onlyOwner returns (uint256 tokenId) {
-    bytes32 itemHash = keccak256(abi.encodePacked(itemId));
-    require(
-      (_itemIdToTokenId[itemHash] == 0 && bytes(_itemIds[0]).length > 0) || _itemIdToTokenId[itemHash] == 0,
-      'ObjectLayerToken: item already registered'
-    );
-
-    tokenId = computeTokenId(itemId);
-
-    // Prevent collision with an existing different item at the same hash-derived ID
-    require(bytes(_itemIds[tokenId]).length == 0, 'ObjectLayerToken: token ID collision');
-
-    _itemIds[tokenId] = itemId;
-    _itemIdToTokenId[itemHash] = tokenId;
-
-    if (bytes(metadataCid).length > 0) {
-      _tokenCIDs[tokenId] = metadataCid;
-    }
-
+    tokenId = _register(contentHash, initialSupply);
     if (initialSupply > 0) {
       _mint(to, tokenId, initialSupply, data);
     }
-
-    emit ObjectLayerRegistered(tokenId, itemId, metadataCid, initialSupply);
   }
 
   /**
-   * @dev Batch-registers multiple Object Layer items in a single transaction.
+   * @dev Batch-registers Object Layers in a single transaction.
    * @param to The address to receive all minted tokens.
-   * @param itemIds Array of human-readable item identifiers.
-   * @param metadataCids Array of IPFS CIDs for each item's metadata.
-   * @param supplies Array of initial supply amounts for each item.
+   * @param contentHashes Array of canonical content hashes.
+   * @param supplies Array of initial supply amounts for each Object Layer.
    * @param data Additional data forwarded to the ERC-1155 receiver hook.
-   * @return tokenIds Array of assigned ERC-1155 token IDs.
+   * @return tokenIds Array of ERC-1155 token IDs.
    */
   function batchRegisterObjectLayers(
     address to,
-    string[] calldata itemIds,
-    string[] calldata metadataCids,
+    bytes32[] calldata contentHashes,
     uint256[] calldata supplies,
     bytes calldata data
   ) external onlyOwner returns (uint256[] memory tokenIds) {
-    require(
-      itemIds.length == metadataCids.length && itemIds.length == supplies.length,
-      'ObjectLayerToken: array length mismatch'
-    );
+    require(contentHashes.length == supplies.length, 'ObjectLayerToken: array length mismatch');
 
-    tokenIds = new uint256[](itemIds.length);
-    uint256[] memory mintIds = new uint256[](itemIds.length);
-    uint256[] memory mintAmounts = new uint256[](itemIds.length);
-
-    for (uint256 i = 0; i < itemIds.length; i++) {
-      uint256 tokenId = computeTokenId(itemIds[i]);
-
-      require(bytes(_itemIds[tokenId]).length == 0, 'ObjectLayerToken: item already registered or token ID collision');
-
-      bytes32 itemHash = keccak256(abi.encodePacked(itemIds[i]));
-      _itemIds[tokenId] = itemIds[i];
-      _itemIdToTokenId[itemHash] = tokenId;
-
-      if (bytes(metadataCids[i]).length > 0) {
-        _tokenCIDs[tokenId] = metadataCids[i];
-      }
-
-      tokenIds[i] = tokenId;
-      mintIds[i] = tokenId;
-      mintAmounts[i] = supplies[i];
-
-      emit ObjectLayerRegistered(tokenId, itemIds[i], metadataCids[i], supplies[i]);
+    tokenIds = new uint256[](contentHashes.length);
+    for (uint256 i = 0; i < contentHashes.length; i++) {
+      tokenIds[i] = _register(contentHashes[i], supplies[i]);
     }
 
-    _mintBatch(to, mintIds, mintAmounts, data);
+    _mintBatch(to, tokenIds, supplies, data);
+  }
+
+  function _register(bytes32 contentHash, uint256 initialSupply) private returns (uint256 tokenId) {
+    tokenId = uint256(contentHash);
+    require(tokenId != CRYPTOKOYN, 'ObjectLayerToken: empty content hash');
+    require(!_registered[tokenId], 'ObjectLayerToken: object layer already registered');
+
+    _registered[tokenId] = true;
+    emit ObjectLayerRegistered(tokenId, contentHash, _cidOf(contentHash), initialSupply);
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -286,19 +208,19 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Mints additional supply for an existing token ID. Only callable by the owner.
+   * @dev Mints additional supply of CryptoKoyn or of a registered Object Layer. Only callable by the owner.
    * @param to The address to receive the minted tokens.
    * @param tokenId The token ID to mint.
    * @param amount The number of tokens to mint.
    * @param data Additional data forwarded to the ERC-1155 receiver hook.
    */
   function mint(address to, uint256 tokenId, uint256 amount, bytes calldata data) external onlyOwner {
+    require(_isMintable(tokenId), 'ObjectLayerToken: token not registered');
     _mint(to, tokenId, amount, data);
   }
 
   /**
-   * @dev Batch-mints additional supply for multiple existing token IDs.
-   *      Only callable by the owner.
+   * @dev Batch-mints additional supply for several token IDs. Only callable by the owner.
    * @param to The address to receive all minted tokens.
    * @param ids Array of token IDs.
    * @param amounts Array of amounts to mint for each token ID.
@@ -310,7 +232,14 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     uint256[] calldata amounts,
     bytes calldata data
   ) external onlyOwner {
+    for (uint256 i = 0; i < ids.length; i++) {
+      require(_isMintable(ids[i]), 'ObjectLayerToken: token not registered');
+    }
     _mintBatch(to, ids, amounts, data);
+  }
+
+  function _isMintable(uint256 tokenId) private view returns (bool) {
+    return tokenId == CRYPTOKOYN || _registered[tokenId];
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -337,38 +266,46 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Returns the item identifier for a given token ID.
+   * @dev The canonical Object Layer CID a registered token ID represents.
    * @param tokenId The token ID to look up.
-   * @return The human-readable item identifier string.
+   * @return The Object Layer CID (empty if not registered).
    */
-  function getItemId(uint256 tokenId) external view returns (string memory) {
-    return _itemIds[tokenId];
+  function getObjectLayerCid(uint256 tokenId) external view returns (string memory) {
+    if (!_registered[tokenId]) return '';
+    return _cidOf(bytes32(tokenId));
   }
 
   /**
-   * @dev Returns the token ID for a given item identifier.
-   * @param itemId The human-readable item identifier.
-   * @return The ERC-1155 token ID (0 if not registered, but 0 is also CRYPTOKOYN).
-   */
-  function getTokenIdByItemId(string calldata itemId) external view returns (uint256) {
-    return _itemIdToTokenId[keccak256(abi.encodePacked(itemId))];
-  }
-
-  /**
-   * @dev Returns the IPFS metadata CID for a given token ID.
+   * @dev Whether a token ID is a registered Object Layer.
    * @param tokenId The token ID to look up.
-   * @return The IPFS CID string (empty if not set).
    */
-  function getMetadataCID(uint256 tokenId) external view returns (string memory) {
-    return _tokenCIDs[tokenId];
+  function isRegistered(uint256 tokenId) external view returns (bool) {
+    return _registered[tokenId];
   }
 
   /**
-   * @dev Returns the next auto-incremented token ID (informational only;
-   *      `registerObjectLayer` uses deterministic IDs from keccak256).
+   * @dev CIDv1 / raw / sha2-256 / base32 of a content hash: `b` + base32(0x01551220 ‖ digest).
    */
-  function nextTokenId() external view returns (uint256) {
-    return _nextTokenId;
+  function _cidOf(bytes32 contentHash) private pure returns (string memory) {
+    bytes memory raw = abi.encodePacked(CID_V1_RAW_SHA256_PREFIX, contentHash);
+    // 36 bytes = 288 bits = 57 groups of 5 bits and 3 remaining bits: 58 characters.
+    bytes memory out = new bytes(59);
+    out[0] = 'b';
+    uint256 buffer = 0;
+    uint256 bits = 0;
+    uint256 cursor = 1;
+    for (uint256 i = 0; i < raw.length; i++) {
+      buffer = (buffer << 8) | uint8(raw[i]);
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        out[cursor++] = BASE32_ALPHABET[(buffer >> bits) & 31];
+      }
+    }
+    if (bits > 0) {
+      out[cursor++] = BASE32_ALPHABET[(buffer << (5 - bits)) & 31];
+    }
+    return string(out);
   }
 
   // ──────────────────────────────────────────────────────────────────────

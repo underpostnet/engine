@@ -21,14 +21,15 @@ const __dirname = path.dirname(__filename);
  * @module scripts/deployObjectLayerToken
  */
 async function main() {
-  const [deployerClient] = await hre.viem.getWalletClients();
+  const { viem, networkName } = await hre.network.connect();
+  const [deployerClient] = await viem.getWalletClients();
   const deployerAddress = deployerClient.account.address;
-  const publicClient = await hre.viem.getPublicClient();
+  const publicClient = await viem.getPublicClient();
 
   console.log('──────────────────────────────────────────────────');
   console.log('Deploying ObjectLayerToken (ERC-1155)');
   console.log('──────────────────────────────────────────────────');
-  console.log('  Network :', hre.network.name);
+  console.log('  Network :', networkName);
   console.log('  Deployer:', deployerAddress);
 
   const balance = await publicClient.getBalance({ address: deployerAddress });
@@ -40,7 +41,11 @@ async function main() {
   // or fall back to: ipfs://<tokenId>.json
   const baseURI = 'ipfs://';
 
-  const token = await hre.viem.deployContract('ObjectLayerToken', [deployerAddress, baseURI]);
+  const { contract: token, deploymentTransaction } = await viem.sendDeploymentTransaction('ObjectLayerToken', [
+    deployerAddress,
+    baseURI,
+  ]);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: deploymentTransaction.hash });
   const deployedAddress = token.address;
 
   console.log('  ObjectLayerToken deployed to:', deployedAddress);
@@ -49,7 +54,7 @@ async function main() {
   // ── Verify initial state ──────────────────────────────────────────────
 
   const cryptokoynId = await token.read.CRYPTOKOYN();
-  const cryptokoynSupply = await token.read['totalSupply(uint256)']([cryptokoynId]);
+  const cryptokoynSupply = await token.read.totalSupply([cryptokoynId]);
   const deployerCryptokoynBalance = await token.read.balanceOf([deployerAddress, cryptokoynId]);
 
   console.log('  CryptoKoyn (token ID 0):');
@@ -62,10 +67,12 @@ async function main() {
   const chainId = (await publicClient.getChainId()).toString();
 
   const deploymentInfo = {
-    network: hre.network.name,
+    network: networkName,
     chainId,
     contract: 'ObjectLayerToken',
     address: deployedAddress,
+    // The first block the ItemLedger indexer projects: the constructor mints CKY here.
+    blockNumber: Number(receipt.blockNumber),
     deployer: deployerAddress,
     baseURI: baseURI,
     cryptokoynTokenId: cryptokoynId.toString(),
@@ -81,7 +88,7 @@ async function main() {
   const deploymentsDir = path.join(__dirname, '..', 'deployments');
   await fs.ensureDir(deploymentsDir);
 
-  const artifactPath = path.join(deploymentsDir, `${hre.network.name}-ObjectLayerToken.json`);
+  const artifactPath = path.join(deploymentsDir, `${networkName}-ObjectLayerToken.json`);
   await fs.writeJson(artifactPath, deploymentInfo, { spaces: 2 });
   console.log('  Deployment artifact written to:', artifactPath);
 

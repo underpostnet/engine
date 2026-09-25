@@ -1,23 +1,45 @@
 import { describe, it, beforeEach } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { expect } from 'chai';
 import hre from 'hardhat';
-import { parseEther, keccak256, toBytes, getAddress } from 'viem';
+import { parseEther, getAddress } from 'viem';
+
+// The identity vectors are the cross-language contract: Node computes the canonical bytes, an
+// independent implementation hashed and encoded them, and Solidity must agree here.
+const vectors = JSON.parse(readFileSync(new URL('../../test/support/object-layer-identity-vectors.json', import.meta.url)));
+const definition = (label) => vectors.definitions.find((v) => v.label === label);
+const HATCHET_A = definition('hatchet-a');
+const HATCHET_B = definition('hatchet-b');
+const GOLD_ORE = definition('gold-ore');
+const hash = (vector) => `0x${vector.contentHash}`;
+const tokenIdOf = (vector) => BigInt(vector.tokenId);
 
 describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
   let token;
   let ownerAddress;
   let player1Address;
   let player2Address;
-  let receiverAddress;
   let ownerClient;
   let player1Client;
   let player2Client;
-  let receiverClient;
   let viem;
 
   const BASE_URI = 'ipfs://';
   const CRYPTOKOYN_ID = 0n;
   const INITIAL_SUPPLY = parseEther('10000000'); // 10M with 18 decimals
+
+  const asPlayer1 = async () =>
+    await viem.getContractAt('ObjectLayerToken', token.address, { client: { wallet: player1Client } });
+  const asPlayer2 = async () =>
+    await viem.getContractAt('ObjectLayerToken', token.address, { client: { wallet: player2Client } });
+  const expectRevert = async (promise, message) => {
+    try {
+      await promise;
+      expect.fail('Expected revert');
+    } catch (err) {
+      expect(err.message).to.include(message);
+    }
+  };
 
   beforeEach(async function () {
     const ctx = await hre.network.getOrCreate();
@@ -27,11 +49,9 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
     ownerClient = clients[0];
     player1Client = clients[1];
     player2Client = clients[2];
-    receiverClient = clients[3];
     ownerAddress = getAddress(ownerClient.account.address);
     player1Address = getAddress(player1Client.account.address);
     player2Address = getAddress(player2Client.account.address);
-    receiverAddress = getAddress(receiverClient.account.address);
 
     token = await viem.deployContract('ObjectLayerToken', [ownerAddress, BASE_URI]);
   });
@@ -56,9 +76,13 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       expect(supply).to.equal(INITIAL_SUPPLY);
     });
 
-    it('Should register cryptokoyn as the item ID for token 0', async function () {
-      const itemId = await token.read.getItemId([CRYPTOKOYN_ID]);
-      expect(itemId).to.equal('cryptokoyn');
+    it('Should keep CryptoKoyn outside the Object Layer registry', async function () {
+      expect(await token.read.getObjectLayerCid([CRYPTOKOYN_ID])).to.equal('');
+      expect(await token.read.isRegistered([CRYPTOKOYN_ID])).to.equal(false);
+      await expectRevert(
+        token.write.registerObjectLayer([ownerAddress, `0x${'0'.repeat(64)}`, 1n, '0x']),
+        'empty content hash',
+      );
     });
 
     it('Should return CRYPTOKOYN constant as 0', async function () {
@@ -73,6 +97,27 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
   });
 
   // ────────────────────────────────────────────────────────────────────
+  // Identity vectors: Solidity agrees with the independent derivation
+  // ────────────────────────────────────────────────────────────────────
+
+  describe('Identity vectors', function () {
+    for (const vector of [...vectors.definitions, ...vectors.anchors]) {
+      it(`Should derive the token id and the CID of ${vector.label}`, async function () {
+        expect(await token.read.computeTokenId([hash(vector)])).to.equal(BigInt(vector.tokenId));
+        expect(await token.read.contentHashOf([BigInt(vector.tokenId)])).to.equal(hash(vector));
+        await token.write.registerObjectLayer([ownerAddress, hash(vector), 0n, '0x']);
+        expect(await token.read.getObjectLayerCid([BigInt(vector.tokenId)])).to.equal(vector.cid);
+        expect(await token.read.uri([BigInt(vector.tokenId)])).to.equal(`${BASE_URI}${vector.cid}`);
+      });
+    }
+
+    it('Should give different definitions of one item label different token ids', async function () {
+      expect(HATCHET_A.canonical.data.item.id).to.equal(HATCHET_B.canonical.data.item.id);
+      expect(tokenIdOf(HATCHET_A)).to.not.equal(tokenIdOf(HATCHET_B));
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────
   // URI
   // ────────────────────────────────────────────────────────────────────
 
@@ -82,79 +127,23 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       expect(tokenUri).to.equal(BASE_URI);
     });
 
-    it('Should return per-token CID URI when set', async function () {
-      const testCid = 'bafkreia1234567890abcdef';
-      await token.write.setTokenMetadataCID([CRYPTOKOYN_ID, testCid]);
-
-      const tokenUri = await token.read.uri([CRYPTOKOYN_ID]);
-      expect(tokenUri).to.equal(`${BASE_URI}${testCid}`);
-    });
-
-    it('Should allow owner to update base URI', async function () {
-      const newBase = 'https://meta.cyberiaonline.com/';
+    it('Should allow owner to update base URI, the one mutable presentation value', async function () {
+      const newBase = 'https://meta.itemledger.com/';
       await token.write.setBaseURI([newBase]);
-
-      const testCid = 'testcid123';
-      await token.write.setTokenMetadataCID([CRYPTOKOYN_ID, testCid]);
-
-      const tokenUri = await token.read.uri([CRYPTOKOYN_ID]);
-      expect(tokenUri).to.equal(`${newBase}${testCid}`);
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      expect(await token.read.uri([tokenIdOf(HATCHET_A)])).to.equal(`${newBase}${HATCHET_A.cid}`);
     });
 
     it('Should revert setBaseURI from non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.setBaseURI(['https://evil.com/']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert((await asPlayer1()).write.setBaseURI(['https://evil.com/']), 'OwnableUnauthorizedAccount');
     });
 
-    it('Should revert setTokenMetadataCID from non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.setTokenMetadataCID([CRYPTOKOYN_ID, 'evilcid']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
-    });
-
-    it('Should emit MetadataUpdated and URI events on setTokenMetadataCID', async function () {
-      const cid = 'bafkrei_test_meta';
-      await token.write.setTokenMetadataCID([42n, cid]);
-      const uri = await token.read.uri([42n]);
-      expect(uri).to.equal(`${BASE_URI}${cid}`);
-    });
-  });
-
-  // ────────────────────────────────────────────────────────────────────
-  // Token ID computation
-  // ────────────────────────────────────────────────────────────────────
-
-  describe('computeTokenId', function () {
-    it('Should return deterministic token IDs for item identifiers', async function () {
-      const id1 = await token.read.computeTokenId(['hatchet']);
-      const id2 = await token.read.computeTokenId(['hatchet']);
-      expect(id1).to.equal(id2);
-    });
-
-    it('Should return different token IDs for different item identifiers', async function () {
-      const id1 = await token.read.computeTokenId(['hatchet']);
-      const id2 = await token.read.computeTokenId(['sword']);
-      expect(id1).to.not.equal(id2);
-    });
-
-    it('Should match off-chain keccak256 computation', async function () {
-      const itemId = 'hatchet';
-      const expectedId = BigInt(keccak256(toBytes(`cyberia.object-layer:${itemId}`)));
-      const computedId = await token.read.computeTokenId([itemId]);
-      expect(computedId).to.equal(expectedId);
+    it('Should expose no way to change the content a token id resolves to', async function () {
+      const functions = token.abi.filter((entry) => entry.type === 'function').map((entry) => entry.name);
+      expect(functions).to.include('setBaseURI');
+      expect(functions).to.not.include('setTokenMetadataCID');
+      expect(functions).to.not.include('setURI');
+      expect(token.abi.filter((entry) => entry.type === 'event').map((entry) => entry.name)).to.not.include('MetadataUpdated');
     });
   });
 
@@ -163,96 +152,53 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
   // ────────────────────────────────────────────────────────────────────
 
   describe('registerObjectLayer', function () {
-    it('Should register a new object layer and mint tokens', async function () {
-      const itemId = 'axe';
-      const metadataCid = 'bafkreia_axe_meta';
-      const supply = 1n;
-
-      await token.write.registerObjectLayer([ownerAddress, itemId, metadataCid, supply, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.balanceOf([ownerAddress, tokenId])).to.equal(supply);
-      expect(await token.read.totalSupply([tokenId])).to.equal(supply);
+    it('Should register an Object Layer and mint tokens', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      expect(await token.read.balanceOf([ownerAddress, tokenIdOf(HATCHET_A)])).to.equal(1n);
+      expect(await token.read.totalSupply([tokenIdOf(HATCHET_A)])).to.equal(1n);
     });
 
-    it('Should store item ID and metadata CID on-chain', async function () {
-      const itemId = 'sword';
-      const metadataCid = 'bafkreia_sword_meta';
-      await token.write.registerObjectLayer([ownerAddress, itemId, metadataCid, 1n, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.getItemId([tokenId])).to.equal(itemId);
-      expect(await token.read.getMetadataCID([tokenId])).to.equal(metadataCid);
+    it('Should resolve the token ID back to its Object Layer CID', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      expect(await token.read.getObjectLayerCid([tokenIdOf(HATCHET_A)])).to.equal(HATCHET_A.cid);
+      expect(await token.read.isRegistered([tokenIdOf(HATCHET_A)])).to.equal(true);
     });
 
-    it('Should resolve URI via per-token CID after registration', async function () {
-      const itemId = 'shield';
-      const metadataCid = 'bafkreia_shield_meta';
-      await token.write.registerObjectLayer([ownerAddress, itemId, metadataCid, 1n, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.uri([tokenId])).to.equal(`${BASE_URI}${metadataCid}`);
+    it('Should register two definitions of one item label as two token types', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_B), 5n, '0x']);
+      expect(await token.read.getObjectLayerCid([tokenIdOf(HATCHET_A)])).to.equal(HATCHET_A.cid);
+      expect(await token.read.getObjectLayerCid([tokenIdOf(HATCHET_B)])).to.equal(HATCHET_B.cid);
+      expect(await token.read.totalSupply([tokenIdOf(HATCHET_A)])).to.equal(1n);
+      expect(await token.read.totalSupply([tokenIdOf(HATCHET_B)])).to.equal(5n);
     });
 
-    it('Should allow registration with zero supply (metadata-only)', async function () {
-      const itemId = 'scroll';
-      const metadataCid = 'bafkreia_scroll_meta';
-      await token.write.registerObjectLayer([ownerAddress, itemId, metadataCid, 0n, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.balanceOf([ownerAddress, tokenId])).to.equal(0n);
-      expect(await token.read.getItemId([tokenId])).to.equal(itemId);
+    it('Should allow registration with zero supply (registry-only)', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 0n, '0x']);
+      expect(await token.read.balanceOf([ownerAddress, tokenIdOf(HATCHET_A)])).to.equal(0n);
+      expect(await token.read.isRegistered([tokenIdOf(HATCHET_A)])).to.equal(true);
     });
 
-    it('Should allow registration with empty metadata CID', async function () {
-      const itemId = 'potion';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 1n, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.getMetadataCID([tokenId])).to.equal('');
-      expect(await token.read.balanceOf([ownerAddress, tokenId])).to.equal(1n);
-    });
-
-    it('Should register fungible (stackable) items with supply > 1', async function () {
-      const itemId = 'gold-ore';
+    it('Should register fungible (stackable) resources with supply > 1', async function () {
       const fungibleSupply = parseEther('1000000');
-      await token.write.registerObjectLayer([player1Address, itemId, 'bafkrei_gold', fungibleSupply, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.balanceOf([player1Address, tokenId])).to.equal(fungibleSupply);
-      expect(await token.read.totalSupply([tokenId])).to.equal(fungibleSupply);
+      await token.write.registerObjectLayer([player1Address, hash(GOLD_ORE), fungibleSupply, '0x']);
+      expect(await token.read.balanceOf([player1Address, tokenIdOf(GOLD_ORE)])).to.equal(fungibleSupply);
+      expect(await token.read.totalSupply([tokenIdOf(GOLD_ORE)])).to.equal(fungibleSupply);
     });
 
-    it('Should support getTokenIdByItemId reverse lookup', async function () {
-      const itemId = 'ring';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 1n, '0x']);
-
-      const tokenId = await token.read.computeTokenId([itemId]);
-      expect(await token.read.getTokenIdByItemId([itemId])).to.equal(tokenId);
-    });
-
-    it('Should revert on duplicate item ID collision at the token ID level', async function () {
-      const itemId = 'dup-item';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 1n, '0x']);
-
-      try {
-        await token.write.registerObjectLayer([ownerAddress, itemId, '', 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('item already registered');
-      }
+    it('Should revert when the same Object Layer is registered twice', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      await expectRevert(
+        token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']),
+        'object layer already registered',
+      );
     });
 
     it('Should revert when called by non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.registerObjectLayer([player1Address, 'nope', '', 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert(
+        (await asPlayer1()).write.registerObjectLayer([player1Address, hash(HATCHET_A), 1n, '0x']),
+        'OwnableUnauthorizedAccount',
+      );
     });
   });
 
@@ -261,55 +207,37 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
   // ────────────────────────────────────────────────────────────────────
 
   describe('batchRegisterObjectLayers', function () {
-    const items = ['b-sword', 'b-shield', 'b-potion', 'b-scroll'];
-    const cids = ['bafkrei_b_sword', 'bafkrei_b_shield', 'bafkrei_b_potion', 'bafkrei_b_scroll'];
-    const supplies = [1n, 1n, parseEther('100'), parseEther('50')];
+    const batch = [HATCHET_A, HATCHET_B, GOLD_ORE];
+    const supplies = [1n, 1n, parseEther('100')];
 
-    it('Should batch-register multiple object layers', async function () {
-      await token.write.batchRegisterObjectLayers([ownerAddress, items, cids, supplies, '0x']);
+    it('Should batch-register multiple Object Layers', async function () {
+      await token.write.batchRegisterObjectLayers([ownerAddress, batch.map(hash), supplies, '0x']);
 
-      for (let i = 0; i < items.length; i++) {
-        const tokenId = await token.read.computeTokenId([items[i]]);
-        expect(await token.read.balanceOf([ownerAddress, tokenId])).to.equal(supplies[i]);
-        expect(await token.read.getItemId([tokenId])).to.equal(items[i]);
-        expect(await token.read.getMetadataCID([tokenId])).to.equal(cids[i]);
+      for (let i = 0; i < batch.length; i++) {
+        expect(await token.read.balanceOf([ownerAddress, tokenIdOf(batch[i])])).to.equal(supplies[i]);
+        expect(await token.read.getObjectLayerCid([tokenIdOf(batch[i])])).to.equal(batch[i].cid);
       }
     });
 
     it('Should revert on array length mismatch', async function () {
-      try {
-        await token.write.batchRegisterObjectLayers([ownerAddress, ['a', 'b'], ['cid1'], [1n, 1n], '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('array length mismatch');
-      }
+      await expectRevert(
+        token.write.batchRegisterObjectLayers([ownerAddress, [hash(HATCHET_A), hash(HATCHET_B)], [1n], '0x']),
+        'array length mismatch',
+      );
     });
 
-    it('Should revert on duplicate within batch (token ID collision)', async function () {
-      try {
-        await token.write.batchRegisterObjectLayers([
-          ownerAddress,
-          ['dup-item-x', 'dup-item-x'],
-          ['cid1', 'cid2'],
-          [1n, 1n],
-          '0x',
-        ]);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('already registered or token ID collision');
-      }
+    it('Should revert on a duplicate within the batch', async function () {
+      await expectRevert(
+        token.write.batchRegisterObjectLayers([ownerAddress, [hash(HATCHET_A), hash(HATCHET_A)], [1n, 1n], '0x']),
+        'object layer already registered',
+      );
     });
 
     it('Should revert when called by non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.batchRegisterObjectLayers([player1Address, items, cids, supplies, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert(
+        (await asPlayer1()).write.batchRegisterObjectLayers([player1Address, batch.map(hash), supplies, '0x']),
+        'OwnableUnauthorizedAccount',
+      );
     });
   });
 
@@ -326,57 +254,51 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       expect(await token.read.totalSupply([CRYPTOKOYN_ID])).to.equal(INITIAL_SUPPLY + additionalAmount);
     });
 
-    it('Should mint additional supply for registered object layers', async function () {
-      const itemId = 'mint-arrow';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 100n, '0x']);
-      const tokenId = await token.read.computeTokenId([itemId]);
+    it('Should mint additional supply of a registered Object Layer', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(GOLD_ORE), 100n, '0x']);
+      await token.write.mint([player1Address, tokenIdOf(GOLD_ORE), 50n, '0x']);
+      expect(await token.read.balanceOf([player1Address, tokenIdOf(GOLD_ORE)])).to.equal(50n);
+      expect(await token.read.totalSupply([tokenIdOf(GOLD_ORE)])).to.equal(150n);
+    });
 
-      await token.write.mint([player1Address, tokenId, 50n, '0x']);
-      expect(await token.read.balanceOf([player1Address, tokenId])).to.equal(50n);
-      expect(await token.read.totalSupply([tokenId])).to.equal(150n);
+    it('Should refuse to mint an unregistered token ID', async function () {
+      await expectRevert(token.write.mint([player1Address, tokenIdOf(GOLD_ORE), 1n, '0x']), 'token not registered');
+      await expectRevert(
+        token.write.mintBatch([player1Address, [CRYPTOKOYN_ID, tokenIdOf(GOLD_ORE)], [1n, 1n], '0x']),
+        'token not registered',
+      );
     });
 
     it('Should batch-mint multiple token IDs', async function () {
-      await token.write.registerObjectLayer([ownerAddress, 'mint-wood', '', 0n, '0x']);
-      await token.write.registerObjectLayer([ownerAddress, 'mint-stone', '', 0n, '0x']);
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 0n, '0x']);
+      await token.write.registerObjectLayer([ownerAddress, hash(GOLD_ORE), 0n, '0x']);
 
-      const woodId = await token.read.computeTokenId(['mint-wood']);
-      const stoneId = await token.read.computeTokenId(['mint-stone']);
+      await token.write.mintBatch([
+        player1Address,
+        [tokenIdOf(HATCHET_A), tokenIdOf(GOLD_ORE), CRYPTOKOYN_ID],
+        [100n, 200n, 50n],
+        '0x',
+      ]);
 
-      await token.write.mintBatch([player1Address, [woodId, stoneId, CRYPTOKOYN_ID], [100n, 200n, 50n], '0x']);
-
-      expect(await token.read.balanceOf([player1Address, woodId])).to.equal(100n);
-      expect(await token.read.balanceOf([player1Address, stoneId])).to.equal(200n);
+      expect(await token.read.balanceOf([player1Address, tokenIdOf(HATCHET_A)])).to.equal(100n);
+      expect(await token.read.balanceOf([player1Address, tokenIdOf(GOLD_ORE)])).to.equal(200n);
       expect(await token.read.balanceOf([player1Address, CRYPTOKOYN_ID])).to.equal(50n);
     });
 
     it('Should revert mint from non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.mint([player1Address, CRYPTOKOYN_ID, 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert((await asPlayer1()).write.mint([player1Address, CRYPTOKOYN_ID, 1n, '0x']), 'OwnableUnauthorizedAccount');
     });
 
     it('Should revert mintBatch from non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.mintBatch([player1Address, [CRYPTOKOYN_ID], [1n], '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert(
+        (await asPlayer1()).write.mintBatch([player1Address, [CRYPTOKOYN_ID], [1n], '0x']),
+        'OwnableUnauthorizedAccount',
+      );
     });
   });
 
   // ────────────────────────────────────────────────────────────────────
-  // Transfers (ERC-1155 standard)
+  // Transfers and ownership (ERC-1155 standard)
   // ────────────────────────────────────────────────────────────────────
 
   describe('Transfers', function () {
@@ -388,46 +310,43 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       expect(await token.read.balanceOf([ownerAddress, CRYPTOKOYN_ID])).to.equal(INITIAL_SUPPLY - amount);
     });
 
-    it('Should transfer registered object layer items', async function () {
-      const itemId = 'rare-blade';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 1n, '0x']);
-      const tokenId = await token.read.computeTokenId([itemId]);
+    it('Should transfer a registered Object Layer item', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      await token.write.safeTransferFrom([ownerAddress, player1Address, tokenIdOf(HATCHET_A), 1n, '0x']);
 
-      await token.write.safeTransferFrom([ownerAddress, player1Address, tokenId, 1n, '0x']);
+      expect(await token.read.balanceOf([player1Address, tokenIdOf(HATCHET_A)])).to.equal(1n);
+      expect(await token.read.balanceOf([ownerAddress, tokenIdOf(HATCHET_A)])).to.equal(0n);
+    });
 
-      expect(await token.read.balanceOf([player1Address, tokenId])).to.equal(1n);
-      expect(await token.read.balanceOf([ownerAddress, tokenId])).to.equal(0n);
+    it('Should let several owners hold balances of one token type while its CID stays', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 11n, '0x']);
+      const tokenId = tokenIdOf(HATCHET_A);
+
+      await token.write.safeTransferFrom([ownerAddress, player1Address, tokenId, 3n, '0x']);
+      await token.write.safeTransferFrom([ownerAddress, player2Address, tokenId, 8n, '0x']);
+
+      const balances = await token.read.balanceOfBatch([
+        [player1Address, player2Address, ownerAddress],
+        [tokenId, tokenId, tokenId],
+      ]);
+      expect(balances).to.deep.equal([3n, 8n, 0n]);
+      expect(await token.read.totalSupply([tokenId])).to.equal(11n);
+      expect(await token.read.getObjectLayerCid([tokenId])).to.equal(HATCHET_A.cid);
     });
 
     it('Should batch-transfer multiple token types', async function () {
-      await token.write.registerObjectLayer([ownerAddress, 'helm', '', 5n, '0x']);
-      const helmId = await token.read.computeTokenId(['helm']);
+      await token.write.registerObjectLayer([ownerAddress, hash(GOLD_ORE), 5n, '0x']);
 
       await token.write.safeBatchTransferFrom([
         ownerAddress,
         player1Address,
-        [CRYPTOKOYN_ID, helmId],
+        [CRYPTOKOYN_ID, tokenIdOf(GOLD_ORE)],
         [parseEther('500'), 2n],
         '0x',
       ]);
 
       expect(await token.read.balanceOf([player1Address, CRYPTOKOYN_ID])).to.equal(parseEther('500'));
-      expect(await token.read.balanceOf([player1Address, helmId])).to.equal(2n);
-    });
-
-    it('Should support balanceOfBatch queries', async function () {
-      const itemId = 't-gem';
-      await token.write.registerObjectLayer([player1Address, itemId, '', 10n, '0x']);
-      const gemId = await token.read.computeTokenId([itemId]);
-
-      const balances = await token.read.balanceOfBatch([
-        [ownerAddress, player1Address, player1Address],
-        [CRYPTOKOYN_ID, CRYPTOKOYN_ID, gemId],
-      ]);
-
-      expect(balances[0]).to.equal(INITIAL_SUPPLY);
-      expect(balances[1]).to.equal(0n);
-      expect(balances[2]).to.equal(10n);
+      expect(await token.read.balanceOf([player1Address, tokenIdOf(GOLD_ORE)])).to.equal(2n);
     });
   });
 
@@ -445,45 +364,25 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
     });
 
     it('Should allow batch burning', async function () {
-      const itemId = 'burn-item';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 10n, '0x']);
-      const burnItemId = await token.read.computeTokenId([itemId]);
-
-      await token.write.burnBatch([ownerAddress, [CRYPTOKOYN_ID, burnItemId], [parseEther('50'), 3n]]);
+      await token.write.registerObjectLayer([ownerAddress, hash(GOLD_ORE), 10n, '0x']);
+      await token.write.burnBatch([ownerAddress, [CRYPTOKOYN_ID, tokenIdOf(GOLD_ORE)], [parseEther('50'), 3n]]);
 
       expect(await token.read.balanceOf([ownerAddress, CRYPTOKOYN_ID])).to.equal(INITIAL_SUPPLY - parseEther('50'));
-      expect(await token.read.balanceOf([ownerAddress, burnItemId])).to.equal(7n);
+      expect(await token.read.balanceOf([ownerAddress, tokenIdOf(GOLD_ORE)])).to.equal(7n);
     });
 
     it('Should revert burn when called by unauthorized account on others tokens', async function () {
       await token.write.safeTransferFrom([ownerAddress, player1Address, CRYPTOKOYN_ID, parseEther('100'), '0x']);
-
-      const tokenAsPlayer2 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player2Client },
-      });
-      try {
-        await tokenAsPlayer2.write.burn([player1Address, CRYPTOKOYN_ID, parseEther('50')]);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('ERC1155MissingApprovalForAll');
-      }
+      await expectRevert(
+        (await asPlayer2()).write.burn([player1Address, CRYPTOKOYN_ID, parseEther('50')]),
+        'ERC1155MissingApprovalForAll',
+      );
     });
 
     it('Should allow approved operator to burn tokens', async function () {
-      // Transfer tokens from owner to player1
       await token.write.safeTransferFrom([ownerAddress, player1Address, CRYPTOKOYN_ID, parseEther('100'), '0x']);
-
-      // player1 approves player2 as operator
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      await tokenAsPlayer1.write.setApprovalForAll([player2Address, true]);
-
-      // player2 burns on behalf of player1
-      const tokenAsPlayer2 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player2Client },
-      });
-      await tokenAsPlayer2.write.burn([player1Address, CRYPTOKOYN_ID, parseEther('50')]);
+      await (await asPlayer1()).write.setApprovalForAll([player2Address, true]);
+      await (await asPlayer2()).write.burn([player1Address, CRYPTOKOYN_ID, parseEther('50')]);
       expect(await token.read.balanceOf([player1Address, CRYPTOKOYN_ID])).to.equal(parseEther('50'));
     });
   });
@@ -495,13 +394,10 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
   describe('Pause / Unpause', function () {
     it('Should pause and block transfers', async function () {
       await token.write.pause();
-
-      try {
-        await token.write.safeTransferFrom([ownerAddress, player1Address, CRYPTOKOYN_ID, 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('EnforcedPause');
-      }
+      await expectRevert(
+        token.write.safeTransferFrom([ownerAddress, player1Address, CRYPTOKOYN_ID, 1n, '0x']),
+        'EnforcedPause',
+      );
     });
 
     it('Should unpause and allow transfers again', async function () {
@@ -514,49 +410,21 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
 
     it('Should block minting when paused', async function () {
       await token.write.pause();
-
-      try {
-        await token.write.mint([player1Address, CRYPTOKOYN_ID, 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('EnforcedPause');
-      }
+      await expectRevert(token.write.mint([player1Address, CRYPTOKOYN_ID, 1n, '0x']), 'EnforcedPause');
     });
 
     it('Should block registration (which mints) when paused', async function () {
       await token.write.pause();
-
-      try {
-        await token.write.registerObjectLayer([ownerAddress, 'paused-item', '', 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('EnforcedPause');
-      }
+      await expectRevert(token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']), 'EnforcedPause');
     });
 
     it('Should revert pause from non-owner', async function () {
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.pause();
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert((await asPlayer1()).write.pause(), 'OwnableUnauthorizedAccount');
     });
 
     it('Should revert unpause from non-owner', async function () {
       await token.write.pause();
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      try {
-        await tokenAsPlayer1.write.unpause();
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('OwnableUnauthorizedAccount');
-      }
+      await expectRevert((await asPlayer1()).write.unpause(), 'OwnableUnauthorizedAccount');
     });
   });
 
@@ -566,32 +434,21 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
 
   describe('Supply Tracking', function () {
     it('Should track exists() for minted token IDs', async function () {
-      const randomId = 9999n;
-      expect(await token.read.exists([randomId])).to.equal(false);
+      expect(await token.read.exists([9999n])).to.equal(false);
       expect(await token.read.exists([CRYPTOKOYN_ID])).to.equal(true);
     });
 
     it('Should update exists() after registration', async function () {
-      const itemId = 'tracking-test';
-      const tokenId = await token.read.computeTokenId([itemId]);
-
-      expect(await token.read.exists([tokenId])).to.equal(false);
-
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 1n, '0x']);
-
-      expect(await token.read.exists([tokenId])).to.equal(true);
+      expect(await token.read.exists([tokenIdOf(HATCHET_A)])).to.equal(false);
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      expect(await token.read.exists([tokenIdOf(HATCHET_A)])).to.equal(true);
     });
 
     it('Should update totalSupply after burns', async function () {
-      const itemId = 'supply-test';
-      await token.write.registerObjectLayer([ownerAddress, itemId, '', 10n, '0x']);
-      const tokenId = await token.read.computeTokenId([itemId]);
-
-      expect(await token.read.totalSupply([tokenId])).to.equal(10n);
-
-      await token.write.burn([ownerAddress, tokenId, 3n]);
-
-      expect(await token.read.totalSupply([tokenId])).to.equal(7n);
+      await token.write.registerObjectLayer([ownerAddress, hash(GOLD_ORE), 10n, '0x']);
+      expect(await token.read.totalSupply([tokenIdOf(GOLD_ORE)])).to.equal(10n);
+      await token.write.burn([ownerAddress, tokenIdOf(GOLD_ORE), 3n]);
+      expect(await token.read.totalSupply([tokenIdOf(GOLD_ORE)])).to.equal(7n);
     });
   });
 
@@ -601,27 +458,18 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
 
   describe('Object Layer Integration Scenario', function () {
     it('Should simulate full object layer lifecycle: register → mint → transfer → burn', async function () {
-      // 1. Register a weapon type
-      const weaponItemId = 'legendary-hatchet';
-      const weaponCid = 'bafkreia_hatchet_atlas_metadata_cid';
+      // 1. Register a unique weapon definition
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 1n, '0x']);
+      const weaponTokenId = tokenIdOf(HATCHET_A);
 
-      await token.write.registerObjectLayer([ownerAddress, weaponItemId, weaponCid, 1n, '0x']);
-
-      const weaponTokenId = await token.read.computeTokenId([weaponItemId]);
-
-      expect(await token.read.getItemId([weaponTokenId])).to.equal(weaponItemId);
-      expect(await token.read.getMetadataCID([weaponTokenId])).to.equal(weaponCid);
+      expect(await token.read.getObjectLayerCid([weaponTokenId])).to.equal(HATCHET_A.cid);
       expect(await token.read.totalSupply([weaponTokenId])).to.equal(1n);
-      expect(await token.read.uri([weaponTokenId])).to.equal(`ipfs://${weaponCid}`);
+      expect(await token.read.uri([weaponTokenId])).to.equal(`ipfs://${HATCHET_A.cid}`);
 
       // 2. Register a fungible resource
-      const resourceItemId = 'gold-ore';
-      const resourceCid = 'bafkreia_gold_ore_meta';
       const resourceSupply = parseEther('1000000');
-
-      await token.write.registerObjectLayer([ownerAddress, resourceItemId, resourceCid, resourceSupply, '0x']);
-
-      const resourceTokenId = await token.read.computeTokenId([resourceItemId]);
+      await token.write.registerObjectLayer([ownerAddress, hash(GOLD_ORE), resourceSupply, '0x']);
+      const resourceTokenId = tokenIdOf(GOLD_ORE);
 
       // 3. Transfer weapon to player
       await token.write.safeTransferFrom([ownerAddress, player1Address, weaponTokenId, 1n, '0x']);
@@ -632,10 +480,7 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       await token.write.safeTransferFrom([ownerAddress, player1Address, resourceTokenId, lootAmount, '0x']);
 
       // 5. Player-to-player trade
-      const tokenAsPlayer1 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player1Client },
-      });
-      await tokenAsPlayer1.write.safeBatchTransferFrom([
+      await (await asPlayer1()).write.safeBatchTransferFrom([
         player1Address,
         player2Address,
         [weaponTokenId, resourceTokenId],
@@ -649,16 +494,16 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       expect(await token.read.balanceOf([player1Address, resourceTokenId])).to.equal(parseEther('400'));
 
       // 6. Player2 burns gold ore
-      const tokenAsPlayer2 = await viem.getContractAt('ObjectLayerToken', token.address, {
-        client: { wallet: player2Client },
-      });
       const craftCost = parseEther('25');
-      await tokenAsPlayer2.write.burn([player2Address, resourceTokenId, craftCost]);
+      await (await asPlayer2()).write.burn([player2Address, resourceTokenId, craftCost]);
 
       expect(await token.read.balanceOf([player2Address, resourceTokenId])).to.equal(parseEther('75'));
       expect(await token.read.totalSupply([resourceTokenId])).to.equal(resourceSupply - craftCost);
 
-      // 7. Verify CryptoKoyn alongside items
+      // 7. Ownership moved; the Object Layer identity did not.
+      expect(await token.read.getObjectLayerCid([weaponTokenId])).to.equal(HATCHET_A.cid);
+
+      // 8. Verify CryptoKoyn alongside items
       await token.write.safeTransferFrom([ownerAddress, player1Address, CRYPTOKOYN_ID, parseEther('5000'), '0x']);
 
       const balances = await token.read.balanceOfBatch([
@@ -673,20 +518,16 @@ describe('ObjectLayerToken (ERC-1155)', { concurrency: false }, function () {
       expect(balances[4]).to.equal(parseEther('75'));
     });
 
-    it('Should simulate governance: pause, update metadata, unpause', async function () {
-      await token.write.registerObjectLayer([ownerAddress, 'gov-item', 'old-cid', 10n, '0x']);
-      const tokenId = await token.read.computeTokenId(['gov-item']);
+    it('Should simulate governance: pause, hold the registry, unpause', async function () {
+      await token.write.registerObjectLayer([ownerAddress, hash(HATCHET_A), 10n, '0x']);
+      const tokenId = tokenIdOf(HATCHET_A);
 
       await token.write.pause();
-      try {
-        await token.write.safeTransferFrom([ownerAddress, player1Address, tokenId, 1n, '0x']);
-        expect.fail('Expected revert');
-      } catch (err) {
-        expect(err.message).to.include('EnforcedPause');
-      }
-
-      await token.write.setTokenMetadataCID([tokenId, 'new-upgraded-cid']);
-      expect(await token.read.getMetadataCID([tokenId])).to.equal('new-upgraded-cid');
+      await expectRevert(
+        token.write.safeTransferFrom([ownerAddress, player1Address, tokenId, 1n, '0x']),
+        'EnforcedPause',
+      );
+      expect(await token.read.getObjectLayerCid([tokenId])).to.equal(HATCHET_A.cid);
 
       await token.write.unpause();
       await token.write.safeTransferFrom([ownerAddress, player1Address, tokenId, 1n, '0x']);
