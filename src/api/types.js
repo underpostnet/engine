@@ -14,6 +14,8 @@
  * @property {string} apiPath - Computed base URL for the API layer.
  * @property {string[]} origins - Allowed origins for CORS validation.
  * @property {import('express').RequestHandler} authMiddleware - Dynamically generated JWT auth middleware (keyed by host+path).
+ * @property {Object<string,string>} [consumes] - APIs this host serves for another domain, api → owning domain. Absent or empty on an owner.
+ * @property {Object} [extension] - The host's extension of this API, from `apiExtensions` in conf.server.json.
  * @property {Object} [db] - DataBaseProviderService configuration or instance reference.
  * @property {Object} [mailer] - MailerProvider configuration or instance reference.
  * @property {Object} [png] - Cached mailer image buffers (populated by UserRouter on first load).

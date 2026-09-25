@@ -1072,7 +1072,6 @@ function generateSkinMultiFrame(options, _descriptor) {
         activable: true,
       },
       stats: { ...STAT_DEFAULTS },
-      ledger: { type: 'OFF_CHAIN' },
       seed: localSeedToUUIDv4(`${seed}:${itemId}`),
     },
   };

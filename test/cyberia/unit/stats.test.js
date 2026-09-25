@@ -6,21 +6,21 @@ import { join } from 'node:path';
 import {
   STAT_TYPES, STAT_DEFAULTS, STAT_MODIFIER_MIN, STAT_MODIFIER_MAX,
   STAT_EFFECTIVE_FLOORS, validateStats, generateRandomStats,
-} from '../../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
-import { resolveProgressionRules } from '../../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { generateMultiFrame, registerSemantic } from '../../../../src/projects/cyberia/semantic-layer-generator.js';
-import { ObjectLayerModel } from '../../../../src/api/object-layer/object-layer.model.js';
-import { CyberiaMapModel } from '../../../../src/api/cyberia-map/cyberia-map.model.js';
-import { CyberiaMapService } from '../../../../src/api/cyberia-map/cyberia-map.service.js';
-import { DataBaseProviderService } from '../../../../src/db/DataBaseProvider.js';
-import { CyberiaEntityModel } from '../../../../src/api/cyberia-entity/cyberia-entity.model.js';
-import { CyberiaInstanceConfModel } from '../../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
-import { toObjectLayerMsg, toEntityMsg, toInstanceConfig } from '../../../../src/projects/cyberia/instance-data.js';
-import { generateStatContract, hasCyberiaSiblings } from '../../../../src/projects/cyberia/stat-contract-generator.js';
-import { registerStatCommands } from '../../../../src/projects/cyberia/stat-commands.js';
+} from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
+import { resolveProgressionRules } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { generateMultiFrame, registerSemantic } from '../../../src/projects/cyberia/semantic-layer-generator.js';
+import { ObjectLayerModel } from '../../../src/api/object-layer/object-layer.model.js';
+import { CyberiaMapModel } from '../../../src/api/cyberia-map/cyberia-map.model.js';
+import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';
+import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { CyberiaEntityModel } from '../../../src/api/cyberia-entity/cyberia-entity.model.js';
+import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
+import { toObjectLayerMsg, toEntityMsg, toInstanceConfig } from '../../../src/projects/cyberia/instance-data.js';
+import { generateStatContract, hasCyberiaSiblings } from '../../../src/projects/cyberia/stat-contract-generator.js';
+import { registerStatCommands } from '../../../src/projects/cyberia/stat-commands.js';
 
 const block = (value) => Object.fromEntries(STAT_TYPES.map((key) => [key, value]));
-const record = (stats) => ({ data: { stats, item: { id: 'signed', type: 'weapon' }, ledger: { type: 'OFF_CHAIN' } }, sha256: 'a'.repeat(64) });
+const record = (stats) => ({ profile: { id: 'cyberia', version: 2 }, data: { stats, item: { id: 'signed', type: 'weapon' } } });
 
 describe('Cyberia signed stat contract', () => {
   it('defines ordered defaults and playable floors once', () => {
@@ -44,8 +44,15 @@ describe('Cyberia signed stat contract', () => {
     expect(() => toObjectLayerMsg(record({ effect: value }))).toThrow();
   });
 
-  it.each([-101, 101, 0.5, Infinity, NaN])('rejects %s in the database schema', async (value) => {
+  // The store keeps the mechanical block an integer record; the bounds are the Cyberia profile's,
+  // applied by every writer through validateStats.
+  it.each([0.5, Infinity, NaN])('rejects %s in the database schema', async (value) => {
     await expect(new ObjectLayerModel(record({ ...STAT_DEFAULTS, effect: value })).validate()).rejects.toThrow();
+  });
+
+  it.each([-101, 101])('leaves %s to the profile: the schema stores it, validateStats rejects it', async (value) => {
+    await new ObjectLayerModel(record({ ...STAT_DEFAULTS, effect: value })).validate();
+    expect(() => validateStats({ effect: value })).toThrow();
   });
 
   it('rejects XP and level inside item stats', () => {
@@ -117,9 +124,10 @@ describe('Cyberia signed stat contract', () => {
 
   // cyberia-server and cyberia-client are gitignored siblings this repo does not contain (see
   // .gitignore); a checkout that only has this repo's own tracked tree has nothing to check.
+  // A cold Go module cache compiles buf before the first check.
   it.skipIf(!hasCyberiaSiblings())('matches generated Go and C contracts', async () => {
     await generateStatContract({ check: true });
-  });
+  }, 600000);
 });
 
 describe('Cyberia stats CLI', () => {

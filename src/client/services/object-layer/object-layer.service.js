@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl, readResponse } from '../core/core.service.js';
 const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'object-layer';
@@ -13,9 +13,7 @@ class ObjectLayerService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -33,9 +31,7 @@ class ObjectLayerService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -53,9 +49,7 @@ class ObjectLayerService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -74,9 +68,7 @@ class ObjectLayerService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -95,9 +87,7 @@ class ObjectLayerService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -108,17 +98,16 @@ class ObjectLayerService {
         }),
     );
   };
-  static getFrameCounts = (options = { id: '' }) => {
-    const url = new URL(getApiBaseUrl({ id: `frame-counts/${options.id}`, endpoint }));
-    return new Promise((resolve, reject) =>
-      fetch(url.toString(), {
-        method: 'GET',
+  /** Archives a definition (`archived: true`) or offers it again; its owner or an admin. */
+  static lifecycle = (options = { id: '', archived: true }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `lifecycle/${options.id}`, endpoint }), {
+        method: 'PUT',
         headers: headersFactory(),
         credentials: 'include',
+        body: payloadFactory({ archived: options.archived }),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -128,7 +117,25 @@ class ObjectLayerService {
           return reject(error);
         }),
     );
-  };
+  /** Removes every record this host stores of a definition; admin only, not reversible. */
+  static purge = (options = { id: '', cid: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `purge/${options.id}`, endpoint }), {
+        method: 'DELETE',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: payloadFactory({ cid: options.cid }),
+      })
+        .then(readResponse)
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
@@ -137,9 +144,7 @@ class ObjectLayerService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -149,40 +154,6 @@ class ObjectLayerService {
           return reject(error);
         }),
     );
-  static generateWebp = (options = { itemType: '', itemId: '', directionCode: '' }) => {
-    const url = new URL(
-      getApiBaseUrl({
-        id: `generate-webp/${options.itemType}/${options.itemId}/${options.directionCode}`,
-        endpoint,
-      }),
-    );
-    return new Promise((resolve, reject) =>
-      fetch(url.toString(), {
-        method: 'GET',
-        headers: headersFactory(),
-        credentials: 'include',
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || 'Failed to generate WebP');
-          }
-          // Get the blob data
-          const blob = await res.blob();
-          // Create a blob URL for display
-          const blobUrl = URL.createObjectURL(blob);
-          return { status: 'success', data: blobUrl };
-        })
-        .then((res) => {
-          logger.info(res);
-          return resolve(res);
-        })
-        .catch((error) => {
-          logger.error(error);
-          return reject(error);
-        }),
-    );
-  };
   /** Item identity ({ id, type }) by id prefix (`q`) or by an exact id list (`ids`). */
   static searchItemIds = (options = { q: '', ids: [] }) => {
     const url = new URL(getApiBaseUrl({ id: `search-item-ids`, endpoint }));
@@ -194,9 +165,7 @@ class ObjectLayerService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           return resolve(res);
         })

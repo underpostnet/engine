@@ -705,7 +705,6 @@ export function generateMultiFrame(options) {
         activable: true,
       },
       stats: generateRandomStats(undefined, undefined, createRng(seedToInt(seed + ':stats'))),
-      ledger: { type: 'OFF_CHAIN' },
       seed: seedToUUIDv4(seed + ':' + itemId),
     },
   };

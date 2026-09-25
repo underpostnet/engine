@@ -10,19 +10,18 @@ import path from 'path';
 import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import { Jimp, intToRGBA, rgbaToInt } from 'jimp';
-import { computeObjectLayerSha256 } from '../../api/object-layer/object-layer.model.js';
-import { createPinRecord } from '../../api/ipfs/ipfs.service.js';
-import { AtlasSpriteSheetStore } from './atlas-sprite-sheet-store.js';
-import { IpfsClient } from './ipfs-client.js';
+import { isObjectLayerAuthority, pinCanonical } from '../../api/object-layer/object-layer.publication.js';
+import { parseIdentityJson } from '../../api/object-layer/object-layer.identity.js';
+import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
+import { findBoundDefinition, writeItemDefinition } from './object-layer-catalog.js';
 import { range } from '../../client/components/core/CommonJs.js';
 import {
-  generateRandomStats,
-  validateStats,
-  STAT_CONTRACT_VERSION,
   getKeyframeDirectionsByCode,
   OBJECT_LAYER_DIRECTION_NAME_TO_CODE,
-} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+} from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -53,34 +52,25 @@ const logger = loggerFactory(import.meta);
  * @property {string} [data.item.description] - Human-readable description.
  * @property {boolean} [data.item.activable] - Whether the item can be activated.
  * @property {Object} data.stats - Statistical attributes of the object layer.
- * @property {Object} [data.render] - IPFS content identifiers for the consolidated atlas sprite sheet.
- * @property {string} [data.render.cid] - IPFS CID for the consolidated atlas sprite sheet PNG.
- * @property {string} [data.render.metadataCid] - IPFS CID for the atlas sprite sheet metadata JSON (fast-json-stable-stringify).
+ * @property {Object} [data.render] - Canonical render contract of the definition.
+ * @property {string} [data.render.cid] - Canonical render CID: the primary render PNG.
+ * @property {string} [data.render.metadataCid] - Canonical metadata CID: the canonical bytes of the primary render's metadata.
  * @property {ObjectLayerRenderFramesData} [objectLayerRenderFramesData] - Render frames data (transient, used before persisting).
- * @property {import('mongoose').Types.ObjectId} [objectLayerRenderFramesId] - Reference to persisted ObjectLayerRenderFrames document.
- * @property {string} [sha256] - SHA-256 hash of the object layer data.
  * @memberof CyberiaObjectLayer
  */
 
 /**
  * @typedef {Object} BuildFromDirectoryResult
  * @property {ObjectLayerRenderFramesData} objectLayerRenderFramesData - The assembled render frames data.
- * @property {Object} objectLayerData - The assembled object layer data (without render frames reference or sha256).
+ * @property {Object} objectLayerData - The assembled object layer data (without render frames reference).
  * @memberof CyberiaObjectLayer
  */
 
 /**
  * @typedef {Object} PersistDocumentsOptions
  * @property {boolean} [generateAtlas=true] - Whether to generate the atlas sprite sheet.
- * @property {number} [upscaleFactor] - Pixels per cell of the human-resolution atlas render.
+ * @property {number} [upscaleFactor] - Pixels per cell of the upscaled render.
  * @property {Object} [options] - Router options ({ host, path }) for model lookup.
- * @memberof CyberiaObjectLayer
- */
-
-/**
- * @typedef {Object} CreateDocumentsResult
- * @property {Object} objectLayer - The persisted ObjectLayer mongoose document.
- * @property {Object} objectLayerRenderFramesDoc - The persisted ObjectLayerRenderFrames mongoose document.
  * @memberof CyberiaObjectLayer
  */
 
@@ -346,13 +336,13 @@ export class ObjectLayerEngine {
    * @memberof CyberiaObjectLayer
    */
   static objectLayerDataFactory({ metadata, objectLayerType, objectLayerId }) {
+    const { validateStats, generateRandomStats } = CyberiaObjectLayerProfile;
     const item = { id: objectLayerId, type: objectLayerType, description: '', activable: true };
-    if (!metadata?.data) return { data: { item, stats: generateRandomStats(), ledger: { type: 'OFF_CHAIN' } } };
+    if (!metadata?.data) return { data: { item, stats: generateRandomStats() } };
     return {
       data: {
         item: metadata.data.item || item,
         stats: validateStats(metadata.data.stats ?? generateRandomStats()),
-        ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
       },
     };
   }
@@ -364,7 +354,7 @@ export class ObjectLayerEngine {
     if (!metadata) {
       const metadataPath = `${folder}/metadata.json`;
       if (fs.existsSync(metadataPath)) {
-        metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        metadata = parseIdentityJson(fs.readFileSync(metadataPath, 'utf8'));
       }
     }
 
@@ -435,17 +425,6 @@ export class ObjectLayerEngine {
     }
 
     return { objectLayerRenderFramesData, objectLayerData };
-  }
-
-  /**
-   * Computes a SHA-256 hash of the given object layer data using deterministic JSON serialisation.
-   * @static
-   * @param {Object} data - The `data` sub-document of an ObjectLayer (item, stats, render).
-   * @returns {string} Hex-encoded SHA-256 hash.
-   * @memberof CyberiaObjectLayer
-   */
-  static computeSha256(data) {
-    return computeObjectLayerSha256(data);
   }
 
   /**
@@ -547,196 +526,122 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Writes an object layer and its render frames, keyed by `data.item.id`.
-   *
-   * Cut-over consistency: a new ObjectLayerRenderFrames is created, then the atlas
-   * and every CID are staged before the live document is touched. The single
-   * write lands through {@link ObjectLayerModel.upsertByItemId}, so one item id
-   * always resolves to one document, whether it is new or already stored.
+   * Writes the definition of a Cyberia item from its render frames: builds the render, publishes
+   * the definition that names it, and stores the render frames and the atlas under its cid.
+   * Changed content becomes a new definition bound to the label; identical content keeps the
+   * bound one and takes the new materializations.
    *
    * @static
    * @param {Object} params - Parameters.
-   * @param {Object} params.ObjectLayer - Mongoose ObjectLayer model.
-   * @param {Object} params.ObjectLayerRenderFrames - Mongoose ObjectLayerRenderFrames model.
+   * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
    * @param {ObjectLayerRenderFramesData} params.objectLayerRenderFramesData - Render frames payload.
    * @param {Object} params.objectLayerData - Object layer payload (must include `data`).
    * @param {PersistDocumentsOptions} [params.persistOptions={}] - Atlas generation and IPFS options.
-   * @returns {Promise<CreateDocumentsResult>} The persisted documents.
+   * @returns {Promise<Object>} The bound definition.
    * @memberof CyberiaObjectLayer
    */
   static async persistObjectLayerDocuments({
-    ObjectLayer,
-    ObjectLayerRenderFrames,
+    models,
     objectLayerRenderFramesData,
     objectLayerData,
     persistOptions = {},
   }) {
-    objectLayerData.data.stats = validateStats(objectLayerData.data.stats);
-    objectLayerData.statContractVersion = STAT_CONTRACT_VERSION;
     const { generateAtlas = true, upscaleFactor, options } = persistOptions;
     const itemId = objectLayerData.data.item.id;
 
-    const existing = await ObjectLayer.findByItemId(itemId);
-    const oldRenderFramesId = existing?.objectLayerRenderFramesId;
-
-    const objectLayerRenderFramesDoc = await ObjectLayerRenderFrames.create(objectLayerRenderFramesData);
-    objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
-    if (!objectLayerData.data.render) objectLayerData.data.render = {};
-    objectLayerData.data.render.cid = '';
-    objectLayerData.data.render.metadataCid = '';
-
+    let rendered;
     if (generateAtlas) {
       try {
-        const { atlasDoc, atlasCid, atlasMetadataCid } = await AtlasSpriteSheetStore.persist({
+        rendered = await AtlasSpriteSheetStore.build({
           itemKey: itemId,
-          objectLayerRenderFrames: objectLayerRenderFramesDoc,
+          objectLayerRenderFrames: objectLayerRenderFramesData,
           upscaleFactor,
           options,
         });
-        objectLayerData.data.render.cid = atlasCid;
-        objectLayerData.data.render.metadataCid = atlasMetadataCid;
-        objectLayerData.atlasSpriteSheetId = atlasDoc._id;
       } catch (atlasError) {
         logger.error(`Failed to generate atlas for "${itemId}":`, atlasError);
       }
     }
 
-    objectLayerData.sha256 = ObjectLayerEngine.computeSha256(objectLayerData.data);
-    const dataCid = await ObjectLayerEngine.pinObjectLayerData({ data: objectLayerData.data, itemId, options });
-    if (dataCid) objectLayerData.cid = dataCid;
-
-    const objectLayer = await (await ObjectLayer.upsertByItemId(objectLayerData)).populate('objectLayerRenderFramesId');
-
-    if (oldRenderFramesId && !oldRenderFramesId.equals(objectLayerRenderFramesDoc._id)) {
-      await ObjectLayerRenderFrames.findByIdAndDelete(oldRenderFramesId);
-    }
-    logger.info(`ObjectLayer for item "${itemId}" persisted with id: ${objectLayer._id}`);
-
-    return { objectLayer, objectLayerRenderFramesDoc };
-  }
-
-  /**
-   * Pins the object layer data JSON to IPFS and records the pin.
-   *
-   * @static
-   * @param {Object} params - Parameters.
-   * @param {Object} params.data - The `data` sub-document to pin.
-   * @param {string} params.itemId - Object layer item id.
-   * @param {Object} [params.options] - Router options ({ host, path }).
-   * @returns {Promise<string>} The CID, or an empty string when IPFS is unreachable.
-   * @memberof CyberiaObjectLayer
-   */
-  static async pinObjectLayerData({ data, itemId, options }) {
-    const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
-    try {
-      const ipfsResult = await IpfsClient.addJsonToIpfs(data, `${itemId}_data.json`, mfsPath);
-      if (!ipfsResult) return '';
-      await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
-      return ipfsResult.cid;
-    } catch (ipfsError) {
-      logger.warn(`Failed to pin data JSON for "${itemId}": ${ipfsError.message}`);
-      return '';
-    }
-  }
-
-  /**
-   * Recomputes the definitive SHA-256, pins the object layer data JSON to IPFS,
-   * and persists both fields on the ObjectLayer document.
-   *
-   * Intended for use after atlas generation has set `data.render.cid`.
-   *
-   * @static
-   * @param {Object} params - Parameters.
-   * @param {Object} params.objectLayer - The mongoose ObjectLayer document (must be populated).
-   * @param {Object} [params.options] - Router options ({ host, path }) forwarded to the pin record.
-   * @returns {Promise<Object>} The saved ObjectLayer document.
-   * @memberof CyberiaObjectLayer
-   */
-  static async computeAndSaveFinalSha256({ objectLayer, options }) {
-    const cid = await ObjectLayerEngine.pinObjectLayerData({
-      data: objectLayer.data,
-      itemId: objectLayer.data.item.id,
+    const objectLayer = await ObjectLayerEngine.publishItemDefinition({
+      models,
+      payload: objectLayerData,
+      renderFrames: objectLayerRenderFramesData,
+      rendered,
       options,
     });
-    if (cid) objectLayer.cid = cid;
-
-    objectLayer.sha256 = ObjectLayerEngine.computeSha256(objectLayer.data);
-    objectLayer.markModified('data');
-    await objectLayer.save();
-
+    logger.info(`ObjectLayer for item "${itemId}" published with id: ${objectLayer._id} (cid: ${objectLayer.cid})`);
     return objectLayer;
   }
 
   /**
-   * Resolve the canonical CID for an Object Layer item from the database.
-   *
-   * The canonical CID is the IPFS content identifier of the stable-JSON-serialised
-   * `objectLayer.data` document (produced by `fast-json-stable-stringify`).  This is
-   * the CID that MUST be stored on-chain as the metadata CID so that any party can
-   * independently reproduce the hash from the same semantic payload.
-   *
-   * Resolution order:
-   *   1. If the ObjectLayer document already has a `.cid` field, use it.
-   *   2. Otherwise pin the data to IPFS and persist the CID back to the document.
-   *   3. If IPFS is unreachable, fall back to a local SHA-256 so the caller at
-   *      least gets a content hash (prefixed with `sha256:` to distinguish it
-   *      from a real IPFS CID).
+   * Publishes a definition for a Cyberia item label through the Object Layer authority.
    *
    * @static
-   * @param {Object}  params
-   * @param {string}  params.itemId      – human-readable item identifier.
-   * @param {import('mongoose').Model} params.ObjectLayer – Mongoose ObjectLayer model.
-   * @param {Object}  [params.options]   – `{ host, path }` forwarded to pin helpers.
-   * @returns {Promise<{ cid: string, sha256: string, source: string }>}
+   * @param {Object} params - Parameters.
+   * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
+   * @param {Object} params.payload - `{ data, createdBy?, _id? }`.
+   * @param {Object} [params.renderFrames] - Editor source of the definition.
+   * @param {{render: Object, atlas: Object}} [params.rendered] - Render built for it.
+   * @param {Object} [params.options] - Router options ({ host, path }).
+   * @returns {Promise<Object>} The bound document.
    * @memberof CyberiaObjectLayer
    */
-  static async resolveCanonicalCid({ itemId, ObjectLayer, options }) {
-    const objectLayer = await ObjectLayer.findByItemId(itemId);
-    if (!objectLayer) {
-      throw new Error(`ObjectLayer "${itemId}" not found in database`);
-    }
-
-    const sha256 = ObjectLayerEngine.computeSha256(objectLayer.data);
-
-    // 1. Already have a canonical CID persisted
-    if (objectLayer.cid) {
-      return { cid: objectLayer.cid, sha256, source: 'db' };
-    }
-
-    // 2. Compute and persist via IPFS
-    const cid = await ObjectLayerEngine.pinObjectLayerData({ data: objectLayer.data, itemId, options });
-    if (cid) {
-      objectLayer.cid = cid;
-      objectLayer.sha256 = sha256;
-      objectLayer.markModified('data');
-      await objectLayer.save();
-      logger.info(`Canonical CID computed and persisted for "${itemId}": ${cid}`);
-      return { cid, sha256, source: 'ipfs' };
-    }
-
-    // 3. Fallback – return a sha256:-prefixed content hash
-    logger.warn(
-      `Using SHA-256 fallback for "${itemId}" (IPFS unavailable). On-chain CID will not resolve via gateway.`,
-    );
-    return { cid: `sha256:${sha256}`, sha256, source: 'sha256-fallback' };
+  static async publishItemDefinition({ models, payload, renderFrames, rendered, options }) {
+    return await writeItemDefinition({ models, payload, renderFrames, rendered, options });
   }
 
   /**
-   * Tells whether an `ol` invocation asks for the atlas rebuild.
+   * The payload of a definition with its content changed in memory, ready to publish as a new
+   * definition.
+   * @static
+   * @param {Object} objectLayer - A mongoose ObjectLayer document.
+   * @returns {{data:Object}}
+   * @memberof CyberiaObjectLayer
+   */
+  static payloadOf(objectLayer) {
+    return { data: objectLayer.toObject({ virtuals: false }).data };
+  }
+
+  /**
+   * Resolves the identity of the definition bound to a Cyberia item label, and pins it so the
+   * CID resolves through a gateway.
    *
-   * `--to-atlas-sprite-sheet` always asks for it. `--upscale` names the
-   * human-resolution render and nothing else, so on its own it asks for the same
-   * rebuild; next to another action it only sets that action's pixel factor.
+   * @static
+   * @param {Object} params
+   * @param {string} params.itemId - Cyberia item label.
+   * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
+   * @param {Object} [params.options] - `{ host, path }` forwarded to pin helpers.
+   * @returns {Promise<{ cid: string, contentHash: string, objectLayerId: string, pinned: boolean }>}
+   * @memberof CyberiaObjectLayer
+   */
+  static async resolveItemIdentity({ itemId, models, options }) {
+    const objectLayer = await findBoundDefinition(models, itemId);
+    if (!objectLayer) throw new Error(`Item "${itemId}" is not bound to an Object Layer definition`);
+    // Pinning is the authority's part of publication; a consumer reads what it recorded.
+    const pinned = isObjectLayerAuthority(options)
+      ? await pinCanonical({ ObjectLayer: models.ObjectLayer, definition: objectLayer, options })
+      : Boolean((await resolveObjectLayer(objectLayer.cid, options))?.published);
+    if (!pinned) logger.warn(`Canonical bytes of "${itemId}" are not pinned; ${objectLayer.cid} will not resolve via gateway`);
+    return { cid: objectLayer.cid, contentHash: objectLayer.contentHash, objectLayerId: String(objectLayer._id), pinned };
+  }
+
+  /**
+   * Tells whether an `ol` invocation asks for the render rebuild.
+   *
+   * `--to-atlas-sprite-sheet` always asks for it. `--upscale` sets the factor of the
+   * upscaled derived render and nothing else, so on its own it asks for the same
+   * rebuild; next to another action it only sets that action's factor.
    *
    * @static
    * @param {Object} [options={}] - Parsed `ol` command options.
-   * @returns {boolean} True when both atlas renders have to be rebuilt.
+   * @returns {boolean} True when the render has to be rebuilt.
    * @memberof CyberiaObjectLayer
    */
   static selectAtlasRebuild(options = {}) {
     const namedAnAction = Boolean(
       options.import ||
-        options.minify ||
+        options.syncDerived ||
         options.importTypes ||
         options.drop ||
         options.generate ||
@@ -747,7 +652,7 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Selects the item ids an `ol` action works on, such as `--minify` or
+   * Selects the item ids an `ol` action works on, such as `--sync-derived` or
    * `--to-atlas-sprite-sheet`.
    *
    * With no requested ids, every stored item id is taken. With requested ids,
@@ -794,8 +699,8 @@ export const pngDirectoryIteratorByObjectLayerType = ObjectLayerEngine.pngDirect
 export const buildImgFromTile = ObjectLayerEngine.buildImgFromTile;
 
 /**
- * @see {@link ObjectLayerEngine.resolveCanonicalCid}
- * @function resolveCanonicalCid
+ * @see {@link ObjectLayerEngine.resolveItemIdentity}
+ * @function resolveItemIdentity
  * @memberof CyberiaObjectLayer
  */
-export const resolveCanonicalCid = ObjectLayerEngine.resolveCanonicalCid;
+export const resolveItemIdentity = ObjectLayerEngine.resolveItemIdentity;

@@ -10,24 +10,18 @@ import { s4, commonModeratorGuard } from '../core/CommonJs.js';
 import { Input } from '../core/Input.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { Modal } from '../core/Modal.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
-import { ObjectLayerEngineElement } from '../cyberia/ObjectLayerEngine.js';
+import { ObjectLayerEngineElement } from './ObjectLayerEngine.js';
 import {
-  ITEM_TYPES,
   OBJECT_LAYER_DIRECTION_CODES,
   OBJECT_LAYER_DIRECTION_LABELS,
   getKeyframeDirectionsByCode,
-  STAT_TYPES,
-  STAT_DESCRIPTIONS,
-  STAT_MODIFIER_MIN,
-  STAT_MODIFIER_MAX,
-  validateStats,
-  generateRandomStats,
-} from './SharedDefaultsCyberia.js';
+} from './ObjectLayerProtocol.js';
 import '../core/ColorPaletteElement.js';
 
 const CANVAS_BEHAVIOR_ICON = 'fa-solid fa-shapes';
@@ -98,8 +92,6 @@ const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
 const DEFAULT_DISTORTION_STATUS =
   'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
-const DEFAULT_STAT_RANDOM_MIN = STAT_MODIFIER_MIN;
-const DEFAULT_STAT_RANDOM_MAX = STAT_MODIFIER_MAX;
 const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
 const DIRECTION_PREVIEW_MODAL_ID = 'modal-object-layer-direction-preview';
 const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
@@ -546,7 +538,12 @@ class ObjectLayerEngineModal {
       data: [],
     },
   ];
-  static statDescriptions = STAT_DESCRIPTIONS;
+  /**
+   * The content profile the editor binds: the item type vocabulary and the stat contract the
+   * store's writers apply. Set by {@link ObjectLayerEngineModal.instance}.
+   * @type {{id:string,itemTypes:ReadonlyArray<string>,statTypes:ReadonlyArray<string>,statDescriptions:Object,statModifierMin:number,statModifierMax:number,validateStats:Function,generateRandomStats:Function}|null}
+   */
+  static profile = null;
 
   static RenderTemplate = (colorTemplate) => {
     const ole = s('object-layer-engine');
@@ -610,16 +607,17 @@ class ObjectLayerEngineModal {
     if (activableCheckbox) activableCheckbox.checked = false;
 
     // Clear stat inputs with correct IDs
-    for (const stat of STAT_TYPES) {
+    const profile = ObjectLayerEngineModal.profile;
+    for (const stat of profile?.statTypes ?? []) {
       const statInput = getRenderedInputNode(`ol-input-item-stats-${stat}`);
       if (statInput) statInput.value = '0';
     }
 
     const statRandomMinInput = getRenderedInputNode('ol-input-stats-random-min');
-    if (statRandomMinInput) statRandomMinInput.value = String(DEFAULT_STAT_RANDOM_MIN);
+    if (statRandomMinInput && profile) statRandomMinInput.value = String(profile.statModifierMin);
 
     const statRandomMaxInput = getRenderedInputNode('ol-input-stats-random-max');
-    if (statRandomMaxInput) statRandomMaxInput.value = String(DEFAULT_STAT_RANDOM_MAX);
+    if (statRandomMaxInput && profile) statRandomMaxInput.value = String(profile.statModifierMax);
 
     // Clear DropDown displays
     const templateDropdownCurrent = s(`.dropdown-current-ol-dropdown-template`);
@@ -656,12 +654,10 @@ class ObjectLayerEngineModal {
         return null;
       }
 
-      // Load render data separately (heavy)
-      const { status: renderStatus, data: objectLayerRenderFramesData } = await ObjectLayerService.getRender({
-        id: objectLayerId,
-      });
+      // Load the editor source separately (heavy)
+      const { status: renderStatus, data: render } = await ObjectLayerService.getRender({ id: objectLayerId });
 
-      if (renderStatus !== 'success' || !objectLayerRenderFramesData) {
+      if (renderStatus !== 'success' || !render) {
         NotificationManager.Push({
           html: `Failed to load object layer render data`,
           status: 'error',
@@ -669,7 +665,7 @@ class ObjectLayerEngineModal {
         return null;
       }
 
-      return { metadata, objectLayerRenderFramesId: objectLayerRenderFramesData.objectLayerRenderFramesId };
+      return { metadata, renderFrames: render.renderFrames };
     } catch (error) {
       console.error('Error loading object layer from database:', error);
       NotificationManager.Push({
@@ -680,20 +676,23 @@ class ObjectLayerEngineModal {
     }
   };
 
-  static instance = async (options = { idModal: '', appStore: {} }) => {
+  static instance = async (options = { idModal: '', appStore: {}, profile: null }) => {
+    if (!options.profile) throw new Error('ObjectLayerEngineModal.instance requires a content profile');
+    ObjectLayerEngineModal.profile = options.profile;
     // Clear all cached data at the start of each render to prevent contamination
     ObjectLayerEngineModal.clearData();
 
-    const { appStore } = options;
+    const { appStore, profile } = options;
     const canMutate = commonModeratorGuard(appStore?.Data?.user?.main?.model?.user?.role || 'guest');
 
     const directionCodes = OBJECT_LAYER_DIRECTION_CODES;
     const directionCodeLabels = OBJECT_LAYER_DIRECTION_LABELS;
-    const statTypes = STAT_TYPES;
+    const statTypes = profile.statTypes;
+    const { statModifierMin, statModifierMax } = profile;
 
-    // Canonical authorable item types (includes `static`). A per-render copy so a
-    // loaded layer's custom type can be appended without mutating the shared enum.
-    const itemTypes = Object.values(ITEM_TYPES);
+    // The profile's authorable item types. A per-render copy so a loaded layer's custom type
+    // can be appended without mutating the profile.
+    const itemTypes = [...profile.itemTypes];
 
     const distortionDropdownId = 'ol-dropdown-distortion-type';
     const distortionApplyBtnClass = 'ol-btn-apply-distortion';
@@ -702,7 +701,8 @@ class ObjectLayerEngineModal {
     const statsRandomMinInputId = 'ol-input-stats-random-min';
     const statsRandomMaxInputId = 'ol-input-stats-random-max';
 
-    // ?itemId=<item-id> opens the editor on a stored object layer.
+    // ?cid=<key> opens the editor on a stored definition: its cid, its document id, or the
+    // item label the host's catalog binds.
     const queryParams = getQueryParams();
     let loadedData = null;
 
@@ -733,7 +733,7 @@ class ObjectLayerEngineModal {
       try {
         const minValue = Number(getRenderedInputNode(statsRandomMinInputId)?.value);
         const maxValue = Number(getRenderedInputNode(statsRandomMaxInputId)?.value);
-        const stats = generateRandomStats(minValue, maxValue);
+        const stats = profile.generateRandomStats(minValue, maxValue);
         for (const statType of statTypes) {
           const input = getRenderedInputNode(`ol-input-item-stats-${statType}`);
           if (input) input.value = String(stats[statType]);
@@ -910,12 +910,12 @@ class ObjectLayerEngineModal {
       });
     };
 
-    if (queryParams.itemId) {
-      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.itemId);
+    if (queryParams.cid) {
+      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
 
       if (loadedData) {
-        const { metadata, objectLayerRenderFramesId } = loadedData;
-        // The URL carries the item id; writes address the document it resolved to.
+        const { metadata, renderFrames } = loadedData;
+        // Writes address the document the key resolved to; changed content publishes a new one.
         ObjectLayerEngineModal.existingObjectLayerId = metadata._id;
 
         // Set form values from metadata
@@ -929,8 +929,8 @@ class ObjectLayerEngineModal {
               itemTypes.push(ObjectLayerEngineModal.selectItemType);
             }
           }
-          if (objectLayerRenderFramesId) {
-            ObjectLayerEngineModal.renderFrameDuration = objectLayerRenderFramesId.frame_duration || 100;
+          if (renderFrames) {
+            ObjectLayerEngineModal.renderFrameDuration = renderFrames.frame_duration || 100;
           }
         }
       }
@@ -952,8 +952,8 @@ class ObjectLayerEngineModal {
 
     let cellsW = 16;
     let cellsH = 16;
-    if (loadedData && loadedData.objectLayerRenderFramesId && loadedData.objectLayerRenderFramesId.frames) {
-      const frames = loadedData.objectLayerRenderFramesId.frames;
+    if (loadedData?.renderFrames?.frames) {
+      const frames = loadedData.renderFrames.frames;
       for (const direction of Object.keys(frames)) {
         if (frames[direction] && frames[direction].length > 0 && frames[direction][0].length > 0) {
           cellsH = frames[direction][0].length;
@@ -1292,7 +1292,7 @@ class ObjectLayerEngineModal {
 
     let statsInputsRender = '';
     for (const statType of statTypes) {
-      const statInfo = ObjectLayerEngineModal.statDescriptions[statType];
+      const statInfo = profile.statDescriptions[statType];
       const statValue = loadedData?.metadata?.data?.stats?.[statType] || 0;
       statsInputsRender += html`
         <div class="inl" style="margin-bottom: 10px; position: relative;">
@@ -1311,8 +1311,8 @@ class ObjectLayerEngineModal {
             </div>`,
             containerClass: 'inl',
             type: 'number',
-            min: STAT_MODIFIER_MIN,
-            max: STAT_MODIFIER_MAX,
+            min: statModifierMin,
+            max: statModifierMax,
             placeholder: true,
             value: statValue,
           })}
@@ -1361,7 +1361,7 @@ class ObjectLayerEngineModal {
                 // Check if frames exist for any direction mapped to this direction code.
                 // Object layers with an empty render (no render-frames doc yet) load
                 // with zero frames so the user can author them from scratch.
-                const { frames, colors } = loadedData.objectLayerRenderFramesId ?? {};
+                const { frames, colors } = loadedData.renderFrames ?? {};
                 for (const direction of directions) {
                   if (frames && frames[direction] && frames[direction].length > 0) {
                     // Track this direction code as having original data
@@ -1672,7 +1672,6 @@ class ObjectLayerEngineModal {
           data: {
             stats: {},
             item: {},
-            ledger: { type: 'OFF_CHAIN' },
           },
         };
         for (const directionCode of directionCodes) {
@@ -1712,9 +1711,9 @@ class ObjectLayerEngineModal {
         }
         objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
         try {
-          objectLayer.data.stats = validateStats(
+          objectLayer.data.stats = profile.validateStats(
             Object.fromEntries(
-              STAT_TYPES.map((key) => {
+              statTypes.map((key) => {
                 const input = getRenderedInputNode(`ol-input-item-stats-${key}`);
                 return [key, input?.value.trim() ? Number(input.value) : NaN];
               }),
@@ -1850,6 +1849,7 @@ class ObjectLayerEngineModal {
           const { status, data, message } = response;
 
           if (status === 'success') {
+            AtlasSpriteSheetService.invalidateIdlePreview(objectLayer.data.item.id);
             const successAction = clone ? 'cloned' : isUpdateMode ? 'updated' : 'created';
             NotificationManager.Push({
               html: `Object layer "${objectLayer.data.item.id}" ${successAction} successfully!`,
@@ -2235,7 +2235,7 @@ class ObjectLayerEngineModal {
         <div class="in fll ${idSectionB}-col-b">
           <div class="in section-mp section-mp-border">
             <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
-            <div class="in">−100 penalty ↔ 0 neutral ↔ +100 bonus</div>
+            <div class="in">${statModifierMin} penalty ↔ 0 neutral ↔ +${statModifierMax} bonus</div>
             <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
               <div class="in fll" style="width: 110px;">
                 ${await Input.instance({
@@ -2243,10 +2243,10 @@ class ObjectLayerEngineModal {
                   label: html`Random min`,
                   containerClass: 'inl',
                   type: 'number',
-                  min: STAT_MODIFIER_MIN,
-                  max: STAT_MODIFIER_MAX,
+                  min: statModifierMin,
+                  max: statModifierMax,
                   placeholder: true,
-                  value: DEFAULT_STAT_RANDOM_MIN,
+                  value: statModifierMin,
                 })}
               </div>
               <div class="in fll" style="width: 110px;">
@@ -2255,10 +2255,10 @@ class ObjectLayerEngineModal {
                   label: html`Random max`,
                   containerClass: 'inl',
                   type: 'number',
-                  min: STAT_MODIFIER_MIN,
-                  max: STAT_MODIFIER_MAX,
+                  min: statModifierMin,
+                  max: statModifierMax,
                   placeholder: true,
-                  value: DEFAULT_STAT_RANDOM_MAX,
+                  value: statModifierMax,
                 })}
               </div>
               <div class="in fll">
@@ -2310,8 +2310,8 @@ class ObjectLayerEngineModal {
     const modalId = `modal-object-layer-engine-${subModalId}`;
     await DefaultManagement.runIsolated(modalId, async () => {
       setPath(`${getProxyPath()}object-layer-engine-management`);
-      // The grid filters by document id; itemId belongs to the editor route only.
-      setQueryParams({ ...getQueryParams(), itemId: null, id: id ? id : '', page: 1 }, { replace: true });
+      // The grid filters by document id; cid belongs to the editor and viewer routes only.
+      setQueryParams({ ...getQueryParams(), cid: null, id: id ? id : '', page: 1 }, { replace: true });
 
       if (id) {
         DefaultManagement.setIdFilter(modalId, id);
@@ -2330,6 +2330,24 @@ class ObjectLayerEngineModal {
       await DefaultManagement.loadTable(modalId, { force: true, reload: true });
     });
   };
+
+  /**
+   * Opens the editor on `cid`, or on a blank form without one. A host without the editor
+   * entry keeps its path: `getProxyPath` reads the first path segment, so a route the host
+   * lacks would become the proxy prefix of every later asset and API request.
+   * @param {object} [options]
+   * @param {string} [options.cid] - The object layer to edit.
+   * @returns {boolean} Whether the host offers the editor.
+   */
+  static open({ cid } = {}) {
+    const entryEl = s(`.main-btn-object-layer-engine`);
+    if (!entryEl) return false;
+    setPath(`${getProxyPath()}object-layer-engine`);
+    if (cid) setQueryParams({ id: null, cid }, { replace: true });
+    if (s(`.modal-object-layer-engine`)) setTimeout(() => ObjectLayerEngineModal.Reload());
+    entryEl.click();
+    return true;
+  }
 
   static async Reload() {
     // Clear data before reload to prevent contamination

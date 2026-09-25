@@ -12,15 +12,15 @@
  *   cid          - IPFS Content Identifier (CIDv0 or CIDv1).
  *   resourceType - What kind of asset this CID belongs to:
  *                    'object-layer-data'  - JSON payload of an ObjectLayer document.
- *                    'atlas-sprite-sheet' - PNG sprite-sheet of an ObjectLayer.
- *                    'atlas-metadata'     - JSON metadata of an AtlasSpriteSheet.
+ *                    'atlas-sprite-sheet' - Primary render PNG of an ObjectLayer (`data.render.cid`).
+ *                    'atlas-metadata'     - Render metadata JSON of an ObjectLayer (`data.render.metadataCid`).
  *   mfsPath      - MFS (Mutable File System) path used when the CID was added,
  *                  e.g. /object-layer/sword/sword_data.json.
  *                  Enables targeted removal via files/rm without knowing the CID.
  *                  Uniquely identifies an item-id asset: exactly one registry
  *                  record per non-empty mfsPath. Distinct item-ids (mfsPaths) may
  *                  still resolve to the same CID — this is expected for
- *                  consolidated atlas sprite-sheet PNGs shared across item-ids.
+ *                  renders that several item-ids name.
  *
  * @module src/api/ipfs/ipfs.model.js
  * @namespace IpfsModel
@@ -53,7 +53,7 @@ const IpfsSchema = new Schema(
   },
 );
 // One DB record per item-id asset path. A CID may be shared across several
-// mfsPaths (consolidated atlas sprite-sheets), so the CID itself is not unique.
+// mfsPaths (a render several item-ids name), so the CID itself is not unique.
 // Partial filter keeps the constraint scoped to real (non-empty) MFS paths.
 IpfsSchema.index({ mfsPath: 1 }, { unique: true, partialFilterExpression: { mfsPath: { $gt: '' } } });
 // Fast look-ups for health-check and garbage-collection by type.

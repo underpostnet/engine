@@ -9,12 +9,14 @@ import {
 } from '../core/Router.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { ItemLedgerService } from '../../services/item-ledger/item-ledger.service.js';
+import { ItemLedgerBalanceService } from '../../services/item-ledger-balance/item-ledger-balance.service.js';
+import { ItemLedgerTransferService } from '../../services/item-ledger-transfer/item-ledger-transfer.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { append, htmls, s } from '../core/VanillaJs.js';
+import { append, escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
-import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
 import { Modal } from '../core/Modal.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { AgGrid } from '../core/AgGrid.js';
@@ -25,12 +27,21 @@ class ObjectLayerEngineViewer {
   static Data = {
     objectLayer: null,
     frameCounts: null,
+    frameDuration: 0,
     currentDirection: 'down',
     currentMode: 'idle',
     webp: null,
-    isGenerating: false,
-    currentItemId: undefined, // Item id in the URL, so an unchanged route skips a reload
-    atlasSpriteSheet: null,
+    // The definition whose animation is in flight.
+    generating: null,
+    currentKey: undefined, // Definition key in the URL, so an unchanged route skips a reload
+    // The render the definition names: `{ renderCid, metadataCid, layout }`, the same on every host.
+    render: null,
+    renderUnavailable: '',
+    // ItemLedger bindings of the definition; null while the ledger loads.
+    ledgerBindings: null,
+    ledgerUnavailable: '',
+    // The load in flight, so a second request for the same definition waits for it.
+    loading: null,
     isGeneratingAtlas: false,
     webpMetadata: null,
     metadataJsonEditor: null,
@@ -50,10 +61,31 @@ class ObjectLayerEngineViewer {
     };
     return directionCodeMap[key] || null;
   }
-  static async instance({ appStore }) {
+  /**
+   * The content profile that names and illustrates the stats, when the host binds one. Without
+   * one the viewer lists the mechanical block as it is stored.
+   * @type {{statDescriptions:Object}|null}
+   */
+  static profile = null;
+  /** The host has no editor route, so nothing here mutates. */
+  static readOnly = false;
+  /** The host is the Object Layer authority: a moderator archives a definition, an admin purges it. */
+  static lifecycle = false;
+
+  /**
+   * @param {Object} options
+   * @param {Object} options.appStore - Host app store.
+   * @param {Object} [options.profile] - Content profile that names and illustrates the stats.
+   * @param {boolean} [options.readOnly=false] - No add, edit or delete.
+   * @param {boolean} [options.lifecycle=false] - Offer archive and purge to the roles that hold them.
+   */
+  static async instance({ appStore, profile = null, readOnly = false, lifecycle = false }) {
     const id = 'object-layer-engine-viewer';
+    ObjectLayerEngineViewer.profile = profile;
+    ObjectLayerEngineViewer.readOnly = readOnly;
+    ObjectLayerEngineViewer.lifecycle = lifecycle;
     // Reset so a modal render always triggers Reload.
-    ObjectLayerEngineViewer.Data.currentItemId = undefined;
+    ObjectLayerEngineViewer.Data.currentKey = undefined;
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
       ObjectLayerEngineViewer.Reload({ appStore });
     };
@@ -61,25 +93,513 @@ class ObjectLayerEngineViewer {
     listenQueryParamsChange({
       id: `${id}-query-listener`,
       event: async (queryParams) => {
-        const itemId = queryParams.itemId || null;
+        const key = queryParams.cid || null;
         if (!s(`.modal-${id}`) || !s(`#${id}`)) {
           logger.warn('ObjectLayerEngineViewer DOM not ready for query param change');
           return;
         }
-        if (itemId !== ObjectLayerEngineViewer.Data.currentItemId) {
+        if (key !== ObjectLayerEngineViewer.Data.currentKey) {
           await ObjectLayerEngineViewer.Reload({ appStore });
         }
       },
     });
+    ThemeEvents[id] = () => {
+      if (s(`.style-${id}`)) htmls(`.style-${id}`, ObjectLayerEngineViewer.style());
+    };
     return html`
+      <div class="hide style-${id}">${ObjectLayerEngineViewer.style()}</div>
       <div class="fl">
-        <div class="in ${id}" id="${id}">
-          <div class="in section-mp">
-            <div class="in">Loading object layer...</div>
-          </div>
-        </div>
+        <div class="in ${id}" id="${id}">${ObjectLayerEngineViewer.busy('Loading')}</div>
       </div>
     `;
+  }
+  /** A spinner and a message, for a part of the viewer that waits for the network. */
+  static busy(message, content = '') {
+    return html`<div class="object-layer-viewer-busy">
+      <i class="fa-solid fa-spinner fa-spin"></i>
+      <span>${message}</span>
+      ${content}
+    </div>`;
+  }
+  /** Shows the load of one definition at once, with a way back to the list while it waits. */
+  static renderLoading({ appStore, key }) {
+    const id = 'object-layer-engine-viewer';
+    if (!s(`#${id}`)) return;
+    htmls(
+      `#${id}`,
+      ObjectLayerEngineViewer.busy(
+        'Loading object layer',
+        html`<span class="object-layer-viewer-busy-key">${escapeHtml(key)}</span>
+          <button class="default-viewer-btn" id="return-to-list-btn">
+            <i class="fa-solid fa-list"></i> Back to the list
+          </button>`,
+      ),
+    );
+    ObjectLayerEngineViewer.attachReturnToList({ appStore });
+  }
+  /** The styles of the viewer. They follow the theme and stay while the viewer content changes. */
+  static style() {
+    return html` <style>
+      .object-layer-viewer-busy {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 500px;
+        gap: 20px;
+        padding: 20px;
+        text-align: center;
+      }
+      .object-layer-viewer-busy > i {
+        font-size: 30px;
+      }
+      .object-layer-viewer-busy-key {
+        font-family: monospace;
+        font-size: 13px;
+        opacity: 0.7;
+        word-break: break-all;
+      }
+      .object-layer-viewer-busy .default-viewer-btn {
+        width: auto;
+        padding: 12px 24px;
+      }
+      .background-confirm-modal-remove-atlas-confirm {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .atlas-preview-container {
+        margin-bottom: 10px;
+        width: 100%;
+      }
+      .atlas-img-wrapper {
+        width: 100%;
+        overflow: auto;
+        border: 1px solid ${darkTheme ? '#444' : '#ddd'};
+        border-radius: 8px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+      }
+      .atlas-img-preview {
+        width: 100%;
+        image-rendering: pixelated;
+        background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
+      }
+      /* Own pixel size, so one atlas pixel is one screen pixel. */
+      .atlas-img-native {
+        width: auto;
+        height: auto;
+        margin: auto;
+      }
+      .atlas-img-placeholder {
+        padding: 20px;
+        text-align: center;
+        font-size: 13px;
+        color: ${darkTheme ? '#aaa' : '#666'};
+      }
+      .atlas-render-label {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        padding: 2px;
+        font-size: 14px;
+      }
+      .atlas-render-size {
+        font-size: 12px;
+        opacity: 0.75;
+      }
+      .atlas-metadata-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+        font-size: 14px;
+        opacity: 0.9;
+      }
+      .atlas-actions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+      }
+      .webp-placeholder {
+        text-align: center;
+        color: ${darkTheme ? '#aaa' : '#666'};
+      }
+      .webp-placeholder i {
+        font-size: 48px;
+        opacity: 0.3;
+        margin-bottom: 16px;
+      }
+      .webp-placeholder p {
+        margin: 0;
+        font-size: 14px;
+      }
+      .object-layer-viewer-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'retro-font';
+      }
+
+      .viewer-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid ${darkTheme ? '#444' : '#ddd'};
+      }
+
+      .viewer-header h2 {
+        margin: 0 0 10px 0;
+        color: ${darkTheme ? '#fff' : '#333'};
+      }
+
+      .webp-display-area {
+        background: ${darkTheme ? '#2a2a2a' : '#f5f5f5'};
+        border: 2px solid ${darkTheme ? '#444' : '#ddd'};
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 300px;
+        height: auto;
+        max-height: 600px;
+        position: relative;
+        overflow: auto;
+      }
+
+      .webp-canvas-container {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+      }
+
+      .webp-canvas-container canvas,
+      .webp-canvas-container img {
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+        -ms-interpolation-mode: nearest-neighbor;
+        background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-width: 100%;
+        max-height: 540px;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
+        display: block;
+      }
+
+      .webp-canvas-container canvas {
+        background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
+        min-width: 128px;
+        min-height: 128px;
+      }
+
+      .webp-info-badge {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.2);
+        color: ${darkTheme ? 'white' : 'black'};
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: monospace;
+        backdrop-filter: blur(4px);
+      }
+
+      .webp-info-badge .info-label {
+        opacity: 0.7;
+        margin-right: 4px;
+      }
+
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        border-radius: 8px;
+        z-index: 10;
+      }
+
+      .controls-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .control-group {
+        background: ${darkTheme ? '#2a2a2a' : '#fff'};
+        border: 1px solid ${darkTheme ? '#444' : '#ddd'};
+        border-radius: 8px;
+        padding: 15px 20px;
+      }
+
+      .control-group h4 {
+        margin: 0 0 15px 0;
+        color: ${darkTheme ? '#fff' : '#333'};
+        font-size: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .control-btn {
+        flex: 1;
+        min-width: 80px;
+        padding: 12px 20px;
+        border: 2px solid ${darkTheme ? '#444' : '#ddd'};
+        background: ${darkTheme ? '#333' : '#f9f9f9'};
+        color: ${darkTheme ? '#fff' : '#333'};
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .control-btn:hover {
+        background: ${darkTheme ? '#444' : '#f0f0f0'};
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .control-btn.active {
+        background: ${darkTheme ? '#4a9eff' : '#2196F3'};
+        color: white;
+        border-color: ${darkTheme ? '#4a9eff' : '#2196F3'};
+      }
+
+      .control-btn i {
+        font-size: 16px;
+      }
+
+      .default-viewer-btn {
+        position: relative;
+        width: 100%;
+        padding: 15px;
+        background: ${darkTheme ? '#4caf50' : '#4CAF50'};
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      /* The click spinner replaces the label while the action runs. */
+      .default-viewer-btn:has(> [class*='spinner-progress-']) > :not([class*='spinner-progress-']) {
+        visibility: hidden;
+      }
+
+      .default-viewer-btn:hover {
+        background: ${darkTheme ? '#45a049' : '#45a049'};
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+      }
+
+      .control-btn:disabled {
+        background: ${darkTheme ? '#555' : '#ccc'};
+        cursor: not-allowed;
+        transform: none;
+        opacity: 0.5;
+      }
+
+      .control-btn .frame-count {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-left: 4px;
+      }
+
+      .default-viewer-btn:disabled {
+        background: ${darkTheme ? '#555' : '#ccc'};
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .edit-btn {
+        background: ${darkTheme ? '#4a9eff' : '#2196F3'};
+      }
+
+      .edit-btn:hover {
+        background: ${darkTheme ? '#3a8eff' : '#1186f2'};
+      }
+
+      @media (max-width: 768px) {
+        .webp-display-area {
+          max-height: 500px;
+          min-height: 300px;
+          padding: 20px;
+        }
+
+        .webp-canvas-container canvas,
+        .webp-canvas-container img {
+          max-width: 100%;
+          max-height: 540px;
+          object-fit: contain;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .webp-display-area {
+          max-height: 400px;
+          min-height: 250px;
+          padding: 15px;
+        }
+
+        .webp-canvas-container canvas,
+        .webp-canvas-container img {
+          max-height: 340px;
+        }
+
+        .button-group {
+          flex-direction: column;
+        }
+
+        .control-btn {
+          min-width: 100%;
+        }
+      }
+      .item-data-key-label {
+        font-size: 16px;
+        color: ${darkTheme ? '#aaa' : '#666'};
+        text-transform: uppercase;
+      }
+      .item-data-value-label {
+        font-size: 20px;
+        font-weight: 700;
+        color: ${darkTheme ? '#aaa' : '#666'};
+        text-align: center;
+      }
+      .item-stat-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 12px;
+        background: ${darkTheme ? '#1a1a1a' : '#f9f9f9'};
+        border-radius: 6px;
+        border: 1px solid ${darkTheme ? '#333' : '#e0e0e0'};
+      }
+      .no-data-container {
+        grid-column: 1 / -1;
+        text-align: center;
+        color: ${darkTheme ? '#666' : '#999'};
+        padding: 20px;
+      }
+      .ipfs-cid-label {
+        font-size: 14px;
+        color: ${darkTheme ? '#b0b8c8' : '#555'};
+        word-break: break-all;
+        padding: 10px 12px;
+        border: 1px solid
+          ${(() => {
+            const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+            return tc ? (darkTheme ? darkenHex(tc, 0.7) : lightenHex(tc, 0.7)) : darkTheme ? '#3a3f4b' : '#d0d5dd';
+          })()};
+        border-radius: 6px;
+        background: ${(() => {
+          const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+          return tc ? (darkTheme ? darkenHex(tc, 0.85) : lightenHex(tc, 0.85)) : darkTheme ? '#1a1f2e' : '#f4f6f9';
+        })()};
+        margin-top: 8px;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        line-height: 1.5;
+      }
+      .ipfs-cid-label i {
+        color: ${(() => {
+          const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+          return tc ? (darkTheme ? lightenHex(tc, 0.5) : darkenHex(tc, 0.3)) : darkTheme ? '#4a9eff' : '#2196F3';
+        })()};
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .ipfs-cid-label strong {
+        color: ${darkTheme ? '#cdd4e0' : '#333'};
+        white-space: nowrap;
+        font-size: 14px;
+      }
+      .ipfs-cid-label .ipfs-cid-value {
+        user-select: all;
+        cursor: text;
+        color: ${(() => {
+          const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+          return tc ? (darkTheme ? lightenHex(tc, 0.6) : darkenHex(tc, 0.3)) : darkTheme ? '#8ecfff' : '#1565c0';
+        })()};
+        font-family: monospace;
+        font-size: 13px;
+      }
+
+      .webp-download-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        z-index: 5;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s ease;
+      }
+      .webp-download-btn:hover {
+        background: rgba(0, 0, 0, 0.75);
+        transform: scale(1.05);
+      }
+      .webp-download-btn i {
+        font-size: 12px;
+      }
+
+      @media (max-width: 850px) {
+        .object-layer-viewer-container {
+          padding: 5px;
+        }
+      }
+    </style>`;
   }
   static async renderEmpty({ appStore }) {
     const id = 'object-layer-engine-viewer';
@@ -89,7 +609,7 @@ class ObjectLayerEngineViewer {
       logger.warn('ObjectLayerEngineViewer DOM not ready for renderEmpty');
       return;
     }
-    ObjectLayerEngineViewer.Data.currentItemId = null;
+    ObjectLayerEngineViewer.Data.currentKey = null;
     // Check if the management table grid already exists AND its DOM is still present
     // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
     const gridId = `object-layer-engine-management-grid-${idModal}`;
@@ -111,10 +631,14 @@ class ObjectLayerEngineViewer {
       await ObjectLayerManagement.instance({
         appStore,
         idModal,
+        readOnly: ObjectLayerEngineViewer.readOnly,
+        lifecycle: ObjectLayerEngineViewer.lifecycle,
       }),
     );
   }
-  static async loadObjectLayer(itemId, appStore, options = {}) {
+  // `key` names one definition: its cid, its document id, or (on a Cyberia host) the item label
+  // the catalog binds.
+  static async loadObjectLayer(key, appStore, options = {}) {
     const { skipWebp = false } = options;
     const id = 'object-layer-engine-viewer';
     // Check if DOM element exists
@@ -122,41 +646,58 @@ class ObjectLayerEngineViewer {
       logger.warn('ObjectLayerEngineViewer DOM not ready for loadObjectLayer');
       return;
     }
+    // The route moved to another definition, or back to the list, while this load waited.
+    const stale = () => ObjectLayerEngineViewer.Data.currentKey !== key;
     try {
       // Load metadata first
-      const { status: metaStatus, data: metadata } = await ObjectLayerService.getMetadata({ id: itemId });
-      if (metaStatus !== 'success' || !metadata) {
-        throw new Error('Failed to load object layer metadata');
-      }
+      const answer = await ObjectLayerService.getMetadata({ id: key });
+      if (stale()) return;
+      const metadata = answer.status === 'success' ? answer.data : null;
+      if (!metadata) throw new Error(answer.message || 'the Object Layer service answered no metadata');
+      // The ledger lives on another host: its section fills in when it answers.
+      const ledger = ObjectLayerEngineViewer.loadLedger(metadata.cid);
+      // The render the definition names and its frame counts, from the Object Layer domain: the
+      // same on every host.
+      const rendered = !!metadata.data?.render?.cid;
+      const [layout, frames] = await Promise.all([
+        rendered
+          ? AtlasSpriteSheetService.getLayout({ cid: metadata.cid }).catch((error) => ({
+              status: 'error',
+              message: error.message,
+            }))
+          : null,
+        AtlasSpriteSheetService.getFrameCounts({ cid: metadata.cid }),
+      ]);
+      if (stale()) return;
+      const frameData = frames.status === 'success' ? frames.data : null;
+      if (!frameData) throw new Error(frames.message || 'the Object Layer service answered no frame counts');
       ObjectLayerEngineViewer.Data.objectLayer = metadata;
-      if (metadata.atlasSpriteSheetId) {
-        const { status: atlasStatus, data: atlasData } = await AtlasSpriteSheetService.get({
-          id: metadata.atlasSpriteSheetId,
-        });
-        if (atlasStatus === 'success') {
-          ObjectLayerEngineViewer.Data.atlasSpriteSheet = atlasData;
-        }
-      } else {
-        ObjectLayerEngineViewer.Data.atlasSpriteSheet = null;
-      }
-      // Load frame counts for all directions
-      const { status: frameStatus, data: frameData } = await ObjectLayerService.getFrameCounts({ id: itemId });
-      if (frameStatus !== 'success' || !frameData) {
-        throw new Error('Failed to load frame counts');
-      }
+      ObjectLayerEngineViewer.Data.ledgerBindings = null;
+      ObjectLayerEngineViewer.Data.ledgerUnavailable = '';
+      ObjectLayerEngineViewer.Data.render = layout?.status === 'success' && layout.data ? layout.data : null;
+      ObjectLayerEngineViewer.Data.renderUnavailable =
+        layout && !ObjectLayerEngineViewer.Data.render ? layout.message || 'the render did not load' : '';
       ObjectLayerEngineViewer.Data.frameCounts = frameData.frameCounts;
+      ObjectLayerEngineViewer.Data.frameDuration = frameData.frameDuration;
       ObjectLayerEngineViewer.Data.currentDirection = 'down';
       ObjectLayerEngineViewer.Data.currentMode = 'idle';
       // instance the viewer UI
       await ObjectLayerEngineViewer.renderViewer({ appStore });
-      // Generate WebP
-      if (!skipWebp) {
+      ledger.then(({ bindings, unavailable }) => {
+        if (stale()) return;
+        ObjectLayerEngineViewer.Data.ledgerBindings = bindings;
+        ObjectLayerEngineViewer.Data.ledgerUnavailable = unavailable;
+        if (s(`.${id}-ledger`)) htmls(`.${id}-ledger`, ObjectLayerEngineViewer.ledgerHtml());
+      });
+      // A definition that names no render yet is valid; it has nothing to animate.
+      if (!skipWebp && rendered) {
         await ObjectLayerEngineViewer.generateWebp();
       }
     } catch (error) {
+      if (stale()) return;
       logger.error('Error loading object layer:', error);
       NotificationManager.Push({
-        html: `Failed to load object layer "${itemId}": ${error.message}`,
+        html: `Failed to load object layer "${key}": ${error.message}`,
         status: 'error',
       });
       htmls(
@@ -164,8 +705,8 @@ class ObjectLayerEngineViewer {
         html`
           <div class="in section-mp">
             <div class="in">
-              <h3>Object layer not found</h3>
-              <p>No object layer answers to the item id <strong>${itemId}</strong>.</p>
+              <h3>Object layer unavailable</h3>
+              <p><strong>${escapeHtml(key)}</strong>: ${escapeHtml(error.message)}</p>
               <button class="default-viewer-btn" id="return-to-list-btn">
                 <i class="fa-solid fa-list"></i> Back to the list
               </button>
@@ -176,9 +717,109 @@ class ObjectLayerEngineViewer {
       ObjectLayerEngineViewer.attachReturnToList({ appStore });
     }
   }
+  /**
+   * The ItemLedger bindings of a definition, each with its supply, holders and provenance. None
+   * when the definition is unregistered. It never rejects: an unreachable ledger gives a reason.
+   * @returns {Promise<{bindings: Array, unavailable: string}>}
+   */
+  static async loadLedger(cid) {
+    if (!cid) return { bindings: [], unavailable: '' };
+    try {
+      const { status, data: ledger } = await ItemLedgerService.getByCid({ cid });
+      const bindings = status === 'success' && Array.isArray(ledger?.data) ? ledger.data : [];
+      await Promise.all(
+        bindings.map(async (binding) => {
+          const [supply, { data: holders }, { data: transfers }] = await Promise.all([
+            ItemLedgerBalanceService.getSupply(binding),
+            ItemLedgerBalanceService.getHolders({ ...binding, page: 1, limit: 10 }),
+            ItemLedgerTransferService.getProvenance({ ...binding, page: 1, limit: 10 }),
+          ]);
+          binding.supply = supply.status === 'success' ? supply.data.supply : '';
+          binding.holders = Array.isArray(holders?.data) ? holders.data : [];
+          binding.transfers = Array.isArray(transfers?.data) ? transfers.data : [];
+        }),
+      );
+      return { bindings, unavailable: '' };
+    } catch (error) {
+      logger.warn('ItemLedger bindings unavailable', error);
+      return { bindings: [], unavailable: error.message || 'the ledger did not answer' };
+    }
+  }
+  /** The body of the Ledger section: a spinner while the ledger loads, then its bindings. */
+  static ledgerHtml() {
+    const { ledgerBindings, ledgerUnavailable } = ObjectLayerEngineViewer.Data;
+    if (!ledgerBindings)
+      return html`<div style="padding: 10px 0;">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <span style="margin-left: 10px;">Loading ledger</span>
+      </div>`;
+    if (ledgerBindings.length === 0)
+      return html`<div style="padding: 10px 0;">
+        <span class="item-data-key-label">Registration</span>
+        <span style="font-weight: 600;">
+          ${ledgerUnavailable
+            ? `The ledger is unavailable: ${escapeHtml(ledgerUnavailable)}`
+            : 'Off-chain (unregistered)'}
+        </span>
+      </div>`;
+    return ledgerBindings
+      .map(
+        (binding) => html`<div
+          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
+        >
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="item-data-key-label">Standard</span>
+            <span style="font-weight: 600;">${binding.standard}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="item-data-key-label">Chain ID</span>
+            <span style="font-weight: 600;">${binding.chainId}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="item-data-key-label">Contract Address</span>
+            <span style="font-weight: 600; word-break: break-all;">${binding.contractAddress}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="item-data-key-label">Token ID</span>
+            <span style="font-weight: 600; word-break: break-all;">${binding.tokenId}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="item-data-key-label">Supply</span>
+            <span style="font-weight: 600;">${binding.supply || '0'}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; grid-column: 1 / -1;">
+            <span class="item-data-key-label">Holders</span>
+            ${binding.holders.length === 0
+              ? html`<span style="font-weight: 600;">None</span>`
+              : binding.holders
+                  .map(
+                    (holder) => html`<span style="font-weight: 600; word-break: break-all;">
+                      ${holder.ownerAddress}: ${holder.balance}
+                    </span>`,
+                  )
+                  .join('')}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; grid-column: 1 / -1;">
+            <span class="item-data-key-label">Provenance</span>
+            ${binding.transfers.length === 0
+              ? html`<span style="font-weight: 600;">No transfers indexed</span>`
+              : binding.transfers
+                  .map(
+                    (leg) => html`<span style="font-weight: 600; word-break: break-all;">
+                      #${leg.blockNumber} ${leg.from} → ${leg.to}: ${leg.value}
+                    </span>`,
+                  )
+                  .join('')}
+          </div>
+        </div>`,
+      )
+      .join('');
+  }
   static async renderViewer({ appStore }) {
     const id = 'object-layer-engine-viewer';
-    const canMutate = commonModeratorGuard(appStore?.Data?.user?.main?.model?.user?.role || 'guest');
+    const canMutate =
+      !ObjectLayerEngineViewer.readOnly &&
+      commonModeratorGuard(appStore?.Data?.user?.main?.model?.user?.role || 'guest');
     const { objectLayer, frameCounts } = ObjectLayerEngineViewer.Data;
     if (!objectLayer || !frameCounts) return;
     // Check if DOM element exists
@@ -190,12 +831,9 @@ class ObjectLayerEngineViewer {
     const itemId = objectLayer.data.item.id;
     const itemDescription = objectLayer.data.item.description || '';
     const itemActivable = objectLayer.data.item.activable || false;
-    // Get ledger data
-    const ledger = objectLayer.data.ledger || {};
-    const ledgerType = ledger.type || '';
-    const ledgerAddress = ledger.address || '';
     // Get stats data
     const stats = objectLayer.data.stats || {};
+    const statDescriptions = ObjectLayerEngineViewer.profile?.statDescriptions || {};
     // Helper function to check if direction/mode has frames
     const hasFrames = (direction, mode) => {
       const numericCode = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
@@ -206,13 +844,14 @@ class ObjectLayerEngineViewer {
       const numericCode = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
       return numericCode ? frameCounts[numericCode] || 0 : 0;
     };
-    // One atlas render: which one it is, how large it is, and its PNG.
-    // `native` draws the blob at its own pixel size, with no fit to the panel.
-    const atlasRender = ({ label, fileId, pixelsPerCell, emptyText, native }) => {
-      const metadata = ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata;
+    // One render: which one it is, how large it is, and its PNG.
+    // `native` draws the image at its own pixel size, with no fit to the panel.
+    const atlasRender = ({ label, upscaled, native }) => {
+      const { layout } = ObjectLayerEngineViewer.Data.render;
+      const pixelsPerCell = upscaled ? layout.upscaleFactor : layout.cellPixelDim;
       const size =
         pixelsPerCell > 0
-          ? `${metadata.atlasWidth * pixelsPerCell}x${metadata.atlasHeight * pixelsPerCell}px · ${pixelsPerCell}px per cell`
+          ? `${layout.atlasWidth * pixelsPerCell}x${layout.atlasHeight * pixelsPerCell}px · ${pixelsPerCell}px per cell`
           : '';
       return html`<div class="atlas-render">
         <p class="atlas-render-label">
@@ -220,468 +859,19 @@ class ObjectLayerEngineViewer {
           <span class="atlas-render-size">${size}</span>
         </p>
         <div class="atlas-img-wrapper">
-          ${fileId
-            ? html`<img
-                src="${getProxyPath()}api/file/blob/${fileId._id || fileId}"
-                class="in atlas-img-preview ${native ? 'atlas-img-native' : ''}"
-              />`
-            : html`<div class="atlas-img-placeholder">${emptyText}</div>`}
+          <img
+            src="${AtlasSpriteSheetService.renderUrl({ cid: objectLayer.cid, upscaled })}"
+            class="in atlas-img-preview ${native ? 'atlas-img-native' : ''}"
+          />
         </div>
       </div>`;
-    };
-    ThemeEvents[id] = () => {
-      if (!s(`.style-${id}`)) return;
-      htmls(
-        `.style-${id}`,
-        html` <style>
-          .background-confirm-modal-remove-atlas-confirm {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-          }
-          .atlas-preview-container {
-            margin-bottom: 10px;
-            width: 100%;
-          }
-          .atlas-img-wrapper {
-            width: 100%;
-            overflow: auto;
-            border: 1px solid ${darkTheme ? '#444' : '#ddd'};
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-          }
-          .atlas-img-preview {
-            width: 100%;
-            image-rendering: pixelated;
-            background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
-          }
-          /* Own pixel size, so one atlas pixel is one screen pixel. */
-          .atlas-img-native {
-            width: auto;
-            height: auto;
-            margin: auto;
-          }
-          .atlas-img-placeholder {
-            padding: 20px;
-            text-align: center;
-            font-size: 13px;
-            color: ${darkTheme ? '#aaa' : '#666'};
-          }
-          .atlas-render-label {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: baseline;
-            gap: 8px;
-            padding: 2px;
-            font-size: 14px;
-          }
-          .atlas-render-size {
-            font-size: 12px;
-            opacity: 0.75;
-          }
-          .atlas-metadata-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            opacity: 0.9;
-          }
-          .atlas-actions-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            width: 100%;
-          }
-          .webp-placeholder {
-            text-align: center;
-            color: ${darkTheme ? '#aaa' : '#666'};
-          }
-          .webp-placeholder i {
-            font-size: 48px;
-            opacity: 0.3;
-            margin-bottom: 16px;
-          }
-          .webp-placeholder p {
-            margin: 0;
-            font-size: 14px;
-          }
-          .object-layer-viewer-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            font-family: 'retro-font';
-          }
-
-          .viewer-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid ${darkTheme ? '#444' : '#ddd'};
-          }
-
-          .viewer-header h2 {
-            margin: 0 0 10px 0;
-            color: ${darkTheme ? '#fff' : '#333'};
-          }
-
-          .webp-display-area {
-            background: ${darkTheme ? '#2a2a2a' : '#f5f5f5'};
-            border: 2px solid ${darkTheme ? '#444' : '#ddd'};
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 300px;
-            height: auto;
-            max-height: 600px;
-            position: relative;
-            overflow: auto;
-          }
-
-          .webp-canvas-container {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
-          }
-
-          .webp-canvas-container canvas,
-          .webp-canvas-container img {
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-            -ms-interpolation-mode: nearest-neighbor;
-            background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            max-width: 100%;
-            max-height: 540px;
-            width: auto !important;
-            height: auto !important;
-            object-fit: contain;
-            display: block;
-          }
-
-          .webp-canvas-container canvas {
-            background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
-            min-width: 128px;
-            min-height: 128px;
-          }
-
-          .webp-info-badge {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.2);
-            color: ${darkTheme ? 'white' : 'black'};
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-family: monospace;
-            backdrop-filter: blur(4px);
-          }
-
-          .webp-info-badge .info-label {
-            opacity: 0.7;
-            margin-right: 4px;
-          }
-
-          .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            border-radius: 8px;
-            z-index: 10;
-          }
-
-          .controls-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin-bottom: 20px;
-          }
-
-          .control-group {
-            background: ${darkTheme ? '#2a2a2a' : '#fff'};
-            border: 1px solid ${darkTheme ? '#444' : '#ddd'};
-            border-radius: 8px;
-            padding: 15px 20px;
-          }
-
-          .control-group h4 {
-            margin: 0 0 15px 0;
-            color: ${darkTheme ? '#fff' : '#333'};
-            font-size: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-          }
-
-          .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-          }
-
-          .control-btn {
-            flex: 1;
-            min-width: 80px;
-            padding: 12px 20px;
-            border: 2px solid ${darkTheme ? '#444' : '#ddd'};
-            background: ${darkTheme ? '#333' : '#f9f9f9'};
-            color: ${darkTheme ? '#fff' : '#333'};
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          }
-
-          .control-btn:hover {
-            background: ${darkTheme ? '#444' : '#f0f0f0'};
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-          }
-
-          .control-btn.active {
-            background: ${darkTheme ? '#4a9eff' : '#2196F3'};
-            color: white;
-            border-color: ${darkTheme ? '#4a9eff' : '#2196F3'};
-          }
-
-          .control-btn i {
-            font-size: 16px;
-          }
-
-          .default-viewer-btn {
-            width: 100%;
-            padding: 15px;
-            background: ${darkTheme ? '#4caf50' : '#4CAF50'};
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-          }
-
-          .default-viewer-btn:hover {
-            background: ${darkTheme ? '#45a049' : '#45a049'};
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-          }
-
-          .control-btn:disabled {
-            background: ${darkTheme ? '#555' : '#ccc'};
-            cursor: not-allowed;
-            transform: none;
-            opacity: 0.5;
-          }
-
-          .control-btn .frame-count {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-left: 4px;
-          }
-
-          .default-viewer-btn:disabled {
-            background: ${darkTheme ? '#555' : '#ccc'};
-            cursor: not-allowed;
-            transform: none;
-          }
-
-          .edit-btn {
-            background: ${darkTheme ? '#4a9eff' : '#2196F3'};
-          }
-
-          .edit-btn:hover {
-            background: ${darkTheme ? '#3a8eff' : '#1186f2'};
-          }
-
-          @media (max-width: 768px) {
-            .webp-display-area {
-              max-height: 500px;
-              min-height: 300px;
-              padding: 20px;
-            }
-
-            .webp-canvas-container canvas,
-            .webp-canvas-container img {
-              max-width: 100%;
-              max-height: 540px;
-              object-fit: contain;
-            }
-          }
-
-          @media (max-width: 600px) {
-            .webp-display-area {
-              max-height: 400px;
-              min-height: 250px;
-              padding: 15px;
-            }
-
-            .webp-canvas-container canvas,
-            .webp-canvas-container img {
-              max-height: 340px;
-            }
-
-            .button-group {
-              flex-direction: column;
-            }
-
-            .control-btn {
-              min-width: 100%;
-            }
-          }
-          .item-data-key-label {
-            font-size: 16px;
-            color: ${darkTheme ? '#aaa' : '#666'};
-            text-transform: uppercase;
-          }
-          .item-data-value-label {
-            font-size: 20px;
-            font-weight: 700;
-            color: ${darkTheme ? '#aaa' : '#666'};
-            text-align: center;
-          }
-          .item-stat-entry {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            padding: 12px;
-            background: ${darkTheme ? '#1a1a1a' : '#f9f9f9'};
-            border-radius: 6px;
-            border: 1px solid ${darkTheme ? '#333' : '#e0e0e0'};
-          }
-          .no-data-container {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: ${darkTheme ? '#666' : '#999'};
-            padding: 20px;
-          }
-          .ipfs-cid-label {
-            font-size: 14px;
-            color: ${darkTheme ? '#b0b8c8' : '#555'};
-            word-break: break-all;
-            padding: 10px 12px;
-            border: 1px solid
-              ${(() => {
-                const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-                return tc ? (darkTheme ? darkenHex(tc, 0.7) : lightenHex(tc, 0.7)) : darkTheme ? '#3a3f4b' : '#d0d5dd';
-              })()};
-            border-radius: 6px;
-            background: ${(() => {
-              const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-              return tc ? (darkTheme ? darkenHex(tc, 0.85) : lightenHex(tc, 0.85)) : darkTheme ? '#1a1f2e' : '#f4f6f9';
-            })()};
-            margin-top: 8px;
-            display: flex;
-            align-items: baseline;
-            gap: 6px;
-            line-height: 1.5;
-          }
-          .ipfs-cid-label i {
-            color: ${(() => {
-              const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-              return tc ? (darkTheme ? lightenHex(tc, 0.5) : darkenHex(tc, 0.3)) : darkTheme ? '#4a9eff' : '#2196F3';
-            })()};
-            font-size: 14px;
-            flex-shrink: 0;
-          }
-          .ipfs-cid-label strong {
-            color: ${darkTheme ? '#cdd4e0' : '#333'};
-            white-space: nowrap;
-            font-size: 14px;
-          }
-          .ipfs-cid-label .ipfs-cid-value {
-            user-select: all;
-            cursor: text;
-            color: ${(() => {
-              const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-              return tc ? (darkTheme ? lightenHex(tc, 0.6) : darkenHex(tc, 0.3)) : darkTheme ? '#8ecfff' : '#1565c0';
-            })()};
-            font-family: monospace;
-            font-size: 13px;
-          }
-
-          .webp-download-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 10px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            z-index: 5;
-            backdrop-filter: blur(4px);
-            transition: all 0.2s ease;
-          }
-          .webp-download-btn:hover {
-            background: rgba(0, 0, 0, 0.75);
-            transform: scale(1.05);
-          }
-          .webp-download-btn i {
-            font-size: 12px;
-          }
-
-          @media (max-width: 850px) {
-            .object-layer-viewer-container {
-              padding: 5px;
-            }
-          }
-        </style>`,
-      );
     };
     htmls(
       `#${id}`,
       html`
-        <div class="hide style-${id}"></div>
-
         <div class="object-layer-viewer-container">
           ${ObjectLayerEngineViewer.Data.isGeneratingAtlas
-            ? html`
-                <div
-                  style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 500px; gap: 20px; text-align: center;"
-                >
-                  <i class="fa-solid fa-spinner fa-spin" style="font-size: 30px;"></i>
-                  Generating Atlas Sprite Sheet
-                </div>
-              `
+            ? ObjectLayerEngineViewer.busy('Generating Atlas Sprite Sheet')
             : html`
                 <!-- Item Data Section -->
                 <div class="control-group" style="margin-bottom: 20px;">
@@ -711,7 +901,7 @@ class ObjectLayerEngineViewer {
                   ${objectLayer.cid
                     ? html`<div class="ipfs-cid-label">
                         <i class="fa-solid fa-cube"></i>
-                        <strong>IPFS CID:</strong>
+                        <strong>Object Layer CID:</strong>
                         <span class="ipfs-cid-value">${objectLayer.cid}</span>
                       </div>`
                     : ''}
@@ -729,11 +919,18 @@ class ObjectLayerEngineViewer {
                         <span class="ipfs-cid-value">${objectLayer.data.render.metadataCid}</span>
                       </div>`
                     : ''}
-                  ${objectLayer.sha256
+                  ${objectLayer.contentHash
                     ? html`<div class="ipfs-cid-label">
                         <i class="fa-solid fa-fingerprint"></i>
-                        <strong>SHA-256:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.sha256}</span>
+                        <strong>Content hash:</strong>
+                        <span class="ipfs-cid-value">${objectLayer.contentHash}</span>
+                      </div>`
+                    : ''}
+                  ${objectLayer.profile
+                    ? html`<div class="ipfs-cid-label">
+                        <i class="fa-solid fa-tag"></i>
+                        <strong>Profile:</strong>
+                        <span class="ipfs-cid-value">${objectLayer.profile.id}@${objectLayer.profile.version}</span>
                       </div>`
                     : ''}
                 </div>
@@ -758,16 +955,17 @@ class ObjectLayerEngineViewer {
                     ${Object.keys(stats).length > 0
                       ? Object.entries(stats)
                           .map(([statKey, statValue]) => {
-                            const statInfo = ObjectLayerEngineModal.statDescriptions[statKey];
-                            if (!statInfo) return '';
+                            const statInfo = statDescriptions[statKey] || { title: statKey, description: '', detail: '' };
                             return html`
                               <div class="item-stat-entry">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                  <img
-                                    src="${getProxyPath()}assets/ui-icons/${statInfo.icon}"
-                                    id="stat-icon-${statKey}-${id}"
-                                    style="width: 40px; height: 40px; image-rendering: pixelated;"
-                                  />
+                                  ${statInfo.icon
+                                    ? html`<img
+                                        src="${getProxyPath()}assets/ui-icons/${statInfo.icon}"
+                                        id="stat-icon-${statKey}-${id}"
+                                        style="width: 40px; height: 40px; image-rendering: pixelated;"
+                                      />`
+                                    : ''}
                                   <span class="item-data-key-label">${statInfo.title}</span>
                                 </div>
                                 <span class="item-data-value-label" style="color: ${statValue < 0 ? '#ef7777' : statValue > 0 ? '#7bdd9a' : '#aaa'}">${statValue > 0 ? '+' : ''}${statValue}</span>
@@ -779,23 +977,10 @@ class ObjectLayerEngineViewer {
                   </div>
                 </div>
 
-                <!-- Ledger Section -->
+                <!-- ItemLedger Section: token bindings of this definition, read from the registry -->
                 <div class="control-group" style="margin-bottom: 20px;">
                   <h4><i class="fa-solid fa-link"></i> Ledger</h4>
-                  <div
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
-                  >
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                      <span class="item-data-key-label">Type</span>
-                      <span style="font-weight: 600;">${ledgerType || 'N/A'}</span>
-                    </div>
-                    ${ledgerAddress
-                      ? html`<div style="display: flex; flex-direction: column; gap: 4px;">
-                          <span class="item-data-key-label">Contract Address</span>
-                          <span style="font-weight: 600; word-break: break-all;">${ledgerAddress}</span>
-                        </div>`
-                      : ''}
-                  </div>
+                  <div class="${id}-ledger">${ObjectLayerEngineViewer.ledgerHtml()}</div>
                 </div>
 
                 <div class="webp-display-area">
@@ -808,7 +993,11 @@ class ObjectLayerEngineViewer {
                       ? html`
                           <div class="webp-placeholder">
                             <i class="fa-solid fa-image"></i>
-                            <p>WebP preview will appear here</p>
+                            <p>
+                              ${ObjectLayerEngineViewer.Data.objectLayer?.data?.render?.cid
+                                ? 'WebP preview will appear here'
+                                : 'This definition names no render yet'}
+                            </p>
                           </div>
                         `
                       : ''}
@@ -915,40 +1104,27 @@ class ObjectLayerEngineViewer {
                   <div class="control-group">
                     <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
                     <div class="button-group" style="flex-direction: column; align-items: flex-start;">
-                      ${ObjectLayerEngineViewer.Data.atlasSpriteSheet
+                      ${ObjectLayerEngineViewer.Data.render
                         ? html`
                         <div class="atlas-preview-container">
-                          ${atlasRender({
-                            label: 'Upscaled',
-                            fileId: ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId,
-                            pixelsPerCell: ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.upscaleFactor,
-                            emptyText: 'Upscaled render not available',
-                          })}
-                          ${atlasRender({
-                            label: 'Minified',
-                            fileId: ObjectLayerEngineViewer.Data.atlasSpriteSheet.minifyFileId,
-                            pixelsPerCell: ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.cellPixelDim,
-                            emptyText: 'Minified render not available',
-                            native: true,
-                          })}
+                          ${atlasRender({ label: 'Primary render', upscaled: false, native: true })}
+                          ${atlasRender({ label: 'Upscaled render', upscaled: true })}
                           <div class="atlas-metadata-grid">
-                            <div>
-                              <p style="padding: 2px"><strong class="item-data-key-label">ID:</strong></p>
-                              <p style="padding: 2px" font-size: 12px;">${ObjectLayerEngineViewer.Data.atlasSpriteSheet._id}</p>
+                            <div style="grid-column: 1 / -1;">
+                              <p style="padding: 2px"><strong class="item-data-key-label">Render CID:</strong></p>
+                              <p class="ipfs-cid-value" style="padding: 2px;">
+                                ${ObjectLayerEngineViewer.Data.render.renderCid}
+                              </p>
                             </div>
-                            ${
-                              ObjectLayerEngineViewer.Data.atlasSpriteSheet.cid
-                                ? html`<div style="grid-column: 1 / -1;">
-                                    <p style="padding: 2px"><strong class="item-data-key-label">IPFS CID:</strong></p>
-                                    <p class="ipfs-cid-value" style="padding: 2px;">
-                                      ${ObjectLayerEngineViewer.Data.atlasSpriteSheet.cid}
-                                    </p>
-                                  </div>`
-                                : ''
-                            }
+                            <div style="grid-column: 1 / -1;">
+                              <p style="padding: 2px"><strong class="item-data-key-label">Metadata CID:</strong></p>
+                              <p class="ipfs-cid-value" style="padding: 2px;">
+                                ${ObjectLayerEngineViewer.Data.render.metadataCid}
+                              </p>
+                            </div>
                             <div>
-                                <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
-                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}</p>
+                              <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
+                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.render.layout.itemKey}</p>
                             </div>
                           </div>
                         </div>
@@ -984,7 +1160,11 @@ class ObjectLayerEngineViewer {
                         </div>
                       `
                         : html`
-                            <p>No atlas sprite sheet associated with this object layer.</p>
+                            <p>
+                              ${ObjectLayerEngineViewer.Data.renderUnavailable
+                                ? `The render is unavailable: ${escapeHtml(ObjectLayerEngineViewer.Data.renderUnavailable)}`
+                                : 'This definition names no render yet.'}
+                            </p>
                             ${canMutate
                               ? html`<button class="default-viewer-btn" id="generate-atlas-btn">
                                   <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -1015,7 +1195,6 @@ class ObjectLayerEngineViewer {
         </div>
       `,
     );
-    ThemeEvents[id]();
     // Attach event listeners
     ObjectLayerEngineViewer.attachEventListeners({ appStore });
     // If we already have a webp loaded, display it without re-generating
@@ -1068,7 +1247,7 @@ class ObjectLayerEngineViewer {
       `;
     }
   }
-  static async initMetadataJsonEditor() {
+  static initMetadataJsonEditor() {
     const container = s('#metadata-json-editor-container');
     if (!container) return;
     // Ensure vanilla-jsoneditor dark theme CSS is loaded
@@ -1088,15 +1267,13 @@ class ObjectLayerEngineViewer {
       ObjectLayerEngineViewer.Data.metadataJsonEditor.destroy();
       ObjectLayerEngineViewer.Data.metadataJsonEditor = null;
     }
-    const objectLayerId = ObjectLayerEngineViewer.Data.objectLayer?._id;
-    if (!objectLayerId) return;
+    const { objectLayer } = ObjectLayerEngineViewer.Data;
+    if (!objectLayer) return;
     try {
-      const response = await ObjectLayerService.getMetadata({ id: objectLayerId });
-      const metadataContent = response.status === 'success' && response.data ? response.data : response;
       ObjectLayerEngineViewer.Data.metadataJsonEditor = createJSONEditor({
         target: container,
         props: {
-          content: { json: metadataContent },
+          content: { json: objectLayer },
           readOnly: true,
           mainMenuBar: true,
           navigationBar: true,
@@ -1134,10 +1311,10 @@ class ObjectLayerEngineViewer {
       id: 'delete-object-layer-confirm',
       html: async () => html`
         <div class="in section-mp" style="text-align: center">
-          <p>Are you sure you want to permanently delete object layer <strong>"${itemId}"</strong>?</p>
+          <p>Remove object layer <strong>"${itemId}"</strong> from this host?</p>
           <p style="color: #dc3545; font-size: 13px; margin-top: 8px;">
-            This will remove all associated data including render frames, atlas sprite sheet, IPFS pins, and static
-            asset files.
+            This unbinds the label and removes this host's copy: render frames, atlas and static asset files. A
+            published definition stays at the Object Layer authority under its CID.
           </p>
         </div>
       `,
@@ -1146,8 +1323,9 @@ class ObjectLayerEngineViewer {
     try {
       const result = await ObjectLayerService.delete({ id: objectLayerId });
       if (result.status === 'success') {
+        AtlasSpriteSheetService.invalidateIdlePreview(itemId);
         NotificationManager.Push({
-          html: `Object layer "${itemId}" deleted successfully`,
+          html: `Object layer "${itemId}" removed from this host`,
           status: 'success',
         });
         // Clean up JSON editor and its theme event
@@ -1157,12 +1335,12 @@ class ObjectLayerEngineViewer {
         }
         delete ThemeEvents['metadata-json-editor-theme'];
         // Navigate back to list
-        ObjectLayerEngineViewer.Data.currentItemId = undefined;
+        ObjectLayerEngineViewer.Data.currentKey = undefined;
         ObjectLayerEngineViewer.Data.objectLayer = null;
         ObjectLayerEngineViewer.Data.webp = null;
         ObjectLayerEngineViewer.Data.webpMetadata = null;
-        ObjectLayerEngineViewer.Data.atlasSpriteSheet = null;
-        setQueryParams({ itemId: null }, { replace: false });
+        ObjectLayerEngineViewer.Data.render = null;
+        setQueryParams({ cid: null }, { replace: false });
       } else {
         throw new Error(result.message || 'Failed to delete object layer');
       }
@@ -1184,8 +1362,8 @@ class ObjectLayerEngineViewer {
       ObjectLayerEngineViewer.Data.frameCounts = null;
       // Cleared before the URL changes, so the query listener sees a match and
       // skips the Reload that would render the list twice.
-      ObjectLayerEngineViewer.Data.currentItemId = null;
-      setQueryParams({ itemId: null }, { replace: false });
+      ObjectLayerEngineViewer.Data.currentKey = null;
+      setQueryParams({ cid: null }, { replace: false });
       await ObjectLayerEngineViewer.renderEmpty({ appStore });
     });
   }
@@ -1227,52 +1405,29 @@ class ObjectLayerEngineViewer {
     }
     ObjectLayerEngineViewer.attachReturnToList({ appStore });
     // Edit button
-    const editBtn = s('#edit-object-layer-btn');
-    if (editBtn) {
-      editBtn.addEventListener('click', () => {
-        ObjectLayerEngineViewer.toEngine();
-      });
-    }
+    if (s('#edit-object-layer-btn')) EventsUI.onClick('#edit-object-layer-btn', ObjectLayerEngineViewer.toEngine);
     // Delete button
-    const deleteBtn = s('#delete-object-layer-btn');
-    if (deleteBtn) {
-      deleteBtn.addEventListener('click', async () => {
+    if (s('#delete-object-layer-btn'))
+      EventsUI.onClick('#delete-object-layer-btn', async () => {
         await ObjectLayerEngineViewer.deleteObjectLayer({ appStore });
       });
-    }
     // Atlas buttons
     if (s('#generate-atlas-btn')) {
       EventsUI.onClick('#generate-atlas-btn', async () => {
         await ObjectLayerEngineViewer.generateAtlas({ appStore });
       });
     }
-    const removeAtlasBtn = s('#remove-atlas-btn');
-    if (removeAtlasBtn) {
-      removeAtlasBtn.addEventListener('click', async () => {
+    if (s('#remove-atlas-btn'))
+      EventsUI.onClick('#remove-atlas-btn', async () => {
         await ObjectLayerEngineViewer.removeAtlas({ appStore });
       });
-    }
     const downloadAtlasPngBtn = s('#download-atlas-png-btn');
     if (downloadAtlasPngBtn) {
       downloadAtlasPngBtn.addEventListener('click', () => {
-        const fileId =
-          ObjectLayerEngineViewer.Data &&
-          ObjectLayerEngineViewer.Data.atlasSpriteSheet &&
-          ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId
-            ? ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId._id ||
-              ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId
-            : null;
-        if (!fileId) {
-          NotificationManager.Push({
-            html: 'Atlas PNG file is missing. Please generate the atlas first.',
-            status: 'error',
-          });
-          return;
-        }
-        const url = `${getProxyPath()}api/file/blob/${fileId}`;
+        const { objectLayer, render } = ObjectLayerEngineViewer.Data;
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}-atlas.png`;
+        a.href = AtlasSpriteSheetService.renderUrl({ cid: objectLayer.cid });
+        a.download = `${render.layout.itemKey}-render.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1281,13 +1436,13 @@ class ObjectLayerEngineViewer {
     const downloadAtlasJsonBtn = s('#download-atlas-json-btn');
     if (downloadAtlasJsonBtn) {
       downloadAtlasJsonBtn.addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata, null, 2)], {
+        const blob = new Blob([JSON.stringify(ObjectLayerEngineViewer.Data.render.layout, null, 2)], {
           type: 'application/json',
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}-atlas-metadata.json`;
+        a.download = `${ObjectLayerEngineViewer.Data.render.layout.itemKey}-render-metadata.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1302,6 +1457,7 @@ class ObjectLayerEngineViewer {
     try {
       const { status, data, message } = await AtlasSpriteSheetService.generateAtlas({ id: objectLayerId });
       if (status === 'success') {
+        AtlasSpriteSheetService.invalidateIdlePreview(ObjectLayerEngineViewer.Data.objectLayer.data.item.id);
         NotificationManager.Push({
           html: 'Atlas sprite sheet generated successfully',
           status: 'success',
@@ -1344,6 +1500,7 @@ class ObjectLayerEngineViewer {
     try {
       const { status, message } = await AtlasSpriteSheetService.deleteByObjectLayerId({ id: objectLayerId });
       if (status === 'success') {
+        AtlasSpriteSheetService.invalidateIdlePreview(ObjectLayerEngineViewer.Data.objectLayer.data.item.id);
         NotificationManager.Push({
           html: 'Atlas sprite sheet removed successfully',
           status: 'success',
@@ -1369,9 +1526,10 @@ class ObjectLayerEngineViewer {
     }
   }
   static async generateWebp() {
-    if (ObjectLayerEngineViewer.Data.isGenerating) return;
     const { objectLayer, frameCounts, currentDirection, currentMode } = ObjectLayerEngineViewer.Data;
     if (!objectLayer || !frameCounts) return;
+    // The generation in flight for this definition picks up a newer direction or mode when it ends.
+    if (ObjectLayerEngineViewer.Data.generating === objectLayer) return;
     // Get numeric direction code
     const numericCode = ObjectLayerEngineViewer.getDirectionCode(currentDirection, currentMode);
     if (!numericCode) {
@@ -1389,18 +1547,16 @@ class ObjectLayerEngineViewer {
       });
       return;
     }
-    const itemType = objectLayer.data.item.type;
-    const itemId = objectLayer.data.item.id;
-    const frameDuration = objectLayer.objectLayerRenderFramesId?.frame_duration || 100;
-    ObjectLayerEngineViewer.Data.isGenerating = true;
+    const { frameDuration } = ObjectLayerEngineViewer.Data;
+    ObjectLayerEngineViewer.Data.generating = objectLayer;
     ObjectLayerEngineViewer.showLoading(true, 'Generating WebP...');
     try {
-      // Call the WebP generation API endpoint
-      const { status, data } = await ObjectLayerService.generateWebp({
-        itemType,
-        itemId,
+      const { status, data, message } = await AtlasSpriteSheetService.getAnimation({
+        cid: objectLayer.cid,
         directionCode: numericCode,
       });
+      // The viewer moved to another definition while the animation loaded.
+      if (ObjectLayerEngineViewer.Data.objectLayer !== objectLayer) return;
       if (status === 'success' && data) {
         // Store the blob URL and metadata
         ObjectLayerEngineViewer.Data.webp = data;
@@ -1413,24 +1569,28 @@ class ObjectLayerEngineViewer {
         };
         // Display the WebP in the viewer
         await ObjectLayerEngineViewer.displayWebp();
-        // NotificationManager.Push({
-        //   html: `WebP generated successfully (${frameCount} frames, ${frameDuration}ms duration)`,
-        //   status: 'success',
-        // });
       } else {
-        throw new Error('Failed to generate WebP');
+        throw new Error(message || 'the Object Layer service answered no animation');
       }
-      ObjectLayerEngineViewer.Data.isGenerating = false;
-      ObjectLayerEngineViewer.showLoading(false);
     } catch (error) {
       logger.error('Error generating WebP:', error);
-      NotificationManager.Push({
-        html: `Failed to generate WebP: ${error.message}`,
-        status: 'error',
-      });
-      ObjectLayerEngineViewer.Data.isGenerating = false;
-      ObjectLayerEngineViewer.showLoading(false);
+      if (ObjectLayerEngineViewer.Data.objectLayer === objectLayer)
+        NotificationManager.Push({
+          html: `Failed to generate WebP: ${error.message}`,
+          status: 'error',
+        });
+    } finally {
+      if (ObjectLayerEngineViewer.Data.generating === objectLayer) {
+        ObjectLayerEngineViewer.Data.generating = null;
+        ObjectLayerEngineViewer.showLoading(false);
+      }
     }
+    const { currentDirection: direction, currentMode: mode } = ObjectLayerEngineViewer.Data;
+    if (
+      ObjectLayerEngineViewer.Data.objectLayer === objectLayer &&
+      ObjectLayerEngineViewer.getDirectionCode(direction, mode) !== numericCode
+    )
+      await ObjectLayerEngineViewer.generateWebp();
   }
   /**
    * Updates direction/mode button active states and disabled flags in-place,
@@ -1502,33 +1662,58 @@ class ObjectLayerEngineViewer {
       status: 'success',
     });
   }
-  static toEngine() {
-    const itemId = ObjectLayerEngineViewer.Data.objectLayer?.data?.item?.id;
-    if (!itemId) return;
-    setPath(`${getProxyPath()}object-layer-engine`);
-    setQueryParams({ itemId }, { replace: true });
-    if (s(`.modal-object-layer-engine`)) {
-      ObjectLayerEngineModal.Reload();
-    } else {
-      s(`.main-btn-object-layer-engine`)?.click();
-    }
+  static async toEngine() {
+    const cid = ObjectLayerEngineViewer.Data.objectLayer?.cid;
+    if (!cid) return;
+    // Loaded on demand: a read-only host ships the viewer without the editor.
+    const { ObjectLayerEngineModal } = await import('./ObjectLayerEngineModal.js');
+    ObjectLayerEngineModal.open({ cid });
+  }
+  /**
+   * Opens the viewer on `cid`. A host without the viewer entry keeps its path, for the
+   * reason {@link ObjectLayerEngineModal.open} gives.
+   * @param {object} options
+   * @param {object} options.appStore - The host app store.
+   * @param {string} options.cid - The object layer to show.
+   * @returns {Promise<boolean>} Whether the host offers the viewer.
+   */
+  static async open({ appStore, cid }) {
+    const entryEl = s(`.main-btn-object-layer-engine-viewer`);
+    if (!entryEl) return false;
+    const opened = !!s(`.modal-object-layer-engine-viewer`);
+    setPath(`${getProxyPath()}object-layer-engine-viewer`);
+    setQueryParams({ id: null, cid }, { replace: true });
+    entryEl.click();
+    // An open viewer starts the load from the URL change; this waits for it.
+    if (opened) await ObjectLayerEngineViewer.Reload({ appStore });
+    return true;
   }
   static async Reload(options = {}) {
     const { appStore, force = false, skipWebp = false } = options;
-    const itemId = getQueryParams().itemId || null;
-    const changed = itemId !== ObjectLayerEngineViewer.Data.currentItemId;
+    const key = getQueryParams().cid || null;
+    const changed = key !== ObjectLayerEngineViewer.Data.currentKey;
     if (changed || force) {
-      if (changed && !skipWebp) {
-        ObjectLayerEngineViewer.Data.webp = null;
-        ObjectLayerEngineViewer.Data.webpMetadata = null;
+      if (changed) {
+        // The definition on screen is no longer the one the URL names.
+        ObjectLayerEngineViewer.Data.objectLayer = null;
+        if (!skipWebp) {
+          ObjectLayerEngineViewer.Data.webp = null;
+          ObjectLayerEngineViewer.Data.webpMetadata = null;
+        }
       }
-      ObjectLayerEngineViewer.Data.currentItemId = itemId;
-      if (itemId) await ObjectLayerEngineViewer.loadObjectLayer(itemId, appStore, { skipWebp });
-      else await ObjectLayerEngineViewer.renderEmpty({ appStore });
+      ObjectLayerEngineViewer.Data.currentKey = key;
+      if (changed && key) ObjectLayerEngineViewer.renderLoading({ appStore, key });
+      const loading = key
+        ? ObjectLayerEngineViewer.loadObjectLayer(key, appStore, { skipWebp })
+        : ObjectLayerEngineViewer.renderEmpty({ appStore });
+      ObjectLayerEngineViewer.Data.loading = loading;
+      await loading;
+      if (ObjectLayerEngineViewer.Data.loading === loading) ObjectLayerEngineViewer.Data.loading = null;
       return;
     }
+    if (ObjectLayerEngineViewer.Data.loading) return await ObjectLayerEngineViewer.Data.loading;
     // Already on the list, but a modal reopen can drop its DOM.
-    if (!itemId && ObjectLayerEngineViewer.Data.currentItemId === null) {
+    if (!key && ObjectLayerEngineViewer.Data.currentKey === null) {
       const gridId = `object-layer-engine-management-grid-modal-object-layer-engine-viewer`;
       if (!s(`.${gridId}`)) await ObjectLayerEngineViewer.renderEmpty({ appStore });
     }

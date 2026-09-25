@@ -94,7 +94,6 @@ updates:
           - 'socket.io'
           - 'prom-client'
           - 'escape-string-regexp'
-          - 'fast-json-stable-stringify'
           - 'ignore-walk'
           - 'read'
           - 'split-file'

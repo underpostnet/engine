@@ -3,6 +3,7 @@
 import { expect } from 'chai';
 import {
   buildCrudController,
+  sendBlob,
   serviceHandler,
   setCrossOriginHeaders,
 } from '../../../../src/server/network/middlewares.js';
@@ -75,5 +76,32 @@ describe('public API cross-origin policy', () => {
     const direct = responseSpy();
     setCrossOriginHeaders(requestFrom('https://www.cyberiaonline.com'), direct);
     expect(direct.headers).to.deep.equal(response.headers);
+  });
+});
+
+describe('binary responses', () => {
+  const blob = { buffer: Buffer.from('png'), mimetype: 'image/png', filename: 'hatchet-idle.png', etag: 'f1' };
+  const sent = (fresh) => {
+    const response = responseSpy();
+    response.end = (body) => {
+      response.body = body;
+      return response;
+    };
+    sendBlob({ ...requestFrom('http://localhost:8082'), fresh }, response, blob);
+    return response;
+  };
+
+  it('sends the entity under its ETag', () => {
+    const response = sent(false);
+    expect(response.statusCode).to.equal(200);
+    expect(response.headers.ETag).to.equal('"f1"');
+    expect(response.body.toString()).to.equal('png');
+  });
+
+  it('answers 304 with no body to a client that holds the same entity', () => {
+    const response = sent(true);
+    expect(response.statusCode).to.equal(304);
+    expect(response.headers.ETag).to.equal('"f1"');
+    expect(response.body).to.equal(undefined);
   });
 });

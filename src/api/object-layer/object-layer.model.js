@@ -1,37 +1,36 @@
 /**
- * Mongoose model for ObjectLayer API, defining schema, indexes, and data validation.
+ * Mongoose model for the ObjectLayer API: the content store of the Object Layer protocol.
+ *
+ * One document is one immutable definition. `cid` and `contentHash` are computed from the
+ * canonical content on creation and are unique; the content never changes afterwards.
+ * `data.item.id` is a semantic label, indexed for search, never unique.
+ * Ledger registration and ownership live in the ItemLedger API, outside this document.
+ *
  * @module src/api/object-layer/object-layer.model.js
- * @namespace CyberiaObjectLayerModel
+ * @namespace ObjectLayerModel
  */
-import crypto from 'crypto';
-import { STAT_TYPES, STAT_DEFAULT, STAT_MODIFIER_MIN, STAT_MODIFIER_MAX, STAT_CONTRACT_VERSION, validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import stringify from 'fast-json-stable-stringify';
 import { Schema, model } from 'mongoose';
-import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../file/file.ref.js';
-/**
- * @typedef {Object} Stats
- * @property {number} effect - The effect attribute value
- * @property {number} resistance - The resistance attribute value
- * @property {number} agility - The agility attribute value
- * @property {number} range - The range attribute value
- * @property {number} intelligence - The intelligence attribute value
- * @property {number} utility - The utility attribute value
- * @memberof CyberiaObjectLayerModel
- */
-const StatsSchema = new Schema(
-  Object.fromEntries(STAT_TYPES.map((key) => [key, {
-    type: Number, required: true, default: STAT_DEFAULT, min: STAT_MODIFIER_MIN, max: STAT_MODIFIER_MAX,
-    validate: Number.isInteger,
-  }])),
-  { _id: false, strict: 'throw' },
-);
+import {
+  OBJECT_LAYER_SCHEMA_VERSION,
+  isProfileRef,
+  isStatRecord,
+  STAT_RECORD_RULE,
+  profileRef,
+} from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import {
+  CONTENT_HASH_PATTERN,
+  OBJECT_LAYER_CID_PATTERN,
+  isObjectLayerCid,
+  objectLayerIdentity,
+} from './object-layer.identity.js';
+
 /**
  * @typedef {Object} Item
- * @property {string} id - Unique identifier for the item
+ * @property {string} id - Semantic label of the item, shared by every definition of that item
  * @property {string} type - Type of the item
  * @property {string} description - Description of the item
  * @property {boolean} activable - Whether the item can be activated
- * @memberof CyberiaObjectLayerModel
+ * @memberof ObjectLayerModel
  */
 const ItemSchema = new Schema(
   {
@@ -42,34 +41,13 @@ const ItemSchema = new Schema(
   },
   { _id: false },
 );
-/**
- * @typedef {Object} Ledger
- * Blockchain protocol metadata linking the visual object-layer prefab to its economic reality.
- * Uses ERC-1155 as the single multi-token standard for both fungible (CryptoKoyn) and
- * non-fungible / semi-fungible Object Layer items within one contract.
- * @property {string} type - The token standard or off-chain designation (ERC1155, OFF_CHAIN).
- * @property {string} address - The Solidity smart contract address (ObjectLayerToken).
- * @property {string} tokenId - The uint256 ERC-1155 token ID (derived from keccak256 of the item identifier).
- * @memberof CyberiaObjectLayerModel
- */
-const LedgerSchema = new Schema(
-  {
-    type: {
-      type: String,
-      enum: ['ERC1155', 'OFF_CHAIN'],
-      required: true,
-    },
-    address: { type: String }, // ObjectLayerToken ERC-1155 contract address
-    tokenId: { type: String, default: '' }, // uint256 ERC-1155 token ID (hex or decimal string)
-  },
-  { _id: false },
-);
+
 /**
  * @typedef {Object} Render
  * IPFS content identifiers for the consolidated atlas sprite sheet.
- * @property {string} cid - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
- * @property {string} metadataCid - IPFS Content Identifier for the atlas sprite sheet metadata JSON (fast-json-stable-stringify)
- * @memberof CyberiaObjectLayerModel
+ * @property {string} cid - IPFS CID of the atlas sprite sheet PNG
+ * @property {string} metadataCid - IPFS CID of the atlas sprite sheet metadata JSON
+ * @memberof ObjectLayerModel
  */
 const RenderSchema = new Schema(
   {
@@ -78,54 +56,71 @@ const RenderSchema = new Schema(
   },
   { _id: false },
 );
+
+/**
+ * @typedef {Object} Profile
+ * The content profile that gives `data.stats` and `data.item.type` their vocabulary.
+ * @property {string} id - Profile id (`cyberia`)
+ * @property {number} version - Profile contract version
+ * @memberof ObjectLayerModel
+ */
+const ProfileSchema = new Schema(
+  {
+    id: { type: String, required: true, trim: true },
+    version: { type: Number, required: true, min: 1, validate: Number.isInteger },
+  },
+  { _id: false },
+);
+
+/**
+ * What one stored copy of a definition is.
+ * - `canonical`: stored by the Object Layer authority. The only published copy.
+ * - `cache`: a consumer's copy of a canonical definition, identical to the authority's.
+ * - `draft`: authoring work of a consumer, not published. Never bound, never served.
+ * @constant {ReadonlyArray<string>}
+ * @memberof ObjectLayerModel
+ */
+export const OBJECT_LAYER_ORIGINS = Object.freeze(['draft', 'cache', 'canonical']);
+
 /**
  * @typedef {Object} ObjectLayer
- * @property {Object} data - Object layer data
- * @property {Object} data.stats - Statistical or mechanical attributes for the object layer
- * @property {number} data.stats.effect - The effect attribute value
- * @property {number} data.stats.resistance - The resistance attribute value
- * @property {number} data.stats.agility - The agility attribute value
- * @property {number} data.stats.range - The range attribute value
- * @property {number} data.stats.intelligence - The intelligence attribute value
- * @property {number} data.stats.utility - The utility attribute value
- * @property {Object} data.item - Human-readable item information for the object layer
- * @property {string} data.item.id - Unique identifier for the item
- * @property {string} data.item.type - Type of the item
- * @property {string} data.item.description - Description of the item
- * @property {boolean} data.item.activable - Whether the item can be activated
- * @property {Object} data.ledger - Blockchain protocol metadata linking the visual object-layer prefab to its economic reality
- * @property {string} data.ledger.type - The token standard or off-chain designation (ERC1155, OFF_CHAIN).
- * @property {string} data.ledger.address - The ObjectLayerToken ERC-1155 smart contract address.
- * @property {string} data.ledger.tokenId - The uint256 ERC-1155 token ID (hex or decimal string).
- * @property {Object} data.render - IPFS content identifiers for the consolidated atlas sprite sheet
- * @property {string} data.render.cid - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
- * @property {string} data.render.metadataCid - IPFS Content Identifier for the atlas sprite sheet metadata JSON (fast-json-stable-stringify)
- * @property {string} cid - IPFS Content Identifier for the object layer data JSON (fast-json-stable-stringify)
- * @property {Types.ObjectId} objectLayerRenderFramesId - Reference to ObjectLayerRenderFrames document
- * @property {Types.ObjectId} atlasSpriteSheetId - Reference to AtlasSpriteSheet document
- * @property {string} sha256 - SHA-256 hash of the object layer data
+ * @property {number} schemaVersion - Canonical payload schema version
+ * @property {Profile} profile - Content profile the mechanical block follows
+ * @property {Object} data - Canonical content
+ * @property {Item} data.item - Semantic item information
+ * @property {Object<string,number>} data.stats - Mechanical content: an integer record the profile interprets
+ * @property {Render} data.render - Canonical render contract: the canonical render CID and metadata CID
+ * @property {string} cid - Canonical Object Layer CID (CIDv1, raw, sha2-256)
+ * @property {string} contentHash - Hex SHA-256 of the canonical bytes
+ * @property {boolean} published - Whether a node holds the canonical bytes under `cid`
+ * @property {string} origin - What this copy is: see {@link OBJECT_LAYER_ORIGINS}
+ * @property {string} createdBy - The principal that stored this copy: a user id of this host, or `service:<domain>`
+ * @property {Date|null} archivedAt - When the definition was archived; null while it is offered
  * @property {Date} createdAt - When the document was created
  * @property {Date} updatedAt - When the document was last updated
- * @memberof CyberiaObjectLayerModel
+ * @memberof ObjectLayerModel
  */
 const ObjectLayerSchema = new Schema(
   {
-    statContractVersion: { type: Number, default: STAT_CONTRACT_VERSION, enum: [STAT_CONTRACT_VERSION] },
+    schemaVersion: { type: Number, default: OBJECT_LAYER_SCHEMA_VERSION, enum: [OBJECT_LAYER_SCHEMA_VERSION] },
+    profile: { type: ProfileSchema, required: true },
     data: {
-      stats: { type: StatsSchema, required: true },
       item: { type: ItemSchema, required: true },
-      ledger: { type: LedgerSchema, required: true },
+      stats: {
+        type: Schema.Types.Mixed,
+        required: true,
+        validate: { validator: isStatRecord, message: STAT_RECORD_RULE },
+      },
       render: { type: RenderSchema, default: () => ({}) },
     },
-    cid: { type: String, default: '', trim: true },
-    objectLayerRenderFramesId: { type: Schema.Types.ObjectId, ref: 'ObjectLayerRenderFrames' },
-    atlasSpriteSheetId: { type: Schema.Types.ObjectId, ref: 'AtlasSpriteSheet' },
-    sha256: {
-      type: String,
-      required: true,
-      unique: true,
-      match: [/^[a-f0-9]{64}$/, 'Please provide a valid SHA-256 hash'],
-    },
+    cid: { type: String, required: true, unique: true, trim: true, match: OBJECT_LAYER_CID_PATTERN },
+    contentHash: { type: String, required: true, unique: true, trim: true, match: CONTENT_HASH_PATTERN },
+    // The identity is always real; `published` says whether IPFS serves the bytes it names.
+    published: { type: Boolean, default: false },
+    origin: { type: String, enum: OBJECT_LAYER_ORIGINS, default: 'draft' },
+    createdBy: { type: String, default: '', trim: true },
+    // Lifecycle: an archived definition stays stored under its cid and is offered to no one.
+    archivedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -133,21 +128,12 @@ const ObjectLayerSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-/**
- * Name of the `data.item.id` index. Kept stable across the non-unique → unique
- * upgrade so {@link ObjectLayerModel.ensureUniqueItemIdIndex} can detect and
- * replace the legacy definition instead of leaving two overlapping indexes.
- * @memberof CyberiaObjectLayerModel
- */
-const ITEM_ID_INDEX_NAME = 'data.item.id_1';
-// `data.item.id` is the natural key: exactly one document per item id.
-// autoIndex runs at model-compile time, so on a collection that still holds
-// legacy duplicates (or a legacy non-unique index) this build fails and is
-// logged by the model's `error` listener. ensureUniqueItemIdIndex() then
-// dedupes and rebuilds it, after which autoIndex agrees and stays quiet.
-ObjectLayerSchema.index({ 'data.item.id': 1 }, { name: ITEM_ID_INDEX_NAME, unique: true });
+
+// Discovery indexes. The item id is a label: many definitions may carry the same one.
+ObjectLayerSchema.index({ 'data.item.id': 1 });
+ObjectLayerSchema.index({ origin: 1 });
 ObjectLayerSchema.index({ 'data.item.type': 1 });
-// Add text index for searchable fields
+ObjectLayerSchema.index({ createdBy: 1 });
 ObjectLayerSchema.index(
   {
     'data.item.id': 'text',
@@ -162,275 +148,253 @@ ObjectLayerSchema.index(
     },
   },
 );
-// Pre-save hook to ensure data consistency
-ObjectLayerSchema.pre('save', function () {
-  // Ensure all required fields are present
-  if (!this.data.stats || !this.data.item || !this.sha256) {
-    throw new Error('Missing required fields');
+
+// Identity is derived once, from the content. A stored definition never changes content.
+ObjectLayerSchema.pre('validate', function () {
+  const { cid, contentHash } = objectLayerIdentity(this);
+  if (this.isNew) {
+    this.cid = cid;
+    this.contentHash = contentHash;
+    return;
   }
-  // cid (object layer data JSON) and data.render.cid (atlas PNG) are optional – default to ''
+  if (this.cid !== cid) throw new Error(`ObjectLayer ${this.cid} is immutable: publish the changed content as a new definition`);
 });
 
 /**
- * Computes the canonical SHA-256 of an object layer `data` sub-document using
- * deterministic JSON serialisation. Single source of truth for the hash;
- * `ObjectLayerEngine.computeSha256` delegates here.
- *
- * @param {Object} data - The `data` sub-document (item, stats, ledger, render).
- * @returns {string} Hex-encoded SHA-256 hash.
- * @memberof CyberiaObjectLayerModel
+ * Records whether a node holds the canonical bytes of a definition.
+ * @param {string} cid
+ * @param {boolean} published
+ * @returns {Promise<void>}
+ * @memberof ObjectLayerModel
  */
-const computeObjectLayerSha256 = (data) => crypto.createHash('sha256').update(stringify(data)).digest('hex');
-
-const isMergeableObject = (value) => {
-  if (value === null || typeof value !== 'object') return false;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
+ObjectLayerSchema.statics.setPublished = async function (cid, published) {
+  await this.updateOne({ cid }, { $set: { published } });
 };
 
 /**
- * An incoming attribute only wins when it actually carries a value. `null`,
- * `undefined` and `''` mean "not provided by this writer" — importers emit them
- * whenever a stage is skipped or degraded (IPFS unreachable, atlas not
- * generated, saga metadata with no render yet), and they must never erase a
- * value another writer already persisted. `false` and `0` are real values.
- *
- * @param {*} value - Candidate attribute value.
- * @returns {boolean} Whether the value should override the stored one.
- * @memberof CyberiaObjectLayerModel
+ * Archives a definition or offers it again. The content and its cid stay as they are.
+ * @param {string} cid
+ * @param {boolean} archived
+ * @returns {Promise<Object|null>} The stored document.
+ * @memberof ObjectLayerModel
  */
-const hasValue = (value) => value !== null && value !== undefined && value !== '';
-
-/**
- * Deep-merges `incoming` over `existing`, keeping the last attribute that
- * actually carries a value. Plain objects merge key by key; every other value
- * (scalars, arrays, ObjectIds, Dates, Buffers) is replaced atomically.
- *
- * @param {*} existing - Currently persisted value.
- * @param {*} incoming - Value received from the writer.
- * @returns {*} The merged value.
- * @memberof CyberiaObjectLayerModel
- */
-function mergeObjectLayerData(existing, incoming) {
-  if (isMergeableObject(incoming)) {
-    if (!isMergeableObject(existing)) return incoming;
-    const merged = { ...existing };
-    for (const key of Object.keys(incoming)) merged[key] = mergeObjectLayerData(existing[key], incoming[key]);
-    return merged;
-  }
-  return hasValue(incoming) ? incoming : existing;
-}
-
-/**
- * Document fields an upsert may carry. `sha256` is excluded on purpose: it is
- * always recomputed from the merged `data`, so it can never drift from the
- * payload the writer hashed before merging.
- * @memberof CyberiaObjectLayerModel
- */
-const UPSERTABLE_FIELDS = ['statContractVersion', 'data', 'cid', 'objectLayerRenderFramesId', 'atlasSpriteSheetId'];
-
-/**
- * Collapses any pre-existing duplicates of a given `data.item.id` down to a
- * single document, keeping the oldest one so `_id` references held elsewhere
- * (instances, inventories, atlas metadata) stay valid.
- *
- * @param {import('mongoose').Model} Model - The bound ObjectLayer model.
- * @param {string} itemId - The item id to collapse.
- * @returns {Promise<{ survivor: Object|null, removedIds: Array }>} Survivor and removed document ids.
- * @memberof CyberiaObjectLayerModel
- */
-async function collapseItemIdDuplicates(Model, itemId) {
-  const [survivor, ...duplicates] = await Model.find({ 'data.item.id': itemId }).sort({ createdAt: 1, _id: 1 });
-  if (!survivor || duplicates.length === 0) return { survivor: survivor || null, removedIds: [] };
-
-  const removedIds = duplicates.map((duplicate) => duplicate._id);
-  await Model.deleteMany({ _id: { $in: removedIds } });
-
-  // What the survivor still links is never collateral: a duplicate written by an older
-  // upsert can carry the very same render frames or atlas the survivor points at.
-  const survivorLinks = new Set(
-    [survivor.objectLayerRenderFramesId, survivor.atlasSpriteSheetId].filter(Boolean).map(String),
+ObjectLayerSchema.statics.setArchived = async function (cid, archived) {
+  return await this.findOneAndUpdate(
+    { cid },
+    { $set: { archivedAt: archived ? new Date() : null } },
+    { returnDocument: 'after' },
   );
-  const droppedLinks = (field) =>
-    [
-      ...new Set(
-        duplicates
-          .map((duplicate) => duplicate[field])
-          .filter(Boolean)
-          .map(String),
-      ),
-    ].filter((id) => !survivorLinks.has(id));
+};
 
-  // Orphaned render frames have no other cleanup path once their owner is gone.
-  const renderFramesIds = droppedLinks('objectLayerRenderFramesId');
-  if (renderFramesIds.length > 0 && Model.db.models.ObjectLayerRenderFrames) {
-    await Model.db.models.ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFramesIds } });
-  }
-
-  // An atlas owns File renders, so dropping its document without them is what leaves
-  // unreachable blobs in the File collection.
-  const atlasIds = droppedLinks('atlasSpriteSheetId');
-  const AtlasSpriteSheet = Model.db.models.AtlasSpriteSheet;
-  if (atlasIds.length > 0 && AtlasSpriteSheet) {
-    const fields = fileRefFields('atlas-sprite-sheet');
-    const atlasDocs = await AtlasSpriteSheet.find(
-      { _id: { $in: atlasIds } },
-      Object.fromEntries(fields.map((field) => [field, 1])),
-    ).lean();
-    await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
-    if (Model.db.models.File)
-      await deleteOwnedFiles({
-        File: Model.db.models.File,
-        Owner: AtlasSpriteSheet,
-        fields,
-        ids: documentFileIds(atlasDocs, fields),
-      });
-  }
-
-  return { survivor, removedIds };
-}
+/** Legacy document fields the identity migration removes. */
+const LEGACY_FIELDS = ['sha256', 'statContractVersion', 'data.ledger'];
+/** Legacy index names the identity migration drops. */
+const LEGACY_INDEXES = ['data.item.id_1', 'sha256_1'];
 
 /**
- * Resolves the canonical document for an item id. While a legacy collection can
- * still hold duplicates, an unsorted `findOne` may hand back a document that the
- * next upsert collapses away, so readers and writers must agree on the same
- * survivor: the oldest one.
- *
- * @param {string} itemId - The `data.item.id` to look up.
- * @returns {import('mongoose').Query} Query resolving to the canonical document or `null`.
- * @memberof CyberiaObjectLayerModel
+ * The definition with this canonical CID, or null.
+ * @param {string} cid
+ * @returns {import('mongoose').Query}
+ * @memberof ObjectLayerModel
  */
-ObjectLayerSchema.statics.findByItemId = function (itemId) {
-  return this.findOne({ 'data.item.id': itemId }).sort({ createdAt: 1, _id: 1 });
+ObjectLayerSchema.statics.findByCid = function (cid) {
+  return this.findOne({ cid });
 };
 
 /**
- * Dedupes the whole collection by `data.item.id`.
+ * Stores a definition keyed by its content. Identical content resolves to the stored
+ * document, which is offered again if it was archived; new content creates a document owned by
+ * `payload.createdBy`.
  *
- * @returns {Promise<Array>} Ids of the removed duplicate documents.
- * @memberof CyberiaObjectLayerModel
+ * The origin only moves up (`draft` → `cache` → `canonical`): publication never becomes a
+ * draft again. Only the publication module writes `cache` or `canonical`.
+ *
+ * @param {Object} payload - `{ profile, data, createdBy?, _id? }`.
+ * @param {Object} params
+ * @param {string} params.origin - One of {@link OBJECT_LAYER_ORIGINS}.
+ * @returns {Promise<Object>} The stored document.
+ * @memberof ObjectLayerModel
  */
-ObjectLayerSchema.statics.dedupeByItemId = async function () {
-  const duplicated = await this.aggregate([
-    { $group: { _id: '$data.item.id', count: { $sum: 1 } } },
-    { $match: { count: { $gt: 1 } } },
-  ]);
-  const removedIds = [];
-  for (const { _id: itemId } of duplicated) {
-    if (itemId === null || itemId === undefined) continue;
-    const { removedIds: removed } = await collapseItemIdDuplicates(this, itemId);
-    removedIds.push(...removed);
+ObjectLayerSchema.statics.upsertByIdentity = async function (payload, { origin }) {
+  if (!OBJECT_LAYER_ORIGINS.includes(origin)) throw new Error(`Unknown Object Layer origin "${origin}"`);
+  const { cid, contentHash } = objectLayerIdentity(payload);
+  const existing = await this.findOne({ cid });
+  if (existing) {
+    if (OBJECT_LAYER_ORIGINS.indexOf(origin) > OBJECT_LAYER_ORIGINS.indexOf(existing.origin)) existing.origin = origin;
+    existing.archivedAt = null;
+    return await existing.save();
   }
-  return removedIds;
+  const document = {
+    profile: payload.profile,
+    data: payload.data,
+    cid,
+    contentHash,
+    origin,
+    schemaVersion: OBJECT_LAYER_SCHEMA_VERSION,
+    createdBy: payload.createdBy ? String(payload.createdBy) : '',
+  };
+  if (payload._id) document._id = payload._id;
+  try {
+    return await this.create(document);
+  } catch (error) {
+    throw error?.code === 11000 ? new Error(`An Object Layer with cid ${cid} already exists`) : error;
+  }
 };
 
 /**
- * Idempotent migration that enforces the one-document-per-`data.item.id`
- * invariant at the storage layer: dedupes first, then upgrades the legacy
- * non-unique index to a unique one. Safe to rerun; a no-op once applied.
+ * Idempotent migration to the content identity model. Stamps the profile, recomputes `cid`
+ * and `contentHash` for every legacy document, removes legacy fields and drops the legacy
+ * indexes. A legacy on-chain ledger becomes an ItemLedger binding when a model and chain id
+ * are given; otherwise it is reported so the operator can index it from the contract.
  *
- * @returns {Promise<{ removedIds: Array, indexUpgraded: boolean }>} Migration outcome.
- * @memberof CyberiaObjectLayerModel
+ * @param {Object} params
+ * @param {import('../../client/components/object-layer/ObjectLayerProtocol.js').ProfileRef} params.profile - Profile the legacy documents follow.
+ * @param {import('mongoose').Model} [params.ItemLedger] - Bound ItemLedger model.
+ * @param {number} [params.chainId] - Chain id of the legacy contract addresses.
+ * @param {string} [params.origin='draft'] - Origin a document without one takes: `canonical` on the
+ *   Object Layer authority, `draft` on a consumer, which must publish it.
+ * @returns {Promise<{migrated:number,originsSet:number,bindings:number,unbound:Array,indexesDropped:string[],labels:Array<{itemId:string,cid:string}>}>}
+ * @memberof ObjectLayerModel
  */
-ObjectLayerSchema.statics.ensureUniqueItemIdIndex = async function () {
-  const removedIds = await this.dedupeByItemId();
+ObjectLayerSchema.statics.migrateIdentity = async function ({
+  profile,
+  ItemLedger = null,
+  chainId = null,
+  origin = 'draft',
+}) {
+  if (!isProfileRef(profile)) throw new Error('migrateIdentity requires the profile the legacy documents follow');
+  if (origin !== 'draft' && origin !== 'canonical')
+    throw new Error('A legacy definition is a draft or, on the authority, canonical');
+  const collection = this.collection;
+  const result = { migrated: 0, originsSet: 0, bindings: 0, unbound: [], indexesDropped: [], labels: [] };
 
-  const indexes = await this.collection.indexes().catch(() => []);
-  const current = indexes.find((index) => index.name === ITEM_ID_INDEX_NAME);
-  if (current?.unique) return { removedIds, indexUpgraded: false };
+  const indexes = await collection.indexes().catch(() => []);
+  for (const index of indexes) {
+    if (!LEGACY_INDEXES.includes(index.name)) continue;
+    // The item id index stays, as a plain index; the old one is unique.
+    if (index.name === 'data.item.id_1' && !index.unique) continue;
+    await collection.dropIndex(index.name);
+    result.indexesDropped.push(index.name);
+  }
 
-  if (current) await this.collection.dropIndex(ITEM_ID_INDEX_NAME);
-  await this.collection.createIndex({ 'data.item.id': 1 }, { name: ITEM_ID_INDEX_NAME, unique: true });
-  return { removedIds, indexUpgraded: true };
+  const legacyFilter = {
+    $or: [
+      { contentHash: { $exists: false } },
+      { profile: { $exists: false } },
+      { cid: { $not: OBJECT_LAYER_CID_PATTERN } },
+      ...LEGACY_FIELDS.map((field) => ({ [field]: { $exists: true } })),
+    ],
+  };
+  for await (const raw of collection.find(legacyFilter)) {
+    const stamped = { ...raw, profile: raw.profile ?? profileRef(profile) };
+    const { cid, contentHash } = objectLayerIdentity(stamped);
+    const ledger = raw.data?.ledger;
+    if (ledger?.type === 'ERC1155' && ledger.address && ledger.tokenId) {
+      const binding = {
+        objectLayerCid: cid,
+        itemId: raw.data?.item?.id || '',
+        chainId,
+        contractAddress: ledger.address,
+        tokenId: ledger.tokenId,
+      };
+      if (ItemLedger && chainId !== null) {
+        await ItemLedger.bind(binding);
+        result.bindings++;
+      } else result.unbound.push(binding);
+    }
+    const $set = { cid, contentHash, schemaVersion: OBJECT_LAYER_SCHEMA_VERSION, profile: stamped.profile };
+    const $unset = Object.fromEntries(LEGACY_FIELDS.map((field) => [field, '']));
+    await collection.updateOne({ _id: raw._id }, { $set, $unset });
+    result.labels.push({ itemId: raw.data?.item?.id || '', cid });
+    result.migrated++;
+  }
+
+  result.originsSet = (await collection.updateMany({ origin: { $exists: false } }, { $set: { origin } })).modifiedCount;
+
+  if (result.migrated > 0 || result.indexesDropped.length > 0) await this.syncIndexes();
+  return result;
 };
 
 /**
- * The single write path for object layers keyed by item id.
+ * Idempotent migration of the materialization relationship. Every atlas and render frames
+ * document a definition referenced takes the definition's cid as `objectLayerCid`; one several
+ * definitions shared is copied once per definition. The definitions lose the references, and a
+ * materialization no definition referenced is removed: nothing can reach it. Runs after
+ * {@link migrateIdentity}, so every cid is final.
  *
- * Guarantees that exactly one document exists per `data.item.id`: pre-existing
- * duplicates are collapsed onto the oldest document, which is then updated in
- * place. Attributes are merged with {@link mergeObjectLayerData}, so a writer
- * that omits a value (or sends `null` / `''` because a stage was skipped) keeps
- * whatever a previous writer stored instead of erasing it. `sha256` is always
- * recomputed from the merged result.
- *
- * @param {Object} payload - Document payload; `data.item.id` is required.
- * @param {Object} payload.data - Object layer data (item, stats, ledger, render).
- * @param {Object} [options] - Upsert options.
- * @param {Object} [options.setOnInsert=null] - Partial document applied only when the item is new,
- *   for fields a writer wants to seed but never refresh (mirrors Mongo's `$setOnInsert`).
- * @returns {Promise<Object>} The single surviving ObjectLayer document.
- * @memberof CyberiaObjectLayerModel
+ * @param {Object} models
+ * @param {import('mongoose').Model} models.AtlasSpriteSheet
+ * @param {import('mongoose').Model} models.ObjectLayerRenderFrames
+ * @returns {Promise<{linked:number,unowned:number}>} Materializations linked to a definition, and
+ *   the ones removed. The Files an unowned atlas held are left to the File sweep.
+ * @memberof ObjectLayerModel
  */
-ObjectLayerSchema.statics.upsertByItemId = async function (payload, { setOnInsert = null } = {}) {
-  const itemId = payload?.data?.item?.id;
-  if (!itemId) throw new Error('ObjectLayer.upsertByItemId requires data.item.id');
-
-  if (Object.hasOwn(payload.data, 'stats')) validateStats(payload.data.stats);
-  const { survivor } = await collapseItemIdDuplicates(this, itemId);
-
-  if (!survivor) {
-    const inserted = setOnInsert ? mergeObjectLayerData(setOnInsert, payload) : payload;
-    return await this.create({ ...inserted, sha256: computeObjectLayerSha256(inserted.data) });
+ObjectLayerSchema.statics.migrateMaterializations = async function ({ AtlasSpriteSheet, ObjectLayerRenderFrames }) {
+  // The references a definition held to its materializations before they referenced it by cid.
+  const materializations = { atlasSpriteSheetId: AtlasSpriteSheet, objectLayerRenderFramesId: ObjectLayerRenderFrames };
+  const refs = Object.keys(materializations);
+  const filter = { $or: refs.map((field) => ({ [field]: { $exists: true } })) };
+  const result = { linked: 0, unowned: 0 };
+  for await (const owner of this.collection.find(filter)) {
+    for (const [field, Model] of Object.entries(materializations)) {
+      if (!owner[field] || (await Model.collection.countDocuments({ objectLayerCid: owner.cid }, { limit: 1 })))
+        continue;
+      const materialization = await Model.collection.findOne({ _id: owner[field] });
+      if (!materialization) continue;
+      if (materialization.objectLayerCid) {
+        const { _id, ...copy } = materialization;
+        await Model.collection.insertOne({ ...copy, objectLayerCid: owner.cid });
+      } else await Model.collection.updateOne({ _id: materialization._id }, { $set: { objectLayerCid: owner.cid } });
+      result.linked++;
+    }
   }
-
-  const existing = survivor.toObject({ virtuals: false, depopulate: true });
-  const update = {};
-  for (const field of UPSERTABLE_FIELDS) {
-    if (!(field in payload)) continue;
-    const merged = mergeObjectLayerData(existing[field], payload[field]);
-    if (merged !== undefined) update[field] = merged;
-  }
-  update.sha256 = computeObjectLayerSha256(update.data ?? existing.data);
-
-  return await this.findByIdAndUpdate(survivor._id, { $set: update }, { returnDocument: 'after', runValidators: true });
+  await this.collection.updateMany(filter, {
+    $unset: Object.fromEntries(refs.map((field) => [field, ''])),
+  });
+  for (const Model of Object.values(materializations))
+    result.unowned += (await Model.collection.deleteMany({ objectLayerCid: { $exists: false } })).deletedCount;
+  return result;
 };
 
-// Create and export the model
 const ObjectLayerModel = model('ObjectLayer', ObjectLayerSchema);
 const ProviderSchema = ObjectLayerSchema;
+
 class ObjectLayerDto {
   static select = {
     get: () => {
       return {
         _id: 1,
+        schemaVersion: 1,
+        profile: 1,
         'data.item': 1,
-        'data.ledger': 1,
         'data.render': 1,
         cid: 1,
-        objectLayerRenderFramesId: 1,
-        atlasSpriteSheetId: 1,
+        contentHash: 1,
+        published: 1,
+        origin: 1,
+        createdBy: 1,
+        archivedAt: 1,
       };
     },
     getMetadata: () => {
       return {
         _id: 1,
+        schemaVersion: 1,
+        profile: 1,
         'data.item': 1,
         'data.stats': 1,
-        'data.ledger': 1,
         'data.render': 1,
         cid: 1,
-        objectLayerRenderFramesId: 1,
-        atlasSpriteSheetId: 1,
-        sha256: 1,
+        contentHash: 1,
+        published: 1,
+        origin: 1,
+        createdBy: 1,
+        archivedAt: 1,
         createdAt: 1,
         updatedAt: 1,
       };
     },
-    getRender: () => {
-      return {
-        _id: 1,
-        objectLayerRenderFramesId: 1,
-      };
-    },
   };
 }
-export {
-  ObjectLayerSchema,
-  ObjectLayerModel,
-  ProviderSchema,
-  ObjectLayerDto,
-  computeObjectLayerSha256,
-  mergeObjectLayerData,
-  ITEM_ID_INDEX_NAME,
-};
+
+export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema, ObjectLayerDto, isObjectLayerCid };

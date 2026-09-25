@@ -3,7 +3,9 @@
  * @module src/api/object-layer-render-frames/object-layer-render-frames.model.js
  * @namespace CyberiaObjectLayerRenderFramesModel
  */
+import { isDeepStrictEqual } from 'node:util';
 import { Schema, model } from 'mongoose';
+import { OBJECT_LAYER_CID_PATTERN } from '../object-layer/object-layer.identity.js';
 /**
  * @typedef {Object} ObjectLayerRenderFramesDirections
  * @property {number[][][]} up_idle - Up idle animation frames
@@ -50,7 +52,11 @@ const ObjectLayerRenderFramesDirectionsSchema = new Schema(
   { _id: false },
 );
 /**
+ * The editor source of one Object Layer definition, the one `objectLayerCid` names: the frames
+ * and palette its render is built from. Not canonical content, and not derivable from the render.
+ *
  * @typedef {Object} ObjectLayerRenderFrames
+ * @property {string} objectLayerCid - Canonical CID of the definition this is the source of
  * @property {RenderFrames} frames - Animation frames for different states
  * @property {number[][]} colors - Color palette for rendering
  * @property {number} frame_duration - Duration of each frame in milliseconds
@@ -60,6 +66,12 @@ const ObjectLayerRenderFramesDirectionsSchema = new Schema(
  */
 const ObjectLayerRenderFramesSchema = new Schema(
   {
+    objectLayerCid: {
+      type: String,
+      required: true,
+      trim: true,
+      match: [OBJECT_LAYER_CID_PATTERN, 'objectLayerCid must be an Object Layer CID'],
+    },
     frames: { type: ObjectLayerRenderFramesDirectionsSchema, required: true },
     colors: { type: [[Number]], required: true },
     frame_duration: { type: Number, required: true, min: 0 },
@@ -70,6 +82,32 @@ const ObjectLayerRenderFramesSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
+// One editor source per definition.
+ObjectLayerRenderFramesSchema.index({ objectLayerCid: 1 }, { unique: true });
+
+/**
+ * Stores the editor source of a definition, replacing the one it held. A stored source equal to it
+ * in structure and values, as the schema casts it, is left as it is, so a rerun changes nothing.
+ * @param {string} objectLayerCid - Canonical CID of the definition.
+ * @param {{frames: Object, colors: number[][], frame_duration: number}} source
+ * @returns {Promise<Object>} The stored document, lean.
+ * @memberof CyberiaObjectLayerRenderFramesModel
+ */
+ObjectLayerRenderFramesSchema.statics.materialize = async function (
+  objectLayerCid,
+  { frames, colors, frame_duration },
+) {
+  const source = { frames, colors, frame_duration };
+  const cast = new this({ objectLayerCid, ...source }).toObject();
+  const stored = await this.findOne({ objectLayerCid }).lean();
+  if (stored && Object.keys(source).every((field) => isDeepStrictEqual(stored[field], cast[field]))) return stored;
+  return await this.findOneAndUpdate(
+    { objectLayerCid },
+    { $set: source },
+    { upsert: true, returnDocument: 'after', runValidators: true },
+  ).lean();
+};
+
 // Pre-save hook to ensure data consistency
 ObjectLayerRenderFramesSchema.pre('save', function () {
   // Ensure all required fields are present
@@ -82,11 +120,8 @@ const ObjectLayerRenderFramesModel = model('ObjectLayerRenderFrames', ObjectLaye
 const ProviderSchema = ObjectLayerRenderFramesSchema;
 class ObjectLayerRenderFramesDto {
   static select = {
-    get: () => {
-      return { _id: 1, frame_duration: 1 };
-    },
     getFull: () => {
-      return { _id: 1, frames: 1, colors: 1, frame_duration: 1 };
+      return { _id: 1, objectLayerCid: 1, frames: 1, colors: 1, frame_duration: 1 };
     },
   };
 }

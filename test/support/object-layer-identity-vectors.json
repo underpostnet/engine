@@ -1,0 +1,125 @@
+{
+  "derivation": {
+    "canonicalPayload": "{ schemaVersion: 1, profile: { id, version }, data: { item: { id, type, description, activable }, stats, render: { cid, metadataCid } } } built from `canonical`; every other field is dropped; an absent item or render string is \"\", an absent activable is false, absent stats are {}",
+    "domain": "objects, arrays, well-formed Unicode strings, booleans, null and integers within [-(2^53 - 1), 2^53 - 1]; stats is an object of such integers; any other value is refused, never converted",
+    "canonicalBytes": "RFC 8785 JSON Canonicalization Scheme of the canonical payload, UTF-8, at most 262144 bytes",
+    "contentHash": "sha2-256(canonicalBytes), lower-case hex",
+    "cid": "'b' + RFC 4648 base32, lower case, no padding, of 0x01 0x55 0x12 0x20 || sha2-256 digest: CIDv1, raw, sha2-256",
+    "tokenId": "the 32-byte sha2-256 digest read as a big-endian uint256, in decimal"
+  },
+  "definitions": [
+    {
+      "label": "hatchet-a",
+      "canonical": {
+        "profile": {
+          "id": "cyberia",
+          "version": 2
+        },
+        "data": {
+          "item": {
+            "id": "hatchet",
+            "type": "weapon",
+            "description": "A rusted hatchet",
+            "activable": true
+          },
+          "stats": {
+            "effect": 5,
+            "resistance": 0,
+            "agility": 0,
+            "range": 0,
+            "intelligence": 0,
+            "utility": 0
+          },
+          "render": {
+            "cid": "",
+            "metadataCid": ""
+          }
+        }
+      },
+      "canonicalBytes": "{\"data\":{\"item\":{\"activable\":true,\"description\":\"A rusted hatchet\",\"id\":\"hatchet\",\"type\":\"weapon\"},\"render\":{\"cid\":\"\",\"metadataCid\":\"\"},\"stats\":{\"agility\":0,\"effect\":5,\"intelligence\":0,\"range\":0,\"resistance\":0,\"utility\":0}},\"profile\":{\"id\":\"cyberia\",\"version\":2},\"schemaVersion\":1}",
+      "contentHash": "4f3d5f93b748b470f1f940cd5455e89b347ae2c125e50201eace8a7c0a27705a",
+      "cid": "bafkreicphvpzhn2iwrypd6kazvkfl2e3gr5ofqjf4ubad2worj6auj3qli",
+      "tokenId": "35841152357346689715495330289229593383538397532588598937795543901934138650714"
+    },
+    {
+      "label": "hatchet-b",
+      "canonical": {
+        "profile": {
+          "id": "cyberia",
+          "version": 2
+        },
+        "data": {
+          "item": {
+            "id": "hatchet",
+            "type": "weapon",
+            "description": "A rusted hatchet",
+            "activable": true
+          },
+          "stats": {
+            "effect": 8,
+            "resistance": 0,
+            "agility": 0,
+            "range": 0,
+            "intelligence": 0,
+            "utility": 0
+          },
+          "render": {
+            "cid": "",
+            "metadataCid": ""
+          }
+        }
+      },
+      "canonicalBytes": "{\"data\":{\"item\":{\"activable\":true,\"description\":\"A rusted hatchet\",\"id\":\"hatchet\",\"type\":\"weapon\"},\"render\":{\"cid\":\"\",\"metadataCid\":\"\"},\"stats\":{\"agility\":0,\"effect\":8,\"intelligence\":0,\"range\":0,\"resistance\":0,\"utility\":0}},\"profile\":{\"id\":\"cyberia\",\"version\":2},\"schemaVersion\":1}",
+      "contentHash": "d0fbc45540d0eb41de91d8464c6a2aaeaf9d5bea72a934e9f77fa9a5b97e3cd2",
+      "cid": "bafkreigq7pcfkqgq5na55eoyizggukvov6ovx2tsve2ot537vgs3s7r42i",
+      "tokenId": "94525906159284151854361322396729138252748670659640427731660335481790339628242"
+    },
+    {
+      "label": "gold-ore",
+      "canonical": {
+        "profile": {
+          "id": "cyberia",
+          "version": 2
+        },
+        "data": {
+          "item": {
+            "id": "gold-ore",
+            "type": "resource",
+            "description": "",
+            "activable": false
+          },
+          "stats": {
+            "effect": 0,
+            "resistance": 0,
+            "agility": 0,
+            "range": 0,
+            "intelligence": 0,
+            "utility": 0
+          },
+          "render": {
+            "cid": "bafkreibxdvlscyfh5aj6pi5vb4dpzmzpoha4joojmykpnrmrwts35kkku4",
+            "metadataCid": "bafkreighdv7abhp5vqlcmiq42jxjsbouu34amck3zkuq76sa5uvdtiwleq"
+          }
+        }
+      },
+      "canonicalBytes": "{\"data\":{\"item\":{\"activable\":false,\"description\":\"\",\"id\":\"gold-ore\",\"type\":\"resource\"},\"render\":{\"cid\":\"bafkreibxdvlscyfh5aj6pi5vb4dpzmzpoha4joojmykpnrmrwts35kkku4\",\"metadataCid\":\"bafkreighdv7abhp5vqlcmiq42jxjsbouu34amck3zkuq76sa5uvdtiwleq\"},\"stats\":{\"agility\":0,\"effect\":0,\"intelligence\":0,\"range\":0,\"resistance\":0,\"utility\":0}},\"profile\":{\"id\":\"cyberia\",\"version\":2},\"schemaVersion\":1}",
+      "contentHash": "6888634d4efe44ca504fe97867d17ce452bd4f268b452a092632edd01b662c9c",
+      "cid": "bafkreidirbru2tx6itffat7jpbt5c7hekk6u6juliuvasjrs5xibwzrmtq",
+      "tokenId": "47281512810592749127331426996297645303346858718821675362170709439189396892828"
+    }
+  ],
+  "anchors": [
+    {
+      "label": "kubo-pinned-production-block",
+      "contentHash": "d6c25c233548df6b6ee83bf8a22d36a2f0b16dbeb5309533d63d9d6256ab9618",
+      "cid": "bafkreigwyjocgnki35vw52b37crc2nvc6cyw3pvvgckthvr5tvrfnk4wda",
+      "tokenId": "97138353837259581315989870626849285076783737027509749410649399343999089350168"
+    },
+    {
+      "label": "raw-block-hello-world",
+      "contentHash": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+      "cid": "bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e",
+      "tokenId": "83814198383102558219731078260892729932246618004265700685467928187377105751529"
+    }
+  ]
+}

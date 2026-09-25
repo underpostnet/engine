@@ -135,6 +135,19 @@ const sendSuccess = (res, data) => res.status(200).json({ status: 'success', dat
 const sendError = (res, error, status = 400) => res.status(status).json({ status: 'error', message: error.message });
 
 /**
+ * `express.json` verify hook: keeps the bytes of a JSON body on the request, so an API that reads
+ * a body as sent can parse it itself.
+ * @method keepRawBody
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {Buffer} body
+ * @memberof Middlewares
+ */
+const keepRawBody = (req, res, body) => {
+  req.rawBody = body;
+};
+
+/**
  * Binary response with cross-origin and content headers. With an `etag`, a client that already
  * holds that entity gets `304` and no body.
  * @method sendBlob
@@ -267,6 +280,7 @@ export {
   withParsedPagination,
   sendSuccess,
   sendError,
+  keepRawBody,
   sendBlob,
   controllerHandler,
   serviceHandler,
