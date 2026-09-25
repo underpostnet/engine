@@ -13,7 +13,6 @@ import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
 import { AppStoreUnderpost } from './AppStoreUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RouterUnderpost.js';
-import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
 import { organizationUrl } from '../core/Repository.js';
@@ -55,24 +54,6 @@ class AppShellUnderpost {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
           })}
-          ${true
-            ? ''
-            : await BtnIcon.instance({
-                class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
-                useMenuBtn: true,
-                label: renderMenuLabel({
-                  icon: html`<img
-                    class="inl underpost-menu-icon"
-                    src="${getProxyPath()}assets/ui-icons/gallery.png"
-                  />`,
-                  text: html`<span class="menu-label-text">${Translate.instance('lab-gallery')}</span>`,
-                }),
-                // style: 'display: none',
-                attrs: `data-id="lab-gallery"`,
-                tabHref: `${getProxyPath()}lab-gallery`,
-                handleContainerClass: 'handle-btn-container',
-                tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
-              })}
           ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active hide',
             useMenuBtn: true,
@@ -447,25 +428,6 @@ class AppShellUnderpost {
           text: `<span class='inl underpost-text-title-modal'>${Translate.instance('log-in')}</span>`,
         }),
         html: async () => await LogIn.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-lab-gallery`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-lab-gallery',
-        route: 'lab-gallery',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/gallery.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('lab-gallery')}</span>`,
-        }),
-        html: async () => await LabGalleryUnderpost.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

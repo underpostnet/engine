@@ -17,7 +17,6 @@ class RouterUnderpost {
         title: 'contracultura-cyberpunk',
         render: () => s(`.main-btn-contracultura-cyberpunk`).click(),
       },
-      '/lab-gallery': { title: 'lab-gallery', render: () => s(`.main-btn-lab-gallery`).click() },
       '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click() },
       '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click() },
       '/log-out': {
