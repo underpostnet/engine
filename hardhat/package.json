@@ -38,6 +38,8 @@
     "elliptic": ">=6.6.1",
     "lodash-es": "4.18.1",
     "ws": ">=8.21.0",
-    "undici": "6.28.0"
+    "@actions/http-client": {
+      "undici": "^7.29.0"
+    }
   }
 }
