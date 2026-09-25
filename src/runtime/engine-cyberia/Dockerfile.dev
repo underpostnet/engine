@@ -70,10 +70,8 @@ RUN --mount=type=secret,id=github_username \
     cp -a ./cyberia-instances/conf/dd-cyberia/. /home/dd/engine/engine-private/conf/dd-cyberia/.; \
     cp -a /home/dd/engine/engine-private/conf/dd-cyberia/package.json /home/dd/engine/package.json; \
     # Per instance code: copy its backup dir and, when present, its top-level
-    # saga (cyberia-instances/sagas/<code>.json). The engine boot seed
-    # (`run-workflow import-default-items`) reads engine-private/cyberia-sagas/
-    # <code>.json — without it generate-saga fails and the engine crash-loops.
-    # A code with no top-level saga is imported from its backup dir instead.
+    # saga (cyberia-instances/sagas/<code>.json). `content-release build` imports
+    # the backup dirs; `run-workflow import-default-items` also reads the saga.
     mkdir -p /home/dd/engine/engine-private/cyberia-instances; \
     mkdir -p /home/dd/engine/engine-private/cyberia-sagas; \
     for _ic in $(echo "$INSTANCE_CODES" | tr ',' ' '); do \
@@ -82,16 +80,20 @@ RUN --mount=type=secret,id=github_username \
         cp -a ./cyberia-instances/sagas/"$_ic".json /home/dd/engine/engine-private/cyberia-sagas/"$_ic".json; \
       fi; \
     done; \
-    mkdir -p /home/dd/engine/src/client/public/cyberia; \
-    cp -a ./cyberia-instances/public/cyberia/. /home/dd/engine/src/client/public/cyberia/.; \
-    # The engine gRPC server loads its schema at runtime from
-    # cyberia-server/gen/proto/cyberia.proto (src/grpc/cyberia/grpc-server.js);
-    # fetch just that file so the engine can bind :50051 / :4005 without the
-    # full cyberia-server repo.
-    underpost clone "$GITHUB_USERNAME/cyberia-server"; \
-    mkdir -p /home/dd/engine/cyberia-server/gen/proto; \
-    cp -a ./cyberia-server/gen/proto/cyberia.proto /home/dd/engine/cyberia-server/gen/proto/cyberia.proto; \
-    rm -rf ./cyberia-server; \
+    # The public tree of every served host: `cyberia instance --publish` writes them to the
+    # instances repository, and each client also fills its own gaps from `cyberia`
+    # (`publicCopyNonExistingFiles`), so they must all be in place before the client build.
+    # `cyberia` and `underpost` have no other source — git carries neither — while the rest
+    # keep the copy the checkout already holds when the instances repository has none.
+    for _pc in cyberia underpost; do \
+      mkdir -p /home/dd/engine/src/client/public/"$_pc"; \
+      cp -a ./cyberia-instances/public/"$_pc"/. /home/dd/engine/src/client/public/"$_pc"/.; \
+    done; \
+    for _pc in itemledger objectlayer cryptokoyn; do \
+      [ -d ./cyberia-instances/public/"$_pc" ] || continue; \
+      mkdir -p /home/dd/engine/src/client/public/"$_pc"; \
+      cp -a ./cyberia-instances/public/"$_pc"/. /home/dd/engine/src/client/public/"$_pc"/.; \
+    done; \
     cd /home/dd/engine; \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
@@ -126,12 +128,6 @@ RUN --mount=type=secret,id=github_username \
     #    runtime server never imports it, so its dev node_modules is pure bloat.
     npm cache clean --force 2>/dev/null || true; \
     rm -rf /home/dd/cyberia-instances \
-           /home/dd/engine/src/client/public/itemledger \
-           /home/dd/engine/src/client/public/cryptokoyn \
-           /home/dd/engine/src/client/components/cryptokoyn \
-           /home/dd/engine/src/client/components/itemledger \
-           /home/dd/engine/src/client/Itemledger.index.js \
-           /home/dd/engine/src/client/Cryptokoyn.index.js \
            /home/dd/engine/hardhat/node_modules \
            /home/dd/engine/.npm /tmp/* /var/tmp/* /var/cache/dnf
 
@@ -171,7 +167,9 @@ RUN chown -R dd:dd /home/dd/engine/src/client/public
 USER dd
 WORKDIR /home/dd/engine
 
-EXPOSE 4005
+# One port per host of conf.server.json, from PORT+1 upward, plus the gRPC data
+# service. Compose publishes the same block (ENGINE_CYBERIA_PORT_RANGE).
+EXPOSE 4005-4019
 EXPOSE 50051
 
 CMD ["/bin/sh", "-c", "underpost start --run dd-cyberia development"]

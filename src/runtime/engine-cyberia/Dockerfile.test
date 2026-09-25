@@ -51,12 +51,11 @@ RUN --mount=type=secret,id=github_token \
     export CLOUDINARY_API_SECRET="$(cat /run/secrets/cloudinary_api_secret 2>/dev/null || true)"; \
     \
     # --- fetch sources under our control, then build WITHOUT itc-scripts -----
-    # itc-scripts are DEPLOY-time provisioning; the DB-seeding parts (`cyberia
-    # ol --drop`, `instance --import`) and the in-cluster .env rewrite cannot run
+    # itc-scripts are DEPLOY-time provisioning; the DB-seeding parts (content
+    # release builds) and the in-cluster .env rewrite cannot run
     # in a hermetic build, so we strip the scripts and replay ONLY the build-safe
-    # provisioning steps inline (asset pulls, ffmpeg, hardhat deps, cyberia-server
-    # clone). Pre-clone so privateEngineRepoFactory no-ops and --skip-pull-base
-    # reuses the tree.
+    # provisioning steps inline (asset pulls, ffmpeg, hardhat deps). Pre-clone so
+    # privateEngineRepoFactory no-ops and --skip-pull-base reuses the tree.
     export ENGINE_CYBERIA_REPO="engine-cyberia"; \
     cd /home/dd; \
     underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
@@ -73,8 +72,13 @@ RUN --mount=type=secret,id=github_token \
     npm install; \
     node bin app load --env development --args deploy-id=dd-cyberia; \
     node bin fs --pull --tracked --deploy-id dd-cyberia --storage-id engine-cyberia; \
+    # The underpost host takes only what its PWA serves: the manifest, the icons and the two
+    # image sets its shell and its metadata name. The gif bank and the backgrounds are
+    # decorative weight no host requests.
+    for _p in assets/splash assets/img assets/banner browserconfig.xml favicon.ico site.webmanifest sitemap; do \
+      node bin fs src/client/public/underpost/"$_p" --pull --tracked --deploy-id dd-cyberia --storage-id underpost; \
+    done; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
-    ( cd /home/dd/engine && underpost clone underpostnet/cyberia-server ); \
     \
     # --- build the client bundle (assets are now in place) --------------------
     node bin client dd-cyberia; \
@@ -118,12 +122,6 @@ RUN --mount=type=secret,id=github_token \
     #    build/CLI tooling (used only to build the coverage docs above); the
     #    runtime server never imports it, so its dev node_modules is pure bloat.
     npm cache clean --force 2>/dev/null || true; \
-    rm -rf /home/dd/engine/src/client/public/itemledger \
-    rm -rf /home/dd/engine/src/client/public/cryptokoyn \
-    rm -rf /home/dd/engine/src/client/components/cryptokoyn \
-    rm -rf /home/dd/engine/src/client/components/itemledger \
-    rm -rf /home/dd/engine/src/client/Itemledger.index.js \
-    rm -rf /home/dd/engine/src/client/Cryptokoyn.index.js \
     rm -rf /home/dd/engine/hardhat/node_modules \
            /home/dd/engine/.npm /tmp/* /var/tmp/* /var/cache/dnf
 
