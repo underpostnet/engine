@@ -60,6 +60,7 @@ import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js'
 import os from 'os';
 import nodePath from 'node:path';
 import { domainContextFactory } from './domains.js';
+import { ensureInotifyLimits } from './cluster.js';
 import { KUBECTL_SERVER_SIDE_APPLY } from './kubectl.js';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
@@ -1085,6 +1086,16 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      */
     'crypto-policy': (path, options = DEFAULT_OPTION) => {
       shellExec(`sudo update-crypto-policies --set DEFAULT:SHA1`);
+    },
+    /**
+     * @method set-inotify
+     * @description Raises the host's inotify limits and persists them across reboots. The limits stop kubelet, container runtimes, and file watchers from failing with EMFILE on a node.
+     * @param {string} path - Unused.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
+     * @memberof UnderpostRun
+     */
+    'set-inotify': (path, options = DEFAULT_OPTION) => {
+      ensureInotifyLimits();
     },
     /**
      * @method sync

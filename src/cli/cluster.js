@@ -73,6 +73,25 @@ const enforceSELinux = (paths = []) => {
 };
 
 /**
+ * The inotify limits a host keeps across reboots. Every kubelet, container runtime and
+ * file watcher on the host takes an instance per process and a watch per file; the kernel
+ * defaults (128 instances) run out on a node, and a watcher that cannot get an instance
+ * fails with EMFILE.
+ * @constant {string}
+ * @memberof UnderpostCluster
+ */
+const INOTIFY_SYSCTL_PATH = '/etc/sysctl.d/99-underpost-inotify.conf';
+
+export const ensureInotifyLimits = () => {
+  shellExec(
+    `echo 'fs.inotify.max_user_instances = 1024
+fs.inotify.max_user_watches = 1048576
+fs.inotify.max_queued_events = 65536' | sudo tee ${INOTIFY_SYSCTL_PATH} > /dev/null`,
+  );
+  shellExec(`sudo sysctl -q -p ${INOTIFY_SYSCTL_PATH}`);
+};
+
+/**
  * @class UnderpostCluster
  * @description Manages Kubernetes cluster initialization, configuration, and component deployment.
  * This class provides a set of static methods to handle cluster initialization, configuration,
@@ -1563,10 +1582,7 @@ EOF
       // Reload systemd daemon to pick up new unit files/changes
       shellExec(`sudo systemctl daemon-reload`);
 
-      // Increase inotify limits
-      shellExec(`sudo sysctl -w fs.inotify.max_user_watches=2099999999`);
-      shellExec(`sudo sysctl -w fs.inotify.max_user_instances=2099999999`);
-      shellExec(`sudo sysctl -w fs.inotify.max_queued_events=2099999999`);
+      ensureInotifyLimits();
     },
 
     /**
@@ -1619,9 +1635,7 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
       );
       shellExec(`sudo sysctl --system`);
 
-      // inotify limits — many pods/watchers. Conservative, sane values.
-      shellExec(`sudo sysctl -w fs.inotify.max_user_instances=1024`);
-      shellExec(`sudo sysctl -w fs.inotify.max_user_watches=1048576`);
+      ensureInotifyLimits();
     },
 
     /**
@@ -2151,6 +2165,7 @@ EOF`);
       shellExec(`sudo rm -f /etc/sysctl.d/k8s.conf`);
       shellExec(`sudo rm -f /etc/sysctl.d/99-k8s-ipforward.conf`);
       shellExec(`sudo rm -f /etc/sysctl.d/99-k8s.conf`);
+      shellExec(`sudo rm -f ${INOTIFY_SYSCTL_PATH}`);
 
       console.log('Keeping SELinux in enforcing mode...');
       enforceSELinux();
