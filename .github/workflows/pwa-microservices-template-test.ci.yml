@@ -30,4 +30,4 @@ jobs:
         run: npm install
 
       - name: Run test
-        run: node bin test unit,infra
+        run: node bin test underpost,ecosystem

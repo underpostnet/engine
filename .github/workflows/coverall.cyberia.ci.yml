@@ -50,10 +50,23 @@ jobs:
       - name: Install cyberia catalog dependencies
         run: node bin package dd-cyberia --install
 
+      # A pull request runs what its change can break, and a push to the release
+      # branch runs the whole platform: the selector comes from the canonical impact
+      # model in `src/server/build/testing.js`, never from a path list of its own.
+      - name: Resolve the test selection
+        id: selection
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
+            echo "suite=$(node bin test --changed origin/${{ github.base_ref }} --print)" >> "$GITHUB_OUTPUT"
+          else
+            echo "suite=underpost,ecosystem,object-layer,item-ledger:unit,cryptokoyn,cyberia" >> "$GITHUB_OUTPUT"
+          fi
+
       # Set the COVERAGE_MIN repository variable to gate below the shipped
       # default while the suite is catching up to it.
       - name: Run tests and enforce coverage threshold
-        run: COVERAGE_ENFORCE=1 node bin test unit,infra,app,cyberia
+        run: COVERAGE_ENFORCE=1 node bin test ${{ steps.selection.outputs.suite }}
         env:
           COVERAGE_MIN: ${{ vars.COVERAGE_MIN }}
 
