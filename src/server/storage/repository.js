@@ -21,9 +21,9 @@ import { environmentValueFactory } from '../runtime/environment.js';
  */
 const REPOSITORY_DEFAULTS = {
   owner: 'underpostnet',
+  organization: 'underpost',
   name: 'engine',
   template: 'pwa-microservices-template',
-  // Prebuilt package repositories are the template repository plus this suffix.
   packageSuffix: '-ghpkg',
 };
 
@@ -31,12 +31,13 @@ const REPOSITORY_DEFAULTS = {
  * @method repositoryIdentityFactory
  * @description Resolves the repository identity this build publishes under.
  * @param {object} [overrides] - Explicit values that win over the environment.
- * @returns {{owner: string, name: string, template: string, packageSuffix: string}} Identity.
+ * @returns {{owner: string, organization: string, name: string, template: string, packageSuffix: string, deployPackage?: string}} Identity.
  * @memberof ServerRepository
  */
 const repositoryIdentityFactory = (overrides = {}) => ({
   ...REPOSITORY_DEFAULTS,
   ...(environmentValueFactory('GITHUB_USERNAME') ? { owner: environmentValueFactory('GITHUB_USERNAME') } : {}),
+  ...(environmentValueFactory('GITHUB_ORG_NAME') ? { organization: environmentValueFactory('GITHUB_ORG_NAME') } : {}),
   ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value)),
 });
 

@@ -11,7 +11,7 @@
 
 /**
  * Identity injected by the build.
- * @returns {{owner: string, name: string, template: string, packageSuffix: string}}
+ * @returns {{owner: string, organization: string, name: string, template: string, packageSuffix: string, deployPackage?: string}}
  * @memberof PwaRepository
  */
 const repositoryIdentity = () => window.renderPayload.repository;
@@ -44,6 +44,40 @@ const githubUrl = (...segments) =>
 const githubPagesUrl = (repository) => `https://${repositoryIdentity().owner}.github.io/${repository}/`;
 
 /**
+ * Composes a github.com URL under the organization the package repositories mirror into.
+ * @param {...string} segments - Path segments after the organization.
+ * @returns {string}
+ * @memberof PwaRepository
+ */
+const organizationUrl = (...segments) =>
+  `https://github.com/${[repositoryIdentity().organization, ...segments].filter(Boolean).join('/')}/`;
+
+/**
+ * The release tag this build carries, as the repositories tag it: `v<version>`.
+ * @returns {string}
+ * @memberof PwaRepository
+ */
+const releaseTag = () => `${window.renderPayload.version}`.replace(/^v?/, 'v');
+
+/**
+ * The release page of this build's version on a repository: `<owner>/<repository>/releases/tag/v<version>`.
+ * @param {string} [repository] - Repository cutting the release; the engine repository this build came from.
+ * @returns {string}
+ * @memberof PwaRepository
+ */
+const releaseUrl = (repository = repositoryIdentity().name) =>
+  `${githubUrl(repository, 'releases', 'tag')}${releaseTag()}`;
+
+/**
+ * The release page of this build's version on the deploy's package repository, under the organization:
+ * `<organization>/engine-ghpkg-<conf-id>/releases/tag/v<version>`.
+ * @returns {string}
+ * @memberof PwaRepository
+ */
+const deployPackageReleaseUrl = () =>
+  `${organizationUrl(repositoryIdentity().deployPackage, 'releases', 'tag')}${releaseTag()}`;
+
+/**
  * Coveralls report for the engine repository this build came from.
  * @returns {string}
  * @memberof PwaRepository
@@ -53,4 +87,14 @@ const coverallsUrl = () => {
   return `https://coveralls.io/github/${owner}/${name}`;
 };
 
-export { coverallsUrl, githubPagesUrl, githubUrl, packageRepository, repositoryIdentity };
+export {
+  coverallsUrl,
+  deployPackageReleaseUrl,
+  githubPagesUrl,
+  githubUrl,
+  organizationUrl,
+  packageRepository,
+  releaseTag,
+  releaseUrl,
+  repositoryIdentity,
+};
