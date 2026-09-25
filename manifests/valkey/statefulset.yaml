@@ -19,7 +19,18 @@ spec:
           image: docker.io/valkey/valkey:latest
           imagePullPolicy: IfNotPresent
           command: ['valkey-server']
-          args: ['--port', '6379', '--bind', '0.0.0.0', '--protected-mode', 'no']
+          # Bounded memory with LRU eviction: every key is a cache entry or a TTL-bound session.
+          args:
+            - '--port'
+            - '6379'
+            - '--bind'
+            - '0.0.0.0'
+            - '--protected-mode'
+            - 'no'
+            - '--maxmemory'
+            - '256mb'
+            - '--maxmemory-policy'
+            - 'allkeys-lru'
           ports:
             - containerPort: 6379
           startupProbe:
