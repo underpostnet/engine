@@ -43,9 +43,6 @@ const CssCommonCore = async () => {
       .handle-btn-container {
         width: 30px;
         height: 30px;
-        /* border: 2px solid #5f5f5f; */
-        /* color: #313131; */
-        color: #5f5f5f;
         cursor: grab;
         right: 2px;
         top: -3px;
@@ -149,7 +146,6 @@ const CssCommonCore = async () => {
       }
       .down-arrow-submenu {
         top: 0px;
-        color: #5f5f5f;
         left: 115px;
         transform-origin: center;
         width: 0px;
@@ -165,6 +161,10 @@ const CssCommonCore = async () => {
       }
       .main-menu-btn-selector {
         overflow: hidden;
+      }
+
+      .main-btn-menu:hover {
+        border: none !important;
       }
     </style>
     <style>
@@ -268,6 +268,10 @@ class CssCoreDark {
           color: #fff;
           overflow: hidden;
         }
+        /* The body background every theme paints; the splash paints the same one before this loads. */
+        body {
+          background: #191919;
+        }
         .modal {
           background: #121212;
           color: #fff;
@@ -296,9 +300,7 @@ class CssCoreDark {
         .hover-active {
           background: #313131;
         }
-        button:hover {
-          background: #313131;
-        }
+
         .title-modal {
           padding: 5px;
           margin: 5px;
@@ -381,16 +383,6 @@ class CssCoreDark {
         }
         .btn-input-file-explorer {
           padding: 15px;
-        }
-        input::file-selector-button {
-          background: #232323;
-          transition: 0.3s;
-          cursor: pointer;
-          padding: 3px;
-          color: #ddd;
-        }
-        input::file-selector-button:hover {
-          background: #191919;
         }
         .drop-hover-container {
           background: #232323;
@@ -558,6 +550,12 @@ class CssCoreDark {
           background: rgba(255, 255, 255, 0.1);
           border-radius: 0;
         }
+        input::file-selector-button:hover,
+        input::file-selector-button,
+        button,
+        button:hover {
+          border: 2px solid #313131;
+        }
       </style>
       ${scrollBarDarkRender()} ${borderChar(1, 'black', ['.main-body-btn-container'])}
     `;
@@ -569,6 +567,9 @@ class CssCoreLight {
     (await CssCommonCore()) +
     html`
       <style>
+        body {
+          background: #e8e8e8;
+        }
         .modal {
           background: #fff;
           color: #000;
@@ -590,20 +591,9 @@ class CssCoreLight {
           transition: 0.3s;
           font-size: 15px;
           border-radius: 5px;
-          border: 2px solid #bbb;
           min-height: 30px;
           min-width: 30px;
-          color: #313131;
           background: none;
-        }
-        button:hover {
-          background: #bbbbbb;
-        }
-        .hover:hover {
-          background: #bbbbbb;
-        }
-        .hover-active {
-          background: #bbbbbb;
         }
 
         .box-shadow {
@@ -664,10 +654,7 @@ class CssCoreLight {
         .html-modal-menu {
           padding: 0;
         }
-        button,
-        button:hover {
-          color: #000;
-        }
+
         .main-btn-menu {
           text-align: left;
           transition: none; /* sortable necessary */
@@ -700,16 +687,7 @@ class CssCoreLight {
         .btn-input-file-explorer {
           padding: 15px;
         }
-        input::file-selector-button {
-          background: #cacaca;
-          transition: 0.3s;
-          cursor: pointer;
-          padding: 3px;
-          color: #232323;
-        }
-        input::file-selector-button:hover {
-          background: #bcbcbc;
-        }
+
         .drop-hover-container {
           background: #cacaca;
           border: 2px solid #313131;
@@ -883,6 +861,12 @@ class CssCoreLight {
         .submenu-btn {
           background: rgba(0, 0, 0, 0.1);
           border-radius: 0;
+        }
+        input::file-selector-button:hover,
+        input::file-selector-button,
+        button,
+        button:hover {
+          border: 2px solid #bbb;
         }
       </style>
       ${scrollBarLightRender()} ${borderChar(1, 'white', ['.main-body-btn-container'])}

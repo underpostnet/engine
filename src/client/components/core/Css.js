@@ -175,6 +175,12 @@ const TriggerThemeEvents = () => {
   localStorage.setItem('_theme', Css.currentTheme);
   Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
 };
+// The splash paints the theme it reads from storage under `html.ssr-theme-<dark|light>`, and its
+// rules stay in the document. Keeping the class on the live theme keeps them in agreement with it.
+const syncDocumentTheme = () => {
+  document.documentElement.classList.toggle('ssr-theme-dark', darkTheme);
+  document.documentElement.classList.toggle('ssr-theme-light', !darkTheme);
+};
 const Themes = {};
 const addTheme = (options) => {
   ThemesScope.push(options);
@@ -191,6 +197,7 @@ const addTheme = (options) => {
       render += await options.render();
       render += await subThemeManager.render();
       htmls('.theme', render);
+      syncDocumentTheme();
       TriggerThemeEvents();
     }
     return {
@@ -226,35 +233,37 @@ const borderChar = (px, color, selectors, hover = false) => {
   `;
 };
 const boxShadow = ({ selector }) => html`
-  ${darkTheme
-    ? html`
-        <style>
-          ${selector} {
-            box-shadow:
-              0 4px 8px 0 rgba(255, 255, 255, 0.1),
-              0 6px 20px 0 rgba(255, 255, 255, 0.08);
-          }
-          ${selector}:hover {
-            box-shadow:
-              0 8px 16px 0 rgba(255, 255, 255, 0.15),
-              0 10px 30px 0 rgba(255, 255, 255, 0.1);
-          }
-        </style>
-      `
-    : html`
-        <style>
-          ${selector} {
-            box-shadow:
-              0 4px 8px 0 rgba(0, 0, 0, 0.2),
-              0 6px 20px 0 rgba(0, 0, 0, 0.19);
-          }
-          ${selector}:hover {
-            box-shadow:
-              0 8px 16px 0 rgba(0, 0, 0, 0.2),
-              0 10px 30px 0 rgba(0, 0, 0, 0.3);
-          }
-        </style>
-      `}
+  ${
+    darkTheme
+      ? html`
+          <style>
+            ${selector} {
+              box-shadow:
+                0 4px 8px 0 rgba(255, 255, 255, 0.1),
+                0 6px 20px 0 rgba(255, 255, 255, 0.08);
+            }
+            ${selector}:hover {
+              box-shadow:
+                0 8px 16px 0 rgba(255, 255, 255, 0.15),
+                0 10px 30px 0 rgba(255, 255, 255, 0.1);
+            }
+          </style>
+        `
+      : html`
+          <style>
+            ${selector} {
+              box-shadow:
+                0 4px 8px 0 rgba(0, 0, 0, 0.2),
+                0 6px 20px 0 rgba(0, 0, 0, 0.19);
+            }
+            ${selector}:hover {
+              box-shadow:
+                0 8px 16px 0 rgba(0, 0, 0, 0.2),
+                0 10px 30px 0 rgba(0, 0, 0, 0.3);
+            }
+          </style>
+        `
+  }
 `;
 const renderMediaQuery = (mediaData) => {
   //  first limit should be '0'
@@ -837,10 +846,15 @@ const subThemeManager = {
     this.renderLight = async function () {
       return html`<style>
         button:hover,
+        .documentation-link:hover,
+        .documentation-step:hover,
         .a-btn:hover,
         .main-btn-menu-active,
-        .top-bar-search-box-container:hover {
-          color: ${this.lightColor};
+        .top-bar-search-box-container:hover,
+        .down-arrow-submenu:hover,
+        .btn-icon-menu-mode:hover,
+        .handle-btn-container:hover {
+          color: ${darkenHex(this.lightColor, 0.5)};
           background-color: ${lightenHex(this.lightColor, 0.8)};
         }
         .top-bar-search-box-container i {
@@ -857,6 +871,11 @@ const subThemeManager = {
           color: ${this.lightColor};
           background-color: rgba(0, 0, 0, 0.2);
         }
+        .down-arrow-submenu,
+        .btn-icon-menu-mode,
+        .handle-btn-container {
+          color: #c4c3c3;
+        }
       </style>`;
     };
   },
@@ -868,8 +887,13 @@ const subThemeManager = {
         button:hover,
         .a-btn:hover,
         .main-btn-menu-active,
-        .top-bar-search-box-container:hover {
-          color: ${lightenHex(this.darkColor, 0.8)};
+        .documentation-link:hover,
+        .documentation-step:hover,
+        .top-bar-search-box-container:hover,
+        .down-arrow-submenu:hover,
+        .btn-icon-menu-mode:hover,
+        .handle-btn-container:hover {
+          color: ${this.darkColor};
           background-color: ${darkenHex(this.darkColor, 0.75)};
         }
         .top-bar-search-box-container i {
@@ -885,6 +909,11 @@ const subThemeManager = {
         .main-sub-btn-active:hover {
           color: ${lightenHex(this.darkColor, 0.8)};
           background-color: rgba(255, 255, 255, 0.2);
+        }
+        .down-arrow-submenu,
+        .btn-icon-menu-mode,
+        .handle-btn-container {
+          color: #3f3f3f;
         }
       </style>`;
     };
