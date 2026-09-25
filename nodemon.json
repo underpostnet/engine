@@ -1,6 +1,25 @@
 {
-  "watch": ["./src"],
+  "watch": [
+    "underpost.config.js",
+    "src/api.js",
+    "src/client.build.js",
+    "src/client.dev.js",
+    "src/index.js",
+    "src/proxy.js",
+    "src/server.js",
+    "src/api",
+    "src/cli",
+    "src/client-builder",
+    "src/client/components",
+    "src/client/ssr",
+    "src/db",
+    "src/grpc",
+    "src/mailer",
+    "src/projects",
+    "src/runtime",
+    "src/server",
+    "src/ws"
+  ],
   "ext": "js",
-  "delay": 0,
-  "ignore": ["src/client/public"]
+  "delay": 0
 }

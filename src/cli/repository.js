@@ -11,11 +11,11 @@ import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runt
 import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
-import { Config, readConfJson, readConfInstances } from '../server/runtime/conf.js';
+import { Config, confManifestPath, readConfJson, readConfInstances } from '../server/runtime/conf.js';
 import { readDeployRoutes, registerDeployRoute } from '../server/network/router.js';
 import { getUnderpostRootPath } from '../server/runtime/environment.js';
 import { githubCommitUrlFactory, repositoryIdentityFactory } from '../server/storage/repository.js';
-import { DefaultConf } from '../../conf.js';
+import { DefaultConf } from '../../underpost.config.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -503,7 +503,7 @@ class UnderpostRepository {
     },
 
     /**
-     * Initializes the base cluster deploy folder `engine-private/deploy` from `./conf.js` (DefaultConf).
+     * Initializes the base cluster deploy folder `engine-private/deploy` from `./underpost.config.js` (DefaultConf).
      *
      * Writes the minimum set required by the cluster runtime:
      * `conf.event.json`, `conf.users.json`, `conf.wireguard.json`, `dd.cron`, `dd.routes`, `id_rsa`, `id_rsa.pub`.
@@ -591,7 +591,7 @@ class UnderpostRepository {
      * @param {object} [options] - Initialization options.
      * @param {string} [options.deployId=''] - The deployment ID to set up.
      * @param {string} [options.subConf=''] - The sub-configuration to create.
-     * @param {boolean} [options.cluster=false] - If true, initializes only the base cluster deploy folder (`engine-private/deploy`) from `./conf.js` and returns; no project or deploy ID scaffolding runs.
+     * @param {boolean} [options.cluster=false] - If true, initializes only the base cluster deploy folder (`engine-private/deploy`) from `./underpost.config.js` and returns; no project or deploy ID scaffolding runs.
      * @param {boolean} [options.dev=false] - If true, uses development settings.
      * @param {boolean} [options.buildRepos=false] - If true, creates the deployment repositories (engine-*, engine-*-private, engine-*-cron-backups).
      * @param {boolean} [options.purge=false] - If true, removes the deploy ID conf and all related repositories (requires deployId).
@@ -942,13 +942,13 @@ Prevent build private config repo.`,
           `Deploy ID configuration not found: ./engine-private/conf/${deployId}, using default configuration.`,
         );
 
-      // Serialize the configuration into the conf.*.js manifest file.
+      // Serialize the configuration into the underpost.config.*.js manifest file.
       // env: references from JSON configs are preserved as 'env:KEY' strings.
-      // At runtime, resolveConfSecrets() in conf.js resolves them via process.env.
+      // At runtime, resolveConfSecrets() in src/server/runtime/conf.js resolves them via process.env.
       const sepRender = '/**/';
-      const confRawPaths = fs.readFileSync('./conf.js', 'utf8').split(sepRender);
+      const confRawPaths = fs.readFileSync(confManifestPath(), 'utf8').split(sepRender);
       confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
-      const targetConfPath = `./conf${defaultConf ? '' : `.${deployId}`}.js`;
+      const targetConfPath = confManifestPath(defaultConf ? '' : deployId);
       fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
       // A host tool, not a dependency: without it the manifest stays valid, only unformatted.
       if (

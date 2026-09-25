@@ -6,15 +6,17 @@ import os from 'node:os';
 import { expect } from 'chai';
 import fs from 'fs-extra';
 
-import { DefaultConf } from '../../conf.js';
+import { DefaultConf } from '../../../underpost.config.js';
 import {
+  CONF_MANIFEST_BASENAME,
+  confManifestPath,
   ensureTemplateCheckout,
   gitOriginRepositoryName,
   pruneTemplateWorkTree,
   templateGitignoreFactory,
   validateTemplatePath,
-} from '../../src/server/runtime/conf.js';
-import { TEMPLATE_PRESERVED_ENTRIES } from '../../src/projects/underpost/catalog-underpost.js';
+} from '../../../src/server/runtime/conf.js';
+import { TEMPLATE_PRESERVED_ENTRIES } from '../../../src/projects/underpost/catalog-underpost.js';
 
 const gitCheckout = (originUrl) => {
   const path = fs.mkdtempSync(`${os.tmpdir()}/underpost-template-`);
@@ -117,5 +119,23 @@ describeBaseTemplate('template path selection', () => {
 
   it('drops an api module the conf does not declare', () => {
     expect(validateTemplatePath('.//src/api/not-a-declared-api/not-a-declared-api.service.js')).to.equal(false);
+  });
+
+  it('carries the default conf manifest and drops every deploy id manifest beside it', () => {
+    expect(validateTemplatePath(`.//${confManifestPath().replace('./', '')}`)).to.equal(true);
+    for (const deployId of ['dd-core', 'dd-cyberia'])
+      expect(validateTemplatePath(`.//${confManifestPath(deployId).replace('./', '')}`), deployId).to.equal(false);
+  });
+});
+
+describe('conf manifest path', () => {
+  it('names the engine default without a deploy id, and one manifest per deploy id', () => {
+    expect(confManifestPath()).to.equal(`./${CONF_MANIFEST_BASENAME}.js`);
+    expect(confManifestPath('')).to.equal(`./${CONF_MANIFEST_BASENAME}.js`);
+    expect(confManifestPath('dd-cyberia')).to.equal(`./${CONF_MANIFEST_BASENAME}.dd-cyberia.js`);
+  });
+
+  it('names the manifest the engine actually carries', () => {
+    expect(fs.existsSync(confManifestPath())).to.equal(true);
   });
 });

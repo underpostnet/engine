@@ -415,7 +415,7 @@ const engineMirrorContentsFactory = () => [
   '--include=/src/',
   '--include=/src/**',
   '--include=/package.json',
-  '--include=/conf.js',
+  '--include=/underpost.config.js',
   '--include=/node_modules/',
   '--include=/node_modules/**',
   // The deploy configuration the job bodies resolve, named file-shape by file-shape rather than

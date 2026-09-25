@@ -149,7 +149,7 @@ const DefaultConf = /**/ {
         },
         { folder: './node_modules/peerjs/dist', public_folder: '/dist/peerjs' },
       ],
-      services: ['default', 'core', 'user', 'test', 'file', 'document', 'instance', 'crypto'],
+      services: ['default', 'core', 'user', 'test', 'file', 'document', 'instance'],
     },
   },
   ssr: {
@@ -184,7 +184,7 @@ const DefaultConf = /**/ {
       '/': {
         client: 'default',
         runtime: 'nodejs',
-        apis: ['default', 'core', 'user', 'test', 'file', 'document', 'instance', 'crypto'],
+        apis: ['default', 'core', 'user', 'test', 'file', 'document', 'instance'],
         origins: [],
         ws: 'core',
         peer: true,

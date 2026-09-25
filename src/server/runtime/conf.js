@@ -25,7 +25,7 @@ import { configRejectionFactory } from './config-scope.js';
 import { shellArgumentFactory, shellExec } from './process.js';
 import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from '../network/underpost-gateway.js';
 import { COVERAGE_BUNDLE_DIRECTORY } from '../build/coverage.js';
-import { DefaultConf } from '../../../conf.js';
+import { DefaultConf } from '../../../underpost.config.js';
 import splitFile from 'split-file';
 import { readDeployRoutes } from '../network/router.js';
 import Underpost from '../../index.js';
@@ -61,6 +61,23 @@ const ENV_REF_PREFIX = 'env:';
  * @memberof ServerConfBuilder
  */
 const DEFAULT_DEPLOY_ID = 'dd-default';
+
+/**
+ * Basename of the serialized {@link DefaultConf} manifest a source tree carries.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const CONF_MANIFEST_BASENAME = 'underpost.config';
+
+/**
+ * @method confManifestPath
+ * @description Path of the conf manifest a tree carries: the engine default, or the one
+ * `underpost new --default-conf --deploy-id <id>` writes for a deploy id beside it.
+ * @param {string} [deployId=''] - A concrete deploy id, or empty for the engine default.
+ * @returns {string} Manifest path, relative to a source tree root.
+ * @memberof ServerConfBuilder
+ */
+const confManifestPath = (deployId = '') => `./${CONF_MANIFEST_BASENAME}${deployId ? `.${deployId}` : ''}.js`;
 
 /**
  * Resolves a standardized context key from host/path descriptors.
@@ -1104,8 +1121,7 @@ const validateTemplatePath = (absolutePath = '') => {
   ) {
     return false;
   }
-  if (absolutePath.match('conf.dd-') && absolutePath.match('.js')) return false;
-  if (absolutePath.match('typedoc.dd-') && absolutePath.match('.json')) return false;
+  if (absolutePath.match(`${CONF_MANIFEST_BASENAME}.dd-`) && absolutePath.match('.js')) return false;
   if (
     absolutePath.match('src/client/services/') &&
     !clients.find((p) => absolutePath.match(`src/client/services/${p}/`))
@@ -3457,6 +3473,8 @@ export {
   ociEnvContentFactory,
   OCI_ENV_SUFFIX,
   readConfJson,
+  CONF_MANIFEST_BASENAME,
+  confManifestPath,
   DEFAULT_DEPLOY_ID,
   clusterContextFactory,
   clusterTypeFactory,
