@@ -5,7 +5,8 @@ import { UserService } from '../../services/user/user.service.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
 import { getId } from './CommonJs.js';
-import { getProxyPath, getPublicRouteParam, getViewPath, presentPublicRoute } from './Router.js';
+import { getPublicRouteParam, getViewPath, presentPublicRoute } from './Router.js';
+import { getApiBaseUrl } from '../../services/core/core.service.js';
 
 class PublicProfile {
   static Data = {};
@@ -585,7 +586,7 @@ class PublicProfile {
     setTimeout(async () => {
       if (userData.profileImageId) {
         try {
-          const imageSrc = `${getProxyPath()}api/file/blob/${userData.profileImageId}`;
+          const imageSrc = getApiBaseUrl({ endpoint: 'file', id: `blob/${userData.profileImageId}` });
           const imgElement = s(`.${profileImageClass}`);
           if (imgElement) {
             imgElement.src = imageSrc;
