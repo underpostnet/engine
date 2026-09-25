@@ -18,15 +18,19 @@ import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { createPeerServer } from '../../server/network/peer.js';
 import { createValkeyConnection } from '../../db/valkey/Valkey.js';
-import { applySecurity, authMiddlewareFactory } from '../../server/security/auth.js';
+import { applySecurity, authMiddlewareFactory, contentViewOf } from '../../server/security/auth.js';
+import { runInContentView } from '../../db/content-view.js';
 import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
 import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js';
 
 import { shellExec } from '../../server/runtime/process.js';
-import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
+import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
+import { developmentOrigins } from '../../server/network/router.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
-import { publicRouteFallbackFactory } from '../../server/network/middlewares.js';
+import { keepRawBody, publicRouteFallbackFactory } from '../../server/network/middlewares.js';
 import { entryShellRendererFactory } from '../../server/network/entry-metadata.js';
+import { apiPathOf } from '../../server/domain/api-contract.js';
+import { consumedApisOf, loadApiExtension } from '../../server/domain/consumed-api.js';
 
 import Underpost from '../../index.js';
 
@@ -56,6 +60,8 @@ class ExpressService {
    * @param {object} [config.mailer] - Mailer configuration.
    * @param {object} [config.db] - Database configuration.
    * @param {string} [config.redirect] - URL or flag to indicate an HTTP redirect should be configured.
+   * @param {Object<string,string>} [config.consumes] - APIs another domain owns, api → domain: served here from a local cache of the owner's content.
+   * @param {Object<string,string>} [config.apiExtensions] - api → project whose `<api>.extension.js` adds this host's own routes to that API.
    * @param {boolean} [config.peer] - Whether to enable the peer server.
    * @param {object} [config.valkey] - Valkey connection configuration.
    * @param {string} [config.apiBaseHost] - Base host for the API (if running separate API).
@@ -73,6 +79,8 @@ class ExpressService {
     port,
     client,
     apis,
+    consumes,
+    apiExtensions,
     origins,
     directory,
     useLocalSsl,
@@ -92,6 +100,7 @@ class ExpressService {
     promRegister,
   }) {
     let portsUsed = 0;
+    const consumed = consumedApisOf({ apis, consumes });
     const runningData = {
       host,
       path,
@@ -105,6 +114,8 @@ class ExpressService {
 
     if (origins && isDevProxyContext())
       origins.push(devProxyHostFactory({ host, includeHttp: true, tls: isTlsDevProxy() }));
+    // A development browser reaches every host on its local port, or through the dev proxy.
+    if (origins && process.env.NODE_ENV === 'development') origins = developmentOrigins(Config.default.server, origins);
     app.set('trust proxy', 1);
 
     app.use((req, res, next) => {
@@ -128,7 +139,7 @@ class ExpressService {
     // Logging, Compression, and Body Parsers
     app.use(loggerMiddleware(import.meta));
     app.use(compression({ filter: (req, res) => !req.headers['x-no-compression'] && compression.filter(req, res) }));
-    app.use(express.json({ limit: '100MB' }));
+    app.use(express.json({ limit: '100MB', verify: keepRawBody }));
     app.use(express.urlencoded({ extended: true, limit: '20MB' }));
     app.use(fileUpload());
 
@@ -230,14 +241,33 @@ class ExpressService {
         await GrpcServer.start({ host, path, port: grpc.port || 50051 });
       }
 
+      // A host with versioned content answers each request from the view its caller reads.
+      if (db?.partitions && Object.keys(db.partitions).length > 0)
+        app.use((req, res, next) => runInContentView(contentViewOf(req, { host, path }), next));
+
       // API router loading
       if (apis && apis.length > 0) {
         const authMiddleware = authMiddlewareFactory({ host, path });
-        const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
+        const apiPath = apiPathOf(path);
         for (const api of apis) {
-          logger.info(`Build api server`, `${host}${apiPath}/${api}`);
+          logger.info(
+            `Build api server`,
+            `${host}${apiPath}/${api}${consumed[api] ? ` (consumed from ${consumed[api]})` : ''}`,
+          );
           const { ApiRouter } = await import(`../../api/${api}/${api}.router.js`);
-          const router = ApiRouter({ app, host, path, apiPath, mailer, db, authMiddleware, origins });
+          const extension = await loadApiExtension(api, apiExtensions);
+          const router = ApiRouter({
+            app,
+            host,
+            path,
+            apiPath,
+            mailer,
+            db,
+            authMiddleware,
+            origins,
+            consumes: consumed,
+            extension,
+          });
           app.use(`${apiPath}/${api}`, router);
         }
       }

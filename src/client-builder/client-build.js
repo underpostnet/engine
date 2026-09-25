@@ -9,12 +9,7 @@
 import fs from 'fs-extra';
 import { transformClientJs, JSONweb } from './client-formatted.js';
 import { loggerFactory } from '../server/ops/logger.js';
-import {
-  getCapVariableName,
-  newInstance,
-  orderArrayFromAttrInt,
-  uniqueArray,
-} from '../client/components/core/CommonJs.js';
+import { getCapVariableName, orderArrayFromAttrInt, uniqueArray } from '../client/components/core/CommonJs.js';
 import { readConfJson } from '../server/runtime/conf.js';
 import { minify } from 'html-minifier-terser';
 import { extractZipTo, findZipEntry, isZipBuffer, loadZip, zipFromLocalFiles } from '../server/storage/zip.js';
@@ -29,6 +24,8 @@ import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 import { coverageReportsFactory } from '../server/build/coverage.js';
 import { ssrFactory } from './ssr.js';
+import { hostPortsFactory, localHostAddress } from '../server/network/router.js';
+import { API_BASE_PATH } from '../server/domain/api-contract.js';
 
 // Static Site Generation (SSG)
 
@@ -669,8 +666,8 @@ const buildClient = async (
   const enableLiveRebuild =
     options && options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0 ? true : false;
   const isDevelopment = process.env.NODE_ENV === 'development';
+  const ports = hostPortsFactory(confServer);
 
-  let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
     for (const path of paths) {
@@ -689,15 +686,16 @@ const buildClient = async (
         db,
         redirect,
         apis,
+        consumes,
+        apiExtensions,
         apiBaseProxyPath,
         apiBaseHost,
         ttiLoadTimeLimit,
         singleReplica,
-        docs,
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
-      const { components, dists, views, services, metadata, publicRef, publicCopyNonExistingFiles } =
+      const { components, dists, views, services, metadata, publicRef, publicCopyNonExistingFiles, docs, apiHosts } =
         confClient[client];
       let backgroundImage;
       if (metadata) {
@@ -705,14 +703,19 @@ const buildClient = async (
         if (metadata.thumbnail) metadata.thumbnail = `${path === '/' ? path : `${path}/`}${metadata.thumbnail}`;
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
-      const port = newInstance(currentPort);
+      const port = ports[`${host}${path}`];
       const publicClientId = publicRef ? publicRef : client;
       const fullBuildEnabled = options.fullBuild && !enableLiveRebuild;
-      // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       const minifyBuild = process.env.NODE_ENV === 'production';
-      // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
-      currentPort++;
+      // Services another domain owns, endpoint → host: the client reads them at their owner. A
+      // development build reads them on the owner's local port, never at the public origin.
+      const endpointHosts = Object.fromEntries(
+        Object.entries(apiHosts ?? {}).map(([endpoint, owner]) => [
+          endpoint,
+          isDevelopment ? localHostAddress(confServer, owner) || owner : owner,
+        ]),
+      );
 
       // Every document this instance emits carries the same payload; the SSR
       // views and the client index must never disagree about which repository
@@ -720,9 +723,11 @@ const buildClient = async (
       const renderPayload = {
         apiBaseProxyPath,
         apiBaseHost,
-        apiBasePath: process.env.BASE_API,
+        ...(Object.keys(endpointHosts).length ? { apiHosts: endpointHosts } : undefined),
+        apiBasePath: API_BASE_PATH,
         version: Underpost.version,
-        repository: repositoryIdentityFactory(),
+        // The deploy's package repository, `engine-ghpkg-<conf-id>`, cuts its releases.
+        repository: repositoryIdentityFactory({ deployPackage: Underpost.repo.ghpkgRepoFactory(deployId) }),
         // The reports the docs menu offers, each published at /docs/coverage/<id>.
         coverage: coverageReportsFactory(docs).map(({ id, label }) => ({ id, label })),
         // The name page titles end with (`<view> | <site>`), the same one the server ends an
@@ -1070,8 +1075,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           apiBaseProxyPath,
           metadata,
           apis,
-          publicClientId,
-          rootClientPath,
+          consumes,
+          apiExtensions,
           packageData,
           docs,
         });

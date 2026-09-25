@@ -32,15 +32,23 @@ const getApiBaseProxyPath = () =>
  */
 const getBaseHost = () => (window.renderPayload?.apiBaseHost ? window.renderPayload.apiBaseHost : location.host);
 /**
- * Gets the base path for API requests.
- * Constructs the path using proxyPath and apiBasePath from renderPayload or defaults.
+ * The host that serves one endpoint: the owning domain when `renderPayload.apiHosts` names one
+ * for it, else this client's API host.
+ * @memberof CoreServiceClient
+ * @param {string} [endpoint] - API endpoint name.
+ * @return {string} The host string.
+ */
+const getEndpointHost = (endpoint) => window.renderPayload?.apiHosts?.[endpoint] || getBaseHost();
+/**
+ * Gets the base path for API requests: the proxy path, then the versioned API contract the
+ * server names in `renderPayload.apiBasePath` (`api/v1`). The client holds no version of its own.
  * @memberof CoreServiceClient
  * @param {Object} [options] - Options for constructing the base path.
  * @param {string} [options.proxyPath] - Custom proxy path to use.
  * @return {string} The constructed API base path.
  */
 const getApiBasePath = (options) =>
-  `${options?.proxyPath ? `/${options.proxyPath}/` : getApiBaseProxyPath() || getProxyPath()}${window.renderPayload?.apiBasePath ? window.renderPayload.apiBasePath : 'api'}/`;
+  `${options?.proxyPath ? `/${options.proxyPath}/` : getApiBaseProxyPath() || getProxyPath()}${window.renderPayload.apiBasePath}/`;
 /**
  * Constructs the full API base URL for making requests.
  * Combines protocol, host, base path, endpoint, and optional ID.
@@ -52,7 +60,7 @@ const getApiBasePath = (options) =>
  * @return {string} The full API base URL.
  */
 const getApiBaseUrl = (options = { id: '', endpoint: '', proxyPath: '' }) =>
-  `${location.protocol}//${getBaseHost()}${getApiBasePath(options)}${options?.endpoint ? options.endpoint : ''}${options?.id ? `/${options.id}` : ''}`;
+  `${location.protocol}//${getEndpointHost(options?.endpoint)}${getApiBasePath(options)}${options?.endpoint ? options.endpoint : ''}${options?.id ? `/${options.id}` : ''}`;
 /**
  * Gets the base path for WebSocket connections.
  * Constructs the socket.io path using the proxy path.
@@ -312,6 +320,7 @@ export {
   readResponse,
   buildQueryUrl,
   getBaseHost,
+  getEndpointHost,
   getApiBaseProxyPath,
   getApiBasePath,
   getApiBaseUrl,

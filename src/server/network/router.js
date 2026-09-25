@@ -19,6 +19,7 @@
 import fs from 'fs-extra';
 import { newInstance, orderArrayFromAttrInt, range } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../ops/logger.js';
+import { API_BASE_PATH } from '../domain/api-contract.js';
 import {
   Config,
   DEFAULT_DEPLOY_ID,
@@ -386,7 +387,7 @@ const buildPortProxyRouter = (
       if (devApiHost in router) {
         const target = router[devApiHost];
         delete router[devApiHost];
-        router[`${devApiHost}/${process.env.BASE_API}`] = target;
+        router[`${devApiHost}/${API_BASE_PATH}`] = target;
         router[`${devApiHost}/socket.io`] = target;
         for (const origin of origins) router[devApiHost] = origin;
       }
