@@ -8,14 +8,14 @@ The client displays server state. The CLI validates content and generates shared
 
 `src/client/components/cyberia/SharedDefaultsCyberia.js` defines the stat order, descriptions, modifier bounds, defaults, effective floors, and what one point is worth. The generated contract carries the scales to the server, so the simulation and the documentation read one table.
 
-| Index | Stat | One point | Effective floor |
-| --- | --- | --- | ---: |
-| 0 | `effect` | Removes one life point per hit | 1 |
-| 1 | `resistance` | Adds one point of maximum life and a tenth of a point to each regeneration | 0 |
-| 2 | `agility` | Adds one percent of base movement speed | -90 |
-| 3 | `range` | Adds fifty milliseconds of summon lifetime | 0 |
-| 4 | `intelligence` | Adds five percentage points of summon chance | 0 |
-| 5 | `utility` | Removes one percent of base cooldown and adds one percentage point of regeneration chance | 0 |
+| Index | Stat           | One point                                                                                 | Effective floor |
+| ----- | -------------- | ----------------------------------------------------------------------------------------- | --------------: |
+| 0     | `effect`       | Removes one life point per hit                                                            |               1 |
+| 1     | `resistance`   | Adds one point of maximum life and a tenth of a point to each regeneration                |               0 |
+| 2     | `agility`      | Adds one percent of base movement speed                                                   |             -90 |
+| 3     | `range`        | Adds fifty milliseconds of summon lifetime                                                |               0 |
+| 4     | `intelligence` | Adds five percentage points of summon chance                                              |               0 |
+| 5     | `utility`      | Removes one percent of base cooldown and adds one percentage point of regeneration chance |               0 |
 
 Chances are fractions of one. A tap regenerates with `lifeRegenChance` (default 0.15) plus utility; a skill summons with its `skillRules` chance (projectile 0.75, doppelganger 0.6) plus intelligence. No chance the stats raise passes `maxChance` (default 0.95), so nothing becomes a certainty. Regeneration heals the entity's own base amount plus a tenth of a point per resistance point, never past its maximum.
 
@@ -30,16 +30,16 @@ The randomizer validates its bounds and uses the full signed range by default.
 
 `STAT_TYPE_BOUNDS` in the same module declares the inclusive range each stat may take per item type. A weapon deals its effect and can cost resistance; a skin and a breastplate defend; a skill reaches; world content carries nothing. A type or stat absent there keeps the contract range.
 
-| Type | effect | resistance | agility | range | intelligence | utility |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `weapon` | 5..20 | -10..2 | -5..5 | 0..10 | 0..5 | 0..10 |
-| `skin` | 1 | 0..20 | -5..10 | 0 | 0..2 | 0..5 |
-| `breastplate` | 0 | 5..30 | -15..0 | 0 | 0..3 | 0..5 |
-| `skill` | 0..15 | 0..5 | 0..5 | 5..30 | 0..10 | 0..10 |
-| `resource` | 0 | 0..10 | 0 | 0 | 0 | 0 |
-| world content | 0 | 0 | 0 | 0 | 0 | 0 |
+| Type          | effect | resistance | agility | range | intelligence | utility |
+| ------------- | -----: | ---------: | ------: | ----: | -----------: | ------: |
+| `weapon`      |  5..20 |     -10..2 |   -5..5 | 0..10 |         0..5 |   0..10 |
+| `skin`        |      1 |      0..20 |  -5..10 |     0 |         0..2 |    0..5 |
+| `breastplate` |      0 |      5..30 |  -15..0 |     0 |         0..3 |    0..5 |
+| `skill`       |  0..15 |       0..5 |    0..5 | 5..30 |        0..10 |   0..10 |
+| `resource`    |      0 |      0..10 |       0 |     0 |            0 |       0 |
+| world content |      0 |          0 |       0 |     0 |            0 |       0 |
 
-`src/projects/cyberia/stat-balance.js` applies one policy to every object layer the `ol` command writes: import, batch import, generation, atlas rebuilds, and the minify refresh. `--normalize-stats` clamps the stats the content carries into its type's range. `--random-stats` draws every stat inside the range instead. `--min-stat` and `--max-stat` narrow the range; a request that leaves no overlap pins the stat to the semantic edge nearest it. The policy is a pure function of the content and the flags, so a run is deterministic and normalizing is idempotent.
+`src/projects/cyberia/stat-balance.js` applies one policy to every object layer the `ol` command writes: import, batch import, generation, render rebuilds, and the derived-render refresh. `--normalize-stats` clamps the stats the content carries into its type's range. `--random-stats` draws every stat inside the range instead. `--min-stat` and `--max-stat` narrow the range; a request that leaves no overlap pins the stat to the semantic edge nearest it. The policy is a pure function of the content and the flags, so a run is deterministic and normalizing is idempotent.
 
 ## Aggregation and levels
 
@@ -73,18 +73,18 @@ Increasing maximum life does not grant an instant heal.
 Instance content can override `progressionRules`. Partial curves inherit missing defaults.
 The engine resolves and validates the complete configuration before transport.
 
-| Setting | Default |
-| --- | ---: |
-| `maxLevel` | 100 |
-| `xpPerLevel` | 100 |
-| `defaultBotLevel` | 1 |
-| `killXp` | 25 |
-| `objectiveXp` | 10 |
-| `questXp` | 100 |
-| `minAwardIntervalMs` | 500 |
-| `repeatWindowMs` | 60000 |
-| `maxRepeatAwards` | 4 |
-| `maxAwardsPerWindow` | 30 |
+| Setting              | Default |
+| -------------------- | ------: |
+| `maxLevel`           |     100 |
+| `xpPerLevel`         |     100 |
+| `defaultBotLevel`    |       1 |
+| `killXp`             |      25 |
+| `objectiveXp`        |      10 |
+| `questXp`            |     100 |
+| `minAwardIntervalMs` |     500 |
+| `repeatWindowMs`     |   60000 |
+| `maxRepeatAwards`    |       4 |
+| `maxAwardsPerWindow` |      30 |
 
 The default base array is `[5, 10, 0, 0, 0, 0]`.
 The default growth array is `[2, 5, 1, 10, 1, 1]`.
@@ -126,11 +126,13 @@ Player skills and tap regeneration share the server action cooldown. Movement in
 
 ## API and Object Layer specification
 
-An Object Layer record stores its contract marker outside hashed metadata. The model stamps it on every write:
+An Object Layer definition names the stat contract it follows as its profile. The profile is
+part of the canonical content: a contract change is a new definition with a new identity.
 
 ```json
 {
-  "statContractVersion": 2,
+  "schemaVersion": 1,
+  "profile": { "id": "cyberia", "version": 2 },
   "data": {
     "stats": {
       "effect": -100,
@@ -144,9 +146,10 @@ An Object Layer record stores its contract marker outside hashed metadata. The m
 }
 ```
 
-This fragment omits the existing required item, ledger, and asset fields.
-The OL API, import path, generator, and boot assembler use the shared validator.
-Mongo schema validation also enforces integer bounds. API updates run validators.
+This fragment omits the item and render fields.
+The OL API, import path, generator, and boot assembler use the shared validator: the stat
+contract is Cyberia's content profile (`CyberiaObjectLayerProfile`). The Object Layer store
+keeps `data.stats` an integer record and leaves the vocabulary and bounds to the profile.
 
 Entity content stores optional `level` beside `entityType` and `objectLayerItemIds`.
 The map editor preserves this field and accepts an optional level. An empty input uses the instance default.
@@ -154,9 +157,9 @@ The map editor preserves this field and accepts an optional level. An empty inpu
 
 The game link uses JSON envelopes over WebSocket. AOI stat arrays use canonical order.
 
-| Snapshot scope | Fields |
-| --- | --- |
-| Living entities | `level`, `effectiveStats[6]`, `statsSum` |
+| Snapshot scope      | Fields                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| Living entities     | `level`, `effectiveStats[6]`, `statsSum`                                             |
 | Viewing player only | `xp`, `levelXp`, `nextLevelXp`, `baseStats[6]`, `layerStats[6]`, `temporaryStats[6]` |
 
 `xp` is total XP. `levelXp` and `nextLevelXp` are the thresholds that bound the current level, so the client draws in-level progress without the curve. At maximum level, all three equal the final threshold.
@@ -183,15 +186,16 @@ The simulation server exposes no XP mutation API and stores no progression.
 
 ## Generation and verification
 
-Generate contracts after a shared stat or progression-default change:
+Generate contracts after a shared stat, progression-default or gRPC schema change:
 
 ```sh
 node bin/cyberia.js stat-contract
 node bin/cyberia.js stat-contract --check
 ```
 
-The generator writes the Go contract, C header, and REST test fixtures. Do not edit these outputs by hand.
-Regenerate protobuf output with the existing protobuf toolchain when `gen/proto/cyberia.proto` changes.
+The generator writes the Go contract, C header, REST test fixtures, the cyberia-server copy of the gRPC schema, and its Go protobuf output. Do not edit these outputs by hand.
+Edit the gRPC schema in `src/grpc/cyberia/cyberia.proto`. The generator compiles it with `go run` and pinned buf and plugin versions, so it needs Go only.
+`node bin/cyberia.js run-workflow e2e-build` runs the generator first.
 
 Inspect and validate content with:
 
@@ -204,7 +208,7 @@ node bin/cyberia.js stats random --min=-100 --max=100
 Focused engine tests:
 
 ```sh
-node node_modules/vitest/vitest.mjs run test/integration/app/cyberia/cyberia-stats.test.js
+node node_modules/vitest/vitest.mjs run test/cyberia/unit/stats.test.js
 ```
 
 Run `go test ./...` from `cyberia-server`. The REST and WebSocket tests need local loopback socket access.

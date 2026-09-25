@@ -8,6 +8,8 @@
 
 </div>
 
+# Cyberia game client
+
 **Path:** `cyberia-client/` · **Language:** C11/GNU11 → WebAssembly (Emscripten) · **Role:** presentation runtime for Cyberia
 
 `cyberia-client` is the rendering and interactive runtime for the Cyberia MMO extension on Underpost Platform. It captures input, predicts the local player, reconciles against authoritative snapshots, interpolates remote entities, and renders the world. It owns the render policy locally.
@@ -68,7 +70,7 @@ src/
   domain/
     tick.h                          tick rate constants, monotonic types
     presentation_runtime.{c,h}      sole owner of presentation: async fetch of
-                                    /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE,
+                                    /api/v1/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE,
                                     palette/status-icon/camera accessors, tiny
                                     inline bootstrap fallback
   input/
@@ -89,16 +91,16 @@ src/
   js/services.{js,c,h}              REST fetch bridge (atlas, ui-icons, client-hints)
 ```
 
-| Owner                         | Owns                                                                                                                                                              | Reads                                          | Writes                                                                                          |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `domain/presentation_runtime` | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
-| `input/input_command`         | typed InputCommand factory                                                                                                                                        | session for tick + sequence                    | —                                                                                               |
-| `prediction/`                 | predicted self position, input replay buffer                                                                                                                      | snapshot self + session ack                    | predicted self                                                                                  |
-| `interpolation/`              | remote entity `interp_pos`                                                                                                                                        | snapshot history                               | remote `interp_pos` only                                                                        |
-| `network/session`             | last server tick, last acked sequence                                                                                                                             | snapshot header                                | session singletons                                                                              |
-| `binary_aoi_decoder`          | wire parser                                                                                                                                                       | binary frames                                  | `game_state` + session + prediction (via callback)                                              |
-| `game_state`                  | gameplay world mirror                                                                                                                                             | —                                              | —                                                                                               |
-| `render/`, `ui/`              | rendering                                                                                                                                                         | view models                                    | screen                                                                                          |
+| Owner                         | Owns                                                                                                                                                              | Reads                                             | Writes                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `domain/presentation_runtime` | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/v1/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
+| `input/input_command`         | typed InputCommand factory                                                                                                                                        | session for tick + sequence                       | —                                                                                               |
+| `prediction/`                 | predicted self position, input replay buffer                                                                                                                      | snapshot self + session ack                       | predicted self                                                                                  |
+| `interpolation/`              | remote entity `interp_pos`                                                                                                                                        | snapshot history                                  | remote `interp_pos` only                                                                        |
+| `network/session`             | last server tick, last acked sequence                                                                                                                             | snapshot header                                   | session singletons                                                                              |
+| `binary_aoi_decoder`          | wire parser                                                                                                                                                       | binary frames                                     | `game_state` + session + prediction (via callback)                                              |
+| `game_state`                  | gameplay world mirror                                                                                                                                             | —                                                 | —                                                                                               |
+| `render/`, `ui/`              | rendering                                                                                                                                                         | view models                                       | screen                                                                                          |
 
 `game_state` holds only the gameplay subset of world state (entities, positions, life, AOI, equipment, frozen flag, coins). It does not carry palette state, status-icon visuals, or any other presentation field.
 
@@ -110,7 +112,7 @@ The client owns its render policy. The authoritative server holds no presentatio
 
 Three layers, strictly inward-dependent:
 
-1. **`domain/presentation_runtime.{c,h}`** — sole owner of every presentation value. Fires a single asynchronous GET against `/api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE` at startup, polled once per render frame. When the response settles, parses palette, entity colour keys, status-icon visuals, and camera/cell tunings into a process-local table and writes a one-shot hydration into `g_game_state` (cell_size, interpolation_ms, camera.zoom). The C client carries NO compile-time palette or status table — only a tiny inline neutral-grey bootstrap so the splash screen has something to draw while the fetch is in flight. The canonical schema for the response lives at engine-cyberia's `src/client/components/cyberia/SharedDefaultsCyberia.js`.
+1. **`domain/presentation_runtime.{c,h}`** — sole owner of every presentation value. Fires a single asynchronous GET against `/api/v1/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE` at startup, polled once per render frame. When the response settles, parses palette, entity colour keys, status-icon visuals, and camera/cell tunings into a process-local table and writes a one-shot hydration into `g_game_state` (cell_size, interpolation_ms, camera.zoom). The C client carries NO compile-time palette or status table — only a tiny inline neutral-grey bootstrap so the splash screen has something to draw while the fetch is in flight. The canonical schema for the response lives at engine-cyberia's `src/client/components/cyberia/SharedDefaultsCyberia.js`.
 2. **Renderers** — call `presentation_runtime_palette("KEY")`, `presentation_runtime_status_icon(u8)`, `presentation_runtime_status_border(u8)`, `presentation_runtime_entity_fallback_color(entity_type)` at each use site.
 
 What lives in this layer:
@@ -136,7 +138,7 @@ The numeric status-icon u8 still rides on the AOI wire — that is the protocol-
 
 ### Optional client hints
 
-`GET /api/cyberia-client-hints/:instanceCode` (engine-cyberia REST, **not** cyberia-server) returns a JSON document mirroring the structure of the compile-time defaults. The client is required to function with no successful call to this endpoint:
+`GET /api/v1/cyberia-client-hints/:instanceCode` (engine-cyberia REST, **not** cyberia-server) returns a JSON document mirroring the structure of the compile-time defaults. The client is required to function with no successful call to this endpoint:
 
 - 200 with `{ palette, entityColorKeys, statusIcons, cameraSmoothing, cameraZoom, defaultWidthScreenFactor, defaultHeightScreenFactor, interpolationMs, devUi }` — overrides applied on top of defaults.
 - 404 if the instance has no overrides — defaults are used.
@@ -217,23 +219,25 @@ Other message types — init data (0x02), FCT (0x04), ItemFCT (0x05) — carry t
 
 The client speaks REST directly to engine-cyberia for content. None of these calls go through cyberia-server.
 
-The atlas blob is the minified render, at one pixel per cell, and the atlas metadata describes that
-same render. The engine keeps a second, human-resolution render for viewing; the client never
-downloads it. The idle still is the first down-idle frame cut out of that render, and is what the
-interact overlay and every engine editor show as an item's picture. `cyberia ol --minify` refreshes
-the minified render and the idle still of stored items.
+The engine resolves an item label to the definition the catalog binds, then to that definition's
+atlas. The atlas blob is the primary render: the bytes the canonical render CID addresses, at one
+pixel per cell. The atlas metadata describes that same render. The engine also keeps an upscaled
+derived render for viewing; the client never downloads it. The idle preview is the first down-idle
+frame centred on a 300 px square. The interact overlay and every engine editor show it as an item's
+picture, and the editors share one loaded copy per item. `cyberia ol --sync-derived` derives both again from the primary render of stored items.
+The [render contract](../../object-layer/explanation/render-contract.md) defines these terms.
 
-| Endpoint                                                       | Purpose                                    |
-| -------------------------------------------------------------- | ------------------------------------------ |
-| `GET /api/atlas-sprite-sheet/metadata/:itemKey`                | Frame layout JSON for a sprite atlas       |
-| `GET /api/atlas-sprite-sheet/blob/:itemKey`                    | Minified atlas PNG, one pixel per cell     |
-| `GET /api/atlas-sprite-sheet/idle-preview/:itemKey`            | Down-idle still PNG, the item's picture    |
-| `GET /api/object-layer/:itemId`                                | ObjectLayer JSON metadata                  |
-| `GET /api/cyberia-dialogue/code/default-:itemId`               | Dialogue lines for an NPC                  |
-| `GET /assets/ui-icons/:iconId.png`                             | Status-bar icons                           |
-| `GET /api/cyberia-client-hints/:instanceCode`                  | Optional presentation overrides            |
-| `GET /api/cyberia-instance/instance-map/:instanceCode/static`  | Instance Map graph (nodes, edges, POIs)    |
-| `GET /api/cyberia-instance/instance-map/:instanceCode/dynamic` | Instance Map provider activity (~1/s poll) |
+| Endpoint                                                          | Purpose                                     |
+| ----------------------------------------------------------------- | ------------------------------------------- |
+| `GET /api/v1/atlas-sprite-sheet/metadata/:itemKey`                | Frame layout JSON for a sprite atlas        |
+| `GET /api/v1/atlas-sprite-sheet/blob/:itemKey`                    | Primary render PNG, one pixel per cell      |
+| `GET /api/v1/atlas-sprite-sheet/idle-preview/:itemKey`            | 300 px idle preview PNG, the item's picture |
+| `GET /api/v1/object-layer/:itemId`                                | ObjectLayer JSON metadata                   |
+| `GET /api/v1/cyberia-dialogue/code/default-:itemId`               | Dialogue lines for an NPC                   |
+| `GET /assets/ui-icons/:iconId.png`                                | Status-bar icons                            |
+| `GET /api/v1/cyberia-client-hints/:instanceCode`                  | Optional presentation overrides             |
+| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/static`  | Instance Map graph (nodes, edges, POIs)     |
+| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/dynamic` | Instance Map provider activity (~1/s poll)  |
 
 All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
 

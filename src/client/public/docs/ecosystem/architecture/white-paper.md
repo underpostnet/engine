@@ -1,3 +1,8 @@
+---
+title: Object Layer Token white paper
+order: 1
+---
+
 # Object Layer Token: A Semantic Interoperability Protocol for Composable Digital Entities
 
 <p align="center">
@@ -26,7 +31,7 @@ _Stackable Rendering Layers as a Unified Tokenized Reality_
 
 This paper introduces the **Object Layer Protocol** — a semantic interoperability standard that defines digital entities as literally stackable rendering layers. Each layer carries four bound realities: mechanical (stats), presentational (rendering), experiential (UX), and economic (on-chain ownership). The protocol enables composable, verifiable, and interoperable digital objects across decentralized runtimes.
 
-A reference implementation is provided through **Cyberia Online**, a browser-based real-time tap-based sandbox MMORPG deployed on Hyperledger Besu. The protocol uses the **Ethereum secp256k1** key pair as the universal identity primitive. On-chain economy is split across two dedicated service domains: **cryptokoyn.net** (fungible CKY currency) and **itemledger.com** (semi-fungible and non-fungible Object Layer registry), both backed by a single `ObjectLayerToken` ERC-1155 contract.
+A reference implementation is provided through **Cyberia Online**, a browser-based real-time tap-based sandbox MMORPG deployed on Hyperledger Besu. The protocol uses the **Ethereum secp256k1** key pair as the player identity primitive, and the content hash of an Object Layer as the asset identity primitive. The protocol and its content identity live at **objectlayer.org**. On-chain economy is split across two dedicated service domains: **cryptokoyn.net** (fungible CKY currency) and **itemledger.com** (the registry that binds Object Layer CIDs to semi-fungible and non-fungible token types), both backed by a single `ObjectLayerToken` ERC-1155 contract.
 
 ---
 
@@ -57,16 +62,19 @@ The **Object Layer Protocol** solves this by defining a **semantic interoperabil
 | Reality               | Semantic Role                                                             | Schema Path   |
 | --------------------- | ------------------------------------------------------------------------- | ------------- |
 | **Mechanical**        | What the layer _does_ — statistical attributes governing behavior         | `data.stats`  |
-| **Presentational**    | What the layer _looks like_ — IPFS-addressed atlas sprite sheets          | `data.render` |
+| **Presentational**    | What the layer _looks like_ — an IPFS-addressed primary render            | `data.render` |
 | **Experiential (UX)** | What the layer _means to a human_ — identifiers, descriptions, activation | `data.item`   |
-| **Economic**          | What the layer _is worth_ — on-chain ledger binding and ownership proof   | `data.ledger` |
+| **Economic**          | What the layer _is worth_ — an external ledger binding of its identity    | ItemLedger    |
+
+The first three realities are the canonical content. Their bytes give the Object Layer its identity: `contentHash` (SHA-256) and `cid` (CIDv1). The economic reality is external: ItemLedger binds that identity to a token type, and the chain holds ownership. Ledger state never enters the hashed content.
 
 **Key architectural decisions:**
 
-- **Ethereum secp256k1 keys** serve as the single identity primitive — the same key pair authenticates with the game server, signs EIP-712 claims, and owns on-chain tokens.
+- **Ethereum secp256k1 keys** serve as the player identity primitive — the same key pair signs in with SIWE, signs EIP-712 actions, and owns on-chain tokens.
+- **The Object Layer protocol** is defined at **objectlayer.org** — canonical schema, canonicalization, content identity and exploration. It knows no runtime.
 - **Fungible currency (CKY)** is managed via **cryptokoyn.net** — a dedicated financial portal for staking, governance, analytics, and fiat bridges.
-- **Object Layer items** are managed via **itemledger.com** — the canonical registry, metadata resolver, and IPFS indexer for all item tokens.
-- **A single `ObjectLayerToken` (ERC-1155) contract** on Hyperledger Besu backs both domains.
+- **Object Layer registration** is managed via **itemledger.com** — the registry, indexing, provenance and ownership bridge for Object Layer CIDs.
+- **A single `ObjectLayerToken` (ERC-1155) contract** on Hyperledger Besu backs both economic domains.
 
 ---
 
@@ -86,29 +94,34 @@ The Ethereum ecosystem established the foundational primitives for digital owner
 
 ### 2.2 Solution
 
-The Object Layer Protocol addresses the entire problem stack by leveraging Ethereum's existing cryptographic primitives — secp256k1 keys, EIP-712 typed data signatures, and ERC-1155 multi-token contracts — and extending them with a **semantic interoperability standard** that gives tokens structural meaning.
+The Object Layer Protocol addresses the entire problem stack by leveraging Ethereum's existing cryptographic primitives — secp256k1 keys, ERC-4361 sign-in, EIP-712 typed data signatures, and ERC-1155 multi-token contracts — and extending them with a **semantic interoperability standard** that gives tokens structural meaning.
 
 ---
 
 ## 3. Ethereum Identity and Authentication
 
-### 3.1 secp256k1 Key Pairs as Universal Identity
+### 3.1 secp256k1 Key Pairs as Player Identity
 
 A player generates a single Ethereum secp256k1 key pair. That key pair:
 
-1. **Authenticates** with the game server via EIP-712 signed claims (no passwords, no OAuth).
+1. **Signs in** with an ERC-4361 (Sign-In with Ethereum) message; the server then issues a session token.
 2. **Owns** on-chain tokens in the `ObjectLayerToken` ERC-1155 contract.
-3. **Authorizes** off-chain actions (crafting, trading, staking) via signed messages.
-4. **Interoperates** across all three service domains with a single identity.
+3. **Authorizes** single actions (crafting, trading, staking) with EIP-712 typed data.
+4. **Interoperates** across every service domain with one address.
 
-| Layer              | Function         | How the Key Is Used                                               |
-| ------------------ | ---------------- | ----------------------------------------------------------------- |
-| **On-chain**       | Token ownership  | Ethereum address holds ERC-1155 balances                          |
-| **Authentication** | Server login     | EIP-712 signed claim replaces username/password                   |
-| **Authorization**  | Action signing   | Off-chain crafting, trading, staking carry a signature            |
-| **Cross-domain**   | Unified identity | Same key across cryptokoyn.net, itemledger.com, cyberiaonline.com |
+The key identifies the player. It is never the session credential.
 
-### 3.2 EIP-712 Signed Claims and Gasless Authentication
+| Layer              | Function        | How the key is used                                                                           |
+| ------------------ | --------------- | --------------------------------------------------------------------------------------------- |
+| **On-chain**       | Token ownership | The address holds ERC-1155 balances                                                           |
+| **Authentication** | Sign-in         | One ERC-4361 signature per session; the server issues the session token                       |
+| **Authorization**  | Action signing  | One EIP-712 signature per action, with a deadline                                             |
+| **Cross-domain**   | One identity    | The same address across objectlayer.org, itemledger.com, cryptokoyn.net and cyberiaonline.com |
+
+A CAIP-10 account id (`eip155:<chainId>:<address>`) names the account. Each domain stores its own
+public account record. No domain holds a player key or a recovery phrase.
+
+### 3.2 Sign-In with Ethereum and Action Signing
 
 **EIP-712 Domain Separator:**
 
@@ -121,30 +134,39 @@ A player generates a single Ethereum secp256k1 key pair. That key pair:
 }
 ```
 
-**Authentication flow:**
+The EIP-712 domain above signs **actions**. Sessions use ERC-4361 instead, so an action
+signature can never open a session and a sign-in signature can never move an item.
+
+**Sign-in and action flow:**
 
 ```mermaid
 sequenceDiagram
-    participant W as Wallet (secp256k1)
-    participant S as Game Server (relayer)
+    participant W as Wallet (external or embedded)
+    participant S as Engine (verifier + relayer)
     participant C as ObjectLayerToken (ERC-1155)
 
-    Note over W: 1. Player holds ETH key pair (private key k · 32 bytes)
-    Note over W: 2. Sign EIP-712 typed claim { player, nonce, timestamp, action }
-    W->>S: 3. Send signed claim + signature (v, r, s)
-    Note over S: 4. ecrecover(structHash, v, r, s) → assert addr match + nonce fresh
-    Note over S: 5. Session authenticated (identity = Ethereum address)
-    Note over S: 6. Qualifying game event (quest complete, craft, drop)
-    S->>C: 7. registerObjectLayer / mint (gasless relayer)
-    Note over C: 8. balanceOf updated — Emit ObjectLayerRegistered / TransferSingle
-    C-->>W: 9. Ownership verifiable by any Ethereum-compatible tool
+    W->>S: 1. Request a sign-in challenge
+    Note over S: 2. Issue an ERC-4361 message { domain, uri, chainId, nonce, issuedAt, expirationTime }
+    Note over W: 3. Sign the message; the private key stays in the wallet
+    W->>S: 4. Send the message + signature
+    Note over S: 5. Check domain, uri, chainId, expiry, single-use nonce → recover the address
+    Note over S: 6. Issue a session token bound to the CAIP-10 account
+    W->>S: 7. Sign one EIP-712 action { parameters, nonce, deadline }
+    Note over S: 8. Verify the typed action (ERC-1271 for contract accounts)
+    S->>C: 9. Submit through the relayer (gasless for the player)
+    Note over C: 10. balanceOf updated — emit ObjectLayerRegistered / TransferSingle
+    C-->>W: 11. Ownership verifiable by any Ethereum-compatible tool
 ```
 
 **Key properties:**
 
-- **Players never pay gas.** Besu network runs with gas price zero; server relays transactions.
-- **Players never expose private keys.** Authentication is purely signature-based.
-- **Sessions are stateless.** Each request carries a fresh EIP-712 signature.
+- **Players never pay gas.** The Besu network runs at gas price zero; the relayer submits.
+- **Players never expose private keys.** No server, and no domain database, holds key material.
+- **A signature is not a session token.** The signature authenticates once; the server issues the
+  token that later requests carry.
+- **One signature authorizes one action.** The typed payload names the action and carries a
+  deadline.
+- **Nonces are single use.** A replayed sign-in message or action is refused.
 
 ---
 
@@ -170,46 +192,63 @@ Each layer is **independently complete**: it can be rendered, owned, simulated, 
 
 ### 4.2 Four Realities of an Object Layer
 
-| Reality               | Schema Path   | Role                                                             | Example                                                                               |
-| --------------------- | ------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **Mechanical**        | `data.stats`  | Governs behavior in the runtime simulation                       | `{ effect: 7, resistance: 8, agility: 0, range: 4, intelligence: 8, utility: 2 }`     |
-| **Presentational**    | `data.render` | Governs visual appearance via IPFS-addressed atlas sprite sheets | `{ cid: "bafkrei...", metadataCid: "bafkreia..." }`                                   |
-| **Experiential (UX)** | `data.item`   | Governs human comprehension — names, types, descriptions         | `{ id: "hatchet", type: "weapon", description: "A rusted hatchet", activable: true }` |
-| **Economic**          | `data.ledger` | Governs ownership via on-chain token binding                     | `{ type: "ERC1155", address: "0x...", tokenId: "uint256" }`                           |
+| Reality               | Schema Path   | Role                                                           | Example                                                                               |
+| --------------------- | ------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Mechanical**        | `data.stats`  | Governs behavior in the runtime simulation                     | `{ effect: 7, resistance: 8, agility: 0, range: 4, intelligence: 8, utility: 2 }`     |
+| **Presentational**    | `data.render` | Governs visual appearance via an IPFS-addressed primary render | `{ cid: "bafkrei...", metadataCid: "bafkreia..." }`                                   |
+| **Experiential (UX)** | `data.item`   | Governs human comprehension — names, types, descriptions       | `{ id: "hatchet", type: "weapon", description: "A rusted hatchet", activable: true }` |
+| **Economic**          | ItemLedger    | Governs ownership via an external on-chain token binding       | `{ objectLayerCid, chainId: 777771, contractAddress: "0x...", tokenId: "uint256" }`   |
 
-**The protocol requires all four realities for an Object Layer to be complete and interoperable.**
+**The canonical content is the first three realities. The economic reality binds to their identity from outside.**
 
 ### 4.3 AtomicPrefab: The Protocol Atom
 
-An **AtomicPrefab** is a self-contained Object Layer with all four realities, content-addressed on IPFS:
+An **AtomicPrefab** is the immutable content of one Object Layer, content-addressed on IPFS:
 
 ```json
 {
+  "schemaVersion": 1,
+  "profile": { "id": "cyberia", "version": 2 },
   "data": {
-    "stats": { "effect": 7, "resistance": 8, "agility": 0, "range": 4, "intelligence": 8, "utility": 2 },
     "item": { "id": "hatchet", "type": "weapon", "description": "A rusted hatchet", "activable": true },
-    "ledger": { "type": "ERC1155", "address": "0x...", "tokenId": "12345" },
-    "render": { "cid": "bafkrei...atlas.png", "metadataCid": "bafkreia...meta.json" }
-  },
-  "cid": "bafk...json",
-  "sha256": "a1b2c3..."
+    "stats": { "effect": 7, "resistance": 8, "agility": 0, "range": 4, "intelligence": 8, "utility": 2 },
+    "render": { "cid": "bafkrei...render.png", "metadataCid": "bafkreia...metadata.json" }
+  }
 }
 ```
 
-**IPFS CID structure per Object Layer:**
+It answers "what is this object?". `profile` names the contract that interprets `data.stats`. It never answers "who owns it?": no owner, balance, transfer history or token registration lives inside it, and a stored definition never changes: changed content is a new definition.
 
-| CID Field                 | Content                                        | Usage                 |
-| ------------------------- | ---------------------------------------------- | --------------------- |
-| `cid` (top-level)         | `keccak256(fast-json-stable-stringify(data))`  | On-chain metadata CID |
-| `data.render.cid`         | Consolidated atlas sprite sheet PNG            | Client rendering      |
-| `data.render.metadataCid` | Atlas metadata JSON (frame coords, animations) | Client rendering      |
+**Identity of an Object Layer:**
 
-The `ObjectLayerToken` contract maps each `tokenId` → canonical `cid` on-chain via `_tokenCIDs[tokenId]`, enabling trustless metadata resolution.
+| Field                     | Content                                           | Usage                                   |
+| ------------------------- | ------------------------------------------------- | --------------------------------------- |
+| `contentHash`             | `sha256(RFC 8785 JCS(AtomicPrefab))`              | Deterministic digest of the content     |
+| `cid` (`olCid`)           | CIDv1 raw sha2-256 of the same bytes (`bafkrei…`) | Canonical immutable identity; on-chain  |
+| `data.item.id`            | Semantic label (`hatchet`)                        | Discovery; never unique, never identity |
+| `data.render.cid`         | Canonical render CID: the primary render PNG      | Client rendering                        |
+| `data.render.metadataCid` | Canonical metadata CID: its frame layout JSON     | Client rendering                        |
 
-### 4.4 Canonical Stats Schema
+Two definitions with different content have different CIDs, even when both are named `hatchet`. The identity is independent of owner, balance, transfer history, contract address and token id, and the hashed bytes carry no `cid` of their own.
 
-Each Object Layer contributes six signed integer modifiers in `[-100, +100]`. Zero is neutral.
-The canonical source is `SharedDefaultsCyberia.js`.
+**Ledger binding (ItemLedger):**
+
+```json
+{
+  "objectLayerCid": "bafkrei...",
+  "chainId": 777771,
+  "contractAddress": "0x...",
+  "tokenId": "9323...",
+  "standard": "ERC1155"
+}
+```
+
+`tokenId = uint256(contentHash)`: the token id is the canonical digest the CID carries, so no label, contract or CID encoding takes part. The `ObjectLayerToken` contract computes the CID of a registered `tokenId` from that digest (`getObjectLayerCid`), enabling trustless content resolution. Ownership is `balanceOf(owner, tokenId)`: many owners may hold units of one token type; a transfer moves balances, never the CID. ItemLedger projects transfers and balances into indexed collections for the explorer; the chain stays authoritative.
+
+### 4.4 Cyberia Stats Profile
+
+The protocol keeps `data.stats` an integer record and records which profile interprets it (`profile: { id: "cyberia", version: 2 }`). Cyberia's content profile gives it a vocabulary: six signed integer modifiers in `[-100, +100]`. Zero is neutral.
+The canonical source is `CyberiaObjectLayerProfile` (`src/client/components/cyberia/ObjectLayerProfileCyberia.js`) over the stat contract in `SharedDefaultsCyberia.js`.
 
 | Stat           | Runtime meaning                                                       |
 | -------------- | --------------------------------------------------------------------- |
@@ -273,7 +312,7 @@ The Cyberia economy is served through three dedicated service domains sharing th
 ```mermaid
 graph TB
     subgraph Blockchain["Hyperledger Besu — chainId 777771"]
-        OLT["ObjectLayerToken (ERC-1155)\nToken ID 0: CKY fungible\nToken IDs ≥1: Object Layer items"]
+        OLT["ObjectLayerToken (ERC-1155)\nToken ID 0: CKY fungible\nOther ids: uint256(contentHash) of registered Object Layers"]
     end
 
     subgraph CK["cryptokoyn.net"]
@@ -314,23 +353,22 @@ Manages **Token IDs ≥ 1** — all semi-fungible and non-fungible Object Layer 
 
 **API surface:**
 
-| Endpoint                                | Method | Description                                  |
-| --------------------------------------- | ------ | -------------------------------------------- |
-| `/api/token/{tokenId}`                  | GET    | Returns full AtomicPrefab JSON               |
-| `/api/item/{itemId}`                    | GET    | Resolves `itemId` → `tokenId` → AtomicPrefab |
-| `/api/metadata/{tokenId}`               | GET    | IPFS-resolved atlas metadata                 |
-| `/api/search`                           | GET    | Full-text search across item names and types |
-| `/api/registry/events`                  | GET    | Paginated `ObjectLayerRegistered` event log  |
-| `/api/ipfs/pin`                         | POST   | Pin atlas PNG + metadata JSON to IPFS        |
-| `/api/marketplace/listings`             | GET    | Active peer-to-peer listings                 |
-| `/api/marketplace/buy`                  | POST   | Execute `safeTransferFrom` via relayer       |
-| `/api/marketplace/provenance/{tokenId}` | GET    | Full ownership history                       |
+| Endpoint                                | Method | Description                                       |
+| --------------------------------------- | ------ | ------------------------------------------------- |
+| `/api/token/{tokenId}`                  | GET    | Returns full AtomicPrefab JSON                    |
+| `/api/v1/item-ledger/cid/{olCid}`       | GET    | Resolves an Object Layer CID → its token bindings |
+| `/api/metadata/{tokenId}`               | GET    | IPFS-resolved atlas metadata                      |
+| `/api/search`                           | GET    | Full-text search across item names and types      |
+| `/api/registry/events`                  | GET    | Paginated `ObjectLayerRegistered` event log       |
+| `/api/v1/ipfs/pin`                      | POST   | Pin atlas PNG + metadata JSON to IPFS             |
+| `/api/marketplace/listings`             | GET    | Active peer-to-peer listings                      |
+| `/api/marketplace/buy`                  | POST   | Execute `safeTransferFrom` via relayer            |
+| `/api/marketplace/provenance/{tokenId}` | GET    | Full ownership history                            |
 
 **On-chain events indexed:**
 
-- `ObjectLayerRegistered(tokenId, itemId, metadataCid, initialSupply)`
+- `ObjectLayerRegistered(tokenId, contentHash, objectLayerCid, initialSupply)`
 - `TransferSingle(operator, from, to, id, value)`
-- `MetadataUpdated(tokenId, metadataCid)`
 
 ### 5.3 cyberiaonline.com — Game Runtime
 
@@ -338,7 +376,7 @@ The live game runtime where Object Layers are rendered, stacked, simulated, and 
 
 **Runtime operations:**
 
-1. **Authentication:** Player signs EIP-712 claim → server verifies → session established.
+1. **Sign-in:** the player signs the ERC-4361 message → the server verifies it → the server issues a session token.
 2. **Inventory loading:** `balanceOf(playerAddress, tokenId)` for all registered tokens → resolve AtomicPrefab.
 3. **Layer rendering:** Object Layer Engine processes atlas sprite sheets into renderable layer stacks.
 4. **Crafting:** Server burns consumed tokens + mints crafted item + indexes on itemledger.com.
@@ -411,19 +449,22 @@ Ethereum development environment for smart contract lifecycle:
 
 Off-chain canonical store for all four realities. Key collections:
 
-| Collection                | Purpose                                                       |
-| ------------------------- | ------------------------------------------------------------- |
-| `ObjectLayer`             | AtomicPrefab documents with `data.{stats,item,ledger,render}` |
-| `ObjectLayerRenderFrames` | Per-frame tile matrix and color palette                       |
-| `AtlasSpriteSheet`        | Consolidated atlas PNG + frame coordinate metadata            |
-| `CyberiaInstance`         | Instance graph (maps + portal edges)                          |
-| `CyberiaMap`              | Grid data, entity placements, map metadata                    |
-| `CyberiaEntity`           | Entity definitions (type, position, item IDs, bot stats)      |
-| `CyberiaInstanceConf`     | Instance configuration (skills, economy, equipment rules)     |
-| `CyberiaQuest`            | Quest definitions (steps, objectives, rewards)                |
-| `CyberiaQuestProgress`    | Per-player quest progress tracking                            |
-| `CyberiaAction`           | NPC action definitions (shop, craft, dialogue, quest-talk)    |
-| `CyberiaDialogue`         | Dialogue line groups                                          |
+| Collection                                                        | Purpose                                                                                |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ObjectLayer`                                                     | Immutable AtomicPrefab documents `{profile, data.{item,stats,render}}`, keyed by `cid` |
+| `CyberiaItemCatalog`                                              | Cyberia item label → `objectLayerCid` binding, one per label                           |
+| `ItemLedger`                                                      | CID → `chainId + contractAddress + tokenId` bindings                                   |
+| `ItemLedgerTransfer`, `ItemLedgerBalance`, `ItemLedgerCheckpoint` | Indexed projection of transfers, balances and indexer progress                         |
+| `ObjectLayerRenderFrames`                                         | Per-frame tile matrix and color palette                                                |
+| `AtlasSpriteSheet`                                                | Consolidated atlas PNG + frame coordinate metadata                                     |
+| `CyberiaInstance`                                                 | Instance graph (maps + portal edges)                                                   |
+| `CyberiaMap`                                                      | Grid data, entity placements, map metadata                                             |
+| `CyberiaEntity`                                                   | Entity definitions (type, position, item IDs, bot stats)                               |
+| `CyberiaInstanceConf`                                             | Instance configuration (skills, economy, equipment rules)                              |
+| `CyberiaQuest`                                                    | Quest definitions (steps, objectives, rewards)                                         |
+| `CyberiaQuestProgress`                                            | Per-player quest progress tracking                                                     |
+| `CyberiaAction`                                                   | NPC action definitions (shop, craft, dialogue, quest-talk)                             |
+| `CyberiaDialogue`                                                 | Dialogue line groups                                                                   |
 
 ### 6.8 IPFS Storage
 
@@ -439,7 +480,7 @@ Internal data pipeline between Node.js Engine and Go game server:
 
 - Read-only RPCs: no create/update/delete over the channel.
 - Batch-friendly: large collections streamed.
-- Hot-reload aware: manifest-based incremental update (`sha256` diff).
+- Hot-reload aware: manifest-based incremental update (`cid` diff per bound item label).
 
 ---
 
@@ -453,22 +494,20 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     uint256 public constant INITIAL_CRYPTOKOYN_SUPPLY = 10_000_000 * 1e18;
 
     // Deterministic token ID assignment
-    // computeTokenId(itemId) = uint256(keccak256("cyberia.object-layer:" || itemId))
-    mapping(uint256 => string) private _tokenCIDs;   // tokenId → canonical IPFS CID
-    mapping(uint256 => string) private _itemIds;      // tokenId → itemId string
-    mapping(bytes32 => uint256) private _itemIdToTokenId;
+    // computeTokenId(contentHash) = uint256(contentHash)
+    mapping(uint256 => bool) private _registered; // token ids registered as Object Layers
 }
 ```
 
 ### 7.2 Token Classification
 
-| Token Type               | Token ID                                | Supply             | Managed By     | Example                     |
-| ------------------------ | --------------------------------------- | ------------------ | -------------- | --------------------------- |
-| Fungible currency        | 0 (CRYPTOKOYN)                          | 10,000,000 × 10^18 | cryptokoyn.net | In-game CKY                 |
-| Semi-fungible resource   | `computeTokenId("gold-ore")`            | 1,000,000          | itemledger.com | Stackable crafting material |
-| Semi-fungible consumable | `computeTokenId("health-potion")`       | 100,000            | itemledger.com | Stackable consumable        |
-| Non-fungible unique gear | `computeTokenId("legendary-hatchet")`   | 1                  | itemledger.com | Unique weapon               |
-| Non-fungible skin        | `computeTokenId("cyber-punk-skin-001")` | 1                  | itemledger.com | Unique character skin       |
+| Token Type               | Token ID                                      | Supply             | Managed By     | Example                     |
+| ------------------------ | --------------------------------------------- | ------------------ | -------------- | --------------------------- |
+| Fungible currency        | 0 (CRYPTOKOYN)                                | 10,000,000 × 10^18 | cryptokoyn.net | In-game CKY                 |
+| Semi-fungible resource   | `uint256(contentHash of gold-ore)`            | 1,000,000          | itemledger.com | Stackable crafting material |
+| Semi-fungible consumable | `uint256(contentHash of health-potion)`       | 100,000            | itemledger.com | Stackable consumable        |
+| Non-fungible unique gear | `uint256(contentHash of legendary-hatchet)`   | 1                  | itemledger.com | Unique weapon               |
+| Non-fungible skin        | `uint256(contentHash of cyber-punk-skin-001)` | 1                  | itemledger.com | Unique character skin       |
 
 ### 7.3 Token Distribution and Allocation
 
@@ -591,14 +630,14 @@ sequenceDiagram
     participant C as ObjectLayerToken
     participant IL as itemledger.com
 
-    P->>S: 1. Authenticate via EIP-712 signed claim
+    P->>S: 1. Sign in with ERC-4361, then sign the EIP-712 action
     Note over S: 2. Build ObjectLayer data from asset directory
-    Note over S: 3. computeSha256(data) + Pin atlas to IPFS
-    Note over S: 4. Store in MongoDB (ledger.type: OFF_CHAIN)
+    Note over S: 3. Pin atlas to IPFS; identity = cid of the canonical bytes
+    Note over S: 4. Store in MongoDB (no ItemLedger binding yet)
     Note over S: ⏳ INCUBATION PERIOD
-    S->>C: 5. registerObjectLayer(playerAddr, itemId, metadataCid, supply)
-    Note over S: 6. Update MongoDB: ledger = { type: ERC1155, address, tokenId }
-    C-->>IL: 7. ObjectLayerRegistered event → index
+    S->>C: 5. registerObjectLayer(playerAddr, contentHash, supply)
+    Note over S: 6. ItemLedger binding: { objectLayerCid, chainId, contractAddress, tokenId }
+    C-->>IL: 7. ObjectLayerRegistered event → indexer projects bindings, transfers, balances
 
     rect rgba(200, 230, 200, 0.15)
         Note over P,IL: GAMEPLAY
@@ -706,11 +745,11 @@ Items earned in-game undergo a **variable incubation period** before being minte
 
 **Incubation states:**
 
-| State          | `data.ledger.type` | Description                                                     |
+| State          | ItemLedger binding | Description                                                     |
 | -------------- | ------------------ | --------------------------------------------------------------- |
-| **Off-chain**  | `"OFF_CHAIN"`      | Item earned but not yet registered on-chain                     |
-| **Incubating** | `"OFF_CHAIN"`      | Waiting for incubation period + optional CKY fee                |
-| **On-chain**   | `"ERC1155"`        | Registered via `registerObjectLayer`, indexed by itemledger.com |
+| **Off-chain**  | none               | Item earned but not yet registered on-chain                     |
+| **Incubating** | none               | Waiting for incubation period + optional CKY fee                |
+| **On-chain**   | `ERC1155` binding  | Registered via `registerObjectLayer`, indexed by itemledger.com |
 
 **Incubation duration** scales with item rarity:
 
@@ -725,12 +764,14 @@ Items earned in-game undergo a **variable incubation period** before being minte
 
 - **Permissioned Network:** Hyperledger Besu IBFT2/QBFT — only authorized validators produce blocks.
 - **secp256k1 Key Security:** Identity secured by the same ECC used on Ethereum mainnet.
-- **EIP-712 Replay Protection:** Domain separator binds signatures to specific contract, chain, and protocol version.
+- **Sign-in Replay Protection:** ERC-4361 messages carry a single-use nonce, an issue time and an expiry, checked against the serving domain, uri and chain.
+- **EIP-712 Replay Protection:** the domain separator binds an action signature to one contract, chain and protocol version, and the payload carries a deadline.
+- **Key Custody:** signing keys stay in the wallet. An embedded wallet keeps an encrypted keystore in the browser; player, relayer and validator keys are separate sets.
 - **Smart Contract Access Control:** `Ownable` restricts mint, register, and pause to the governance address.
 - **Pausability:** Emergency freeze on all token transfers (circuit breaker).
 - **Deterministic Finality:** Blocks are never reverted once committed.
 - **IPFS Content Addressing:** Asset integrity guaranteed by content-addressed CIDs.
-- **Semantic Integrity:** `sha256` hash covers the complete AtomicPrefab — no single reality can be tampered with independently.
+- **Semantic Integrity:** the `contentHash` and `cid` cover the complete AtomicPrefab — no single reality can be tampered with independently.
 
 ---
 

@@ -1,6 +1,6 @@
-# **Cyberia Lore — The Frontier of Hyperspace**
+# Cyberia Lore — The Frontier of Hyperspace
 
-### **Setting: Year 2520+**
+## Setting: Year 2520+
 
 Earth is a ruined monument to humanity’s first age. Civilization now stretches across shattered continents, orbital fortresses, lunar citadels, asteroid enclaves, and distant colonies. From the ashes of collapse rose **Cyberia**: a living frontier where the physical world and **Hyperspace** — persistent, evolving Instances — have fused into one unstable reality.
 
@@ -8,7 +8,7 @@ The boundary between flesh and code is porous. Relics, memories, wars, and ident
 
 ---
 
-### **The Historical Fracture**
+## The Historical Fracture
 
 The **Pacific Cataclysm** (2045) broke the old world through nuclear fire, ecological collapse, engineered plagues, and runaway experiments. As Earth turned hostile, humanity fled into space and deeper into digital realms. What began as simulations evolved into enduring **Instances**: living archives, simulated empires, memory-cities, and battlegrounds where time and identity bend.
 
@@ -21,7 +21,7 @@ Together they navigate Cyberia’s layered existence.
 
 ---
 
-### **The Dual Nature of Cyberia**
+## The Dual Nature of Cyberia
 
 Cyberia exists on two overlapping, interdependent layers:
 
@@ -36,9 +36,9 @@ During the **Fragmented State**, the entity remains present only as a cluster of
 
 ---
 
-### **The Three Great Confederations**
+## The Three Great Confederations
 
-#### **Zenith Empire (Red)**
+### Zenith Empire (Red)
 
 Militaristic and hierarchical. Masters of the **physical layer** — fleets, fortresses, and territorial control.  
 **Core belief**: Order must be imposed through strength.  
@@ -47,7 +47,7 @@ Militaristic and hierarchical. Masters of the **physical layer** — fleets, for
 **Internal divide**: Iron Legion (expansion) vs. Aether Council (technocratic control).  
 **Relations**: Sees Atlas as chaotic; relies on Nova while resenting it.
 
-#### **Atlas Confederation (Yellow)**
+### Atlas Confederation (Yellow)
 
 Decentralized network of frontier settlements, Mutagen clans, Synthetics, scavengers, hackers, and nomads. Thrives in the unstable **spaces between** layers.  
 **Core strengths**: Adaptation, improvisation, asymmetric warfare, infiltration.  
@@ -55,7 +55,7 @@ Decentralized network of frontier settlements, Mutagen clans, Synthetics, scaven
 **Internal divide**: Harmony Enclaves (coexistence) vs. Void Nomads (radical autonomy).  
 **Relations**: Sabotages Nova, resists Zenith’s rigidity, and dominates black markets and grey zones.
 
-#### **Nova Republic (Blue)**
+### Nova Republic (Blue)
 
 Technocratic, intelligence-driven civilization that dominates **Hyperspace**. Obsessed with optimization, prediction, cognitive architecture, and transcendence.  
 **Core strength**: Information control, surveillance, predictive systems, and deep integration into digital realms.  
@@ -65,13 +65,13 @@ Technocratic, intelligence-driven civilization that dominates **Hyperspace**. Ob
 
 ---
 
-### **The Balance of Power**
+## The Balance of Power
 
 The three factions maintain a tense, interdependent equilibrium. Zenith holds physical dominance. Nova commands information and digital architecture. Atlas exploits the gaps, thriving on chaos and mobility. They war, trade, ally, and betray — yet none can achieve total control. The frontier is too layered, unpredictable, and alive.
 
 ---
 
-### **Your Role as Player**
+## Your Role as Player
 
 You are no chosen one — merely a survivor who has endured long enough to matter.
 

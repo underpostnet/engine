@@ -1,23 +1,8 @@
-# Underpost Platform
+# The shared Underpost CLI
 
-Underpost Platform is the base product. It owns the toolchain, deployment surface, PWA delivery, and operational infrastructure. Cyberia is an MMO extension that runs on top of it; Cyberia is not the platform.
-
----
-
-## Toolchain and base infrastructure
-
-Underpost Platform covers the shared delivery surface for applications and extensions:
-
-| Area            | What it owns                                                                         |
-| --------------- | ------------------------------------------------------------------------------------ |
-| Toolchain       | `underpost` CLI, build, deploy, release, metadata, secrets, environment selection    |
-| Infrastructure  | bare metal, LXD, Kubernetes, K3s, kubeadm, images, SSH, runners                      |
-| Data operations | MongoDB, MariaDB where needed, backups, cron, monitoring                             |
-| Delivery        | static build, SSR views, PWA packaging, service worker generation, host/path routing |
-
-The platform is the operational backbone. It should stay the source of truth for deploy IDs, runtime selection, host/path layout, generated client assets, and environment resolution.
-
----
+The CLI is the platform's own surface, shared by every domain that deploys on it. Nexodev
+documents how to use it for infrastructure work; this records what it is and the rules it
+keeps, which is why a product domain never redefines it as its own.
 
 ## Underpost CLI
 
@@ -55,37 +40,6 @@ The platform is the operational backbone. It should stay the source of truth for
 |                    | `release`        | Release orchestrator for building and shipping CLI versions   |
 
 Cyberia-specific operations belong in `cyberia`, not in parallel platform commands. Use the base CLI for infrastructure and delivery, then layer Cyberia workflows on top.
-
----
-
-## PWA delivery model
-
-Every deployed client is delivered as a static application shell with PWA support.
-
-- SSR views declare which pages exist and which fallbacks are precached.
-- The service worker is generated from the configured view set.
-- Offline and maintenance fallbacks are part of the build output, not hand-maintained runtime artifacts.
-- Generated outputs such as `sw.js`, static pages, and compiled bundles are outputs only; never edit them by hand.
-
-```text
-conf.dd-*.js / conf.ssr.json    +    src/client/sw/core.sw.js
-			   │
-			   └──── underpost client / build ────▶ generated index.html + sw.js + precache
-```
-
-Keep those two inputs as the only authored PWA sources.
-
----
-
-## Cyberia on top of the platform
-
-Cyberia adds a three-service MMO runtime on top of the base platform:
-
-| Service          | Responsibility                                                            |
-| ---------------- | ------------------------------------------------------------------------- |
-| `engine-cyberia` | content, validation, persistence, gRPC/REST data services, asset metadata |
-| `cyberia-server` | authoritative simulation and tick processing                              |
-| `cyberia-client` | rendering, input, prediction, presentation                                |
 
 ---
 

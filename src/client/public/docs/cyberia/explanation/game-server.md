@@ -8,6 +8,8 @@
 
 </div>
 
+# Cyberia game server
+
 **Path:** `cyberia-server/` · **Language:** Go · **Role:** authoritative simulation runtime for Cyberia
 
 `cyberia-server` is the authoritative simulation runtime for the Cyberia MMO extension on Underpost Platform. It owns world state, advances a fixed-rate tick, drains typed input commands from connected clients, and dispatches AOI-filtered snapshots on a separately-paced replication tick.
@@ -38,7 +40,7 @@ persisted maps + rules                  tick + AOI + snapshots           render 
 ```
 
 - Each service is supervised independently and owns its own monitor and reconnector.
-- `cyberia-server` dials the Data Server gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world.
+- `cyberia-server` dials the Data Server gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/v1/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world.
 - On reconnect, world configuration is reloaded via `GetFullInstance(instanceCode)`.
 - If any one of the three services is unhealthy, the game moves to standby until all three recover.
 
@@ -157,7 +159,7 @@ Per player:
 [9..10]  u16  entityCount entity blocks that follow
 ```
 
-The `tick` and `lastAcked` fields are how the client reconciles its predicted self with authoritative state. `lastAcked` proves arrival, not acceptance: movement re-plans once per player per tick from the newest tap of that tick, so a tap superseded within its own tick is acknowledged and never planned. The snapshot therefore carries a second acknowledgement, `moveAck` — the highest `PlayerAction` sequence that actually re-planned movement — and the client adopts the authoritative `targetPos` / `path` only once `moveAck` covers its newest command. See ARCHITECTURE.md § Input replication.
+The `tick` and `lastAcked` fields are how the client reconciles its predicted self with authoritative state. `lastAcked` proves arrival, not acceptance: movement re-plans once per player per tick from the newest tap of that tick, so a tap superseded within its own tick is acknowledged and never planned. The snapshot therefore carries a second acknowledgement, `moveAck` — the highest `PlayerAction` sequence that actually re-planned movement — and the client adopts the authoritative `targetPos` / `path` only once `moveAck` covers its newest command. See [the input command pipeline](architecture.md#input-command-pipeline).
 
 Other message types (init data, FCT) carry their own headers and are not part of the per-tick replication stream.
 
@@ -195,7 +197,7 @@ Hot reload of ObjectLayers is supported via periodic `GetObjectLayerManifest` ca
 - screen-factor overrides
 - interpolation window
 
-These live in the client runtime's compile-time defaults. Per-instance presentation overrides are served by engine-cyberia at `GET /api/cyberia-client-hints/:instanceCode` and consumed directly by the client. The Go process never calls that endpoint.
+These live in the client runtime's compile-time defaults. Per-instance presentation overrides are served by engine-cyberia at `GET /api/v1/cyberia-client-hints/:instanceCode` and consumed directly by the client. The Go process never calls that endpoint.
 
 ### `sim_palette.go`
 
@@ -239,7 +241,7 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the 
 | `src/sim_palette.go`                                                                              | Internal RGBA fill for AOI wire bytes (not a contract)                                                  |
 | `engine_client/`                                                                                  | engine-cyberia transport clients (gRPC, REST fallback, dispatcher) + world builder                      |
 | `api/router.go`, `api/metrics.go`                                                                 | chi router; `/api/v1/*` endpoints                                                                       |
-| `proto/cyberia.proto`                                                                             | gRPC service contract shared with engine-cyberia                                                        |
+| `gen/proto/cyberia.proto`                                                                         | gRPC service contract, generated from engine-cyberia (do not edit)                                      |
 
 ---
 

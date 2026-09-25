@@ -10,7 +10,7 @@ The Quest System is a **chain/tree-structured progression framework** linking NP
 
 Quests are defined server-side as MongoDB documents and delivered to the client through the Engine REST API. Progress is tracked per-player in `CyberiaQuestProgress` documents.
 
-> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/cyberia-quest/code/:code` (which falls back to the canonical defaults so the procedural fallback world is playable without a seed).
+> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/v1/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/v1/cyberia-quest/code/:code` (which falls back to the canonical defaults so the procedural fallback world is playable without a seed).
 
 ---
 
@@ -79,11 +79,11 @@ CyberiaQuestProgress {
 
 ## Objective Types
 
-| `type`    | `itemId` semantics                                             | Completion trigger                                                                                 |
-| --------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `collect` | ObjectLayer item ID that must appear in the player's inventory | Player inventory holds `>= quantity` of `itemId` (coins via the flat balance) — reconciled on every gain |
-| `talk`    | Active **skin** item ID of the NPC to interact with           | Player completes a `dlg_complete` whose NPC active skin `=== itemId` and `dialogCode ∈ questDialogueCodes` |
-| `kill`    | Skin item ID of the target entity (e.g. `"scp-2040"`)         | Player kills an entity whose active skin matches `itemId`                                          |
+| `type`    | `itemId` semantics                                             | Completion trigger                                                                                         |
+| --------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `collect` | ObjectLayer item ID that must appear in the player's inventory | Player inventory holds `>= quantity` of `itemId` (coins via the flat balance) — reconciled on every gain   |
+| `talk`    | Active **skin** item ID of the NPC to interact with            | Player completes a `dlg_complete` whose NPC active skin `=== itemId` and `dialogCode ∈ questDialogueCodes` |
+| `kill`    | Skin item ID of the target entity (e.g. `"scp-2040"`)          | Player kills an entity whose active skin matches `itemId`                                                  |
 
 ---
 
@@ -120,12 +120,12 @@ sequenceDiagram
     participant DB as MongoDB
 
     P->>G: Tap NPC + Take Quest (quest_accept) — quest bound to the NPC's cell
-    G->>E: POST /api/cyberia-quest-progress (grant quest)
+    G->>E: POST /api/v1/cyberia-quest-progress (grant quest)
     E->>DB: Create CyberiaQuestProgress { status: 'active' }
     E-->>G: Progress document
 
     loop For each game event (kill / collect / talk)
-        G->>E: PATCH /api/cyberia-quest-progress (increment objective)
+        G->>E: PATCH /api/v1/cyberia-quest-progress (increment objective)
         E->>DB: objectiveProgress[i].current++
         E-->>G: Updated progress
     end

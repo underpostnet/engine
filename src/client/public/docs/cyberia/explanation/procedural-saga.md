@@ -45,7 +45,7 @@ whole cross-referenced graph — this keeps each Gemini request small enough to
 complete well within the request timeout.
 
 ```
-theme  (from --prompt, OR auto-synthesized from CYBERIA-LORE.md)
+theme  (from --prompt, OR auto-synthesized from the base lore)
    │
    ▼
 Google Gemini (Generative Language API /v1beta/models/{model}:generateContent)
@@ -74,7 +74,7 @@ ones are dropped during normalization.
 - **`--prompt` given** → the theme is used verbatim with no lore grounding
   (current behavior).
 - **`--prompt` omitted** → a distinct theme is auto-synthesized from the Cyberia
-  base lore (`src/client/public/cyberia-docs/CYBERIA-LORE.md`, override with
+  base lore (`src/client/public/docs/cyberia/explanation/lore.md`, override with
   `--lore-path`). The whole lore document is read and passed to Gemini, and every
   stage is grounded in it so the saga reads as a chapter of the canon. Variety is
   driven by a random world-first **subject**, an explicit **narrative tone**, a
@@ -374,20 +374,23 @@ Documents are written sequentially with idempotent upserts (rerunnable):
 
 The **instance** refreshes its textual/logical fields every run but PRESERVES
 `portals` and `conf` (set only on insert), so downstream spatial topology is
-never clobbered — the same preservation contract `ObjectLayer` render/ledger
-uses. **Skills** are upserted by `triggerItemId` into the `CyberiaSkill`
+never clobbered — the same preservation contract the Object Layer render uses.
+**Skills** are upserted by `triggerItemId` into the `CyberiaSkill`
 collection — the authoritative own-model source the gRPC server reads.
 
 Both `generate` and `import` go through the same persistence path. Object-layer
-items are written as real `ObjectLayer` documents so they are immediately
-editable in `src/client/components/cyberia/ObjectLayerEngineViewer.js`:
+items are published through the Cyberia item catalog
+(`src/projects/cyberia/object-layer-catalog.js`) as immutable `ObjectLayer`
+definitions, so they are immediately visible in
+`src/client/components/object-layer/ObjectLayerEngineViewer.js`:
 
-- `data.render` is empty (`cid: null`, `metadataCid: null`) and the top-level
-  `cid` is `null` — there is no atlas yet;
-- `data.ledger.type` is `OFF_CHAIN` (no on-chain token minted);
-- `sha256` is computed over `data` with the canonical `computeSha256` helper.
+- `data.render` is empty — there is no atlas yet;
+- the definition carries the Cyberia profile, and its `cid` and `contentHash`
+  are computed from the canonical content;
+- no ledger state is stored: registration lives in ItemLedger.
 
-The render and ledger are the **graphic/economic synthesis** stage and are set
-later from the viewer. Re-running generate/import refreshes the textual
-stats/item fields but **preserves any render or ledger already set** — it never
-clobbers a populated render back to `null`. `saga.itemIds` records every item id.
+The render is the **graphic synthesis** stage and is set later from the viewer;
+registration is ItemLedger's. Re-running generate/import refreshes the textual
+stats/item fields over the definition the label is bound to and **preserves the
+render already set**. Changed content becomes a new definition bound to the
+label. `saga.itemIds` records every item id.

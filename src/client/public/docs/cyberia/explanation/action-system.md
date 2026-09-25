@@ -76,13 +76,13 @@ An action has **no type**. Its capabilities are whatever payloads are populated,
 resolved per player at interaction time — one action can be a shop and a
 quest-talk giver at once.
 
-| Capability   | Active when                                                     | Payload                                              |
-| ------------ | --------------------------------------------------------------- | ---------------------------------------------------- |
-| `quest-talk` | CyberiaQuests are bound to this action's cell                   | quests bound by cell, `dialogCode`, `questDialogueCodes` |
-| `talk`       | always — satisfies `talk` quest objectives                      | `dialogCode`, `questDialogueCodes`                   |
-| `shop`       | `shopItems[]` is non-empty — player buys items with a currency  | `shopItems[]`                                        |
-| `craft`      | `craftRecipes[]` is non-empty — player assembles outputs        | `craftRecipes[]`                                     |
-| `storage`    | `storageSlots > 0` — player banks items in a personal vault     | `storageSlots`                                       |
+| Capability   | Active when                                                    | Payload                                                  |
+| ------------ | -------------------------------------------------------------- | -------------------------------------------------------- |
+| `quest-talk` | CyberiaQuests are bound to this action's cell                  | quests bound by cell, `dialogCode`, `questDialogueCodes` |
+| `talk`       | always — satisfies `talk` quest objectives                     | `dialogCode`, `questDialogueCodes`                       |
+| `shop`       | `shopItems[]` is non-empty — player buys items with a currency | `shopItems[]`                                            |
+| `craft`      | `craftRecipes[]` is non-empty — player assembles outputs       | `craftRecipes[]`                                         |
+| `storage`    | `storageSlots > 0` — player banks items in a personal vault    | `storageSlots`                                           |
 
 ---
 
@@ -132,7 +132,7 @@ sequenceDiagram
 
     E-->>G: getFullInstance → CyberiaAction { shopItems: [...] } (world build)
     G-->>P: AOI bot block → actionCode + action-provider capability bit
-    P->>E: GET /api/cyberia-action/code/:code (interaction modal opens)
+    P->>E: GET /api/v1/cyberia-action/code/:code (interaction modal opens)
     E-->>P: CyberiaAction { label, dialogCode, questDialogueCodes, shopItems }
     Note over P: Shop tab leads the strip and opens active.<br/>Two columns of cards: item slot, name,<br/>price icon + qty, Buy (wallet icon)
 
@@ -215,12 +215,12 @@ dialogue codes — the server resolves the bound action from its own
 
 ### Wire messages
 
-| Direction | Message        | When                                  | Payload                              |
-| --------- | -------------- | ------------------------------------- | ------------------------------------ |
-| C → S     | `dlg_start`    | `modal_dialogue` opens                | `{ entityId, itemId }`               |
-| C → S     | `dlg_complete` | player reads all lines, closes        | `{ entityId, itemId, dialogCode }`   |
-| C → S     | `dlg_cancel`   | player dismisses early (✕ / outside)  | `{ entityId, itemId }`               |
-| S → C     | `dlg_ack`      | after `dlg_complete` is processed     | `{ questGranted, objectivesDone, quests[] }` |
+| Direction | Message        | When                                 | Payload                                      |
+| --------- | -------------- | ------------------------------------ | -------------------------------------------- |
+| C → S     | `dlg_start`    | `modal_dialogue` opens               | `{ entityId, itemId }`                       |
+| C → S     | `dlg_complete` | player reads all lines, closes       | `{ entityId, itemId, dialogCode }`           |
+| C → S     | `dlg_cancel`   | player dismisses early (✕ / outside) | `{ entityId, itemId }`                       |
+| S → C     | `dlg_ack`      | after `dlg_complete` is processed    | `{ questGranted, objectivesDone, quests[] }` |
 
 Binary uplink opcodes: `dlg_start` `0x17`, `dlg_complete` `0x18`, `dlg_cancel`
 `0x19` (JSON aliases of the same names are also accepted).
@@ -262,7 +262,7 @@ freeze, so there is never a thawed frame between them.
    each from its NPC).
 
 > **Dialogue-code contract.** The C client fetches dialogue groups at
-> `/api/cyberia-dialogue/code/default-<itemId>`, so the code it reports on
+> `/api/v1/cyberia-dialogue/code/default-<itemId>`, so the code it reports on
 > `dlg_complete` is `default-<provideItemId>`. For a `quest-talk` objective to
 > advance, the action's `questDialogueCodes` must contain that code.
 

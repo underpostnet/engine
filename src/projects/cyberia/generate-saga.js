@@ -25,7 +25,7 @@ import { loggerFactory } from '../../server/ops/logger.js';
 const logger = loggerFactory(import.meta);
 
 /** Canonical Cyberia base-lore document, passed to the model when auto-generating a theme. */
-const DEFAULT_LORE_PATH = 'src/client/public/cyberia-docs/CYBERIA-LORE.md';
+const DEFAULT_LORE_PATH = 'src/client/public/docs/cyberia/explanation/lore.md';
 
 /** Default directory for generated saga payload dumps when `--out` is not given. */
 const DEFAULT_SAGA_OUT_DIR = './engine-private/cyberia-sagas';

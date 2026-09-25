@@ -47,6 +47,38 @@ Three processes, strict role separation. The ecosystem is fully operational only
 
 ---
 
+## Domain boundaries
+
+Cyberia is one participating runtime on the platform. The content it runs on comes from two domains it does not own:
+
+| Domain                                      | Role                                                                                                                                        | Cyberia's relation                                                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **objectlayer.org** — Object Layer protocol | Canonical schema, canonicalization, content identity (`olCid`). See [the protocol model](../../object-layer/explanation/protocol-model.md). | Cyberia consumes canonical content and applies its own content profile (`CyberiaObjectLayerProfile`) to `data.stats`. It never redefines an Object Layer's identity. |
+| **itemledger.com** — ItemLedger             | CID → ERC-1155 token binding, supply, ownership, provenance. See [the ItemLedger overview](../../item-ledger/overview/index.md).            | Cyberia inventory, ownership UI and trade resolve through ItemLedger. ItemLedger computes no Cyberia behavior.                                                       |
+| **cryptokoyn.net** — CKY                    | Fungible currency, staking, governance.                                                                                                     | Cyberia coin economy settles in CKY.                                                                                                                                 |
+| **cyberiaonline.com** — Cyberia             | Runtime, worlds, maps, instances, entities, actions, quests, lore, item catalog, Cyberia profile, authoring tools.                          | This document.                                                                                                                                                       |
+
+Identity model, frozen:
+
+- `itemId` (`data.item.id`) is a semantic label. Many definitions may share it. Cyberia world content (entities, entity defaults, skills, quests, actions, inventory) names items by label; the `CyberiaItemCatalog` collection binds each label to one `olCid`, and `src/projects/cyberia/object-layer-catalog.js` is the one path that resolves it. No label resolves without a binding.
+- `olCid` is the canonical identity of a definition, computed from its content before any pin or registration.
+- `tokenId` is ItemLedger's ERC-1155 representation, derived from `olCid`.
+- Ownership is chain state, read through ItemLedger, never stored in the Object Layer.
+
+Lifecycle across the boundary:
+
+- Removing an item from Cyberia unbinds its label and removes this host's copy. The canonical
+  definition stays at the Object Layer authority under its cid.
+- The authority archives a definition (`PUT /api/v1/object-layer/lifecycle/:cid`); it is never
+  destroyed. Cyberia reconciles its bindings against the authority over the same REST contract it
+  reads content with (`cyberia catalog reconcile`): a label bound to an
+  archived or unknown definition is unbound. Idempotent, explicit, never implicit.
+- Every Cyberia write is authorized on the object: the creator of an instance or a map, or an
+  admin, changes or removes it; the owner is set from the session and never from the body. The
+  game server writes player progress with `CYBERIA_SERVER_API_KEY`; a browser never does.
+
+---
+
 ## Role definitions
 
 ### engine-cyberia (Node.js) — content authority
@@ -60,9 +92,9 @@ What it owns:
 - World configuration: AOI radius, economy rules, skill rules, equipment rules, entity gameplay defaults.
 - Persisted character/quest/dialogue/action data.
 - gRPC `CyberiaDataService` for world load and content streaming.
-- REST boot fallback (`/api/cyberia-instance/boot/*`): the same world-load / hot-reload payloads as the gRPC service, served over REST for deploys where the engine gRPC server is not enabled.
+- REST boot fallback (`/api/v1/cyberia-instance/boot/*`): the same world-load / hot-reload payloads as the gRPC service, served over REST for deploys where the engine gRPC server is not enabled.
 - REST APIs for assets and the optional client-hints overrides.
-- Instance Map REST (`/api/cyberia-instance/instance-map/:code/{static,dynamic}`): static map topology plus authored presence POIs, and capability membership; the dynamic response supplies only per-player capability activity. Never live positions or simulation stats — those stay client-side.
+- Instance Map REST (`/api/v1/cyberia-instance/instance-map/:code/{static,dynamic}`): static map topology plus authored presence POIs, and capability membership; the dynamic response supplies only per-player capability activity. Never live positions or simulation stats — those stay client-side.
 - Static content distribution + Cloudinary-backed asset flow.
 - Editor and CLI integration for content workflows.
 
@@ -125,7 +157,7 @@ The three processes are supervised independently. Each service owns its own moni
 
 Dependency between services is handled by supervision and reconnect loops:
 
-- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world. On reconnect, it reloads world configuration.
+- `cyberia-server` dials `engine-cyberia` gRPC at boot; on dial or load failure it retries over the REST boot fallback (`--data-server-url`, `/api/v1/cyberia-instance/boot/*`) and exits only when both transports fail rather than fabricate a world. On reconnect, it reloads world configuration.
 - `cyberia-client` reconnects to `cyberia-server` over WebSocket and re-fetches content from `engine-cyberia` over REST independently.
 - If any one of the three services goes unhealthy, the game moves to standby until all three recover.
 
@@ -257,16 +289,16 @@ The client predicts every tap immediately and never waits on a cadence. `self.ac
 
 Presentation is client-owned. The authoritative server holds no presentation state.
 
-| Concern                                          | Owner                 | Mechanism                                                                                                        |
-| ------------------------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Palette (named ColorRGBA entries)                | engine-cyberia (REST) | served by `GET /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`. Source schema: `SharedDefaultsCyberia.js`. |
-| Status-icon visuals (icon stems + border colors) | engine-cyberia (REST) | same                                                                                                             |
-| Per-entity-type fallback color keys              | engine-cyberia (REST) | same                                                                                                             |
-| Camera defaults (smoothing, zoom)                | engine-cyberia (REST) | same                                                                                                             |
-| Cell-pixel size, default object dims             | engine-cyberia (REST) | same                                                                                                             |
-| Interpolation window                             | engine-cyberia (REST) | same                                                                                                             |
-| Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                                                             |
-| World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf` — no presentation; only simulation                                                         |
+| Concern                                          | Owner                 | Mechanism                                                                                                           |
+| ------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Palette (named ColorRGBA entries)                | engine-cyberia (REST) | served by `GET /api/v1/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE`. Source schema: `SharedDefaultsCyberia.js`. |
+| Status-icon visuals (icon stems + border colors) | engine-cyberia (REST) | same                                                                                                                |
+| Per-entity-type fallback color keys              | engine-cyberia (REST) | same                                                                                                                |
+| Camera defaults (smoothing, zoom)                | engine-cyberia (REST) | same                                                                                                                |
+| Cell-pixel size, default object dims             | engine-cyberia (REST) | same                                                                                                                |
+| Interpolation window                             | engine-cyberia (REST) | same                                                                                                                |
+| Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                                                                |
+| World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf` — no presentation; only simulation                                                            |
 
 The cyberia-client carries **no** compile-time palette. `domain/presentation_runtime.{c,h}` fetches the full presentation surface on startup; until the fetch settles the runtime returns a tiny inline neutral-grey bootstrap so the splash screen has something to draw. The simulation is unaffected by the fetch outcome.
 
@@ -278,28 +310,28 @@ The cyberia-client carries **no** compile-time palette. `domain/presentation_run
 
 Every Cyberia document uses the same terms. Aliases are not permitted.
 
-| Term                      | Definition                                                                                                                                                                                                                                                                                                 |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **tick**                  | Monotonic simulation step counter.                                                                                                                                                                                                                                                                         |
-| **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                                                         |
-| **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                                                        |
-| **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                                                     |
-| **reconciliation**        | Correct prediction by the error measured at one tick: authoritative position minus the position predicted for that tick. Input is a destination, not a per-tick impulse, so the client keeps walking toward the `targetPos` that `moveAck` confirms, rather than replaying a command log.                  |
-| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost, and the reason `moveAck` trails `ack`.                                                                                                                                                      |
-| **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries.                                                                                                                                |
-| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                                                   |
-| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                                                           |
-| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                                                                                                                                             |
-| **client hints**          | Optional presentation overrides served by engine-cyberia.                                                                                                                                                                                                                                                  |
-| **world configuration**   | Gameplay parameters loaded at server boot from engine-cyberia.                                                                                                                                                                                                                                             |
-| **presentation metadata** | Render-only data. Client-owned.                                                                                                                                                                                                                                                                            |
-| **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                                                                                                                                                                                                        |
-| **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                                                                                                                                                                                                 |
-| **Instance Map**          | Client strategic overlay of packed map tiles and authored presence POIs. The static REST response supplies topology, presence, and capability membership; the dynamic response supplies per-player capability activity. Live player presence and stats remain client-side. |
-| **replication**           | Production and delivery of snapshots from server to clients.                                                                                                                                                                                                                                               |
-| **simulation phase**      | A named step inside one simulation tick.                                                                                                                                                                                                                                                                   |
-| **healthy**               | All three Cyberia services up and connected; game is playable.                                                                                                                                                                                                                                             |
-| **standby**               | Game paused because at least one of the three services is not healthy.                                                                                                                                                                                                                                     |
+| Term                      | Definition                                                                                                                                                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **tick**                  | Monotonic simulation step counter.                                                                                                                                                                                                                                                        |
+| **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                                        |
+| **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                                       |
+| **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                                    |
+| **reconciliation**        | Correct prediction by the error measured at one tick: authoritative position minus the position predicted for that tick. Input is a destination, not a per-tick impulse, so the client keeps walking toward the `targetPos` that `moveAck` confirms, rather than replaying a command log. |
+| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost, and the reason `moveAck` trails `ack`.                                                                                                                                     |
+| **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries.                                                                                                               |
+| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                                  |
+| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                                          |
+| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                                                                                                                            |
+| **client hints**          | Optional presentation overrides served by engine-cyberia.                                                                                                                                                                                                                                 |
+| **world configuration**   | Gameplay parameters loaded at server boot from engine-cyberia.                                                                                                                                                                                                                            |
+| **presentation metadata** | Render-only data. Client-owned.                                                                                                                                                                                                                                                           |
+| **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                                                                                                                                                                                       |
+| **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                                                                                                                                                                                |
+| **Instance Map**          | Client strategic overlay of packed map tiles and authored presence POIs. The static REST response supplies topology, presence, and capability membership; the dynamic response supplies per-player capability activity. Live player presence and stats remain client-side.                |
+| **replication**           | Production and delivery of snapshots from server to clients.                                                                                                                                                                                                                              |
+| **simulation phase**      | A named step inside one simulation tick.                                                                                                                                                                                                                                                  |
+| **healthy**               | All three Cyberia services up and connected; game is playable.                                                                                                                                                                                                                            |
+| **standby**               | Game paused because at least one of the three services is not healthy.                                                                                                                                                                                                                    |
 
 Forbidden usages:
 

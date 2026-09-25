@@ -77,30 +77,30 @@ const buildVersionBumpTargets = () => [
     optional: true,
   },
 
-  // ── Cyberia + nexodev docs. ──
+  // ── The authored documentation tree, every domain. ──
   {
-    dir: 'src/client/public/cyberia-docs',
+    dir: 'src/client/public/docs',
     match: /\.md$/,
     patterns: [
       /(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g,
       /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
       /(socket\.dev\/api\/badge\/npm\/package\/[a-z0-9-]+\/)\d+\.\d+\.\d+/g,
       /(socket\.dev\/npm\/package\/[a-z0-9-]+\/overview\/)\d+\.\d+\.\d+/g,
-    ],
-    recursive: true,
-  },
-  {
-    dir: 'src/client/public/nexodev/docs/references',
-    match: /\.md$/,
-    patterns: [
-      /(\*\*(?:Current )?[Vv]ersion:\*\* )\d+\.\d+\.\d+/g,
-      /(underpost\/[a-z0-9-]+:v)\d+\.\d+\.\d+/g,
       /(UNDERPOST_VERSION=)\d+\.\d+\.\d+/g,
       /(ci\/cd cli v)\d+\.\d+\.\d+/gi,
       // version tag bumps inside markdown narrative, e.g. `v3.2.9`, `v3.2.10`, …
       /(`v)\d+\.\d+\.\d+(?=`)/g,
     ],
     recursive: true,
+  },
+
+  // ── The Cyberia package README template, outside the documentation tree. ──
+  {
+    file: 'src/projects/cyberia/readme.md',
+    patterns: [
+      /(socket\.dev\/api\/badge\/npm\/package\/[a-z0-9-]+\/)\d+\.\d+\.\d+/g,
+      /(socket\.dev\/npm\/package\/[a-z0-9-]+\/overview\/)\d+\.\d+\.\d+/g,
+    ],
   },
 
   // ── Kubernetes manifests. Covers deployment.yaml + cronjob yamls under dd-cron. ──
@@ -413,7 +413,7 @@ class UnderpostRelease {
      *    package.json, package-lock.json (root + packages['']), Hardhat's package metadata,
      *    and every engine-private/conf/**\/package.json.
      * 4. Auxiliary files: anchored-regex walker over VERSION_BUMP_TARGETS — covers
-     *    src/index.js, README, cyberia-docs, nexodev docs, manifests (deployment + cronjobs),
+     *    src/index.js, README, the documentation tree, manifests (deployment + cronjobs),
      *    .github/workflows (image tags, type=raw, UNDERPOST_VERSION build-args), and
      *    engine-private confs (deployment.yaml + conf.instances.json). Files in
      *    VERSION_BUMP_SKIP (CHANGELOG, logs/, .env.*, node_modules/) are never touched.
