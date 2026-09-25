@@ -237,7 +237,7 @@ Single source of truth per concern:
 | Age **private** key    | `~/.config/sops/age/keys.txt` (mode `0600`)             | **Never**   |
 | Offline private backup | Encrypted USB / paper / HSM, off-cluster                | **Never**   |
 
-`engine-private/` is a per-deploy private repository (`engine-<conf-id>-private`) — the encrypted manifests version alongside the deploy config they belong to. This supersedes the plaintext credential files `UnderpostCluster.API.init` falls back to in [cluster.js](src/cli/cluster.js) (`--from-file=password=/home/dd/engine/engine-private/postgresql-password`), which store credentials unencrypted on disk. Onboarding is per-secret: the encrypted store wins whenever a manifest exists, and the **origin seed path** — the plaintext credential file the secret was originally seeded from — remains in place until it does. See [§3.3](#33-cluster-initialization-hook).
+`engine-private/` is a per-deploy private repository (`engine-<conf-id>-private`) — the encrypted manifests version alongside the deploy config they belong to. This supersedes the plaintext credential files `UnderpostCluster.API.init` falls back to in `src/cli/cluster.js` (`--from-file=password=/home/dd/engine/engine-private/postgresql-password`), which store credentials unencrypted on disk. Onboarding is per-secret: the encrypted store wins whenever a manifest exists, and the **origin seed path** — the plaintext credential file the secret was originally seeded from — remains in place until it does. See [§3.3](#33-cluster-initialization-hook).
 
 ```
 engine-private/
@@ -293,7 +293,7 @@ sops --version
 age --version
 ```
 
-This is implemented as `UnderpostSecret.API.installTooling()` in [secrets.js](src/cli/secrets.js), which owns the `SOPS_VERSION` / `AGE_VERSION` pins — verify them against current upstream releases before a fresh host build. `UnderpostCluster.API.initHost()` calls it alongside the existing Helm/Kind installs rather than carrying a second copy, and it reuses `Underpost.baremetal.getHostArch()` instead of a second `uname` parse. Idempotent either way: an already-resolvable binary is left untouched.
+This is implemented as `UnderpostSecret.API.installTooling()` in `src/cli/secrets.js`, which owns the `SOPS_VERSION` / `AGE_VERSION` pins — verify them against current upstream releases before a fresh host build. `UnderpostCluster.API.initHost()` calls it alongside the existing Helm/Kind installs rather than carrying a second copy, and it reuses `Underpost.baremetal.getHostArch()` instead of a second `uname` parse. Idempotent either way: an already-resolvable binary is left untouched.
 
 ```bash
 # Tooling, keypair, creation rules, encrypt, and apply — idempotent, so this is also the
@@ -429,7 +429,7 @@ stringData:
   POSTGRES_DB: postgresdb
 ```
 
-> Key contract: [manifests/postgresql/statefulset.yaml](manifests/postgresql/statefulset.yaml) consumes `secretKeyRef.key: password` for `POSTGRES_PASSWORD`; `POSTGRES_DB` and `POSTGRES_USER` come from the `postgres-config` ConfigMap. Adding `username`/`POSTGRES_DB` here is forward-compatible — moving the StatefulSet onto them is a separate, deliberate change.
+> Key contract: `manifests/postgresql/statefulset.yaml` consumes `secretKeyRef.key: password` for `POSTGRES_PASSWORD`; `POSTGRES_DB` and `POSTGRES_USER` come from the `postgres-config` ConfigMap. Adding `username`/`POSTGRES_DB` here is forward-compatible — moving the StatefulSet onto them is a separate, deliberate change.
 
 ### 2.3 Encrypt
 
@@ -662,7 +662,7 @@ DRY_RUN=1 NAMESPACE=cyberia ./src/cli/scripts/sops-apply.sh
 
 ### 3.2 `UnderpostSecret` domain
 
-`secret` is one of the three configuration domains, registered from the shared factory in [domains.js](src/cli/domains.js) so its seven actions and five flags are the same as `host`'s and `app`'s. The SOPS/Age implementation behind them is [secrets.js](src/cli/secrets.js) as `UnderpostSecret.API` — read that file for the authoritative behavior; it is not duplicated here.
+`secret` is one of the three configuration domains, registered from the shared factory in `src/cli/domains.js` so its seven actions and five flags are the same as `host`'s and `app`'s. The SOPS/Age implementation behind them is `src/cli/secrets.js` as `UnderpostSecret.API` — read that file for the authoritative behavior; it is not duplicated here.
 
 Each action is one direction of travel, identically on all three domains:
 
@@ -1326,4 +1326,4 @@ Add to `.gitignore` before the first `git add`:
 .sops-plaintext/
 ```
 
-Post-deploy filesystem cleanup already exists as `UnderpostSecret.API.globalSecretClean()` in [secrets.js](src/cli/secrets.js) — it clears `engine-private`, `.env`, and the conf cache. It intentionally does **not** touch `~/.config/sops/age/keys.txt`: the key must survive so the node can re-apply secrets on restart. Container images must never receive it — pods consume the resulting Kubernetes Secret, never the Age key.
+Post-deploy filesystem cleanup already exists as `UnderpostSecret.API.globalSecretClean()` in `src/cli/secrets.js` — it clears `engine-private`, `.env`, and the conf cache. It intentionally does **not** touch `~/.config/sops/age/keys.txt`: the key must survive so the node can re-apply secrets on restart. Container images must never receive it — pods consume the resulting Kubernetes Secret, never the Age key.

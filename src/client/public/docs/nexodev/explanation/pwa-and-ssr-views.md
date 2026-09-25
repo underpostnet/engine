@@ -85,7 +85,7 @@ Some views carry no request-time logic at all, so the gateway answers them and t
 
 `deploy --build-manifest` emits one HTTPRoute rule per entry, rewriting the request prefix onto that **directory** — so `/404` resolves the document through `index.html` and `/404/logo.png` resolves the asset beside it, from one rule. `deploy --sync-static` places the documents those rules point at. Both read the same selectors, so a new edge-served view needs nothing beyond its `views[]` entry.
 
-The documents are not carried in the gateway configuration. Envoy substitutes only an inline body, capped at 4096 bytes for both inline and ConfigMap sources, and it cannot re-dispatch a request to another cluster once the upstream has answered. They are held instead by the `underpost-gateway` Nginx workload — see [Deploy to K8S](<./Deploy to K8S.md>) for the placement commands.
+The documents are not carried in the gateway configuration. Envoy substitutes only an inline body, capped at 4096 bytes for both inline and ConfigMap sources, and it cannot re-dispatch a request to another cluster once the upstream has answered. They are held instead by the `underpost-gateway` Nginx workload — see [Deploy to K8S](../how-to/deploy-to-kubernetes.md) for the placement commands.
 
 ### How a wrong path is answered
 

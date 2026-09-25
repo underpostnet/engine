@@ -59,6 +59,7 @@ Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` i
 `--force` permits overwrites for uploads and downloads. It does not change selection.
 When Cloudinary retains an existing asset, the manifest records that asset's remote metadata.
 Pull requires a manifest entry. It skips an existing local file unless `--force` is set.
+`--tracked` selects only manifest entries. A tracked upload with no matching entry uploads the new local file.
 `--omit-unzip` keeps the downloaded archive at `<asset-path>.zip`.
 Remote deletion preserves local files, including with `--force`.
 
@@ -83,7 +84,7 @@ node bin fs assets --tracked --from-key assets/a.png --to-key assets/z.png --key
 Run these tests with Node.js, Git, and the installed project dependencies:
 
 ```bash
-node_modules/.bin/vitest run --project unit test/unit/fs-storage-paths.test.js test/unit/client-bundle.test.js
+node_modules/.bin/vitest run --project underpost:unit test/underpost/unit/fs-storage-paths.test.js test/underpost/unit/client-bundle.test.js
 ```
 
 Tests use temporary directories and temporary Git repositories. Cloudinary and download requests are mocked.

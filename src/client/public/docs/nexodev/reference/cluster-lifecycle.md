@@ -616,7 +616,7 @@ node bin cluster --kubeadm --mongo-express --pull-image --node-port
 node bin cluster --kubeadm --mongo-express --node-name hp-envy-iso-ram-rocky9
 ```
 
-**Credentials follow the storage secret convention.** The client owns none of its own: both the mongod connection and the UI's own session read `mongodb-secret` — the same Secret the StatefulSet consumes — through `secretKeyRef`, never through a literal. The Secret is applied before the workload with the usual precedence, SOPS/Age store first (`engine-private/secrets/<namespace>/mongodb-secret.enc.yaml`) and the origin seed files (`mongodb-username`, `mongodb-password`) only when no encrypted manifest exists. See [SOPS + Age Secret Management](<./SOPS Age Secret Management.md>).
+**Credentials follow the storage secret convention.** The client owns none of its own: both the mongod connection and the UI's own session read `mongodb-secret` — the same Secret the StatefulSet consumes — through `secretKeyRef`, never through a literal. The Secret is applied before the workload with the usual precedence, SOPS/Age store first (`engine-private/secrets/<namespace>/mongodb-secret.enc.yaml`) and the origin seed files (`mongodb-username`, `mongodb-password`) only when no encrypted manifest exists. See [SOPS + Age Secret Management](../how-to/manage-secrets-with-sops.md).
 
 **Auth mode is read from the cluster, not from the flags.** `manifests/mongodb` starts mongod with `--auth`; `manifests/mongodb-4.4` does not. Credentials sent to a server that enforces none are not ignored — the driver still runs SCRAM and the handshake fails — so the deployed StatefulSet's own mongod arguments select the kustomization: `manifests/deployment/mongo-express` with the admin pair, or `manifests/deployment/mongo-express-no-auth`, which drops it and keeps the UI's basic auth. Where no StatefulSet is deployed yet, `--mongodb4` selects the no-auth overlay and everything else the default auth-enabled one.
 
@@ -1052,7 +1052,7 @@ Only `nodejs` paths are scraped: they are the ones that serve a `prom-client` re
 
 The stack runs on kubeadm, Kind and K3s. The one runtime-dependent value is the host address Alertmanager delivers to: on kubeadm and K3s the node's `InternalIP` is the machine, while on Kind it is a Docker container, so the bridge gateway is used instead.
 
-Full reference: [Observability and Events](<./Observability and Events.md>).
+Full reference: [Observability and Events](../how-to/run-observability-and-events.md).
 
 ---
 

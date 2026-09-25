@@ -233,11 +233,11 @@ Checks if the host's public IP has changed. When a new IP is detected, iterates 
 
 Iterates through the comma-separated deploy-id list and runs a database export for each. Supports `--git` to commit exports to the cron-backups repository. Backup commands are always executed via SSH on the remote node.
 
-One deploy-id failing does not abort the rest — each phase is caught per deploy-id, and the run ends with a `Backup completed with failures` summary naming every deploy-id and phase that failed. See [DB and Backup Management](<./DB and Backup Management.md>) for how pod contact errors and primary detection are handled inside each export.
+One deploy-id failing does not abort the rest — each phase is caught per deploy-id, and the run ends with a `Backup completed with failures` summary naming every deploy-id and phase that failed. See [DB and Backup Management](manage-databases-and-backups.md) for how pod contact errors and primary detection are handled inside each export.
 
 ### Vultr Bandwidth Job
 
-Meters the edge VPS against its Vultr plan quota and cuts its egress before an overage accrues. See [Edge Hub WireGuard and HAProxy](<./Edge Hub WireGuard and HAProxy.md>) for the topology it protects.
+Meters the edge VPS against its Vultr plan quota and cuts its egress before an overage accrues. See [Edge Hub WireGuard and HAProxy](run-the-edge-hub.md) for the topology it protects.
 
 Unlike `dns` and `backup`, this job **ignores the deploy-list**. The edge hub is one machine for the whole cluster, so its WireGuard topology is cluster-wide rather than per-deploy; the deploy-list is logged for attribution and nothing else. All of its configuration is environment, not JSON.
 
@@ -249,7 +249,7 @@ Each run:
 4. `limitInBytes = planBandwidthGB × 1024³ × VULTR_BANDWIDTH_THRESHOLD`.
 5. If consumption ≥ that limit, SSH to the edge VPS and run `underpost ip --block-all-egress` (falling back to `cd /home/dd/engine && node bin ip …` when the CLI is not installed globally).
 
-Those three reads go **through the edge hub's forward proxy** when `FORWARD_PROXY_API_KEY` resolves, and straight out otherwise. The job runs in a CronJob inside a spoke cluster, so a direct call reaches Vultr from a residential ISP address while a proxied one reaches it from the very VPS being metered — which is what an API key scoped to the edge's address requires. The path taken is reported in every run's summary as `via: 'forward-proxy 10.0.0.1'` or `via: 'direct'`. Set it up with [`underpost wireguard --forward-proxy-server`](<./Edge Hub WireGuard and HAProxy.md#outbound-forward-proxy>) on the hub.
+Those three reads go **through the edge hub's forward proxy** when `FORWARD_PROXY_API_KEY` resolves, and straight out otherwise. The job runs in a CronJob inside a spoke cluster, so a direct call reaches Vultr from a residential ISP address while a proxied one reaches it from the very VPS being metered — which is what an API key scoped to the edge's address requires. The path taken is reported in every run's summary as `via: 'forward-proxy 10.0.0.1'` or `via: 'direct'`. Set it up with [`underpost wireguard --forward-proxy-server`](run-the-edge-hub.md#forward-proxy) on the hub.
 
 Control and worker WireGuard setup also installs tunnel-scoped forwarding and masquerade rules so pod CIDRs do not have to be registered on the hub. After upgrading, select the tracked node with `--node-config`, then run `node bin wireguard --wireguard-setup --wireguard-stop --wireguard-start` before testing an immediate CronJob.
 

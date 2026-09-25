@@ -1395,7 +1395,7 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
 
   const detailSection = (sections, name, head) => {
     const t = table(head, parseEntries(sections[name]));
-    return t ? `\n#### ${name}\n\n${t}` : '';
+    return t ? `\n### ${name}\n\n${t}` : '';
   };
 
   // ── Top-level index ──
@@ -1403,11 +1403,11 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   const commandEntries = parseEntries(root.sections['Commands']).filter((e) => e.term.split(' ')[0] !== 'help');
 
   const index =
-    `## Underpost CLI\n\n` +
+    `# Underpost CLI\n\n` +
     (root.description ? `> ${root.description.replace(/\s+/g, ' ')}\n\n` : '') +
     `**Usage:** \`${root.usage}\`\n\n` +
-    `### Global options\n\n${table(['Option', 'Description'], parseEntries(root.sections['Options']))}\n` +
-    `### Commands\n\n| Command | Description |\n| --- | --- |\n` +
+    `## Global options\n\n${table(['Option', 'Description'], parseEntries(root.sections['Options']))}\n` +
+    `## Commands\n\n| Command | Description |\n| --- | --- |\n` +
     commandEntries
       .map((e) => {
         const name = e.term.split(' ')[0];
@@ -1423,7 +1423,7 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
     if (name === 'help') continue;
     const cmdHelp = parseHelp(help(name));
     details +=
-      `\n### underpost ${name}\n\n` +
+      `\n## underpost ${name}\n\n` +
       (cmdHelp.description ? `${cmdHelp.description.replace(/\s+/g, ' ')}\n\n` : '') +
       `**Usage:** \`${cmdHelp.usage}\`\n` +
       detailSection(cmdHelp.sections, 'Arguments', ['Argument', 'Description']) +
@@ -1432,7 +1432,7 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   }
 
   const md = `${index}${details}`.replaceAll(oldVersion, newVersion);
-  fs.writeFileSync(`./src/client/public/nexodev/docs/references/Command Line Interface.md`, md, 'utf8');
+  fs.writeFileSync(`./src/client/public/docs/nexodev/reference/underpost-cli.md`, md, 'utf8');
   fs.writeFileSync(`./CLI-HELP.md`, md, 'utf8');
 
   // Update README.md: bump version and refresh the CLI index between the comment tags.
@@ -1442,7 +1442,8 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   const startIdx = readme.indexOf(cliStartTag);
   const endIdx = readme.indexOf(cliEndTag);
   if (startIdx !== -1 && endIdx !== -1) {
-    const readmeIndex = index.replace(/\(#(underpost-[a-z0-9-]+)\)/g, '(CLI-HELP.md#$1)');
+    // The README owns its own title, so the embedded index sits one level below it.
+    const readmeIndex = index.replace(/\(#(underpost-[a-z0-9-]+)\)/g, '(CLI-HELP.md#$1)').replace(/^(#+) /gm, '$1# ');
     readme =
       readme.substring(0, startIdx) +
       cliStartTag +

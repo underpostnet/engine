@@ -46,7 +46,7 @@ The project covers:
 - **ERP/CRM-style PWA base applications** as the default workload.
 - **Cyberia** — a dedicated MMO extension built on top of the platform, with its own content backend (`engine-cyberia`), authoritative simulation runtime (`cyberia-server`), and presentation runtime (`cyberia-client`).
 
-<a target="_top" href="Https://github.com/underpostnet/engine/blob/master/src/client/public/cyberia-docs/UNDERPOST-PLATFORM.md">See Detailed platform doc.</a>
+<a target="_top" href="Https://github.com/underpostnet/engine/blob/master/src/client/public/docs/underpost/overview/index.md">See Detailed platform doc.</a>
 
 ### Architectural roles (Cyberia stack)
 
@@ -60,7 +60,7 @@ When the platform is hosting the Cyberia MMO extension, three independent runtim
 
 The ecosystem is **playable only when all three are running and healthy**. Each service is supervised independently and owns its own monitor/reconnector. If any one is unhealthy, the game enters standby and resumes automatically once all three are healthy again.
 
-<a target="_top" href="https://github.com/underpostnet/engine-cyberia/blob/master/src/client/public/cyberia-docs/ARCHITECTURE.md">See detailed Cyberia architecture.</a>
+<a target="_top" href="https://github.com/underpostnet/engine-cyberia/blob/master/src/client/public/docs/cyberia/explanation/architecture.md">See detailed Cyberia architecture.</a>
 
 ## Create a new project
 

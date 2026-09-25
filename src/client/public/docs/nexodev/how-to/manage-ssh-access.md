@@ -190,7 +190,7 @@ underpost ssh --key-test --user alice --password "mypass"
 
 Connection URIs are built by node name, not by account: `underpost wireguard --connect-uri --nodes <node-name>`
 joins the node document under `./engine-private/deploy/nodes/` to the management address it is registered
-under in this registry. See [Edge Hub WireGuard and HAProxy](<Edge Hub WireGuard and HAProxy.md>).
+under in this registry. See [Edge Hub WireGuard and HAProxy](run-the-edge-hub.md).
 
 #### `--hosts-list`
 

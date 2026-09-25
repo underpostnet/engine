@@ -1,0 +1,119 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "Nexodev",
+    "url": "https://www.nexodev.org",
+    "description": "ERP and CRM development, DevOps practice and cloud services, delivered on the shared Underpost CLI: cluster lifecycle, host management, secrets, images, observability and recovery.",
+    "serviceType": ["ERP development", "CRM development", "Cloud DevOps", "Infrastructure operation"],
+    "areaServed": {
+      "@type": "Place",
+      "name": "Worldwide"
+    },
+    "availableLanguage": ["en", "es"],
+    "image": "https://www.nexodev.org/assets/banner/nexodev.jpg",
+    "provider": {
+      "@type": "Organization",
+      "name": "Nexodev",
+      "url": "https://www.nexodev.org"
+    },
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Nexodev services",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "ERP development and implementation",
+            "description": "Enterprise resource planning products, built and put into operation."
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "CRM development and implementation",
+            "description": "Customer relationship management products, built and put into operation."
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Cloud DevOps and infrastructure operation",
+            "description": "Cluster lifecycle, baremetal and LXD hosts, SSH and edge connectivity, images, deployments and static publishing."
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Platform operations",
+            "description": "Secrets, backups, observability, events, testing and coverage against real deployments."
+          }
+        }
+      ]
+    },
+    "keywords": "ERP development, CRM development, cloud DevOps, Kubernetes, LXD, infrastructure operation, business process automation",
+    "inLanguage": "en"
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Nexodev",
+    "url": "https://www.nexodev.org",
+    "logo": "https://www.nexodev.org/assets/splash/android-chrome-512x512.png",
+    "description": "The domain that owns ERP and CRM products, DevOps and cloud service delivery, and the infrastructure procedure of the platform.",
+    "sameAs": ["https://github.com/underpost"],
+    "parentOrganization": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "subjectOf": {
+      "@type": "CreativeWork",
+      "name": "Nexodev documentation",
+      "url": "https://www.nexodev.org/docs?cid=guide&doc=nexodev/overview/index"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What does Nexodev deliver?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ERP and CRM products, DevOps practice and cloud services. Nexodev also owns the infrastructure procedure of the platform: clusters, hosts, secrets, images, observability and recovery."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which toolchain does Nexodev operate with?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The shared Underpost CLI. Nexodev documents its use for infrastructure work; the CLI itself belongs to the Underpost domain."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does Nexodev not own?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Underpost CLI, the semantics of a product domain, and architecture decisions. Decisions are recorded as ADRs in the Underpost domain."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What state are these procedures in?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Active development. The procedures are in use against real deployments."
+        }
+      }
+    ]
+  }
+]

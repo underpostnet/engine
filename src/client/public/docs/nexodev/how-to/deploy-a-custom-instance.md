@@ -446,7 +446,7 @@ A direct `run instance` resolves the next blue/green colour before creating anyt
 node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server --dev
 ```
 
-Each id is resolved against every deploy in the list and runs only where that deploy's `conf.instances.json` declares it. Instances start after their deploy's default workload has rolled out, and their hosts are folded into the run's existing TLS and `/etc/hosts` pass — self-signed in development, cert-manager in production. See [Main cluster lifecycle commands → Custom instances](<./Main cluster lifecycle commands.md>).
+Each id is resolved against every deploy in the list and runs only where that deploy's `conf.instances.json` declares it. Instances start after their deploy's default workload has rolled out, and their hosts are folded into the run's existing TLS and `/etc/hosts` pass — self-signed in development, cert-manager in production. See [Main cluster lifecycle commands → Custom instances](../reference/cluster-lifecycle.md).
 
 ### 2. Promote Instance (Blue-Green Deployment)
 

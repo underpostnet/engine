@@ -1,10 +1,10 @@
-## Underpost CLI
+# Underpost CLI
 
 > underpost ci/cd cli v3.4.0
 
 **Usage:** `underpost [options] [command]`
 
-### Global options
+## Global options
 
 | Option | Description |
 | --- | --- |
@@ -12,7 +12,7 @@
 | `--profile <profile>` | Execution profile. One of: LIVE_CLUSTER, HERMETIC_BUILD, OFFLINE_DRY_RUN. LIVE_CLUSTER Full access: cluster and host mutation permitted. HERMETIC_BUILD Build outputs only: no cluster, host or network side effects. OFFLINE_DRY_RUN Nothing executes; every command is reported as intent. |
 | `-h, --help` | display help for command |
 
-### Commands
+## Commands
 
 | Command | Description |
 | --- | --- |
@@ -45,7 +45,7 @@
 | [`haproxy`](#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
 | [`vultr`](#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
 | [`run`](#underpost-run) | Runs specified scripts using various runners. |
-| [`test`](#underpost-test) | Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting. |
+| [`test`](#underpost-test) | Runs the test projects locally, inside deployment pods, or as a cluster Job with Allure reporting. |
 | [`docker-compose`](#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
 | [`lxd`](#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
@@ -55,25 +55,25 @@
 
 ## Command reference
 
-### underpost new
+## underpost new
 
 Initializes a new Underpost project, service, or configuration.
 
 **Usage:** `underpost new [options] [app-name]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `app-name` | The name of the new project. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
 | `--deploy-id <deploy-id>` | Create deploy ID conf env files |
 | `--sub-conf <sub-conf>` | Create sub conf env files |
-| `--cluster` | Initialize the base cluster deploy folder engine-private/deploy from ./conf.js |
+| `--cluster` | Initialize the base cluster deploy folder engine-private/deploy from ./underpost.config.js |
 | `--build-repos` | Create deploy ID repositories |
 | `--build` | Build the deployment to pwa-microservices-template (requires --deploy-id) |
 | `--clean-template` | Clean the build directory (pwa-microservices-template) |
@@ -87,13 +87,13 @@ Initializes a new Underpost project, service, or configuration.
 
 ---
 
-### underpost client
+## underpost client
 
 Builds client assets, single replicas, and/or syncs environment ports.
 
 **Usage:** `underpost client [options] [deploy-id] [sub-conf] [host] [path]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
@@ -102,7 +102,7 @@ Builds client assets, single replicas, and/or syncs environment ports.
 | `host` | Comma-separated hosts to filter the build. (default: "") |
 | `path` | Comma-separated paths to filter the build. (default: "") |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -121,20 +121,20 @@ Builds client assets, single replicas, and/or syncs environment ports.
 
 ---
 
-### underpost start
+## underpost start
 
 Initiates application servers, build pipelines, or other defined services based on the deployment ID.
 
 **Usage:** `underpost start [options] <deploy-id> [env]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-id` | The unique identifier for the deployment configuration. |
 | `env` | Optional: The environment to start (e.g., "development", "production"). Defaults to "development". |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -150,19 +150,19 @@ Initiates application servers, build pipelines, or other defined services based 
 
 ---
 
-### underpost clone
+## underpost clone
 
 Clones a specified GitHub repository into the current directory.
 
 **Usage:** `underpost clone [options] <uri>`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `uri` | The URI of the GitHub repository (e.g., "username/repository"). |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -172,20 +172,20 @@ Clones a specified GitHub repository into the current directory.
 
 ---
 
-### underpost pull
+## underpost pull
 
 Pulls the latest changes from a specified GitHub repository.
 
 **Usage:** `underpost pull [options] <path> <uri>`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `path` | The absolute or relative directory path where the repository is located. |
 | `uri` | The URI of the GitHub repository (e.g., "username/repository"). |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -194,13 +194,13 @@ Pulls the latest changes from a specified GitHub repository.
 
 ---
 
-### underpost cmt
+## underpost cmt
 
 Manages commits to a GitHub repository, supporting various commit types and options.
 
 **Usage:** `underpost cmt [options] [path] [commit-type] [module-tag] [message]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
@@ -209,7 +209,7 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `module-tag` | Optional: Sets a specific module tag for the commit. |
 | `message` | Optional: Provides an additional custom message for the commit. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -245,20 +245,20 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 
 ---
 
-### underpost push
+## underpost push
 
 Pushes committed changes from a local repository to a remote GitHub repository.
 
 **Usage:** `underpost push [options] <path> <uri>`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `path` | The absolute or relative directory path of the repository. |
 | `uri` | The URI of the GitHub repository (e.g., "username/repository"). |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -268,13 +268,13 @@ Pushes committed changes from a local repository to a remote GitHub repository.
 
 ---
 
-### underpost static
+## underpost static
 
 Manages static build of page, bundles, and documentation with comprehensive customization options.
 
 **Usage:** `underpost static [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -311,13 +311,13 @@ Manages static build of page, bundles, and documentation with comprehensive cust
 
 ---
 
-### underpost root
+## underpost root
 
 Displays the root path of the npm installation.
 
 **Usage:** `underpost root [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -325,19 +325,19 @@ Displays the root path of the npm installation.
 
 ---
 
-### underpost ip
+## underpost ip
 
 Displays the current public machine IP addresses.
 
 **Usage:** `underpost ip [options] [ips]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `ips` | Optional args comma-separated list of IP to process. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -364,19 +364,19 @@ Displays the current public machine IP addresses.
 
 ---
 
-### underpost cluster
+## underpost cluster
 
 Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 **Usage:** `underpost cluster [options] [pod-name]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `pod-name` | Optional: Filters information by a specific pod name. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -422,20 +422,20 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 ---
 
-### underpost deploy
+## underpost deploy
 
 Manages application deployments, defaulting to deploying development pods.
 
 **Usage:** `underpost deploy [options] [deploy-list] [env]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-list` | A comma-separated list of deployment IDs (e.g., "default-a,default-b"). |
 | `env` | Optional: The environment for deployment (e.g., "development", "production"). Defaults to "development". |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -482,19 +482,19 @@ Manages application deployments, defaulting to deploying development pods.
 
 ---
 
-### underpost secret
+## underpost secret
 
 Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Secrets.
 
 **Usage:** `underpost secret [options] <action>`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -507,13 +507,13 @@ Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Se
 
 ---
 
-### underpost host
+## underpost host
 
 Host configuration: the node-level operational environment shared by the cluster.
 
 **Usage:** `underpost host [options] <action> [key] [value]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
@@ -521,7 +521,7 @@ Host configuration: the node-level operational environment shared by the cluster
 | `key` | Key to act on, for the key-level operators. |
 | `value` | Value to write, for the `set` operator. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -537,19 +537,19 @@ Host configuration: the node-level operational environment shared by the cluster
 
 ---
 
-### underpost app
+## underpost app
 
 Application environment: one deployment's runtime configuration.
 
 **Usage:** `underpost app [options] <action>`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `action` | Action to run. One of: setup, load, publish, apply, status, rotate, clean. setup Onboards the domain: provisions whatever it needs, then converges it. Idempotent. load Loads the durable source into the local runtime environment. publish Writes the local runtime environment into the durable source. apply Projects the durable source into the live cluster. status Read-only report of the domain: sources, keys, and drift from the cluster. rotate Replaces the current projection or encryption identity. clean Withdraws the domain traces from the local filesystem. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -562,13 +562,13 @@ Application environment: one deployment's runtime configuration.
 
 ---
 
-### underpost state
+## underpost state
 
 Runtime state: live container execution state, health and metrics, exported off-cluster.
 
 **Usage:** `underpost state [options] <action> [key] [value]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
@@ -576,7 +576,7 @@ Runtime state: live container execution state, health and metrics, exported off-
 | `key` | Key to act on, for the key-level operators. |
 | `value` | Value to write, for the `set` operator. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -592,13 +592,13 @@ Runtime state: live container execution state, health and metrics, exported off-
 
 ---
 
-### underpost image
+## underpost image
 
 Manages Docker images, including building, saving, and loading into Kubernetes clusters.
 
 **Usage:** `underpost image [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -626,13 +626,13 @@ Manages Docker images, including building, saving, and loading into Kubernetes c
 
 ---
 
-### underpost install
+## underpost install
 
 Quickly imports Underpost npm dependencies by copying them.
 
 **Usage:** `underpost install [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -640,19 +640,19 @@ Quickly imports Underpost npm dependencies by copying them.
 
 ---
 
-### underpost db
+## underpost db
 
 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
 
 **Usage:** `underpost db [options] [deploy-list]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-list` | A comma-separated list of deployment IDs (e.g., "default-a,default-b"). |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -674,6 +674,7 @@ Manages database operations with support for MariaDB and MongoDB, including impo
 | `--macro-rollback-export <n-commits-reset>` | Exports a macro rollback script that reverts the last n commits (Git integration required). |
 | `--clean-fs-collection` | Cleans orphaned File documents from collections that are not referenced by any models. |
 | `--clean-fs-dry-run` | Dry run mode - shows what would be deleted without actually deleting (use with --clean-fs-collection). |
+| `--migrate-stable-slugs` | Assigns every Document its public URL slug (stableSlug) and builds the unique index; idempotent, one-shot. |
 | `--dev` | Sets the development cli context |
 | `--kubeadm` | Enables the kubeadm context for database operations. |
 | `--kind` | Enables the kind context for database operations. |
@@ -683,13 +684,13 @@ Manages database operations with support for MariaDB and MongoDB, including impo
 
 ---
 
-### underpost metadata
+## underpost metadata
 
 Manages cluster metadata operations, including import and export.
 
 **Usage:** `underpost metadata [options] [deploy-id] [host] [path]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
@@ -697,7 +698,7 @@ Manages cluster metadata operations, including import and export.
 | `host` | The host to manage metadata. |
 | `path` | The path to manage metadata. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -712,20 +713,20 @@ Manages cluster metadata operations, including import and export.
 
 ---
 
-### underpost cron
+## underpost cron
 
 Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.
 
 **Usage:** `underpost cron [options] [deploy-list] [job-list]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-list` | A comma-separated list of deployment IDs (e.g., "default-a,default-b"). In manifest modes its first entry is the manifest owner deploy-id. |
 | `job-list` | A comma-separated list of job IDs. Options: dns,backup,vultr. Defaults to all available jobs, and restricts which jobs are generated in manifest modes. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -747,26 +748,26 @@ Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manif
 
 ---
 
-### underpost fs
+## underpost fs
 
 Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest.
 
 **Usage:** `underpost fs [options] [path]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `path` | Selects one file or all files below a directory. Required unless --tracked is set. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
 | `--rm` | Deletes selected remote assets and their manifest entries. |
 | `--git` | Restricts filesystem selection to Git-tracked files. Does not change Git state. |
 | `--recursive` | Compatibility option. Directories always select files recursively. |
-| `--tracked` | Selects only manifest entries. An optional path limits their scope. |
+| `--tracked` | Selects only manifest entries. An optional path limits their scope. An upload with no matching entry selects the local files. |
 | `--deploy-id <deploy-id>` | Selects the deployment configuration. |
 | `--pull` | Downloads selected manifest assets. Use --tracked to restore missing local files. |
 | `--omit-unzip` | With --pull, keeps the downloaded .zip file and skips extraction. |
@@ -780,20 +781,20 @@ Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected stora
 
 ---
 
-### underpost monitor
+## underpost monitor
 
 Manages health server monitoring, the cluster observability stack, and host dashboards.
 
 **Usage:** `underpost monitor [options] [deploy-id] [env]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-id` | The deployment configuration ID to monitor. With the observability flags it selects which deploys are scraped; "dd" covers every deploy in dd.routes. (default: "dd") |
 | `env` | Optional: The environment to monitor (e.g., "development", "production"). Defaults to "development". |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -834,19 +835,19 @@ Manages health server monitoring, the cluster observability stack, and host dash
 
 ---
 
-### underpost event
+## underpost event
 
 Dispatches operational events and provisions the monitoring rules that trigger them.
 
 **Usage:** `underpost event [options] [event-id]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `event-id` | The operational event to dispatch. Options: wireguard-server-down,wireguard-spoke-down,public-ingress-down,node-cpu-limit-exceeded,node-memory-limit-exceeded,hub-bandwidth-limit-exceeded,node-disk-limit-exceeded,node-network-traffic-exceeded. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -873,13 +874,13 @@ Dispatches operational events and provisions the monitoring rules that trigger t
 
 ---
 
-### underpost ssh
+## underpost ssh
 
 Manages cluster scoped SSH credentials and sessions for remote access to cluster nodes or services. Users are registered in engine-private/deploy/conf.users.json and keys are stored in engine-private/deploy/users/<user>.
 
 **Usage:** `underpost ssh [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -905,13 +906,13 @@ Manages cluster scoped SSH credentials and sessions for remote access to cluster
 
 ---
 
-### underpost wireguard
+## underpost wireguard
 
 Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it.
 
 **Usage:** `underpost wireguard [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -965,13 +966,13 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 
 ---
 
-### underpost haproxy
+## underpost haproxy
 
 Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`).
 
 **Usage:** `underpost haproxy [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1025,19 +1026,19 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 
 ---
 
-### underpost vultr
+## underpost vultr
 
 Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues.
 
 **Usage:** `underpost vultr [options] [deploy-list]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-list` | A comma-separated list of deployment IDs, logged for attribution. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1058,20 +1059,20 @@ Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress bef
 
 ---
 
-### underpost run
+## underpost run
 
 Runs specified scripts using various runners.
 
 **Usage:** `underpost run [options] <runner-id> [path]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,ssh-deploy,ide,crypto-policy,sync,net-tables,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,kill,generate-pass,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
+| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,ssh-deploy,ide,crypto-policy,set-inotify,sync,net-tables,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,kill,generate-pass,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
 | `path` | The input value, identifier, or path for the operation. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1164,23 +1165,26 @@ Runs specified scripts using various runners.
 
 ---
 
-### underpost test
+## underpost test
 
-Runs the test tiers locally, inside deployment pods, or as a cluster Job with Allure reporting.
+Runs the test projects locally, inside deployment pods, or as a cluster Job with Allure reporting.
 
 **Usage:** `underpost test [options] [suite]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `suite` | A comma-separated list of suites or tiers to run. Suites: unit, cyberia, infra, app, contracts, all. Tiers: unit, cyberia:unit, infra:1-security, infra:2-network, infra:3-cluster, infra:4-ingress, infra:5-observability, app, cyberia:app, contracts. Defaults to every tier, in tier order. (default: "") |
+| `suite` | A comma-separated list of domains or projects to run. Domains: underpost, object-layer, item-ledger, cyberia, cryptokoyn, ecosystem, all. Projects: underpost:audit, underpost:unit, object-layer:unit, item-ledger:unit, cyberia:unit, cryptokoyn:unit, ecosystem:contract, underpost:integration:security, underpost:integration:network, underpost:integration:cluster, underpost:integration:ingress, underpost:integration:observability, underpost:integration, ecosystem:integration, cyberia:integration, item-ledger:integration, underpost:e2e, cyberia:e2e, item-ledger:contract. Defaults to every project, in order. (default: "") |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
 | `--itc` | Runs in this execution context instead of dispatching into deployment pods. |
+| `--changed [base]` | Selects the domains the changed sources belong to, against a git ref (default: the working tree). |
+| `--list` | Prints the projects a selector resolves to, and exits. |
+| `--print` | Prints the resolved selector on stdout and exits, for a CI step to read. |
 | `--deploy-list <deploy-list>` | A comma-separated list of deployment IDs to run the suite inside. |
 | `--grep <pattern>` | Runs only tests whose name matches the pattern. |
 | `--watch` | Keeps the runner open and re-runs affected suites on change. |
@@ -1200,19 +1204,19 @@ Runs the test tiers locally, inside deployment pods, or as a cluster Job with Al
 
 ---
 
-### underpost docker-compose
+## underpost docker-compose
 
 General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack).
 
 **Usage:** `underpost docker-compose [options] [target]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `target` | Optional service name for --logs, --shell, --restart, or --build. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1240,19 +1244,19 @@ General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev 
 
 ---
 
-### underpost lxd
+## underpost lxd
 
 Manages LXD virtual machines as K3s nodes (control plane or workers).
 
 **Usage:** `underpost lxd [options] [vm-id]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `vm-id` | VM identifier shared by current-VM flags like --vm-create, --vm-delete, --vm-init, --vm-info, and --vm-test. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1287,13 +1291,13 @@ Manages LXD virtual machines as K3s nodes (control plane or workers).
 
 ---
 
-### underpost baremetal
+## underpost baremetal
 
 Manages baremetal server operations, including installation, database setup, commissioning, and user management.
 
 **Usage:** `underpost baremetal [options] [workflow-id]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1361,19 +1365,19 @@ Manages baremetal server operations, including installation, database setup, com
 
 ---
 
-### underpost package
+## underpost package
 
 Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins.
 
 **Usage:** `underpost package [options] [deploy-id]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `deploy-id` | Deploy id, or a comma-separated list, to act on. Defaults to every deploy id in the private configuration tree. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1386,13 +1390,13 @@ Generates the package manifests a deploy id owns, from the engine manifest and t
 
 ---
 
-### underpost socketsecurity
+## underpost socketsecurity
 
 Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code).
 
 **Usage:** `underpost socketsecurity [options]`
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |
@@ -1412,19 +1416,19 @@ Security audit through Socket.dev: dependency security (advisories, supply chain
 
 ---
 
-### underpost release
+## underpost release
 
 Release orchestrator for building new versions and deploying releases of the Underpost CLI.
 
 **Usage:** `underpost release [options] [version]`
 
-#### Arguments
+### Arguments
 
 | Argument | Description |
 | --- | --- |
 | `version` | The new version string to set (e.g., "3.1.4"). Defaults to current version. |
 
-#### Options
+### Options
 
 | Option | Description |
 | --- | --- |

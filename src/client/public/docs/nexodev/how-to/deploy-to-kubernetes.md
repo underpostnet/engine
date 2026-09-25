@@ -160,7 +160,7 @@ kubectl rollout status deployment/dd-cyberia-development-blue -n default
 node bin deploy dd-cyberia development --sync-static --gateway-api --kubeadm
 ```
 
-Anything found in neither place falls through to the shared default page, which answers 404 and is never cached. `node bin run cluster --dev` runs both passes for you; see [Main cluster lifecycle commands](<./Main cluster lifecycle commands.md>).
+Anything found in neither place falls through to the shared default page, which answers 404 and is never cached. `node bin run cluster --dev` runs both passes for you; see [Main cluster lifecycle commands](../reference/cluster-lifecycle.md).
 
 ### TLS/Certificate Options
 
@@ -196,11 +196,11 @@ Anything found in neither place falls through to the shared default page, which 
 
 ### Development Options
 
-| Option                 | Description                                        | Example                   |
-| ---------------------- | -------------------------------------------------- | ------------------------- |
-| `--cmd <cmd>`          | Custom initialization command (comma-separated)    | `--cmd "npm run migrate"` |
-| `--kubeadm`            | Kubeadm cluster context                            | `--kubeadm`               |
-| `--etc-hosts`          | Add hosts to /etc/hosts                            | `--etc-hosts`             |
+| Option        | Description                                     | Example                   |
+| ------------- | ----------------------------------------------- | ------------------------- |
+| `--cmd <cmd>` | Custom initialization command (comma-separated) | `--cmd "npm run migrate"` |
+| `--kubeadm`   | Kubeadm cluster context                         | `--kubeadm`               |
+| `--etc-hosts` | Add hosts to /etc/hosts                         | `--etc-hosts`             |
 
 ---
 

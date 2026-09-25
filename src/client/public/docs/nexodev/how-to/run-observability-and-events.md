@@ -385,7 +385,7 @@ node bin ssh --user admin --host 192.168.1.191 --user-add
 node bin ssh --user root --host 64.176.25.136 --port <vps-sshd-port> --user-add
 ```
 
-The two `admin` calls extend the same account; the second does not replace the first. See [SSH Management](<./SSH Management.md>) for the record shape.
+The two `admin` calls extend the same account; the second does not replace the first. See [SSH Management](manage-ssh-access.md) for the record shape.
 
 ```bash
 # Inspect the registry: resolved probe targets and the identity each repair runs as
@@ -661,7 +661,7 @@ The exporter is read directly rather than through Prometheus' `for:` window, so 
 
 ### Scenario modules
 
-The registry describes production behaviour, and nothing in it should be able to take a host down, so scenarios live beside the tests. `node bin event <event-id> --e2e-test` loads `test/e2e/event-e2e-<event-id>.js` and expects one default export:
+The registry describes production behaviour, and nothing in it should be able to take a host down, so scenarios live beside the tests. `node bin event <event-id> --e2e-test` loads `test/underpost/e2e/scenarios/event-e2e-<event-id>.js` and expects one default export:
 
 ```js
 export default {
@@ -692,7 +692,7 @@ export default {
 
 `public-ingress-down` blocks the hub's published ports (`80,443`) rather than all inbound traffic. Remediation reaches the hub over SSH, so a total ingress block would drop the very connection that repairs it and leave the edge recoverable only from the provider console; the scoped block reproduces the same observable outage — every host down — while `--unblock-all-ingress`, which the handler runs, clears it along with any other ingress rule.
 
-Every shipped scenario breaks its subject through the **same identity chain the remediation resolves** — locally for the selected control node, LAN SSH for a worker, the hub's registered external SSH for the VPS. A subject that can be broken but not repaired therefore fails the rehearsal rather than an outage. They are run by `node bin event`, not by `underpost test`: the scenarios live in `test/e2e/` and no tier collects them.
+Every shipped scenario breaks its subject through the **same identity chain the remediation resolves** — locally for the selected control node, LAN SSH for a worker, the hub's registered external SSH for the VPS. A subject that can be broken but not repaired therefore fails the rehearsal rather than an outage. They are run by `node bin event`, not by `underpost test`: the scenarios live in `test/underpost/e2e/scenarios/` and no project collects them.
 
 ---
 
@@ -725,7 +725,7 @@ Add one object to `EVENTS` in `src/cli/event.js`:
 
 `probes` and `remediation` are functions, not values: both join the selected identity, node collection and topology at call time. Modules are `icmp`, `tcp_connect` and `http_2xx`.
 
-Then declare who hears it, in `conf.event.json` under `events.my-event.notifications` — without a route, `--list`, `event --service` and `monitor --sync-prom` all refuse to publish the rule. Optionally add `test/e2e/event-e2e-my-event.js` to make the whole loop rehearsable.
+Then declare who hears it, in `conf.event.json` under `events.my-event.notifications` — without a route, `--list`, `event --service` and `monitor --sync-prom` all refuse to publish the rule. Optionally add `test/underpost/e2e/scenarios/event-e2e-my-event.js` to make the whole loop rehearsable.
 
 An event that fans out over many subjects emits one probe per subject with a distinguishing label, and the handler reads that label back off `alerts` to know which subject to act on. `remediation()` is what `--list` prints, so it should resolve the same identities the handler will use. The handler returns `{ ok, role, condition, targets[], health }`; the notification is rendered from that, which is what makes an alert say _which_ subject failed. Then re-provision:
 
@@ -762,7 +762,7 @@ Both availability domains are narrowed by the dashboard's own `Event` and `Job` 
 
 **Underpost · Node Metrics** — CPU and memory percentage per node, RX/TX throughput on `wg0` and whatever a host calls its own NIC, root filesystem usage with disk I/O rates, and the hub's monthly bandwidth against its quota over time. Every panel groups by `instance`, which is the same address the node events resolve a target from, so a spike names a machine an operator can reach, and every legend carries the `underpost_role` — `hub`, `control` or `worker` — that Prometheus relabels on from the node registry.
 
-The hub appears in all four hardware panels once its collector is provisioned with `wireguard --node-exporter`; see [Host metrics outside the cluster](<./Edge Hub WireGuard and HAProxy.md#host-metrics-outside-the-cluster>).
+The hub appears in all four hardware panels once its collector is provisioned with `wireguard --node-exporter`; see [Host metrics outside the cluster](run-the-edge-hub.md#host-metrics-outside-the-cluster).
 
 Dashboards are file-provisioned and re-read every 30 seconds, so a dashboard change lands without a restart. Datasources are provisioned at start only, which is why a sync rolls Grafana and not the other three components.
 
@@ -1019,6 +1019,6 @@ Cockpit and Prometheus both default to port 9090. They do not collide — Promet
 
 ## See also
 
-- [Monitor cluster](<./Monitor cluster.md>) — per-deploy health monitoring and readiness gating
-- [Edge Hub WireGuard and HAProxy](<./Edge Hub WireGuard and HAProxy.md>) — the transport the two WireGuard events repair
-- [Main cluster lifecycle commands](<./Main cluster lifecycle commands.md>)
+- [Monitor cluster](monitor-a-cluster.md) — per-deploy health monitoring and readiness gating
+- [Edge Hub WireGuard and HAProxy](run-the-edge-hub.md) — the transport the two WireGuard events repair
+- [Main cluster lifecycle commands](../reference/cluster-lifecycle.md)

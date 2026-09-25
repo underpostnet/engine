@@ -409,7 +409,7 @@ Whether a peer is _this_ machine is settled the same way: its `managementHost` h
 
 Commands are logged with any credential in a URL masked to `***`, and the error a failed command throws carries the same masking, so a token cannot reach a terminal or a CI log through them.
 
-The same registered accounts are what `node bin event <event-id> --e2e-test` uses to take a subject down before repairing it, so an account that can break a peer but not repair it fails the rehearsal instead of an outage. See [Observability and Events](<./Observability and Events.md>).
+The same registered accounts are what `node bin event <event-id> --e2e-test` uses to take a subject down before repairing it, so an account that can break a peer but not repair it fails the rehearsal instead of an outage. See [Observability and Events](run-observability-and-events.md).
 
 ## Host metrics outside the cluster
 
@@ -630,7 +630,7 @@ Three distinct layers, each one hop apart:
 | `underpost-ingress`             | Each cluster's node | The node's 80/443; hands each connection to Contour or Envoy Gateway   |
 | `underpost-gateway`             | Inside the cluster  | Status pages, intercepted contexts; a backend the data planes route to |
 
-TLS is terminated exactly once, at the cluster's own ingress. See [Main cluster lifecycle commands](<./Main cluster lifecycle commands.md>) for the two inner layers.
+TLS is terminated exactly once, at the cluster's own ingress. See [Main cluster lifecycle commands](../reference/cluster-lifecycle.md) for the two inner layers.
 
 ## Command reference
 

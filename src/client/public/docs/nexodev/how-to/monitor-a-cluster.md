@@ -2,7 +2,7 @@
 
 Quick reference for the `underpost monitor` command — run health checks, wait for readiness, optionally perform automated recovery (restart/switch traffic) for deployments, and provision the cluster observability stack.
 
-`monitor` covers two scopes. The health-check loop below is **per deploy**: it polls one deployment's hosts and switches traffic when they stop answering. The `--observability` and `--sync-prom` flags act on the **cluster-scoped** Prometheus/Alertmanager/Blackbox/Grafana stack, where `deploy-id` selects which deploys are scraped rather than which stack to act on — see [Observability and Events](<./Observability and Events.md>).
+`monitor` covers two scopes. The health-check loop below is **per deploy**: it polls one deployment's hosts and switches traffic when they stop answering. The `--observability` and `--sync-prom` flags act on the **cluster-scoped** Prometheus/Alertmanager/Blackbox/Grafana stack, where `deploy-id` selects which deploys are scraped rather than which stack to act on — see [Observability and Events](run-observability-and-events.md).
 
 ## Usage
 
@@ -74,6 +74,6 @@ node bin monitor --expose-grafana --grafana-host www.nexodev.org   # https://www
 
 - Passing `dd` runs monitoring for all deploy-ids listed in `./engine-private/deploy/dd.routes` (if present).
 - For `blue-green` type, sustained failures trigger proxy/ConfigMap updates, a rollout restart of the affected deployment, and a traffic switch automatically.
-- The observability, `--metrics-server` and Cockpit flags are cluster- or host-scoped and skip the per-deploy health loop entirely; scrape targets are derived from each deploy's `conf.server.json`, and probes and alert rules from the event registry. See [Observability and Events](<./Observability and Events.md>).
+- The observability, `--metrics-server` and Cockpit flags are cluster- or host-scoped and skip the per-deploy health loop entirely; scrape targets are derived from each deploy's `conf.server.json`, and probes and alert rules from the event registry. See [Observability and Events](run-observability-and-events.md).
 - With no `deploy-id`, or with `dd`, the scrape set is the cron deploy from `engine-private/deploy/dd.cron` plus every deploy in `engine-private/deploy/dd.routes`.
 - See `node bin monitor --help` or `underpost monitor --help` for full option details.

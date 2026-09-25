@@ -112,7 +112,7 @@ Prerequisites on the organization side:
 
 `underpost secret rotate --args secret=` distributes any Actions secret to the repositories of a
 deploy, under either account; see
-[SOPS Age Secret Management](./SOPS%20Age%20Secret%20Management.md#rotating-github-actions-secrets).
+[SOPS Age Secret Management](manage-secrets-with-sops.md#rotating-github-actions-secrets).
 
 | Secret                 | Source repositories (`underpostnet`) | Mirrors (`underpost`)              |
 | ---------------------- | ------------------------------------ | ---------------------------------- |

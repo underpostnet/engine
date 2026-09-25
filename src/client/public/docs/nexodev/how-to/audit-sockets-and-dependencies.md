@@ -28,7 +28,7 @@ Socket CLI through the child environment, never through a command line.
 They are host-scope keys (`engine-private/deploy/scopes/host.env.production`).
 `underpost host load` projects them onto a node; a CI repository receives them with
 `underpost secret rotate --args "secret=SOCKET_CLI_API_TOKEN|SOCKET_CLI_ORG_SLUG,source=host,deploy-id=<id>"`
-(see [SOPS Age Secret Management](./SOPS%20Age%20Secret%20Management.md#rotating-github-actions-secrets)).
+(see [SOPS Age Secret Management](manage-secrets-with-sops.md#rotating-github-actions-secrets)).
 
 The CLI is a development dependency, so `node_modules/.bin/socket` exists after
 `npm install`. A host that installs the engine with `--omit=dev` needs
