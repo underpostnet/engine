@@ -8,6 +8,7 @@ import {
   DEFAULT_FALLBACK_INSTANCE_CODE,
 } from './cyberia-fallback-world.js';
 import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
+import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -16,8 +17,7 @@ class CyberiaInstanceService {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
-    if (req.auth && req.auth.user) req.body.creator = req.auth.user._id;
-    const instance = await new CyberiaInstance(req.body).save();
+    const instance = await new CyberiaInstance({ ...req.body, creator: req.auth.user._id }).save();
 
     // Auto-upsert a CyberiaInstanceConf for this instance using schema defaults.
     // $setOnInsert ensures existing conf documents are never overwritten.
@@ -71,13 +71,14 @@ class CyberiaInstanceService {
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const instance = await CyberiaInstance.findById(req.params.id);
     if (!instance) throw new Error('instance not found');
-    if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
-      throw new Error('insufficient permission');
-    if (req.body.thumbnail && instance.thumbnail && String(req.body.thumbnail) !== String(instance.thumbnail)) {
+    assertOwnerOrAdmin(req.auth.user, instance.creator);
+    // The owner is set once, by the write that created the instance.
+    const { creator, ...changes } = req.body;
+    if (changes.thumbnail && instance.thumbnail && String(changes.thumbnail) !== String(instance.thumbnail)) {
       const File = DataBaseProviderService.getModel('File', options);
       await File.findByIdAndDelete(instance.thumbnail);
     }
-    return await CyberiaInstance.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+    return await CyberiaInstance.findByIdAndUpdate(req.params.id, changes, { returnDocument: 'after' });
   };
   /**
    * Central portal connector endpoint.
@@ -141,6 +142,7 @@ class CyberiaInstanceService {
     // ── Persist to DB when requested ─────────────────────────────────────
     const persist = req.query?.persist === 'true';
     if (persist) {
+      assertOwnerOrAdmin(req.auth.user, instance.creator);
       await CyberiaInstance.findByIdAndUpdate(req.params.id, { portals: result.portals });
     }
 
@@ -156,8 +158,7 @@ class CyberiaInstanceService {
     if (req.params.id) {
       const instance = await CyberiaInstance.findById(req.params.id);
       if (!instance) throw new Error('instance not found');
-      if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
-        throw new Error('insufficient permission');
+      assertOwnerOrAdmin(req.auth.user, instance.creator);
       if (instance.thumbnail) {
         const File = DataBaseProviderService.getModel('File', options);
         await File.findByIdAndDelete(instance.thumbnail);
