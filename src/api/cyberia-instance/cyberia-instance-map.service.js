@@ -17,6 +17,7 @@ import {
   resolveEntityDefaultBuild,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -90,15 +91,13 @@ const entityBehavior = (entity, entityDefaults) =>
 const resolveObjectLayerMetadata = async (itemIds, options) => {
   if (!itemIds.length) return {};
 
-  let ObjectLayer;
+  let models;
   try {
-    ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
+    models = catalogModels(options);
   } catch {
     return {};
   }
-  const objectLayers = await ObjectLayer.find({ 'data.item.id': { $in: itemIds } })
-    .select('data.item.id data.item.type')
-    .lean();
+  const objectLayers = await findBoundDefinitions(models, itemIds);
   return Object.fromEntries(
     objectLayers.map((layer) => [
       layer.data.item.id,
