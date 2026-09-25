@@ -129,7 +129,7 @@
     "nodemon": "^3.0.1"
   },
   "devDependencies": {
-    "@socketsecurity/cli": "1.1.171",
+    "@socketsecurity/cli": "1.1.176",
     "@vitest/coverage-v8": "5.0.0",
     "allure-vitest": "3.12.1",
     "bumpp": "^12.3.0",
