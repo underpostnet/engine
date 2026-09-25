@@ -28,6 +28,7 @@
 
 import express from 'express';
 import { crossOriginMiddleware } from '../../server/network/middlewares.js';
+import { serverKeyGuard } from '../../projects/cyberia/server-key.js';
 import { CyberiaServerRegistryController } from './cyberia-server-registry.controller.js';
 
 class CyberiaServerRegistryRouter {
@@ -39,7 +40,7 @@ class CyberiaServerRegistryRouter {
     const router = express.Router();
     router.use(crossOriginMiddleware);
 
-    router.post('/', async (req, res) => await CyberiaServerRegistryController.report(req, res, options));
+    router.post('/', serverKeyGuard, async (req, res) => await CyberiaServerRegistryController.report(req, res, options));
     router.get('/', async (req, res) => await CyberiaServerRegistryController.latest(req, res, options));
 
     return router;
