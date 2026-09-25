@@ -641,9 +641,9 @@ Credentials are resolved in the following priority:
 2. **Environment variable** — `resolveConfSecrets()` resolves the pointer to `process.env.VAR_NAME`.
 3. **Safe built-in default** — the `DefaultConf` in `conf.js` uses `process.env.VAR || 'fallback'` for base defaults.
 
-### Generated Manifest Files (`conf.dd-*.js`)
+### Generated Manifest Files (`underpost.config.dd-*.js`)
 
-When `updateDefaultConf()` generates a `conf.dd-*.js` manifest from `conf.server.json`:
+When `updateDefaultConf()` generates a `underpost.config.dd-*.js` manifest from `conf.server.json`:
 
 1. `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated JS file.
 2. Non-sensitive values (arrays, booleans, static strings) are serialized normally.

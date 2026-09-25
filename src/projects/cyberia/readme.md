@@ -101,7 +101,7 @@ reuse it instead of forking a Cyberia variant.
 Every deployed client ships as a static application shell with PWA support. The pipeline has exactly two
 inputs:
 
-- the deploy `ssr` configuration in `conf.dd-*.js` (or `conf.ssr.json`)
+- the deploy `ssr` configuration in `underpost.config.dd-*.js` (or `conf.ssr.json`)
 - the service worker source in `src/client/sw/core.sw.js`
 
 Everything else — `index.html` pages, `sw.js`, the precache list — is **generated** during the client

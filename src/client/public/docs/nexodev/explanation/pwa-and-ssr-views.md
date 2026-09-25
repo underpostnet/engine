@@ -8,7 +8,7 @@ How per-deploy SSR views are declared and how they drive the PWA offline lifecyc
 
 The PWA pipeline has two inputs:
 
-- the deploy `ssr` configuration in `conf.dd-*.js` or `conf.ssr.json`
+- the deploy `ssr` configuration in `underpost.config.dd-*.js` or `conf.ssr.json`
 - the service worker source in `src/client/sw/core.sw.js`
 
 Everything else is generated from those inputs during the client build. Do not hand-edit generated `index.html` files, `sw.js`, or precache output.
@@ -17,7 +17,7 @@ Everything else is generated from those inputs during the client build. Do not h
 
 ## SSR config shape
 
-Each deploy's `conf.ssr.json` (or the public `ssr` block in `conf.dd-<conf-id>.js`) declares an app-shell entry per client. A typical entry:
+Each deploy's `conf.ssr.json` (or the public `ssr` block in `underpost.config.dd-<conf-id>.js`) declares an app-shell entry per client. A typical entry:
 
 ```js
 ssr: {
@@ -142,7 +142,7 @@ Falls through to the other if the primary is missing from cache, then `Response.
 ## Adding a new SSR view
 
 1. Create `src/client/ssr/views/<MyView>.js` exporting an `SSRComponent` function (see `src/client/ssr/views/Test.js` for the minimum shape).
-2. Append an entry to the relevant `ssr.<App>.views` array in `conf.ssr.json` / `conf.dd-<conf-id>.js`.
+2. Append an entry to the relevant `ssr.<App>.views` array in `conf.ssr.json` / `underpost.config.dd-<conf-id>.js`.
 3. Run `npm run build` (or `npm run dev`) — the build emits `<root>/<path>/index.html` for the new view.
 
 To make the new view a fallback target, set `offlineDefault: true` or `maintenanceDefault: true`. Only one view per app should carry each flag — if multiple are set, the last one in `views[]` wins.

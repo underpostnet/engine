@@ -44,7 +44,7 @@ The `<conf-id>` suffix (e.g. `core`, `cyberia`, `lampp`, `test`) is the shared i
 - **Repo Name** `engine-<conf-id>` → public repo, derived as `engine-${deployId.split('dd-')[1]}`
 - **Private Repo** `engine-<conf-id>-private` → private configuration repo
 - **Cron Backups Repo** `engine-<conf-id>-cron-backups` → cron backup repo
-- **Conf file** `conf.dd-<conf-id>.js` → deployment configuration module
+- **Conf file** `underpost.config.dd-<conf-id>.js` → deployment configuration module
 
 When a deploy ID is provided without the `dd-` prefix, the engine normalizes it automatically: `my-app` → `dd-my-app`. However, examples in this reference use the full `dd-<conf-id>` format for clarity.
 
@@ -64,7 +64,7 @@ Configuration files in `./engine-private/conf/dd-<conf-id>/` use `env:` referenc
 }
 ```
 
-Actual secret values are stored in per-deploy `.env.*` files (`./engine-private/conf/dd-<conf-id>/.env.production`, `.env.development`, `.env.test`). At runtime, the engine's `resolveConfSecrets()` function replaces `"env:VAR_NAME"` with the corresponding `process.env.VAR_NAME` value. Generated `conf.dd-*.js` manifests emit `process.env.VAR || ''` expressions — no plaintext secret is ever written to source-controlled JS files.
+Actual secret values are stored in per-deploy `.env.*` files (`./engine-private/conf/dd-<conf-id>/.env.production`, `.env.development`, `.env.test`). At runtime, the engine's `resolveConfSecrets()` function replaces `"env:VAR_NAME"` with the corresponding `process.env.VAR_NAME` value. Generated `underpost.config.dd-*.js` manifests emit `process.env.VAR || ''` expressions — no plaintext secret is ever written to source-controlled JS files.
 
 LAMPP deploy (`dd-lampp`) clients are `null` in the public project configuration, so no client bundle is built for it.
 
@@ -710,9 +710,9 @@ node bin image --pull-dockerhub underpost --kind
 
 **Command:** `node bin new --default-conf --deploy-id <deploy-id>`
 
-Creates or updates default configuration files for a deployment. Reads from `./engine-private/conf/dd-<conf-id>/` (including `conf.server.json`, `conf.client.json`, `conf.ssr.json`) and writes the resolved config to `conf.dd-<conf-id>.js`.
+Creates or updates default configuration files for a deployment. Reads from `./engine-private/conf/dd-<conf-id>/` (including `conf.server.json`, `conf.client.json`, `conf.ssr.json`) and writes the resolved config to `underpost.config.dd-<conf-id>.js`.
 
-During generation, `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated `conf.dd-*.js` file. At runtime, `resolveConfSecrets()` in `conf.js` resolves these strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`. Private deployment-only fields (`git`, `directory`) are stripped from the public manifest.
+During generation, `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated `underpost.config.dd-*.js` file. At runtime, `resolveConfSecrets()` in `conf.js` resolves these strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`. Private deployment-only fields (`git`, `directory`) are stripped from the public manifest.
 
 ```bash
 node bin new --default-conf --deploy-id dd-core

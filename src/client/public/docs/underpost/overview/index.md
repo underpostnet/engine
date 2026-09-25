@@ -62,7 +62,7 @@ Every deployed client is delivered as a static application shell with PWA suppor
 - Generated outputs such as `sw.js`, static pages, and compiled bundles are outputs only; never edit them by hand.
 
 ```text
-conf.dd-*.js / conf.ssr.json    +    src/client/sw/core.sw.js
+underpost.config.dd-*.js / conf.ssr.json    +    src/client/sw/core.sw.js
 			   │
 			   └──── underpost client / build ────▶ generated index.html + sw.js + precache
 ```

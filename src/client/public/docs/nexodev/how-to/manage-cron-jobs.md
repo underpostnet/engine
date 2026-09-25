@@ -511,9 +511,9 @@ These variables must be set in the appropriate `.env.<environment>` file
    API call. Missing credentials cause an error log and the update is skipped — the full
    URL containing the API key is **never logged**.
 
-### Generated Manifest Files (`conf.dd-*.js`)
+### Generated Manifest Files (`underpost.config.dd-*.js`)
 
-When `updateDefaultConf()` generates a `conf.dd-*.js` manifest:
+When `updateDefaultConf()` generates a `underpost.config.dd-*.js` manifest:
 
 1. `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated JS file.
 2. Non-sensitive values (expressions, booleans, static strings) are serialized normally.
