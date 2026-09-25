@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { ItemRefFields } from '../cyberia-item-catalog/item-ref.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -39,8 +40,9 @@ const CyberiaActionSchema = new Schema(
     // ── Shop payload ──────────────────────────────────────────────────────
     shopItems: [
       {
-        itemId: { type: String, required: true, trim: true },
+        ...ItemRefFields,
         priceItemId: { type: String, default: 'coin', trim: true },
+        priceObjectLayerCid: ItemRefFields.objectLayerCid,
         priceQty: { type: Number, default: 1, min: 0 },
       },
     ],
@@ -50,13 +52,13 @@ const CyberiaActionSchema = new Schema(
       {
         outputItems: [
           {
-            itemId: { type: String, required: true, trim: true },
+            ...ItemRefFields,
             qty: { type: Number, default: 1, min: 1 },
           },
         ],
         ingredients: [
           {
-            itemId: { type: String, required: true, trim: true },
+            ...ItemRefFields,
             qty: { type: Number, default: 1, min: 1 },
           },
         ],

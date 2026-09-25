@@ -7,6 +7,7 @@ import {
 import { collectInstanceItemIds, selectInstanceSkills } from '../cyberia-instance/cyberia-instance-items.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -72,14 +73,13 @@ const findDuplicateBuilds = (references, defaults) => {
 const readItemTypes = async (itemIds, options) => {
   const types = {};
   if (itemIds.size === 0) return types;
-  let ObjectLayer;
+  let models;
   try {
-    ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
+    models = catalogModels(options);
   } catch {
     return types;
   }
-  if (!ObjectLayer?.find) return types;
-  for (const doc of await ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } }, { 'data.item': 1 }).lean()) {
+  for (const doc of await findBoundDefinitions(models, [...itemIds])) {
     const item = doc?.data?.item;
     if (item?.id && item?.type) types[item.id] = item.type;
   }

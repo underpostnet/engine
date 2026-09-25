@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { QUEST_STEPS_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { ItemRefFields } from '../cyberia-item-catalog/item-ref.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -39,7 +40,7 @@ const CyberiaQuestSchema = new Schema(
             // talk    — itemId = provideItemId of the CyberiaAction to interact with
             // kill    — itemId = skin item ID of the target entity
             type: { type: String, required: true, enum: QUEST_STEPS_TYPES },
-            itemId: { type: String, required: true, trim: true },
+            ...ItemRefFields,
             quantity: { type: Number, default: 1, min: 1 },
           },
         ],
@@ -49,7 +50,7 @@ const CyberiaQuestSchema = new Schema(
     // ── Rewards ───────────────────────────────────────────────────────────
     rewards: [
       {
-        itemId: { type: String, required: true, trim: true },
+        ...ItemRefFields,
         quantity: { type: Number, default: 1, min: 1 },
       },
     ],

@@ -13,9 +13,12 @@ const buildModels = ({ instance, maps = [], storedItemIds = [] }) => ({
   CyberiaSkill: { find: () => lean([]) },
   ObjectLayer: {
     find: (filter) => {
-      const wanted = new Set(filter['data.item.id'].$in);
-      return lean(storedItemIds.filter((id) => wanted.has(id)).map((id) => ({ _id: id, data: { item: { id } } })));
+      const wanted = new Set(filter.cid.$in);
+      return lean(storedItemIds.filter((id) => wanted.has(`cid-${id}`)).map((id) => ({ _id: id, cid: `cid-${id}`, data: { item: { id } } })));
     },
+  },
+  CyberiaItemCatalog: {
+    resolve: async (ids) => new Map(ids.filter((id) => storedItemIds.includes(id)).map((id) => [id, `cid-${id}`])),
   },
 });
 

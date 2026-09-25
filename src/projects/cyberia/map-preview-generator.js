@@ -9,11 +9,12 @@
  * image for the client's Instance Map node backgrounds.
  *
  * Every entity is drawn by its items' idle-preview stills, the same picture the
- * editors show, read from the atlas the item key resolves to.
+ * editors show, read from the atlas of the definition each label is bound to.
  *
- * Previews are pure functions of the map's entity list, so results are cached
- * in memory keyed by a content hash — the fallback world is regenerated (and
- * re-randomised) on every call, and only a changed layout re-renders.
+ * Previews are pure functions of the map's entity list and of the idle previews its labels
+ * resolve to, so results are cached in memory keyed by a content hash of both — the fallback
+ * world is regenerated (and re-randomised) on every call, and only a changed layout or a
+ * changed item picture re-renders.
  *
  * @module src/projects/cyberia/map-preview-generator.js
  */
@@ -22,6 +23,8 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { renderFileBytes } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { catalogModels, catalogMounted } from './object-layer-catalog.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -30,47 +33,46 @@ const DEFAULT_CELL_PX = 8;
 const MAX_SIDE_PX = 1024;
 
 /**
- * Idle-still cache: itemId → Buffer | null. The still is keyed by item id on the
- * atlas, so no type has to be known or probed to find it.
+ * The idle preview File each label of a map resolves to now: the atlas of the definition its
+ * binding names, so no type has to be known or probed.
+ * @returns {Promise<Map<string, string|null>>} itemId → File id.
  */
-const stillCache = new Map();
-
-async function idleStill(itemId, options) {
-  if (stillCache.has(itemId)) return stillCache.get(itemId);
-  let buffer = null;
+async function idlePreviewFileIds(map, options) {
+  const itemIds = [...new Set((map.entities || []).flatMap((entity) => entity.objectLayerItemIds || []))];
+  const previews = new Map(itemIds.map((itemId) => [itemId, null]));
+  if (itemIds.length === 0 || !catalogMounted(options)) return previews;
   try {
-    const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
-    const File = DataBaseProviderService.getModel('File', options);
-    const atlas = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemId }, { idlePreviewFileId: 1 }).lean();
-    const file = atlas?.idlePreviewFileId ? await File.findById(atlas.idlePreviewFileId, { data: 1 }) : null;
-    if (file?.data) buffer = Buffer.from(file.data);
+    const bindings = await catalogModels(options).CyberiaItemCatalog.resolve(itemIds);
+    const atlases = await DataBaseProviderService.getModel('AtlasSpriteSheet', options)
+      .find({ objectLayerCid: { $in: [...bindings.values()] } }, { objectLayerCid: 1, idlePreviewFileId: 1 })
+      .lean();
+    const fileIds = new Map(atlases.map((atlas) => [atlas.objectLayerCid, atlas.idlePreviewFileId]));
+    for (const [itemId, cid] of bindings) previews.set(itemId, fileIds.get(cid) ? String(fileIds.get(cid)) : null);
   } catch (error) {
-    logger.warn(`map preview: idle still lookup failed for "${itemId}": ${error.message}`);
+    logger.warn(`map preview: idle preview lookup failed for "${map.code}": ${error.message}`);
   }
-  stillCache.set(itemId, buffer);
-  return buffer;
+  return previews;
 }
 
 /**
- * Resized-frame cache: `${itemId}:${w}x${h}` → Buffer | null.
- * A map tiles thousands of floor cells from a handful of distinct items, so
- * resizing once per (item, size) is the difference between fast and unusable.
+ * Resized-frame cache: `${fileId}:${w}x${h}` → Buffer | null. A File id is derived from its
+ * bytes, so an entry never goes stale. A map tiles thousands of floor cells from a handful of
+ * distinct items, so resizing once per (picture, size) is the difference between fast and unusable.
  */
 const frameCache = new Map();
 
-async function resizedFrame(itemId, width, height, options) {
-  const still = await idleStill(itemId, options);
-  if (!still) return null;
-
-  const key = `${itemId}:${width}x${height}`;
+async function resizedFrame(fileId, width, height, options) {
+  if (!fileId) return null;
+  const key = `${fileId}:${width}x${height}`;
   if (frameCache.has(key)) return frameCache.get(key);
 
   let buffer = null;
   try {
+    const still = await renderFileBytes(fileId, options);
     // `nearest` keeps the pixel-art edges crisp at small sizes.
-    buffer = await sharp(still).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
+    if (still) buffer = await sharp(still).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
   } catch (error) {
-    logger.warn(`map preview: frame render failed for "${itemId}": ${error.message}`);
+    logger.warn(`map preview: frame render failed for File ${fileId}: ${error.message}`);
   }
   frameCache.set(key, buffer);
   return buffer;
@@ -139,7 +141,7 @@ async function solidFrame(color, width, height) {
 }
 
 /** Stable content hash of everything that affects the rendered pixels. */
-function mapPreviewHash(map, cellPx) {
+function mapPreviewHash(map, cellPx, previews) {
   const layout = (map.entities || []).map((e) => [
     e.initCellX,
     e.initCellY,
@@ -151,7 +153,7 @@ function mapPreviewHash(map, cellPx) {
   ]);
   return crypto
     .createHash('sha1')
-    .update(JSON.stringify({ code: map.code, g: [map.gridX, map.gridY], cellPx, layout }))
+    .update(JSON.stringify({ code: map.code, g: [map.gridX, map.gridY], cellPx, layout, previews: [...previews] }))
     .digest('hex');
 }
 
@@ -162,9 +164,10 @@ function mapPreviewHash(map, cellPx) {
  * @param {object} [opts]
  * @param {number} [opts.cellPx=8]   Pixels per grid cell in the output.
  * @param {object} [opts.options]    Router options ({ host, path }) the stills are read with.
+ * @param {Map<string, string|null>} [opts.previews] - Idle preview File ids by label, when already resolved.
  * @returns {Promise<Buffer|null>}   PNG buffer, or null when nothing rendered.
  */
-async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = {}) {
+async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options, previews } = {}) {
   const gridX = map?.gridX || 0;
   const gridY = map?.gridY || 0;
   if (gridX <= 0 || gridY <= 0) return null;
@@ -174,6 +177,7 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = 
   const cell = Math.max(1, Math.floor(cellPx * scale));
   const width = gridX * cell;
   const height = gridY * cell;
+  const fileIds = previews ?? (await idlePreviewFileIds(map, options));
 
   // Every entity of every entityType in the array renders something: its items'
   // stills when the atlases hold them, otherwise a flat fill of its colour.
@@ -188,7 +192,7 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = 
     // Stack the entity's layers in declaration order, exactly like the editor.
     let drew = false;
     for (const itemId of entity.objectLayerItemIds || []) {
-      const input = await resizedFrame(itemId, w, h, options);
+      const input = await resizedFrame(fileIds.get(itemId), w, h, options);
       if (input) {
         composites.push({ input, left, top });
         drew = true;
@@ -224,11 +228,12 @@ const cacheKey = (instanceCode, mapCode) => `${instanceCode}:${mapCode}`;
  */
 async function cacheMapPreview(instanceCode, map, opts = {}) {
   const key = cacheKey(instanceCode, map.code);
-  const hash = mapPreviewHash(map, opts.cellPx ?? DEFAULT_CELL_PX);
+  const previews = await idlePreviewFileIds(map, opts.options);
+  const hash = mapPreviewHash(map, opts.cellPx ?? DEFAULT_CELL_PX, previews);
   const hit = previewCache.get(key);
   if (hit && hit.hash === hash) return hit.png;
 
-  const png = await renderMapPreviewPng(map, opts);
+  const png = await renderMapPreviewPng(map, { ...opts, previews });
   if (!png) return null;
   previewCache.set(key, { hash, png });
   return png;

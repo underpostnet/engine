@@ -1,4 +1,5 @@
 import { validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { writeItemDefinition } from './object-layer-catalog.js';
 /**
  * Top-Down Procedural Generation guided by LLMs (Semantic Reverse-Engineering).
  *
@@ -1624,36 +1625,33 @@ function normalizeSagaPayload(raw, { theme }) {
 }
 
 /**
- * Persist normalized object-layer items into the ObjectLayer collection so they
- * are editable in the viewer. New items get an empty render and an `OFF_CHAIN`
- * ledger; both can be set later from the object-layer import or from
- * `src/client/components/cyberia/ObjectLayerEngineViewer.js`.
+ * Persist normalized object-layer items so they are editable in the viewer. A new item gets
+ * an empty render; the object-layer import fills it later.
  *
- * Upserts through `ObjectLayer.upsertByItemId`, so `data.item.id` stays unique
- * and an existing item's render, ledger and CIDs are PRESERVED — only the
- * textual stats/item fields are refreshed, and `sha256` is recomputed.
+ * Writes through {@link writeItemDefinition}, so the definition bound to the label takes the
+ * textual and statistical fields and keeps its render. Changed content is a new definition.
  *
  * @async
  * @param {Object} params
  * @param {Object[]} params.objectLayers - Normalized object-layer items ({ stats, item, render }).
- * @param {import('mongoose').Model} params.ObjectLayer - The ObjectLayer model.
+ * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
+ * @param {{host:string,path:string}} [params.context] - Host the models belong to; it says where definitions publish.
  * @returns {Promise<number>} Count of items created or updated.
  */
-async function persistObjectLayers({ objectLayers, ObjectLayer }) {
-  await ObjectLayer.ensureUniqueItemIdIndex();
-
+async function persistObjectLayers({ objectLayers, models, context }) {
   let count = 0;
   for (const ol of objectLayers) {
     const itemId = ol.item?.id;
     if (!itemId) continue;
 
-    // The saga only owns the textual/statistical fields. Ledger and render are
-    // seeded on insert and never refreshed, so a re-import cannot clobber an
-    // on-chain registration or a render produced by the object-layer import.
-    await ObjectLayer.upsertByItemId(
-      { data: { stats: ol.stats, item: ol.item } },
-      { setOnInsert: { cid: null, data: { ledger: { type: 'OFF_CHAIN', tokenId: '' }, render: {} } } },
-    );
+    // The saga only owns the textual/statistical fields. The render is seeded on insert and
+    // never refreshed, so a re-import cannot clobber a render produced by the object-layer import.
+    await writeItemDefinition({
+      models,
+      payload: { data: { stats: ol.stats, item: ol.item } },
+      setOnInsert: { data: { render: {} } },
+      options: context,
+    });
     count++;
   }
   return count;
@@ -1664,7 +1662,7 @@ async function persistObjectLayers({ objectLayers, ObjectLayer }) {
  * description, tags, map codes, item ids, topology) are refreshed every run;
  * spatial topology (`portals`) and the tuning ref (`conf`) are PRESERVED — set
  * only on insert — so downstream spatial synthesis is never clobbered back to
- * empty (mirrors how {@link persistObjectLayers} preserves render/ledger).
+ * empty (mirrors how {@link persistObjectLayers} preserves the render).
  *
  * @async
  * @param {Object} params
@@ -1728,9 +1726,10 @@ function buildPlacementSafeUpdate(doc) {
  * @param {Object} params
  * @param {Object} params.payload - Output of {@link normalizeSagaPayload}.
  * @param {Object} params.models - { CyberiaSaga, CyberiaInstance?, CyberiaMap?, CyberiaQuest, CyberiaDialogue, CyberiaAction, CyberiaSkill?, ObjectLayer? }.
+ * @param {{host:string,path:string}} [params.context] - Host the models belong to.
  * @returns {Promise<{ saga, instance, maps, quests, dialogues, actions, skills, objectLayers: number }>}
  */
-async function persistSagaPayload({ payload, models }) {
+async function persistSagaPayload({ payload, models, context }) {
   const {
     CyberiaSaga,
     CyberiaInstance,
@@ -1740,6 +1739,7 @@ async function persistSagaPayload({ payload, models }) {
     CyberiaAction,
     CyberiaSkill,
     ObjectLayer,
+    CyberiaItemCatalog,
   } = models;
   const { saga, instance, maps, quests, dialogues, actions, skills, objectLayers } = payload;
 
@@ -1785,7 +1785,10 @@ async function persistSagaPayload({ payload, models }) {
     }
   }
 
-  const objectLayerCount = ObjectLayer ? await persistObjectLayers({ objectLayers, ObjectLayer }) : 0;
+  const objectLayerCount =
+    ObjectLayer && CyberiaItemCatalog
+      ? await persistObjectLayers({ objectLayers, models: { ObjectLayer, CyberiaItemCatalog }, context })
+      : 0;
 
   return {
     saga: 1,
@@ -1920,6 +1923,7 @@ async function generateRawEcosystem(
  * @param {Object} params
  * @param {string} [params.prompt] - Theme seed; if omitted, auto-generated from lore.
  * @param {Object} params.models - Loaded Mongoose models (see {@link persistSagaPayload}).
+ * @param {{host:string,path:string}} [params.context] - Host the models belong to.
  * @param {string} [params.model] - Gemini model id override.
  * @param {string} [params.apiKey] - Gemini API key override.
  * @param {number} [params.timeout] - Per-request timeout in ms.
@@ -1938,6 +1942,7 @@ async function generateRawEcosystem(
 async function generateSaga({
   prompt,
   models,
+  context,
   model,
   apiKey,
   timeout,
@@ -2020,7 +2025,7 @@ async function generateSaga({
   const payload = normalizeSagaPayload(raw, { theme });
 
   const outPath = out || nodePath.join(DEFAULT_SAGA_OUT_DIR, `${payload.saga.code}.json`);
-  return finalizeSaga({ payload, models, out: outPath, dryRun });
+  return finalizeSaga({ payload, models, context, out: outPath, dryRun });
 }
 
 /**
@@ -2033,11 +2038,12 @@ async function generateSaga({
  * @param {Object} params
  * @param {string} params.file - Path to the JSON payload file.
  * @param {Object} params.models - Loaded Mongoose models (see {@link persistSagaPayload}).
+ * @param {{host:string,path:string}} [params.context] - Host the models belong to.
  * @param {boolean} [params.dryRun=false] - Normalize only; skip persistence.
  * @param {string} [params.out] - Optional path to re-dump the normalized payload.
  * @returns {Promise<Object>} The normalized payload (with a `summary` when persisted).
  */
-async function importSaga({ file, models, dryRun = false, out }) {
+async function importSaga({ file, models, context, dryRun = false, out }) {
   if (!file) throw new Error('An --import file path is required.');
 
   const filePath = nodePath.resolve(file);
@@ -2049,7 +2055,7 @@ async function importSaga({ file, models, dryRun = false, out }) {
     theme: raw?.saga?.name || raw?.saga?.code || 'imported-saga',
   });
 
-  return finalizeSaga({ payload, models, out, dryRun });
+  return finalizeSaga({ payload, models, context, out, dryRun });
 }
 
 /**
@@ -2060,11 +2066,12 @@ async function importSaga({ file, models, dryRun = false, out }) {
  * @param {Object} params
  * @param {Object} params.payload - Output of {@link normalizeSagaPayload}.
  * @param {Object} [params.models] - Loaded Mongoose models (required unless `dryRun`).
+ * @param {{host:string,path:string}} [params.context] - Host the models belong to.
  * @param {string} [params.out] - Optional path to dump the normalized payload JSON.
  * @param {boolean} [params.dryRun=false] - Skip persistence; only normalize + dump.
  * @returns {Promise<Object>} The normalized payload (with a `summary` when persisted).
  */
-async function finalizeSaga({ payload, models, out, dryRun = false }) {
+async function finalizeSaga({ payload, models, context, out, dryRun = false }) {
   logger.info(
     `Normalized: saga=${payload.saga.code} instance=${payload.instance?.code || '—'} ` +
       `maps=${payload.maps.length} quests=${payload.quests.length} ` +
@@ -2084,7 +2091,7 @@ async function finalizeSaga({ payload, models, out, dryRun = false }) {
     return payload;
   }
 
-  const summary = await persistSagaPayload({ payload, models });
+  const summary = await persistSagaPayload({ payload, models, context });
   logger.info(
     `Persisted: ${summary.saga} saga, ${summary.instance} instance, ${summary.maps} maps, ` +
       `${summary.quests} quests, ${summary.dialogues} dialogues, ${summary.actions} actions, ` +
