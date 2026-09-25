@@ -12,12 +12,12 @@ const CssCommonItemledger = async () => {
     style: 'width: 100px; height: 100px',
   });
   subThemeManager.setDarkTheme('#24FBFFFF');
-  subThemeManager.setLightTheme('#ffcc00');
+  subThemeManager.setLightTheme('#24FBFFFF');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonItemledger',
     style: {
-      'font-family': `retro-font`,
+      'font-family': `retro-font-sensitive`,
       'font-size': '24px',
       'no-cell-focus-style': true,
       'row-cursor': 'pointer',
@@ -49,6 +49,46 @@ const CssCommonItemledger = async () => {
         font-family: 'retro-font-cta';
         src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
       }
+      .search-result-item {
+        font-family: 'retro-font-sensitive';
+      }
+      .down-arrow-submenu {
+        left: 102px;
+      }
+
+      /* Docs section retro styling */
+      .docs-header h1 {
+        font-family: var(--il-font-retro-cta);
+        color: #24fbff;
+        text-shadow: 2px 2px 0px #127e80;
+      }
+      .docs-card {
+        border: 2px solid #24fbff;
+        transition: all 0.3s ease-in-out;
+      }
+      .docs-card:hover {
+        background: rgba(36, 251, 255, 0.08);
+        box-shadow:
+          0 0 10px rgba(36, 251, 255, 0.3),
+          0 0 20px rgba(36, 251, 255, 0.15);
+        transform: translateY(-3px);
+      }
+      .card-icon {
+        color: #24fbff;
+      }
+      .card-content h3 {
+        font-family: var(--il-font-retro-cta);
+        font-size: 1.25rem;
+      }
+      .card-content p {
+        font-family: var(--il-font-retro);
+      }
+      .submenu-btn {
+        font-family: var(--il-font-retro);
+      }
+      .submenu-btn:hover {
+        background: rgba(36, 251, 255, 0.1);
+      }
 
       /* Landing Page & Object Viewer Styles */
       .landing-container {
@@ -75,11 +115,6 @@ const CssCommonItemledger = async () => {
       }
 
       p {
-        font-family: var(--il-font-retro);
-      }
-
-      .object-layer-viewer-container {
-        width: 100% !important;
         font-family: var(--il-font-retro);
       }
 
@@ -148,8 +183,13 @@ const CssCommonItemledger = async () => {
       .input-container {
         width: 278px;
       }
+      .default-slide-menu-top-bar-fix-title-container-text {
+        font-size: 40px !important;
+        color: #24fbffff !important;
+      }
     </style>
 
+    ${borderChar(1, `black`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
     <div class="ag-grid-style"></div>`;
 };
 
@@ -158,25 +198,7 @@ class CssItemledgerDark {
   static dark = true;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonItemledger()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #212020;
-          }
-          .action-bar-box {
-            color: white;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
-            color: black !important;
-          }
-        </style>
-        ${borderChar(2, `#24FBFFFF`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-      `
-    );
+    return (await CssCommonItemledger()) + html` <style></style> `;
   };
 }
 
@@ -185,27 +207,7 @@ class CssItemledgerLight {
   static dark = false;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonItemledger()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #d8d8d8;
-          }
-
-          .action-bar-box {
-            color: black;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
-            color: #ffcc00 !important;
-          }
-        </style>
-        ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
-      `
-    );
+    return (await CssCommonItemledger()) + html` <style></style> `;
   };
 }
 

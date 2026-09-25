@@ -25,6 +25,10 @@ class RouterItemledger {
         title: 'account',
         render: () => s(`.main-btn-account`).click(),
       },
+      '/item-ledger-registry': {
+        title: 'item-ledger-registry',
+        render: () => s(`.main-btn-item-ledger-registry`).click(),
+      },
       '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click() },
       '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
     };

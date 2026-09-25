@@ -5,29 +5,40 @@ import { Css, darkTheme, ThemeEvents, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import {
+  buildBadgeToolTipMenuOption,
+  isSubMenuOpen,
+  Modal,
+  SUBMENU_SELECTION_QUERY_KEY,
+  renderMenuLabel,
+  renderViewTitle,
+  sortableSubMenuEvents,
+  subMenuRender,
+} from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath } from '../core/Router.js';
+import { getProxyPath, setQueryParams } from '../core/Router.js';
 import { AppStoreItemledger } from './AppStoreItemledger.js';
 import Sortable from 'sortablejs';
 import { RouterItemledger, BannerAppTemplate } from './RouterItemledger.js';
 import { SettingsItemledger } from './SettingsItemledger.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
+import { deployPackageReleaseUrl } from '../core/Repository.js';
 import { Recover } from '../core/Recover.js';
-import { DefaultManagement } from '../../services/default/default.management.js';
+import { ItemLedgerManagement } from '../../services/item-ledger/item-ledger.management.js';
+import { MainBodyDocument } from '../core/MainBodyDocument.js';
 
 class AppShellItemledger {
   static Data = {};
-  static async instance(options = { htmlMainBody: () => html`` }) {
+  static async instance() {
     const id = getId(AppShellItemledger.Data, 'menu-');
     AppShellItemledger.Data[id] = {};
     const RouterInstance = RouterItemledger.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const barMode = undefined; // 'top-bottom-bar';
+    const barMode = 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
       html: html`
@@ -44,6 +55,18 @@ class AppShellItemledger {
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
+          })}
+          ${await BtnIcon.instance({
+            class: 'in wfa main-btn-menu main-btn-item-ledger-registry',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/registry.png" />`,
+              text: html`<span class="menu-label-text">${Translate.instance('item-ledger-registry')}</span>`,
+            }),
+            attrs: `data-id="item-ledger-registry"`,
+            tabHref: `${getProxyPath()}item-ledger-registry`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('item-ledger-registry')),
           })}
           ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -108,17 +131,24 @@ class AppShellItemledger {
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-docs hide',
+            class: 'in wfa main-btn-menu main-btn-docs',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-book"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('docs')}</span>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+              text: html`<span class="menu-label-text"
+                >${Translate.instance('docs')}
+                <i
+                  class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
+                  style="rotate: 0deg; transition: 0.4s;"
+                ></i
+              ></span>`,
             }),
             attrs: `data-id="docs"`,
             tabHref: `${getProxyPath()}docs`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
           })}
+          <div class="abs menu-btn-container-children-docs"></div>
           ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
@@ -145,17 +175,20 @@ class AppShellItemledger {
         return '';
       },
       mode: 'slide-menu',
+      barMode,
       RouterInstance,
-      htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
+      htmlMainBody: async () => await MainBodyDocument.instance({ domain: 'item-ledger' }),
       searchCustomImgClass: 'itemledger-menu-icon',
     });
 
+    const sortableSubMenus = sortableSubMenuEvents(['docs']);
     AppShellItemledger.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
       fallbackOnBody: true,
       handle: '.handle-btn-container',
+      draggable: '.main-btn-menu',
       store: {
         /**
          * Get the order of elements. Called once during initialization.
@@ -180,6 +213,7 @@ class AppShellItemledger {
       // ghostClass: 'css-class',
       // Element dragging ended
       onEnd: function (/**Event*/ evt) {
+        sortableSubMenus.onEnd();
         // console.log('Sortable onEnd', evt);
         // console.log('evt.oldIndex', evt.oldIndex);
         // console.log('evt.newIndex', evt.newIndex);
@@ -197,6 +231,7 @@ class AppShellItemledger {
         // evt.clone; // the clone element
         // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
       },
+      onStart: sortableSubMenus.onStart,
     });
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
@@ -302,19 +337,51 @@ class AppShellItemledger {
       });
     });
 
-    EventsUI.onClick(`.main-btn-docs`, async () => {
+    EventsUI.onClick(`.main-btn-item-ledger-registry`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-item-ledger-registry',
+        route: 'item-ledger-registry',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img
+            class="inl itemledger-menu-icon-modal"
+            src="${getProxyPath()}assets/ui-icons/registry.png"
+          />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.instance('item-ledger-registry')}</span>`,
+        }),
+        html: async () => ItemLedgerManagement.instance({ appStore: AppStoreItemledger }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async (e) => {
+      if (!isSubMenuOpen('docs') || e.isTrusted) {
+        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
+        await subMenuRender('docs');
+      }
+
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.instance({
         id: 'modal-docs',
         route: 'docs',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-book"></i>`,
-          text: Translate.instance('docs'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.instance('docs')}</span>`,
         }),
         html: async () =>
           await Docs.instance({
             idModal: 'modal-docs',
+            ...Docs.uiIcons({ iconClass: 'itemledger-menu-icon' }),
+            domain: 'item-ledger',
+            disabled: ['demo'],
+            lastReleaseUrl: deployPackageReleaseUrl,
           }),
         handleType: 'bar',
         observer: true,
