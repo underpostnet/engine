@@ -59,7 +59,7 @@ class Panel {
     const subTitleKey = subTitleObj ? subTitleObj.model : '';
 
     const fileNameInputExtDefaultContent = html` <div class="abs center">
-      <i style="font-size: 25px" class="fa-solid fa-cloud"></i>
+      <i class="fa-solid fa-cloud ${idPanel}-file-icon"></i>
     </div>`;
 
     const openPanelForm = () => {
@@ -76,7 +76,7 @@ class Panel {
         }
       }
       setTimeout(() => {
-        s(`.${idPanel}-form-body`).style.opacity = 1;
+        s(`.${idPanel}-form-body`).classList.add('open');
       });
     };
 
@@ -124,9 +124,7 @@ class Panel {
                   const btn = s(`.${idPanel}-btn-copy-share-${id}`);
                   if (btn) {
                     const countBadge = document.createElement('span');
-                    countBadge.className = `${idPanel}-share-count-${id}`;
-                    countBadge.style.cssText =
-                      'position: absolute; top: -4px; right: -4px; background: #666; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center;';
+                    countBadge.className = `${idPanel}-share-count ${idPanel}-share-count-${id}`;
                     countBadge.textContent = '1';
                     btn.appendChild(countBadge);
                   }
@@ -141,20 +139,6 @@ class Panel {
             },
             { context: 'modal' },
           );
-
-          // Add tooltip hover effect
-          setTimeout(() => {
-            const btn = s(`.${idPanel}-btn-copy-share-${id}`);
-            const tooltip = s(`.${idPanel}-share-tooltip-${id}`);
-            if (btn && tooltip) {
-              btn.addEventListener('mouseenter', () => {
-                tooltip.style.opacity = '1';
-              });
-              btn.addEventListener('mouseleave', () => {
-                tooltip.style.opacity = '0';
-              });
-            }
-          });
         }
         if (options.share && options.share.copySourceMd) {
           EventsUI.onClick(
@@ -186,20 +170,6 @@ class Panel {
             },
             { context: 'modal' },
           );
-
-          // Add tooltip hover effect
-          setTimeout(() => {
-            const btn = s(`.${idPanel}-btn-copy-source-md-${id}`);
-            const tooltip = s(`.${idPanel}-source-md-tooltip-${id}`);
-            if (btn && tooltip) {
-              btn.addEventListener('mouseenter', () => {
-                tooltip.style.opacity = '1';
-              });
-              btn.addEventListener('mouseleave', () => {
-                tooltip.style.opacity = '0';
-              });
-            }
-          });
         }
         EventsUI.onClick(
           `.${idPanel}-btn-delete-${id}`,
@@ -260,39 +230,8 @@ class Panel {
           // if (options.onClick) await options.onClick({ payload });
         };
 
-        // Add theme change handler for creator profile header
+        // The profile links navigate in-app; the header itself is styled by the panel's theme styles.
         if (options.showCreatorProfile && obj.userInfo) {
-          const updateCreatorProfileTheme = () => {
-            const profileHeader = s(`.creator-profile-header-${id}`);
-            if (profileHeader) {
-              profileHeader.style.borderBottom = `1px solid ${darkTheme ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`;
-              profileHeader.style.background = `${darkTheme ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'}`;
-
-              // Update avatar border if it's an image
-              const avatarImg = profileHeader.querySelector('.creator-avatar');
-              if (avatarImg && avatarImg.tagName === 'IMG') {
-                avatarImg.style.border = `2px solid ${darkTheme ? 'rgba(102, 126, 234, 0.5)' : 'rgba(102, 126, 234, 0.3)'}`;
-              }
-
-              // Update username color
-              const username = profileHeader.querySelector('.creator-username');
-              if (username) {
-                username.style.color = `${darkTheme ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)'}`;
-              }
-
-              // Update "Creator" label color
-              const creatorLabel = username?.nextElementSibling;
-              if (creatorLabel) {
-                creatorLabel.style.color = `${darkTheme ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'}`;
-              }
-            }
-          };
-
-          // Register theme change handler
-          const profileThemeHandlerId = `${id}-creator-profile-theme`;
-          ThemeEvents[profileThemeHandlerId] = updateCreatorProfileTheme;
-
-          // Add click handlers for public profile links
           setTimeout(() => {
             const links = sa(`.creator-profile-link-${id}`);
             links.forEach((link) => {
@@ -306,6 +245,14 @@ class Panel {
       });
       if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
 
+      // The share entries this item offers. A skeleton has no entry path yet; it offers what the
+      // loaded item will, so the two paint the same buttons.
+      const shareEntries = options.share
+        ? [
+            options.share.copyLink && (obj.ssr || entryPath) ? 'link' : null,
+            options.share.copySourceMd ? 'source' : null,
+          ].filter(Boolean)
+        : [];
       // Check if document is public (from obj.isPublic field)
       const isPublic = obj.isPublic === true;
       // Visibility icon: globe for public, padlock for private; a skeleton item has neither.
@@ -315,7 +262,7 @@ class Panel {
           ? '<i class="fas fa-globe" title="Public document"></i>'
           : '<i class="fas fa-lock" title="Private document"></i>';
 
-      return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}" style="position: relative;">
+      return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}">
         <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
           ${await BtnIcon.instance({
             class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
@@ -324,8 +271,7 @@ class Panel {
             tooltipHtml: await Badge.instance({
               id: `tooltip-${idPanel}-${id}`,
               text: `${Translate.instance(`delete`)}`,
-              classList: '',
-              style: { top: `-22px`, left: '-13px' },
+              classList: `${idPanel}-tool-tooltip ${idPanel}-tool-tooltip-delete`,
             }),
           })}
           ${await BtnIcon.instance({
@@ -335,78 +281,57 @@ class Panel {
             tooltipHtml: await Badge.instance({
               id: `tooltip-${idPanel}-${id}`,
               text: `${Translate.instance(`edit`)}`,
-              classList: '',
-              style: { top: `-22px`, left: '-5px' },
+              classList: `${idPanel}-tool-tooltip ${idPanel}-tool-tooltip-edit`,
             }),
           })}
         </div>
         <div class="in container-${idPanel}-${id}">
           <div class="panel-visibility-icon">${visibilityIcon}</div>
-          ${options.showCreatorProfile && obj.ssr
-            ? html`<div
-                class="creator-profile-header"
-                style="padding: 10px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;"
-              >
-                <div class="ssr-shimmer-search-box" style="width: 36px; height: 36px; border-radius: 50%;"></div>
-                <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
-                  <div class="ssr-shimmer-search-box" style="width: 120px; height: 14px; border-radius: 6px;"></div>
-                  <div class="ssr-shimmer-search-box" style="width: 80px; height: 11px; border-radius: 6px;"></div>
-                </div>
-              </div>`
-            : ''}
-          ${options.showCreatorProfile && obj.userInfo
-            ? html`<div
-                class="creator-profile-header creator-profile-header-${id}"
-                style="padding: 10px 12px; margin-bottom: 10px; border-bottom: 1px solid ${darkTheme
-                  ? 'rgba(255,255,255,0.1)'
-                  : 'rgba(0,0,0,0.08)'}; display: flex; align-items: center; gap: 10px; background: ${darkTheme
-                  ? 'rgba(255,255,255,0.02)'
-                  : 'rgba(0,0,0,0.02)'}; border-radius: 4px 4px 0 0;"
-              >
-                <a
-                  href="${publicRoutePath('profile', obj.userInfo.username) ?? ''}"
-                  class="creator-profile-link-${id}"
-                  data-id="${obj.userInfo.username}"
-                  style="display: flex;"
-                >
-                  ${obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
-                    ? html`<img
-                        class="creator-avatar"
-                        src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
-                        alt="${obj.userInfo.username}"
-                        style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${darkTheme
-                          ? 'rgba(102, 126, 234, 0.5)'
-                          : 'rgba(102, 126, 234, 0.3)'}; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                        title="${obj.userInfo.username}"
-                      />`
-                    : html`<div
-                        class="creator-avatar"
-                        style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                        title="${obj.userInfo.username}"
-                      >
-                        ${(obj.userInfo.username || 'U').charAt(0).toUpperCase()}
-                      </div>`}
-                </a>
-                <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+          ${
+            options.showCreatorProfile && obj.ssr
+              ? html`<div class="creator-profile-header">
+                  <div class="creator-avatar creator-avatar-skeleton ssr-shimmer-search-box"></div>
+                  <div class="creator-identity">
+                    <div class="creator-skeleton-line creator-skeleton-line-name ssr-shimmer-search-box"></div>
+                    <div class="creator-skeleton-line creator-skeleton-line-role ssr-shimmer-search-box"></div>
+                  </div>
+                </div>`
+              : ''
+          }
+          ${
+            options.showCreatorProfile && obj.userInfo
+              ? html`<div class="creator-profile-header creator-profile-header-${id}">
                   <a
                     href="${publicRoutePath('profile', obj.userInfo.username) ?? ''}"
-                    class="creator-username creator-profile-link-${id}"
+                    class="creator-avatar-link creator-profile-link-${id}"
                     data-id="${obj.userInfo.username}"
-                    style="font-size: 14px; font-weight: 600; color: ${darkTheme
-                      ? 'rgba(255,255,255,0.9)'
-                      : 'rgba(0,0,0,0.85)'}; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                   >
-                    ${obj.userInfo.username || 'Unknown'}
+                    ${
+                      obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
+                        ? html`<img
+                            class="creator-avatar"
+                            src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
+                            alt="${obj.userInfo.username}"
+                            title="${obj.userInfo.username}"
+                          />`
+                        : html`<div class="creator-avatar creator-avatar-initial" title="${obj.userInfo.username}">
+                            ${(obj.userInfo.username || 'U').charAt(0).toUpperCase()}
+                          </div>`
+                    }
                   </a>
-                  <span
-                    style="font-size: 11px; color: ${darkTheme
-                      ? 'rgba(255,255,255,0.5)'
-                      : 'rgba(0,0,0,0.45)'}; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;"
-                    >${obj.userInfo.briefDescription || 'Uploader'}</span
-                  >
-                </div>
-              </div>`
-            : ''}
+                  <div class="creator-identity">
+                    <a
+                      href="${publicRoutePath('profile', obj.userInfo.username) ?? ''}"
+                      class="creator-username creator-profile-link-${id}"
+                      data-id="${obj.userInfo.username}"
+                    >
+                      ${obj.userInfo.username || 'Unknown'}
+                    </a>
+                    <span class="creator-role">${obj.userInfo.briefDescription || 'Uploader'}</span>
+                  </div>
+                </div>`
+              : ''
+          }
           <div class="in ${idPanel}-head">
             <div class="in ${idPanel}-title">
               ${options.titleIcon}
@@ -439,35 +364,11 @@ class Panel {
                   }
 
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
-                    // Function to render tags with current theme
+                    // The tags' colours follow the theme through the panel styles, so one render is enough.
                     const renderTags = async () => {
                       let tagRender = html``;
-                      for (const tag of obj[infoKey]) {
-                        // Use subThemeManager colors for consistent theming
-                        const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-                        const hasThemeColor = themeColor && themeColor !== null;
-
-                        let tagBg, tagColor;
-                        if (darkTheme) {
-                          tagBg = hasThemeColor ? darkenHex(themeColor, 0.6) : '#4a4a4a';
-                          tagColor = hasThemeColor ? lightenHex(themeColor, 0.7) : '#ffffff';
-                        } else {
-                          tagBg = hasThemeColor ? lightenHex(themeColor, 0.7) : '#a2a2a2';
-                          tagColor = hasThemeColor ? darkenHex(themeColor, 0.5) : '#ffffff';
-                        }
-
-                        tagRender += await Badge.instance({
-                          text: tag,
-                          classList: 'inl panel-tag-clickable',
-                          style: {
-                            margin: '3px',
-                            background: tagBg,
-                            color: tagColor,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                          },
-                        });
-                      }
+                      for (const tag of obj[infoKey])
+                        tagRender += await Badge.instance({ text: tag, classList: 'inl panel-tag-clickable' });
                       if (s(`.tag-render-${id}`)) {
                         htmls(`.tag-render-${id}`, tagRender);
 
@@ -504,13 +405,7 @@ class Panel {
                       }
                     };
 
-                    // Initial render
                     setTimeout(renderTags);
-
-                    // Add theme change handler for this tag set
-                    const tagThemeHandlerId = `${id}-tags-${infoKey}-theme`;
-                    ThemeEvents[tagThemeHandlerId] = renderTags;
-
                     return html``;
                   }
                   {
@@ -534,9 +429,11 @@ class Panel {
                       return html`<div class="in ${idPanel}-row">
                         <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
                           ${keyIcon}
-                          ${formDataObj.translateCode
-                            ? Translate.instance(formDataObj.translateCode)
-                            : Translate.instance(infoKey)}:</span
+                          ${
+                            formDataObj.translateCode
+                              ? Translate.instance(formDataObj.translateCode)
+                              : Translate.instance(infoKey)
+                          }:</span
                         >
                         <span class="${idPanel}-row-pin-value">${valueIcon} ${obj[infoKey]}</span>
                       </div> `;
@@ -550,9 +447,11 @@ class Panel {
                       return html`<div class="in ${idPanel}-row">
                         <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
                           ${keyIcon}
-                          ${formDataObj.translateCode
-                            ? Translate.instance(formDataObj.translateCode)
-                            : Translate.instance(infoKey)}:</span
+                          ${
+                            formDataObj.translateCode
+                              ? Translate.instance(formDataObj.translateCode)
+                              : Translate.instance(infoKey)
+                          }:</span
                         >
                         <span class="${idPanel}-row-value"> ${valueIcon} ${obj[infoKey]}</span>
                       </div> `;
@@ -564,57 +463,50 @@ class Panel {
             </div>
           </div>
         </div>
-        ${options.share && ((options.share.copyLink && entryPath) || options.share.copySourceMd)
-          ? html`<div
-              class="${idPanel}-share-btn-container ${idPanel}-share-btn-container-${id}"
-              style="position: absolute; bottom: 8px; right: 8px; z-index: 2; display: flex; gap: 8px;"
-            >
-              ${options.share.copyLink && entryPath
-                ? html`<div style="position: relative;">
-                    <button
-                      class="btn-icon ${idPanel}-btn-copy-share-${id}"
-                      style="background: transparent; color: #888; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease;"
-                    >
-                      <i class="fas fa-link" style="font-size: 20px;"></i>
-                      ${obj.totalCopyShareLinkCount && obj.totalCopyShareLinkCount > 0
-                        ? html`<span
-                            class="${idPanel}-share-count-${id}"
-                            style="position: absolute; top: -4px; right: -4px; background: #666; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center;"
-                            >${obj.totalCopyShareLinkCount}</span
-                          >`
-                        : ''}
-                    </button>
-                    <div
-                      class="${idPanel}-share-tooltip-${id}"
-                      style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
-                    >
-                      ${Translate.instance('copy-share-link')}
-                    </div>
-                  </div>`
-                : ''}
-              ${options.share.copySourceMd
-                ? html`<div style="position: relative;">
-                    <button
-                      class="btn-icon ${idPanel}-btn-copy-source-md-${id}"
-                      style="background: transparent; color: #888; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease;"
-                    >
-                      <i class="fas fa-code" style="font-size: 20px;"></i>
-                    </button>
-                    <div
-                      class="${idPanel}-source-md-tooltip-${id}"
-                      style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
-                    >
-                      Copy Source MD
-                    </div>
-                  </div>`
-                : ''}
-            </div>`
-          : ''}
+        ${
+          shareEntries.length > 0
+            ? html`<div class="${idPanel}-share ${idPanel}-share-${id}">
+                ${shareEntries
+                  .map((entry) => {
+                    // A skeleton item shows the same buttons it will have, as shimmer discs.
+                    if (obj.ssr)
+                      return html`<div class="${idPanel}-share-item">
+                        <div class="${idPanel}-share-skeleton ssr-shimmer-search-box"></div>
+                      </div>`;
+                    if (entry === 'link')
+                      return html`<div class="${idPanel}-share-item">
+                        <button class="${idPanel}-share-btn ${idPanel}-btn-copy-share-${id}">
+                          <i class="fas fa-link"></i>
+                          ${
+                            obj.totalCopyShareLinkCount && obj.totalCopyShareLinkCount > 0
+                              ? html`<span class="${idPanel}-share-count ${idPanel}-share-count-${id}"
+                                  >${obj.totalCopyShareLinkCount}</span
+                                >`
+                              : ''
+                          }
+                        </button>
+                        <div class="${idPanel}-share-tooltip ${idPanel}-share-tooltip-${id}">
+                          ${Translate.instance('copy-share-link')}
+                        </div>
+                      </div>`;
+                    return html`<div class="${idPanel}-share-item">
+                      <button class="${idPanel}-share-btn ${idPanel}-btn-copy-source-md-${id}">
+                        <i class="fas fa-code"></i>
+                      </button>
+                      <div class="${idPanel}-share-tooltip ${idPanel}-source-md-tooltip-${id}">
+                        ${Translate.instance('copy-markdown-source')}
+                      </div>
+                    </div>`;
+                  })
+                  .join('')}
+              </div>`
+            : ''
+        }
       </div>`;
     };
 
     let render = '';
-    let renderForm = html` <div class="in modal" style="top: 0px; z-index: 1; padding-bottom: 5px">
+    let renderForm = html` <div class="in modal ${idPanel}-form-close-bar">
         ${await BtnIcon.instance({
           class: `inl section-mp btn-custom btn-${idPanel}-close`,
           label: html`<i class="fa-solid fa-xmark"></i> ${Translate.instance('close')}`,
@@ -686,17 +578,16 @@ class Panel {
               };
             });
             renderForm += html`<div
-              class="in section-mp toggle-form-container toggle-form-container-${modelData.id} hover"
-              style="height: 82px;"
+              class="in section-mp toggle-form-container toggle-form-container-${modelData.id} ${idPanel}-toggle-row hover"
             >
               <div class="fl">
-                <div class="in fll" style="width: 70%">
+                <div class="in fll ${idPanel}-toggle-label">
                   <div class="in">
                     ${modelData.panel && modelData.panel.icon ? modelData.panel.icon : ''}
                     ${Translate.instance(modelData.model)}
                   </div>
                 </div>
-                <div class="in fll" style="width: 30%">
+                <div class="in fll ${idPanel}-toggle-switch">
                   ${await ToggleSwitch.instance({
                     id: `${modelData.id}`,
                     containerClass: 'inl',
@@ -734,7 +625,7 @@ class Panel {
 
                     raw: true,
                   })}
-                  <div class="in" style="overflow: hidden">${file.name}</div>`;
+                  <div class="in ${idPanel}-file-name">${file.name}</div>`;
               }
               htmls(`.file-name-render-${modelData.id}`, htmlFileRender);
             };
@@ -750,7 +641,7 @@ class Panel {
             containerClass: 'in section-mp width-mini-box input-container',
             placeholder: true,
             extension: () =>
-              html`<div class="file-name-render-${modelData.id}" style="min-height: 50px">
+              html`<div class="${idPanel}-file-render file-name-render-${modelData.id}">
                 ${fileNameInputExtDefaultContent}
               </div>`,
             // disabled: true,
@@ -843,7 +734,7 @@ class Panel {
         };
       s(`.btn-${idPanel}-close`).onclick = (e) => {
         e.preventDefault();
-        s(`.${idPanel}-form-body`).style.opacity = 0;
+        s(`.${idPanel}-form-body`).classList.remove('open');
         s(`.btn-${idPanel}-add`).classList.remove('hide');
         s(`.${scrollClassContainer}`).style.overflow = 'auto';
         if (options.customButtons) {
@@ -890,7 +781,7 @@ class Panel {
 
     if (data.length > 0) for (const obj of data) render += await renderPanel(obj);
     else {
-      render += html`<div class="in" style="min-height: 200px">
+      render += html`<div class="in ${idPanel}-empty">
         <div class="abs center"><i class="fas fa-exclamation-circle"></i> ${Translate.instance(`no-result-found`)}</div>
       </div>`;
 
@@ -918,180 +809,15 @@ class Panel {
       }
     }
 
-    // Add theme change handler
-    const themeChangeHandler = () => {
+    // The styles render inline below so the panel paints laid out; this only follows theme changes.
+    ThemeEvents[`${idPanel}-theme`] = () => {
       const styleElement = s(`.${idPanel}-styles`);
-      if (styleElement) {
-        styleElement.textContent = darkTheme
-          ? getDarkStyles(idPanel, scrollClassContainer)
-          : getLightStyles(idPanel, scrollClassContainer);
-      }
-
-      // Update tag hover styles
-      const tagStyleElement = s(`.${idPanel}-tag-styles`);
-      if (tagStyleElement) {
-        const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        let hoverBg;
-        if (darkTheme) {
-          hoverBg = hasThemeColor ? darkenHex(themeColor, 0.5) : '#5a5a5a';
-        } else {
-          hoverBg = hasThemeColor ? lightenHex(themeColor, 0.6) : '#8a8a8a';
-        }
-
-        tagStyleElement.textContent = css`
-          .panel-tag-clickable:hover {
-            background: ${hoverBg} !important;
-            transform: scale(1.05);
-          }
-          .panel-tag-clickable:active {
-            transform: scale(0.98);
-          }
-        `;
-      }
+      if (styleElement) styleElement.textContent = getThemeStyles({ idPanel, scrollClassContainer, dark: darkTheme });
     };
 
-    // The styles render inline below so the panel paints laid out; this only follows theme changes.
-    ThemeEvents[`${idPanel}-theme`] = themeChangeHandler;
-
     return html`
-      <style>
-        .${idPanel}-head {
-          /* background: white; */
-          margin-bottom: 10px;
-        }
-        .img-${idPanel} {
-          width: 100%;
-        }
-        .${idPanel}-title {
-          color: ${(() => {
-            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-            const hasThemeColor = themeColor && themeColor !== null;
-            if (hasThemeColor) {
-              return darkTheme ? lightenHex(themeColor, 0.3) : darkenHex(themeColor, 0.2);
-            } else {
-              return darkTheme ? '#8a85ff' : 'rgba(109, 104, 255, 1)';
-            }
-          })()};
-          font-size: 24px;
-          padding: 5px;
-        }
-        .a-title-${idPanel} {
-          color: ${(() => {
-            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-            const hasThemeColor = themeColor && themeColor !== null;
-            if (hasThemeColor) {
-              return darkTheme ? lightenHex(themeColor, 0.3) : darkenHex(themeColor, 0.2);
-            } else {
-              return darkTheme ? '#8a85ff' : 'rgba(109, 104, 255, 1)';
-            }
-          })()};
-        }
-        .a-title-${idPanel}:hover {
-          color: ${(() => {
-            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-            const hasThemeColor = themeColor && themeColor !== null;
-            if (hasThemeColor) {
-              return darkTheme ? lightenHex(themeColor, 0.5) : lightenHex(themeColor, 0.3);
-            } else {
-              return darkTheme ? '#ffb74d' : '#e89f4c';
-            }
-          })()};
-        }
-        .${idPanel}-row {
-          padding: 5px;
-          margin: 5px;
-          font-size: 16px;
-        }
-        .${idPanel}-subtitle {
-          font-size: 17px;
-          margin-left: 20px;
-          top: -7px;
-        }
-        .${idPanel}-tags {
-          font-size: 17px;
-          margin-left: 10px;
-          top: -7px;
-        }
-
-        .${idPanel}-row-key {
-        }
-        .${idPanel}-row-value {
-        }
-        .${idPanel}-row-pin-key {
-        }
-        .${idPanel}-row-pin-value {
-          font-size: 20px;
-          color: rgb(19 190 84);
-        }
-        .${idPanel}-form-header {
-        }
-        .${idPanel}-form-body {
-          transition: 0.3s;
-        }
-        .btn-${idPanel}-add {
-          padding: 10px;
-          font-size: 20px;
-        }
-        .${idPanel}-dropdown {
-          min-height: 100px;
-        }
-        .${idPanel}-btn-tool {
-          background: none !important;
-          color: #c4c4c4 !important;
-        }
-        .${idPanel}-btn-tool:hover {
-          color: #000000 !important;
-          font-size: 17px !important;
-        }
-        .${idPanel}-share-btn-container button:hover {
-          background: transparent !important;
-          transform: scale(1.1);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
-        }
-        .${idPanel}-share-btn-container button:focus {
-          outline: none;
-          background: transparent !important;
-        }
-        .${idPanel}-share-btn-container button:focus {
-          outline: none;
-          background: transparent !important;
-        }
-        .${idPanel}-share-btn-container button:active {
-          transform: scale(0.95);
-        }
-        .${idPanel}-share-btn-container span[class*='share-count'] {
-          animation: ${idPanel}-share-pulse 2s infinite;
-        }
-        @keyframes ${idPanel}-share-pulse {
-          0%,
-          100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.1);
-          }
-        }
-      </style>
       <style class="${idPanel}-styles">
-        ${darkTheme ? getDarkStyles(idPanel, scrollClassContainer) : getLightStyles(idPanel, scrollClassContainer)}
-      </style>
-      <style class="${idPanel}-tag-styles">
-        .panel-tag-clickable:hover {
-          background: ${(() => {
-            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
-            const hasThemeColor = themeColor && themeColor !== null;
-            if (darkTheme) {
-              return hasThemeColor ? darkenHex(themeColor, 0.5) : '#5a5a5a';
-            } else {
-              return hasThemeColor ? lightenHex(themeColor, 0.6) : '#8a8a8a';
-            }
-          })()} !important;
-          transform: scale(1.05);
-        }
-        .panel-tag-clickable:active {
-          transform: scale(0.98);
-        }
+        ${getThemeStyles({ idPanel, scrollClassContainer, dark: darkTheme })}
       </style>
       <div class="${idPanel}-container">
         <div class="in modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}">
@@ -1106,7 +832,7 @@ class Panel {
             <!-- pagination component -->
             ${customButtonsRender}
           </div>
-          <div class="in ${idPanel}-form-body hide" style="opacity: 0">
+          <div class="in ${idPanel}-form-body hide">
             <form class="in ${idPanel}-form">
               <div class="fl">${renderForm}</div>
               <div class="in">${renderFormBtn}</div>
@@ -1126,186 +852,433 @@ class Panel {
   }
 }
 
-// Function to generate base styles
-function getBaseStyles(idPanel, scrollClassContainer) {
-  return css`
-    .${scrollClassContainer} {
-      scroll-behavior: smooth;
-    }
-    .${idPanel}-form-container {
-      padding-bottom: 20px;
-      top: 0px;
-      z-index: 1;
-      overflow: auto;
-    }
-    .${idPanel}-form {
-      max-width: 900px;
-    }
-    .${idPanel}-cell {
-      min-height: 200px;
-    }
-    .${idPanel}-container {
-    }
-    .${idPanel} {
-      margin: 10px;
-      transition: 0.3s;
-      border-radius: 10px;
-      padding: 10px;
-      min-height: 400px;
-    }
-    .${idPanel}-head {
-      margin-bottom: 10px;
-    }
-    .img-${idPanel} {
-      width: 100%;
-    }
-    .${idPanel}-row {
-      padding: 5px;
-      margin: 5px;
-      font-size: 16px;
-    }
-    .${idPanel}-subtitle {
-      font-size: 17px;
-      margin-left: 20px;
-      top: -7px;
-    }
-    .${idPanel}-tags {
-      font-size: 17px;
-      margin-left: 10px;
-      top: -7px;
-    }
-    .${idPanel}-form-body {
-      transition: 0.3s;
-    }
-    .btn-${idPanel}-add {
-      padding: 10px;
-      font-size: 20px;
-    }
-    .${idPanel}-dropdown {
-      min-height: 100px;
-    }
-    .panel-visibility-icon {
-      position: absolute;
-      top: 34px;
-      left: 0px;
-      font-size: 14px;
-      opacity: 0.7;
-      transition: opacity 0.2s ease;
-      pointer-events: none;
-      z-index: 10;
-    }
-    .${idPanel}:hover .panel-visibility-icon {
-      opacity: 1;
-    }
-  `;
-}
+/**
+ * Everything about a panel's layout that no theme changes. A tool tooltip and a share tooltip
+ * each sit just above their own button.
+ */
+const getBaseStyles = (idPanel, scrollClassContainer) => css`
+  .${scrollClassContainer} {
+    scroll-behavior: smooth;
+  }
+  .${idPanel}-form-container {
+    padding-bottom: 20px;
+    top: 0px;
+    z-index: 1;
+    overflow: auto;
+  }
+  .${idPanel}-form-close-bar {
+    top: 0px;
+    z-index: 1;
+    padding-bottom: 5px;
+  }
+  .${idPanel}-form {
+    max-width: 900px;
+  }
+  .${idPanel}-form-body {
+    opacity: 0;
+    transition: 0.3s;
+  }
+  .${idPanel}-form-body.open {
+    opacity: 1;
+  }
+  .btn-${idPanel}-add {
+    padding: 10px;
+    font-size: 20px;
+  }
+  .${idPanel}-dropdown {
+    min-height: 100px;
+  }
+  .${idPanel}-toggle-row {
+    height: 82px;
+  }
+  .${idPanel}-toggle-label {
+    width: 70%;
+  }
+  .${idPanel}-toggle-switch {
+    width: 30%;
+  }
+  .${idPanel}-file-icon {
+    font-size: 25px;
+  }
+  .${idPanel}-file-render {
+    min-height: 50px;
+  }
+  .${idPanel}-file-name {
+    overflow: hidden;
+  }
+  .${idPanel}-empty {
+    min-height: 200px;
+  }
+  .${idPanel}-cell {
+    min-height: 200px;
+  }
+  .${idPanel} {
+    position: relative;
+    margin: 10px;
+    transition: 0.3s;
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 400px;
+  }
+  .${idPanel}-head {
+    margin-bottom: 10px;
+  }
+  .img-${idPanel} {
+    width: 100%;
+  }
+  .${idPanel}-title {
+    font-size: 24px;
+    padding: 5px;
+  }
+  .${idPanel}-row {
+    padding: 5px;
+    margin: 5px;
+    font-size: 16px;
+  }
+  .${idPanel}-row-pin-value {
+    font-size: 20px;
+  }
+  .${idPanel}-subtitle {
+    font-size: 17px;
+    margin-left: 20px;
+    top: -7px;
+  }
+  .${idPanel}-tags {
+    font-size: 17px;
+    margin-left: 10px;
+    top: -7px;
+  }
+  .${idPanel}-btn-tool {
+    background: none !important;
+  }
+  .${idPanel}-btn-tool:hover {
+    font-size: 17px !important;
+  }
+  .${idPanel}-tool-tooltip {
+    top: -22px;
+  }
+  .${idPanel}-tool-tooltip-delete {
+    left: -13px;
+  }
+  .${idPanel}-tool-tooltip-edit {
+    left: -5px;
+  }
+  .panel-visibility-icon {
+    position: absolute;
+    top: 34px;
+    left: 0px;
+    font-size: 14px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .${idPanel}:hover .panel-visibility-icon {
+    opacity: 1;
+  }
+  .${idPanel} .panel-tag-clickable {
+    margin: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .${idPanel} .panel-tag-clickable:hover {
+    transform: scale(1.05);
+  }
+  .${idPanel} .panel-tag-clickable:active {
+    transform: scale(0.98);
+  }
 
-// Function to generate light theme styles
-function getLightStyles(idPanel, scrollClassContainer) {
+  /* Creator profile header */
+  .${idPanel} .creator-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border-radius: 4px 4px 0 0;
+  }
+  .${idPanel} .creator-avatar-link {
+    display: flex;
+  }
+  .${idPanel} .creator-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  .${idPanel} img.creator-avatar {
+    object-fit: cover;
+    border: 2px solid transparent;
+  }
+  .${idPanel} .creator-avatar-initial {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  .${idPanel} .creator-avatar-skeleton {
+    box-shadow: none;
+  }
+  .${idPanel} .creator-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .${idPanel} .creator-username {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .${idPanel} .creator-role {
+    font-size: 11px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .${idPanel} .creator-skeleton-line {
+    border-radius: 6px;
+  }
+  .${idPanel} .creator-skeleton-line-name {
+    width: 120px;
+    height: 14px;
+  }
+  .${idPanel} .creator-skeleton-line-role {
+    width: 80px;
+    height: 11px;
+  }
+
+  /* Share buttons, bottom right; each tooltip opens beside the group, level with the buttons. */
+  .${idPanel}-share {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    gap: 8px;
+  }
+  .${idPanel}-share-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .${idPanel}-share-btn i {
+    font-size: 18px;
+  }
+  /* A round icon button: the app-wide accent hover disc would swallow the icon, so it stays clear. */
+  .${idPanel}-share-btn:hover, .${idPanel}-share-btn:focus {
+    background: transparent;
+    outline: none;
+  }
+  .${idPanel}-share-btn:hover {
+    transform: scale(1.1);
+  }
+  .${idPanel}-share-btn:active {
+    transform: scale(0.95);
+  }
+  .${idPanel}-share-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    padding: 1px 5px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1.3;
+    text-align: center;
+    animation: ${idPanel}-share-pulse 2s infinite;
+  }
+  .${idPanel}-share-item {
+    position: relative;
+  }
+  .${idPanel}-share-skeleton {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  }
+  /* Above its own button, right-aligned so the rightmost one stays inside the panel. */
+  .${idPanel}-share-tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .${idPanel}-share-btn:hover
+    + .${idPanel}-share-tooltip,
+    .${idPanel}-share-btn:focus-visible
+    + .${idPanel}-share-tooltip {
+    opacity: 1;
+  }
+  @keyframes ${idPanel}-share-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+  }
+`;
+
+/**
+ * The colours of one theme, over the accent `subThemeManager` holds for it. Every value the
+ * markup once carried inline lives here, so a theme switch re-renders one style element.
+ */
+const paletteFactory = (dark) => {
+  const accent = dark ? subThemeManager.darkColor : subThemeManager.lightColor;
+  if (dark)
+    return {
+      panel: '#2d2d2d',
+      panelHover: '#3a3a3a',
+      text: '#e0e0e0',
+      title: accent ? lightenHex(accent, 0.3) : '#8a85ff',
+      titleHover: accent ? lightenHex(accent, 0.5) : '#ffb74d',
+      pin: '#4caf50',
+      tool: '#666666',
+      toolHover: accent ?? '#ffffff',
+      visibility: '#999',
+      tag: accent ? darkenHex(accent, 0.6) : '#4a4a4a',
+      tagText: accent ? lightenHex(accent, 0.7) : '#ffffff',
+      tagHover: accent ? darkenHex(accent, 0.5) : '#5a5a5a',
+      creatorBorder: 'rgba(255, 255, 255, 0.1)',
+      creatorBackground: 'rgba(255, 255, 255, 0.02)',
+      avatarBorder: 'rgba(102, 126, 234, 0.5)',
+      username: 'rgba(255, 255, 255, 0.9)',
+      role: 'rgba(255, 255, 255, 0.5)',
+      share: '#9a9a9a',
+      shareHover: accent ?? '#ffffff',
+      shareHoverShadow: 'rgba(0, 0, 0, 0.4)',
+      count: '#666666',
+      countText: '#ffffff',
+      tooltip: '#111111',
+      tooltipText: '#f0f0f0',
+      tooltipBorder: 'rgba(255, 255, 255, 0.15)',
+    };
+  return {
+    panel: '#f6f6f6',
+    panelHover: '#ffffff',
+    text: 'black',
+    title: accent ? darkenHex(accent, 0.2) : 'rgba(109, 104, 255, 1)',
+    titleHover: accent ? lightenHex(accent, 0.3) : '#e89f4c',
+    pin: 'rgb(19 190 84)',
+    tool: '#c4c4c4',
+    toolHover: accent ?? '#000000',
+    visibility: '#666',
+    tag: accent ? lightenHex(accent, 0.7) : '#a2a2a2',
+    tagText: accent ? darkenHex(accent, 0.5) : '#ffffff',
+    tagHover: accent ? lightenHex(accent, 0.6) : '#8a8a8a',
+    creatorBorder: 'rgba(0, 0, 0, 0.08)',
+    creatorBackground: 'rgba(0, 0, 0, 0.02)',
+    avatarBorder: 'rgba(102, 126, 234, 0.3)',
+    username: 'rgba(0, 0, 0, 0.85)',
+    role: 'rgba(0, 0, 0, 0.45)',
+    share: '#777777',
+    shareHover: accent ?? '#000000',
+    shareHoverShadow: 'rgba(0, 0, 0, 0.2)',
+    count: '#666666',
+    countText: '#ffffff',
+    tooltip: '#222222',
+    tooltipText: '#ffffff',
+    tooltipBorder: 'rgba(0, 0, 0, 0.2)',
+  };
+};
+
+/** The base layout plus one theme's colours: the whole stylesheet of a panel. */
+const getThemeStyles = ({ idPanel, scrollClassContainer, dark }) => {
+  const palette = paletteFactory(dark);
   return css`
     ${getBaseStyles(idPanel, scrollClassContainer)}
 
     .${idPanel} {
-      background: #f6f6f6;
-      color: black;
+      background: ${palette.panel};
+      color: ${palette.text};
     }
     .${idPanel}:hover {
-      background: #ffffff;
+      background: ${palette.panelHover};
     }
-    .${idPanel}-title {
-      color: ${(() => {
-        const themeColor = subThemeManager.lightColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        return hasThemeColor ? darkenHex(themeColor, 0.2) : 'rgba(109, 104, 255, 1)';
-      })()};
-      font-size: 24px;
-      padding: 5px;
-    }
-    .a-title-${idPanel} {
-      color: ${(() => {
-        const themeColor = subThemeManager.lightColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        return hasThemeColor ? darkenHex(themeColor, 0.2) : 'rgba(109, 104, 255, 1)';
-      })()};
+    .${idPanel}-title, .a-title-${idPanel} {
+      color: ${palette.title};
     }
     .a-title-${idPanel}:hover {
-      color: ${(() => {
-        const themeColor = subThemeManager.lightColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        return hasThemeColor ? lightenHex(themeColor, 0.3) : '#e89f4c';
-      })()};
+      color: ${palette.titleHover};
     }
     .${idPanel}-row-pin-value {
-      font-size: 20px;
-      color: rgb(19 190 84);
+      color: ${palette.pin};
     }
     .${idPanel}-btn-tool {
-      background: none !important;
-      color: #c4c4c4 !important;
+      color: ${palette.tool} !important;
     }
     .${idPanel}-btn-tool:hover {
-      color: #000000 !important;
-      font-size: 17px !important;
+      color: ${palette.toolHover} !important;
     }
     .panel-visibility-icon .fa-globe,
     .panel-visibility-icon .fa-lock {
-      color: #666;
+      color: ${palette.visibility};
+    }
+    .${idPanel} .panel-tag-clickable {
+      background: ${palette.tag};
+      color: ${palette.tagText};
+    }
+    .${idPanel} .panel-tag-clickable:hover {
+      background: ${palette.tagHover};
+    }
+    .${idPanel} .creator-profile-header {
+      background: ${palette.creatorBackground};
+      border-bottom: 1px solid ${palette.creatorBorder};
+    }
+    .${idPanel} img.creator-avatar {
+      border-color: ${palette.avatarBorder};
+    }
+    .${idPanel} .creator-username {
+      color: ${palette.username};
+    }
+    .${idPanel} .creator-role {
+      color: ${palette.role};
+    }
+    .${idPanel}-share-btn {
+      color: ${palette.share};
+    }
+    .${idPanel}-share-btn:hover, .${idPanel}-share-btn:focus-visible {
+      color: ${palette.shareHover};
+      box-shadow: 0 4px 8px ${palette.shareHoverShadow};
+    }
+    .${idPanel}-share-count {
+      background: ${palette.count};
+      color: ${palette.countText};
+    }
+    .${idPanel}-share-tooltip {
+      background: ${palette.tooltip};
+      color: ${palette.tooltipText};
+      border: 1px solid ${palette.tooltipBorder};
     }
   `;
-}
-
-// Function to generate dark theme styles
-function getDarkStyles(idPanel, scrollClassContainer) {
-  return css`
-    ${getBaseStyles(idPanel, scrollClassContainer)}
-
-    .${idPanel} {
-      background: #2d2d2d;
-      color: #e0e0e0;
-    }
-    .${idPanel}:hover {
-      background: #3a3a3a;
-    }
-    .${idPanel}-title {
-      color: ${(() => {
-        const themeColor = subThemeManager.darkColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        return hasThemeColor ? lightenHex(themeColor, 0.3) : '#8a85ff';
-      })()};
-      font-size: 24px;
-      padding: 5px;
-    }
-    .a-title-${idPanel} {
-      color: ${(() => {
-        const themeColor = subThemeManager.darkColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        return hasThemeColor ? lightenHex(themeColor, 0.3) : '#8a85ff';
-      })()};
-    }
-    .a-title-${idPanel}:hover {
-      color: ${(() => {
-        const themeColor = subThemeManager.darkColor;
-        const hasThemeColor = themeColor && themeColor !== null;
-        return hasThemeColor ? lightenHex(themeColor, 0.5) : '#ffb74d';
-      })()};
-    }
-    .${idPanel}-row-pin-value {
-      font-size: 20px;
-      color: #4caf50;
-    }
-    .${idPanel}-btn-tool {
-      background: none !important;
-      color: #666666 !important;
-    }
-    .${idPanel}-btn-tool:hover {
-      color: #ffffff !important;
-      font-size: 17px !important;
-    }
-    .panel-visibility-icon .fa-globe,
-    .panel-visibility-icon .fa-lock {
-      color: #999;
-    }
-  `;
-}
+};
 
 export { Panel };
