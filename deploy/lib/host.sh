@@ -213,3 +213,10 @@ npm link --force, \
 test \"\$(readlink -f \"\$(command -v underpost)\")\" = \"\$(readlink -f ./bin/index.js)\", \
         underpost state set container-status ${deploy_id}-${env}-build-deployment"
 }
+
+# The private conf repository a deploy's pod reads. POD_SRC_PRIVATE_REPO overrides it.
+#
+# Usage: pod_private_repo <deploy-id>
+pod_private_repo() {
+    printf '%s' "${POD_SRC_PRIVATE_REPO:-underpostnet/engine-${1#dd-}-private}"
+}

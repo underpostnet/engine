@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const hostLib = path.join(repoRoot, 'deploy/lib/host.sh');
 // Defined before and after the source: the library pulls in the real logging helpers, which
 // would otherwise run the steps instead of printing them.
@@ -309,10 +309,20 @@ describe.skipIf(!fs.existsSync(cyberiaDeployScript))('a pod lands its private co
   const source = fs.existsSync(cyberiaDeployScript) ? fs.readFileSync(cyberiaDeployScript, 'utf8') : '';
 
   it('names the pod conf repository once and derives the directory the clone lands in', () => {
-    expect(source).to.match(/^POD_SRC_PRIVATE_REPO="\$\{POD_SRC_PRIVATE_REPO:-[^"]+\}"$/m);
+    expect(source).to.include('POD_SRC_PRIVATE_REPO="$(pod_private_repo "$DEPLOY_ID")"');
     expect(source).to.include('underpost clone ${POD_SRC_PRIVATE_REPO}');
     expect(source).to.include('POD_SRC_PRIVATE_DIR="${POD_SRC_PRIVATE_REPO##*/}"');
     expect(source).to.include('sudo mv ./${POD_SRC_PRIVATE_DIR} ./engine-private');
+  });
+
+  it('derives the pod conf repository from the deploy id, and lets the environment override it', () => {
+    const repo = (env) =>
+      execFileSync('bash', ['-c', `source "${hostLib}"; pod_private_repo dd-cyberia`], {
+        encoding: 'utf8',
+        env: { ...process.env, ...env },
+      });
+    expect(repo({})).to.equal('underpostnet/engine-cyberia-private');
+    expect(repo({ POD_SRC_PRIVATE_REPO: 'owner/conf' })).to.equal('owner/conf');
   });
 
   it('clears the destination first, so the checkout replaces engine-private instead of nesting in it', () => {

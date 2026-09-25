@@ -84,7 +84,8 @@ const documentFileIds = (docs, fields) => {
  * id, and dropping one of them must not blind the other.
  * @param {Object} params
  * @param {import('mongoose').Model} params.File - File model.
- * @param {import('mongoose').Model} params.Owner - The collection that owns these ids.
+ * @param {import('mongoose').Model|import('mongoose').Model[]} params.Owner - The collection that owns
+ *   these ids, or every copy of it when the same collection lives in several databases.
  * @param {string[]} params.fields - Owner fields holding File ids.
  * @param {Array<*>} params.ids - Candidate ids, as read before the owners were deleted.
  * @returns {Promise<number>} How many File documents were removed.
@@ -95,12 +96,17 @@ const deleteOwnedFiles = async ({ File, Owner, fields, ids }) => {
   if (candidates.length === 0) return 0;
 
   const held = new Set();
-  if (Owner && fields?.length) {
-    const survivors = await Owner.find(
-      { $or: fields.map((field) => ({ [field]: { $in: candidates } })) },
-      Object.fromEntries(fields.map((field) => [field, 1])),
-    ).lean();
-    for (const id of documentFileIds(survivors, fields)) held.add(id);
+  const owners = [Owner].flat().filter(Boolean);
+  if (owners.length && fields?.length) {
+    for (const owner of owners) {
+      const survivors = await owner
+        .find(
+          { $or: fields.map((field) => ({ [field]: { $in: candidates } })) },
+          Object.fromEntries(fields.map((field) => [field, 1])),
+        )
+        .lean();
+      for (const id of documentFileIds(survivors, fields)) held.add(id);
+    }
   }
 
   const removable = candidates.filter((id) => !held.has(id));
