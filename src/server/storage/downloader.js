@@ -5,7 +5,7 @@
  */
 
 import axios from 'axios';
-import fs from 'fs';
+import fs from 'fs-extra';
 import { loggerFactory } from '../ops/logger.js';
 
 const logger = loggerFactory(import.meta);

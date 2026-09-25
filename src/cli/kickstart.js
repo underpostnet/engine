@@ -4,7 +4,7 @@
  * @namespace UnderpostKickStart
  */
 
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loggerFactory } from '../server/ops/logger.js';
