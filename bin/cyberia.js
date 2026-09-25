@@ -4705,7 +4705,7 @@ try {
     shellExec(`node bin run build-cluster-deployment-manifests`);
     shellExec(`node bin/cyberia run-workflow build-manifest`);
     shellExec(`node bin/cyberia run-workflow publish --dry-run`);
-    shellExec(`npm run security`);
+    shellExec(`npm run security:secrets:ci`);
     shellExec(`sudo rm -rf ./underpost.config.dd*.js`);
   });
 
