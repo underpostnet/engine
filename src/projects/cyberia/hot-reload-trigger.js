@@ -20,6 +20,7 @@
 
 import * as grpc from '@grpc/grpc-js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { serverApiKey } from './server-key.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -32,9 +33,6 @@ const DEFAULT_TIMEOUT_MS = 20000;
 
 const jsonSerialize = (value) => Buffer.from(JSON.stringify(value ?? {}));
 const jsonDeserialize = (buffer) => JSON.parse(Buffer.from(buffer).toString('utf8') || '{}');
-
-/** The internal shared secret; empty when the deploy has not configured one. */
-const serverApiKey = () => process.env.CYBERIA_SERVER_API_KEY || '';
 
 /**
  * Split a user-supplied server URL into the REST base URL and the gRPC target.
