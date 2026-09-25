@@ -67,7 +67,7 @@
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "@neodrag/vanilla": "^2.3.1",
-    "ag-grid-community": "^36.1.0",
+    "ag-grid-community": "^36.2.0",
     "axios": "^1.20.0",
     "clipboardy": "^5.3.2",
     "cloudinary": "^2.11.0",
