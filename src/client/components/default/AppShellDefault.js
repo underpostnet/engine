@@ -31,7 +31,7 @@ class AppShellDefault {
     const RouterInstance = RouterDefault.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const barMode = undefined; // 'top-bottom-bar';
+    const barMode = 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
       html: html`
@@ -220,6 +220,7 @@ class AppShellDefault {
         return '';
       },
       mode: 'slide-menu',
+      barMode,
       RouterInstance,
       htmlMainBody: options.htmlMainBody,
     });

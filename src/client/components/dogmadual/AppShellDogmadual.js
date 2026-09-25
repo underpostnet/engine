@@ -25,7 +25,7 @@ class AppShellDogmadual {
     const RouterInstance = RouterDogmadual.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const barMode = undefined; // 'top-bottom-bar';
+    const barMode = 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
       html: html`
@@ -133,6 +133,7 @@ class AppShellDogmadual {
         return '';
       },
       mode: 'slide-menu',
+      barMode,
       RouterInstance,
       htmlMainBody: options.htmlMainBody,
     });
