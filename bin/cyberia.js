@@ -4706,7 +4706,7 @@ try {
     shellExec(`node bin/cyberia run-workflow build-manifest`);
     shellExec(`node bin/cyberia run-workflow publish --dry-run`);
     shellExec(`npm run security`);
-    shellExec(`sudo rm -rf ./conf.dd*.js`);
+    shellExec(`sudo rm -rf ./underpost.config.dd*.js`);
   });
 
   runner.command('cluster').action(() => {

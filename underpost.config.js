@@ -49,7 +49,6 @@ const DefaultConf = /**/ {
           'Chat',
           'Worker',
           'CssCore',
-          'Wallet',
           'Badge',
           'ToolTip',
           'Webhook',
@@ -67,6 +66,7 @@ const DefaultConf = /**/ {
           'AppStore',
           'ClientEvents',
           'EventBus',
+          'Markdown',
         ],
         default: [
           'AppShellDefault',

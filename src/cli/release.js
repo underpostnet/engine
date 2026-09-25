@@ -504,7 +504,7 @@ class UnderpostRelease {
       shellExec(`node bin cron --kubeadm --setup-start --git`); // --apply
       shellExec(`node bin cmt --changelog-build`);
       shellExec(`npm run security`);
-      shellExec(`sudo rm -rf ./conf.dd*.js`);
+      shellExec(`sudo rm -rf ./underpost.config.dd*.js`);
       return { from: version, to: newVersion, files: report.map((r) => r.file), dryRun: false };
     },
 
