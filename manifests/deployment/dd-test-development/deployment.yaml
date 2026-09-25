@@ -33,7 +33,7 @@ spec:
                 optional: true
           env:
             - name: UNDERPOST_INTERNAL_PORT
-              value: "4032"
+              value: "4035"
 
           command:
             - /bin/sh
@@ -44,7 +44,7 @@ spec:
             {
               "httpGet": {
                 "path": "/_internal/ready",
-                "port": 4032
+                "port": 4035
               },
               "initialDelaySeconds": 5,
               "periodSeconds": 5,
@@ -55,7 +55,7 @@ spec:
             {
               "httpGet": {
                 "path": "/_internal/health",
-                "port": 4032
+                "port": 4035
               },
               "initialDelaySeconds": 30,
               "periodSeconds": 15,
@@ -66,7 +66,7 @@ spec:
             {
               "httpGet": {
                 "path": "/_internal/ready",
-                "port": 4032
+                "port": 4035
               },
               "initialDelaySeconds": 10,
               "periodSeconds": 10,
@@ -86,33 +86,6 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
-    - name: 'tcp-4033'
-      protocol: TCP
-      port: 4033
-      targetPort: 4033
-    - name: 'udp-4033'
-      protocol: UDP
-      port: 4033
-      targetPort: 4033
-
-    - name: 'tcp-4034'
-      protocol: TCP
-      port: 4034
-      targetPort: 4034
-    - name: 'udp-4034'
-      protocol: UDP
-      port: 4034
-      targetPort: 4034
-
-    - name: 'tcp-4035'
-      protocol: TCP
-      port: 4035
-      targetPort: 4035
-    - name: 'udp-4035'
-      protocol: UDP
-      port: 4035
-      targetPort: 4035
-
     - name: 'tcp-4036'
       protocol: TCP
       port: 4036
@@ -166,4 +139,31 @@ spec:
       protocol: UDP
       port: 4041
       targetPort: 4041
+
+    - name: 'tcp-4042'
+      protocol: TCP
+      port: 4042
+      targetPort: 4042
+    - name: 'udp-4042'
+      protocol: UDP
+      port: 4042
+      targetPort: 4042
+
+    - name: 'tcp-4043'
+      protocol: TCP
+      port: 4043
+      targetPort: 4043
+    - name: 'udp-4043'
+      protocol: UDP
+      port: 4043
+      targetPort: 4043
+
+    - name: 'tcp-4044'
+      protocol: TCP
+      port: 4044
+      targetPort: 4044
+    - name: 'udp-4044'
+      protocol: UDP
+      port: 4044
+      targetPort: 4044
   type: LoadBalancer

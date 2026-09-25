@@ -15,58 +15,11 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-prototype-development-traffic-service
-          port: 4023
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-prototype-development-traffic-service
-          port: 4024
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.bymyelectrics.com
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: www.bymyelectrics.com
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-prototype-development-traffic-service
-          port: 4025
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-prototype-development-traffic-service
           port: 4026
           weight: 100
     
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: bymyelectrics.com
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: bymyelectrics.com
-  routes:
     - conditions:
-        - prefix: /
+        - prefix: /peer
       
       enableWebsockets: true
       services:
@@ -78,11 +31,11 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: vitaintegral.nexodev.org
+  name: www.bymyelectrics.com
   namespace: default
 spec:
   virtualhost:
-    fqdn: vitaintegral.nexodev.org
+    fqdn: www.bymyelectrics.com
   routes:
     - conditions:
         - prefix: /
@@ -106,6 +59,53 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
+  name: bymyelectrics.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: bymyelectrics.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-prototype-development-traffic-service
+          port: 4030
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: vitaintegral.nexodev.org
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: vitaintegral.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-prototype-development-traffic-service
+          port: 4031
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-prototype-development-traffic-service
+          port: 4032
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
   name: www.cecinasmarcelina.com
   namespace: default
 spec:
@@ -118,7 +118,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-prototype-development-traffic-service
-          port: 4030
+          port: 4033
           weight: 100
     
     - conditions:
@@ -127,7 +127,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-prototype-development-traffic-service
-          port: 4031
+          port: 4034
           weight: 100
     
 ---
@@ -146,6 +146,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-prototype-development-traffic-service
-          port: 4032
+          port: 4035
           weight: 100
     

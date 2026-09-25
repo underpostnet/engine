@@ -211,4 +211,31 @@ spec:
       protocol: UDP
       port: 4016
       targetPort: 4016
+
+    - name: 'tcp-4017'
+      protocol: TCP
+      port: 4017
+      targetPort: 4017
+    - name: 'udp-4017'
+      protocol: UDP
+      port: 4017
+      targetPort: 4017
+
+    - name: 'tcp-4018'
+      protocol: TCP
+      port: 4018
+      targetPort: 4018
+    - name: 'udp-4018'
+      protocol: UDP
+      port: 4018
+      targetPort: 4018
+
+    - name: 'tcp-4019'
+      protocol: TCP
+      port: 4019
+      targetPort: 4019
+    - name: 'udp-4019'
+      protocol: UDP
+      port: 4019
+      targetPort: 4019
   type: LoadBalancer

@@ -26,7 +26,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-core-development-traffic-service
-          port: 4017
+          port: 4020
           weight: 100
 
 ---
@@ -85,7 +85,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -94,7 +94,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-core-development-traffic-service
-          port: 4018
+          port: 4021
           weight: 100
     - matches:
         - path:
@@ -122,7 +122,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-core-development-traffic-service
-          port: 4019
+          port: 4022
           weight: 100
 
 ---
@@ -152,7 +152,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-core-development-traffic-service
-          port: 4020
+          port: 4023
           weight: 100
 
 ---
@@ -211,7 +211,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -220,7 +220,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-core-development-traffic-service
-          port: 4021
+          port: 4024
           weight: 100
     - matches:
         - path:
@@ -248,5 +248,5 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-core-development-traffic-service
-          port: 4022
+          port: 4025
           weight: 100

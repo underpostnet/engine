@@ -33,7 +33,7 @@ spec:
                 optional: true
           env:
             - name: UNDERPOST_INTERNAL_PORT
-              value: "4016"
+              value: "4019"
 
           command:
             - /bin/sh
@@ -44,7 +44,7 @@ spec:
             {
               "httpGet": {
                 "path": "/_internal/ready",
-                "port": 4016
+                "port": 4019
               },
               "initialDelaySeconds": 5,
               "periodSeconds": 5,
@@ -55,7 +55,7 @@ spec:
             {
               "httpGet": {
                 "path": "/_internal/health",
-                "port": 4016
+                "port": 4019
               },
               "initialDelaySeconds": 30,
               "periodSeconds": 15,
@@ -66,7 +66,7 @@ spec:
             {
               "httpGet": {
                 "path": "/_internal/ready",
-                "port": 4016
+                "port": 4019
               },
               "initialDelaySeconds": 10,
               "periodSeconds": 10,
@@ -86,33 +86,6 @@ spec:
   selector:
     app: dd-core-development-blue
   ports:
-    - name: 'tcp-4017'
-      protocol: TCP
-      port: 4017
-      targetPort: 4017
-    - name: 'udp-4017'
-      protocol: UDP
-      port: 4017
-      targetPort: 4017
-
-    - name: 'tcp-4018'
-      protocol: TCP
-      port: 4018
-      targetPort: 4018
-    - name: 'udp-4018'
-      protocol: UDP
-      port: 4018
-      targetPort: 4018
-
-    - name: 'tcp-4019'
-      protocol: TCP
-      port: 4019
-      targetPort: 4019
-    - name: 'udp-4019'
-      protocol: UDP
-      port: 4019
-      targetPort: 4019
-
     - name: 'tcp-4020'
       protocol: TCP
       port: 4020
@@ -139,4 +112,31 @@ spec:
       protocol: UDP
       port: 4022
       targetPort: 4022
+
+    - name: 'tcp-4023'
+      protocol: TCP
+      port: 4023
+      targetPort: 4023
+    - name: 'udp-4023'
+      protocol: UDP
+      port: 4023
+      targetPort: 4023
+
+    - name: 'tcp-4024'
+      protocol: TCP
+      port: 4024
+      targetPort: 4024
+    - name: 'udp-4024'
+      protocol: UDP
+      port: 4024
+      targetPort: 4024
+
+    - name: 'tcp-4025'
+      protocol: TCP
+      port: 4025
+      targetPort: 4025
+    - name: 'udp-4025'
+      protocol: UDP
+      port: 4025
+      targetPort: 4025
   type: LoadBalancer

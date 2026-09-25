@@ -12,33 +12,6 @@ spec:
   selector:
     app: dd-prototype-development-blue
   ports:
-    - name: 'tcp-4023'
-      protocol: TCP
-      port: 4023
-      targetPort: 4023
-    - name: 'udp-4023'
-      protocol: UDP
-      port: 4023
-      targetPort: 4023
-
-    - name: 'tcp-4024'
-      protocol: TCP
-      port: 4024
-      targetPort: 4024
-    - name: 'udp-4024'
-      protocol: UDP
-      port: 4024
-      targetPort: 4024
-
-    - name: 'tcp-4025'
-      protocol: TCP
-      port: 4025
-      targetPort: 4025
-    - name: 'udp-4025'
-      protocol: UDP
-      port: 4025
-      targetPort: 4025
-
     - name: 'tcp-4026'
       protocol: TCP
       port: 4026
@@ -101,3 +74,30 @@ spec:
       protocol: UDP
       port: 4032
       targetPort: 4032
+
+    - name: 'tcp-4033'
+      protocol: TCP
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
+      protocol: UDP
+      port: 4033
+      targetPort: 4033
+
+    - name: 'tcp-4034'
+      protocol: TCP
+      port: 4034
+      targetPort: 4034
+    - name: 'udp-4034'
+      protocol: UDP
+      port: 4034
+      targetPort: 4034
+
+    - name: 'tcp-4035'
+      protocol: TCP
+      port: 4035
+      targetPort: 4035
+    - name: 'udp-4035'
+      protocol: UDP
+      port: 4035
+      targetPort: 4035

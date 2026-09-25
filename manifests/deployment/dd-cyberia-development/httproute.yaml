@@ -55,7 +55,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -181,7 +181,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -307,7 +307,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -433,7 +433,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -501,4 +501,130 @@ spec:
       backendRefs:
         - name: dd-cyberia-development-traffic-service
           port: 4016
+          weight: 100
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: objectlayer.org
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - objectlayer.org
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /objectlayer.org/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /objectlayer.org/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-traffic-service
+          port: 4017
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-traffic-service
+          port: 4018
+          weight: 100
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: www.objectlayer.org
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      namespace: default
+  hostnames:
+    - www.objectlayer.org
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-cyberia-development-traffic-service
+          port: 4019
           weight: 100

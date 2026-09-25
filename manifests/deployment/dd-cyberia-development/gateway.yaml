@@ -36,6 +36,13 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: http-objectlayer-org-167eaf0c
+      hostname: "objectlayer.org"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-server-cyberiaonline-com-611c12b2
       hostname: "server.cyberiaonline.com"
       protocol: HTTP
@@ -66,6 +73,13 @@ spec:
           from: Same
     - name: http-www-itemledger-com-8395cfad
       hostname: "www.itemledger.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-www-objectlayer-org-380ed37a
+      hostname: "www.objectlayer.org"
       protocol: HTTP
       port: 80
       allowedRoutes:

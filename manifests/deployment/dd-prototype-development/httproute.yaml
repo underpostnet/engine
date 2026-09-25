@@ -55,7 +55,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -64,7 +64,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4023
+          port: 4026
           weight: 100
     - matches:
         - path:
@@ -92,7 +92,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4024
+          port: 4027
           weight: 100
 
 ---
@@ -151,7 +151,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -160,7 +160,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4025
+          port: 4028
           weight: 100
     - matches:
         - path:
@@ -188,7 +188,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4026
+          port: 4029
           weight: 100
 
 ---
@@ -218,7 +218,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4027
+          port: 4030
           weight: 100
 
 ---
@@ -277,7 +277,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -286,7 +286,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4028
+          port: 4031
           weight: 100
     - matches:
         - path:
@@ -314,7 +314,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4029
+          port: 4032
           weight: 100
 
 ---
@@ -373,7 +373,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
+            value: /api/v1
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
@@ -382,7 +382,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4030
+          port: 4033
           weight: 100
     - matches:
         - path:
@@ -410,7 +410,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4031
+          port: 4034
           weight: 100
 
 ---
@@ -440,5 +440,5 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4032
+          port: 4035
           weight: 100
