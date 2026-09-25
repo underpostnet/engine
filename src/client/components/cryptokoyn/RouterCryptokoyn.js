@@ -25,6 +25,7 @@ class RouterCryptokoyn {
       },
       '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click() },
       '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
+      '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click() },
       '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
     };
   }

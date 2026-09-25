@@ -5,11 +5,21 @@ import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { MainBodyDocument } from '../core/MainBodyDocument.js';
+import {
+  buildBadgeToolTipMenuOption,
+  isSubMenuOpen,
+  Modal,
+  SUBMENU_SELECTION_QUERY_KEY,
+  renderMenuLabel,
+  renderViewTitle,
+  sortableSubMenuEvents,
+  subMenuRender,
+} from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath } from '../core/Router.js';
+import { getProxyPath, setQueryParams } from '../core/Router.js';
 import { AppStoreCryptokoyn } from './AppStoreCryptokoyn.js';
 import Sortable from 'sortablejs';
 import { RouterCryptokoyn, BannerAppTemplate } from './RouterCryptokoyn.js';
@@ -17,6 +27,8 @@ import { WalletView } from '../wallet/WalletView.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsCryptokoyn } from './SettingsCryptokoyn.js';
 import { Recover } from '../core/Recover.js';
+import { Docs } from '../core/Docs.js';
+import { deployPackageReleaseUrl } from '../core/Repository.js';
 
 class AppShellCryptokoyn {
   static Data = {};
@@ -24,9 +36,9 @@ class AppShellCryptokoyn {
     const id = getId(AppShellCryptokoyn.Data, 'menu-');
     AppShellCryptokoyn.Data[id] = {};
     const RouterInstance = RouterCryptokoyn.instance();
+    const barMode = 'top-bottom-bar';
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const barMode = undefined; // 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
       html: html`
@@ -119,6 +131,25 @@ class AppShellCryptokoyn {
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.instance({
+            class: 'in wfa main-btn-menu main-btn-docs',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl cryptokoyn-menu-icon" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+              text: html`<span class="menu-label-text"
+                >${Translate.instance('docs')}
+                <i
+                  class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
+                  style="rotate: 0deg; transition: 0.4s;"
+                ></i
+              ></span>`,
+            }),
+            attrs: `data-id="docs"`,
+            tabHref: `${getProxyPath()}docs`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
+          })}
+          <div class="abs menu-btn-container-children-docs"></div>
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -148,17 +179,20 @@ class AppShellCryptokoyn {
         return '';
       },
       mode: 'slide-menu',
+      barMode,
       RouterInstance,
-      htmlMainBody: html``,
+      htmlMainBody: async () => await MainBodyDocument.instance({ domain: 'cryptokoyn' }),
       searchCustomImgClass: 'cryptokoyn-menu-icon',
     });
 
+    const sortableSubMenus = sortableSubMenuEvents(['docs']);
     AppShellCryptokoyn.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
       fallbackOnBody: true,
       handle: '.handle-btn-container',
+      draggable: '.main-btn-menu',
       store: {
         /**
          * Get the order of elements. Called once during initialization.
@@ -183,6 +217,7 @@ class AppShellCryptokoyn {
       // ghostClass: 'css-class',
       // Element dragging ended
       onEnd: function (/**Event*/ evt) {
+        sortableSubMenus.onEnd();
         // console.log('Sortable onEnd', evt);
         // console.log('evt.oldIndex', evt.oldIndex);
         // console.log('evt.newIndex', evt.newIndex);
@@ -200,6 +235,7 @@ class AppShellCryptokoyn {
         // evt.clone; // the clone element
         // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
       },
+      onStart: sortableSubMenus.onStart,
     });
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
@@ -317,6 +353,39 @@ class AppShellCryptokoyn {
         }),
         html: async () => await SettingsCryptokoyn.instance({ idModal: 'modal-settings' }),
         handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        barMode,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async (e) => {
+      if (!isSubMenuOpen('docs') || e.isTrusted) {
+        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
+        await subMenuRender('docs');
+      }
+
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-docs',
+        route: 'docs',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cryptokoyn-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+          text: `<span class='inl cryptokoyn-text-title-modal'>${Translate.instance('docs')}</span>`,
+        }),
+        html: async () =>
+          await Docs.instance({
+            idModal: 'modal-docs',
+            ...Docs.uiIcons({ iconClass: 'cryptokoyn-menu-icon' }),
+            domain: 'cryptokoyn',
+            disabled: ['demo'],
+            lastReleaseUrl: deployPackageReleaseUrl,
+          }),
+        handleType: 'bar',
+        observer: true,
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',

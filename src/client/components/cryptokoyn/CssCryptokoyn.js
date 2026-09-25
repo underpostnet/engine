@@ -12,12 +12,12 @@ const CssCommonCryptokoyn = async () => {
     style: 'width: 100px; height: 100px',
   });
   subThemeManager.setDarkTheme('#ff0d0d');
-  subThemeManager.setLightTheme('#ffcc00');
+  subThemeManager.setLightTheme('#f25454');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonCryptokoyn',
     style: {
-      'font-family': `retro-font`,
+      'font-family': `retro-font-sensitive`,
       'font-size': '24px',
       'no-cell-focus-style': true,
       'row-cursor': 'pointer',
@@ -49,7 +49,9 @@ const CssCommonCryptokoyn = async () => {
         font-family: 'retro-font-cta';
         src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
       }
-
+      .search-result-item {
+        font-family: 'retro-font-sensitive';
+      }
       /* Landing Page & Object Viewer Styles */
       .landing-container {
         display: flex;
@@ -122,6 +124,26 @@ const CssCommonCryptokoyn = async () => {
         font-family: var(--cy-font-retro-sensitive);
       }
 
+      /* Wallet copy is case sensitive (addresses, recovery phrases, standards), so the whole
+         view reads in the sensitive face, sized up to match the display face's weight. */
+      .wallet-view,
+      .wallet-view .section-mp,
+      .wallet-view button,
+      .wallet-view input,
+      .wallet-view a {
+        font-family: var(--cy-font-retro-sensitive);
+        font-size: 22px;
+      }
+      .wallet-view .sub-title-modal {
+        font-family: var(--cy-font-retro);
+        font-size: 26px;
+      }
+      .wallet-view .wallet-address,
+      .wallet-view .wallet-mnemonic {
+        font-size: 24px;
+        color: #ff0d0d;
+      }
+
       .btn-modal-default {
         width: 35px;
         height: 35px;
@@ -148,8 +170,50 @@ const CssCommonCryptokoyn = async () => {
       .input-container {
         width: 278px;
       }
+      .down-arrow-submenu {
+        left: 102px;
+      }
+
+      /* Docs section retro styling */
+      .docs-header h1 {
+        font-family: var(--cy-font-retro-cta);
+        color: #ff0d0d;
+        text-shadow: 2px 2px 0px #9e0808;
+      }
+      .docs-card {
+        border: 2px solid #ff0d0d;
+        transition: all 0.3s ease-in-out;
+      }
+      .docs-card:hover {
+        background: rgba(255, 13, 13, 0.08);
+        box-shadow:
+          0 0 10px rgba(255, 13, 13, 0.3),
+          0 0 20px rgba(255, 13, 13, 0.15);
+        transform: translateY(-3px);
+      }
+      .card-icon {
+        color: #ff0d0d;
+      }
+      .card-content h3 {
+        font-family: var(--cy-font-retro-cta);
+        font-size: 1.25rem;
+      }
+      .card-content p {
+        font-family: var(--cy-font-retro);
+      }
+      .submenu-btn {
+        font-family: var(--cy-font-retro);
+      }
+      .submenu-btn:hover {
+        background: rgba(255, 13, 13, 0.1);
+      }
+      .default-slide-menu-top-bar-fix-title-container-text {
+        font-size: 40px !important;
+        color: #ff0d0d !important;
+      }
     </style>
 
+    ${borderChar(1, `black`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
     <div class="ag-grid-style"></div>`;
 };
 
@@ -158,25 +222,7 @@ class CssCryptokoynDark {
   static dark = true;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonCryptokoyn()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #212020;
-          }
-          .action-bar-box {
-            color: white;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
-            color: black !important;
-          }
-        </style>
-        ${borderChar(2, `#ff0d0d`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-      `
-    );
+    return (await CssCommonCryptokoyn()) + html` <style></style> `;
   };
 }
 
@@ -185,27 +231,7 @@ class CssCryptokoynLight {
   static dark = false;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonCryptokoyn()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #d8d8d8;
-          }
-
-          .action-bar-box {
-            color: black;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            font-size: 40px !important;
-            color: #ffcc00 !important;
-          }
-        </style>
-        ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
-      `
-    );
+    return (await CssCommonCryptokoyn()) + html` <style></style> `;
   };
 }
 
