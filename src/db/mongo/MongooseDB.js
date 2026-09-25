@@ -167,28 +167,53 @@ class MongooseDBService {
   }
 
   /**
-   * Dynamically loads Mongoose models for a list of APIs and binds them to the given connection.
+   * The connection an API's models bind to: the partition database that names the API, else
+   * the connection itself. A partition is a sibling database on the same server, so its
+   * credentials and topology are the connection's.
+   * @param {mongoose.Connection} conn - The active connection.
+   * @param {string} api - API name.
+   * @param {Object<string,{name:string,apis:string[]}>} [partitions] - Partition databases keyed by partition name.
+   * @returns {mongoose.Connection}
+   */
+  partitionConnection(conn, api, partitions = {}) {
+    const partition = Object.values(partitions).find((entry) => entry?.name && entry.apis?.includes(api));
+    return partition ? conn.useDb(partition.name, { useCache: true }) : conn;
+  }
+
+  /**
+   * Binds one API's model to a connection.
+   * @param {mongoose.Connection} conn - Connection the model binds to.
+   * @param {string} api - API name.
+   * @returns {Promise<mongoose.Model>}
+   */
+  async bindModel(conn, api) {
+    const { ProviderSchema } = await import(`../../api/${api}/${api}.model.js`);
+    const keyModel = getCapVariableName(api);
+    const model = conn.models[keyModel] ?? conn.model(keyModel, ProviderSchema);
+    // Mongoose emits 'error' on the model when an autoIndex build fails; with no
+    // listener attached EventEmitter rethrows and takes the whole process down.
+    // A stale or conflicting index must degrade to a log, not kill startup.
+    model.on('error', (error) => logger.error(`${keyModel} index build failed: ${error.message}`));
+    return model;
+  }
+
+  /**
+   * Dynamically loads Mongoose models for a list of APIs and binds them to the given connection,
+   * or to the partition database that names the API.
    *
    * @async
    * @param {object} [options] - Options for model loading.
    * @param {Array<string>} [options.apis=['test']] - List of API names (folders) to load models from.
    * @param {mongoose.Connection} [options.conn=new mongoose.Connection()] - The active Mongoose connection.
+   * @param {Object<string,{name:string,apis:string[]}>} [options.partitions] - Partition databases, see {@link partitionConnection}.
    * @returns {Promise<object>} A promise that resolves to an object map of loaded Mongoose models.
    */
   async loadModels(options = { apis: ['test'], conn: new mongoose.Connection() }) {
-    const { conn, apis } = options;
+    const { conn, apis, partitions } = options;
     const models = {};
     for (const api of apis) {
-      // Dynamic import of the model file
-      const { ProviderSchema } = await import(`../../api/${api}/${api}.model.js`);
-      const keyModel = getCapVariableName(api); // Assuming this returns a capitalized model name
-      models[keyModel] = conn.model(keyModel, ProviderSchema);
-      // Mongoose emits 'error' on the model when an autoIndex build fails; with no
-      // listener attached EventEmitter rethrows and takes the whole process down.
-      // A stale or conflicting index must degrade to a log, not kill startup.
-      models[keyModel].on('error', (error) => logger.error(`${keyModel} index build failed: ${error.message}`));
+      models[getCapVariableName(api)] = await this.bindModel(this.partitionConnection(conn, api, partitions), api);
     }
-
     return models;
   }
 }

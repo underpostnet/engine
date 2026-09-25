@@ -4,6 +4,7 @@ import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import { resolveHostKeyContext } from '../server/runtime/conf.js';
 import Underpost from '../index.js';
 import { latchRuntimeError } from '../server/runtime/runtime-status.js';
+import { currentContentView } from './content-view.js';
 
 /**
  * Module for managing and loading various database connections (e.g., Mongoose, MariaDB).
@@ -59,9 +60,9 @@ const PROVIDER_HEALTH = {
           .then(() => true),
       );
     },
-    rebuild: async ({ apis, db }) => {
+    rebuild: async ({ apis, db, partitions }) => {
       const connection = await MongooseDB.connect(db);
-      return { connection, models: await MongooseDB.loadModels({ conn: connection, apis }) };
+      return { connection, models: await MongooseDB.loadModels({ conn: connection, apis, partitions }) };
     },
     close: async (connection) => await connection?.close(),
   },
@@ -124,7 +125,7 @@ class DataBaseProviderService {
    * @throws {Error} When the model is not loaded for the context.
    */
   static getModel(modelName, context = { host: '', path: '' }, provider = 'mongoose') {
-    const models = this.getProvider(context, provider).models || {};
+    const models = this.viewModels(context, currentContentView(), provider);
     const normalizedModelName = getCapVariableName(modelName);
 
     // First try direct key (supports callers passing exact model names).
@@ -178,7 +179,99 @@ class DataBaseProviderService {
       name: db.name || '',
       provider: db.provider || '',
       replicaSet: db.replicaSet || '',
+      partitions: Object.fromEntries(
+        Object.entries(db.partitions ?? {}).map(([partition, entry]) => [partition, entry?.name || '']),
+      ),
     });
+  }
+
+  /**
+   * The partition databases a db configuration declares, as a fresh map the bucket may rebind.
+   * @param {object} [db={}] - Database configuration object.
+   * @returns {Object<string,{name:string,apis:string[]}>}
+   */
+  static partitionsOf(db = {}) {
+    return Object.fromEntries(
+      Object.entries(db.partitions ?? {})
+        .filter(([, entry]) => entry?.name)
+        .map(([partition, entry]) => [partition, { name: entry.name, apis: [...(entry.apis ?? [])] }]),
+    );
+  }
+
+  /**
+   * The models a content view reads. `served` binds every partition's APIs to the database that
+   * partition serves; any other view, and a partition that serves its own database, reads the
+   * partition's own database. Models outside partitions are the same in every view.
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} view - `workspace` or `served`.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {object} Model name → model.
+   */
+  static viewModels(context, view, provider = 'mongoose') {
+    const bucket = this.getProvider(context, provider);
+    return (view === 'served' && bucket.servedModels) || bucket.models || {};
+  }
+
+  /**
+   * The database a partition serves for a context: the one `served` reads.
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} partition - Partition name.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {string} The database name, or `''` when the context declares no such partition.
+   */
+  static servedDatabase(context, partition, provider = 'mongoose') {
+    const bucket = this.getProvider(context, provider);
+    return bucket.served?.[partition] ?? bucket.partitions?.[partition]?.name ?? '';
+  }
+
+  /**
+   * The served model bag for a map of partition → database, built whole before anyone reads it.
+   * @param {object} bucket - Provider bucket.
+   * @param {Object<string,string>} served - Partition → served database.
+   * @returns {Promise<object|null>} Null when every partition serves its own database.
+   */
+  static async #buildServedModels(bucket, served) {
+    let models = null;
+    for (const [partition, database] of Object.entries(served)) {
+      const entry = bucket.partitions?.[partition];
+      if (!entry || database === entry.name) continue;
+      models ??= { ...bucket.models };
+      const conn = bucket.connection.useDb(database, { useCache: true });
+      for (const api of entry.apis) models[getCapVariableName(api)] = await MongooseDB.bindModel(conn, api);
+    }
+    return models;
+  }
+
+  /**
+   * Makes a partition serve another database. The new model bag is built first and swapped in
+   * one assignment, so a reader sees the previous database or the new one, never a mix. The
+   * partition's own database stays what `workspace` reads.
+   *
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} partition - Partition name.
+   * @param {string} database - Database the partition serves from now on.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {Promise<{previous: string, database: string}>} The served database before and after.
+   */
+  static async serveDatabase(context, partition, database, provider = 'mongoose') {
+    const bucket = this.getProvider(context, provider);
+    if (!bucket.partitions?.[partition])
+      throw new Error(`Partition "${partition}" is not declared for context "${resolveHostKeyContext(context)}"`);
+    if (!database) throw new Error(`Partition "${partition}" needs a database name`);
+    const previous = this.servedDatabase(context, partition, provider);
+    if (previous === database) return { previous, database };
+
+    const served = { ...(bucket.served ?? {}), [partition]: database };
+    const servedModels = await DataBaseProviderService.#buildServedModels(bucket, served);
+    bucket.servedModels = servedModels;
+    bucket.served = served;
+    logger.info('Partition serves another database', {
+      key: resolveHostKeyContext(context),
+      partition,
+      previous,
+      database,
+    });
+    return { previous, database };
   }
 
   /**
@@ -221,10 +314,11 @@ class DataBaseProviderService {
     const previousConnection = bucket.connection;
 
     try {
-      const { connection, models } = await strategy.rebuild(bucket.rebuild);
+      const { connection, models } = await strategy.rebuild({ ...bucket.rebuild, partitions: bucket.partitions });
 
       bucket.connection = connection;
       bucket.models = models;
+      if (bucket.served) bucket.servedModels = await DataBaseProviderService.#buildServedModels(bucket, bucket.served);
       logger.info('Database connection rebuilt', { key, provider });
     } catch (error) {
       logger.error('Database reconnect failed, keeping the existing connection', {
@@ -316,6 +410,9 @@ class DataBaseProviderService {
    * @param {string} options.db.provider - The name of the database provider ('mongoose', 'mariadb', etc.).
    * @param {string} options.db.host - The database server host.
    * @param {string} options.db.name - The database name.
+   * @param {Object<string,{name:string,apis:string[]}>} [options.db.partitions] - Sibling databases on the
+   *   same server, each owning the models of the APIs it names. A partition keeps one data domain
+   *   (content, runtime) apart from another under one host; {@link serveDatabase} makes one serve another database.
    * @returns {Promise<object|undefined>} A promise that resolves to the initialized provider object
    * or `undefined` on error or if the provider is already loaded.
    */
@@ -341,11 +438,13 @@ class DataBaseProviderService {
         case 'mongoose':
           {
             const conn = await MongooseDB.connect(db);
+            const partitions = DataBaseProviderService.partitionsOf(db);
             this.#instance[key][db.provider] = {
               dbSignature,
               // Kept so the connection can be rebuilt later without the caller being present.
               rebuild: { apis, host, path, db },
-              models: await MongooseDB.loadModels({ conn, apis }),
+              partitions,
+              models: await MongooseDB.loadModels({ conn, apis, partitions }),
               connection: conn,
               close: async () => {
                 this.#stopHealthWatch(key, db.provider);
