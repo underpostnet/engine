@@ -8,11 +8,7 @@ class CyberiaGlobalMapCodeRegistryRouter {
    * @returns {import('express').Router}
    */
   static router(options) {
-    // Registry endpoints: intentionally unguarded (matches prior behavior).
-    return registerCrudRoutes(express.Router(), CyberiaGlobalMapCodeRegistryController, options, {
-      writeGuards: [],
-      deleteAllGuards: [],
-    });
+    return registerCrudRoutes(express.Router(), CyberiaGlobalMapCodeRegistryController, options);
   }
 }
 

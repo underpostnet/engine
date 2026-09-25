@@ -8,11 +8,7 @@ class CyberiaAudioRouter {
    * @returns {import('express').Router}
    */
   static router(options) {
-    // Fully unguarded (matches prior behavior).
-    return registerCrudRoutes(express.Router(), CyberiaAudioController, options, {
-      writeGuards: [],
-      deleteAllGuards: [],
-    });
+    return registerCrudRoutes(express.Router(), CyberiaAudioController, options);
   }
 }
 
