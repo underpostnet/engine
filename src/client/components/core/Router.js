@@ -121,6 +121,11 @@ const getProxyPath = () => {
   return path;
 };
 
+const isCurrentRoute = (route) => {
+  const normalize = (path) => (path.length > 1 ? path.replace(/\/+$/, '') : path);
+  return normalize(window.location.pathname) === normalize(`${getProxyPath()}${route}`);
+};
+
 /**
  * Sets the browser's path using the History API. It sanitizes the path, handles query strings and hashes,
  * and prevents pushing the same state twice unless forced or using replace mode.
@@ -158,7 +163,12 @@ const setPath = (
   const newFullPath = `${sanitizedPath}${inputSearch && !options.removeSearch ? `?${inputSearch}` : ''}${
     inputHash && !options.removeHash ? `#${inputHash}` : ''
   }`;
-  const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
+  // The current path is compared in the same form as the new one: `/docs/` and `/docs` are one route.
+  const currentPathname =
+    window.location.pathname.length > 1 && window.location.pathname.endsWith('/')
+      ? window.location.pathname.slice(0, -1)
+      : window.location.pathname;
+  const currentFullPath = `${currentPathname}${location.search}${location.hash}`;
   // logger.warn(`Set path output`, {
   //   inputPath: inputPath,
   //   inputSearch: inputSearch,
@@ -466,8 +476,12 @@ const listenQueryParamsChange = ({ id, event }) => {
   queryParamsChangeListeners[id] = event;
   // Immediately call with current query params for initial state
   setTimeout(() => {
-    event(getQueryParams());
+    if (queryParamsChangeListeners[id] === event) event(getQueryParams());
   });
+};
+
+const unlistenQueryParamsChange = (id, event) => {
+  if (queryParamsChangeListeners[id] === event) delete queryParamsChangeListeners[id];
 };
 
 /**
@@ -593,11 +607,13 @@ export {
   handleModalViewRoute,
   getQueryParams,
   getProxyPath,
+  isCurrentRoute,
   setPath,
   setQueryParams,
   sanitizeRoute,
   queryParamsChangeListeners,
   listenQueryParamsChange,
+  unlistenQueryParamsChange,
   setRouterReady,
   RouterReady,
 };

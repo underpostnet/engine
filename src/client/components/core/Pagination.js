@@ -1,14 +1,23 @@
-import { getQueryParams, setQueryParams, listenQueryParamsChange } from './Router.js';
+import {
+  getQueryParams,
+  isCurrentRoute,
+  setQueryParams,
+  listenQueryParamsChange,
+  unlistenQueryParamsChange,
+} from './Router.js';
 
 class AgPagination extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._gridId = null;
+    this._queryParamsListenerId = null;
+    this._ownerRoute = null;
     let queryParams = getQueryParams();
     this._currentPage = parseInt(queryParams.page, 10) || 1;
     this._limit = parseInt(queryParams.limit, 10) || 10;
     this._totalPages = 1;
+    this._hasTotalPages = false;
     this._totalItems = 0;
     this._limitOptions = [10, 20, 50, 100]; // Default options
     this.handlePageChange = this.handlePageChange.bind(this);
@@ -18,7 +27,7 @@ class AgPagination extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ['grid-id', 'current-page', 'total-pages', 'total-items', 'limit', 'limit-options'];
+    return ['grid-id', 'owner-route', 'current-page', 'total-pages', 'total-items', 'limit', 'limit-options'];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -26,11 +35,16 @@ class AgPagination extends HTMLElement {
       case 'grid-id':
         this._gridId = newValue;
         break;
+      case 'owner-route':
+        this._ownerRoute = newValue;
+        break;
       case 'current-page':
         this._currentPage = parseInt(newValue, 10) || this._currentPage;
         break;
       case 'total-pages':
         this._totalPages = parseInt(newValue, 10) || 1;
+        this._hasTotalPages = true;
+        this.validateCurrentPage();
         break;
       case 'total-items':
         this._totalItems = parseInt(newValue, 10) || 0;
@@ -55,9 +69,9 @@ class AgPagination extends HTMLElement {
   connectedCallback() {
     this.render();
     this.addEventListeners();
-    // Subscribe to query parameter changes once the component is connected and _gridId is potentially set.
+    this._queryParamsListenerId = this._gridId || this.id || 'ag-pagination-default';
     listenQueryParamsChange({
-      id: `ag-pagination-${this._gridId || 'default'}`, // Use _gridId for a unique listener ID
+      id: this._queryParamsListenerId,
       event: this.handleQueryParamsChange,
     });
     // The initial state is already set in the constructor from getQueryParams().
@@ -67,8 +81,8 @@ class AgPagination extends HTMLElement {
   }
 
   disconnectedCallback() {
-    // If Router.js held strong references to queryParamsChangeListeners, you might need to unsubscribe here.
-    // However, for this example, we'll assume the component's lifecycle or weak references handle cleanup.
+    if (this._queryParamsListenerId)
+      unlistenQueryParamsChange(this._queryParamsListenerId, this.handleQueryParamsChange);
   }
 
   handleQueryParamsChange(queryParams) {
@@ -92,6 +106,16 @@ class AgPagination extends HTMLElement {
         new CustomEvent('pagination-query-params-change', { detail: { page: this._currentPage, limit: this._limit } }),
       );
     }
+  }
+
+  validateCurrentPage() {
+    if (this._ownerRoute && !isCurrentRoute(this._ownerRoute)) return false;
+    if (!this._hasTotalPages || (this._currentPage >= 1 && this._currentPage <= this._totalPages)) return false;
+
+    this._currentPage = 1;
+    setQueryParams({ page: 1, limit: this._limit }, { replace: true });
+    this.dispatchEvent(new CustomEvent('page-change', { detail: { page: 1 } }));
+    return true;
   }
 
   handlePageChange(newPage) {

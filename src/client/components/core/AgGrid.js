@@ -116,6 +116,7 @@ class AgGrid {
     const limitOptionsAttr = paginationOptions?.limitOptions
       ? `limit-options='${JSON.stringify(paginationOptions.limitOptions)}'`
       : '';
+    const ownerRouteAttr = options?.ownerRoute ? `owner-route="${options.ownerRoute}"` : '';
     return html`
       <div
         class="${id} ${darkTheme ? AgGrid.theme + '-dark' : AgGrid.theme}"
@@ -123,7 +124,9 @@ class AgGrid {
           ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
           : ''}"
       ></div>
-      ${usePagination ? `<ag-pagination id="ag-pagination-${id}" ${limitOptionsAttr}></ag-pagination>` : ''}
+      ${usePagination
+        ? `<ag-pagination id="ag-pagination-${id}" ${limitOptionsAttr} ${ownerRouteAttr}></ag-pagination>`
+        : ''}
     `;
   }
   static async RenderStyle(
