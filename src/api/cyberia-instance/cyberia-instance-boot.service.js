@@ -1,5 +1,5 @@
 /**
- * REST boot service — the /api/cyberia-instance/boot/* fallback transport.
+ * REST boot service — the /api/v1/cyberia-instance/boot/* fallback transport.
  *
  * Serves the CyberiaDataService payloads (world load, hot reload) over REST, so
  * the game server can boot from its --data-server-url when the engine gRPC

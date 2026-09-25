@@ -19,7 +19,7 @@ const FILE_FIELDS = fileRefFields('cyberia-audio');
  * The generic File `_id` an asset's bytes resolve through, derived from the asset code and the
  * bytes themselves.
  *
- * Content-addressed on purpose. The client fetches a WAV as `/api/file/blob/<fileId>` and caches
+ * Content-addressed on purpose. The client fetches a WAV as `/api/v1/file/blob/<fileId>` and caches
  * it, so re-recording an asset under a stable id would serve the old sound from that cache
  * forever. A changed render therefore lands on a new id — and the import deletes the one it
  * replaced, so the change costs nothing. Identical bytes re-derive the same id, which is what

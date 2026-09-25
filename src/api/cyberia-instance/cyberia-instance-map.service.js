@@ -10,6 +10,7 @@ import {
 } from '../../projects/cyberia/map-preview-generator.js';
 import { FileFactory } from '../file/file.service.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { apiPathOf } from '../../server/domain/api-contract.js';
 import {
   DefaultCyberiaActions,
   DefaultCyberiaQuests,
@@ -215,7 +216,7 @@ const buildStaticPayload = ({
   previewCachedMapCodes = new Set(),
 }) => {
   const previewRoute = (mapCode) =>
-    `/api/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(mapCode)}`;
+    `${apiPathOf()}/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(mapCode)}`;
 
   const nodes = maps.map((m) => ({
     mapCode: m.code,
@@ -229,7 +230,7 @@ const buildStaticPayload = ({
     // persisted map, stores the result as its `preview` File. A fallback-world
     // map advertises the route only after a render succeeds.
     previewUrl: m.preview
-      ? `/api/file/blob/${String(m.preview)}`
+      ? `${apiPathOf()}/file/blob/${String(m.preview)}`
       : fallback
         ? previewCachedMapCodes.has(m.code)
           ? previewRoute(m.code)
@@ -407,7 +408,7 @@ class CyberiaInstanceMapService {
    *
    * A persisted map with no captured `preview` is rendered once and the result
    * is stored as its preview File — not just cached — so every later request is
-   * served through the default /api/file/blob path. The procedural fallback
+   * served through the default /api/v1/file/blob path. The procedural fallback
    * world has no document to update and stays on the in-memory cache.
    */
   static getPreview = async (req, res, options) => {

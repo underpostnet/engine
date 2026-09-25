@@ -500,7 +500,7 @@ export const ENTITY_COLOR_KEYS = Object.freeze([
 /**
  * Camera and render-tuning defaults. Pure presentation — the cyberia-server
  * never reads any of these. The cyberia-client fetches the whole bundle
- * from /api/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE at startup
+ * from /api/v1/cyberia-client-hints/:CYBERIA_CLIENT_HINTS_CODE at startup
  * and treats this object as the on-disk schema.
  *
  *   cellSize        — pixels per simulation cell on the client viewport.

@@ -10,7 +10,7 @@
  * is idempotent, and the TTL index is the only cleanup: no sweeper, no
  * connection to track, no disconnect event to miss.
  *
- * Written through POST /api/cyberia-server-registry, read through GET on the
+ * Written through POST /api/v1/cyberia-server-registry, read through GET on the
  * same path.
  *
  * @module src/api/cyberia-server-registry/cyberia-server-registry.model.js

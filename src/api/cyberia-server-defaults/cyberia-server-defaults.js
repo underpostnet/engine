@@ -1155,7 +1155,7 @@ export const DEFAULT_PLAYER_SPAWN = Object.freeze({
  * Anything that does not influence the authoritative simulation (cell-pixel
  * size, camera tunings, palette, interpolation window, render flags) is
  * forbidden — see `SharedDefaultsCyberia.js` and the
- * `/api/cyberia-client-hints` REST endpoint for presentation overrides.
+ * `/api/v1/cyberia-client-hints` REST endpoint for presentation overrides.
  */
 export const PROGRESSION_RULES_DEFAULTS = Object.freeze({
   maxLevel: 100,

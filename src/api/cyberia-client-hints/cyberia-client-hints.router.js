@@ -6,13 +6,13 @@
  * defaults, status-icon visuals, interpolation window, dev-overlay flag.
  *
  * Endpoints:
- *   GET /api/cyberia-client-hints/:instanceCode
+ *   GET /api/v1/cyberia-client-hints/:instanceCode
  *     -> 200 { palette, entityColorKeys, statusIcons, cameraSmoothing,
  *              cameraZoom, defaultWidthScreenFactor,
  *              defaultHeightScreenFactor, interpolationMs, devUi }
  *     -> 404 when no instance carries that code. The client then uses its
  *            own built-in defaults, the normal path for a fresh deployment.
- *   GET /api/cyberia-client-hints/
+ *   GET /api/v1/cyberia-client-hints/
  *     -> 200 canonical defaults, same shape, no DB read.
  *
  * Out of scope: gameplay state and authentication. Presentation hints hold no

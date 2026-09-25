@@ -3,7 +3,7 @@
  *
  * Runs beside Express on its own port (default 50051). Thin adapter over
  * src/projects/cyberia/instance-data.js, the same assembly the REST fallback
- * at /api/cyberia-instance/boot/* serves, so both transports stay equivalent.
+ * at /api/v1/cyberia-instance/boot/* serves, so both transports stay equivalent.
  *
  * @module src/grpc/cyberia/grpc-server.js
  */

@@ -8,14 +8,14 @@
  * talk to, so the list of reachable game servers belongs here.
  *
  * Endpoints:
- *   POST /api/cyberia-server-registry
+ *   POST /api/v1/cyberia-server-registry
  *     body   { serverUrl, instanceCode, name }
  *     header X-Cyberia-Server-Api-Key: CYBERIA_SERVER_API_KEY
  *     -> 200 { ttlSeconds, server } | 400 bad body | 401 bad key | 503 no key
  *     A game server reports itself at startup and every heartbeat. The write
  *     upserts on serverUrl, so a report is also the registration.
  *
- *   GET /api/cyberia-server-registry
+ *   GET /api/v1/cyberia-server-registry
  *     -> 200 { status, data: { url, serverUrl, instanceCode, name, lastSeen } }
  *     -> 404 when no server is live
  *     The most recent live server. The game client has no other source for
