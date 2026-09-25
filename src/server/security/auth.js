@@ -185,6 +185,59 @@ const getBearerToken = (req) => {
 };
 
 /**
+ * Whether a bearer token is this deployment's cross-domain service key: the credential one
+ * domain presents to another for a cross-domain write. Compared in constant time; an unset key
+ * never matches.
+ * @param {string} token - Bearer token of the request.
+ * @returns {boolean}
+ * @memberof Auth
+ */
+const isServiceKey = (token) => {
+  const serviceKey = process.env.DOMAIN_API_SERVICE_KEY || '';
+  if (!serviceKey || !token || token.length !== serviceKey.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(serviceKey));
+};
+
+/**
+ * The content a request reads on a host with versioned content: a moderator or an admin works
+ * on the workspace; everyone else (players, the game runtime, other domains) reads the served
+ * release. An invalid token reads the served release; the routes still refuse it.
+ * @param {import('express').Request} req The Express request object.
+ * @param {{host:string,path:string}} options - Host context.
+ * @returns {'workspace'|'served'}
+ * @memberof Auth
+ */
+const contentViewOf = (req, options) => {
+  const token = getBearerToken(req);
+  if (!token || isServiceKey(token)) return 'served';
+  try {
+    return commonModeratorGuard(jwtVerify(token, options).role) ? 'workspace' : 'served';
+  } catch {
+    return 'served';
+  }
+};
+
+/**
+ * The principal a service-key request acts as: a moderator of this host, named by the domain
+ * that sent the write. Never a user record, never a session.
+ * @param {import('express').Request} req The Express request object.
+ * @param {{host:string,path:string}} options - Host context.
+ * @returns {{_id:string,role:string,username:string,host:string,path:string,service:true}}
+ * @memberof Auth
+ */
+const servicePrincipal = (req, options) => {
+  const origin = String(req.headers['x-domain-origin'] || 'service').replace(/[^a-z0-9.-]/gi, '');
+  return {
+    _id: `service:${origin}`,
+    role: 'moderator',
+    username: origin,
+    host: options.host,
+    path: options.path,
+    service: true,
+  };
+};
+
+/**
  * Checks if the request is a refresh token request.
  * @param {import('express').Request} req The Express request object.
  * @returns {boolean} True if the request is a refresh token request, false otherwise.
@@ -213,6 +266,11 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
     try {
       const token = getBearerToken(req);
       if (!token) return res.status(401).json({ status: 'error', message: 'unauthorized: token missing' });
+
+      if (isServiceKey(token)) {
+        req.auth = { user: servicePrincipal(req, options) };
+        return next();
+      }
 
       const payload = jwtVerify(token, options);
 
@@ -324,6 +382,21 @@ const userGuard = (req, res, next) => {
     logger.error(err);
     return res.status(400).json({ status: 'error', message: 'bad request' });
   }
+};
+
+/**
+ * Object-level authorization: the owner of a resource or an admin acts on it; everyone else is
+ * refused. The owner is whatever principal stored the resource: a user of this host, or a
+ * domain that wrote with the service key.
+ * @param {{_id:string,role:string}} user - `req.auth.user`.
+ * @param {*} ownerId - The resource's owner reference.
+ * @throws {Error} `status` 403.
+ * @memberof Auth
+ */
+const assertOwnerOrAdmin = (user, ownerId) => {
+  if (user?.role === 'admin') return;
+  if (ownerId && user?._id && String(ownerId) === String(user._id)) return;
+  throw Object.assign(new Error('Insufficient permission'), { status: 403 });
 };
 
 // ---------- Password validation middleware (server-side) ----------
@@ -700,8 +773,12 @@ export {
   adminGuard,
   moderatorGuard,
   userGuard,
+  assertOwnerOrAdmin,
   validatePasswordMiddleware,
   getBearerToken,
+  isServiceKey,
+  servicePrincipal,
+  contentViewOf,
   createSessionAndUserToken,
   createUserAndSession,
   refreshSessionAndToken,
