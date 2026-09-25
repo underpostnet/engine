@@ -30,4 +30,11 @@ const CyberiaMapModel = model('CyberiaMap', CyberiaMapSchema);
 
 const ProviderSchema = CyberiaMapSchema;
 
-export { CyberiaMapSchema, CyberiaMapModel, ProviderSchema };
+class CyberiaMapDto {
+  static select = {
+    /** A list row: the map without its entities. */
+    list: () => ({ entities: 0 }),
+  };
+}
+
+export { CyberiaMapSchema, CyberiaMapModel, ProviderSchema, CyberiaMapDto };

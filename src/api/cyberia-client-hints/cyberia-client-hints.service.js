@@ -9,13 +9,14 @@
  *   3. Canonical defaults from SharedDefaultsCyberia.js, the same values the
  *      client holds built in.
  *
- * An in-memory TTL cache keyed by instance code serves the hot path. A write
- * to either collection must call `clientHintsInvalidate(code)`.
+ * The platform cache keyed by instance code serves the hot path; a resolved
+ * document stays for the mutable policy's TTL, the defaults are never kept.
  */
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { resolveHostKeyContext } from '../../server/runtime/conf.js';
+import { CacheService } from '../../server/storage/cache.js';
 import {
   buildClientHints,
   CYBERIA_CLIENT_HINTS_DEFAULTS,
@@ -23,38 +24,7 @@ import {
 
 const logger = loggerFactory(import.meta);
 
-// TTL absorbs bursty client fetches and still shows an editor change in ~30s.
-const CACHE_TTL_MS = 30_000;
-
-// One per instance code. value: { data, expiresAt }
-const cache = new Map();
-
-function now() {
-  return Date.now();
-}
-
-function cacheGet(code) {
-  const entry = cache.get(code);
-  if (!entry) return null;
-  if (entry.expiresAt < now()) {
-    cache.delete(code);
-    return null;
-  }
-  return entry.data;
-}
-
-function cacheSet(code, data) {
-  cache.set(code, { data, expiresAt: now() + CACHE_TTL_MS });
-}
-
-/** Invalidate one cache entry, or the whole cache when `code` is empty. */
-export function clientHintsInvalidate(code) {
-  if (code) {
-    cache.delete(code);
-  } else {
-    cache.clear();
-  }
-}
+const hintsCache = (options) => CacheService.namespace(options, 'cyberia-client-hints');
 
 /**
  * Resolve the merged client-hints document for an instance code.
@@ -63,19 +33,26 @@ export function clientHintsInvalidate(code) {
  * @param {Object} options  Engine routing context.
  * @param {string} [options.host='default'] DataBaseProviderService host key.
  * @param {string} [options.path='/']       DataBaseProviderService path key.
- * @returns {Promise<{data: object, source: 'cache'|'presentation-hints'|'instance-conf'|'defaults'}>}
+ * @returns {Promise<{data: object, source: 'presentation-hints'|'instance-conf'|'presentation-hints-fallback'|'defaults'}>}
  */
 export async function resolveClientHints(code, options = {}) {
-  if (code) {
-    const cached = cacheGet(code);
-    if (cached) {
-      return { data: cached, source: 'cache' };
-    }
-  }
+  const context = { host: options.host || 'default', path: options.path || '/' };
+  const resolved = code
+    ? await CacheService.getOrLoad(hintsCache(context), {
+        identifier: code,
+        load: async () => await resolveStoredClientHints(code, context),
+      })
+    : await resolveStoredClientHints(code, context);
+  return resolved ?? { data: CYBERIA_CLIENT_HINTS_DEFAULTS, source: 'defaults' };
+}
 
-  const host = options.host || 'default';
-  const path = options.path || '/';
-  const context = { host, path };
+/**
+ * The stored hints of an instance code, or null when only the canonical defaults answer.
+ * @param {string} code
+ * @param {{host:string,path:string}} context
+ * @returns {Promise<{data: object, source: 'presentation-hints'|'instance-conf'|'presentation-hints-fallback'}|null>}
+ */
+async function resolveStoredClientHints(code, context) {
   const id = resolveHostKeyContext(context);
 
   let HintsModel = null;
@@ -93,17 +70,13 @@ export async function resolveClientHints(code, options = {}) {
 
   if (!HintsModel && !ConfModel) {
     logger.warn('client-hints: mongoose models not available for', id, '— returning defaults');
-    return { data: CYBERIA_CLIENT_HINTS_DEFAULTS, source: 'defaults' };
+    return null;
   }
 
   // 1. Preferred source: the CyberiaClientHints collection.
   if (HintsModel && code) {
     const hint = await HintsModel.findOne({ code }).lean().catch(() => null);
-    if (hint) {
-      const merged = buildClientHints(hint);
-      cacheSet(code, merged);
-      return { data: merged, source: 'presentation-hints' };
-    }
+    if (hint) return { data: buildClientHints(hint), source: 'presentation-hints' };
   }
 
   // 2. Instances that keep their presentation fields on CyberiaInstanceConf.
@@ -111,25 +84,16 @@ export async function resolveClientHints(code, options = {}) {
     const fromConf =
       (await ConfModel.findOne({ code }).lean().catch(() => null)) ||
       (await ConfModel.findById(code).lean().catch(() => null));
-    if (fromConf) {
-      const merged = buildClientHints(fromConf);
-      cacheSet(code, merged);
-      return { data: merged, source: 'instance-conf' };
-    }
+    if (fromConf) return { data: buildClientHints(fromConf), source: 'instance-conf' };
   }
 
   // 3. Any CyberiaClientHints document, when the requested code has none but
   //    another instance does. Beats falling straight through to defaults.
   if (HintsModel) {
     const anyHint = await HintsModel.findOne({}).lean().catch(() => null);
-    if (anyHint) {
-      const merged = buildClientHints(anyHint);
-      // Short TTL under the requested code so a later seed wins quickly.
-      if (code) cache.set(code, { data: merged, expiresAt: now() + 5_000 });
-      return { data: merged, source: 'presentation-hints-fallback' };
-    }
+    if (anyHint) return { data: buildClientHints(anyHint), source: 'presentation-hints-fallback' };
   }
 
-  // 4. Canonical defaults. Never cached, so a later DB insert wins.
-  return { data: CYBERIA_CLIENT_HINTS_DEFAULTS, source: 'defaults' };
+  // 4. Canonical defaults: never kept, so a later DB insert wins.
+  return null;
 }

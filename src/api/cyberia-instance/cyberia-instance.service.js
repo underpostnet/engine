@@ -8,9 +8,13 @@ import {
   DEFAULT_FALLBACK_INSTANCE_CODE,
 } from './cyberia-fallback-world.js';
 import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
+import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 
 const logger = loggerFactory(import.meta);
+
+/** Instance lists and reads by code; every instance write invalidates them. */
+const instanceCache = (options) => CacheService.namespace(options, 'cyberia-instance');
 
 class CyberiaInstanceService {
   static post = async (req, res, options) => {
@@ -18,6 +22,7 @@ class CyberiaInstanceService {
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
     const instance = await new CyberiaInstance({ ...req.body, creator: req.auth.user._id }).save();
+    await CacheService.invalidate(instanceCache(options));
 
     // Auto-upsert a CyberiaInstanceConf for this instance using schema defaults.
     // $setOnInsert ensures existing conf documents are never overwritten.
@@ -45,26 +50,36 @@ class CyberiaInstanceService {
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
     // Instances are addressed by code, the key the engine navigates by.
     if (req.params.id)
-      return await CyberiaInstance.findOne(DataQuery.naturalKeyFilter('code', req.params.id)).populate(populateCreator);
+      return await CacheService.getOrLoad(instanceCache(options), {
+        identifier: req.params.id,
+        load: async () => {
+          const instance = await CyberiaInstance.findOne(DataQuery.naturalKeyFilter('code', req.params.id)).populate(
+            populateCreator,
+          );
+          return instance ? instance.toJSON() : null;
+        },
+      });
 
-    // Parse query parameters using DataQuery helper
-    const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
-
-    const [data, total] = await Promise.all([
-      CyberiaInstance.find(query).sort(sort).limit(limit).skip(skip).populate(populateCreator),
-      CyberiaInstance.countDocuments(query),
-    ]);
-
-    // Opt-in (?fallback=true): surface the always-on TEST world so the selection
-    // view is never empty. Skipped when a real TEST instance is already present.
-    const injectFallback =
-      /^(true|1)$/i.test(String(req.query.fallback || '')) &&
-      !data.some((d) => d.code === DEFAULT_FALLBACK_INSTANCE_CODE);
-    const items = injectFallback ? [...data, fallbackListInstance()] : data;
-    const count = injectFallback ? total + 1 : total;
-
-    const totalPages = Math.ceil(count / limit);
-    return { data: items, total: count, page, totalPages };
+    return await CacheService.getOrLoad(instanceCache(options), {
+      identifier: 'list',
+      variant: CacheService.variant(req.query),
+      load: async () => {
+        const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
+        const [documents, total] = await Promise.all([
+          CyberiaInstance.find(query).sort(sort).limit(limit).skip(skip).populate(populateCreator),
+          CyberiaInstance.countDocuments(query),
+        ]);
+        const data = documents.map((document) => document.toJSON());
+        // Opt-in (?fallback=true): surface the always-on TEST world so the selection
+        // view is never empty. Skipped when a real TEST instance is already present.
+        const injectFallback =
+          /^(true|1)$/i.test(String(req.query.fallback || '')) &&
+          !data.some((d) => d.code === DEFAULT_FALLBACK_INSTANCE_CODE);
+        const items = injectFallback ? [...data, fallbackListInstance()] : data;
+        const count = injectFallback ? total + 1 : total;
+        return { data: items, total: count, page, totalPages: Math.ceil(count / limit) };
+      },
+    });
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
@@ -78,7 +93,9 @@ class CyberiaInstanceService {
       const File = DataBaseProviderService.getModel('File', options);
       await File.findByIdAndDelete(instance.thumbnail);
     }
-    return await CyberiaInstance.findByIdAndUpdate(req.params.id, changes, { returnDocument: 'after' });
+    const updated = await CyberiaInstance.findByIdAndUpdate(req.params.id, changes, { returnDocument: 'after' });
+    await CacheService.invalidate(instanceCache(options));
+    return updated;
   };
   /**
    * Central portal connector endpoint.
@@ -144,6 +161,7 @@ class CyberiaInstanceService {
     if (persist) {
       assertOwnerOrAdmin(req.auth.user, instance.creator);
       await CyberiaInstance.findByIdAndUpdate(req.params.id, { portals: result.portals });
+      await CacheService.invalidate(instanceCache(options));
     }
 
     return {
@@ -155,6 +173,7 @@ class CyberiaInstanceService {
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
+    let removed;
     if (req.params.id) {
       const instance = await CyberiaInstance.findById(req.params.id);
       if (!instance) throw new Error('instance not found');
@@ -163,8 +182,10 @@ class CyberiaInstanceService {
         const File = DataBaseProviderService.getModel('File', options);
         await File.findByIdAndDelete(instance.thumbnail);
       }
-      return await CyberiaInstance.findByIdAndDelete(req.params.id);
-    } else return await CyberiaInstance.deleteMany();
+      removed = await CyberiaInstance.findByIdAndDelete(req.params.id);
+    } else removed = await CyberiaInstance.deleteMany();
+    await CacheService.invalidate(instanceCache(options));
+    return removed;
   };
 
   /**
