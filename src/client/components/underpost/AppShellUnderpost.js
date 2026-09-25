@@ -16,6 +16,7 @@ import { RouterUnderpost, BannerAppTemplate } from './RouterUnderpost.js';
 import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
+import { organizationUrl } from '../core/Repository.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
 import { PanelForm } from '../core/PanelForm.js';
@@ -33,7 +34,7 @@ class AppShellUnderpost {
     const id = getId(AppShellUnderpost.Data, 'menu-');
     AppShellUnderpost.Data[id] = {};
     const RouterInstance = RouterUnderpost.instance();
-    const githubUrl = 'https://github.com/underpost';
+    const githubUrl = organizationUrl();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
@@ -177,7 +178,7 @@ class AppShellUnderpost {
             class: 'in wfa main-btn-menu main-btn-user-management hide',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-users-cog inl underpost-menu-icon"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/users.png" />`,
               text: html`<span class="menu-label-text">${Translate.instance('user-management')}</span>`,
             }),
             attrs: `data-id="user-management"`,
@@ -322,28 +323,6 @@ class AppShellUnderpost {
 
       if (s('.action-btn-app-icon-render'))
         htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
-
-      if (s(`.style-ssr-background`)) {
-        if (darkTheme) {
-          htmls(
-            `.style-ssr-background`,
-            css`
-              body {
-                background: #191919 !important;
-              }
-            `,
-          );
-        } else {
-          htmls(
-            `.style-ssr-background`,
-            css`
-              body {
-                background: #e8e8e8 !important;
-              }
-            `,
-          );
-        }
-      }
     };
     setTimeout(() => {
       ThemeEvents['underpost-main-theme-event']();
@@ -650,7 +629,7 @@ class AppShellUnderpost {
         route: 'user-management',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-users-cog inl underpost-menu-icon-modal"></i>`,
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/users.png" />`,
           text: `<span class='inl underpost-text-title-modal'>${Translate.instance('user-management')}</span>`,
         }),
         html: async () => await UserManagement.instance({ appStore: AppStoreUnderpost }),

@@ -1,8 +1,22 @@
 import { AgGrid } from '../core/AgGrid.js';
 import { borderChar, subThemeManager } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { markdownStyle } from '../core/Markdown.js';
 import { Modal } from '../core/Modal.js';
 import { getProxyPath } from '../core/Router.js';
+
+/** The retro face every Markdown body of this client renders in. */
+const MARKDOWN_RETRO_TOKENS = {
+  'font-family': 'var(--up-font-retro-sensitive)',
+  'heading-font-family': 'var(--up-font-retro-sensitive)',
+  'code-font-family': 'var(--up-font-retro-sensitive)',
+  'font-size': '24px',
+  'code-font-size': '1em',
+  h1: '36px',
+  h2: '30px',
+  h3: '26px',
+  h4: '24px',
+};
 
 const CssCommonUnderpost = async () => {
   LoadingAnimation.img.load({
@@ -17,7 +31,7 @@ const CssCommonUnderpost = async () => {
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonUnderpost',
     style: {
-      'font-family': `retro-font`,
+      'font-family': `retro-font-sensitive`,
       'font-size': '24px',
       'no-cell-focus-style': true,
       'row-cursor': 'pointer',
@@ -51,6 +65,9 @@ const CssCommonUnderpost = async () => {
       }
       .default-slide-menu-top-bar-fix-title-container {
         top: 10px;
+      }
+      .search-result-item {
+        font-family: 'retro-font-sensitive';
       }
 
       /* Landing Page & Object Viewer Styles */
@@ -120,6 +137,7 @@ const CssCommonUnderpost = async () => {
         font-size: 30px !important;
         left: -15px !important;
         top: 42px !important;
+        color: white !important;
       }
 
       .modal,
@@ -171,18 +189,6 @@ const CssCommonUnderpost = async () => {
         border-radius: 0px !important;
       }
 
-      .content-render h1 {
-        font-size: 18px;
-      }
-      .content-render h2 {
-        font-size: 16px;
-      }
-      .content-render h3 {
-        font-size: 14px;
-      }
-      .content-render p {
-        font-size: 22px;
-      }
       .underpost-panel-subtitle {
         top: 3px !important;
       }
@@ -195,53 +201,37 @@ const CssCommonUnderpost = async () => {
           transition: none;
         }
       }
-      .underpost-panel-cell,
-      .underpost-panel-cell p,
-      .underpost-panel-cell span,
-      .underpost-panel-cell a,
-      .underpost-panel-cell div,
-      .underpost-panel-cell pre,
-      .underpost-panel-cell code,
-      .EasyMDEContainer,
-      .editor-preview,
-      .editor-preview-full,
-      .editor-preview p,
-      .editor-preview-full p,
-      .editor-preview span,
-      .editor-preview-full span,
-      .editor-preview a,
-      .editor-preview-full a,
-      .editor-preview div,
-      .editor-preview-full div,
-      .editor-preview pre,
-      .editor-preview-full pre,
-      .editor-preview code,
-      .editor-preview-full code {
-        font-family: var(--up-font-retro-sensitive);
-        font-size: 24px;
-      }
-      .underpost-panel-cell h1,
-      .editor-preview h1,
-      .editor-preview-full h1 {
-        font-family: var(--up-font-retro-sensitive);
-        font-size: 36px;
-      }
-      .underpost-panel-cell h2,
-      .editor-preview h2,
-      .editor-preview-full h2 {
-        font-family: var(--up-font-retro-sensitive);
-        font-size: 30px;
-      }
-      .underpost-panel-cell h3,
-      .editor-preview h3,
-      .editor-preview-full h3 {
-        font-family: var(--up-font-retro-sensitive);
-        font-size: 26px;
-      }
     </style>
 
+    ${markdownStyle({
+      id: 'markdown-style-underpost-panel',
+      containers: ['.underpost-panel-cell', '.underpost-panel-cell .markdown-content', '.EasyMDEContainer'],
+      tokens: MARKDOWN_RETRO_TOKENS,
+    })}
+    ${markdownStyle({
+      id: 'markdown-style-underpost-preview',
+      containers: [
+        '.EasyMDEContainer .editor-preview',
+        '.EasyMDEContainer .editor-preview-full',
+        '.EasyMDEContainer .editor-preview-side',
+      ],
+      tokens: MARKDOWN_RETRO_TOKENS,
+    })}
+    ${markdownStyle({
+      id: 'markdown-style-underpost-content',
+      containers: ['.content-render', '.content-render .markdown-content'],
+      tokens: {
+        ...MARKDOWN_RETRO_TOKENS,
+        'font-size': '22px',
+        h1: '18px',
+        h2: '16px',
+        h3: '14px',
+        h4: '14px',
+      },
+    })}
+
     <div class="ag-grid-style"></div>
-    <style class="style-ssr-background"></style>`;
+    ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])} `;
 };
 
 class CssUnderpostDark {
@@ -253,16 +243,8 @@ class CssUnderpostDark {
       (await CssCommonUnderpost()) +
       html`
         <style>
-          button:hover,
-          .a-btn:hover {
-            background: #212020;
-            color: #ffcc00 !important;
-          }
           .action-bar-box {
             color: white;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            color: white !important;
           }
         </style>
       `
@@ -275,27 +257,7 @@ class CssUnderpostLight {
   static dark = false;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonUnderpost()) +
-      html`
-        <style>
-          button:hover,
-          .a-btn:hover {
-            background: #d8d8d8;
-            color: #ffcc00 !important;
-          }
-
-          .action-bar-box {
-            color: black;
-          }
-          .default-slide-menu-top-bar-fix-title-container-text {
-            color: white !important;
-          }
-        </style>
-        ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
-      `
-    );
+    return (await CssCommonUnderpost()) + html` <style></style> `;
   };
 }
 
