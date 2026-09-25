@@ -54,6 +54,7 @@ import { fileURLToPath } from 'node:url';
 import { dump as yamlDump, load as yamlLoad } from 'js-yaml';
 import { appSecretName } from './app.js';
 import { domainContextFactory } from './domains.js';
+import { KUBECTL_SERVER_SIDE_APPLY } from './kubectl.js';
 import Underpost from '../index.js';
 
 /**
@@ -276,7 +277,7 @@ ${buildKindPorts(fromPort, toPort)}`;
       manifest = manifest.replace(new RegExp(`app: ${escaped}-(?:blue|green)`), `app: ${deployId}-${env}-${traffic}`);
       logger.info('Applying the traffic Service', { deployId, env, traffic, namespace });
       shellExec(
-        `kubectl apply -f - -n ${namespace} <<'EOF'
+        `${KUBECTL_SERVER_SIDE_APPLY} -f - -n ${namespace} <<'EOF'
 ${manifest}
 EOF
 `,
@@ -2552,7 +2553,7 @@ EOF`);
 
         if (!options.remove) {
           if (!options.disableUpdateDeployment) {
-            shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml -n ${namespace}`);
+            shellExec(`sudo ${KUBECTL_SERVER_SIDE_APPLY} -f ./${manifestsPath}/deployment.yaml -n ${namespace}`);
             const grpcServicePath = `./${manifestsPath}/grpc-service.yaml`;
             if (fs.existsSync(grpcServicePath)) shellExec(`sudo kubectl apply -f ${grpcServicePath} -n ${namespace}`);
           }

@@ -433,7 +433,11 @@ describe('underpost gateway edge tier', () => {
           .readFileSync(new URL(`../../../../${file}`, import.meta.url), 'utf8')
           .split('\n')
           .map((line, index) => ({ file, line: index + 1, text: line }))
-          .filter((entry) => entry.text.includes('kubectl apply') && entry.text.includes('<<')),
+          .filter(
+            (entry) =>
+              (entry.text.includes('kubectl apply') || entry.text.includes('KUBECTL_SERVER_SIDE_APPLY')) &&
+              entry.text.includes('<<'),
+          ),
       );
 
     it('applies every generated manifest through a quoted heredoc', () => {

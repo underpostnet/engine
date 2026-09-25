@@ -60,6 +60,7 @@ import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js'
 import os from 'os';
 import nodePath from 'node:path';
 import { domainContextFactory } from './domains.js';
+import { KUBECTL_SERVER_SIDE_APPLY } from './kubectl.js';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
@@ -2195,7 +2196,7 @@ ${Underpost.deploy
 `;
         // console.log(deploymentYaml);
         shellExec(
-          `kubectl apply -f - -n ${options.namespace} <<'EOF'
+          `${KUBECTL_SERVER_SIDE_APPLY} -f - -n ${options.namespace} <<'EOF'
 ${deploymentYaml}
 EOF
 `,

@@ -35,6 +35,9 @@ const backoffDelayMs = (attempt, baseDelayMs = RETRY_BASE_DELAY_MS) => baseDelay
  * @returns {string} The bounded command.
  * @memberof UnderpostKubectl
  */
+// Server-side apply keys Service ports by port and protocol; client-side apply merges a TCP/UDP pair on one port.
+const KUBECTL_SERVER_SIDE_APPLY = 'kubectl apply --server-side --force-conflicts';
+
 const withTimeout = (command, timeoutSeconds) =>
   timeoutSeconds > 0 ? `timeout --kill-after=10s ${timeoutSeconds}s ${command}` : command;
 
@@ -398,4 +401,4 @@ class UnderpostKubectl {
 
 export default UnderpostKubectl;
 
-export { backoffDelayMs, withTimeout };
+export { KUBECTL_SERVER_SIDE_APPLY, backoffDelayMs, withTimeout };
