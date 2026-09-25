@@ -8,7 +8,7 @@
  *
  * Both boot transports adapt this module, so they stay equivalent:
  *  - gRPC `CyberiaDataService` (src/grpc/cyberia/grpc-server.js), primary.
- *  - REST `/api/cyberia-instance/boot/*`, fallback when gRPC is off.
+ *  - REST `/api/v1/cyberia-instance/boot/*`, fallback when gRPC is off.
  *
  * @module src/projects/cyberia/instance-data.js
  */
@@ -396,7 +396,7 @@ function toInstanceConfig(gc) {
   // STRICT BOUNDARY: this config is simulation only. Presentation values
   // (palette, camera tunings, screen factors, devUi, interpolationMs,
   // status-icon visuals, entityDefaults[].colorKey, cellSize, defaultObj*)
-  // reach the client through /api/cyberia-client-hints, never a boot transport.
+  // reach the client through /api/v1/cyberia-client-hints, never a boot transport.
 
   // The conf carries references, not documents: the caller resolves them and overwrites this
   // with the result. Canonical defaults alone are the correct answer for a world that
