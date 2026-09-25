@@ -41,14 +41,28 @@ const publicRouteFallbackFactory = ({ root, path = '/', renderEntry }) => {
     if (route.name !== 'entry' || !renderEntry) return res.sendFile(shell);
     try {
       const html = await renderEntry(req, await fs.readFile(shell, 'utf8'), route.params.stableSlug);
-      // Revalidated on every use like the static shell; what an authorized requester sees is theirs.
-      res.set('Cache-Control', `${req.headers.authorization ? 'private' : 'public'}, max-age=0`);
-      res.set('Vary', 'Authorization');
+      setRevalidateHeaders(req, res);
       return res.type('html').send(html);
     } catch (error) {
       return next(error);
     }
   };
+};
+
+/**
+ * The HTTP cache policy of a response that changes: the browser keeps it and revalidates it on
+ * every use against its ETag; what an authorized requester sees is theirs alone. A service that
+ * set its own policy keeps it.
+ * @method setRevalidateHeaders
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @returns {void}
+ * @memberof Middlewares
+ */
+const setRevalidateHeaders = (req, res) => {
+  if (res.get('Cache-Control')) return;
+  res.set('Cache-Control', `${req.headers.authorization ? 'private' : 'public'}, no-cache`);
+  res.vary('Authorization');
 };
 
 /**
@@ -121,16 +135,21 @@ const sendSuccess = (res, data) => res.status(200).json({ status: 'success', dat
 const sendError = (res, error, status = 400) => res.status(status).json({ status: 'error', message: error.message });
 
 /**
- * Binary response with cross-origin and content headers.
+ * Binary response with cross-origin and content headers. With an `etag`, a client that already
+ * holds that entity gets `304` and no body.
  * @method sendBlob
  * @param {import('express').Request} req
  * @param {import('express').Response} res
- * @param {{ buffer: Buffer, mimetype: string, filename: string, disposition?: 'inline'|'attachment' }} blob
+ * @param {{ buffer: Buffer, mimetype: string, filename: string, disposition?: 'inline'|'attachment', etag?: string }} blob
  * @returns {import('express').Response} Completed binary response.
  * @memberof Middlewares
  */
-const sendBlob = (req, res, { buffer, mimetype, filename, disposition = 'inline' }) => {
+const sendBlob = (req, res, { buffer, mimetype, filename, disposition = 'inline', etag }) => {
   setCrossOriginHeaders(req, res);
+  if (etag) {
+    res.setHeader('ETag', `"${etag}"`);
+    if (req.fresh) return res.status(304).end();
+  }
   res.setHeader('Content-Type', mimetype);
   res.setHeader('Content-Length', buffer.length);
   res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
@@ -170,6 +189,7 @@ const serviceHandler = (serviceFn, { errorStatus = 400, crossOrigin = false, pag
     async (req, res, options) => {
       if (crossOrigin) setCrossOriginHeaders(req, res);
       const result = await serviceFn(pagination ? withParsedPagination(req) : req, res, options);
+      if (req.method === 'GET' || req.method === 'HEAD') setRevalidateHeaders(req, res);
       return sendSuccess(res, result);
     },
     { errorStatus },
@@ -241,6 +261,7 @@ const registerCrudRoutes = (router, Controller, options, { readGuards = [], writ
 };
 
 export {
+  setRevalidateHeaders,
   setCrossOriginHeaders,
   crossOriginMiddleware,
   withParsedPagination,

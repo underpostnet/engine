@@ -3,7 +3,7 @@
  *
  * Responsibilities:
  *  - Manage per-instance Valkey connections keyed by `${host}${path}`.
- *  - Provide a thin, typed CRUD surface: get / set / del / update.
+ *  - Provide a thin, typed surface: get / set / del / incr and the raw client.
  *  - Expose connection status helpers.
  *
  * Out of scope: domain model factories, DTO projection — those belong in
@@ -169,18 +169,19 @@ const set = async (options, key, payload, ttlMs) => {
 const del = async (options, key) => _client(options).del(key);
 
 /**
- * Shallow-merges `payload` into the existing object stored at `key`
- * and persists the result.  The `updatedAt` timestamp is refreshed automatically.
+ * Increments an integer key atomically, giving it an expiry.
  *
  * @param {{ host?: string, path?: string }} options
  * @param {string} key
- * @param {object} payload
- * @returns {Promise<string>} Resolves to 'OK'.
+ * @param {number} ttlMs
+ * @returns {Promise<number>} The value after the increment.
  * @memberof ValkeyService
  */
-const update = async (options, key, payload) => {
-  const base = (await get(options, key)) ?? {};
-  return set(options, key, { ...base, ...payload, updatedAt: new Date().toISOString() });
+const incr = async (options, key, ttlMs) => {
+  const client = _client(options);
+  const value = await client.incr(key);
+  await client.pexpire(key, ttlMs);
+  return value;
 };
 
 // ─── Public API class ─────────────────────────────────────────────────────────
@@ -195,8 +196,10 @@ class ValkeyAPI {
   static get = get;
   static set = set;
   static del = del;
-  static update = update;
+  static incr = incr;
+  /** The connected raw client of an instance; throws when it is not connected. */
+  static client = _client;
   static createValkeyConnection = createValkeyConnection;
 }
 
-export { isValkeyEnable, createValkeyConnection, get, set, del, update, ValkeyAPI };
+export { isValkeyEnable, createValkeyConnection, get, set, del, incr, ValkeyAPI };
