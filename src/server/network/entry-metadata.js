@@ -10,6 +10,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { findReadableByStableSlug } from '../../api/document/document.service.js';
 import { capFirst, publicRoutePathFactory } from '../../client/components/core/CommonJs.js';
+import { API_BASE_PATH } from '../domain/api-contract.js';
 
 /** Search snippets and social cards truncate around this length. */
 const DESCRIPTION_MAX_LENGTH = 160;
@@ -32,7 +33,7 @@ const ARTICLE_TYPE = 'BlogPosting';
  * @typedef {object} EntryContext
  * @property {string} origin - The canonical origin (`https://underpost.net`).
  * @property {string} proxyPath - The app's sub-path with leading and trailing slash.
- * @property {string} apiBasePath - The API segment under the app path (`api`).
+ * @property {string} apiBasePath - The versioned API path under the app path (`api/v1`).
  * @property {EntrySite} site
  * @property {string} [markdown] - The entry's Markdown source, when it has one small enough to read.
  */
@@ -330,7 +331,7 @@ const entryShellRendererFactory = ({ host, path, metadata, origin }) => {
   const context = {
     origin: origin ?? `https://${host}`,
     proxyPath: path === '/' ? '/' : `${path}/`,
-    apiBasePath: process.env.BASE_API || 'api',
+    apiBasePath: API_BASE_PATH,
     site: metadata ?? {},
   };
   return async (req, shellHtml, stableSlug) => {

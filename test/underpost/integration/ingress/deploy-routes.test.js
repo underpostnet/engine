@@ -285,11 +285,9 @@ describe('port proxy router', () => {
 
   it('splits the dev API host into its api and socket routes and points the bare host at the origin', () => {
     const previousEnv = process.env.NODE_ENV;
-    const previousApi = process.env.BASE_API;
     const previousOffset = process.env.DEV_PROXY_PORT_OFFSET;
     const previousArgv = process.argv;
     process.env.NODE_ENV = 'development';
-    process.env.BASE_API = 'api';
     process.env.DEV_PROXY_PORT_OFFSET = '0';
     process.argv = [...previousArgv.slice(0, 2), 'proxy', 'dd-fixture', 'local'];
     const devApiConf = {
@@ -302,13 +300,11 @@ describe('port proxy router', () => {
     vi.spyOn(fs, 'readFileSync').mockImplementation(() => JSON.stringify(devApiConf));
     try {
       const router = buildPortProxyRouter({ port: 443, hosts: HOSTS, devProxyContext: true });
-      expect(router['app.fixture.test/api']).to.equal('http://localhost:3001');
+      expect(router['app.fixture.test/api/v1']).to.equal('http://localhost:3001');
       expect(router['app.fixture.test/socket.io']).to.equal('http://localhost:3001');
       expect(router['app.fixture.test']).to.equal('http://localhost:5173');
     } finally {
       process.env.NODE_ENV = previousEnv;
-      if (previousApi === undefined) delete process.env.BASE_API;
-      else process.env.BASE_API = previousApi;
       if (previousOffset === undefined) delete process.env.DEV_PROXY_PORT_OFFSET;
       else process.env.DEV_PROXY_PORT_OFFSET = previousOffset;
       process.argv = previousArgv;

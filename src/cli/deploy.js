@@ -55,6 +55,7 @@ import { dump as yamlDump, load as yamlLoad } from 'js-yaml';
 import { appSecretName } from './app.js';
 import { domainContextFactory } from './domains.js';
 import { KUBECTL_SERVER_SIDE_APPLY } from './kubectl.js';
+import { apiPathOf } from '../server/domain/api-contract.js';
 import Underpost from '../index.js';
 
 /**
@@ -157,7 +158,7 @@ const interceptStatusesFactory = (edgeRoutes = []) => {
 const apiPathFactory = ({ confServer, host, path }) => {
   const apis = confServer?.[host]?.[path]?.apis;
   if (!Array.isArray(apis) || apis.length === 0) return '';
-  return `${path === '/' ? '' : path}/${process.env.BASE_API || 'api'}`;
+  return apiPathOf(path);
 };
 const GATEWAY_DURATION_UNITS = [
   ['h', 3600000],

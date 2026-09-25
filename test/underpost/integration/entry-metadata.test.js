@@ -236,8 +236,8 @@ describe('entry metadata over HTTP', () => {
         renderEntry: entryShellRendererFactory({ ...context, metadata: site, origin: baseUrl }),
       }),
     );
-    app.use('/api/document', DocumentRouter.router(options));
-    app.use('/api/file', FileRouter.router(options));
+    app.use('/api/v1/document', DocumentRouter.router(options));
+    app.use('/api/v1/file', FileRouter.router(options));
     app.use((req, res) => res.sendStatus(404));
   });
 
@@ -266,7 +266,7 @@ describe('entry metadata over HTTP', () => {
   it('describes a public entry with a JPEG in the initial HTML, image included', async () => {
     const { data: html, headers } = await entry('how-to-chat-with-gpt');
     expect(headers.vary).to.contain('Authorization');
-    expect(headers['cache-control']).to.equal('public, max-age=0');
+    expect(headers['cache-control']).to.equal('public, no-cache');
     expect(title(html)).to.deep.equal(['How to Chat With GPT | Underpost']);
     expect(metaContent(html, 'name', 'description')).to.equal('Ask precise questions, one at a time.');
     expect(canonical(html)).to.equal(`${baseUrl}/entry/how-to-chat-with-gpt`);
@@ -280,7 +280,7 @@ describe('entry metadata over HTTP', () => {
     expect(metaContent(html, 'property', 'article:modified_time')).to.equal('2026-01-03T06:07:08.000Z');
     expect(metaContent(html, 'name', 'robots')).to.deep.equal([]);
     const image = metaContent(html, 'property', 'og:image');
-    expect(image).to.equal(`${baseUrl}/api/file/blob/${files.cover._id}`);
+    expect(image).to.equal(`${baseUrl}/api/v1/file/blob/${files.cover._id}`);
     await expectReachableImage(image, 'image/jpeg', JPEG_BYTES);
     const data = jsonLd(html);
     expect(data).to.include({
@@ -310,7 +310,7 @@ describe('entry metadata over HTTP', () => {
     expect(metaContent(html, 'name', 'description')).to.equal('Deploy diagram');
     expect(jsonLd(html).headline).to.equal('Deploy diagram');
     const image = metaContent(html, 'property', 'og:image');
-    expect(image).to.equal(`${baseUrl}/api/file/blob/${files.diagram._id}`);
+    expect(image).to.equal(`${baseUrl}/api/v1/file/blob/${files.diagram._id}`);
     await expectReachableImage(image, 'image/png', PNG_BYTES);
     expect(jsonLd(html).image).to.deep.equal([image]);
   });
@@ -361,12 +361,12 @@ describe('entry metadata over HTTP', () => {
       expect(html).to.not.contain(`${files.secret._id}`);
       expect(html).to.not.contain(`${files.draft._id}`);
     }
-    expect((await request(`${baseUrl}/api/file/blob/${files.secret._id}`)).status).to.not.equal(200);
+    expect((await request(`${baseUrl}/api/v1/file/blob/${files.secret._id}`)).status).to.not.equal(200);
   });
 
   it('describes a private entry to its owner, still without indexing and without exposing its image', async () => {
     const { data: html, headers } = await entry('draft', { headers: { Authorization: `Bearer ${ownerToken}` } });
-    expect(headers['cache-control']).to.equal('private, max-age=0');
+    expect(headers['cache-control']).to.equal('private, no-cache');
     expect(title(html)).to.deep.equal(['Draft | Underpost']);
     expect(metaContent(html, 'name', 'robots')).to.equal('noindex');
     expect(metaContent(html, 'name', 'description')).to.equal('Secret body of the draft.');
@@ -397,7 +397,7 @@ describe('entry metadata over HTTP', () => {
     }
     for (const path of ['/entry/Not_A_Slug', '/entry/how-to-chat-with-gpt/extra'])
       expect((await request(`${baseUrl}${path}`)).status, path).to.equal(404);
-    const api = await request(`${baseUrl}/api/document/slug/how-to-chat-with-gpt`);
+    const api = await request(`${baseUrl}/api/v1/document/slug/how-to-chat-with-gpt`);
     expect(api.status).to.equal(200);
     expect(api.data.data.title).to.equal('How to Chat With GPT');
     expect(api.data.data.userId.publicProfile).to.equal(true);

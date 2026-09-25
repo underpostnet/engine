@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { loggerFactory } from '../server/ops/logger.js';
 import { EmailRender } from './EmailRender.js';
+import { apiPathOf } from '../server/domain/api-contract.js';
 
 /**
  * Module for configuring and sending emails using Nodemailer.
@@ -126,7 +127,8 @@ class MailerProviderService {
       this.#instance[id] = {
         ...options,
         transporter,
-        templates: await EmailRender.getTemplates(options),
+        // Templates link back to the API of their host: `apiPath` is the versioned contract path.
+        templates: await EmailRender.getTemplates({ ...options, apiPath: apiPathOf(options.path) }),
         translateTemplates: {
           confirmEmail: {
             H1: {

@@ -6,6 +6,7 @@ import express from 'express';
 import { expect } from 'chai';
 import { TestRouter } from '../../../src/api/test/test.router.js';
 import { loggerFactory } from '../../../src/server/ops/logger.js';
+import { apiPathOf } from '../../../src/server/domain/api-contract.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -13,7 +14,7 @@ await logger.setUpInfo();
 
 describe(`GET 'Test' API Request `, async () => {
   const app = express();
-  app.use('/api/test', TestRouter.router({ authMiddleware: (_req, _res, next) => next() }));
+  app.use(`${apiPathOf()}/test`, TestRouter.router({ authMiddleware: (_req, _res, next) => next() }));
 
   let server;
   let baseUrl;
@@ -22,7 +23,7 @@ describe(`GET 'Test' API Request `, async () => {
     () =>
       new Promise((resolve, reject) => {
         server = app.listen(0, '127.0.0.1', () => {
-          baseUrl = `http://127.0.0.1:${server.address().port}/api`;
+          baseUrl = `http://127.0.0.1:${server.address().port}${apiPathOf()}`;
           resolve();
         });
         server.on('error', reject);

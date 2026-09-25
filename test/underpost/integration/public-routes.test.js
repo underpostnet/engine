@@ -117,10 +117,10 @@ describe('dynamic public routes', () => {
     const app = express();
     app.use(express.static(shellRoot));
     app.use(publicRouteFallbackFactory({ root: shellRoot, path: '/' }));
-    app.use('/api/document', DocumentRouter.router(options));
+    app.use('/api/v1/document', DocumentRouter.router(options));
     const userRouter = express.Router();
     userRouter.get('/username/:username', (req, res) => UserController.get(req, res, options));
-    app.use('/api/user', userRouter);
+    app.use('/api/v1/user', userRouter);
     const peer = express();
     peer.use(publicRouteFallbackFactory({ root: shellRoot, path: '/peer' }));
     app.use(peer);
@@ -162,7 +162,7 @@ describe('dynamic public routes', () => {
     });
 
     it('never serves a shell for API routes or non-GET requests', async () => {
-      expect((await request(`${baseUrl}/api/document/slug/nonexistent`)).data.status).to.equal('error');
+      expect((await request(`${baseUrl}/api/v1/document/slug/nonexistent`)).data.status).to.equal('error');
       const post = await axios.post(`${baseUrl}/u/alice`, {}, { validateStatus: () => true });
       expect(post.status).to.equal(404);
     });
@@ -170,7 +170,7 @@ describe('dynamic public routes', () => {
 
   describe('document lookup by stableSlug', () => {
     it('resolves a public document and hides its creator’s role and email', async () => {
-      const res = await request(`${baseUrl}/api/document/slug/how-to-chat-with-gpt`);
+      const res = await request(`${baseUrl}/api/v1/document/slug/how-to-chat-with-gpt`);
       expect(res.status).to.equal(200);
       expect(res.data.data.title).to.equal('How to Chat With GPT Efficiently');
       expect(res.data.data.stableSlug).to.equal('how-to-chat-with-gpt');
@@ -180,13 +180,13 @@ describe('dynamic public routes', () => {
 
     it('answers 404 for an unknown or malformed slug', async () => {
       for (const slug of ['nonexistent', 'Not_A_Slug', encodeURIComponent(`${documents[0]._id}`.toUpperCase())])
-        expect((await request(`${baseUrl}/api/document/slug/${slug}`)).status, slug).to.equal(404);
+        expect((await request(`${baseUrl}/api/v1/document/slug/${slug}`)).status, slug).to.equal(404);
     });
 
     it('answers 404 for a private document unless the owner asks', async () => {
-      expect((await request(`${baseUrl}/api/document/slug/draft`)).status).to.equal(404);
+      expect((await request(`${baseUrl}/api/v1/document/slug/draft`)).status).to.equal(404);
       const token = jwtSign({ _id: `${writer._id}`, role: 'user' }, context, 5, 10);
-      const owned = await request(`${baseUrl}/api/document/slug/draft`, {
+      const owned = await request(`${baseUrl}/api/v1/document/slug/draft`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       expect(owned.status).to.equal(200);
@@ -194,7 +194,7 @@ describe('dynamic public routes', () => {
     });
 
     it('scopes the lookup to a panel when one is named', async () => {
-      const res = await request(`${baseUrl}/api/document/slug/how-to-chat-with-gpt?idPanel=underpost-panel`);
+      const res = await request(`${baseUrl}/api/v1/document/slug/how-to-chat-with-gpt?idPanel=underpost-panel`);
       expect(res.status).to.equal(200);
       expect(res.data.data.tags).to.deep.equal(['underpost-panel', 'guides']);
       for (const path of [
@@ -202,12 +202,12 @@ describe('dynamic public routes', () => {
         '/slug/how-to-chat-with-gpt?idPanel=underpost-panel&idPanel=guides',
         '/slug/nonexistent?idPanel=underpost-panel',
       ])
-        expect((await request(`${baseUrl}/api/document${path}`)).status, path).to.equal(404);
+        expect((await request(`${baseUrl}/api/v1/document${path}`)).status, path).to.equal(404);
     });
 
     it('no longer narrows the public listing by a cid query', async () => {
       publicListingQueries.length = 0;
-      await request(`${baseUrl}/api/document/public?tags=underpost-panel&cid=${documents[0]._id}`);
+      await request(`${baseUrl}/api/v1/document/public?tags=underpost-panel&cid=${documents[0]._id}`);
       expect(publicListingQueries).to.have.length(1);
       expect(publicListingQueries[0]).to.not.have.property('_id');
     });
@@ -215,15 +215,15 @@ describe('dynamic public routes', () => {
 
   describe('profile lookup by username', () => {
     it('resolves a public profile', async () => {
-      const res = await request(`${baseUrl}/api/user/username/alice`);
+      const res = await request(`${baseUrl}/api/v1/user/username/alice`);
       expect(res.status).to.equal(200);
       expect(res.data.data.username).to.equal('alice');
     });
 
     it('answers 404 for an unknown or malformed username and 403 for a private profile', async () => {
-      expect((await request(`${baseUrl}/api/user/username/nonexistent`)).status).to.equal(404);
-      expect((await request(`${baseUrl}/api/user/username/a`)).status).to.equal(404);
-      const privateProfile = await request(`${baseUrl}/api/user/username/bob`);
+      expect((await request(`${baseUrl}/api/v1/user/username/nonexistent`)).status).to.equal(404);
+      expect((await request(`${baseUrl}/api/v1/user/username/a`)).status).to.equal(404);
+      const privateProfile = await request(`${baseUrl}/api/v1/user/username/bob`);
       expect(privateProfile.status).to.equal(403);
       expect(privateProfile.data.message).to.match(/private/);
     });

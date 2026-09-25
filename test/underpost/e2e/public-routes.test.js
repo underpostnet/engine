@@ -25,6 +25,7 @@ import { applySecurity, authMiddlewareFactory } from '../../../src/server/securi
 import { publicRouteFallbackFactory } from '../../../src/server/network/middlewares.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { findBinary } from '../../support/binary.js';
+import { apiPathOf } from '../../../src/server/domain/api-contract.js';
 
 const puppeteer = await import('puppeteer-core').then((module) => module.default).catch(() => null);
 const clientRoot = nodePath.resolve('public/underpost.net');
@@ -96,7 +97,7 @@ describe.skipIf(!puppeteer || !browserBinary || !mongodBinary || !clientBuilt)('
 
     // Same middleware order as the runtime (`src/runtime/express/Express.js`): the shell is served
     // like a static view, ahead of the security headers the API responses carry.
-    const options = { ...context, apiPath: '/api', authMiddleware: authMiddlewareFactory(context) };
+    const options = { ...context, apiPath: apiPathOf(context.path), authMiddleware: authMiddlewareFactory(context) };
     const app = express();
     app.use(express.json());
     app.use(express.static(clientRoot));
@@ -104,7 +105,7 @@ describe.skipIf(!puppeteer || !browserBinary || !mongodBinary || !clientBuilt)('
     applySecurity(app, { origin: [] });
     for (const api of apis) {
       const { ApiRouter } = await import(`../../../src/api/${api}/${api}.router.js`);
-      app.use(`/api/${api}`, ApiRouter({ ...options, app }));
+      app.use(`${options.apiPath}/${api}`, ApiRouter({ ...options, app }));
     }
     app.use((req, res) => res.sendStatus(404));
     server = await listen(app);

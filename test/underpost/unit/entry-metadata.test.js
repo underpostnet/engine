@@ -20,12 +20,13 @@ import {
   markdownToText,
   renderEntryHead,
   truncateText,
-} from '../../src/server/network/entry-metadata.js';
+} from '../../../src/server/network/entry-metadata.js';
+import { API_BASE_PATH } from '../../../src/server/domain/api-contract.js';
 
 const context = {
   origin: 'https://underpost.net',
   proxyPath: '/',
-  apiBasePath: 'api',
+  apiBasePath: API_BASE_PATH,
   site: {
     title: 'Underpost Platform | Tech Lab',
     siteName: 'Underpost',
@@ -190,8 +191,8 @@ describe('entry metadata', () => {
   it('uses the entry image as the social and structured-data image only when it is a public JPEG or PNG', () => {
     for (const mimetype of ['image/jpeg', 'image/png']) {
       const metadata = buildEntryMetadata(entry({ fileId: { _id: 'f1', name: 'cover', mimetype } }), context);
-      expect(metadata.image).to.deep.equal({ url: 'https://underpost.net/api/file/blob/f1', representative: true });
-      expect(metadata.jsonLd.image).to.deep.equal(['https://underpost.net/api/file/blob/f1']);
+      expect(metadata.image).to.deep.equal({ url: 'https://underpost.net/api/v1/file/blob/f1', representative: true });
+      expect(metadata.jsonLd.image).to.deep.equal(['https://underpost.net/api/v1/file/blob/f1']);
     }
     for (const fileId of [
       undefined,
@@ -273,7 +274,7 @@ describe('entry head injection', () => {
     expect(metaContent(html, 'property', 'og:title')).to.equal('How to Chat With GPT');
     expect(metaContent(html, 'property', 'og:description')).to.equal('Ask precise questions.');
     expect(metaContent(html, 'property', 'og:url')).to.equal('https://underpost.net/entry/how-to-chat-with-gpt');
-    expect(metaContent(html, 'property', 'og:image')).to.equal('https://underpost.net/api/file/blob/f1');
+    expect(metaContent(html, 'property', 'og:image')).to.equal('https://underpost.net/api/v1/file/blob/f1');
     expect(metaContent(html, 'property', 'article:published_time')).to.equal('2026-01-02T03:04:05.000Z');
     expect(metaContent(html, 'property', 'article:modified_time')).to.equal('2026-01-03T06:07:08.000Z');
     expect(jsonLd(html)['@type']).to.equal('BlogPosting');

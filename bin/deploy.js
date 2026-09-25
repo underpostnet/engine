@@ -23,6 +23,7 @@ import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer, getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import Underpost from '../src/index.js';
+import { API_BASE_PATH } from '../src/server/domain/api-contract.js';
 
 colors.enable();
 
@@ -134,7 +135,7 @@ try {
       {
         const port = process.argv[3];
         const apiId = process.argv[4];
-        let url = `http://localhost:${port}/api/${apiId}`;
+        let url = `http://localhost:${port}/${API_BASE_PATH}/${apiId}`;
         {
           logger.info(`POST REQUEST`, url);
           const result = await axios.post(url, {});
