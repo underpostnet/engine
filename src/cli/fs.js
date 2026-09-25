@@ -94,8 +94,11 @@ class UnderpostFileStorage {
     async callback(path, options = {}) {
       const api = UnderpostFileStorage.API;
       const manifest = api.readManifest(options);
-      const paths = api.resolveSelection(path, manifest.storage, options);
+      let paths = api.resolveSelection(path, manifest.storage, options);
       const operation = options.rm ? 'delete' : options.pull ? 'pull' : 'upload';
+      // A tracked scope selects only manifest entries. With no match, an upload selects the local files instead.
+      if (paths.length === 0 && operation === 'upload' && path !== undefined && fs.existsSync(path))
+        paths = api.resolveSelection(path, manifest.storage, { ...options, tracked: false });
       if (paths.length === 0) logger.warn('No storage paths selected.');
       // A skip is the absence of work, and one line per file buries the transfers that did happen
       // under hundreds that did not. The count carries the same information: which files were

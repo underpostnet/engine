@@ -637,7 +637,10 @@ program
   .option('--rm', 'Deletes selected remote assets and their manifest entries.')
   .option('--git', 'Restricts filesystem selection to Git-tracked files. Does not change Git state.')
   .option('--recursive', 'Compatibility option. Directories always select files recursively.')
-  .option('--tracked', 'Selects only manifest entries. An optional path limits their scope.')
+  .option(
+    '--tracked',
+    'Selects only manifest entries. An optional path limits their scope. An upload with no matching entry selects the local files.',
+  )
   .requiredOption('--deploy-id <deploy-id>', 'Selects the deployment configuration.')
   .option('--pull', 'Downloads selected manifest assets. Use --tracked to restore missing local files.')
   .option('--omit-unzip', 'With --pull, keeps the downloaded .zip file and skips extraction.')

@@ -5,11 +5,11 @@ import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import JSZip from 'jszip';
 import { v2 as cloudinary } from 'cloudinary';
-import UnderpostFileStorage from '../../src/cli/fs.js';
-import UnderpostRepository from '../../src/cli/repository.js';
-import Downloader from '../../src/server/storage/downloader.js';
-import { program } from '../../src/cli/index.js';
-import { clearTerminalStringColor } from '../../src/client/components/core/CommonJs.js';
+import UnderpostFileStorage from '../../../src/cli/fs.js';
+import UnderpostRepository from '../../../src/cli/repository.js';
+import Downloader from '../../../src/server/storage/downloader.js';
+import { program } from '../../../src/cli/index.js';
+import { clearTerminalStringColor } from '../../../src/client/components/core/CommonJs.js';
 
 vi.mock('cloudinary', () => ({
   v2: {
@@ -23,7 +23,7 @@ vi.mock('node:child_process', async (importOriginal) => {
   const original = await importOriginal();
   return { ...original, execFileSync: vi.fn(original.execFileSync) };
 });
-vi.mock('../../src/server/runtime/process.js', async (importOriginal) => ({
+vi.mock('../../../src/server/runtime/process.js', async (importOriginal) => ({
   ...(await importOriginal()),
   shellExec: vi.fn(() => {
     throw new Error('Storage must not run shell commands.');
@@ -409,6 +409,34 @@ describe('storage synchronization', () => {
 
   it('reports missing tracked upload files without removing their entries', async () => {
     await expect(run('assets/gone.png', { tracked: true })).rejects.toThrow('ENOENT');
+    expect(readInventory()).toEqual(inventory);
+  });
+
+  it('uploads new local files when --tracked matches no manifest entry', async () => {
+    await run('assets/untracked.png', { tracked: true });
+    expect(uploadPaths()).toEqual(['assets/untracked.png']);
+    expect(readInventory()['assets/untracked.png']).toEqual({ type: 'private', bytes: 6 });
+  });
+
+  it('keeps --tracked uploads on manifest entries only when any match', async () => {
+    fs.outputFileSync('assets/gone.png', 'local');
+    fs.outputFileSync('assets/new.png', 'local');
+    await run('assets', { tracked: true });
+    expect(uploadPaths().sort()).toEqual(['assets/a.png', 'assets/deep/c.png', 'assets/gone.png', 'assets/z.png']);
+    expect(readInventory()).not.toHaveProperty('assets/new.png');
+  });
+
+  it('keeps a no-op warning when a tracked upload path has no entry and no local file', async () => {
+    await run('assets/absent.png', { tracked: true });
+    expect(cloudinary.uploader.upload).not.toHaveBeenCalled();
+    expect(readInventory()).toEqual(inventory);
+  });
+
+  it('does not fall back to filesystem files for tracked pull or delete', async () => {
+    await run('assets/untracked.png', { tracked: true, pull: true });
+    expect(download).not.toHaveBeenCalled();
+    await run('assets/untracked.png', { tracked: true, rm: true });
+    expect(cloudinary.api.delete_resources).not.toHaveBeenCalled();
     expect(readInventory()).toEqual(inventory);
   });
 
