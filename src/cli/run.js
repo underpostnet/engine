@@ -3130,15 +3130,20 @@ EOF`);
                 --cmd 'cd /home/dd/engine, \
                 underpost clone underpostnet/engine-cyberia, \
                 mkdir -p /home/dd/engine/src/client/public/itemledger \
+                  /home/dd/engine/src/client/public/objectlayer \
                   /home/dd/engine/src/client/public/cryptokoyn \
                   /home/dd/engine/src/client/components/cryptokoyn \
                   /home/dd/engine/src/client/components/itemledger \
+                  /home/dd/engine/src/client/components/objectlayer \
                   /home/dd/engine/hardhat, \
                 cp -a ./engine-cyberia/src/client/public/itemledger/. /home/dd/engine/src/client/public/itemledger/, \
+                cp -a ./engine-cyberia/src/client/public/objectlayer/. /home/dd/engine/src/client/public/objectlayer/, \
                 cp -a ./engine-cyberia/src/client/public/cryptokoyn/. /home/dd/engine/src/client/public/cryptokoyn/, \
                 cp -a ./engine-cyberia/src/client/components/cryptokoyn/. /home/dd/engine/src/client/components/cryptokoyn/, \
                 cp -a ./engine-cyberia/src/client/components/itemledger/. /home/dd/engine/src/client/components/itemledger/, \
+                cp -a ./engine-cyberia/src/client/components/objectlayer/. /home/dd/engine/src/client/components/objectlayer/, \
                 cp -a ./engine-cyberia/src/client/Itemledger.index.js /home/dd/engine/src/client/Itemledger.index.js, \
+                cp -a ./engine-cyberia/src/client/Objectlayer.index.js /home/dd/engine/src/client/Objectlayer.index.js, \
                 cp -a ./engine-cyberia/src/client/Cryptokoyn.index.js /home/dd/engine/src/client/Cryptokoyn.index.js, \
                 rm -rf ./engine-cyberia, \
                 sudo rm -rf ./engine-private/, \

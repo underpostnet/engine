@@ -1,0 +1,98 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Object Layer",
+    "alternateName": "Object Layer protocol",
+    "url": "https://objectlayer.org",
+    "description": "Canonical global Object Layer registry and protocol: the canonical payload and its schema, content identity (CID), the definition lifecycle and canonical storage. Open Alpha.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires JavaScript. Requires HTML5.",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "softwareHelp": {
+      "@type": "CreativeWork",
+      "name": "Object Layer documentation",
+      "url": "https://objectlayer.org/docs?cid=guide&doc=object-layer/overview/index"
+    },
+    "featureList": [
+      "Canonical Object Layer schema and canonicalization",
+      "Content identity: the CID of the canonical bytes",
+      "Definition lifecycle: draft, publication, purge",
+      "Object Layer explorer and render pipeline"
+    ],
+    "keywords": "object layer, protocol, canonical schema, content identity, CID, IPFS, explorer, pixel art",
+    "image": "https://objectlayer.org/apple-touch-icon.png",
+    "inLanguage": "en"
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Object Layer",
+    "url": "https://objectlayer.org",
+    "logo": "https://objectlayer.org/android-chrome-512x512.png",
+    "description": "The domain that owns the canonical, content-addressed object definition: its schema, its identity and its lifecycle.",
+    "sameAs": ["https://github.com/underpost"],
+    "parentOrganization": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is an Object Layer?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "An Object Layer is a canonical, content-addressed object definition: an item label, mechanical content and render content under a schema version. Its identity is the CID of its canonical bytes."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is the item id the identity of an Object Layer?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. The item id is a semantic label. Several Object Layer definitions may share one item id. The identity is the Object Layer CID, computed from the canonical content."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do Object Layers reach the blockchain?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ItemLedger binds an Object Layer CID to an ERC-1155 token type. The token id is derived from the CID. Ownership and supply are ledger state and stay outside the Object Layer content."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What state is the Object Layer domain in?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Open Alpha. Authoring, publication, content identity, the render pipeline and the purge path are implemented and in use."
+        }
+      }
+    ]
+  }
+]
