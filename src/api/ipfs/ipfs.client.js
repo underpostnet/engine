@@ -7,10 +7,9 @@
  *
  * Uses native `FormData` + `Blob` (Node ≥ 18) for reliable multipart encoding.
  *
- * @module src/server/ipfs-client.js
+ * @module src/api/ipfs/ipfs.client.js
  * @namespace IpfsClient
  */
-import stringify from 'fast-json-stable-stringify';
 import { loggerFactory } from '../../server/ops/logger.js';
 import Underpost from '../../index.js';
 const logger = loggerFactory(import.meta);
@@ -169,88 +168,6 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
     logger.warn(`IPFS MFS cp unreachable: ${err.message}`);
   }
   return { cid, size };
-};
-// ─────────────────────────────────────────────────────────
-//  Convenience wrappers
-// ─────────────────────────────────────────────────────────
-/**
- * Add a JSON-serialisable object to IPFS.
- *
- * @param {any}    obj               – value to serialise.
- * @param {string} [filename='data.json']
- * @param {string} [mfsPath]         – optional full MFS destination path.
- * @returns {Promise<IpfsAddResult|null>}
- */
-const addJsonToIpfs = async (obj, filename = 'data.json', mfsPath) => {
-  const payload = stringify(obj);
-  return addToIpfs(Buffer.from(payload, 'utf-8'), filename, mfsPath);
-};
-/**
- * Compute the CID that Kubo would assign to a payload without pinning or copying it into MFS.
- * Useful when building canonical backup manifests from the actual bytes that will be restored later.
- *
- * @param {Buffer|string} content
- * @param {string} [filename='data']
- * @returns {Promise<IpfsAddResult|null>}
- */
-const hashContentForIpfs = async (content, filename = 'data') => {
-  const kuboUrl = getIpfsApiUrl();
-  const buf = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
-  const formData = new FormData();
-  formData.append('file', new Blob([buf]), filename);
-  try {
-    const res = await fetchWithTimeout(
-      `${kuboUrl}/api/v0/add?only-hash=true&pin=false&cid-version=1`,
-      {
-        method: 'POST',
-        body: formData,
-      },
-      { kind: 'kubo', label: `IPFS Kubo only-hash ${filename}` },
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      logger.error(`IPFS Kubo only-hash failed (${res.status}): ${text}`);
-      return null;
-    }
-    const json = await res.json();
-    return { cid: json.Hash, size: Number(json.Size) };
-  } catch (err) {
-    logger.warn(`IPFS Kubo only-hash unreachable at ${kuboUrl}: ${err.message}`);
-    return null;
-  }
-};
-/**
- * Compute the CID for a JSON-serialisable object using the same stable stringification
- * that the regular addJsonToIpfs path uses.
- *
- * @param {any} obj
- * @param {string} [filename='data.json']
- * @returns {Promise<IpfsAddResult|null>}
- */
-const hashJsonForIpfs = async (obj, filename = 'data.json') => {
-  const payload = stringify(obj);
-  return hashContentForIpfs(Buffer.from(payload, 'utf-8'), filename);
-};
-/**
- * Add a binary buffer (e.g. a PNG image) to IPFS.
- *
- * @param {Buffer} buffer   – raw image / file bytes.
- * @param {string} filename – e.g. `"atlas.png"`.
- * @param {string} [mfsPath] – optional full MFS destination path.
- * @returns {Promise<IpfsAddResult|null>}
- */
-const addBufferToIpfs = async (buffer, filename, mfsPath) => {
-  return addToIpfs(buffer, filename, mfsPath);
-};
-/**
- * Compute the CID for a binary buffer without pinning it.
- *
- * @param {Buffer} buffer
- * @param {string} filename
- * @returns {Promise<IpfsAddResult|null>}
- */
-const hashBufferForIpfs = async (buffer, filename) => {
-  return hashContentForIpfs(buffer, filename);
 };
 // ─────────────────────────────────────────────────────────
 //  Pin management
@@ -560,11 +477,6 @@ class IpfsClient {
   static getClusterApiUrl = getClusterApiUrl;
   static getGatewayUrl = getGatewayUrl;
   static addToIpfs = addToIpfs;
-  static addJsonToIpfs = addJsonToIpfs;
-  static addBufferToIpfs = addBufferToIpfs;
-  static hashContentForIpfs = hashContentForIpfs;
-  static hashJsonForIpfs = hashJsonForIpfs;
-  static hashBufferForIpfs = hashBufferForIpfs;
   static pinCid = pinCid;
   static unpinCid = unpinCid;
   static getFromIpfs = getFromIpfs;
