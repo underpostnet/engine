@@ -15,12 +15,17 @@
 
 import crypto from 'crypto';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { currentContentView } from '../../db/content-view.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
   selectInstanceSkills,
 } from '../../api/cyberia-instance/cyberia-instance-items.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { domainOrigin } from '../../server/domain/domain-client.js';
+import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver.js';
+import { findAllBoundDefinitions, findBoundDefinition, findBoundDefinitions } from './object-layer-catalog.js';
+import { PINNED_REFERENCES, collectPinnedCids } from '../../api/cyberia-item-catalog/item-ref.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   DEFAULT_DEAD_ITEM_ID,
@@ -65,16 +70,13 @@ function buildCyberiaMmoInstanceEnv({ instance = {}, env = {} }) {
 }
 
 /**
- * Resolves the mongoose model bag for a DB context.
+ * Resolves the mongoose model bag for a DB context, in the content view of the running code:
+ * the served release for the runtime, the workspace for authoring.
  * @param {{host?: string, path?: string}|string} context - RouterOptions-style
  *   context or a resolved `${host}${path}` key (the gRPC dbKey form).
  */
 function getInstanceModels(context) {
-  const bucket = DataBaseProviderService.getProvider(context, 'mongoose');
-  if (!bucket || !bucket.models) {
-    throw new Error(`DataBaseProviderService not loaded for context "${JSON.stringify(context)}"`);
-  }
-  return bucket.models;
+  return DataBaseProviderService.viewModels(context, currentContentView());
 }
 
 // The wire still carries inventory rows; the model no longer stores them. `defaultObjectLayers`
@@ -171,13 +173,13 @@ function itemTypesOf(objectLayerDocs = []) {
 
 // ── Mongoose doc → wire message converters (proto camelCase shapes) ────────
 
-function toObjectLayerMsg(doc) {
+// The wire's `ledger` is the ItemLedger binding of the definition, a projection Cyberia reads;
+// the document stores none of it.
+function toObjectLayerMsg(doc, binding = null) {
   const d = doc.data || {};
   const item = d.item || {};
-  const ledger = d.ledger || {};
   const render = d.render || {};
   return {
-    mongoId: String(doc._id),
     stats: validateStats(d.stats),
     item: {
       id: item.id || '',
@@ -185,18 +187,59 @@ function toObjectLayerMsg(doc) {
       description: item.description || '',
       activable: !!item.activable,
     },
-    ledger: {
-      type: ledger.type || 'OFF_CHAIN',
-      address: ledger.address || '',
-      tokenId: ledger.tokenId || '',
-    },
+    ledger: binding
+      ? {
+          standard: binding.standard || 'ERC1155',
+          chainId: Number(binding.chainId) || 0,
+          contractAddress: binding.contractAddress || '',
+          tokenId: binding.tokenId || '',
+        }
+      : { standard: '', chainId: 0, contractAddress: '', tokenId: '' },
     render: {
       cid: render.cid || '',
       metadataCid: render.metadataCid || '',
     },
-    sha256: doc.sha256 || '',
     cid: doc.cid || '',
   };
+}
+
+/**
+ * ItemLedger bindings of the given definitions, keyed by cid. The ItemLedger host reads its
+ * own projection; any other deployment asks the ItemLedger API. A ledger that cannot be
+ * reached serves every definition as unregistered: play never waits on the ledger.
+ * @param {object} models - Instance models, see {@link getInstanceModels}.
+ * @param {object[]} docs - ObjectLayer documents.
+ * @returns {Promise<Map<string, object>>}
+ */
+async function fetchLedgerBindings(models, docs = []) {
+  const bindings = new Map();
+  const cids = [...new Set(docs.map((doc) => doc?.cid).filter(Boolean))];
+  if (cids.length === 0) return bindings;
+  if (models.ItemLedger) {
+    const rows = await models.ItemLedger.find({ objectLayerCid: { $in: cids } })
+      .sort({ chainId: 1, contractAddress: 1 })
+      .lean();
+    for (const row of rows) if (!bindings.has(row.objectLayerCid)) bindings.set(row.objectLayerCid, row);
+    return bindings;
+  }
+  if (!domainOrigin('item-ledger')) return bindings;
+  await Promise.all(
+    cids.map(async (cid) => {
+      try {
+        const [row] = await resolveLedgerBindings(cid);
+        if (row) bindings.set(cid, row);
+      } catch (error) {
+        logger.warn(`ItemLedger unavailable for ${cid}: ${error.message}`);
+      }
+    }),
+  );
+  return bindings;
+}
+
+/** Wire messages of definitions with their ItemLedger bindings. */
+async function toObjectLayerMsgs(models, docs) {
+  const bindings = await fetchLedgerBindings(models, docs);
+  return docs.map((doc) => toObjectLayerMsg(doc, bindings.get(doc.cid) || null));
 }
 
 /**
@@ -276,7 +319,7 @@ function toInstanceMsg(doc) {
   };
 }
 
-const toCraftItemMsg = (i) => ({ itemId: i.itemId || '', qty: i.qty ?? 1 });
+const toCraftItemMsg = (i) => ({ itemId: i.itemId || '', objectLayerCid: i.objectLayerCid || '', qty: i.qty ?? 1 });
 
 // CyberiaAction → CyberiaActionMessage (proto camelCase fields).
 function toActionMsg(a) {
@@ -293,7 +336,9 @@ function toActionMsg(a) {
     })),
     shopItems: (a.shopItems || []).map((si) => ({
       itemId: si.itemId || '',
+      objectLayerCid: si.objectLayerCid || '',
       priceItemId: si.priceItemId || 'coin',
+      priceObjectLayerCid: si.priceObjectLayerCid || '',
       priceQty: si.priceQty ?? 1,
     })),
     craftRecipes: (a.craftRecipes || []).map((r) => ({
@@ -322,10 +367,15 @@ function toQuestMsg(q) {
       objectives: (s.objectives || []).map((o) => ({
         type: o.type || '',
         itemId: o.itemId || '',
+        objectLayerCid: o.objectLayerCid || '',
         quantity: o.quantity || 1,
       })),
     })),
-    rewards: (q.rewards || []).map((r) => ({ itemId: r.itemId || '', quantity: r.quantity || 1 })),
+    rewards: (q.rewards || []).map((r) => ({
+      itemId: r.itemId || '',
+      objectLayerCid: r.objectLayerCid || '',
+      quantity: r.quantity || 1,
+    })),
   };
 }
 
@@ -433,14 +483,14 @@ const objectLayerQueryFilter = (itemTypeFilter) => (itemTypeFilter ? { 'data.ite
 
 /** All ObjectLayers, optionally filtered by item type (RPC: getObjectLayerBatch). */
 async function fetchObjectLayerBatch(models, itemTypeFilter) {
-  const docs = await models.ObjectLayer.find(objectLayerQueryFilter(itemTypeFilter)).lean();
-  return docs.map(toObjectLayerMsg);
+  const docs = await findAllBoundDefinitions(models, objectLayerQueryFilter(itemTypeFilter));
+  return await toObjectLayerMsgs(models, docs);
 }
 
-/** Single ObjectLayer by item id, null when absent (RPC: getObjectLayer). */
+/** The definition bound to an item label, null when unbound (RPC: getObjectLayer). */
 async function fetchObjectLayer(models, itemId) {
-  const doc = await models.ObjectLayer.findOne({ 'data.item.id': itemId }).lean();
-  return doc ? toObjectLayerMsg(doc) : null;
+  const doc = await findBoundDefinition(models, itemId);
+  return doc ? (await toObjectLayerMsgs(models, [doc]))[0] : null;
 }
 
 /**
@@ -463,11 +513,17 @@ async function fetchMapData(models, { mapCode, instanceCode } = {}) {
   return { map: toMapMsg(doc) };
 }
 
-/** Object-layer id/sha256 manifest (RPC: getObjectLayerManifest). */
+/** Label → bound definition cid (RPC: getObjectLayerManifest). */
 async function fetchObjectLayerManifest(models) {
-  const docs = await models.ObjectLayer.find({}, { 'data.item.id': 1, sha256: 1 }).lean();
+  const entries = await models.CyberiaItemCatalog.find({}, { itemId: 1, objectLayerCid: 1 }).lean();
+  const stored = entries.length
+    ? await models.ObjectLayer.distinct('cid', { cid: { $in: entries.map((e) => e.objectLayerCid) } })
+    : [];
+  const served = new Set(stored);
   return {
-    entries: docs.map((d) => ({ itemId: d.data?.item?.id || '', sha256: d.sha256 || '' })),
+    entries: entries
+      .filter((e) => served.has(e.objectLayerCid))
+      .map((e) => ({ itemId: e.itemId, cid: e.objectLayerCid })),
   };
 }
 
@@ -515,9 +571,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
     // CyberiaEntityTypeDefault) are deliberately NOT consulted here so a
     // stale seed can never mask a code-default change. Only ObjectLayer is
     // read — sprite/render assets have no code-side source.
-    const fallbackOlDocs = fallbackItemIds.size
-      ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } }).lean()
-      : [];
+    const fallbackOlDocs = await findBoundDefinitions(models, [...fallbackItemIds]);
 
     const fallbackConfig = toInstanceConfig(fallbackConf);
     // Same membership rule as a persisted world, over the canonical definitions: this path
@@ -529,7 +583,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
     // no-op: WorldBuilder.ReloadWorld skips the rebuild — and therefore
     // ApplyInstanceConfig when content and configuration are unchanged.
     const fallbackVersionParts = ['fallback', JSON.stringify(fallbackConfig)];
-    for (const doc of fallbackOlDocs) fallbackVersionParts.push(String(doc.sha256 || doc._id));
+    for (const doc of fallbackOlDocs) fallbackVersionParts.push(String(doc.contentHash || doc._id));
     const fallbackVersion = `fallback-${crypto
       .createHash('sha256')
       .update(fallbackVersionParts.join('|'))
@@ -547,7 +601,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
         cellHeight: m.cellHeight,
         entities: (m.entities || []).map(toEntityMsg),
       })),
-      objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
+      objectLayers: await toObjectLayerMsgs(models, fallbackOlDocs),
       config: fallbackConfig,
       version: fallbackVersion,
       // Mission content for the fallback comes from the code defaults, no DB.
@@ -613,7 +667,24 @@ async function fetchFullInstance(models, requestedInstanceCode) {
   const skillDocs = selectInstanceSkills(seededSkills.length ? seededSkills : DefaultSkillConfig, owned);
   for (const summoned of collectSummonedItemIds(skillDocs)) itemIds.add(summoned);
 
-  const olDocs = itemIds.size ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } }).lean() : [];
+  // Content that pins a definition decides which one this world runs; the catalog answers
+  // only for labels no content pinned. One label pinned to two definitions is a content
+  // error, never a silent choice.
+  const pinned = collectPinnedCids(questDocs, PINNED_REFERENCES.CyberiaQuest);
+  collectPinnedCids(actionDocs, PINNED_REFERENCES.CyberiaAction, pinned);
+  const conflicts = [...pinned].filter(([, cids]) => cids.size > 1);
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Instance "${instanceCode}" pins several definitions for: ${conflicts
+        .map(([itemId, cids]) => `${itemId} (${[...cids].join(', ')})`)
+        .join('; ')}`,
+    );
+  }
+  const pinnedCids = [...pinned].filter(([itemId]) => itemIds.has(itemId)).map(([, cids]) => [...cids][0]);
+  const olDocs = [
+    ...(pinnedCids.length ? await models.ObjectLayer.find({ cid: { $in: pinnedCids } }).lean() : []),
+    ...(await findBoundDefinitions(models, [...itemIds].filter((itemId) => !pinned.has(itemId)))),
+  ];
 
   // Opaque version over the updatedAt timestamps. The server compares it to
   // skip a full world rebuild when nothing changed.
@@ -643,7 +714,7 @@ async function fetchFullInstance(models, requestedInstanceCode) {
   return {
     instance: toInstanceMsg(inst),
     maps: mapDocs.map(toMapMsg),
-    objectLayers: olDocs.map(toObjectLayerMsg),
+    objectLayers: await toObjectLayerMsgs(models, olDocs),
     config: baseConfig,
     version,
     actions: actionDocs.map(toActionMsg),
@@ -682,6 +753,8 @@ export {
   mergeEntityDefaults,
   parseRgba,
   toObjectLayerMsg,
+  toObjectLayerMsgs,
+  fetchLedgerBindings,
   toEntityMsg,
   toMapMsg,
   toInstanceMsg,
