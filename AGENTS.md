@@ -47,6 +47,13 @@ Comments state the live invariant in ≤1 line. The reader needs current behavio
 - Prefer small, targeted verification over broad manual validation.
 - Verify changed behavior at the closest layer that owns it.
 
+Tests live at `test/<domain>/<level>/`: the domain owns the behavior, the level says which boundary is exercised.
+
+- Domains: `underpost`, `object-layer`, `item-ledger`, `cyberia`, `cryptokoyn`, `ecosystem`. A test of a relationship between two domains belongs to `ecosystem`, never to one side of it.
+- Levels: `unit` (everything in memory), `integration` (one real boundary), `contract` (an interface between owners), `e2e` (a whole workflow), `audit` (platform invariants). MongoDB and the blockchain are boundaries, never directories of their own.
+- Execution order and coverage scope live in `src/server/build/testing.js`. Never encode order in a directory name.
+- Run what a change breaks: `node bin test --changed`. Run one selection: `node bin test <domain>[:<level>]`. `node bin test --list` prints what a selector resolves to.
+
 ## Cyberia
 
 Cyberia is one product on this platform. Everything in this section applies to

@@ -105,7 +105,7 @@ const EVENT_SERVICE = {
  * @memberof UnderpostEvent
  */
 const EVENT_E2E = {
-  scenarioDirectory: 'test/e2e',
+  scenarioDirectory: 'test/underpost/e2e/scenarios',
   baselineTimeoutMs: 60000,
   detectTimeoutMs: 180000,
   recoverTimeoutMs: 180000,

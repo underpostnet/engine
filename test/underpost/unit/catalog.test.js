@@ -2,8 +2,8 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import { EMPTY_CATALOG, loadProductCatalogs } from '../../src/server/build/catalog.js';
-import { TEST_TIERS } from '../../src/server/build/testing.js';
+import { EMPTY_CATALOG, loadProductCatalogs } from '../../../src/server/build/catalog.js';
+import { TEST_PROJECTS } from '../../../src/server/build/testing.js';
 
 // A broken catalog path fails during template assembly, long after the commit
 // that broke it, so the tree is asserted here instead.
@@ -52,31 +52,36 @@ describeProducts('product catalogs', () => {
   });
 });
 
-describeProducts('product catalogs and the test tiers', () => {
-  // A tier a product strips from the base template but does not ship is a tier
-  // nothing runs: the template keeps no tests for the code it removed, and the
-  // product CLI arrives without the suite that covers what it added.
-  const strippedTiers = TEST_TIERS.filter(({ directory }) =>
-    catalogs.some(({ stripPaths }) => stripPaths.includes(`./${directory}`)),
+describeProducts('product catalogs and the test projects', () => {
+  // A project a product strips from the base template but does not ship is a
+  // project nothing runs: the template keeps no tests for the code it removed,
+  // and the product CLI arrives without the suite that covers what it added. A
+  // product strips its whole domain directory, so a project inside it is stripped
+  // with it.
+  const strippedProjects = TEST_PROJECTS.filter(({ directory }) =>
+    catalogs.some(({ stripPaths }) => stripPaths.some((path) => `./${directory}`.startsWith(path))),
   );
 
-  it.skipIf(!unsliced)('has products that own at least one tier', () => {
-    expect(strippedTiers).to.not.be.empty;
+  it.skipIf(!unsliced)('has products that own at least one project', () => {
+    expect(strippedProjects).to.not.be.empty;
   });
 
-  it.skipIf(!unsliced)('gives every tier a directory that exists in an unsliced tree', () => {
-    for (const { name, directory } of TEST_TIERS) expect(fs.existsSync(directory), name).to.equal(true);
+  it.skipIf(!unsliced)('gives every project a directory that exists in an unsliced tree', () => {
+    for (const { name, directory } of TEST_PROJECTS) expect(fs.existsSync(directory), name).to.equal(true);
   });
 
-  it('carries the directory of every tier a present product owns', () => {
+  it('carries the directory of every project a present product owns', () => {
     // Holds in a product template too: what it kept of itself must be whole.
-    for (const { name, directory } of strippedTiers) expect(fs.existsSync(directory), name).to.equal(true);
+    for (const { name, directory } of strippedProjects) expect(fs.existsSync(directory), name).to.equal(true);
   });
 
-  it('ships every tier it strips from the base template', () => {
-    for (const { name, directory } of strippedTiers) {
-      const owner = catalogs.find(({ stripPaths }) => stripPaths.includes(`./${directory}`));
-      expect(owner.templatePaths, name).to.include(`/${directory}`);
+  it('ships every project it strips from the base template', () => {
+    for (const { name, directory } of strippedProjects) {
+      const owner = catalogs.find(({ stripPaths }) => stripPaths.some((path) => `./${directory}`.startsWith(path)));
+      expect(
+        owner.templatePaths.some((path) => `/${directory}`.startsWith(path)),
+        `${name} is packaged by its product`,
+      ).to.equal(true);
     }
   });
 });

@@ -1,11 +1,14 @@
 /**
- * The test tier contract: which suites exist, the order they run in, and the
- * in-cluster surfaces that execute and report them.
+ * The test contract: which domain owns a behaviour, which level verifies it, the
+ * order the projects run in, and the in-cluster surfaces that execute and report
+ * them.
  *
- * Tiers are a lifecycle, not a taxonomy. A gateway assertion that fails because
- * SELinux denied a bind is a security failure reported at the ingress layer, so
- * the lower tier has to have run — and passed — before the higher one is worth
- * reading. Vitest expresses that with one project per tier and an ascending
+ * The filesystem is the taxonomy: `test/<domain>/<level>/` says who owns a test.
+ * This table is the execution policy: it says when that test runs, what coverage
+ * it measures and which source change selects it. A gateway assertion that fails
+ * because SELinux denied a bind is a security failure reported at the ingress
+ * layer, so the lower project has to have run — and passed — before the higher
+ * one is worth reading. Vitest expresses that with an ascending
  * `sequence.groupOrder`; nothing outside this table decides what runs when.
  *
  * This module is pure: it renders the runner configuration, the argument vector
@@ -66,63 +69,172 @@ const UNDERPOST_TESTING = {
 };
 
 /**
- * @constant TEST_TIERS
- * @description Every runnable tier, in lifecycle order.
+ * @constant TEST_DOMAINS
+ * @description The ecosystem domains a test can belong to, in reading order.
  *
- * `name` doubles as the Vitest project id, and its prefix before `:` is the
- * suite it belongs to — so `--suite infra` needs no second table to expand.
+ * A domain owns a body of behaviour, and every test that verifies that behaviour
+ * lives under `test/<id>/`. `Ecosystem` owns nothing of its own: it owns the
+ * relationships between the others.
+ * @memberof UnderpostTesting
+ */
+const TEST_DOMAINS = Object.freeze({
+  underpost: 'Engineering platform: shared CLI, infrastructure, delivery and operational behaviour.',
+  'object-layer': 'Canonical Object Layer registry and protocol: identity, lifecycle, render and purge.',
+  'item-ledger': 'On-chain Object Layer registry: registration, indexing, ownership and provenance.',
+  cyberia: 'Cyberia runtime, Game Studio, engine and CLI: content, instances, releases and atlases.',
+  cryptokoyn: 'CKY finance hub: wallet surface, account record and signature identity.',
+  ecosystem: 'Cross-domain contracts and the integration boundaries between domains.',
+});
+
+/** Every domain: what an unmapped or global change has to be tested against. */
+const ALL_DOMAINS = Object.keys(TEST_DOMAINS);
+
+/**
+ * @constant TEST_LEVELS
+ * @description What a level guarantees. The level is the second classification: the
+ * domain says who owns the behaviour, the level says which boundary is exercised.
+ * @memberof UnderpostTesting
+ */
+const TEST_LEVELS = Object.freeze({
+  unit: 'Business logic with every collaborator in memory. No database, process, network or browser.',
+  integration: 'One real boundary: a database, a spawned process, a served API, an external binary.',
+  contract: 'The interface between independently owned components, verified from both sides.',
+  e2e: 'A complete externally meaningful workflow, through a real browser or a running server.',
+  audit: 'Platform, security and operational invariants over the whole tree.',
+});
+
+/**
+ * @constant TEST_PROJECTS
+ * @description Every runnable project, in execution order.
+ *
+ * `name` is `<domain>:<level>`, and `<domain>:<level>:<area>` where a level runs
+ * in ordered areas. It doubles as the Vitest project id and as the selector, so
+ * `--suite cyberia` and `--suite underpost:integration` need no second table:
+ * a selector matches a name exactly, or matches the segment prefix before `:`.
  *
  * `groupOrder` is what Vitest sequences on: equal values run in parallel, lower
  * values run to completion first. It starts at 1, never 0 — Vitest routes a
  * project left on the default 0 with a single worker into a bucket it appends
- * after every ordered group, which would run the first tier last.
+ * after every ordered group, which would run the first project last.
  *
- * A tier with a `delegate` runs on its own runner instead of as a Vitest
- * project, after the Vitest run — so a delegated tier belongs in the last
+ * `parallel` lets the files of one project run at the same time. A project whose
+ * suites bind a port, drive a database, spawn a process or read the deploy tree
+ * leaves it off and runs its files one at a time.
+ *
+ * A project with a `delegate` runs on its own runner instead of as a Vitest
+ * project, after the Vitest run — so a delegated project belongs in the last
  * group, where the order it is declared in still matches the order it runs in.
  *
- * `sources` are the modules the tier's suites drive directly, and they are what
- * coverage is measured over when the tier is selected. A module reached only as
- * a collaborator — everything the `src/index.js` barrel pulls in behind one CLI
- * call, everything a suite spawns into its own process — belongs to whichever
- * tier asserts against it, or to none: counting it here reports a floor no test
- * in the selection can move. A delegated tier declares none, because its runner
- * reports its own coverage.
+ * `sources` are the modules the project's suites drive directly, and they are
+ * what coverage is measured over when the project is selected. A module reached
+ * only as a collaborator — everything the `src/index.js` barrel pulls in behind
+ * one CLI call, everything a suite spawns into its own process — belongs to
+ * whichever project asserts against it, or to none: counting it here reports a
+ * floor no test in the selection can move. A delegated project declares none,
+ * because its runner reports its own coverage.
  * @memberof UnderpostTesting
  */
-const TEST_TIERS = [
+const TEST_PROJECTS = [
   {
-    name: 'unit',
-    directory: 'test/unit',
+    name: 'underpost:audit',
+    directory: 'test/underpost/audit',
     groupOrder: 1,
+    sources: ['src/server/build/package.js'],
+    description:
+      'Whole-engine checks that bundle the tree: they run alone, before every other project, so their ' +
+      'cost is measured against the host and not against other suites.',
+  },
+  {
+    name: 'underpost:unit',
+    directory: 'test/underpost/unit',
+    groupOrder: 2,
+    parallel: true,
     sources: [
-      'conf.js',
+      'underpost.config.js',
       'src/cli/release.js',
       'src/client-builder/client-build-docs.js',
       'src/projects/underpost/*.js',
+      'src/server/build/docs.js',
+      'src/server/ops/logger.js',
       'src/server/runtime/conf.js',
-      'src/server/security/crypto.js',
+      'src/server/storage/cache.js',
     ],
-    // Non-recursive: the cyberia extension underneath is its own tier, so a
-    // tree that strips the product keeps a unit tier that imports none of it.
-    recursive: false,
-    description: 'Pure functions with no host, cluster or network dependency.',
+    description: 'Platform logic: configuration, build, release, delivery and operational helpers.',
+  },
+  {
+    name: 'object-layer:unit',
+    directory: 'test/object-layer/unit',
+    groupOrder: 2,
+    parallel: true,
+    sources: [
+      'src/api/object-layer/object-layer.identity.js',
+      'src/api/object-layer/object-layer.model.js',
+      'src/client/components/object-layer/ObjectLayerProtocol.js',
+    ],
+    description: 'Canonical identity, the definition lifecycle, render answers and the purge path.',
+  },
+  {
+    name: 'item-ledger:unit',
+    directory: 'test/item-ledger/unit',
+    groupOrder: 2,
+    parallel: true,
+    sources: [
+      'src/api/item-ledger/item-ledger.indexer.js',
+      'src/api/item-ledger/item-ledger.model.js',
+      'src/api/item-ledger-balance/item-ledger-balance.model.js',
+      'src/api/item-ledger-transfer/item-ledger-transfer.model.js',
+    ],
+    description: 'Registration records, ledger projections and the indexer that builds them.',
   },
   {
     name: 'cyberia:unit',
-    directory: 'test/unit/cyberia',
-    groupOrder: 1,
+    directory: 'test/cyberia/unit',
+    groupOrder: 2,
+    parallel: true,
     sources: [
+      'src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js',
+      'src/api/cyberia-content-release/cyberia-content-release.model.js',
+      'src/api/cyberia-instance/cyberia-fallback-capture.js',
+      'src/api/cyberia-server-defaults/*.js',
+      'src/projects/cyberia/content-release.js',
+      'src/projects/cyberia/domain-ownership.js',
       'src/projects/cyberia/instance-backup.js',
       'src/projects/cyberia/instance-data.js',
+      'src/projects/cyberia/object-layer-catalog.js',
+      'src/projects/cyberia/server-key.js',
+      'src/projects/cyberia/shape-generator.js',
       'src/projects/cyberia/stat-balance.js',
     ],
-    description: 'Cyberia MMO extension: pure functions over instance data, backups and stat policies.',
+    description: 'Cyberia content, instance data, releases, sprite atlases, stats and shape generation.',
   },
   {
-    name: 'infra:1-security',
-    directory: 'test/integration/infra/1-security',
+    name: 'cryptokoyn:unit',
+    directory: 'test/cryptokoyn/unit',
     groupOrder: 2,
+    parallel: true,
+    sources: [
+      'src/api/wallet-account/wallet-account.model.js',
+      'src/client/components/wallet/EmbeddedWallet.js',
+      'src/client/components/wallet/WalletProvider.js',
+      'src/server/security/siwe.js',
+      'src/server/security/typed-data.js',
+    ],
+    description: 'Wallet identity: provider choice, the embedded vault, signatures and the account record.',
+  },
+  {
+    name: 'ecosystem:contract',
+    directory: 'test/ecosystem/contract',
+    groupOrder: 3,
+    parallel: true,
+    sources: ['src/server/build/docs.js', 'src/server/domain/*.js'],
+    description:
+      'The interfaces between domains: the versioned API contract, cross-domain reads, the client ' +
+      'contract, and the documentation and structured data every domain publishes.',
+  },
+  {
+    name: 'underpost:integration:security',
+    directory: 'test/underpost/integration/security',
+    groupOrder: 4,
     sources: [
       'src/cli/secrets.js',
       'src/server/ops/systemd.js',
@@ -133,23 +245,23 @@ const TEST_TIERS = [
     description: 'SELinux policy, systemd units, the SOPS secret store and the Socket supply-chain audit.',
   },
   {
-    name: 'infra:2-network',
-    directory: 'test/integration/infra/2-network',
-    groupOrder: 3,
+    name: 'underpost:integration:network',
+    directory: 'test/underpost/integration/network',
+    groupOrder: 5,
     sources: ['src/cli/wireguard.js', 'src/server/network/dns.js', 'src/server/network/forward-proxy.js'],
     description: 'WireGuard edge connectivity the cluster is reachable over.',
   },
   {
-    name: 'infra:3-cluster',
-    directory: 'test/integration/infra/3-cluster',
-    groupOrder: 4,
+    name: 'underpost:integration:cluster',
+    directory: 'test/underpost/integration/cluster',
+    groupOrder: 6,
     sources: ['src/cli/docker-compose.js', 'src/db/mongo/MongoExpress.js', 'src/server/runtime/conf.js'],
     description: 'Instance clustering, node assignment and compute scheduling.',
   },
   {
-    name: 'infra:4-ingress',
-    directory: 'test/integration/infra/4-ingress',
-    groupOrder: 5,
+    name: 'underpost:integration:ingress',
+    directory: 'test/underpost/integration/ingress',
+    groupOrder: 7,
     sources: [
       'src/server/network/middlewares.js',
       'src/server/network/router.js',
@@ -161,9 +273,9 @@ const TEST_TIERS = [
     description: 'Gateways, ingress controllers, deploy routes and traffic plans.',
   },
   {
-    name: 'infra:5-observability',
-    directory: 'test/integration/infra/5-observability',
-    groupOrder: 6,
+    name: 'underpost:integration:observability',
+    directory: 'test/underpost/integration/observability',
+    groupOrder: 8,
     sources: [
       'src/cli/event.js',
       'src/mailer/*.js',
@@ -175,32 +287,72 @@ const TEST_TIERS = [
     description: 'Monitoring stack, deploy monitor, notifications and remediation.',
   },
   {
-    name: 'app',
-    directory: 'test/integration/app',
-    groupOrder: 7,
-    sources: ['src/api/test/*.js', 'src/server/ops/logger.js'],
-    // Non-recursive: the cyberia extension underneath is its own tier, because
-    // it ships in a separate product CLI and must stay separately runnable.
+    name: 'underpost:integration',
+    directory: 'test/underpost/integration',
+    groupOrder: 9,
+    // Non-recursive: the ordered areas underneath are projects of their own.
     recursive: false,
-    description: 'Platform application layer served over the provisioned stack.',
+    sources: ['src/api/test/*.js'],
+    description: 'Platform APIs served over a real server and a real database.',
   },
   {
-    name: 'cyberia:app',
-    directory: 'test/integration/app/cyberia',
-    groupOrder: 7,
+    name: 'ecosystem:integration',
+    directory: 'test/ecosystem/integration',
+    groupOrder: 9,
+    sources: ['src/client-builder/client-build-docs.js', 'src/server/build/docs.js'],
+    description: 'Composition across domains: what one domain publishes and another serves.',
+  },
+  {
+    name: 'cyberia:integration',
+    directory: 'test/cyberia/integration',
+    groupOrder: 9,
     sources: [
-      'src/api/cyberia-server-defaults/*.js',
-      'src/api/cyberia-instance/cyberia-fallback-capture.js',
-      'src/api/object-layer/object-layer.model.js',
-      'src/projects/cyberia/atlas-sprite-sheet-generator.js',
-      'src/projects/cyberia/shape-generator.js',
+      'src/api/object-layer/object-layer.publication.js',
+      'src/db/DataBaseProvider.js',
+      'src/db/content-view.js',
+      'src/projects/cyberia/content-release.js',
+      'test/support/mongod.js',
     ],
-    description: 'Cyberia MMO extension: content, persistence, sprite atlases and shape generation.',
+    // Every content-release test does real database round trips: a release build copies ten collections.
+    vitest: { hookTimeout: 60000, testTimeout: 30000 },
+    description:
+      'Cyberia against real boundaries: content releases on a MongoDB replica set — build, validate, ' +
+      'promote, roll back, prune, restart, concurrent promotion and runtime isolation — the product CLI ' +
+      'and the audio seed. The release suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH) and ' +
+      'skip without one.',
   },
   {
-    name: 'contracts',
+    name: 'item-ledger:integration',
+    directory: 'test/item-ledger/integration',
+    groupOrder: 9,
+    sources: ['src/api/item-ledger/item-ledger.indexer.js'],
+    description:
+      'ItemLedger against a live EVM: deploy, register, mint, transfer, burn, replay and reconcile. ' +
+      'Needs CHAIN_RPC_URL and CHAIN_PRIVATE_KEY of a Besu validator or a Hardhat node; skipped without them.',
+  },
+  {
+    name: 'underpost:e2e',
+    directory: 'test/underpost/e2e',
+    groupOrder: 10,
+    sources: ['src/server/network/middlewares.js'],
+    description:
+      'Public routes driven in a real browser against a real database: direct navigation, refresh, ' +
+      'in-app navigation, history, share links and the sanitizer. Needs puppeteer-core, a Firefox ' +
+      'binary, a mongod binary and a built client; skipped without them.',
+  },
+  {
+    name: 'cyberia:e2e',
+    directory: 'test/cyberia/e2e',
+    groupOrder: 10,
+    sources: ['src/api/cyberia-server-defaults/*.js'],
+    description:
+      'Controlled WebSocket load against a running cyberia-server, so a real client session is ' +
+      'measured end to end. Needs a reachable server; skipped without one.',
+  },
+  {
+    name: 'item-ledger:contract',
     directory: 'hardhat',
-    groupOrder: 7,
+    groupOrder: 11,
     description: 'ObjectLayerToken ERC-1155 behaviour on the in-process EVM.',
     // Hardhat owns Solidity compilation and the EVM these run against, so they
     // cannot be collected by Vitest. Hardhat's own `test` task pins a reporter
@@ -224,87 +376,93 @@ const TEST_TIERS = [
 ];
 
 /**
- * @method testSuiteNames
- * @description Suite selectors `--suite` accepts, derived from the tier names
- * so a new tier is selectable the moment it is declared.
- * @returns {string[]} Suite names, plus the `all` selector.
+ * @method testDomainNames
+ * @description Domain selectors `--suite` accepts, derived from the project names
+ * so a new project is selectable the moment it is declared.
+ * @returns {string[]} Domain names, plus the `all` selector.
  * @memberof UnderpostTesting
  */
-const testSuiteNames = () => [...new Set(TEST_TIERS.map(({ name }) => name.split(':')[0])), 'all'];
+const testDomainNames = () => [...new Set(TEST_PROJECTS.map(({ name }) => name.split(':')[0])), 'all'];
 
 /**
- * @method resolveTestTiers
- * @description Expands a comma separated selector into tiers.
+ * @method resolveTestProjects
+ * @description Expands a comma separated selector into projects.
  *
- * Expansion happens here rather than being passed through as a glob so an
- * unknown selector fails with the list of valid ones instead of silently
- * matching nothing and reporting a green run.
- * @param {string} [selector] - Suite names, tier names, or empty for every tier.
- * @returns {object[]} Selected tiers, in declaration order.
- * @throws {Error} When a selector matches no declared tier.
+ * A selector matches a project name exactly, or matches it on a `:` boundary —
+ * so `cyberia` takes every Cyberia project and `underpost:integration` takes
+ * every ordered area under it. Expansion happens here rather than being passed
+ * through as a glob so an unknown selector fails with the list of valid ones
+ * instead of silently matching nothing and reporting a green run.
+ * @param {string} [selector] - Domain names, project names, or empty for every project.
+ * @returns {object[]} Selected projects, in declaration order.
+ * @throws {Error} When a selector matches no declared project.
  * @memberof UnderpostTesting
  */
-const resolveTestTiers = (selector = '') => {
+const resolveTestProjects = (selector = '') => {
   const selectors = selector
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  if (selectors.length === 0 || selectors.includes('all')) return TEST_TIERS;
+  if (selectors.length === 0 || selectors.includes('all')) return TEST_PROJECTS;
 
   const selected = new Set();
   for (const value of selectors) {
-    const matched = TEST_TIERS.filter(({ name }) => name === value || name.startsWith(`${value}:`));
+    const matched = TEST_PROJECTS.filter(({ name }) => name === value || name.startsWith(`${value}:`));
     if (matched.length === 0)
       throw new Error(
-        `[test] unknown suite '${value}' — expected one of ${testSuiteNames().join(', ')} ` +
-          `or a tier: ${TEST_TIERS.map(({ name }) => name).join(', ')}`,
+        `[test] unknown selector '${value}' — expected one of ${testDomainNames().join(', ')} ` +
+          `or a project: ${TEST_PROJECTS.map(({ name }) => name).join(', ')}`,
       );
-    for (const tier of matched) selected.add(tier);
+    for (const project of matched) selected.add(project);
   }
-  return TEST_TIERS.filter((tier) => selected.has(tier));
+  return TEST_PROJECTS.filter((project) => selected.has(project));
 };
 
 /**
  * @method resolveTestSelection
  * @description Splits a selector into the two runners that serve it.
- * @param {string} [selector] - Suite names, tier names, or empty for every tier.
+ * @param {string} [selector] - Domain names, project names, or empty for every project.
  * @returns {{projects: string[], runVitest: boolean, delegated: object[]}} Selection.
- * @throws {Error} When a selector matches no declared tier.
+ * @throws {Error} When a selector matches no declared project.
  * @memberof UnderpostTesting
  */
 const resolveTestSelection = (selector = '') => {
-  const tiers = resolveTestTiers(selector);
-  const vitestTiers = tiers.filter(({ delegate }) => !delegate);
-  const everyVitestTier = vitestTiers.length === TEST_TIERS.filter(({ delegate }) => !delegate).length;
+  const projects = resolveTestProjects(selector);
+  const vitestProjects = projects.filter(({ delegate }) => !delegate);
+  const everyVitestProject = vitestProjects.length === TEST_PROJECTS.filter(({ delegate }) => !delegate).length;
   return {
-    // No `--project` flags when every tier is selected: Vitest runs them all by
-    // default, and an explicit list would fail a template that strips one.
-    projects: everyVitestTier ? [] : vitestTiers.map(({ name }) => name),
-    runVitest: vitestTiers.length > 0,
-    delegated: tiers.filter(({ delegate }) => delegate),
+    // No `--project` flags when every project is selected: Vitest runs them all
+    // by default, and an explicit list would fail a template that strips one.
+    projects: everyVitestProject ? [] : vitestProjects.map(({ name }) => name),
+    runVitest: vitestProjects.length > 0,
+    delegated: projects.filter(({ delegate }) => delegate),
   };
 };
 
 /**
  * @method testProjectsFactory
- * @description Renders the Vitest `projects` array from the tier table.
+ * @description Renders the Vitest `projects` array from the project table.
  *
  * A Vitest project is a standalone configuration and inherits nothing from the
- * root `test` block, so whatever every tier needs is spread in here rather than
- * declared once at the root and silently dropped.
- * @param {object} [defaults] - Per-project `test` options shared by every tier.
+ * root `test` block, so whatever every project needs is spread in here rather
+ * than declared once at the root and silently dropped.
+ * @param {object} [defaults] - Per-project `test` options shared by every project.
  * @returns {object[]} Vitest inline project configurations.
  * @memberof UnderpostTesting
  */
 const testProjectsFactory = (defaults = {}) =>
-  TEST_TIERS.filter(({ delegate }) => !delegate).map(({ name, directory, groupOrder, recursive = true }) => ({
-    test: {
-      ...defaults,
-      name,
-      include: [`${directory}/${recursive ? '**/' : ''}*.test.js`],
-      sequence: { ...defaults.sequence, groupOrder },
-    },
-  }));
+  TEST_PROJECTS.filter(({ delegate }) => !delegate).map(
+    ({ name, directory, groupOrder, recursive = true, parallel = false, vitest = {} }) => ({
+      test: {
+        ...defaults,
+        ...vitest,
+        name,
+        fileParallelism: parallel,
+        include: [`${directory}/${recursive ? '**/' : ''}*.test.js`],
+        sequence: { ...defaults.sequence, groupOrder },
+      },
+    }),
+  );
 
 /**
  * @method vitestArgsFactory
@@ -364,7 +522,7 @@ const coverageThresholdFactory = ({ COVERAGE_ENFORCE, COVERAGE_MIN } = {}) => {
  * @memberof UnderpostTesting
  */
 const coverageIncludeFactory = (argv = []) => [
-  ...new Set(resolveTestTiers(vitestProjectSelector(argv)).flatMap(({ sources = [] }) => sources)),
+  ...new Set(resolveTestProjects(vitestProjectSelector(argv)).flatMap(({ sources = [] }) => sources)),
 ];
 
 /**
@@ -385,22 +543,25 @@ const vitestProjectSelector = (argv = []) =>
 /**
  * @method coverageReportKey
  * @description The directory under `coverage/` a selection's HTML report is written to,
- * derived from the suites the selection spans so a deploy that names `unit,infra,app` and
- * a run that was handed the same tiers as `--project` flags address one report — and so
- * two selections never overwrite each other's on a host that serves both.
- * @param {string} [selector] - Suite names, tier names, or empty for every tier.
- * @returns {string} Suite names in declaration order, joined with `-`.
- * @throws {Error} When a selector matches no declared tier.
+ * derived from the domains the selection spans so a deploy that names `underpost,ecosystem`
+ * and a run that was handed the same projects as `--project` flags address one report — and
+ * so two selections never overwrite each other's on a host that serves both. A selection
+ * that spans every domain is `all`, rather than a list of every name.
+ * @param {string} [selector] - Domain names, project names, or empty for every project.
+ * @returns {string} Domain names in declaration order joined with `-`, or `all`.
+ * @throws {Error} When a selector matches no declared project.
  * @memberof UnderpostTesting
  */
-const coverageReportKey = (selector = '') =>
-  [
+const coverageReportKey = (selector = '') => {
+  const domains = [
     ...new Set(
-      resolveTestTiers(selector)
+      resolveTestProjects(selector)
         .filter(({ delegate }) => !delegate)
         .map(({ name }) => name.split(':')[0]),
     ),
-  ].join('-');
+  ];
+  return domains.length === ALL_DOMAINS.length ? 'all' : domains.join('-');
+};
 
 /**
  * @method allureManifestsFactory
@@ -562,18 +723,143 @@ ${nodeName ? `      nodeName: ${nodeName}\n` : ''}      containers:
             claimName: ${allure.pvcName}`;
 };
 
+/**
+ * @constant TEST_IMPACT
+ * @description Which domains a changed path can break, in match order.
+ *
+ * The first rule whose `match` the path starts with decides, so the specific
+ * domain prefixes come before the platform ones. `domains` holds every domain a
+ * change to that path can reach, never only the domain that owns the file: the
+ * Object Layer protocol is consumed by three other domains, so a change to it
+ * selects their suites too. A path no rule matches widens to every project —
+ * an incomplete model must over-test, never under-test.
+ * @memberof UnderpostTesting
+ */
+const TEST_IMPACT = [
+  // What decides which tests run, or how they run, invalidates every selection.
+  { match: ['vitest.config.js', 'package.json', 'package-lock.json'], domains: ALL_DOMAINS },
+  {
+    match: ['src/server/build/testing.js', 'src/cli/test.js', 'test/support/', '.github/workflows/'],
+    domains: ALL_DOMAINS,
+  },
+  // A test only proves its own domain.
+  ...Object.keys(TEST_DOMAINS).map((domain) => ({ match: [`test/${domain}/`], domains: [domain] })),
+  // The canonical protocol: three domains read it, and the contract suites check it from outside.
+  {
+    match: [
+      'src/api/object-layer/',
+      'src/client/components/object-layer/',
+      'src/server/domain/object-layer-resolver.js',
+    ],
+    domains: ['object-layer', 'item-ledger', 'cyberia', 'cryptokoyn', 'ecosystem'],
+  },
+  { match: ['src/api/item-ledger', 'hardhat/'], domains: ['item-ledger'] },
+  // The render routes every Object Layer host serves; the Cyberia Studio extends them.
+  { match: ['src/api/atlas-sprite-sheet/'], domains: ['object-layer', 'cyberia', 'ecosystem'] },
+  {
+    match: [
+      'src/api/cyberia-',
+      'src/client/components/cyberia/',
+      'src/grpc/cyberia/',
+      'src/projects/cyberia/',
+      'src/runtime/cyberia-',
+      'src/runtime/engine-cyberia/',
+      'bin/cyberia.js',
+    ],
+    domains: ['cyberia'],
+  },
+  {
+    match: [
+      'src/api/wallet-account/',
+      'src/client/components/cryptokoyn/',
+      'src/client/components/wallet/',
+      'src/server/security/siwe.js',
+      'src/server/security/typed-data.js',
+    ],
+    domains: ['cryptokoyn'],
+  },
+  // Cross-domain plumbing: every domain reads another domain through it.
+  {
+    match: ['src/server/domain/'],
+    domains: ['ecosystem', 'object-layer', 'item-ledger', 'cyberia', 'cryptokoyn'],
+  },
+  // Authored documentation and the structured data each client publishes.
+  { match: ['src/client/public/docs/', 'src/server/build/docs.js'], domains: ['ecosystem', 'underpost'] },
+  { match: ['src/client/components/', 'src/client/public/', 'src/client/ssr/'], domains: ['ecosystem', 'underpost'] },
+  // Persistence every product domain stores through.
+  { match: ['src/db/'], domains: ['underpost', 'object-layer', 'cyberia'] },
+  // The engineering record at the tree root: the release tooling rewrites it and asserts it.
+  { match: ['README.md', 'AGENTS.md', 'CLI-HELP.md', 'LICENSE'], domains: ['underpost'] },
+  // The platform itself.
+  {
+    match: [
+      'underpost.config.js',
+      'src/api/',
+      'src/cli/',
+      'src/client-builder/',
+      'src/index.js',
+      'src/mailer/',
+      'src/server/',
+      'bin/',
+      'deploy/',
+      'manifests/',
+      'scripts/',
+    ],
+    domains: ['underpost'],
+  },
+];
+
+/**
+ * @method impactedDomains
+ * @description The domains a set of changed paths can break.
+ *
+ * A path outside every rule widens to every domain rather than selecting none:
+ * an unmapped path is an incomplete model, and a silent green run is the one
+ * answer that must never come out of it.
+ * @param {string[]} [paths] - Repository-relative paths, as a diff lists them.
+ * @returns {string[]} Domain ids, in declaration order.
+ * @memberof UnderpostTesting
+ */
+const impactedDomains = (paths = []) => {
+  const impacted = new Set();
+  for (const path of paths.map((value) => `${value}`.trim().replace(/^\.\//, '')).filter(Boolean)) {
+    const rule = TEST_IMPACT.find(({ match }) => match.some((prefix) => path.startsWith(prefix)));
+    for (const domain of rule ? rule.domains : ALL_DOMAINS) impacted.add(domain);
+  }
+  return Object.keys(TEST_DOMAINS).filter((domain) => impacted.has(domain));
+};
+
+/**
+ * @method impactSelector
+ * @description The selector that runs everything a set of changed paths can break.
+ * @param {string[]} [paths] - Repository-relative paths, as a diff lists them.
+ * @returns {string} Comma separated domains, `all` when every domain is impacted,
+ *   and empty when nothing changed.
+ * @memberof UnderpostTesting
+ */
+const impactSelector = (paths = []) => {
+  const domains = impactedDomains(paths);
+  if (domains.length === 0) return '';
+  return domains.length === ALL_DOMAINS.length ? 'all' : domains.join(',');
+};
+
 export {
   UNDERPOST_TESTING,
-  TEST_TIERS,
+  TEST_DOMAINS,
+  TEST_IMPACT,
+  TEST_LEVELS,
+  TEST_PROJECTS,
   allureManifestsFactory,
   coverageIncludeFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  impactSelector,
+  impactedDomains,
+  resolveTestProjects,
   resolveTestSelection,
-  resolveTestTiers,
+  testDomainNames,
   testJobManifestFactory,
   testProjectsFactory,
-  testSuiteNames,
   vitestArgsFactory,
   vitestProjectSelector,
 };

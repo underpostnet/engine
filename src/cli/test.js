@@ -1,8 +1,8 @@
 /**
- * Runs the test tiers, wherever they have to run: on this host, inside a
+ * Runs the test projects, wherever they have to run: on this host, inside a
  * deployment's containers, or as a Job on the cluster.
  *
- * One entrypoint, one runner. Selecting suites, ordering tiers and rendering
+ * One entrypoint, one runner. Selecting domains, ordering projects and rendering
  * the reporting surfaces belong to `src/server/build/testing.js`; this module resolves
  * where the run happens and drives it.
  *
@@ -20,6 +20,8 @@ import {
   UNDERPOST_TESTING,
   allureManifestsFactory,
   coverageReportKey,
+  impactSelector,
+  resolveTestProjects,
   resolveTestSelection,
   testJobManifestFactory,
   vitestArgsFactory,
@@ -27,6 +29,23 @@ import {
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * The paths a change touches: against a git ref, or the working tree when none is named.
+ * @param {string} [base] - Git ref to compare against; the working tree and the index otherwise.
+ * @returns {string[]} Repository-relative paths.
+ */
+const changedPaths = (base = '') => {
+  const read = (command) =>
+    `${shellExec(command, { stdout: true, silent: true, silentOnError: true, disableLog: true }) ?? ''}`.split('\n');
+  return [
+    ...read(base ? `git diff --name-only ${base}` : 'git diff --name-only HEAD'),
+    // A new file is in no diff until it is added, and it is exactly the change most worth testing.
+    ...read('git ls-files --others --exclude-standard'),
+  ]
+    .map((path) => path.trim())
+    .filter(Boolean);
+};
 
 /**
  * @class UnderpostTest
@@ -48,13 +67,13 @@ class UnderpostTest {
 
     /**
      * @method run
-     * @description Runs the selected tiers on this host.
+     * @description Runs the selected projects on this host.
      *
      * Resolved against the globally installed engine when the current directory
      * is not one, so `underpost test` from anywhere still runs the shipped suites
      * rather than failing on a missing config.
      * @param {object} [params]
-     * @param {string} [params.suite] - Suite or tier selector.
+     * @param {string} [params.suite] - Domain or project selector.
      * @param {string} [params.grep] - Substring filter on test names.
      * @param {boolean} [params.watch] - Keep the runner open and re-run on change.
      * @param {boolean} [params.coverage] - Emit the coverage reporters.
@@ -92,16 +111,16 @@ class UnderpostTest {
       }
 
       for (const { name, directory, delegate } of delegated) {
-        const tierRoot = `${root}/${directory}`;
-        // A product build strips the tiers it does not own, so an absent
-        // directory is a tier this tree does not ship, not a failure.
-        if (!fs.existsSync(tierRoot)) {
-          logger.warn(`Skipping tier not present in this tree`, { tier: name, directory });
+        const projectRoot = `${root}/${directory}`;
+        // A product build strips the projects it does not own, so an absent
+        // directory is a project this tree does not ship, not a failure.
+        if (!fs.existsSync(projectRoot)) {
+          logger.warn(`Skipping project not present in this tree`, { project: name, directory });
           continue;
         }
         if (allureResultsDirectory) fs.mkdirSync(allureResultsDirectory, { recursive: true });
         const resultsPath = allureResultsDirectory ? `${allureResultsDirectory}/TEST-${name}.xml` : '';
-        shellExec(`cd ${tierRoot} && ${delegate({ resultsPath, grep })}`);
+        shellExec(`cd ${projectRoot} && ${delegate({ resultsPath, grep })}`);
       }
     },
 
@@ -134,14 +153,14 @@ class UnderpostTest {
 
     /**
      * @method job
-     * @description Runs one suite on the cluster as a Job.
+     * @description Runs one selection on the cluster as a Job.
      *
      * The Job writes into the same claim the dashboard reads, so its results are
      * published by finishing — there is no upload step to fail separately from
      * the tests it would have reported.
      * @param {object} params
      * @param {string} params.image - Image carrying the engine and its dependencies.
-     * @param {string} [params.suite] - Suite or tier selector.
+     * @param {string} [params.suite] - Domain or project selector.
      * @param {string} [params.namespace='default'] - Target namespace.
      * @param {string} [params.nodeName] - Pins the pod to one node.
      * @param {boolean} [params.dryRun] - Print the manifest instead of applying it.
@@ -164,12 +183,15 @@ class UnderpostTest {
     /**
      * @method callback
      * @description `underpost test` entrypoint.
-     * @param {string} [suite] - Suite or tier selector.
+     * @param {string} [suite] - Domain or project selector.
      * @param {object} [options]
      * @param {boolean} [options.itc] - Run here rather than dispatching into pods.
      * @param {string} [options.deployList] - Comma separated deploy ids to run inside.
      * @param {boolean} [options.dashboard] - Apply the Allure dashboard and exit.
-     * @param {boolean} [options.job] - Run the suite as a cluster Job.
+     * @param {boolean} [options.job] - Run the selection as a cluster Job.
+     * @param {boolean|string} [options.changed] - Select the domains the changed sources belong to.
+     * @param {boolean} [options.list] - Print the projects the selector resolves to and exit.
+     * @param {boolean} [options.print] - Print the selector, or the resolved projects, on stdout and exit.
      * @param {boolean} [options.allure] - Write Allure results alongside the run.
      * @param {string} [options.grep] - Substring filter on test names.
      * @param {boolean} [options.watch] - Keep the runner open and re-run on change.
@@ -187,6 +209,32 @@ class UnderpostTest {
      */
     async callback(suite = '', options = {}) {
       const { itc, deployList, dashboard, job, podName, podStatus, kindType, namespace = 'default' } = options;
+
+      // Impact selection: the domains the changed sources belong to, never the whole suite by
+      // habit. A change nothing maps to widens to every domain rather than running none.
+      if (options.changed) {
+        const paths = changedPaths(options.changed === true ? '' : options.changed);
+        const selected = impactSelector(paths);
+        // `--print` feeds a CI step, so it answers on stdout alone, and an empty change set
+        // widens rather than handing that step a selector that reads as every project.
+        if (options.print) return void console.log(selected || 'all');
+        logger.info('Changed sources select', { paths: paths.length, selector: selected || '(nothing changed)' });
+        if (!selected) return;
+        suite = selected;
+      }
+
+      if (options.print)
+        return void console.log(
+          resolveTestProjects(suite)
+            .map(({ name }) => name)
+            .join(','),
+        );
+
+      if (options.list) {
+        for (const { name, directory, description } of resolveTestProjects(suite))
+          logger.info(name, { directory, description });
+        return;
+      }
 
       if (podName) return void (await Underpost.test.statusMonitor(podName, podStatus || 'Running', kindType));
       if (dashboard) return void Underpost.test.dashboard(options);

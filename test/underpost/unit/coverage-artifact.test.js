@@ -20,14 +20,14 @@ import {
   coverageUnavailablePage,
   deployCoverageReports,
   resolveCoverageReportPath,
-} from '../../src/server/build/coverage.js';
-import { EXECUTION_PROFILE_ENV_KEY } from '../../src/server/build/execution.js';
-import { isTestRuntime, runtimeStatusWritable } from '../../src/server/runtime/runtime-status.js';
+} from '../../../src/server/build/coverage.js';
+import { EXECUTION_PROFILE_ENV_KEY } from '../../../src/server/build/execution.js';
+import { isTestRuntime, runtimeStatusWritable } from '../../../src/server/runtime/runtime-status.js';
 
 describe('coverage report declaration', () => {
   it('reads each declared report with its label defaulting to the id', () => {
-    expect(coverageReportsFactory({ coverage: [{ id: 'engine', suite: 'unit' }] })).to.deep.equal([
-      { id: 'engine', label: 'engine', suite: 'unit', path: undefined },
+    expect(coverageReportsFactory({ coverage: [{ id: 'engine', suite: 'underpost:unit' }] })).to.deep.equal([
+      { id: 'engine', label: 'engine', suite: 'underpost:unit', path: undefined },
     ]);
   });
 
@@ -38,38 +38,36 @@ describe('coverage report declaration', () => {
 
   it('rejects an entry without exactly one source, a non-slug id, or a repeated id', () => {
     expect(() => coverageReportsFactory({ coverage: [{ id: 'x' }] })).to.throw("exactly one of 'suite' or 'path'");
-    expect(() => coverageReportsFactory({ coverage: [{ id: 'x', suite: 'unit', path: './' }] })).to.throw(
+    expect(() => coverageReportsFactory({ coverage: [{ id: 'x', suite: 'underpost:unit', path: './' }] })).to.throw(
       'exactly one',
     );
-    expect(() => coverageReportsFactory({ coverage: [{ id: 'Bad Id', suite: 'unit' }] })).to.throw('slug');
+    expect(() => coverageReportsFactory({ coverage: [{ id: 'Bad Id', suite: 'underpost:unit' }] })).to.throw('slug');
     expect(() =>
       coverageReportsFactory({
         coverage: [
-          { id: 'x', suite: 'unit' },
-          { id: 'x', suite: 'app' },
+          { id: 'x', suite: 'underpost:unit' },
+          { id: 'x', suite: 'underpost:integration' },
         ],
       }),
     ).to.throw('declared twice');
   });
 
-  it("collects a deploy's reports across routes once each", () => {
-    const route = { docs: { coverage: [{ id: 'engine', suite: 'unit' }] } };
-    const confServer = { 'a.test': { '/': route, '/store': route }, 'b.test': { '/': {} } };
-    expect(deployCoverageReports(confServer).map(({ id }) => id)).to.deep.equal(['engine']);
+  it("collects a deploy's reports across clients once each", () => {
+    const client = { docs: { coverage: [{ id: 'engine', suite: 'underpost:unit' }] } };
+    const confClient = { a: client, b: client, c: {} };
+    expect(deployCoverageReports(confClient).map(({ id }) => id)).to.deep.equal(['engine']);
   });
 
   it('refuses one id declared with two sources', () => {
-    const confServer = {
-      'a.test': {
-        '/': { docs: { coverage: [{ id: 'engine', suite: 'unit' }] } },
-        '/store': { docs: { coverage: [{ id: 'engine', suite: 'app' }] } },
-      },
+    const confClient = {
+      a: { docs: { coverage: [{ id: 'engine', suite: 'underpost:unit' }] } },
+      b: { docs: { coverage: [{ id: 'engine', suite: 'underpost:integration' }] } },
     };
-    expect(() => deployCoverageReports(confServer)).to.throw('two different sources');
+    expect(() => deployCoverageReports(confClient)).to.throw('two different sources');
   });
 
   it('names the command that produces each kind of report', () => {
-    expect(coverageReportCommand({ suite: 'unit,infra,app' })).to.equal('node bin test unit,infra,app');
+    expect(coverageReportCommand({ suite: 'underpost,ecosystem' })).to.equal('node bin test underpost,ecosystem');
     expect(coverageReportCommand({ path: './hardhat/' })).to.equal('npm run coverage --prefix ./hardhat');
   });
 });
@@ -93,8 +91,8 @@ describe('coverage report resolution', () => {
   });
 
   it("looks for a suite's own run output first and the bundled artifact last", () => {
-    expect(coverageReportCandidates({ id: 'engine', suite: 'unit,infra,app' })).to.deep.equal([
-      'coverage/unit-infra-app',
+    expect(coverageReportCandidates({ id: 'engine', suite: 'underpost,ecosystem' })).to.deep.equal([
+      'coverage/underpost-ecosystem',
       `${COVERAGE_BUNDLE_DIRECTORY}/engine`,
     ]);
   });
@@ -114,10 +112,10 @@ describe('coverage report resolution', () => {
   });
 
   it('resolves the report of the selection the deploy names, not the last run made', () => {
-    fs.outputFileSync(`${fixturePath}/coverage/unit-infra-app-cyberia/index.html`, '<!doctype html>');
+    fs.outputFileSync(`${fixturePath}/coverage/underpost-ecosystem-cyberia/index.html`, '<!doctype html>');
     fs.outputFileSync(`${fixturePath}/coverage/cyberia/index.html`, '<!doctype html>');
     expect(resolveCoverageReportPath({ id: 'x', suite: 'cyberia' })).to.equal('coverage/cyberia');
-    expect(resolveCoverageReportPath({ id: 'x', suite: 'unit,infra,app' })).to.equal(undefined);
+    expect(resolveCoverageReportPath({ id: 'x', suite: 'underpost,ecosystem' })).to.equal(undefined);
   });
 
   it('falls back to the report a deploy artifact already carries', () => {
@@ -189,9 +187,9 @@ describe('coverage bundling into a deploy artifact', () => {
   });
 
   it('renders a static unavailable page naming the report and the run that produces it', () => {
-    const page = coverageUnavailablePage({ id: 'engine', suite: 'unit,infra,app' });
+    const page = coverageUnavailablePage({ id: 'engine', suite: 'underpost,ecosystem' });
     expect(page).to.include('Coverage report unavailable');
-    expect(page).to.include('node bin test unit,infra,app');
+    expect(page).to.include('node bin test underpost,ecosystem');
     expect(page).to.include(`${COVERAGE_BUNDLE_DIRECTORY}/engine`);
     expect(page).not.to.include('<script');
   });
