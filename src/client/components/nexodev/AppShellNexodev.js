@@ -24,6 +24,7 @@ import {
   SUBMENU_SELECTION_QUERY_KEY,
   renderMenuLabel,
   renderViewTitle,
+  sortableSubMenuEvents,
   subMenuRender,
 } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
@@ -40,7 +41,6 @@ import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
 import { SettingsNexodev } from './SettingsNexodev.js';
-import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
@@ -251,18 +251,6 @@ class AppShellNexodev {
               tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
             })}
             ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-wallet',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html` <i class="fas fa-wallet"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('wallet')}</span>`,
-              }),
-              attrs: `data-id="wallet"`,
-              tabHref: `${getProxyPath()}wallet`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('wallet')),
-            })}
-            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-recover hide',
               useMenuBtn: true,
               label: renderMenuLabel({
@@ -383,6 +371,7 @@ class AppShellNexodev {
 
     setTimeout(ThemeEvents['main-theme-handler']);
 
+    const sortableSubMenus = sortableSubMenuEvents(['docs']);
     const sortableFactor = () =>
       new Sortable(s(`.menu-btn-container-main`), {
         animation: 150,
@@ -390,6 +379,7 @@ class AppShellNexodev {
         forceFallback: true,
         fallbackOnBody: true,
         handle: '.handle-btn-container',
+        draggable: '.main-btn-menu',
         store: {
           /**
            * Get the order of elements. Called once during initialization.
@@ -414,6 +404,7 @@ class AppShellNexodev {
         // ghostClass: 'css-class',
         // Element dragging ended
         onEnd: function (/**Event*/ evt) {
+          sortableSubMenus.onEnd();
           // console.log('Sortable onEnd', evt);
           // console.log('evt.oldIndex', evt.oldIndex);
           // console.log('evt.newIndex', evt.newIndex);
@@ -431,12 +422,7 @@ class AppShellNexodev {
           // evt.clone; // the clone element
           // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
         },
-        onStart: async function (/**Event*/ evt) {
-          if (Modal.subMenuBtnClass['docs']) {
-            if (isSubMenuOpen('docs')) await subMenuRender('docs');
-            AppShellNexodev.Data[id].sortable = sortableFactor();
-          }
-        },
+        onStart: sortableSubMenus.onStart,
       });
     AppShellNexodev.Data[id].sortable = sortableFactor();
 
@@ -528,26 +514,6 @@ class AppShellNexodev {
             });
           });
         },
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-wallet`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-wallet',
-        route: 'wallet',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-wallet"></i>`,
-          text: Translate.instance('wallet'),
-        }),
-        html: async () => await Wallet.instance({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -764,6 +730,7 @@ class AppShellNexodev {
         html: async () =>
           await Docs.instance({
             idModal: 'modal-docs',
+            domain: 'nexodev',
           }),
         handleType: 'bar',
         observer: true,
@@ -884,7 +851,6 @@ class AppShellNexodev {
         observer: true,
       });
     });
-
   }
 }
 

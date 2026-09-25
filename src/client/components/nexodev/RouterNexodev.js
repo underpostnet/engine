@@ -25,7 +25,6 @@ class RouterNexodev {
       '/chat': { title: 'chat', render: () => s(`.main-btn-chat`).click() },
       '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click() },
       '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click() },
-      '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click() },
       '/log-out': {
         title: 'log-out',
         render: () => s(`.main-btn-log-out`).click(),
