@@ -6,9 +6,7 @@ SSRComponent = (render = { style: {}, renderStyle: () => '' }, options) => html`
       <p style="${render.renderStyle('p')}">
         <a href="{{RECOVER_WEB_URL}}" style="${render.renderStyle('button')}"
           ><img
-            src="http${options.transport.secure ? 's' : ''}://${options.host}${options.path === '/'
-              ? ''
-              : options.path}/api/user/recover/{{TOKEN}}"
+            src="http${options.transport.secure ? 's' : ''}://${options.host}${options.apiPath}/user/recover/{{TOKEN}}"
           /><br />{{RECOVER_BTN_LABEL}}</a
         >
       </p>

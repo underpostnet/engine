@@ -4,9 +4,7 @@ SSRComponent = (render = { style: {}, renderStyle: () => '' }, options) => html`
       <h1 style="${render.renderStyle('h1')}">{{H1}}</h1>
       <p style="${render.renderStyle('p')}">{{P1}}</p>
       <img
-        src="http${options.transport.secure ? 's' : ''}://${options.host}${options.path === '/'
-          ? ''
-          : options.path}/api/user/mailer/{{TOKEN}}"
+        src="http${options.transport.secure ? 's' : ''}://${options.host}${options.apiPath}/user/mailer/{{TOKEN}}"
       />
     </div>
     <div style="${render.renderStyle('.footer')}">
