@@ -3,6 +3,7 @@
 import { expect } from 'chai';
 import fs from 'node:fs';
 import { TEST_DOMAINS, TEST_IMPACT, impactSelector, impactedDomains } from '../../../src/server/build/testing.js';
+import { unslicedTree } from '../../support/tree.js';
 
 // What a change selects. The model is deterministic and reviewable rather than derived from a
 // coverage graph, so its failure mode has to be an over-test: a path it does not know widens to
@@ -79,7 +80,7 @@ describe('test impact', () => {
     for (const domain of domains) expect([...named], domain).to.include(domain);
   });
 
-  it('matches every rule against something this tree ships', () => {
+  it.skipIf(!unslicedTree)('matches every rule against something the engine tree ships', () => {
     // A prefix that matches nothing is a rule that silently stopped selecting.
     const stray = [];
     for (const { match } of TEST_IMPACT)

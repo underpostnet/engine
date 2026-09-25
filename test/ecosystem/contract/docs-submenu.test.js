@@ -27,7 +27,8 @@ const appShells = () => {
   return shells;
 };
 
-describe('docs submenu contract', () => {
+// The docs view exists only in a tree that ships the docs tree.
+describe.skipIf(!fs.existsSync(DOCS_ROOT))('docs submenu contract', () => {
   const shells = appShells();
 
   it('finds the app shells to check', () => {

@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import { EMPTY_CATALOG, loadProductCatalogs, loadProductContexts } from '../../../src/server/build/catalog.js';
 import { TEST_PROJECTS, productContextOf } from '../../../src/server/build/testing.js';
+import { unslicedTree } from '../../support/tree.js';
 
 // A broken catalog path fails during template assembly, long after the commit
 // that broke it, so the tree is asserted here instead.
@@ -15,10 +16,7 @@ const catalogs = await loadProductCatalogs();
 const describeProducts = describe.skipIf(catalogs.length === 0);
 
 // A product template keeps its own catalog but has every other product sliced away, so only
-// the unsliced engine tree carries every catalog and every tier directory. `buildTemplate`
-// drops `build:template` from the manifest and every product manifest inherits that, which
-// makes the script the one durable marker of the unsliced tree.
-const unsliced = !!JSON.parse(fs.readFileSync('./package.json', 'utf8')).scripts?.['build:template'];
+// the unsliced engine tree carries every catalog and every tier directory.
 
 describeProducts('product catalogs', () => {
   it('every catalog carries the uniform shape', () => {
@@ -60,11 +58,11 @@ describeProducts('product catalogs and the test projects', () => {
   // with it.
   const strippedProjects = TEST_PROJECTS.filter((project) => productContextOf(project, catalogs));
 
-  it.skipIf(!unsliced)('has products that own at least one project', () => {
+  it.skipIf(!unslicedTree)('has products that own at least one project', () => {
     expect(strippedProjects).to.not.be.empty;
   });
 
-  it.skipIf(!unsliced)('gives every project a directory that exists in an unsliced tree', () => {
+  it.skipIf(!unslicedTree)('gives every project a directory that exists in an unsliced tree', () => {
     for (const { name, directory } of TEST_PROJECTS) expect(fs.existsSync(directory), name).to.equal(true);
   });
 

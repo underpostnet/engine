@@ -36,7 +36,11 @@ describe('shell menu icon set', () => {
   const shells = imageMenuShells();
 
   it('finds the shells that draw their menu with an image set', () => {
-    expect(shells.map(({ client }) => client)).to.include.members(['cyberia-portal', 'itemledger', 'objectlayer']);
+    // A sliced tree carries only some of these clients, or none.
+    const carried = ['cyberia-portal', 'itemledger', 'objectlayer'].filter((client) =>
+      fs.existsSync(`${COMPONENTS}/${client}`),
+    );
+    expect(shells.map(({ client }) => client)).to.include.members(carried);
   });
 
   it('draws every visible menu entry with the image set', () => {

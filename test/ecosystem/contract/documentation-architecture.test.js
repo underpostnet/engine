@@ -26,7 +26,8 @@ const DOMAINS = {
   underpost: ['overview', 'engineering-journal', 'lab-notes', 'adr'],
 };
 
-describe('documentation architecture', () => {
+// A base template ships no docs tree.
+describe.skipIf(!fs.existsSync(DOCS_ROOT))('documentation architecture', () => {
   it('carries no structural problem and no broken internal link', () => {
     const problems = docsProblemsFactory(documents());
     const report = problems.map(({ document, problem }) => `${document} ${problem}`).join('\n');

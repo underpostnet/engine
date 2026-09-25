@@ -16,6 +16,7 @@ import {
   testProjectsFactory,
   vitestProjectSelector,
 } from '../../../src/server/build/testing.js';
+import { unslicedTree } from '../../support/tree.js';
 
 // The table declares every project the platform ships. A product build slices the
 // tree, so whether a project's directory is present here is a catalog question,
@@ -268,14 +269,11 @@ describe('coverage scope', () => {
     for (const { name, sources, delegate } of TEST_PROJECTS) if (delegate) expect(sources, name).to.equal(undefined);
   });
 
-  it('points every glob at something this tree ships', () => {
+  it.skipIf(!unslicedTree)('points every glob at something the engine tree ships', () => {
     // A source that moved leaves the project silently measuring nothing, which
-    // reads as coverage rather than as the missing measurement it is. A product
-    // build slices the tree, so only projects it kept are asserted.
-    for (const { name, directory, sources } of vitestProjects) {
-      if (!fs.existsSync(directory)) continue;
+    // reads as coverage rather than as the missing measurement it is.
+    for (const { name, sources } of vitestProjects)
       for (const glob of sources) expect(fs.globSync(glob), `${name}: ${glob}`).to.not.be.empty;
-    }
   });
 
   it('measures every project when the run selects none', () => {

@@ -2,6 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import { unslicedTree } from '../../support/tree.js';
 
 /**
  * Structured data a client publishes: `src/client/public/<publicClientId>/microdata.json`, which
@@ -42,7 +43,8 @@ describe('client microdata', () => {
     const carried = ['cryptokoyn', 'itemledger', 'nexodev', 'objectlayer'].filter((id) =>
       fs.existsSync(`${PUBLIC_ROOT}/${id}`),
     );
-    expect(carried).to.not.be.empty;
+    // The engine tree carries every one; a base template carries none.
+    if (unslicedTree) expect(carried).to.have.length(4);
     expect(clients.map(({ id }) => id).sort()).to.include.members(carried);
   });
 

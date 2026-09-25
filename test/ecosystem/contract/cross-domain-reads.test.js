@@ -20,24 +20,30 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
 // The atlas store needs the Cyberia catalog packages; no suite here reaches it.
 vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () => ({ AtlasSpriteSheetStore: {} }));
 
-const { resolveLedgerBindings, resolveObjectLayer, resolveTokenSupply, publishObjectLayer } =
-  await import('../../../src/server/domain/object-layer-resolver.js');
+// A base template ships no Object Layer domain; the suites that read it skip there.
+const objectLayerDomain = fs.existsSync('./src/api/object-layer');
+const objectLayerModule = async (path) => (objectLayerDomain ? await import(path) : {});
+
+const { resolveLedgerBindings, resolveObjectLayer, resolveTokenSupply, publishObjectLayer } = await objectLayerModule(
+  '../../../src/server/domain/object-layer-resolver.js',
+);
 const { clearDomainCache, domainOrigin } = await import('../../../src/server/domain/domain-client.js');
 const { loadApiExtension } = await import('../../../src/server/domain/consumed-api.js');
 const { developmentOrigins, hostPortsFactory, localHostAddress } =
   await import('../../../src/server/network/router.js');
 const { contentViewOf, isServiceKey, jwtSign, servicePrincipal } = await import('../../../src/server/security/auth.js');
-const { cacheCanonical, isObjectLayerAuthority, publishDefinition } =
-  await import('../../../src/api/object-layer/object-layer.publication.js');
-const { ObjectLayerService } = await import('../../../src/api/object-layer/object-layer.service.js');
+const { cacheCanonical, isObjectLayerAuthority, publishDefinition } = await objectLayerModule(
+  '../../../src/api/object-layer/object-layer.publication.js',
+);
+const { ObjectLayerService } = await objectLayerModule('../../../src/api/object-layer/object-layer.service.js');
 const { apiDocsModulesFactory } = await import('../../../src/server/build/docs.js');
-const { objectLayerIdentity } = await import('../../../src/api/object-layer/object-layer.identity.js');
+const { objectLayerIdentity } = await objectLayerModule('../../../src/api/object-layer/object-layer.identity.js');
 
 const definition = {
   profile: { id: 'cyberia', version: 2 },
   data: { item: { id: 'hatchet', type: 'weapon' }, stats: {} },
 };
-const { cid } = objectLayerIdentity(definition);
+const { cid } = objectLayerDomain ? objectLayerIdentity(definition) : {};
 const consumer = { host: 'www.cyberiaonline.com', path: '/', consumes: { 'object-layer': 'object-layer' } };
 
 let calls = [];
@@ -67,7 +73,7 @@ afterEach(() => {
 
 const localObjectLayer = () => ({ findByCid: () => ({ lean: async () => ({ cid, source: 'local' }) }) });
 
-describe('Object Layer resolution', () => {
+describe.skipIf(!objectLayerDomain)('Object Layer resolution', () => {
   it('reads the owner model on the Object Layer host, even with an authority origin set', async () => {
     process.env.OBJECT_LAYER_API_ORIGIN = 'https://objectlayer.org';
     models.ObjectLayer = localObjectLayer();
@@ -114,7 +120,7 @@ describe('Object Layer resolution', () => {
   });
 });
 
-describe('ItemLedger resolution', () => {
+describe.skipIf(!objectLayerDomain)('ItemLedger resolution', () => {
   it('reads the ledger over its API from any other domain', async () => {
     process.env.ITEM_LEDGER_API_ORIGIN = 'https://itemledger.com';
     const bindings = await resolveLedgerBindings(cid, consumer);
@@ -165,7 +171,7 @@ describe('documentation ownership', () => {
   });
 });
 
-describe('database boundaries', () => {
+describe.skipIf(!objectLayerDomain)('database boundaries', () => {
   const root = new URL('../../..', import.meta.url).pathname;
   const sources = (dir) =>
     fs
@@ -214,7 +220,7 @@ describe('database boundaries', () => {
   });
 });
 
-describe('one canonical writer', () => {
+describe.skipIf(!objectLayerDomain)('one canonical writer', () => {
   const authority = { host: 'objectlayer.org', path: '/', consumes: {} };
   const ORIGINS = ['draft', 'cache', 'canonical'];
   /** The identity store of one host: the origin only moves up. */
@@ -402,7 +408,7 @@ describe('local domain addresses', () => {
   });
 });
 
-describe('module boundaries', () => {
+describe.skipIf(!objectLayerDomain)('module boundaries', () => {
   const root = new URL('../../..', import.meta.url).pathname;
   const files = (dir) =>
     fs
