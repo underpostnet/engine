@@ -12,8 +12,9 @@ import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.servic
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { getProxyPath, getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
+import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { ENTITY_TYPES, ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX, validateEntityLevel } from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
@@ -40,7 +41,6 @@ class MapEngineCyberia {
   static showObjectLayers = false;
   static enableRandomFactors = false;
   static captureObjLayerThumbnail = true;
-  static imageCache = {};
   static entityUndoStack = [];
   static entityRedoStack = [];
   static maxEntityHistory = 200;
@@ -319,11 +319,10 @@ class MapEngineCyberia {
   }
 
   static preloadEntityObjectLayers(onLoad = null) {
-    for (const entity of MapEngineCyberia.entities) {
-      for (const itemId of entity.objectLayerItemIds || []) {
-        MapEngineCyberia.loadObjectLayerImage(itemId, onLoad);
-      }
-    }
+    AtlasSpriteSheetService.preloadIdlePreviews(
+      MapEngineCyberia.entities.flatMap((entity) => entity.objectLayerItemIds || []),
+      onLoad,
+    );
   }
 
   static refreshEntityEditor() {
@@ -448,22 +447,6 @@ class MapEngineCyberia {
     }, []);
   }
 
-  static loadObjectLayerImage(itemId, onLoad) {
-    if (MapEngineCyberia.imageCache[itemId]) return;
-    MapEngineCyberia.imageCache[itemId] = { img: null, loaded: false, error: false };
-
-    const img = new Image();
-    img.onload = () => {
-      MapEngineCyberia.imageCache[itemId].img = img;
-      MapEngineCyberia.imageCache[itemId].loaded = true;
-      if (onLoad) onLoad();
-    };
-    img.onerror = () => {
-      MapEngineCyberia.imageCache[itemId].error = true;
-    };
-    img.src = `${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${itemId}`;
-  }
-
   static renderGrid(canvas, cols, rows, cellW, cellH, showGrid = true) {
     canvas.width = cols * cellW;
     canvas.height = rows * cellH;
@@ -480,10 +463,8 @@ class MapEngineCyberia {
 
       if (MapEngineCyberia.showObjectLayers && entity.objectLayerItemIds?.length) {
         for (const itemId of entity.objectLayerItemIds) {
-          const cached = MapEngineCyberia.imageCache[itemId];
-          if (cached?.loaded && cached.img) {
-            ctx.drawImage(cached.img, x, y, w, h);
-          }
+          const img = AtlasSpriteSheetService.idlePreviewImage(itemId);
+          if (img) ctx.drawImage(img, x, y, w, h);
         }
       } else {
         ctx.fillStyle = entity.color;
@@ -519,10 +500,8 @@ class MapEngineCyberia {
 
       if (useObjectLayers && entity.objectLayerItemIds?.length) {
         for (const itemId of entity.objectLayerItemIds) {
-          const cached = MapEngineCyberia.imageCache[itemId];
-          if (cached?.loaded && cached.img) {
-            ctx.drawImage(cached.img, x, y, w, h);
-          }
+          const img = AtlasSpriteSheetService.idlePreviewImage(itemId);
+          if (img) ctx.drawImage(img, x, y, w, h);
         }
       } else {
         ctx.fillStyle = entity.color;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ObjectLayerEngine } from '../../../../src/projects/cyberia/object-layer.js';
+import { ObjectLayerEngine } from '../../../src/projects/cyberia/object-layer.js';
 
 const select = (storedItemIds, requestedItemIds) =>
   ObjectLayerEngine.selectStoredItemIds({ storedItemIds, requestedItemIds });
@@ -41,7 +41,7 @@ describe('ol atlas rebuild selection', () => {
 
   it('keeps --upscale a modifier next to another action', () => {
     expect(rebuild({ upscale: 20, import: true })).toBe(false);
-    expect(rebuild({ upscale: 20, minify: true })).toBe(false);
+    expect(rebuild({ upscale: 20, syncDerived: true })).toBe(false);
     expect(rebuild({ upscale: 20, generate: true })).toBe(false);
     expect(rebuild({ upscale: 20, importTypes: 'skin' })).toBe(false);
     expect(rebuild({ upscale: 20, drop: true })).toBe(false);
@@ -51,6 +51,6 @@ describe('ol atlas rebuild selection', () => {
 
   it('stays out of the way when neither flag is given', () => {
     expect(rebuild({})).toBe(false);
-    expect(rebuild({ minify: true, instance: 'TEST' })).toBe(false);
+    expect(rebuild({ syncDerived: true, instance: 'TEST' })).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { darkTheme, dynamicCol, ThemeEvents } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
-import { getProxyPath } from '../core/Router.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
@@ -34,7 +34,6 @@ class ActionEngineCyberia {
   static mode = 'quest';
   static mapCode = '';
   static mapDoc = null;
-  static imageCache = {};
   static assignments = { quests: [], actions: [] };
 
   static questListCache = [];
@@ -134,26 +133,12 @@ class ActionEngineCyberia {
     });
   }
 
-  // ── Object-layer textures (same loading convention as MapEngineCyberia) ──
-  static loadObjectLayerImage(itemId, onLoad) {
-    if (ActionEngineCyberia.imageCache[itemId]) return;
-    ActionEngineCyberia.imageCache[itemId] = { img: null, loaded: false, error: false };
-
-    const img = new Image();
-    img.onload = () => {
-      ActionEngineCyberia.imageCache[itemId].img = img;
-      ActionEngineCyberia.imageCache[itemId].loaded = true;
-      if (onLoad) onLoad();
-    };
-    img.onerror = () => {
-      ActionEngineCyberia.imageCache[itemId].error = true;
-    };
-    img.src = `${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${itemId}`;
-  }
-
+  // ── Object-layer textures: the idle previews every editor shares ──
   static preloadMapObjectLayers(onLoad) {
-    for (const entity of ActionEngineCyberia.mapDoc?.entities || [])
-      for (const itemId of entity.objectLayerItemIds || []) ActionEngineCyberia.loadObjectLayerImage(itemId, onLoad);
+    AtlasSpriteSheetService.preloadIdlePreviews(
+      (ActionEngineCyberia.mapDoc?.entities || []).flatMap((entity) => entity.objectLayerItemIds || []),
+      onLoad,
+    );
   }
 
   // ── Map canvas ──────────────────────────────────────────────────────────
@@ -191,9 +176,9 @@ class ActionEngineCyberia {
       let drew = false;
       if (entity.objectLayerItemIds?.length) {
         for (const itemId of entity.objectLayerItemIds) {
-          const cached = ActionEngineCyberia.imageCache[itemId];
-          if (cached?.loaded && cached.img) {
-            ctx.drawImage(cached.img, x, y, w, h);
+          const img = AtlasSpriteSheetService.idlePreviewImage(itemId);
+          if (img) {
+            ctx.drawImage(img, x, y, w, h);
             drew = true;
           }
         }
@@ -239,8 +224,8 @@ class ActionEngineCyberia {
       NotificationManager.Push({ html: 'Select a map first.', status: 'warning' });
       return;
     }
-    const result = await CyberiaMapService.get({ limit: 1, filterModel: { code: textFilter(code) } });
-    const doc = result?.data?.data?.[0];
+    const result = await CyberiaMapService.get({ id: code });
+    const doc = result?.status === 'success' ? result.data : null;
     if (!doc) {
       NotificationManager.Push({ html: `Map "${code}" not found`, status: 'error' });
       return;
@@ -1206,7 +1191,6 @@ class ActionEngineCyberia {
     ActionEngineCyberia.mode = 'quest';
     ActionEngineCyberia.mapCode = '';
     ActionEngineCyberia.mapDoc = null;
-    ActionEngineCyberia.imageCache = {};
     ActionEngineCyberia.assignments = { quests: [], actions: [] };
     ActionEngineCyberia.questListCache = [];
     ActionEngineCyberia.actionListCache = [];

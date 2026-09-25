@@ -4,6 +4,7 @@
  * @namespace CyberiaAtlasSpriteSheetModel
  */
 import { Schema, model, Types } from 'mongoose';
+import { OBJECT_LAYER_CID_PATTERN } from '../object-layer/object-layer.identity.js';
 /**
  * @typedef {Object} FrameMetadata
  * @property {number} x - X position in the atlas
@@ -69,56 +70,59 @@ const DirectionFramesSchema = new Schema(
   { _id: false },
 );
 /**
- * One atlas per item key, kept in two renders of one layout, plus the still that
- * stands in for the item wherever a single picture is wanted.
+ * The local materialization of the render of one Object Layer definition, the one
+ * `objectLayerCid` names. The definition owns the render: its `data.render.cid` addresses the
+ * primary render and `data.render.metadataCid` its layout. This document holds the bytes of that
+ * render on this host, the renders derived from it, and the layout decoded for the runtime. It
+ * holds no render CID: the definition is the source of truth.
  *
- * `fileId` is the human-resolution PNG, at `metadata.upscaleFactor` pixels per
- * cell. `minifyFileId` is the PNG the client runtime downloads through
- * `GET /atlas-sprite-sheet/blob/:itemKey`, at `metadata.cellPixelDim` pixels per
- * cell. `metadata` describes the minified render, so blob and metadata agree.
- * `idlePreviewFileId` is the first down-idle frame cut out of `fileId`, served by
- * `GET /atlas-sprite-sheet/idle-preview/:itemKey` to every editor and overlay.
+ * `fileId` is the primary render, `metadata.cellPixelDim` pixels per cell: the bytes
+ * `data.render.cid` addresses and the runtime downloads. `metadata` describes it.
+ * `upscaleFileId` is the upscaled render derived from it at `metadata.upscaleFactor`
+ * pixels per cell. `idlePreviewFileId` is the idle preview: the first down-idle frame on a
+ * 300 px square.
  *
  * @typedef {Object} AtlasSpriteSheet
- * @property {Types.ObjectId} fileId - Reference to the human-resolution PNG File document
- * @property {Types.ObjectId} [minifyFileId] - Reference to the minified PNG File document
- * @property {Types.ObjectId} [idlePreviewFileId] - Reference to the down-idle still File document
- * @property {string} [cid] - IPFS Content Identifier for the atlas PNG
- * @property {Object} metadata - Atlas sprite sheet metadata
- * @property {string} metadata.itemKey - Item identifier key for texture reference
- * @property {number} metadata.atlasWidth - Minified atlas width in pixels
- * @property {number} metadata.atlasHeight - Minified atlas height in pixels
- * @property {number} metadata.cellPixelDim - Pixels per cell of the minified render
- * @property {number} metadata.upscaleFactor - Pixels per cell of the human-resolution render
+ * @property {string} objectLayerCid - Canonical CID of the definition whose render this materializes
+ * @property {Types.ObjectId} fileId - Primary render File document
+ * @property {Types.ObjectId} [upscaleFileId] - Derived upscaled render File document
+ * @property {Types.ObjectId} [idlePreviewFileId] - Derived idle preview File document
+ * @property {Object} metadata - Layout of the primary render
+ * @property {string} metadata.itemKey - Item label the render was generated for; a label, never identity
+ * @property {number} metadata.atlasWidth - Primary render width in cells
+ * @property {number} metadata.atlasHeight - Primary render height in cells
+ * @property {number} metadata.cellPixelDim - Pixels per cell of the primary render
+ * @property {number} metadata.upscaleFactor - Pixels per cell of the upscaled derived render
  * @property {number} metadata.frame_duration - Duration of each frame in milliseconds
- * @property {DirectionFrames} metadata.frames - Frame positions in atlas by direction
+ * @property {DirectionFrames} metadata.frames - Frame boxes by direction, in cells
  * @property {Date} createdAt - When the document was created
  * @property {Date} updatedAt - When the document was last updated
  * @memberof CyberiaAtlasSpriteSheetModel
  */
 const AtlasSpriteSheetSchema = new Schema(
   {
+    objectLayerCid: {
+      type: String,
+      required: true,
+      trim: true,
+      match: [OBJECT_LAYER_CID_PATTERN, 'objectLayerCid must be an Object Layer CID'],
+    },
     fileId: {
       type: Schema.Types.ObjectId,
       ref: 'File',
       required: true,
     },
-    // Absent until `cyberia ol --minify` renders it for this item.
-    minifyFileId: {
+    // Derived: absent when the render is served at its own resolution only.
+    upscaleFileId: {
       type: Schema.Types.ObjectId,
       ref: 'File',
       default: null,
     },
-    // The down-idle still every preview reads; absent until an atlas write fills it.
+    // Derived: absent for a render with no frame to cut.
     idlePreviewFileId: {
       type: Schema.Types.ObjectId,
       ref: 'File',
       default: null,
-    },
-    cid: {
-      type: String,
-      default: '',
-      trim: true,
     },
     metadata: {
       itemKey: { type: String, required: true, trim: true },
@@ -136,10 +140,11 @@ const AtlasSpriteSheetSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-// Indexes for efficient querying
-AtlasSpriteSheetSchema.index({ 'metadata.itemKey': 1 }, { unique: true });
+// One materialization per definition. A label is shared by many, so it indexes discovery only.
+AtlasSpriteSheetSchema.index({ objectLayerCid: 1 }, { unique: true });
+AtlasSpriteSheetSchema.index({ 'metadata.itemKey': 1 });
 AtlasSpriteSheetSchema.index({ fileId: 1 });
-AtlasSpriteSheetSchema.index({ minifyFileId: 1 });
+AtlasSpriteSheetSchema.index({ upscaleFileId: 1 });
 AtlasSpriteSheetSchema.index({ idlePreviewFileId: 1 });
 // Pre-save validation
 AtlasSpriteSheetSchema.pre('save', function () {
@@ -154,22 +159,21 @@ class AtlasSpriteSheetDto {
     get: () => {
       return {
         _id: 1,
+        objectLayerCid: 1,
         fileId: 1,
-        minifyFileId: 1,
+        upscaleFileId: 1,
         idlePreviewFileId: 1,
-        cid: 1,
         metadata: 1,
         createdAt: 1,
         updatedAt: 1,
       };
     },
-    // Returns all fields the client needs per itemKey:
-    // layout dims + frames for rendering, no fileId.
-    // Client flow: GET /metadata/:itemKey → cache → GET /blob/:itemKey → cache PNG.
+    // The layout the runtime pairs with the primary render: GET /metadata/:itemKey, then
+    // GET /blob/:itemKey for the PNG it describes.
     getMetadataOnly: () => {
       return {
         _id: 1,
-        cid: 1,
+        objectLayerCid: 1,
         'metadata.itemKey': 1,
         'metadata.atlasWidth': 1,
         'metadata.atlasHeight': 1,

@@ -17,7 +17,7 @@ import {
   documentFileIds,
   fileRefApis,
   fileRefFields,
-} from '../../src/api/file/file.ref.js';
+} from '../../../src/api/file/file.ref.js';
 
 /** Minimal collection: the helpers only run `find(filter, projection).lean()` and `deleteMany`. */
 const collection = (docs) => ({
@@ -45,28 +45,28 @@ const collection = (docs) => ({
 
 describe('the File reference registry', () => {
   it('answers the fields of a registered api and nothing for an unregistered one', () => {
-    expect(fileRefFields('atlas-sprite-sheet')).to.deep.equal(['fileId', 'minifyFileId', 'idlePreviewFileId']);
+    expect(fileRefFields('atlas-sprite-sheet')).to.deep.equal(['fileId', 'upscaleFileId', 'idlePreviewFileId']);
     expect(fileRefFields('cyberia-map')).to.deep.equal(['thumbnail', 'preview']);
     expect(fileRefFields('object-layer')).to.deep.equal([]);
     expect(fileRefApis()).to.include('cyberia-audio');
   });
 
   it('reads ids out of documents by field, skipping the ones that hold none', () => {
-    const docs = [{ fileId: 'a', minifyFileId: 'b' }, { fileId: 'a' }, { minifyFileId: null }];
-    expect(documentFileIds(docs, ['fileId', 'minifyFileId'])).to.deep.equal(['a', 'b']);
+    const docs = [{ fileId: 'a', upscaleFileId: 'b' }, { fileId: 'a' }, { upscaleFileId: null }];
+    expect(documentFileIds(docs, ['fileId', 'upscaleFileId'])).to.deep.equal(['a', 'b']);
   });
 });
 
 describe('deleting the files a collection owned', () => {
   it('removes the ids no surviving document holds', async () => {
-    const files = collection([{ _id: 'atlas-1' }, { _id: 'minify-1' }, { _id: 'unrelated' }]);
+    const files = collection([{ _id: 'atlas-1' }, { _id: 'upscale-1' }, { _id: 'unrelated' }]);
     const atlases = collection([]);
 
     const removed = await deleteOwnedFiles({
       File: files,
       Owner: atlases,
-      fields: ['fileId', 'minifyFileId'],
-      ids: ['atlas-1', 'minify-1'],
+      fields: ['fileId', 'upscaleFileId'],
+      ids: ['atlas-1', 'upscale-1'],
     });
 
     expect(removed).to.equal(2);
@@ -77,12 +77,12 @@ describe('deleting the files a collection owned', () => {
     // Renders are content addressed, so a duplicate document of the same item resolves to the
     // same File id. Dropping the duplicate must not blind the document that remains.
     const files = collection([{ _id: 'shared' }, { _id: 'gone' }]);
-    const atlases = collection([{ _id: 'survivor', fileId: 'shared', minifyFileId: null }]);
+    const atlases = collection([{ _id: 'survivor', fileId: 'shared', upscaleFileId: null }]);
 
     const removed = await deleteOwnedFiles({
       File: files,
       Owner: atlases,
-      fields: ['fileId', 'minifyFileId'],
+      fields: ['fileId', 'upscaleFileId'],
       ids: ['shared', 'gone'],
     });
 

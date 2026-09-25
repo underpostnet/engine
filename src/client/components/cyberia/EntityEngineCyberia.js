@@ -6,7 +6,7 @@ import { Translate } from '../core/Translate.js';
 import { darkTheme, ThemeEvents } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { AgGrid } from '../core/AgGrid.js';
-import { getProxyPath } from '../core/Router.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
@@ -388,7 +388,7 @@ class EntityEngineCyberia {
         <i class="fas fa-image" style="font-size:${Math.round(size / 2)}px;color:#999;"></i>
       </div>`;
     return html`<img
-        src="${getProxyPath()}api/atlas-sprite-sheet/idle-preview/${itemId}"
+        src="${AtlasSpriteSheetService.idlePreviewUrl(itemId)}"
         style="width:${size}px;height:${size}px;display:block;image-rendering:pixelated;"
         alt="${itemId}"
         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"

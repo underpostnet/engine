@@ -1,6 +1,5 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { AtlasSpriteSheetController } from './atlas-sprite-sheet.controller.js';
 
 class AtlasSpriteSheetRouter {
@@ -10,26 +9,37 @@ class AtlasSpriteSheetRouter {
    */
   static router(options) {
     const router = express.Router();
-    router.post(
-      `/generate/:id`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await AtlasSpriteSheetController.generate(req, res, options),
-    );
-    router.delete(
-      `/object-layer/:id`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await AtlasSpriteSheetController.deleteByObjectLayerId(req, res, options),
-    );
+    // Authoring routes of the host's Studio (`apiExtensions` in conf.server.json).
+    options.extension?.mount(router, options);
     router.get(`/blob/:itemKey`, async (req, res) => await AtlasSpriteSheetController.blob(req, res, options));
-    // The down-idle still of an item, for every editor and overlay that shows one picture of it.
+    // The idle preview of an item (by label) or of a definition (by its cid), for every
+    // editor, explorer and overlay that shows one picture of it.
     router.get(
-      `/idle-preview/:itemKey`,
+      `/idle-preview/:key`,
       async (req, res) => await AtlasSpriteSheetController.idlePreview(req, res, options),
     );
-    // Metadata endpoints: returns itemKey, atlasWidth, atlasHeight, cellPixelDim, frames (no fileId).
-    // Client fetches /metadata/:itemKey once, caches it, then fetches /blob/:itemKey for the PNG.
+    // A definition's render, by its cid: the primary render and its metadata as pinned, the
+    // upscaled derived render, frames per direction and one direction animated. Every host that
+    // holds the definition answers the same.
+    router.get(`/layout/:cid`, async (req, res) => await AtlasSpriteSheetController.layout(req, res, options));
+    router.get(
+      `/render/:cid`,
+      async (req, res) => await AtlasSpriteSheetController.definitionRender(req, res, options),
+    );
+    router.get(
+      `/render/:cid/:scale`,
+      async (req, res) => await AtlasSpriteSheetController.definitionRender(req, res, options),
+    );
+    router.get(
+      `/frame-counts/:cid`,
+      async (req, res) => await AtlasSpriteSheetController.frameCounts(req, res, options),
+    );
+    router.get(
+      `/animation/:cid/:directionCode`,
+      async (req, res) => await AtlasSpriteSheetController.animation(req, res, options),
+    );
+    // Label routes: the metadata of the render an item label is bound to, then its primary PNG.
+    // The client fetches /metadata/:itemKey once, caches it, then fetches /blob/:itemKey.
     router.get(
       `/metadata/:itemKey`,
       async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options),
