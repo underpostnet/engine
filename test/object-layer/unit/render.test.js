@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import sharp from 'sharp';
+import { cyberiaContext } from '../../support/product-context.js';
 
 // A definition's render, served by any host that holds the definition: from IPFS by the cids
 // the definition names, cut by the real generator.
@@ -12,7 +13,10 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
   IpfsClient: { getFromIpfs: async (cid) => ipfs.get(cid) ?? null },
 }));
 
-const { AtlasSpriteSheetService } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js');
+// The real atlas generator draws through the Cyberia catalog packages.
+const { AtlasSpriteSheetService } = cyberiaContext
+  ? await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js')
+  : {};
 const { renderContractOf } = await import('../../../src/api/object-layer/object-layer.identity.js');
 
 const CID = 'bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
@@ -90,7 +94,7 @@ beforeEach(() => {
   models.File = { findById: async () => null };
 });
 
-describe('the render of a definition', () => {
+describe.skipIf(!cyberiaContext)('the render of a definition', () => {
   it('counts frames per direction code, with the frame duration, and marks the answer immutable', async () => {
     const { req, res, headers } = request({ cid: CID });
     const { frameDuration, frameCounts } = await AtlasSpriteSheetService.frameCounts(req, res, {});
@@ -226,7 +230,7 @@ describe('the render of a definition', () => {
   });
 });
 
-describe('the render of an item label', () => {
+describe.skipIf(!cyberiaContext)('the render of an item label', () => {
   const label = (params, extension) => ({ ...request(params), options: extension ? { extension } : {} });
   const primary = Buffer.from('primary-render');
 

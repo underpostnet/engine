@@ -18,6 +18,7 @@ import {
 } from '../../../../src/server/runtime/conf.js';
 import { statusPageAssetPathFactory } from '../../../../src/server/network/underpost-gateway.js';
 import UnderpostDockerCompose from '../../../../src/cli/docker-compose.js';
+import { cyberiaContext } from '../../../support/product-context.js';
 
 // `clusterInstancesFactory` reads `./engine-private/conf/<deployId>/conf.instances.json`
 // relative to the process cwd, mirroring every other conf loader. engine-private
@@ -134,10 +135,11 @@ describe('cluster custom instances', () => {
     });
 
     it('loads an optional project env builder by deploy-id convention', async () => {
-      const builder = await loadProjectInstanceEnvBuilder('dd-cyberia');
-      if (fs.existsSync('./src/projects/cyberia/instance-data.js'))
-        expect(builder).to.be.a('function').and.have.property('name', 'buildCyberiaMmoInstanceEnv');
-      else expect(builder).to.equal(null);
+      // A project's builder loads with the project's modules, so it loads only in the project's context.
+      if (cyberiaContext)
+        expect(await loadProjectInstanceEnvBuilder('dd-cyberia'))
+          .to.be.a('function')
+          .and.have.property('name', 'buildCyberiaMmoInstanceEnv');
       expect(await loadProjectInstanceEnvBuilder('dd-fixture-a')).to.equal(null);
     });
 

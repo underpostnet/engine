@@ -11,6 +11,8 @@ vi.mock('../../../src/server/domain/object-layer-resolver.js', () => ({
   resolveLedgerBindings: async () => [],
   publishObjectLayer: async () => null,
 }));
+// The atlas store needs the Cyberia catalog packages; no suite here reaches it.
+vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () => ({ AtlasSpriteSheetStore: {} }));
 
 const { assertOwnerOrAdmin } = await import('../../../src/server/security/auth.js');
 const { ObjectLayerService } = await import('../../../src/api/object-layer/object-layer.service.js');

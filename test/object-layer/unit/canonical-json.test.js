@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import express from 'express';
 import {
   canonicalJsonBytes,
@@ -11,6 +11,9 @@ import {
 } from '../../../src/api/object-layer/object-layer.identity.js';
 import { STAT_RECORD_RULE } from '../../../src/client/components/object-layer/ObjectLayerProtocol.js';
 import { keepRawBody } from '../../../src/server/network/middlewares.js';
+
+// The router loads the atlas store, which needs the Cyberia catalog packages; no test here reaches it.
+vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () => ({ AtlasSpriteSheetStore: {} }));
 
 // RFC 8785 over the schema version 1 domain. The expected bytes are the ones Python `rfc8785`
 // and Go `gowebpki/jcs` write for the same values: the rule is the RFC, not this runtime.
