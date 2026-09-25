@@ -367,8 +367,8 @@ underpost test underpost:integration --deploy-list dd-core,dd-cyberia --namespac
 **As a Job** — for a run that owns its lifetime and outlives no pod.
 
 ```bash
-underpost test underpost:integration --job --image underpost/engine:v3.4.0
-underpost test --job --image underpost/engine:v3.4.0 --dry-run   # print the manifest
+underpost test underpost:integration --job --image underpost/engine:v3.4.5
+underpost test --job --image underpost/engine:v3.4.5 --dry-run   # print the manifest
 ```
 
 The Job carries `backoffLimit: 0` and `restartPolicy: Never`: a test run is a

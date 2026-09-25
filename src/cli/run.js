@@ -3091,7 +3091,7 @@ EOF`);
         const hostListenResult = etcHostFactory(hosts);
         logger.info(hostListenResult.renderHosts);
       }
-      const version = 'v3.4.0';
+      const version = 'v3.4.5';
       const instanceOptionsFactory = (deployId, instanceId) => ({
         ...options,
         ...clusterContextFactory(clusterType),

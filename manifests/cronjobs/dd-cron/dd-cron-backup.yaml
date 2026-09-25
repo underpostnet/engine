@@ -27,7 +27,7 @@ spec:
         spec:
           containers:
             - name: dd-cron-backup
-              image: underpost/underpost-engine:v3.4.0
+              image: underpost/underpost-engine:v3.4.5
               command:
                 - /bin/sh
                 - -c
