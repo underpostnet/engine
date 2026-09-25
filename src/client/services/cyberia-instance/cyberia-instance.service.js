@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl, readResponse } from '../core/core.service.js';
 const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'cyberia-instance';
@@ -13,9 +13,7 @@ class CyberiaInstanceService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -33,9 +31,7 @@ class CyberiaInstanceService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -64,9 +60,7 @@ class CyberiaInstanceService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -86,7 +80,7 @@ class CyberiaInstanceService {
         credentials: 'include',
         body: JSON.stringify(options.body ?? {}),
       })
-        .then(async (res) => res.json())
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -103,7 +97,7 @@ class CyberiaInstanceService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => res.json())
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -121,9 +115,7 @@ class CyberiaInstanceService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);

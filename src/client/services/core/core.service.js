@@ -148,6 +148,25 @@ const buildQueryUrl = (baseUrl, options = {}) => {
   return url;
 };
 /**
+ * The JSON body of a service answer. An answer that is not JSON never passes as content: an
+ * edge or an outage answered in place of the API, and the error names the URL and the status
+ * so the failure reads as a dependency failure, not as an empty result.
+ * @memberof CoreServiceClient
+ * @param {Response} res - The fetch response.
+ * @return {Promise<Object>} The parsed body.
+ * @throws {Error} When the body is not JSON; `error.status` carries the HTTP status.
+ */
+const readResponse = async (res) => {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const error = new Error(`${res.url} answered ${res.status} without a JSON body`);
+    error.status = res.status;
+    throw error;
+  }
+};
+/**
  * Core Service object providing CRUD operations for the core API endpoint.
  * @memberof CoreServiceClient
  */
@@ -192,9 +211,7 @@ class CoreService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -220,9 +237,7 @@ class CoreService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -247,9 +262,7 @@ class CoreService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -275,9 +288,7 @@ class CoreService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -298,6 +309,7 @@ export {
   CoreService,
   headersFactory,
   payloadFactory,
+  readResponse,
   buildQueryUrl,
   getBaseHost,
   getApiBaseProxyPath,

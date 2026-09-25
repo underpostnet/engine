@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory, readResponse } from '../core/core.service.js';
 const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'test';
@@ -13,9 +13,7 @@ class TestService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -32,9 +30,7 @@ class TestService {
         headers: headersFactory(),
         credentials: 'include',
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);
@@ -52,9 +48,7 @@ class TestService {
         credentials: 'include',
         body: payloadFactory(options.body),
       })
-        .then(async (res) => {
-          return await res.json();
-        })
+        .then(readResponse)
         .then((res) => {
           logger.info(res);
           return resolve(res);

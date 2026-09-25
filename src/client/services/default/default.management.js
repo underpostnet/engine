@@ -7,8 +7,14 @@ import { loggerFactory } from '../../components/core/Logger.js';
 import { Modal } from '../../components/core/Modal.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { Translate } from '../../components/core/Translate.js';
-import { getQueryParams, listenQueryParamsChange, RouterEvents, setQueryParams } from '../../components/core/Router.js';
-import { s } from '../../components/core/VanillaJs.js';
+import {
+  getQueryParams,
+  isCurrentRoute,
+  listenQueryParamsChange,
+  RouterEvents,
+  setQueryParams,
+} from '../../components/core/Router.js';
+import { escapeHtml, s } from '../../components/core/VanillaJs.js';
 import { DefaultService } from './default.service.js';
 const logger = loggerFactory(import.meta);
 class DefaultOptions {
@@ -56,6 +62,14 @@ const columnDefFormatter = (obj, columnDefs, customFormat) => {
 };
 class DefaultManagement {
   static Tokens = {};
+  static ownsCurrentRoute(id) {
+    const idModal = DefaultManagement.Tokens[id]?.idModal;
+    if (!idModal) return true;
+    const modal = Modal.Data[idModal];
+    if (!modal) return false;
+    const route = modal.options?.route;
+    return route ? isCurrentRoute(route) : Modal.currentTopModalId === idModal;
+  }
   // Helper functions for managing serviceOptions ID filter
   static setIdFilter(id, itemId) {
     if (!DefaultManagement.Tokens[id]) {
@@ -96,6 +110,27 @@ class DefaultManagement {
       return await callback();
     } finally {
       DefaultManagement.Tokens[id].isProcessingQueryChange = false;
+    }
+  }
+  /**
+   * Shows a failed load in the grid. An unreachable or failing service reads as a failure, never
+   * as an empty table: no rows stay, the no-rows overlay names the cause.
+   * @param {string} id - Token id.
+   * @param {Error|{message?: string, code?: number}} failure - What the service answered, or threw.
+   */
+  static showLoadFailure(id, failure) {
+    const { serviceId, gridId, entity } = DefaultManagement.Tokens[id];
+    const status = failure?.status ?? failure?.code;
+    const message = escapeHtml(
+      `${entity || serviceId} unavailable${status ? ` (${status})` : ''}: ${failure?.message || 'no answer'}`,
+    );
+    logger.error(`Failed to load table ${serviceId}`, failure);
+    NotificationManager.Push({ html: message, status: 'error' });
+    const grid = AgGrid.grids[gridId];
+    if (grid?.setGridOption) {
+      grid.setGridOption('rowData', []);
+      grid.setGridOption('overlayNoRowsTemplate', `<span class="ag-overlay-no-rows-center">${message}</span>`);
+      grid.showNoRowsOverlay();
     }
   }
   static async loadTable(id, options = {}) {
@@ -211,6 +246,9 @@ class DefaultManagement {
         if (options.reload) {
           const grid = AgGrid.grids[DefaultManagement.Tokens[id].gridId];
           if (grid && grid.setGridOption) {
+            // An empty answer reads as the table's own empty state, never as a stale failure.
+            const emptyTemplate = DefaultManagement.Tokens[id].gridOptions?.overlayNoRowsTemplate;
+            if (emptyTemplate) grid.setGridOption('overlayNoRowsTemplate', emptyTemplate);
             grid.setGridOption('rowData', rowDataScope);
           } else {
             logger.warn(`Grid ${gridId} not found or not ready for setGridOption`);
@@ -231,11 +269,9 @@ class DefaultManagement {
         }, 1);
         // Update clear filter button visibility
         DefaultManagement.updateClearFilterButtonVisibility(id);
-      } else {
-        logger.error(`Failed to load table ${serviceId}:`, result);
-      }
+      } else DefaultManagement.showLoadFailure(id, result);
     } catch (error) {
-      logger.error(`Error in loadTable for ${id}:`, error);
+      DefaultManagement.showLoadFailure(id, error);
       throw error;
     }
   }
@@ -576,6 +612,7 @@ class DefaultManagement {
       listenQueryParamsChange({
         id: queryParamsListenerId,
         event: (queryParams) => {
+          if (!DefaultManagement.ownsCurrentRoute(id)) return;
           // Prevent recursion - if we're already processing a query change, skip
           if (DefaultManagement.Tokens[id].isProcessingQueryChange) {
             return;
@@ -735,6 +772,7 @@ class DefaultManagement {
         token.page = 1; // Reset to first page
       });
       RouterEvents[id] = async (...args) => {
+        if (!DefaultManagement.ownsCurrentRoute(id)) return;
         const queryParams = getQueryParams();
         const page = parseInt(queryParams.page) || 1;
         const limit = parseInt(queryParams.limit) || 10;
@@ -839,6 +877,7 @@ class DefaultManagement {
         ${await AgGrid.instance({
           id: gridId,
           parentModal: options.idModal,
+          ownerRoute: Modal.Data[options.idModal]?.options?.route,
           usePagination: true,
           paginationOptions,
           customHeightOffset:
