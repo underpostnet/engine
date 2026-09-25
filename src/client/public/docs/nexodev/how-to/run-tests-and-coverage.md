@@ -210,6 +210,44 @@ Solidity coverage is Hardhat's own instrumentation and is not merged into
 
 ---
 
+## Product contexts
+
+A product owns the test projects in the directories its catalog strips from the
+base template. `dd-cyberia` strips `test/cyberia` and `hardhat`, so it owns the
+`cyberia:*` projects and `item-ledger:contract`.
+
+A product project runs only in its product context. The context is active when
+the product catalog is present and `package.json` declares every package the
+catalog pins in `packageDependencies`.
+
+| Checkout                                          | `dd-cyberia` context                                                                |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Engine repository                                 | inactive: the manifest does not declare `jimp`, `pngjs`, `maxrects-packer`, `sharp` |
+| `node bin/build dd-cyberia --coverage` (CI build) | active: the build installs the catalog pins before it runs the suites               |
+| `engine-cyberia` repository                       | active: the product manifest declares the pins                                      |
+
+Outside its context, `node bin test` skips the product projects and logs a
+warning with the missing packages. To run them in an engine checkout, install the
+catalog with `node bin package dd-cyberia --install`. That command writes the
+pins to `package.json` and `package-lock.json`: do not commit these changes.
+
+A platform suite that loads a product module gates only that part, with
+`cyberiaContext` from `test/support/product-context.js`. Import the product
+module only when the context is active: a static import fails before the skip
+applies.
+
+```js
+const { AtlasSpriteSheetService } = cyberiaContext
+  ? await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js')
+  : {};
+
+describe.skipIf(!cyberiaContext)('the render of a definition', () => {
+  // …
+});
+```
+
+---
+
 ## Coverage
 
 `@vitest/coverage-v8` replaces `c8`. The reporters are `text` (local),

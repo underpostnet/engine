@@ -125,6 +125,10 @@ const TEST_LEVELS = Object.freeze({
  * project, after the Vitest run — so a delegated project belongs in the last
  * group, where the order it is declared in still matches the order it runs in.
  *
+ * A project whose directory a product catalog strips from the base template
+ * belongs to that product, and runs only in that product's context: see
+ * `runnableTestProjects`.
+ *
  * `sources` are the modules the project's suites drive directly, and they are
  * what coverage is measured over when the project is selected. A module reached
  * only as a collaborator — everything the `src/index.js` barrel pulls in behind
@@ -419,23 +423,53 @@ const resolveTestProjects = (selector = '') => {
 };
 
 /**
+ * @method productContextOf
+ * @description The product context a project runs in: a product owns the projects whose
+ * directory its catalog strips from the base template.
+ * @param {{directory: string}} project - A declared project.
+ * @param {Array<{stripPaths: string[]}>} [contexts] - Product contexts, as `loadProductContexts` resolves them.
+ * @returns {object|null} The owning context, or `null` for a platform project.
+ * @memberof UnderpostTesting
+ */
+const productContextOf = ({ directory }, contexts = []) =>
+  contexts.find(({ stripPaths }) => stripPaths.some((path) => `./${directory}/`.startsWith(`${path}/`))) ?? null;
+
+/**
+ * @method runnableTestProjects
+ * @description The projects this checkout runs: a project a product owns runs only where that
+ * product's context is active.
+ * @param {Array<{stripPaths: string[], active: boolean}>} [contexts] - Product contexts.
+ * @returns {object[]} Runnable projects, in declaration order.
+ * @memberof UnderpostTesting
+ */
+const runnableTestProjects = (contexts = []) =>
+  TEST_PROJECTS.filter((project) => productContextOf(project, contexts)?.active !== false);
+
+/**
  * @method resolveTestSelection
- * @description Splits a selector into the two runners that serve it.
+ * @description Splits a selector into the two runners that serve it, and the projects this
+ * checkout leaves to their product's context.
  * @param {string} [selector] - Domain names, project names, or empty for every project.
- * @returns {{projects: string[], runVitest: boolean, delegated: object[]}} Selection.
+ * @param {Array<{stripPaths: string[], active: boolean}>} [contexts] - Product contexts.
+ * @returns {{projects: string[], runVitest: boolean, delegated: object[], excluded: Array<{name: string, context: object}>}} Selection.
  * @throws {Error} When a selector matches no declared project.
  * @memberof UnderpostTesting
  */
-const resolveTestSelection = (selector = '') => {
-  const projects = resolveTestProjects(selector);
+const resolveTestSelection = (selector = '', contexts = []) => {
+  const runnable = runnableTestProjects(contexts);
+  const selected = resolveTestProjects(selector);
+  const projects = selected.filter((project) => runnable.includes(project));
   const vitestProjects = projects.filter(({ delegate }) => !delegate);
-  const everyVitestProject = vitestProjects.length === TEST_PROJECTS.filter(({ delegate }) => !delegate).length;
+  const everyVitestProject = vitestProjects.length === runnable.filter(({ delegate }) => !delegate).length;
   return {
     // No `--project` flags when every project is selected: Vitest runs them all
     // by default, and an explicit list would fail a template that strips one.
     projects: everyVitestProject ? [] : vitestProjects.map(({ name }) => name),
     runVitest: vitestProjects.length > 0,
     delegated: projects.filter(({ delegate }) => delegate),
+    excluded: selected
+      .filter((project) => !runnable.includes(project))
+      .map((project) => ({ name: project.name, context: productContextOf(project, contexts) })),
   };
 };
 
@@ -447,12 +481,14 @@ const resolveTestSelection = (selector = '') => {
  * root `test` block, so whatever every project needs is spread in here rather
  * than declared once at the root and silently dropped.
  * @param {object} [defaults] - Per-project `test` options shared by every project.
+ * @param {Array<{stripPaths: string[], active: boolean}>} [contexts] - Product contexts.
  * @returns {object[]} Vitest inline project configurations.
  * @memberof UnderpostTesting
  */
-const testProjectsFactory = (defaults = {}) =>
-  TEST_PROJECTS.filter(({ delegate }) => !delegate).map(
-    ({ name, directory, groupOrder, recursive = true, parallel = false, vitest = {} }) => ({
+const testProjectsFactory = (defaults = {}, contexts = []) =>
+  runnableTestProjects(contexts)
+    .filter(({ delegate }) => !delegate)
+    .map(({ name, directory, groupOrder, recursive = true, parallel = false, vitest = {} }) => ({
       test: {
         ...defaults,
         ...vitest,
@@ -461,8 +497,7 @@ const testProjectsFactory = (defaults = {}) =>
         include: [`${directory}/${recursive ? '**/' : ''}*.test.js`],
         sequence: { ...defaults.sequence, groupOrder },
       },
-    }),
-  );
+    }));
 
 /**
  * @method vitestArgsFactory
@@ -517,13 +552,21 @@ const coverageThresholdFactory = ({ COVERAGE_ENFORCE, COVERAGE_MIN } = {}) => {
  * is loaded by the Vitest process the arguments were handed to — a `--project` the
  * caller added by hand is as authoritative as one `vitestArgsFactory` rendered.
  * @param {string[]} [argv] - Argument vector carrying the `--project` selection.
- * @returns {string[]} Globs for `coverage.include`, every selected tier's sources.
+ * @param {Array<{stripPaths: string[], active: boolean}>} [contexts] - Product contexts.
+ * @returns {string[]} Globs for `coverage.include`, every selected runnable tier's sources.
  * @throws {Error} When a selected project matches no declared tier.
  * @memberof UnderpostTesting
  */
-const coverageIncludeFactory = (argv = []) => [
-  ...new Set(resolveTestProjects(vitestProjectSelector(argv)).flatMap(({ sources = [] }) => sources)),
-];
+const coverageIncludeFactory = (argv = [], contexts = []) => {
+  const runnable = runnableTestProjects(contexts);
+  return [
+    ...new Set(
+      resolveTestProjects(vitestProjectSelector(argv))
+        .filter((project) => runnable.includes(project))
+        .flatMap(({ sources = [] }) => sources),
+    ),
+  ];
+};
 
 /**
  * @method vitestProjectSelector
@@ -855,8 +898,10 @@ export {
   coverageThresholdFactory,
   impactSelector,
   impactedDomains,
+  productContextOf,
   resolveTestProjects,
   resolveTestSelection,
+  runnableTestProjects,
   testDomainNames,
   testJobManifestFactory,
   testProjectsFactory,

@@ -66,7 +66,7 @@ const loadDeployCatalog = async (deployId) => {
  * product `stripPaths` for the base template without naming any product.
  *
  * @method loadProductCatalogs
- * @returns {Promise<object[]>} Loaded product catalogs (uniform shape).
+ * @returns {Promise<object[]>} Loaded product catalogs (uniform shape), each with the `deployId` it loads for.
  * @memberof Catalog
  */
 const loadProductCatalogs = async () => {
@@ -74,10 +74,28 @@ const loadProductCatalogs = async () => {
   if (!fs.existsSync('./src/projects')) return catalogs;
   for (const file of await fs.readdir('./src/projects')) {
     if (file === 'underpost') continue;
-    const mod = await import(`../../projects/${file}/catalog-${file}.js`);
-    if (mod.default) catalogs.push({ ...EMPTY_CATALOG, ...mod.default });
+    // A URL, so the import resolves from this module when a bundler inlines it (the Vitest config).
+    const mod = await import(new URL(`../../projects/${file}/catalog-${file}.js`, import.meta.url).href);
+    if (mod.default) catalogs.push({ ...EMPTY_CATALOG, ...mod.default, deployId: `dd-${file}` });
   }
   return catalogs;
 };
 
-export { loadDeployCatalog, loadProductCatalogs, EMPTY_CATALOG };
+/**
+ * Whether this checkout is each product's context. A product's context is active where its
+ * catalog is present and the manifest declares every package the catalog pins: the product
+ * repository, and the build that installed the catalog. The engine checkout is not.
+ *
+ * @method loadProductContexts
+ * @param {object} [packageJson] - The checkout's manifest; `./package.json` otherwise.
+ * @returns {Promise<Array<{deployId: string, stripPaths: string[], missing: string[], active: boolean}>>}
+ * @memberof Catalog
+ */
+const loadProductContexts = async (packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'))) =>
+  (await loadProductCatalogs()).map(({ deployId, stripPaths, packageDependencies }) => {
+    const declared = { ...packageJson.devDependencies, ...packageJson.dependencies };
+    const missing = Object.keys(packageDependencies).filter((name) => !declared[name]);
+    return { deployId, stripPaths, missing, active: missing.length === 0 };
+  });
+
+export { loadDeployCatalog, loadProductCatalogs, loadProductContexts, EMPTY_CATALOG };

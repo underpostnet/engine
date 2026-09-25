@@ -16,6 +16,7 @@ import { timer } from '../client/components/core/CommonJs.js';
 import { getUnderpostRootPath } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory, setUpInfo } from '../server/ops/logger.js';
 import { shellExec } from '../server/runtime/process.js';
+import { loadProductContexts } from '../server/build/catalog.js';
 import {
   UNDERPOST_TESTING,
   allureManifestsFactory,
@@ -78,18 +79,28 @@ class UnderpostTest {
      * @param {boolean} [params.watch] - Keep the runner open and re-run on change.
      * @param {boolean} [params.coverage] - Emit the coverage reporters.
      * @param {boolean} [params.allure] - Also write Allure results for the dashboard.
-     * @returns {void}
+     * @returns {Promise<void>}
      * @throws {Error} When no engine tree with a runner configuration can be found.
      * @memberof UnderpostTest
      */
-    run({ suite = '', grep = '', watch = false, coverage = true, allure = false } = {}) {
+    async run({ suite = '', grep = '', watch = false, coverage = true, allure = false } = {}) {
       actionInitLog();
       const root = [process.cwd(), getUnderpostRootPath()].find(
         (candidate) => candidate && fs.existsSync(`${candidate}/vitest.config.js`),
       );
       if (!root) throw new Error('[test] no vitest.config.js in the current directory or the global underpost install');
 
-      const { projects, runVitest, delegated } = resolveTestSelection(suite);
+      const { projects, runVitest, delegated, excluded } = resolveTestSelection(
+        suite,
+        await loadProductContexts(fs.readJsonSync(`${root}/package.json`)),
+      );
+      for (const [deployId, entries] of Object.entries(Object.groupBy(excluded, ({ context }) => context.deployId)))
+        logger.warn('Skipping projects that run only in their product context', {
+          deployId,
+          projects: entries.map(({ name }) => name),
+          missing: entries[0].context.missing,
+          hint: `run them in the ${deployId} product repository, or install its catalog here: node bin package ${deployId} --install`,
+        });
       const allureResultsDirectory =
         allure &&
         nodePath.resolve(
@@ -260,7 +271,7 @@ class UnderpostTest {
         return;
       }
 
-      return void Underpost.test.run({ ...options, suite });
+      return void (await Underpost.test.run({ ...options, suite }));
     },
 
     /**

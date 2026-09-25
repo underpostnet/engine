@@ -7,10 +7,12 @@ import {
   testProjectsFactory,
   vitestProjectSelector,
 } from './src/server/build/testing.js';
+import { loadProductContexts } from './src/server/build/catalog.js';
 
 const allureResultsDirectory = process.env[UNDERPOST_TESTING.allureResultsEnvKey];
 const coverageThreshold = coverageThresholdFactory(process.env);
-const coverageInclude = coverageIncludeFactory(process.argv);
+const productContexts = await loadProductContexts();
+const coverageInclude = coverageIncludeFactory(process.argv, productContexts);
 const coverageReportDirectory = coverageReportKey(vitestProjectSelector(process.argv));
 
 // Spread into every tier: a Vitest project inherits nothing from the root
@@ -61,6 +63,6 @@ export default defineConfig({
       // instead of failing against a number it never measured.
       ...(coverageThreshold === null ? {} : { thresholds: { lines: coverageThreshold } }),
     },
-    projects: testProjectsFactory(projectDefaults),
+    projects: testProjectsFactory(projectDefaults, productContexts),
   },
 });

@@ -9,7 +9,9 @@ import {
   coverageIncludeFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  productContextOf,
   resolveTestSelection,
+  runnableTestProjects,
   testDomainNames,
   testProjectsFactory,
   vitestProjectSelector,
@@ -128,6 +130,64 @@ describe('test selection', () => {
 
   it('offers every domain as a selector', () => {
     for (const domain of testDomainNames()) expect(() => resolveTestSelection(domain), domain).to.not.throw();
+  });
+});
+
+describe('product contexts', () => {
+  // A product owns the directories its catalog strips from the base template.
+  const context = (active) => [
+    { deployId: 'dd-product', stripPaths: ['./test/cyberia', './hardhat'], missing: active ? [] : ['jimp'], active },
+  ];
+  const owned = TEST_PROJECTS.filter(
+    ({ directory }) => directory.startsWith('test/cyberia') || directory === 'hardhat',
+  );
+  const names = (projects) => projects.map(({ name }) => name);
+
+  it('gives a project to the product whose catalog strips its directory', () => {
+    const contexts = context(false);
+    expect(productContextOf({ directory: 'test/cyberia/unit' }, contexts)).to.equal(contexts[0]);
+    expect(productContextOf({ directory: 'hardhat' }, contexts)).to.equal(contexts[0]);
+    expect(productContextOf({ directory: 'test/underpost/unit' }, contexts)).to.equal(null);
+    expect(productContextOf({ directory: 'test/cyberia-lab/unit' }, contexts)).to.equal(null);
+  });
+
+  it("runs a product's projects only in that product's context", () => {
+    expect(owned).to.not.be.empty;
+    expect(names(runnableTestProjects(context(false)))).to.deep.equal(
+      names(TEST_PROJECTS.filter((project) => !owned.includes(project))),
+    );
+    expect(runnableTestProjects(context(true))).to.deep.equal(TEST_PROJECTS);
+    expect(runnableTestProjects()).to.deep.equal(TEST_PROJECTS);
+  });
+
+  it('reports the projects it leaves to their product, and runs the rest without a project list', () => {
+    const { projects, runVitest, delegated, excluded } = resolveTestSelection('', context(false));
+    expect(projects).to.be.empty;
+    expect(runVitest).to.equal(true);
+    expect(names(delegated)).to.not.include.members(names(owned));
+    expect(excluded.map(({ name }) => name)).to.deep.equal(names(owned));
+    for (const { context: owner } of excluded) expect(owner.deployId).to.equal('dd-product');
+  });
+
+  it('runs nothing when every selected project belongs to an inactive product', () => {
+    const { projects, runVitest, delegated, excluded } = resolveTestSelection('cyberia', context(false));
+    expect(projects).to.be.empty;
+    expect(runVitest).to.equal(false);
+    expect(delegated).to.be.empty;
+    expect(excluded).to.have.length(TEST_PROJECTS.filter(({ name }) => name.startsWith('cyberia:')).length);
+  });
+
+  it('keeps the platform part of a mixed selection', () => {
+    expect(resolveTestSelection('underpost:unit,cyberia', context(false)).projects).to.deep.equal(['underpost:unit']);
+    expect(resolveTestSelection('underpost:unit,cyberia', context(true)).excluded).to.be.empty;
+  });
+
+  it('hides an inactive product from Vitest and from the coverage scope', () => {
+    const vitestNames = testProjectsFactory({}, context(false)).map(({ test }) => test.name);
+    for (const { name } of owned) expect(vitestNames).to.not.include(name);
+    const include = coverageIncludeFactory([], context(false));
+    expect(include).to.not.include('src/projects/cyberia/stat-balance.js');
+    expect(include).to.include('src/server/build/package.js');
   });
 });
 

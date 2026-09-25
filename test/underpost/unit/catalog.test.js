@@ -2,8 +2,8 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import { EMPTY_CATALOG, loadProductCatalogs } from '../../../src/server/build/catalog.js';
-import { TEST_PROJECTS } from '../../../src/server/build/testing.js';
+import { EMPTY_CATALOG, loadProductCatalogs, loadProductContexts } from '../../../src/server/build/catalog.js';
+import { TEST_PROJECTS, productContextOf } from '../../../src/server/build/testing.js';
 
 // A broken catalog path fails during template assembly, long after the commit
 // that broke it, so the tree is asserted here instead.
@@ -58,9 +58,7 @@ describeProducts('product catalogs and the test projects', () => {
   // and the product CLI arrives without the suite that covers what it added. A
   // product strips its whole domain directory, so a project inside it is stripped
   // with it.
-  const strippedProjects = TEST_PROJECTS.filter(({ directory }) =>
-    catalogs.some(({ stripPaths }) => stripPaths.some((path) => `./${directory}`.startsWith(path))),
-  );
+  const strippedProjects = TEST_PROJECTS.filter((project) => productContextOf(project, catalogs));
 
   it.skipIf(!unsliced)('has products that own at least one project', () => {
     expect(strippedProjects).to.not.be.empty;
@@ -77,11 +75,38 @@ describeProducts('product catalogs and the test projects', () => {
 
   it('ships every project it strips from the base template', () => {
     for (const { name, directory } of strippedProjects) {
-      const owner = catalogs.find(({ stripPaths }) => stripPaths.some((path) => `./${directory}`.startsWith(path)));
+      const owner = productContextOf({ directory }, catalogs);
       expect(
         owner.templatePaths.some((path) => `/${directory}`.startsWith(path)),
         `${name} is packaged by its product`,
       ).to.equal(true);
     }
+  });
+});
+
+describeProducts('product contexts', () => {
+  const pinned = catalogs.filter(({ packageDependencies }) => Object.keys(packageDependencies).length > 0);
+
+  it('names every catalog after the deploy id that loads it', () => {
+    for (const { deployId } of catalogs)
+      expect(fs.existsSync(`./src/projects/${deployId.slice(3)}`), deployId).to.equal(true);
+  });
+
+  it('keeps a product context inactive where the manifest lacks its pins', async () => {
+    const contexts = await loadProductContexts({ dependencies: {} });
+    for (const { deployId, packageDependencies } of pinned) {
+      const context = contexts.find((entry) => entry.deployId === deployId);
+      expect(context.active, deployId).to.equal(false);
+      expect(context.missing, deployId).to.deep.equal(Object.keys(packageDependencies));
+    }
+  });
+
+  it('activates a product context where the manifest declares every pin', async () => {
+    const dependencies = Object.assign({}, ...pinned.map(({ packageDependencies }) => packageDependencies));
+    for (const manifest of [{ dependencies }, { devDependencies: dependencies }])
+      for (const { deployId, active, missing } of await loadProductContexts(manifest)) {
+        expect(active, deployId).to.equal(true);
+        expect(missing, deployId).to.be.empty;
+      }
   });
 });
