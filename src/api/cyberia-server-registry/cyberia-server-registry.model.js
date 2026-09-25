@@ -34,6 +34,9 @@ const CyberiaServerRegistrySchema = new Schema(
     // Operator label for the list. Empty falls back to instanceCode.
     name: { type: String, default: '', trim: true },
 
+    // A draining server keeps its players and takes no new session. It is never offered.
+    draining: { type: Boolean, default: false },
+
     // Every report rewrites this. The TTL index reads it, so a report restarts
     // the countdown and a silent server expires on its own.
     lastSeen: { type: Date, default: Date.now, expires: SERVER_TTL_SECONDS },

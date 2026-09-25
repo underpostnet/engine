@@ -45,9 +45,9 @@ const normalizeServerUrl = (rawUrl) => {
  * Record one server report. Idempotent: the upsert keys on `serverUrl`, so a
  * restart reuses the same document and only `lastSeen` moves.
  *
- * @param {{serverUrl: string, instanceCode?: string, name?: string}} report
+ * @param {{serverUrl: string, instanceCode?: string, name?: string, draining?: boolean}} report
  * @param {object} options Router options (host/path routing context).
- * @returns {Promise<{serverUrl: string, instanceCode: string, name: string, lastSeen: Date}>}
+ * @returns {Promise<{serverUrl: string, instanceCode: string, name: string, draining: boolean, lastSeen: Date}>}
  * @throws {Error} When `serverUrl` is not an http(s) URL.
  */
 const reportServer = async (report = {}, options = {}) => {
@@ -61,24 +61,30 @@ const reportServer = async (report = {}, options = {}) => {
     .trim()
     .slice(0, MAX_FIELD_LENGTH);
 
+  const draining = report.draining === true;
+
   const Model = getModel(options);
   return await Model.findOneAndUpdate(
     { serverUrl },
-    { $set: { instanceCode, name, lastSeen: new Date() } },
+    { $set: { instanceCode, name, draining, lastSeen: new Date() } },
     { upsert: true, new: true },
   )
-    .select('serverUrl instanceCode name lastSeen -_id')
+    .select('serverUrl instanceCode name draining lastSeen -_id')
     .lean();
 };
 
 /**
- * The most recent live report. The TTL index already removed the dead ones,
- * so the newest `lastSeen` is the answer.
+ * The most recent live report of a server that takes sessions. The TTL index
+ * already removed the dead ones, so the newest non-draining `lastSeen` is the answer.
  *
  * @param {object} options Router options (host/path routing context).
  * @returns {Promise<?{serverUrl: string, instanceCode: string, name: string, lastSeen: Date}>}
  */
 const getLatestServer = async (options = {}) =>
-  await getModel(options).findOne().sort({ lastSeen: -1 }).select('serverUrl instanceCode name lastSeen -_id').lean();
+  await getModel(options)
+    .findOne({ draining: { $ne: true } })
+    .sort({ lastSeen: -1 })
+    .select('serverUrl instanceCode name lastSeen -_id')
+    .lean();
 
 export { reportServer, getLatestServer, normalizeServerUrl };
