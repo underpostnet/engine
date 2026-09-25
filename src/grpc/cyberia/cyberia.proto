@@ -1,0 +1,608 @@
+// Protocol Buffers schema for Cyberia Online gRPC data pipeline.
+//
+// This service runs on the Engine-Cyberia (Node.js) side.
+// The Cyberia-Server (Go) acts as the gRPC **client**, calling
+// these RPCs to fetch game data for world reconstruction.
+//
+// Design rules:
+//   1. Read-only — no create / update / delete.
+//   2. Batch-friendly — large collections streamed or paginated.
+//   3. Live-reload aware — version fields let the Go server detect
+//      stale data and perform surgical in-memory replacement.
+
+syntax = "proto3";
+
+package cyberia;
+
+option go_package = "cyberia-server/proto";
+
+// ═══════════════════════════════════════════════════════════════════
+// Service definition
+// ═══════════════════════════════════════════════════════════════════
+
+service CyberiaDataService {
+  // ── Instance / World Graph ──────────────────────────────────────
+  // Returns the full instance graph (maps + portals) for a given
+  // instance code.  Used at startup or during hot-reload.
+  rpc GetFullInstance(GetFullInstanceRequest) returns (GetFullInstanceResponse);
+
+  // ── Maps ────────────────────────────────────────────────────────
+  // Returns map data (grid, entities, metadata) for one map code.
+  rpc GetMapData(GetMapDataRequest) returns (GetMapDataResponse);
+
+  // ── Object Layers ───────────────────────────────────────────────
+  // Streams all ObjectLayers in the database.
+  // Useful for initial cache warm-up on the Go server.
+  rpc GetObjectLayerBatch(GetObjectLayerBatchRequest) returns (stream ObjectLayerMessage);
+
+  // Returns a single ObjectLayer by item ID.
+  rpc GetObjectLayer(GetObjectLayerRequest) returns (ObjectLayerMessage);
+
+  // ── Reload / Health ─────────────────────────────────────────────
+  // Lightweight ping to check Engine liveness before hot-reload.
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // Returns the item catalog as a manifest: each item label with the CID of
+  // its bound definition, so the Go server re-fetches only the labels whose
+  // definition changed (incremental hot-reload).
+  rpc GetObjectLayerManifest(GetObjectLayerManifestRequest) returns (GetObjectLayerManifestResponse);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Common value types
+// ═══════════════════════════════════════════════════════════════════
+
+message Vec2 {
+  double x = 1;
+  double y = 2;
+}
+
+message Vec2I {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ObjectLayer messages
+// ═══════════════════════════════════════════════════════════════════
+
+message Stats {
+  int32 effect       = 1;
+  int32 resistance   = 2;
+  int32 agility      = 3;
+  int32 range        = 4;
+  int32 intelligence = 5;
+  int32 utility      = 6;
+}
+
+message ItemInfo {
+  string id          = 1;
+  string type        = 2;
+  string description = 3;
+  bool   activable   = 4;
+}
+
+// ItemLedger binding of the definition: a projection of chain state, empty when unregistered.
+message Ledger {
+  reserved 1;
+  reserved "type", "address";
+  string contract_address = 2;
+  string token_id         = 3;  // uint256, decimal
+  string standard         = 4;  // ERC1155, empty when unregistered
+  uint64 chain_id         = 5;
+}
+
+// The render contract of a definition: empty when it names no render yet.
+message Render {
+  string cid          = 1; // canonical render CID: the primary render PNG
+  string metadata_cid = 2; // canonical metadata CID: the layout of the primary render
+}
+
+// One immutable Object Layer definition under the Cyberia profile. `cid` is its identity;
+// `item.id` is the label the Cyberia item catalog binds to it.
+message ObjectLayerMessage {
+  reserved 1, 6, 8, 9, 10, 11;
+  reserved "mongo_id", "sha256", "content_hash", "profile";
+  Stats    stats        = 2;
+  ItemInfo item         = 3;
+  Ledger   ledger       = 4;
+  Render   render       = 5;
+  string   cid          = 7;    // canonical Object Layer CID
+}
+
+// ── ObjectLayer requests ──────────────────────────────────────────
+
+message GetObjectLayerBatchRequest {
+  // Optional: filter by item type (e.g. "skin", "weapon").
+  // Empty = return all.
+  string item_type_filter = 1;
+}
+
+message GetObjectLayerRequest {
+  string item_id = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Instance / world graph messages
+// ═══════════════════════════════════════════════════════════════════
+
+message PortalEdge {
+  string source_map_code = 1;
+  int32  source_cell_x   = 2;
+  int32  source_cell_y   = 3;
+  string target_map_code = 4;
+  int32  target_cell_x   = 5;
+  int32  target_cell_y   = 6;
+  // Transport behaviour: inter-portal | inter-random | intra-random | intra-portal
+  string portal_mode     = 7;
+}
+
+// Authoritative initial spawn for new players. When random is false and
+// source_map_code names a loaded map, players spawn at (source_cell_x,
+// source_cell_y) on it; otherwise spawn is a random walkable cell on a random map.
+message PlayerSpawn {
+  string source_map_code = 1;
+  int32  source_cell_x   = 2;
+  int32  source_cell_y   = 3;
+  bool   random          = 4;
+}
+
+message InstanceMessage {
+  string              mongo_id       = 1;
+  string              code           = 2;
+  string              name           = 3;
+  string              description    = 4;
+  repeated string     tags           = 5;
+  repeated string     map_codes      = 6; // vertex set
+  repeated PortalEdge portals        = 7; // edge set
+  string              topology_mode  = 8;
+  string              seed           = 9;
+  PlayerSpawn         player_spawn   = 10;
+}
+
+// ── Action / quest content (mission system) ──────────────────────────
+// Delivered with the world so the Go server never fetches content over a
+// separate REST channel. For the procedural fallback the engine's fallback
+// builder fills these from the canonical defaults; real instances fill them
+// from MongoDB.
+
+message ActionQuestDialogue {
+  string quest_code  = 1;
+  string dialog_code = 2;
+}
+
+message ActionShopItem {
+  string item_id             = 1; // label
+  string price_item_id       = 2; // currency item label (default "coin")
+  int32  price_qty           = 3;
+  string object_layer_cid    = 4; // pinned definition of the sold item
+  string price_object_layer_cid = 5; // pinned definition of the currency
+}
+
+message ActionCraftItem {
+  string item_id          = 1; // label
+  int32  qty              = 2;
+  string object_layer_cid = 3; // pinned definition
+}
+
+message ActionCraftRecipe {
+  repeated ActionCraftItem output_items  = 1;
+  repeated ActionCraftItem ingredients   = 2;
+  int32                    craft_time_ms = 3; // assembly duration
+}
+
+message CyberiaActionMessage {
+  string                       code                 = 1;
+  reserved 2; // was type — actions are typeless, capability-driven
+  string                       label                = 3;
+  string                       source_map_code      = 4;
+  int32                        source_cell_x        = 5;
+  int32                        source_cell_y        = 6;
+  reserved 7; // was provide_item_id — NPC skin is derived from default-<skin>
+  reserved 8; // was grant_quest_code — derived from quests bound to this cell
+  string                       dialog_code          = 9;
+  repeated ActionQuestDialogue quest_dialogue_codes = 10;
+  repeated ActionShopItem      shop_items           = 11;
+  repeated ActionCraftRecipe   craft_recipes        = 12;
+  int32                        storage_slots        = 13; // personal vault capacity
+}
+
+message QuestObjectiveMessage {
+  string type             = 1; // collect | talk | kill
+  string item_id          = 2; // label
+  int32  quantity         = 3;
+  string object_layer_cid = 4; // pinned definition, empty when the objective names no content
+}
+
+message QuestStepMessage {
+  string                         id          = 1;
+  string                         description = 2;
+  repeated QuestObjectiveMessage objectives  = 3;
+}
+
+message QuestRewardMessage {
+  string item_id          = 1; // label
+  int32  quantity         = 2;
+  string object_layer_cid = 3; // pinned definition
+}
+
+message CyberiaQuestMessage {
+  string                      code                = 1;
+  string                      title               = 2;
+  string                      description         = 3;
+  repeated string             unlocks_quest_codes = 4;
+  repeated QuestStepMessage   steps               = 5;
+  repeated QuestRewardMessage rewards             = 6;
+  repeated string             prerequisite_codes  = 7;
+  // Spatial origin — the action NPC cell that awards this quest. The server
+  // binds an action to its quest(s) by matching these to the action's cell.
+  string                      source_map_code     = 8;
+  int32                       source_cell_x       = 9;
+  int32                       source_cell_y       = 10;
+}
+
+message GetFullInstanceRequest {
+  string instance_code = 1;
+}
+
+message GetFullInstanceResponse {
+  InstanceMessage               instance      = 1;
+  repeated MapDataMessage       maps          = 2;
+  repeated ObjectLayerMessage   object_layers = 3;
+  InstanceConfig                config        = 4;
+  // Opaque version string (e.g. combined updatedAt timestamps) for
+  // change-detection.  The Go server compares this with the last known
+  // value and skips a full rebuild when they match.
+  string                        version       = 5;
+  // Mission content delivered with the world.
+  repeated CyberiaActionMessage actions       = 6;
+  repeated CyberiaQuestMessage  quests        = 7;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Instance configuration — replaces all hardcoded server defaults
+// ═══════════════════════════════════════════════════════════════════
+
+// Palette entries are owned by the C client (presentation_defaults).
+// The gRPC simulation contract carries no palette.
+
+message DefaultObjectLayerState {
+  string item_id  = 1;
+  bool   active   = 2;
+  int32  quantity = 3;
+  // Probability in [0,1] that this id scatters when the entity dies. Only meaningful for an id the
+  // build carries in drop_item_ids. Explicitly optional so absent stays distinguishable from a
+  // deliberate 0: a payload from before this field existed must read as "always drops", while an
+  // operator who authors 0 means "never". See OverrideItemStateSchema.dropChance.
+  optional double drop_chance = 4;
+}
+
+message SkillDetail {
+  string logic_event_id          = 1;  // skill handler key (e.g. "projectile", "doppelganger")
+  string description             = 2;  // human-readable skill description shown in the inventory modal
+  string summoned_entity_item_id = 3;  // ObjectLayer item ID of the entity summoned by this skill ("$active_skin" = dynamic)
+  string name                    = 4;  // display name for the skill (e.g. "Projectile", "Doppelganger")
+}
+
+message SkillConfigEntry {
+  string          trigger_item_id = 1;   // item that triggers the skill
+  reserved 2, 3, 4, 5, 6;
+  reserved "spawned_item_ids", "logic_event_id", "logic_event_ids", "description", "summoned_entity_item_id";
+  repeated SkillDetail skills   = 7;     // per-logic-event skill definitions
+}
+
+// EconomyRules groups all Fountain & Sink economy parameters for one instance.
+//
+// Design: Fountain & Sink (EVE Online / WoW model)
+//   Fountains   — inject new coins into the economy on every bot/player spawn.
+//   Kill Transfer — zero-sum redistribution between participants on a kill event.
+//   Sinks       — permanently destroy coins (alpha: all 0 / disabled by default).
+//
+// Off-chain fall-back: when a player has no on-chain session the server operates
+// a purely in-memory wallet that resets on reconnect.  All balances map 1-to-1
+// with the CKY ERC-1155 token (token ID 0) once the on-chain bridge is live.
+message EconomyRules {
+  // ── Fountains ──────────────────────────────────────────────────────────────
+  // Coins bots carry at spawn and on every respawn (infinite mint source).
+  // Guarantees PvE reward loops are never blocked by an empty bot wallet.
+  int32  bot_spawn_coins               = 1;
+  // Player starting wallet on connect (no persistence — resets on reconnect).
+  // In guest mode this is the only coin source; persists only with on-chain auth.
+  int32  player_spawn_coins            = 2;
+
+  // ── Kill Transfer (zero-sum redistribution) ────────────────────────────────
+  // Fraction [0,1] of the victim's coins transferred to the killer on a PvE kill
+  // (player kills bot, or bot kills bot).  Higher than PvP rate to reward grinding.
+  double coin_kill_percent_vs_bot      = 3;
+  // Fraction [0,1] transferred on a PvP kill.  Intentionally lower to reduce
+  // griefing frustration while still making PvP economically meaningful.
+  double coin_kill_percent_vs_player   = 4;
+  // Hard floor per kill: guarantees every successful kill pays at least this many
+  // coins regardless of the victim's wallet size or the percent rate.
+  int32  coin_kill_min_amount          = 5;
+
+  // ── Sinks (alpha stubs — set to 0 to disable) ─────────────────────────────
+  // Fraction [0,1] of the dying player's coins permanently burned on respawn.
+  // Incentivises caution; 0 = disabled (recommended for alpha).
+  double respawn_cost_percent          = 6;
+  // Flat coins burned each time a player uses a portal (travel tax).
+  // Drains coin hoarding; 0 = disabled.
+  int32  portal_fee                    = 7;
+  // Fraction [0,1] of item value burned on any crafting action (production tax).
+  // 0 = disabled until the crafting system is implemented.
+  double crafting_fee_percent          = 8;
+}
+
+// SkillRules groups the numeric tuning parameters for each skill archetype.
+// These are instance-level defaults; individual SkillConfigEntry entries define
+// WHICH items trigger WHICH logic, while SkillRules defines HOW that logic behaves.
+message SkillRules {
+  // ── Projectile skill ──
+  double projectile_spawn_chance       = 1;  // base probability [0,1] per action tick
+  int32  projectile_lifetime_ms        = 2;  // base projectile TTL in ms (Range stat adds extra)
+  double projectile_width              = 3;  // projectile entity width in grid cells
+  double projectile_height             = 4;  // projectile entity height in grid cells
+  double projectile_speed_multiplier   = 5;  // multiplier applied on top of entity_base_speed
+
+  // ── Doppelganger skill ──
+  double doppelganger_spawn_chance          = 6;  // base probability [0,1] per action tick
+  int32  doppelganger_lifetime_ms           = 7;  // base doppelganger TTL in ms (Range adds extra)
+  double doppelganger_spawn_radius          = 8;  // wander radius around spawn point in cells
+  double doppelganger_initial_life_fraction = 9;  // fraction of entity_base_max_life at spawn
+}
+
+// EquipmentRules governs which ObjectLayer item types can be simultaneously
+// active on a character entity and enforces the one-active-per-type constraint.
+//
+// The server validates every item_activation request against these rules:
+//   1. Only item types listed in active_item_types may be activated.
+//   2. When one_per_type is true, activating an item auto-deactivates
+//      any other active item of the same type.
+//   3. When require_skin is true, the player must always have at least
+//      one active skin if they own any skin-type items.
+message EquipmentRules {
+  // Item types that players are allowed to activate (equip).
+  // Types not in this list are non-activable (coins, floors, etc.).
+  repeated string active_item_types = 1;
+  // Enforce at most one active item per item type.
+  bool one_per_type                 = 2;
+  // Require at least one active skin when the player owns any skin.
+  bool require_skin                 = 3;
+}
+
+// Presentation payload (palette, camera, status-icon visuals, etc.) is
+// served by the engine REST endpoint /api/cyberia-client-hints/:code as
+// JSON.  No protobuf message is involved.
+
+message ProgressionRules {
+  int32 max_level = 1;
+  int32 xp_per_level = 2;
+  Stats base_stats = 3;
+  Stats per_level_stats = 4;
+  int32 kill_xp = 5;
+  int32 quest_xp = 6;
+  int32 objective_xp = 7;
+  int32 min_award_interval_ms = 8;
+  int32 repeat_window_ms = 9;
+  int32 max_repeat_awards = 10;
+  int32 max_awards_per_window = 11;
+  int32 default_bot_level = 12;
+}
+
+message InstanceConfig {
+  // Retired field numbers are reserved. Presentation-only fields (cell-pixel
+  // sizing, camera, palette, interpolation window, default object dims,
+  // status-icon visuals, client-hints document) never travel on the
+  // simulation contract — the cyberia-client reads them from
+  // /api/cyberia-client-hints.
+  reserved 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11;
+  reserved "cell_size", "fps", "interpolation_ms", "default_obj_width",
+           "default_obj_height", "camera_smoothing", "camera_zoom",
+           "default_width_screen_factor", "default_height_screen_factor",
+           "dev_ui", "colors";
+
+  // ── World / AOI ──
+  double aoi_radius                    = 12;
+  int32  portal_hold_time_ms           = 13;
+  double portal_spawn_radius           = 14;
+
+  // ── Entity base stats ──
+  double entity_base_speed             = 15;
+  double entity_base_max_life          = 16;
+  int32  entity_base_action_cooldown_ms     = 17;
+  int32  entity_base_min_action_cooldown_ms = 18;
+
+  // ── Bot defaults ──
+  double bot_aggro_range               = 19;
+
+  // ── Player defaults ──
+  double default_player_width          = 20;
+  double default_player_height         = 21;
+  double player_base_life_regen_min    = 22;
+  double player_base_life_regen_max    = 23;
+  reserved 24;
+  reserved "sum_stats_limit";
+  ProgressionRules progression_rules = 69;
+  // Movement speed for the player entity only, in grid cells per second. Bots,
+  // projectiles and every other entity keep entity_base_speed. 0 falls back to
+  // entity_base_speed, so an instance that does not set it is unchanged.
+  double player_base_speed             = 68;
+  int32  max_active_layers             = 25;
+  double initial_life_fraction         = 26;
+
+  // Field 27 retired — superseded by EntityTypeDefault.default_object_layers.
+  reserved 27;
+  reserved "default_player_object_layers";
+
+  // ── Combat / death ──
+  int32  respawn_duration_ms           = 28;
+  double collision_life_loss           = 30;
+
+  // ── Economy ──
+  // Wire numbers reserved to prevent field ID reuse (moved to economy_rules = 62).
+  reserved 32, 53, 54, 55, 56, 57, 58, 59, 60, 61;
+
+  // ── Regen ──
+  double life_regen_chance             = 33;
+  double max_chance                    = 34;
+
+  // ── Skill tuning (grouped) ──
+  // Fields 35–43 and 46 are reserved — previously held flat projectile/doppelganger
+  // params and default_player_color. Replaced by skill_rules (47) and the PLAYER
+  // key in the colors repeated field.
+  reserved 35, 36, 37, 38, 39, 40, 41, 42, 43, 46;
+  reserved "bullet_spawn_chance", "bullet_lifetime_ms", "bullet_width",
+           "bullet_height", "bullet_speed_multiplier",
+           "doppelganger_spawn_chance", "doppelganger_lifetime_ms",
+           "doppelganger_spawn_radius", "doppelganger_initial_life_fraction",
+           "default_player_color";
+
+  // Fields 29, 31, 44, 48–51 retired — superseded by entity_defaults (52).
+  reserved 29, 31, 44, 48, 49, 50, 51;
+  reserved "ghost_item_id", "coin_item_id", "default_floor_item_id",
+           "bot_default_item_id", "user_default_item_id",
+           "weapon_default_item_id", "bullet_default_item_id";
+
+  // ── Skill map (trigger → logic + items) ──
+  repeated SkillConfigEntry skill_config = 45;
+
+  // ── Skill tuning parameters ──
+  SkillRules skill_rules                 = 47;
+
+  // ── Economy parameters (Fountain & Sink model) ──
+  EconomyRules economy_rules             = 62;
+
+  // ── Equipment rules (activation constraints) ──
+  EquipmentRules equipment_rules         = 63;
+
+  // ── Entity type rendering defaults ─────────────────────────────────────────
+  // Structured per-entity-type configuration replacing the former flat item ID
+  // fields.  Each entry defines the live OL, dead OL, and palette colour key
+  // for one entity type ('player', 'bot', 'skill', 'coin', 'floor', …).
+  // The Go server derives ghost/coin/floor item IDs from this repeated field.
+  repeated EntityTypeDefault entity_defaults = 52;
+
+  // ── Entity Status Indicators (overhead icon mapping) ───────────────────────
+  // DEPRECATED — the simulation only ships the numeric u8 status ID via
+  // the AOI binary entity block. Icon stem + border colour have moved
+  // entirely off this contract; the client resolves them from its
+  // built-in presentation_defaults (cyberia-client) and the engine REST
+  // endpoint /api/cyberia-client-hints. Field 64 stays reserved.
+  reserved 64;
+  reserved "status_icons";
+
+  // ── Tick model (authoritative simulation cadence) ─────────────────────────
+  // tick_rate is the canonical simulation Hz on cyberia-server.
+  int32 tick_rate     = 65;
+  // snapshot_rate is the AOI replication Hz. Typically ≤ tick_rate.
+  int32 snapshot_rate = 66;
+
+  // Presentation does not travel on this contract.
+  reserved 67;
+  reserved "client_hints";
+}
+
+// ── Entity type defaults (per-entity gameplay configuration) ────────────────
+// Pure simulation contract — only the fields the Go server's world build
+// needs to instantiate entities. Per-entity-type color resolution lives on
+// the client (presentation_defaults).
+message EntityTypeDefault {
+  string entity_type    = 1; // matches entity_type_str / bot Behavior in game engine
+  repeated string live_item_ids = 2; // OL item IDs for the alive/active state
+  repeated string dead_item_ids = 3; // OL item IDs for the dead/ghost/respawning state
+  reserved 4;
+  reserved "color_key";
+  // Full default ObjectLayer inventory for this entity type.
+  // Supersedes live_item_ids for inventory initialization when non-empty.
+  // The canonical source of truth — shared across all entity config simulation.
+  repeated DefaultObjectLayerState default_object_layers = 5;
+  // Resource-only inventory/drop item IDs granted to the extractor when the
+  // resource is depleted. These are not auto-activated on the entity itself.
+  repeated string drop_item_ids = 6;
+  // Canonical entity behavior bound to entities matched by live_item_ids. Empty
+  // lets the runtime derive it (armed → hostile, else passive). See
+  // SharedDefaultsCyberia.ENTITY_BEHAVIORS / game/behavior.go.
+  string behavior = 7;
+}
+
+// Status-icon visual config has moved off the gRPC contract.  The numeric
+// status ID rides on the AOI wire; icon stem + border colour are resolved
+// on the C client (presentation_defaults / presentation_runtime), with
+// optional per-instance overrides via /api/cyberia-client-hints.
+
+// ═══════════════════════════════════════════════════════════════════
+// Map messages
+// ═══════════════════════════════════════════════════════════════════
+
+message EntityMessage {
+  int32 level = 17;
+  string          entity_type = 1;
+  int32           init_cell_x = 2;
+  int32           init_cell_y = 3;
+  int32           dim_x       = 4;
+  int32           dim_y       = 5;
+  string          color       = 6;
+  repeated string object_layer_item_ids = 7;
+
+  // Bot-specific fields
+  double          spawn_radius = 8;  // wandering radius (0 = use server default)
+  double          aggro_range  = 9;  // aggro detection range (0 = use server default)
+  double          max_life     = 10; // base max life (0 = use server default)
+  double          life_regen   = 11; // life regen rate (0 = use server default)
+
+  // Portal-specific field
+  string          portal_subtype = 12; // inter-portal | inter-random | intra-random | intra-portal
+
+  // Parsed RGBA colour from the DB entity document.
+  // When color_a > 0, the Go server uses these values as the entity's fallback
+  // colour (when it has no ObjectLayer items) instead of the palette default.
+  int32           color_r = 13;
+  int32           color_g = 14;
+  int32           color_b = 15;
+  int32           color_a = 16;
+}
+
+message MapDataMessage {
+  string                  mongo_id    = 1;
+  string                  code        = 2;
+  string                  name        = 3;
+  int32                   grid_x      = 4;
+  int32                   grid_y      = 5;
+  int32                   cell_width  = 6;
+  int32                   cell_height = 7;
+  repeated EntityMessage  entities    = 8;
+}
+
+message GetMapDataRequest {
+  string map_code = 1;
+  // Code of the Go instance making the request — used by the Engine
+  // to update the cyberia-global-map-code-registry live tracking table.
+  string instance_code = 2;
+}
+
+message GetMapDataResponse {
+  MapDataMessage map = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Reload / health messages
+// ═══════════════════════════════════════════════════════════════════
+
+message PingRequest {}
+message PingResponse {
+  int64 server_time_ms = 1;
+}
+
+// One bound Cyberia item label and the identity of its definition.
+message ObjectLayerManifestEntry {
+  reserved 2, 4;
+  reserved "sha256", "content_hash";
+  string item_id = 1;
+  string cid     = 3;
+}
+
+message GetObjectLayerManifestRequest {}
+
+message GetObjectLayerManifestResponse {
+  repeated ObjectLayerManifestEntry entries = 1;
+}

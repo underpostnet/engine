@@ -13,16 +13,17 @@ import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { activateContentRelease, watchContentRelease } from '../../projects/cyberia/content-release.js';
+import { runInContentView } from '../../db/content-view.js';
 import {
   buildFallbackConfig,
   fetchFullInstance,
   fetchMapData,
   fetchObjectLayer,
   fetchObjectLayerManifest,
+  fetchObjectLayerBatch,
   getInstanceModels,
-  objectLayerQueryFilter,
   pingData,
-  toObjectLayerMsg,
 } from '../../projects/cyberia/instance-data.js';
 
 const logger = loggerFactory(import.meta);
@@ -30,7 +31,8 @@ const logger = loggerFactory(import.meta);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROTO_PATH = path.resolve(__dirname, '../../../cyberia-server/gen/proto/cyberia.proto');
+// The engine serves CyberiaDataService, so it owns the schema. cyberia-server gets a generated copy.
+const PROTO_PATH = path.join(__dirname, 'cyberia.proto');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: false,
@@ -48,13 +50,11 @@ function buildHandlers(dbKey) {
       callback(null, pingData());
     },
 
-    // Server-streaming: streams all ObjectLayers
+    // Server-streaming: streams the current definition of every item id
     async getObjectLayerBatch(call) {
       try {
-        const models = getInstanceModels(dbKey);
-        const cursor = models.ObjectLayer.find(objectLayerQueryFilter(call.request.itemTypeFilter)).lean().cursor();
-        for await (const doc of cursor) {
-          call.write(toObjectLayerMsg(doc));
+        for (const msg of await fetchObjectLayerBatch(getInstanceModels(dbKey), call.request.itemTypeFilter)) {
+          call.write(msg);
         }
         call.end();
       } catch (err) {
@@ -113,6 +113,7 @@ function buildHandlers(dbKey) {
 
 class GrpcServer {
   static _server = null;
+  static _releaseWatch = null;
 
   /**
    * @param {Object} opts
@@ -122,12 +123,27 @@ class GrpcServer {
    */
   static async start({ host, path: dbPath, port = 50051 } = {}) {
     const dbKey = `${host}${dbPath}`;
+    // The world this process serves is the promoted content release; later promotions are
+    // followed while it runs.
+    const release = await activateContentRelease({ host, path: dbPath });
+    if (release) {
+      logger.info(`Content release ${release.releaseId || '(none promoted)'} served from ${release.database}`);
+      GrpcServer._releaseWatch = watchContentRelease({ host, path: dbPath });
+    }
     const server = new grpc.Server({
       'grpc.max_send_message_length': 64 * 1024 * 1024,
       'grpc.max_receive_message_length': 16 * 1024 * 1024,
     });
 
-    server.addService(proto.CyberiaDataService.service, buildHandlers(dbKey));
+    // The game servers read the content players are served: the active release, never the
+    // workspace being authored.
+    const handlers = Object.fromEntries(
+      Object.entries(buildHandlers(dbKey)).map(([name, handler]) => [
+        name,
+        (...args) => runInContentView('served', () => handler(...args)),
+      ]),
+    );
+    server.addService(proto.CyberiaDataService.service, handlers);
 
     // gRPC stays on the cluster-internal network, so credentials are insecure.
     const creds = grpc.ServerCredentials.createInsecure();
@@ -146,6 +162,8 @@ class GrpcServer {
   }
 
   static async stop() {
+    GrpcServer._releaseWatch?.stop();
+    GrpcServer._releaseWatch = null;
     if (!GrpcServer._server) return;
     return new Promise((resolve) => {
       GrpcServer._server.tryShutdown(() => {

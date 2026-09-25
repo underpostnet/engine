@@ -17,7 +17,7 @@ export function registerStatCommands(program) {
     console.log(JSON.stringify({ valid: true, records: records.length }));
   });
   stats.command('progression').action(() => console.log(JSON.stringify(PROGRESSION_RULES_DEFAULTS, null, 2)));
-  program.command('stat-contract').option('--check', 'Check generated Go and C files.').action(async (options) => {
+  program.command('stat-contract').option('--check', 'Check the generated contract files in cyberia-server and cyberia-client.').action(async (options) => {
     console.log(JSON.stringify(await generateStatContract({ check: !!options.check })));
   });
 }
