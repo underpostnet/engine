@@ -19,7 +19,14 @@
 import fs from 'fs-extra';
 import { newInstance, orderArrayFromAttrInt, range } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../ops/logger.js';
-import { Config, DEFAULT_DEPLOY_ID, isDevProxyContext, isTlsDevProxy, loadConfServerJson } from '../runtime/conf.js';
+import {
+  Config,
+  DEFAULT_DEPLOY_ID,
+  devProxyHostFactory,
+  isDevProxyContext,
+  isTlsDevProxy,
+  loadConfServerJson,
+} from '../runtime/conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -101,13 +108,70 @@ const resolveDeployList = (deployId) => {
 };
 
 /**
+ * @method hostPortsFactory
+ * @description The local port each host path listens on, in the order the runtime assigns
+ * them: one per host path, one more for its peer server. Single-replica paths take none.
+ * @param {object} confServer - Server conf, host → path → entry.
+ * @param {number} [firstPort=PORT + 1] - Port of the first host path.
+ * @returns {Object<string,number>} `${host}${path}` → port; a peer server is `${host}${peerPath}`.
+ * @memberof ServerRouter
+ */
+const hostPortsFactory = (confServer, firstPort = parseInt(process.env.PORT) + 1) => {
+  const ports = {};
+  let currentPort = firstPort;
+  for (const host of Object.keys(confServer)) {
+    for (const path of Object.keys(confServer[host])) {
+      if (confServer[host][path].singleReplica) continue;
+      ports[`${host}${path}`] = currentPort++;
+      if (confServer[host][path].peer) ports[`${host}${path === '/' ? '/peer' : `${path}/peer`}`] = currentPort++;
+    }
+  }
+  return ports;
+};
+
+/**
+ * @method localHostAddress
+ * @description The address a host path answers on in development, `localhost:<port>`, from the
+ * same port map the proxy routes by.
+ * @param {object} confServer - Server conf, host → path → entry.
+ * @param {string} host
+ * @param {string} [path='/']
+ * @returns {string} Empty when the conf does not serve that host path.
+ * @memberof ServerRouter
+ */
+const localHostAddress = (confServer, host, path = '/') => {
+  const port = hostPortsFactory(confServer)[`${host}${path}`];
+  return port ? `localhost:${port}` : '';
+};
+
+/**
+ * @method developmentOrigins
+ * @description The origins a host accepts in development: each configured origin, the same
+ * host over plain HTTP through the dev proxy, and the local port that host answers on.
+ * @param {object} confServer - Server conf, host → path → entry.
+ * @param {string[]} [origins=[]] - The configured origins, `https://<host>`.
+ * @returns {string[]}
+ * @memberof ServerRouter
+ */
+const developmentOrigins = (confServer, origins = []) => {
+  const all = [...origins];
+  for (const origin of origins) {
+    const host = origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    all.push(devProxyHostFactory({ host, includeHttp: true }));
+    const local = localHostAddress(confServer, host);
+    if (local) all.push(`http://${local}`);
+  }
+  return [...new Set(all)];
+};
+
+/**
  * @method buildProxyRouter
  * @description Builds the proxy router.
  * @memberof ServerRouter
  */
 const buildProxyRouter = () => {
   const confServer = newInstance(Config.default.server);
-  let currentPort = parseInt(process.env.PORT) + 1;
+  const ports = hostPortsFactory(confServer);
   const proxyRouter = {};
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
@@ -115,7 +179,7 @@ const buildProxyRouter = () => {
 
       if (isDevProxyContext()) confServer[host][path].proxy = [isTlsDevProxy() ? 443 : 80];
 
-      confServer[host][path].port = newInstance(currentPort);
+      confServer[host][path].port = ports[`${host}${path}`];
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
         proxyRouter[port][`${host}${path}`] = {
@@ -128,11 +192,10 @@ const buildProxyRouter = () => {
           path,
         };
       }
-      currentPort++;
       if (confServer[host][path].peer) {
         const peerPath = path === '/' ? `/peer` : `${path}/peer`;
         confServer[host][peerPath] = newInstance(confServer[host][path]);
-        confServer[host][peerPath].port = newInstance(currentPort);
+        confServer[host][peerPath].port = ports[`${host}${peerPath}`];
         for (const port of confServer[host][path].proxy) {
           if (!(port in proxyRouter)) proxyRouter[port] = {};
           proxyRouter[port][`${host}${peerPath}`] = {
@@ -144,7 +207,6 @@ const buildProxyRouter = () => {
             path: peerPath,
           };
         }
-        currentPort++;
       }
     }
   }
@@ -346,6 +408,9 @@ export {
   buildKindPorts,
   buildPortProxyRouter,
   buildProxyRouter,
+  developmentOrigins,
+  hostPortsFactory,
+  localHostAddress,
   deployRangePortFactory,
   deployRoutesExists,
   parseDeployRoutes,
