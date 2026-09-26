@@ -4,11 +4,15 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  STAT_TYPES, STAT_DEFAULTS, STAT_MODIFIER_MIN, STAT_MODIFIER_MAX,
-  STAT_EFFECTIVE_FLOORS, validateStats, generateRandomStats,
+  STAT_TYPES,
+  STAT_DEFAULTS,
+  STAT_MODIFIER_MIN,
+  STAT_MODIFIER_MAX,
+  STAT_EFFECTIVE_FLOORS,
+  validateStats,
+  generateRandomStats,
 } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { resolveProgressionRules } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { generateMultiFrame, registerSemantic } from '../../../src/projects/cyberia/semantic-layer-generator.js';
 import { ObjectLayerModel } from '../../../src/api/object-layer/object-layer.model.js';
 import { CyberiaMapModel } from '../../../src/api/cyberia-map/cyberia-map.model.js';
 import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';
@@ -20,7 +24,10 @@ import { generateStatContract, hasCyberiaSiblings } from '../../../src/projects/
 import { registerStatCommands } from '../../../src/projects/cyberia/stat-commands.js';
 
 const block = (value) => Object.fromEntries(STAT_TYPES.map((key) => [key, value]));
-const record = (stats) => ({ profile: { id: 'cyberia', version: 2 }, data: { stats, item: { id: 'signed', type: 'weapon' } } });
+const record = (stats) => ({
+  profile: { id: 'cyberia', version: 2 },
+  data: { stats, item: { id: 'signed', type: 'weapon' } },
+});
 
 describe('Cyberia signed stat contract', () => {
   it('defines ordered defaults and playable floors once', () => {
@@ -78,7 +85,9 @@ describe('Cyberia signed stat contract', () => {
     const config = toInstanceConfig({});
     expect(config.progressionRules.maxLevel).toBe(100);
     expect(config).not.toHaveProperty('sumStatsLimit');
-    await expect(new CyberiaInstanceConfModel({ instanceCode: 'test', progressionRules: { maxLevel: -1 } }).validate()).rejects.toThrow();
+    await expect(
+      new CyberiaInstanceConfModel({ instanceCode: 'test', progressionRules: { maxLevel: -1 } }).validate(),
+    ).rejects.toThrow();
   });
 
   it('resolves partial curves and rejects invalid progression configuration', () => {
@@ -86,24 +95,18 @@ describe('Cyberia signed stat contract', () => {
     expect(rules.baseStats).toEqual({ ...resolveProgressionRules().baseStats, effect: 20 });
     expect(toInstanceConfig({ progressionRules: { defaultBotLevel: 7 } }).progressionRules.defaultBotLevel).toBe(7);
     for (const input of [
-      { maxLevel: 5, defaultBotLevel: 6 }, { xpPerLevel: 0 }, { xpPerLevel: '100' },
-      { baseStats: null }, { perLevelStats: [] }, { baseStats: { effect: -1 } },
-      { perLevelStats: { level: 1 } }, { unknown: 1 }, { maxAwardsPerWindow: 0 },
-    ]) expect(() => resolveProgressionRules(input)).toThrow();
+      { maxLevel: 5, defaultBotLevel: 6 },
+      { xpPerLevel: 0 },
+      { xpPerLevel: '100' },
+      { baseStats: null },
+      { perLevelStats: [] },
+      { baseStats: { effect: -1 } },
+      { perLevelStats: { level: 1 } },
+      { unknown: 1 },
+      { maxAwardsPerWindow: 0 },
+    ])
+      expect(() => resolveProgressionRules(input)).toThrow();
     for (const level of [0, -1, 65536, 1.5, null, '2']) expect(() => toEntityMsg({ level })).toThrow();
-  });
-
-  it('uses signed deterministic stats in the procedural pipeline', () => {
-    registerSemantic('stat-contract', { semanticTags: ['test'], paletteHints: [[0, 0, 0, 255]],
-      preferredShapes: {}, layers: {}, itemType: 'weapon' });
-    const options = { itemId: 'stat-contract-test', seed: 'signed-contract', frameCount: 1 };
-    const generated = generateMultiFrame(options).objectLayerData.data.stats;
-    expect(validateStats(generated)).toEqual(generated);
-    expect(generateMultiFrame(options).objectLayerData.data.stats).toEqual(generated);
-    expect(Object.values(generated).some((value) => value < 0)).toBe(true);
-    const samples = Array.from({ length: 8 }, (_, index) =>
-      Object.values(generateMultiFrame({ ...options, seed: 'signed-' + index }).objectLayerData.data.stats)).flat();
-    expect(samples.some((value) => value > 10)).toBe(true);
   });
 
   it('rejects invalid map levels before file cleanup', async () => {
@@ -113,8 +116,17 @@ describe('Cyberia signed stat contract', () => {
     });
     const lookup = vi.spyOn(CyberiaMapModel, 'findById').mockResolvedValue(new CyberiaMapModel({ code: 'level-test' }));
     try {
-      await expect(CyberiaMapService.put({ params: { id: 'test' }, auth: { user: { role: 'admin' } },
-        body: { entities: [{ entityType: 'bot', level: -1 }] } }, {}, {})).rejects.toThrow();
+      await expect(
+        CyberiaMapService.put(
+          {
+            params: { id: 'test' },
+            auth: { user: { role: 'admin' } },
+            body: { entities: [{ entityType: 'bot', level: -1 }] },
+          },
+          {},
+          {},
+        ),
+      ).rejects.toThrow();
       expect(model).toHaveBeenCalledTimes(1);
     } finally {
       model.mockRestore();
@@ -125,9 +137,13 @@ describe('Cyberia signed stat contract', () => {
   // cyberia-server and cyberia-client are gitignored siblings this repo does not contain (see
   // .gitignore); a checkout that only has this repo's own tracked tree has nothing to check.
   // A cold Go module cache compiles buf before the first check.
-  it.skipIf(!hasCyberiaSiblings())('matches generated Go and C contracts', async () => {
-    await generateStatContract({ check: true });
-  }, 600000);
+  it.skipIf(!hasCyberiaSiblings())(
+    'matches generated Go and C contracts',
+    async () => {
+      await generateStatContract({ check: true });
+    },
+    600000,
+  );
 });
 
 describe('Cyberia stats CLI', () => {

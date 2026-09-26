@@ -90,11 +90,6 @@ import { purgeObjectLayers } from '../src/api/object-layer/object-layer.purge.js
 import * as cyberiaStudio from '../src/projects/cyberia/object-layer.extension.js';
 import { consumedApisOf, ownsApi } from '../src/server/domain/consumed-api.js';
 import { validateDomainConf } from '../src/projects/cyberia/domain-ownership.js';
-import {
-  generateMultiFrame,
-  lookupSemantic,
-  semanticRegistry,
-} from '../src/projects/cyberia/semantic-layer-generator.js';
 import { createValkeyConnection } from '../src/db/valkey/Valkey.js';
 import { CacheService } from '../src/server/storage/cache.js';
 import { program as underpostProgram } from '../src/cli/index.js';
@@ -745,12 +740,6 @@ try {
       'Batch import by object layer type from the asset directory, needs --from-directory (e.g. skin,floors or all)',
     )
     .option('--show-frame [direction-frame]', 'View object layer frame for given item-id e.g. 08_0 (default: 08_0)')
-    .option('--generate', 'Generate procedural object layers from semantic item-id (e.g. floor-desert)')
-    .option('--count <count>', 'Shape element count multiplier for --generate (default: 3)', parseFloat)
-    .option('--seed <seed>', 'Deterministic seed string for --generate (e.g. fx-42)')
-    .option('--frame-index <frameIndex>', 'Starting frame index for --generate (default: 0)', parseInt)
-    .option('--frame-count <frameCount>', 'Number of frames to generate for --generate (default: 1)', parseInt)
-    .option('--density <density>', 'Density factor 0..1 for --generate (default: 0.5)', parseFloat)
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--drop', 'Drop existing data before importing (needs --confirm <deploy-id>; never part of a deploy)')
@@ -785,12 +774,6 @@ try {
        * @param {boolean} options.clientPublic - Also remove static asset folders when dropping.
        * @param {boolean} options.gitClean - Run underpost clean on the cyberia asset directory when dropping.
        * @param {boolean} options.dev - Force development environment.
-       * @param {boolean} options.generate - Whether to run procedural generation for the item-id.
-       * @param {number} options.count - Shape element count multiplier for generation.
-       * @param {string} options.seed - Deterministic seed string for generation.
-       * @param {number} options.frameIndex - Starting frame index for generation.
-       * @param {number} options.frameCount - Number of frames to generate.
-       * @param {number} options.density - Density factor 0..1 for generation.
        * @returns {Promise<void>}
        * @memberof CyberiaCLI
        */
@@ -814,12 +797,6 @@ try {
           clientPublic: false,
           gitClean: false,
           dev: false,
-          generate: false,
-          count: 3,
-          seed: '',
-          frameIndex: 0,
-          frameCount: 1,
-          density: 0.5,
         },
       ) => {
         const upscaleFactor = options.upscale ?? DEFAULT_ATLAS_UPSCALE_FACTOR;
@@ -1373,123 +1350,6 @@ try {
           logger.info(
             `Atlas sprite sheet dimensions: ${atlasDoc.metadata.atlasWidth}x${atlasDoc.metadata.atlasHeight}`,
           );
-        }
-
-        // ── Handle --generate ────────────────────────────────────────────
-        if (options.generate) {
-          if (!itemId) {
-            logger.error(
-              'item-id is required for --generate (e.g. floor-desert, floor-grass, floor-water, floor-stone, floor-lava)',
-            );
-            logger.info('Available semantic prefixes: ' + Object.keys(semanticRegistry).join(', '));
-            process.exit(1);
-          }
-
-          const descriptor = lookupSemantic(itemId);
-          if (!descriptor) {
-            logger.error(`No semantic descriptor found for item-id "${itemId}".`);
-            logger.info('Available semantic prefixes: ' + Object.keys(semanticRegistry).join(', '));
-            process.exit(1);
-          }
-
-          const genSeed = options.seed || `gen-${crypto.randomUUID().slice(0, 8)}`;
-          const genCount = options.count || 3;
-          const genFrameIndex = options.frameIndex || 0;
-          const genFrameCount = options.frameCount || 1;
-          const genDensity = options.density != null ? options.density : 0.5;
-
-          // Append a random suffix to make the item-id unique per run
-          const randStr = crypto.randomUUID().slice(0, 8);
-          const uniqueItemId = `${itemId}-${randStr}`;
-
-          logger.info('Generating procedural object layers', {
-            itemId: uniqueItemId,
-            basePrefix: itemId,
-            seed: genSeed,
-            count: genCount,
-            startFrame: genFrameIndex,
-            frameCount: genFrameCount,
-            density: genDensity,
-            semanticTags: descriptor.semanticTags,
-            itemType: descriptor.itemType,
-            layers: Object.keys(descriptor.layers),
-          });
-
-          // 1. Generate multi-frame result (deterministic, temporally coherent)
-          //    Pass the base itemId for semantic lookup, but override the stored
-          //    item.id with uniqueItemId so every run produces a distinct asset.
-          const multiFrameResult = generateMultiFrame({
-            itemId,
-            seed: genSeed,
-            frameCount: genFrameCount,
-            startFrame: genFrameIndex,
-            count: genCount,
-            density: genDensity,
-          });
-
-          // Overwrite the item id in the generated data with the unique variant
-          multiFrameResult.objectLayerData.data.item.id = uniqueItemId;
-          applyStatPolicy(multiFrameResult.objectLayerData, statPolicy);
-
-          logger.info(
-            `Generated ${multiFrameResult.frameCount} frame(s) with ${multiFrameResult.objectLayerRenderFramesData.colors.length} unique colors`,
-          );
-
-          // 2. Write static asset PNGs to both source and public directories
-          const srcBasePath = './src/client/public/cyberia/';
-          const publicBasePath = `./public/${host}${path}`;
-          const writtenFiles = await ObjectLayerEngine.writeStaticFrameAssets({
-            basePaths: [srcBasePath, publicBasePath],
-            itemType: descriptor.itemType,
-            itemId: uniqueItemId,
-            objectLayerRenderFramesData: multiFrameResult.objectLayerRenderFramesData,
-            objectLayerData: multiFrameResult.objectLayerData,
-            cellPixelDim: upscaleFactor,
-          });
-
-          logger.info(`Wrote ${writtenFiles.length} asset file(s):`);
-          for (const f of writtenFiles) {
-            logger.info(`  → ${f}`);
-          }
-
-          // 3. Build the render, publish the definition, and store its render frames and atlas under its cid
-          const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
-            models: models(),
-            objectLayerRenderFramesData: multiFrameResult.objectLayerRenderFramesData,
-            objectLayerData: multiFrameResult.objectLayerData,
-            persistOptions: { upscaleFactor, options: { host, path } },
-          });
-
-          logger.info(`ObjectLayer persisted to MongoDB: ${objectLayer._id} (item: ${objectLayer.data.item.id})`);
-          logger.info(`Content hash: ${objectLayer.contentHash}`);
-          logger.info(`Object Layer CID: ${objectLayer.cid}`);
-
-          // 4. Mirror the upscaled render, else the primary render, into both static asset directories
-          const atlasDoc = await AtlasSpriteSheet.findOne({ objectLayerCid: objectLayer.cid });
-          if (atlasDoc) {
-            const atlasFile = await File.findById(atlasDoc.upscaleFileId ?? atlasDoc.fileId);
-            if (atlasFile?.data) {
-              for (const bp of [srcBasePath, publicBasePath]) {
-                const atlasOutputDir = nodePath.join(bp, 'assets', descriptor.itemType, uniqueItemId);
-                await fs.ensureDir(atlasOutputDir);
-                const atlasOutputPath = nodePath.join(atlasOutputDir, `${uniqueItemId}-atlas.png`);
-                await fs.writeFile(atlasOutputPath, atlasFile.data);
-                logger.info(
-                  `Atlas sprite sheet written: ${atlasDoc.metadata.atlasWidth}x${atlasDoc.metadata.atlasHeight} cells → ${atlasOutputPath}`,
-                );
-              }
-            }
-          }
-
-          logger.info(`✓ Generation complete for "${uniqueItemId}" (seed: ${genSeed}, frames: ${genFrameCount})`);
-
-          // Log per-layer summary
-          if (multiFrameResult.frames.length > 0) {
-            const firstFrame = multiFrameResult.frames[0];
-            for (const layer of firstFrame.layers) {
-              logger.info(`  Layer "${layer.layerKey}" (${layer.layerId}): ${layer.keys.length} element(s)`);
-            }
-          }
         }
 
         await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
@@ -5275,47 +5135,6 @@ node bin image --path cyberia-client \
       }
 
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-    });
-
-  runner
-    .command('generate-semantic-examples')
-    .option('--seed <seed>', 'Base seed string (each type gets a unique suffix appended)', 'example')
-    .option('--frame-count <frameCount>', 'Number of frames to generate per item (default: 4)', parseInt)
-    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
-    .option('--dev', 'Force development environment')
-    .description('Generate one procedural example of every registered semantic prefix')
-    .action(async (options) => {
-      const SEMANTIC_TYPES = [
-        // 'floor-desert',
-        // 'floor-grass',
-        // 'floor-water',
-        // 'floor-stone',
-        // 'floor-lava',
-        'skin-random',
-        'skin-dark',
-        'skin-light',
-        'skin-vivid',
-        'skin-natural',
-        'skin-shaved',
-      ];
-
-      const baseSeed = options.seed || 'example';
-      const frameCount = options.frameCount || 2;
-      const envFlag = options.envPath ? ` --env-path ${options.envPath}` : '';
-      const devFlag = options.dev ? ' --dev' : '';
-
-      logger.info(
-        `Generating ${SEMANTIC_TYPES.length} semantic examples (seed base: "${baseSeed}", frames: ${frameCount})`,
-      );
-
-      for (const prefix of SEMANTIC_TYPES) {
-        const seed = `${baseSeed}-${prefix}`;
-        const cmd = `node bin/cyberia ol ${prefix} --generate --seed ${seed} --frame-count ${frameCount}${envFlag}${devFlag}`;
-        logger.info(`  → ${cmd}`);
-        shellExec(cmd);
-      }
-
-      logger.info('All semantic examples generated.');
     });
 
   // Instance id → project root. Single source of truth for the workloads this

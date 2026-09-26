@@ -13,13 +13,13 @@ node bin/cyberia.js <command> [subcommand] [options]
 cyberia <command> [subcommand] [options]
 ```
 
-| Command        | Purpose                                                               |
-| -------------- | --------------------------------------------------------------------- |
-| `ol`           | object-layer content import, procedural generation, atlas/sprite work |
-| `instance`     | export / import / drop a Cyberia instance and its related documents   |
-| `client-hints` | per-instance presentation hints (palette, camera, status icons)       |
-| `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle      |
-| `run-workflow` | named operational scripts (seed defaults, build manifests/dashboard)  |
+| Command        | Purpose                                                              |
+| -------------- | -------------------------------------------------------------------- |
+| `ol`           | object-layer content import, atlas/sprite work                       |
+| `instance`     | export / import / drop a Cyberia instance and its related documents  |
+| `client-hints` | per-instance presentation hints (palette, camera, status icons)      |
+| `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle     |
+| `run-workflow` | named operational scripts (seed defaults, build manifests/dashboard) |
 
 Most data commands resolve the target DB from `DEFAULT_DEPLOY_ID` / `DEFAULT_DEPLOY_HOST` /
 `DEFAULT_DEPLOY_PATH` in the `--env-path` file (default `./.env`). Without that file, they come from the
@@ -30,7 +30,7 @@ process environment, as in a pod, which receives its environment from a Secret. 
 
 ## `cyberia ol` — object layer
 
-Import PNG assets, generate procedural layers, build atlas sprite sheets, push to IPFS + MongoDB.
+Import PNG assets, build atlas sprite sheets, push to IPFS + MongoDB.
 
 ```bash
 cyberia ol [item-id] [options]
@@ -42,9 +42,6 @@ cyberia ol [item-id] [options]
 | `--instance <code>`                                   | Source `--import` from that instance backup under `engine-private`             |
 | `--from-directory`                                    | Source `--import` / `--import-types` from the asset directory                  |
 | `--import-types [types]`                              | Batch import by type (e.g. `skin,floors`) or `all`; needs `--from-directory`   |
-| `--generate`                                          | Generate procedural layers from a semantic item-id (e.g. `floor-desert`)       |
-| `--count <n>` / `--density <0..1>`                    | Shape count multiplier (default `3`) / density (default `0.5`)                 |
-| `--seed <seed>`                                       | Deterministic seed for `--generate` (e.g. `fx-42`)                             |
 | `--frame-index <n>` / `--frame-count <n>`             | Start frame (default `0`) / frame count (default `1`)                          |
 | `--to-atlas-sprite-sheet [dim]`                       | Rebuild the render and publish the definitions that name it                    |
 | `--sync-derived`                                      | Derive the upscaled render and the idle preview again; `--instance` narrows it |
@@ -69,10 +66,6 @@ cyberia ol hatchet,sword --from-directory --import --env-path ./engine-private/c
 # Batch import by type, or everything, from the asset directory
 cyberia ol --from-directory --import-types skin,floors
 cyberia ol --from-directory --import-types all
-
-# Procedural generation
-cyberia ol floor-desert --generate --seed fx-42
-cyberia ol floor-grass  --generate --frame-count 4 --count 5 --density 0.7
 
 # Atlas / inspect
 cyberia ol hatchet --to-atlas-sprite-sheet
@@ -559,21 +552,19 @@ See [the development cache](../how-to/develop-content-locally.md#cache).
 
 Named scripts from the `scripts/` directory for seeding and build maintenance.
 
-| Subcommand                   | Description                                                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `import-default-items`       | Import the saga, then the backups of `amethyst-strata-expansion`, `FOREST` and `TEST`; `--clean --confirm <deploy-id>` drops instead |
-| `seed-skills`                | Upsert `DefaultSkillConfig` into the `cyberia-skill` collection (full records)                                                       |
-| `seed-dialogues`             | Upsert `DefaultCyberiaDialogues` into the `cyberia-dialogue` collection                                                              |
-| `generate-semantic-examples` | Generate one procedural example per registered semantic prefix                                                                       |
-| `build-manifest`             | Build K8s Deployment + Service manifests for mmo-client / mmo-server                                                                 |
-| `validate-domains`           | Check API ownership, content partitions, views and components (`--env production`)                                                   |
-| `drop-db`                    | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`                                                          |
-| `build-server-dashboard`     | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                                  |
+| Subcommand               | Description                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `import-default-items`   | Import the saga, then the backups of `amethyst-strata-expansion`, `FOREST` and `TEST`; `--clean --confirm <deploy-id>` drops instead |
+| `seed-skills`            | Upsert `DefaultSkillConfig` into the `cyberia-skill` collection (full records)                                                       |
+| `seed-dialogues`         | Upsert `DefaultCyberiaDialogues` into the `cyberia-dialogue` collection                                                              |
+| `build-manifest`         | Build K8s Deployment + Service manifests for mmo-client / mmo-server                                                                 |
+| `validate-domains`       | Check API ownership, content partitions, views and components (`--env production`)                                                   |
+| `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`                                                          |
+| `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                                  |
 
 ```bash
 cyberia run-workflow import-default-items --dev
 cyberia run-workflow seed-skills
-cyberia run-workflow generate-semantic-examples
 cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard
 ```
