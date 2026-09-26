@@ -239,16 +239,7 @@ class CssUnderpostDark {
   static dark = true;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (
-      (await CssCommonUnderpost()) +
-      html`
-        <style>
-          .action-bar-box {
-            color: white;
-          }
-        </style>
-      `
-    );
+    return (await CssCommonUnderpost()) + html` <style></style> `;
   };
 }
 
