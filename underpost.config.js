@@ -9,7 +9,6 @@ const DefaultConf = /**/ {
         author: 'https://github.com/underpostnet',
         thumbnail: 'android-chrome-384x384.png',
         themeColor: '#ececec',
-        pwaAssetsPath: '',
       },
       components: {
         core: [
@@ -154,7 +153,7 @@ const DefaultConf = /**/ {
   },
   ssr: {
     Default: {
-      head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
+      head: ['Seo', 'PwaDefault', 'Css', 'DefaultScripts'],
       body: ['CacheControl', 'DefaultSplashScreen', '404', '500', 'SwaggerDarkMode'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       views: [

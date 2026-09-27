@@ -863,12 +863,14 @@ const buildClient = async (
       }
 
       if (!ssrOnly && views) {
-        if (!(
-          enableLiveRebuild &&
-          !options.liveClientBuildPaths.find(
-            (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+        if (
+          !(
+            enableLiveRebuild &&
+            !options.liveClientBuildPaths.find(
+              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+            )
           )
-        ))
+        )
           for (const view of views) {
             const buildPath = `${
               rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -895,10 +897,6 @@ const buildClient = async (
             let ssrHeadComponents = ``;
             let ssrBodyComponents = ``;
             if ('ssr' in view) {
-              // https://metatags.io/
-              if (process.env.NODE_ENV === 'production' && !confSSR[view.ssr].head.includes('Production'))
-                confSSR[view.ssr].head.unshift('Production');
-
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
                 const SSRComponent = await ssrFactory(`./src/client/ssr/head/${ssrHeadComponent}.js`);
 

@@ -1,0 +1,101 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "CYBERIA",
+    "alternateName": "Cyberia Online",
+    "url": "https://www.cyberiaonline.com/",
+    "description": "Browser massively multiplayer online role-playing game: a real-time tap-based sandbox pixel art universe. Cyberia owns the runtime, the Game Studio, the Cyberia Engine and the Cyberia CLI. Open Alpha.",
+    "genre": ["MMORPG", "Sandbox"],
+    "playMode": "MultiPlayer",
+    "gamePlatform": "Web browser",
+    "applicationCategory": "Game",
+    "operatingSystem": ["Linux", "MacOS", "Windows", "Android", "iOS"],
+    "browserRequirements": "Requires JavaScript. Requires HTML5.",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD",
+      "url": "https://www.cyberiaonline.com/"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "gameServer": {
+      "@type": "GameServer",
+      "name": "CYBERIA",
+      "url": "https://www.cyberiaonline.com/"
+    },
+    "softwareHelp": {
+      "@type": "CreativeWork",
+      "name": "Cyberia documentation",
+      "url": "https://www.cyberiaonline.com/docs?cid=guide&doc=cyberia/overview/index"
+    },
+    "keywords": "cyberia, MMORPG, browser game, sandbox, pixel art, free to play",
+    "image": "https://www.cyberiaonline.com/assets/splash/CYBERIA.jpg",
+    "inLanguage": "en"
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Cyberia",
+    "url": "https://www.cyberiaonline.com/",
+    "logo": "https://www.cyberiaonline.com/assets/splash/android-chrome-512x512.png",
+    "description": "The domain that owns the game runtime, the Game Studio, the Cyberia Engine and CLI, world content and item bindings.",
+    "sameAs": ["https://github.com/underpost"],
+    "parentOrganization": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Cyberia?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Cyberia is a real-time tap-based sandbox MMORPG that runs in the browser, together with the tooling that produces it: the Game Studio, the Cyberia Engine and the Cyberia CLI."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What do I need to play?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A browser with JavaScript and HTML5. There is nothing to install, and the game is free to play."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I own my items on a blockchain?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Not yet. Cyberia is Open Alpha and its economy is off-chain: inventory, quests and coin balance are progress state. On-chain ownership is ItemLedger's, and it opens in a later phase."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Where does Cyberia content come from?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "From the Object Layer. Cyberia authors definitions through the Studio, but the canonical copy is written at the Object Layer authority, and Cyberia binds an item label to it."
+        }
+      }
+    ]
+  }
+]

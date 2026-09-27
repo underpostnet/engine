@@ -22,7 +22,7 @@ Each deploy's `conf.ssr.json` (or the public `ssr` block in `underpost.config.dd
 ```js
 ssr: {
   Default: {
-    head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
+    head: ['Seo', 'PwaDefault', 'Css', 'DefaultScripts', 'Production'],
     body: ['CacheControl', 'DefaultSplashScreen', '404', '500', 'SwaggerDarkMode'],
     mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
     views: [

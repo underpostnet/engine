@@ -1,0 +1,130 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Underpost",
+    "alternateName": "Underpost Platform",
+    "url": "https://underpost.net",
+    "logo": "https://underpost.net/assets/splash/android-chrome-256x256.png",
+    "image": "https://underpost.net/assets/banner/underpost-social.jpg",
+    "description": "The base platform and the engineering lineage every other domain is built on: the shared Underpost CLI, the deployment surface, the PWA delivery model and the operational infrastructure.",
+    "sameAs": ["https://github.com/underpost", "https://github.com/underpostnet"],
+    "subOrganization": [
+      {
+        "@type": "Organization",
+        "name": "Object Layer",
+        "url": "https://objectlayer.org"
+      },
+      {
+        "@type": "Organization",
+        "name": "ItemLedger",
+        "url": "https://itemledger.com"
+      },
+      {
+        "@type": "Organization",
+        "name": "Cyberia",
+        "url": "https://www.cyberiaonline.com/"
+      },
+      {
+        "@type": "Organization",
+        "name": "CryptoKoyn",
+        "url": "https://cryptokoyn.net"
+      },
+      {
+        "@type": "Organization",
+        "name": "Nexodev",
+        "url": "https://www.nexodev.org"
+      }
+    ]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Underpost Platform",
+    "url": "https://underpost.net",
+    "description": "Tech lab for infrastructure, orchestration and runtime: the engineering log, the development journal, the laboratory notes and the architecture decisions of the platform.",
+    "inLanguage": "en",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Underpost CLI",
+    "url": "https://underpost.net",
+    "description": "The shared toolchain of the platform: build, deploy, release, metadata, secrets and environment selection, over baremetal, LXD, Kubernetes and container images.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Linux",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "codeRepository": "https://github.com/underpostnet/engine",
+    "installUrl": "https://www.npmjs.com/package/underpost",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpost",
+      "sameAs": ["https://underpost.net"]
+    },
+    "featureList": [
+      "Cluster lifecycle over Kubernetes, K3s and kubeadm",
+      "Baremetal, LXD, SSH and image management",
+      "Build, release and deployment of PWA and SSR clients",
+      "Data operations: MongoDB, backups, cron and monitoring"
+    ],
+    "keywords": "underpost, CLI, infrastructure, orchestration, Kubernetes, LXD, CI/CD, containers, PWA, SSR",
+    "inLanguage": "en"
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Underpost?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Underpost is the base platform of the ecosystem. It owns the shared CLI, the deployment surface, the PWA delivery model and the operational infrastructure. Object Layer, ItemLedger, Cyberia, CryptoKoyn and Nexodev all run on it."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does this domain record?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "How the platform is built and why: the engineering history and development journal, laboratory notes of experiments and investigations, and the Architecture Decision Records."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does Underpost not own?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Product features, which each product domain owns; operational procedures, which Nexodev documents; and protocol semantics, which Object Layer owns."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What state is the platform in?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Engineering and continuous. The platform is under active development and its engineering record grows with it."
+        }
+      }
+    ]
+  }
+]
