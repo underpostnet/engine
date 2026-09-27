@@ -168,14 +168,17 @@ StatusActionProvider    = 8  // NPC with available actions (bouncing chat icon)
 
 ## Per-EntityType Defaults
 
-Instance configuration (`CyberiaInstanceConf`) defines canonical defaults per entity type:
+Every entity type resolves against a default build. The foundation baseline supplies one per entity
+type ([Content artifact](content-artifact.md#document-families)); an instance conf references
+`CyberiaEntityTypeDefault` documents that replace the baseline for the types they cover:
 
-| Field         | Description                                                                       |
-| ------------- | --------------------------------------------------------------------------------- |
-| `liveItemIds` | ObjectLayer item IDs applied when entity is alive with no explicit items assigned |
-| `deadItemIds` | ObjectLayer item IDs for dead/ghost/respawning state                              |
-| `dropItemIds` | Items granted to the extractor when a resource entity is depleted                 |
-| `colorKey`    | Named palette color used as solid fallback when no active OL texture is available |
+| Field               | Description                                                                       |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `liveItemIds`       | ObjectLayer item IDs applied when entity is alive with no explicit items assigned |
+| `deadItemIds`       | ObjectLayer item IDs for dead/ghost/respawning state                              |
+| `dropItemIds`       | Items granted to the extractor when a resource entity is depleted                 |
+| `inventoryItemsIds` | Items the entity carries that no lifecycle state activates                        |
+| `behavior`          | Runtime behavior of a bot: passive, hostile, provider or provider-static          |
 
 ---
 

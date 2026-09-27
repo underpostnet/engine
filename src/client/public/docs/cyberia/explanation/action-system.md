@@ -276,22 +276,6 @@ freeze, so there is never a thawed frame between them.
 
 ---
 
-## Fallback World mission instantiation
-
-The default mission system is playable in the procedural **Fallback World**.
-`DefaultCyberiaActions` carry `sourceMapCode` / `sourceCellX` / `sourceCellY`
-(all on `fallback-map-0`), and the world generator's
-`generateActionProviderBots()` places one passive NPC bot per action at those
-exact cells (skin = `provideItemId`, zero spawn/aggro radius). The fallback map
-builder reserves those cells (dropping any overlapping obstacle) so the NPCs
-always stand on walkable ground. The Go server then binds each bot back to its
-action by `sourceMapCode + sourceCellX + sourceCellY` at instance init and keeps
-an **ephemeral** per-session `CyberiaQuestProgress` (no persistence) — matching
-the ROADMAP Road-to-Alpha-Open contract. `scp-2040` kill targets spawn from the
-random bot pool, so the intro quest's talk → collect → kill loop is reachable.
-
----
-
 ## Spatial Binding and Instance Init
 
 `sourceMapCode + sourceCellX + sourceCellY` links an Action to a specific entity cell in a specific map. During instance initialization:
@@ -354,9 +338,9 @@ The C client fetches the full `code` group sorted by `order`, then renders lines
 
 ```json
 {
-  "code": "loc-fallback-map-0-18-16",
+  "code": "TEST-loc-fallback-map-0-18-16",
   "label": "Punk",
-  "sourceMapCode": "fallback-map-0",
+  "sourceMapCode": "TEST-map-0",
   "sourceCellX": 18,
   "sourceCellY": 16,
   "dialogCode": "default-punk",
@@ -367,8 +351,5 @@ The C client fetches the full `code` group sorted by `order`, then renders lines
 }
 ```
 
-This is the vendor shipped in the canonical defaults
-(`DefaultCyberiaActions`): the `punk`-skinned NPC on `fallback-map-0` at
-(18, 16) sells `tim-knife` for 10 coins. `bin/cyberia run-workflow
-seed-actions-quests` upserts it; the procedural fallback world serves it
-unpersisted.
+This is a vendor of the `TEST` instance: the `punk`-skinned NPC on
+`TEST-map-0` at (18, 16) sells `tim-knife` for 10 coins.

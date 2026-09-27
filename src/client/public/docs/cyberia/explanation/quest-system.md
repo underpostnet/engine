@@ -10,7 +10,7 @@ The Quest System is a **chain/tree-structured progression framework** linking NP
 
 Quests are defined server-side as MongoDB documents and delivered to the client through the Engine REST API. Progress is tracked per-player in `CyberiaQuestProgress` documents.
 
-> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/v1/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/v1/cyberia-quest/code/:code` (which falls back to the canonical defaults so the procedural fallback world is playable without a seed).
+> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/v1/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/v1/cyberia-quest/code/:code`.
 
 ---
 
@@ -20,7 +20,7 @@ Quests are defined server-side as MongoDB documents and delivered to the client 
 
 ```
 CyberiaQuest {
-  code:              String   // stable slug, e.g. "fallback-intro-quest"
+  code:              String   // stable slug, e.g. "TEST-bounty-quest-alpha"
   title:             String
   description:       String
 

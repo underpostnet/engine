@@ -130,11 +130,16 @@ without a restart. The WASM client runs with `wasm-driver.py --data-server-url=h
    node bin/cyberia instance FOREST --import --dev
    ```
 
-   The source is `engine-private/cyberia-instances/FOREST`. The import upserts into the workspace
+   The source is the `FOREST` backup of the content artifact: build it first with
+   `node bin/cyberia-content.js build` in `./cyberia-content`. The import upserts into the workspace
    and keeps the documents' ids. Each Object Layer of the backup is published at the local
    authority: the canonical definition lands in the `objectlayer` database, the workspace keeps a
    `cache` copy and the `itemId → olCid` binding. Nothing is dropped first. The import is not a
    release and promotes nothing.
+
+   To build a world from the foundation, import it with `node bin/cyberia content import --dev`.
+   Every foundation map arrives with its entities unplaced, and every item without render. In the
+   Studio, paint the items and place the entities.
 
 5. Create or update Object Layers. Use the Studio at `http://localhost:4008/object-layer-engine`
    (sign in as a moderator), or the CLI: `node bin/cyberia ol <item-id> --from-directory --import --dev`.
