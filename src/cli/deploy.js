@@ -836,7 +836,7 @@ ${Underpost.deploy
             }
           }
           fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/pv-pvc.yaml`, volumeYaml, 'utf8');
-        }
+        } else fs.removeSync(`./engine-private/conf/${deployId}/build/${env}/pv-pvc.yaml`);
 
         let proxyYaml = '';
         let secretYaml = '';

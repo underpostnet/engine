@@ -134,7 +134,7 @@ class UnderpostImage {
       const secretArgs = secretFlags.length ? ` ${secretFlags.join(' ')}` : '';
       if (secretFlags.length) logger.info('Passing host credentials as build secrets', { ids: secretFlags.length });
 
-      // Non-secret build args (e.g. INSTANCE_CODES for engine-cyberia): injected
+      // Non-secret build args: injected
       // dynamically from `options.buildArgs`, overriding the Dockerfile's ARG
       // defaults. Unlike secrets these DO persist in image metadata, so only
       // non-sensitive values belong here.

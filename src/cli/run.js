@@ -3122,39 +3122,7 @@ EOF`);
       for (const deployId of deployList) {
         const deployFlags =
           `--${clusterType}${env === 'production' ? ' --cert' : ' --self-signed'}${gatewayApiFlags}` +
-          `${options.namespace ? ` --namespace ${options.namespace}` : ''}` +
-          (deployId === 'dd-cyberia'
-            ? ` --image 'underpost/engine-cyberia:${version}'  \
-                --versions blue \
-                --image-pull-policy Always \
-                --cmd 'cd /home/dd/engine, \
-                underpost clone underpostnet/engine-cyberia, \
-                mkdir -p /home/dd/engine/src/client/public/itemledger \
-                  /home/dd/engine/src/client/public/objectlayer \
-                  /home/dd/engine/src/client/public/cryptokoyn \
-                  /home/dd/engine/src/client/components/cryptokoyn \
-                  /home/dd/engine/src/client/components/itemledger \
-                  /home/dd/engine/src/client/components/objectlayer \
-                  /home/dd/engine/hardhat, \
-                cp -a ./engine-cyberia/src/client/public/itemledger/. /home/dd/engine/src/client/public/itemledger/, \
-                cp -a ./engine-cyberia/src/client/public/objectlayer/. /home/dd/engine/src/client/public/objectlayer/, \
-                cp -a ./engine-cyberia/src/client/public/cryptokoyn/. /home/dd/engine/src/client/public/cryptokoyn/, \
-                cp -a ./engine-cyberia/src/client/components/cryptokoyn/. /home/dd/engine/src/client/components/cryptokoyn/, \
-                cp -a ./engine-cyberia/src/client/components/itemledger/. /home/dd/engine/src/client/components/itemledger/, \
-                cp -a ./engine-cyberia/src/client/components/objectlayer/. /home/dd/engine/src/client/components/objectlayer/, \
-                cp -a ./engine-cyberia/src/client/Itemledger.index.js /home/dd/engine/src/client/Itemledger.index.js, \
-                cp -a ./engine-cyberia/src/client/Objectlayer.index.js /home/dd/engine/src/client/Objectlayer.index.js, \
-                cp -a ./engine-cyberia/src/client/Cryptokoyn.index.js /home/dd/engine/src/client/Cryptokoyn.index.js, \
-                rm -rf ./engine-cyberia, \
-                sudo rm -rf ./engine-private/, \
-                node bin clone underpostnet/engine-cyberia-private, \
-                sudo mv ./engine-cyberia-private ./engine-private, \
-                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
-                sudo chown -R dd:dd /home/dd/engine/src/client/public/cyberia, \
-                node bin app load --env ${env} --args deploy-id=dd-cyberia, \
-                node bin client dd-cyberia ${env}, \
-                node bin start dd-cyberia ${env} --run'`
-            : '');
+          `${options.namespace ? ` --namespace ${options.namespace}` : ''}`;
         deployFlagsById[deployId] = deployFlags;
         // SSR status and context documents belong to the ingress bootstrap, so
         // build them on the host before any workload Deployment is submitted.

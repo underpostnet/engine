@@ -724,11 +724,9 @@ describe('private conf sync', () => {
     vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
     vi.spyOn(fs, 'removeSync').mockImplementation((target) => calls.push(`remove ${target}`));
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => calls.push(`copy ${src} -> ${dest}`));
-    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core', ['cyberia-instances/TEST']));
-    const remove = calls.indexOf('remove ../engine-core-private/cyberia-instances/TEST');
-    const copy = calls.indexOf(
-      'copy ./engine-private/cyberia-instances/TEST -> ../engine-core-private/cyberia-instances/TEST',
-    );
+    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core', ['payloads/TEST']));
+    const remove = calls.indexOf('remove ../engine-core-private/payloads/TEST');
+    const copy = calls.indexOf('copy ./engine-private/payloads/TEST -> ../engine-core-private/payloads/TEST');
     expect(remove).to.be.greaterThan(-1);
     expect(copy).to.be.greaterThan(remove);
   });

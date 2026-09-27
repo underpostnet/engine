@@ -75,25 +75,7 @@ spec:
             }
 
 
-    
-          volumeMounts:
-            - name: vol-public-dd-cyberia-dd-cyberia-development-blue
-              mountPath: /home/dd/engine/src/client/public/cyberia
-    
-            - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
-              mountPath: /home/dd/engine/src/client/public/underpost
-    
-      volumes:
-        - name: vol-public-dd-cyberia-dd-cyberia-development-blue
-          persistentVolumeClaim:
-            claimName: pvc-public-dd-cyberia-dd-cyberia-development-blue
-    
-      
-        - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
-          persistentVolumeClaim:
-            claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-blue
-    
-      
+
 ---
 apiVersion: v1
 kind: Service

@@ -49,7 +49,7 @@ describe('command capability classification', () => {
       'cluster:write',
     );
     expect(classifyCommand('cd /home/dd && git add . && kubectl apply -f x.yaml')).to.equal('cluster:write');
-    expect(classifyCommand('cd /home/dd/cyberia-instances && git status')).to.equal('git');
+    expect(classifyCommand('cd /home/dd/cyberia-deployment && git status')).to.equal('git');
   });
 
   it('reads a heredoc as data, not as a pipeline', () => {
@@ -67,7 +67,7 @@ describe('command capability classification', () => {
 
   it('lets nested engine invocations through so a profile can reach its own stages', () => {
     expect(classifyCommand('node bin deploy --build-manifest dd development')).to.equal('fs');
-    expect(classifyCommand('cd /x && underpost pull . underpostnet/cyberia-instances')).to.equal('fs');
+    expect(classifyCommand('cd /x && underpost pull . underpostnet/cyberia-deployment')).to.equal('fs');
   });
 
   it('never returns a capability outside the declared set', () => {

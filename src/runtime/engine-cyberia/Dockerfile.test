@@ -37,25 +37,10 @@ WORKDIR /home/dd
 # then every credential/secret/VCS trace is removed BEFORE this layer commits.
 RUN --mount=type=secret,id=github_token \
     --mount=type=secret,id=github_username \
-    --mount=type=secret,id=cloudinary_cloud_name \
-    --mount=type=secret,id=cloudinary_api_key \
-    --mount=type=secret,id=cloudinary_api_secret \
     set -eu; \
     export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
     export GITHUB_USERNAME="$(cat /run/secrets/github_username)"; \
-    # Cloudinary creds power the `node bin fs --pull` asset downloads below; they
-    # are optional (empty when not provided) so builds that don't need assets
-    # still work.
-    export CLOUDINARY_CLOUD_NAME="$(cat /run/secrets/cloudinary_cloud_name 2>/dev/null || true)"; \
-    export CLOUDINARY_API_KEY="$(cat /run/secrets/cloudinary_api_key 2>/dev/null || true)"; \
-    export CLOUDINARY_API_SECRET="$(cat /run/secrets/cloudinary_api_secret 2>/dev/null || true)"; \
-    \
-    # --- fetch sources under our control, then build WITHOUT itc-scripts -----
-    # itc-scripts are DEPLOY-time provisioning; the DB-seeding parts (content
-    # release builds) and the in-cluster .env rewrite cannot run
-    # in a hermetic build, so we strip the scripts and replay ONLY the build-safe
-    # provisioning steps inline (asset pulls, ffmpeg, hardhat deps). Pre-clone so
-    # privateEngineRepoFactory no-ops and --skip-pull-base reuses the tree.
+    # Install build dependencies without deployment provisioning.
     export ENGINE_CYBERIA_REPO="engine-cyberia"; \
     cd /home/dd; \
     underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
@@ -67,17 +52,26 @@ RUN --mount=type=secret,id=github_token \
     underpost clone "$GITHUB_USERNAME/engine-cyberia-private"; \
     mv ./engine-cyberia-private ./engine-private; \
     rm -rf ./engine-private/itc-scripts; \
+    cd /home/dd; \
+    underpost clone "$GITHUB_USERNAME/cyberia-deployment"; \
+    # The content artifact the deployment locks: cyberia-content at the locked source revision,
+    # packed by cyberia-content itself. The packed copy holds data only: nothing writes into it.
+    underpost clone "$GITHUB_USERNAME/cyberia-content"; \
+    git -C ./cyberia-content checkout --detach \
+      "$(node -p "require('/home/dd/cyberia-deployment/content-lock.json').sourceRevision")"; \
+    ( cd ./cyberia-content && npm ci && node bin/cyberia-content.js pack ); \
+    mkdir -p /home/dd/engine/cyberia-content; \
+    tar -xzf ./cyberia-content/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
+    rm -rf ./cyberia-content; \
+    cd /home/dd/engine; \
     \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
+    # The content artifact must be the one the deployment locks: same version, source revision
+    # and digest. A mismatch fails the build.
+    node bin/cyberia content status --lock /home/dd/cyberia-deployment/content-lock.json; \
+    rm -rf /home/dd/cyberia-deployment; \
     node bin app load --env development --args deploy-id=dd-cyberia; \
-    node bin fs --pull --tracked --deploy-id dd-cyberia --storage-id engine-cyberia; \
-    # The underpost host takes only what its PWA serves: the manifest, the icons and the two
-    # image sets its shell and its metadata name. The gif bank and the backgrounds are
-    # decorative weight no host requests.
-    for _p in assets/splash assets/img assets/banner browserconfig.xml favicon.ico site.webmanifest sitemap; do \
-      node bin fs src/client/public/underpost/"$_p" --pull --tracked --deploy-id dd-cyberia --storage-id underpost; \
-    done; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     \
     # --- build the client bundle (assets are now in place) --------------------
@@ -93,7 +87,6 @@ RUN --mount=type=secret,id=github_token \
     \
     # --- drop build-only / non-runtime private material ----------------------
     rm -rf /home/dd/engine/engine-private/itc-scripts; \
-    rm -rf /home/dd/engine/engine-private/cyberia-instances/FOREST; \
     rm -rf /home/dd/engine/engine-private/logs; \
     rm -rf "$CONF/build" "$CONF/instances"; \
     rm -rf "$CONF/conf.instances.json"; \
@@ -104,12 +97,12 @@ RUN --mount=type=secret,id=github_token \
     \
     # --- CREDENTIAL SCRUB (defense in depth, while secrets are still in scope) -
     # 1) Redact every real secret value from any file it may have reached.
-    for _secret in "$GITHUB_TOKEN" "$CLOUDINARY_API_SECRET" "$CLOUDINARY_API_KEY"; do \
+    for _secret in "$GITHUB_TOKEN"; do \
       [ -n "$_secret" ] || continue; \
       grep -rlF --exclude-dir=node_modules --exclude-dir=.git "$_secret" /home/dd/engine 2>/dev/null \
         | xargs -r sed -i "s#${_secret}#__REDACTED__#g" || true; \
     done; \
-    unset GITHUB_TOKEN GITHUB_USERNAME CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET; \
+    unset GITHUB_TOKEN GITHUB_USERNAME; \
     # 2) Every .git dir — clone URLs embed the token in .git/config, and the
     #    private history itself must not ship.
     find /home/dd/engine -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true; \

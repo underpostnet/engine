@@ -19,9 +19,6 @@ POD_SRC_PRIVATE_REPO="$(pod_private_repo "$DEPLOY_ID")"
 CYBERIA_SERVER_REPO="${CYBERIA_SERVER_REPO:-underpostnet/cyberia-server}"
 CYBERIA_CLIENT_REPO="${CYBERIA_CLIENT_REPO:-underpostnet/cyberia-client}"
 
-CYBERIA_ASSETS=src/client/public/cyberia
-UNDERPOST_ASSETS=src/client/public/underpost
-
 # Bundle mode: the host builds the client once and uploads the zip parts, and the pod restores
 # that artifact instead of compiling the client itself. Set BUNDLE_MODE=0 to have the pod build
 # from source.
@@ -31,9 +28,10 @@ BUNDLE_SPLIT="${BUNDLE_SPLIT:-8}"
 # it, and the pod would then load whatever conf the image carried.
 POD_SRC_PRIVATE_DIR="${POD_SRC_PRIVATE_REPO##*/}"
 
-# The instances every content release carries, and the release id: the engine version plus the
-# source commit, so one release names one build. CONTENT_RELEASE_ID overrides it.
-CONTENT_INSTANCES="${CONTENT_INSTANCES:-amethyst-strata-expansion,FOREST,TEST}"
+# The instances a content release carries: every instance of the content artifact, unless
+# CONTENT_INSTANCES names a subset. The release id: the engine version plus the source commit, so
+# one release names one build. CONTENT_RELEASE_ID overrides it.
+CONTENT_INSTANCES="${CONTENT_INSTANCES:-}"
 CONTENT_RELEASE_ID="${CONTENT_RELEASE_ID:-}"
 # Retired releases kept for rollback beyond the previous one.
 CONTENT_RELEASES_KEEP="${CONTENT_RELEASES_KEEP:-2}"
@@ -62,32 +60,6 @@ stage_sources() {
     prepare_host "$ENGINE_ROOT"
     sync_checkout "$CYBERIA_SERVER_REPO" "$ENGINE_ROOT"
     sync_checkout "$CYBERIA_CLIENT_REPO" "$ENGINE_ROOT"
-
-    deploy_step "Clean cyberia public assets" \
-        sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin run clean $CYBERIA_ASSETS"
-    deploy_step "Clean underpost public assets" \
-        sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin run clean $UNDERPOST_ASSETS"
-    deploy_step "Initialize cyberia assets repository" \
-        sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin cmt $CYBERIA_ASSETS --init-repo"
-    deploy_step "Initialize underpost assets repository" \
-        sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin cmt $UNDERPOST_ASSETS --init-repo"
-    deploy_step "Pull cyberia public assets" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin fs $CYBERIA_ASSETS --deploy-id $DEPLOY_ID --pull --tracked"
-    deploy_step "Pull underpost public assets" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin fs $UNDERPOST_ASSETS --deploy-id $DEPLOY_ID --pull --tracked --storage-id underpost"
-
-    if [ "$(has_changes $CYBERIA_ASSETS "$ENGINE_ROOT")" = "1" ]; then
-        deploy_step "Commit cyberia public assets" \
-            sudo -n -- /bin/bash -lc \
-            "cd $ENGINE_ROOT && git -C $CYBERIA_ASSETS add . && node bin cmt $CYBERIA_ASSETS feat 'Update cyberia public assets'"
-    fi
-    if [ "$(has_changes $UNDERPOST_ASSETS "$ENGINE_ROOT")" = "1" ]; then
-        deploy_step "Commit underpost public assets" \
-            sudo -n -- /bin/bash -lc \
-            "cd $ENGINE_ROOT && git -C $UNDERPOST_ASSETS add . && node bin cmt $UNDERPOST_ASSETS feat 'Update underpost public assets'"
-    fi
 }
 
 # ── Stage B — Immutable build artifacts ───────────────────────────────────────────────────
@@ -196,7 +168,7 @@ stage_readiness() {
 # active yet, so a first deploy never serves an empty world.
 stage_content_candidate() {
     deploy_step "Build content release $CONTENT_RELEASE_ID" \
-        content_release_exec build "$CONTENT_RELEASE_ID" --bootstrap --instances "$CONTENT_INSTANCES"
+        content_release_exec build "$CONTENT_RELEASE_ID" --bootstrap ${CONTENT_INSTANCES:+--instances "$CONTENT_INSTANCES"}
     deploy_step "Content release $CONTENT_RELEASE_ID validated" \
         content_release_expect_status "$CONTENT_RELEASE_ID" validated active
 }

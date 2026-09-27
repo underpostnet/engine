@@ -19,9 +19,6 @@
 /prometheus_data
 /grafana_data
 /images
-/src/client/public/cyberia
-/src/client/public/underpost
-/src/client/public/doc/.gitignore/engine
 /volume
 .cache
 .nyc_output
@@ -49,6 +46,8 @@ packer/images/*/*.iso
 /cyberia-server
 /cyberia-client
 /cyberia-audio
+/cyberia-content
+/cyberia-deployment
 *pub.json
 gitleaks-report.json
 
