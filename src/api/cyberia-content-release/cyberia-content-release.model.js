@@ -34,7 +34,8 @@ const CheckSchema = new Schema(
  * @property {string} database - Database the release content lives in
  * @property {string} status - One of {@link RELEASE_STATUS}
  * @property {string[]} instances - Instance codes the release carries
- * @property {{from:string,engineVersion:string,commit:string,builtAt:Date,builtBy:string}} source - What the release was built from
+ * @property {{from:string,engineVersion:string,commit:string,content:Object,builtAt:Date,builtBy:string}} source - What the
+ *   release was built from; `content` is the content artifact identity of a build from the backups
  * @property {{instances:string[],maps:number,bindings:number,quests:number,actions:number}} manifest - What the release carries
  * @property {string[]} dependencies - Every Object Layer cid the release binds or pins
  * @property {{ok:boolean,checkedAt:Date,checks:Array}} validation - Last validation report
@@ -52,6 +53,12 @@ const CyberiaContentReleaseSchema = new Schema(
       from: { type: String, enum: ['backups', 'workspace'], default: 'backups' },
       engineVersion: { type: String, default: '' },
       commit: { type: String, default: '' },
+      content: {
+        repository: { type: String, default: '' },
+        version: { type: String, default: '' },
+        sourceRevision: { type: String, default: '' },
+        digest: { type: String, default: '' },
+      },
       builtAt: { type: Date, default: Date.now },
       builtBy: { type: String, default: '' },
     },

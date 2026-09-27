@@ -1,7 +1,6 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
-import { DefaultCyberiaQuests } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -50,11 +49,6 @@ class CyberiaQuestService {
     if (!code) throw new Error('code parameter is required');
     const data = await CyberiaQuest.findOne({ code }).lean();
     if (data) return data;
-    // The fallback world serves quests from the canonical defaults and never
-    // persists them. Serve the same defaults, so the client resolves metadata
-    // with no seeded quest in Mongo.
-    const fallback = DefaultCyberiaQuests.find((q) => q.code === code);
-    if (fallback) return fallback;
     throw new Error(`No quest found for code: ${code}`);
   };
   // Quest OFFERS are located by the quest's own (sourceMapCode, sourceCellX,
@@ -69,16 +63,7 @@ class CyberiaQuestService {
     const cellY = parseInt(req.params.cellY);
     if (!mapCode || Number.isNaN(cellX) || Number.isNaN(cellY))
       throw new Error('mapCode, cellX and cellY parameters are required');
-    const docs = await CyberiaQuest.find({ sourceMapCode: mapCode, sourceCellX: cellX, sourceCellY: cellY }).lean();
-    const seen = new Set(docs.map((d) => d.code));
-    // Fallback-world quests are served from the canonical defaults, not Mongo.
-    for (const q of DefaultCyberiaQuests) {
-      if (q.sourceMapCode === mapCode && q.sourceCellX === cellX && q.sourceCellY === cellY && !seen.has(q.code)) {
-        docs.push(q);
-        seen.add(q.code);
-      }
-    }
-    return docs;
+    return await CyberiaQuest.find({ sourceMapCode: mapCode, sourceCellX: cellX, sourceCellY: cellY }).lean();
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */

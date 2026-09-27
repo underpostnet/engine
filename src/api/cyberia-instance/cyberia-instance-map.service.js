@@ -2,23 +2,14 @@
 
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { generateFallbackWorld } from './cyberia-fallback-world.js';
-import {
-  cacheWorldMapPreviews,
-  getCachedMapPreview,
-  renderMapPreviewPng,
-} from '../../projects/cyberia/map-preview-generator.js';
+import { renderMapPreviewPng } from '../../projects/cyberia/map-preview-generator.js';
 import { FileFactory } from '../file/file.service.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
-import {
-  DefaultCyberiaActions,
-  DefaultCyberiaQuests,
-  ENTITY_TYPE_DEFAULTS,
-  resolveEntityDefaultBuild,
-} from '../cyberia-server-defaults/cyberia-server-defaults.js';
-import { DefaultCyberiaItems } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { resolveEntityDefaultBuild } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
+import { contentArtifact } from '../../projects/cyberia/content-artifact.js';
+import { isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -72,7 +63,7 @@ const mergeEntityDefaults = (entityDefaults = []) => {
     behavior: entityDefault.behavior || '',
   }));
   const coveredTypes = new Set(merged.map((entityDefault) => entityDefault.entityType));
-  for (const canonical of ENTITY_TYPE_DEFAULTS) {
+  for (const canonical of contentArtifact().baseline) {
     if (!coveredTypes.has(canonical.entityType)) {
       merged.push({
         entityType: canonical.entityType,
@@ -162,8 +153,8 @@ const buildPresencePois = ({
     for (const entity of map.entities || []) {
       const behavior = entityBehavior(entity, entityDefaults);
       const presenceStatus = entityPresenceStatus(entity, objectLayerMetadata, behavior);
-      if (!presenceStatus) continue;
-      getPoi(map.code, entity.initCellX ?? 0, entity.initCellY ?? 0, presenceStatus, 100);
+      if (!presenceStatus || !isPlacedEntity(entity)) continue;
+      getPoi(map.code, entity.initCellX, entity.initCellY, presenceStatus, 100);
     }
   }
 
@@ -203,17 +194,15 @@ const buildPresencePois = ({
 /**
  * Pure payload builder for the static graph. `world` matches the
  * resolveInstanceWorld shape: { instance, maps, quests, actions,
- * objectLayerMetadata, fallback }.
+ * objectLayerMetadata, entityDefaults }.
  */
 const buildStaticPayload = ({
   instance,
   maps,
   quests,
   actions,
-  fallback,
   objectLayerMetadata = {},
   entityDefaults = mergeEntityDefaults(),
-  previewCachedMapCodes = new Set(),
 }) => {
   const previewRoute = (mapCode) =>
     `${apiPathOf()}/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(mapCode)}`;
@@ -226,16 +215,9 @@ const buildStaticPayload = ({
     // File id of the map's auto-captured Object Layer render (persisted maps).
     preview: m.preview ? String(m.preview) : '',
     // Path of the node background. A captured File is served directly. Without
-    // one the client hits the preview route, which renders on demand and, for a
-    // persisted map, stores the result as its `preview` File. A fallback-world
-    // map advertises the route only after a render succeeds.
-    previewUrl: m.preview
-      ? `${apiPathOf()}/file/blob/${String(m.preview)}`
-      : fallback
-        ? previewCachedMapCodes.has(m.code)
-          ? previewRoute(m.code)
-          : ''
-        : previewRoute(m.code),
+    // one the client hits the preview route, which renders on demand and stores
+    // the result as the map's `preview` File.
+    previewUrl: m.preview ? `${apiPathOf()}/file/blob/${String(m.preview)}` : previewRoute(m.code),
   }));
 
   const edges = (instance.portals || []).map((p) => ({
@@ -253,7 +235,6 @@ const buildStaticPayload = ({
     name: instance.name || instance.code,
     description: instance.description || '',
     topologyMode: instance.topologyMode || 'manual',
-    fallback,
     nodes,
     edges,
     presencePois: buildPresencePois({
@@ -316,9 +297,7 @@ const classifyActionProviders = (actions, questProviders) => {
 
 /**
  * Resolve the content-authority view of an instance: its map nodes plus the
- * quests and actions bound to those maps. An instance that is not persisted
- * falls back to the procedural world and the default quests/actions, the same
- * fallback getFullInstance serves to the simulation.
+ * quests and actions bound to those maps.
  */
 const resolveInstanceWorld = async (instanceCode, options) => {
   const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
@@ -327,44 +306,10 @@ const resolveInstanceWorld = async (instanceCode, options) => {
   const CyberiaAction = DataBaseProviderService.getModel('CyberiaAction', options);
 
   const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
-
-  if (!instance) {
-    const world = generateFallbackWorld();
-    const mapCodes = new Set(world.instance.cyberiaMapCodes);
-
-    const fallbackItemIds = [
-      ...new Set(world.maps.flatMap((m) => (m.entities || []).flatMap((e) => e.objectLayerItemIds || []))),
-    ];
-    const itemTypeById = Object.fromEntries(DefaultCyberiaItems.map((entry) => [entry.item.id, entry.item.type]));
-    const resolved = await resolveObjectLayerMetadata(fallbackItemIds, options);
-    const objectLayerMetadata = Object.fromEntries(
-      Object.entries(resolved).map(([itemId, meta]) => {
-        return [itemId, { type: meta.type }];
-      }),
-    );
-
-    return {
-      instance: world.instance,
-      maps: world.maps.map((m) => ({
-        code: m.code,
-        name: m.name || m.code,
-        gridX: m.gridX,
-        gridY: m.gridY,
-        entities: m.entities || [],
-      })),
-      quests: DefaultCyberiaQuests.filter((q) => mapCodes.has(q.sourceMapCode)),
-      actions: DefaultCyberiaActions.filter((a) => mapCodes.has(a.sourceMapCode)),
-      objectLayerMetadata,
-      entityDefaults: mergeEntityDefaults(),
-      // The procedural world has no editor pass, so its node backgrounds render
-      // here and are served from the in-memory preview cache.
-      previewCachedMapCodes: new Set(await cacheWorldMapPreviews(instanceCode, world.maps, { options })),
-      fallback: true,
-    };
-  }
+  if (!instance) throw new Error(`CyberiaInstance "${instanceCode}" not found`);
 
   const mapCodes = instance.cyberiaMapCodes || [];
-  const [maps, dbQuests, dbActions] = await Promise.all([
+  const [maps, quests, actions] = await Promise.all([
     CyberiaMap.find({ code: { $in: mapCodes } })
       .select('code name gridX gridY preview entities')
       .lean(),
@@ -382,17 +327,7 @@ const resolveInstanceWorld = async (instanceCode, options) => {
   const objectLayerMetadata = await resolveObjectLayerMetadata(itemIds, options);
   const entityDefaults = await resolveEntityDefaults(instance, options);
 
-  const codeSet = new Set(mapCodes);
-  return {
-    instance,
-    maps,
-    // Empty collections fall back to the canonical defaults, as getByCode does.
-    quests: dbQuests.length > 0 ? dbQuests : DefaultCyberiaQuests.filter((q) => codeSet.has(q.sourceMapCode)),
-    actions: dbActions.length > 0 ? dbActions : DefaultCyberiaActions.filter((a) => codeSet.has(a.sourceMapCode)),
-    objectLayerMetadata,
-    entityDefaults,
-    fallback: false,
-  };
+  return { instance, maps, quests, actions, objectLayerMetadata, entityDefaults };
 };
 
 class CyberiaInstanceMapService {
@@ -406,44 +341,31 @@ class CyberiaInstanceMapService {
   /**
    * Node-background PNG for one map.
    *
-   * A persisted map with no captured `preview` is rendered once and the result
-   * is stored as its preview File — not just cached — so every later request is
-   * served through the default /api/v1/file/blob path. The procedural fallback
-   * world has no document to update and stays on the in-memory cache.
+   * A map with no captured `preview` is rendered once and the result is stored
+   * as its preview File, so every later request is served through the default
+   * /api/v1/file/blob path.
    */
   static getPreview = async (req, res, options) => {
-    const { instanceCode, mapCode } = req.params;
-    if (!instanceCode || !mapCode) throw new Error('instanceCode and mapCode parameters are required');
+    const { mapCode } = req.params;
+    if (!mapCode) throw new Error('mapCode parameter is required');
 
     const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
     const File = DataBaseProviderService.getModel('File', options);
     const map = await CyberiaMap.findOne({ code: mapCode }).select('code gridX gridY preview entities').lean();
+    if (!map) throw new Error(`CyberiaMap "${mapCode}" not found`);
 
-    if (map) {
-      // Another request may have persisted it between the payload and this hit.
-      if (map.preview) {
-        const stored = await File.findOne({ _id: map.preview });
-        if (stored?.data) return stored.data;
-      }
-
-      const rendered = await renderMapPreviewPng(map, { options });
-      if (rendered) {
-        const file = await new File(FileFactory.create(rendered, `${mapCode}-preview.png`)).save();
-        await CyberiaMap.updateOne({ _id: map._id }, { $set: { preview: file._id } });
-        logger.info(`map preview persisted for "${mapCode}" (file ${file._id})`);
-        return rendered;
-      }
+    // Another request may have persisted it between the payload and this hit.
+    if (map.preview) {
+      const stored = await File.findOne({ _id: map.preview });
+      if (stored?.data) return stored.data;
     }
 
-    let png = getCachedMapPreview(instanceCode, mapCode);
-    if (!png) {
-      // Cold cache: regenerate the world so the preview exists, then serve it.
-      const { maps } = await resolveInstanceWorld(instanceCode, options);
-      await cacheWorldMapPreviews(instanceCode, maps, { options });
-      png = getCachedMapPreview(instanceCode, mapCode);
-    }
-    if (!png) throw new Error(`No cached preview for map "${mapCode}"`);
-    return png;
+    const rendered = await renderMapPreviewPng(map, { options });
+    if (!rendered) throw new Error(`No preview for map "${mapCode}"`);
+    const file = await new File(FileFactory.create(rendered, `${mapCode}-preview.png`)).save();
+    await CyberiaMap.updateOne({ _id: map._id }, { $set: { preview: file._id } });
+    logger.info(`map preview persisted for "${mapCode}" (file ${file._id})`);
+    return rendered;
   };
 
   static getDynamic = async (req, res, options) => {

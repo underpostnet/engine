@@ -15,7 +15,13 @@ import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
-import { ENTITY_TYPES, ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX, validateEntityLevel } from './SharedDefaultsCyberia.js';
+import {
+  ENTITY_TYPES,
+  ENTITY_LEVEL_MIN,
+  ENTITY_LEVEL_MAX,
+  isPlacedEntity,
+  validateEntityLevel,
+} from './SharedDefaultsCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -29,6 +35,8 @@ const createDropdownOption = (value, onClick = () => {}, display = value, data =
 
 class MapEngineCyberia {
   static entities = [];
+  // Index of the unplaced entity the next cell click places, or null.
+  static placingIndex = null;
   static currentMapId = null;
   static currentMapCode = null;
   static currentThumbnailId = null;
@@ -338,6 +346,7 @@ class MapEngineCyberia {
   }
 
   static setEntities(entities, { clearHistory = false } = {}) {
+    MapEngineCyberia.placingIndex = null;
     MapEngineCyberia.entities = MapEngineCyberia.cloneEntities(entities);
     if (clearHistory) MapEngineCyberia.clearEntityHistory();
     MapEngineCyberia.refreshEntityEditor();
@@ -345,6 +354,7 @@ class MapEngineCyberia {
 
   static commitEntityMutation(mutate) {
     if (typeof mutate !== 'function') return false;
+    MapEngineCyberia.placingIndex = null;
 
     const before = MapEngineCyberia.cloneEntities();
     mutate();
@@ -455,7 +465,7 @@ class MapEngineCyberia {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw entities
-    for (const entity of MapEngineCyberia.entities) {
+    for (const entity of MapEngineCyberia.entities.filter(isPlacedEntity)) {
       const x = entity.initCellX * cellW;
       const y = entity.initCellY * cellH;
       const w = entity.dimX * cellW;
@@ -492,7 +502,7 @@ class MapEngineCyberia {
     const ctx = offscreen.getContext('2d');
     ctx.clearRect(0, 0, offscreen.width, offscreen.height);
     const useObjectLayers = forceObjectLayers || MapEngineCyberia.showObjectLayers;
-    for (const entity of MapEngineCyberia.entities) {
+    for (const entity of MapEngineCyberia.entities.filter(isPlacedEntity)) {
       const x = entity.initCellX * cellW;
       const y = entity.initCellY * cellH;
       const w = entity.dimX * cellW;
@@ -544,10 +554,22 @@ class MapEngineCyberia {
           style="width:20px;height:20px;background:${entity.color};border:1px solid #888;margin-right:6px;"
         ></div>
         <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">
-          ${entity.entityType} (${entity.initCellX},${entity.initCellY}) ${entity.dimX}x${entity.dimY}
+          ${entity.entityType} ${isPlacedEntity(entity) ? `(${entity.initCellX},${entity.initCellY})` : 'unplaced'}
+          ${entity.dimX}x${entity.dimY}
           ${layerTags ? html`<div style="margin-top:2px;">${layerTags}</div>` : ''}
         </div>
         <div class="in fll" style="display:flex;gap:3px;">
+          ${isPlacedEntity(entity)
+            ? ''
+            : html`<button
+                class="btn-map-engine-place-entity"
+                data-index="${i}"
+                style="cursor:pointer;background:${MapEngineCyberia.placingIndex === i
+                  ? '#a60'
+                  : '#383'};color:#fff;border:none;padding:2px 8px;font-size:12px;"
+              >
+                <i class="fa-solid fa-location-crosshairs"></i>
+              </button>`}
           <button
             class="btn-map-engine-load-entity-values"
             data-index="${i}"
@@ -575,6 +597,14 @@ class MapEngineCyberia {
         MapEngineCyberia.commitEntityMutation(() => {
           MapEngineCyberia.entities.splice(idx, 1);
         });
+      };
+    });
+
+    container.querySelectorAll('.btn-map-engine-place-entity').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index, 10);
+        MapEngineCyberia.placingIndex = MapEngineCyberia.placingIndex === idx ? null : idx;
+        MapEngineCyberia.renderEntityList(containerId);
       };
     });
 
@@ -696,7 +726,7 @@ class MapEngineCyberia {
     const getPreserveIndices = () => {
       const preserveSet = getPreserveSet();
       return MapEngineCyberia.entities.reduce((acc, entity, index) => {
-        if (preserveSet.has((entity.entityType || '').toLowerCase())) acc.push(index);
+        if (isPlacedEntity(entity) && preserveSet.has((entity.entityType || '').toLowerCase())) acc.push(index);
         return acc;
       }, []);
     };
@@ -789,7 +819,7 @@ class MapEngineCyberia {
       const preserveSet = getPreserveSet();
       const { cols, rows } = getCanvasParams();
       MapEngineCyberia.commitEntityMutation(() => {
-        for (const entity of MapEngineCyberia.entities) {
+        for (const entity of MapEngineCyberia.entities.filter(isPlacedEntity)) {
           if (preserveSet.has((entity.entityType || '').toLowerCase())) continue;
           const dimFactor = min + Math.random() * (max - min);
           entity.dimX = Math.max(1, Math.round(entity.dimX * dimFactor));
@@ -866,7 +896,7 @@ class MapEngineCyberia {
     const flipHorizontal = () => {
       const { cols } = getCanvasParams();
       MapEngineCyberia.commitEntityMutation(() => {
-        for (const entity of MapEngineCyberia.entities) {
+        for (const entity of MapEngineCyberia.entities.filter(isPlacedEntity)) {
           entity.initCellX = cols - entity.initCellX - entity.dimX;
         }
       });
@@ -875,7 +905,7 @@ class MapEngineCyberia {
     const flipVertical = () => {
       const { rows } = getCanvasParams();
       MapEngineCyberia.commitEntityMutation(() => {
-        for (const entity of MapEngineCyberia.entities) {
+        for (const entity of MapEngineCyberia.entities.filter(isPlacedEntity)) {
           entity.initCellY = rows - entity.initCellY - entity.dimY;
         }
       });
@@ -1123,15 +1153,10 @@ class MapEngineCyberia {
         }
       }
 
-      const nextEntities = (mapData.entities || []).map((e) => ({
-        entityType: e.entityType,
-        level: e.level,
-        initCellX: e.initCellX,
-        initCellY: e.initCellY,
-        dimX: e.dimX,
-        dimY: e.dimY,
-        color: e.color,
-        objectLayerItemIds: e.objectLayerItemIds || [],
+      // Every field travels: the editor places and paints entities, and never drops what they are.
+      const nextEntities = (mapData.entities || []).map(({ _id, ...entity }) => ({
+        ...entity,
+        objectLayerItemIds: entity.objectLayerItemIds || [],
       }));
       MapEngineCyberia.setEntities(nextEntities, { clearHistory: true });
     };
@@ -1264,6 +1289,16 @@ class MapEngineCyberia {
         console.log(`Cell clicked: (${col}, ${row})`);
 
         if (s('.map-engine-cell-coords')) htmls('.map-engine-cell-coords', `Cell: (${col}, ${row})`);
+
+        if (MapEngineCyberia.placingIndex !== null) {
+          const index = MapEngineCyberia.placingIndex;
+          MapEngineCyberia.placingIndex = null;
+          MapEngineCyberia.commitEntityMutation(() => {
+            MapEngineCyberia.entities[index].initCellX = col;
+            MapEngineCyberia.entities[index].initCellY = row;
+          });
+          return;
+        }
 
         if (s(`.${idInitCellX}`)) s(`.${idInitCellX}`).value = col;
         if (s(`.${idInitCellY}`)) s(`.${idInitCellY}`).value = row;

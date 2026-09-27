@@ -2,7 +2,6 @@ import { STAT_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyb
 import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { profileRef } from '../../client/components/object-layer/ObjectLayerProtocol.js';
 import { objectLayerIdentity, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
-import { DefaultCyberiaActions, DefaultCyberiaQuests } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { toInstanceConfig, toMapMsg, toInstanceMsg, toObjectLayerMsg, toActionMsg, toQuestMsg } from './instance-data.js';
 
 // One definition feeds every runtime contract: the Go boot fixtures (engine → cyberia-server)
@@ -21,6 +20,23 @@ const SWORD_CONTENT = {
   },
 };
 const SWORD = { _id: 'contract-layer', ...SWORD_CONTENT, cid: objectLayerIdentity(SWORD_CONTENT).cid };
+const BASELINE = [{ entityType: 'bot', liveItemIds: ['sword'], behavior: 'hostile' }];
+const CELL = { sourceMapCode: 'contract-map', sourceCellX: 1, sourceCellY: 1 };
+const QUEST = {
+  ...CELL,
+  code: 'contract-quest',
+  title: 'Contract Quest',
+  description: 'Collect a sword.',
+  steps: [{ id: 'step-collect', description: 'Collect a sword.', objectives: [{ type: 'collect', itemId: 'sword', quantity: 1 }] }],
+  rewards: [{ itemId: 'sword', quantity: 1 }],
+};
+const ACTION = {
+  ...CELL,
+  code: 'contract-action',
+  label: 'Contract',
+  dialogCode: 'default-sword',
+  questDialogueCodes: [{ questCode: QUEST.code, dialogCode: 'quest-talk-contract' }],
+};
 
 export function buildBootContractArtifacts() {
   const layer = toObjectLayerMsg(SWORD);
@@ -28,13 +44,13 @@ export function buildBootContractArtifacts() {
     instance: toInstanceMsg({ _id: 'contract-instance', code: 'contract-test', cyberiaMapCodes: ['contract-map'] }),
     maps: [toMapMsg({
       _id: 'contract-map', code: 'contract-map', gridX: 16, gridY: 16,
-      entities: [{ entityType: 'bot', level: 7, objectLayerItemIds: ['sword'] }],
+      entities: [{ entityType: 'bot', level: 7, initCellX: 0, initCellY: 0, objectLayerItemIds: ['sword'] }],
     })],
     objectLayers: [layer],
-    config: toInstanceConfig({}),
+    config: toInstanceConfig({}, BASELINE),
     version: 'contract-fixture',
-    actions: DefaultCyberiaActions.slice(0, 1).map(toActionMsg),
-    quests: DefaultCyberiaQuests.slice(0, 1).map(toQuestMsg),
+    actions: [toActionMsg(ACTION)],
+    quests: [toQuestMsg(QUEST)],
   };
   const payloads = {
     boot_full_instance: full,

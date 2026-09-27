@@ -106,7 +106,7 @@ describe('fillInstanceConfDefaults', () => {
 
   it('leaves entityDefaults empty, because referencing none is a complete world', () => {
     // A conf owns references, not defaults: naming no document means "add nothing to the
-    // canonical ENTITY_TYPE_DEFAULTS", which is what every fresh instance wants.
+    // foundation baseline", which is what every fresh instance wants.
     for (const input of [{}, { entityDefaults: [] }, { entityDefaults: null }]) {
       expect(fillInstanceConfDefaults(input).entityDefaults, JSON.stringify(input)).to.deep.equal([]);
     }

@@ -40,7 +40,7 @@ describe('rerouted plain reads stay machine-readable', () => {
         [
           CYBERIA_CLI,
           'fs',
-          'src/client/public/underpost',
+          'private-assets/underpost',
           '--deploy-id',
           'dd-cyberia',
           '--pull',
@@ -112,5 +112,27 @@ describe('data commands without an env file', () => {
       }
     },
     60000,
+  );
+});
+
+// cyberia-content is an optional checkout: only a content command resolves it, and then explicitly.
+describe('content is resolved by content commands only', () => {
+  const cli = new URL('../../../bin/cyberia.js', import.meta.url).pathname;
+  const run = (...args) =>
+    spawnSync(process.execPath, [cli, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, CYBERIA_CONTENT_ROOT: `${os.tmpdir()}/cyberia-content-absent` },
+      timeout: 50000,
+    });
+
+  it.skipIf(!fs.existsSync(cli))(
+    'runs a command that needs no content without the checkout, and fails a content command explicitly',
+    () => {
+      expect(run('chain', 'status', '--help').status).to.equal(0);
+      const status = run('content', 'status');
+      expect(status.status).to.not.equal(0);
+      expect(`${status.stdout}${status.stderr}`).to.include('No content artifact at');
+    },
+    120000,
   );
 });

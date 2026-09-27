@@ -1,6 +1,7 @@
-// Shared content, stat contract, and presentation defaults.
+// Shared runtime vocabulary, stat contract, and presentation defaults. Content lives in the
+// cyberia-content repository, which reads this vocabulary as its generated runtime contract.
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared content vocabulary
+// Shared runtime vocabulary
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -69,31 +70,51 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
 /** Quest step objective types accepted by the quest-progress engine. */
 export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
 
+/** How a portal connects: to a portal or a random cell, on another map or the same one. */
+export const PORTAL_MODES = Object.freeze(['inter-portal', 'inter-random', 'intra-random', 'intra-portal']);
+
+/** Whether an entity has a cell. An unplaced entity exists in content and waits for spatial authoring. */
+export const isPlacedEntity = (entity) => Number.isInteger(entity?.initCellX) && Number.isInteger(entity?.initCellY);
+
+/** Prefix of an item's dialogue code: its flavor text, and an NPC's greeting when the item is its skin. */
+export const ITEM_DIALOGUE_PREFIX = 'default-';
+
+/** The item a dialogue code belongs to, or '' when the code is not an item dialogue. */
+export const dialogueItemId = (code) =>
+  String(code ?? '').startsWith(ITEM_DIALOGUE_PREFIX) ? code.slice(ITEM_DIALOGUE_PREFIX.length) : '';
+
+/** Summoned-entity id the simulation resolves to the caster's active skin. */
+export const CASTER_SKIN_PLACEHOLDER = '$active_skin';
+
 /**
  * Canonical skill LogicId registry — the single source of truth for the
  * `logicEventId` handler keys the simulation skill dispatcher knows how to run.
  * MUST stay aligned with the handlers registered in cyberia-server
  * `game/skill_dispatcher.go#InitSkills`. The skill editor (ActionEngineCyberia)
- * offers ONLY these ids, and `DefaultSkillConfig` (cyberia-server-defaults.js)
- * draws its `logicEventId`s from here.
+ * offers ONLY these ids, and content abilities draw their `logicEventId` from here.
  *
- * @type {ReadonlyArray<{id:string,name:string,description:string}>}
+ * `summons` is the item type of the entity the handler spawns; null spawns the caster's skin.
+ *
+ * @type {ReadonlyArray<{id:string,name:string,description:string,summons:string|null}>}
  */
 export const SKILL_LOGIC_IDS = Object.freeze([
   Object.freeze({
     id: 'projectile',
     name: 'Projectile',
     description: 'Fires a projectile toward the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+    summons: ITEM_TYPES.skill,
   }),
   Object.freeze({
     id: 'coin_drop_or_transaction',
     name: 'Coin Drop',
     description: 'Drops coins on kill; transfer amount follows the kill-percent economy rules.',
+    summons: ITEM_TYPES.coin,
   }),
   Object.freeze({
     id: 'doppelganger',
     name: 'Doppelganger',
     description: 'Summons a passive clone that wanders nearby. Spawn chance scales with Intelligence.',
+    summons: null,
   }),
 ]);
 
@@ -383,63 +404,6 @@ export function generateRandomStats(min = STAT_MODIFIER_MIN, max = STAT_MODIFIER
     return [key, Math.floor(value * (max - min + 1)) + min];
   }));
 }
-
-/**
- * Canonical (itemId → itemType) registry shipped with the engine. Used
- * by the import-default-items seed, the on-chain ObjectLayerToken bridge,
- * the fallback world generator, the CLI tooling, and the browser editor.
- *
- * Adding a new item here is the **only** place it needs to be declared.
- */
-export const DefaultCyberiaItems = [
-  { item: { id: 'coin', type: ITEM_TYPES.coin } },
-  { item: { id: 'hatchet-skill', type: ITEM_TYPES.skill } },
-  { item: { id: 'atlas_pistol_mk2', type: ITEM_TYPES.weapon } },
-  { item: { id: 'atlas_pistol_mk2_bullet', type: ITEM_TYPES.skill } },
-  { item: { id: 'tim-knife', type: ITEM_TYPES.weapon } },
-  { item: { id: 'hatchet', type: ITEM_TYPES.weapon } },
-  { item: { id: 'wason', type: ITEM_TYPES.skin } },
-  { item: { id: 'kishins', type: ITEM_TYPES.skin } },
-  { item: { id: 'scp-2040', type: ITEM_TYPES.skin } },
-  { item: { id: 'purple', type: ITEM_TYPES.skin } },
-  { item: { id: 'punk', type: ITEM_TYPES.skin } },
-  { item: { id: 'lain', type: ITEM_TYPES.skin } },
-  { item: { id: 'kaneki', type: ITEM_TYPES.skin } },
-  { item: { id: 'junko', type: ITEM_TYPES.skin } },
-  { item: { id: 'ghost', type: ITEM_TYPES.skin } },
-  { item: { id: 'fragmentation', type: ITEM_TYPES.skin } },
-  { item: { id: 'eiri', type: ITEM_TYPES.skin } },
-  { item: { id: 'anon', type: ITEM_TYPES.skin } },
-  { item: { id: 'alex', type: ITEM_TYPES.skin } },
-  { item: { id: 'agent', type: ITEM_TYPES.skin } },
-  { item: { id: 'grass', type: ITEM_TYPES.floor } },
-  { item: { id: 'wood-1', type: ITEM_TYPES.resource } },
-  { item: { id: 'wood-2', type: ITEM_TYPES.resource } },
-  { item: { id: 'wood-extracted-1', type: ITEM_TYPES.resource } },
-  { item: { id: 'wood-extracted-2', type: ITEM_TYPES.resource } },
-  { item: { id: 'wood-drop-1', type: ITEM_TYPES.resource } },
-  { item: { id: 'wood-drop-2', type: ITEM_TYPES.resource } },
-];
-
-const _ITEM_BY_ID = Object.freeze(
-  DefaultCyberiaItems.reduce((acc, entry) => {
-    acc[entry.item.id] = entry;
-    return acc;
-  }, {}),
-);
-
-/** O(1) lookup: item id → registry entry, or `null` if unknown. */
-export const getDefaultCyberiaItemById = (itemId) => _ITEM_BY_ID[itemId] || null;
-
-/** All registry entries of a given item type. */
-export const getDefaultCyberiaItemsByItemType = (itemType) =>
-  DefaultCyberiaItems.filter((entry) => entry.item.type === itemType);
-
-/** All registry entries whose item type is permitted on a given entity type. */
-export const getDefaultCyberiaItemsByEntityType = (entityType) => {
-  const allowed = ENTITY_TYPE_TO_ITEM_TYPES[entityType] || [];
-  return DefaultCyberiaItems.filter((entry) => allowed.includes(entry.item.type));
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Presentation defaults

@@ -198,8 +198,8 @@ const TEST_PROJECTS = [
     sources: [
       'src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js',
       'src/api/cyberia-content-release/cyberia-content-release.model.js',
-      'src/api/cyberia-instance/cyberia-fallback-capture.js',
       'src/api/cyberia-server-defaults/*.js',
+      'src/projects/cyberia/content-artifact.js',
       'src/projects/cyberia/content-release.js',
       'src/projects/cyberia/domain-ownership.js',
       'src/projects/cyberia/instance-backup.js',
@@ -209,7 +209,10 @@ const TEST_PROJECTS = [
       'src/projects/cyberia/shape-generator.js',
       'src/projects/cyberia/stat-balance.js',
     ],
-    description: 'Cyberia content, instance data, releases, sprite atlases, stats and shape generation.',
+    description:
+      'Cyberia content artifact consumption, instance data, releases, sprite atlases, stats and shape generation. ' +
+      'The suites that run a world need a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content) ' +
+      'and skip without one.',
   },
   {
     name: 'cryptokoyn:unit',
@@ -314,6 +317,7 @@ const TEST_PROJECTS = [
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
       'src/db/content-view.js',
+      'src/projects/cyberia/content-artifact.js',
       'src/projects/cyberia/content-release.js',
       'test/support/mongod.js',
     ],
@@ -321,9 +325,10 @@ const TEST_PROJECTS = [
     vitest: { hookTimeout: 60000, testTimeout: 30000 },
     description:
       'Cyberia against real boundaries: content releases on a MongoDB replica set — build, validate, ' +
-      'promote, roll back, prune, restart, concurrent promotion and runtime isolation — the product CLI ' +
-      'and the audio seed. The release suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH) and ' +
-      'skip without one.',
+      'promote, roll back, prune, restart, concurrent promotion and runtime isolation — the content ' +
+      'artifact materialization and saga import, the product CLI and the audio seed. The database suites ' +
+      'need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites a built cyberia-content ' +
+      'artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its requirement.',
   },
   {
     name: 'item-ledger:integration',

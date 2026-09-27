@@ -17,6 +17,11 @@ import { publishObjectLayer, resolveObjectLayer } from '../../server/domain/obje
 import { objectLayerIdentity, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
 import { isProfileRef } from '../../client/components/object-layer/ObjectLayerProtocol.js';
 import { PINNED_REFERENCES, readItemRefs } from '../../api/cyberia-item-catalog/item-ref.js';
+import {
+  collectInstanceItemIds,
+  collectSummonedItemIds,
+  isMaterialItemId,
+} from '../../api/cyberia-instance/cyberia-instance-items.js';
 import { RELEASE_ID_PATTERN } from '../../api/cyberia-content-release/cyberia-content-release.model.js';
 import { triggerHotReload } from './hot-reload-trigger.js';
 import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
@@ -139,7 +144,7 @@ const identityDefect = (doc) => {
  *
  * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `ObjectLayer`,
  *   `AtlasSpriteSheet`, `File`, `CyberiaQuest`, `CyberiaAction`, `CyberiaMap`,
- *   `CyberiaEntityTypeDefault`, `CyberiaInstance`, `CyberiaInstanceConf`.
+ *   `CyberiaEntityTypeDefault`, `CyberiaSkill`, `CyberiaInstance`, `CyberiaInstanceConf`.
  * @param {Object} [params]
  * @param {import('../../api/types.js').RouterOptions} [params.options] - Router options of the host, for the canonical resolver.
  * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Canonical lookup; defaults to the domain resolver.
@@ -216,21 +221,24 @@ export async function validateContentRelease(models, { options, resolveCanonical
   }
   checks.push(pinnedCheck);
 
+  // Every label the content names, by the rule the boot payload and the export use, with the
+  // first document that names it.
   const labelsCheck = check('labels');
   const bound = new Set(catalog.map((entry) => entry.itemId));
   const used = new Map();
-  for (const map of await models.CyberiaMap.find({}, { code: 1, 'entities.objectLayerItemIds': 1 }).lean()) {
-    for (const entity of map.entities ?? []) {
-      for (const itemId of entity.objectLayerItemIds ?? []) used.set(itemId, `map ${map.code}`);
-    }
-  }
-  for (const entityDefault of await models.CyberiaEntityTypeDefault.find(
-    {},
-    { entityType: 1, liveItemIds: 1 },
-  ).lean()) {
-    for (const itemId of entityDefault.liveItemIds ?? [])
-      used.set(itemId, `entity default ${entityDefault.entityType}`);
-  }
+  const name = (where, itemIds) => {
+    for (const itemId of itemIds) if (isMaterialItemId(itemId) && !used.has(itemId)) used.set(itemId, where);
+  };
+  for (const map of await models.CyberiaMap.find({}, { code: 1, 'entities.objectLayerItemIds': 1 }).lean())
+    name(`map ${map.code}`, collectInstanceItemIds({ maps: [map] }));
+  for (const entityDefault of await models.CyberiaEntityTypeDefault.find({}).lean())
+    name(`entity default ${entityDefault.entityType}`, collectInstanceItemIds({ entityDefaults: [entityDefault] }));
+  for (const action of await models.CyberiaAction.find({}).lean())
+    name(`action ${action.code}`, collectInstanceItemIds({ actions: [action] }));
+  for (const quest of await models.CyberiaQuest.find({}).lean())
+    name(`quest ${quest.code}`, collectInstanceItemIds({ quests: [quest] }));
+  for (const skill of await models.CyberiaSkill.find({}).lean())
+    name(`skill ${skill.triggerItemId}`, [skill.triggerItemId, ...collectSummonedItemIds([skill])]);
   labelsCheck.count = used.size;
   for (const [itemId, where] of used)
     if (!bound.has(itemId)) fail(labelsCheck, `${where}: label "${itemId}" is not bound`);

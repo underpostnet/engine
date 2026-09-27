@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { fetchInstanceObjectLayerItemIds } from '../../../src/projects/cyberia/instance-data.js';
+import { hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
+
+// The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
+const contentBuilt = hasContentArtifact();
 
 const lean = (value) => ({ lean: async () => value, populate: () => lean(value) });
 
@@ -23,7 +27,7 @@ const buildModels = ({ instance, maps = [], storedItemIds = [] }) => ({
 });
 
 describe('instance object layer item ids', () => {
-  it('collects the item ids the instance maps place, limited to stored documents', async () => {
+  it.skipIf(!contentBuilt)('collects the item ids the instance maps place, limited to stored documents', async () => {
     const models = buildModels({
       instance: { _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'] },
       maps: [
@@ -42,7 +46,7 @@ describe('instance object layer item ids', () => {
     expect(new Set(itemIds).size).toBe(itemIds.length);
   });
 
-  it('fails on an unknown instance code instead of returning the fallback world', async () => {
+  it('fails on an unknown instance code', async () => {
     const models = buildModels({ instance: null });
     await expect(fetchInstanceObjectLayerItemIds(models, 'GHOST')).rejects.toThrow('"GHOST" not found');
   });

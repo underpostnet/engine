@@ -24,12 +24,14 @@ import {
   mergeEntityDefaults,
   itemTypesOf,
 } from '../../../src/projects/cyberia/instance-data.js';
-import {
-  CYBERIA_INSTANCE_CONF_DEFAULTS,
-  DEFAULT_DEAD_ITEM_ID,
-  ENTITY_TYPE_DEFAULTS,
-} from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { DEFAULT_INSTANCE_CODE } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
+import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
+
+// The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
+const contentBuilt = hasContentArtifact();
+
+const baseline = () => contentArtifact().baseline;
 
 const lean = (value) => ({ lean: async () => value, populate: () => lean(value) });
 
@@ -102,9 +104,13 @@ describe('wire converters', () => {
     expect(entity).toMatchObject({ entityType: 'floor', level: 0, dimX: 1, dimY: 1, objectLayerItemIds: [] });
     expect(toEntityMsg({ level: 3, color: 'rgb(9,8,7)' })).toMatchObject({ level: 3, colorR: 9, colorB: 7 });
 
-    const map = toMapMsg({ _id: 'm1', entities: [{ entityType: 'bot' }] });
+    // An entity without a cell waits for Studio placement: the world never receives it.
+    const map = toMapMsg({
+      _id: 'm1',
+      entities: [{ entityType: 'bot', initCellX: 0, initCellY: 0 }, { entityType: 'bot' }],
+    });
     expect(map).toMatchObject({ mongoId: 'm1', gridX: 16, cellWidth: 32 });
-    expect(map.entities[0].entityType).toBe('bot');
+    expect(map.entities.map(({ entityType }) => entityType)).toEqual(['bot']);
 
     const instance = toInstanceMsg({ _id: 'i1', portals: [{ sourceMapCode: 'a' }] });
     expect(instance).toMatchObject({ mongoId: 'i1', topologyMode: 'hybrid', mapCodes: [] });
@@ -203,7 +209,7 @@ describe('instance config', () => {
     expect(buildFallbackConfig()).not.toBe(CYBERIA_INSTANCE_CONF_DEFAULTS);
   });
 
-  it('keeps every field a conf sets and fills the rest from the defaults', () => {
+  it.skipIf(!contentBuilt)('keeps every field a conf sets and fills the rest from the defaults', () => {
     const config = toInstanceConfig({
       tickRate: 5,
       economyRules: { portalFee: 9 },
@@ -220,7 +226,7 @@ describe('instance config', () => {
     expect(config.lifeRegenChance).toBe(fb.lifeRegenChance);
     expect(config.skillConfig).toEqual([]);
     expect(config.entityDefaults.map(({ entityType }) => entityType)).toEqual(
-      ENTITY_TYPE_DEFAULTS.map(({ entityType }) => entityType),
+      baseline().map(({ entityType }) => entityType),
     );
   });
 
@@ -236,16 +242,19 @@ describe('instance config', () => {
     ).toMatchObject([{ entityType: 'bot', liveItemIds: ['x'], deadItemIds: [] }]);
   });
 
-  it('completes a partial set of entity defaults with the canonical types it does not cover', () => {
-    const merged = mergeEntityDefaults([{ entityType: 'bot', liveItemIds: ['ghost'] }], { ghost: 'skin' });
-    const bots = merged.filter(({ entityType }) => entityType === 'bot');
-    expect(bots).toHaveLength(1);
-    expect(bots[0].liveItemIds).toEqual(['ghost']);
-    expect(merged.some(({ entityType }) => entityType === 'player')).toBe(true);
-    expect(itemTypesOf([{ data: { item: { id: 'ghost', type: 'skin' } } }, { data: {} }, null])).toEqual({
-      ghost: 'skin',
-    });
-  });
+  it.skipIf(!contentBuilt)(
+    'completes a partial set of entity defaults with the canonical types it does not cover',
+    () => {
+      const merged = mergeEntityDefaults([{ entityType: 'bot', liveItemIds: ['ghost'] }], { ghost: 'skin' });
+      const bots = merged.filter(({ entityType }) => entityType === 'bot');
+      expect(bots).toHaveLength(1);
+      expect(bots[0].liveItemIds).toEqual(['ghost']);
+      expect(merged.some(({ entityType }) => entityType === 'player')).toBe(true);
+      expect(itemTypesOf([{ data: { item: { id: 'ghost', type: 'skin' } } }, { data: {} }, null])).toEqual({
+        ghost: 'skin',
+      });
+    },
+  );
 });
 
 describe('transport-agnostic fetchers', () => {
@@ -314,7 +323,7 @@ describe('transport-agnostic fetchers', () => {
   });
 });
 
-describe('full world load', () => {
+describe.skipIf(!contentBuilt)('full world load', () => {
   const ol = (id, type = 'skin') => ({
     _id: `ol-${id}`,
     cid: `cid-${id}`,
@@ -322,27 +331,9 @@ describe('full world load', () => {
     data: { item: { id, type } },
   });
 
-  it('serves the procedural world, with the canonical content, when the instance is unknown', async () => {
-    const resolved = [];
-    const store = catalog([ol('anon'), ol(DEFAULT_DEAD_ITEM_ID)]);
-    const resolve = store.CyberiaItemCatalog.resolve;
-    store.CyberiaItemCatalog.resolve = (ids) => (resolved.push(ids), resolve(ids));
-    const models = { CyberiaInstance: { findOne: () => lean(null) }, ...store };
-    const world = await fetchFullInstance(models, '');
-    expect(world.instance.seed).toBe('default');
-    expect(world.maps.length).toBeGreaterThan(0);
-    expect(world.maps[0].entities[0]).toHaveProperty('colorA');
-    expect(world.objectLayers.map(({ item }) => item.id)).toEqual(['anon', DEFAULT_DEAD_ITEM_ID]);
-    expect(world.config.skillConfig.map(({ triggerItemId }) => triggerItemId)).toContain('atlas_pistol_mk2');
-    expect(world.actions.length).toBeGreaterThan(0);
-    expect(world.quests.length).toBeGreaterThan(0);
-    expect(world.version).toMatch(/^fallback-[0-9a-f]{64}$/);
-    // Every canonical item is asked for, so anything a player can pick up resolves an atlas.
-    expect(resolved[0]).toContain('anon');
-    expect(resolved[0]).toContain(DEFAULT_DEAD_ITEM_ID);
-
-    const again = await fetchFullInstance(models, '');
-    expect(again.version).toBe(world.version);
+  it('fails on an unknown instance code', async () => {
+    const models = { CyberiaInstance: { findOne: () => lean(null) }, ...catalog([]) };
+    await expect(fetchFullInstance(models, 'GHOST')).rejects.toThrow('CyberiaInstance "GHOST" not found');
   });
 
   it('loads a stored world from its conf, maps, content and the skills its items trigger', async () => {
@@ -352,7 +343,7 @@ describe('full world load', () => {
         findOne: () => lean({ _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'], conf, updatedAt: 't0' }),
       },
       CyberiaMap: {
-        find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['atlas_pistol_mk2'] }] }]),
+        find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['atlas-pistol-mk2'] }] }]),
       },
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       CyberiaAction: {
@@ -360,17 +351,17 @@ describe('full world load', () => {
       },
       CyberiaQuest: { find: () => lean([{ code: 'q1', sourceMapCode: 'forest-1' }]) },
       CyberiaSkill: { find: () => lean([]) },
-      ...catalog(['atlas_pistol_mk2', 'hatchet', 'atlas_pistol_mk2_bullet'].map((id) => ol(id))),
+      ...catalog(['atlas-pistol-mk2', 'hatchet', 'pulse-round'].map((id) => ol(id))),
     };
     const world = await fetchFullInstance(models, 'FOREST');
     expect(world.instance.code).toBe('FOREST');
     expect(world.config.tickRate).toBe(7);
     // The map places the pistol and the vendor sells the hatchet: both trigger skills this world runs.
     const triggers = world.config.skillConfig.map(({ triggerItemId }) => triggerItemId);
-    expect(triggers).toContain('atlas_pistol_mk2');
+    expect(triggers).toContain('atlas-pistol-mk2');
     expect(triggers).toContain('hatchet');
     // What the skill summons needs an atlas too.
-    expect(world.objectLayers.map(({ item }) => item.id)).toContain('atlas_pistol_mk2_bullet');
+    expect(world.objectLayers.map(({ item }) => item.id)).toContain('pulse-round');
     expect(world.objectLayers.map(({ item }) => item.id)).toContain('hatchet');
     expect(world.actions[0].shopItems[0].itemId).toBe('hatchet');
     expect(world.quests[0].code).toBe('q1');
@@ -434,7 +425,7 @@ describe('full world load', () => {
     await expect(fetchFullInstance(models, 'FOREST')).rejects.toThrow(/pins several definitions/);
   });
 
-  it('runs a world whose conf reference is gone on the canonical defaults', async () => {
+  it('runs a world whose conf reference is gone on the foundation baseline', async () => {
     const models = {
       CyberiaInstance: { findOne: () => lean({ _id: 'i1', code: 'BARE', cyberiaMapCodes: [], conf: null }) },
       CyberiaInstanceConf: { findOne: () => lean(null) },

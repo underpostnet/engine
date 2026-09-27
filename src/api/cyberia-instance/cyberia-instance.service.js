@@ -2,11 +2,6 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
-import {
-  generateFallbackWorld,
-  fallbackListInstance,
-  DEFAULT_FALLBACK_INSTANCE_CODE,
-} from './cyberia-fallback-world.js';
 import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
@@ -70,14 +65,7 @@ class CyberiaInstanceService {
           CyberiaInstance.countDocuments(query),
         ]);
         const data = documents.map((document) => document.toJSON());
-        // Opt-in (?fallback=true): surface the always-on TEST world so the selection
-        // view is never empty. Skipped when a real TEST instance is already present.
-        const injectFallback =
-          /^(true|1)$/i.test(String(req.query.fallback || '')) &&
-          !data.some((d) => d.code === DEFAULT_FALLBACK_INSTANCE_CODE);
-        const items = injectFallback ? [...data, fallbackListInstance()] : data;
-        const count = injectFallback ? total + 1 : total;
-        return { data: items, total: count, page, totalPages: Math.ceil(count / limit) };
+        return { data, total, page, totalPages: Math.ceil(total / limit) };
       },
     });
   };
@@ -97,20 +85,6 @@ class CyberiaInstanceService {
     await CacheService.invalidate(instanceCache(options));
     return updated;
   };
-  /**
-   * Central portal connector endpoint.
-   *
-   * Delegates topology computation to the pure-function `connectPortals()`
-   * from cyberia-portal-connector.js so the same logic can be used by the
-   * GUI without a DB dependency.
-   *
-   * Builds a minimal ring connecting all maps and assigns random portal
-   * subtypes to remaining portals.  Does NOT generate procedural entities —
-   * entity generation is handled exclusively by the fallback world logic
-   * (cyberia-world-generator.js).
-   *
-   *   ?persist=true  — save generated portals to DB
-   */
   /**
    * Ask a running cyberia-server to rebuild its world now (gRPC control
    * service, REST fallback). Moderator/admin only — the route guards the
@@ -133,6 +107,18 @@ class CyberiaInstanceService {
     return { transport, instanceCode, grpcError, ...result };
   };
 
+  /**
+   * Central portal connector endpoint.
+   *
+   * Delegates topology computation to the pure-function `connectPortals()`
+   * from cyberia-portal-connector.js so the same logic can be used by the
+   * GUI without a DB dependency.
+   *
+   * Builds a minimal ring connecting all maps and assigns random portal
+   * subtypes to remaining portals.
+   *
+   *   ?persist=true  — save generated portals to DB
+   */
   static portalConnect = async (req, res, options) => {
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
@@ -187,29 +173,6 @@ class CyberiaInstanceService {
     await CacheService.invalidate(instanceCache(options));
     return removed;
   };
-
-  /**
-   * Return an in-memory procedural fallback world.
-   *
-   * Nothing is persisted to MongoDB.  The world is regenerated on every
-   * call but stays deterministic for a given seed.
-   *
-   * Query params:
-   *   ?mapCount=<number>       — maps to generate  (default: 4)
-   *   ?botCount=<number>       — bots per map      (random 8–16 if omitted)
-   *   ?obstacleCount=<number>  — obstacles per map  (random 12–20 if omitted)
-   *   ?foregroundCount=<number>— foreground per map (random 6–12 if omitted)
-   */
-  static fallbackWorld = async (req) => {
-    const q = req.query || {};
-    return generateFallbackWorld({
-      mapCount: q.mapCount ? parseInt(q.mapCount, 10) : undefined,
-      botCount: q.botCount ? parseInt(q.botCount, 10) : undefined,
-      obstacleCount: q.obstacleCount ? parseInt(q.obstacleCount, 10) : undefined,
-      foregroundCount: q.foregroundCount ? parseInt(q.foregroundCount, 10) : undefined,
-    });
-  };
-
 }
 
 export { CyberiaInstanceService };

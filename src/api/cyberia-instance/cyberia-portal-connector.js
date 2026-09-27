@@ -11,16 +11,12 @@
  * GUI (Instance Engine "Portal Connector" button) so the same logic
  * runs everywhere without a DB dependency.
  *
- * This module does NOT generate procedural entities (obstacles,
- * foreground, resources, bots, etc.).  For that, see
- * cyberia-world-generator.js.
- *
  * All exported functions are stateless and synchronous.
  *
  * @module src/api/cyberia-instance/cyberia-portal-connector
  */
 
-import { nextRandom } from './cyberia-random-source.js';
+import { isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // ── Portal mode constants ────────────────────────────────────────────────────
 
@@ -41,24 +37,6 @@ const PORTAL_MODES = Object.freeze({
  */
 const PORTAL_MODE_LIST = Object.values(PORTAL_MODES);
 
-/**
- * Map from portal mode to its palette colour key.
- * @type {Record<string, string>}
- */
-const PORTAL_MODE_COLOR_KEY = Object.freeze({
-  [PORTAL_MODES.INTER_PORTAL]: 'PORTAL_INTER_PORTAL',
-  [PORTAL_MODES.INTER_RANDOM]: 'PORTAL_INTER_RANDOM',
-  [PORTAL_MODES.INTRA_RANDOM]: 'PORTAL_INTRA_RANDOM',
-  [PORTAL_MODES.INTRA_PORTAL]: 'PORTAL_INTRA_PORTAL',
-});
-
-/**
- * Portal modes available for extra (non-ring) portals.
- * The ring always uses INTER_PORTAL; extras are randomly chosen from these.
- * @type {string[]}
- */
-const EXTRA_PORTAL_MODES = [PORTAL_MODES.INTRA_PORTAL, PORTAL_MODES.INTRA_RANDOM, PORTAL_MODES.INTER_RANDOM];
-
 // ── Portal topology builders ─────────────────────────────────────────────────
 
 /**
@@ -71,7 +49,7 @@ const EXTRA_PORTAL_MODES = [PORTAL_MODES.INTRA_PORTAL, PORTAL_MODES.INTRA_RANDOM
 function indexPortalEntities(maps) {
   const idx = {};
   for (const map of maps) {
-    idx[map.code] = (map.entities || []).filter((e) => e.entityType === 'portal');
+    idx[map.code] = (map.entities || []).filter((e) => e.entityType === 'portal' && isPlacedEntity(e));
   }
   return idx;
 }
@@ -119,7 +97,7 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
 
       // Target: pick any portal on the target map for landing coordinates
       const tgtAll = portalIndex[tgtCode] || [];
-      const tgtEnt = tgtAll.length > 0 ? tgtAll[Math.floor(nextRandom() * tgtAll.length)] : null;
+      const tgtEnt = tgtAll.length > 0 ? tgtAll[Math.floor(Math.random() * tgtAll.length)] : null;
 
       if (srcEnt) {
         usedInRing.add(srcEnt);
@@ -141,7 +119,7 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
     if (n < 2) return srcCode;
     let code;
     do {
-      code = orderedCodes[Math.floor(nextRandom() * n)];
+      code = orderedCodes[Math.floor(Math.random() * n)];
     } while (code === srcCode && n > 1);
     return code;
   };
@@ -151,15 +129,14 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
     const remaining = allOnMap.filter((e) => !usedInRing.has(e));
 
     for (const srcEnt of remaining) {
-      // If the entity already has an explicit subtype, honour it;
-      // otherwise assign a random mode (matching fallback-world behaviour).
-      const sub = srcEnt.portalSubtype || PORTAL_MODE_LIST[Math.floor(nextRandom() * PORTAL_MODE_LIST.length)];
+      // An explicit subtype wins; otherwise the mode is random.
+      const sub = srcEnt.portalSubtype || PORTAL_MODE_LIST[Math.floor(Math.random() * PORTAL_MODE_LIST.length)];
 
       switch (sub) {
         case PORTAL_MODES.INTER_PORTAL: {
           const tgtCode = otherMap(srcCode);
           const candidates = portalIndex[tgtCode] || [];
-          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(nextRandom() * candidates.length)] : null;
+          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : null;
           portals.push({
             sourceMapCode: srcCode,
             sourceCellX: srcEnt.initCellX ?? 0,
@@ -200,7 +177,7 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
           const candidates = allOnMap.filter(
             (e) => e !== srcEnt && (e.initCellX !== srcEnt.initCellX || e.initCellY !== srcEnt.initCellY),
           );
-          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(nextRandom() * candidates.length)] : null;
+          const tgtEnt = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : null;
           portals.push({
             sourceMapCode: srcCode,
             sourceCellX: srcEnt.initCellX ?? 0,
@@ -257,6 +234,4 @@ export {
   // Portal modes
   PORTAL_MODES,
   PORTAL_MODE_LIST,
-  PORTAL_MODE_COLOR_KEY,
-  EXTRA_PORTAL_MODES,
 };

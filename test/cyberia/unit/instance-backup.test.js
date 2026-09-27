@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // The backup path only routes documents and payloads; the collections are in-memory stand-ins,
-// IPFS answers with the CIDs a test names (or nothing), and the static frame writer is a no-op.
+// IPFS answers with the CIDs a test names (or nothing), and the static frame writer records its calls.
 const models = {};
 const ipfs = vi.hoisted(() => ({ added: [], answer: null }));
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
@@ -27,7 +27,7 @@ vi.mock('../../../src/api/object-layer/object-layer.publication.js', () => ({
 const published = vi.hoisted(() => []);
 vi.mock('../../../src/projects/cyberia/object-layer.js', () => ({
   ObjectLayerEngine: {
-    writeStaticFrameAssets: async () => [],
+    writeStaticFrameAssets: vi.fn(async () => ['08/0.png']),
     publishItemDefinition: async (write) => {
       published.push(write);
       const { models, payload, rendered } = write;
@@ -41,6 +41,7 @@ const { AtlasSpriteSheetGenerator } =
 const { canonicalJsonBytes, renderContractOf } = await import('../../../src/api/object-layer/object-layer.identity.js');
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
 const { repinCanonical } = await import('../../../src/api/object-layer/object-layer.publication.js');
+const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer.js');
 const {
   atlasBackupFileKey,
   atlasFileIdsOf,
@@ -212,6 +213,7 @@ describe('restoring one object layer from an instance backup', () => {
     ipfs.answer = null;
     published.length = 0;
     repinCanonical.mockClear();
+    ObjectLayerEngine.writeStaticFrameAssets.mockClear();
     for (const name of ['ObjectLayer', 'File']) models[name] = collection();
     models.CyberiaItemCatalog = models.ObjectLayer;
     build = vi.spyOn(AtlasSpriteSheetStore, 'build');
@@ -307,6 +309,20 @@ describe('restoring one object layer from an instance backup', () => {
     expect(models.ObjectLayer.live.data.render).toEqual(render);
     expect(derived).not.toHaveBeenCalled();
     expect(summary).toMatchObject({ rebuilt: true, replaced: 'cid-ember', cid: models.ObjectLayer.live.cid });
+  });
+
+  it('writes the static frame PNGs to the public directory only when asked', async () => {
+    const kept = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
+    expect(kept.staticFiles).toBe(0);
+    expect(ObjectLayerEngine.writeStaticFrameAssets).not.toHaveBeenCalled();
+
+    const copied = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {}, framesToPublic: true });
+    expect(copied.staticFiles).toBe(1);
+    expect(ObjectLayerEngine.writeStaticFrameAssets).toHaveBeenCalledOnce();
+    expect(ObjectLayerEngine.writeStaticFrameAssets.mock.calls[0][0]).toMatchObject({
+      itemType: 'weapon',
+      itemId: 'hatchet',
+    });
   });
 
   it('rebuilds nothing when the backup atlas is the render the definition names', async () => {

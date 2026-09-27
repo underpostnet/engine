@@ -1,7 +1,6 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getFallbackMapCodes } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 import {
   DEFAULT_AUDIO_BANK,
   DEFAULT_AUDIO_SETTINGS,
@@ -30,9 +29,6 @@ const audioConfigForMaps = (mapCodes) => ({
   maps: mapCodes.map((mapCode) => ({ mapCode, defaultMusic: DEFAULT_MAP_MUSIC })),
 });
 
-/** The canonical audio configuration of the fallback world. */
-const fallbackAudioConfig = () => audioConfigForMaps(getFallbackMapCodes());
-
 // The renderer lives in cyberia-audio, a sibling repository this one does not contain (see
 // .gitignore, alongside cyberia-server and cyberia-client). Named once so the runtime and the
 // suites that need real bytes ask the same question of the same path.
@@ -60,23 +56,21 @@ async function loadAudioRenderer() {
 }
 
 /**
- * Records the fallback audio the world needs, as `<code>.wav` + `<code>.json` pairs.
+ * Records the canonical audio bank, as `<code>.wav` + `<code>.json` pairs.
  *
  * Recording is where the bytes are produced and nowhere else: the client ships no audio and
  * fetches every asset from engine-cyberia by code, so there is no bundle to build alongside these.
  *
  * @param {{recordsPath: string}} params - Output directory for the recorded pairs.
- * @returns {Promise<object>} The fallback audio configuration these recordings satisfy.
+ * @returns {Promise<void>}
  */
-async function prepareFallbackAudio({ recordsPath }) {
+async function recordAudioBank({ recordsPath }) {
   const { dispatch } = await loadAudioRenderer();
-  const config = fallbackAudioConfig();
   await fs.ensureDir(recordsPath);
   for (const { code, bus, options } of DEFAULT_AUDIO_BANK) {
     const output = path.resolve(recordsPath, `${code}.wav`);
     await dispatch(bus, code, { sampleRate: 22050, ...options }, { play: false, record: true, path: output });
   }
-  return config;
 }
 
 /**
@@ -105,14 +99,8 @@ async function seedMapAudio(config, { recordsPath }, options) {
   return { assets, maps };
 }
 
-const seedFallbackAudio = ({ recordsPath }, options) =>
-  seedMapAudio(fallbackAudioConfig(), { recordsPath }, options);
-
 /**
  * Scores one instance's maps with the canonical bank.
- *
- * Every map the instance declares is scored with the same bank, bed and bindings the fallback
- * world uses, so any world sounds the way that one does.
  *
  * @param {{instanceCode: string, recordsPath: string}} params - Target instance and records directory.
  * @param {{host: string, path: string}} options - Provider context.
@@ -128,12 +116,4 @@ async function seedInstanceAudio({ instanceCode, recordsPath }, options) {
   return seedMapAudio(audioConfigForMaps(mapCodes), { recordsPath }, options);
 }
 
-export {
-  audioConfigForMaps,
-  fallbackAudioConfig,
-  hasAudioRenderer,
-  loadAudioRenderer,
-  prepareFallbackAudio,
-  seedFallbackAudio,
-  seedInstanceAudio,
-};
+export { audioConfigForMaps, hasAudioRenderer, loadAudioRenderer, recordAudioBank, seedInstanceAudio };

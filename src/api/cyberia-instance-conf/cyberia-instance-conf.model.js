@@ -139,7 +139,7 @@ const CyberiaInstanceConfSchema = new Schema(
     // An id names exactly one document, which is what makes that impossible.
     //
     // An empty list is not "no defaults": it means this instance adds nothing to
-    // the canonical ENTITY_TYPE_DEFAULTS, which every world resolves against.
+    // the foundation baseline, which every world resolves against.
     entityDefaults: {
       type: [{ type: Schema.Types.ObjectId, ref: 'CyberiaEntityTypeDefault' }],
       default: D.entityDefaults,

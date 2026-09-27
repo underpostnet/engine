@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import sharp from 'sharp';
 
-// A map preview is cached by its layout and by the idle preview File each label resolves to now.
+// A map preview draws the idle preview File each label resolves to now.
 const store = vi.hoisted(() => ({ bindings: {}, previews: {}, files: {} }));
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: {
@@ -26,7 +26,7 @@ vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js', () 
   renderFileBytes: async (fileId) => store.files[fileId] ?? null,
 }));
 
-const { cacheMapPreview } = await import('../../../src/projects/cyberia/map-preview-generator.js');
+const { renderMapPreviewPng } = await import('../../../src/projects/cyberia/map-preview-generator.js');
 
 const solid = (background) =>
   sharp({ create: { width: 4, height: 4, channels: 4, background } })
@@ -49,14 +49,12 @@ describe('map previews', () => {
   });
 
   it('draws each entity with the idle preview its label resolves to', async () => {
-    expect(await topLeft(await cacheMapPreview('first', map))).toEqual([255, 0, 0, 255]);
+    expect(await topLeft(await renderMapPreviewPng(map))).toEqual([255, 0, 0, 255]);
   });
 
-  it('reuses an unchanged preview, and renders again when a label resolves to another picture', async () => {
-    const first = await cacheMapPreview('second', map);
-    expect(await cacheMapPreview('second', map)).toBe(first);
-
+  it('draws the new picture when a label resolves to another one', async () => {
+    await renderMapPreviewPng(map);
     store.previews['cid-hatchet'] = 'f-blue';
-    expect(await topLeft(await cacheMapPreview('second', map))).toEqual([0, 0, 255, 255]);
+    expect(await topLeft(await renderMapPreviewPng(map))).toEqual([0, 0, 255, 255]);
   });
 });

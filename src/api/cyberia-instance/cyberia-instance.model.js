@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { PORTAL_MODES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 /**
  * Directed edge in a graph.
@@ -24,7 +25,7 @@ const PortalEdgeSchema = new Schema(
     //   intra-portal  — teleport to a portal entity on the same map
     portalMode: {
       type: String,
-      enum: ['inter-portal', 'inter-random', 'intra-random', 'intra-portal'],
+      enum: PORTAL_MODES,
       default: 'inter-portal',
     },
   },

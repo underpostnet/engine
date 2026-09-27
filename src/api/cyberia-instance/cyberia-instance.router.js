@@ -37,7 +37,6 @@ class CyberiaInstanceRouter {
       `/boot/full-instance`,
       async (req, res) => await CyberiaInstanceController.bootFullInstance(req, res, options),
     );
-    router.get(`/fallback-world`, async (req, res) => await CyberiaInstanceController.fallbackWorld(req, res, options));
     // Instance Map — static topology/presence plus dynamic player capability activity.
     router.get(
       `/instance-map/:instanceCode/static`,
@@ -47,7 +46,7 @@ class CyberiaInstanceRouter {
       `/instance-map/:instanceCode/dynamic`,
       async (req, res) => await CyberiaInstanceController.instanceMapDynamic(req, res, options),
     );
-    // Cached node-background capture of a fallback-world map (PNG).
+    // Node-background capture of one map (PNG).
     router.get(
       `/instance-map/:instanceCode/preview/:mapCode`,
       async (req, res) => await CyberiaInstanceController.instanceMapPreview(req, res, options),

@@ -2,8 +2,8 @@ import { Schema, model } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-// CyberiaEntityTypeDefault — DB-backed, editable mirror of the per-entity-type
-// item defaults that ship in cyberia-server-defaults.js (ENTITY_TYPE_DEFAULTS).
+// CyberiaEntityTypeDefault — the per-entity-type item wiring an instance authors
+// over the foundation baseline of the cyberia-content artifact.
 // A document binds an entity category (entityType) to the item ids the runtime
 // rotates through by lifecycle state:
 //   liveItemIds       — ObjectLayer item ids while the entity is alive.

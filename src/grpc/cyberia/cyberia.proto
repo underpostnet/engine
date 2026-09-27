@@ -162,9 +162,7 @@ message InstanceMessage {
 
 // ── Action / quest content (mission system) ──────────────────────────
 // Delivered with the world so the Go server never fetches content over a
-// separate REST channel. For the procedural fallback the engine's fallback
-// builder fills these from the canonical defaults; real instances fill them
-// from MongoDB.
+// separate REST channel. The engine fills them from MongoDB.
 
 message ActionQuestDialogue {
   string quest_code  = 1;

@@ -57,16 +57,7 @@ export default {
     'docker:reset': dockerScript('reset'),
   },
   sourceMoves: [],
-  privateConfPaths: [
-    /** INSTANCE_CODES */
-
-    'cyberia-instances/amethyst-strata-expansion',
-    'cyberia-sagas/amethyst-strata-expansion.json',
-    'cyberia-instances/FOREST',
-    'cyberia-instances/TEST',
-
-    /** INSTANCE_CODES */
-  ],
+  privateConfPaths: [],
   templatePaths: [
     '/src/grpc/cyberia',
     '/src/client/ssr/views/CyberiaServerMetrics.js',

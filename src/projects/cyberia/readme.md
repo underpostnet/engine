@@ -242,10 +242,14 @@ cyberia chain deploy --chain-id 777771
 cyberia chain status
 cyberia chain register / mint / transfer / burn / pause / unpause
 
+# Content artifact (the cyberia-content checkout or CYBERIA_CONTENT_ROOT)
+cyberia content status
+cyberia content audit --dev
+cyberia content import --dev
+cyberia content import --saga <saga-code> --dev
+
 # Named workflows
-cyberia run-workflow import-default-items
-cyberia run-workflow seed-skills
-cyberia run-workflow seed-dialogues
+cyberia run-workflow import-content
 cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard
 ```

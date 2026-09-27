@@ -171,7 +171,7 @@ const defaultInstanceProvider = async ({
   liveStatus = true,
   limit,
 } = {}) => {
-  const res = await CyberiaInstanceService.get({ sort: 'createdAt', order: 'asc', limit: 60, fallback: true });
+  const res = await CyberiaInstanceService.get({ sort: 'createdAt', order: 'asc', limit: 60 });
   if (!res || res.status !== 'success') throw new Error(res?.message || 'Could not load instances');
   const raw = res.data;
   const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];

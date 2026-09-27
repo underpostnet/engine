@@ -1,6 +1,5 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import {
-  ENTITY_TYPE_DEFAULTS,
   resolveEntityDefaultBuild,
   resolveEntityInventory,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
@@ -8,6 +7,7 @@ import { collectInstanceItemIds, selectInstanceSkills } from '../cyberia-instanc
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
+import { contentArtifact } from '../../projects/cyberia/content-artifact.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -173,10 +173,10 @@ class CyberiaEntityTypeDefaultService {
     );
 
   /**
-   * The defaults a world runs on: what its conf references, completed by the canonical set.
+   * The defaults a world runs on: what its conf references, completed by the foundation baseline.
    *
-   * Every entity type the referenced documents do not cover falls back to ENTITY_TYPE_DEFAULTS, so
-   * an instance only has to own the rows it actually changes.
+   * Every entity type the referenced documents do not cover falls back to the baseline, so an
+   * instance only has to own the rows it actually changes.
    *
    * @param {Array<object>} resolved - Defaults an instance references, already materialised.
    * @returns {Array<object>} Those defaults followed by the uncovered canonical ones.
@@ -185,7 +185,9 @@ class CyberiaEntityTypeDefaultService {
     const covered = new Set(resolved.map((entityDefault) => entityDefault.entityType));
     return [
       ...resolved.map(toEntityDefault),
-      ...ENTITY_TYPE_DEFAULTS.filter((canonical) => !covered.has(canonical.entityType)).map(toEntityDefault),
+      ...contentArtifact()
+        .baseline.filter((canonical) => !covered.has(canonical.entityType))
+        .map(toEntityDefault),
     ];
   };
 
@@ -384,7 +386,7 @@ class CyberiaEntityTypeDefaultService {
     const entityDefaults = [...kept, ...linked];
     const duplicates = findDuplicateBuilds(entityDefaults, defaults);
 
-    // Every item the world can hold: what it references, completed by the canonical defaults for
+    // Every item the world can hold: what it references, completed by the baseline defaults for
     // the entity types it does not cover. A skill triggers from one of these or from nothing.
     const referenced = await CyberiaEntityTypeDefault.find({ _id: { $in: entityDefaults } }).lean();
     const running = CyberiaEntityTypeDefaultService.completeWithCanonical(referenced.map(toEntityDefault));

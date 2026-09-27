@@ -197,9 +197,9 @@ const backedRender = async ({ objectLayer, atlas, files }) => {
 
 /**
  * Restores one object layer from an instance backup, making the backup the authority for that
- * item id: its render frames, atlas, atlas render Files, render payloads on IPFS, and the static
- * frame PNGs, replacing whatever the database holds under that id. Idempotent: every write is an
- * upsert on the backup's File `_id`s, the restored definition's cid and content-addressed CIDs.
+ * item id: its render frames, atlas, atlas render Files and render payloads on IPFS, replacing
+ * whatever the database holds under that id. Idempotent: every write is an upsert on the
+ * backup's File `_id`s, the restored definition's cid and content-addressed CIDs.
  *
  * A backup atlas that is not the render the definition names is not restored: the render is
  * rebuilt from the backup's render frames, and the definition that names it replaces the
@@ -209,14 +209,18 @@ const backedRender = async ({ objectLayer, atlas, files }) => {
  * {@link repinCanonical}, which also repairs an MFS path an older restore overwrote.
  * Orphaned atlas renders are left for the caller to prune once, after its last item.
  *
- * @param {{backupDir: string, itemId: string, options: {host: string, path: string}}} params
+ * @param {Object} params
+ * @param {string} params.backupDir
+ * @param {string} params.itemId
+ * @param {{host: string, path: string}} params.options
+ * @param {boolean} [params.framesToPublic=false] - Also write the static frame PNGs to the public directory.
  * @returns {Promise<{itemId: string, cid: string, replaced: string|null, rebuilt: boolean, files: number, renderFrames: boolean, atlas: boolean, pins: number, staticFiles: number}>}
  *   `replaced` is the backup cid the restored definition replaces, null when it is the same.
  * @throws {Error} When the backup holds neither the named render nor the frames to rebuild it,
  *   or the definition cannot be published.
  * @memberof CyberiaInstanceBackup
  */
-export async function restoreObjectLayerBackup({ backupDir, itemId, options }) {
+export async function restoreObjectLayerBackup({ backupDir, itemId, options, framesToPublic = false }) {
   const { objectLayer, renderFrames, atlas, files } = readObjectLayerBackup({ backupDir, itemId });
   const models = catalogModels(options);
   const File = DataBaseProviderService.getModel('File', options);
@@ -277,7 +281,7 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options }) {
   // 5. The static frame PNGs the web client serves, from the same render frames.
   let staticFiles = 0;
   const itemType = objectLayer.data?.item?.type;
-  if (renderFrames && itemType) {
+  if (framesToPublic && renderFrames && itemType) {
     const written = await ObjectLayerEngine.writeStaticFrameAssets({
       basePaths: ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`],
       itemType,

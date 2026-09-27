@@ -4,27 +4,22 @@
  *
  * MapEngineCyberia.renderToOffscreenCanvas() composites, per entity, every
  * `objectLayerItemIds` frame at (initCellX, initCellY) sized (dimX, dimY).
- * This module reproduces that with sharp so worlds that never pass through the
- * browser editor — the procedural fallback world — still get a `preview`
- * image for the client's Instance Map node backgrounds.
+ * This module reproduces that with sharp so maps that never pass through the
+ * browser editor still get a `preview` image for the client's Instance Map node
+ * backgrounds.
  *
  * Every entity is drawn by its items' idle-preview stills, the same picture the
  * editors show, read from the atlas of the definition each label is bound to.
  *
- * Previews are pure functions of the map's entity list and of the idle previews its labels
- * resolve to, so results are cached in memory keyed by a content hash of both — the fallback
- * world is regenerated (and re-randomised) on every call, and only a changed layout or a
- * changed item picture re-renders.
- *
  * @module src/projects/cyberia/map-preview-generator.js
  */
 
-import crypto from 'crypto';
 import sharp from 'sharp';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { renderFileBytes } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { catalogModels, catalogMounted } from './object-layer-catalog.js';
+import { isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -140,23 +135,6 @@ async function solidFrame(color, width, height) {
   return buffer;
 }
 
-/** Stable content hash of everything that affects the rendered pixels. */
-function mapPreviewHash(map, cellPx, previews) {
-  const layout = (map.entities || []).map((e) => [
-    e.initCellX,
-    e.initCellY,
-    e.dimX,
-    e.dimY,
-    (e.objectLayerItemIds || []).join(','),
-    // The colour is the render fallback for an entity whose items have no still.
-    e.color || '',
-  ]);
-  return crypto
-    .createHash('sha1')
-    .update(JSON.stringify({ code: map.code, g: [map.gridX, map.gridY], cellPx, layout, previews: [...previews] }))
-    .digest('hex');
-}
-
 /**
  * Render one CyberiaMap-shaped object to a PNG buffer.
  *
@@ -164,10 +142,9 @@ function mapPreviewHash(map, cellPx, previews) {
  * @param {object} [opts]
  * @param {number} [opts.cellPx=8]   Pixels per grid cell in the output.
  * @param {object} [opts.options]    Router options ({ host, path }) the stills are read with.
- * @param {Map<string, string|null>} [opts.previews] - Idle preview File ids by label, when already resolved.
  * @returns {Promise<Buffer|null>}   PNG buffer, or null when nothing rendered.
  */
-async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options, previews } = {}) {
+async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = {}) {
   const gridX = map?.gridX || 0;
   const gridY = map?.gridY || 0;
   if (gridX <= 0 || gridY <= 0) return null;
@@ -177,14 +154,14 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options, pre
   const cell = Math.max(1, Math.floor(cellPx * scale));
   const width = gridX * cell;
   const height = gridY * cell;
-  const fileIds = previews ?? (await idlePreviewFileIds(map, options));
+  const fileIds = await idlePreviewFileIds(map, options);
 
-  // Every entity of every entityType in the array renders something: its items'
+  // Every placed entity of every entityType renders something: its items'
   // stills when the atlases hold them, otherwise a flat fill of its colour.
   const composites = [];
-  for (const entity of map.entities || []) {
-    const left = Math.round((entity.initCellX || 0) * cell);
-    const top = Math.round((entity.initCellY || 0) * cell);
+  for (const entity of (map.entities || []).filter(isPlacedEntity)) {
+    const left = Math.round(entity.initCellX * cell);
+    const top = Math.round(entity.initCellY * cell);
     const w = Math.max(1, Math.round((entity.dimX || 1) * cell));
     const h = Math.max(1, Math.round((entity.dimY || 1) * cell));
     if (left >= width || top >= height || left + w <= 0 || top + h <= 0) continue;
@@ -213,61 +190,4 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options, pre
     .toBuffer();
 }
 
-/**
- * Rendered-preview cache: `${instanceCode}:${mapCode}` → { hash, png }.
- * Only the latest render per map is retained — the fallback world is
- * regenerated per request and old layouts are unreachable.
- */
-const previewCache = new Map();
-
-const cacheKey = (instanceCode, mapCode) => `${instanceCode}:${mapCode}`;
-
-/**
- * Render (or reuse) the preview for one map and cache it under the instance.
- * @returns {Promise<Buffer|null>}
- */
-async function cacheMapPreview(instanceCode, map, opts = {}) {
-  const key = cacheKey(instanceCode, map.code);
-  const previews = await idlePreviewFileIds(map, opts.options);
-  const hash = mapPreviewHash(map, opts.cellPx ?? DEFAULT_CELL_PX, previews);
-  const hit = previewCache.get(key);
-  if (hit && hit.hash === hash) return hit.png;
-
-  const png = await renderMapPreviewPng(map, { ...opts, previews });
-  if (!png) return null;
-  previewCache.set(key, { hash, png });
-  return png;
-}
-
-/** Cached PNG for a map, or null when it was never rendered. */
-function getCachedMapPreview(instanceCode, mapCode) {
-  return previewCache.get(cacheKey(instanceCode, mapCode))?.png ?? null;
-}
-
-/**
- * Render + cache previews for every map of a freshly generated world. Failures
- * are logged and skipped so a missing asset never breaks the world payload.
- *
- * @param {string} instanceCode
- * @param {object[]} maps  CyberiaMap-shaped objects.
- * @returns {Promise<string[]>} map codes that now have a cached preview.
- */
-async function cacheWorldMapPreviews(instanceCode, maps, opts = {}) {
-  const rendered = [];
-  for (const map of maps || []) {
-    try {
-      if (await cacheMapPreview(instanceCode, map, opts)) rendered.push(map.code);
-    } catch (error) {
-      logger.warn(`map preview: "${map?.code}" failed: ${error.message}`);
-    }
-  }
-  return rendered;
-}
-
-export {
-  renderMapPreviewPng,
-  cacheMapPreview,
-  cacheWorldMapPreviews,
-  getCachedMapPreview,
-  mapPreviewHash,
-};
+export { renderMapPreviewPng };

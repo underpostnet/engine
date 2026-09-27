@@ -51,7 +51,7 @@ class ActionEngineCyberia {
   static actionQuestDialogues = [];
   static loadedActionPayloadExtras = {};
   // Editable `skills[]` for the loaded CyberiaSkill (logicEventIds are derived
-  // from these on save, mirroring DefaultSkillConfig).
+  // from these on save).
   static skillDefs = [];
 
   static ids = {
@@ -1118,7 +1118,7 @@ class ActionEngineCyberia {
       summonedEntityItemId: sk.summonedEntityItemId || '',
     }));
     // logicEventIds is the compact discriminator list — derived from the skills
-    // so the two can never drift (matches DefaultSkillConfig).
+    // so the two can never drift.
     const logicEventIds = [...new Set(skills.map((sk) => sk.logicEventId).filter(Boolean))];
     return { triggerItemId, logicEventIds, skills };
   }

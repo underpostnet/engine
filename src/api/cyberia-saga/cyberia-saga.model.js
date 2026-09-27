@@ -12,32 +12,43 @@ const CyberiaSagaSchema = new Schema(
     // Optional description of the saga, its setting, or narrative theme.
     description: { type: String, default: '' },
 
-    // Complete set of map identifiers that belong to this saga.
+    // Content foundation version the saga was composed against.
+    foundationVersion: { type: String, default: '' },
+
+    // Foundation definition ids the saga uses.
+    references: { type: [String], default: [] },
+
+    // Semantic definitions the saga adds to the foundation.
+    definitions: { type: [Schema.Types.Mixed], default: [] },
+
+    // Complete set of map identifiers that belong to this saga: its places.
     // Any map outside this list is considered external to the saga.
     mapCodes: { type: [String], default: [] },
 
-    // Complete set of item identifiers associated with this saga.
+    // Item labels the saga's references and definitions run on.
     itemIds: { type: [String], default: [] },
 
     // Quests that belong to this saga, each paired with the NPC skin item that
-    // provides it (the bot whose interaction opens or advances the quest).
+    // provides it and the place it is offered at.
     questCodes: {
       type: [
         {
           providerSkinItemId: { type: String, required: true },
           questCode: { type: String, required: true },
+          mapCode: { type: String, default: '' },
         },
       ],
       default: [],
     },
 
     // Actions that belong to this saga, each paired with the NPC skin item the
-    // action is mounted on (the bot the action represents).
+    // action is mounted on and the place it stands at.
     actionCodes: {
       type: [
         {
           providerSkinItemId: { type: String, required: true },
           actionCode: { type: String, required: true },
+          mapCode: { type: String, default: '' },
         },
       ],
       default: [],

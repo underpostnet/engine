@@ -184,6 +184,12 @@ const content = () => {
       ]),
       CyberiaMap: new FakeModel([{ code: 'forest-1', entities: [{ objectLayerItemIds: ['hatchet'] }] }]),
       CyberiaEntityTypeDefault: new FakeModel([{ entityType: 'bot', liveItemIds: ['sword'] }]),
+      CyberiaSkill: new FakeModel([
+        {
+          triggerItemId: 'hatchet',
+          skills: [{ summonedEntityItemId: 'hatchet' }, { summonedEntityItemId: '$active_skin' }],
+        },
+      ]),
       CyberiaInstance: new FakeModel([{ code: 'FOREST', conf: confId, cyberiaMapCodes: ['forest-1'] }]),
       CyberiaInstanceConf: new FakeModel([{ _id: confId }]),
     },
@@ -302,6 +308,21 @@ describe('candidate validation', () => {
     models.CyberiaMap.docs[0].entities[0].objectLayerItemIds.push('unbound-label');
     const errors = failing(await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) }));
     expect(errors.labels).toEqual(['map forest-1: label "unbound-label" is not bound']);
+  });
+
+  it('checks every label the content names, not only what maps place', async () => {
+    const { models, hatchet, sword } = content();
+    models.CyberiaEntityTypeDefault.docs[0].dropItemIds = ['loot'];
+    models.CyberiaAction.docs[0].craftRecipes = [{ outputItems: [{ itemId: 'blade' }], ingredients: [] }];
+    models.CyberiaQuest.docs[0].rewards = [{ itemId: 'medal' }];
+    models.CyberiaSkill.docs[0].skills[0].summonedEntityItemId = 'bolt';
+    const errors = failing(await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) }));
+    expect(errors.labels).toEqual([
+      'entity default bot: label "loot" is not bound',
+      'action shop: label "blade" is not bound',
+      'quest q1: label "medal" is not bound',
+      'skill hatchet: label "bolt" is not bound',
+    ]);
   });
 
   it('fails when a bound definition has no stored primary render', async () => {

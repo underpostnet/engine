@@ -40,6 +40,7 @@ const CONTENT_APIS = [
   'cyberia-action',
   'cyberia-map',
   'cyberia-entity-type-default',
+  'cyberia-skill',
   'cyberia-instance',
   'cyberia-instance-conf',
 ];

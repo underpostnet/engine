@@ -177,11 +177,34 @@ async function materializeDefinition({ definition, bound, renderFrames, rendered
 }
 
 /**
+ * The definition a write produces: the payload merged over the bound data with
+ * {@link mergeObjectLayerData}, or over `setOnInsert` when the label has none, under the
+ * Cyberia profile. Its identity decides whether a write changes the binding.
+ *
+ * @param {Object} params
+ * @param {Object|null} params.boundData - `data` of the definition the label is bound to.
+ * @param {Object} params.payload - `{ data }`; `data.item.id` required.
+ * @param {Object} [params.setOnInsert=null] - Partial payload applied only when nothing is bound.
+ * @returns {{profile:Object,data:Object}}
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export function composeItemDefinition({ boundData, payload, setOnInsert = null }) {
+  const next = boundData
+    ? { data: mergeObjectLayerData(boundData, payload.data) }
+    : setOnInsert
+      ? mergeObjectLayerData(setOnInsert, payload)
+      : { ...payload };
+  next.profile = profileRef(CyberiaObjectLayerProfile);
+  next.data.stats = CyberiaObjectLayerProfile.validateStats(next.data.stats);
+  return next;
+}
+
+/**
  * Publishes the definition a Cyberia item label runs on, under the Cyberia profile, and binds
  * the label to it.
  *
- * The payload is merged over the bound definition with {@link mergeObjectLayerData}, so a
- * degraded writer keeps what an earlier one stored. Changed content becomes a new immutable
+ * The payload is composed by {@link composeItemDefinition}, so a degraded writer keeps what an
+ * earlier one stored. Changed content becomes a new immutable
  * definition and the label is rebound to it; identical content keeps the bound one. The label
  * binds only after {@link publishDefinition} succeeds: a definition the Object Layer authority
  * did not store stays a draft and the label keeps its binding. The materializations of the
@@ -203,14 +226,11 @@ export async function writeItemDefinition({ models, payload, setOnInsert = null,
   if (!itemId) throw new Error('writeItemDefinition requires data.item.id');
 
   const bound = await findBoundDefinition(models, itemId);
-  let next;
-  if (bound) {
-    next = { data: mergeObjectLayerData(bound.toObject({ virtuals: false }).data, payload.data) };
-  } else {
-    next = setOnInsert ? mergeObjectLayerData(setOnInsert, payload) : { ...payload };
-  }
-  next.profile = profileRef(CyberiaObjectLayerProfile);
-  next.data.stats = CyberiaObjectLayerProfile.validateStats(next.data.stats);
+  const next = composeItemDefinition({
+    boundData: bound ? bound.toObject({ virtuals: false }).data : null,
+    payload,
+    setOnInsert,
+  });
   if (rendered) next.data.render = rendered.render;
   if (payload.createdBy) next.createdBy = payload.createdBy;
 

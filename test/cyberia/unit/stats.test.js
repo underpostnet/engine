@@ -82,7 +82,7 @@ describe('Cyberia signed stat contract', () => {
     await entity.validate();
     expect(toEntityMsg(entity.toObject()).level).toBe(25);
     await expect(new CyberiaEntityModel({ level: -1 }).validate()).rejects.toThrow();
-    const config = toInstanceConfig({});
+    const config = toInstanceConfig({}, []);
     expect(config.progressionRules.maxLevel).toBe(100);
     expect(config).not.toHaveProperty('sumStatsLimit');
     await expect(
@@ -93,7 +93,7 @@ describe('Cyberia signed stat contract', () => {
   it('resolves partial curves and rejects invalid progression configuration', () => {
     const rules = resolveProgressionRules({ baseStats: { effect: 20 }, defaultBotLevel: 7 });
     expect(rules.baseStats).toEqual({ ...resolveProgressionRules().baseStats, effect: 20 });
-    expect(toInstanceConfig({ progressionRules: { defaultBotLevel: 7 } }).progressionRules.defaultBotLevel).toBe(7);
+    expect(toInstanceConfig({ progressionRules: { defaultBotLevel: 7 } }, []).progressionRules.defaultBotLevel).toBe(7);
     for (const input of [
       { maxLevel: 5, defaultBotLevel: 6 },
       { xpPerLevel: 0 },
@@ -134,11 +134,11 @@ describe('Cyberia signed stat contract', () => {
     }
   });
 
-  // cyberia-server and cyberia-client are gitignored siblings this repo does not contain (see
-  // .gitignore); a checkout that only has this repo's own tracked tree has nothing to check.
-  // A cold Go module cache compiles buf before the first check.
+  // cyberia-server, cyberia-client and the cyberia-content sources are checkouts this repo does not
+  // contain (see .gitignore); a checkout that only has this repo's own tracked tree has nothing to
+  // check. A cold Go module cache compiles buf before the first check.
   it.skipIf(!hasCyberiaSiblings())(
-    'matches generated Go and C contracts',
+    'matches generated Go, C and content contracts',
     async () => {
       await generateStatContract({ check: true });
     },

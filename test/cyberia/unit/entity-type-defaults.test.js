@@ -10,9 +10,14 @@ import {
 import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
-  ENTITY_TYPE_DEFAULTS,
   resolveEntityInventory,
 } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
+
+// The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
+const contentBuilt = hasContentArtifact();
+
+const baseline = () => contentArtifact().baseline;
 
 // Two worlds built on the same art: identical entityType, identical liveItemIds, different
 // wiring. This is the shape that used to make item-id matching resolve one into the other.
@@ -81,12 +86,12 @@ describe('entity-type defaults are resolved by reference', () => {
     }
   });
 
-  it('completes the referenced set with every canonical type it does not cover', async () => {
+  it.skipIf(!contentBuilt)('completes the referenced set with every canonical type it does not cover', async () => {
     const completed = await CyberiaEntityTypeDefaultService.resolveWithCanonical([FOREST_BOT._id], options);
     // The referenced document owns 'bot'; the canonical entry for that type must not come back too.
     expect(completed.filter((d) => d.entityType === 'bot')).toHaveLength(1);
     expect(completed[0]).toMatchObject({ behavior: 'hostile', deadItemIds: ['forest-ghost'] });
-    for (const canonical of ENTITY_TYPE_DEFAULTS) {
+    for (const canonical of baseline()) {
       if (canonical.entityType === 'bot') continue;
       expect(completed.some((d) => d.entityType === canonical.entityType)).toBe(true);
     }
@@ -179,7 +184,7 @@ describe('orphaned references are impossible to keep', () => {
   });
 });
 
-describe('syncing an instance to the defaults its maps place', () => {
+describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps place', () => {
   const options = { host: 'entity-default-test', path: '/' };
   let docs;
   let confs;
@@ -427,7 +432,7 @@ describe('syncing an instance to the defaults its maps place', () => {
     expect(result.skills).not.toContain('hatchet');
   });
 
-  it('keeps a skill whose trigger the canonical defaults supply', async () => {
+  it('keeps a skill whose trigger the baseline defaults supply', async () => {
     // The instance references no player default of its own, so anon/atlas_pistol_mk2 reach it
     // through the canonical set — leaving their skills out would disarm the player.
     confs.get('c1').entityDefaults = [];
@@ -615,8 +620,8 @@ describe('the canonical inventory contract', () => {
     ]);
   });
 
-  it('gives every canonical default an inventory that covers its own lifecycle ids', () => {
-    for (const entityDefault of ENTITY_TYPE_DEFAULTS) {
+  it.skipIf(!contentBuilt)('gives every baseline default an inventory that covers its own lifecycle ids', () => {
+    for (const entityDefault of baseline()) {
       const carried = new Set(resolveEntityInventory(entityDefault).map((row) => row.itemId));
       for (const id of [
         ...(entityDefault.liveItemIds || []),

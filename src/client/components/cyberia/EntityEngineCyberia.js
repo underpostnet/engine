@@ -18,7 +18,7 @@ const groupBorder = () => (darkTheme ? '#3a3a3a' : '#d4d4d4');
 const subtleBorder = () => (darkTheme ? '#444' : '#e0e0e0');
 
 // EntityEngineCyberia — CRUD surface for the cyberia-entity-type-default
-// collection (the DB-backed mirror of ENTITY_TYPE_DEFAULTS). An ag-grid lists
+// collection (instance wiring over the foundation baseline). An ag-grid lists
 // every default; clicking a row loads it into the form. The form binds an
 // entityType to its lifecycle item-id sets (live / dead / drop) plus the
 // inventory-only extras, with server-backed item-id autocomplete pickers so the
