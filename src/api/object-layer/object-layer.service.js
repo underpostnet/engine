@@ -13,6 +13,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
+import { toWire } from '../../client/components/object-layer/RenderSource.js';
 import { AtlasSpriteSheetStore } from '../atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { ObjectLayerDto, isObjectLayerCid } from './object-layer.model.js';
 import { objectLayerIdentity } from './object-layer.identity.js';
@@ -106,7 +107,7 @@ class ObjectLayerService {
    * GET handler for retrieving object layers.
    *
    * Supports multiple sub-routes:
-   * - `/render/:id` — The editor source of one definition: its render frames, colors and frame duration.
+   * - `/render/:id` — The editor source of one definition, in wire form: indexed frames, palette and frame duration.
    * - `/metadata/:id` — One definition with its stats and timestamps, without its editor source.
    * - `/:id` — One definition by cid, document id or (through the host's extension) label; 404 when none.
    * - `/` — Get a paginated list of object layers.
@@ -151,10 +152,15 @@ class ObjectLayerService {
     if (req.path.startsWith('/render/')) {
       const objectLayer = await findByKey(req.params.id, { select: { _id: 1, cid: 1 } });
       if (!objectLayer) throw new Error('ObjectLayer not found');
-      const renderFrames = await DataBaseProviderService.getModel('ObjectLayerRenderFrames', options)
-        .findOne({ objectLayerCid: objectLayer.cid })
+      const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
+      const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid })
         .select(ObjectLayerRenderFramesDto.select.getFull())
         .lean();
+      const renderFrames = stored && {
+        _id: stored._id,
+        revision: stored.revision,
+        ...toWire(ObjectLayerRenderFrames.sourceOf(stored)),
+      };
       return { _id: objectLayer._id, cid: objectLayer.cid, renderFrames };
     }
 

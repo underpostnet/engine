@@ -138,12 +138,13 @@ without a restart. The WASM client runs with `wasm-driver.py --data-server-url=h
    release and promotes nothing.
 
    To build a world from the foundation, import it with `node bin/cyberia content import --dev`.
-   Every foundation map arrives with its entities unplaced, and every item without render. In the
-   Studio, paint the items and place the entities.
+   Every foundation map arrives without entities, and every item without render. In the Studio,
+   paint the items and place the entities.
 
 5. Create or update Object Layers. Use the Studio at `http://localhost:4008/object-layer-engine`
-   (sign in as a moderator), or the CLI: `node bin/cyberia ol <item-id> --from-directory --import --dev`.
-   Both write through the same path: draft → the local authority → `olCid` → cache copy. The
+   (sign in as a moderator), or the CLI: `node bin/cyberia ol <item-id> --client-public --import --dev`.
+   Both write to MongoDB through the same path: draft → the local authority → `olCid` → cache copy.
+   Only `--client-public` also touches `src/client/public/cyberia/assets`. The
    authority is the only writer of published definitions. A Cyberia database never holds an
    authoritative one.
 

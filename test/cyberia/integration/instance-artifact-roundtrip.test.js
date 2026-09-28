@@ -112,6 +112,16 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())(
       expect(fs.readJsonSync(path.join(out, 'cyberia-instance.json')).code).toBe(CODE);
       for (const directory of ['maps', 'object-layers', 'cyberia-quests', 'cyberia-actions', 'cyberia-dialogues'])
         expect(jsonFiles(path.join(out, directory)), directory).toEqual(jsonFiles(path.join(source, directory)));
+
+      // Render sources travel as indexed frames: an import and an export keep every byte.
+      const wire = (file) => {
+        const { format, width, height, palette, frameDurationMs, frames } = fs.readJsonSync(file);
+        return { format, width, height, palette, frameDurationMs, frames };
+      };
+      for (const file of jsonFiles(path.join(source, 'render-frames')))
+        expect(wire(path.join(out, 'render-frames', file)), file).toEqual(
+          wire(path.join(source, 'render-frames', file)),
+        );
     }, 360000);
   },
 );

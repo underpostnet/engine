@@ -156,7 +156,7 @@ const sameRender = (a, b) => (a?.cid ?? '') === (b?.cid ?? '') && (a?.metadataCi
  * @param {Object} params
  * @param {Object} params.definition - The written definition.
  * @param {Object|null} params.bound - The definition the label was bound to before the write.
- * @param {Object} [params.renderFrames] - Editor source: `{ frames, colors, frame_duration }`.
+ * @param {Object} [params.renderFrames] - Editor source: a render source (`RenderSource.js`).
  * @param {{render: Object, atlas: Object}} [params.rendered] - Output of {@link AtlasSpriteSheetStore.build}.
  * @param {Object} [params.options] - Router options of this host.
  * @returns {Promise<void>}
@@ -167,8 +167,8 @@ async function materializeDefinition({ definition, bound, renderFrames, rendered
   const predecessor =
     bound && bound.cid !== definition.cid && sameRender(bound.data.render, definition.data.render) ? bound.cid : null;
 
-  const source =
-    renderFrames ?? (predecessor && (await ObjectLayerRenderFrames.findOne({ objectLayerCid: predecessor }).lean()));
+  const inherited = predecessor && (await ObjectLayerRenderFrames.findOne({ objectLayerCid: predecessor }).lean());
+  const source = renderFrames ?? (inherited && ObjectLayerRenderFrames.sourceOf(inherited));
   if (source) await ObjectLayerRenderFrames.materialize(definition.cid, source);
 
   const atlas =

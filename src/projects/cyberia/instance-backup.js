@@ -26,6 +26,7 @@ import { parseIdentityJson, renderContractOf } from '../../api/object-layer/obje
 import { repinCanonical } from '../../api/object-layer/object-layer.publication.js';
 import { ObjectLayerEngine } from './object-layer.js';
 import { catalogModels, findBoundDefinition } from './object-layer-catalog.js';
+import { fromWire, toWire } from '../../client/components/object-layer/RenderSource.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -86,6 +87,7 @@ const readIdentityDocument = (file) => (fs.existsSync(file) ? parseIdentityJson(
  *
  * @param {{backupDir: string, itemId: string}} params
  * @returns {{objectLayer: object, renderFrames: object|null, atlas: object|null, files: object[]}}
+ *   `renderFrames` is the render source.
  * @throws {Error} When the backup has no object layer for the item.
  * @memberof CyberiaInstanceBackup
  */
@@ -93,7 +95,8 @@ export function readObjectLayerBackup({ backupDir, itemId }) {
   const objectLayer = readIdentityDocument(path.join(backupDir, 'object-layers', `${itemId}.json`));
   if (!objectLayer) throw new Error(`Backup at ${backupDir} has no object layer '${itemId}'`);
 
-  const renderFrames = readIdentityDocument(path.join(backupDir, 'render-frames', `${itemId}.json`));
+  const renderFramesBackup = readIdentityDocument(path.join(backupDir, 'render-frames', `${itemId}.json`));
+  const renderFrames = renderFramesBackup && fromWire(renderFramesBackup);
   const atlas = readIdentityDocument(path.join(backupDir, 'atlas-sprite-sheets', `${itemId}.json`));
 
   const wanted = new Set(documentFileIds(atlas ? [atlas] : [], ATLAS_FILE_FIELDS));
@@ -154,11 +157,12 @@ export async function exportObjectLayerBackup({ backupDir, definition, options }
   const itemId = definition.data.item.id;
   const write = (dir, value) => fs.outputJsonSync(path.join(backupDir, dir, `${itemId}.json`), value, { spaces: 2 });
 
-  const renderFrames = declared(
-    ObjectLayerRenderFrames,
-    await ObjectLayerRenderFrames.findOne({ objectLayerCid: definition.cid }).lean(),
-  );
-  if (renderFrames) write('render-frames', renderFrames);
+  const renderFrames = await ObjectLayerRenderFrames.findOne({ objectLayerCid: definition.cid }).lean();
+  if (renderFrames)
+    write('render-frames', {
+      ...declared(ObjectLayerRenderFrames, renderFrames),
+      ...toWire(ObjectLayerRenderFrames.sourceOf(renderFrames)),
+    });
 
   const atlas = declared(AtlasSpriteSheet, await AtlasSpriteSheet.findOne({ objectLayerCid: definition.cid }).lean());
   let files = 0;
@@ -283,14 +287,10 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options, fra
   const itemType = objectLayer.data?.item?.type;
   if (framesToPublic && renderFrames && itemType) {
     const written = await ObjectLayerEngine.writeStaticFrameAssets({
-      basePaths: ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`],
+      basePaths: ObjectLayerEngine.clientPublicPaths(options),
       itemType,
       itemId,
-      objectLayerRenderFramesData: {
-        frames: renderFrames.frames || {},
-        colors: renderFrames.colors || [],
-        frame_duration: renderFrames.frame_duration ?? 100,
-      },
+      objectLayerRenderFramesData: renderFrames,
       objectLayerData: objectLayer,
       cellPixelDim: DEFAULT_ATLAS_UPSCALE_FACTOR,
     });

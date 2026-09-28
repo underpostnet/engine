@@ -30,42 +30,41 @@ process environment, as in a pod, which receives its environment from a Secret. 
 
 ## `cyberia ol` — object layer
 
-Import PNG assets, build atlas sprite sheets, push to IPFS + MongoDB.
+Import, rebuild and drop object layers in MongoDB and IPFS; `--client-public` keeps the asset tree in step.
 
 ```bash
 cyberia ol [item-id] [options]
 ```
 
-| Option                                                | Description                                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `--import`                                            | Import specific item-id(s), comma-separated; needs one source below            |
-| `--instance <code>`                                   | Source `--import` from that instance backup of the content artifact            |
-| `--from-directory`                                    | Source `--import` / `--import-types` from the asset directory                  |
-| `--import-types [types]`                              | Batch import by type (e.g. `skin,floors`) or `all`; needs `--from-directory`   |
-| `--frame-index <n>` / `--frame-count <n>`             | Start frame (default `0`) / frame count (default `1`)                          |
-| `--to-atlas-sprite-sheet [dim]`                       | Rebuild the render and publish the definitions that name it                    |
-| `--sync-derived`                                      | Derive the upscaled render and the idle preview again; `--instance` narrows it |
-| `--upscale <px-factor>`                               | Pixels per cell of the upscaled derived render; alone, rebuilds the render     |
-| `--normalize-stats`                                   | Clamp the stats of every layer the action writes to its item type's bounds     |
-| `--random-stats`                                      | Regenerate the stats of every layer the action writes at random                |
-| `--min-stat <n>` / `--max-stat <n>`                   | Narrow the range the two flags above may leave (default `-100`/`100`)          |
-| `--show-frame [dir_frame]`                            | View one frame (e.g. `08_0`; default `08_0`)                                   |
-| `--show-atlas-sprite-sheet`                           | Save and open the primary render of the bound definition                       |
-| `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop existing data before importing (or standalone)            |
-| `--release <release-id>`                              | Work on one candidate release database instead of the workspace                |
-| `--client-public`                                     | With `--drop`: also remove static asset folders                                |
-| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                       |
+| Option                                                | Description                                                                     |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `--import`                                            | Import item-id(s), comma-separated: from `--instance`, else from the asset tree |
+| `--instance <code>`                                   | Source `--import` from that instance backup of the content artifact             |
+| `--import-types [types]`                              | Batch import by type (e.g. `skin,floors`) or `all` from the asset tree          |
+| `--frame-index <n>` / `--frame-count <n>`             | Start frame (default `0`) / frame count (default `1`)                           |
+| `--to-atlas-sprite-sheet [dim]`                       | Rebuild the render and publish the definitions that name it                     |
+| `--sync-derived`                                      | Derive the upscaled render and the idle preview again; `--instance` narrows it  |
+| `--upscale <px-factor>`                               | Pixels per cell of the upscaled derived render; alone, rebuilds the render      |
+| `--normalize-stats`                                   | Clamp the stats of every layer the action writes to its item type's bounds      |
+| `--random-stats`                                      | Regenerate the stats of every layer the action writes at random                 |
+| `--min-stat <n>` / `--max-stat <n>`                   | Narrow the range the two flags above may leave (default `-100`/`100`)           |
+| `--show-frame [dir_frame]`                            | View one frame (e.g. `08_0`; default `08_0`)                                    |
+| `--show-atlas-sprite-sheet`                           | Save and open the primary render of the bound definition                        |
+| `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop existing data before importing (or standalone)             |
+| `--release <release-id>`                              | Work on one candidate release database instead of the workspace                 |
+| `--client-public`                                     | Keep the asset tree consistent with the action (see below)                      |
+| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                        |
 
 ```bash
 # Restore specific items from an instance backup: the backup is the authority for the item
 cyberia ol hatchet,sword --instance FOREST --import
 
-# Import specific items from the asset directory
-cyberia ol hatchet,sword --from-directory --import --env-path ./engine-private/conf/dd-cyberia/.env.development
+# Import specific items from the asset tree
+cyberia ol hatchet,sword --client-public --import --env-path ./engine-private/conf/dd-cyberia/.env.development
 
-# Batch import by type, or everything, from the asset directory
-cyberia ol --from-directory --import-types skin,floors
-cyberia ol --from-directory --import-types all
+# Batch import by type, or everything, from the asset tree
+cyberia ol --client-public --import-types skin,floors
+cyberia ol --client-public --import-types all
 
 # Atlas / inspect
 cyberia ol hatchet --to-atlas-sprite-sheet
@@ -83,17 +82,29 @@ cyberia ol --sync-derived --instance FOREST
 
 # Balance stats on every layer an action writes
 cyberia ol --sync-derived --instance FOREST --normalize-stats
-cyberia ol hatchet --from-directory --import --random-stats --normalize-stats --max-stat 10
+cyberia ol hatchet --client-public --import --random-stats --normalize-stats --max-stat 10
 
-# Bootstrap only: drop + re-import a single item, including static folders
-cyberia ol hatchet --drop --confirm dd-cyberia --client-public --from-directory --import
+# Bootstrap only: drop an item from MongoDB, then import it again from the asset tree
+cyberia ol hatchet --drop --confirm dd-cyberia
+cyberia ol hatchet --client-public --import
+
+# Bootstrap only: drop an item and its asset folders
+cyberia ol hatchet --drop --confirm dd-cyberia --client-public
 ```
 
 `--drop` runs the same purge as the Object Layer management view's purge action
 (`src/api/object-layer/object-layer.purge.js`): the definition, its render frames, its atlas and
-render files, its IPFS pin records and MFS paths, and the labels bound to it. The asset tree is
-the source a re-import reads, so only `--client-public` takes it too. A definition ItemLedger
-registers is kept and reported.
+render files, its IPFS pin records and MFS paths, and the labels bound to it. A definition
+ItemLedger registers is kept and reported.
+
+MongoDB holds every frame: the Object Layer editor and every `ol` action write there only.
+`--client-public` keeps `src/client/public/cyberia/assets/<type>/<item-id>/` and the host's built
+copy consistent with the action:
+
+- `--import` without `--instance`, and `--import-types`, read the asset tree.
+- Each item the action writes (an import, `--sync-derived`, `--to-atlas-sprite-sheet`) has its
+  folder replaced with its stored frames and `metadata.json`.
+- `--drop` removes the folder of each dropped item.
 
 An item id names the definition the Cyberia item catalog binds it to (`CyberiaItemCatalog`,
 resolved through `src/projects/cyberia/object-layer-catalog.js`). Definitions are immutable: a

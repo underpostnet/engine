@@ -92,11 +92,11 @@ export async function findPurgeableDefinitions({ ObjectLayer, options }, filter 
  *   removes what the host's Studio keeps for a definition.
  * @param {Object} [params.filter={}] - ObjectLayer selector. `{}` purges every definition.
  * @param {boolean} [params.pruneOrphans=false] - Also remove atlas renders no atlas points at.
- * @param {boolean} [params.assets=true] - False keeps the asset tree a re-import reads.
+ * @param {boolean} [params.assets=false] - Also remove what the host keeps in its asset tree.
  * @returns {Promise<PurgeReport>}
  * @memberof ObjectLayerPurge
  */
-export async function purgeObjectLayers({ options, filter = {}, pruneOrphans = false, assets = true }) {
+export async function purgeObjectLayers({ options, filter = {}, pruneOrphans = false, assets = false }) {
   const model = (name) => DataBaseProviderService.getModel(name, options);
   const ObjectLayer = model('ObjectLayer');
   const { purgeable, kept } = await findPurgeableDefinitions({ ObjectLayer, options }, filter);

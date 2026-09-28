@@ -8,6 +8,7 @@ import { clearDomainCache } from '../../../src/server/domain/domain-client.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
 import { profileRef } from '../../../src/client/components/object-layer/ObjectLayerProtocol.js';
 import { CyberiaObjectLayerProfile } from '../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import {
@@ -145,7 +146,7 @@ const authorWorkspace = async ({ mapCode = 'forest-1' } = {}) => {
     options: cyberia,
   });
   const { primary, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
-    { colors: [[255, 0, 0, 255]], frames: { down_idle: [[[0]]] } },
+    sourceFromIndexedFrames({ colors: [[255, 0, 0, 255]], frames: { down_idle: [[[0]]] }, frameDurationMs: 100 }),
     'sword',
   );
   const file = await model('File').findOneAndUpdate(

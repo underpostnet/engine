@@ -41,7 +41,7 @@ import {
   ObjectLayerEngine,
   resolveItemIdentity,
   pngDirectoryIteratorByObjectLayerType,
-  buildImgFromTile,
+  writeFrameImage,
 } from '../src/projects/cyberia/object-layer.js';
 import {
   ITEM_DEFINITION_APIS,
@@ -360,6 +360,8 @@ async function runIdentityMigration(models, contentModels = {}, context) {
     AtlasSpriteSheet: DataBaseProviderService.getModel('AtlasSpriteSheet', context),
     ObjectLayerRenderFrames: DataBaseProviderService.getModel('ObjectLayerRenderFrames', context),
   };
+  const indexed = await materializations.ObjectLayerRenderFrames.migrateFormat();
+  if (indexed > 0) logger.info(`Moved ${indexed} editor source(s) to indexed pixel frames`);
   const materialized = await models.ObjectLayer.migrateMaterializations(materializations);
   if (materialized.linked > 0)
     logger.info(`Linked ${materialized.linked} materialization(s) to their definition by cid`);
@@ -650,11 +652,7 @@ try {
     .option('--show-atlas-sprite-sheet', 'Save and open the primary render of the definition an item-id is bound to')
     .option(
       '--import',
-      'Import specific item-id(s) passed as comma-separated command argument (e.g. ol hatchet,sword --instance FOREST --import); with --from-directory, from the asset directory instead',
-    )
-    .option(
-      '--from-directory',
-      'Source --import and --import-types from src/client/public/cyberia/assets/<type>/<item-id>/<direction>/<frame>.png',
+      'Import specific item-id(s) passed as comma-separated command argument: from an instance backup with --instance (e.g. ol hatchet,sword --instance FOREST --import), else from the asset tree with --client-public',
     )
     .option(
       '--sync-derived',
@@ -689,7 +687,7 @@ try {
     )
     .option(
       '--import-types [object-layer-type]',
-      'Batch import by object layer type from the asset directory, needs --from-directory (e.g. skin,floors or all)',
+      'Batch import by object layer type from the asset tree, needs --client-public (e.g. skin,floors or all)',
     )
     .option('--show-frame [direction-frame]', 'View object layer frame for given item-id e.g. 08_0 (default: 08_0)')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
@@ -697,7 +695,10 @@ try {
     .option('--drop', 'Drop existing data before importing (needs --confirm <deploy-id>; never part of a deploy)')
     .option('--confirm <deploy-id>', 'Confirm a destructive action against this deploy id')
     .option('--release <release-id>', 'Work on the content release database of this id instead of the workspace')
-    .option('--client-public', 'When used with --drop, also remove static asset folders for dropped items')
+    .option(
+      '--client-public',
+      'Keep src/client/public/cyberia/assets consistent with the operation: an import reads the asset tree (without --instance), every item an action writes has its frames and metadata written there from MongoDB, and --drop removes the folders of the dropped items',
+    )
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
     .action(
       /**
@@ -707,7 +708,6 @@ try {
        * @param {string|undefined} itemId - Optional item ID argument.
        * @param {Object} options - Command options parsed by Commander.
        * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
-       * @param {boolean} options.fromDirectory - Source --import and --import-types from the asset directory.
        * @param {boolean} options.syncDerived - Refresh the derived renders of stored item(s).
        * @param {string} options.instance - Instance code whose object layers --sync-derived reprocesses.
        * @param {boolean} options.normalizeStats - Clamp the stats of every object layer the action writes to its type's bounds.
@@ -722,7 +722,7 @@ try {
        * @param {boolean|string} options.toAtlasSpriteSheet - Atlas dimension or `true` for auto-calc.
        * @param {boolean} options.showAtlasSpriteSheet - Whether to display the atlas sprite sheet.
        * @param {boolean} options.drop - Whether to drop existing data before importing.
-       * @param {boolean} options.clientPublic - Also remove static asset folders when dropping.
+       * @param {boolean} options.clientPublic - Keep the asset tree consistent with the operation.
        * @param {boolean} options.dev - Force development environment.
        * @returns {Promise<void>}
        * @memberof CyberiaCLI
@@ -731,7 +731,6 @@ try {
         itemId,
         options = {
           import: false,
-          fromDirectory: false,
           syncDerived: false,
           instance: '',
           upscale: DEFAULT_ATLAS_UPSCALE_FACTOR,
@@ -802,6 +801,21 @@ try {
 
         const rebuildAtlases = ObjectLayerEngine.selectAtlasRebuild(options);
 
+        /** With --client-public, the asset trees follow an item the action wrote: its stored frames and metadata. */
+        const writeClientPublic = async (objectLayer) => {
+          if (!options.clientPublic || !objectLayer) return;
+          const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
+          if (!stored) return;
+          await ObjectLayerEngine.writeStaticFrameAssets({
+            basePaths: ObjectLayerEngine.clientPublicPaths({ host, path }),
+            itemType: objectLayer.data.item.type,
+            itemId: objectLayer.data.item.id,
+            objectLayerRenderFramesData: ObjectLayerRenderFrames.sourceOf(stored),
+            objectLayerData: ObjectLayerEngine.payloadOf(objectLayer),
+            cellPixelDim: upscaleFactor,
+          });
+        };
+
         /* Bounds fail here, before any write, rather than on the first item. */
         const statPolicy = {
           normalize: !!options.normalizeStats,
@@ -856,8 +870,8 @@ try {
             logger.info('Dropping ALL object layer data');
           }
 
-          // Every definition that carries a dropped label goes, with its label binding. The
-          // asset tree is the source a re-import reads, so only --client-public removes it.
+          // Every definition that carries a dropped label goes, with its label binding, and with
+          // --client-public its folder in the asset trees.
           const report = await purgeObjectLayers({
             options: { host, path, extension: cyberiaStudio },
             filter: isTargetedDrop ? { 'data.item.id': { $in: dropItemIds } } : {},
@@ -907,6 +921,7 @@ try {
                 objectLayerCid: objectLayer?.cid,
                 options: { host, path },
               });
+              await writeClientPublic(objectLayer);
               tally[status]++;
               if (status === 'missing')
                 logger.warn(`No render stored for '${currentItemId}'; build it with --to-atlas-sprite-sheet`);
@@ -948,7 +963,7 @@ try {
                 backupDir,
                 itemId: currentItemId,
                 options: { host, path },
-                framesToPublic: true,
+                framesToPublic: Boolean(options.clientPublic),
               });
               logger.info(`Restored '${currentItemId}' from backup`, summary);
               restored++;
@@ -963,23 +978,23 @@ try {
           logger.info(`Instance restore done: ${restored}/${itemIds.length} item(s)`);
         }
 
-        if (options.import && !options.instance === !options.fromDirectory) {
+        if (options.import && !options.instance && !options.clientPublic) {
           logger.error(
-            '--import takes exactly one source: --instance <code> for a backup, or --from-directory for the asset tree',
+            '--import needs a source: --instance <code> for a backup, or --client-public for the asset tree',
           );
           process.exit(1);
         }
-        if (options.importTypes && !options.fromDirectory) {
-          logger.error('--import-types reads the asset tree and needs --from-directory');
+        if (options.importTypes && !options.clientPublic) {
+          logger.error('--import-types reads the asset tree and needs --client-public');
           process.exit(1);
         }
 
-        // ── Handle --import --from-directory (specific item-id(s)) ────────
-        if (options.import && options.fromDirectory) {
+        // ── Handle --import --client-public (specific item-id(s) from the asset tree) ──
+        if (options.import && !options.instance) {
           const itemIds = parseItemIds(itemId);
           if (itemIds.length === 0) {
             logger.error(
-              'item-id is required for --import --from-directory (comma-separated item IDs, e.g. ol hatchet,sword --from-directory --import)',
+              'item-id is required for --import --client-public (comma-separated item IDs, e.g. ol hatchet,sword --client-public --import)',
             );
             process.exit(1);
           }
@@ -1003,22 +1018,13 @@ try {
               });
             applyStatPolicy(objectLayerData, statPolicy);
 
-            // Write processed frames back to disk so WebP matches atlas
-            await ObjectLayerEngine.writeStaticFrameAssets({
-              basePaths: ['./src/client/public/cyberia/', `./public/${host}${path}`],
-              itemType: found.type,
-              itemId: currentItemId,
-              objectLayerRenderFramesData,
-              objectLayerData,
-              cellPixelDim: upscaleFactor,
-            });
-
             const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
               models: models(),
               objectLayerRenderFramesData,
               objectLayerData,
               persistOptions: { upscaleFactor, options: { host, path } },
             });
+            await writeClientPublic(objectLayer);
 
             console.log(objectLayer.toObject());
           }
@@ -1067,19 +1073,6 @@ try {
                       objectLayerId,
                     });
                   applyStatPolicy(objectLayerData, statPolicy);
-
-                  // Write processed frames back to disk so WebP matches atlas
-                  const srcBasePath = './src/client/public/cyberia/';
-                  const publicBasePath = `./public/${host}${path}`;
-                  await ObjectLayerEngine.writeStaticFrameAssets({
-                    basePaths: [srcBasePath, publicBasePath],
-                    itemType: objectLayerType,
-                    itemId: objectLayerId,
-                    objectLayerRenderFramesData,
-                    objectLayerData,
-                    cellPixelDim: upscaleFactor,
-                  });
-
                   objectLayers[objectLayerId] = { ...objectLayerData, objectLayerRenderFramesData };
                 }
               },
@@ -1097,6 +1090,7 @@ try {
               objectLayerData: { data: entry.data },
               persistOptions: { generateAtlas: !isImportAll, upscaleFactor, options: { host, path } },
             });
+            await writeClientPublic(objectLayer);
 
             console.log(objectLayer.toObject());
           }
@@ -1123,8 +1117,8 @@ try {
             logger.error(`Item "${itemId}" is not bound to an Object Layer definition`);
             process.exit(1);
           }
-          const renderFrames = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
-          if (!renderFrames) {
+          const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
+          if (!stored) {
             logger.error(`ObjectLayerRenderFrames not found for item: ${itemId}`);
             process.exit(1);
           }
@@ -1136,7 +1130,8 @@ try {
           }
 
           const objectLayerFrameDirection = objectLayerFrameDirections[0];
-          const frames = renderFrames.frames[objectLayerFrameDirection];
+          const source = ObjectLayerRenderFrames.sourceOf(stored);
+          const frames = source.frames[objectLayerFrameDirection];
 
           if (!frames || frames.length === 0) {
             logger.error(`No frames found for direction: ${objectLayerFrameDirection}`);
@@ -1154,14 +1149,11 @@ try {
 
           const outputPath = `./${objectLayer.data.item.id}_${showFrameInput}.png`;
 
-          await buildImgFromTile({
-            tile: {
-              map_color: renderFrames.colors,
-              frame_matrix: frames[frameIndexNum],
-            },
-            cellPixelDim: upscaleFactor,
-            opacityFilter: (x, y, color) => 255,
+          await writeFrameImage({
+            source,
+            pixels: frames[frameIndexNum],
             imagePath: outputPath,
+            cellPixelDim: upscaleFactor,
           });
 
           logger.info(`Frame saved to: ${outputPath}`);
@@ -1232,13 +1224,15 @@ try {
               );
 
               applyStatPolicy(objectLayer, statPolicy);
-              await ObjectLayerEngine.publishItemDefinition({
-                models: models(),
-                payload: ObjectLayerEngine.payloadOf(objectLayer),
-                renderFrames,
-                rendered,
-                options: { host, path },
-              });
+              await writeClientPublic(
+                await ObjectLayerEngine.publishItemDefinition({
+                  models: models(),
+                  payload: ObjectLayerEngine.payloadOf(objectLayer),
+                  renderFrames,
+                  rendered,
+                  options: { host, path },
+                }),
+              );
               tally.rebuilt++;
             } catch (rebuildError) {
               logger.error(`Atlas rebuild failed for '${currentItemId}': ${rebuildError.message}`);
@@ -2080,11 +2074,9 @@ try {
               const skillResult = await CyberiaSkill.deleteMany({ triggerItemId: { $in: [...dropOlItemIds] } });
               if (skillResult.deletedCount > 0)
                 logger.info(`Dropped ${skillResult.deletedCount} CyberiaSkill document(s)`);
-              // The asset tree stays: it is the source this instance re-imports from.
               const report = await purgeObjectLayers({
                 options: { host, path, extension: cyberiaStudio },
                 filter: { 'data.item.id': { $in: [...dropOlItemIds] } },
-                assets: false,
               });
               logger.info(
                 `Dropped: ${report.objectLayers} ObjectLayer, ${report.renderFrames} RenderFrames, ${report.atlases} AtlasSpriteSheet, ${report.files} File (atlas)`,
@@ -2562,11 +2554,9 @@ try {
             const dialogueResult = await CyberiaDialogue.deleteMany({ code: { $in: dropDialogueCodes } });
             logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
 
-            // The asset tree stays: it is the source this instance re-imports from.
             const report = await purgeObjectLayers({
               options: { host, path, extension: cyberiaStudio },
               filter: { 'data.item.id': { $in: [...dropOlItemIds] } },
-              assets: false,
             });
             logger.info(
               `Dropped: ${report.objectLayers} ObjectLayer, ${report.renderFrames} RenderFrames, ${report.atlases} AtlasSpriteSheet, ${report.files} File (atlas)`,
@@ -4181,7 +4171,7 @@ try {
   /** Logs a content plan: Object Layer labels, then each family by status. */
   const printPlan = ({ objectLayers, documents }, rebind) => {
     const counts = (entries) =>
-      ['absent', 'in-sync', 'differs', 'placed']
+      ['absent', 'in-sync', 'differs']
         .map((status) => [status, entries.filter((entry) => entry.status === status).length])
         .filter(([, count]) => count > 0)
         .map(([status, count]) => `${status} ${count}`)

@@ -32,10 +32,10 @@ class AtlasStudioService {
     const models = catalogModels(options);
     const objectLayer = await models.ObjectLayer.findById(req.params.id);
     if (!objectLayer) throw new Error('ObjectLayer not found');
-    const renderFrames = await DataBaseProviderService.getModel('ObjectLayerRenderFrames', options)
-      .findOne({ objectLayerCid: objectLayer.cid })
-      .lean();
-    if (!renderFrames) throw new Error('ObjectLayer has no render frames');
+    const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
+    const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
+    if (!stored) throw new Error('ObjectLayer has no render frames');
+    const renderFrames = ObjectLayerRenderFrames.sourceOf(stored);
 
     const rendered = await AtlasSpriteSheetStore.build({
       itemKey: objectLayer.data.item.id,

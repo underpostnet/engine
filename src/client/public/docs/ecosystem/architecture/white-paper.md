@@ -455,7 +455,7 @@ Off-chain canonical store for all four realities. Key collections:
 | `CyberiaItemCatalog`                                              | Cyberia item label → `objectLayerCid` binding, one per label                           |
 | `ItemLedger`                                                      | CID → `chainId + contractAddress + tokenId` bindings                                   |
 | `ItemLedgerTransfer`, `ItemLedgerBalance`, `ItemLedgerCheckpoint` | Indexed projection of transfers, balances and indexer progress                         |
-| `ObjectLayerRenderFrames`                                         | Per-frame tile matrix and color palette                                                |
+| `ObjectLayerRenderFrames`                                         | Indexed frames, one byte per cell, and their `#rrggbbaa` palette                       |
 | `AtlasSpriteSheet`                                                | Consolidated atlas PNG + frame coordinate metadata                                     |
 | `CyberiaInstance`                                                 | Instance graph (maps + portal edges)                                                   |
 | `CyberiaMap`                                                      | Grid data, entity placements, map metadata                                             |

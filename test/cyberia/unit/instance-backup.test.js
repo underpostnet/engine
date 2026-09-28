@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -28,6 +28,7 @@ const published = vi.hoisted(() => []);
 vi.mock('../../../src/projects/cyberia/object-layer.js', () => ({
   ObjectLayerEngine: {
     writeStaticFrameAssets: vi.fn(async () => ['08/0.png']),
+    clientPublicPaths: ({ host, path }) => ['./src/client/public/cyberia/', `./public/${host}${path}`],
     publishItemDefinition: async (write) => {
       published.push(write);
       const { models, payload, rendered } = write;
@@ -42,6 +43,8 @@ const { canonicalJsonBytes, renderContractOf } = await import('../../../src/api/
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
 const { repinCanonical } = await import('../../../src/api/object-layer/object-layer.publication.js');
 const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer.js');
+const { sourceFromIndexedFrames, toWire } = await import('../../../src/client/components/object-layer/RenderSource.js');
+const emptySource = () => sourceFromIndexedFrames({ frames: {}, colors: [], frameDurationMs: 100 });
 const {
   atlasBackupFileKey,
   atlasFileIdsOf,
@@ -92,7 +95,7 @@ const base64 = (bytes) => ({ $base64: bytes.toString('base64') });
 
 beforeAll(async () => {
   ({ primary, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
-    { colors: [[255, 0, 0, 255]], frames: { down_idle: [[[0, 0]]] } },
+    sourceFromIndexedFrames({ colors: [[255, 0, 0, 255]], frames: { down_idle: [[[0, 0]]] }, frameDurationMs: 100 }),
     'hatchet',
   ));
   render = renderContractOf({ primary, metadata });
@@ -105,7 +108,7 @@ beforeAll(async () => {
     cid: 'cid-data',
     data: { item: { id: 'hatchet', type: 'weapon' }, render },
   });
-  await write('render-frames/hatchet.json', { _id: 'rf1', frames: {}, colors: [], frame_duration: 100 });
+  await write('render-frames/hatchet.json', { _id: 'rf1', ...toWire(emptySource()) });
   await write('atlas-sprite-sheets/hatchet.json', {
     _id: 'at1',
     fileId: 'f-primary',
@@ -132,7 +135,7 @@ describe('reading one object layer out of an instance backup', () => {
   it('gathers the object layer and every document it references', () => {
     const backup = readObjectLayerBackup({ backupDir, itemId: 'hatchet' });
     expect(backup.objectLayer.data.item.id).toBe('hatchet');
-    expect(backup.renderFrames._id).toBe('rf1');
+    expect(backup.renderFrames).toEqual(emptySource());
     expect(backup.atlas._id).toBe('at1');
   });
 
@@ -228,7 +231,7 @@ describe('restoring one object layer from an instance backup', () => {
     const [{ rendered, renderFrames }] = published;
     expect(rendered.render).toEqual(render);
     expect(rendered.atlas).toMatchObject({ fileId: 'f-primary', upscaleFileId: 'f-upscale' });
-    expect(renderFrames._id).toBe('rf1');
+    expect(renderFrames).toEqual(emptySource());
     expect(models.File.created.map((file) => file._id).sort()).toEqual(['f-idle', 'f-primary', 'f-upscale']);
     expect(build).not.toHaveBeenCalled();
     expect(derived).toHaveBeenCalledWith({ objectLayerCid: models.ObjectLayer.live.cid, options: {} });
@@ -280,7 +283,7 @@ describe('restoring one object layer from an instance backup', () => {
   it('rebuilds from the render frames an atlas whose render its metadata does not describe', async () => {
     // A render at another density than its metadata describes: the contract cannot hold.
     const upscaled = await AtlasSpriteSheetGenerator.upscaledFromRender(primary, metadata);
-    const frames = { _id: 'rf4', frames: { down_idle: [] }, colors: [], frame_duration: 100 };
+    const frames = { _id: 'rf4', ...toWire(emptySource()) };
     await write('object-layers/ember.json', {
       _id: 'ol4',
       cid: 'cid-ember',
@@ -300,11 +303,11 @@ describe('restoring one object layer from an instance backup', () => {
 
     expect(build).toHaveBeenCalledWith({
       itemKey: 'ember',
-      objectLayerRenderFrames: frames,
+      objectLayerRenderFrames: emptySource(),
       upscaleFactor: 8,
       options: {},
     });
-    expect(published[0]).toMatchObject({ renderFrames: frames, rendered: rebuilt });
+    expect(published[0]).toMatchObject({ renderFrames: emptySource(), rendered: rebuilt });
     expect(models.File.created).toEqual([]);
     expect(models.ObjectLayer.live.data.render).toEqual(render);
     expect(derived).not.toHaveBeenCalled();
@@ -316,10 +319,16 @@ describe('restoring one object layer from an instance backup', () => {
     expect(kept.staticFiles).toBe(0);
     expect(ObjectLayerEngine.writeStaticFrameAssets).not.toHaveBeenCalled();
 
-    const copied = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {}, framesToPublic: true });
+    const copied = await restoreObjectLayerBackup({
+      backupDir,
+      itemId: 'hatchet',
+      options: { host: 'h', path: '/' },
+      framesToPublic: true,
+    });
     expect(copied.staticFiles).toBe(1);
     expect(ObjectLayerEngine.writeStaticFrameAssets).toHaveBeenCalledOnce();
     expect(ObjectLayerEngine.writeStaticFrameAssets.mock.calls[0][0]).toMatchObject({
+      basePaths: ['./src/client/public/cyberia/', './public/h/'],
       itemType: 'weapon',
       itemId: 'hatchet',
     });
@@ -363,7 +372,8 @@ describe('exporting one object layer into an instance backup', () => {
     models.ObjectLayer = { schema: ObjectLayerSchema };
     models.ObjectLayerRenderFrames = {
       schema: ObjectLayerRenderFramesSchema,
-      findOne: ownedBy({ _id: 'rf1', objectLayerCid: 'cid-data', frames: {} }),
+      findOne: ownedBy({ _id: 'rf1', objectLayerCid: 'cid-data', revision: 2, ...emptySource() }),
+      sourceOf: ObjectLayerRenderFramesSchema.statics.sourceOf,
     };
     models.AtlasSpriteSheet = { schema: AtlasSpriteSheetSchema, findOne: ownedBy(atlas) };
     const files = {
@@ -390,7 +400,10 @@ describe('exporting one object layer into an instance backup', () => {
     expect(objectLayer).not.toHaveProperty('origin');
     expect(objectLayer).not.toHaveProperty('published');
     expect(objectLayer.cid).toBe('cid-data');
-    expect([stored.objectLayerCid, renderFrames.objectLayerCid]).toEqual(['cid-data', 'cid-data']);
+    expect(stored.objectLayerCid).toBe('cid-data');
+    expect(renderFrames).toEqual(emptySource());
+    const written = JSON.parse(await readFile(join(exportDir, 'render-frames', 'hatchet.json'), 'utf8'));
+    expect(written).toMatchObject({ _id: 'rf1', objectLayerCid: 'cid-data', revision: 2, ...toWire(emptySource()) });
     expect(files.map((file) => [file._id, file.data.toString()]).sort()).toEqual([
       ['f-idle', 'I'],
       ['f-primary', 'PNG'],

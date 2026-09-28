@@ -10,6 +10,7 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
       return {
         findOne: ({ objectLayerCid }) => ({ lean: async () => stored.get(objectLayerCid) ?? null }),
         materialize: async (objectLayerCid, source) => stored.set(objectLayerCid, source),
+        sourceOf: (document) => ({ ...document }),
       };
     },
   },

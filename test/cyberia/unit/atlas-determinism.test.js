@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
 
 // The render contract is part of the canonical content: the same frames give the same bytes, so
 // the same contract and the same identity. Other frames give another contract, so another identity.
@@ -10,16 +11,19 @@ const frame = (value) => [
   [0, value, 0],
 ];
 
-const renderFrames = {
-  frames: { down_idle: [frame(1), frame(2)], up_idle: [frame(3)], left_walking: [frame(2), frame(1)] },
-  colors: [
-    [0, 0, 0, 0],
-    [255, 0, 0, 255],
-    [0, 255, 0, 255],
-    [0, 0, 255, 255],
-  ],
-  frame_duration: 120,
-};
+const FRAMES = { down_idle: [frame(1), frame(2)], up_idle: [frame(3)], left_walking: [frame(2), frame(1)] };
+const source = (frames) =>
+  sourceFromIndexedFrames({
+    frames,
+    colors: [
+      [0, 0, 0, 0],
+      [255, 0, 0, 255],
+      [0, 255, 0, 255],
+      [0, 0, 255, 255],
+    ],
+    frameDurationMs: 120,
+  });
+const renderFrames = source(FRAMES);
 
 const definition = (render) => ({
   profile: { id: 'cyberia', version: 2 },
@@ -46,11 +50,7 @@ describe('atlas generation determinism', () => {
   it('gives a changed render a new definition identity', async () => {
     const first = renderContractOf(await AtlasSpriteSheetGenerator.generateAtlas(renderFrames, 'hatchet', 20));
     const changed = renderContractOf(
-      await AtlasSpriteSheetGenerator.generateAtlas(
-        { ...renderFrames, frames: { ...renderFrames.frames, up_idle: [frame(2)] } },
-        'hatchet',
-        20,
-      ),
+      await AtlasSpriteSheetGenerator.generateAtlas(source({ ...FRAMES, up_idle: [frame(2)] }), 'hatchet', 20),
     );
 
     expect(changed.cid).not.toBe(first.cid);

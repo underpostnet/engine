@@ -17,10 +17,12 @@ import {
   sha256HexFromCid,
 } from '../../../src/api/object-layer/object-layer.identity.js';
 import { ObjectLayerModel, ObjectLayerSchema } from '../../../src/api/object-layer/object-layer.model.js';
+import { Binary } from 'mongodb';
 import {
   ObjectLayerRenderFramesModel,
   ObjectLayerRenderFramesSchema,
 } from '../../../src/api/object-layer-render-frames/object-layer-render-frames.model.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../../support/object-layer-identity-vectors.json', import.meta.url)));
 const profile = { id: 'cyberia', version: 2 };
@@ -280,7 +282,7 @@ describe('ObjectLayer materializations', () => {
   });
 
   it('keeps one editor source per definition, named by its canonical CID', () => {
-    const source = { frames: {}, colors: [], frame_duration: 100 };
+    const source = { format: 'indexed8', width: 0, height: 0, palette: [], frameDurationMs: 100, frames: {} };
     expect(new ObjectLayerRenderFramesModel(source).validateSync().errors).toHaveProperty('objectLayerCid');
     const labelled = new ObjectLayerRenderFramesModel({ ...source, objectLayerCid: 'hatchet' }).validateSync();
     expect(labelled.errors).toHaveProperty('objectLayerCid');
@@ -290,39 +292,42 @@ describe('ObjectLayer materializations', () => {
 
   describe('storing an editor source', () => {
     const cid = `bafkrei${'c'.repeat(52)}`;
-    const source = () => ({
-      frames: {
-        down_idle: [
-          [
-            [0, 1],
-            [null, 1],
+    const source = () =>
+      sourceFromIndexedFrames({
+        frames: {
+          down_idle: [
+            [
+              [0, 1],
+              [2, 1],
+            ],
+            [
+              [1, 0],
+              [0, 2],
+            ],
           ],
-          [
-            [1, 0],
-            [0, null],
+          up_idle: [
+            [
+              [1, 1],
+              [1, 1],
+            ],
           ],
+        },
+        colors: [
+          [0, 0, 0, 0],
+          [255, 0, 0, 255],
+          [0, 0, 255, 128],
         ],
-        up_idle: [[[1, 1]]],
-      },
-      colors: [
-        [255, 0, 0, 255],
-        [0, 0, 255, 128],
-      ],
-      frame_duration: 100,
-    });
-    const cast = (value) => new ObjectLayerRenderFramesModel({ objectLayerCid: cid, ...value }).toObject();
-    // A restored document keeps the property order of its backup file, not the order of the schema.
-    const reversed = (value) =>
-      Array.isArray(value)
-        ? value.map(reversed)
-        : value && typeof value === 'object'
-          ? Object.fromEntries(
-              Object.entries(value)
-                .reverse()
-                .map(([key, item]) => [key, reversed(item)]),
-            )
-          : value;
-    const stored = (overrides = {}) => reversed(cast({ ...source(), ...overrides }));
+        frameDurationMs: 100,
+      });
+    // A lean read: fields in the order the document holds them, frames as BSON Binary.
+    const stored = (next = source()) => {
+      const frames = Object.fromEntries(
+        Object.entries(next.frames)
+          .reverse()
+          .map(([keyframe, list]) => [keyframe, list.map((pixels) => new Binary(Buffer.from(pixels)))]),
+      );
+      return Object.fromEntries(Object.entries({ objectLayerCid: cid, revision: 3, ...next, frames }).reverse());
+    };
 
     /** Whether storing `next` over `document`, as the lean read answers it, writes. */
     const writes = async (document, next) => {
@@ -340,33 +345,100 @@ describe('ObjectLayer materializations', () => {
       }
     };
 
-    it('writes nothing for a source equal in structure and values, whatever the property order', async () => {
-      expect(await writes(stored(), source())).toBe(false);
-      expect(await writes(stored(), reversed(source()))).toBe(false);
+    it('reads a stored document back as the source it stores', () => {
+      expect(ObjectLayerRenderFramesModel.sourceOf(stored())).toEqual(source());
     });
 
-    it('rewrites a source that differs in one value or one order', async () => {
+    it('writes nothing for a source that holds the same render, whatever the field order', async () => {
+      expect(await writes(stored(), source())).toBe(false);
+      const reordered = Object.fromEntries(Object.entries(source()).reverse());
+      expect(await writes(stored(), reordered)).toBe(false);
+    });
+
+    it('rewrites a source that differs in one value or one order, and counts the write', async () => {
       const changes = {
-        'a pixel of a frame': (next) => (next.frames.down_idle[0][1][0] = 1),
+        'a pixel of a frame': (next) => (next.frames.down_idle[0][1] = 2),
         'the order of the frames': (next) => next.frames.down_idle.reverse(),
-        'one frame more': (next) => next.frames.up_idle.push([[0, 0]]),
-        'a palette color': (next) => (next.colors[1] = [0, 0, 255, 255]),
-        'the order of the palette': (next) => next.colors.reverse(),
-        'the frame duration': (next) => (next.frame_duration = 120),
+        'one frame more': (next) => next.frames.up_idle.push(Uint8Array.from([0, 0, 0, 0])),
+        'a palette color': (next) => (next.palette[1] = '#ff0001ff'),
+        'the order of the palette': (next) => next.palette.reverse(),
+        'the frame duration': (next) => (next.frameDurationMs = 120),
       };
       for (const [change, apply] of Object.entries(changes)) {
         const next = source();
         apply(next);
         expect(await writes(stored(), next), change).toBe(true);
       }
+      const update = vi
+        .spyOn(ObjectLayerRenderFramesModel, 'findOneAndUpdate')
+        .mockReturnValue({ lean: async () => ({}) });
+      const findOne = vi.spyOn(ObjectLayerRenderFramesModel, 'findOne').mockReturnValue({ lean: async () => null });
+      await ObjectLayerRenderFramesModel.materialize(cid, source());
+      expect(update.mock.calls[0][1].$inc).toEqual({ revision: 1 });
+      expect(Buffer.isBuffer(update.mock.calls[0][1].$set.frames.down_idle[0])).toBe(true);
+      update.mockRestore();
+      findOne.mockRestore();
     });
 
-    it('compares values, not their JSON text', async () => {
-      expect(JSON.stringify(stored().frames)).not.toBe(JSON.stringify(cast(source()).frames));
-      expect(await writes(stored(), source())).toBe(false);
+    it('replaces a source only at the revision the writer read', async () => {
+      const update = vi
+        .spyOn(ObjectLayerRenderFramesModel, 'findOneAndUpdate')
+        .mockImplementation(({ revision }) => ({ lean: async () => (revision === 3 ? { revision: 4 } : null) }));
+      const findById = vi
+        .spyOn(ObjectLayerRenderFramesModel, 'findById')
+        .mockImplementation((id) => ({ lean: async () => (id === 'rf-1' ? { revision: 3 } : null) }));
+      try {
+        expect(await ObjectLayerRenderFramesModel.replaceAt('rf-1', source(), 3)).toEqual({ revision: 4 });
+        await expect(ObjectLayerRenderFramesModel.replaceAt('rf-1', source(), 2)).rejects.toMatchObject({
+          status: 409,
+        });
+        await expect(ObjectLayerRenderFramesModel.replaceAt('rf-9', source(), 2)).rejects.toMatchObject({
+          status: 404,
+        });
+        expect(update.mock.calls[0][1].$inc).toEqual({ revision: 1 });
+      } finally {
+        update.mockRestore();
+        findById.mockRestore();
+      }
+    });
 
-      expect(JSON.stringify(-0)).toBe(JSON.stringify(0));
-      expect(await writes(stored({ frame_duration: 0 }), { ...source(), frame_duration: -0 })).toBe(true);
+    it('moves a stored nested-matrix source to indexed frames, once', async () => {
+      const legacy = {
+        _id: 'rf-1',
+        objectLayerCid: cid,
+        colors: [
+          [0, 0, 0, 0],
+          [9, 9, 9, 255],
+        ],
+        frame_duration: 150,
+        frames: { down_idle: [[[0, 1]]], up_idle: [] },
+      };
+      const docs = [legacy, { _id: 'rf-2', objectLayerCid: cid, format: 'indexed8' }];
+      const collection = {
+        find: ({ format }) => docs.filter((doc) => (format.$exists ? 'format' in doc : !('format' in doc))),
+        updateOne: async ({ _id }, { $set, $unset }) => {
+          const doc = docs.find((entry) => entry._id === _id);
+          Object.assign(doc, $set);
+          for (const field of Object.keys($unset)) delete doc[field];
+        },
+      };
+      const spy = vi.spyOn(ObjectLayerRenderFramesModel, 'collection', 'get').mockReturnValue(collection);
+      try {
+        expect(await ObjectLayerRenderFramesModel.migrateFormat()).toBe(1);
+        expect(await ObjectLayerRenderFramesModel.migrateFormat()).toBe(0);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(legacy).not.toHaveProperty('colors');
+      expect(ObjectLayerRenderFramesModel.sourceOf(legacy)).toEqual({
+        format: 'indexed8',
+        width: 2,
+        height: 1,
+        palette: ['#00000000', '#090909ff'],
+        frameDurationMs: 150,
+        frames: { down_idle: [Uint8Array.from([0, 1])] },
+      });
+      expect(legacy.revision).toBe(1);
     });
   });
 

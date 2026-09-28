@@ -128,11 +128,17 @@ describe('a purge', () => {
 
   it('asks the Studio what it keeps for each definition, and says whether the assets go', async () => {
     const beforeDelete = vi.fn();
-    await purgeObjectLayers({ options: { ...options, extension: { beforeDelete } }, assets: false });
+    await purgeObjectLayers({ options: { ...options, extension: { beforeDelete } } });
     expect(beforeDelete).toHaveBeenCalledTimes(2);
     expect(beforeDelete.mock.calls[0][2]).toEqual({ assets: false });
     // The documents are gone first, so the Studio sees only surviving definitions.
     expect(deleted.ObjectLayer).toHaveLength(1);
+  });
+
+  it('takes the Studio assets too when the operator asks for them', async () => {
+    const beforeDelete = vi.fn();
+    await purgeObjectLayers({ options: { ...options, extension: { beforeDelete } }, assets: true });
+    expect(beforeDelete.mock.calls.map((call) => call[2])).toEqual([{ assets: true }, { assets: true }]);
   });
 
   it('keeps a definition ItemLedger registers, and reports it', async () => {

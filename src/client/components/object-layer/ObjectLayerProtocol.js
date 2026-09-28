@@ -42,6 +42,9 @@ export const OBJECT_LAYER_DIRECTIONS = Object.freeze([
   }),
 ]);
 
+/** Every render keyframe name, in direction order. */
+export const OBJECT_LAYER_KEYFRAMES = Object.freeze(OBJECT_LAYER_DIRECTIONS.flatMap((d) => d.keyframes));
+
 /** Ordered direction folder codes. */
 export const OBJECT_LAYER_DIRECTION_CODES = Object.freeze(OBJECT_LAYER_DIRECTIONS.map((d) => d.code));
 

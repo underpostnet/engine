@@ -223,11 +223,10 @@ Common examples:
 
 ```bash
 # Object layer content
-cyberia ol hatchet,sword --import                 # import specific items
-cyberia ol --import-types skin,floors             # batch import by type (or: all)
-cyberia ol floor-desert --generate --seed fx-42   # procedural generation
+cyberia ol hatchet,sword --client-public --import # import specific items from the asset tree
+cyberia ol --client-public --import-types skin    # batch import by type (or: all)
 cyberia ol hatchet --to-atlas-sprite-sheet        # build atlas sprite sheet
-cyberia ol --drop --client-public                 # drop data + static asset folders
+cyberia ol --drop --client-public                 # drop data and asset folders
 
 # Instance data
 cyberia instance FOREST --export ./backup

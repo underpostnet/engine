@@ -9,15 +9,18 @@ import {
   AtlasSpriteSheetModel,
   AtlasSpriteSheetSchema,
 } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.model.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
 
 const colors = [
   [255, 0, 0, 255],
   [0, 255, 0, 255],
+  [0, 0, 0, 0],
 ];
 const frame = [
   [0, 1],
-  [null, 0],
+  [2, 0],
 ];
+const indexed = (frames) => sourceFromIndexedFrames({ frames, colors, frameDurationMs: 100 });
 
 const pixelsOf = async (png) => {
   const { bitmap } = await Jimp.read(png);
@@ -26,7 +29,7 @@ const pixelsOf = async (png) => {
 
 describe('Cyberia atlas generation', () => {
   it('keeps source pixels and frame positions without square padding', async () => {
-    const source = { colors, frames: { down_idle: [frame], up_idle: [frame], down_walking: [frame] } };
+    const source = indexed({ down_idle: [frame], up_idle: [frame], down_walking: [frame] });
     const { primary, metadata } = await Atlas.generateAtlas(source, 'test');
     const image = await Jimp.read(primary);
     expect(metadata.cellPixelDim).toBe(1);
@@ -43,7 +46,7 @@ describe('Cyberia atlas generation', () => {
   it('fits 26 character frames without scaling each source pixel', async () => {
     const pixels = Array.from({ length: 25 }, () => Array(25).fill(0));
     const { primary, metadata } = await Atlas.generateAtlas(
-      { colors, frames: { down_idle: Array(26).fill(pixels) } },
+      indexed({ down_idle: Array(26).fill(pixels) }),
       'character',
       1,
     );
@@ -53,7 +56,7 @@ describe('Cyberia atlas generation', () => {
   });
 
   it('describes the primary render, whatever the upscale factor', async () => {
-    const source = { colors, frames: { down_idle: [frame], up_idle: [frame] } };
+    const source = indexed({ down_idle: [frame], up_idle: [frame] });
     const { primary, metadata } = await Atlas.generateAtlas(source, 'scaled', 20);
     const image = await pixelsOf(primary);
     expect(metadata.cellPixelDim).toBe(1);
@@ -63,7 +66,7 @@ describe('Cyberia atlas generation', () => {
   });
 
   it('pins the layout it stores: every direction, empty ones included', async () => {
-    const { metadata } = await Atlas.generateAtlas({ colors, frames: { down_idle: [frame] } }, 'stored');
+    const { metadata } = await Atlas.generateAtlas(indexed({ down_idle: [frame] }), 'stored');
     const stored = new AtlasSpriteSheetModel({ fileId: '64b000000000000000000001', metadata }).toObject().metadata;
 
     expect(Object.keys(metadata.frames)).toHaveLength(18);
@@ -82,17 +85,13 @@ describe('Cyberia atlas generation', () => {
         4,
       ),
     ).toThrow('exceed');
-    await expect(Atlas.generateAtlas({ colors, frames: { down_idle: [frame] } }, 'invalid', 0)).rejects.toThrow(
-      'pixel scale',
-    );
-    await expect(Atlas.generateAtlas({ colors, frames: { down_idle: [frame] } }, 'invalid', 1, 8192)).rejects.toThrow(
-      '4096',
-    );
+    await expect(Atlas.generateAtlas(indexed({ down_idle: [frame] }), 'invalid', 0)).rejects.toThrow('pixel scale');
+    await expect(Atlas.generateAtlas(indexed({ down_idle: [frame] }), 'invalid', 1, 8192)).rejects.toThrow('4096');
   });
 });
 
 describe('Cyberia derived renders', () => {
-  const source = { colors, frames: { down_idle: [frame], up_idle: [frame] } };
+  const source = indexed({ down_idle: [frame], up_idle: [frame] });
 
   it('derives the upscaled render as an exact block copy of the primary render', async () => {
     const { primary, metadata } = await Atlas.generateAtlas(source, 'scaled', 3);
@@ -131,7 +130,7 @@ describe('Cyberia derived renders', () => {
 
   it('centres the idle preview on the standard square, each cell one whole block', async () => {
     // Three cells wide, one tall: 100 px per cell, with 100 px of transparency above and below.
-    const { primary, metadata } = await Atlas.generateAtlas({ colors, frames: { down_idle: [[[0, 1, 0]]] } }, 'wide');
+    const { primary, metadata } = await Atlas.generateAtlas(indexed({ down_idle: [[[0, 1, 0]]] }), 'wide');
     const preview = await pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
     const at = (x, y) => preview.data.readUInt32BE((y * preview.width + x) * 4);
 
