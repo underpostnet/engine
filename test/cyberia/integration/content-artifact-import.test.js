@@ -89,7 +89,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     expect(Object.keys(result.written)).toEqual(Object.keys(CONTENT_FAMILIES).filter((f) => f !== 'objectLayers'));
   });
 
-  it('stores functional content with render and placement unresolved', async () => {
+  it('stores functional content with render unresolved, and maps without entities', async () => {
     const coin = await models()
       .ObjectLayer.findByCid((await models().CyberiaItemCatalog.findOne({ itemId: 'coin' }).lean()).objectLayerCid)
       .lean();
@@ -97,15 +97,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     expect(coin.data.render).toEqual({ cid: '', metadataCid: '' });
 
     const outpost = await models().CyberiaMap.findOne({ code: 'frontier-outpost' }).lean();
-    const compiled = foundation.maps.find(({ code }) => code === 'frontier-outpost');
-    expect(outpost.entities).toHaveLength(compiled.entities.length);
-    expect(outpost.entities.every(({ initCellX, initCellY }) => initCellX === null && initCellY === null)).toBe(true);
-    expect(outpost.entities.find(({ objectLayerItemIds }) => objectLayerItemIds[0] === 'ash-raider')).toMatchObject({
-      entityType: 'bot',
-      objectLayerItemIds: ['ash-raider', 'scrap-maul'],
-      level: 4,
-      maxLife: 120,
-    });
+    expect(outpost.entities).toEqual([]);
 
     const raider = await models()
       .CyberiaEntityTypeDefault.findOne({ entityType: 'bot', liveItemIds: ['ash-raider', 'scrap-maul'] })
@@ -136,7 +128,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     const [quest] = foundation.quests;
     await models().CyberiaMap.updateOne(
       { code: 'frontier-outpost' },
-      { $set: { 'entities.0.initCellX': 3, 'entities.0.initCellY': 4 } },
+      { $set: { entities: [{ entityType: 'floor', objectLayerItemIds: ['ash-crust'], initCellX: 3, initCellY: 4 }] } },
     );
     await models().CyberiaQuest.updateOne(
       { code: quest.code },
@@ -144,7 +136,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     );
     const result = await importFoundation(true);
     const status = (family, key) => result.plan.documents[family].find(({ doc }) => doc.code === key).status;
-    expect(status('maps', 'frontier-outpost')).toBe('placed');
+    expect(status('maps', 'frontier-outpost')).toBe('in-sync');
     expect(status('quests', quest.code)).toBe('differs');
 
     const outpost = await models().CyberiaMap.findOne({ code: 'frontier-outpost' }).lean();
@@ -165,7 +157,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
       expect(stored.sourceMapCode).toBe(null);
     }
     for (const map of saga.families.maps)
-      expect((await models().CyberiaMap.findOne({ code: map.code }).lean()).entities).toHaveLength(map.entities.length);
+      expect((await models().CyberiaMap.findOne({ code: map.code }).lean()).entities).toEqual([]);
     const storedSaga = await models().CyberiaSaga.findOne({ code: sagaCode }).lean();
     expect(storedSaga.definitions.map(({ id }) => id)).toEqual(saga.saga.definitions.map(({ id }) => id));
 

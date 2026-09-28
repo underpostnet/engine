@@ -33,7 +33,6 @@ import {
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import {
   DEFAULT_INSTANCE_CODE,
-  isPlacedEntity,
   validateStats,
   validateEntityLevel,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
@@ -282,7 +281,7 @@ function toMapMsg(doc) {
     gridY: doc.gridY || 16,
     cellWidth: doc.cellWidth || 32,
     cellHeight: doc.cellHeight || 32,
-    entities: (doc.entities || []).filter(isPlacedEntity).map(toEntityMsg),
+    entities: (doc.entities || []).map(toEntityMsg),
   };
 }
 

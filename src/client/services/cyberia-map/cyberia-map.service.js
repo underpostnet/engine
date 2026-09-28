@@ -41,6 +41,21 @@ class CyberiaMapService {
           return reject(error);
         }),
     );
+  /** The foundation context of a map against its stored entities. */
+  static getContext = (options = { code: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `context/${encodeURIComponent(options.code)}`, endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static get = (options = {}) => {
     const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {

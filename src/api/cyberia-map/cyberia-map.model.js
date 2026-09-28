@@ -20,6 +20,8 @@ const CyberiaMapSchema = new Schema(
     gridY: { type: Number, default: 16 },
     cellWidth: { type: Number, default: 32 },
     cellHeight: { type: Number, default: 32 },
+    // Writes of this map. A save names the revision it read, so no save overwrites a newer one.
+    revision: { type: Number, default: 1, min: 1 },
   },
   {
     timestamps: true,

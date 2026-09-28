@@ -1,8 +1,9 @@
 /**
  * Cyberia Object Layer Studio: the authoring routes the Cyberia host adds to the Object Layer API.
  *
- * It builds definitions from the Cyberia asset tree under the Cyberia profile, publishes them
- * through the Object Layer authority and binds their labels in the Cyberia item catalog. It also
+ * It builds definitions from the editor's render source under the Cyberia profile, publishes them
+ * through the Object Layer authority and binds their labels in the Cyberia item catalog. MongoDB
+ * holds every frame; the asset tree changes only through `cyberia ol --client-public`. It also
  * lets a Cyberia item label name a definition. The host declares it in `conf.server.json` as
  * `apiExtensions: { "object-layer": "cyberia" }`; a host without it serves the canonical API only.
  *
@@ -11,14 +12,33 @@
  */
 import fs from 'fs-extra';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/ops/logger.js';
 import { moderatorGuard } from '../../server/security/auth.js';
 import { serviceHandler } from '../../server/network/middlewares.js';
-import { FileFactory } from '../../api/file/file.service.js';
 import { ObjectLayerEngine } from './object-layer.js';
 import { catalogModels, catalogMounted, findBoundDefinition } from './object-layer-catalog.js';
+import { findObjectLayerByKey } from '../../api/object-layer/object-layer.service.js';
+import { contentArtifact } from './content-artifact.js';
+import { itemContext } from './foundation-context.js';
+import { fromWire } from '../../client/components/object-layer/RenderSource.js';
 
-const logger = loggerFactory(import.meta);
+/**
+ * Refuses a write made from a definition the label no longer runs: another save came first.
+ * @param {import('./object-layer-catalog.js').CatalogModels} models
+ * @param {string} loadedId - Document id of the definition the editor loaded.
+ * @param {string} itemId - The label the write is for.
+ * @throws {Error} 409 when the label binds another definition than the loaded one.
+ * @memberof CyberiaObjectLayerStudio
+ */
+async function assertCurrentDefinition(models, loadedId, itemId) {
+  const loaded = await models.ObjectLayer.findById(loadedId, { cid: 1, 'data.item.id': 1 }).lean();
+  if (loaded?.data?.item?.id !== itemId) return;
+  const bound = await findBoundDefinition(models, itemId);
+  if (bound && bound.cid !== loaded.cid)
+    throw Object.assign(
+      new Error(`'${itemId}' now runs definition ${bound.cid}, not the ${loaded.cid} you edited: reload before saving`),
+      { status: 409 },
+    );
+}
 
 /**
  * Authoring handlers of the Cyberia Studio.
@@ -26,13 +46,8 @@ const logger = loggerFactory(import.meta);
  */
 class ObjectLayerStudioService {
   /**
-   * POST handler for creating object layers and uploading frame images.
-   *
-   * Supports three sub-routes:
-   * - `/frame-image/:itemType/:itemId/:directionCode` — Upload PNG frame images for a direction.
-   * - `/metadata/:itemType/:itemId` — Create an object layer from uploaded frames and metadata.
-   * - Default — Create an object layer from the request body, its render frames inline in
-   *   `objectLayerRenderFramesData` when it has any.
+   * POST handler: creates an object layer from the request body, its render source inline in
+   * `objectLayerRenderFramesData` when it has one.
    *
    * A write with render frames delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
    * for the render build and the materializations; publication goes through the Object Layer
@@ -46,132 +61,25 @@ class ObjectLayerStudioService {
    * @param {Object} options - Server options containing host and path.
    * @param {string} options.host - The deployment host.
    * @param {string} options.path - The deployment path.
-   * @returns {Promise<Object>} The created object layer document or frame upload result.
-   * @throws {Error} If file validation fails or required parameters are missing.
+   * @returns {Promise<Object>} The created object layer document.
    */
   static post = async (req, res, options) => {
-    if (req.path.startsWith('/frame-image')) {
-      const itemType = req.params.itemType;
-      const itemId = req.params.itemId;
-      const directionCode = req.params.directionCode;
-
-      // Debug: Log request files structure
-      logger.info(`POST Request files for direction ${directionCode}:`, {
-        filesKeys: req.files ? Object.keys(req.files) : [],
-        filesCount: req.files ? Object.keys(req.files).length : 0,
-      });
-
-      // Extract all frames for this direction
-      const files = FileFactory.filesExtract(req);
-
-      // Allow empty files to remove all frames from direction
-      if (!files || files.length === 0) {
-        logger.info(`No files received for direction ${directionCode} - will remove all frames from this direction`);
-      } else {
-        // Validate each file has data
-        for (let i = 0; i < files.length; i++) {
-          if (!files[i].data) {
-            logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
-            throw new Error(`File ${files[i].name || i} has no data`);
-          }
-          if (!Buffer.isBuffer(files[i].data)) {
-            logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
-            throw new Error(`File ${files[i].name || i} data is not a Buffer`);
-          }
-        }
-      }
-
-      logger.info(
-        `Processing ${files?.length || 0} file(s) for direction ${directionCode}: ${files?.map((f) => f.name).join(', ') || 'none'}`,
-      );
-
-      // Always clear and rewrite ALL frames for this direction code
-      for (const basePath of ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`]) {
-        const folder = `${basePath}assets/${itemType}/${itemId}/${directionCode}`;
-
-        // Always remove entire direction folder to ensure clean state
-        if (fs.existsSync(folder)) {
-          await fs.remove(folder);
-          logger.info(`Cleared folder: ${folder}`);
-        }
-
-        // Only create and write files if we have frames to upload
-        if (files && files.length > 0) {
-          // Create fresh folder
-          fs.mkdirSync(folder, { recursive: true });
-
-          // Write all frames sent in this request
-          for (const file of files) {
-            const filePath = `${folder}/${file.name}`;
-            try {
-              fs.writeFileSync(filePath, file.data);
-              logger.info(`Wrote file: ${filePath} (${file.data.length} bytes)`);
-            } catch (error) {
-              logger.error(`Error writing file ${filePath}:`, error);
-              throw new Error(`Failed to write ${file.name}: ${error.message}`);
-            }
-          }
-        } else {
-          logger.info(`No frames to write for direction ${directionCode} - folder removed`);
-        }
-      }
-
-      logger.info(`Successfully processed ${files?.length || 0} frame(s) for direction ${directionCode}`);
-
-      return { success: true, directionCode, frameCount: files?.length || 0 };
-    }
-
-    if (req.path.startsWith('/metadata')) {
-      const itemType = req.params.itemType;
-      const itemId = req.params.itemId;
-      const folder = `./src/client/public/cyberia/assets/${itemType}/${itemId}`;
-      const publicFolder = `./public/${options.host}${options.path}/assets/${itemType}/${itemId}`;
-
-      // Ensure both folders exist
-      if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-      if (!fs.existsSync(publicFolder)) fs.mkdirSync(publicFolder, { recursive: true });
-
-      // Write metadata.json to both locations
-      const metadataContent = JSON.stringify(req.body);
-      fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
-      fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
-
-      const { objectLayerRenderFramesData, objectLayerData } =
-        await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
-          folder,
-          objectLayerType: itemType,
-          objectLayerId: itemId,
-          metadataOverride: req.body,
-        });
-
-      return await ObjectLayerEngine.persistObjectLayerDocuments({
-        models: catalogModels(options),
-        objectLayerRenderFramesData,
-        objectLayerData: { ...objectLayerData, createdBy: req.auth.user._id },
-        persistOptions: { options },
-      });
-    }
-
-    // Default route: the body is the definition, with its render frames inline when it has any.
     const { objectLayerRenderFramesData, ...objectLayerData } = { ...req.body, createdBy: req.auth.user._id };
     const models = catalogModels(options);
     if (!objectLayerRenderFramesData)
       return await ObjectLayerEngine.publishItemDefinition({ models, payload: objectLayerData, options });
     return await ObjectLayerEngine.persistObjectLayerDocuments({
       models,
-      objectLayerRenderFramesData,
+      objectLayerRenderFramesData: fromWire(objectLayerRenderFramesData),
       objectLayerData,
       persistOptions: { options },
     });
   };
 
   /**
-   * PUT handler for updating object layers, their frame images, and metadata.
-   *
-   * Supports three sub-routes:
-   * - `/:id/frame-image/:itemType/:itemId/:directionCode` — Replace frame images for a direction.
-   * - `/:id/metadata/:itemType/:itemId` — Update metadata and reprocess all frames.
-   * - `/:id` — Publishes the body's content, its render rebuilt from the render frames of `:id`.
+   * PUT `/:id`: publishes the body's content as the definition of the item. Its render source comes
+   * inline in `objectLayerRenderFramesData` when the editor sends one, else from the render frames
+   * of `:id`. A save made from a definition another save replaced answers 409.
    *
    * A write with render frames delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
    * for the render build, the identity, the IPFS pins and the materializations.
@@ -184,147 +92,61 @@ class ObjectLayerStudioService {
    * @param {Object} options - Server options containing host and path.
    * @param {string} options.host - The deployment host.
    * @param {string} options.path - The deployment path.
-   * @returns {Promise<Object>} The updated object layer document or frame upload result.
-   * @throws {Error} If file validation fails, object layer is not found, or required parameters are missing.
+   * @returns {Promise<Object>} The published object layer document.
+   * @throws {Error} 404 when `:id` names no definition; 409 when the label runs another one.
    */
   static put = async (req, res, options) => {
-    // PUT /:id/frame-image/:itemType/:itemId/:directionCode - Update frame images for specific direction
-    if (req.path.includes('/frame-image/')) {
-      const objectLayerId = req.params.id;
-      const itemType = req.params.itemType;
-      const itemId = req.params.itemId;
-      const directionCode = req.params.directionCode;
-
-      // Debug: Log request files structure
-      logger.info(`Request files for direction ${directionCode}:`, {
-        filesKeys: req.files ? Object.keys(req.files) : [],
-        filesCount: req.files ? Object.keys(req.files).length : 0,
-      });
-
-      // Extract all frames for this direction
-      const files = FileFactory.filesExtract(req);
-
-      // Allow empty files to remove all frames from direction
-      if (!files || files.length === 0) {
-        logger.info(`No files received for direction ${directionCode} - will remove all frames from this direction`);
-      } else {
-        // Validate each file has data
-        for (let i = 0; i < files.length; i++) {
-          if (!files[i].data) {
-            logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
-            throw new Error(`File ${files[i].name || i} has no data`);
-          }
-          if (!Buffer.isBuffer(files[i].data)) {
-            logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
-            throw new Error(`File ${files[i].name || i} data is not a Buffer`);
-          }
-        }
-      }
-
-      logger.info(
-        `Processing ${files?.length || 0} file(s) for direction ${directionCode}: ${files?.map((f) => f.name).join(', ') || 'none'}`,
-      );
-
-      // Always clear and rewrite ALL frames for this direction code
-      for (const basePath of ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`]) {
-        const folder = `${basePath}assets/${itemType}/${itemId}/${directionCode}`;
-
-        // Always remove entire direction folder to ensure clean state
-        if (fs.existsSync(folder)) {
-          await fs.remove(folder);
-          logger.info(`Cleared folder: ${folder}`);
-        }
-
-        // Only create and write files if we have frames to upload
-        if (files && files.length > 0) {
-          // Create fresh folder
-          fs.mkdirSync(folder, { recursive: true });
-
-          // Write all frames sent in this request
-          for (const file of files) {
-            const filePath = `${folder}/${file.name}`;
-            try {
-              fs.writeFileSync(filePath, file.data);
-              logger.info(`Wrote file: ${filePath}`);
-            } catch (error) {
-              logger.error(`Error writing file ${filePath}:`, error);
-              throw new Error(`Failed to write ${file.name}: ${error.message}`);
-            }
-          }
-        } else {
-          logger.info(`No frames to write for direction ${directionCode} - folder removed`);
-        }
-      }
-
-      logger.info(
-        `Successfully processed ${files?.length || 0} frame(s) for direction ${directionCode} in object layer ${objectLayerId}`,
-      );
-
-      return { success: true, directionCode, frameCount: files?.length || 0 };
-    }
-
-    // PUT /:id/metadata/:itemType/:itemId - Update object layer metadata and reprocess all frames
-    if (req.path.includes('/metadata/')) {
-      const itemType = req.params.itemType;
-      const itemId = req.params.itemId;
-
-      const folder = `./src/client/public/cyberia/assets/${itemType}/${itemId}`;
-      const publicFolder = `./public/${options.host}${options.path}/assets/${itemType}/${itemId}`;
-
-      // Ensure both folders exist
-      if (!fs.existsSync(folder)) {
-        fs.mkdirSync(folder, { recursive: true });
-      }
-      if (!fs.existsSync(publicFolder)) {
-        fs.mkdirSync(publicFolder, { recursive: true });
-      }
-
-      // Write metadata.json to both locations
-      const metadataContent = JSON.stringify(req.body);
-      fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
-      fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
-
-      const { objectLayerRenderFramesData, objectLayerData } =
-        await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
-          folder,
-          objectLayerType: itemType,
-          objectLayerId: itemId,
-          metadataOverride: req.body,
-        });
-
-      return await ObjectLayerEngine.persistObjectLayerDocuments({
-        models: catalogModels(options),
-        objectLayerRenderFramesData,
-        objectLayerData: { ...objectLayerData, createdBy: req.auth.user._id },
-        persistOptions: { options },
-      });
-    }
-
-    // PUT /:id - publishes the body's content as the definition of the item, with the render
-    // rebuilt from the render frames of the given definition
     const models = catalogModels(options);
     const existingOL = await models.ObjectLayer.findById(req.params.id);
     if (!existingOL) throw new Error('ObjectLayer not found');
 
-    const objectLayerData = { ...req.body, createdBy: req.auth.user._id };
+    const { objectLayerRenderFramesData, ...body } = req.body;
+    const objectLayerData = { ...body, createdBy: req.auth.user._id };
     objectLayerData.data ??= ObjectLayerEngine.payloadOf(existingOL).data;
-    const objectLayerRenderFramesData = await DataBaseProviderService.getModel('ObjectLayerRenderFrames', options)
-      .findOne({ objectLayerCid: existingOL.cid })
-      .lean();
-    if (!objectLayerRenderFramesData)
-      return await ObjectLayerEngine.publishItemDefinition({ models, payload: objectLayerData, options });
+    await assertCurrentDefinition(models, req.params.id, objectLayerData.data.item?.id);
+    if (objectLayerRenderFramesData)
+      return await ObjectLayerEngine.persistObjectLayerDocuments({
+        models,
+        objectLayerRenderFramesData: fromWire(objectLayerRenderFramesData),
+        objectLayerData,
+        persistOptions: { options },
+      });
+    const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
+    const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: existingOL.cid }).lean();
+    if (!stored) return await ObjectLayerEngine.publishItemDefinition({ models, payload: objectLayerData, options });
     return await ObjectLayerEngine.persistObjectLayerDocuments({
       models,
-      objectLayerRenderFramesData,
+      objectLayerRenderFramesData: ObjectLayerRenderFrames.sourceOf(stored),
       objectLayerData,
       persistOptions: { options },
     });
   };
 }
 
+/**
+ * GET `/context/:id`: the foundation context of the item a key names. The key is a cid, a document
+ * id or an item label, so an item the foundation defines has its context before anyone paints it.
+ * Read-only.
+ * @memberof CyberiaObjectLayerStudio
+ */
+const context = async (req, res, options) => {
+  const key = req.params.id;
+  const objectLayer = await findObjectLayerByKey({
+    ObjectLayer: DataBaseProviderService.getModel('ObjectLayer', options),
+    key,
+    options,
+    select: { 'data.item.id': 1 },
+  });
+  const itemId = objectLayer?.data?.item?.id ?? key;
+  const found = itemContext(itemId, contentArtifact().context);
+  if (!found) throw Object.assign(new Error(`No foundation definition labels ${itemId}`), { status: 404 });
+  return found;
+};
+
 const ObjectLayerStudioController = {
   post: serviceHandler(ObjectLayerStudioService.post),
   put: serviceHandler(ObjectLayerStudioService.put),
+  context: serviceHandler(context, { crossOrigin: true }),
 };
 
 /**
@@ -338,28 +160,25 @@ export const resolveKey = async (key, options) =>
   catalogMounted(options) ? ((await findBoundDefinition(catalogModels(options), key))?._id ?? null) : null;
 
 /**
- * Removes what the Studio keeps for a definition that is deleted: the labels bound to it and,
- * when no other definition carries the label, its frames in the asset tree.
+ * Removes what the Studio keeps for a definition that is deleted: the labels bound to it and, with
+ * `assets` (`cyberia ol --drop --client-public`), its frames in the asset tree when no other
+ * definition carries the label.
  * @param {Object} objectLayer - The definition being deleted.
  * @param {import('../../api/types.js').RouterOptions} options
  * @param {Object} [scope]
- * @param {boolean} [scope.assets=true] - False keeps the asset tree, the source a re-import reads.
+ * @param {boolean} [scope.assets=false] - Also remove the item's folder from the asset tree.
  * @returns {Promise<void>}
  * @memberof CyberiaObjectLayerStudio
  */
-export const beforeDelete = async (objectLayer, options, { assets = true } = {}) => {
+export const beforeDelete = async (objectLayer, options, { assets = false } = {}) => {
   const { ObjectLayer, CyberiaItemCatalog } = catalogModels(options);
   await CyberiaItemCatalog.deleteMany({ objectLayerCid: objectLayer.cid });
   const itemType = objectLayer.data?.item?.type;
   const itemId = objectLayer.data?.item?.id;
   if (!assets || !itemType || !itemId) return;
   if (await ObjectLayer.exists({ 'data.item.id': itemId, _id: { $ne: objectLayer._id } })) return;
-  for (const assetDir of [
-    `./src/client/public/cyberia/assets/${itemType}/${itemId}`,
-    `./public/${options.host}${options.path}/assets/${itemType}/${itemId}`,
-  ]) {
-    if (fs.existsSync(assetDir)) await fs.remove(assetDir);
-  }
+  for (const basePath of ObjectLayerEngine.clientPublicPaths(options))
+    await fs.remove(`${basePath}/assets/${itemType}/${itemId}`);
 };
 
 /**
@@ -369,114 +188,18 @@ export const beforeDelete = async (objectLayer, options, { assets = true } = {})
  * @memberof CyberiaObjectLayerStudio
  */
 export function mount(router, options) {
-  router.post(
-    `/frame-image/:itemType/:itemId/:directionCode`,
-    options.authMiddleware,
-    moderatorGuard,
-    async (req, res) => {
-      /*
-          #swagger.auto = false
-          #swagger.tags = ['object-layer']
-          #swagger.summary = 'Upload frame image'
-          #swagger.description = 'This endpoint uploads a frame image for a specific object layer item by type, item ID, and direction code'
-          #swagger.path = '/object-layer/frame-image/{itemType}/{itemId}/{directionCode}'
-          #swagger.method = 'post'
-          #swagger.consumes = ['application/octet-stream']
-
-          #swagger.parameters['itemType'] = {
-              in: 'path',
-              description: 'The type of the item (e.g. skin, weapon)',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['itemId'] = {
-              in: 'path',
-              description: 'The item ID',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['directionCode'] = {
-              in: 'path',
-              description: 'The direction code for the frame (e.g. up, down, left, right)',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.responses[200] = {
-            description: 'Frame image uploaded successfully',
-            content: {
-                'application/json': {
-                    schema: {
-                      $ref: '#/components/schemas/objectLayerResponse'
-                    }
-                }
-            }
-          }
-
-          #swagger.responses[400] = {
-            description: 'Bad request. Please check the input data',
-            content: {
-                'application/json': {
-                    schema: {
-                      $ref: '#/components/schemas/objectLayerBadRequestResponse'
-                    }
-                }
-            }
-          }
-        */
-      return await ObjectLayerStudioController.post(req, res, options);
-    },
-  );
-  router.post(`/metadata/:itemType/:itemId`, options.authMiddleware, moderatorGuard, async (req, res) => {
+  router.get(`/context/:id`, async (req, res) => {
     /*
-        #swagger.auto = false
-        #swagger.tags = ['object-layer']
-        #swagger.summary = 'Create object layer metadata'
-        #swagger.description = 'This endpoint creates metadata for a specific object layer item by type and item ID'
-        #swagger.path = '/object-layer/metadata/{itemType}/{itemId}'
-        #swagger.method = 'post'
-        #swagger.produces = ['application/json']
-        #swagger.consumes = ['application/json']
-
-        #swagger.parameters['itemType'] = {
-            in: 'path',
-            description: 'The type of the item',
-            required: true,
-            type: 'string'
-        }
-
-        #swagger.parameters['itemId'] = {
-            in: 'path',
-            description: 'The item ID',
-            required: true,
-            type: 'string'
-        }
-
-        #swagger.responses[200] = {
-          description: 'Metadata created successfully',
-          content: {
-              'application/json': {
-                  schema: {
-                    $ref: '#/components/schemas/objectLayerResponse'
-                  }
-              }
-          }
-        }
-
-        #swagger.responses[400] = {
-          description: 'Bad request. Please check the input data',
-          content: {
-              'application/json': {
-                  schema: {
-                    $ref: '#/components/schemas/objectLayerBadRequestResponse'
-                  }
-              }
-          }
-        }
-      */
-    return await ObjectLayerStudioController.post(req, res, options);
+      #swagger.auto = false
+      #swagger.tags = ['object-layer']
+      #swagger.summary = 'Foundation context of an item'
+      #swagger.description = 'The Cyberia foundation context of the item a cid, document id or item label names: its definition, art brief, palettes, world, the maps that place it and every reference in both directions. Read-only.'
+      #swagger.path = '/object-layer/context/{id}'
+      #swagger.method = 'get'
+      #swagger.produces = ['application/json']
+      #swagger.parameters['id'] = { in: 'path', description: 'cid, document id or item label', required: true, type: 'string' }
+    */
+    return await ObjectLayerStudioController.context(req, res, options);
   });
   router.post(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*
@@ -560,135 +283,6 @@ export function mount(router, options) {
         }
       */
     return await ObjectLayerStudioController.post(req, res, options);
-  });
-  router.put(
-    `/:id/frame-image/:itemType/:itemId/:directionCode`,
-    options.authMiddleware,
-    moderatorGuard,
-    async (req, res) => {
-      /*
-          #swagger.auto = false
-          #swagger.tags = ['object-layer']
-          #swagger.summary = 'Update frame image'
-          #swagger.description = 'This endpoint updates a frame image for a specific object layer item by ID, type, item ID, and direction code'
-          #swagger.path = '/object-layer/{id}/frame-image/{itemType}/{itemId}/{directionCode}'
-          #swagger.method = 'put'
-          #swagger.consumes = ['application/octet-stream']
-          #swagger.security = [{
-            'bearerAuth': []
-          }]
-
-          #swagger.parameters['id'] = {
-              in: 'path',
-              description: 'Object layer ID',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['itemType'] = {
-              in: 'path',
-              description: 'The type of the item',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['itemId'] = {
-              in: 'path',
-              description: 'The item ID',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['directionCode'] = {
-              in: 'path',
-              description: 'The direction code for the frame',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.responses[200] = {
-            description: 'Frame image updated successfully',
-            content: {
-                'application/json': {
-                    schema: {
-                      $ref: '#/components/schemas/objectLayerResponse'
-                    }
-                }
-            }
-          }
-
-          #swagger.responses[400] = {
-            description: 'Bad request. Please check the input data',
-            content: {
-                'application/json': {
-                    schema: {
-                      $ref: '#/components/schemas/objectLayerBadRequestResponse'
-                    }
-                }
-            }
-          }
-        */
-      return await ObjectLayerStudioController.put(req, res, options);
-    },
-  );
-  router.put(`/:id/metadata/:itemType/:itemId`, options.authMiddleware, moderatorGuard, async (req, res) => {
-    /*
-          #swagger.auto = false
-          #swagger.tags = ['object-layer']
-          #swagger.summary = 'Update object layer metadata'
-          #swagger.description = 'This endpoint updates metadata for a specific object layer item by ID, type, and item ID'
-          #swagger.path = '/object-layer/{id}/metadata/{itemType}/{itemId}'
-          #swagger.method = 'put'
-          #swagger.produces = ['application/json']
-          #swagger.consumes = ['application/json']
-          #swagger.security = [{
-            'bearerAuth': []
-          }]
-
-          #swagger.parameters['id'] = {
-              in: 'path',
-              description: 'Object layer ID',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['itemType'] = {
-              in: 'path',
-              description: 'The type of the item',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.parameters['itemId'] = {
-              in: 'path',
-              description: 'The item ID',
-              required: true,
-              type: 'string'
-          }
-
-          #swagger.responses[200] = {
-            description: 'Metadata updated successfully',
-            content: {
-                'application/json': {
-                    schema: {
-                      $ref: '#/components/schemas/objectLayerResponse'
-                    }
-                }
-            }
-          }
-
-          #swagger.responses[400] = {
-            description: 'Bad request. Please check the input data',
-            content: {
-                'application/json': {
-                    schema: {
-                      $ref: '#/components/schemas/objectLayerBadRequestResponse'
-                    }
-                }
-            }
-          }
-        */
-    return await ObjectLayerStudioController.put(req, res, options);
   });
   router.put(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*

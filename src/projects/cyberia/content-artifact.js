@@ -21,7 +21,7 @@ import {
   collectSummonedItemIds,
   isMaterialItemId,
 } from '../../api/cyberia-instance/cyberia-instance-items.js';
-import { STAT_TYPES, isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { STAT_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import {
   composeItemDefinition,
   findAllBoundDefinitions,
@@ -29,8 +29,8 @@ import {
   writeItemDefinition,
 } from './object-layer-catalog.js';
 
-/** The artifact layout this engine reads. */
-export const CONTENT_SCHEMA_VERSION = 2;
+/** The artifact layout and document shapes this engine reads. */
+export const CONTENT_SCHEMA_VERSION = 4;
 
 /**
  * The document families of the artifact by file name, in import order: a family names only what
@@ -195,8 +195,9 @@ const readFamilies = (opened, directory) =>
 /**
  * The verified content artifact, opened once per process. Its foundation is deeply frozen.
  * @returns {{manifest:Object, foundation:Object<string,Object[]>, baseline:ReadonlyArray<Object>,
- *   byItemId:Map<string,Object>, saga:(code:string)=>{saga:Object, instance:Object, families:Object<string,Object[]>},
- *   instanceDir:(code:string)=>string}} `baseline` holds the entity-type defaults every world resolves against.
+ *   byItemId:Map<string,Object>, context:Object, saga:(code:string)=>{saga:Object, instance:Object,
+ *   families:Object<string,Object[]>}, instanceDir:(code:string)=>string}} `baseline` holds the entity-type
+ *   defaults every world resolves against; `context` is the index of every definition and its references.
  * @throws {Error} When the artifact is missing, invalid, altered or of an unsupported schema.
  * @memberof CyberiaContentArtifact
  */
@@ -209,6 +210,7 @@ export function contentArtifact() {
     foundation,
     baseline: deepFreeze(opened.json('foundation/baseline.json')),
     byItemId: new Map(foundation.objectLayers.map((item) => [item.itemId, item])),
+    context: deepFreeze(opened.json('context.json')),
     saga(code) {
       if (!opened.manifest.sagas.includes(code)) throw new Error(`The content artifact holds no saga ${code}`);
       return {
@@ -359,8 +361,8 @@ const withoutPlacement = (doc) =>
 
 /**
  * How a family is stored: its model, the natural key of a compiled document, the content an
- * import compares and writes, and when a stored document belongs to Studio. A dialogue document
- * is every line of one code.
+ * import compares and writes, and whether a write counts a revision. A dialogue document is every
+ * line of one code. A compiled map has no entities: Studio places them, and an import never writes them.
  */
 const FAMILY_STORES = Object.freeze({
   entityTypeDefaults: {
@@ -368,11 +370,7 @@ const FAMILY_STORES = Object.freeze({
     key: ({ entityType, liveItemIds }) => ({ entityType, liveItemIds }),
   },
   skills: { model: 'CyberiaSkill', key: ({ triggerItemId }) => ({ triggerItemId }) },
-  maps: {
-    model: 'CyberiaMap',
-    key: ({ code }) => ({ code }),
-    placed: (stored) => (stored.entities ?? []).some(isPlacedEntity),
-  },
+  maps: { model: 'CyberiaMap', key: ({ code }) => ({ code }), revised: true },
   quests: { model: 'CyberiaQuest', key: ({ code }) => ({ code }), content: withoutPlacement },
   dialogues: { model: 'CyberiaDialogue', key: ([{ code }]) => ({ code }) },
   actions: { model: 'CyberiaAction', key: ({ code }) => ({ code }), content: withoutPlacement },
@@ -388,8 +386,7 @@ const findStored = (Model, family, key) =>
   family === 'dialogues' ? Model.find(key).sort({ order: 1 }).lean() : Model.findOne(key).lean();
 
 /**
- * The plan of compiled families against a store. A document is absent, in sync, differs, or is
- * placed: a map Studio has placed an entity on.
+ * The plan of compiled families against a store. A document is absent, in sync, or differs.
  * @param {Object} params
  * @param {Object<string,Object[]>} params.families - Compiled families, as {@link contentArtifact} reads them.
  * @param {Object} params.models - The content models and the catalog models.
@@ -398,18 +395,12 @@ const findStored = (Model, family, key) =>
  */
 export async function planContent({ families, models }) {
   const documents = {};
-  for (const [family, { model, key, content = (doc) => doc, placed = () => false }] of Object.entries(FAMILY_STORES)) {
+  for (const [family, { model, key, content = (doc) => doc }] of Object.entries(FAMILY_STORES)) {
     documents[family] = [];
     for (const doc of documentsOf(family, families[family])) {
       const stored = await findStored(models[model], family, key(doc));
       const found = Array.isArray(stored) ? stored.length > 0 : !!stored;
-      const status = !found
-        ? 'absent'
-        : holdsContent(stored, content(doc))
-          ? 'in-sync'
-          : placed(stored)
-            ? 'placed'
-            : 'differs';
+      const status = !found ? 'absent' : holdsContent(stored, content(doc)) ? 'in-sync' : 'differs';
       documents[family].push({ doc, status });
     }
   }
@@ -423,7 +414,7 @@ export async function planContent({ families, models }) {
  * Imports compiled families in dependency order: Object Layer items and their catalog bindings,
  * entity-type defaults, skills, maps, quests, dialogues, then actions. It inserts what is absent,
  * and with `rebind` moves what differs to the artifact. Studio's work stays: an item keeps its
- * render, a quest or action its source, and a placed map its entities. Idempotent.
+ * render, a quest or action its source, and a map its entities. Idempotent.
  * @param {Object} params
  * @param {Object<string,Object[]>} params.families - Compiled families.
  * @param {Object} params.models - The content models and the catalog models.
@@ -444,16 +435,16 @@ export async function importContent({ families, models, context, rebind = false 
     rebind,
   });
   const written = {};
-  for (const [family, { model, key, content = (doc) => doc }] of Object.entries(FAMILY_STORES)) {
+  for (const [family, { model, key, content = (doc) => doc, revised }] of Object.entries(FAMILY_STORES)) {
     const Model = models[model];
     written[family] = 0;
     for (const { doc, status } of plan.documents[family]) {
-      if (status === 'in-sync' || status === 'placed' || (status === 'differs' && !rebind)) continue;
+      if (status === 'in-sync' || (status === 'differs' && !rebind)) continue;
       if (family === 'dialogues') {
         await Model.deleteMany(key(doc));
         await Model.insertMany(doc);
       } else if (status === 'absent') await Model.create(doc);
-      else await Model.updateOne(key(doc), { $set: content(doc) });
+      else await Model.updateOne(key(doc), { $set: content(doc), ...(revised ? { $inc: { revision: 1 } } : {}) });
       written[family]++;
     }
   }

@@ -16,8 +16,6 @@
  * @module src/api/cyberia-instance/cyberia-portal-connector
  */
 
-import { isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-
 // ── Portal mode constants ────────────────────────────────────────────────────
 
 /**
@@ -49,7 +47,7 @@ const PORTAL_MODE_LIST = Object.values(PORTAL_MODES);
 function indexPortalEntities(maps) {
   const idx = {};
   for (const map of maps) {
-    idx[map.code] = (map.entities || []).filter((e) => e.entityType === 'portal' && isPlacedEntity(e));
+    idx[map.code] = (map.entities || []).filter((e) => e.entityType === 'portal');
   }
   return idx;
 }

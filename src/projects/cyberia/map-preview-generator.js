@@ -19,7 +19,6 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { renderFileBytes } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { catalogModels, catalogMounted } from './object-layer-catalog.js';
-import { isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -156,10 +155,10 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = 
   const height = gridY * cell;
   const fileIds = await idlePreviewFileIds(map, options);
 
-  // Every placed entity of every entityType renders something: its items'
+  // Every entity of every entityType renders something: its items'
   // stills when the atlases hold them, otherwise a flat fill of its colour.
   const composites = [];
-  for (const entity of (map.entities || []).filter(isPlacedEntity)) {
+  for (const entity of map.entities || []) {
     const left = Math.round(entity.initCellX * cell);
     const top = Math.round(entity.initCellY * cell);
     const w = Math.max(1, Math.round((entity.dimX || 1) * cell));

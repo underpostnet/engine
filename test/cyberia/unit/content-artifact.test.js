@@ -359,9 +359,6 @@ const FAMILIES = {
       name: 'Glade',
       description: 'A glade.',
       tags: ['meadow'],
-      entities: [
-        { entityType: 'bot', objectLayerItemIds: ['anon', 'pistol'], level: 2, initCellX: null, initCellY: null },
-      ],
     },
   ],
   quests: [
@@ -442,21 +439,21 @@ describe('content import', () => {
     ).toBe(true);
   });
 
-  it('keeps what differs, and moves it to the artifact on rebind, never Studio placement', async () => {
+  it('keeps what differs, and moves it to the artifact on rebind, never Studio placement or entities', async () => {
     const placedQuest = { ...FAMILIES.quests[0], title: 'Old', sourceMapCode: 'glade', sourceCellX: 3, sourceCellY: 4 };
     const models = contentStore({
       quests: [placedQuest],
       dialogues: [{ code: 'default-anon', order: 0, speaker: 'Anon', text: 'Old.', mood: 'neutral' }],
-      maps: [{ ...FAMILIES.maps[0], entities: [{ ...FAMILIES.maps[0].entities[0], initCellX: 1, initCellY: 2 }] }],
+      maps: [{ ...FAMILIES.maps[0], name: 'Old', entities: [{ entityType: 'bot', initCellX: 1, initCellY: 2 }] }],
     });
     const kept = await importContent({ families: FAMILIES, models });
-    expect(statuses(kept.plan)).toMatchObject({ quests: ['differs'], dialogues: ['differs'], maps: ['placed'] });
+    expect(statuses(kept.plan)).toMatchObject({ quests: ['differs'], dialogues: ['differs'], maps: ['differs'] });
     expect(models.CyberiaQuest.docs[0].title).toBe('Old');
 
     await importContent({ families: FAMILIES, models, rebind: true });
     expect(models.CyberiaQuest.docs[0]).toMatchObject({ title: 'Logs', sourceMapCode: 'glade', sourceCellX: 3 });
     expect(models.CyberiaDialogue.docs.map(({ text }) => text)).toEqual(['Hello.', 'Bye.']);
-    expect(models.CyberiaMap.docs[0].entities[0]).toMatchObject({ initCellX: 1, initCellY: 2 });
+    expect(models.CyberiaMap.docs[0]).toMatchObject({ name: 'Glade', entities: [{ initCellX: 1, initCellY: 2 }] });
   });
 
   it('compares only what the artifact compiles: stored extras never differ', () => {

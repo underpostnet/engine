@@ -104,13 +104,9 @@ describe('wire converters', () => {
     expect(entity).toMatchObject({ entityType: 'floor', level: 0, dimX: 1, dimY: 1, objectLayerItemIds: [] });
     expect(toEntityMsg({ level: 3, color: 'rgb(9,8,7)' })).toMatchObject({ level: 3, colorR: 9, colorB: 7 });
 
-    // An entity without a cell waits for Studio placement: the world never receives it.
-    const map = toMapMsg({
-      _id: 'm1',
-      entities: [{ entityType: 'bot', initCellX: 0, initCellY: 0 }, { entityType: 'bot' }],
-    });
+    const map = toMapMsg({ _id: 'm1', entities: [{ entityType: 'bot', initCellX: 2, initCellY: 3 }] });
     expect(map).toMatchObject({ mongoId: 'm1', gridX: 16, cellWidth: 32 });
-    expect(map.entities.map(({ entityType }) => entityType)).toEqual(['bot']);
+    expect(map.entities).toEqual([expect.objectContaining({ entityType: 'bot', initCellX: 2, initCellY: 3 })]);
 
     const instance = toInstanceMsg({ _id: 'i1', portals: [{ sourceMapCode: 'a' }] });
     expect(instance).toMatchObject({ mongoId: 'i1', topologyMode: 'hybrid', mapCodes: [] });

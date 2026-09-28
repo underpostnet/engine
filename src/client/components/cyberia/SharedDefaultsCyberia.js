@@ -73,9 +73,6 @@ export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
 /** How a portal connects: to a portal or a random cell, on another map or the same one. */
 export const PORTAL_MODES = Object.freeze(['inter-portal', 'inter-random', 'intra-random', 'intra-portal']);
 
-/** Whether an entity has a cell. An unplaced entity exists in content and waits for spatial authoring. */
-export const isPlacedEntity = (entity) => Number.isInteger(entity?.initCellX) && Number.isInteger(entity?.initCellY);
-
 /** Prefix of an item's dialogue code: its flavor text, and an NPC's greeting when the item is its skin. */
 export const ITEM_DIALOGUE_PREFIX = 'default-';
 

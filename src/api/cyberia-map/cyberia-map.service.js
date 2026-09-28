@@ -4,6 +4,7 @@ import { DataQuery } from '../../server/storage/data-query.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 import { CyberiaMapDto } from './cyberia-map.model.js';
+import { mapContext } from '../../projects/cyberia/foundation-context.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -11,6 +12,15 @@ const logger = loggerFactory(import.meta);
 const mapCache = (options) => CacheService.namespace(options, 'cyberia-map');
 
 class CyberiaMapService {
+  /** GET /context/:code - the foundation context of a map against its stored entities. Read-only. */
+  static context = async (req, res, options) => {
+    const code = req.params.code;
+    const map = await DataBaseProviderService.getModel('CyberiaMap', options).findOne({ code }).lean();
+    const instances = await DataBaseProviderService.getModel('CyberiaInstance', options)
+      .find({ $or: [{ 'portals.sourceMapCode': code }, { 'portals.targetMapCode': code }] }, { code: 1, portals: 1 })
+      .lean();
+    return mapContext({ code, map: map ?? {}, instances });
+  };
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
@@ -73,8 +83,13 @@ class CyberiaMapService {
     const map = await CyberiaMap.findById(req.params.id);
     if (!map) throw new Error('map not found');
     assertOwnerOrAdmin(req.auth.user, map.creator);
-    // The owner is set once, by the write that created the map.
-    const { creator, ...changes } = req.body;
+    // The owner is set once, by the write that created the map; the revision only moves forward.
+    const { creator, revision, ...changes } = req.body;
+    if (revision !== map.revision)
+      throw Object.assign(
+        new Error(`Map ${map.code} is at revision ${map.revision}, not ${revision}: reload it before saving`),
+        { status: 409 },
+      );
     const candidate = new CyberiaMap({ ...map.toObject(), ...changes });
     await candidate.validate();
     const File = DataBaseProviderService.getModel("File", options);
@@ -84,10 +99,13 @@ class CyberiaMapService {
     if (changes.preview && map.preview && String(changes.preview) !== String(map.preview)) {
       await File.findByIdAndDelete(map.preview);
     }
-    const updated = await CyberiaMap.findByIdAndUpdate(req.params.id, changes, {
-      returnDocument: 'after',
-      runValidators: true,
-    });
+    const updated = await CyberiaMap.findOneAndUpdate(
+      { _id: req.params.id, updatedAt: map.updatedAt },
+      { $set: changes, $inc: { revision: 1 } },
+      { returnDocument: 'after', runValidators: true },
+    );
+    if (!updated)
+      throw Object.assign(new Error(`Map ${map.code} changed while saving: reload it before saving`), { status: 409 });
     await CacheService.invalidate(mapCache(options));
     return updated;
   };

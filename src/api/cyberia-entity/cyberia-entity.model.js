@@ -6,9 +6,8 @@ import { ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX } from '../../client/components/cybe
 const CyberiaEntitySchema = new Schema({
   entityType: { type: String, default: 'floor' },
   level: { type: Number, min: ENTITY_LEVEL_MIN, max: ENTITY_LEVEL_MAX, validate: Number.isInteger },
-  // Null until spatial authoring places the entity.
-  initCellX: { type: Number, default: null },
-  initCellY: { type: Number, default: null },
+  initCellX: { type: Number, default: 0 },
+  initCellY: { type: Number, default: 0 },
   dimX: { type: Number, default: 1 },
   dimY: { type: Number, default: 1 },
   color: { type: String, default: 'rgba(255, 0, 0, 1)' },

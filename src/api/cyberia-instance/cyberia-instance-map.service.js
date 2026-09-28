@@ -9,7 +9,6 @@ import { apiPathOf } from '../../server/domain/api-contract.js';
 import { resolveEntityDefaultBuild } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
 import { contentArtifact } from '../../projects/cyberia/content-artifact.js';
-import { isPlacedEntity } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -153,7 +152,7 @@ const buildPresencePois = ({
     for (const entity of map.entities || []) {
       const behavior = entityBehavior(entity, entityDefaults);
       const presenceStatus = entityPresenceStatus(entity, objectLayerMetadata, behavior);
-      if (!presenceStatus || !isPlacedEntity(entity)) continue;
+      if (!presenceStatus) continue;
       getPoi(map.code, entity.initCellX, entity.initCellY, presenceStatus, 100);
     }
   }

@@ -26,18 +26,18 @@ workspace (engine root)
 
 One owner for each concept. No module holds a second answer.
 
-| Owner                      | Owns                                                                         |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| `cyberia-content`          | Foundation, instances, sagas, generator, compiler, validation, artifact      |
-| `cyberia-deployment`       | Deployment conf, manifests and `content-lock.json`                           |
-| Object Layer               | Canonical, content-addressed item definitions                                |
-| `CyberiaItemCatalog`       | The binding of a Cyberia item label to an Object Layer CID                   |
-| `CyberiaEntity`            | An entity of a map: item stack, runtime properties, and its cell once placed |
-| `CyberiaMap`               | A map and its entities                                                       |
-| `CyberiaInstance`          | The map topology: portal graph and player spawn                              |
-| `CyberiaEntityTypeDefault` | The entity wiring one instance authors over the baseline                     |
-| `CyberiaSkill`             | The runtime skill of a trigger item                                          |
-| `CyberiaInstanceConf`      | Simulation configuration and tuning                                          |
+| Owner                      | Owns                                                                    |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `cyberia-content`          | Foundation, instances, sagas, generator, compiler, validation, artifact |
+| `cyberia-deployment`       | Deployment conf, manifests and `content-lock.json`                      |
+| Object Layer               | Canonical, content-addressed item definitions                           |
+| `CyberiaItemCatalog`       | The binding of a Cyberia item label to an Object Layer CID              |
+| `CyberiaEntity`            | An entity of a map: item stack, runtime properties and cell             |
+| `CyberiaMap`               | A map and its entities                                                  |
+| `CyberiaInstance`          | The map topology: portal graph and player spawn                         |
+| `CyberiaEntityTypeDefault` | The entity wiring one instance authors over the baseline                |
+| `CyberiaSkill`             | The runtime skill of a trigger item                                     |
+| `CyberiaInstanceConf`      | Simulation configuration and tuning                                     |
 
 Runtime vocabularies that the server, the client and the editor share (item types, entity types,
 skill LogicIds, the stat contract) stay in `SharedDefaultsCyberia.js`. `cyberia stat-contract`
@@ -58,14 +58,15 @@ The deployment contains no public asset tree. Public source directories have no 
 The artifact is `dist/`: the compiled document families of the foundation and of each saga, the
 instance backups and a manifest. It holds no code; the engine reads and verifies it.
 
-| Path                         | Holds                                                 |
-| ---------------------------- | ----------------------------------------------------- |
-| `foundation/<family>.json`   | The compiled foundation, one file per document family |
-| `foundation/baseline.json`   | The entity-type defaults every world resolves against |
-| `sagas/<code>/<family>.json` | Each compiled saga, one file per document family      |
-| `sagas/<code>/saga.json`     | Its `CyberiaSaga` record                              |
-| `sagas/<code>/instance.json` | The shell of its instance                             |
-| `instances/<code>/`          | Each instance backup                                  |
+| Path                         | Holds                                                  |
+| ---------------------------- | ------------------------------------------------------ |
+| `context.json`               | The context index: every definition and its references |
+| `foundation/<family>.json`   | The compiled foundation, one file per document family  |
+| `foundation/baseline.json`   | The entity-type defaults every world resolves against  |
+| `sagas/<code>/<family>.json` | Each compiled saga, one file per document family       |
+| `sagas/<code>/saga.json`     | Its `CyberiaSaga` record                               |
+| `sagas/<code>/instance.json` | The shell of its instance                              |
+| `instances/<code>/`          | Each instance backup                                   |
 
 The manifest names:
 
@@ -125,21 +126,27 @@ Every file is verified when it is read. The runtime data is frozen: one process 
 The compiler of `cyberia-content` turns every definition into runtime documents. The engine lists
 the families in `CONTENT_FAMILIES`, in import order: a family names only what an earlier one holds.
 
-| Family                 | Model                         | Holds                                                  |
-| ---------------------- | ----------------------------- | ------------------------------------------------------ |
-| `object-layers`        | Object Layer and item catalog | One item per labeled definition, without render        |
-| `entity-type-defaults` | `CyberiaEntityTypeDefault`    | Live, dead, drop and inventory items, and the behavior |
-| `skills`               | `CyberiaSkill`                | The skill of each item whose ability names a handler   |
-| `maps`                 | `CyberiaMap`                  | The entities of each map, each with no cell            |
-| `quests`               | `CyberiaQuest`                | Steps, objectives and rewards, with no source          |
-| `dialogues`            | `CyberiaDialogue`             | Item flavor text, character greetings and quest talk   |
-| `actions`              | `CyberiaAction`               | Shop, recipes, storage and quest talk, with no source  |
+| Family                 | Model                         | Holds                                                   |
+| ---------------------- | ----------------------------- | ------------------------------------------------------- |
+| `object-layers`        | Object Layer and item catalog | One item per labeled definition, without render         |
+| `entity-type-defaults` | `CyberiaEntityTypeDefault`    | Live, dead, drop and inventory items, and the behavior  |
+| `skills`               | `CyberiaSkill`                | The skill of each item whose ability names a handler    |
+| `maps`                 | `CyberiaMap`                  | Each map: name, description and biome tags; no entities |
+| `quests`               | `CyberiaQuest`                | Steps, objectives and rewards, with no source           |
+| `dialogues`            | `CyberiaDialogue`             | Item flavor text, character greetings and quest talk    |
+| `actions`              | `CyberiaAction`               | Shop, recipes, storage and quest talk, with no source   |
 
 The engine also reads two foundation families without a database. The baseline completes the
 entity-type defaults of every world. The skills and dialogues answer for a world that stores none.
 
 A saga compiles to the same families. Its entity-type defaults also cover each foundation entity
 its maps place.
+
+The context index, `context.json`, is derived at build time. It holds every definition of the
+foundation and the sagas, where each one comes from, the item label and the map entity it answers
+to, and every reference in both directions with the field that makes it. The Studio editors read
+it through `src/projects/cyberia/foundation-context.js`: one definition in full, the rest as
+summaries.
 
 ## Import
 
@@ -154,7 +161,7 @@ The import never overwrites what Studio authored:
 - An Object Layer definition keeps its render. A rebind publishes new content as a new immutable
   definition and moves the label; a stored definition never changes in place.
 - A quest or an action keeps its source map and cell.
-- A map with a placed entity keeps its entities.
+- A map keeps its entities. A compiled map holds none: Studio places them.
 
 `--saga <code>` imports one compiled saga the same way, then its `CyberiaSaga` record and its
 instance. The instance conf references the entity-type defaults of every entity the saga places.
@@ -188,7 +195,9 @@ label it names or stores:
 The foundation and the sagas leave two jobs to Cyberia Studio:
 
 1. **Paint**: an artist draws each Object Layer item in the editor from its art brief.
-2. **Place**: an author puts each unplaced map entity on a cell, sets the quest and action sources,
+2. **Place**: an author places the entities each map composes, sets the quest and action sources,
    and connects maps into an instance.
 
-The server receives placed entities only. An entity with no cell waits in the map editor.
+The map editor tracks each composition: an entry is met once the map holds an entity of its type
+and item ids.
+[Paint and place in the Studio](../how-to/paint-and-place-in-studio.md) describes both editors.

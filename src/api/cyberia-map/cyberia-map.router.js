@@ -10,6 +10,7 @@ class CyberiaMapRouter {
   static router(options) {
     const router = express.Router();
     router.get(`/search-codes`, async (req, res) => await CyberiaMapController.get(req, res, options));
+    router.get(`/context/:code`, async (req, res) => await CyberiaMapController.context(req, res, options));
     return registerCrudRoutes(router, CyberiaMapController, options);
   }
 }

@@ -38,7 +38,7 @@ may act on one resource.
 A purge is the operator's removal: it takes the definition and everything stored under it on one
 host — the document, its render frames, its atlas and every render File the atlas owns, the IPFS
 pin records, the pinned content and its MFS paths, and what the host's Studio keeps for it (the
-labels bound to the definition, and its frames in the asset tree). Nothing restores it.
+labels bound to the definition, and on request its frames in the asset tree). Nothing restores it.
 
 Definitions share content: two of one label can name one render. A purge keeps the render pins
 and the labels a remaining definition still names. The render frames and the atlas of a

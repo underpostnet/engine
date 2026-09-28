@@ -79,6 +79,21 @@ class ObjectLayerService {
         }),
     );
   };
+  /** The foundation context of the item a key names, where the host's Studio serves one. */
+  static getContext = (options = { id: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `context/${encodeURIComponent(options.id)}`, endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static getMetadata = (options = { id: '' }) => {
     const url = new URL(getApiBaseUrl({ id: `metadata/${options.id}`, endpoint }));
     return new Promise((resolve, reject) =>
