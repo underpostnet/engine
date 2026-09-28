@@ -3,9 +3,10 @@ import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { darkTheme, ThemeEvents } from '../core/Css.js';
+import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { AgGrid } from '../core/AgGrid.js';
+import { EditorLayout } from '../core/EditorLayout.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
@@ -14,8 +15,6 @@ import { ENTITY_TYPES, SELECTABLE_ENTITY_BEHAVIORS } from './SharedDefaultsCyber
 
 // DropDown invokes optionData.onClick on selection, so every option must carry one.
 const dropdownOption = (value) => ({ value, display: value, data: value, onClick: () => {} });
-const groupBorder = () => (darkTheme ? '#3a3a3a' : '#d4d4d4');
-const subtleBorder = () => (darkTheme ? '#444' : '#e0e0e0');
 
 // EntityEngineCyberia — CRUD surface for the cyberia-entity-type-default
 // collection (instance wiring over the foundation baseline). An ag-grid lists
@@ -153,7 +152,7 @@ class EntityEngineCyberia {
     for (let i = 0; i < items.length; i++) {
       out += html`<div
         class="fl"
-        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;display:flex;align-items:center;gap:6px;">
           ${EntityEngineCyberia.itemPreview(items[i])}${items[i]}
@@ -216,7 +215,7 @@ class EntityEngineCyberia {
       const isDrop = EntityEngineCyberia.listFieldOf('drop').includes(rule.itemId);
       out += html`<div
         class="fl"
-        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;display:flex;align-items:center;gap:6px;">
           ${EntityEngineCyberia.itemPreview(rule.itemId)}
@@ -314,7 +313,7 @@ class EntityEngineCyberia {
     for (let i = 0; i < EntityEngineCyberia.instanceCodes.length; i++) {
       out += html`<div
         class="fl"
-        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;">${EntityEngineCyberia.instanceCodes[i]}</div>
         ${await BtnIcon.instance({
@@ -695,13 +694,8 @@ class EntityEngineCyberia {
     const entityTypeOptions = Object.values(ENTITY_TYPES).map((t) => dropdownOption(t));
 
     const group = (title, icon, inner) =>
-      html`<div class="in" style="border:1px solid ${groupBorder()};border-radius:8px;padding:12px;margin-bottom:14px;">
-        <div
-          class="in"
-          style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;opacity:.85;"
-        >
-          <i class="${icon}"></i> ${title}
-        </div>
+      html`<div class="in studio-group">
+        <div class="in studio-group-title"><i class="${icon}"></i> ${title}</div>
         ${inner}
       </div>`;
 
@@ -721,10 +715,9 @@ class EntityEngineCyberia {
         <div class="in entity-engine-${field}-list" style="margin-top:8px;"></div>`;
 
     setTimeout(async () => {
-      ThemeEvents['entity-engine-theme'] = () => {
-        for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
-        EntityEngineCyberia.renderOverrideList();
-      };
+      const container = s('.entity-engine-container');
+      EditorLayout.bind(container);
+      EditorLayout.pin(container, 'entity-engine-stage');
 
       for (const field of EntityEngineCyberia.ITEM_FIELDS)
         if (s(`.btn-entity-engine-add-${field}`))
@@ -748,207 +741,203 @@ class EntityEngineCyberia {
       await EntityEngineCyberia.refreshList();
     });
 
-    return html`<div class="in section-mp entity-engine-container">
-      ${group(
-        'Existing Entity Defaults',
-        'fa-solid fa-table-list',
-        html`<div class="fl" style="margin-bottom:8px;">
-            <div class="in fll">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-entity-engine-refresh',
-                label: html`<i class="fa-solid fa-rotate"></i> Refresh`,
-              })}
-            </div>
+    return html`<div class="in section-mp studio-editor entity-engine-container">
+      ${EditorLayout.render({
+        subject: 'table',
+        readout: html`<div class="in studio-group-title" style="margin:0;">
+            <i class="fa-solid fa-table-list"></i> Existing Entity Defaults
           </div>
-          <div class="in" style="font-size:12px;color:#888;margin-bottom:6px;">
-            Click a row to load it into the form.
-          </div>
-          ${await AgGrid.instance({
-            id: EntityEngineCyberia.gridId,
-            darkTheme,
-            style: { height: '300px' },
-            gridOptions: {
-              rowData: [],
-              columnDefs: [
-                { field: 'entityType', headerName: 'Entity Type', minWidth: 120 },
-                { field: 'behavior', headerName: 'Behavior', minWidth: 110 },
-                { field: 'instances', headerName: 'Instances', minWidth: 160 },
-                {
-                  field: 'liveItemIds',
-                  headerName: 'Live Item Ids',
-                  minWidth: 220,
-                  autoHeight: true,
-                  cellRenderer: EntityEngineCyberia.itemIdsRenderer('liveItemIds'),
-                },
-                {
-                  field: 'deadItemIds',
-                  headerName: 'Dead Item Ids',
-                  minWidth: 220,
-                  autoHeight: true,
-                  cellRenderer: EntityEngineCyberia.itemIdsRenderer('deadItemIds'),
-                },
-                {
-                  field: 'dropItemIds',
-                  headerName: 'Drop Item Ids',
-                  minWidth: 220,
-                  autoHeight: true,
-                  cellRenderer: EntityEngineCyberia.itemIdsRenderer('dropItemIds'),
-                },
-                {
-                  field: 'inventoryItemsIds',
-                  headerName: 'Inventory Items Id',
-                  minWidth: 220,
-                  autoHeight: true,
-                  cellRenderer: EntityEngineCyberia.itemIdsRenderer('inventoryItemsIds'),
-                },
-                {
-                  field: 'overrideItemsIdsState',
-                  headerName: 'Resume Override',
-                  minWidth: 200,
-                  autoHeight: true,
-                  cellRenderer: EntityEngineCyberia.overridesRenderer(),
-                  filterValueGetter: (params) =>
-                    EntityEngineCyberia.overridesFilterText(params.data?.overrideItemsIdsState),
-                },
-              ],
-              rowSelection: 'single',
-              onRowClicked: (event) => {
-                const doc = EntityEngineCyberia.listCache.find((d) => d._id === event.data?._id);
-                if (doc) EntityEngineCyberia.load(doc);
+          ${await BtnIcon.instance({
+            class: 'btn-entity-engine-refresh',
+            label: html`<i class="fa-solid fa-rotate"></i> Refresh`,
+          })}
+          <div class="in" style="font-size:12px;color:#888;">Click a row to load it into the form.</div>`,
+        stage: await AgGrid.instance({
+          id: EntityEngineCyberia.gridId,
+          darkTheme,
+          style: { width: '44rem', 'max-width': '100%', height: '50vh' },
+          gridOptions: {
+            rowData: [],
+            columnDefs: [
+              { field: 'entityType', headerName: 'Entity Type', minWidth: 120 },
+              { field: 'behavior', headerName: 'Behavior', minWidth: 110 },
+              { field: 'instances', headerName: 'Instances', minWidth: 160 },
+              {
+                field: 'liveItemIds',
+                headerName: 'Live Item Ids',
+                minWidth: 220,
+                autoHeight: true,
+                cellRenderer: EntityEngineCyberia.itemIdsRenderer('liveItemIds'),
               },
+              {
+                field: 'deadItemIds',
+                headerName: 'Dead Item Ids',
+                minWidth: 220,
+                autoHeight: true,
+                cellRenderer: EntityEngineCyberia.itemIdsRenderer('deadItemIds'),
+              },
+              {
+                field: 'dropItemIds',
+                headerName: 'Drop Item Ids',
+                minWidth: 220,
+                autoHeight: true,
+                cellRenderer: EntityEngineCyberia.itemIdsRenderer('dropItemIds'),
+              },
+              {
+                field: 'inventoryItemsIds',
+                headerName: 'Inventory Items Id',
+                minWidth: 220,
+                autoHeight: true,
+                cellRenderer: EntityEngineCyberia.itemIdsRenderer('inventoryItemsIds'),
+              },
+              {
+                field: 'overrideItemsIdsState',
+                headerName: 'Resume Override',
+                minWidth: 200,
+                autoHeight: true,
+                cellRenderer: EntityEngineCyberia.overridesRenderer(),
+                filterValueGetter: (params) =>
+                  EntityEngineCyberia.overridesFilterText(params.data?.overrideItemsIdsState),
+              },
+            ],
+            rowSelection: 'single',
+            onRowClicked: (event) => {
+              const doc = EntityEngineCyberia.listCache.find((d) => d._id === event.data?._id);
+              if (doc) EntityEngineCyberia.load(doc);
             },
-          })}`,
-      )}
-      ${group(
-        'Entity Default',
-        'fa-solid fa-circle-info',
-        html`<div class="in" style="margin-bottom:8px;">
-            ${await DropDown.instance({
-              id: ids.entityType,
-              label: html`Entity Type`,
-              data: entityTypeOptions,
-              containerClass: 'inl',
-            })}
-          </div>
-          <div class="in" style="margin-bottom:8px;">
-            ${await DropDown.instance({
-              id: ids.behavior,
-              label: html`Behavior`,
-              data: EntityEngineCyberia.behaviorOptions(),
-              containerClass: 'inl',
-            })}
-          </div>
-          <div class="in" style="font-size:12px;color:#888;">
-            <i class="fa-solid fa-circle-info"></i> Defaults are resolved by the entity's active itemId (usually the
-            skin): the system finds the document whose <b>Live Item Ids</b> contains it, then applies its dead, drop and
-            default object-layer ids — and its <b>Behavior</b> when set. Entity Type is a label only — it is not the
-            lookup key and may repeat across documents. Leave Behavior on <b>auto</b> to derive it (armed → hostile,
-            else passive).
-          </div>`,
-      )}
-      ${group(
-        'Live Item Ids',
-        'fa-solid fa-heart',
-        html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
-            <i class="fa-solid fa-key"></i> Lookup key — each itemId may belong to only one entity default across the
-            whole collection (empty is allowed for non-lookup categories).
-          </div>
-          ${await itemListEditor('live', html`Search live itemId`)}`,
-      )}
-      ${group('Dead Item Ids', 'fa-solid fa-skull', await itemListEditor('dead', html`Search dead itemId`))}
-      ${group('Drop Item Ids', 'fa-solid fa-gift', await itemListEditor('drop', html`Search drop itemId`))}
-      ${group(
-        'Inventory Items Id',
-        'fa-solid fa-box-open',
-        html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
-            <i class="fa-solid fa-circle-info"></i> The entity carries the union of all four lists. These are the extras
-            no lifecycle state activates — a coin balance, say; live, dead and drop ids are already carried and are
-            activated by context.
-          </div>
-          ${await itemListEditor('inventory', html`Search inventory itemId`)}`,
-      )}
-      ${group(
-        'Override Item State',
-        'fa-solid fa-sliders',
-        html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
-            <i class="fa-solid fa-circle-info"></i> Adjusts what the lists above derive for one id they already carry:
-            <b>active</b> forces the spawn state — a skin the equipment rules would otherwise leave inactive — and the
-            quantity sizes a stack, which is how a drop bundle declares how many it scatters. An override never adds an
-            id.
-          </div>
-          <div class="fl" style="align-items:flex-end;">
-            <div class="in fll" style="flex:1;">
-              ${await EntityEngineCyberia.buildItemIdDropdown(ids.overrideItemPicker, html`Search carried itemId`)}
-            </div>
-            <div class="in fll" style="padding-left:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-entity-engine-add-override',
-                label: html`<i class="fa-solid fa-plus"></i> Override`,
-              })}
-            </div>
-          </div>
-          <div class="in entity-engine-override-list" style="margin-top:8px;"></div>`,
-      )}
-      ${group(
-        'Instances',
-        'fa-solid fa-earth-americas',
-        html`<div class="in" style="font-size:12px;opacity:.8;margin-bottom:8px;">
-            A world runs on this default only while its conf references it, and the reference is what scopes it — an
-            instance never picks up another's wiring by sharing item ids.
-          </div>
-          <div class="fl" style="align-items:flex-end;">
-            <div class="in fll" style="flex:1;">
-              ${await EntityEngineCyberia.buildInstanceDropdown(ids.instancePicker)}
-            </div>
-            <div class="in fll" style="padding-left:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-entity-engine-add-instance',
-                label: html`<i class="fa-solid fa-plus"></i> Link`,
-              })}
-            </div>
-          </div>
-          <div class="in entity-engine-instance-list" style="margin-top:8px;"></div>`,
-      )}
-      ${group(
-        'Save Entity Default',
-        'fa-solid fa-floppy-disk',
-        html`<div class="fl" style="margin-top:4px;flex-wrap:wrap;">
-          ${
-            EntityEngineCyberia.canMutate
-              ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
-                    ${await BtnIcon.instance({
-                    class: 'wfa btn-entity-engine-save',
-                    label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
+          },
+        }),
+        tools: html`${group(
+            'Entity Default',
+            'fa-solid fa-circle-info',
+            html`<div class="in" style="margin-bottom:8px;">
+                ${await DropDown.instance({
+                  id: ids.entityType,
+                  label: html`Entity Type`,
+                  data: entityTypeOptions,
+                  containerClass: 'inl',
+                })}
+              </div>
+              <div class="in" style="margin-bottom:8px;">
+                ${await DropDown.instance({
+                  id: ids.behavior,
+                  label: html`Behavior`,
+                  data: EntityEngineCyberia.behaviorOptions(),
+                  containerClass: 'inl',
+                })}
+              </div>
+              <div class="in" style="font-size:12px;color:#888;">
+                <i class="fa-solid fa-circle-info"></i> Defaults are resolved by the entity's active itemId (usually the
+                skin): the system finds the document whose <b>Live Item Ids</b> contains it, then applies its dead, drop and
+                default object-layer ids — and its <b>Behavior</b> when set. Entity Type is a label only — it is not the
+                lookup key and may repeat across documents. Leave Behavior on <b>auto</b> to derive it (armed → hostile,
+                else passive).
+              </div>`,
+          )}
+          ${group(
+            'Live Item Ids',
+            'fa-solid fa-heart',
+            html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
+                <i class="fa-solid fa-key"></i> Lookup key — each itemId may belong to only one entity default across the
+                whole collection (empty is allowed for non-lookup categories).
+              </div>
+              ${await itemListEditor('live', html`Search live itemId`)}`,
+          )}
+          ${group('Dead Item Ids', 'fa-solid fa-skull', await itemListEditor('dead', html`Search dead itemId`))}
+          ${group('Drop Item Ids', 'fa-solid fa-gift', await itemListEditor('drop', html`Search drop itemId`))}
+          ${group(
+            'Inventory Items Id',
+            'fa-solid fa-box-open',
+            html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
+                <i class="fa-solid fa-circle-info"></i> The entity carries the union of all four lists. These are the extras
+                no lifecycle state activates — a coin balance, say; live, dead and drop ids are already carried and are
+                activated by context.
+              </div>
+              ${await itemListEditor('inventory', html`Search inventory itemId`)}`,
+          )}
+          ${group(
+            'Override Item State',
+            'fa-solid fa-sliders',
+            html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
+                <i class="fa-solid fa-circle-info"></i> Adjusts what the lists above derive for one id they already carry:
+                <b>active</b> forces the spawn state — a skin the equipment rules would otherwise leave inactive — and the
+                quantity sizes a stack, which is how a drop bundle declares how many it scatters. An override never adds an
+                id.
+              </div>
+              <div class="fl" style="align-items:flex-end;">
+                <div class="in fll" style="flex:1;">
+                  ${await EntityEngineCyberia.buildItemIdDropdown(ids.overrideItemPicker, html`Search carried itemId`)}
+                </div>
+                <div class="in fll" style="padding-left:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-entity-engine-add-override',
+                    label: html`<i class="fa-solid fa-plus"></i> Override`,
                   })}
-                  </div>
-                  <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                    ${await BtnIcon.instance({
-                    class: 'wfa btn-entity-engine-update',
-                    label: html`<i class="fa-solid fa-pen-to-square"></i> Update`,
+                </div>
+              </div>
+              <div class="in entity-engine-override-list" style="margin-top:8px;"></div>`,
+          )}
+          ${group(
+            'Instances',
+            'fa-solid fa-earth-americas',
+            html`<div class="in" style="font-size:12px;opacity:.8;margin-bottom:8px;">
+                A world runs on this default only while its conf references it, and the reference is what scopes it — an
+                instance never picks up another's wiring by sharing item ids.
+              </div>
+              <div class="fl" style="align-items:flex-end;">
+                <div class="in fll" style="flex:1;">
+                  ${await EntityEngineCyberia.buildInstanceDropdown(ids.instancePicker)}
+                </div>
+                <div class="in fll" style="padding-left:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-entity-engine-add-instance',
+                    label: html`<i class="fa-solid fa-plus"></i> Link`,
                   })}
-                  </div>
-                  <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                    ${await BtnIcon.instance({
-                    class: 'wfa btn-entity-engine-clone',
-                    label: html`<i class="fa-solid fa-clone"></i> Clone`,
-                  })}
-                  </div>
-                  <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                    ${await BtnIcon.instance({
-                    class: 'wfa btn-entity-engine-delete',
-                    label: html`<i class="fa-solid fa-trash"></i> Delete`,
-                  })}
-                  </div>`
-              : ''
-          }
-          <div class="in fll" style="flex:1 1 120px;padding:3px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-entity-engine-new',
-              label: html`<i class="fa-solid fa-file"></i> New`,
-            })}
-          </div>
-        </div>`,
-      )}
+                </div>
+              </div>
+              <div class="in entity-engine-instance-list" style="margin-top:8px;"></div>`,
+          )}
+          ${group(
+            'Save Entity Default',
+            'fa-solid fa-floppy-disk',
+            html`<div class="fl" style="margin-top:4px;flex-wrap:wrap;">
+              ${
+                EntityEngineCyberia.canMutate
+                  ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
+                        ${await BtnIcon.instance({
+                        class: 'wfa btn-entity-engine-save',
+                        label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
+                      })}
+                      </div>
+                      <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                        ${await BtnIcon.instance({
+                        class: 'wfa btn-entity-engine-update',
+                        label: html`<i class="fa-solid fa-pen-to-square"></i> Update`,
+                      })}
+                      </div>
+                      <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                        ${await BtnIcon.instance({
+                        class: 'wfa btn-entity-engine-clone',
+                        label: html`<i class="fa-solid fa-clone"></i> Clone`,
+                      })}
+                      </div>
+                      <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                        ${await BtnIcon.instance({
+                        class: 'wfa btn-entity-engine-delete',
+                        label: html`<i class="fa-solid fa-trash"></i> Delete`,
+                      })}
+                      </div>`
+                  : ''
+              }
+              <div class="in fll" style="flex:1 1 120px;padding:3px;">
+                ${await BtnIcon.instance({
+                  class: 'wfa btn-entity-engine-new',
+                  label: html`<i class="fa-solid fa-file"></i> New`,
+                })}
+              </div>
+            </div>`,
+          )}`,
+      })}
     </div>`;
   }
 }

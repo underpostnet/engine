@@ -166,6 +166,41 @@ const CssCommonCyberia = async () => {
         font-family: var(--cy-font-retro-sensitive);
       }
 
+      /* Studio editors show ids, labels and definitions, which are case sensitive: they read in the
+         sensitive face at the x-height of the display face. Titles keep the display face. */
+      .studio-editor,
+      .studio-editor .section-mp,
+      .studio-editor button,
+      .studio-editor p {
+        font-family: var(--cy-font-retro-sensitive);
+      }
+      .studio-editor {
+        font-size-adjust: 0.5;
+      }
+      .studio-editor .sub-title-modal,
+      .studio-editor .studio-group-title {
+        font-family: var(--cy-font-retro);
+        font-size-adjust: none;
+      }
+      .studio-editor i,
+      .studio-editor .ag-root-wrapper {
+        font-size-adjust: none;
+      }
+      .studio-group {
+        border: 1px solid var(--studio-border);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 14px;
+      }
+      .studio-group-title {
+        font-size: 16px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 10px;
+        opacity: 0.85;
+      }
+
       .btn-modal-default {
         width: 35px;
         height: 35px;
@@ -207,7 +242,20 @@ class CssCyberiaDark {
   static dark = true;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (await CssCommonCyberia()) + html` <style></style> `;
+    return (
+      (await CssCommonCyberia()) +
+      html`<style>
+        :root {
+          --studio-border: #3a3a3a;
+          --studio-subtle-border: #444;
+          --studio-accent: #8cf;
+          --studio-accent-warm: #fc8;
+          --studio-positive: #9e9;
+          --studio-tag: #335;
+          --studio-tag-ink: #adf;
+        }
+      </style>`
+    );
   };
 }
 
@@ -216,7 +264,20 @@ class CssCyberiaLight {
   static dark = false;
   static barButtonsIconTheme = 'img';
   static render = async () => {
-    return (await CssCommonCyberia()) + html` <style></style> `;
+    return (
+      (await CssCommonCyberia()) +
+      html`<style>
+        :root {
+          --studio-border: #d4d4d4;
+          --studio-subtle-border: #e0e0e0;
+          --studio-accent: #246;
+          --studio-accent-warm: #842;
+          --studio-positive: #383;
+          --studio-tag: #cde;
+          --studio-tag-ink: #246;
+        }
+      </style>`
+    );
   };
 }
 

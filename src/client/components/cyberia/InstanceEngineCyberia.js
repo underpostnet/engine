@@ -4,7 +4,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { dynamicCol, darkTheme, ThemeEvents } from '../core/Css.js';
+import { dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { CyberiaInstanceManagement } from '../../services/cyberia-instance/cyberia-instance.management.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
@@ -38,16 +38,16 @@ class InstanceEngineCyberia {
 
     let listHtml = '';
     filtered.forEach(({ portal, i }) => {
-      listHtml += html`<div class="fl" style="border-bottom:1px solid #444; padding:4px 0; align-items:center;">
+      listHtml += html`<div class="fl" style="border-bottom:1px solid var(--studio-subtle-border); padding:4px 0; align-items:center;">
         <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">
-          <span style="color:${darkTheme ? '#8cf' : '#246'};">${portal.sourceMapCode}</span>
+          <span style="color:var(--studio-accent);">${portal.sourceMapCode}</span>
           (${portal.sourceCellX}, ${portal.sourceCellY})
           <span style="margin:0 4px;">&rarr;</span>
-          <span style="color:${darkTheme ? '#fc8' : '#842'};">${portal.targetMapCode}</span>
+          <span style="color:var(--studio-accent-warm);">${portal.targetMapCode}</span>
           ${portal.targetCellX < 0 || portal.targetCellY < 0
             ? '<span style="color:#aaa;">(random)</span>'
             : `(${portal.targetCellX}, ${portal.targetCellY})`}
-          <span style="color:${darkTheme ? '#9e9' : '#383'};margin-left:4px;font-size:11px;"
+          <span style="color:var(--studio-positive);margin-left:4px;font-size:11px;"
             >[${portal.portalMode || 'inter-portal'}]</span
           >
         </div>
@@ -668,10 +668,6 @@ class InstanceEngineCyberia {
           });
           InstanceEngineCyberia.renderPortalList(portalListId);
         };
-
-      ThemeEvents['instance-engine-theme'] = () => {
-        InstanceEngineCyberia.renderPortalList(portalListId);
-      };
     });
 
     const statusOptions = [
@@ -703,7 +699,7 @@ class InstanceEngineCyberia {
     const dcPortalFilter = 'instance-engine-dc-portal-filter';
     const dcSpawn = 'instance-engine-dc-spawn';
 
-    return html`<div class="in section-mp instance-engine-container">
+    return html`<div class="in section-mp studio-editor instance-engine-container">
       ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcFields, type: 'search-inputs' })}
       <div class="fl">
         <div class="in fll ${dcFields}-col-a">

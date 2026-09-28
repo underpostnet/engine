@@ -38,6 +38,7 @@ import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
 import { CyberiaObjectLayerProfile } from '../cyberia/ObjectLayerProfileCyberia.js';
+import { CyberiaObjectLayerStudio } from '../cyberia/ObjectLayerStudioCyberia.js';
 
 class AppShellCyberiaPortal {
   static Data = {};
@@ -637,6 +638,7 @@ class AppShellCyberiaPortal {
             idModal: 'modal-object-layer-engine',
             appStore: AppStoreCyberiaPortal,
             profile: CyberiaObjectLayerProfile,
+            studio: CyberiaObjectLayerStudio,
           }),
         handleType: 'bar',
         maximize: true,
@@ -659,6 +661,7 @@ class AppShellCyberiaPortal {
         html: async () =>
           ObjectLayerManagement.instance({
             appStore: AppStoreCyberiaPortal,
+            itemTypes: CyberiaObjectLayerProfile.itemTypes,
           }),
         handleType: 'bar',
         maximize: true,

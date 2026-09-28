@@ -5,6 +5,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { darkTheme, dynamicCol, ThemeEvents } from '../core/Css.js';
+import { EditorLayout } from '../core/EditorLayout.js';
 import { DropDown } from '../core/DropDown.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
@@ -19,8 +20,6 @@ const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
 // DropDown invokes optionData.onClick on selection, so every option (including
 // serviceProvider results) must carry one.
 const dropdownOption = (value) => ({ value, display: value, data: value, onClick: () => {} });
-const groupBorder = () => (darkTheme ? '#3a3a3a' : '#d4d4d4');
-const subtleBorder = () => (darkTheme ? '#444' : '#e0e0e0');
 
 // ActionEngineCyberia — a map-driven engine that unifies quest, action and
 // dialogue authoring around a shared, visual map surface. It is intentionally
@@ -264,7 +263,7 @@ class ActionEngineCyberia {
     const row = (kind, color, doc) =>
       html`<div
         class="fl action-engine-assignment-row"
-        style="border-bottom:1px solid ${subtleBorder()};padding:4px 0;align-items:center;cursor:pointer;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:4px 0;align-items:center;cursor:pointer;"
         data-kind="${kind}"
         data-id="${doc._id}"
       >
@@ -353,10 +352,10 @@ class ActionEngineCyberia {
         const o = step.objectives[j];
         objOut += html`<div
           class="fl"
-          style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;"
+          style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;"
         >
           <div class="in fll" style="flex:1;font-family:monospace;font-size:12px;">
-            <span style="color:${darkTheme ? '#8cf' : '#246'};">${o.type}</span> · ${o.itemId} ×${o.quantity}
+            <span style="color:var(--studio-accent);">${o.type}</span> · ${o.itemId} ×${o.quantity}
           </div>
           ${await BtnIcon.instance({
             class: `btn-aeq-rmobj-${i}-${j}`,
@@ -368,7 +367,7 @@ class ActionEngineCyberia {
       if (!objOut) objOut = '<div style="color:#888;font-size:11px;padding:2px 0;">No objectives in this step.</div>';
       out += html`<div
         class="in"
-        style="border:1px solid ${subtleBorder()};border-radius:6px;padding:8px;margin-bottom:8px;"
+        style="border:1px solid var(--studio-subtle-border);border-radius:6px;padding:8px;margin-bottom:8px;"
       >
         <div class="fl" style="align-items:center;margin-bottom:6px;">
           <div class="in fll" style="flex:1;font-weight:bold;font-size:12px;">
@@ -460,7 +459,7 @@ class ActionEngineCyberia {
       const r = ActionEngineCyberia.questRewards[i];
       out += html`<div
         class="fl"
-        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;">${r.itemId} ×${r.quantity}</div>
         ${await BtnIcon.instance({
@@ -500,10 +499,10 @@ class ActionEngineCyberia {
       const d = ActionEngineCyberia.actionQuestDialogues[i];
       out += html`<div
         class="fl"
-        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;">
-          <span style="color:${darkTheme ? '#8cf' : '#246'};">${d.questCode}</span>
+          <span style="color:var(--studio-accent);">${d.questCode}</span>
           <span style="margin:0 4px;">&rarr;</span>${d.dialogCode}
         </div>
         ${await BtnIcon.instance({
@@ -545,7 +544,7 @@ class ActionEngineCyberia {
   static cardWrap(inner) {
     return html`<div
       class="in"
-      style="border:1px solid ${subtleBorder()};border-radius:6px;padding:8px;margin-bottom:6px;"
+      style="border:1px solid var(--studio-subtle-border);border-radius:6px;padding:8px;margin-bottom:6px;"
     >
       ${inner}
     </div>`;
@@ -1013,10 +1012,10 @@ class ActionEngineCyberia {
       const sk = ActionEngineCyberia.skillDefs[i];
       out += html`<div
         class="fl"
-        style="border-bottom:1px solid ${subtleBorder()};padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
+        style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;">
-          <span style="color:${darkTheme ? '#8cf' : '#246'};">${sk.logicEventId}</span>${sk.name
+          <span style="color:var(--studio-accent);">${sk.logicEventId}</span>${sk.name
             ? ` · ${sk.name}`
             : ''}${sk.summonedEntityItemId
             ? html`<span style="margin:0 4px;">&rarr;</span>${sk.summonedEntityItemId}`
@@ -1210,8 +1209,8 @@ class ActionEngineCyberia {
     const objectiveTypeOptions = QUEST_STEPS_TYPES.map((t) => ({ value: t, display: t, data: t, onClick: () => {} }));
 
     // Responsive column groups: dynamicCol collapses these to full width on
-    // narrow / mobile widths (observing .action-engine-container).
-    const cont = 'action-engine-container';
+    // narrow / mobile widths (observing .action-engine-tools).
+    const cont = 'action-engine-tools';
     const dc = {
       cell: 'action-engine-dc-cell',
       questCt: 'action-engine-dc-quest-ct',
@@ -1225,13 +1224,8 @@ class ActionEngineCyberia {
     };
 
     const group = (title, icon, inner) =>
-      html`<div class="in" style="border:1px solid ${groupBorder()};border-radius:8px;padding:12px;margin-bottom:14px;">
-        <div
-          class="in"
-          style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;opacity:.85;"
-        >
-          <i class="${icon}"></i> ${title}
-        </div>
+      html`<div class="in studio-group">
+        <div class="in studio-group-title"><i class="${icon}"></i> ${title}</div>
         ${inner}
       </div>`;
 
@@ -1289,10 +1283,10 @@ class ActionEngineCyberia {
       </div>`;
 
     setTimeout(async () => {
-      ThemeEvents['action-engine-theme'] = () => {
-        ActionEngineCyberia.renderMapCanvas();
-        ActionEngineCyberia.renderAssignmentReview();
-      };
+      ThemeEvents['action-engine-theme'] = () => ActionEngineCyberia.renderMapCanvas();
+      const container = s('.action-engine-container');
+      EditorLayout.bind(container);
+      EditorLayout.pin(container, 'action-engine-stage');
 
       for (const m of ['quest', 'action', 'dialogue', 'skill'])
         if (s(`.action-engine-tab-${m}`)) s(`.action-engine-tab-${m}`).onclick = () => ActionEngineCyberia.setMode(m);
@@ -1409,417 +1403,420 @@ class ActionEngineCyberia {
         ${label}
       </div>`;
 
-    return html`<div class="in section-mp action-engine-container">
-      ${group(
-        'Map Placement',
-        'fa-solid fa-map-location-dot',
-        html`<div class="fl" style="align-items:flex-end;">
-            <div class="in fll" style="flex:1;">${await ActionEngineCyberia.buildMapDropdown(ids.mapDropdown)}</div>
-            <div class="in fll" style="padding-left:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-action-engine-load-map',
-                label: html`<i class="fa-solid fa-download"></i> Load Map`,
-              })}
-            </div>
-          </div>
-          <div
-            class="in action-engine-map-meta"
-            style="font-size:12px;color:#888;font-family:monospace;margin:6px 0 2px;"
-          ></div>
-          <div class="in action-engine-cell-coords" style="font-size:12px;font-family:monospace;margin-bottom:6px;">
+    return html`<div class="in section-mp studio-editor action-engine-container">
+      ${EditorLayout.render({
+        subject: 'map',
+        readout: html`<div class="in action-engine-cell-coords" style="font-size:12px;font-family:monospace;">
             Cell: (—, —)
           </div>
-          <div class="in" style="overflow:auto;max-width:100%;border:1px solid ${subtleBorder()};border-radius:4px;">
-            <canvas class="action-engine-canvas" style="display:block;cursor:crosshair;"></canvas>
+          <div class="in action-engine-map-meta" style="font-size:12px;color:#888;font-family:monospace;"></div>`,
+        stage: html`<canvas
+          class="action-engine-canvas"
+          style="display:block;cursor:crosshair;border:1px solid var(--studio-subtle-border);"
+        ></canvas>`,
+        tools: html`<div class="in action-engine-tools">
+          ${group(
+            'Map Placement',
+            'fa-solid fa-map-location-dot',
+            html`<div class="fl" style="align-items:flex-end;">
+                <div class="in fll" style="flex:1;">${await ActionEngineCyberia.buildMapDropdown(ids.mapDropdown)}</div>
+                <div class="in fll" style="padding-left:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-action-engine-load-map',
+                    label: html`<i class="fa-solid fa-download"></i> Load Map`,
+                  })}
+                </div>
+              </div>
+              ${dynamicCol({ containerSelector: cont, id: dc.cell, type: 'a-50-b-50' })}
+              <div class="fl" style="margin-top:8px;">
+                <div class="in fll ${dc.cell}-col-a" style="padding-right:4px;">
+                  ${await Input.instance({
+                    id: 'action-engine-cell-x',
+                    label: html`Cell X`,
+                    containerClass: 'inl',
+                    type: 'number',
+                    min: 0,
+                  })}
+                </div>
+                <div class="in fll ${dc.cell}-col-b" style="padding-left:4px;">
+                  ${await Input.instance({
+                    id: 'action-engine-cell-y',
+                    label: html`Cell Y`,
+                    containerClass: 'inl',
+                    type: 'number',
+                    min: 0,
+                  })}
+                </div>
+              </div>
+              <div class="in input-label" style="font-size:12px;margin:10px 0 4px;opacity:.8;">
+                <i class="fa-solid fa-list-check"></i> Assignments on map
+              </div>
+              <div class="in action-engine-assignment-review" style="max-height:140px;overflow-y:auto;"></div>`,
+          )}
+
+          <div class="fl" style="border-bottom:1px solid var(--studio-border);margin-bottom:14px;">
+            ${tabBtn('quest', html`<i class="fa-solid fa-scroll"></i> Quests`)}
+            ${tabBtn('action', html`<i class="fa-solid fa-handshake"></i> Actions`)}
+            ${tabBtn('dialogue', html`<i class="fa-solid fa-comments"></i> Dialogues`)}
+            ${tabBtn('skill', html`<i class="fa-solid fa-wand-sparkles"></i> Skills`)}
           </div>
-          ${dynamicCol({ containerSelector: cont, id: dc.cell, type: 'a-50-b-50' })}
-          <div class="fl" style="margin-top:8px;">
-            <div class="in fll ${dc.cell}-col-a" style="padding-right:4px;">
-              ${await Input.instance({
-                id: 'action-engine-cell-x',
-                label: html`Cell X`,
-                containerClass: 'inl',
-                type: 'number',
-                min: 0,
-              })}
-            </div>
-            <div class="in fll ${dc.cell}-col-b" style="padding-left:4px;">
-              ${await Input.instance({
-                id: 'action-engine-cell-y',
-                label: html`Cell Y`,
-                containerClass: 'inl',
-                type: 'number',
-                min: 0,
-              })}
-            </div>
+
+          <!-- Quest panel -->
+          <div class="in action-engine-panel-quest">
+            ${group(
+              'Quest Details',
+              'fa-solid fa-circle-info',
+              html`${dynamicCol({ containerSelector: cont, id: dc.questCt, type: 'a-50-b-50' })}
+                <div class="fl">
+                  <div class="in fll ${dc.questCt}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-quest-code',
+                      label: html`Quest Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dc.questCt}-col-b" style="padding-left:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-quest-title',
+                      label: html`Title`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await Input.instance({
+                    id: 'action-engine-quest-description',
+                    label: html`Description`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await Input.instance({
+                    id: 'action-engine-quest-map-code',
+                    label: html`Source Map Code (click a cell to assign)`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>`,
+            )}
+            ${group(
+              'Quest Chain',
+              'fa-solid fa-diagram-project',
+              html`${dynamicCol({ containerSelector: cont, id: dc.questChain, type: 'a-50-b-50' })}
+                <div class="fl">
+                  <div class="in fll ${dc.questChain}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-quest-prerequisites',
+                      label: html`Prerequisite Codes (csv)`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dc.questChain}-col-b" style="padding-left:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-quest-unlocks',
+                      label: html`Unlocks Codes (csv)`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                </div>`,
+            )}
+            ${group(
+              'Steps & Objectives',
+              'fa-solid fa-list-ol',
+              html`<div class="in" style="margin-bottom:8px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-action-engine-add-step',
+                    label: html`<i class="fa-solid fa-plus"></i> Add Step`,
+                  })}
+                </div>
+                <div class="in action-engine-step-list" style="margin-bottom:10px;"></div>
+                <div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add objective to step</div>
+                ${dynamicCol({ containerSelector: cont, id: dc.objective, type: 'search-inputs' })}
+                <div class="fl" style="align-items:flex-end;">
+                  <div class="in fll ${dc.objective}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-objective-step',
+                      label: html`Step #`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 1,
+                      value: 1,
+                    })}
+                  </div>
+                  <div class="in fll ${dc.objective}-col-b" style="padding-right:4px;">
+                    ${await DropDown.instance({
+                      id: ids.objectiveType,
+                      label: html`Type`,
+                      data: objectiveTypeOptions,
+                      value: QUEST_STEPS_TYPES[0],
+                      containerClass: 'inl',
+                    })}
+                  </div>
+                  <div class="in fll ${dc.objective}-col-c" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-objective-qty',
+                      label: html`Qty`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 1,
+                      value: 1,
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await ActionEngineCyberia.buildItemIdDropdown(ids.objectiveItemPicker, html`Search itemId`)}
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-action-engine-add-objective',
+                    label: html`<i class="fa-solid fa-plus"></i> Add Objective`,
+                  })}
+                </div>`,
+            )}
+            ${group(
+              'Rewards',
+              'fa-solid fa-gift',
+              html`${dynamicCol({ containerSelector: cont, id: dc.reward, type: 'default' })}
+                <div class="fl" style="align-items:flex-end;">
+                  <div class="in fll ${dc.reward}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-reward-qty',
+                      label: html`Qty`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 1,
+                      value: 1,
+                    })}
+                  </div>
+                  <div class="in fll ${dc.reward}-col-b">
+                    ${await ActionEngineCyberia.buildItemIdDropdown(ids.rewardItemPicker, html`Search itemId`)}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-action-engine-add-reward',
+                    label: html`<i class="fa-solid fa-plus"></i> Add Reward`,
+                  })}
+                </div>
+                <div class="in action-engine-reward-list" style="margin-top:8px;"></div>`,
+            )}
+            ${group('Save Quest', 'fa-solid fa-floppy-disk', await crudButtons('quest', true))}
+            ${group(
+              'Existing Quests',
+              'fa-solid fa-scroll',
+              html`${await listToolbar('quest')}
+                <div class="in action-engine-quest-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+            )}
           </div>
-          <div class="in input-label" style="font-size:12px;margin:10px 0 4px;opacity:.8;">
-            <i class="fa-solid fa-list-check"></i> Assignments on map
+
+          <!-- Action panel -->
+          <div class="in action-engine-panel-action hide">
+            ${group(
+              'Action Details',
+              'fa-solid fa-circle-info',
+              html`${dynamicCol({ containerSelector: cont, id: dc.actionCl, type: 'a-50-b-50' })}
+                <div class="fl">
+                  <div class="in fll ${dc.actionCl}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-action-code',
+                      label: html`Action Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dc.actionCl}-col-b" style="padding-left:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-action-label',
+                      label: html`Label (nameplate)`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await Input.instance({
+                    id: 'action-engine-action-map-code',
+                    label: html`Source Map Code (click a cell to assign)`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in" style="margin-top:8px;">
+                  ${await ActionEngineCyberia.buildDialogCodeDropdown(
+                    ids.actionDialogPicker,
+                    html`Default greeting dialog code`,
+                  )}
+                </div>`,
+            )}
+            ${group(
+              'Per-quest Dialogue Mapping',
+              'fa-solid fa-comments',
+              html`${dynamicCol({ containerSelector: cont, id: dc.actionQd, type: 'a-50-b-50' })}
+                <div class="fl" style="align-items:flex-end;">
+                  <div class="in fll ${dc.actionQd}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-action-quest-code',
+                      label: html`Quest Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dc.actionQd}-col-b">
+                    ${await ActionEngineCyberia.buildDialogCodeDropdown(ids.actionQuestDialogPicker, html`Dialog Code`)}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-action-engine-add-quest-dialogue',
+                    label: html`<i class="fa-solid fa-plus"></i> Map Dialogue`,
+                  })}
+                </div>
+                <div class="in action-engine-quest-dialogue-list" style="margin-top:8px;"></div>`,
+            )}
+            ${group('Save Action', 'fa-solid fa-floppy-disk', await crudButtons('action', true))}
+            ${group(
+              'Existing Actions',
+              'fa-solid fa-handshake',
+              html`${await listToolbar('action')}
+                <div class="in action-engine-action-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+            )}
           </div>
-          <div class="in action-engine-assignment-review" style="max-height:140px;overflow-y:auto;"></div>`,
-      )}
 
-      <div class="fl" style="border-bottom:1px solid ${groupBorder()};margin-bottom:14px;">
-        ${tabBtn('quest', html`<i class="fa-solid fa-scroll"></i> Quests`)}
-        ${tabBtn('action', html`<i class="fa-solid fa-handshake"></i> Actions`)}
-        ${tabBtn('dialogue', html`<i class="fa-solid fa-comments"></i> Dialogues`)}
-        ${tabBtn('skill', html`<i class="fa-solid fa-wand-sparkles"></i> Skills`)}
-      </div>
+          <!-- Dialogue panel -->
+          <div class="in action-engine-panel-dialogue hide">
+            ${group(
+              'Dialogue Line',
+              'fa-solid fa-comment-dots',
+              html`${dynamicCol({ containerSelector: cont, id: dc.dialogue, type: 'search-inputs' })}
+                <div class="fl">
+                  <div class="in fll ${dc.dialogue}-col-a" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-dialogue-code',
+                      label: html`Dialogue Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dc.dialogue}-col-b" style="padding-right:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-dialogue-order',
+                      label: html`Order`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                  <div class="in fll ${dc.dialogue}-col-c">
+                    ${await Input.instance({
+                      id: 'action-engine-dialogue-mood',
+                      label: html`Mood`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await Input.instance({
+                    id: 'action-engine-dialogue-speaker',
+                    label: html`Speaker`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await Input.instance({
+                    id: 'action-engine-dialogue-text',
+                    label: html`Text`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>`,
+            )}
+            ${group('Save Dialogue Line', 'fa-solid fa-floppy-disk', await crudButtons('dialogue', false))}
+            ${group(
+              'Existing Dialogue Lines',
+              'fa-solid fa-comments',
+              html`${await listToolbar('dialogue')}
+                <div class="in action-engine-dialogue-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+            )}
+          </div>
 
-      <!-- Quest panel -->
-      <div class="in action-engine-panel-quest">
-        ${group(
-          'Quest Details',
-          'fa-solid fa-circle-info',
-          html`${dynamicCol({ containerSelector: cont, id: dc.questCt, type: 'a-50-b-50' })}
-            <div class="fl">
-              <div class="in fll ${dc.questCt}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-quest-code',
-                  label: html`Quest Code`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-              <div class="in fll ${dc.questCt}-col-b" style="padding-left:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-quest-title',
-                  label: html`Title`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await Input.instance({
-                id: 'action-engine-quest-description',
-                label: html`Description`,
-                containerClass: 'inl',
-                type: 'text',
-              })}
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await Input.instance({
-                id: 'action-engine-quest-map-code',
-                label: html`Source Map Code (click a cell to assign)`,
-                containerClass: 'inl',
-                type: 'text',
-              })}
-            </div>`,
-        )}
-        ${group(
-          'Quest Chain',
-          'fa-solid fa-diagram-project',
-          html`${dynamicCol({ containerSelector: cont, id: dc.questChain, type: 'a-50-b-50' })}
-            <div class="fl">
-              <div class="in fll ${dc.questChain}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-quest-prerequisites',
-                  label: html`Prerequisite Codes (csv)`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-              <div class="in fll ${dc.questChain}-col-b" style="padding-left:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-quest-unlocks',
-                  label: html`Unlocks Codes (csv)`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-            </div>`,
-        )}
-        ${group(
-          'Steps & Objectives',
-          'fa-solid fa-list-ol',
-          html`<div class="in" style="margin-bottom:8px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-action-engine-add-step',
-                label: html`<i class="fa-solid fa-plus"></i> Add Step`,
-              })}
-            </div>
-            <div class="in action-engine-step-list" style="margin-bottom:10px;"></div>
-            <div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add objective to step</div>
-            ${dynamicCol({ containerSelector: cont, id: dc.objective, type: 'search-inputs' })}
-            <div class="fl" style="align-items:flex-end;">
-              <div class="in fll ${dc.objective}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-objective-step',
-                  label: html`Step #`,
-                  containerClass: 'inl',
-                  type: 'number',
-                  min: 1,
-                  value: 1,
-                })}
-              </div>
-              <div class="in fll ${dc.objective}-col-b" style="padding-right:4px;">
-                ${await DropDown.instance({
-                  id: ids.objectiveType,
-                  label: html`Type`,
-                  data: objectiveTypeOptions,
-                  value: QUEST_STEPS_TYPES[0],
-                  containerClass: 'inl',
-                })}
-              </div>
-              <div class="in fll ${dc.objective}-col-c" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-objective-qty',
-                  label: html`Qty`,
-                  containerClass: 'inl',
-                  type: 'number',
-                  min: 1,
-                  value: 1,
-                })}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await ActionEngineCyberia.buildItemIdDropdown(ids.objectiveItemPicker, html`Search itemId`)}
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-action-engine-add-objective',
-                label: html`<i class="fa-solid fa-plus"></i> Add Objective`,
-              })}
-            </div>`,
-        )}
-        ${group(
-          'Rewards',
-          'fa-solid fa-gift',
-          html`${dynamicCol({ containerSelector: cont, id: dc.reward, type: 'default' })}
-            <div class="fl" style="align-items:flex-end;">
-              <div class="in fll ${dc.reward}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-reward-qty',
-                  label: html`Qty`,
-                  containerClass: 'inl',
-                  type: 'number',
-                  min: 1,
-                  value: 1,
-                })}
-              </div>
-              <div class="in fll ${dc.reward}-col-b">
-                ${await ActionEngineCyberia.buildItemIdDropdown(ids.rewardItemPicker, html`Search itemId`)}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-action-engine-add-reward',
-                label: html`<i class="fa-solid fa-plus"></i> Add Reward`,
-              })}
-            </div>
-            <div class="in action-engine-reward-list" style="margin-top:8px;"></div>`,
-        )}
-        ${group('Save Quest', 'fa-solid fa-floppy-disk', await crudButtons('quest', true))}
-        ${group(
-          'Existing Quests',
-          'fa-solid fa-scroll',
-          html`${await listToolbar('quest')}
-            <div class="in action-engine-quest-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-        )}
-      </div>
-
-      <!-- Action panel -->
-      <div class="in action-engine-panel-action hide">
-        ${group(
-          'Action Details',
-          'fa-solid fa-circle-info',
-          html`${dynamicCol({ containerSelector: cont, id: dc.actionCl, type: 'a-50-b-50' })}
-            <div class="fl">
-              <div class="in fll ${dc.actionCl}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-action-code',
-                  label: html`Action Code`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-              <div class="in fll ${dc.actionCl}-col-b" style="padding-left:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-action-label',
-                  label: html`Label (nameplate)`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await Input.instance({
-                id: 'action-engine-action-map-code',
-                label: html`Source Map Code (click a cell to assign)`,
-                containerClass: 'inl',
-                type: 'text',
-              })}
-            </div>
-            <div class="in" style="margin-top:8px;">
-              ${await ActionEngineCyberia.buildDialogCodeDropdown(
-                ids.actionDialogPicker,
-                html`Default greeting dialog code`,
-              )}
-            </div>`,
-        )}
-        ${group(
-          'Per-quest Dialogue Mapping',
-          'fa-solid fa-comments',
-          html`${dynamicCol({ containerSelector: cont, id: dc.actionQd, type: 'a-50-b-50' })}
-            <div class="fl" style="align-items:flex-end;">
-              <div class="in fll ${dc.actionQd}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-action-quest-code',
-                  label: html`Quest Code`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-              <div class="in fll ${dc.actionQd}-col-b">
-                ${await ActionEngineCyberia.buildDialogCodeDropdown(ids.actionQuestDialogPicker, html`Dialog Code`)}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-action-engine-add-quest-dialogue',
-                label: html`<i class="fa-solid fa-plus"></i> Map Dialogue`,
-              })}
-            </div>
-            <div class="in action-engine-quest-dialogue-list" style="margin-top:8px;"></div>`,
-        )}
-        ${group('Save Action', 'fa-solid fa-floppy-disk', await crudButtons('action', true))}
-        ${group(
-          'Existing Actions',
-          'fa-solid fa-handshake',
-          html`${await listToolbar('action')}
-            <div class="in action-engine-action-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-        )}
-      </div>
-
-      <!-- Dialogue panel -->
-      <div class="in action-engine-panel-dialogue hide">
-        ${group(
-          'Dialogue Line',
-          'fa-solid fa-comment-dots',
-          html`${dynamicCol({ containerSelector: cont, id: dc.dialogue, type: 'search-inputs' })}
-            <div class="fl">
-              <div class="in fll ${dc.dialogue}-col-a" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-dialogue-code',
-                  label: html`Dialogue Code`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-              <div class="in fll ${dc.dialogue}-col-b" style="padding-right:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-dialogue-order',
-                  label: html`Order`,
-                  containerClass: 'inl',
-                  type: 'number',
-                  min: 0,
-                  value: 0,
-                })}
-              </div>
-              <div class="in fll ${dc.dialogue}-col-c">
-                ${await Input.instance({
-                  id: 'action-engine-dialogue-mood',
-                  label: html`Mood`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await Input.instance({
-                id: 'action-engine-dialogue-speaker',
-                label: html`Speaker`,
-                containerClass: 'inl',
-                type: 'text',
-              })}
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await Input.instance({
-                id: 'action-engine-dialogue-text',
-                label: html`Text`,
-                containerClass: 'inl',
-                type: 'text',
-              })}
-            </div>`,
-        )}
-        ${group('Save Dialogue Line', 'fa-solid fa-floppy-disk', await crudButtons('dialogue', false))}
-        ${group(
-          'Existing Dialogue Lines',
-          'fa-solid fa-comments',
-          html`${await listToolbar('dialogue')}
-            <div class="in action-engine-dialogue-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-        )}
-      </div>
-
-      <!-- Skill panel -->
-      <div class="in action-engine-panel-skill hide">
-        ${group(
-          'Skill Definition',
-          'fa-solid fa-circle-info',
-          html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
-              Trigger item — the ObjectLayer item whose active layer fires these skills.
-            </div>
-            ${await ActionEngineCyberia.buildItemIdDropdown(ids.skillTriggerItemPicker, html`Search trigger itemId`)}`,
-        )}
-        ${group(
-          'Logic Skills',
-          'fa-solid fa-bolt',
-          html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add logic event</div>
-            ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
-            <div class="fl">
-              <div class="in fll ${dc.skillDef}-col-a" style="padding-right:4px;">
-                ${await DropDown.instance({
-                  id: 'action-engine-skill-logic-event',
-                  label: html`Logic Event Id`,
-                  containerClass: 'inl',
-                  data: SKILL_LOGIC_IDS.map((l) => ({
-                    value: l.id,
-                    display: l.name ? `${l.id} — ${l.name}` : l.id,
-                    data: l.id,
-                    onClick: () => {},
-                  })),
-                })}
-              </div>
-              <div class="in fll ${dc.skillDef}-col-b" style="padding-left:4px;">
-                ${await Input.instance({
-                  id: 'action-engine-skill-name',
-                  label: html`Name`,
-                  containerClass: 'inl',
-                  type: 'text',
-                })}
-              </div>
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await Input.instance({
-                id: 'action-engine-skill-description',
-                label: html`Description`,
-                containerClass: 'inl',
-                type: 'text',
-              })}
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await ActionEngineCyberia.buildItemIdDropdown(
-                ids.skillSummonedItemPicker,
-                html`Summoned entity itemId`,
-              )}
-            </div>
-            <div class="in" style="margin-top:6px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-action-engine-add-skill-def',
-                label: html`<i class="fa-solid fa-plus"></i> Add Skill`,
-              })}
-            </div>
-            <div class="in action-engine-skill-def-list" style="margin-top:8px;"></div>`,
-        )}
-        ${group('Save Skill', 'fa-solid fa-floppy-disk', await crudButtons('skill', false))}
-        ${group(
-          'Existing Skills',
-          'fa-solid fa-wand-sparkles',
-          html`${await listToolbar('skill')}
-            <div class="in action-engine-skill-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-        )}
-      </div>
+          <!-- Skill panel -->
+          <div class="in action-engine-panel-skill hide">
+            ${group(
+              'Skill Definition',
+              'fa-solid fa-circle-info',
+              html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
+                  Trigger item — the ObjectLayer item whose active layer fires these skills.
+                </div>
+                ${await ActionEngineCyberia.buildItemIdDropdown(ids.skillTriggerItemPicker, html`Search trigger itemId`)}`,
+            )}
+            ${group(
+              'Logic Skills',
+              'fa-solid fa-bolt',
+              html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add logic event</div>
+                ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
+                <div class="fl">
+                  <div class="in fll ${dc.skillDef}-col-a" style="padding-right:4px;">
+                    ${await DropDown.instance({
+                      id: 'action-engine-skill-logic-event',
+                      label: html`Logic Event Id`,
+                      containerClass: 'inl',
+                      data: SKILL_LOGIC_IDS.map((l) => ({
+                        value: l.id,
+                        display: l.name ? `${l.id} — ${l.name}` : l.id,
+                        data: l.id,
+                        onClick: () => {},
+                      })),
+                    })}
+                  </div>
+                  <div class="in fll ${dc.skillDef}-col-b" style="padding-left:4px;">
+                    ${await Input.instance({
+                      id: 'action-engine-skill-name',
+                      label: html`Name`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await Input.instance({
+                    id: 'action-engine-skill-description',
+                    label: html`Description`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await ActionEngineCyberia.buildItemIdDropdown(
+                    ids.skillSummonedItemPicker,
+                    html`Summoned entity itemId`,
+                  )}
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-action-engine-add-skill-def',
+                    label: html`<i class="fa-solid fa-plus"></i> Add Skill`,
+                  })}
+                </div>
+                <div class="in action-engine-skill-def-list" style="margin-top:8px;"></div>`,
+            )}
+            ${group('Save Skill', 'fa-solid fa-floppy-disk', await crudButtons('skill', false))}
+            ${group(
+              'Existing Skills',
+              'fa-solid fa-wand-sparkles',
+              html`${await listToolbar('skill')}
+                <div class="in action-engine-skill-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+            )}
+          </div>
+        </div>`,
+      })}
     </div>`;
   }
 }
