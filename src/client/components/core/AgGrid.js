@@ -5,6 +5,54 @@ import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
 import './Pagination.js';
 import { Modal } from './Modal.js';
+
+/**
+ * A column filter over a known list of values: one checkbox per value. Its model is the set model,
+ * `{ filterType: 'set', values }`, so a server that reads AG Grid filter models filters by it.
+ * Column: `filter: ValueListFilter, filterParams: { values }`.
+ */
+class ValueListFilter {
+  init(params) {
+    this.params = params;
+    this.selected = new Set();
+    this.gui = document.createElement('div');
+    this.gui.style.cssText = 'display: flex; flex-direction: column; gap: 4px; padding: 8px;';
+    for (const value of params.values) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display: flex; align-items: center; gap: 6px; cursor: pointer;';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = value;
+      box.onchange = () => {
+        if (box.checked) this.selected.add(value);
+        else this.selected.delete(value);
+        params.filterChangedCallback();
+      };
+      label.append(box, document.createTextNode(value));
+      this.gui.append(label);
+    }
+  }
+  getGui() {
+    return this.gui;
+  }
+  isFilterActive() {
+    return this.selected.size > 0;
+  }
+  doesFilterPass({ node }) {
+    return this.selected.has(this.params.getValue(node));
+  }
+  getModel() {
+    return this.isFilterActive() ? { filterType: 'set', values: [...this.selected] } : null;
+  }
+  setModel(model) {
+    this.selected = new Set(model?.values ?? []);
+    for (const box of this.gui.querySelectorAll('input')) box.checked = this.selected.has(box.value);
+  }
+  getModelAsString(model) {
+    return (model?.values ?? []).join(', ');
+  }
+}
+
 class AgGrid {
   static grids = {};
   static theme = `ag-theme-alpine`;
@@ -121,7 +169,9 @@ class AgGrid {
       <div
         class="${id} ${darkTheme ? AgGrid.theme + '-dark' : AgGrid.theme}"
         style="${options?.style
-          ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
+          ? Object.keys(options.style)
+              .map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
+              .join('')
           : ''}"
       ></div>
       ${usePagination
@@ -238,4 +288,4 @@ class AgGrid {
     };
   }
 }
-export { AgGrid };
+export { AgGrid, ValueListFilter };

@@ -2574,12 +2574,23 @@ class Modal {
     delete this.Data[idModal];
   }
 
+  /** Answers of the confirmation dialogs still open, by dialog id. */
+  static confirmAnswers = {};
+
   /**
-   * Render a confirmation dialog and return a promise resolving to the user's choice.
+   * Render a confirmation dialog and return a promise resolving to the user's choice. One dialog
+   * per id: a call for an id whose dialog is open waits for the same answer.
    * @param {{ id: string, html: Function, icon?: string, disableBtnCancel?: boolean }} options
    * @returns {Promise<{ status: 'confirm'|'cancelled' }>}
    */
-  static async RenderConfirm(options) {
+  static RenderConfirm(options) {
+    const { id } = options;
+    Modal.confirmAnswers[id] ??= Modal.openConfirm(options).finally(() => delete Modal.confirmAnswers[id]);
+    return Modal.confirmAnswers[id];
+  }
+
+  /** Opens the dialog of {@link Modal.RenderConfirm}. */
+  static async openConfirm(options) {
     const { id } = options;
     // In: the backdrop fades up under a dialog that rises and scales into place. Out: the dialog
     // sinks and fades while the backdrop fades, and both leave the DOM — and the promise settles
