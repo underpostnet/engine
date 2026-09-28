@@ -1,5 +1,23 @@
-import { darkTheme, renderChessPattern } from '../core/Css.js';
+import { darkTheme, renderChessPattern, ThemeEvents } from '../core/Css.js';
+import { EditorLayout } from '../core/EditorLayout.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { CommandHistory } from '../core/CommandHistory.js';
+import {
+  clip,
+  colorRegion,
+  ellipseRegion,
+  fillRegion,
+  lineRegion,
+  mirrorRegion,
+  mixColor,
+  outlineRegion,
+  patternRegion,
+  rectOutlineRegion,
+  rectRegion,
+  regionFromQuery,
+  stampRegion,
+  tiledPreview,
+} from './PixelRegion.js';
 
 /* Stroked 24x24 glyphs drawn in currentColor. Inline rather than a font: the toolbar lives in a
  * shadow root, where an external icon stylesheet never lands. */
@@ -24,7 +42,38 @@ const ICONS = {
   selectAll:
     '<rect x="3.5" y="3.5" width="17" height="17" rx="1" stroke-dasharray="3.5 3"/><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none"/>',
   rescale: '<path d="M4 10V4h6"/><path d="M20 14v6h-6"/><path d="m4 4 7 7M20 20l-7-7"/>',
+  line: '<path d="M5 19 19 5"/>',
+  rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="8" ry="6"/>',
+  pattern:
+    '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/><path d="M13 4h7v7M4 13h7v7" stroke-dasharray="2 2"/>',
+  stamp: '<path d="M9 4h6v5l3 3v3H6v-3l3-3z"/><path d="M5 19h14"/>',
+  wand: '<path d="m4 20 11-11"/><path d="m15 9 2-2"/><path d="M17 3v2M21 7h-2M19.5 4.5l-1 1"/>',
+  mirror: '<path d="M12 3v18" stroke-dasharray="3 3"/><path d="M9 8 5 12l4 4M15 8l4 4-4 4"/>',
+  outline:
+    '<rect x="5" y="5" width="14" height="14" rx="3"/><rect x="9" y="9" width="6" height="6" fill="currentColor" stroke="none"/>',
+  tile: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>',
+  fillSelection:
+    '<path d="M11 4 5.5 9.5a2 2 0 0 0 0 3l4.5 4.5a2 2 0 0 0 3 0L18.5 12z"/><path d="M3 21h18" stroke-dasharray="3 3"/>',
 };
+
+/* The command a drag of each drawing tool records. */
+const STROKE_COMMANDS = Object.freeze({
+  pencil: 'DrawStroke',
+  eraser: 'EraseStroke',
+  line: 'DrawShape',
+  rect: 'DrawShape',
+  ellipse: 'DrawShape',
+  pattern: 'PatternStroke',
+  stamp: 'StampTemplate',
+});
+
+/* Tools that drag out a shape from the press to the pointer. */
+const SHAPE_TOOLS = Object.freeze(['line', 'rect', 'ellipse']);
+
+/* The mirror painting cycles through, and how its button names it. */
+const SYMMETRIES = Object.freeze(['', 'x', 'y', 'xy']);
+const SYMMETRY_LABELS = Object.freeze({ '': 'off', x: 'left ↔ right', y: 'top ↕ bottom', xy: 'four ways' });
 
 /* One icon button: an inline SVG plus the accessible name, since the glyph carries no text. */
 const iconButton = (part, name, label, { active = false } = {}) => html`
@@ -40,16 +89,40 @@ const iconButton = (part, name, label, { active = false } = {}) => html`
   </button>
 `;
 
+/* The ink of the rulers and the grid in the current theme. */
+const inkColor = () => (darkTheme ? '#e1e1e1' : '#272727');
+
+/* The colors of the current theme, as the variables the element's styles read. */
+const themeStyle = () => css`
+  :host {
+    --hover: ${darkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'};
+    --active: ${darkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.1)'};
+    --ring: ${darkTheme ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.16)'};
+    --rule: ${darkTheme ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.15)'};
+    --panel: ${darkTheme ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)'};
+    --menu: ${darkTheme ? '#242424' : '#ffffff'};
+  }
+`;
+
+let elementCount = 0;
+
 class ObjectLayerEngineElement extends HTMLElement {
   constructor() {
     super();
+    this._themeKey = `object-layer-engine-${++elementCount}`;
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.innerHTML = html`
+      <style class="theme">
+        ${themeStyle()}
+      </style>
       <style>
         :host {
           --border: 1px solid #bbb;
-          --gap: 8px;
-          display: inline-block;
+          display: block;
+        }
+        /* The element's own face; slotted sections keep the face of the page. */
+        .editor-stage,
+        .controls {
           font-family:
             system-ui,
             -apple-system,
@@ -57,34 +130,45 @@ class ObjectLayerEngineElement extends HTMLElement {
             Roboto,
             'Helvetica Neue',
             Arial;
+          font-size-adjust: none;
         }
-        .wrap {
-          display: flex;
-          flex-direction: column;
-          gap: var(--gap);
-          align-items: flex-start;
+        .controls {
+          display: contents;
         }
         /* Rulers on two sides of the frame: the X axis above, the Y axis on the left, and the
-           frame's own border padded onto each so the ticks line up with the cells inside it. */
+           frame's own border padded onto each so the ticks line up with the cells inside it.
+           Both stay on their edge while the board scrolls. */
         .board {
-          display: grid;
-          grid-template-columns: auto auto;
-          grid-template-rows: auto auto;
+          width: max-content;
           line-height: 0;
         }
+        .ruler-row {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          display: flex;
+          background: var(--editor-stage-background);
+        }
+        .board-row {
+          display: flex;
+        }
+        .ruler-corner,
+        canvas.ruler-y {
+          position: sticky;
+          left: 0;
+          z-index: 1;
+          flex: none;
+          background: var(--editor-stage-background);
+        }
         canvas.ruler-x {
-          grid-column: 2;
           border-left: var(--border);
           border-left-color: transparent;
         }
         canvas.ruler-y {
-          grid-row: 2;
           border-top: var(--border);
           border-top-color: transparent;
         }
         .canvas-frame {
-          grid-column: 2;
-          grid-row: 2;
           border: var(--border);
           display: inline-block;
           line-height: 0;
@@ -97,6 +181,36 @@ class ObjectLayerEngineElement extends HTMLElement {
           opacity: 0.75;
           min-height: 1.2em;
           font-variant-numeric: tabular-nums;
+        }
+        /* The shade bar shows its own range: black, the base color, white. */
+        input[part='shade'] {
+          appearance: none;
+          height: 10px;
+          border: var(--border);
+          border-radius: 5px;
+        }
+        input[part='shade']::-webkit-slider-thumb {
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border: 2px solid #555;
+          border-radius: 50%;
+          background: #fff;
+        }
+        input[part='shade']::-moz-range-thumb {
+          width: 10px;
+          height: 10px;
+          border: 2px solid #555;
+          border-radius: 50%;
+          background: #fff;
+        }
+        canvas.tile-preview {
+          align-self: flex-start;
+          image-rendering: pixelated;
+          border: var(--border);
+        }
+        canvas.tile-preview[hidden] {
+          display: none;
         }
         canvas.canvas-layer {
           display: block;
@@ -163,16 +277,16 @@ class ObjectLayerEngineElement extends HTMLElement {
           pointer-events: none;
         }
         .icon-btn:hover:not(:disabled) {
-          background: ${darkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'};
+          background: var(--hover);
         }
         .icon-btn:disabled {
           opacity: 0.35;
           cursor: default;
         }
         .icon-btn[data-active] {
-          background: ${darkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.1)'};
+          background: var(--active);
           border-color: currentColor;
-          box-shadow: 0 0 0 2px ${darkTheme ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.16)'};
+          box-shadow: 0 0 0 2px var(--ring);
         }
 
         /* A rule between groups, so the toolbar reads as sections rather than one long row. */
@@ -180,7 +294,7 @@ class ObjectLayerEngineElement extends HTMLElement {
           width: 1px;
           align-self: stretch;
           min-height: 24px;
-          background: ${darkTheme ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.15)'};
+          background: var(--rule);
         }
 
         /* The selection bar only exists while select mode is on, so the default toolbar stays
@@ -195,7 +309,7 @@ class ObjectLayerEngineElement extends HTMLElement {
           align-items: center;
           padding: 4px 6px;
           border-radius: 8px;
-          background: ${darkTheme ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)'};
+          background: var(--panel);
         }
         .hint {
           font-size: 12px;
@@ -210,8 +324,8 @@ class ObjectLayerEngineElement extends HTMLElement {
           padding: 4px;
           border-radius: 8px;
           line-height: normal;
-          background: ${darkTheme ? '#242424' : '#ffffff'};
-          border: 1px solid ${darkTheme ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.18)'};
+          background: var(--menu);
+          border: 1px solid var(--rule);
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
         }
         .ctx-menu[hidden] {
@@ -244,7 +358,7 @@ class ObjectLayerEngineElement extends HTMLElement {
           flex: none;
         }
         .ctx-item:hover:not(:disabled) {
-          background: ${darkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'};
+          background: var(--hover);
         }
         .ctx-item:disabled {
           opacity: 0.35;
@@ -257,107 +371,159 @@ class ObjectLayerEngineElement extends HTMLElement {
         }
       </style>
 
-      <div class="wrap">
-        <div class="toolbar">
-          ${iconButton('undo', 'undo', 'Undo (Ctrl+Z)')} ${iconButton('redo', 'redo', 'Redo (Ctrl+Shift+Z)')}
-
-          <span class="sep"></span>
-
-          <!-- Tools: one button each, so the active tool is visible without opening anything. -->
-          ${iconButton('tool-pencil', 'pencil', 'Pencil', { active: true })}
-          ${iconButton('tool-eraser', 'eraser', 'Eraser')} ${iconButton('tool-fill', 'fill', 'Fill')}
-          ${iconButton('tool-eyedropper', 'eyedropper', 'Pick colour')}
-
-          <span class="sep"></span>
-
-          <!-- Select mode: while it is on the canvas selects and moves instead of drawing. -->
-          ${iconButton('tool-select', 'marquee', 'Select mode: drag to select, then drag to move')}
-
-          <span class="sep"></span>
-
-          <div class="group">
-            ${iconButton('flip-h', 'flipH', 'Flip horizontally')} ${iconButton('flip-v', 'flipV', 'Flip vertically')}
-            ${iconButton('rot-ccw', 'rotateCCW', 'Rotate -90°')} ${iconButton('rot-cw', 'rotateCW', 'Rotate +90°')}
-            ${iconButton('clear', 'clear', 'Clear (make fully transparent)')}
+      ${EditorLayout.render({
+        subject: 'canvas',
+        readout: html`<span part="cursor-info" class="cursor-info"></span>`,
+        stage: html`<div class="board">
+          <div class="ruler-row">
+            <span class="ruler-corner"></span>
+            <canvas part="ruler-x" class="ruler-x"></canvas>
           </div>
-        </div>
-
-        <div class="toolbar">
-          <input type="color" part="color" title="Brush color" value="#000000" />
-          <label
-            >hex
-            <input
-              type="text"
-              part="hex-input"
-              title="Hex color (e.g., #FF0000 or #FF0000FF)"
-              placeholder="#000000FF"
-              style="width:9ch"
-          /></label>
-          <label
-            >rgba
-            <input type="number" part="r-input" min="0" max="255" value="0" title="Red (0-255)" style="width:5ch" />
-            <input type="number" part="g-input" min="0" max="255" value="0" title="Green (0-255)" style="width:5ch" />
-            <input type="number" part="b-input" min="0" max="255" value="0" title="Blue (0-255)" style="width:5ch" />
-            <input type="number" part="a-input" min="0" max="255" value="255" title="Alpha (0-255)" style="width:5ch" />
-          </label>
-
-          <label
-            >opacity <input type="range" part="opacity" min="0" max="255" value="255" style="width:10rem" /><input
-              type="number"
-              part="opacity-num"
-              min="0"
-              max="255"
-              value="255"
-              style="width:5ch;margin-left:4px"
-          /></label>
-
-          <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
-        </div>
-
-        <div class="toolbar">
-          <label>pixel-size <input type="number" part="pixel-size" min="1" value="16" /></label>
-          <label
-            >cells <input type="number" part="cell-width" min="1" value="16" style="width:6ch" /> x
-            <input type="number" part="cell-height" min="1" value="16" style="width:6ch"
-          /></label>
-          <label class="switch"> <input type="checkbox" part="toggle-grid" /> grid </label>
-
-          <span class="sep"></span>
-
-          <button part="export">Export PNG</button>
-          <button part="export-json">Export JSON</button>
-          <button part="import-json">Import JSON</button>
-        </div>
-
-        <!-- Everything the selection can do, shown only while select mode is on. -->
-        <div class="sel-bar" part="sel-bar" hidden>
-          ${iconButton('select-all', 'selectAll', 'Select all (Ctrl+A)')}
-          ${iconButton('reselect', 'marquee', 'Reselect: drop this one and drag a new area (Esc)')}
-          <span class="sep"></span>
-          ${iconButton('copy', 'copy', 'Copy (Ctrl+C)')} ${iconButton('cut', 'cut', 'Cut (Ctrl+X)')}
-          ${iconButton('paste', 'paste', 'Paste (Ctrl+V)')} ${iconButton('delete', 'trash', 'Delete (Del)')}
-          <span class="sep"></span>
-          <label
-            >rescale <input type="number" part="scale-width" min="1" value="16" style="width:6ch" /> x
-            <input type="number" part="scale-height" min="1" value="16" style="width:6ch"
-          /></label>
-          ${iconButton('scale-apply', 'rescale', 'Resample to that size, keeping the source palette')}
-          <span class="sep"></span>
-          <span part="sel-info" class="sel-info">no selection</span>
-          <span part="sel-hint" class="hint">Drag to select</span>
-        </div>
-
-        <div class="board">
-          <canvas part="ruler-x" class="ruler-x"></canvas>
-          <canvas part="ruler-y" class="ruler-y"></canvas>
-          <div class="canvas-frame" style="${renderChessPattern()}">
-            <canvas part="canvas" class="canvas-layer"></canvas>
-            <canvas part="grid" class="grid-layer"></canvas>
-            <div class="ctx-menu" part="ctx-menu" hidden></div>
+          <div class="board-row">
+            <canvas part="ruler-y" class="ruler-y"></canvas>
+            <div class="canvas-frame" style="${renderChessPattern()}">
+              <canvas part="canvas" class="canvas-layer"></canvas>
+              <canvas part="grid" class="grid-layer"></canvas>
+              <div class="ctx-menu" part="ctx-menu" hidden></div>
+            </div>
           </div>
-        </div>
-        <span part="cursor-info" class="cursor-info"></span>
-      </div>
+        </div>`,
+        tools: html`<div class="controls">
+            <div class="toolbar">
+              ${iconButton('undo', 'undo', 'Undo (Ctrl+Z)')} ${iconButton('redo', 'redo', 'Redo (Ctrl+Shift+Z)')}
+
+              <span class="sep"></span>
+
+              <!-- Tools: one button each, so the active tool is visible without opening anything. -->
+              ${iconButton('tool-pencil', 'pencil', 'Pencil', { active: true })}
+              ${iconButton('tool-eraser', 'eraser', 'Eraser')} ${iconButton('tool-fill', 'fill', 'Fill')}
+              ${iconButton('tool-eyedropper', 'eyedropper', 'Pick colour')} ${iconButton('tool-line', 'line', 'Line')}
+              ${iconButton('tool-rect', 'rect', 'Rectangle (Shift: filled)')}
+              ${iconButton('tool-ellipse', 'ellipse', 'Ellipse (Shift: filled)')}
+              ${iconButton('tool-pattern', 'pattern', 'Pattern brush: paints the clipboard as a repeating tile')}
+              ${iconButton('tool-stamp', 'stamp', 'Stamp: places the stamp (a template, else the clipboard)')}
+              ${iconButton('tool-wand', 'wand', 'Select by colour (Shift: every cell of that colour)')}
+
+              <span class="sep"></span>
+
+              <!-- Select mode: while it is on the canvas selects and moves instead of drawing. -->
+              ${iconButton('tool-select', 'marquee', 'Select mode: drag to select, then drag to move')}
+              ${iconButton('symmetry', 'mirror', 'Mirror painting: off')}
+              ${iconButton('outline', 'outline', 'Outline the painted shape in the brush colour')}
+              ${iconButton('tile-preview', 'tile', 'Seamless tile preview')}
+
+              <span class="sep"></span>
+
+              <div class="group">
+                ${iconButton('flip-h', 'flipH', 'Flip horizontally')}
+                ${iconButton('flip-v', 'flipV', 'Flip vertically')} ${iconButton('rot-ccw', 'rotateCCW', 'Rotate -90°')}
+                ${iconButton('rot-cw', 'rotateCW', 'Rotate +90°')}
+                ${iconButton('clear', 'clear', 'Clear (make fully transparent)')}
+              </div>
+            </div>
+
+            <div class="toolbar">
+              <input type="color" part="color" title="Brush color" value="#000000" />
+              <label
+                >hex
+                <input
+                  type="text"
+                  part="hex-input"
+                  title="Hex color (e.g., #FF0000 or #FF0000FF)"
+                  placeholder="#000000FF"
+                  style="width:9ch"
+              /></label>
+              <label
+                >rgba
+                <input type="number" part="r-input" min="0" max="255" value="0" title="Red (0-255)" style="width:5ch" />
+                <input
+                  type="number"
+                  part="g-input"
+                  min="0"
+                  max="255"
+                  value="0"
+                  title="Green (0-255)"
+                  style="width:5ch"
+                />
+                <input
+                  type="number"
+                  part="b-input"
+                  min="0"
+                  max="255"
+                  value="0"
+                  title="Blue (0-255)"
+                  style="width:5ch"
+                />
+                <input
+                  type="number"
+                  part="a-input"
+                  min="0"
+                  max="255"
+                  value="255"
+                  title="Alpha (0-255)"
+                  style="width:5ch"
+                />
+              </label>
+
+              <label
+                >opacity <input type="range" part="opacity" min="0" max="255" value="255" style="width:10rem" /><input
+                  type="number"
+                  part="opacity-num"
+                  min="0"
+                  max="255"
+                  value="255"
+                  style="width:5ch;margin-left:4px"
+              /></label>
+
+              <label title="Shade: left adds black, right adds white"
+                >shade <input type="range" part="shade" min="-100" max="100" value="0" style="width:10rem"
+              /></label>
+
+              <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
+            </div>
+
+            <div class="toolbar">
+              <label>pixel-size <input type="number" part="pixel-size" min="1" value="16" /></label>
+              <label
+                >cells <input type="number" part="cell-width" min="1" value="16" style="width:6ch" /> x
+                <input type="number" part="cell-height" min="1" value="16" style="width:6ch"
+              /></label>
+              <label class="switch"> <input type="checkbox" part="toggle-grid" /> grid </label>
+
+              <span class="sep"></span>
+
+              <button part="export">Export PNG</button>
+              <button part="export-json">Export JSON</button>
+              <button part="import-json">Import JSON</button>
+            </div>
+
+            <!-- Everything the selection can do, shown only while select mode is on. -->
+            <div class="sel-bar" part="sel-bar" hidden>
+              ${iconButton('select-all', 'selectAll', 'Select all (Ctrl+A)')}
+              ${iconButton('reselect', 'marquee', 'Reselect: drop this one and drag a new area (Esc)')}
+              <span class="sep"></span>
+              ${iconButton('copy', 'copy', 'Copy (Ctrl+C)')} ${iconButton('cut', 'cut', 'Cut (Ctrl+X)')}
+              ${iconButton('paste', 'paste', 'Paste (Ctrl+V)')} ${iconButton('delete', 'trash', 'Delete (Del)')}
+              <span class="sep"></span>
+              <label
+                >rescale <input type="number" part="scale-width" min="1" value="16" style="width:6ch" /> x
+                <input type="number" part="scale-height" min="1" value="16" style="width:6ch"
+              /></label>
+              ${iconButton('scale-apply', 'rescale', 'Resample to that size, keeping the source palette')}
+              <span class="sep"></span>
+              <label title="Cells to select: 'x,y x,y …', 'rect x0 y0 x1 y1', 'circle cx cy r' or 'poly x,y x,y x,y'"
+                >cells <input type="text" part="mask-input" placeholder="rect 0 0 7 7" style="width:14ch"
+              /></label>
+              ${iconButton('fill-selection', 'fillSelection', 'Fill the selection with the brush colour')}
+              <span class="sep"></span>
+              <span part="sel-info" class="sel-info">no selection</span>
+              <span part="sel-hint" class="hint">Drag to select</span>
+            </div>
+
+            <canvas part="tile-preview-canvas" class="tile-preview" hidden></canvas>
+          </div>
+          <slot></slot>`,
+      })}
     `;
 
     // DOM
@@ -365,6 +531,9 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._gridCanvas = this.shadowRoot.querySelector('canvas[part="grid"]');
     this._rulerX = this.shadowRoot.querySelector('canvas[part="ruler-x"]');
     this._rulerY = this.shadowRoot.querySelector('canvas[part="ruler-y"]');
+    this._rulerCorner = this.shadowRoot.querySelector('.ruler-corner');
+    this._themeStyle = this.shadowRoot.querySelector('style.theme');
+    EditorLayout.bind(this.shadowRoot);
     this._cursorInfo = this.shadowRoot.querySelector('span[part="cursor-info"]');
     this._colorInput = this.shadowRoot.querySelector('input[part="color"]');
     this._hexInput = this.shadowRoot.querySelector('input[part="hex-input"]');
@@ -378,7 +547,19 @@ class ObjectLayerEngineElement extends HTMLElement {
       eraser: this.shadowRoot.querySelector('button[part="tool-eraser"]'),
       fill: this.shadowRoot.querySelector('button[part="tool-fill"]'),
       eyedropper: this.shadowRoot.querySelector('button[part="tool-eyedropper"]'),
+      line: this.shadowRoot.querySelector('button[part="tool-line"]'),
+      rect: this.shadowRoot.querySelector('button[part="tool-rect"]'),
+      ellipse: this.shadowRoot.querySelector('button[part="tool-ellipse"]'),
+      pattern: this.shadowRoot.querySelector('button[part="tool-pattern"]'),
+      stamp: this.shadowRoot.querySelector('button[part="tool-stamp"]'),
+      wand: this.shadowRoot.querySelector('button[part="tool-wand"]'),
     };
+    this._symmetryBtn = this.shadowRoot.querySelector('button[part="symmetry"]');
+    this._outlineBtn = this.shadowRoot.querySelector('button[part="outline"]');
+    this._tilePreviewBtn = this.shadowRoot.querySelector('button[part="tile-preview"]');
+    this._tilePreviewCanvas = this.shadowRoot.querySelector('canvas[part="tile-preview-canvas"]');
+    this._maskInput = this.shadowRoot.querySelector('input[part="mask-input"]');
+    this._fillSelectionBtn = this.shadowRoot.querySelector('button[part="fill-selection"]');
     this._selectModeBtn = this.shadowRoot.querySelector('button[part="tool-select"]');
     this._brushSizeInput = this.shadowRoot.querySelector('input[part="brush-size"]');
     this._pixelSizeInput = this.shadowRoot.querySelector('input[part="pixel-size"]');
@@ -397,6 +578,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._clearBtn = this.shadowRoot.querySelector('button[part="clear"]');
     this._opacityRange = this.shadowRoot.querySelector('input[part="opacity"]');
     this._opacityNumber = this.shadowRoot.querySelector('input[part="opacity-num"]');
+    this._shadeRange = this.shadowRoot.querySelector('input[part="shade"]');
 
     // undo/redo buttons
     this._undoBtn = this.shadowRoot.querySelector('button[part="undo"]');
@@ -433,11 +615,9 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._tool = 'pencil';
     this._showGrid = false;
 
-    // history (undo/redo)
-    this._undoStack = [];
-    this._redoStack = [];
-    this._maxHistory = 200;
-    this._transactionActive = false; // grouping for pointer drags
+    // History: one named command per finished operation; a drag is one command.
+    this._history = new CommandHistory({ limit: 200, onChange: () => this._updateToolbarButtons() });
+    this._transaction = null;
 
     // Select mode replaces drawing with selecting and moving; off, the canvas draws as before.
     this._selectMode = false;
@@ -448,7 +628,18 @@ class ObjectLayerEngineElement extends HTMLElement {
     // covered shows through, and are written back on drop.
     this._floating = null;
     this._moveGrab = null;
-    this._clipboard = null; // matrix copied out of a selection
+    this._clipboard = null; // matrix copied out of a selection; null cells lie outside a mask
+    // A mask selection: the "dx,dy" keys of its cells from the selection corner, or null.
+    this._selectionMask = null;
+    // The mirror strokes and shapes keep: '', 'x', 'y' or 'xy'.
+    this._symmetry = '';
+    // A shape drag: where it started and the frame before it, repainted on each move.
+    this._shapeDrag = null;
+    // Where a pattern stroke anchors its tile: the first cell it paints.
+    this._patternOrigin = null;
+    // What the stamp tool places: a template frame, else the clipboard.
+    this._stamp = null;
+    this._showTilePreview = false;
     this._antsPhase = 0; // marching-ants offset, advanced while a selection stands
     this._antsFrame = 0;
 
@@ -496,16 +687,8 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._pixelSizeInput) this._pixelSizeInput.value = String(this._pixelSize);
     if (this._brushSizeInput) this._brushSizeInput.value = String(this._brushSize);
 
-    // initialize color & opacity UI
-    if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
-    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
-    if (this._rInput) this._rInput.value = String(this._brushColor[0]);
-    if (this._gInput) this._gInput.value = String(this._brushColor[1]);
-    if (this._bInput) this._bInput.value = String(this._brushColor[2]);
-    if (this._aInput) this._aInput.value = String(this._brushColor[3]);
-    if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
-    if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
-    this._emitBrushColorChange();
+    // initialize color, opacity and shade UI
+    this.setBrushColor(this._brushColor);
 
     // UI events
     this._colorInput.addEventListener('input', (e) => {
@@ -539,6 +722,27 @@ class ObjectLayerEngineElement extends HTMLElement {
       if (button) button.addEventListener('click', () => this.setTool(name));
     }
     if (this._selectModeBtn) this._selectModeBtn.addEventListener('click', () => this.toggleSelectMode());
+    if (this._symmetryBtn)
+      this._symmetryBtn.addEventListener('click', () =>
+        this.setSymmetry(SYMMETRIES[(SYMMETRIES.indexOf(this._symmetry) + 1) % SYMMETRIES.length]),
+      );
+    if (this._outlineBtn) this._outlineBtn.addEventListener('click', () => this.outline());
+    if (this._tilePreviewBtn)
+      this._tilePreviewBtn.addEventListener('click', () => {
+        this._showTilePreview = !this._showTilePreview;
+        this._tilePreviewBtn.toggleAttribute('data-active', this._showTilePreview);
+        this._tilePreviewCanvas.hidden = !this._showTilePreview;
+        this.render();
+      });
+    if (this._maskInput)
+      this._maskInput.addEventListener('change', (e) => {
+        const cells = regionFromQuery(e.target.value);
+        if (cells) this.setSelectionMask(cells);
+      });
+    if (this._fillSelectionBtn)
+      this._fillSelectionBtn.addEventListener('click', () =>
+        this.transformRegion('FillRegion', (frame, cells) => fillRegion(frame, cells, this._brushColor)),
+      );
     this._brushSizeInput.addEventListener('change', (e) => this.setBrushSize(parseInt(e.target.value, 10) || 1));
     this._pixelSizeInput.addEventListener('change', (e) => {
       this.pixelSize = Math.max(1, parseInt(e.target.value, 10) || 1);
@@ -547,6 +751,14 @@ class ObjectLayerEngineElement extends HTMLElement {
       this._showGrid = !!e.target.checked;
       this._renderGrid();
     });
+
+    // shade: mixes the base color with black (left) or white (right), alpha kept
+    if (this._shadeRange)
+      this._shadeRange.addEventListener('input', (e) => {
+        const share = Number(e.target.value) / 100;
+        const target = share > 0 ? [255, 255, 255] : [0, 0, 0];
+        this._applyBrushColor([...mixColor(this._shadeBase, target, Math.abs(share)), this._brushColor[3]]);
+      });
 
     // opacity controls - keep range and number in sync
     if (this._opacityRange) {
@@ -566,48 +778,22 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._widthInput)
       this._widthInput.addEventListener('change', (e) => {
         const val = Math.max(1, parseInt(e.target.value, 10) || 1);
-        // keep value synced (will update input again in resize)
-        this.resize(val, this._height, { preserve: true });
+        this.command('Resize', () => this.resize(val, this._height, { preserve: true }));
       });
     if (this._heightInput)
       this._heightInput.addEventListener('change', (e) => {
         const val = Math.max(1, parseInt(e.target.value, 10) || 1);
-        this.resize(this._width, val, { preserve: true });
+        this.command('Resize', () => this.resize(this._width, val, { preserve: true }));
       });
 
     // transform buttons
-    if (this._flipHBtn)
-      this._flipHBtn.addEventListener('click', () => {
-        this._beginTransaction();
-        this.flipHorizontal();
-        this._endTransaction();
-      });
-    if (this._flipVBtn)
-      this._flipVBtn.addEventListener('click', () => {
-        this._beginTransaction();
-        this.flipVertical();
-        this._endTransaction();
-      });
-    if (this._rotCWBtn)
-      this._rotCWBtn.addEventListener('click', () => {
-        this._beginTransaction();
-        this.rotateCW();
-        this._endTransaction();
-      });
-    if (this._rotCCWBtn)
-      this._rotCCWBtn.addEventListener('click', () => {
-        this._beginTransaction();
-        this.rotateCCW();
-        this._endTransaction();
-      });
+    if (this._flipHBtn) this._flipHBtn.addEventListener('click', () => this.command('Flip', this.flipHorizontal));
+    if (this._flipVBtn) this._flipVBtn.addEventListener('click', () => this.command('Flip', this.flipVertical));
+    if (this._rotCWBtn) this._rotCWBtn.addEventListener('click', () => this.command('Rotate', this.rotateCW));
+    if (this._rotCCWBtn) this._rotCCWBtn.addEventListener('click', () => this.command('Rotate', this.rotateCCW));
 
     // clear button (makes canvas fully transparent)
-    if (this._clearBtn)
-      this._clearBtn.addEventListener('click', () => {
-        this._beginTransaction();
-        this.clear([0, 0, 0, 0]);
-        this._endTransaction();
-      });
+    if (this._clearBtn) this._clearBtn.addEventListener('click', () => this.command('Clear', () => this.clear()));
 
     // Export/Import
     this._exportBtn.addEventListener('click', () => this.exportPNG());
@@ -627,9 +813,7 @@ class ObjectLayerEngineElement extends HTMLElement {
       if (!file) return;
       const text = await file.text();
       try {
-        this._beginTransaction();
-        this.importMatrixJSON(text);
-        this._endTransaction();
+        this.command('Import', () => this.importMatrixJSON(text));
       } catch (err) {
         console.error(err);
         alert('Invalid JSON');
@@ -667,6 +851,7 @@ class ObjectLayerEngineElement extends HTMLElement {
 
     // keyboard for undo/redo
     window.addEventListener('keydown', this._onKeyDown);
+    ThemeEvents[this._themeKey] = () => this._applyTheme();
 
     // initial render and clear history
     this.render();
@@ -681,17 +866,6 @@ class ObjectLayerEngineElement extends HTMLElement {
     window.removeEventListener('pointermove', this._onPointerMove);
     window.removeEventListener('pointerup', this._onPointerUp);
 
-    if (this._flipHBtn) this._flipHBtn.removeEventListener('click', this.flipHorizontal);
-    if (this._flipVBtn) this._flipVBtn.removeEventListener('click', this.flipVertical);
-    if (this._rotCWBtn) this._rotCWBtn.removeEventListener('click', this.rotateCW);
-    if (this._rotCCWBtn) this._rotCCWBtn.removeEventListener('click', this.rotateCCW);
-    if (this._clearBtn) this._clearBtn.removeEventListener('click', () => this.clear([0, 0, 0, 0]));
-    if (this._opacityRange) this._opacityRange.removeEventListener('input', () => {});
-    if (this._opacityNumber) this._opacityNumber.removeEventListener('change', () => {});
-
-    if (this._undoBtn) this._undoBtn.removeEventListener('click', () => this.undo());
-    if (this._redoBtn) this._redoBtn.removeEventListener('click', () => this.redo());
-
     window.removeEventListener('keydown', this._onKeyDown);
 
     this._pixelCanvas.removeEventListener('contextmenu', this._onContextMenu);
@@ -700,6 +874,14 @@ class ObjectLayerEngineElement extends HTMLElement {
     // the ants loop holds a frame handle across renders; it must not outlive the element
     if (this._antsFrame) cancelAnimationFrame(this._antsFrame);
     this._antsFrame = 0;
+    delete ThemeEvents[this._themeKey];
+  }
+
+  /* Repaints what the theme colors: the style variables, the rulers and the grid. */
+  _applyTheme() {
+    this._themeStyle.textContent = themeStyle();
+    this._renderRulers();
+    this._renderGrid();
   }
 
   // ---------------- Matrix helpers ----------------
@@ -830,7 +1012,7 @@ class ObjectLayerEngineElement extends HTMLElement {
   _renderRulers() {
     const ps = this._pixelSize;
     const font = '10px ui-monospace, Menlo, monospace';
-    const color = darkTheme ? '#e1e1e1' : '#272727';
+    const color = inkColor();
     const thickness = 16;
     const measure = this._rulerX.getContext('2d');
     measure.font = font;
@@ -869,6 +1051,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     };
     draw(this._rulerX, this._width, true);
     draw(this._rulerY, this._height, false);
+    this._rulerCorner.style.width = this._rulerY.style.width;
   }
 
   /* The cell under the pointer, or nothing once it leaves the canvas. */
@@ -920,6 +1103,20 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._pixelCtx.putImageData(img, 0, 0);
 
     if (this._showGrid) this._renderGrid();
+    if (this._showTilePreview) this._renderTilePreview();
+  }
+
+  /* The frame repeated three by three, at the canvas scale, to check that its edges meet. */
+  _renderTilePreview() {
+    const tiled = tiledPreview(this._matrix, 3);
+    const canvas = this._tilePreviewCanvas;
+    canvas.width = tiled[0].length;
+    canvas.height = tiled.length;
+    canvas.style.width = `${Math.min(tiled[0].length * this._pixelSize, 480)}px`;
+    const ctx = canvas.getContext('2d');
+    const image = ctx.createImageData(canvas.width, canvas.height);
+    tiled.flat().forEach((cell, index) => image.data.set(cell, index * 4));
+    ctx.putImageData(image, 0, 0);
   }
 
   /* The travelling cell covering (x, y) during a move, or null. A fully transparent one still
@@ -957,7 +1154,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     const ps = this._pixelSize;
     if (this._showGrid) {
       ctx.save();
-      ctx.strokeStyle = darkTheme ? '#e1e1e1' : '#272727';
+      ctx.strokeStyle = inkColor();
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let x = 0; x <= this._width; x++) {
@@ -993,6 +1190,15 @@ class ObjectLayerEngineElement extends HTMLElement {
     ctx.lineDashOffset = -this._antsPhase;
     ctx.strokeStyle = 'rgba(0,0,0,0.9)';
     ctx.strokeRect(...box);
+
+    // A mask selection tints the cells it holds inside its rectangle.
+    if (this._selectionMask) {
+      ctx.fillStyle = 'rgba(80,160,255,0.35)';
+      for (const key of this._selectionMask) {
+        const [dx, dy] = key.split(',').map(Number);
+        ctx.fillRect((rect.x + dx) * ps, (rect.y + dy) * ps, ps, ps);
+      }
+    }
 
     // Cell rules inside the rectangle: the selection reads as the grid of cells it is, whether
     // or not the canvas grid is on. Skipped once the cells are too small to tell apart.
@@ -1084,12 +1290,22 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   _inSelection(x, y) {
     const sel = this._selection;
-    return !!sel && x >= sel.x && y >= sel.y && x < sel.x + sel.w && y < sel.y + sel.h;
+    const inRect = !!sel && x >= sel.x && y >= sel.y && x < sel.x + sel.w && y < sel.y + sel.h;
+    return inRect && (!this._selectionMask || this._selectionMask.has(`${x - sel.x},${y - sel.y}`));
   }
 
-  // set full RGBA brush color (alpha optional)
+  /** Sets the full RGBA brush color (alpha optional); the shade bar starts again from it. */
   setBrushColor(rgba) {
     if (!Array.isArray(rgba) || rgba.length < 3) return;
+    this._applyBrushColor(rgba);
+    this._shadeBase = this._brushColor.slice(0, 3);
+    if (this._shadeRange) {
+      this._shadeRange.value = '0';
+      this._shadeRange.style.background = `linear-gradient(to right, #000, ${this._rgbaToHex(this._brushColor)}, #fff)`;
+    }
+  }
+
+  _applyBrushColor(rgba) {
     const r = this._clampInt(rgba[0]);
     const g = this._clampInt(rgba[1]);
     const b = this._clampInt(rgba[2]);
@@ -1143,20 +1359,81 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._brushSizeInput) this._brushSizeInput.value = this._brushSize;
   }
 
-  _applyBrush(x, y, color, renderAfter = false) {
+  /* The cells a brush of the current size covers around (x, y). */
+  _brushCells(x, y) {
     const half = Math.floor(this._brushSize / 2);
-    for (let oy = -half; oy <= half; oy++)
-      for (let ox = -half; ox <= half; ox++) {
-        const tx = x + ox,
-          ty = y + oy;
-        if (this._inBounds(tx, ty)) this._matrix[ty][tx] = color.slice();
-      }
+    return rectRegion(x - half, y - half, x + half, y + half);
+  }
+
+  /* A region with its mirror images, clipped to the canvas. */
+  _mirrored(cells) {
+    const mirrored = this._symmetry
+      ? mirrorRegion(cells, { width: this._width, height: this._height, axis: this._symmetry })
+      : cells;
+    return clip(mirrored, this._width, this._height);
+  }
+
+  _applyBrush(x, y, color, renderAfter = false) {
+    for (const [tx, ty] of this._mirrored(this._brushCells(x, y))) this._matrix[ty][tx] = color.slice();
     if (renderAfter) this.render();
+  }
+
+  /** Sets the mirror strokes and shapes keep: '', 'x', 'y' or 'xy'. */
+  setSymmetry(axis) {
+    this._symmetry = SYMMETRIES.includes(axis) ? axis : '';
+    if (this._symmetryBtn) {
+      this._symmetryBtn.toggleAttribute('data-active', !!this._symmetry);
+      const label = `Mirror painting: ${SYMMETRY_LABELS[this._symmetry]}`;
+      this._symmetryBtn.title = label;
+      this._symmetryBtn.setAttribute('aria-label', label);
+    }
+  }
+
+  /** Sets what the stamp tool places: an rgba frame, or null for the clipboard. */
+  setStamp(frame) {
+    this._stamp = frame ? frame.map((row) => row.map((cell) => cell.slice())) : null;
+  }
+
+  /** The cells an operation acts on: the selection, its mask when it has one, else every cell. */
+  getRegionCells() {
+    const sel = this._selection;
+    if (!sel) return rectRegion(0, 0, this._width - 1, this._height - 1);
+    return rectRegion(sel.x, sel.y, sel.x + sel.w - 1, sel.y + sel.h - 1).filter(([x, y]) => this._inSelection(x, y));
+  }
+
+  /** The frame as rgba rows, copied. */
+  getFrame() {
+    return this._matrix.map((row) => row.map((cell) => cell.slice()));
+  }
+
+  /**
+   * Runs one named command that rewrites the frame inside the region: `transform(frame, cells)`
+   * returns the next frame (`PixelRegion.js` operations fit it).
+   * @param {string} name
+   * @param {(frame: number[][][], cells: Array<[number,number]>) => number[][][]} transform
+   */
+  transformRegion(name, transform) {
+    this.command(name, () => {
+      this._matrix = transform(this.getFrame(), this.getRegionCells());
+      this.render();
+    });
+  }
+
+  /** Paints the outline around the painted shape in the brush colour, inside the region. */
+  outline() {
+    const inside = new Set(this.getRegionCells().map(([x, y]) => `${x},${y}`));
+    this.transformRegion('Outline', (frame) =>
+      fillRegion(
+        frame,
+        outlineRegion(frame).filter(([x, y]) => inside.has(`${x},${y}`)),
+        this._brushColor,
+      ),
+    );
   }
 
   fillBucket(x, y, targetColor = null) {
     if (!this._inBounds(x, y)) return;
-    this._beginTransaction();
+    this._beginTransaction('FillRegion');
     const src = this.getPixel(x, y);
     const newColor = targetColor ? targetColor.slice() : this._brushColor.slice();
     if (this._colorsEqual(src, newColor)) {
@@ -1204,6 +1481,16 @@ class ObjectLayerEngineElement extends HTMLElement {
     } catch (e) {}
     const [x, y] = this._toGridCoords(evt);
 
+    // The wand selects the colour under the pointer, then hands over to select mode.
+    if (this._tool === 'wand' && !this._selectMode) {
+      this._isPointerDown = false;
+      if (!this._inBounds(x, y)) return;
+      const cells = colorRegion(this._matrix, this._matrix[y][x], { contiguous: evt.shiftKey ? null : [x, y] });
+      this.setSelectMode(true);
+      this.setSelectionMask(cells);
+      return;
+    }
+
     // Select mode: a press inside the rectangle moves it, anywhere else starts a new one.
     // Neither opens an undo transaction here — the marquee changes no cell, and a move opens
     // one when it commits.
@@ -1216,8 +1503,9 @@ class ObjectLayerEngineElement extends HTMLElement {
       }
       return;
     }
-    // start transaction for continuous stroke
-    this._beginTransaction();
+    // One command for the whole stroke, named by the tool that draws it.
+    this._beginTransaction(STROKE_COMMANDS[this._tool] ?? 'DrawStroke');
+    if (SHAPE_TOOLS.includes(this._tool)) this._shapeDrag = { x, y, base: this.getFrame() };
     this._applyToolAt(x, y, evt);
   }
 
@@ -1253,6 +1541,8 @@ class ObjectLayerEngineElement extends HTMLElement {
       return;
     }
     // finish transaction for the stroke
+    this._shapeDrag = null;
+    this._patternOrigin = null;
     this._endTransaction();
   }
 
@@ -1263,8 +1553,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (!this._selection) return;
     if (!this._floating) {
       this._floating = this._readRegion(this._selection);
-      const { x: sx, y: sy, w, h } = this._selection;
-      for (let ry = 0; ry < h; ry++) for (let rx = 0; rx < w; rx++) this._matrix[sy + ry][sx + rx] = [0, 0, 0, 0];
+      for (const [cx, cy] of this.getRegionCells()) this._matrix[cy][cx] = [0, 0, 0, 0];
     }
     this._moveGrab = { dx: x - this._selection.x, dy: y - this._selection.y };
     this._updateCursor(true);
@@ -1283,7 +1572,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._moveGrab = null;
     if (!this._floating) return;
     // Committing is one undo step: the lift and every drag frame collapse into the drop.
-    this._beginTransaction();
+    this._beginTransaction('MoveSelection');
     this._writeRegion(this._floating, this._selection.x, this._selection.y);
     this._floating = null;
     this.render();
@@ -1300,8 +1589,44 @@ class ObjectLayerEngineElement extends HTMLElement {
   }
 
   _applyToolAt(x, y, evt, continuous = false) {
+    if (this._shapeDrag) {
+      const { x: x0, y: y0, base } = this._shapeDrag;
+      const filled = evt.shiftKey;
+      const cells =
+        this._tool === 'line'
+          ? lineRegion(x0, y0, x, y)
+          : this._tool === 'rect'
+            ? filled
+              ? rectRegion(x0, y0, x, y)
+              : rectOutlineRegion(x0, y0, x, y)
+            : ellipseRegion(x0, y0, x, y, { filled });
+      this._matrix = fillRegion(base, this._mirrored(cells), this._brushColor);
+      this.render();
+      return;
+    }
     if (!this._inBounds(x, y)) return;
     switch (this._tool) {
+      case 'pattern':
+        if (this._clipboard) {
+          const tile = this._clipboard.map((row) => row.map((cell) => cell ?? [0, 0, 0, 0]));
+          this._patternOrigin ??= { originX: x, originY: y };
+          this._matrix = patternRegion(this._matrix, this._mirrored(this._brushCells(x, y)), tile, this._patternOrigin);
+          this.render();
+        }
+        break;
+      case 'stamp': {
+        const stamp = this._stamp ?? this._clipboard?.map((row) => row.map((cell) => cell ?? [0, 0, 0, 0]));
+        if (!continuous && stamp) {
+          this._matrix = stampRegion(
+            this._matrix,
+            stamp,
+            x - Math.floor(stamp[0].length / 2),
+            y - Math.floor(stamp.length / 2),
+          );
+          this.render();
+        }
+        break;
+      }
       case 'pencil':
         this._applyBrush(x, y, this._brushColor, true);
         break;
@@ -1331,6 +1656,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     const x1 = Math.max(0, Math.min(this._width - 1, Math.max(ax, bx)));
     const y1 = Math.max(0, Math.min(this._height - 1, Math.max(ay, by)));
     this._selection = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    this._selectionMask = null;
     this._updateSelectionUI();
     this._startAnts();
     this._renderGrid();
@@ -1342,9 +1668,24 @@ class ObjectLayerEngineElement extends HTMLElement {
     return this.setSelection(0, 0, this._width - 1, this._height - 1);
   }
 
+  /** Selects exactly the given cells, within the rectangle that holds them. */
+  setSelectionMask(cells) {
+    const inside = clip(cells, this._width, this._height);
+    if (inside.length === 0) return this.clearSelection();
+    const xs = inside.map(([x]) => x);
+    const ys = inside.map(([, y]) => y);
+    const [left, top] = [Math.min(...xs), Math.min(...ys)];
+    this.setSelection(left, top, Math.max(...xs), Math.max(...ys));
+    this._selectionMask = new Set(inside.map(([x, y]) => `${x - left},${y - top}`));
+    this._updateSelectionUI();
+    this._renderGrid();
+    return this.getSelection();
+  }
+
   clearSelection() {
     if (!this._selection) return;
     this._selection = null;
+    this._selectionMask = null;
     this._updateSelectionUI();
     this._renderGrid();
     this.dispatchEvent(new CustomEvent('selectionchange', { detail: null }));
@@ -1355,6 +1696,13 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (!this._selection) return;
     const { x, y, w, h } = this._selection;
     if (x >= this._width || y >= this._height) return this.clearSelection();
+    if (this._selectionMask)
+      this._selectionMask = new Set(
+        [...this._selectionMask].filter((key) => {
+          const [dx, dy] = key.split(',').map(Number);
+          return x + dx < this._width && y + dy < this._height;
+        }),
+      );
     this._selection = {
       x,
       y,
@@ -1366,7 +1714,11 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   _updateSelectionUI() {
     const sel = this._selection;
-    if (this._selInfo) this._selInfo.textContent = sel ? `${sel.x},${sel.y}  ${sel.w}×${sel.h}` : 'no selection';
+    if (this._selInfo)
+      this._selInfo.textContent = sel
+        ? `${sel.x},${sel.y}  ${sel.w}×${sel.h}${this._selectionMask ? `  ${this._selectionMask.size} cells` : ''}`
+        : 'no selection';
+    if (this._fillSelectionBtn) this._fillSelectionBtn.disabled = !sel;
     // The hint tracks the one thing the canvas will do next, so the handover to moving is stated
     // rather than left to be discovered.
     if (this._selHint)
@@ -1442,23 +1794,25 @@ class ObjectLayerEngineElement extends HTMLElement {
   }
 
   // ---------------- Clipboard ----------------
+  /* The cells of a rectangle; with a mask selection, cells outside the mask read as null. */
   _readRegion({ x, y, w, h }) {
     const out = this._createEmptyMatrix(w, h);
     for (let ry = 0; ry < h; ry++)
       for (let rx = 0; rx < w; rx++) {
         const cell = this._matrix[y + ry] && this._matrix[y + ry][x + rx];
-        out[ry][rx] = cell ? cell.slice() : [0, 0, 0, 0];
+        const masked = this._selectionMask && !this._selectionMask.has(`${rx},${ry}`);
+        out[ry][rx] = masked ? null : cell ? cell.slice() : [0, 0, 0, 0];
       }
     return out;
   }
 
-  /* Writes a matrix with its top-left at (x, y), dropping whatever falls off the canvas. */
+  /* Writes a matrix with its top-left at (x, y), dropping null cells and whatever falls off. */
   _writeRegion(src, x, y) {
     for (let ry = 0; ry < src.length; ry++)
       for (let rx = 0; rx < src[ry].length; rx++) {
         const tx = x + rx;
         const ty = y + ry;
-        if (this._inBounds(tx, ty)) this._matrix[ty][tx] = src[ry][rx].slice();
+        if (src[ry][rx] && this._inBounds(tx, ty)) this._matrix[ty][tx] = src[ry][rx].slice();
       }
   }
 
@@ -1467,7 +1821,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._clipboard = this._readRegion(this._selection);
     this._updateSelectionUI();
     this.dispatchEvent(new CustomEvent('copy', { detail: { width: this._selection.w, height: this._selection.h } }));
-    return this._clipboard.map((r) => r.map((c) => c.slice()));
+    return this._clipboard.map((r) => r.map((c) => c?.slice() ?? null));
   }
 
   cutSelection() {
@@ -1479,9 +1833,9 @@ class ObjectLayerEngineElement extends HTMLElement {
   /* Clears the selected cells to fully transparent. */
   deleteSelection() {
     if (!this._selection) return;
-    this._beginTransaction();
-    const { x, y, w, h } = this._selection;
-    for (let ry = 0; ry < h; ry++) for (let rx = 0; rx < w; rx++) this._matrix[y + ry][x + rx] = [0, 0, 0, 0];
+    this._beginTransaction('DeleteSelection');
+    const { w, h } = this._selection;
+    for (const [cx, cy] of this.getRegionCells()) this._matrix[cy][cx] = [0, 0, 0, 0];
     this.render();
     this._endTransaction();
     this.dispatchEvent(new CustomEvent('delete', { detail: { width: w, height: h } }));
@@ -1495,7 +1849,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     this.setSelectMode(true);
     const x = at ? Math.floor(at.x) : this._selection ? this._selection.x : 0;
     const y = at ? Math.floor(at.y) : this._selection ? this._selection.y : 0;
-    this._beginTransaction();
+    this._beginTransaction('Paste');
     this._writeRegion(this._clipboard, x, y);
     this.render();
     this._endTransaction();
@@ -1590,7 +1944,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     const h = Math.max(1, Math.floor(newH));
     if (!this._selection) {
       if (w === this._width && h === this._height) return;
-      this._beginTransaction();
+      this._beginTransaction('Resize');
       this._matrix = this.resampleMatrix(this._matrix, w, h);
       this._setDimensions(w, h);
       this._setupContextsAndSize();
@@ -1603,10 +1957,11 @@ class ObjectLayerEngineElement extends HTMLElement {
 
     const sel = this._selection;
     if (w === sel.w && h === sel.h) return;
-    this._beginTransaction();
-    const resampled = this.resampleMatrix(this._readRegion(sel), w, h);
-    for (let ry = 0; ry < sel.h; ry++)
-      for (let rx = 0; rx < sel.w; rx++) this._matrix[sel.y + ry][sel.x + rx] = [0, 0, 0, 0];
+    this._beginTransaction('Resize');
+    const region = this._readRegion(sel).map((row) => row.map((cell) => cell ?? [0, 0, 0, 0]));
+    const resampled = this.resampleMatrix(region, w, h);
+    for (const [cx, cy] of this.getRegionCells()) this._matrix[cy][cx] = [0, 0, 0, 0];
+    this._selectionMask = null;
     this._writeRegion(resampled, sel.x, sel.y);
     this.render();
     this._endTransaction();
@@ -1771,60 +2126,58 @@ class ObjectLayerEngineElement extends HTMLElement {
     return true;
   }
 
-  _pushUndo(snap) {
-    this._undoStack.push(snap);
-    if (this._undoStack.length > this._maxHistory) this._undoStack.shift();
-    // clear redo
-    this._redoStack.length = 0;
-    this._updateToolbarButtons();
-  }
-
   _clearHistory() {
-    this._undoStack.length = 0;
-    this._redoStack.length = 0;
-    this._updateToolbarButtons();
+    this._history.clear();
   }
 
-  _beginTransaction() {
-    if (this._transactionActive) return;
-    this._transactionActive = true;
-    const before = this._snapshot();
-    this._pushUndo(before);
+  /* Opens a command with the frame before it. An open command absorbs nested ones. */
+  _beginTransaction(name = 'Edit') {
+    if (this._transaction) return;
+    this._transaction = { name, before: this._snapshot() };
   }
 
+  /* Closes the open command, and records it when it changed the frame. */
   _endTransaction() {
-    if (!this._transactionActive) return;
-    this._transactionActive = false;
-    // if the last undo state is identical to current (no-op), remove it
-    const last = this._undoStack[this._undoStack.length - 1];
-    const now = this._snapshot();
-    if (this._matricesEqual(last, now)) this._undoStack.pop();
-    this._updateToolbarButtons();
+    const transaction = this._transaction;
+    if (!transaction) return;
+    this._transaction = null;
+    const after = this._snapshot();
+    if (this._matricesEqual(transaction.before, after)) return;
+    this._history.record(transaction.name, transaction.before, after);
+    this.dispatchEvent(new CustomEvent('command', { detail: { name: transaction.name } }));
+  }
+
+  /**
+   * Runs one named command: every change `mutate` makes to the frame is one undo step.
+   * @param {string} name - What the command does, such as `PaletteSwap`.
+   * @param {() => void} mutate
+   */
+  command(name, mutate) {
+    this._beginTransaction(name);
+    try {
+      mutate();
+    } finally {
+      this._endTransaction();
+    }
   }
 
   undo() {
-    if (!this._undoStack.length) return;
-    const snap = this._undoStack.pop();
-    // push current to redo
-    this._redoStack.push(this._snapshot());
-    this._loadSnapshot(snap);
-    this._updateToolbarButtons();
-    this.dispatchEvent(new CustomEvent('undo'));
+    const command = this._history.undo();
+    if (!command) return;
+    this._loadSnapshot(command.before);
+    this.dispatchEvent(new CustomEvent('undo', { detail: { name: command.name } }));
   }
 
   redo() {
-    if (!this._redoStack.length) return;
-    const snap = this._redoStack.pop();
-    // push current to undo
-    this._undoStack.push(this._snapshot());
-    this._loadSnapshot(snap);
-    this._updateToolbarButtons();
-    this.dispatchEvent(new CustomEvent('redo'));
+    const command = this._history.redo();
+    if (!command) return;
+    this._loadSnapshot(command.after);
+    this.dispatchEvent(new CustomEvent('redo', { detail: { name: command.name } }));
   }
 
   _updateToolbarButtons() {
-    if (this._undoBtn) this._undoBtn.disabled = this._undoStack.length === 0;
-    if (this._redoBtn) this._redoBtn.disabled = this._redoStack.length === 0;
+    if (this._undoBtn) this._undoBtn.disabled = !this._history.canUndo;
+    if (this._redoBtn) this._redoBtn.disabled = !this._history.canRedo;
   }
 
   /* True while a field has focus, where these keys belong to the field rather than the canvas. */

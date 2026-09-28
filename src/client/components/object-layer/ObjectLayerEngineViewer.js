@@ -633,6 +633,7 @@ class ObjectLayerEngineViewer {
         idModal,
         readOnly: ObjectLayerEngineViewer.readOnly,
         lifecycle: ObjectLayerEngineViewer.lifecycle,
+        itemTypes: ObjectLayerEngineViewer.profile?.itemTypes,
       }),
     );
   }

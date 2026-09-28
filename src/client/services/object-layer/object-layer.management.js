@@ -7,7 +7,7 @@ import { s } from '../../components/core/VanillaJs.js';
 import { Modal } from '../../components/core/Modal.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
-import { AgGrid } from '../../components/core/AgGrid.js';
+import { AgGrid, ValueListFilter } from '../../components/core/AgGrid.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 
 /** Opens the editor. Loaded on demand: a read-only host ships the list without it. */
@@ -24,8 +24,10 @@ class ObjectLayerManagement {
    * @param {boolean} [options.readOnly=false] - Explorer mode: no add, edit or delete; the host has no editor route.
    * @param {boolean} [options.lifecycle=false] - The host is the Object Layer authority: a moderator archives a
    *   definition or offers it again.
+   * @param {ReadonlyArray<string>} [options.itemTypes=[]] - The item type vocabulary of the host's content profile:
+   *   the Item Type column filters and edits by it.
    */
-  static instance = async ({ appStore, idModal: rawIdModal, readOnly = false, lifecycle = false }) => {
+  static instance = async ({ appStore, idModal: rawIdModal, readOnly = false, lifecycle = false, itemTypes = [] }) => {
     const idModal = rawIdModal || 'modal-object-layer-engine-management';
     const serviceId = 'object-layer-engine-management';
     const gridId = `${serviceId}-grid-${idModal}`;
@@ -425,7 +427,19 @@ class ObjectLayerManagement {
         headerName: 'Item ID',
         editable: canEdit,
       },
-      { field: 'data.item.type', headerName: 'Item Type', editable: canEdit },
+      {
+        field: 'data.item.type',
+        headerName: 'Item Type',
+        editable: canEdit,
+        ...(itemTypes.length > 0
+          ? {
+              cellEditor: 'agSelectCellEditor',
+              cellEditorParams: { values: itemTypes },
+              filter: ValueListFilter,
+              filterParams: { values: itemTypes },
+            }
+          : {}),
+      },
       { field: 'data.item.description', headerName: 'Description', flex: 1, editable: canEdit },
       {
         field: 'cid',

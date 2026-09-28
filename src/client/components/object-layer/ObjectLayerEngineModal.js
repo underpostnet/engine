@@ -4,7 +4,7 @@ import { borderChar, Css, dynamicCol, Themes } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Translate } from '../core/Translate.js';
-import { s, append, hexToRgbA } from '../core/VanillaJs.js';
+import { s, append, hexToRgbA, htmls } from '../core/VanillaJs.js';
 import { getProxyPath, getQueryParams, setPath, setQueryParams, RouterEvents } from '../core/Router.js';
 import { s4, commonModeratorGuard } from '../core/CommonJs.js';
 import { Input } from '../core/Input.js';
@@ -22,6 +22,12 @@ import {
   OBJECT_LAYER_DIRECTION_LABELS,
   getKeyframeDirectionsByCode,
 } from './ObjectLayerProtocol.js';
+import { fromWire, rgbaFrame, sourceFromRgbaFrames, toWire } from './RenderSource.js';
+import { renderTemplate, templateSuits } from './PixelTemplate.js';
+import { contextPanelStyle, mountContextPanel } from './ObjectLayerContextPanel.js';
+import { ObjectLayerPalettePanel, palettePanelStyle } from './ObjectLayerPalettePanel.js';
+import { EditorDraftStore } from '../core/EditorDraftStore.js';
+import { EditorLayout } from '../core/EditorLayout.js';
 import '../core/ColorPaletteElement.js';
 
 const CANVAS_BEHAVIOR_ICON = 'fa-solid fa-shapes';
@@ -94,6 +100,8 @@ const DEFAULT_DISTORTION_STATUS =
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
 const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
 const DIRECTION_PREVIEW_MODAL_ID = 'modal-object-layer-direction-preview';
+/* The template that clears the canvas. */
+const EMPTY_TEMPLATE = Object.freeze({ id: 'empty', label: 'empty', itemTypes: [] });
 const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
   Object.fromEntries(CANVAS_BEHAVIORS.map((entry) => [entry.value, entry])),
 );
@@ -527,17 +535,14 @@ class ObjectLayerEngineModal {
   static itemActivable = false;
   static renderFrameDuration = 100;
   static existingObjectLayerId = null;
-  static originalDirectionCodes = [];
   static selectedDistortionType = DEFAULT_DISTORTION_TYPE;
   static distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
   static uniformOpacityEnabled = false;
-  static templates = [
-    {
-      label: 'empty',
-      id: 'empty',
-      data: [],
-    },
-  ];
+  static templates = [EMPTY_TEMPLATE];
+  /** What the host's Studio adds: `context(key)` for the foundation panel, and `templates`. */
+  static studio = null;
+  /** The palette panel of the open editor. */
+  static palettePanel = null;
   /**
    * The content profile the editor binds: the item type vocabulary and the stat contract the
    * store's writers apply. Set by {@link ObjectLayerEngineModal.instance}.
@@ -545,19 +550,18 @@ class ObjectLayerEngineModal {
    */
   static profile = null;
 
-  static RenderTemplate = (colorTemplate) => {
+  /* Paints a template in the palette in use, as one command, and keeps it as the stamp. */
+  static RenderTemplate = (template) => {
     const ole = s('object-layer-engine');
-    if (!ole) {
+    if (!ole) return;
+    if (!template.roles && !template.colors) {
+      ole.command('Clear', () => ole.clear());
       return;
     }
-
-    if (colorTemplate.length === 0) {
-      ole.clear();
-      return;
-    }
-
-    const matrix = colorTemplate.map((row) => row.map((hex) => [...hexToRgbA(hex), 255]));
-    ole.loadMatrix(matrix);
+    const frame = renderTemplate(template, ObjectLayerEngineModal.palettePanel?.activeRoles() ?? {});
+    ole.command('PasteTemplate', () => ole.loadMatrix(frame));
+    ole.setSymmetry(template.symmetry ?? '');
+    ole.setStamp(frame);
   };
 
   static ObjectLayerData = {};
@@ -568,17 +572,10 @@ class ObjectLayerEngineModal {
     this.itemActivable = false;
     this.renderFrameDuration = 100;
     this.existingObjectLayerId = null;
-    this.originalDirectionCodes = [];
     this.selectedDistortionType = DEFAULT_DISTORTION_TYPE;
     this.distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
     this.uniformOpacityEnabled = false;
-    this.templates = [
-      {
-        label: 'empty',
-        id: 'empty',
-        data: [],
-      },
-    ];
+    this.templates = [EMPTY_TEMPLATE];
 
     const ole = s('object-layer-engine');
     if (ole && typeof ole.clear === 'function') {
@@ -641,6 +638,20 @@ class ObjectLayerEngineModal {
     }
   }
 
+  /**
+   * The key the editor opens for a key: the cid of the definition its item runs when the key names
+   * another one, so a reload after another save or an import edits the current definition.
+   * @param {string} key - cid, document id or item label.
+   * @returns {Promise<string>}
+   */
+  static currentKey = async (key) => {
+    const { status, data: named } = await ObjectLayerService.getMetadata({ id: key });
+    const itemId = named?.data?.item?.id;
+    if (status !== 'success' || !itemId || itemId === key) return key;
+    const { status: runStatus, data: runs } = await ObjectLayerService.getMetadata({ id: itemId });
+    return runStatus === 'success' && runs?.cid && runs.cid !== named.cid ? runs.cid : key;
+  };
+
   static loadFromDatabase = async (objectLayerId) => {
     try {
       // Load metadata first (lightweight)
@@ -665,7 +676,7 @@ class ObjectLayerEngineModal {
         return null;
       }
 
-      return { metadata, renderFrames: render.renderFrames };
+      return { metadata, renderSource: render.renderFrames ? fromWire(render.renderFrames) : null };
     } catch (error) {
       console.error('Error loading object layer from database:', error);
       NotificationManager.Push({
@@ -676,9 +687,10 @@ class ObjectLayerEngineModal {
     }
   };
 
-  static instance = async (options = { idModal: '', appStore: {}, profile: null }) => {
+  static instance = async (options = { idModal: '', appStore: {}, profile: null, studio: null }) => {
     if (!options.profile) throw new Error('ObjectLayerEngineModal.instance requires a content profile');
     ObjectLayerEngineModal.profile = options.profile;
+    ObjectLayerEngineModal.studio = options.studio ?? null;
     // Clear all cached data at the start of each render to prevent contamination
     ObjectLayerEngineModal.clearData();
 
@@ -784,26 +796,11 @@ class ObjectLayerEngineModal {
       const nextFrame = buildUniformOpacityMatrix(currentMatrix, targetAlpha);
       if (!nextFrame.changedCells) return false;
 
-      const nextSnapshot = {
-        width: currentFrame.width || currentMatrix[0].length,
-        height: currentFrame.height || currentMatrix.length,
-        matrix: nextFrame.matrix,
-      };
-      const beforeSnapshot = captureUndo && typeof ole._snapshot === 'function' ? ole._snapshot() : null;
-
-      if (
-        captureUndo &&
-        beforeSnapshot &&
-        typeof ole._pushUndo === 'function' &&
-        typeof ole._matricesEqual === 'function' &&
-        !ole._matricesEqual(beforeSnapshot, nextSnapshot)
-      ) {
-        ole._pushUndo(beforeSnapshot);
-      }
-
       uniformOpacitySyncInProgress = true;
       try {
-        ole.loadMatrix(nextFrame.matrix);
+        const load = () => ole.loadMatrix(nextFrame.matrix);
+        if (captureUndo) ole.command('UniformOpacity', load);
+        else load();
       } finally {
         uniformOpacitySyncInProgress = false;
       }
@@ -910,11 +907,20 @@ class ObjectLayerEngineModal {
       });
     };
 
-    if (queryParams.cid) {
-      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
+    // The editor edits the definition an item runs; a key naming a replaced one opens the current one.
+    const cid = queryParams.cid ? await ObjectLayerEngineModal.currentKey(queryParams.cid) : '';
+    if (queryParams.cid && cid !== queryParams.cid) {
+      setQueryParams({ cid }, { replace: true });
+      NotificationManager.Push({
+        html: 'A later save or import replaced the definition you asked for: the editor opened the current one.',
+        status: 'warning',
+      });
+    }
+    if (cid) {
+      loadedData = await ObjectLayerEngineModal.loadFromDatabase(cid);
 
       if (loadedData) {
-        const { metadata, renderFrames } = loadedData;
+        const { metadata, renderSource } = loadedData;
         // Writes address the document the key resolved to; changed content publishes a new one.
         ObjectLayerEngineModal.existingObjectLayerId = metadata._id;
 
@@ -929,8 +935,8 @@ class ObjectLayerEngineModal {
               itemTypes.push(ObjectLayerEngineModal.selectItemType);
             }
           }
-          if (renderFrames) {
-            ObjectLayerEngineModal.renderFrameDuration = renderFrames.frame_duration || 100;
+          if (renderSource) {
+            ObjectLayerEngineModal.renderFrameDuration = renderSource.frameDurationMs || 100;
           }
         }
       }
@@ -945,23 +951,21 @@ class ObjectLayerEngineModal {
         ObjectLayerEngineModal.templates.push({
           label: id,
           id,
-          data: JSON.parse(await CoreService.getRaw({ url })).color,
+          itemTypes: ['skin'],
+          colors: JSON.parse(await CoreService.getRaw({ url })).color,
         });
       }
+      ObjectLayerEngineModal.templates.push(...(ObjectLayerEngineModal.studio?.templates ?? []));
     }
+    // Templates that suit the item type come first.
+    const suitedFirst = [...ObjectLayerEngineModal.templates].sort(
+      (a, b) =>
+        Number(templateSuits(b, ObjectLayerEngineModal.selectItemType)) -
+        Number(templateSuits(a, ObjectLayerEngineModal.selectItemType)),
+    );
 
-    let cellsW = 16;
-    let cellsH = 16;
-    if (loadedData?.renderFrames?.frames) {
-      const frames = loadedData.renderFrames.frames;
-      for (const direction of Object.keys(frames)) {
-        if (frames[direction] && frames[direction].length > 0 && frames[direction][0].length > 0) {
-          cellsH = frames[direction][0].length;
-          cellsW = frames[direction][0][0].length;
-          break;
-        }
-      }
-    }
+    const cellsW = loadedData?.renderSource?.width || 16;
+    const cellsH = loadedData?.renderSource?.height || 16;
     // const pixelSize = parseInt(320 / Math.max(cellsW, cellsH));
     const pixelSize = 30;
     const idSectionA = 'template-section-a';
@@ -1117,6 +1121,9 @@ class ObjectLayerEngineModal {
 
     let directionsCodeBarRender = '';
 
+    // Keeps the unsaved work of this editor in the browser; set once the editor is mounted.
+    let scheduleDraft = () => {};
+
     // Helper function to add a frame to the direction bar
     const addFrameToBar = async (directionCode, id, image, json) => {
       // Capture directionCode in a local variable to ensure proper closure
@@ -1168,6 +1175,7 @@ class ObjectLayerEngineModal {
         ObjectLayerEngineModal.ObjectLayerData[capturedDirectionCode] = ObjectLayerEngineModal.ObjectLayerData[
           capturedDirectionCode
         ].filter((frame) => frame.id !== id);
+        scheduleDraft();
 
         // Clear edit mode if deleting the frame being edited
         if (editingFrameId === id && editingDirectionCode === capturedDirectionCode) {
@@ -1242,14 +1250,10 @@ class ObjectLayerEngineModal {
       s(`.frame-editor-container`).classList.remove('hide');
     };
 
-    // Adds one stored frame to a direction code, rebuilt cell for cell from the render-frames
-    // document: the index matrix keeps each frame's own width and height, where the asset PNG
-    // would be resampled into whatever size the editor happens to have. The editor is not
-    // involved: a frame that passed through it was captured whenever something else wrote to
-    // the canvas in between, and came back empty.
-    const processAndAddStoredFrame = async (directionCode, indexMatrix, colors) => {
+    // Adds one stored frame to a direction code, rebuilt cell for cell from the render source,
+    // never resampled from the asset PNG.
+    const processAndAddStoredFrame = async (directionCode, matrix) => {
       try {
-        const matrix = indexMatrix.map((row) => row.map((index) => colors[index].slice()));
         const image = await ObjectLayerEngineElement.matrixToBlob(matrix, pixelSize);
         const json = ObjectLayerEngineElement.matrixJSON(matrix);
         const id = `frame-loaded-${s4()}-${s4()}`;
@@ -1261,6 +1265,27 @@ class ObjectLayerEngineModal {
         await addFrameToBar(directionCode, id, image, json);
       } catch (error) {
         console.error('Error loading stored frame:', error);
+      }
+    };
+
+    // The rgba frames of each direction code in a render source: those of its first keyframe with any.
+    const framesByCodeOf = (source) =>
+      Object.fromEntries(
+        directionCodes.map((directionCode) => {
+          const frames =
+            ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode)
+              .map((direction) => source?.frames?.[direction] ?? [])
+              .find((list) => list.length > 0) ?? [];
+          return [directionCode, frames.map((pixels) => rgbaFrame(source, pixels))];
+        }),
+      );
+
+    // Replaces the frames of every direction bar with rgba frames by direction code.
+    const fillDirectionBars = async (framesByCode) => {
+      for (const directionCode of directionCodes) {
+        if (s(`.frames-${directionCode}`)) s(`.frames-${directionCode}`).innerHTML = '';
+        ObjectLayerEngineModal.ObjectLayerData[directionCode] = [];
+        for (const matrix of framesByCode[directionCode] ?? []) await processAndAddStoredFrame(directionCode, matrix);
       }
     };
 
@@ -1336,47 +1361,13 @@ class ObjectLayerEngineModal {
 
         try {
           showFrameLoading();
-
-          // Clear all frames and data at the start to prevent duplication from multiple calls
-          // This must happen BEFORE any async operations to avoid race conditions
-          for (const directionCode of directionCodes) {
-            // Clear DOM frames for this direction code
-            const framesContainer = s(`.frames-${directionCode}`);
-            if (framesContainer) {
-              framesContainer.innerHTML = '';
-            }
-            // Clear data for this direction code
-            ObjectLayerEngineModal.ObjectLayerData[directionCode] = [];
-          }
+          // Object layers with an empty render (no render-frames doc yet) load with zero frames so
+          // the user can author them from scratch.
+          await fillDirectionBars(loadedData?.metadata?.data ? framesByCodeOf(loadedData.renderSource) : {});
 
           for (const directionCode of directionCodes) {
             // Use IIFE to properly capture directionCode and handle async operations
             await (async (currentDirectionCode) => {
-              // Register frame add button handler after DOM is ready
-              // Wait longer to ensure all direction bars are rendered
-
-              if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
-                const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
-
-                // Check if frames exist for any direction mapped to this direction code.
-                // Object layers with an empty render (no render-frames doc yet) load
-                // with zero frames so the user can author them from scratch.
-                const { frames, colors } = loadedData.renderFrames ?? {};
-                for (const direction of directions) {
-                  if (frames && frames[direction] && frames[direction].length > 0) {
-                    // Track this direction code as having original data
-                    if (!ObjectLayerEngineModal.originalDirectionCodes.includes(currentDirectionCode)) {
-                      ObjectLayerEngineModal.originalDirectionCodes.push(currentDirectionCode);
-                    }
-                    for (const indexMatrix of frames[direction]) {
-                      await processAndAddStoredFrame(currentDirectionCode, indexMatrix, colors);
-                    }
-                    // Once we found frames for this direction code, we can break to avoid duplicates
-                    break;
-                  }
-                }
-              }
-
               const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
               const previewButtonSelector = `.direction-code-bar-preview-btn-${currentDirectionCode}`;
               console.log(`Registering click handler for: ${buttonSelector}`);
@@ -1442,6 +1433,7 @@ class ObjectLayerEngineModal {
 
                   // Exit edit mode and restore UI
                   exitEditMode();
+                  scheduleDraft();
                 } else {
                   // ADD new frame (existing behavior)
                   const id = `frame-capture-${s4()}-${s4()}`;
@@ -1456,6 +1448,7 @@ class ObjectLayerEngineModal {
                   );
 
                   await addFrameToBar(currentDirectionCode, id, image, json);
+                  scheduleDraft();
                 }
               });
             })(directionCode);
@@ -1472,6 +1465,8 @@ class ObjectLayerEngineModal {
 
       const editor = s('object-layer-engine');
       const colorPalette = s(`.${colorPaletteClass}`);
+
+      if (editor) EditorLayout.pin(editor, `${options.idModal}-stage`);
 
       const syncPaletteFromEditor = (event = null) => {
         if (!colorPalette || !editor) {
@@ -1512,6 +1507,91 @@ class ObjectLayerEngineModal {
         editor.addEventListener('matrixload', syncUniformOpacityFromEditor);
       }
       syncPaletteFromEditor();
+
+      // Palettes, and the foundation context of the item: by the key the editor opened, then by
+      // the item id an author types for an item not painted yet.
+      ObjectLayerEngineModal.palettePanel = new ObjectLayerPalettePanel({
+        container: s('.ol-palette-panel'),
+        editor,
+      });
+      const showContext = async (key) => {
+        if (!ObjectLayerEngineModal.studio || !key) return;
+        const panel = await ObjectLayerEngineModal.studio.context(key);
+        mountContextPanel(s('.ol-context-panel'), panel);
+        ObjectLayerEngineModal.palettePanel.setPalettes(panel?.palettes ?? []);
+      };
+      await showContext(cid || loadedData?.metadata?.data?.item?.id);
+      s('.ol-input-item-id')?.addEventListener('change', (event) => showContext(event.target.value.trim()));
+
+      // Unsaved work of an item stays in this browser until a save, whatever definition it runs; a
+      // draft newer than the stored item is offered back on open.
+      const draftKey = `object-layer:${loadedData?.metadata?.data?.item?.id || 'new'}`;
+      const draft = EditorDraftStore.debounced(draftKey);
+      const draftState = () => ({
+        itemId: s('.ol-input-item-id')?.value ?? '',
+        description: s('.ol-input-item-description')?.value ?? '',
+        itemType: ObjectLayerEngineModal.selectItemType,
+        activable: ObjectLayerEngineModal.itemActivable,
+        frameDurationMs:
+          Number(s('.ol-input-render-frame-duration')?.value) || ObjectLayerEngineModal.renderFrameDuration,
+        frames: Object.fromEntries(
+          Object.entries(ObjectLayerEngineModal.ObjectLayerData).map(([code, list]) => [
+            code,
+            list.map(({ json }) => json),
+          ]),
+        ),
+        canvas: editor.exportMatrixJSON(),
+      });
+      scheduleDraft = () => draft.save(draftState());
+      for (const type of ['command', 'undo', 'redo']) editor.addEventListener(type, scheduleDraft);
+
+      const restoreDraft = async (value) => {
+        if (s('.ol-input-item-id')) s('.ol-input-item-id').value = value.itemId;
+        if (s('.ol-input-item-description')) s('.ol-input-item-description').value = value.description;
+        if (s('.ol-input-render-frame-duration')) s('.ol-input-render-frame-duration').value = value.frameDurationMs;
+        ObjectLayerEngineModal.selectItemType = value.itemType;
+        ObjectLayerEngineModal.itemActivable = value.activable;
+        htmls(`.dropdown-current-ol-dropdown-item-type`, value.itemType);
+        await fillDirectionBars(
+          Object.fromEntries(
+            Object.entries(value.frames).map(([code, frames]) => [code, frames.map((json) => JSON.parse(json).matrix)]),
+          ),
+        );
+        editor.importMatrixJSON(value.canvas);
+      };
+      const stored = await EditorDraftStore.get(draftKey);
+      const loadedAt = Date.parse(loadedData?.metadata?.updatedAt ?? '') || 0;
+      if (stored && stored.savedAt > loadedAt) {
+        const answer = await Modal.RenderConfirm({
+          html: async () => html`
+            <div class="in section-mp" style="text-align: center">
+              Recover the unsaved work of ${new Date(stored.savedAt).toLocaleString()}?
+            </div>
+          `,
+          id: 'ol-draft-recover-confirm',
+        });
+        if (answer.status === 'confirm') await restoreDraft(stored.value);
+        else await EditorDraftStore.remove(draftKey);
+      }
+
+      // Takes the frames of every direction and the frame duration from another object layer; the
+      // item data and the stats stay.
+      EventsUI.onClick('.ol-btn-import-frames', async () => {
+        const itemId = DropDown.Tokens['ol-dropdown-import-frames']?.value;
+        if (typeof itemId !== 'string' || !itemId) return;
+        const { status, data } = await ObjectLayerService.getRender({ id: itemId });
+        if (status !== 'success' || !data?.renderFrames) {
+          NotificationManager.Push({ html: `"${itemId}" has no frames to import`, status: 'error' });
+          return;
+        }
+        if (editingFrameId) exitEditMode();
+        const source = fromWire(data.renderFrames);
+        await fillDirectionBars(framesByCodeOf(source));
+        ObjectLayerEngineModal.renderFrameDuration = source.frameDurationMs;
+        if (s('.ol-input-render-frame-duration')) s('.ol-input-render-frame-duration').value = source.frameDurationMs;
+        scheduleDraft();
+        NotificationManager.Push({ html: `Frames of "${itemId}" imported`, status: 'success' });
+      });
 
       const setDistortionStatus = (message, tone = 'muted') => {
         const statusNode = s(`.${distortionStatusClass}`);
@@ -1586,23 +1666,7 @@ class ObjectLayerEngineModal {
           return;
         }
 
-        const nextSnapshot = {
-          width: baseFrame.width,
-          height: baseFrame.height,
-          matrix: transformationResult.matrix,
-        };
-        const beforeSnapshot = typeof ole._snapshot === 'function' ? ole._snapshot() : null;
-
-        if (
-          beforeSnapshot &&
-          typeof ole._pushUndo === 'function' &&
-          typeof ole._matricesEqual === 'function' &&
-          !ole._matricesEqual(beforeSnapshot, nextSnapshot)
-        ) {
-          ole._pushUndo(beforeSnapshot);
-        }
-
-        ole.loadMatrix(transformationResult.matrix);
+        ole.command('CanvasMacro', () => ole.loadMatrix(transformationResult.matrix));
 
         if (isMosaicMode) {
           setDistortionStatus(
@@ -1661,55 +1725,26 @@ class ObjectLayerEngineModal {
           return;
         }
 
-        // Separate render frames data from objectLayer.data
-        const objectLayerRenderFramesData = {
-          frames: {},
-          colors: [],
-          frame_duration: ObjectLayerEngineModal.renderFrameDuration,
-        };
-
         const objectLayer = {
           data: {
             stats: {},
             item: {},
           },
         };
-        for (const directionCode of directionCodes) {
-          const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode);
-          for (const direction of directions) {
-            if (!objectLayerRenderFramesData.frames[direction]) objectLayerRenderFramesData.frames[direction] = [];
-
-            if (!(directionCode in ObjectLayerEngineModal.ObjectLayerData)) {
-              console.warn('No set directionCodeBarFrameData for directionCode', directionCode);
-              continue;
-            }
-
-            for (const frameData of ObjectLayerEngineModal.ObjectLayerData[directionCode]) {
-              const { matrix } = JSON.parse(frameData.json);
-              const frameIndexColorMatrix = [];
-              let indexRow = -1;
-              for (const row of matrix) {
-                indexRow++;
-                frameIndexColorMatrix[indexRow] = [];
-                let indexCol = -1;
-                for (const value of row) {
-                  indexCol++;
-                  let colorIndex = objectLayerRenderFramesData.colors.findIndex(
-                    (color) =>
-                      color[0] === value[0] && color[1] === value[1] && color[2] === value[2] && color[3] === value[3],
-                  );
-                  if (colorIndex === -1) {
-                    objectLayerRenderFramesData.colors.push(value);
-                    colorIndex = objectLayerRenderFramesData.colors.length - 1;
-                  }
-                  frameIndexColorMatrix[indexRow][indexCol] = colorIndex;
-                }
-              }
-              objectLayerRenderFramesData.frames[direction].push(frameIndexColorMatrix);
-            }
-          }
+        // The render source: every frame of every keyframe its direction code feeds.
+        let objectLayerRenderFramesData;
+        try {
+          const frames = {};
+          for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData))
+            for (const keyframe of ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode))
+              frames[keyframe] = ObjectLayerEngineModal.ObjectLayerData[directionCode].map(
+                (frameData) => JSON.parse(frameData.json).matrix,
+              );
+          objectLayerRenderFramesData = toWire(sourceFromRgbaFrames({ frames, frameDurationMs: frameDuration }));
+        } catch (error) {
+          NotificationManager.Push({ html: error.message, status: 'error' });
+          return;
         }
-        objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
         try {
           objectLayer.data.stats = profile.validateStats(
             Object.fromEntries(
@@ -1730,17 +1765,6 @@ class ObjectLayerEngineModal {
           description: s(`.ol-input-item-description`).value,
         };
 
-        // Add _id only when updating the existing object layer.
-        if (isUpdateMode) {
-          objectLayer._id = ObjectLayerEngineModal.existingObjectLayerId;
-        }
-
-        console.warn(
-          'objectLayer',
-          objectLayer,
-          clone ? '(CLONE MODE)' : isUpdateMode ? '(UPDATE MODE)' : '(CREATE MODE)',
-        );
-
         if (!commonModeratorGuard(appStore.Data.user.main.model.user.role)) {
           NotificationManager.Push({
             html: 'Only moderators and admins can create or edit object layers.',
@@ -1749,120 +1773,28 @@ class ObjectLayerEngineModal {
           return;
         }
 
-        // Upload images
-        {
-          // Get all direction codes that currently have frames
-          const directionCodesToUpload = Object.keys(ObjectLayerEngineModal.ObjectLayerData);
+        // One request: the definition with its render source inline. MongoDB holds every frame.
+        const body = { data: objectLayer.data, objectLayerRenderFramesData };
+        const { status, data, message } = isUpdateMode
+          ? await ObjectLayerService.put({ id: ObjectLayerEngineModal.existingObjectLayerId, body })
+          : await ObjectLayerService.post({ body });
 
-          // In UPDATE mode, also include original direction codes that may have been cleared
-          const allDirectionCodes = isUpdateMode
-            ? [...new Set([...directionCodesToUpload, ...ObjectLayerEngineModal.originalDirectionCodes])]
-            : directionCodesToUpload;
-
-          console.warn(
-            `Uploading frames for ${allDirectionCodes.length} directions:`,
-            allDirectionCodes,
-            clone ? '(CLONE MODE)' : isUpdateMode ? '(UPDATE MODE)' : '(CREATE MODE)',
-          );
-
-          for (const directionCode of allDirectionCodes) {
-            const frames = ObjectLayerEngineModal.ObjectLayerData[directionCode] || [];
-            console.warn(`Direction ${directionCode}: ${frames.length} frames`);
-
-            // Create FormData with ALL frames for this direction
-            const form = new FormData();
-            let frameIndex = -1;
-            for (const frame of frames) {
-              frameIndex++;
-              const pngBlob = frame.image;
-
-              if (!pngBlob) {
-                console.error(`Frame ${frameIndex} in direction ${directionCode} has no image blob!`);
-                continue;
-              }
-
-              // Append all frames to the same FormData
-              form.append(directionCode, pngBlob, `${frameIndex}.png`);
-            }
-
-            // Send all frames for this direction in one request (even if empty, to remove frames)
-            try {
-              if (isUpdateMode) {
-                // UPDATE: use PUT endpoint with object layer ID
-                const { status, data } = await ObjectLayerService.put({
-                  id: `${ObjectLayerEngineModal.existingObjectLayerId}/frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
-                  body: form,
-                  headerId: 'file',
-                });
-                console.warn(`Updated ${frames.length} frames for direction ${directionCode}`);
-              } else {
-                // CREATE: use POST endpoint (only if frames exist)
-                if (frames.length > 0) {
-                  const { status, data } = await ObjectLayerService.post({
-                    id: `frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
-                    body: form,
-                    headerId: 'file',
-                  });
-                  console.warn(`Created ${frames.length} frames for direction ${directionCode}`);
-                }
-              }
-            } catch (error) {
-              console.error(`Error uploading frames for direction ${directionCode}:`, error);
-              NotificationManager.Push({
-                html: `Error uploading frames for direction ${directionCode}: ${error.message}`,
-                status: 'error',
-              });
-              return;
-            }
-          }
-
-          console.warn('All frames uploaded successfully');
-        }
-
-        // Upload metadata
-        {
-          // Send objectLayerRenderFramesData as top-level field (not in data)
-          const requestBody = {
-            data: objectLayer.data,
-            objectLayerRenderFramesData: objectLayerRenderFramesData,
-          };
-
-          let response;
-          if (isUpdateMode) {
-            // UPDATE existing object layer
-            console.warn(
-              'PUT path:',
-              `${ObjectLayerEngineModal.existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
-            );
-            response = await ObjectLayerService.put({
-              id: `${ObjectLayerEngineModal.existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
-              body: requestBody,
-            });
-          } else {
-            // CREATE new object layer
-            response = await ObjectLayerService.post({
-              id: `metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
-              body: requestBody,
-            });
-          }
-
-          const { status, data, message } = response;
-
-          if (status === 'success') {
-            AtlasSpriteSheetService.invalidateIdlePreview(objectLayer.data.item.id);
-            const successAction = clone ? 'cloned' : isUpdateMode ? 'updated' : 'created';
-            NotificationManager.Push({
-              html: `Object layer "${objectLayer.data.item.id}" ${successAction} successfully!`,
-              status: 'success',
-            });
-            ObjectLayerEngineModal.toManagement(data?._id || ObjectLayerEngineModal.existingObjectLayerId);
-          } else {
-            const errorAction = clone ? 'cloning' : isUpdateMode ? 'updating' : 'creating';
-            NotificationManager.Push({
-              html: `Error ${errorAction} object layer: ${message}`,
-              status: 'error',
-            });
-          }
+        if (status === 'success') {
+          draft.cancel();
+          await EditorDraftStore.remove(draftKey);
+          AtlasSpriteSheetService.invalidateIdlePreview(objectLayer.data.item.id);
+          const successAction = clone ? 'cloned' : isUpdateMode ? 'updated' : 'created';
+          NotificationManager.Push({
+            html: `Object layer "${objectLayer.data.item.id}" ${successAction} successfully!`,
+            status: 'success',
+          });
+          ObjectLayerEngineModal.toManagement(data?._id || ObjectLayerEngineModal.existingObjectLayerId);
+        } else {
+          const errorAction = clone ? 'cloning' : isUpdateMode ? 'updating' : 'creating';
+          NotificationManager.Push({
+            html: `Error ${errorAction} object layer: ${message}`,
+            status: 'error',
+          });
         }
       };
 
@@ -1894,6 +1826,8 @@ class ObjectLayerEngineModal {
           });
 
           // Clear all data
+          draft.cancel();
+          await EditorDraftStore.remove(draftKey);
           ObjectLayerEngineModal.clearData();
 
           setPath(`${getProxyPath()}object-layer-engine`);
@@ -2015,6 +1949,8 @@ class ObjectLayerEngineModal {
           font-family: 'retro-font';
           font-size: 26px;
         }
+        ${contextPanelStyle}
+        ${palettePanelStyle}
       </style>
       ${borderChar(2, 'black', [
         '.sub-title-modal',
@@ -2027,276 +1963,320 @@ class ObjectLayerEngineModal {
       <div class="in frame-editor-container-loading">
         <div class="abs center frame-editor-container-loading-center"></div>
       </div>
-      <div class="in section-mp section-mp-border frame-editor-container">
+      <div class="in section-mp studio-editor frame-editor-container">
         <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
 
         <object-layer-engine id="ole" width="${cellsW}" height="${cellsH}" pixel-size="${pixelSize}">
-        </object-layer-engine>
-        <div class="in section-mp-border" style="margin-top: 10px;">
-          <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
-          <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
-          <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
-            ${await ToggleSwitch.instance({
-              id: UNIFORM_OPACITY_TOGGLE_ID,
-              type: 'checkbox',
-              displayMode: 'checkbox',
-              containerClass: 'in fll',
-              checked: ObjectLayerEngineModal.uniformOpacityEnabled,
-              on: {
-                checked: () => {
-                  ObjectLayerEngineModal.uniformOpacityEnabled = true;
-                  applyUniformOpacityToEditor({ captureUndo: true });
-                },
-                unchecked: () => {
-                  ObjectLayerEngineModal.uniformOpacityEnabled = false;
-                },
-              },
-            })}
-            <div class="section-mp" style="font-size: 14px;">
-              Keep all visible cells at the current opacity bar value
-            </div>
-          </div>
-        </div>
-        <div class="in section-mp-border" style="margin-top: 10px;">
-          <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
-          <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
-            <div class="in fll" style="min-width: 240px;">
-              ${await DropDown.instance({
-                id: distortionDropdownId,
-                value: ObjectLayerEngineModal.selectedDistortionType,
-                label: html`Select behavior`,
-                disableSearchBox: true,
-                data: [
-                  {
-                    kind: 'group',
-                    value: 'group-distortion-behaviors',
-                    display: html`<div style="padding: 0 6px; color: #9d9d9d;">Distortion behaviors</div>`,
-                  },
-                  ...DISTORTION_TYPES.map((distortion) => ({
-                    value: distortion.value,
-                    display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${distortion.label}`,
-                    onClick: async () => {
-                      ObjectLayerEngineModal.selectedDistortionType = distortion.value;
-                      readDistortionFactorA();
-                      const statusNode = s(`.${distortionStatusClass}`);
-                      if (statusNode) {
-                        statusNode.style.color = '#888';
-                        statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. factorA controls local distortion density.`;
-                      }
+          <div class="in ol-sections">
+            <div class="in section-mp-border" style="margin-top: 10px;">
+              <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
+              <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
+              <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
+                ${await ToggleSwitch.instance({
+                  id: UNIFORM_OPACITY_TOGGLE_ID,
+                  type: 'checkbox',
+                  displayMode: 'checkbox',
+                  containerClass: 'in fll',
+                  checked: ObjectLayerEngineModal.uniformOpacityEnabled,
+                  on: {
+                    checked: () => {
+                      ObjectLayerEngineModal.uniformOpacityEnabled = true;
+                      applyUniformOpacityToEditor({ captureUndo: true });
                     },
-                  })),
-                  {
-                    kind: 'group',
-                    value: 'group-mosaic-behaviors',
-                    display: html`<div style="padding: 0 6px; color: #9d9d9d;">Mosaic drawing behaviors</div>`,
-                  },
-                  ...MOSAIC_TYPES.map((mosaic) => ({
-                    value: mosaic.value,
-                    display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${mosaic.label}`,
-                    onClick: async () => {
-                      ObjectLayerEngineModal.selectedDistortionType = mosaic.value;
-                      readDistortionFactorA();
-                      const statusNode = s(`.${distortionStatusClass}`);
-                      if (statusNode) {
-                        statusNode.style.color = '#888';
-                        statusNode.innerHTML = `${mosaic.label} ready for direct canvas apply. factorA controls tile size and density.`;
-                      }
+                    unchecked: () => {
+                      ObjectLayerEngineModal.uniformOpacityEnabled = false;
                     },
-                  })),
-                ],
-              })}
+                  },
+                })}
+                <div class="section-mp" style="font-size: 14px;">
+                  Keep all visible cells at the current opacity bar value
+                </div>
+              </div>
+              <div class="in sub-title-modal" style="margin-top: 8px;">
+                <i class="fa-solid fa-swatchbook"></i> Palettes
+              </div>
+              <div class="in ol-palette-panel"></div>
             </div>
-            <div class="in fll" style="width: 120px;">
-              ${await Input.instance({
-                id: `ol-input-distortion-factor-a`,
-                label: html`factorA`,
-                containerClass: 'inl',
-                type: 'number',
-                min: 0.01,
-                max: 1,
-                step: 0.01,
-                value: ObjectLayerEngineModal.distortionFactorA,
-              })}
+            <div class="in section-mp-border" style="margin-top: 10px;">
+              <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
+              <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+                <div class="in fll" style="min-width: 240px;">
+                  ${await DropDown.instance({
+                    id: distortionDropdownId,
+                    value: ObjectLayerEngineModal.selectedDistortionType,
+                    label: html`Select behavior`,
+                    disableSearchBox: true,
+                    data: [
+                      {
+                        kind: 'group',
+                        value: 'group-distortion-behaviors',
+                        display: html`<div style="padding: 0 6px; color: #9d9d9d;">Distortion behaviors</div>`,
+                      },
+                      ...DISTORTION_TYPES.map((distortion) => ({
+                        value: distortion.value,
+                        display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${distortion.label}`,
+                        onClick: async () => {
+                          ObjectLayerEngineModal.selectedDistortionType = distortion.value;
+                          readDistortionFactorA();
+                          const statusNode = s(`.${distortionStatusClass}`);
+                          if (statusNode) {
+                            statusNode.style.color = '#888';
+                            statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. factorA controls local distortion density.`;
+                          }
+                        },
+                      })),
+                      {
+                        kind: 'group',
+                        value: 'group-mosaic-behaviors',
+                        display: html`<div style="padding: 0 6px; color: #9d9d9d;">Mosaic drawing behaviors</div>`,
+                      },
+                      ...MOSAIC_TYPES.map((mosaic) => ({
+                        value: mosaic.value,
+                        display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${mosaic.label}`,
+                        onClick: async () => {
+                          ObjectLayerEngineModal.selectedDistortionType = mosaic.value;
+                          readDistortionFactorA();
+                          const statusNode = s(`.${distortionStatusClass}`);
+                          if (statusNode) {
+                            statusNode.style.color = '#888';
+                            statusNode.innerHTML = `${mosaic.label} ready for direct canvas apply. factorA controls tile size and density.`;
+                          }
+                        },
+                      })),
+                    ],
+                  })}
+                </div>
+                <div class="in fll" style="width: 120px;">
+                  ${await Input.instance({
+                    id: `ol-input-distortion-factor-a`,
+                    label: html`factorA`,
+                    containerClass: 'inl',
+                    type: 'number',
+                    min: 0.01,
+                    max: 1,
+                    step: 0.01,
+                    value: ObjectLayerEngineModal.distortionFactorA,
+                  })}
+                </div>
+                <div class="in fll">
+                  ${await BtnIcon.instance({
+                    class: distortionApplyBtnClass,
+                    label: html`<i class="fa-solid fa-bolt"></i> Apply To Frame`,
+                  })}
+                </div>
+              </div>
+              <div class="in ${distortionStatusClass}" style="margin-top: 6px; font-size: 12px; color: #888;">
+                ${DEFAULT_DISTORTION_STATUS}
+              </div>
             </div>
-            <div class="in fll">
+            <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
+            ${
+              ObjectLayerEngineModal.studio
+                ? html`<div class="in section-mp section-mp-border">
+                    <div class="in sub-title-modal"><i class="fa-solid fa-book-atlas"></i> Foundation context</div>
+                    <div class="in ol-context-panel"></div>
+                  </div>`
+                : ''
+            }
+            <div class="in section-mp section-mp-border">
+              <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> render data</div>
+              ${dynamicCol({ containerSelector: 'ol-sections', id: idSectionA })}
+
+              <div class="fl">
+                <div class="in fll ${idSectionA}-col-a">
+                  <div class="in section-mp">
+                    ${await DropDown.instance({
+                      id: 'ol-dropdown-template',
+                      value: suitedFirst[0].id,
+                      label: html`${Translate.instance('select-template')}`,
+                      data: suitedFirst.map((template) => {
+                        const suited =
+                          template.itemTypes.length > 0 &&
+                          templateSuits(template, ObjectLayerEngineModal.selectItemType);
+                        return {
+                          value: template.id,
+                          display: html`<i class="fa-solid fa-paint-roller"></i>
+                            ${template.label}${suited ? ' ★' : ''}`,
+                          onClick: async () => {
+                            ObjectLayerEngineModal.RenderTemplate(template);
+                          },
+                        };
+                      }),
+                    })}
+                  </div>
+                </div>
+                <div class="in fll ${idSectionA}-col-b">
+                  <div class="in section-mp-border" style="width: 135px;">
+                    ${await Input.instance({
+                      id: `ol-input-render-frame-duration`,
+                      label: html`<div class="inl ol-number-label">
+                        <i class="fa-solid fa-chart-simple"></i> Frame duration
+                      </div>`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 100,
+                      max: 1000,
+                      placeholder: true,
+                      value: ObjectLayerEngineModal.renderFrameDuration,
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap;">
+                <div class="in fll">
+                  ${await DropDown.instance({
+                    id: 'ol-dropdown-import-frames',
+                    label: html`Frames of object layer`,
+                    data: [],
+                    containerClass: 'inl',
+                    serviceProvider: async (q) => {
+                      const result = await ObjectLayerService.searchItemIds({ q });
+                      return result.status === 'success'
+                        ? (result.data?.items ?? []).map(({ id }) => ({
+                            value: id,
+                            display: id,
+                            data: id,
+                            onClick: () => {},
+                          }))
+                        : [];
+                    },
+                  })}
+                </div>
+                <div class="in fll">
+                  ${await BtnIcon.instance({
+                    class: 'ol-btn-import-frames',
+                    label: html`<i class="fa-solid fa-file-import"></i> Import frames`,
+                  })}
+                </div>
+              </div>
+              ${directionsCodeBarRender}
+            </div>
+            ${dynamicCol({ containerSelector: 'ol-sections', id: idSectionB, type: 'a-50-b-50' })}
+
+            <div class="fl">
+              <div class="in fll ${idSectionB}-col-a">
+                <div class="in section-mp section-mp-border">
+                  <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
+                  ${await Input.instance({
+                    id: `ol-input-item-id`,
+                    label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-id')}`,
+                    containerClass: '',
+                    placeholder: true,
+                    value: loadedData?.metadata?.data?.item?.id || '',
+                  })}
+                  ${await Input.instance({
+                    id: `ol-input-item-description`,
+                    label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-description')}`,
+                    containerClass: '',
+                    placeholder: true,
+                    value: loadedData?.metadata?.data?.item?.description || '',
+                  })}
+                  <div class="in section-mp">
+                    ${await DropDown.instance({
+                      id: 'ol-dropdown-item-type',
+                      value: ObjectLayerEngineModal.selectItemType,
+                      label: html`${Translate.instance('select-item-type')}`,
+                      data: itemTypes.map((itemType) => {
+                        return {
+                          value: itemType,
+                          display: html`${itemType}`,
+                          onClick: async () => {
+                            console.warn('itemType click', itemType);
+                            ObjectLayerEngineModal.selectItemType = itemType;
+                          },
+                        };
+                      }),
+                    })}
+                  </div>
+                  <div class="in section-mp">
+                    ${await ToggleSwitch.instance({
+                      id: 'ol-toggle-item-activable',
+                      wrapper: true,
+                      wrapperLabel: html`${Translate.instance('item-activable')}`,
+                      disabledOnClick: true,
+                      checked: ObjectLayerEngineModal.itemActivable,
+                      on: {
+                        unchecked: () => {
+                          ObjectLayerEngineModal.itemActivable = false;
+                          console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
+                        },
+                        checked: () => {
+                          ObjectLayerEngineModal.itemActivable = true;
+                          console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
+                        },
+                      },
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div class="in fll ${idSectionB}-col-b">
+                <div class="in section-mp section-mp-border">
+                  <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
+                  <div class="in">${statModifierMin} penalty ↔ 0 neutral ↔ +${statModifierMax} bonus</div>
+                  <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <div class="in fll" style="width: 110px;">
+                      ${await Input.instance({
+                        id: statsRandomMinInputId,
+                        label: html`Random min`,
+                        containerClass: 'inl',
+                        type: 'number',
+                        min: statModifierMin,
+                        max: statModifierMax,
+                        placeholder: true,
+                        value: statModifierMin,
+                      })}
+                    </div>
+                    <div class="in fll" style="width: 110px;">
+                      ${await Input.instance({
+                        id: statsRandomMaxInputId,
+                        label: html`Random max`,
+                        containerClass: 'inl',
+                        type: 'number',
+                        min: statModifierMin,
+                        max: statModifierMax,
+                        placeholder: true,
+                        value: statModifierMax,
+                      })}
+                    </div>
+                    <div class="in fll">
+                      ${await BtnIcon.instance({
+                        label: html`<i class="fa-solid fa-dice"></i> Randomize`,
+                        class: statsRandomizeBtnClass,
+                      })}
+                    </div>
+                  </div>
+                  ${statsInputsRender}
+                </div>
+              </div>
+            </div>
+
+            <div class="fl section-mp">
+              ${
+                canMutate
+                  ? await BtnIcon.instance({
+                      label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
+                        ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
+                      class: `in flr ol-btn-save`,
+                    })
+                  : ''
+              }
+              ${
+                canMutate && ObjectLayerEngineModal.existingObjectLayerId
+                  ? await BtnIcon.instance({
+                      label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
+                      class: `in flr ol-btn-clone`,
+                    })
+                  : ''
+              }
               ${await BtnIcon.instance({
-                class: distortionApplyBtnClass,
-                label: html`<i class="fa-solid fa-bolt"></i> Apply To Frame`,
+                label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.instance('reset')}`,
+                class: `in flr ol-btn-reset`,
               })}
             </div>
+            <div class="in section-mp"></div>
           </div>
-          <div class="in ${distortionStatusClass}" style="margin-top: 6px; font-size: 12px; color: #888;">
-            ${DEFAULT_DISTORTION_STATUS}
-          </div>
-        </div>
-        <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
+        </object-layer-engine>
       </div>
-
-      <div class="in section-mp section-mp-border">
-        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> render data</div>
-        ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
-
-        <div class="fl">
-          <div class="in fll ${idSectionA}-col-a">
-            <div class="in section-mp">
-              ${await DropDown.instance({
-                id: 'ol-dropdown-template',
-                value: ObjectLayerEngineModal.templates[0].id,
-                label: html`${Translate.instance('select-template')}`,
-                data: ObjectLayerEngineModal.templates.map((template) => {
-                  return {
-                    value: template.id,
-                    display: html`<i class="fa-solid fa-paint-roller"></i> ${template.label}`,
-                    onClick: async () => {
-                      ObjectLayerEngineModal.RenderTemplate(template.data);
-                    },
-                  };
-                }),
-              })}
-            </div>
-          </div>
-          <div class="in fll ${idSectionA}-col-b">
-            <div class="in section-mp-border" style="width: 135px;">
-              ${await Input.instance({
-                id: `ol-input-render-frame-duration`,
-                label: html`<div class="inl ol-number-label">
-                  <i class="fa-solid fa-chart-simple"></i> Frame duration
-                </div>`,
-                containerClass: 'inl',
-                type: 'number',
-                min: 100,
-                max: 1000,
-                placeholder: true,
-                value: ObjectLayerEngineModal.renderFrameDuration,
-              })}
-            </div>
-          </div>
-        </div>
-        ${directionsCodeBarRender}
-      </div>
-      ${dynamicCol({ containerSelector: options.idModal, id: idSectionB, type: 'a-50-b-50' })}
-
-      <div class="fl">
-        <div class="in fll ${idSectionB}-col-a">
-          <div class="in section-mp section-mp-border">
-            <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
-            ${await Input.instance({
-              id: `ol-input-item-id`,
-              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-id')}`,
-              containerClass: '',
-              placeholder: true,
-              value: loadedData?.metadata?.data?.item?.id || '',
-            })}
-            ${await Input.instance({
-              id: `ol-input-item-description`,
-              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-description')}`,
-              containerClass: '',
-              placeholder: true,
-              value: loadedData?.metadata?.data?.item?.description || '',
-            })}
-            <div class="in section-mp">
-              ${await DropDown.instance({
-                id: 'ol-dropdown-item-type',
-                value: ObjectLayerEngineModal.selectItemType,
-                label: html`${Translate.instance('select-item-type')}`,
-                data: itemTypes.map((itemType) => {
-                  return {
-                    value: itemType,
-                    display: html`${itemType}`,
-                    onClick: async () => {
-                      console.warn('itemType click', itemType);
-                      ObjectLayerEngineModal.selectItemType = itemType;
-                    },
-                  };
-                }),
-              })}
-            </div>
-            <div class="in section-mp">
-              ${await ToggleSwitch.instance({
-                id: 'ol-toggle-item-activable',
-                wrapper: true,
-                wrapperLabel: html`${Translate.instance('item-activable')}`,
-                disabledOnClick: true,
-                checked: ObjectLayerEngineModal.itemActivable,
-                on: {
-                  unchecked: () => {
-                    ObjectLayerEngineModal.itemActivable = false;
-                    console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
-                  },
-                  checked: () => {
-                    ObjectLayerEngineModal.itemActivable = true;
-                    console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
-                  },
-                },
-              })}
-            </div>
-          </div>
-        </div>
-        <div class="in fll ${idSectionB}-col-b">
-          <div class="in section-mp section-mp-border">
-            <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
-            <div class="in">${statModifierMin} penalty ↔ 0 neutral ↔ +${statModifierMax} bonus</div>
-            <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-              <div class="in fll" style="width: 110px;">
-                ${await Input.instance({
-                  id: statsRandomMinInputId,
-                  label: html`Random min`,
-                  containerClass: 'inl',
-                  type: 'number',
-                  min: statModifierMin,
-                  max: statModifierMax,
-                  placeholder: true,
-                  value: statModifierMin,
-                })}
-              </div>
-              <div class="in fll" style="width: 110px;">
-                ${await Input.instance({
-                  id: statsRandomMaxInputId,
-                  label: html`Random max`,
-                  containerClass: 'inl',
-                  type: 'number',
-                  min: statModifierMin,
-                  max: statModifierMax,
-                  placeholder: true,
-                  value: statModifierMax,
-                })}
-              </div>
-              <div class="in fll">
-                ${await BtnIcon.instance({
-                  label: html`<i class="fa-solid fa-dice"></i> Randomize`,
-                  class: statsRandomizeBtnClass,
-                })}
-              </div>
-            </div>
-            ${statsInputsRender}
-          </div>
-        </div>
-      </div>
-
-      <div class="fl section-mp">
-        ${
-          canMutate
-            ? await BtnIcon.instance({
-                label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
-                  ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
-                class: `in flr ol-btn-save`,
-              })
-            : ''
-        }
-        ${
-          canMutate && ObjectLayerEngineModal.existingObjectLayerId
-            ? await BtnIcon.instance({
-                label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
-                class: `in flr ol-btn-clone`,
-              })
-            : ''
-        }
-        ${await BtnIcon.instance({
-          label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.instance('reset')}`,
-          class: `in flr ol-btn-reset`,
-        })}
-      </div>
-      <div class="in section-mp"></div>
     `;
   };
 
