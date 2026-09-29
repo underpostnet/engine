@@ -1,6 +1,6 @@
 import { getId, newInstance, s4 } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, htmls, sa, getAllChildNodes, isActiveElement } from './VanillaJs.js';
+import { append, s, prepend, htmls, sa, getAllChildNodes, isActiveElement, htmlStrSanitize } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -2848,12 +2848,193 @@ class Modal {
     // A shell can own a view without owning a submenu for it; then there is nothing to populate.
     if (!s(`.menu-btn-container-children-${subMenuId}`)) return;
     htmls(`.menu-btn-container-children-${subMenuId}`, itemsHtml);
+    if (isSubMenuOpen(subMenuId)) layoutSubMenus();
     const _menuMode = Modal.Data['modal-menu']?.options?.mode;
     const _collapseIndicatorClass =
       _menuMode === 'slide-menu-right' ? '.btn-icon-menu-mode-left' : '.btn-icon-menu-mode-right';
     if (s(_collapseIndicatorClass) && !s(_collapseIndicatorClass).classList.contains('hide')) {
       sa(`.menu-label-text-${subMenuId}`).forEach((el) => el.classList.add('hide'));
     }
+  };
+
+  /**
+   * The landing of a submenu's own view: one card per entry it offers. A card opens what its
+   * submenu button `.btn-<subMenuId>-<id>` opens, or runs its `open` when the shell renders no button.
+   * @param {object} params
+   * @param {string} params.subMenuId - The submenu, e.g. `docs`.
+   * @param {string} params.title - The landing heading.
+   * @param {Array<{id: string, icon: string, title: string, description: string, open?: Function}>} params.cards
+   * @returns {string} The landing HTML.
+   */
+  static renderSubMenuLanding = ({ subMenuId, title, cards }) => {
+    setTimeout(() => {
+      for (const { id, open } of cards) {
+        const cardEl = s(`.submenu-landing-card-container-${subMenuId}-${id}`);
+        if (!cardEl) continue;
+        const openCard = () => (s(`.btn-${subMenuId}-${id}`) ? s(`.btn-${subMenuId}-${id}`).click() : open?.());
+        cardEl.onclick = openCard;
+        // The card is a div, so the keyboard affordances a button would carry are declared here.
+        cardEl.onkeydown = (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          openCard();
+        };
+      }
+    });
+    return html`
+      <style>
+        /* The landing owns its entrance: a shell without this keyframe would leave every card
+           at its starting opacity, and the view would look empty. */
+        @keyframes submenu-landing-fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .submenu-landing {
+          padding: 2rem;
+          max-width: 1200px;
+          margin: 0 auto;
+          box-sizing: border-box;
+        }
+        .submenu-landing-header {
+          text-align: center;
+          margin-bottom: 3rem;
+          opacity: 0;
+          animation: submenu-landing-fade-in-up 0.6s ease-out forwards;
+        }
+        .submenu-landing-header h1 {
+          font-size: 2.5rem;
+          margin: 0 0 1rem;
+          line-height: 1.2;
+        }
+        .submenu-landing-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+          gap: 1.5rem;
+          margin: 0;
+          padding: 0;
+          list-style: none;
+        }
+        .submenu-landing-card-container {
+          cursor: pointer;
+          opacity: 0;
+          animation: submenu-landing-fade-in-up 0.6s ease-out forwards;
+          border-radius: 8px;
+        }
+        .submenu-landing-card-container:focus-visible {
+          outline: 2px solid currentColor;
+          outline-offset: 3px;
+        }
+        .submenu-landing-card {
+          border-radius: 8px;
+          padding: 1.5rem;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          box-sizing: border-box;
+          transition:
+            transform 0.25s ease,
+            background 0.25s ease,
+            border-color 0.25s ease;
+        }
+        .submenu-landing-card-container:hover .submenu-landing-card,
+        .submenu-landing-card-container:focus-visible .submenu-landing-card {
+          transform: translateY(-4px);
+        }
+        .card-icon {
+          font-size: 1.75rem;
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 0 1.25rem;
+          transition: transform 0.25s ease;
+        }
+        /* A menu-sized image grows to the card; the menu offset it carries does not apply here. */
+        .card-icon img {
+          position: static;
+          width: 40px;
+          height: 40px;
+        }
+        .submenu-landing-card-container:hover .card-icon {
+          transform: scale(1.08);
+        }
+        .card-content {
+          flex: 1;
+        }
+        .card-content h3 {
+          margin: 0 0 0.5rem;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+        .card-content p {
+          margin: 0;
+          font-size: 0.95rem;
+          line-height: 1.5;
+          opacity: 0.85;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .submenu-landing-header,
+          .submenu-landing-card-container {
+            animation: none;
+            opacity: 1;
+          }
+          .submenu-landing-card,
+          .card-icon {
+            transition: none;
+          }
+          .submenu-landing-card-container:hover .submenu-landing-card,
+          .submenu-landing-card-container:hover .card-icon {
+            transform: none;
+          }
+        }
+        ${cards
+          .map(
+            (_, index) => css`
+              .submenu-landing-card-container:nth-child(${index + 1}) {
+                animation-delay: ${0.1 * (index + 1)}s;
+              }
+            `,
+          )
+          .join('')}
+      </style>
+
+      <div class="submenu-landing">
+        <div class="submenu-landing-header">
+          <h1>${title}</h1>
+        </div>
+
+        <ul class="submenu-landing-grid">
+          ${cards
+            .map(
+              ({ id, icon, title: cardTitle, description }) => html`
+                <div
+                  class="in submenu-landing-card-container submenu-landing-card-container-${subMenuId}-${id}"
+                  role="link"
+                  tabindex="0"
+                  aria-label="${htmlStrSanitize(cardTitle)}: ${description}"
+                >
+                  <li class="submenu-landing-card box-content-border hover">
+                    <div class="card-icon" aria-hidden="true">${icon}</div>
+                    <div class="card-content">
+                      <h3>${cardTitle}</h3>
+                      <p>${description}</p>
+                    </div>
+                  </li>
+                </div>
+              `,
+            )
+            .join('')}
+        </ul>
+      </div>
+    `;
   };
 
   // Move modal title element into the bar's render container so it aligns with control buttons
@@ -3107,12 +3288,37 @@ const buildBadgeToolTipMenuOption = (id, sideKey) => ({
   classList: `tooltip-menu${sideKey ? ` tooltip-menu-side-${sideKey}` : ''}`,
 });
 
-const isSubMenuOpen = (subMenuId) => {
-  return s(`.down-arrow-submenu-${subMenuId}`) && s(`.down-arrow-submenu-${subMenuId}`).style.rotate === '180deg';
+/** Whether a submenu is open: the state `subMenuRender` keeps, whatever its caret shows mid-turn. */
+const isSubMenuOpen = (subMenuId) => !!Modal.subMenuBtnClass[subMenuId]?.open;
+
+const SUBMENU_ITEM_HEIGHT = 51;
+
+/** The entries a submenu shows: its buttons that are not hidden. */
+const subMenuItemCount = (subMenuId) =>
+  [...sa(`.btn-${subMenuId}`)].filter((item) => !item.classList.contains('hide')).length;
+
+/** Fits every open submenu to what it shows and to where its button is: height, room under the button and top. */
+const fitSubMenus = () => {
+  for (const [subMenuId, { open, top }] of Object.entries(Modal.subMenuBtnClass)) {
+    if (!open) continue;
+    const height = SUBMENU_ITEM_HEIGHT * subMenuItemCount(subMenuId);
+    s(`.menu-btn-container-children-${subMenuId}`).style.height = `${height}px`;
+    s(`.main-btn-${subMenuId}`).style.marginBottom = `${height + 4}px`;
+    top();
+  }
+};
+
+/** Fits every open submenu frame by frame while the menu settles, so no submenu leaves another behind. */
+const layoutSubMenus = () => {
+  const settled = performance.now() + 450;
+  const follow = () => {
+    fitSubMenus();
+    if (performance.now() < settled) requestAnimationFrame(follow);
+  };
+  requestAnimationFrame(follow);
 };
 
 const subMenuRender = async (subMenuId, forceOpen) => {
-  const _hBtn = 51;
   const menuBtn = s(`.main-btn-${subMenuId}`);
   const menuContainer = s(`.menu-btn-container-children-${subMenuId}`);
   const arrow = s(`.down-arrow-submenu-${subMenuId}`);
@@ -3131,17 +3337,17 @@ const subMenuRender = async (subMenuId, forceOpen) => {
     menuContainer.style.top = `${value}px`;
   };
 
+  const shouldOpen = forceOpen ?? !isSubMenuOpen(subMenuId);
   Modal.subMenuBtnClass[subMenuId] = {
     ...Modal.subMenuBtnClass[subMenuId],
     btnSelector: `.btn-${subMenuId}`,
     labelSelector: `.menu-label-text-${subMenuId}`,
     top,
+    open: shouldOpen,
   };
 
   menuBtn.style.transition = '.3s';
   arrow.style.transition = '.3s';
-
-  const shouldOpen = forceOpen ?? !isSubMenuOpen(subMenuId);
 
   if (!shouldOpen) {
     // Close animation
@@ -3164,21 +3370,19 @@ const subMenuRender = async (subMenuId, forceOpen) => {
     const _collapseIndicatorClass =
       _menuMode === 'slide-menu-right' ? '.btn-icon-menu-mode-left' : '.btn-icon-menu-mode-right';
     const _isMenuCollapsed = s(_collapseIndicatorClass) && !s(_collapseIndicatorClass).classList.contains('hide');
-    const _menuContainerWidth = _isMenuCollapsed ? 50 : 320;
-    setTimeout(top, 360);
-    menuContainer.style.width = `${_menuContainerWidth}px`;
+    menuContainer.style.width = `${_isMenuCollapsed ? 50 : 320}px`;
     menuContainer.style.overflow = null;
-    menuContainer.style.height = '0px';
-    menuContainer.style.height = `${_hBtn * 6}px`;
     arrow.style.rotate = '0deg';
     setTimeout(() => {
-      menuBtn.style.marginBottom = `${_hBtn * sa(`.menu-label-text-${subMenuId}`).length + 4}px`;
       arrow.style.rotate = '180deg';
     });
   }
+  layoutSubMenus();
 
+  // The button stops moving here, so this pass fits a page that painted few frames meanwhile.
   setTimeout(() => {
     menuBtn.style.transition = null;
+    fitSubMenus();
   }, 500);
 };
 
@@ -3201,9 +3405,9 @@ const subMenuHandler = (routes, route) => {
   route = sanitizeRoute(route);
   for (let _route of routes) {
     _route = sanitizeRoute(_route);
-    if (_route !== route) {
-      if (isSubMenuOpen(_route)) subMenuRender(_route);
-    }
+    // A submenu stays open while the route shows one of its entries.
+    if (_route === route || s(`.menu-btn-container-children-${_route} .main-btn-${route}`)) continue;
+    if (isSubMenuOpen(_route)) subMenuRender(_route);
   }
   setTimeout(() => {
     // A submenu marks the item its route currently shows: Docs keeps that in `?cid=<type>`.

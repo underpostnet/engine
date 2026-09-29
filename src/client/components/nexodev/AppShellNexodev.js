@@ -336,7 +336,7 @@ class AppShellNexodev {
         : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
       htmls(
         '.action-btn-app-icon-render',
-        html`<img class="inl top-bar-app-icon" src="${srcLogo}" /> ${boxShadow({ selector: '.docs-card' })}`,
+        html`<img class="inl top-bar-app-icon" src="${srcLogo}" /> ${boxShadow({ selector: '.submenu-landing-card' })}`,
       );
       if (darkTheme) {
         const backgroundImage = `${getProxyPath()}assets/background/dark-purple.jpg`;
@@ -346,7 +346,7 @@ class AppShellNexodev {
             .ssr-background-image {
               background-image: url('${backgroundImage}');
             }
-            .docs-card:hover {
+            .submenu-landing-card:hover {
               color: #d4d4d4;
               background-color: ${darkenHex(subThemeManager.darkColor, 0.75)};
             }
@@ -360,7 +360,7 @@ class AppShellNexodev {
             .ssr-background-image {
               background-image: url('${backgroundImage}');
             }
-            .docs-card:hover {
+            .submenu-landing-card:hover {
               color: ${subThemeManager.lightColor};
               background-color: ${lightenHex(subThemeManager.lightColor, 0.8)};
             }

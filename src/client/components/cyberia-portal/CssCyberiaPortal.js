@@ -86,16 +86,16 @@ const CssCommonCyberia = async () => {
       }
 
       /* Docs section retro styling */
-      .docs-header h1 {
+      .submenu-landing-header h1 {
         font-family: var(--cy-font-retro-cta);
         color: #ffcc00;
         text-shadow: 2px 2px 0px #9e7b00;
       }
-      .docs-card {
+      .submenu-landing-card {
         border: 2px solid #ffcc00;
         transition: all 0.3s ease-in-out;
       }
-      .docs-card:hover {
+      .submenu-landing-card:hover {
         background: rgba(255, 204, 0, 0.08);
         box-shadow:
           0 0 10px rgba(255, 204, 0, 0.3),

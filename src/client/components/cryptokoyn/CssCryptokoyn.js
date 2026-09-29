@@ -175,16 +175,16 @@ const CssCommonCryptokoyn = async () => {
       }
 
       /* Docs section retro styling */
-      .docs-header h1 {
+      .submenu-landing-header h1 {
         font-family: var(--cy-font-retro-cta);
         color: #ff0d0d;
         text-shadow: 2px 2px 0px #9e0808;
       }
-      .docs-card {
+      .submenu-landing-card {
         border: 2px solid #ff0d0d;
         transition: all 0.3s ease-in-out;
       }
-      .docs-card:hover {
+      .submenu-landing-card:hover {
         background: rgba(255, 13, 13, 0.08);
         box-shadow:
           0 0 10px rgba(255, 13, 13, 0.3),

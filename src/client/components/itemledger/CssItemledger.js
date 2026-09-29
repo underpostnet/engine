@@ -57,16 +57,16 @@ const CssCommonItemledger = async () => {
       }
 
       /* Docs section retro styling */
-      .docs-header h1 {
+      .submenu-landing-header h1 {
         font-family: var(--il-font-retro-cta);
         color: #24fbff;
         text-shadow: 2px 2px 0px #127e80;
       }
-      .docs-card {
+      .submenu-landing-card {
         border: 2px solid #24fbff;
         transition: all 0.3s ease-in-out;
       }
-      .docs-card:hover {
+      .submenu-landing-card:hover {
         background: rgba(36, 251, 255, 0.08);
         box-shadow:
           0 0 10px rgba(36, 251, 255, 0.3),

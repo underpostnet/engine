@@ -155,16 +155,16 @@ const CssCommonObjectlayer = async () => {
       }
 
       /* Docs section retro styling */
-      .docs-header h1 {
+      .submenu-landing-header h1 {
         font-family: var(--ol-font-retro-cta);
         color: #7cff6b;
         text-shadow: 2px 2px 0px #2f7a2a;
       }
-      .docs-card {
+      .submenu-landing-card {
         border: 2px solid #7cff6b;
         transition: all 0.3s ease-in-out;
       }
-      .docs-card:hover {
+      .submenu-landing-card:hover {
         background: rgba(124, 255, 107, 0.08);
         box-shadow:
           0 0 10px rgba(124, 255, 107, 0.3),
