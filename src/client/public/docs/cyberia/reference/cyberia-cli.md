@@ -580,7 +580,11 @@ Named scripts from the `scripts/` directory for seeding and build maintenance.
 | `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`                                                      |
 | `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                              |
 
+`import-content --clean` runs `drop-db`, then `ol --drop`. Both steps run even if one fails.
+If either step fails, the command exits with code 1 and lists each failed command to rerun.
+
 ```bash
+cyberia run-workflow import-content --clean --dev --confirm dd-cyberia
 cyberia run-workflow import-content --dev
 cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard

@@ -4282,9 +4282,15 @@ try {
           logger.error('--clean destroys data. Pass --confirm <deploy-id> to run it. It is never part of a deploy.');
           process.exit(1);
         }
+        // Both cleanup steps run even if one fails.
         const confirm = ` --confirm ${options.confirm}`;
-        shellExec(`node bin/cyberia ol --drop${confirm}${flags}`);
-        shellExec(`node bin/cyberia run-workflow drop-db${confirm}${flags}`);
+        const failed = [`run-workflow drop-db${confirm}${flags}`, `ol --drop${confirm}${flags}`].filter(
+          (step) => shellExec(`node bin/cyberia ${step}`, { silentOnError: true }).code !== 0,
+        );
+        if (failed.length > 0) {
+          for (const step of failed) logger.error(`Clean step failed; rerun: node bin/cyberia ${step}`);
+          process.exit(1);
+        }
         return;
       }
       // The sagas first, so the authored backups win over what they generated; the foundation
