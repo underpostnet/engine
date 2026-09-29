@@ -63,7 +63,8 @@ describe.skipIf(!fs.existsSync(DOCS_ROOT))('docs submenu contract', () => {
     for (const { client, source } of shells) {
       if (!source.includes('menu-btn-container-children-docs')) continue;
       if (!source.includes("draggable: '.main-btn-menu'")) missing.push(`${client}: sortable button selector`);
-      if (!source.includes("sortableSubMenuEvents(['docs'])")) missing.push(`${client}: submenu sort state`);
+      if (!/sortableSubMenuEvents\(\[[^\]]*'docs'[^\]]*\]\)/.test(source))
+        missing.push(`${client}: submenu sort state`);
       if (!source.includes('onStart: sortableSubMenus.onStart')) missing.push(`${client}: drag start handler`);
       if (!source.includes('sortableSubMenus.onEnd();')) missing.push(`${client}: drop handler`);
     }

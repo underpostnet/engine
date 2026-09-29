@@ -2,6 +2,10 @@ import { Translate } from '../core/Translate.js';
 
 class TranslateCyberiaPortal {
   static async instance() {
+    Translate.Data['cyberia-studio'] = {
+      en: 'Cyberia Studio',
+      es: 'Cyberia Studio',
+    };
     Translate.Data['object-layer-engine'] = {
       en: 'Object Layer Engine',
       es: 'Object Layer Engine',

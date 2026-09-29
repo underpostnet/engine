@@ -28,6 +28,10 @@ class RouterCyberiaPortal {
         render: () => s(`.main-btn-account`).click(),
       },
       '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
+      '/cyberia-studio': {
+        title: 'cyberia-studio',
+        render: () => s(`.main-btn-cyberia-studio`).click(),
+      },
       '/object-layer-engine': {
         title: 'object-layer-engine',
         render: () => s(`.main-btn-object-layer-engine`).click(),

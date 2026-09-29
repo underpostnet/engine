@@ -6,7 +6,9 @@ searches the content repository.
 
 ## Layout
 
-The Object Layer, map, action and entity editors share one layout. The stage stays in view: the
+The editors sit under **Cyberia Studio** in the portal menu, each with its own icon. The
+**Cyberia Studio** button opens a landing with one card for each editor. The Object
+Layer, map, action and entity editors share one layout. The stage stays in view: the
 canvas with its coordinates, or the entity defaults table. The tools and the sections scroll to
 the right of the stage when the screen has room, and under it when it does not. The eye button
 hides and shows the stage. Ids, labels and definitions show in a case-sensitive face.
@@ -14,8 +16,10 @@ hides and shows the stage. Ids, labels and definitions show in a case-sensitive 
 An item or a map that belongs to a saga carries a badge for each saga, in a color the saga code
 fixes: in the foundation context of both editors, and in the **Sagas** column of the Object Layer
 tables and the map table. A map belongs to the saga that defines it and to every stored saga that
-lists it. An item belongs to the saga that defines it and to the saga of every map whose entities
-carry it, so an item you place on a saga map joins that saga. The **Sagas** filter takes
+lists it. An item belongs to the saga that defines it, to the saga of every map whose entities
+carry it, to the sagas of the maps of every instance whose entity-type defaults wire it (live,
+dead, drop and inventory items), and to every saga of an item whose skill summons it. An item you place on a saga map
+joins that saga, and so does the projectile its skill summons. The **Sagas** filter takes
 comma-separated saga codes; each matches the codes that contain it.
 
 ## Paint an item
