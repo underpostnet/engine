@@ -11,17 +11,34 @@ const INDEX = vi.hoisted(() => ({
   },
   labels: { grass: 'floor.grass', lamp: 'prop.lamp' },
 }));
-const stored = vi.hoisted(() => ({ maps: [], sagas: [] }));
+const stored = vi.hoisted(() => ({
+  maps: [],
+  sagas: [],
+  skills: [],
+  instances: [],
+  confs: [],
+  entityDefaults: [],
+}));
 vi.mock('../../../src/projects/cyberia/content-artifact.js', () => ({ contentArtifact: () => ({ context: INDEX }) }));
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: {
     getModel: (name) => ({
-      find: () => ({ lean: async () => (name === 'CyberiaMap' ? stored.maps : stored.sagas) }),
+      find: () => ({
+        lean: async () =>
+          ({
+            CyberiaMap: stored.maps,
+            CyberiaSaga: stored.sagas,
+            CyberiaSkill: stored.skills,
+            CyberiaInstance: stored.instances,
+            CyberiaInstanceConf: stored.confs,
+            CyberiaEntityTypeDefault: stored.entityDefaults,
+          })[name],
+      }),
     }),
   },
 }));
 
-const { keysOfSagas, sagaAssociations, withSagaFilter } =
+const { keysOfSagas, loadSagaAssociations, sagaAssociations, withSagaFilter } =
   await import('../../../src/projects/cyberia/saga-associations.js');
 
 const map = (code, ...itemIds) => ({ code, entities: itemIds.map((id) => ({ objectLayerItemIds: [id] })) });
@@ -44,6 +61,51 @@ describe('saga associations', () => {
     expect(associations.items.moss).toBeUndefined();
   });
 
+  it('gives every item the entity-type defaults of an instance wire the sagas of its maps', async () => {
+    Object.assign(stored, {
+      maps: [],
+      sagas: [{ code: 'bloom', mapCodes: ['ruin'] }],
+      skills: [{ triggerItemId: 'blade', skills: [{ summonedEntityItemId: 'slash' }] }],
+      instances: [
+        { cyberiaMapCodes: ['ruin', 'glade'], conf: 'conf-1' },
+        { cyberiaMapCodes: ['glade'], conf: 'conf-2' },
+      ],
+      confs: [
+        { _id: 'conf-1', entityDefaults: ['bot', 'missing'] },
+        { _id: 'conf-2', entityDefaults: ['tree'] },
+      ],
+      entityDefaults: [
+        {
+          _id: 'bot',
+          liveItemIds: ['raider', 'blade'],
+          deadItemIds: ['ghost'],
+          dropItemIds: ['coin'],
+          inventoryItemsIds: ['$slot', 'charm'],
+        },
+        { _id: 'tree', liveItemIds: ['oak'], deadItemIds: [], dropItemIds: ['log'], inventoryItemsIds: [] },
+      ],
+    });
+    const { items } = await loadSagaAssociations({});
+    for (const itemId of ['raider', 'blade', 'ghost', 'coin', 'charm', 'slash'])
+      expect(items[itemId], itemId).toEqual(['bloom']);
+    for (const itemId of ['$slot', 'oak', 'log']) expect(items, itemId).not.toHaveProperty(itemId);
+  });
+
+  it('gives an item summoned by a skill every saga of the item that triggers it, along a chain', () => {
+    const associations = sagaAssociations({
+      maps: [map('ruin', 'pistol')],
+      sagas: [{ code: 'bloom', mapCodes: ['ruin'] }],
+      skills: [
+        { triggerItemId: 'pistol', skills: [{ summonedEntityItemId: 'bullet' }, { summonedEntityItemId: '' }] },
+        { triggerItemId: 'bullet', skills: [{ summonedEntityItemId: 'spark' }] },
+        { triggerItemId: 'wand', skills: [{ summonedEntityItemId: 'orb' }] },
+      ],
+    });
+    expect(associations.items.pistol).toEqual(['bloom']);
+    expect(associations.items.bullet).toEqual(['bloom']);
+    expect(associations.items.spark).toEqual(['bloom']);
+    expect(associations.items).not.toHaveProperty('orb');
+  });
   it('selects the keys of the sagas comma-separated terms name, by part of the code, ignoring case', () => {
     const bucket = { cave: ['ash-signal', 'bloom'], ruin: ['bloom'], glade: [] };
     expect(keysOfSagas(bucket, 'ASH')).toEqual(['cave']);
