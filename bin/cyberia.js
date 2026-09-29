@@ -478,7 +478,7 @@ const adoptEntityTypeDefaultRefs = async (confData, backupDir, CyberiaEntityType
 /** Default source of recorded `<name>.wav` + `<name>.json` pairs for `cyberia audio --import`. */
 const DEFAULT_AUDIO_RECORDS_PATH = './cyberia-audio/records';
 
-/** The deployment repository: conf, deployments, manifests and content-lock.json. */
+/** The deployment repository: conf, images, manifests and content-lock.json. */
 const DEPLOYMENT_REPOSITORY = 'underpostnet/cyberia-deployment';
 
 /**
@@ -1333,7 +1333,7 @@ try {
     )
     .option(
       '--publish-build',
-      `Build the ${DEPLOYMENT_REPOSITORY} checkout: conf, deployments, manifests and content-lock.json`,
+      `Build the ${DEPLOYMENT_REPOSITORY} checkout: conf, images, manifests and content-lock.json`,
     )
     .option('--publish', `Push the ${DEPLOYMENT_REPOSITORY} checkout`)
     .option('--revert', `Reset the ${DEPLOYMENT_REPOSITORY}, cyberia-server and cyberia-client checkouts`)
@@ -1448,22 +1448,22 @@ try {
             `${deployment}/conf/dd-cyberia/.env.test`,
           );
 
-          fs.mkdirpSync(`${deployment}/deployments`);
+          fs.mkdirpSync(`${deployment}/images`);
           // The staged CLI package is a local image-build artifact, not a deployment manifest —
           // it must never be published into the deployment repository.
-          fs.copySync(`./src/runtime/engine-cyberia`, `${deployment}/deployments/engine-cyberia`, {
+          fs.copySync(`./src/runtime/engine-cyberia`, `${deployment}/images/engine-cyberia`, {
             filter: (src) => nodePath.basename(src) !== STAGED_CLI_PACKAGE,
           });
-          fs.copySync(`./manifests/deployment/dd-cyberia-development/.`, `${deployment}/deployments/engine-cyberia/.`);
-          fs.copySync(`./src/runtime/cyberia-client`, `${deployment}/deployments/cyberia-client`);
+          fs.copySync(`./manifests/deployment/dd-cyberia-development/.`, `${deployment}/images/engine-cyberia/.`);
+          fs.copySync(`./src/runtime/cyberia-client`, `${deployment}/images/cyberia-client`);
           fs.copySync(
             `./engine-private/conf/dd-cyberia/instances/mmo-client/build/development/.`,
-            `${deployment}/deployments/cyberia-client/.`,
+            `${deployment}/images/cyberia-client/.`,
           );
-          fs.copySync(`./src/runtime/cyberia-server`, `${deployment}/deployments/cyberia-server`);
+          fs.copySync(`./src/runtime/cyberia-server`, `${deployment}/images/cyberia-server`);
           fs.copySync(
             `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
-            `${deployment}/deployments/cyberia-server/.`,
+            `${deployment}/images/cyberia-server/.`,
           );
           // The deployment records the content it ships; the content itself stays in the artifact.
           fs.writeJsonSync(`${deployment}/content-lock.json`, contentLock(contentArtifact().manifest), {
@@ -1488,7 +1488,7 @@ try {
             { overwrite: true },
           );
           if (!fs.existsSync('./manifests/deployment/dd-cyberia-development/pv-pvc.yaml'))
-            for (const directory of ['deployments/engine-cyberia', 'manifests/deployments/dd-cyberia-development'])
+            for (const directory of ['images/engine-cyberia', 'manifests/deployments/dd-cyberia-development'])
               fs.removeSync(`${deployment}/${directory}/pv-pvc.yaml`);
           const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
           const publishMessage =

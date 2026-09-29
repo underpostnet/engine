@@ -29,7 +29,7 @@ One owner for each concept. No module holds a second answer.
 | Owner                      | Owns                                                                    |
 | -------------------------- | ----------------------------------------------------------------------- |
 | `cyberia-content`          | Foundation, instances, sagas, generator, compiler, validation, artifact |
-| `cyberia-deployment`       | Deployment conf, manifests and `content-lock.json`                      |
+| `cyberia-deployment`       | Deployment conf, runtime images, manifests and `content-lock.json`      |
 | Object Layer               | Canonical, content-addressed item definitions                           |
 | `CyberiaItemCatalog`       | The binding of a Cyberia item label to an Object Layer CID              |
 | `CyberiaEntity`            | An entity of a map: item stack, runtime properties and cell             |

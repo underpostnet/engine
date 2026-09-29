@@ -128,18 +128,18 @@ layers and map audio in MongoDB.
 cyberia instance [instance-code] [options]
 ```
 
-| Option                                                | Description                                                                                   |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `--export [path]`                                     | Export to a backup directory; `./cyberia-content/src/content/instances/<code>` by default     |
-| `--import [path]`                                     | Import from a backup directory (upsert, preserves UUIDs); the artifact backup by default      |
-| `--frames-to-public`                                  | With `--import`: also write the static frame PNGs to the public directory                     |
-| `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json`; leaves the rest      |
-| `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop all documents associated with the instance code                          |
-| `--release <release-id>`                              | Import into, or export from, one content release database                                     |
-| `--sync-entities`                                     | Sync the conf's entity-type default references and skill config                               |
-| `--publish-build`                                     | Build the `cyberia-deployment` checkout: conf, deployments, manifests and `content-lock.json` |
-| `--publish` / `--revert`                              | Push the `cyberia-deployment` checkout / reset it and the server and client checkouts         |
-| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                                      |
+| Option                                                | Description                                                                               |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `--export [path]`                                     | Export to a backup directory; `./cyberia-content/src/content/instances/<code>` by default |
+| `--import [path]`                                     | Import from a backup directory (upsert, preserves UUIDs); the artifact backup by default  |
+| `--frames-to-public`                                  | With `--import`: also write the static frame PNGs to the public directory                 |
+| `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json`; leaves the rest  |
+| `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop all documents associated with the instance code                      |
+| `--release <release-id>`                              | Import into, or export from, one content release database                                 |
+| `--sync-entities`                                     | Sync the conf's entity-type default references and skill config                           |
+| `--publish-build`                                     | Build the `cyberia-deployment` checkout: conf, images, manifests and `content-lock.json`  |
+| `--publish` / `--revert`                              | Push the `cyberia-deployment` checkout / reset it and the server and client checkouts     |
+| `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                                  |
 
 With no instance code, the command runs on every instance of the content artifact. The default
 export writes into the instance sources of the `cyberia-content` checkout; the command fails when
