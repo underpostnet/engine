@@ -118,6 +118,25 @@ class DataQuery {
   }
 
   /**
+   * An AG Grid filterModel as an object, from its JSON string or itself.
+   * @method
+   * @param {string|Object} filterModel
+   * @return {Object|null} The filter model, or null when there is none or it is not one.
+   * @memberof DataQuery
+   */
+  static filterModelOf(filterModel) {
+    if (typeof filterModel === 'string' && filterModel.trim()) {
+      try {
+        filterModel = JSON.parse(filterModel);
+      } catch (e) {
+        console.warn('DataQuery: Failed to parse filterModel JSON:', e.message);
+        return null;
+      }
+    }
+    return filterModel && typeof filterModel === 'object' && !Array.isArray(filterModel) ? filterModel : null;
+  }
+
+  /**
    * Parse filter parameters from AG Grid filterModel
    * @method
    * @param {string|Object} filterModel - AG Grid filterModel as JSON string or object
@@ -128,19 +147,8 @@ class DataQuery {
   static _parseFilter(filterModel, defaultQuery) {
     let query = defaultQuery ? { ...defaultQuery } : {};
 
-    // Parse filterModel from string if needed
-    if (typeof filterModel === 'string' && filterModel.trim()) {
-      try {
-        filterModel = JSON.parse(filterModel);
-      } catch (e) {
-        console.warn('DataQuery: Failed to parse filterModel JSON:', e.message);
-        filterModel = null;
-      }
-    }
-
-    if (!filterModel || typeof filterModel !== 'object' || Array.isArray(filterModel)) {
-      return query;
-    }
+    filterModel = DataQuery.filterModelOf(filterModel);
+    if (!filterModel) return query;
 
     // Process each filter in the filterModel
     Object.entries(filterModel).forEach(([field, filter]) => {
@@ -419,7 +427,7 @@ class DataQuery {
   }
 
   /**
-   * Parse set filter
+   * Parse set filter: the values a row may hold; an empty set matches no row, as in AG Grid.
    * @method
    * @param {string} field - The field name
    * @param {Object} filter - The filter object
@@ -429,7 +437,7 @@ class DataQuery {
   static _parseSetFilter(field, filter) {
     const { values } = filter;
 
-    if (!Array.isArray(values) || values.length === 0) {
+    if (!Array.isArray(values)) {
       return null;
     }
 
