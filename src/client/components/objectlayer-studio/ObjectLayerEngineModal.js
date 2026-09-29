@@ -24,6 +24,7 @@ import {
 } from './ObjectLayerProtocol.js';
 import { fromWire, rgbaFrame, sourceFromRgbaFrames, toWire } from './RenderSource.js';
 import { renderTemplate, templateSuits } from './PixelTemplate.js';
+import { transformImportedFrames } from './FrameMutation.js';
 import { contextPanelStyle, mountContextPanel } from './ObjectLayerContextPanel.js';
 import { ObjectLayerPalettePanel, palettePanelStyle } from './ObjectLayerPalettePanel.js';
 import { EditorDraftStore } from '../core/EditorDraftStore.js';
@@ -538,6 +539,9 @@ class ObjectLayerEngineModal {
   static selectedDistortionType = DEFAULT_DISTORTION_TYPE;
   static distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
   static uniformOpacityEnabled = false;
+  /** Whether a frame import mutates the contour of the frames it brings, and by how much, 0 to 1. */
+  static mutateFrames = false;
+  static mutationFactor = 0;
   static templates = [EMPTY_TEMPLATE];
   /** What the host's Studio adds: `context(key)` for the foundation panel, and `templates`. */
   static studio = null;
@@ -575,6 +579,8 @@ class ObjectLayerEngineModal {
     this.selectedDistortionType = DEFAULT_DISTORTION_TYPE;
     this.distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
     this.uniformOpacityEnabled = false;
+    this.mutateFrames = false;
+    this.mutationFactor = 0;
     this.templates = [EMPTY_TEMPLATE];
 
     const ole = s('object-layer-engine');
@@ -721,6 +727,11 @@ class ObjectLayerEngineModal {
     // Track frame editing state
     let editingFrameId = null;
     let editingDirectionCode = null;
+
+    const setMutateFrames = (mutate) => {
+      ObjectLayerEngineModal.mutateFrames = mutate;
+      if (s('.ol-input-mutation-factor')) s('.ol-input-mutation-factor').disabled = !mutate;
+    };
 
     const readDistortionFactorA = () => {
       const factorInput = s('.ol-input-distortion-factor-a') || s('#ol-input-distortion-factor-a');
@@ -1574,11 +1585,19 @@ class ObjectLayerEngineModal {
         else await EditorDraftStore.remove(draftKey);
       }
 
-      // Takes the frames of every direction and the frame duration from another object layer; the
-      // item data and the stats stay.
+      // Takes the frames of every direction and the frame duration from another object layer, in the
+      // studio palette of this item and, with Mutate, with a new contour; the item data and the stats stay.
       EventsUI.onClick('.ol-btn-import-frames', async () => {
         const itemId = DropDown.Tokens['ol-dropdown-import-frames']?.value;
         if (typeof itemId !== 'string' || !itemId) return;
+        const palette = ObjectLayerEngineModal.palettePanel?.studioPalette();
+        if (!palette) {
+          NotificationManager.Push({
+            html: 'The foundation palette of this item is unavailable, so its frames cannot be remapped',
+            status: 'error',
+          });
+          return;
+        }
         const { status, data } = await ObjectLayerService.getRender({ id: itemId });
         if (status !== 'success' || !data?.renderFrames) {
           NotificationManager.Push({ html: `"${itemId}" has no frames to import`, status: 'error' });
@@ -1586,11 +1605,32 @@ class ObjectLayerEngineModal {
         }
         if (editingFrameId) exitEditMode();
         const source = fromWire(data.renderFrames);
-        await fillDirectionBars(framesByCodeOf(source));
+        const factorInput = s('.ol-input-mutation-factor');
+        const mutationFactor = Math.round(clampNumber(Number.parseFloat(factorInput?.value) || 0, 0, 1) * 100) / 100;
+        ObjectLayerEngineModal.mutationFactor = mutationFactor;
+        if (factorInput) factorInput.value = String(mutationFactor);
+        const mutate = ObjectLayerEngineModal.mutateFrames;
+        const result = transformImportedFrames(framesByCodeOf(source), palette.roles, {
+          mutate,
+          mutationFactor,
+          seed: Math.floor(Math.random() * 2 ** 32),
+          source: itemId,
+          target: s('.ol-input-item-id')?.value.trim() ?? '',
+        });
+        await fillDirectionBars(result.framesByCode);
         ObjectLayerEngineModal.renderFrameDuration = source.frameDurationMs;
         if (s('.ol-input-render-frame-duration')) s('.ol-input-render-frame-duration').value = source.frameDurationMs;
         scheduleDraft();
-        NotificationManager.Push({ html: `Frames of "${itemId}" imported`, status: 'success' });
+        NotificationManager.Push({
+          html: [
+            `Frames of "${itemId}" imported: ${result.frames}`,
+            `Palette: ${palette.name}`,
+            mutate && mutationFactor > 0
+              ? `Mutation: factor ${mutationFactor}, ${result.accepted} accepted, ${result.rejected} rejected`
+              : 'Mutation: no',
+          ].join('<br />'),
+          status: 'success',
+        });
       });
 
       const setDistortionStatus = (message, tone = 'muted') => {
@@ -2140,6 +2180,35 @@ class ObjectLayerEngineModal {
                           }))
                         : [];
                     },
+                  })}
+                </div>
+                <div class="in fll">
+                  <div class="fl" style="align-items: center; gap: 8px;">
+                    ${await ToggleSwitch.instance({
+                      id: 'ol-toggle-import-mutate',
+                      type: 'checkbox',
+                      displayMode: 'checkbox',
+                      containerClass: 'in fll',
+                      checked: ObjectLayerEngineModal.mutateFrames,
+                      on: {
+                        checked: () => setMutateFrames(true),
+                        unchecked: () => setMutateFrames(false),
+                      },
+                    })}
+                    <div class="in fll">Mutate</div>
+                  </div>
+                </div>
+                <div class="in fll" style="width: 120px;">
+                  ${await Input.instance({
+                    id: 'ol-input-mutation-factor',
+                    label: html`Random factor`,
+                    containerClass: 'inl',
+                    type: 'number',
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    value: ObjectLayerEngineModal.mutationFactor,
+                    disabled: !ObjectLayerEngineModal.mutateFrames,
                   })}
                 </div>
                 <div class="in fll">

@@ -183,6 +183,7 @@ class Input {
    * @param {string} [options.containerClass] - CSS class for the container.
    * @param {string} [options.inputClass] - CSS class for the input element.
    * @param {boolean} [options.disabled] - Whether the input is disabled.
+   * @param {number} [options.step] - The step of a number input.
    * @returns {Promise<string>} HTML string for the input component.
    */
   static async instance(options) {
@@ -219,6 +220,7 @@ class Input {
           class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
           ${options?.min !== undefined ? `min="${options.min}"` : ''}
           ${options?.max !== undefined ? `max="${options.max}"` : ''}
+          ${options?.step !== undefined ? `step="${options.step}"` : ''}
           placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
           ${options?.value !== undefined ? `value="${options.value}"` : ''}
           ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}

@@ -39,7 +39,13 @@ comma-separated saga codes; each matches the codes that contain it.
      colors between two marked ones to the custom palette.
 4. To start from another item's animation, pick it under **Frames of object layer** and click
    **Import frames**: the frames of every direction and the frame duration are replaced; the item
-   data and the stats stay.
+   data and the stats stay. The frames take the palette in use in **Palettes**, or the first
+   palette of the context: the darkest color takes the outline, the lightest the highlight, a rare
+   saturated color the accent, and transparency stays. An item without a context palette imports
+   nothing. With **Mutate** on, a **Random factor** above 0 moves a share of each frame's outer
+   contour by one cell, each frame with a seed of its own. A move that splits the shape, fills or
+   opens a hole, or shifts its box or center by more than one cell is rejected. The message counts
+   the frames and the moves accepted and rejected.
 5. Pick a template. Templates that suit the item type come first (★). A template paints in the
    palette in use, sets its mirror, and becomes the stamp.
 6. Paint. The tools: pencil, eraser, fill, eyedropper, line, rectangle and ellipse (Shift fills),

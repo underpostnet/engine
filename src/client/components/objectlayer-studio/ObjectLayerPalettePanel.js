@@ -78,6 +78,12 @@ class ObjectLayerPalettePanel {
     return this.palettes().find(({ id }) => id === this.activeId)?.roles ?? {};
   }
 
+  /** The studio palette in use, else the first studio palette with a color; null when the studio offers none. */
+  studioPalette() {
+    const usable = this.studioPalettes.filter(({ roles }) => Object.values(roles ?? {}).some((hexes) => hexes.length));
+    return usable.find(({ id }) => id === this.activeId) ?? usable[0] ?? null;
+  }
+
   _activeColors() {
     const colors = this.marked.length > 0 ? this.marked : Object.values(this.activeRoles()).flat();
     return [...new Set(colors.map(opaque))].map(hexToRgba);
