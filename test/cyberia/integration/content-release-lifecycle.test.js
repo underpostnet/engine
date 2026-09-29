@@ -8,8 +8,8 @@ import { clearDomainCache } from '../../../src/server/domain/domain-client.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
-import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
-import { profileRef } from '../../../src/client/components/object-layer/ObjectLayerProtocol.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+import { profileRef } from '../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { CyberiaObjectLayerProfile } from '../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import {
   catalogModels,

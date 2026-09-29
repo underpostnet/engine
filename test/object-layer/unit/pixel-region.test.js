@@ -18,8 +18,8 @@ import {
   scatterRegion,
   stampRegion,
   tiledPreview,
-} from '../../../src/client/components/object-layer/PixelRegion.js';
-import { renderTemplate, templateSuits } from '../../../src/client/components/object-layer/PixelTemplate.js';
+} from '../../../src/client/components/objectlayer-studio/PixelRegion.js';
+import { renderTemplate, templateSuits } from '../../../src/client/components/objectlayer-studio/PixelTemplate.js';
 
 const _ = [0, 0, 0, 0];
 const R = [255, 0, 0, 255];

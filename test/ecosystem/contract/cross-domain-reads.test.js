@@ -211,7 +211,7 @@ describe.skipIf(!objectLayerDomain)('database boundaries', () => {
 
   it('keeps the canonical protocol free of Cyberia modules', () => {
     for (const file of [
-      'src/client/components/object-layer/ObjectLayerProtocol.js',
+      'src/client/components/objectlayer-studio/ObjectLayerProtocol.js',
       'src/api/object-layer/object-layer.identity.js',
     ]) {
       const text = fs.readFileSync(path.join(root, file), 'utf8');

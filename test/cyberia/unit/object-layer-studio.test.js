@@ -6,7 +6,8 @@ vi.mock('../../../src/client/services/cyberia-saga/cyberia-saga.service.js', () 
 const { contextPanel } = await import('../../../src/client/components/cyberia/ObjectLayerStudioCyberia.js');
 const { CyberiaObjectLayerTemplates } =
   await import('../../../src/client/components/cyberia/ObjectLayerTemplatesCyberia.js');
-const { renderTemplate, templateSuits } = await import('../../../src/client/components/object-layer/PixelTemplate.js');
+const { renderTemplate, templateSuits } =
+  await import('../../../src/client/components/objectlayer-studio/PixelTemplate.js');
 
 const PALETTE = { base: ['#44aa44'], shadow: ['#226622'], highlight: ['#88dd88'], outline: ['#112211'] };
 const context = {

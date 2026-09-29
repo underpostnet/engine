@@ -43,7 +43,8 @@ const { canonicalJsonBytes, renderContractOf } = await import('../../../src/api/
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
 const { repinCanonical } = await import('../../../src/api/object-layer/object-layer.publication.js');
 const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer.js');
-const { sourceFromIndexedFrames, toWire } = await import('../../../src/client/components/object-layer/RenderSource.js');
+const { sourceFromIndexedFrames, toWire } =
+  await import('../../../src/client/components/objectlayer-studio/RenderSource.js');
 const emptySource = () => sourceFromIndexedFrames({ frames: {}, colors: [], frameDurationMs: 100 });
 const {
   atlasBackupFileKey,

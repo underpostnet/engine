@@ -29,7 +29,7 @@
  */
 import crypto from 'crypto';
 import canonicalize from 'canonicalize';
-import { canonicalObjectLayer } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { canonicalObjectLayer } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 
 /** Multicodec prefix of a CIDv1 raw block hashed with sha2-256: version, codec, hash code, length. */
 const CID_V1_RAW_SHA256_PREFIX = Buffer.from([0x01, 0x55, 0x12, 0x20]);

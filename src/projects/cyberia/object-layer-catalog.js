@@ -9,7 +9,7 @@
  * @namespace CyberiaObjectLayerCatalog
  */
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { profileRef } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { profileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { objectLayerCache, publishDefinition } from '../../api/object-layer/object-layer.publication.js';
 import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';

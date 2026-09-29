@@ -29,7 +29,7 @@ that turns it into an identity.
 Nothing else is canonical. No owner, balance, token id, contract, chain, transfer, registration
 or storage state enters the hashed bytes.
 
-`canonicalObjectLayer()` in `src/client/components/object-layer/ObjectLayerProtocol.js` builds
+`canonicalObjectLayer()` in `src/client/components/objectlayer-studio/ObjectLayerProtocol.js` builds
 the payload. `canonicalJsonBytes()` in `src/api/object-layer/object-layer.identity.js` turns it
 into bytes. The same function makes the bytes of the render metadata, and a pin stores the exact
 bytes it returns: there is one serialization path. Canonical bytes serve identity only: a store

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
-import { sourceFromIndexedFrames, toWire } from '../../../src/client/components/object-layer/RenderSource.js';
+import { sourceFromIndexedFrames, toWire } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 
 // The Studio writes through the Object Layer engine; here it records what the routes hand it.
 const persisted = vi.hoisted(() => []);

@@ -2,7 +2,7 @@
 
 The editor source of a definition is the `ObjectLayerRenderFrames` document its `objectLayerCid`
 names. It holds the frames and the palette the render is built from. One document exists per
-definition. `src/client/components/object-layer/RenderSource.js` is the one codec for it, in the
+definition. `src/client/components/objectlayer-studio/RenderSource.js` is the one codec for it, in the
 editor and on the server.
 
 ## Fields

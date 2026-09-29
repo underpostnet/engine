@@ -13,14 +13,14 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
-import { toWire } from '../../client/components/object-layer/RenderSource.js';
+import { toWire } from '../../client/components/objectlayer-studio/RenderSource.js';
 import { AtlasSpriteSheetStore } from '../atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { ObjectLayerDto, isObjectLayerCid } from './object-layer.model.js';
 import { objectLayerIdentity } from './object-layer.identity.js';
 import { isObjectLayerAuthority, objectLayerCache, publishDefinition } from './object-layer.publication.js';
 import { purgeObjectLayers } from './object-layer.purge.js';
 import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver.js';
-import { isProfileRef } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { isProfileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';

@@ -43,7 +43,7 @@ the codes, their labels and the render keyframes they feed.
 
 ## Client tools
 
-`src/client/components/object-layer/` holds the reusable tools:
+`src/client/components/objectlayer-studio/` holds the reusable tools:
 
 | Component                    | Role                                                                                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |

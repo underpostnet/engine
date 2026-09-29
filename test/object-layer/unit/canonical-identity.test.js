@@ -6,7 +6,7 @@ import {
   isStatRecord,
   profileRef,
   OBJECT_LAYER_SCHEMA_VERSION,
-} from '../../../src/client/components/object-layer/ObjectLayerProtocol.js';
+} from '../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import {
   canonicalObjectLayerBytes,
   cidFromSha256Hex,
@@ -22,7 +22,7 @@ import {
   ObjectLayerRenderFramesModel,
   ObjectLayerRenderFramesSchema,
 } from '../../../src/api/object-layer-render-frames/object-layer-render-frames.model.js';
-import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../../support/object-layer-identity-vectors.json', import.meta.url)));
 const profile = { id: 'cyberia', version: 2 };

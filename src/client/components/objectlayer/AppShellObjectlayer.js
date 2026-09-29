@@ -27,7 +27,7 @@ import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
 import { deployPackageReleaseUrl } from '../core/Repository.js';
 import { Recover } from '../core/Recover.js';
-import { ObjectLayerEngineViewer } from '../object-layer/ObjectLayerEngineViewer.js';
+import { ObjectLayerEngineViewer } from '../objectlayer-studio/ObjectLayerEngineViewer.js';
 import { MainBodyDocument } from '../core/MainBodyDocument.js';
 
 class AppShellObjectlayer {

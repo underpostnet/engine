@@ -18,13 +18,13 @@ import { range } from '../../client/components/core/CommonJs.js';
 import {
   getKeyframeDirectionsByCode,
   OBJECT_LAYER_DIRECTION_NAME_TO_CODE,
-} from '../../client/components/object-layer/ObjectLayerProtocol.js';
+} from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import {
   fromWire,
   isRenderSource,
   sourceFromIndexedFrames,
   toWire,
-} from '../../client/components/object-layer/RenderSource.js';
+} from '../../client/components/objectlayer-studio/RenderSource.js';
 import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
@@ -528,8 +528,14 @@ export class ObjectLayerEngine {
     const pinned = isObjectLayerAuthority(options)
       ? await pinCanonical({ ObjectLayer: models.ObjectLayer, definition: objectLayer, options })
       : Boolean((await resolveObjectLayer(objectLayer.cid, options))?.published);
-    if (!pinned) logger.warn(`Canonical bytes of "${itemId}" are not pinned; ${objectLayer.cid} will not resolve via gateway`);
-    return { cid: objectLayer.cid, contentHash: objectLayer.contentHash, objectLayerId: String(objectLayer._id), pinned };
+    if (!pinned)
+      logger.warn(`Canonical bytes of "${itemId}" are not pinned; ${objectLayer.cid} will not resolve via gateway`);
+    return {
+      cid: objectLayer.cid,
+      contentHash: objectLayer.contentHash,
+      objectLayerId: String(objectLayer._id),
+      pinned,
+    };
   }
 
   /**
@@ -547,12 +553,12 @@ export class ObjectLayerEngine {
   static selectAtlasRebuild(options = {}) {
     const namedAnAction = Boolean(
       options.import ||
-        options.syncDerived ||
-        options.importTypes ||
-        options.drop ||
-        options.generate ||
-        options.showAtlasSpriteSheet ||
-        options.showFrame !== undefined,
+      options.syncDerived ||
+      options.importTypes ||
+      options.drop ||
+      options.generate ||
+      options.showAtlasSpriteSheet ||
+      options.showFrame !== undefined,
     );
     return options.toAtlasSpriteSheet !== undefined || (options.upscale !== undefined && !namedAnAction);
   }

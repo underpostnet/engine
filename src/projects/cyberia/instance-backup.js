@@ -26,7 +26,7 @@ import { parseIdentityJson, renderContractOf } from '../../api/object-layer/obje
 import { repinCanonical } from '../../api/object-layer/object-layer.publication.js';
 import { ObjectLayerEngine } from './object-layer.js';
 import { catalogModels, findBoundDefinition } from './object-layer-catalog.js';
-import { fromWire, toWire } from '../../client/components/object-layer/RenderSource.js';
+import { fromWire, toWire } from '../../client/components/objectlayer-studio/RenderSource.js';
 
 const logger = loggerFactory(import.meta);
 

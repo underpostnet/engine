@@ -9,7 +9,7 @@ import {
   sourceFromIndexedFrames,
   sourceFromRgbaFrames,
   toWire,
-} from '../../../src/client/components/object-layer/RenderSource.js';
+} from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 
 const CLEAR = [0, 0, 0, 0];
 const RED = [255, 0, 0, 255];

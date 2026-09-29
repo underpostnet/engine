@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
-import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 
 // The render contract is part of the canonical content: the same frames give the same bytes, so
 // the same contract and the same identity. Other frames give another contract, so another identity.

@@ -1,6 +1,6 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
-import { fromWire, toWire } from '../../client/components/object-layer/RenderSource.js';
+import { fromWire, toWire } from '../../client/components/objectlayer-studio/RenderSource.js';
 
 /** A stored editor source as the API answers it: its identity and revision, frames as base64. */
 const wireOf = (Model, stored) => ({

@@ -9,7 +9,7 @@ import {
   renderContractOf,
   renderMetadataCid,
 } from '../../../src/api/object-layer/object-layer.identity.js';
-import { STAT_RECORD_RULE } from '../../../src/client/components/object-layer/ObjectLayerProtocol.js';
+import { STAT_RECORD_RULE } from '../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { keepRawBody } from '../../../src/server/network/middlewares.js';
 
 // The router loads the atlas store, which needs the Cyberia catalog packages; no test here reaches it.

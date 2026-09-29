@@ -19,7 +19,7 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
 }));
 
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
-const { sourceFromIndexedFrames } = await import('../../../src/client/components/object-layer/RenderSource.js');
+const { sourceFromIndexedFrames } = await import('../../../src/client/components/objectlayer-studio/RenderSource.js');
 const { CacheService } = await import('../../../src/server/storage/cache.js');
 const { objectLayerCache } = await import('../../../src/api/object-layer/object-layer.publication.js');
 

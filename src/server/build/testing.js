@@ -173,7 +173,7 @@ const TEST_PROJECTS = [
     sources: [
       'src/api/object-layer/object-layer.identity.js',
       'src/api/object-layer/object-layer.model.js',
-      'src/client/components/object-layer/ObjectLayerProtocol.js',
+      'src/client/components/objectlayer-studio/ObjectLayerProtocol.js',
     ],
     description: 'Canonical identity, the definition lifecycle, render answers and the purge path.',
   },
@@ -796,7 +796,7 @@ const TEST_IMPACT = [
   {
     match: [
       'src/api/object-layer/',
-      'src/client/components/object-layer/',
+      'src/client/components/objectlayer-studio/',
       'src/server/domain/object-layer-resolver.js',
     ],
     domains: ['object-layer', 'item-ledger', 'cyberia', 'cryptokoyn', 'ecosystem'],

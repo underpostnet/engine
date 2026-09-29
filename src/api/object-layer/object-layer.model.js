@@ -16,7 +16,7 @@ import {
   isStatRecord,
   STAT_RECORD_RULE,
   profileRef,
-} from '../../client/components/object-layer/ObjectLayerProtocol.js';
+} from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import {
   CONTENT_HASH_PATTERN,
   OBJECT_LAYER_CID_PATTERN,
@@ -157,7 +157,8 @@ ObjectLayerSchema.pre('validate', function () {
     this.contentHash = contentHash;
     return;
   }
-  if (this.cid !== cid) throw new Error(`ObjectLayer ${this.cid} is immutable: publish the changed content as a new definition`);
+  if (this.cid !== cid)
+    throw new Error(`ObjectLayer ${this.cid} is immutable: publish the changed content as a new definition`);
 });
 
 /**
@@ -248,7 +249,7 @@ ObjectLayerSchema.statics.upsertByIdentity = async function (payload, { origin }
  * are given; otherwise it is reported so the operator can index it from the contract.
  *
  * @param {Object} params
- * @param {import('../../client/components/object-layer/ObjectLayerProtocol.js').ProfileRef} params.profile - Profile the legacy documents follow.
+ * @param {import('../../client/components/objectlayer-studio/ObjectLayerProtocol.js').ProfileRef} params.profile - Profile the legacy documents follow.
  * @param {import('mongoose').Model} [params.ItemLedger] - Bound ItemLedger model.
  * @param {number} [params.chainId] - Chain id of the legacy contract addresses.
  * @param {string} [params.origin='draft'] - Origin a document without one takes: `canonical` on the

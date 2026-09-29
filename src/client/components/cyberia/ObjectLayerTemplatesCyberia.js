@@ -10,7 +10,7 @@ import {
   outlineRegion,
   rectOutlineRegion,
   rectRegion,
-} from '../object-layer/PixelRegion.js';
+} from '../objectlayer-studio/PixelRegion.js';
 
 /** A role grid built from shapes, each painted over the ones before it. */
 const shape = (width, height, layers) => {

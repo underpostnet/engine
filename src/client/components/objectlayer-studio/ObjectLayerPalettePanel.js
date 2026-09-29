@@ -7,7 +7,7 @@
  * stay in this browser. Click picks the brush color, Shift+click locks a color against apply and
  * swap, Alt+click marks it for swap and ramp.
  *
- * @module src/client/components/object-layer/ObjectLayerPalettePanel.js
+ * @module src/client/components/objectlayer-studio/ObjectLayerPalettePanel.js
  */
 import { colorRamp, paletteApply, paletteSwap, scatterRegion } from './PixelRegion.js';
 import { hexToRgba, rgbaToHex } from './RenderSource.js';

@@ -9,7 +9,7 @@ import {
   AtlasSpriteSheetModel,
   AtlasSpriteSheetSchema,
 } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.model.js';
-import { sourceFromIndexedFrames } from '../../../src/client/components/object-layer/RenderSource.js';
+import { sourceFromIndexedFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 
 const colors = [
   [255, 0, 0, 255],

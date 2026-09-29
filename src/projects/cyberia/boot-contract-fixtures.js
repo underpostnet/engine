@@ -1,8 +1,15 @@
 import { STAT_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
-import { profileRef } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { profileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { objectLayerIdentity, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
-import { toInstanceConfig, toMapMsg, toInstanceMsg, toObjectLayerMsg, toActionMsg, toQuestMsg } from './instance-data.js';
+import {
+  toInstanceConfig,
+  toMapMsg,
+  toInstanceMsg,
+  toObjectLayerMsg,
+  toActionMsg,
+  toQuestMsg,
+} from './instance-data.js';
 
 // One definition feeds every runtime contract: the Go boot fixtures (engine → cyberia-server)
 // and the WebSocket metadata fixture (cyberia-server → cyberia-client). Its render contract and
@@ -27,7 +34,13 @@ const QUEST = {
   code: 'contract-quest',
   title: 'Contract Quest',
   description: 'Collect a sword.',
-  steps: [{ id: 'step-collect', description: 'Collect a sword.', objectives: [{ type: 'collect', itemId: 'sword', quantity: 1 }] }],
+  steps: [
+    {
+      id: 'step-collect',
+      description: 'Collect a sword.',
+      objectives: [{ type: 'collect', itemId: 'sword', quantity: 1 }],
+    },
+  ],
   rewards: [{ itemId: 'sword', quantity: 1 }],
 };
 const ACTION = {
@@ -42,10 +55,15 @@ export function buildBootContractArtifacts() {
   const layer = toObjectLayerMsg(SWORD);
   const full = {
     instance: toInstanceMsg({ _id: 'contract-instance', code: 'contract-test', cyberiaMapCodes: ['contract-map'] }),
-    maps: [toMapMsg({
-      _id: 'contract-map', code: 'contract-map', gridX: 16, gridY: 16,
-      entities: [{ entityType: 'bot', level: 7, initCellX: 0, initCellY: 0, objectLayerItemIds: ['sword'] }],
-    })],
+    maps: [
+      toMapMsg({
+        _id: 'contract-map',
+        code: 'contract-map',
+        gridX: 16,
+        gridY: 16,
+        entities: [{ entityType: 'bot', level: 7, initCellX: 0, initCellY: 0, objectLayerItemIds: ['sword'] }],
+      }),
+    ],
     objectLayers: [layer],
     config: toInstanceConfig({}, BASELINE),
     version: 'contract-fixture',
@@ -66,10 +84,12 @@ export function buildBootContractArtifacts() {
     },
   };
   return {
-    ...Object.fromEntries(Object.entries(payloads).map(([name, data]) => [
-      'cyberia-server/engine_client/testdata/' + name + '.json',
-      JSON.stringify({ status: 'success', data }, null, 2) + '\n',
-    ])),
+    ...Object.fromEntries(
+      Object.entries(payloads).map(([name, data]) => [
+        'cyberia-server/engine_client/testdata/' + name + '.json',
+        JSON.stringify({ status: 'success', data }, null, 2) + '\n',
+      ]),
+    ),
     'cyberia-client/tests/testdata/ws_object_layer_metadata.json': JSON.stringify(wsMetadata, null, 2) + '\n',
   };
 }

@@ -2,7 +2,7 @@ import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
 import { commonUserGuard, commonModeratorGuard, commonAdminGuard } from '../../components/core/CommonJs.js';
 import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { ObjectLayerEngineViewer } from '../../components/object-layer/ObjectLayerEngineViewer.js';
+import { ObjectLayerEngineViewer } from '../../components/objectlayer-studio/ObjectLayerEngineViewer.js';
 import { s } from '../../components/core/VanillaJs.js';
 import { Modal } from '../../components/core/Modal.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
@@ -12,7 +12,7 @@ import { EventsUI } from '../../components/core/EventsUI.js';
 
 /** Opens the editor. Loaded on demand: a read-only host ships the list without it. */
 const openEngine = async (options) => {
-  const { ObjectLayerEngineModal } = await import('../../components/object-layer/ObjectLayerEngineModal.js');
+  const { ObjectLayerEngineModal } = await import('../../components/objectlayer-studio/ObjectLayerEngineModal.js');
   return ObjectLayerEngineModal.open(options);
 };
 
@@ -283,11 +283,9 @@ class ObjectLayerManagement {
                   <div class="in section-mp" style="text-align: center">
                     <p>${archived ? 'Offer' : 'Archive'} object layer <strong>"${itemId}"</strong>?</p>
                     <p style="font-size: 13px; margin-top: 8px;">
-                      ${
-                        archived
-                          ? 'The definition is offered again under its CID.'
-                          : 'The definition stays stored under its CID and is offered to no one. Cyberia unbinds its labels on reconciliation.'
-                      }
+                      ${archived
+                        ? 'The definition is offered again under its CID.'
+                        : 'The definition stays stored under its CID and is offered to no one. Cyberia unbinds its labels on reconciliation.'}
                     </p>
                   </div>
                 `,

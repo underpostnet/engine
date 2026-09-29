@@ -20,7 +20,7 @@ import { findObjectLayerByKey } from '../../api/object-layer/object-layer.servic
 import { contentArtifact } from './content-artifact.js';
 import { itemContext } from './foundation-context.js';
 import { loadSagaAssociations, withSagaFilter } from './saga-associations.js';
-import { fromWire } from '../../client/components/object-layer/RenderSource.js';
+import { fromWire } from '../../client/components/objectlayer-studio/RenderSource.js';
 
 /**
  * Refuses a write made from a definition the label no longer runs: another save came first.

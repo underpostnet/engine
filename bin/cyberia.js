@@ -65,7 +65,7 @@ import {
   fileFromBackup,
   restoreObjectLayerBackup,
 } from '../src/projects/cyberia/instance-backup.js';
-import { getKeyframeDirectionsByCode } from '../src/client/components/object-layer/ObjectLayerProtocol.js';
+import { getKeyframeDirectionsByCode } from '../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
 import { AtlasSpriteSheetStore } from '../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { fileRefFields } from '../src/api/file/file.ref.js';

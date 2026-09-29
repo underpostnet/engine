@@ -12,7 +12,7 @@
  * @property {(string|null)[][]} [colors] - `#rrggbb` color of each cell; null leaves the cell empty.
  * @property {''|'x'|'y'|'xy'} [symmetry] - The mirror the shape keeps, for painting over it.
  *
- * @module src/client/components/object-layer/PixelTemplate.js
+ * @module src/client/components/objectlayer-studio/PixelTemplate.js
  */
 import { hexToRgba } from './RenderSource.js';
 

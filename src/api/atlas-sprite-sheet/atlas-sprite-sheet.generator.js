@@ -8,11 +8,11 @@
 import { Jimp, rgbaToInt } from 'jimp';
 import sharp from 'sharp';
 import { loggerFactory } from '../../server/ops/logger.js';
-import { hexToRgba } from '../../client/components/object-layer/RenderSource.js';
+import { hexToRgba } from '../../client/components/objectlayer-studio/RenderSource.js';
 import {
   OBJECT_LAYER_DIRECTION_CODES,
   getKeyframeDirectionsByCode,
-} from '../../client/components/object-layer/ObjectLayerProtocol.js';
+} from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 
 const logger = loggerFactory(import.meta);
 

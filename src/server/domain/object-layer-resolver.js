@@ -10,7 +10,7 @@
  * @namespace ObjectLayerResolver
  */
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { canonicalObjectLayer } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { canonicalObjectLayer } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { domainOrigin, domainRead, domainWrite } from './domain-client.js';
 
 const localModel = (name, options) => {

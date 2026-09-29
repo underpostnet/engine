@@ -5,7 +5,7 @@
  * inside one. A frame is a matrix of rgba cells, `frame[y][x] = [r, g, b, a]`. Every operation
  * returns a new frame and leaves its input as it was. Pure functions, no DOM.
  *
- * @module src/client/components/object-layer/PixelRegion.js
+ * @module src/client/components/objectlayer-studio/PixelRegion.js
  */
 
 /** Cells once each, in first-seen order. */
@@ -43,7 +43,7 @@ export function lineRegion(x0, y0, x1, y1) {
   const sx = x0 < x1 ? 1 : -1;
   const sy = y0 < y1 ? 1 : -1;
   let error = dx + dy;
-  for (let x = x0, y = y0; ;) {
+  for (let x = x0, y = y0; ; ) {
     cells.push([x, y]);
     if (x === x1 && y === y1) return cells;
     const twice = 2 * error;

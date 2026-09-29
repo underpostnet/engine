@@ -15,7 +15,7 @@ import { loggerFactory } from '../../server/ops/logger.js';
 import { domainOrigin } from '../../server/domain/domain-client.js';
 import { publishObjectLayer, resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
 import { objectLayerIdentity, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
-import { isProfileRef } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { isProfileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { PINNED_REFERENCES, readItemRefs } from '../../api/cyberia-item-catalog/item-ref.js';
 import {
   collectInstanceItemIds,

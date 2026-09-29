@@ -6,7 +6,7 @@
  * of palette indexes, row by row. The wire form, for JSON and backups, carries each frame as base64
  * text. Pure functions: no DOM and no storage, so the editor and the server share them.
  *
- * @module src/client/components/object-layer/RenderSource.js
+ * @module src/client/components/objectlayer-studio/RenderSource.js
  */
 
 /** The one pixel format: one byte per pixel, an index into the palette. */

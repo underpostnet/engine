@@ -29,7 +29,7 @@ const { CyberiaContentReleaseSchema } =
 const { objectLayerIdentity, renderContractOf } =
   await import('../../../src/api/object-layer/object-layer.identity.js');
 const { MongooseDB } = await import('../../../src/db/mongo/MongooseDB.js');
-const { profileRef } = await import('../../../src/client/components/object-layer/ObjectLayerProtocol.js');
+const { profileRef } = await import('../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js');
 const { CyberiaObjectLayerProfile } =
   await import('../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js');
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');

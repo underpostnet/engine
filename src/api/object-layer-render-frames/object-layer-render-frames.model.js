@@ -5,14 +5,14 @@
  */
 import { Schema, model } from 'mongoose';
 import { OBJECT_LAYER_CID_PATTERN } from '../object-layer/object-layer.identity.js';
-import { OBJECT_LAYER_KEYFRAMES } from '../../client/components/object-layer/ObjectLayerProtocol.js';
+import { OBJECT_LAYER_KEYFRAMES } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import {
   RENDER_SOURCE_FORMAT,
   RENDER_SOURCE_MAX_COLORS,
   sameSource,
   sourceFromIndexedFrames,
   toWire,
-} from '../../client/components/object-layer/RenderSource.js';
+} from '../../client/components/objectlayer-studio/RenderSource.js';
 
 /** Frames by render keyframe: each frame one binary buffer of palette indexes, row by row. */
 const ObjectLayerRenderFramesKeyframesSchema = new Schema(

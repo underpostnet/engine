@@ -7,7 +7,7 @@
  * A section is `{ id, title, open, items }`; an item is `{ text }`, `{ label, value }` or
  * `{ label, chips: [{ label, title }] }`.
  *
- * @module src/client/components/object-layer/ObjectLayerContextPanel.js
+ * @module src/client/components/objectlayer-studio/ObjectLayerContextPanel.js
  */
 
 const element = (tag, className, text) => {
