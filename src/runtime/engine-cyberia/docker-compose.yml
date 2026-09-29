@@ -219,7 +219,7 @@ services:
     restart: 'no'
 
   # === Tier 3: authoritative simulation, one per variant ===================
-  # All three share engine-cyberia (content + gRPC) and differ by INSTANCE_CODE
+  # Both servers share engine-cyberia (content + gRPC) and differ by INSTANCE_CODE
   # and CYBERIA_BASE_PATH. Each server owns its public path and waits for the
   # stable gateway and for the promoted content release.
   # All variants are internal-only. The proxy publishes a dedicated server
@@ -265,53 +265,13 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
-  cyberia-server-forest:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.4.5}
-    container_name: dd-cyberia-server-forest
-    environment:
-      INSTANCE_CODE: FOREST
-      CYBERIA_BASE_PATH: /FOREST
-      CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/FOREST
-      CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
-      CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
-      ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
-      CYBERIA_DATA_SERVER_GRPC: ${CYBERIA_DATA_SERVER_GRPC:-engine-cyberia-runtime:50051}
-      ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
-      STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
-      APP_ENV: ${CYBERIA_SERVER_APP_ENV:-development}
-      LOG_LEVEL: ${CYBERIA_SERVER_LOG_LEVEL:-}
-      CYBERIA_DISABLE_CONNECTION_LIMITS: ${CYBERIA_DISABLE_CONNECTION_LIMITS:-}
-      CYBERIA_MAX_CONNECTIONS: ${CYBERIA_MAX_CONNECTIONS:-}
-      CYBERIA_MAX_CONNECTIONS_PER_IP: ${CYBERIA_MAX_CONNECTIONS_PER_IP:-}
-      CYBERIA_CONNECT_RATE_PER_IP: ${CYBERIA_CONNECT_RATE_PER_IP:-}
-      CYBERIA_CONNECT_BURST_PER_IP: ${CYBERIA_CONNECT_BURST_PER_IP:-}
-      CYBERIA_MESSAGE_RATE: ${CYBERIA_MESSAGE_RATE:-}
-      CYBERIA_MESSAGE_BURST: ${CYBERIA_MESSAGE_BURST:-}
-      CYBERIA_MAX_STRIKES: ${CYBERIA_MAX_STRIKES:-}
-    networks:
-      - dd-cyberia-internal
-    expose:
-      - '8081'
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/FOREST/api/v1/health/ready >/dev/null || exit 1']
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    depends_on:
-      proxy:
-        condition: service_healthy
-      engine-cyberia-content:
-        condition: service_completed_successfully
-    restart: unless-stopped
-
   cyberia-server-test:
     image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.4.5}
     container_name: dd-cyberia-server-test
     environment:
-      INSTANCE_CODE: TEST
-      CYBERIA_BASE_PATH: /TEST
-      CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/TEST
+      INSTANCE_CODE: test
+      CYBERIA_BASE_PATH: /test
+      CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/test
       CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
       CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
       ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4005}
@@ -333,7 +293,7 @@ services:
     expose:
       - '8081'
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/TEST/api/v1/health/ready >/dev/null || exit 1']
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/test/api/v1/health/ready >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -349,11 +309,10 @@ services:
   # One WASM bundle serves every variant; the instance is resolved from the URL
   # sub-path (wasm-driver injects CYBERIA_BASE_PATH / _WS_ORIGIN /
   # _ENGINE_API_ORIGIN / _DEFAULT_INSTANCE). Each client waits ONLY for its own
-  # server, so the three
+  # server, so the two
   # server->client pipelines advance independently (in parallel) once the shared
   # engine-cyberia is healthy:
   #   cyberia-server        -> cyberia-client
-  #   cyberia-server-forest -> cyberia-client-forest
   #   cyberia-server-test   -> cyberia-client-test
 
   cyberia-client-runtime:
@@ -381,38 +340,13 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  cyberia-client-forest:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.4.5}
-    container_name: dd-cyberia-client-forest
-    environment:
-      CYBERIA_PORT: '8081'
-      CYBERIA_INSTANCE_CODE: FOREST
-      CYBERIA_BASE_PATH: /FOREST
-      CYBERIA_DEFAULT_INSTANCE: ${CYBERIA_DEFAULT_INSTANCE:-amethyst-strata-expansion}
-      CYBERIA_WS_ORIGIN: ${CYBERIA_WS_ORIGIN:-ws://localhost:8081}
-      CYBERIA_DATA_SERVER_URL: ${CYBERIA_CLIENT_DATA_SERVER_URL:-http://localhost}
-    networks:
-      - dd-cyberia-internal
-    expose:
-      - '8081'
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/FOREST/ >/dev/null || exit 1']
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    depends_on:
-      cyberia-server-forest:
-        condition: service_healthy
-    restart: unless-stopped
-
   cyberia-client-test:
     image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.4.5}
     container_name: dd-cyberia-client-test
     environment:
       CYBERIA_PORT: '8081'
-      CYBERIA_INSTANCE_CODE: TEST
-      CYBERIA_BASE_PATH: /TEST
+      CYBERIA_INSTANCE_CODE: test
+      CYBERIA_BASE_PATH: /test
       CYBERIA_DEFAULT_INSTANCE: ${CYBERIA_DEFAULT_INSTANCE:-amethyst-strata-expansion}
       CYBERIA_WS_ORIGIN: ${CYBERIA_WS_ORIGIN:-ws://localhost:8081}
       CYBERIA_DATA_SERVER_URL: ${CYBERIA_CLIENT_DATA_SERVER_URL:-http://localhost}
@@ -421,7 +355,7 @@ services:
     expose:
       - '8081'
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/TEST/ >/dev/null || exit 1']
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8081/test/ >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
