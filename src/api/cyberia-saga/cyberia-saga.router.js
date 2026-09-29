@@ -8,7 +8,9 @@ class CyberiaSagaRouter {
    * @returns {import('express').Router}
    */
   static router(options) {
-    return registerCrudRoutes(express.Router(), CyberiaSagaController, options);
+    const router = express.Router();
+    router.get(`/sources`, async (req, res) => await CyberiaSagaController.sources(req, res, options));
+    return registerCrudRoutes(router, CyberiaSagaController, options);
   }
 }
 

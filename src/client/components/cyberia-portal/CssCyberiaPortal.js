@@ -186,6 +186,15 @@ const CssCommonCyberia = async () => {
       .studio-editor .ag-root-wrapper {
         font-size-adjust: none;
       }
+      .saga-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 15px;
+        font-weight: bold;
+        line-height: 20px;
+      }
       .studio-group {
         border: 1px solid var(--studio-border);
         border-radius: 8px;
@@ -232,7 +241,11 @@ const CssCommonCyberia = async () => {
         color: #ffcc00 !important;
       }
     </style>
-    ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
+    ${borderChar(1, `#010101`, [
+      '.default-slide-menu-top-bar-fix-title-container-text',
+      '.saga-badge',
+      '.ol-context-badge',
+    ])}
 
     <div class="ag-grid-style"></div>`;
 };

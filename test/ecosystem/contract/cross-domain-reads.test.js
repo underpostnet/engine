@@ -342,7 +342,8 @@ describe('API extensions', () => {
 
   it.skipIf(!cyberiaContext)('loads the Cyberia Studio extensions with the hooks the generic APIs read', async () => {
     const objectLayer = await loadApiExtension('object-layer', { 'object-layer': 'cyberia' });
-    for (const hook of ['mount', 'resolveKey', 'beforeDelete']) expect(typeof objectLayer[hook], hook).toBe('function');
+    for (const hook of ['mount', 'resolveKey', 'beforeDelete', 'listParams'])
+      expect(typeof objectLayer[hook], hook).toBe('function');
     const atlas = await loadApiExtension('atlas-sprite-sheet', { 'atlas-sprite-sheet': 'cyberia' });
     for (const hook of ['mount', 'resolveKey']) expect(typeof atlas[hook], hook).toBe('function');
   });

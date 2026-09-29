@@ -70,6 +70,9 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
 /** Quest step objective types accepted by the quest-progress engine. */
 export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
 
+/** The table column the sagas of a row show in, and the filter key a table sends for them. */
+export const SAGA_FILTER_KEY = 'sagaCode';
+
 /** How a portal connects: to a portal or a random cell, on another map or the same one. */
 export const PORTAL_MODES = Object.freeze(['inter-portal', 'inter-random', 'intra-random', 'intra-portal']);
 

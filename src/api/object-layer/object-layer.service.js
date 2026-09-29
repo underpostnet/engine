@@ -185,11 +185,13 @@ class ObjectLayerService {
       return objectLayer;
     }
 
+    // The host's extension may move a filter on a column it adds onto the stored fields.
+    const params = (await options.extension?.listParams?.(req.query, options)) ?? req.query;
     return await CacheService.getOrLoad(objectLayerCache(options), {
       identifier: 'list',
-      variant: CacheService.variant(req.query),
+      variant: CacheService.variant(params),
       load: async () => {
-        const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
+        const { query, sort, skip, limit, page } = DataQuery.parse(params);
         const [documents, total] = await Promise.all([
           ObjectLayer.find(query).sort(sort).limit(limit).skip(skip).select(ObjectLayerDto.select.get()),
           ObjectLayer.countDocuments(query),

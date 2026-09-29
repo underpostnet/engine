@@ -662,6 +662,7 @@ class AppShellCyberiaPortal {
           ObjectLayerManagement.instance({
             appStore: AppStoreCyberiaPortal,
             itemTypes: CyberiaObjectLayerProfile.itemTypes,
+            columns: CyberiaObjectLayerStudio.columns(),
           }),
         handleType: 'bar',
         maximize: true,
@@ -686,6 +687,7 @@ class AppShellCyberiaPortal {
           ObjectLayerEngineViewer.instance({
             appStore: AppStoreCyberiaPortal,
             profile: CyberiaObjectLayerProfile,
+            columns: CyberiaObjectLayerStudio.columns(),
           }),
         handleType: 'bar',
         maximize: true,

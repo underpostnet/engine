@@ -7,6 +7,7 @@
  */
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaObjectLayerTemplates } from './ObjectLayerTemplatesCyberia.js';
+import { sagaColor, sagaColumn } from './SagaCyberia.js';
 
 const summaryText = ({ name, id, label }) => `${name} (${label ?? id})`;
 const chips = (summaries) => summaries.map((summary) => ({ label: summary.name, title: summary.id }));
@@ -14,7 +15,8 @@ const chips = (summaries) => summaries.map((summary) => ({ label: summary.name, 
 /**
  * The editor panel of a foundation context bundle.
  * @param {Object} context - `GET /object-layer/context/:id` data.
- * @returns {{title:string, subtitle:string, kind:string, sections:Object[], palettes:Object[], raw:Object}}
+ * @returns {Object} The panel model of `ObjectLayerContextPanel`, with the `kind`, the `palettes` and
+ *   the `biome` of the item.
  */
 export function contextPanel(context) {
   const brief = context.visual.artBrief ?? {};
@@ -22,7 +24,12 @@ export function contextPanel(context) {
   const references = context.references.filter(({ field }) => field !== 'locations');
   return {
     title: context.name,
-    subtitle: `${context.kind} · ${context.label ?? context.id} · ${context.source}`,
+    subtitle: `${context.kind} · ${context.label ?? context.id}`,
+    badges: context.sagas.map((code) => ({
+      label: code,
+      title: `Belongs to the saga ${code}`,
+      color: sagaColor(code),
+    })),
     kind: context.kind,
     sections: [
       {
@@ -93,6 +100,8 @@ export function contextPanel(context) {
 
 export const CyberiaObjectLayerStudio = Object.freeze({
   templates: CyberiaObjectLayerTemplates,
+  /** The columns Cyberia adds to an Object Layer table: the saga that defines each item. */
+  columns: () => [sagaColumn('items', (row) => row.data?.item?.id)],
   /**
    * The context panel of the item a key names, or null where the foundation defines none.
    * @param {string} key - cid, document id or item label.

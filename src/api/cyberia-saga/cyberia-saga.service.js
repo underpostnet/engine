@@ -1,10 +1,13 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import { loadSagaAssociations } from '../../projects/cyberia/saga-associations.js';
 
 const logger = loggerFactory(import.meta);
 
 class CyberiaSagaService {
+  /** GET /sources - the sagas each item label and map code belongs to. Read-only. */
+  static sources = async (req, res, options) => await loadSagaAssociations(options);
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-saga.model.js').CyberiaSagaModel} */
     const CyberiaSaga = DataBaseProviderService.getModel("CyberiaSaga", options);

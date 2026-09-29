@@ -5,6 +5,7 @@ import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 import { CyberiaMapDto } from './cyberia-map.model.js';
 import { mapContext } from '../../projects/cyberia/foundation-context.js';
+import { loadSagaAssociations, withSagaFilter } from '../../projects/cyberia/saga-associations.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -19,7 +20,8 @@ class CyberiaMapService {
     const instances = await DataBaseProviderService.getModel('CyberiaInstance', options)
       .find({ $or: [{ 'portals.sourceMapCode': code }, { 'portals.targetMapCode': code }] }, { code: 1, portals: 1 })
       .lean();
-    return mapContext({ code, map: map ?? {}, instances });
+    const sagas = (await loadSagaAssociations(options)).maps[code] ?? [];
+    return { ...mapContext({ code, map: map ?? {}, instances }), sagas };
   };
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
@@ -58,11 +60,12 @@ class CyberiaMapService {
       });
 
     // A list row is a summary: the entities of a map come with the map, by code.
+    const params = await withSagaFilter(req.query, { family: 'maps', field: 'code' }, options);
     return await CacheService.getOrLoad(mapCache(options), {
       identifier: 'list',
-      variant: CacheService.variant(req.query),
+      variant: CacheService.variant(params),
       load: async () => {
-        const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
+        const { query, sort, skip, limit, page } = DataQuery.parse(params);
         const [documents, total] = await Promise.all([
           CyberiaMap.find(query)
             .sort(sort)

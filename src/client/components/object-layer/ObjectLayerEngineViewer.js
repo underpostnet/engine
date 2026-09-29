@@ -71,6 +71,8 @@ class ObjectLayerEngineViewer {
   static readOnly = false;
   /** The host is the Object Layer authority: a moderator archives a definition, an admin purges it. */
   static lifecycle = false;
+  /** Columns the host adds to the table. */
+  static columns = [];
 
   /**
    * @param {Object} options
@@ -78,12 +80,14 @@ class ObjectLayerEngineViewer {
    * @param {Object} [options.profile] - Content profile that names and illustrates the stats.
    * @param {boolean} [options.readOnly=false] - No add, edit or delete.
    * @param {boolean} [options.lifecycle=false] - Offer archive and purge to the roles that hold them.
+   * @param {Object[]} [options.columns=[]] - Columns the host adds to the table.
    */
-  static async instance({ appStore, profile = null, readOnly = false, lifecycle = false }) {
+  static async instance({ appStore, profile = null, readOnly = false, lifecycle = false, columns = [] }) {
     const id = 'object-layer-engine-viewer';
     ObjectLayerEngineViewer.profile = profile;
     ObjectLayerEngineViewer.readOnly = readOnly;
     ObjectLayerEngineViewer.lifecycle = lifecycle;
+    ObjectLayerEngineViewer.columns = columns;
     // Reset so a modal render always triggers Reload.
     ObjectLayerEngineViewer.Data.currentKey = undefined;
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
@@ -634,6 +638,7 @@ class ObjectLayerEngineViewer {
         readOnly: ObjectLayerEngineViewer.readOnly,
         lifecycle: ObjectLayerEngineViewer.lifecycle,
         itemTypes: ObjectLayerEngineViewer.profile?.itemTypes,
+        columns: ObjectLayerEngineViewer.columns,
       }),
     );
   }

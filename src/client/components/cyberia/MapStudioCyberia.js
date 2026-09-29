@@ -10,6 +10,7 @@
  */
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { trackComposition } from './MapPlacementCyberia.js';
+import { sagaBadge } from './SagaCyberia.js';
 
 const element = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -126,13 +127,16 @@ class MapStudioCyberia {
     if (!root) return;
     root.replaceChildren();
     const context = MapStudioCyberia.context;
+    const sagas = element('div', 'map-studio-row');
+    sagas.append(...(context?.sagas ?? []).map(sagaBadge));
     if (!context?.definition) {
-      root.append(element('div', 'map-studio-muted', 'No foundation map has this code: nothing to track.'));
+      root.append(sagas, element('div', 'map-studio-muted', 'No foundation map has this code: nothing to track.'));
       return;
     }
     const entityTypes = [...new Set(context.composition.map(({ entity }) => entity.entityType))];
     root.append(
       element('div', 'map-studio-title', context.name),
+      sagas,
       element('div', 'map-studio-muted', context.role),
       element('p', '', context.description),
       element('div', 'map-studio-muted', `Entity types: ${entityTypes.join(', ')}`),

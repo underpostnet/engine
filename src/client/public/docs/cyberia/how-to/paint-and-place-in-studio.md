@@ -11,6 +11,13 @@ canvas with its coordinates, or the entity defaults table. The tools and the sec
 the right of the stage when the screen has room, and under it when it does not. The eye button
 hides and shows the stage. Ids, labels and definitions show in a case-sensitive face.
 
+An item or a map that belongs to a saga carries a badge for each saga, in a color the saga code
+fixes: in the foundation context of both editors, and in the **Sagas** column of the Object Layer
+tables and the map table. A map belongs to the saga that defines it and to every stored saga that
+lists it. An item belongs to the saga that defines it and to the saga of every map whose entities
+carry it, so an item you place on a saga map joins that saga. The **Sagas** filter takes
+comma-separated saga codes; each matches the codes that contain it.
+
 ## Paint an item
 
 1. Open the Object Layer editor on an item: `?cid=<cid, document id or item label>`. An item the
@@ -66,6 +73,7 @@ map is offered back. A save or a reset drops the draft. The server stays the sou
 | -------------------------------- | ----------------------------------------------------------- |
 | `GET /object-layer/context/:id`  | The foundation context of the item a cid, id or label names |
 | `GET /cyberia-map/context/:code` | The map context against its stored entities and portals     |
+| `GET /cyberia-saga/sources`      | The sagas each item label and map code belongs to           |
 
-Both are read-only. `src/projects/cyberia/foundation-context.js` builds them from the context index
+All are read-only. `src/projects/cyberia/foundation-context.js` builds them from the context index
 of the content artifact ([Content artifact](../explanation/content-artifact.md#document-families)).

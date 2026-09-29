@@ -26,8 +26,16 @@ class ObjectLayerManagement {
    *   definition or offers it again.
    * @param {ReadonlyArray<string>} [options.itemTypes=[]] - The item type vocabulary of the host's content profile:
    *   the Item Type column filters and edits by it.
+   * @param {Object[]} [options.columns=[]] - Columns the host adds after the item columns.
    */
-  static instance = async ({ appStore, idModal: rawIdModal, readOnly = false, lifecycle = false, itemTypes = [] }) => {
+  static instance = async ({
+    appStore,
+    idModal: rawIdModal,
+    readOnly = false,
+    lifecycle = false,
+    itemTypes = [],
+    columns = [],
+  }) => {
     const idModal = rawIdModal || 'modal-object-layer-engine-management';
     const serviceId = 'object-layer-engine-management';
     const gridId = `${serviceId}-grid-${idModal}`;
@@ -441,6 +449,7 @@ class ObjectLayerManagement {
           : {}),
       },
       { field: 'data.item.description', headerName: 'Description', flex: 1, editable: canEdit },
+      ...columns,
       {
         field: 'cid',
         headerName: 'Object Layer CID',

@@ -19,6 +19,7 @@ import { catalogModels, catalogMounted, findBoundDefinition } from './object-lay
 import { findObjectLayerByKey } from '../../api/object-layer/object-layer.service.js';
 import { contentArtifact } from './content-artifact.js';
 import { itemContext } from './foundation-context.js';
+import { loadSagaAssociations, withSagaFilter } from './saga-associations.js';
 import { fromWire } from '../../client/components/object-layer/RenderSource.js';
 
 /**
@@ -140,7 +141,7 @@ const context = async (req, res, options) => {
   const itemId = objectLayer?.data?.item?.id ?? key;
   const found = itemContext(itemId, contentArtifact().context);
   if (!found) throw Object.assign(new Error(`No foundation definition labels ${itemId}`), { status: 404 });
-  return found;
+  return { ...found, sagas: (await loadSagaAssociations(options)).items[itemId] ?? [] };
 };
 
 const ObjectLayerStudioController = {
@@ -158,6 +159,17 @@ const ObjectLayerStudioController = {
  */
 export const resolveKey = async (key, options) =>
   catalogMounted(options) ? ((await findBoundDefinition(catalogModels(options), key))?._id ?? null) : null;
+
+/**
+ * The list parameters of an Object Layer table with its saga filter moved onto the item labels of
+ * the sagas it names.
+ * @param {Object} params - Request query.
+ * @param {import('../../api/types.js').RouterOptions} options
+ * @returns {Promise<Object>}
+ * @memberof CyberiaObjectLayerStudio
+ */
+export const listParams = (params, options) =>
+  withSagaFilter(params, { family: 'items', field: 'data.item.id' }, options);
 
 /**
  * Removes what the Studio keeps for a definition that is deleted: the labels bound to it and, with

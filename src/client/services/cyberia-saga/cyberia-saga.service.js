@@ -5,6 +5,21 @@ const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'cyberia-saga';
 class CyberiaSagaService {
+  /** The saga that defines each item label and map code: `{ items, maps }`. */
+  static getSources = () =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: 'sources', endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

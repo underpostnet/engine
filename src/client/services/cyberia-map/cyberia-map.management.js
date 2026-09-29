@@ -6,6 +6,7 @@ import { s } from '../../components/core/VanillaJs.js';
 import { DefaultManagement } from '../default/default.management.js';
 import { CyberiaMapService } from './cyberia-map.service.js';
 import { getApiBaseUrl } from '../core/core.service.js';
+import { sagaColumn } from '../../components/cyberia/SagaCyberia.js';
 
 class CyberiaMapManagement {
   static instance = async (options = {}) => {
@@ -125,6 +126,7 @@ class CyberiaMapManagement {
       usePagination: true,
       columnDefs: [
         { field: 'code', headerName: 'Code' },
+        sagaColumn('maps', (row) => row.code),
         { field: 'name', headerName: 'Name' },
         { field: 'description', headerName: 'Description' },
         { field: 'tags', headerName: 'Tags' },

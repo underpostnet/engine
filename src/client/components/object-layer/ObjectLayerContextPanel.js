@@ -3,8 +3,9 @@
  * painted, as titled sections. The studio builds the panel model; this mounts it. Text goes in as
  * text, never as markup.
  *
- * A panel model is `{ title, subtitle, sections, raw }`. A section is `{ id, title, open, items }`;
- * an item is `{ text }`, `{ label, value }` or `{ label, chips: [{ label, title }] }`.
+ * A panel model is `{ title, subtitle, badges, sections, raw }`. A badge is `{ label, title, color }`.
+ * A section is `{ id, title, open, items }`; an item is `{ text }`, `{ label, value }` or
+ * `{ label, chips: [{ label, title }] }`.
  *
  * @module src/client/components/object-layer/ObjectLayerContextPanel.js
  */
@@ -51,8 +52,16 @@ export function mountContextPanel(container, panel) {
     container.append(element('div', 'ol-context-empty', 'No foundation definition carries this item label yet.'));
     return;
   }
+  const badges = element('div', 'ol-context-chips');
+  for (const badge of panel.badges ?? []) {
+    const node = element('span', 'ol-context-chip ol-context-badge', badge.label);
+    node.title = badge.title;
+    node.style.background = badge.color;
+    badges.append(node);
+  }
   container.append(
     element('div', 'ol-context-title', panel.title),
+    badges,
     element('div', 'ol-context-subtitle', panel.subtitle),
   );
   for (const section of panel.sections)
@@ -73,5 +82,6 @@ export const contextPanelStyle = `
   .ol-context-text { margin: 4px 0; font-size: 13px; }
   .ol-context-chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .ol-context-chip { padding: 1px 6px; border-radius: 8px; background: rgba(127, 127, 127, 0.25); font-size: 12px; }
+  .ol-context-badge { color: #fff; margin: 2px 0; padding: 2px 10px; font-size: 15px; font-weight: bold; }
   .ol-context-raw { max-height: 280px; overflow: auto; font-size: 11px; }
 `;

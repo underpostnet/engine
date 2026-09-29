@@ -87,7 +87,7 @@ export function apiExtensionUrl(api, project) {
 /**
  * The extension a host declares for one API in `apiExtensions: { "<api>": "<project>" }`: the
  * module `src/projects/<project>/<api>.extension.js`. It exports `mount(router, options)` and
- * may export hooks the API reads (`resolveKey`, `beforeDelete`). A host that declares none gets
+ * may export hooks the API reads (`resolveKey`, `beforeDelete`, `listParams`). A host that declares none gets
  * the API as its owner ships it.
  * @param {string} api
  * @param {Object<string,string>} [apiExtensions]
