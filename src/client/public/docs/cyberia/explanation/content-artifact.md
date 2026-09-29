@@ -156,10 +156,10 @@ code, or a dialogue code with all of its lines. A document that is absent is ins
 that holds the same content is in sync. A document that differs is kept and reported; `--rebind`
 moves it to the artifact. `--dry-run` prints the plan and writes nothing. Every run is idempotent.
 
-The import never overwrites what Studio authored:
+The import never overwrites what is stored or what Studio authored:
 
-- An Object Layer definition keeps its render. A rebind publishes new content as a new immutable
-  definition and moves the label; a stored definition never changes in place.
+- An Object Layer item whose item id is stored is skipped, even with `--rebind`, and the plan logs
+  the skipped item ids. Only an absent item id gets a new definition and its catalog binding.
 - A quest or an action keeps its source map and cell.
 - A map keeps its entities. A compiled map holds none: Studio places them.
 

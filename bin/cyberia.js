@@ -4171,14 +4171,14 @@ try {
   /** Logs a content plan: Object Layer labels, then each family by status. */
   const printPlan = ({ objectLayers, documents }, rebind) => {
     const counts = (entries) =>
-      ['absent', 'in-sync', 'differs']
+      ['absent', 'in-sync', 'differs', 'exists']
         .map((status) => [status, entries.filter((entry) => entry.status === status).length])
         .filter(([, count]) => count > 0)
         .map(([status, count]) => `${status} ${count}`)
         .join(', ');
     logger.info(`object layers: ${counts(objectLayers) || 'none'}`);
-    for (const entry of objectLayers.filter(({ status }) => status === 'differs'))
-      logger.info(`  ${entry.itemId} differs in ${entry.fields.join(', ')}${rebind ? '' : ' — kept'}`);
+    const skipped = objectLayers.filter(({ status }) => status === 'exists').map(({ itemId }) => itemId);
+    if (skipped.length > 0) logger.info(`  skipped ${skipped.length} stored item id(s): ${skipped.join(', ')}`);
     for (const [family, entries] of Object.entries(documents))
       logger.info(
         `${family}: ${counts(entries) || 'none'}${!rebind && entries.some(({ status }) => status === 'differs') ? ' — differing kept' : ''}`,
@@ -4189,7 +4189,7 @@ try {
     content
       .command('import')
       .option('--saga <code>', 'Import this saga of the artifact instead of the foundation')
-      .option('--rebind', 'Move differing labels and documents to the artifact; render and placement stay')
+      .option('--rebind', 'Move differing documents to the artifact; stored item ids, render and placement stay')
       .option('--dry-run', 'Plan only; write nothing')
       .description(
         'Import the content artifact: Object Layer definitions and their catalog bindings, entity-type ' +

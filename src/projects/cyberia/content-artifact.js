@@ -292,7 +292,8 @@ export function planObjectLayer(item, bound) {
 }
 
 /**
- * The plan of artifact items against a deployment's catalog.
+ * The plan of artifact items against a deployment's catalog. An item whose item id a stored
+ * definition carries is `exists`: no import writes it, even on a rebind.
  * @param {Object} params
  * @param {Object[]} params.items - Artifact Object Layer items.
  * @param {import('./object-layer-catalog.js').CatalogModels} params.models
@@ -300,31 +301,33 @@ export function planObjectLayer(item, bound) {
  * @memberof CyberiaContentArtifact
  */
 export async function planMaterialization({ items, models }) {
+  const existing = new Set(
+    await models.ObjectLayer.distinct('data.item.id', { 'data.item.id': { $in: items.map(({ itemId }) => itemId) } }),
+  );
   const plan = [];
   for (const item of items) {
     const bound = await findBoundDefinition(models, item.itemId);
-    plan.push(planObjectLayer(item, bound ? bound.toObject({ virtuals: false }) : null));
+    const entry = planObjectLayer(item, bound ? bound.toObject({ virtuals: false }) : null);
+    plan.push(existing.has(item.itemId) ? { ...entry, status: 'exists' } : entry);
   }
   return plan;
 }
 
 /**
- * Writes what a plan calls for: every absent label, and every differing one when `rebind` is set.
- * A stored definition never changes; a rebind publishes a new one and moves the label. Idempotent.
+ * Writes every absent label of a plan: a new definition, bound to its label. Idempotent.
  * @param {Object} params
  * @param {Object[]} params.plan - {@link planMaterialization} output.
  * @param {Object[]} params.items - The planned artifact items.
  * @param {import('./object-layer-catalog.js').CatalogModels} params.models
  * @param {Object} [params.options] - Router options of this host.
- * @param {boolean} [params.rebind=false]
  * @returns {Promise<Object[]>} The written entries, with the cid the label is bound to now.
  * @memberof CyberiaContentArtifact
  */
-export async function materializeObjectLayers({ plan, items, models, options, rebind = false }) {
+export async function materializeObjectLayers({ plan, items, models, options }) {
   const byId = new Map(items.map((item) => [item.id, item]));
   const written = [];
   for (const entry of plan) {
-    if (entry.status === 'in-sync' || (entry.status === 'differs' && !rebind)) continue;
+    if (entry.status !== 'absent') continue;
     const definition = await writeItemDefinition({
       models,
       payload: byId.get(entry.id).payload,
@@ -386,7 +389,8 @@ const findStored = (Model, family, key) =>
   family === 'dialogues' ? Model.find(key).sort({ order: 1 }).lean() : Model.findOne(key).lean();
 
 /**
- * The plan of compiled families against a store. A document is absent, in sync, or differs.
+ * The plan of compiled families against a store. A document is absent, in sync, or differs; an
+ * Object Layer item is absent or `exists`.
  * @param {Object} params
  * @param {Object<string,Object[]>} params.families - Compiled families, as {@link contentArtifact} reads them.
  * @param {Object} params.models - The content models and the catalog models.
@@ -413,13 +417,14 @@ export async function planContent({ families, models }) {
 /**
  * Imports compiled families in dependency order: Object Layer items and their catalog bindings,
  * entity-type defaults, skills, maps, quests, dialogues, then actions. It inserts what is absent,
- * and with `rebind` moves what differs to the artifact. Studio's work stays: an item keeps its
- * render, a quest or action its source, and a map its entities. Idempotent.
+ * and with `rebind` moves differing documents to the artifact. It never writes an Object Layer item
+ * whose item id is stored, even on a rebind. Studio's work stays: an item keeps its render, a quest
+ * or action its source, and a map its entities. Idempotent.
  * @param {Object} params
  * @param {Object<string,Object[]>} params.families - Compiled families.
  * @param {Object} params.models - The content models and the catalog models.
  * @param {{host:string,path:string}} [params.context] - Host the models belong to.
- * @param {boolean} [params.rebind=false] - Move differing labels and documents to the artifact.
+ * @param {boolean} [params.rebind=false] - Move differing documents to the artifact.
  * @returns {Promise<{plan:Object, objectLayers:number, written:Object<string,number>, entityTypeDefaultIds:Array}>}
  *   The plan, the Object Layer definitions written, the documents written per family, and the id of
  *   each entity-type default in compiled order.
@@ -432,7 +437,6 @@ export async function importContent({ families, models, context, rebind = false 
     items: families.objectLayers,
     models: catalogOf(models),
     options: context,
-    rebind,
   });
   const written = {};
   for (const [family, { model, key, content = (doc) => doc, revised }] of Object.entries(FAMILY_STORES)) {
@@ -465,7 +469,7 @@ export async function importContent({ families, models, context, rebind = false 
  * @param {Object} params.models - The content models, `CyberiaSaga`, `CyberiaInstance`, `CyberiaInstanceConf`
  *   and the catalog models.
  * @param {{host:string,path:string}} [params.context] - Host the models belong to.
- * @param {boolean} [params.rebind=false] - Move differing labels and documents to the artifact.
+ * @param {boolean} [params.rebind=false] - Move differing documents to the artifact.
  * @returns {Promise<Object>} {@link importContent} output.
  * @memberof CyberiaContentArtifact
  */

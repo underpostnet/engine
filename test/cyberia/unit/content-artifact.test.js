@@ -132,6 +132,8 @@ const store = (seed = []) => {
   for (const payload of seed) bindings.set(payload.data.item.id, put(payload).cid);
   const ObjectLayer = {
     store: async (payload) => put(payload),
+    distinct: async (field, { 'data.item.id': { $in: itemIds } }) =>
+      [...new Set([...docs.values()].map((doc) => doc.data.item.id))].filter((itemId) => itemIds.includes(itemId)),
     findByCid: async (cid) => {
       const doc = docs.get(cid);
       return doc ? { ...doc, toObject: () => JSON.parse(JSON.stringify(doc)) } : null;
@@ -280,34 +282,33 @@ describe('materialization plan', () => {
 });
 
 describe('materialization', () => {
-  it('creates absent labels, keeps differing ones, and is idempotent', async () => {
+  it('creates absent labels, skips every stored item id, and is idempotent', async () => {
     const { models, docs, bindings } = store([drawn('anon')]);
     const items = itemsOf('coin', 'anon');
     const plan = await planMaterialization({ items, models });
-    expect(plan.map(({ status }) => status)).toEqual(['absent', 'differs']);
+    expect(plan.map(({ itemId, status }) => [itemId, status])).toEqual([
+      ['coin', 'absent'],
+      ['anon', 'exists'],
+    ]);
 
     const written = await materializeObjectLayers({ plan, items, models });
     expect(written.map(({ itemId }) => itemId)).toEqual(['coin']);
     expect(bindings.get('anon')).toBe(plan[1].boundCid);
 
     const again = await planMaterialization({ items, models });
-    expect(again.map(({ status }) => status)).toEqual(['in-sync', 'differs']);
+    expect(again.map(({ status }) => status)).toEqual(['exists', 'exists']);
     expect(await materializeObjectLayers({ plan: again, items, models })).toEqual([]);
     expect(docs.size).toBe(2);
   });
 
-  it('publishes differing content as a new immutable definition when asked to rebind', async () => {
+  it('never duplicates a stored item id that no catalog binding names', async () => {
     const { models, docs, bindings } = store([drawn('anon')]);
+    bindings.delete('anon');
     const items = itemsOf('anon');
     const plan = await planMaterialization({ items, models });
-    const [entry] = await materializeObjectLayers({ plan, items, models, rebind: true });
-
-    expect(entry.cid).not.toBe(plan[0].boundCid);
-    expect(bindings.get('anon')).toBe(entry.cid);
-    // The earlier definition is never rewritten: it stays stored under its own identity.
-    expect(docs.get(plan[0].boundCid).data.item.description).toBe('');
-    expect(docs.get(entry.cid).data.render).toEqual(RENDER);
-    expect((await planMaterialization({ items, models }))[0].status).toBe('in-sync');
+    expect(plan.map(({ status }) => status)).toEqual(['exists']);
+    expect(await materializeObjectLayers({ plan, items, models })).toEqual([]);
+    expect(docs.size).toBe(1);
   });
 });
 

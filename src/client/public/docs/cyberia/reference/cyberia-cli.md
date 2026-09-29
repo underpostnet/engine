@@ -554,9 +554,10 @@ cyberia content import --saga amethyst-strata-expansion --dev
 | `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance  |
 
 `import` writes Object Layer definitions and their catalog bindings, entity-type defaults, skills,
-maps, quests, dialogues and actions, in that order. A document that differs is reported and kept.
-`--rebind` moves it to the artifact: a differing label gets a new immutable definition. Render,
-quest and action sources, and placed maps stay as Studio set them. `--dry-run` plans only.
+maps, quests, dialogues and actions, in that order. A document that differs is reported and kept;
+`--rebind` moves it to the artifact. An Object Layer item whose item id a stored definition already
+carries is planned `exists` and skipped, even with `--rebind`; the plan logs the skipped item ids.
+Render, quest and action sources, and placed maps stay as Studio set them. `--dry-run` plans only.
 
 ## `cyberia cache` — platform cache
 
