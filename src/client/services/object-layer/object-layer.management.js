@@ -10,6 +10,9 @@ import { NotificationManager } from '../../components/core/NotificationManager.j
 import { AgGrid, ValueListFilter } from '../../components/core/AgGrid.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 
+const SERVICE_ID = 'object-layer-engine-management';
+const gridIdOf = (idModal) => `${SERVICE_ID}-grid-${idModal}`;
+
 /** Opens the editor. Loaded on demand: a read-only host ships the list without it. */
 const openEngine = async (options) => {
   const { ObjectLayerEngineModal } = await import('../../components/objectlayer-studio/ObjectLayerEngineModal.js');
@@ -24,8 +27,8 @@ class ObjectLayerManagement {
    * @param {boolean} [options.readOnly=false] - Explorer mode: no add, edit or delete; the host has no editor route.
    * @param {boolean} [options.lifecycle=false] - The host is the Object Layer authority: a moderator archives a
    *   definition or offers it again.
-   * @param {ReadonlyArray<string>} [options.itemTypes=[]] - The item type vocabulary of the host's content profile:
-   *   the Item Type column filters and edits by it.
+   * @param {Object} [options.profile] - The host's content profile: the Item Type column filters and edits by
+   *   its item types, and the viewer names the stats by it.
    * @param {Object[]} [options.columns=[]] - Columns the host adds after the item columns.
    */
   static instance = async ({
@@ -33,12 +36,13 @@ class ObjectLayerManagement {
     idModal: rawIdModal,
     readOnly = false,
     lifecycle = false,
-    itemTypes = [],
+    profile = null,
     columns = [],
   }) => {
     const idModal = rawIdModal || 'modal-object-layer-engine-management';
-    const serviceId = 'object-layer-engine-management';
-    const gridId = `${serviceId}-grid-${idModal}`;
+    const serviceId = SERVICE_ID;
+    const gridId = gridIdOf(idModal);
+    const itemTypes = profile?.itemTypes ?? [];
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     const canEdit = !readOnly && commonModeratorGuard(role);
@@ -68,7 +72,7 @@ class ObjectLayerManagement {
         setTimeout(() =>
           EventsUI.onClick(
             `.btn-view-object-layer-${idModal}-${data._id}`,
-            async () => await ObjectLayerEngineViewer.open({ appStore, cid: data.cid }),
+            async () => await ObjectLayerEngineViewer.open({ appStore, cid: data.cid, profile, readOnly }),
             { context: 'modal' },
           ),
         );
@@ -585,6 +589,11 @@ class ObjectLayerManagement {
       },
     });
   };
+  /** Reloads every object layer table on screen, after a change made outside them. */
+  static async reloadTables() {
+    for (const idModal of Object.keys(DefaultManagement.Tokens))
+      if (s(`.${gridIdOf(idModal)}`)) await DefaultManagement.loadTable(idModal);
+  }
   static async Reload(subModalId = 'management') {
     const idModal = `modal-object-layer-engine-${subModalId}`;
     if (s(`.modal-object-layer-engine-${subModalId}`))

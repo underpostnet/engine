@@ -591,7 +591,7 @@ class AppShellCyberiaPortal {
         html: async () =>
           ObjectLayerManagement.instance({
             appStore: AppStoreCyberiaPortal,
-            itemTypes: CyberiaObjectLayerProfile.itemTypes,
+            profile: CyberiaObjectLayerProfile,
             columns: CyberiaObjectLayerStudio.columns(),
           }),
         handleType: 'bar',
