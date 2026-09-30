@@ -41,9 +41,8 @@ cyberia ol [item-id] [options]
 | `--import`                                            | Import item-id(s), comma-separated: from `--instance`, else from the asset tree |
 | `--instance <code>`                                   | Source `--import` from that instance backup of the content artifact             |
 | `--import-types [types]`                              | Batch import by type (e.g. `skin,floors`) or `all` from the asset tree          |
-| `--frame-index <n>` / `--frame-count <n>`             | Start frame (default `0`) / frame count (default `1`)                           |
 | `--to-atlas-sprite-sheet [dim]`                       | Rebuild the render and publish the definitions that name it                     |
-| `--sync-derived`                                      | Derive the upscaled render and the idle preview again; `--instance` narrows it  |
+| `--sync`                                              | Bring stored layers in line with the profile; derive their renders again        |
 | `--upscale <px-factor>`                               | Pixels per cell of the upscaled derived render; alone, rebuilds the render      |
 | `--normalize-stats`                                   | Clamp the stats of every layer the action writes to its item type's bounds      |
 | `--random-stats`                                      | Regenerate the stats of every layer the action writes at random                 |
@@ -76,12 +75,14 @@ cyberia ol hatchet --to-atlas-sprite-sheet --upscale 40
 cyberia ol --instance TEST --upscale 20
 cyberia ol --to-atlas-sprite-sheet
 
-# Derive the upscaled render and the idle preview again from the primary render
-cyberia ol hatchet --sync-derived
-cyberia ol --sync-derived --instance FOREST
+# Bring stored items in line with the current profile, stats and schema, and derive their
+# upscaled render and idle preview again from the primary render
+cyberia ol hatchet --sync
+cyberia ol --sync --instance FOREST
+cyberia ol --sync
 
 # Balance stats on every layer an action writes
-cyberia ol --sync-derived --instance FOREST --normalize-stats
+cyberia ol --sync --instance FOREST --normalize-stats
 cyberia ol hatchet --client-public --import --random-stats --normalize-stats --max-stat 10
 
 # Bootstrap only: drop an item from MongoDB, then import it again from the asset tree
@@ -102,8 +103,8 @@ MongoDB holds every frame: the Object Layer editor and every `ol` action write t
 copy consistent with the action:
 
 - `--import` without `--instance`, and `--import-types`, read the asset tree.
-- Each item the action writes (an import, `--sync-derived`, `--to-atlas-sprite-sheet`) has its
-  folder replaced with its stored frames and `metadata.json`.
+- Each item the action writes (an import, `--sync`, `--to-atlas-sprite-sheet`) has its folder
+  replaced with its stored frames and `metadata.json`.
 - `--drop` removes the folder of each dropped item.
 
 An item id names the definition the Cyberia item catalog binds it to (`CyberiaItemCatalog`,
@@ -116,6 +117,31 @@ Every writing flow first runs the idempotent identity migration, which moves a l
 (unique item id, `sha256`, `data.ledger`) to the content identity model and binds every label that
 has one published definition; a label with several definitions and no binding must be bound
 explicitly (`POST /api/v1/cyberia-item-catalog { itemId, objectLayerCid }`).
+
+`--sync` works on the definitions the catalog binds, in scope: an item-id, an instance, or every
+label. For each one it:
+
+1. Composes the definition again under the current Cyberia profile, stat contract and Object
+   Layer schema, with `--normalize-stats` or `--random-stats` applied. A definition whose identity
+   changes is written and its label rebinds; its render frames and atlas carry over. An unchanged
+   definition writes nothing.
+2. Derives the upscaled render and the idle preview again from the primary render.
+3. With `--client-public`, writes the item's folder in the asset tree.
+
+Every flow that writes (`--import`, `--import-types`, `--sync`, `--to-atlas-sprite-sheet`,
+`--drop`) then reaches what draws and serves the written labels:
+
+- It connects to the host's Valkey, so each write invalidates the engine caches it changes. A
+  running engine serves the new labels, atlases and map previews at once.
+- It draws again the preview of each map that places a written label. A new picture replaces the
+  preview File and a replaced File no map names is deleted; an unchanged picture keeps its File,
+  so a rerun writes nothing.
+- It asks each registered game server to reload its object layers (`incremental`), when the
+  runtime serves the content database the write went to. A workspace write behind an active
+  release reaches the worlds when a release that holds it is promoted.
+
+Pinned quest and action references keep the definition they name: a rebind never moves them. A
+browser keeps the item pictures it loaded until the page reloads.
 
 ---
 
@@ -132,7 +158,7 @@ cyberia instance [instance-code] [options]
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `--export [path]`                                     | Export to a backup directory; `./cyberia-content/src/content/instances/<code>` by default |
 | `--import [path]`                                     | Import from a backup directory (upsert, preserves UUIDs); the artifact backup by default  |
-| `--frames-to-public`                                  | With `--import`: also write the static frame PNGs to the public directory                 |
+| `--client-public`                                     | With `--import`: also write the frames and metadata of each item to the asset tree        |
 | `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json`; leaves the rest  |
 | `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop all documents associated with the instance code                      |
 | `--release <release-id>`                              | Import into, or export from, one content release database                                 |
@@ -149,7 +175,7 @@ clones it only when it is absent.
 
 ```bash
 cyberia instance FOREST --import
-cyberia instance FOREST --import --frames-to-public
+cyberia instance FOREST --import --client-public
 cyberia instance FOREST --export
 cyberia instance FOREST --import ./backups/FOREST
 cyberia instance FOREST --import --release v3-4-0-8b4d643
@@ -173,9 +199,9 @@ action references to the backup definition move to the rebuilt one. An item with
 atlas nor render frames fails.
 
 `instance --import`, `ol --instance --import` and `run-workflow import-content` use the same
-restore. `instance --import` keeps the render frames in MongoDB only. With `--frames-to-public` it
-also writes the static frame PNGs of each item to `src/client/public/cyberia/` and
-`public/<host><path>`. `ol --instance --import` always writes them. Every write is a no-op when the database already holds it, so the round trip is stable:
+restore. It keeps the render frames in MongoDB only. With `--client-public`, `instance --import`
+and `ol --instance --import` also write the frames and `metadata.json` of each item to
+`src/client/public/cyberia/` and `public/<host><path>`. Every write is a no-op when the database already holds it, so the round trip is stable:
 export, import and export again write the same bytes. A backup of an older shape (`ledger`,
 `sha256`, raw IPFS payloads, an atlas the render contract does not describe, parent references to
 render frames and atlases) migrates in one import and one export. One more import and export sets

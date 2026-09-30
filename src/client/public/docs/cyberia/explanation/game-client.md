@@ -224,7 +224,7 @@ atlas. The atlas blob is the primary render: the bytes the canonical render CID 
 pixel per cell. The atlas metadata describes that same render. The engine also keeps an upscaled
 derived render for viewing; the client never downloads it. The idle preview is the first down-idle
 frame scaled to fill 300 px, with no margin. The interact overlay and every engine editor show it as an item's
-picture, and the editors share one loaded copy per item. `cyberia ol --sync-derived` derives both again from the primary render of stored items.
+picture, and the editors share one loaded copy per item. `cyberia ol --sync` derives both again from the primary render of stored items, then draws again the preview of each map that shows them and reloads the object layers of the game servers ([`ol --sync`](../reference/cyberia-cli.md#cyberia-ol--object-layer)).
 The [render contract](../../object-layer/explanation/render-contract.md) defines these terms.
 
 | Endpoint                                                          | Purpose                                     |

@@ -315,7 +315,7 @@ describe('restoring one object layer from an instance backup', () => {
     expect(summary).toMatchObject({ rebuilt: true, replaced: 'cid-ember', cid: models.ObjectLayer.live.cid });
   });
 
-  it('writes the static frame PNGs to the public directory only when asked', async () => {
+  it('writes the asset tree only when asked', async () => {
     const kept = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
     expect(kept.staticFiles).toBe(0);
     expect(ObjectLayerEngine.writeStaticFrameAssets).not.toHaveBeenCalled();
@@ -324,7 +324,7 @@ describe('restoring one object layer from an instance backup', () => {
       backupDir,
       itemId: 'hatchet',
       options: { host: 'h', path: '/' },
-      framesToPublic: true,
+      clientPublic: true,
     });
     expect(copied.staticFiles).toBe(1);
     expect(ObjectLayerEngine.writeStaticFrameAssets).toHaveBeenCalledOnce();

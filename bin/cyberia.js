@@ -27,6 +27,7 @@ import {
   selectInstanceSkills,
 } from '../src/api/cyberia-instance/cyberia-instance-items.js';
 import { recordAudioBank, seedInstanceAudio } from '../src/projects/cyberia/seed-audio.js';
+import { refreshMapPreviews } from '../src/projects/cyberia/map-preview-generator.js';
 import {
   CyberiaMapAudioConfService,
   parseEventAudioBinding,
@@ -50,6 +51,7 @@ import {
   reconcileItemCatalog,
   findBoundDefinition,
   findBoundDefinitions,
+  reviseItemDefinition,
   seedItemCatalog,
 } from '../src/projects/cyberia/object-layer-catalog.js';
 import { pinContentReferences } from '../src/api/cyberia-item-catalog/item-ref.js';
@@ -79,8 +81,10 @@ import {
   publishContentRelease,
   pruneContentReleases,
   releaseDbConf,
+  reloadContentServers,
   retireContentRelease,
   rollbackContentRelease,
+  servedContent,
   validateContentRelease,
 } from '../src/projects/cyberia/content-release.js';
 import { API_BASE_PATH } from '../src/server/domain/api-contract.js';
@@ -89,7 +93,7 @@ import { purgeObjectLayers } from '../src/api/object-layer/object-layer.purge.js
 import * as cyberiaStudio from '../src/projects/cyberia/object-layer.extension.js';
 import { consumedApisOf, ownsApi } from '../src/server/domain/consumed-api.js';
 import { validateDomainConf } from '../src/projects/cyberia/domain-ownership.js';
-import { createValkeyConnection } from '../src/db/valkey/Valkey.js';
+import { ValkeyAPI, closeValkeyConnection, createValkeyConnection } from '../src/db/valkey/Valkey.js';
 import { CacheService } from '../src/server/storage/cache.js';
 import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
@@ -655,12 +659,12 @@ try {
       'Import specific item-id(s) passed as comma-separated command argument: from an instance backup with --instance (e.g. ol hatchet,sword --instance FOREST --import), else from the asset tree with --client-public',
     )
     .option(
-      '--sync-derived',
-      'Derive the upscaled render and the idle preview again from the primary render of stored object layers; the render contract never changes (e.g. ol hatchet --sync-derived, or ol --sync-derived for all)',
+      '--sync',
+      'Bring stored object layers in line with the current profile, stats and schema, and derive their upscaled render and idle preview again; the render contract never changes (e.g. ol hatchet --sync, or ol --sync for all)',
     )
     .option(
       '--instance <instance-code>',
-      'Limit --sync-derived and --to-atlas-sprite-sheet to the object layers one instance runs on, or make --import restore item(s) from that instance backup under engine-private (e.g. ol hatchet --instance FOREST --import)',
+      'Limit --sync and --to-atlas-sprite-sheet to the object layers one instance runs on, or make --import restore item(s) from that instance backup under engine-private (e.g. ol hatchet --instance FOREST --import)',
     )
     .option(
       '--normalize-stats',
@@ -708,8 +712,8 @@ try {
        * @param {string|undefined} itemId - Optional item ID argument.
        * @param {Object} options - Command options parsed by Commander.
        * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
-       * @param {boolean} options.syncDerived - Refresh the derived renders of stored item(s).
-       * @param {string} options.instance - Instance code whose object layers --sync-derived reprocesses.
+       * @param {boolean} options.sync - Bring stored item(s) and their derived renders in line.
+       * @param {string} options.instance - Instance code whose object layers --sync reprocesses.
        * @param {boolean} options.normalizeStats - Clamp the stats of every object layer the action writes to its type's bounds.
        * @param {boolean} options.randomStats - Regenerate the stats of every object layer the action writes.
        * @param {number} [options.minStat] - Lowest value --random-stats may draw.
@@ -731,7 +735,7 @@ try {
         itemId,
         options = {
           import: false,
-          syncDerived: false,
+          sync: false,
           instance: '',
           upscale: DEFAULT_ATLAS_UPSCALE_FACTOR,
           importTypes: false,
@@ -753,7 +757,7 @@ try {
           process.exit(1);
         }
 
-        const { deployId, host, path, db, owns } = resolveDeployDb(options);
+        const { deployId, host, path, db, valkey, owns, releaseDatabase, workspaceDatabase } = resolveDeployDb(options);
         if (options.drop) assertDestructiveConfirmation(options, deployId, 'ol --drop');
 
         logger.info('env', {
@@ -764,19 +768,29 @@ try {
           release: options.release || '',
         });
 
+        const rebuildAtlases = ObjectLayerEngine.selectAtlasRebuild(options);
+        const writes = Boolean(options.import || options.sync || options.importTypes || options.drop || rebuildAtlases);
+
         // Content that pins Object Layer references is migrated with the collection, so its
-        // collections load for every flow. `--instance` reads the world the runtime reads.
+        // collections load for every flow. `--instance` reads the world the runtime reads. A write
+        // draws the map previews again and reaches the game servers that serve its content.
         const contentApis = ['cyberia-quest', 'cyberia-action'];
         const instanceApis = options.instance
           ? ['cyberia-instance', 'cyberia-instance-conf', 'cyberia-map', 'cyberia-skill', 'cyberia-entity-type-default']
           : [];
+        const writeApis = writes
+          ? ['cyberia-map', 'cyberia-content-release', 'cyberia-server-registry'].filter(owns)
+          : [];
 
         await DataBaseProviderService.load({
           apis: [
-            ...ITEM_DEFINITION_APIS,
-            ...(owns('item-ledger') ? ['item-ledger'] : []),
-            ...contentApis,
-            ...instanceApis,
+            ...new Set([
+              ...ITEM_DEFINITION_APIS,
+              ...(owns('item-ledger') ? ['item-ledger'] : []),
+              ...contentApis,
+              ...instanceApis,
+              ...writeApis,
+            ]),
           ],
           host,
           path,
@@ -787,8 +801,6 @@ try {
         const ObjectLayerRenderFrames = DataBaseProviderService.getModel('object-layer-render-frames', { host, path });
         /** @type {import('mongoose').Model} */
         const AtlasSpriteSheet = DataBaseProviderService.getModel('atlas-sprite-sheet', { host, path });
-        /** @type {import('mongoose').Model} */
-        const File = DataBaseProviderService.getModel('file', { host, path });
 
         // A model handle binds to one connection, and the health monitor replaces that
         // connection when it drops. A batch that runs for minutes therefore resolves its
@@ -798,8 +810,6 @@ try {
           CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
           CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
         });
-
-        const rebuildAtlases = ObjectLayerEngine.selectAtlasRebuild(options);
 
         /** With --client-public, the asset trees follow an item the action wrote: its stored frames and metadata. */
         const writeClientPublic = async (objectLayer) => {
@@ -834,23 +844,24 @@ try {
           logger.warn('--min-stat and --max-stat only bound --random-stats and --normalize-stats, ignored');
         }
 
-        if (options.instance && !options.syncDerived && !rebuildAtlases && !options.import) {
-          logger.warn(
-            '--instance only narrows --sync-derived and --to-atlas-sprite-sheet, or sources --import, ignored',
-          );
+        if (options.instance && !options.sync && !rebuildAtlases && !options.import) {
+          logger.warn('--instance only narrows --sync and --to-atlas-sprite-sheet, or sources --import, ignored');
         }
 
-        // Idempotent migration, run only before a flow that writes: every document carries
-        // its content identity and every label its binding before a write lands. A read-only
-        // subcommand stays free of side effects.
-        if (
-          options.import ||
-          options.syncDerived ||
-          options.importTypes ||
-          options.drop ||
-          options.generate ||
-          rebuildAtlases
-        ) {
+        /** The labels the flows below wrote; `all` once a flow wrote every label. */
+        const touched = { itemIds: new Set(), all: false };
+
+        if (writes) {
+          // A write invalidates the engine caches it changes, so the running engine serves it at once.
+          if (valkey) {
+            await createValkeyConnection({ host, path }, valkey);
+            if (!ValkeyAPI.isConnected({ host, path })) {
+              closeValkeyConnection({ host, path });
+              logger.warn('Valkey is not reachable: the engine caches serve their values until they expire');
+            }
+          }
+          // Idempotent migration: every document carries its content identity and every label its
+          // binding before a write lands. A read-only subcommand stays free of side effects.
           await runIdentityMigration(models(), contentModels(), { host, path });
         }
 
@@ -878,6 +889,8 @@ try {
             pruneOrphans: true,
             assets: Boolean(options.clientPublic),
           });
+          if (isTargetedDrop) for (const droppedItemId of dropItemIds) touched.itemIds.add(droppedItemId);
+          else touched.all = true;
 
           logger.info(
             `Dropped: ${report.objectLayers} ObjectLayer, ${report.renderFrames} RenderFrames, ${report.atlases} AtlasSpriteSheet, ${report.files} File (atlas)`,
@@ -889,52 +902,54 @@ try {
             logger.warn(`Kept ${cid} ("${keptItemId}"): registered in ItemLedger`);
         }
 
-        // ── Handle --sync-derived (stored item-id(s)) ────────────────────
-        // Refreshes the renders derived from the primary render: the upscaled render and
-        // the idle preview. It reads its item ids from the collection, so it never creates an object
-        // layer, and it never changes a render contract. With --random-stats every stored document
-        // in scope is rewritten.
-        if (options.syncDerived) {
+        // ── Handle --sync (stored item-id(s)) ────────────────────────────
+        // Brings each definition in scope in line with the current profile, stats and schema, and
+        // with --random-stats or --normalize-stats; only a changed definition is written. Then its
+        // upscaled render and idle preview are derived again. The render contract never changes.
+        if (options.sync) {
           const selectedItemIds = await selectScopedItemIds({
             itemId,
             instance: options.instance,
             host,
             path,
-            action: '--sync-derived',
+            action: '--sync',
           });
 
-          logger.info(`Derived render refresh for ${selectedItemIds.length} stored item(s)`);
-          const tally = { updated: 0, unchanged: 0, missing: 0, failed: [] };
+          logger.info(`Sync of ${selectedItemIds.length} stored item(s)`);
+          const tally = { written: 0, updated: 0, unchanged: 0, missing: 0, failed: [] };
 
           // Isolated per item, for the same reason the render rebuild is.
           for (const currentItemId of selectedItemIds) {
             try {
-              let objectLayer = await findBoundDefinition(models(), currentItemId);
-              if (objectLayer && applyStatPolicy(objectLayer, statPolicy)) {
-                objectLayer = await ObjectLayerEngine.publishItemDefinition({
-                  models: models(),
-                  payload: ObjectLayerEngine.payloadOf(objectLayer),
-                  options: { host, path },
-                });
-              }
-              const { status } = await AtlasSpriteSheetStore.syncDerivedRenders({
-                objectLayerCid: objectLayer?.cid,
+              const { definition, written } = await reviseItemDefinition({
+                models: models(),
+                itemId: currentItemId,
+                revise: (payload) => applyStatPolicy(payload, statPolicy),
                 options: { host, path },
               });
-              await writeClientPublic(objectLayer);
+              const { status } = await AtlasSpriteSheetStore.syncDerivedRenders({
+                objectLayerCid: definition?.cid,
+                options: { host, path },
+              });
+              await writeClientPublic(definition);
+              touched.itemIds.add(currentItemId);
+              if (written) tally.written++;
               tally[status]++;
               if (status === 'missing')
                 logger.warn(`No render stored for '${currentItemId}'; build it with --to-atlas-sprite-sheet`);
-              else logger.info(`Derived renders ${status} for '${currentItemId}'`);
+              else
+                logger.info(
+                  `Synced '${currentItemId}': ${written ? 'definition written, ' : ''}derived renders ${status}`,
+                );
             } catch (syncError) {
-              logger.error(`Derived render refresh failed for '${currentItemId}': ${syncError.message}`);
+              logger.error(`Sync failed for '${currentItemId}': ${syncError.message}`);
               tally.failed.push(currentItemId);
             }
           }
 
           logger.info(
-            `Derived render refresh done: ${tally.updated} updated, ${tally.unchanged} unchanged, ` +
-              `${tally.missing} without a render, ${tally.failed.length} failed`,
+            `Sync done: ${tally.written} definition(s) written; derived renders ${tally.updated} updated, ` +
+              `${tally.unchanged} unchanged, ${tally.missing} without a render; ${tally.failed.length} failed`,
           );
           if (tally.failed.length > 0) {
             logger.warn(`Rerun for the failed item(s): ${tally.failed.join(',')}`);
@@ -963,9 +978,10 @@ try {
                 backupDir,
                 itemId: currentItemId,
                 options: { host, path },
-                framesToPublic: Boolean(options.clientPublic),
+                clientPublic: Boolean(options.clientPublic),
               });
               logger.info(`Restored '${currentItemId}' from backup`, summary);
+              touched.itemIds.add(currentItemId);
               restored++;
               if (summary.replaced) replacements.set(summary.replaced, summary.cid);
             } catch (restoreError) {
@@ -1025,6 +1041,7 @@ try {
               persistOptions: { upscaleFactor, options: { host, path } },
             });
             await writeClientPublic(objectLayer);
+            touched.itemIds.add(currentItemId);
 
             console.log(objectLayer.toObject());
           }
@@ -1091,6 +1108,7 @@ try {
               persistOptions: { generateAtlas: !isImportAll, upscaleFactor, options: { host, path } },
             });
             await writeClientPublic(objectLayer);
+            touched.itemIds.add(objectLayerId);
 
             console.log(objectLayer.toObject());
           }
@@ -1162,7 +1180,7 @@ try {
 
         // ── Handle --to-atlas-sprite-sheet ───────────────────────────────
         // Rebuilds the render and publishes the definition that names it. The scope is the
-        // same selection --sync-derived uses: the given item-id(s), one instance, or the whole
+        // same selection --sync uses: the given item-id(s), one instance, or the whole
         // collection. A bare --upscale asks for the same rebuild: the factor is part of the
         // layout, so it is part of the render contract.
         if (rebuildAtlases) {
@@ -1199,40 +1217,30 @@ try {
           for (const currentItemId of selectedItemIds) {
             try {
               const objectLayer = await findBoundDefinition(models(), currentItemId);
-              const renderFrames = objectLayer
-                ? await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean()
-                : null;
-              if (!renderFrames) {
+              const rebuilt =
+                objectLayer &&
+                (await ObjectLayerEngine.rebuildItemRender({
+                  models: models(),
+                  objectLayer,
+                  upscaleFactor,
+                  maxAtlasDim,
+                  revise: (payload) => applyStatPolicy(payload, statPolicy),
+                  options: { host, path },
+                }));
+              if (!rebuilt) {
                 logger.warn(`No render frames stored for '${currentItemId}', skipped`);
                 tally.skipped++;
                 continue;
               }
 
-              const rendered = await AtlasSpriteSheetStore.build({
-                itemKey: currentItemId,
-                objectLayerRenderFrames: renderFrames,
-                upscaleFactor,
-                maxAtlasDim,
-                options: { host, path },
-              });
-
-              const { metadata } = rendered.atlas;
+              const { metadata } = rebuilt.atlas;
               const frameCount = Object.values(metadata.frames).reduce((sum, frames) => sum + frames.length, 0);
               logger.info(
                 `Atlas for '${currentItemId}': ${metadata.atlasWidth}x${metadata.atlasHeight} cells, ` +
                   `${frameCount} frames packed`,
               );
-
-              applyStatPolicy(objectLayer, statPolicy);
-              await writeClientPublic(
-                await ObjectLayerEngine.publishItemDefinition({
-                  models: models(),
-                  payload: ObjectLayerEngine.payloadOf(objectLayer),
-                  renderFrames,
-                  rendered,
-                  options: { host, path },
-                }),
-              );
+              await writeClientPublic(rebuilt.definition);
+              touched.itemIds.add(currentItemId);
               tally.rebuilt++;
             } catch (rebuildError) {
               logger.error(`Atlas rebuild failed for '${currentItemId}': ${rebuildError.message}`);
@@ -1288,6 +1296,28 @@ try {
           );
         }
 
+        // A write reaches what draws and serves the written labels: the map previews of this host,
+        // then the game servers, when the runtime serves the content database the write went to.
+        if (touched.all || touched.itemIds.size > 0) {
+          if (owns('cyberia-map')) {
+            const previews = await refreshMapPreviews({
+              itemIds: touched.all ? null : [...touched.itemIds],
+              options: { host, path },
+            });
+            logger.info(
+              `Map previews: ${previews.drawn} drawn, ${previews.empty} without a picture, ${previews.failed.length} failed`,
+            );
+          }
+          const served = owns('cyberia-content-release')
+            ? (await servedContent({ host, path }, workspaceDatabase)).database
+            : workspaceDatabase;
+          if (served === (releaseDatabase || workspaceDatabase)) {
+            const reached = await reloadContentServers({ host, path }, { mode: 'incremental' });
+            logger.info(`Object layers reloaded on ${reached} game server(s)`);
+          } else logger.info(`The runtime serves ${served}: the game servers see this write once it is promoted`);
+        }
+
+        closeValkeyConnection({ host, path });
         await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
       },
     )
@@ -1320,8 +1350,8 @@ try {
       'Import into, or export from, the content release database of this id instead of the workspace',
     )
     .option(
-      '--frames-to-public',
-      'With --import, also write the static frame PNGs of each object layer to the public directory; ' +
+      '--client-public',
+      'With --import, also write the frames and metadata of each object layer to the asset tree; ' +
         'otherwise the frames stay in MongoDB only',
     )
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
@@ -1351,8 +1381,8 @@ try {
         shellExec(`cd /home/dd/engine/cyberia-client && ${cli()} cmt . reset && ${cli()} run clean .`);
         return;
       }
-      if (options.framesToPublic && options.import === undefined) {
-        logger.error('--frames-to-public requires --import');
+      if (options.clientPublic && options.import === undefined) {
+        logger.error('--client-public requires --import');
         process.exit(1);
       }
 
@@ -2185,7 +2215,7 @@ try {
                 backupDir,
                 itemId: olItemId,
                 options: { host, path },
-                framesToPublic: !!options.framesToPublic,
+                clientPublic: !!options.clientPublic,
               });
               importedItemIds.add(olItemId);
               staticFiles += restored.staticFiles;

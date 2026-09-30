@@ -217,14 +217,14 @@ const backedRender = async ({ objectLayer, atlas, files }) => {
  * @param {string} params.backupDir
  * @param {string} params.itemId
  * @param {{host: string, path: string}} params.options
- * @param {boolean} [params.framesToPublic=false] - Also write the static frame PNGs to the public directory.
+ * @param {boolean} [params.clientPublic=false] - Also write the item's frames and metadata to the asset tree.
  * @returns {Promise<{itemId: string, cid: string, replaced: string|null, rebuilt: boolean, files: number, renderFrames: boolean, atlas: boolean, pins: number, staticFiles: number}>}
  *   `replaced` is the backup cid the restored definition replaces, null when it is the same.
  * @throws {Error} When the backup holds neither the named render nor the frames to rebuild it,
  *   or the definition cannot be published.
  * @memberof CyberiaInstanceBackup
  */
-export async function restoreObjectLayerBackup({ backupDir, itemId, options, framesToPublic = false }) {
+export async function restoreObjectLayerBackup({ backupDir, itemId, options, clientPublic = false }) {
   const { objectLayer, renderFrames, atlas, files } = readObjectLayerBackup({ backupDir, itemId });
   const models = catalogModels(options);
   const File = DataBaseProviderService.getModel('File', options);
@@ -285,7 +285,7 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options, fra
   // 5. The static frame PNGs the web client serves, from the same render frames.
   let staticFiles = 0;
   const itemType = objectLayer.data?.item?.type;
-  if (framesToPublic && renderFrames && itemType) {
+  if (clientPublic && renderFrames && itemType) {
     const written = await ObjectLayerEngine.writeStaticFrameAssets({
       basePaths: ObjectLayerEngine.clientPublicPaths(options),
       itemType,
