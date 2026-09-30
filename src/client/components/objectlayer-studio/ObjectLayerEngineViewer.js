@@ -191,6 +191,10 @@ class ObjectLayerViewer {
         font-size: 36px;
         opacity: 0.6;
       }
+      .viewer-unavailable h3 {
+        margin: 0;
+        font-size: 22px;
+      }
       .viewer-unavailable .default-viewer-btn {
         width: auto;
         padding: 12px 24px;
@@ -332,6 +336,8 @@ class ObjectLayerViewer {
 
       .viewer-header h2 {
         margin: 0;
+        font-size: 26px;
+        line-height: 1.2;
         color: ${darkTheme ? '#fff' : '#333'};
         word-break: break-word;
       }
