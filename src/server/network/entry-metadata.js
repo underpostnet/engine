@@ -1,7 +1,6 @@
 /**
  * The document metadata of a public entry (`/entry/:stableSlug`), rendered into the initial HTML
- * of the PWA shell so crawlers, social preview services and browsers read it before any client
- * script runs. One builder produces the structured metadata, one injector writes it into the shell.
+ * of the PWA shell (see {@link module:src/server/network/shell-metadata.js}).
  *
  * @module src/server/network/entry-metadata.js
  * @namespace EntryMetadata
@@ -10,10 +9,16 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { findReadableByStableSlug } from '../../api/document/document.service.js';
 import { capFirst, publicRoutePathFactory } from '../../client/components/core/CommonJs.js';
-import { API_BASE_PATH } from '../domain/api-contract.js';
+import {
+  injectShellMetadata,
+  isoDate,
+  shellContext,
+  siteImage,
+  siteNameOf,
+  truncateText,
+  withoutUndefined,
+} from './shell-metadata.js';
 
-/** Search snippets and social cards truncate around this length. */
-const DESCRIPTION_MAX_LENGTH = 160;
 /** Largest Markdown source read for a description: text only, an image is never loaded. */
 const TEXT_SOURCE_MAX_BYTES = 256 * 1024;
 /** Image types every social preview service renders; anything else falls back to the site image. */
@@ -22,54 +27,9 @@ const SOCIAL_IMAGE_TYPES = ['image/jpeg', 'image/png'];
 const ARTICLE_TYPE = 'BlogPosting';
 
 /**
- * @typedef {object} EntrySite
- * @property {string} title - The app title, the site name unless `siteName` is set.
- * @property {string} [siteName] - The short brand name page titles end with (`… | Underpost`).
- * @property {string} [description] - The site description, the final description fallback.
- * @property {string} [thumbnail] - The site's social preview image, relative to the app path.
+ * The shell context with the entry's Markdown source, when it has one small enough to read.
+ * @typedef {import('./shell-metadata.js').ShellContext & { markdown?: string }} EntryContext
  */
-
-/**
- * @typedef {object} EntryContext
- * @property {string} origin - The canonical origin (`https://underpost.net`).
- * @property {string} proxyPath - The app's sub-path with leading and trailing slash.
- * @property {string} apiBasePath - The versioned API path under the app path (`api/v1`).
- * @property {EntrySite} site
- * @property {string} [markdown] - The entry's Markdown source, when it has one small enough to read.
- */
-
-/**
- * @typedef {object} EntryMetadata
- * @property {string} [robots] - `noindex` for a page that must not be indexed; the only field of an
- *   entry that did not resolve, so nothing about it is described.
- * @property {string} [title] - The page title: the headline and the site name.
- * @property {string} [headline] - The entry's own title, its first letter capitalized.
- * @property {string} [description]
- * @property {'article'} [type] - The Open Graph object type.
- * @property {string} [canonicalUrl]
- * @property {string} [siteName]
- * @property {{ url: string, representative: boolean }} [image] - The social preview image;
- *   `representative` when it is the entry's own image rather than the site's.
- * @property {{ name: string, url?: string }} [author]
- * @property {string} [datePublished] - ISO 8601.
- * @property {string} [dateModified] - ISO 8601.
- * @property {object} [jsonLd] - The Schema.org article.
- */
-
-const escapeHtml = (value) =>
-  `${value}`
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-// Inside a script element only `</` (and the JS line terminators JSON leaves raw) can break out.
-const jsonForScript = (value) =>
-  JSON.stringify(value)
-    .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
 
 const decodeEntities = (text) =>
   text
@@ -120,35 +80,6 @@ const markdownToText = (markdown) =>
   );
 
 /**
- * Cuts a text to a length at a word boundary, closing with an ellipsis.
- * @method truncateText
- * @param {string} text
- * @param {number} [maxLength=DESCRIPTION_MAX_LENGTH]
- * @returns {string}
- * @memberof EntryMetadata
- */
-const truncateText = (text, maxLength = DESCRIPTION_MAX_LENGTH) => {
-  if (text.length <= maxLength) return text;
-  const cut = text.slice(0, maxLength - 1);
-  const boundary = cut.lastIndexOf(' ');
-  return `${(boundary > maxLength / 2 ? cut.slice(0, boundary) : cut).replace(/[\s,;:.!?-]+$/, '')}…`;
-};
-
-const absoluteUrl = (context, relativePath) =>
-  /^https?:\/\//.test(relativePath)
-    ? relativePath
-    : `${context.origin}${context.proxyPath}${relativePath.replace(/^\/+/, '')}`;
-
-const isoDate = (value) => {
-  if (value === undefined || value === null) return undefined;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-};
-
-const withoutUndefined = (object) =>
-  Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
-
-/**
  * The metadata of a resolved entry, or of an unresolved one (`document` `null`: missing, or not
  * readable by the requester, which are answered alike). The description comes from the first
  * source that yields text: the Markdown body, the title, the site description. The social image
@@ -157,13 +88,13 @@ const withoutUndefined = (object) =>
  * @method buildEntryMetadata
  * @param {object|null} document - The public document shape (`DocumentDto.toPublic`).
  * @param {EntryContext} context
- * @returns {EntryMetadata}
+ * @returns {import('./shell-metadata.js').ShellMetadata}
  * @memberof EntryMetadata
  */
 const buildEntryMetadata = (document, context) => {
   if (!document) return { robots: 'noindex' };
   const { site, origin, proxyPath, apiBasePath, markdown } = context;
-  const siteName = `${site.siteName || site.title || ''}`.trim();
+  const siteName = siteNameOf(site);
   // The entry's title as the page shows it: the first letter capitalized, the rest as written.
   const headline = capFirst(`${document.title ?? ''}`.trim());
   const description = truncateText(markdownToText(markdown) || headline || `${site.description ?? ''}`.trim());
@@ -173,9 +104,7 @@ const buildEntryMetadata = (document, context) => {
   const representative = !!file && document.isPublic === true && SOCIAL_IMAGE_TYPES.includes(file.mimetype);
   const image = representative
     ? { url: `${origin}${proxyPath}${apiBasePath}/file/blob/${file._id}`, representative: true }
-    : site.thumbnail
-      ? { url: absoluteUrl(context, site.thumbnail), representative: false }
-      : undefined;
+    : siteImage(context);
 
   const username = document.userId?.username;
   const profilePath = username ? publicRoutePathFactory('profile', username, proxyPath) : null;
@@ -219,82 +148,6 @@ const buildEntryMetadata = (document, context) => {
   });
 };
 
-const metaTag = (attribute, key, value) =>
-  value === undefined ? '' : `<meta ${attribute}="${key}" content="${escapeHtml(value)}">`;
-
-/**
- * The head elements of an entry's metadata.
- * @method renderEntryHead
- * @param {EntryMetadata} metadata
- * @returns {string}
- * @memberof EntryMetadata
- */
-const renderEntryHead = (metadata) =>
-  [
-    metaTag('name', 'robots', metadata.robots),
-    metaTag('name', 'description', metadata.description),
-    metaTag('name', 'author', metadata.author?.name),
-    metadata.canonicalUrl ? `<link rel="canonical" href="${escapeHtml(metadata.canonicalUrl)}">` : '',
-    metaTag('property', 'og:type', metadata.type),
-    metaTag('property', 'og:site_name', metadata.siteName),
-    metaTag('property', 'og:title', metadata.headline),
-    metaTag('property', 'og:description', metadata.description),
-    metaTag('property', 'og:url', metadata.canonicalUrl),
-    metaTag('property', 'og:image', metadata.image?.url),
-    metaTag('property', 'article:published_time', metadata.datePublished),
-    metaTag('property', 'article:modified_time', metadata.dateModified),
-    metadata.jsonLd ? `<script type="application/ld+json">${jsonForScript(metadata.jsonLd)}</script>` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-/** The head elements the shell was built with that an entry's own metadata replaces. */
-const REPLACED_HEAD_ELEMENTS = {
-  robots: (metadata) => metadata.robots !== undefined,
-  description: (metadata) => metadata.description !== undefined,
-  author: (metadata) => metadata.author !== undefined,
-  'og:type': (metadata) => metadata.type !== undefined,
-  'og:site_name': (metadata) => metadata.siteName !== undefined,
-  'og:title': (metadata) => metadata.headline !== undefined,
-  'og:description': (metadata) => metadata.description !== undefined,
-  'og:url': (metadata) => metadata.canonicalUrl !== undefined,
-  'og:image': (metadata) => metadata.image !== undefined,
-  'article:published_time': (metadata) => metadata.datePublished !== undefined,
-  'article:modified_time': (metadata) => metadata.dateModified !== undefined,
-};
-
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/**
- * Writes an entry's metadata into the built PWA shell: the title in place, the site-level
- * elements it supersedes removed, the entry's own elements added at the end of the head. A
- * field the metadata leaves out keeps the shell's element, so an unresolved entry only gains
- * its `robots` directive.
- * @method injectEntryMetadata
- * @param {string} html - The built shell.
- * @param {EntryMetadata} metadata
- * @returns {string}
- * @memberof EntryMetadata
- */
-const injectEntryMetadata = (html, metadata) => {
-  let output = html;
-  if (metadata.title !== undefined)
-    output = output.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(metadata.title)}</title>`);
-  for (const [key, isReplaced] of Object.entries(REPLACED_HEAD_ELEMENTS))
-    if (isReplaced(metadata))
-      output = output.replace(
-        new RegExp(
-          `[ \\t]*<meta\\s[^>]*?\\b(?:name|property)=["']${escapeRegExp(key)}(?::[a-z_]+)?["'][^>]*>[ \\t]*\\n?`,
-          'gi',
-        ),
-        '',
-      );
-  if (metadata.canonicalUrl !== undefined)
-    output = output.replace(/[ \t]*<link\s[^>]*?\brel=["']canonical["'][^>]*>[ \t]*\n?/gi, '');
-  const head = renderEntryHead(metadata);
-  return output.replace(/<\/head>/i, (closing) => `${head}\n${closing}`);
-};
-
 const fileText = (file) => {
   if (!file?.data) return undefined;
   const data = Buffer.isBuffer(file.data) ? file.data : file.data.buffer;
@@ -320,20 +173,14 @@ const markdownSource = async (document, options) => {
  * the API applies (the requester's bearer token decides what is readable), builds its metadata
  * and writes it into the shell.
  * @method entryShellRendererFactory
- * @param {{ host: string, path: string, metadata?: EntrySite, origin?: string }} config - The
- *   instance, its client's `metadata` block, and the canonical origin (`https://<host>` unless
- *   given).
+ * @param {{ host: string, path: string, metadata?: import('./shell-metadata.js').ShellSite, origin?: string }} config
+ *   The instance, its client's `metadata` block, and the canonical origin.
  * @returns {(req: import('express').Request, shellHtml: string, stableSlug: string) => Promise<string>}
  * @memberof EntryMetadata
  */
 const entryShellRendererFactory = ({ host, path, metadata, origin }) => {
   const options = { host, path };
-  const context = {
-    origin: origin ?? `https://${host}`,
-    proxyPath: path === '/' ? '/' : `${path}/`,
-    apiBasePath: API_BASE_PATH,
-    site: metadata ?? {},
-  };
+  const context = shellContext({ host, path, metadata, origin });
   return async (req, shellHtml, stableSlug) => {
     let document = null;
     try {
@@ -342,17 +189,8 @@ const entryShellRendererFactory = ({ host, path, metadata, origin }) => {
       if (error.status !== 404) throw error;
     }
     const markdown = document ? await markdownSource(document, options) : undefined;
-    return injectEntryMetadata(shellHtml, buildEntryMetadata(document, { ...context, markdown }));
+    return injectShellMetadata(shellHtml, buildEntryMetadata(document, { ...context, markdown }));
   };
 };
 
-export {
-  DESCRIPTION_MAX_LENGTH,
-  TEXT_SOURCE_MAX_BYTES,
-  markdownToText,
-  truncateText,
-  buildEntryMetadata,
-  renderEntryHead,
-  injectEntryMetadata,
-  entryShellRendererFactory,
-};
+export { TEXT_SOURCE_MAX_BYTES, markdownToText, buildEntryMetadata, entryShellRendererFactory };

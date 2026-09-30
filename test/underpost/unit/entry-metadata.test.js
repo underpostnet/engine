@@ -13,14 +13,13 @@
  */
 
 import { expect } from 'chai';
+import { buildEntryMetadata, markdownToText } from '../../../src/server/network/entry-metadata.js';
 import {
   DESCRIPTION_MAX_LENGTH,
-  buildEntryMetadata,
-  injectEntryMetadata,
-  markdownToText,
-  renderEntryHead,
+  injectShellMetadata,
+  renderShellHead,
   truncateText,
-} from '../../../src/server/network/entry-metadata.js';
+} from '../../../src/server/network/shell-metadata.js';
 import { API_BASE_PATH } from '../../../src/server/domain/api-contract.js';
 
 const context = {
@@ -261,7 +260,7 @@ describe('entry head injection', () => {
       ...context,
       markdown: 'Ask precise questions.',
     });
-    const html = injectEntryMetadata(shell, metadata);
+    const html = injectShellMetadata(shell, metadata);
     expect(html.match(/<title>/g)).to.have.length(1);
     expect(html).to.contain('<title>How to Chat With GPT | Underpost</title>');
     expect(html.match(/rel="canonical"/g)).to.have.length(1);
@@ -291,7 +290,7 @@ describe('entry head injection', () => {
       .replace(/\n\s*/g, '')
       .replace(/ \/>/g, '>')
       .replace(/<meta property="og:image"/, '<meta property="og:image:width" content="1200"><meta property="og:image"');
-    const html = injectEntryMetadata(minified, buildEntryMetadata(entry(), context));
+    const html = injectShellMetadata(minified, buildEntryMetadata(entry(), context));
     expect(html.match(/<title>/g)).to.have.length(1);
     expect(html).to.contain('<title>How to Chat With GPT | Underpost</title>');
     expect(html.match(/rel="canonical"/g)).to.have.length(1);
@@ -309,7 +308,7 @@ describe('entry head injection', () => {
       title: 'Tom & Jerry <script>alert(1)</script> "quoted"',
       userId: { _id: 'u1', username: 'alice', publicProfile: true },
     });
-    const html = injectEntryMetadata(shell, buildEntryMetadata(hostile, { ...context, markdown: '</script><b>x</b>' }));
+    const html = injectShellMetadata(shell, buildEntryMetadata(hostile, { ...context, markdown: '</script><b>x</b>' }));
     expect(html).to.not.contain('<script>alert');
     expect(html).to.contain(
       '<title>Tom &amp; Jerry &lt;script&gt;alert(1)&lt;/script&gt; &quot;quoted&quot; | Underpost</title>',
@@ -324,17 +323,17 @@ describe('entry head injection', () => {
   });
 
   it('only adds a noindex directive for an unresolved entry, keeping the shell’s own head', () => {
-    const html = injectEntryMetadata(shell, buildEntryMetadata(null, context));
+    const html = injectShellMetadata(shell, buildEntryMetadata(null, context));
     expect(metaContent(html, 'name', 'robots')).to.equal('noindex');
     expect(html).to.contain('<title>Underpost Platform | Tech Lab</title>');
     expect(html).to.contain('<link rel="canonical" href="https://underpost.net/entry/" />');
     expect(metaContent(html, 'property', 'og:type')).to.equal('website');
     expect(html).to.not.contain('application/ld+json');
-    expect(injectEntryMetadata(html, buildEntryMetadata(null, context)).match(/name="robots"/g)).to.have.length(1);
+    expect(injectShellMetadata(html, buildEntryMetadata(null, context)).match(/name="robots"/g)).to.have.length(1);
   });
 
   it('renders no element for a field the metadata leaves out', () => {
-    expect(renderEntryHead({ robots: 'noindex' })).to.equal('<meta name="robots" content="noindex">');
-    expect(renderEntryHead({})).to.equal('');
+    expect(renderShellHead({ robots: 'noindex' })).to.equal('<meta name="robots" content="noindex">');
+    expect(renderShellHead({})).to.equal('');
   });
 });
