@@ -3,6 +3,12 @@
 /** Schema version of the canonical Object Layer payload. */
 export const OBJECT_LAYER_SCHEMA_VERSION = 1;
 
+/** The CID form of a definition: CIDv1, raw, sha2-256, base32. */
+export const OBJECT_LAYER_CID_PATTERN = /^bafkrei[a-z2-7]{52}$/;
+
+/** True for the CID form of a definition. */
+export const isObjectLayerCid = (cid) => typeof cid === 'string' && OBJECT_LAYER_CID_PATTERN.test(cid);
+
 /**
  * Animation directions. Each entry binds:
  *   code      — numeric asset folder name on disk (`./assets/<type>/<id>/<code>/<frame>.png`)

@@ -29,14 +29,17 @@
  */
 import crypto from 'crypto';
 import canonicalize from 'canonicalize';
-import { canonicalObjectLayer } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
+import {
+  OBJECT_LAYER_CID_PATTERN,
+  canonicalObjectLayer,
+  isObjectLayerCid,
+} from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 
 /** Multicodec prefix of a CIDv1 raw block hashed with sha2-256: version, codec, hash code, length. */
 const CID_V1_RAW_SHA256_PREFIX = Buffer.from([0x01, 0x55, 0x12, 0x20]);
 /** Largest canonical payload that stays one raw block under the pin parameters (256 KiB). */
 export const MAX_CANONICAL_BYTES = 262144;
 const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
-const OBJECT_LAYER_CID_PATTERN = /^bafkrei[a-z2-7]{52}$/;
 const CONTENT_HASH_PATTERN = /^[a-f0-9]{64}$/;
 
 const base32Encode = (bytes) => {
@@ -198,14 +201,6 @@ export const sha256HexFromCid = (cid) => {
 };
 
 /**
- * True for the CID form the protocol uses: CIDv1, raw, sha2-256, base32.
- * @param {*} cid
- * @returns {boolean}
- * @memberof ObjectLayerIdentity
- */
-export const isObjectLayerCid = (cid) => typeof cid === 'string' && OBJECT_LAYER_CID_PATTERN.test(cid);
-
-/**
  * Canonical CID of an Object Layer.
  * @param {Object} input
  * @returns {string}
@@ -266,4 +261,4 @@ export const canonicalRender = ({ primary, metadata }) => {
  */
 export const renderContractOf = (render) => canonicalRender(render).contract;
 
-export { OBJECT_LAYER_CID_PATTERN, CONTENT_HASH_PATTERN };
+export { OBJECT_LAYER_CID_PATTERN, CONTENT_HASH_PATTERN, isObjectLayerCid };
