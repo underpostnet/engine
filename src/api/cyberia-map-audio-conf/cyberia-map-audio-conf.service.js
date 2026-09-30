@@ -6,6 +6,11 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import {
+  DEFAULT_AUDIO_SETTINGS,
+  DEFAULT_MAP_MUSIC,
+  buildAudioEventBindings,
+} from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -149,6 +154,27 @@ class CyberiaMapAudioConfService {
     });
     return conf;
   };
+
+  /**
+   * Writes the default audio configuration of one map: the default bed, the map-wide settings and
+   * every default binding, in place of the bindings the map had. `run-workflow seed-audio` writes
+   * it to each map of an instance.
+   *
+   * @param {string} mapCode - CyberiaMap code.
+   * @param {{host: string, path: string}} options - Provider context.
+   * @returns {Promise<object>} The configuration document.
+   */
+  static seedDefault = async (mapCode, options) =>
+    await CyberiaMapAudioConfService.assign(
+      {
+        mapCode,
+        defaultMusic: DEFAULT_MAP_MUSIC,
+        settings: DEFAULT_AUDIO_SETTINGS,
+        events: buildAudioEventBindings(),
+        replaceEvents: true,
+      },
+      options,
+    );
 
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-map-audio-conf.model.js').CyberiaMapAudioConfModel} */

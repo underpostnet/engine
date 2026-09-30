@@ -26,6 +26,11 @@ const CyberiaMapAudioConfController = buildCrudController(CyberiaMapAudioConfSer
       ),
     { errorStatus: 400 },
   ),
+  seedDefault: controllerHandler(
+    async (req, res, options) =>
+      sendSuccess(res, await CyberiaMapAudioConfService.seedDefault(req.params.mapCode, context(options))),
+    { errorStatus: 400 },
+  ),
 });
 
 export { CyberiaMapAudioConfController };

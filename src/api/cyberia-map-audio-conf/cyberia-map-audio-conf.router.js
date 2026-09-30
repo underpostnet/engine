@@ -23,6 +23,12 @@ class CyberiaMapAudioConfRouter {
       moderatorGuard,
       async (req, res) => await CyberiaMapAudioConfController.assign(req, res, options),
     );
+    router.post(
+      '/map-code/:mapCode/seed-default',
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaMapAudioConfController.seedDefault(req, res, options),
+    );
 
     return registerCrudRoutes(router, CyberiaMapAudioConfController, options);
   }
