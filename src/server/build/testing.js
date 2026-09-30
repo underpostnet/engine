@@ -11,9 +11,10 @@
  * one is worth reading. Vitest expresses that with an ascending
  * `sequence.groupOrder`; nothing outside this table decides what runs when.
  *
- * This module is pure: it renders the runner configuration, the argument vector
- * and the manifests from values it is given. Resolving deploy configuration,
- * spawning the runner and talking to the cluster belong to `src/cli/test.js`.
+ * This module is pure: it renders the runner configuration, the execution plan,
+ * the argument vector and the manifests from values it is given. Resolving deploy
+ * configuration, spawning the runner and talking to the cluster belong to
+ * `src/cli/test.js`.
  *
  * @module src/server/build/testing.js
  * @namespace UnderpostTesting
@@ -39,6 +40,19 @@ const UNDERPOST_TESTING = {
   // Absent means a plain local run, so no result files are written at all.
   allureResultsEnvKey: 'UNDERPOST_ALLURE_RESULTS',
   allureResultsDirectory: 'allure-results',
+  // Read by vitest.config.js: the footprint every project of a child run applies.
+  footprintEnvKey: 'UNDERPOST_TEST_FOOTPRINT',
+  // Read by vitest.config.js: the blob file a batch writes its results and coverage to.
+  batchReportEnvKey: 'UNDERPOST_TEST_REPORT',
+  runs: {
+    directory: '.vitest/test-runs',
+    // Holds only blobs, because the merge reads every file in it.
+    reportDirectory: 'blobs',
+    // Runs on disk, the new run included. A run holds raw coverage, so keep few.
+    kept: 5,
+    // Time a batch gets to stop after SIGTERM, before SIGKILL.
+    terminationGraceMs: 10000,
+  },
   allure: {
     name: 'allure',
     image: 'frankescobar/allure-docker-service:2.27.0',
@@ -112,10 +126,11 @@ const TEST_LEVELS = Object.freeze({
  * `--suite cyberia` and `--suite underpost:integration` need no second table:
  * a selector matches a name exactly, or matches the segment prefix before `:`.
  *
- * `groupOrder` is what Vitest sequences on: equal values run in parallel, lower
- * values run to completion first. It starts at 1, never 0 — Vitest routes a
- * project left on the default 0 with a single worker into a bucket it appends
- * after every ordered group, which would run the first project last.
+ * `groupOrder` is what the batches and Vitest sequence on: lower values run to
+ * completion first. Equal values run in parallel only in the `ci` footprint. It
+ * starts at 1, never 0 — Vitest routes a project left on the default 0 with a
+ * single worker into a bucket it appends after every ordered group, which would
+ * run the first project last.
  *
  * `parallel` lets the files of one project run at the same time. A project whose
  * suites bind a port, drive a database, spawn a process or read the deploy tree
@@ -301,7 +316,7 @@ const TEST_PROJECTS = [
     // Non-recursive: the ordered areas underneath are projects of their own.
     recursive: false,
     sources: ['src/api/test/*.js'],
-    description: 'Platform APIs served over a real server and a real database.',
+    description: 'Platform APIs served over a real server and a real database, and the test runner on real processes.',
   },
   {
     name: 'ecosystem:integration',
@@ -385,6 +400,50 @@ const TEST_PROJECTS = [
       ].join(' && '),
   },
 ];
+
+/**
+ * @constant TEST_FOOTPRINTS
+ * @description How much of the machine one run can use.
+ *
+ * `batch` is the scheduler unit. `project` runs each selected project in its own fresh
+ * process. `selection` runs the whole selection in one process. Batches run one at a
+ * time. `vitest` limits each process. A footprint can stop file parallelism, but it
+ * never starts it for a project that sets `parallel` off.
+ * @memberof UnderpostTesting
+ */
+const TEST_FOOTPRINTS = Object.freeze({
+  safe: {
+    description: 'One project per fresh process, one worker, one file and one test at a time. The default.',
+    batch: 'project',
+    vitest: { pool: 'forks', maxWorkers: 1, fileParallelism: false, maxConcurrency: 1 },
+  },
+  balanced: {
+    description: 'One project per fresh process, two workers, parallel files where the project permits.',
+    batch: 'project',
+    vitest: { pool: 'forks', maxWorkers: 2, maxConcurrency: 2 },
+  },
+  ci: {
+    description:
+      'The whole selection in one process, on the Vitest default workers. For a runner that owns its machine.',
+    batch: 'selection',
+    vitest: {},
+  },
+});
+
+/**
+ * @method testFootprintFactory
+ * @description Resolves a footprint by name. An empty name gives `safe`.
+ * @param {string} [name] - Footprint name.
+ * @returns {{name: string, description: string, batch: string, vitest: object}} The footprint.
+ * @throws {Error} When the name is not a declared footprint.
+ * @memberof UnderpostTesting
+ */
+const testFootprintFactory = (name = '') => {
+  const key = name || 'safe';
+  if (!Object.hasOwn(TEST_FOOTPRINTS, key))
+    throw new Error(`[test] unknown footprint '${key}' — expected one of ${Object.keys(TEST_FOOTPRINTS).join(', ')}`);
+  return { name: key, ...TEST_FOOTPRINTS[key] };
+};
 
 /**
  * @method testDomainNames
@@ -489,18 +548,20 @@ const resolveTestSelection = (selector = '', contexts = []) => {
  * than declared once at the root and silently dropped.
  * @param {object} [defaults] - Per-project `test` options shared by every project.
  * @param {Array<{stripPaths: string[], active: boolean}>} [contexts] - Product contexts.
+ * @param {{vitest: object}} [footprint] - Limits every project applies, from `testFootprintFactory`.
  * @returns {object[]} Vitest inline project configurations.
  * @memberof UnderpostTesting
  */
-const testProjectsFactory = (defaults = {}, contexts = []) =>
+const testProjectsFactory = (defaults = {}, contexts = [], footprint = { vitest: {} }) =>
   runnableTestProjects(contexts)
     .filter(({ delegate }) => !delegate)
     .map(({ name, directory, groupOrder, recursive = true, parallel = false, vitest = {} }) => ({
       test: {
         ...defaults,
         ...vitest,
+        ...footprint.vitest,
         name,
-        fileParallelism: parallel,
+        fileParallelism: parallel && footprint.vitest.fileParallelism !== false,
         include: [`${directory}/${recursive ? '**/' : ''}*.test.js`],
         sequence: { ...defaults.sequence, groupOrder },
       },
@@ -514,17 +575,257 @@ const testProjectsFactory = (defaults = {}, contexts = []) =>
  * @param {string} [params.grep] - Substring filter on test names.
  * @param {boolean} [params.watch] - Keep the runner open and re-run on change.
  * @param {boolean} [params.coverage] - Emit the coverage reporters.
+ * @param {{coverageDirectory: string, coverageInclude: string[]}} [params.batch] - Makes the run one
+ *   batch: it measures the selection's sources and leaves the reports to the merge.
+ * @param {string} [params.mergeReports] - Blob directory to merge instead of running tests.
+ * @param {boolean} [params.logHeapUsage] - Print the heap size after each test.
  * @returns {string[]} Arguments for the `vitest` binary.
  * @memberof UnderpostTesting
  */
-const vitestArgsFactory = ({ projects = [], grep = '', watch = false, coverage = true } = {}) => [
+const vitestArgsFactory = ({
+  projects = [],
+  grep = '',
+  watch = false,
+  coverage = true,
+  batch = null,
+  mergeReports = '',
+  logHeapUsage = false,
+} = {}) => [
   // Subcommands, not flags: `vitest run --watch` is contradictory and Vitest
   // resolves it to a single non-watching run.
   watch ? 'watch' : 'run',
+  ...(mergeReports ? [`--merge-reports=${mergeReports}`] : []),
   ...projects.flatMap((project) => ['--project', project]),
-  ...(grep ? ['--testNamePattern', grep] : []),
+  ...(grep && !mergeReports ? ['--testNamePattern', grep] : []),
   ...(coverage ? ['--coverage'] : ['--coverage.enabled=false']),
+  ...(batch
+    ? [
+        // A project with no files in this tree is a slice, not a failure. The merge still fails an empty run.
+        '--passWithNoTests',
+        ...(coverage
+          ? [
+              '--coverage.reporter=none',
+              `--coverage.reportsDirectory=${batch.coverageDirectory}`,
+              // The selection's scope, so a source another project loads counts as in a single run.
+              ...batch.coverageInclude.map((glob) => `--coverage.include=${glob}`),
+            ]
+          : []),
+      ]
+    : []),
+  ...(logHeapUsage ? ['--logHeapUsage'] : []),
 ];
+
+/**
+ * @constant COVERAGE_GATE_ENV_KEYS
+ * @description The environment keys `coverageThresholdFactory` reads.
+ * @memberof UnderpostTesting
+ */
+const COVERAGE_GATE_ENV_KEYS = ['COVERAGE_ENFORCE', 'COVERAGE_MIN'];
+
+/**
+ * @method vitestEnvFactory
+ * @description The environment of one Vitest process.
+ *
+ * A batch writes a blob and never carries the coverage gate: its coverage is partial.
+ * The merge and a watch run carry the gate. The runner keys come only from the arguments.
+ * @param {object} [params]
+ * @param {object} [params.env] - Environment to start from.
+ * @param {string} [params.footprint] - Footprint name.
+ * @param {string} [params.report] - Blob path. Set only for a batch.
+ * @param {string} [params.allureResultsDirectory] - Allure results directory, or empty for none.
+ * @param {boolean} [params.diagnose] - Log the coverage timings.
+ * @returns {object} Environment for the child process.
+ * @memberof UnderpostTesting
+ */
+const vitestEnvFactory = ({
+  env = {},
+  footprint = '',
+  report = '',
+  allureResultsDirectory = '',
+  diagnose = false,
+} = {}) => {
+  const { footprintEnvKey, batchReportEnvKey, allureResultsEnvKey } = UNDERPOST_TESTING;
+  const dropped = new Set([
+    footprintEnvKey,
+    batchReportEnvKey,
+    allureResultsEnvKey,
+    ...(report ? COVERAGE_GATE_ENV_KEYS : []),
+  ]);
+  const owned = {
+    NODE_ENV: 'test',
+    [footprintEnvKey]: footprint,
+    [batchReportEnvKey]: report,
+    [allureResultsEnvKey]: allureResultsDirectory,
+    DEBUG: diagnose ? [env.DEBUG, 'vitest:coverage'].filter(Boolean).join(',') : env.DEBUG,
+  };
+  return {
+    ...Object.fromEntries(Object.entries(env).filter(([key]) => !dropped.has(key))),
+    ...Object.fromEntries(Object.entries(owned).filter(([, value]) => value)),
+  };
+};
+
+/**
+ * @method testExecutionPlanFactory
+ * @description Orders a selection into batches. Each batch runs in one fresh process.
+ * The batches run one at a time, in ascending `groupOrder`, so a lower group
+ * completes before a higher group starts.
+ * @param {object} [params]
+ * @param {string} [params.selector] - Domain names, project names, or empty for every project.
+ * @param {Array<{stripPaths: string[], active: boolean}>} [params.contexts] - Product contexts.
+ * @param {string} [params.footprint] - Footprint name.
+ * @returns {{footprint: string, projects: string[], coverageInclude: string[], batches: object[], excluded: object[]}}
+ *   The plan. `projects` are the merge's `--project` flags, empty for every project.
+ * @throws {Error} When the selector or the footprint is unknown.
+ * @memberof UnderpostTesting
+ */
+const testExecutionPlanFactory = ({ selector = '', contexts = [], footprint = '' } = {}) => {
+  const { name, batch } = testFootprintFactory(footprint);
+  const { projects, runVitest, delegated, excluded } = resolveTestSelection(selector, contexts);
+  const vitestProjects = !runVitest
+    ? []
+    : projects.length > 0
+      ? projects.map((project) => TEST_PROJECTS.find(({ name: declared }) => declared === project))
+      : runnableTestProjects(contexts).filter(({ delegate }) => !delegate);
+  const units =
+    batch === 'project' ? vitestProjects.map((project) => [project]) : vitestProjects.length ? [vitestProjects] : [];
+  const batches = [...units, ...delegated.map((project) => [project])]
+    .map((members) => ({
+      groupOrder: Math.min(...members.map(({ groupOrder }) => groupOrder)),
+      projects: members.map(({ name: member }) => member),
+      delegated: Boolean(members[0].delegate),
+    }))
+    .sort((a, b) => a.groupOrder - b.groupOrder)
+    .map(({ delegated: isDelegated, ...rest }, index) => ({
+      index: index + 1,
+      ...rest,
+      ...(isDelegated
+        ? { delegated: true }
+        : { report: `${UNDERPOST_TESTING.runs.reportDirectory}/batch-${String(index + 1).padStart(3, '0')}.blob` }),
+    }));
+  return {
+    footprint: name,
+    projects,
+    coverageInclude: runVitest
+      ? coverageIncludeFactory(
+          projects.flatMap((project) => ['--project', project]),
+          contexts,
+        )
+      : [],
+    batches,
+    excluded: excluded.map(({ name: project, context }) => ({
+      name: project,
+      deployId: context.deployId,
+      missing: context.missing,
+    })),
+  };
+};
+
+/**
+ * @method testBatchStatus
+ * @description Names how one batch process ended.
+ *
+ * `failed`: tests failed and the batch wrote its report. `error`: the runner failed
+ * before it wrote a report, or the process did not start. `killed`: SIGKILL, often
+ * the kernel out-of-memory killer. `signaled`: another signal from outside.
+ * `timeout`: the batch ran past its limit. `interrupted`: the operator stopped the run.
+ * @param {object} [outcome]
+ * @param {number|null} [outcome.exitCode] - Exit code, or null when a signal ended the process.
+ * @param {string|null} [outcome.signal] - Signal that ended the process.
+ * @param {boolean} [outcome.timedOut] - The runner stopped the batch at its time limit.
+ * @param {boolean} [outcome.interrupted] - The operator stopped the run during the batch.
+ * @param {boolean} [outcome.reported] - The batch wrote its report.
+ * @returns {string} Status.
+ * @memberof UnderpostTesting
+ */
+const testBatchStatus = ({
+  exitCode = null,
+  signal = null,
+  timedOut = false,
+  interrupted = false,
+  reported = false,
+} = {}) => {
+  if (interrupted) return 'interrupted';
+  if (timedOut) return 'timeout';
+  if (signal === 'SIGKILL') return 'killed';
+  if (signal) return 'signaled';
+  if (exitCode === 0) return 'passed';
+  // No exit code and no signal: the process never started.
+  return reported && exitCode !== null ? 'failed' : 'error';
+};
+
+/**
+ * @method testRunStatus
+ * @description The status of a whole run. A run passes only when every batch passed
+ * or was skipped and the merge passed.
+ * @param {{batches: Array<{status: string}>, merge?: {status: string}}} manifest - Run manifest.
+ * @returns {'passed'|'failed'|'interrupted'} Status.
+ * @memberof UnderpostTesting
+ */
+const testRunStatus = ({ batches = [], merge } = {}) => {
+  if (batches.some(({ status }) => status === 'interrupted')) return 'interrupted';
+  const batchesPassed = batches.every(({ status }) => status === 'passed' || status === 'skipped');
+  return batchesPassed && (!merge || merge.status === 'passed') ? 'passed' : 'failed';
+};
+
+/**
+ * @method testRunReportFactory
+ * @description Renders a run manifest as a text table: one row per batch, then the merge.
+ * @param {{batches: object[], merge?: object}} manifest - Run manifest.
+ * @returns {string} Table.
+ * @memberof UnderpostTesting
+ */
+const testRunReportFactory = ({ batches = [], merge } = {}) => {
+  const seconds = (ms) => (Number.isFinite(ms) ? `${(ms / 1000).toFixed(1)}s` : '-');
+  const megabytes = (bytes) => (Number.isFinite(bytes) ? `${Math.round(bytes / 1024 / 1024)}MB` : '-');
+  const diagnosed = batches.some(({ diagnostics }) => diagnostics);
+  const row = ({ exitCode, signal, durationMs, diagnostics }) => [
+    `${exitCode ?? '-'}`,
+    signal ?? '-',
+    seconds(durationMs),
+    ...(diagnosed ? [megabytes(diagnostics?.peakRssBytes), seconds(diagnostics?.cpuMs)] : []),
+  ];
+  const rows = [
+    ['batch', 'projects', 'status', 'exit', 'signal', 'duration', ...(diagnosed ? ['peak rss', 'cpu'] : [])],
+    ...batches.map((batch) => [`${batch.index}`, batch.projects.join(','), batch.status, ...row(batch)]),
+    ...(merge ? [['merge', '', merge.status, ...row(merge)]] : []),
+  ];
+  const widths = rows[0].map((_, column) => Math.max(...rows.map((cells) => cells[column].length)));
+  return rows
+    .map((cells) =>
+      cells
+        .map((cell, column) => cell.padEnd(widths[column]))
+        .join('  ')
+        .trimEnd(),
+    )
+    .join('\n');
+};
+
+/** A run id: the UTC start time to the millisecond, then the runner's process id. */
+const TEST_RUN_ID = /^\d{8}T\d{6}\.\d{3}Z-\d+$/;
+
+/**
+ * @method testRunIdFactory
+ * @description A run id that sorts by start time.
+ * @param {Date} date - Start time.
+ * @param {number} pid - Runner process id.
+ * @returns {string} Run id.
+ * @memberof UnderpostTesting
+ */
+const testRunIdFactory = (date, pid) => `${date.toISOString().replace(/[-:]/g, '')}-${pid}`;
+
+/**
+ * @method staleTestRuns
+ * @description The runs to delete before a new run starts, so `kept` runs remain.
+ * Only names in the run id format are candidates.
+ * @param {string[]} [entries] - Names in the runs directory.
+ * @param {number} [kept] - Runs to keep, the new run included.
+ * @returns {string[]} Run ids to delete, oldest first.
+ * @memberof UnderpostTesting
+ */
+const staleTestRuns = (entries = [], kept = UNDERPOST_TESTING.runs.kept) => {
+  const runs = entries.filter((entry) => TEST_RUN_ID.test(entry)).sort();
+  return runs.slice(0, Math.max(0, runs.length - Math.max(0, kept - 1)));
+};
 
 /**
  * @method coverageThresholdFactory
@@ -896,6 +1197,7 @@ const impactSelector = (paths = []) => {
 export {
   UNDERPOST_TESTING,
   TEST_DOMAINS,
+  TEST_FOOTPRINTS,
   TEST_IMPACT,
   TEST_LEVELS,
   TEST_PROJECTS,
@@ -909,9 +1211,17 @@ export {
   resolveTestProjects,
   resolveTestSelection,
   runnableTestProjects,
+  staleTestRuns,
+  testBatchStatus,
   testDomainNames,
+  testExecutionPlanFactory,
+  testFootprintFactory,
   testJobManifestFactory,
   testProjectsFactory,
+  testRunIdFactory,
+  testRunReportFactory,
+  testRunStatus,
   vitestArgsFactory,
+  vitestEnvFactory,
   vitestProjectSelector,
 };

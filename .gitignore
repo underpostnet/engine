@@ -8,6 +8,7 @@
 /logs
 /build
 /coverage
+/.vitest
 /security-reports
 /allure-results
 /.env

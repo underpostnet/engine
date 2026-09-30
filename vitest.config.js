@@ -4,12 +4,15 @@ import {
   coverageIncludeFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  testFootprintFactory,
   testProjectsFactory,
   vitestProjectSelector,
 } from './src/server/build/testing.js';
 import { loadProductContexts } from './src/server/build/catalog.js';
 
 const allureResultsDirectory = process.env[UNDERPOST_TESTING.allureResultsEnvKey];
+const batchReport = process.env[UNDERPOST_TESTING.batchReportEnvKey];
+const footprint = testFootprintFactory(process.env[UNDERPOST_TESTING.footprintEnvKey]);
 const coverageThreshold = coverageThresholdFactory(process.env);
 const productContexts = await loadProductContexts();
 const coverageInclude = coverageIncludeFactory(process.argv, productContexts);
@@ -31,9 +34,12 @@ const projectDefaults = {
 
 export default defineConfig({
   test: {
+    ...footprint.vitest,
     reporters: [
       'default',
       ...(allureResultsDirectory ? [['allure-vitest/reporter', { resultsDir: allureResultsDirectory }]] : []),
+      // A batch of `node bin test`: the runner merges every blob of the run at the end.
+      ...(batchReport ? [['blob', { outputFile: batchReport }]] : []),
     ],
     coverage: {
       provider: 'v8',
@@ -63,6 +69,6 @@ export default defineConfig({
       // instead of failing against a number it never measured.
       ...(coverageThreshold === null ? {} : { thresholds: { lines: coverageThreshold } }),
     },
-    projects: testProjectsFactory(projectDefaults, productContexts),
+    projects: testProjectsFactory(projectDefaults, productContexts, footprint),
   },
 });
