@@ -29,6 +29,7 @@ import { developmentOrigins } from '../../server/network/router.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
 import { keepRawBody, publicRouteFallbackFactory } from '../../server/network/middlewares.js';
 import { entryShellRendererFactory } from '../../server/network/entry-metadata.js';
+import { objectLayerShellRendererFactory } from '../../server/network/object-layer-metadata.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { consumedApisOf, loadApiExtension } from '../../server/domain/consumed-api.js';
 
@@ -168,13 +169,18 @@ class ExpressService {
     // served under the same headers: the security middleware below applies a nonce CSP that the
     // shell's inline scripts cannot satisfy. Only its own namespaces match, so no API route,
     // asset or document is ever answered with it. An instance that resolves documents itself
-    // (its own database, the document API) renders each entry's metadata into its shell.
+    // renders an entry's metadata into its shell; an Object Layer is resolved at its authority by
+    // any instance that presents it.
     const resolvesDocuments = !apiBaseHost && !!db && Array.isArray(apis) && apis.includes('document');
+    const shellConfig = { host, path, metadata };
     app.use(
       publicRouteFallbackFactory({
         root: directory ? directory : `.${rootHostPath}`,
         path,
-        renderEntry: resolvesDocuments ? entryShellRendererFactory({ host, path, metadata }) : undefined,
+        renderers: {
+          ...(resolvesDocuments ? { entry: entryShellRendererFactory(shellConfig) } : {}),
+          objectLayer: objectLayerShellRendererFactory({ ...shellConfig, apis, consumes: consumed }),
+        },
       }),
     );
 

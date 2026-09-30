@@ -9,28 +9,31 @@ import fs from 'fs-extra';
 import nodePath from 'path';
 import { loggerFactory } from '../ops/logger.js';
 import { moderatorGuard, adminGuard } from '../security/auth.js';
-import { parsePublicRoute } from '../../client/components/core/CommonJs.js';
+import { PublicRoutes, parsePublicRoute } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
 /**
  * Serves the PWA shell for dynamic public routes (`/u/:username`, `/entry/:stableSlug`,
- * `/content/:stableSlug`), whose resources have no file on disk: the namespace view's own
- * build (`<ns>/index.html`), since the shell loads its bundle relative to that directory. The
- * client router resolves the parameter. A malformed parameter, or an app that declares no view for
- * the namespace, falls through to the 404 terminator. The parameter never reaches the filesystem.
+ * `/content/:stableSlug`, `/object-layer/:cid`), whose resources have no file on disk: the
+ * namespace view's own build (`<ns>/index.html`), since the shell loads its bundle relative to that
+ * directory. The client router resolves the parameter. A malformed parameter, or an app that
+ * declares no view for the namespace, falls through to the 404 terminator. The parameter never
+ * reaches the filesystem.
  *
- * An entry's shell is served with the entry's own metadata in its head when the instance has an
- * entry renderer (`entryShellRendererFactory`): the initial HTML then already describes the
- * document to crawlers and preview services. What that head says depends on who asks (a private
- * entry is described to its owner only), so the response varies on the authorization header.
+ * A route with a renderer serves its shell with the resource's own metadata in its head
+ * (`entryShellRendererFactory`, `objectLayerShellRendererFactory`): the initial HTML then already
+ * describes the resource to crawlers and preview services. What that head says can depend on who
+ * asks (a private entry is described to its owner only), so the response varies on the
+ * authorization header.
  * @method publicRouteFallbackFactory
- * @param {{ root: string, path?: string, renderEntry?: Function }} config - Static root, the
- *   instance's proxy sub-path, and the entry renderer of an instance that resolves documents.
+ * @param {{ root: string, path?: string, renderers?: Object<string, Function> }} config - Static
+ *   root, the instance's proxy sub-path, and the renderer of each `PublicRoutes` name the instance
+ *   resolves itself.
  * @returns {import('express').RequestHandler}
  * @memberof Middlewares
  */
-const publicRouteFallbackFactory = ({ root, path = '/', renderEntry }) => {
+const publicRouteFallbackFactory = ({ root, path = '/', renderers = {} }) => {
   const prefix = path === '/' ? '' : path;
   return async (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
@@ -38,9 +41,10 @@ const publicRouteFallbackFactory = ({ root, path = '/', renderEntry }) => {
     if (!route) return next();
     const shell = nodePath.resolve(root, `.${prefix}`, route.namespace, 'index.html');
     if (!fs.existsSync(shell)) return next();
-    if (route.name !== 'entry' || !renderEntry) return res.sendFile(shell);
+    const render = renderers[route.name];
+    if (!render) return res.sendFile(shell);
     try {
-      const html = await renderEntry(req, await fs.readFile(shell, 'utf8'), route.params.stableSlug);
+      const html = await render(req, await fs.readFile(shell, 'utf8'), route.params[PublicRoutes[route.name].param]);
       setRevalidateHeaders(req, res);
       return res.type('html').send(html);
     } catch (error) {

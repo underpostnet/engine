@@ -15,16 +15,17 @@ Every first-party API, browser and cross-domain alike, lives under one versioned
 `/api/v1/<api>`. `DOMAIN_API_VERSION` in `src/server/domain/api-contract.js` is its only
 authority. No configuration sets the path or the version, and no unversioned path exists.
 
-| question                                        | contract                                                                                                    |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| CID → canonical Object Layer                    | `GET /api/v1/object-layer/:cid`                                                                             |
-| publish a definition                            | `POST /api/v1/object-layer/canonical` with the service key; the authority only, a consumer refuses it       |
-| archive a definition, or offer it again         | `PUT /api/v1/object-layer/lifecycle/:cid` `{ archived }`; its owner or an admin, at the authority           |
-| remove a draft or a cache copy                  | `DELETE /api/v1/object-layer/:id`; its owner or an admin. A published definition is archived, never deleted |
-| remove every record of a definition on one host | `DELETE /api/v1/object-layer/purge/:cid` with body `{ cid }`; an admin. See Purge                           |
-| CID → registrations                             | `GET /api/v1/item-ledger/cid/:cid`                                                                          |
-| qualified token → asset                         | `GET /api/v1/item-ledger/asset/:chainId/:contractAddress/:tokenId`                                          |
-| token → supply                                  | `GET /api/v1/item-ledger-balance/supply/:chainId/:contractAddress/:tokenId`                                 |
-| token → owners                                  | `GET /api/v1/item-ledger-balance/token/:chainId/:contractAddress/:tokenId`                                  |
-| token → provenance                              | `GET /api/v1/item-ledger-transfer/token/:chainId/:contractAddress/:tokenId`                                 |
-| Cyberia content → Object Layers                 | pinned `objectLayerCid` in the content, and `GET /api/v1/cyberia-item-catalog/:itemId` for the alias        |
+| question                                        | contract                                                                                                                                        |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| CID → canonical Object Layer                    | `GET /api/v1/object-layer/:cid`                                                                                                                 |
+| CID → shareable page                            | `/object-layer/:cid`: the definition's own view. The served page is titled and described by its item, with its idle preview as the social image |
+| publish a definition                            | `POST /api/v1/object-layer/canonical` with the service key; the authority only, a consumer refuses it                                           |
+| archive a definition, or offer it again         | `PUT /api/v1/object-layer/lifecycle/:cid` `{ archived }`; its owner or an admin, at the authority                                               |
+| remove a draft or a cache copy                  | `DELETE /api/v1/object-layer/:id`; its owner or an admin. A published definition is archived, never deleted                                     |
+| remove every record of a definition on one host | `DELETE /api/v1/object-layer/purge/:cid` with body `{ cid }`; an admin. See Purge                                                               |
+| CID → registrations                             | `GET /api/v1/item-ledger/cid/:cid`                                                                                                              |
+| qualified token → asset                         | `GET /api/v1/item-ledger/asset/:chainId/:contractAddress/:tokenId`                                                                              |
+| token → supply                                  | `GET /api/v1/item-ledger-balance/supply/:chainId/:contractAddress/:tokenId`                                                                     |
+| token → owners                                  | `GET /api/v1/item-ledger-balance/token/:chainId/:contractAddress/:tokenId`                                                                      |
+| token → provenance                              | `GET /api/v1/item-ledger-transfer/token/:chainId/:contractAddress/:tokenId`                                                                     |
+| Cyberia content → Object Layers                 | pinned `objectLayerCid` in the content, and `GET /api/v1/cyberia-item-catalog/:itemId` for the alias                                            |

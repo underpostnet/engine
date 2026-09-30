@@ -233,7 +233,7 @@ describe('entry metadata over HTTP', () => {
       publicRouteFallbackFactory({
         root: shellRoot,
         path: '/',
-        renderEntry: entryShellRendererFactory({ ...context, metadata: site, origin: baseUrl }),
+        renderers: { entry: entryShellRendererFactory({ ...context, metadata: site, origin: baseUrl }) },
       }),
     );
     app.use('/api/v1/document', DocumentRouter.router(options));
