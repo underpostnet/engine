@@ -43,7 +43,7 @@ const fixture = () => ({
     underpost: { components: { core: ['Docs'] }, services: ['user'], views: [{ path: '/' }, { path: '/docs' }] },
     objectlayer: {
       components: {
-        'object-layer': [
+        'objectlayer-studio': [
           'ObjectLayerProtocol',
           'ObjectLayerEngine',
           'ObjectLayerEngineModal',
@@ -56,8 +56,9 @@ const fixture = () => ({
       docs: { typedoc: { entryPoints: ['./src/api/object-layer'] }, api: ['object-layer'] },
     },
     itemledger: {
-      components: { core: ['Docs'] },
-      services: ['item-ledger'],
+      components: { core: ['Docs'], 'objectlayer-studio': ['ObjectLayerProtocol', 'ObjectLayerEngineViewer'] },
+      services: ['item-ledger', 'object-layer', 'atlas-sprite-sheet'],
+      apiHosts: { 'object-layer': 'objectlayer.org', 'atlas-sprite-sheet': 'objectlayer.org' },
       views: [{ path: '/' }, { path: '/item-ledger-registry' }, { path: '/docs' }],
       docs: { typedoc: { entryPoints: ['./src/api/item-ledger'] }, api: ['item-ledger'] },
     },
@@ -70,7 +71,7 @@ const fixture = () => ({
     'cyberia-portal': {
       components: {
         cyberia: ['ObjectLayerProfileCyberia'],
-        'object-layer': ['ObjectLayerProtocol', 'ObjectLayerEngineViewer'],
+        'objectlayer-studio': ['ObjectLayerProtocol', 'ObjectLayerEngineViewer'],
       },
       services: ['object-layer', 'item-ledger'],
       apiHosts: { 'item-ledger': 'itemledger.com' },
@@ -179,13 +180,13 @@ describe('domain ownership', () => {
     expect(validateDomainConf(conf)).toContain('itemledger: duplicate view /docs');
   });
 
-  it('keeps Object Layer components out of the ItemLedger client', () => {
-    // ItemLedger projects ownership; a definition is read at its authority, never rendered here.
+  it('gives the ItemLedger client the Object Layer viewer, and never the editor', () => {
+    // ItemLedger views a definition read at its authority; it never authors one.
     const conf = fixture();
-    conf.confClient.itemledger.components['object-layer'] = ['ObjectLayerProtocol', 'ObjectLayerEngineViewer'];
+    conf.confClient.itemledger.components['objectlayer-studio'] = ['ObjectLayerProtocol', 'ObjectLayerEngineModal'];
     const errors = validateDomainConf(conf);
-    expect(errors).toContain('itemledger: carries component object-layer/ObjectLayerProtocol it does not use');
-    expect(errors).toContain('itemledger: carries component object-layer/ObjectLayerEngineViewer it does not use');
+    expect(errors).toContain('itemledger: missing component objectlayer-studio/ObjectLayerEngineViewer');
+    expect(errors).toContain('itemledger: carries component objectlayer-studio/ObjectLayerEngineModal it does not use');
   });
 
   it('keeps the wallet UI whole where it is used, and away from portals without it', () => {

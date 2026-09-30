@@ -47,18 +47,21 @@ export const STALE_DOMAINS = Object.freeze([/itemledger\.org/, /object-layer\.or
 /** Client components each client must carry, and the ones it must not. */
 export const CLIENT_COMPONENTS = Object.freeze({
   objectlayer: {
-    required: { 'object-layer': ['ObjectLayerProtocol', 'ObjectLayerEngine', 'ObjectLayerEngineViewer'] },
+    required: { 'objectlayer-studio': ['ObjectLayerProtocol', 'ObjectLayerEngine', 'ObjectLayerEngineViewer'] },
   },
-  // ItemLedger projects ownership of a definition; the definition itself is read at its authority.
-  itemledger: { forbidden: { 'object-layer': ['*'] } },
+  // ItemLedger views a definition read at its authority, and never authors one.
+  itemledger: {
+    required: { 'objectlayer-studio': ['ObjectLayerProtocol', 'ObjectLayerEngineViewer'] },
+    forbidden: { 'objectlayer-studio': ['ObjectLayerEngine', 'ObjectLayerEngineModal'] },
+  },
   cryptokoyn: {
     required: { wallet: ['WalletProvider', 'EmbeddedWallet', 'WalletView'] },
-    forbidden: { 'object-layer': ['*'] },
+    forbidden: { 'objectlayer-studio': ['*'] },
   },
   'cyberia-portal': {
-    required: { cyberia: ['ObjectLayerProfileCyberia'], 'object-layer': ['ObjectLayerEngineViewer'] },
+    required: { cyberia: ['ObjectLayerProfileCyberia'], 'objectlayer-studio': ['ObjectLayerEngineViewer'] },
   },
-  underpost: { forbidden: { 'object-layer': ['*'], wallet: ['*'] } },
+  underpost: { forbidden: { 'objectlayer-studio': ['*'], wallet: ['*'] } },
 });
 
 const ownerDomainOf = (api) => Object.keys(DOMAIN_APIS).find((domain) => DOMAIN_APIS[domain].includes(api)) ?? '';
