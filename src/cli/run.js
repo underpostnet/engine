@@ -481,7 +481,7 @@ class UnderpostRun {
     'dev-cluster': (path, options = DEFAULT_OPTION) => {
       const baseCommand = cli('underpost', { local: true });
       const mongoHosts = ['mongodb-0.mongodb-service'];
-      let primaryMongoHost = 'mongodb-0.mongodb-service';
+      let primaryPodName = 'mongodb-0';
       const clusterType = clusterTypeFactory(options);
       const clusterFlag = ` --${clusterType}`;
       const clusterInitFlag = clusterType === 'kind' ? '' : clusterFlag;
@@ -501,21 +501,20 @@ class UnderpostRun {
         shellExec(`${baseCommand} run kill '6379,27017'`);
       } else {
         try {
-          const primaryPodName =
+          primaryPodName =
             MongoBootstrap.getPrimaryPodName({
               namespace: options.namespace,
-              podName: 'mongodb-0',
-              disableAuth: options.dev,
-            }) || 'mongodb-0';
-          primaryMongoHost = `${primaryPodName}.mongodb-service`;
+              podName: primaryPodName,
+            }) || primaryPodName;
         } catch (error) {
           logger.warn('Failed to detect MongoDB primary pod, using default', {
             error: error.message,
-            default: primaryMongoHost,
+            default: primaryPodName,
           });
         }
+        // Forward the primary pod, not the service: the service picks any member.
         shellExec(
-          `${baseCommand} run expose mongodb-service --namespace ${options.namespace}${clusterFlag} --expose-container-ports 27017 --expose-host-ports 27017`,
+          `${baseCommand} run expose ${primaryPodName} --namespace ${options.namespace}${clusterFlag} --expose-container-ports 27017 --expose-host-ports 27017`,
           { async: true },
         );
         shellExec(
@@ -523,7 +522,7 @@ class UnderpostRun {
           { async: true },
         );
       }
-      const hostListenResult = etcHostFactory([primaryMongoHost]);
+      const hostListenResult = etcHostFactory([`${primaryPodName}.mongodb-service`]);
       logger.info(hostListenResult.renderHosts);
     },
 
