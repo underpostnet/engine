@@ -10,7 +10,6 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { moderatorGuard } from '../../server/security/auth.js';
 import { serviceHandler } from '../../server/network/middlewares.js';
-import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { purgeAtlasDoc } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerEngine } from './object-layer.js';
 import { catalogModels, catalogMounted, findBoundCid } from './object-layer-catalog.js';
@@ -32,23 +31,9 @@ class AtlasStudioService {
     const models = catalogModels(options);
     const objectLayer = await models.ObjectLayer.findById(req.params.id);
     if (!objectLayer) throw new Error('ObjectLayer not found');
-    const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
-    const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
-    if (!stored) throw new Error('ObjectLayer has no render frames');
-    const renderFrames = ObjectLayerRenderFrames.sourceOf(stored);
-
-    const rendered = await AtlasSpriteSheetStore.build({
-      itemKey: objectLayer.data.item.id,
-      objectLayerRenderFrames: renderFrames,
-      options,
-    });
-    return await ObjectLayerEngine.publishItemDefinition({
-      models,
-      payload: ObjectLayerEngine.payloadOf(objectLayer),
-      renderFrames,
-      rendered,
-      options,
-    });
+    const rebuilt = await ObjectLayerEngine.rebuildItemRender({ models, objectLayer, options });
+    if (!rebuilt) throw new Error('ObjectLayer has no render frames');
+    return rebuilt.definition;
   };
 
   /**

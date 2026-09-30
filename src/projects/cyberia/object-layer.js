@@ -9,6 +9,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { PNG } from 'pngjs';
 import { Jimp, intToRGBA } from 'jimp';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { isObjectLayerAuthority, pinCanonical } from '../../api/object-layer/object-layer.publication.js';
 import { parseIdentityJson } from '../../api/object-layer/object-layer.identity.js';
 import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
@@ -498,6 +499,52 @@ export class ObjectLayerEngine {
   }
 
   /**
+   * Builds the render of a definition again from its stored render frames and publishes the
+   * definition that names it; the label rebinds to it. `revise` may change the payload first.
+   *
+   * @static
+   * @param {Object} params
+   * @param {import('./object-layer-catalog.js').CatalogModels} params.models
+   * @param {Object} params.objectLayer - A mongoose ObjectLayer document.
+   * @param {number} [params.upscaleFactor] - Pixels per cell of the upscaled render.
+   * @param {number|null} [params.maxAtlasDim=null] - Atlas dimension cap.
+   * @param {(payload:{data:Object})=>void} [params.revise] - Changes the payload in place.
+   * @param {Object} [params.options] - Router options ({ host, path }).
+   * @returns {Promise<{definition:Object,atlas:Object}|null>} Null when the definition has no render frames.
+   * @memberof CyberiaObjectLayer
+   */
+  static async rebuildItemRender({
+    models,
+    objectLayer,
+    upscaleFactor,
+    maxAtlasDim = null,
+    revise = () => {},
+    options,
+  }) {
+    const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
+    const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
+    if (!stored) return null;
+    const renderFrames = ObjectLayerRenderFrames.sourceOf(stored);
+    const rendered = await AtlasSpriteSheetStore.build({
+      itemKey: objectLayer.data.item.id,
+      objectLayerRenderFrames: renderFrames,
+      upscaleFactor,
+      maxAtlasDim,
+      options,
+    });
+    const payload = ObjectLayerEngine.payloadOf(objectLayer);
+    revise(payload);
+    const definition = await ObjectLayerEngine.publishItemDefinition({
+      models,
+      payload,
+      renderFrames,
+      rendered,
+      options,
+    });
+    return { definition, atlas: rendered.atlas };
+  }
+
+  /**
    * The payload of a definition with its content changed in memory, ready to publish as a new
    * definition.
    * @static
@@ -553,10 +600,9 @@ export class ObjectLayerEngine {
   static selectAtlasRebuild(options = {}) {
     const namedAnAction = Boolean(
       options.import ||
-      options.syncDerived ||
+      options.sync ||
       options.importTypes ||
       options.drop ||
-      options.generate ||
       options.showAtlasSpriteSheet ||
       options.showFrame !== undefined,
     );
@@ -564,7 +610,7 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Selects the item ids an `ol` action works on, such as `--sync-derived` or
+   * Selects the item ids an `ol` action works on, such as `--sync` or
    * `--to-atlas-sprite-sheet`.
    *
    * With no requested ids, every stored item id is taken. With requested ids,

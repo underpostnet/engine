@@ -35,13 +35,16 @@ vi.mock('../../../src/server/storage/cache.js', () => ({ CacheService: { invalid
 const {
   boundItemIds,
   catalogModels,
+  composeItemDefinition,
   findAllBoundDefinitions,
   findBoundDefinition,
   findBoundDefinitions,
   mergeObjectLayerData,
+  reviseItemDefinition,
   seedItemCatalog,
   writeItemDefinition,
 } = await import('../../../src/projects/cyberia/object-layer-catalog.js');
+const { objectLayerIdentity } = await import('../../../src/api/object-layer/object-layer.identity.js');
 const { CyberiaObjectLayerProfile } =
   await import('../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js');
 
@@ -274,6 +277,59 @@ describe('writeItemDefinition', () => {
     }
     expect(state.bound).toEqual([]);
     expect(state.bindings.hatchet).toBe('cid-of-hatchet-5');
+  });
+});
+
+describe('reviseItemDefinition', () => {
+  const profile = { id: CyberiaObjectLayerProfile.id, version: CyberiaObjectLayerProfile.version };
+  // A bound definition stored as the current profile composes it: its cid is its identity.
+  const current = (data) => {
+    const composed = composeItemDefinition({ boundData: data, payload: { data } });
+    return { _id: 'a', cid: objectLayerIdentity(composed).cid, profile: composed.profile, data: composed.data };
+  };
+
+  it('writes nothing while the bound definition is current under the profile', async () => {
+    const bound = current(storedData());
+    const { models, state } = stubModels({ bindings: { hatchet: bound.cid }, definitions: [bound] });
+    const result = await reviseItemDefinition({ models, itemId: 'hatchet' });
+    expect(result.written).toBe(false);
+    expect(result.definition.cid).toBe(bound.cid);
+    expect(state.created).toBe(null);
+    expect(state.bound).toEqual([]);
+  });
+
+  it('writes a definition stored under an older profile again, with the stats the current one declares', async () => {
+    const { utility, ...olderStats } = storedData().stats;
+    const data = { ...storedData(), stats: olderStats };
+    const older = { profile: { ...profile, version: profile.version - 1 }, data };
+    const bound = { _id: 'a', cid: objectLayerIdentity(older).cid, ...older };
+    const { models, state } = stubModels({ bindings: { hatchet: bound.cid }, definitions: [bound] });
+    const result = await reviseItemDefinition({ models, itemId: 'hatchet' });
+    expect(result.written).toBe(true);
+    expect(state.created.profile).toEqual(profile);
+    expect(state.created.data.stats.utility).toBe(0);
+    expect(state.bound).toEqual([['hatchet', 'cid-of-hatchet-5']]);
+  });
+
+  it('writes what revise changes on a copy, and rebinds the label', async () => {
+    const bound = current(storedData());
+    const { models, state } = stubModels({ bindings: { hatchet: bound.cid }, definitions: [bound] });
+    const result = await reviseItemDefinition({
+      models,
+      itemId: 'hatchet',
+      revise: (payload) => {
+        payload.data.stats.effect = 9;
+      },
+    });
+    expect(result.written).toBe(true);
+    expect(state.bound).toEqual([['hatchet', 'cid-of-hatchet-9']]);
+    expect(bound.data.stats.effect).toBe(5);
+  });
+
+  it('answers no definition for an unbound label', async () => {
+    const { models, state } = stubModels();
+    expect(await reviseItemDefinition({ models, itemId: 'ghost' })).toEqual({ definition: null, written: false });
+    expect(state.created).toBe(null);
   });
 });
 

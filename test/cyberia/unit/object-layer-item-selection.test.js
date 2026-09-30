@@ -41,8 +41,7 @@ describe('ol atlas rebuild selection', () => {
 
   it('keeps --upscale a modifier next to another action', () => {
     expect(rebuild({ upscale: 20, import: true })).toBe(false);
-    expect(rebuild({ upscale: 20, syncDerived: true })).toBe(false);
-    expect(rebuild({ upscale: 20, generate: true })).toBe(false);
+    expect(rebuild({ upscale: 20, sync: true })).toBe(false);
     expect(rebuild({ upscale: 20, importTypes: 'skin' })).toBe(false);
     expect(rebuild({ upscale: 20, drop: true })).toBe(false);
     expect(rebuild({ upscale: 20, showFrame: '08_0' })).toBe(false);
@@ -51,6 +50,6 @@ describe('ol atlas rebuild selection', () => {
 
   it('stays out of the way when neither flag is given', () => {
     expect(rebuild({})).toBe(false);
-    expect(rebuild({ syncDerived: true, instance: 'TEST' })).toBe(false);
+    expect(rebuild({ sync: true, instance: 'TEST' })).toBe(false);
   });
 });

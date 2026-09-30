@@ -12,6 +12,7 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { profileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { objectLayerCache, publishDefinition } from '../../api/object-layer/object-layer.publication.js';
+import { objectLayerIdentity } from '../../api/object-layer/object-layer.identity.js';
 import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
 import { CacheService } from '../../server/storage/cache.js';
@@ -241,6 +242,31 @@ export async function writeItemDefinition({ models, payload, setOnInsert = null,
   }
   await materializeDefinition({ definition, bound, renderFrames, rendered, options });
   return definition;
+}
+
+/**
+ * Brings the definition a label runs on in line with the current Cyberia profile: its profile
+ * and stats are composed again, and `revise` may change its data first. Only a definition whose
+ * identity changes is written, through {@link writeItemDefinition}; the label then rebinds and
+ * keeps its materializations.
+ * @param {Object} params
+ * @param {CatalogModels} params.models
+ * @param {string} params.itemId - The label.
+ * @param {(payload:{data:Object})=>void} [params.revise] - Changes the payload in place.
+ * @param {Object} [params.options] - Router options of this host.
+ * @returns {Promise<{definition:Object|null,written:boolean}>} The definition the label runs on
+ *   now; null when the label is unbound.
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export async function reviseItemDefinition({ models, itemId, revise = () => {}, options }) {
+  const bound = await findBoundDefinition(models, itemId);
+  if (!bound) return { definition: null, written: false };
+  const boundData = bound.toObject({ virtuals: false }).data;
+  const payload = { data: structuredClone(boundData) };
+  revise(payload);
+  if (objectLayerIdentity(composeItemDefinition({ boundData, payload })).cid === bound.cid)
+    return { definition: bound, written: false };
+  return { definition: await writeItemDefinition({ models, payload, options }), written: true };
 }
 
 /**
