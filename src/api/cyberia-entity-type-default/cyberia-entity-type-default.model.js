@@ -61,9 +61,9 @@ const CyberiaEntityTypeDefaultSchema = new Schema(
     inventoryItemsIds: [{ type: String, trim: true }],
     overrideItemsIdsState: [OverrideItemStateSchema],
     // Canonical entity behavior bound to entities matched by liveItemIds (see
-    // SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty = let the runtime derive it
-    // (armed → hostile, else passive). The simulation resolves it with the same
-    // liveItemIds match it uses for the live/dead/drop sets.
+    // SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty: a bot derives it
+    // (armed → hostile, else passive); a foreground stays normal. The simulation
+    // resolves it with the same liveItemIds match it uses for the live/dead/drop sets.
     behavior: { type: String, trim: true },
   },
   {

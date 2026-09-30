@@ -246,52 +246,67 @@ export const isCanonicalAudioLogicId = (logicEventId) =>
 
 /**
  * Canonical entity-behavior registry — the authoritative vocabulary for the
- * `behavior` an entity-type default may bind to its matched entities. The Go
- * simulation owns the runtime semantics; this registry is the shared label /
- * documentation source consumed by the editor (EntityEngineCyberia) and by
- * content-authority validation. MUST stay aligned with cyberia-server
- * `game/behavior.go`.
+ * `behavior` an entity-type default may bind to its matched entities. This
+ * registry is the shared label / documentation source consumed by the editor
+ * (EntityEngineCyberia) and by content-authority validation.
+ *
+ * `entityType` is the one entity type a behavior applies to. The Go simulation
+ * owns the semantics of bot behaviors and MUST stay aligned with cyberia-server
+ * `game/behavior.go`. The client owns the semantics of foreground behaviors.
  *
  * `selectable: false` marks behaviors the runtime assigns itself
  * (projectiles, coin drops) — they are not author-assignable to a default.
  *
- * @type {ReadonlyArray<{id:string,label:string,description:string,selectable:boolean}>}
+ * @type {ReadonlyArray<{id:string,label:string,description:string,entityType:string,selectable:boolean}>}
  */
 export const ENTITY_BEHAVIORS = Object.freeze([
   Object.freeze({
     id: 'passive',
     label: 'Passive',
     description: 'Wanders within its spawn radius; never aggroes. Default for unarmed entities.',
+    entityType: ENTITY_TYPES.bot,
     selectable: true,
   }),
   Object.freeze({
     id: 'hostile',
     label: 'Hostile',
     description: 'Pursues and attacks players within aggro range. Default for armed entities.',
+    entityType: ENTITY_TYPES.bot,
     selectable: true,
   }),
   Object.freeze({
     id: 'provider',
     label: 'Provider',
     description: 'Mission/action giver: barely moves from its spawn (sporadic short steps) and is immortal.',
+    entityType: ENTITY_TYPES.bot,
     selectable: true,
   }),
   Object.freeze({
     id: 'provider-static',
     label: 'Provider (Static)',
     description: 'Like provider but completely immobile, and immortal.',
+    entityType: ENTITY_TYPES.bot,
+    selectable: true,
+  }),
+  Object.freeze({
+    id: 'overhead-occlusion',
+    label: 'Overhead Occlusion',
+    description: 'Roof: fades out while the local player stands under it, and fades back in when the player leaves.',
+    entityType: ENTITY_TYPES.foreground,
     selectable: true,
   }),
   Object.freeze({
     id: 'skill',
     label: 'Skill',
     description: 'Runtime projectile entity — assigned by the skill engine, not author-selectable.',
+    entityType: ENTITY_TYPES.skill,
     selectable: false,
   }),
   Object.freeze({
     id: 'coin',
     label: 'Coin',
     description: 'Runtime coin entity — assigned by the economy engine, not author-selectable.',
+    entityType: ENTITY_TYPES.coin,
     selectable: false,
   }),
 ]);
@@ -483,6 +498,10 @@ export const ENTITY_COLOR_KEYS = Object.freeze([
  *                     built-in font.
  *   fontFactorSize  — uniform multiplier applied to every text size, so a
  *                     deployment can scale all UI/HUD text without per-call edits.
+ *   overheadOcclusionHiddenOpacity — opacity of an `overhead-occlusion`
+ *                     foreground while the local player stands under it. 0 hides it.
+ *   overheadOcclusionFadeMs — duration of the fade between opacity 1 and the
+ *                     hidden opacity, in both directions.
  */
 export const RENDER_DEFAULTS = Object.freeze({
   cellSize: 45,
@@ -502,6 +521,8 @@ export const RENDER_DEFAULTS = Object.freeze({
 
   fontFamily: 'Jersey15-Regular.ttf',
   fontFactorSize: 1.4,
+  overheadOcclusionHiddenOpacity: 0,
+  overheadOcclusionFadeMs: 300,
 });
 
 /**
@@ -580,6 +601,8 @@ export function buildClientHints(overrides = {}) {
     devUi: ov.devUi ?? RENDER_DEFAULTS.devUi,
     fontFamily: ov.fontFamily ?? RENDER_DEFAULTS.fontFamily,
     fontFactorSize: ov.fontFactorSize ?? RENDER_DEFAULTS.fontFactorSize,
+    overheadOcclusionHiddenOpacity: ov.overheadOcclusionHiddenOpacity ?? RENDER_DEFAULTS.overheadOcclusionHiddenOpacity,
+    overheadOcclusionFadeMs: ov.overheadOcclusionFadeMs ?? RENDER_DEFAULTS.overheadOcclusionFadeMs,
   };
 }
 

@@ -58,14 +58,14 @@ class EntityEngineCyberia {
     overrideItemPicker: 'entity-engine-override-item-picker',
   };
 
-  // Behavior options: a leading "auto" (empty → runtime derives armed→hostile,
-  // else passive) plus the author-assignable canonical behaviors.
+  // Behavior options: a leading "auto" (empty → a bot derives armed→hostile,
+  // else passive; a foreground stays normal) plus the author-assignable canonical behaviors.
   static behaviorOptions() {
     return [
       { value: '', display: '— auto (derive) —', data: '', onClick: () => {} },
       ...SELECTABLE_ENTITY_BEHAVIORS.map((b) => ({
         value: b.id,
-        display: b.label,
+        display: `${b.label} (${b.entityType})`,
         data: b.id,
         onClick: () => {},
       })),
@@ -606,6 +606,14 @@ class EntityEngineCyberia {
       });
       return false;
     }
+    const behavior = SELECTABLE_ENTITY_BEHAVIORS.find((b) => b.id === body.behavior);
+    if (behavior && behavior.entityType !== body.entityType) {
+      NotificationManager.Push({
+        html: `Behavior ${behavior.label} applies to ${behavior.entityType} entities only.`,
+        status: 'error',
+      });
+      return false;
+    }
     return true;
   }
 
@@ -830,8 +838,8 @@ class EntityEngineCyberia {
                 <i class="fa-solid fa-circle-info"></i> Defaults are resolved by the entity's active itemId (usually the
                 skin): the system finds the document whose <b>Live Item Ids</b> contains it, then applies its dead, drop and
                 default object-layer ids — and its <b>Behavior</b> when set. Entity Type is a label only — it is not the
-                lookup key and may repeat across documents. Leave Behavior on <b>auto</b> to derive it (armed → hostile,
-                else passive).
+                lookup key and may repeat across documents. A behavior applies to its own entity type only. Leave
+                Behavior on <b>auto</b>: a bot derives it (armed → hostile, else passive), a foreground stays normal.
               </div>`,
           )}
           ${group(

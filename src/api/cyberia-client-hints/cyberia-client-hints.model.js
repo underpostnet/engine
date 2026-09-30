@@ -80,6 +80,10 @@ const CyberiaClientHintsSchema = new Schema(
     // built-in font) and a uniform text-size multiplier.
     fontFamily: { type: String, default: null },
     fontFactorSize: { type: Number, default: null },
+
+    // Fade of an `overhead-occlusion` foreground while the local player stands under it.
+    overheadOcclusionHiddenOpacity: { type: Number, default: null },
+    overheadOcclusionFadeMs: { type: Number, default: null },
   },
   { timestamps: true },
 );

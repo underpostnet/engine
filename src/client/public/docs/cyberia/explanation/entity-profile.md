@@ -35,18 +35,18 @@ CyberiaEntity {
 
 ## Entity Type Registry
 
-| `entityType`   | Behavior              | Map-placed | Description                                           |
-| -------------- | --------------------- | ---------- | ----------------------------------------------------- |
-| `player`       | interactive           | no         | Local (self) player                                   |
-| `other_player` | interactive           | no         | Remote players in AOI                                 |
-| `bot`          | `hostile` / `passive` | yes        | AI-controlled bot                                     |
-| `skill`        | `skill`               | no         | Runtime-spawned projectile (created by skill system)  |
-| `coin`         | `coin`                | no         | Runtime-spawned collectible (dropped on entity death) |
-| `floor`        | static                | yes        | Terrain tile (walkable)                               |
-| `obstacle`     | static                | yes        | Collision tile (blocks movement)                      |
-| `portal`       | static                | yes        | Zone transition trigger                               |
-| `foreground`   | static                | yes        | Foreground decoration layer                           |
-| `resource`     | extractable           | yes        | Exploitable world object (drops items on extraction)  |
+| `entityType`   | Behavior                      | Map-placed | Description                                           |
+| -------------- | ----------------------------- | ---------- | ----------------------------------------------------- |
+| `player`       | interactive                   | no         | Local (self) player                                   |
+| `other_player` | interactive                   | no         | Remote players in AOI                                 |
+| `bot`          | `hostile` / `passive`         | yes        | AI-controlled bot                                     |
+| `skill`        | `skill`                       | no         | Runtime-spawned projectile (created by skill system)  |
+| `coin`         | `coin`                        | no         | Runtime-spawned collectible (dropped on entity death) |
+| `floor`        | static                        | yes        | Terrain tile (walkable)                               |
+| `obstacle`     | static                        | yes        | Collision tile (blocks movement)                      |
+| `portal`       | static                        | yes        | Zone transition trigger                               |
+| `foreground`   | static / `overhead-occlusion` | yes        | Foreground decoration layer, drawn over every entity  |
+| `resource`     | extractable                   | yes        | Exploitable world object (drops items on extraction)  |
 
 ---
 
@@ -172,13 +172,13 @@ Every entity type resolves against a default build. The foundation baseline supp
 type ([Content artifact](content-artifact.md#document-families)); an instance conf references
 `CyberiaEntityTypeDefault` documents that replace the baseline for the types they cover:
 
-| Field               | Description                                                                       |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `liveItemIds`       | ObjectLayer item IDs applied when entity is alive with no explicit items assigned |
-| `deadItemIds`       | ObjectLayer item IDs for dead/ghost/respawning state                              |
-| `dropItemIds`       | Items granted to the extractor when a resource entity is depleted                 |
-| `inventoryItemsIds` | Items the entity carries that no lifecycle state activates                        |
-| `behavior`          | Runtime behavior of a bot: passive, hostile, provider or provider-static          |
+| Field               | Description                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `liveItemIds`       | ObjectLayer item IDs applied when entity is alive with no explicit items assigned                             |
+| `deadItemIds`       | ObjectLayer item IDs for dead/ghost/respawning state                                                          |
+| `dropItemIds`       | Items granted to the extractor when a resource entity is depleted                                             |
+| `inventoryItemsIds` | Items the entity carries that no lifecycle state activates                                                    |
+| `behavior`          | Runtime behavior of a bot: passive, hostile, provider or provider-static. Of a foreground: overhead-occlusion |
 
 ---
 
@@ -205,6 +205,18 @@ type BotState struct {
 | `passive` | random wander                           | Non-aggressive world NPC |
 | `skill`   | move in direction, despawn on collision | Projectile entity        |
 | `coin`    | static, collectible                     | Coin drop entity         |
+
+**Foreground behaviors:**
+
+A foreground behavior is presentation only. The server sends it in the snapshot, and the client runs it.
+
+| Behavior             | Client action                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| (empty)              | Normal: drawn at full opacity over every entity                                                                           |
+| `overhead-occlusion` | Roof: fades to the hidden opacity while the centre of the local player is inside it, and back to 1 when the player leaves |
+
+The client hints `overheadOcclusionHiddenOpacity` (default `0`, the roof disappears) and `overheadOcclusionFadeMs`
+(default `300`) set the hidden opacity and the fade duration.
 
 ---
 
