@@ -1,73 +1,153 @@
 import { loggerFactory } from '../core/Logger.js';
-import { getProxyPath, listenQueryParamsChange, getQueryParams, setQueryParams } from '../core/Router.js';
+import {
+  getProxyPath,
+  getPublicRouteParam,
+  getViewPath,
+  presentPublicRoute,
+  publicRoutePath,
+  setDocTitle,
+} from '../core/Router.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ItemLedgerService } from '../../services/item-ledger/item-ledger.service.js';
 import { ItemLedgerBalanceService } from '../../services/item-ledger-balance/item-ledger-balance.service.js';
 import { ItemLedgerTransferService } from '../../services/item-ledger-transfer/item-ledger-transfer.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { append, escapeHtml, htmls, s } from '../core/VanillaJs.js';
-import { commonModeratorGuard } from '../core/CommonJs.js';
+import { append, copyData, escapeHtml, htmls, s } from '../core/VanillaJs.js';
+import { PublicRoutes, commonModeratorGuard } from '../core/CommonJs.js';
 import { Css, darkTheme, ThemeEvents, Themes, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
-import { AgGrid } from '../core/AgGrid.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { Translate } from '../core/Translate.js';
+import { isObjectLayerCid } from './ObjectLayerProtocol.js';
 import { createJSONEditor } from 'vanilla-jsoneditor';
 const logger = loggerFactory(import.meta);
+
+/** A definition's own view: `/object-layer/:cid`. */
+const VIEW_ROUTE = 'objectLayer';
+const VIEW_NAMESPACE = PublicRoutes[VIEW_ROUTE].namespace;
+const LIST_MODAL_ID = 'modal-object-layer-engine-viewer';
+
+/** A cid in a title: its two ends. */
+const shortKey = (key) => (key.length > 18 ? `${key.slice(0, 10)}…${key.slice(-6)}` : key);
+
 /**
- * The routed Object Layer viewer: the list of definitions. Each definition opens in a modal of its
- * own ({@link ObjectLayerViewer}), so the list and several definitions stay open side by side.
+ * The Object Layer viewer: the routed list of definitions, and one view of its own for each
+ * definition ({@link ObjectLayerViewer}). Every view stays open beside the others.
  */
 class ObjectLayerEngineViewer {
   /**
-   * The content profile that names and illustrates the stats, when the host binds one. Without
-   * one the viewer lists the mechanical block as it is stored.
-   * @type {{statDescriptions:Object}|null}
+   * What the host binds once, at boot: its store and router, the content profile that names and
+   * illustrates the stats, whether anything mutates, what its table adds, and its view titles.
+   * @type {{appStore: object, RouterInstance: object, profile: object|null, readOnly: boolean,
+   *   lifecycle: boolean, columns: () => object[], renderTitle: (text: string) => string}}
    */
-  static profile = null;
-  /** The host has no editor route, so nothing here mutates. */
-  static readOnly = false;
-  /** The host is the Object Layer authority: a moderator archives a definition, an admin purges it. */
-  static lifecycle = false;
-  /** Columns the host adds to the table. */
-  static columns = [];
-  /** The list render in flight, so a second request waits for it. */
-  static listing = null;
+  static host = {
+    appStore: null,
+    RouterInstance: null,
+    profile: null,
+    readOnly: false,
+    lifecycle: false,
+    columns: () => [],
+    renderTitle: (text) => renderViewTitle({ icon: html`<i class="fa-solid fa-cube"></i>`, text }),
+  };
+
+  /** Binds the host. Call it once at boot, before the router renders a viewer route. */
+  static configure(host) {
+    Object.assign(ObjectLayerEngineViewer.host, host);
+  }
+
+  /** The list of definitions: the content of the routed viewer modal. */
+  static async instance() {
+    const { appStore, readOnly, lifecycle, profile, columns } = ObjectLayerEngineViewer.host;
+    return await ObjectLayerManagement.instance({
+      appStore,
+      idModal: LIST_MODAL_ID,
+      readOnly,
+      lifecycle,
+      profile,
+      columns: columns(),
+    });
+  }
+
+  /** Shows the list of definitions. */
+  static openList() {
+    s('.main-btn-object-layer-engine-viewer').click();
+  }
 
   /**
-   * @param {Object} options
-   * @param {Object} options.appStore - Host app store.
-   * @param {Object} [options.profile] - Content profile that names and illustrates the stats.
-   * @param {boolean} [options.readOnly=false] - No add, edit or delete.
-   * @param {boolean} [options.lifecycle=false] - Offer archive and purge to the roles that hold them.
-   * @param {Object[]} [options.columns=[]] - Columns the host adds to the table.
+   * Opens the view of a definition at `/object-layer/:cid`: one view per cid, beside the list and
+   * the other views. A view already open comes to the front.
+   * @param {{ cid: string }} options
    */
-  static async instance({ appStore, profile = null, readOnly = false, lifecycle = false, columns = [] }) {
-    const id = 'object-layer-engine-viewer';
-    ObjectLayerEngineViewer.profile = profile;
-    ObjectLayerEngineViewer.readOnly = readOnly;
-    ObjectLayerEngineViewer.lifecycle = lifecycle;
-    ObjectLayerEngineViewer.columns = columns;
-    Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
-      ObjectLayerEngineViewer.Reload({ appStore });
+  static async open({ cid }) {
+    await new ObjectLayerViewer({ ...ObjectLayerEngineViewer.host, cid }).open();
+  }
+
+  /** The `/object-layer` route: the view of the definition its path names, else the list. */
+  static route() {
+    const cid = getPublicRouteParam(VIEW_ROUTE);
+    return cid ? ObjectLayerEngineViewer.open({ cid }) : ObjectLayerEngineViewer.openList();
+  }
+}
+
+/**
+ * The view of one definition, in a modal of its own at the path of its cid. Each view holds its
+ * own state and finds its elements under its own root.
+ */
+class ObjectLayerViewer {
+  /** @param {typeof ObjectLayerEngineViewer.host & { cid: string }} options */
+  constructor({ cid, appStore, RouterInstance, profile, readOnly, renderTitle }) {
+    this.cid = cid;
+    this.appStore = appStore;
+    this.RouterInstance = RouterInstance;
+    this.profile = profile;
+    this.readOnly = readOnly;
+    this.renderTitle = renderTitle;
+    this.id = `object-layer-viewer-${cid}`;
+    this.idModal = `modal-${this.id}`;
+    this.data = {
+      objectLayer: null,
+      frameCounts: null,
+      frameDuration: 0,
+      currentDirection: 'down',
+      currentMode: 'idle',
+      webp: null,
+      webpMetadata: null,
+      // The definition whose animation is in flight.
+      generating: null,
+      // The render the definition names: `{ renderCid, metadataCid, layout }`, the same on every host.
+      render: null,
+      renderUnavailable: '',
+      // ItemLedger bindings of the definition; null while the ledger loads.
+      ledgerBindings: null,
+      ledgerUnavailable: '',
+      isGeneratingAtlas: false,
+      metadataJsonEditor: null,
     };
-    // Called at once, then on each query change: a `?cid=` link opens its definition.
-    listenQueryParamsChange({
-      id: `${id}-query-listener`,
-      event: async () => {
-        if (s(`#${id}`)) await ObjectLayerEngineViewer.Reload({ appStore });
-      },
-    });
-    ThemeEvents[id] = () => {
-      if (s(`.style-${id}`)) htmls(`.style-${id}`, ObjectLayerEngineViewer.style());
+  }
+  // Map user-friendly direction/mode to numeric direction codes
+  static getDirectionCode(direction, mode) {
+    const key = `${direction}_${mode}`;
+    const directionCodeMap = {
+      down_idle: '08',
+      down_walking: '18',
+      up_idle: '02',
+      up_walking: '12',
+      left_idle: '04',
+      left_walking: '14',
+      right_idle: '06',
+      right_walking: '16',
     };
-    return html`
-      <div class="hide style-${id}">${ObjectLayerEngineViewer.style()}</div>
-      <div class="fl">
-        <div class="in ${id}" id="${id}">${ObjectLayerEngineViewer.busy('Loading')}</div>
-      </div>
-    `;
+    return directionCodeMap[key] || null;
+  }
+  /** An element of this view. */
+  el(selector) {
+    return s(`.${this.id} ${selector}`);
+  }
+  els(selector) {
+    return document.querySelectorAll(`.${this.id} ${selector}`);
   }
   /** A spinner and a message, for a part of the viewer that waits for the network. */
   static busy(message, content = '') {
@@ -99,7 +179,19 @@ class ObjectLayerEngineViewer {
         opacity: 0.7;
         word-break: break-all;
       }
-      .object-layer-viewer-busy .default-viewer-btn {
+      .viewer-unavailable {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 40px 20px;
+        text-align: center;
+      }
+      .viewer-unavailable > i {
+        font-size: 36px;
+        opacity: 0.6;
+      }
+      .viewer-unavailable .default-viewer-btn {
         width: auto;
         padding: 12px 24px;
       }
@@ -192,15 +284,84 @@ class ObjectLayerEngineViewer {
       }
 
       .viewer-header {
-        text-align: center;
-        margin-bottom: 30px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 20px;
+        margin-bottom: 20px;
         padding-bottom: 20px;
         border-bottom: 2px solid ${darkTheme ? '#444' : '#ddd'};
       }
 
+      .viewer-header-preview {
+        position: relative;
+        flex: 0 0 128px;
+        height: 128px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid ${darkTheme ? '#444' : '#ddd'};
+        border-radius: 8px;
+        background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
+        color: ${darkTheme ? '#666' : '#bbb'};
+        font-size: 40px;
+        overflow: hidden;
+      }
+
+      .viewer-header-preview img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        image-rendering: pixelated;
+      }
+
+      .viewer-header-body {
+        flex: 1 1 240px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
       .viewer-header h2 {
-        margin: 0 0 10px 0;
+        margin: 0;
         color: ${darkTheme ? '#fff' : '#333'};
+        word-break: break-word;
+      }
+
+      .viewer-header-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .viewer-tag {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        background: ${darkTheme ? '#333' : '#eee'};
+        color: ${darkTheme ? '#ddd' : '#444'};
+      }
+
+      .viewer-header-description {
+        margin: 0;
+        opacity: 0.85;
+      }
+
+      .viewer-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .viewer-header-actions .default-viewer-btn {
+        width: auto;
+        padding: 10px 16px;
+        font-size: 14px;
       }
 
       .webp-display-area {
@@ -541,157 +702,39 @@ class ObjectLayerEngineViewer {
       }
     </style>`;
   }
-  static async renderEmpty({ appStore }) {
-    const id = 'object-layer-engine-viewer';
-    const idModal = 'modal-object-layer-engine-viewer';
-    // Check if DOM element exists
-    if (!s(`#${id}`)) {
-      logger.warn('ObjectLayerEngineViewer DOM not ready for renderEmpty');
-      return;
-    }
-    // Check if the management table grid already exists AND its DOM is still present
-    // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
-    const gridId = `object-layer-engine-management-grid-${idModal}`;
-    const gridExists = AgGrid.grids[gridId];
-    const gridDomExists = s(`.${gridId}`);
-    if (gridExists && gridDomExists) {
-      // Grid already exists with DOM intact, no need to destroy and recreate it
-      // The DefaultManagement RouterEvents listener will handle pagination/filter updates
-      return;
-    }
-    // Grid doesn't exist or its DOM was destroyed, render/re-render it
-    if (gridExists && !gridDomExists) {
-      // Clean up orphaned grid reference
-      AgGrid.grids[gridId].destroy();
-      delete AgGrid.grids[gridId];
-    }
-    htmls(
-      `#${id}`,
-      await ObjectLayerManagement.instance({
-        appStore,
-        idModal,
-        readOnly: ObjectLayerEngineViewer.readOnly,
-        lifecycle: ObjectLayerEngineViewer.lifecycle,
-        profile: ObjectLayerEngineViewer.profile,
-        columns: ObjectLayerEngineViewer.columns,
-      }),
-    );
-  }
-  /**
-   * Opens the definition `cid` in a modal of its own, beside the other open viewers. A viewer that
-   * is already open on `cid` comes to the front.
-   * @param {object} options
-   * @param {object} options.appStore - The host app store.
-   * @param {string} options.cid - The definition: its cid, its document id, or (on a Cyberia host) its item label.
-   * @param {object} [options.profile] - Content profile that names and illustrates the stats.
-   * @param {boolean} [options.readOnly=false] - Nothing in the viewer mutates.
-   */
-  static async open(options) {
-    const viewer = new ObjectLayerViewer(options);
-    const opened = !!s(`.${viewer.idModal}`);
+  /** Opens the view at the path of its cid, or brings it to the front when it is open. */
+  async open() {
+    const opened = !!s(`.${this.idModal}`);
     const { barConfig } = await Themes[Css.currentTheme]();
     await Modal.instance({
-      id: viewer.idModal,
+      id: this.idModal,
+      route: VIEW_NAMESPACE,
+      publicRoute: VIEW_ROUTE,
       barConfig,
-      title: renderViewTitle({ icon: html`<i class="fa-solid fa-cube"></i>`, text: escapeHtml(viewer.key) }),
-      html: async () => viewer.html(),
+      title: this.renderTitle(escapeHtml(shortKey(this.cid))),
+      html: async () => this.html(),
       handleType: 'bar',
       maximize: true,
       mode: 'view',
       slideMenu: 'modal-menu',
+      RouterInstance: this.RouterInstance,
     });
+    presentPublicRoute(VIEW_ROUTE, this.cid, { idModal: this.idModal, replace: true });
+    setDocTitle(VIEW_NAMESPACE);
     if (opened) return;
-    ThemeEvents[viewer.id] = () => htmls(`.style-${viewer.id}`, ObjectLayerEngineViewer.style());
-    Modal.Data[viewer.idModal].onCloseListener[viewer.id] = () => viewer.close();
-    await viewer.load();
+    ThemeEvents[this.id] = () => htmls(`.style-${this.id}`, ObjectLayerViewer.style());
+    Modal.Data[this.idModal].onCloseListener[this.id] = () => this.close();
+    await this.load();
   }
-  /** Shows the list, and opens the definition a `?cid=` link names. */
-  static async Reload({ appStore }) {
-    ObjectLayerEngineViewer.listing ??= ObjectLayerEngineViewer.renderEmpty({ appStore }).finally(() => {
-      ObjectLayerEngineViewer.listing = null;
-    });
-    await ObjectLayerEngineViewer.listing;
-    const { cid } = getQueryParams();
-    if (!cid) return;
-    setQueryParams({ cid: null }, { replace: true });
-    await ObjectLayerEngineViewer.open({
-      appStore,
-      cid,
-      profile: ObjectLayerEngineViewer.profile,
-      readOnly: ObjectLayerEngineViewer.readOnly,
-    });
-  }
-}
-/**
- * One definition in a modal of its own. Each viewer holds its own state and finds its elements under
- * its own root, so viewers of several definitions stay open side by side.
- */
-class ObjectLayerViewer {
-  /**
-   * @param {object} options
-   * @param {object} options.appStore - The host app store.
-   * @param {string} options.cid - The definition: its cid, its document id, or (on a Cyberia host) its item label.
-   * @param {object} [options.profile] - Content profile that names and illustrates the stats.
-   * @param {boolean} [options.readOnly=false] - Nothing in the viewer mutates.
-   */
-  constructor({ appStore, cid, profile = null, readOnly = false }) {
-    this.appStore = appStore;
-    this.key = cid;
-    this.profile = profile;
-    this.readOnly = readOnly;
-    this.id = `object-layer-viewer-${String(cid).replace(/[^\w-]/g, '-')}`;
-    this.idModal = `modal-${this.id}`;
-    this.data = {
-      objectLayer: null,
-      frameCounts: null,
-      frameDuration: 0,
-      currentDirection: 'down',
-      currentMode: 'idle',
-      webp: null,
-      webpMetadata: null,
-      // The definition whose animation is in flight.
-      generating: null,
-      // The render the definition names: `{ renderCid, metadataCid, layout }`, the same on every host.
-      render: null,
-      renderUnavailable: '',
-      // ItemLedger bindings of the definition; null while the ledger loads.
-      ledgerBindings: null,
-      ledgerUnavailable: '',
-      isGeneratingAtlas: false,
-      metadataJsonEditor: null,
-    };
-  }
-  // Map user-friendly direction/mode to numeric direction codes
-  static getDirectionCode(direction, mode) {
-    const key = `${direction}_${mode}`;
-    const directionCodeMap = {
-      down_idle: '08',
-      down_walking: '18',
-      up_idle: '02',
-      up_walking: '12',
-      left_idle: '04',
-      left_walking: '14',
-      right_idle: '06',
-      right_walking: '16',
-    };
-    return directionCodeMap[key] || null;
-  }
-  /** An element of this viewer. */
-  el(selector) {
-    return s(`.${this.id} ${selector}`);
-  }
-  els(selector) {
-    return document.querySelectorAll(`.${this.id} ${selector}`);
-  }
-  /** The modal content: the viewer styles and its root, busy until the definition loads. */
+  /** The modal content: the view styles and its root, busy until the definition loads. */
   html() {
     return html`
-      <div class="hide style-${this.id}">${ObjectLayerEngineViewer.style()}</div>
+      <div class="hide style-${this.id}">${ObjectLayerViewer.style()}</div>
       <div class="fl">
         <div class="in ${this.id}">
-          ${ObjectLayerEngineViewer.busy(
+          ${ObjectLayerViewer.busy(
             'Loading object layer',
-            html`<span class="object-layer-viewer-busy-key">${escapeHtml(this.key)}</span>`,
+            html`<span class="object-layer-viewer-busy-key">${escapeHtml(this.cid)}</span>`,
           )}
         </div>
       </div>
@@ -703,10 +746,34 @@ class ObjectLayerViewer {
     delete ThemeEvents[this.id];
     delete ThemeEvents[`${this.id}-json-editor`];
   }
+  /** Titles the view, and the page while the view is the one on screen, with the item's label. */
+  present(itemId) {
+    htmls(`.title-modal-${this.idModal}`, this.renderTitle(escapeHtml(itemId)));
+    if (location.pathname === getViewPath(this.idModal)) setDocTitle(VIEW_NAMESPACE, itemId);
+  }
+  /** The view of a definition that did not load, with the way back to the list. */
+  renderUnavailable(message) {
+    if (!s(`.${this.id}`)) return;
+    htmls(
+      `.${this.id}`,
+      html`<div class="object-layer-viewer-container viewer-unavailable">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <h3>Object layer unavailable</h3>
+        <span class="object-layer-viewer-busy-key">${escapeHtml(this.cid)}</span>
+        <p>${escapeHtml(message)}</p>
+        <button class="default-viewer-btn ${this.id}-list-btn">
+          <i class="fa-solid fa-list"></i>
+          <span>Browse object layers</span>
+        </button>
+      </div>`,
+    );
+    EventsUI.onClick(`.${this.id}-list-btn`, () => ObjectLayerEngineViewer.openList());
+  }
   /** Loads the definition and renders it. The ledger section fills in when the ledger answers. */
   async load({ skipWebp = false } = {}) {
+    if (!isObjectLayerCid(this.cid)) return this.renderUnavailable('The path names no Object Layer CID.');
     try {
-      const answer = await ObjectLayerService.getMetadata({ id: this.key });
+      const answer = await ObjectLayerService.getMetadata({ id: this.cid });
       const metadata = answer.status === 'success' ? answer.data : null;
       if (!metadata) throw new Error(answer.message || 'the Object Layer service answered no metadata');
       // The ledger lives on another host: its section fills in when it answers.
@@ -737,6 +804,7 @@ class ObjectLayerViewer {
         currentDirection: 'down',
         currentMode: 'idle',
       });
+      this.present(metadata.data.item.id);
       await this.renderViewer();
       ledger.then(({ bindings, unavailable }) => {
         this.data.ledgerBindings = bindings;
@@ -748,18 +816,7 @@ class ObjectLayerViewer {
       if (!skipWebp && rendered) await this.generateWebp();
     } catch (error) {
       logger.error('Error loading object layer:', error);
-      NotificationManager.Push({
-        html: `Failed to load object layer "${this.key}": ${error.message}`,
-        status: 'error',
-      });
-      if (s(`.${this.id}`))
-        htmls(
-          `.${this.id}`,
-          html`<div class="in section-mp">
-            <h3>Object layer unavailable</h3>
-            <p><strong>${escapeHtml(this.key)}</strong>: ${escapeHtml(error.message)}</p>
-          </div>`,
-        );
+      this.renderUnavailable(error.message);
     }
   }
   /**
@@ -911,33 +968,51 @@ class ObjectLayerViewer {
       html`
         <div class="object-layer-viewer-container">
           ${this.data.isGeneratingAtlas
-            ? ObjectLayerEngineViewer.busy('Generating Atlas Sprite Sheet')
+            ? ObjectLayerViewer.busy('Generating Atlas Sprite Sheet')
             : html`
-                <!-- Item Data Section -->
-                <div class="control-group" style="margin-bottom: 20px;">
-                  <h4><i class="fa-solid fa-cube"></i> Item Data</h4>
-                  <div
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
-                  >
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                      <span class="item-data-key-label">Item ID</span>
-                      <span style="font-weight: 600;">${itemId}</span>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                      <span class="item-data-key-label">Type</span>
-                      <span style="font-weight: 600;">${itemType}</span>
+                <div class="viewer-header">
+                  <div class="viewer-header-preview">
+                    <i class="fa-solid fa-image"></i>
+                    ${objectLayer.data.render?.cid
+                      ? html`<img
+                          src="${AtlasSpriteSheetService.idlePreviewUrl(objectLayer.cid)}"
+                          alt="${escapeHtml(itemId)}"
+                          onerror="this.remove()"
+                        />`
+                      : ''}
+                  </div>
+                  <div class="viewer-header-body">
+                    <h2>${escapeHtml(itemId)}</h2>
+                    <div class="viewer-header-tags">
+                      <span class="viewer-tag">${escapeHtml(itemType)}</span>
+                      ${itemActivable ? html`<span class="viewer-tag">Activable</span>` : ''}
+                      ${objectLayer.archivedAt ? html`<span class="viewer-tag">Archived</span>` : ''}
                     </div>
                     ${itemDescription
-                      ? html`<div style="display: flex; flex-direction: column; gap: 4px;">
-                          <span class="item-data-key-label">Description</span>
-                          <span style="font-weight: 600;">${itemDescription}</span>
-                        </div>`
+                      ? html`<p class="viewer-header-description">${escapeHtml(itemDescription)}</p>`
                       : ''}
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                      <span class="item-data-key-label">Activable</span>
-                      <span style="font-weight: 600;">${itemActivable ? 'Yes' : 'No'}</span>
+                    <div class="viewer-header-actions">
+                      <button class="default-viewer-btn ${this.id}-copy-link-btn">
+                        <i class="fa-solid fa-link"></i>
+                        <span>Copy link</span>
+                      </button>
+                      ${canMutate
+                        ? html`<button class="default-viewer-btn edit-btn ${this.id}-edit-btn">
+                              <i class="fa-solid fa-edit"></i>
+                              <span>Edit</span>
+                            </button>
+                            <button class="default-viewer-btn ${this.id}-delete-btn" style="background: #dc3545;">
+                              <i class="fa-solid fa-trash"></i>
+                              <span>Delete</span>
+                            </button>`
+                        : ''}
                     </div>
                   </div>
+                </div>
+
+                <!-- Identity Section -->
+                <div class="control-group" style="margin-bottom: 20px;">
+                  <h4><i class="fa-solid fa-fingerprint"></i> Identity</h4>
                   ${objectLayer.cid
                     ? html`<div class="ipfs-cid-label">
                         <i class="fa-solid fa-cube"></i>
@@ -1213,18 +1288,6 @@ class ObjectLayerViewer {
                     </div>
                   </div>
                 </div>
-                ${canMutate
-                  ? html`<div style="display: flex; gap: 10px; margin-top: 20px;">
-                      <button class="default-viewer-btn edit-btn ${this.id}-edit-btn">
-                        <i class="fa-solid fa-edit"></i>
-                        <span>Edit</span>
-                      </button>
-                      <button class="default-viewer-btn ${this.id}-delete-btn" style="background: #dc3545;">
-                        <i class="fa-solid fa-trash"></i>
-                        <span>Delete</span>
-                      </button>
-                    </div>`
-                  : ''}
               `}
         </div>
       `,
@@ -1412,6 +1475,10 @@ class ObjectLayerViewer {
       });
     }
     // EventsUI names its spinner after the selector, so each of these buttons has a class of its own.
+    EventsUI.onClick(`.${this.id}-copy-link-btn`, async () => {
+      await copyData(`${location.origin}${publicRoutePath(VIEW_ROUTE, this.cid)}`);
+      NotificationManager.Push({ html: Translate.instance('link-copied'), status: 'success' });
+    });
     EventsUI.onClick(`.${this.id}-edit-btn`, () => this.toEngine());
     EventsUI.onClick(`.${this.id}-delete-btn`, () => this.deleteObjectLayer());
     EventsUI.onClick(`.${this.id}-generate-atlas-btn`, () => this.generateAtlas());

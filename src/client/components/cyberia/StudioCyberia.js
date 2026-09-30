@@ -100,10 +100,10 @@ class StudioCyberia {
   }
 
   /** The modal title of the Studio landing or of an editor: the icon and the name of its menu button. */
-  static renderTitle(route) {
+  static renderTitle(route, text = Translate.instance(route)) {
     return renderViewTitle({
       icon: iconImage(iconOf(route), 'cyberia-menu-icon-modal'),
-      text: html`<span class="inl cyberia-text-title-modal">${Translate.instance(route)}</span>`,
+      text: html`<span class="inl cyberia-text-title-modal">${text}</span>`,
     });
   }
 

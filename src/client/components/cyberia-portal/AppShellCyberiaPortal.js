@@ -47,6 +47,13 @@ class AppShellCyberiaPortal {
     const id = getId(AppShellCyberiaPortal.Data, 'menu-');
     AppShellCyberiaPortal.Data[id] = {};
     const RouterInstance = RouterCyberiaPortal.instance();
+    ObjectLayerEngineViewer.configure({
+      appStore: AppStoreCyberiaPortal,
+      RouterInstance,
+      profile: CyberiaObjectLayerProfile,
+      columns: CyberiaObjectLayerStudio.columns,
+      renderTitle: (text) => StudioCyberia.renderTitle('object-layer-engine-viewer', text),
+    });
 
     const { barConfig } = await Themes[Css.currentTheme]();
     const barMode = 'top-bottom-bar';
@@ -598,12 +605,7 @@ class AppShellCyberiaPortal {
         route: 'object-layer-engine-viewer',
         barConfig,
         title: StudioCyberia.renderTitle('object-layer-engine-viewer'),
-        html: async () =>
-          ObjectLayerEngineViewer.instance({
-            appStore: AppStoreCyberiaPortal,
-            profile: CyberiaObjectLayerProfile,
-            columns: CyberiaObjectLayerStudio.columns(),
-          }),
+        html: async () => ObjectLayerEngineViewer.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

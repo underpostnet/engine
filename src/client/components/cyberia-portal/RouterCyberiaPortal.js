@@ -1,6 +1,7 @@
 import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
 import { s } from '../core/VanillaJs.js';
+import { ObjectLayerEngineViewer } from '../objectlayer-studio/ObjectLayerEngineViewer.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -44,6 +45,7 @@ class RouterCyberiaPortal {
         title: 'object-layer-engine-viewer',
         render: () => s(`.main-btn-object-layer-engine-viewer`).click(),
       },
+      '/object-layer': { title: 'object-layer', render: () => ObjectLayerEngineViewer.route() },
       '/cyberia-map-engine': {
         title: 'cyberia-map-engine',
         render: () => s(`.main-btn-cyberia-map-engine`).click(),

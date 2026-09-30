@@ -45,12 +45,12 @@ the codes, their labels and the render keyframes they feed.
 
 `src/client/components/objectlayer-studio/` holds the reusable tools:
 
-| Component                    | Role                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ObjectLayerProtocol.js`     | Schema version, profile reference, directions, canonical shape, structural stat check                                                      |
-| `ObjectLayerEngine.js`       | Pixel-art frame editor element                                                                                                             |
-| `ObjectLayerEngineModal.js`  | Authoring editor. Takes a content `profile` (item types, stat contract)                                                                    |
-| `ObjectLayerEngineViewer.js` | Explorer and viewer: content, identity, profile, ItemLedger bindings, holders and provenance. `readOnly` for hosts without an editor route |
+| Component                    | Role                                                                                                                                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ObjectLayerProtocol.js`     | Schema version, CID form, profile reference, directions, canonical shape, structural stat check                                                                                                                                                                 |
+| `ObjectLayerEngine.js`       | Pixel-art frame editor element                                                                                                                                                                                                                                  |
+| `ObjectLayerEngineModal.js`  | Authoring editor. Takes a content `profile` (item types, stat contract)                                                                                                                                                                                         |
+| `ObjectLayerEngineViewer.js` | Explorer: the list of definitions, and one view per definition at `/object-layer/:cid` with content, identity, profile, ItemLedger bindings, holders and provenance. The host binds it once at boot (`configure`), `readOnly` for hosts without an editor route |
 
 The Cyberia portal mounts the editor with `CyberiaObjectLayerProfile`; it is the only profile
 implemented, so authoring stays a Cyberia workflow. The objectlayer.org and itemledger.com

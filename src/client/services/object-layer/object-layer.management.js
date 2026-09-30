@@ -28,7 +28,7 @@ class ObjectLayerManagement {
    * @param {boolean} [options.lifecycle=false] - The host is the Object Layer authority: a moderator archives a
    *   definition or offers it again.
    * @param {Object} [options.profile] - The host's content profile: the Item Type column filters and edits by
-   *   its item types, and the viewer names the stats by it.
+   *   its item types.
    * @param {Object[]} [options.columns=[]] - Columns the host adds after the item columns.
    */
   static instance = async ({
@@ -72,7 +72,7 @@ class ObjectLayerManagement {
         setTimeout(() =>
           EventsUI.onClick(
             `.btn-view-object-layer-${idModal}-${data._id}`,
-            async () => await ObjectLayerEngineViewer.open({ appStore, cid: data.cid, profile, readOnly }),
+            async () => await ObjectLayerEngineViewer.open({ cid: data.cid }),
             { context: 'modal' },
           ),
         );
