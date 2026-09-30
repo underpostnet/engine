@@ -2497,8 +2497,10 @@ class Modal {
       setTopModal();
       this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
         if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
-          if (this.Data[idModal].options.route)
+          if (this.Data[idModal].options.route) {
             setPath(`${getViewPath(idModal)}${location.search ?? ''}${location.hash ?? ''}`);
+            setDocTitle(this.Data[idModal].options.route);
+          }
           cleanTopModal();
           setTopModal();
         }
@@ -2507,11 +2509,13 @@ class Modal {
   }
 
   /**
+   * Puts a modal on top, and records when, so the stack order of the open views is known.
    * @param {string} idModal
    */
   static setTopModalCallback(idModal) {
     s(`.${idModal}`).style.zIndex = '4';
     this.currentTopModalId = `${idModal}`;
+    if (this.Data[idModal]) this.Data[idModal].raisedAt = performance.now();
   }
 
   /** @returns {boolean} True when the viewport is considered mobile-sized. */

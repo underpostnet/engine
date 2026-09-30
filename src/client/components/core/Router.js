@@ -504,7 +504,11 @@ const closeModalRouteChangeEvent = (options = {}) => {
     (id) => id !== closedId && (Modal.Data[id]?.options?.route || Modal.Data[id]?.options?.query),
   );
 
-  const topModalId = remainingModals.reverse().find((id) => Modal.Data[id]);
+  // The view raised last takes the path; views never raised follow their opening order.
+  const topModalId = remainingModals.reduce(
+    (top, id) => ((Modal.Data[id].raisedAt ?? 0) >= (Modal.Data[top]?.raisedAt ?? 0) ? id : top),
+    undefined,
+  );
 
   for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event]();
   if (topModalId) Modal.setTopModalCallback(topModalId);
