@@ -530,6 +530,8 @@ class ObjectLayerViewer {
       }
 
       .default-viewer-btn:hover {
+        /* Over the theme's button:hover border, which would resize the button. */
+        border: none;
         background: ${darkTheme ? '#45a049' : '#45a049'};
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
