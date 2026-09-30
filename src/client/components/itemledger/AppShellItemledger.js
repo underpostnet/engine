@@ -28,7 +28,15 @@ import { Docs } from '../core/Docs.js';
 import { deployPackageReleaseUrl } from '../core/Repository.js';
 import { Recover } from '../core/Recover.js';
 import { ItemLedgerManagement } from '../../services/item-ledger/item-ledger.management.js';
+import { ObjectLayerEngineViewer } from '../objectlayer-studio/ObjectLayerEngineViewer.js';
 import { MainBodyDocument } from '../core/MainBodyDocument.js';
+
+/** A view title of this host: its icon and the text. */
+const viewTitle = (icon, text) =>
+  renderViewTitle({
+    icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/${icon}" />`,
+    text: html`<span class="inl itemledger-text-title-modal">${text}</span>`,
+  });
 
 class AppShellItemledger {
   static Data = {};
@@ -36,6 +44,13 @@ class AppShellItemledger {
     const id = getId(AppShellItemledger.Data, 'menu-');
     AppShellItemledger.Data[id] = {};
     const RouterInstance = RouterItemledger.instance();
+    ObjectLayerEngineViewer.configure({
+      appStore: AppStoreItemledger,
+      RouterInstance,
+      readOnly: true,
+      renderTitle: (text) => viewTitle('object-layer.png', text),
+      openList: () => s('.main-btn-item-ledger-registry').click(),
+    });
 
     const { barConfig } = await Themes[Css.currentTheme]();
     const barMode = 'top-bottom-bar';
@@ -343,13 +358,7 @@ class AppShellItemledger {
         id: 'modal-item-ledger-registry',
         route: 'item-ledger-registry',
         barConfig,
-        title: renderViewTitle({
-          icon: html`<img
-            class="inl itemledger-menu-icon-modal"
-            src="${getProxyPath()}assets/ui-icons/registry.png"
-          />`,
-          text: `<span class='inl itemledger-text-title-modal'>${Translate.instance('item-ledger-registry')}</span>`,
-        }),
+        title: viewTitle('registry.png', Translate.instance('item-ledger-registry')),
         html: async () => ItemLedgerManagement.instance({ appStore: AppStoreItemledger }),
         handleType: 'bar',
         maximize: true,

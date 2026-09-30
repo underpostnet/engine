@@ -1,6 +1,7 @@
 import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
 import { s } from '../core/VanillaJs.js';
+import { ObjectLayerEngineViewer } from '../objectlayer-studio/ObjectLayerEngineViewer.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -29,6 +30,7 @@ class RouterItemledger {
         title: 'item-ledger-registry',
         render: () => s(`.main-btn-item-ledger-registry`).click(),
       },
+      '/object-layer': { title: 'object-layer', render: () => ObjectLayerEngineViewer.route() },
       '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click() },
       '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
     };
