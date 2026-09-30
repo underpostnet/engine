@@ -13,6 +13,55 @@ import { EventsUI } from '../../components/core/EventsUI.js';
 const SERVICE_ID = 'object-layer-engine-management';
 const gridIdOf = (idModal) => `${SERVICE_ID}-grid-${idModal}`;
 
+/**
+ * The column of a button that opens the definition a row names in its own view, for any table
+ * whose rows name one.
+ * @param {{ idModal: string, cidOf: (row: Object) => string }} params - The table's modal, and the
+ *   cid a row names.
+ * @returns {Object} An ag-grid column definition.
+ */
+const objectLayerViewColumn = ({ idModal, cidOf }) => ({
+  field: 'view',
+  headerName: '',
+  width: 100,
+  editable: false,
+  sortable: false,
+  filter: false,
+  cellRenderer: class {
+    eGui;
+
+    async init(params) {
+      this.eGui = document.createElement('div');
+      const { data } = params;
+      const cid = data ? cidOf(data) : '';
+      if (!cid) return;
+
+      this.eGui.innerHTML = html` ${await BtnIcon.instance({
+        label: html`<div class="abs center">
+          <i class="fas fa-eye"></i>
+        </div> `,
+        class: `in fll section-mp management-table-btn-mini btn-view-object-layer-${idModal}-${data._id}`,
+      })}`;
+
+      setTimeout(() =>
+        EventsUI.onClick(
+          `.btn-view-object-layer-${idModal}-${data._id}`,
+          async () => await ObjectLayerEngineViewer.open({ cid }),
+          { context: 'modal' },
+        ),
+      );
+    }
+
+    getGui() {
+      return this.eGui;
+    }
+
+    refresh() {
+      return true;
+    }
+  },
+});
+
 /** Opens the editor. Loaded on demand: a read-only host ships the list without it. */
 const openEngine = async (options) => {
   const { ObjectLayerEngineModal } = await import('../../components/objectlayer-studio/ObjectLayerEngineModal.js');
@@ -48,44 +97,6 @@ class ObjectLayerManagement {
     const canEdit = !readOnly && commonModeratorGuard(role);
     const canArchive = lifecycle && commonModeratorGuard(role);
     const canPurge = lifecycle && commonAdminGuard(role);
-
-    // Custom renderer for view button
-    class ViewButtonRenderer {
-      eGui;
-
-      async init(params) {
-        this.eGui = document.createElement('div');
-        const { data } = params;
-
-        if (!data?.cid) {
-          this.eGui.innerHTML = '';
-          return;
-        }
-
-        this.eGui.innerHTML = html` ${await BtnIcon.instance({
-          label: html`<div class="abs center">
-            <i class="fas fa-eye"></i>
-          </div> `,
-          class: `in fll section-mp management-table-btn-mini btn-view-object-layer-${idModal}-${data._id}`,
-        })}`;
-
-        setTimeout(() =>
-          EventsUI.onClick(
-            `.btn-view-object-layer-${idModal}-${data._id}`,
-            async () => await ObjectLayerEngineViewer.open({ cid: data.cid }),
-            { context: 'modal' },
-          ),
-        );
-      }
-
-      getGui() {
-        return this.eGui;
-      }
-
-      refresh(params) {
-        return true;
-      }
-    }
 
     // Custom renderer for edit button
     class EditButtonRenderer {
@@ -497,15 +508,7 @@ class ObjectLayerManagement {
         sortable: false,
         filter: false,
       },
-      {
-        field: 'view',
-        headerName: '',
-        width: 100,
-        cellRenderer: ViewButtonRenderer,
-        editable: false,
-        sortable: false,
-        filter: false,
-      },
+      objectLayerViewColumn({ idModal, cidOf: (row) => row.cid }),
       ...(canEdit
         ? [
             {
@@ -604,4 +607,4 @@ class ObjectLayerManagement {
   }
 }
 
-export { ObjectLayerManagement };
+export { ObjectLayerManagement, objectLayerViewColumn };
