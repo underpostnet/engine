@@ -204,15 +204,16 @@ const TEST_PROJECTS = [
       'src/projects/cyberia/domain-ownership.js',
       'src/projects/cyberia/instance-backup.js',
       'src/projects/cyberia/instance-data.js',
+      'src/projects/cyberia/map-preview-generator.js',
       'src/projects/cyberia/object-layer-catalog.js',
       'src/projects/cyberia/server-key.js',
       'src/projects/cyberia/shape-generator.js',
       'src/projects/cyberia/stat-balance.js',
     ],
     description:
-      'Cyberia content artifact consumption, instance data, releases, sprite atlases, stats and shape generation. ' +
-      'The suites that run a world need a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content) ' +
-      'and skip without one.',
+      'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, stats ' +
+      'and shape generation. The suites that run a world need a built cyberia-content artifact ' +
+      '(CYBERIA_CONTENT_ROOT or ./cyberia-content) and skip without one.',
   },
   {
     name: 'cryptokoyn:unit',
@@ -326,9 +327,10 @@ const TEST_PROJECTS = [
     description:
       'Cyberia against real boundaries: content releases on a MongoDB replica set — build, validate, ' +
       'promote, roll back, prune, restart, concurrent promotion and runtime isolation — the content ' +
-      'artifact materialization and saga import, the product CLI and the audio seed. The database suites ' +
-      'need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites a built cyberia-content ' +
-      'artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its requirement.',
+      'artifact materialization and saga import, the product CLI, the audio seed and the map preview ' +
+      'refresh. The database suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites ' +
+      'a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its ' +
+      'requirement.',
   },
   {
     name: 'item-ledger:integration',

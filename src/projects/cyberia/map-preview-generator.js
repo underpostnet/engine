@@ -10,6 +10,7 @@
  *
  * Every entity is drawn by its items' idle-preview stills, the same picture the
  * editors show, read from the atlas of the definition each label is bound to.
+ * `refreshMapPreview` stores that picture as the map's preview.
  *
  * @module src/projects/cyberia/map-preview-generator.js
  */
@@ -17,7 +18,10 @@
 import sharp from 'sharp';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { CacheService } from '../../server/storage/cache.js';
 import { renderFileBytes } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { mapCache } from '../../api/cyberia-map/cyberia-map.service.js';
+import { FileFactory } from '../../api/file/file.service.js';
 import { catalogModels, catalogMounted } from './object-layer-catalog.js';
 
 const logger = loggerFactory(import.meta);
@@ -189,4 +193,64 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = 
     .toBuffer();
 }
 
-export { renderMapPreviewPng };
+/**
+ * Draws a stored map again and makes the picture its preview. A picture its stored File already
+ * holds writes nothing, so a rerun changes nothing. The replaced File goes once no map names it,
+ * and a map that draws nothing keeps no preview: no map names a missing File, and no preview File
+ * outlives its references. A map another write moved on keeps its own preview.
+ *
+ * @param {object} map - A stored map: `_id`, `code`, `gridX`, `gridY`, `preview` and `entities`.
+ * @param {object} options - Router options ({ host, path }).
+ * @returns {Promise<Buffer|null>} The stored picture, or null when none was stored.
+ */
+async function refreshMapPreview(map, options) {
+  const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+  const File = DataBaseProviderService.getModel('File', options);
+  const png = await renderMapPreviewPng(map, { options });
+  const picture = png ? FileFactory.create(png, `${map.code}-preview.png`) : null;
+  if (picture && map.preview && (await File.exists({ _id: map.preview, md5: picture.md5 }))) return png;
+  const file = picture ? await new File(picture).save() : null;
+  const { matchedCount } = await CyberiaMap.updateOne(
+    { _id: map._id, preview: map.preview ?? null },
+    file ? { $set: { preview: file._id } } : { $unset: { preview: 1 } },
+    { timestamps: false },
+  );
+  if (matchedCount === 0) {
+    if (file) await File.deleteOne({ _id: file._id });
+    return null;
+  }
+  if (map.preview && !(await CyberiaMap.exists({ $or: [{ preview: map.preview }, { thumbnail: map.preview }] })))
+    await File.deleteOne({ _id: map.preview });
+  await CacheService.invalidate(mapCache(options));
+  return png;
+}
+
+/**
+ * Draws again the preview of every stored map that places one of the labels, one map at a time:
+ * a map that fails is reported and the others go on.
+ *
+ * @param {Object} params
+ * @param {string[]|null} params.itemIds - The labels whose pictures changed; null draws every map.
+ * @param {Object} params.options - Router options ({ host, path }).
+ * @returns {Promise<{drawn:number,empty:number,failed:string[]}>} Maps drawn, maps left without a
+ *   picture, and the codes of the maps that failed.
+ */
+async function refreshMapPreviews({ itemIds, options }) {
+  const maps = await DataBaseProviderService.getModel('CyberiaMap', options)
+    .find(itemIds ? { 'entities.objectLayerItemIds': { $in: itemIds } } : {})
+    .select('code gridX gridY preview entities')
+    .lean();
+  const tally = { drawn: 0, empty: 0, failed: [] };
+  for (const map of maps) {
+    try {
+      if (await refreshMapPreview(map, options)) tally.drawn++;
+      else tally.empty++;
+    } catch (error) {
+      logger.error(`map preview: "${map.code}" failed: ${error.message}`);
+      tally.failed.push(map.code);
+    }
+  }
+  return tally;
+}
+
+export { renderMapPreviewPng, refreshMapPreview, refreshMapPreviews };

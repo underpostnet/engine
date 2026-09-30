@@ -2,8 +2,7 @@
 
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { renderMapPreviewPng } from '../../projects/cyberia/map-preview-generator.js';
-import { FileFactory } from '../file/file.service.js';
+import { refreshMapPreview } from '../../projects/cyberia/map-preview-generator.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { resolveEntityDefaultBuild } from '../cyberia-server-defaults/cyberia-server-defaults.js';
@@ -340,8 +339,8 @@ class CyberiaInstanceMapService {
   /**
    * Node-background PNG for one map.
    *
-   * A map with no captured `preview` is rendered once and the result is stored
-   * as its preview File, so every later request is served through the default
+   * A map without a stored `preview` File is drawn once and the picture becomes
+   * its preview, so every later request is served through the default
    * /api/v1/file/blob path.
    */
   static getPreview = async (req, res, options) => {
@@ -359,11 +358,9 @@ class CyberiaInstanceMapService {
       if (stored?.data) return stored.data;
     }
 
-    const rendered = await renderMapPreviewPng(map, { options });
+    const rendered = await refreshMapPreview(map, options);
     if (!rendered) throw new Error(`No preview for map "${mapCode}"`);
-    const file = await new File(FileFactory.create(rendered, `${mapCode}-preview.png`)).save();
-    await CyberiaMap.updateOne({ _id: map._id }, { $set: { preview: file._id } });
-    logger.info(`map preview persisted for "${mapCode}" (file ${file._id})`);
+    logger.info(`map preview persisted for "${mapCode}"`);
     return rendered;
   };
 

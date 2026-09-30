@@ -130,4 +130,4 @@ class CyberiaMapService {
   };
 }
 
-export { CyberiaMapService };
+export { CyberiaMapService, mapCache };
