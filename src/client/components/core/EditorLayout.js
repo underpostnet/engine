@@ -4,7 +4,9 @@
  * button in the stage bar hides and shows the stage view.
  *
  * `render` carries the styles, so the layout works in a shadow root too. `pin` sets the offset and
- * the background the stage reads: `--editor-stage-top` and `--editor-stage-background`.
+ * the background the stage reads: `--editor-stage-top` and `--editor-stage-background`. `bind`
+ * keeps `--editor-tools-top`, where a bar of the tools pins: under the stage when the tools sit
+ * under it.
  *
  * @module src/client/components/core/EditorLayout.js
  */
@@ -115,7 +117,7 @@ class EditorLayout {
       </div>`;
   }
 
-  /** Wires the stage toggles under a root: an element or a shadow root. */
+  /** Wires the stage toggles and the tools offset of the layouts under a root: an element or a shadow root. */
   static bind(root) {
     for (const toggle of root.querySelectorAll('.editor-stage-toggle'))
       toggle.onclick = () => {
@@ -126,11 +128,25 @@ class EditorLayout {
         toggle.setAttribute('aria-label', label);
         toggle.innerHTML = eyeIcon(!view.hidden);
       };
+    for (const layout of root.querySelectorAll('.editor-layout')) {
+      const stage = layout.querySelector(':scope > .editor-stage');
+      const tools = layout.querySelector(':scope > .editor-tools');
+      const place = () =>
+        layout.style.setProperty(
+          '--editor-tools-top',
+          tools.offsetLeft < stage.offsetLeft + stage.offsetWidth
+            ? `calc(var(--editor-stage-top, 0px) + ${stage.offsetHeight}px)`
+            : 'var(--editor-stage-top, 0px)',
+        );
+      const observer = new ResizeObserver(place);
+      observer.observe(layout);
+      observer.observe(stage);
+    }
   }
 
   /**
-   * Pins the stages of the modal around a node under its bar, in its background, and keeps both
-   * current across theme changes.
+   * Pins the stages and tool bars of the modal around a node under its bar, in its background, and
+   * keeps both current across theme changes.
    * @param {Element} node - An element inside the modal.
    * @param {string} key - The theme event key of the editor.
    */
