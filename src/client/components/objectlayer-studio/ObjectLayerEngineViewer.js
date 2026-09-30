@@ -15,7 +15,7 @@ import { ItemLedgerTransferService } from '../../services/item-ledger-transfer/i
 import { NotificationManager } from '../core/NotificationManager.js';
 import { append, copyData, escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { PublicRoutes, commonModeratorGuard } from '../core/CommonJs.js';
-import { Css, darkTheme, ThemeEvents, Themes, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
+import { Css, darkTheme, dynamicCol, ThemeEvents, Themes, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -277,10 +277,15 @@ class ObjectLayerViewer {
         font-size: 14px;
       }
       .object-layer-viewer-container {
-        max-width: 800px;
+        max-width: 1600px;
         margin: 0 auto;
         padding: 20px;
         font-family: 'retro-font';
+      }
+
+      .viewer-column {
+        box-sizing: border-box;
+        padding: 0 10px;
       }
 
       .viewer-header {
@@ -920,6 +925,7 @@ class ObjectLayerViewer {
       .join('');
   }
   async renderViewer() {
+    const columns = `${this.id}-columns`;
     const canMutate =
       !this.readOnly &&
       commonModeratorGuard(this.appStore?.Data?.user?.main?.model?.user?.role || 'guest');
@@ -1012,281 +1018,287 @@ class ObjectLayerViewer {
                   </div>
                 </div>
 
-                <!-- Identity Section -->
-                <div class="control-group" style="margin-bottom: 20px;">
-                  <h4><i class="fa-solid fa-fingerprint"></i> Identity</h4>
-                  ${objectLayer.cid
-                    ? html`<div class="ipfs-cid-label">
-                        <i class="fa-solid fa-cube"></i>
-                        <strong>Object Layer CID:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.cid}</span>
-                      </div>`
-                    : ''}
-                  ${objectLayer.data.render?.cid
-                    ? html`<div class="ipfs-cid-label">
-                        <i class="fa-solid fa-image"></i>
-                        <strong>Atlas IPFS CID:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.data.render.cid}</span>
-                      </div>`
-                    : ''}
-                  ${objectLayer.data.render?.metadataCid
-                    ? html`<div class="ipfs-cid-label">
-                        <i class="fa-solid fa-file-code"></i>
-                        <strong>Atlas Metadata CID:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.data.render.metadataCid}</span>
-                      </div>`
-                    : ''}
-                  ${objectLayer.contentHash
-                    ? html`<div class="ipfs-cid-label">
-                        <i class="fa-solid fa-fingerprint"></i>
-                        <strong>Content hash:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.contentHash}</span>
-                      </div>`
-                    : ''}
-                  ${objectLayer.profile
-                    ? html`<div class="ipfs-cid-label">
-                        <i class="fa-solid fa-tag"></i>
-                        <strong>Profile:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.profile.id}@${objectLayer.profile.version}</span>
-                      </div>`
-                    : ''}
-                </div>
-
-                <!-- Metadata JSON Section -->
-                <div class="control-group" style="margin-bottom: 20px;">
-                  <h4><i class="fa-solid fa-code"></i> Metadata JSON</h4>
-                  <div
-                    class="metadata-json-editor-container"
-                    style="height: 400px; border-radius: 6px; overflow: hidden; border: 1px solid ${darkTheme
-                      ? '#444'
-                      : '#ddd'};"
-                  ></div>
-                </div>
-
-                <!-- Stats Data Section -->
-                <div class="control-group" style="margin-bottom: 20px;">
-                  <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
-                  <div
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
-                  >
-                    ${Object.keys(stats).length > 0
-                      ? Object.entries(stats)
-                          .map(([statKey, statValue]) => {
-                            const statInfo = statDescriptions[statKey] || { title: statKey, description: '', detail: '' };
-                            return html`
-                              <div class="item-stat-entry">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                  ${statInfo.icon
-                                    ? html`<img
-                                        src="${getProxyPath()}assets/ui-icons/${statInfo.icon}"
-                                        style="width: 40px; height: 40px; image-rendering: pixelated;"
-                                      />`
-                                    : ''}
-                                  <span class="item-data-key-label">${statInfo.title}</span>
-                                </div>
-                                <span class="item-data-value-label" style="color: ${statValue < 0 ? '#ef7777' : statValue > 0 ? '#7bdd9a' : '#aaa'}">${statValue > 0 ? '+' : ''}${statValue}</span>
-                              </div>
-                            `;
-                          })
-                          .join('')
-                      : html`<div class="no-data-container">No stats data available</div>`}
-                  </div>
-                </div>
-
-                <!-- ItemLedger Section: token bindings of this definition, read from the registry -->
-                <div class="control-group" style="margin-bottom: 20px;">
-                  <h4><i class="fa-solid fa-link"></i> Ledger</h4>
-                  <div class="object-layer-viewer-ledger">${this.ledgerHtml()}</div>
-                </div>
-
-                <div class="webp-display-area">
-                  <button class="webp-download-btn">
-                    <i class="fa-solid fa-download"></i>
-                    <span>WebP</span>
-                  </button>
-                  <div class="webp-canvas-container chess in">
-                    ${!this.data.webp
-                      ? html`
-                          <div class="webp-placeholder">
+                ${dynamicCol({ containerSelector: this.id, id: columns, type: 'a-50-b-50' })}
+                <div class="fl">
+                  <div class="in fll viewer-column ${columns}-col-a">
+                    <!-- Identity Section -->
+                    <div class="control-group" style="margin-bottom: 20px;">
+                      <h4><i class="fa-solid fa-fingerprint"></i> Identity</h4>
+                      ${objectLayer.cid
+                        ? html`<div class="ipfs-cid-label">
+                            <i class="fa-solid fa-cube"></i>
+                            <strong>Object Layer CID:</strong>
+                            <span class="ipfs-cid-value">${objectLayer.cid}</span>
+                          </div>`
+                        : ''}
+                      ${objectLayer.data.render?.cid
+                        ? html`<div class="ipfs-cid-label">
                             <i class="fa-solid fa-image"></i>
-                            <p>
-                              ${this.data.objectLayer?.data?.render?.cid
-                                ? 'WebP preview will appear here'
-                                : 'This definition names no render yet'}
-                            </p>
-                          </div>
-                        `
-                      : ''}
-                    <div class="loading-overlay" style="display: none;">
-                      <div>
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <span style="margin-left: 10px;">Generating WebP...</span>
+                            <strong>Atlas IPFS CID:</strong>
+                            <span class="ipfs-cid-value">${objectLayer.data.render.cid}</span>
+                          </div>`
+                        : ''}
+                      ${objectLayer.data.render?.metadataCid
+                        ? html`<div class="ipfs-cid-label">
+                            <i class="fa-solid fa-file-code"></i>
+                            <strong>Atlas Metadata CID:</strong>
+                            <span class="ipfs-cid-value">${objectLayer.data.render.metadataCid}</span>
+                          </div>`
+                        : ''}
+                      ${objectLayer.contentHash
+                        ? html`<div class="ipfs-cid-label">
+                            <i class="fa-solid fa-fingerprint"></i>
+                            <strong>Content hash:</strong>
+                            <span class="ipfs-cid-value">${objectLayer.contentHash}</span>
+                          </div>`
+                        : ''}
+                      ${objectLayer.profile
+                        ? html`<div class="ipfs-cid-label">
+                            <i class="fa-solid fa-tag"></i>
+                            <strong>Profile:</strong>
+                            <span class="ipfs-cid-value">${objectLayer.profile.id}@${objectLayer.profile.version}</span>
+                          </div>`
+                        : ''}
+                    </div>
+
+                    <!-- Metadata JSON Section -->
+                    <div class="control-group" style="margin-bottom: 20px;">
+                      <h4><i class="fa-solid fa-code"></i> Metadata JSON</h4>
+                      <div
+                        class="metadata-json-editor-container"
+                        style="height: 400px; border-radius: 6px; overflow: hidden; border: 1px solid ${darkTheme
+                          ? '#444'
+                          : '#ddd'};"
+                      ></div>
+                    </div>
+
+                    <!-- Stats Data Section -->
+                    <div class="control-group" style="margin-bottom: 20px;">
+                      <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
+                      <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
+                      >
+                        ${Object.keys(stats).length > 0
+                          ? Object.entries(stats)
+                              .map(([statKey, statValue]) => {
+                                const statInfo = statDescriptions[statKey] || { title: statKey, description: '', detail: '' };
+                                return html`
+                                  <div class="item-stat-entry">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                      ${statInfo.icon
+                                        ? html`<img
+                                            src="${getProxyPath()}assets/ui-icons/${statInfo.icon}"
+                                            style="width: 40px; height: 40px; image-rendering: pixelated;"
+                                          />`
+                                        : ''}
+                                      <span class="item-data-key-label">${statInfo.title}</span>
+                                    </div>
+                                    <span class="item-data-value-label" style="color: ${statValue < 0 ? '#ef7777' : statValue > 0 ? '#7bdd9a' : '#aaa'}">${statValue > 0 ? '+' : ''}${statValue}</span>
+                                  </div>
+                                `;
+                              })
+                              .join('')
+                          : html`<div class="no-data-container">No stats data available</div>`}
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div class="controls-container">
-                  <div class="control-group">
-                    <h4><i class="fa-solid fa-compass"></i> Direction</h4>
-                    <div class="button-group">
-                      <button
-                        class="control-btn ${this.data.currentDirection === 'up' ? 'active' : ''}"
-                        data-direction="up"
-                        ${!hasFrames('up', this.data.currentMode) ? 'disabled' : ''}
-                      >
-                        <i class="fa-solid fa-arrow-up"></i>
-                        <span>Up</span>
-                        ${hasFrames('up', this.data.currentMode)
-                          ? html`<span class="frame-count"
-                              >(${getFrameCount('up', this.data.currentMode)})</span
-                            >`
-                          : ''}
-                      </button>
-                      <button
-                        class="control-btn ${this.data.currentDirection === 'down' ? 'active' : ''}"
-                        data-direction="down"
-                        ${!hasFrames('down', this.data.currentMode) ? 'disabled' : ''}
-                      >
-                        <i class="fa-solid fa-arrow-down"></i>
-                        <span>Down</span>
-                        ${hasFrames('down', this.data.currentMode)
-                          ? html`<span class="frame-count"
-                              >(${getFrameCount('down', this.data.currentMode)})</span
-                            >`
-                          : ''}
-                      </button>
-                      <button
-                        class="control-btn ${this.data.currentDirection === 'left' ? 'active' : ''}"
-                        data-direction="left"
-                        ${!hasFrames('left', this.data.currentMode) ? 'disabled' : ''}
-                      >
-                        <i class="fa-solid fa-arrow-left"></i>
-                        <span>Left</span>
-                        ${hasFrames('left', this.data.currentMode)
-                          ? html`<span class="frame-count"
-                              >(${getFrameCount('left', this.data.currentMode)})</span
-                            >`
-                          : ''}
-                      </button>
-                      <button
-                        class="control-btn ${this.data.currentDirection === 'right' ? 'active' : ''}"
-                        data-direction="right"
-                        ${!hasFrames('right', this.data.currentMode) ? 'disabled' : ''}
-                      >
-                        <i class="fa-solid fa-arrow-right"></i>
-                        <span>Right</span>
-                        ${hasFrames('right', this.data.currentMode)
-                          ? html`<span class="frame-count"
-                              >(${getFrameCount('right', this.data.currentMode)})</span
-                            >`
-                          : ''}
-                      </button>
+                    <!-- ItemLedger Section: token bindings of this definition, read from the registry -->
+                    <div class="control-group" style="margin-bottom: 20px;">
+                      <h4><i class="fa-solid fa-link"></i> Ledger</h4>
+                      <div class="object-layer-viewer-ledger">${this.ledgerHtml()}</div>
                     </div>
                   </div>
-
-                  <div class="control-group">
-                    <h4><i class="fa-solid fa-person-running"></i> Mode</h4>
-                    <div class="button-group">
-                      <button
-                        class="control-btn ${this.data.currentMode === 'idle' ? 'active' : ''}"
-                        data-mode="idle"
-                        ${!hasFrames(this.data.currentDirection, 'idle') ? 'disabled' : ''}
-                      >
-                        <i class="fa-solid fa-user"></i>
-                        <span>Idle</span>
-                        ${hasFrames(this.data.currentDirection, 'idle')
-                          ? html`<span class="frame-count"
-                              >(${getFrameCount(this.data.currentDirection, 'idle')})</span
-                            >`
-                          : ''}
+                  <div class="in fll viewer-column ${columns}-col-b">
+                    <div class="webp-display-area">
+                      <button class="webp-download-btn">
+                        <i class="fa-solid fa-download"></i>
+                        <span>WebP</span>
                       </button>
-                      <button
-                        class="control-btn ${this.data.currentMode === 'walking' ? 'active' : ''}"
-                        data-mode="walking"
-                        ${!hasFrames(this.data.currentDirection, 'walking') ? 'disabled' : ''}
-                      >
-                        <i class="fa-solid fa-person-walking"></i>
-                        <span>Walking</span>
-                        ${hasFrames(this.data.currentDirection, 'walking')
-                          ? html`<span class="frame-count"
-                              >(${getFrameCount(this.data.currentDirection, 'walking')})</span
-                            >`
+                      <div class="webp-canvas-container chess in">
+                        ${!this.data.webp
+                          ? html`
+                              <div class="webp-placeholder">
+                                <i class="fa-solid fa-image"></i>
+                                <p>
+                                  ${this.data.objectLayer?.data?.render?.cid
+                                    ? 'WebP preview will appear here'
+                                    : 'This definition names no render yet'}
+                                </p>
+                              </div>
+                            `
                           : ''}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="control-group">
-                    <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
-                    <div class="button-group" style="flex-direction: column; align-items: flex-start;">
-                      ${this.data.render
-                        ? html`
-                        <div class="atlas-preview-container">
-                          ${atlasRender({ label: 'Primary render', upscaled: false, native: true })}
-                          ${atlasRender({ label: 'Upscaled render', upscaled: true })}
-                          <div class="atlas-metadata-grid">
-                            <div style="grid-column: 1 / -1;">
-                              <p style="padding: 2px"><strong class="item-data-key-label">Render CID:</strong></p>
-                              <p class="ipfs-cid-value" style="padding: 2px;">
-                                ${this.data.render.renderCid}
-                              </p>
-                            </div>
-                            <div style="grid-column: 1 / -1;">
-                              <p style="padding: 2px"><strong class="item-data-key-label">Metadata CID:</strong></p>
-                              <p class="ipfs-cid-value" style="padding: 2px;">
-                                ${this.data.render.metadataCid}
-                              </p>
-                            </div>
-                            <div>
-                              <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
-                              <p style="padding: 2px">${this.data.render.layout.itemKey}</p>
-                            </div>
+                        <div class="loading-overlay" style="display: none;">
+                          <div>
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <span style="margin-left: 10px;">Generating WebP...</span>
                           </div>
                         </div>
-                        <div class="atlas-actions-grid">
-                          ${
-                            canMutate
-                              ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
-                                  <i class="fa-solid fa-sync"></i>
-                                  <span>Update</span>
-                                </button>`
-                              : ''
-                          }
-                          <button class="default-viewer-btn download-atlas-png-btn">
-                            <i class="fa-solid fa-download"></i>
-                            <span>PNG</span>
-                          </button>
-                          <button class="default-viewer-btn download-atlas-json-btn">
-                            <i class="fa-solid fa-code"></i>
-                            <span>JSON</span>
-                          </button>
-                          ${
-                            canMutate
-                              ? html`<button
-                                  class="default-viewer-btn ${this.id}-remove-atlas-btn"
-                                  style="background: #dc3545;"
-                                >
-                                  <i class="fa-solid fa-trash"></i>
-                                  <span>Remove</span>
-                                </button>`
-                              : ''
-                          }
-                        </div>
-                      `
-                        : html`
-                            <p>
-                              ${this.data.renderUnavailable
-                                ? `The render is unavailable: ${escapeHtml(this.data.renderUnavailable)}`
-                                : 'This definition names no render yet.'}
-                            </p>
-                            ${canMutate
-                              ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
-                                  <i class="fa-solid fa-wand-magic-sparkles"></i>
-                                  <span>Generate Atlas</span>
-                                </button>`
+                      </div>
+                    </div>
+
+                    <div class="controls-container">
+                      <div class="control-group">
+                        <h4><i class="fa-solid fa-compass"></i> Direction</h4>
+                        <div class="button-group">
+                          <button
+                            class="control-btn ${this.data.currentDirection === 'up' ? 'active' : ''}"
+                            data-direction="up"
+                            ${!hasFrames('up', this.data.currentMode) ? 'disabled' : ''}
+                          >
+                            <i class="fa-solid fa-arrow-up"></i>
+                            <span>Up</span>
+                            ${hasFrames('up', this.data.currentMode)
+                              ? html`<span class="frame-count"
+                                  >(${getFrameCount('up', this.data.currentMode)})</span
+                                >`
                               : ''}
-                          `}
+                          </button>
+                          <button
+                            class="control-btn ${this.data.currentDirection === 'down' ? 'active' : ''}"
+                            data-direction="down"
+                            ${!hasFrames('down', this.data.currentMode) ? 'disabled' : ''}
+                          >
+                            <i class="fa-solid fa-arrow-down"></i>
+                            <span>Down</span>
+                            ${hasFrames('down', this.data.currentMode)
+                              ? html`<span class="frame-count"
+                                  >(${getFrameCount('down', this.data.currentMode)})</span
+                                >`
+                              : ''}
+                          </button>
+                          <button
+                            class="control-btn ${this.data.currentDirection === 'left' ? 'active' : ''}"
+                            data-direction="left"
+                            ${!hasFrames('left', this.data.currentMode) ? 'disabled' : ''}
+                          >
+                            <i class="fa-solid fa-arrow-left"></i>
+                            <span>Left</span>
+                            ${hasFrames('left', this.data.currentMode)
+                              ? html`<span class="frame-count"
+                                  >(${getFrameCount('left', this.data.currentMode)})</span
+                                >`
+                              : ''}
+                          </button>
+                          <button
+                            class="control-btn ${this.data.currentDirection === 'right' ? 'active' : ''}"
+                            data-direction="right"
+                            ${!hasFrames('right', this.data.currentMode) ? 'disabled' : ''}
+                          >
+                            <i class="fa-solid fa-arrow-right"></i>
+                            <span>Right</span>
+                            ${hasFrames('right', this.data.currentMode)
+                              ? html`<span class="frame-count"
+                                  >(${getFrameCount('right', this.data.currentMode)})</span
+                                >`
+                              : ''}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="control-group">
+                        <h4><i class="fa-solid fa-person-running"></i> Mode</h4>
+                        <div class="button-group">
+                          <button
+                            class="control-btn ${this.data.currentMode === 'idle' ? 'active' : ''}"
+                            data-mode="idle"
+                            ${!hasFrames(this.data.currentDirection, 'idle') ? 'disabled' : ''}
+                          >
+                            <i class="fa-solid fa-user"></i>
+                            <span>Idle</span>
+                            ${hasFrames(this.data.currentDirection, 'idle')
+                              ? html`<span class="frame-count"
+                                  >(${getFrameCount(this.data.currentDirection, 'idle')})</span
+                                >`
+                              : ''}
+                          </button>
+                          <button
+                            class="control-btn ${this.data.currentMode === 'walking' ? 'active' : ''}"
+                            data-mode="walking"
+                            ${!hasFrames(this.data.currentDirection, 'walking') ? 'disabled' : ''}
+                          >
+                            <i class="fa-solid fa-person-walking"></i>
+                            <span>Walking</span>
+                            ${hasFrames(this.data.currentDirection, 'walking')
+                              ? html`<span class="frame-count"
+                                  >(${getFrameCount(this.data.currentDirection, 'walking')})</span
+                                >`
+                              : ''}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="control-group">
+                        <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
+                        <div class="button-group" style="flex-direction: column; align-items: flex-start;">
+                          ${this.data.render
+                            ? html`
+                            <div class="atlas-preview-container">
+                              ${atlasRender({ label: 'Primary render', upscaled: false, native: true })}
+                              ${atlasRender({ label: 'Upscaled render', upscaled: true })}
+                              <div class="atlas-metadata-grid">
+                                <div style="grid-column: 1 / -1;">
+                                  <p style="padding: 2px"><strong class="item-data-key-label">Render CID:</strong></p>
+                                  <p class="ipfs-cid-value" style="padding: 2px;">
+                                    ${this.data.render.renderCid}
+                                  </p>
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                  <p style="padding: 2px"><strong class="item-data-key-label">Metadata CID:</strong></p>
+                                  <p class="ipfs-cid-value" style="padding: 2px;">
+                                    ${this.data.render.metadataCid}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
+                                  <p style="padding: 2px">${this.data.render.layout.itemKey}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="atlas-actions-grid">
+                              ${
+                                canMutate
+                                  ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
+                                      <i class="fa-solid fa-sync"></i>
+                                      <span>Update</span>
+                                    </button>`
+                                  : ''
+                              }
+                              <button class="default-viewer-btn download-atlas-png-btn">
+                                <i class="fa-solid fa-download"></i>
+                                <span>PNG</span>
+                              </button>
+                              <button class="default-viewer-btn download-atlas-json-btn">
+                                <i class="fa-solid fa-code"></i>
+                                <span>JSON</span>
+                              </button>
+                              ${
+                                canMutate
+                                  ? html`<button
+                                      class="default-viewer-btn ${this.id}-remove-atlas-btn"
+                                      style="background: #dc3545;"
+                                    >
+                                      <i class="fa-solid fa-trash"></i>
+                                      <span>Remove</span>
+                                    </button>`
+                                  : ''
+                              }
+                            </div>
+                          `
+                            : html`
+                                <p>
+                                  ${this.data.renderUnavailable
+                                    ? `The render is unavailable: ${escapeHtml(this.data.renderUnavailable)}`
+                                    : 'This definition names no render yet.'}
+                                </p>
+                                ${canMutate
+                                  ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
+                                      <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                      <span>Generate Atlas</span>
+                                    </button>`
+                                  : ''}
+                              `}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
