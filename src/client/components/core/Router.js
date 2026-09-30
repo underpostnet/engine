@@ -4,7 +4,8 @@
  * URL architecture: the path is canonical identity, the query is optional state.
  *
  * - A resource with a public URL is identified only by a path parameter, through the `PublicRoutes`
- *   table shared with the server (`/u/:username`, `/entry/:stableSlug`, `/content/:stableSlug`).
+ *   table shared with the server (`/u/:username`, `/entry/:stableSlug`, `/content/:stableSlug`,
+ *   `/object-layer/:cid`).
  *   Components neither build nor parse these paths themselves: they call `publicRoutePath`,
  *   `navigatePublicRoute`, `presentPublicRoute` and `getPublicRouteParam`.
  * - The query string carries view and request state a page can present with or without —
@@ -352,7 +353,7 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey, navOption
 };
 
 /**
- * The dynamic public route (`profile`, `entry`, `content`) a path presents.
+ * The dynamic public route (`profile`, `entry`, `content`, `objectLayer`) a path presents.
  * @param {string} [pathname] - Defaults to the current location.
  * @returns {{ name: string, namespace: string, params: Object<string, string> } | null}
  * @memberof PwaRouter

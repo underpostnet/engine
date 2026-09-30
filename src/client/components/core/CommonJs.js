@@ -1008,6 +1008,8 @@ const PublicRoutes = {
   profile: { namespace: 'u', param: 'username', isValid: isValidUsername },
   entry: { namespace: 'entry', param: 'stableSlug', isValid: isValidStableSlug },
   content: { namespace: 'content', param: 'stableSlug', isValid: isValidStableSlug },
+  // An Object Layer definition, by its cid: the lowercase base32 CID is a stable slug.
+  objectLayer: { namespace: 'object-layer', param: 'cid', isValid: isValidStableSlug },
 };
 
 /**

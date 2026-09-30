@@ -90,6 +90,12 @@ describe('public route parsing', () => {
       namespace: 'content',
       params: { stableSlug: 'how-to-chat-with-gpt' },
     });
+    const cid = 'bafkreiffm7bhq4erjqglbx7fh5todzdt4adjdq7fjbhhz7lojzgyrf54q4';
+    expect(parsePublicRoute(`/object-layer/${cid}`)).to.deep.equal({
+      name: 'objectLayer',
+      namespace: 'object-layer',
+      params: { cid },
+    });
   });
 
   it('resolves under a proxy sub-path', () => {
@@ -125,6 +131,7 @@ describe('public route generation', () => {
       ['profile', 'alice', 'username'],
       ['entry', 'how-to-chat-with-gpt', 'stableSlug'],
       ['content', 'how-to-chat-with-gpt', 'stableSlug'],
+      ['objectLayer', 'bafkreiffm7bhq4erjqglbx7fh5todzdt4adjdq7fjbhhz7lojzgyrf54q4', 'cid'],
     ]) {
       const path = publicRoutePathFactory(name, value, '/peer/');
       expect(parsePublicRoute(path, '/peer/')?.params[param]).to.equal(value);
