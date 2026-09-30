@@ -167,7 +167,7 @@ class ObjectLayerService {
     // GET /metadata/:id - one definition, without its editor source
     if (req.path.startsWith('/metadata/')) {
       const objectLayer = await findByKey(req.params.id, { select: ObjectLayerDto.select.getMetadata() });
-      if (!objectLayer) throw new Error('ObjectLayer not found');
+      if (!objectLayer) throw Object.assign(new Error('ObjectLayer not found'), { status: 404 });
       return objectLayer;
     }
 
