@@ -390,9 +390,9 @@ converges. A binding whose logic event the bank no longer declares — a renamed
 logged, instead of surviving as a name the client would keep asking the engine to resolve.
 
 `settings.bus` selects `music` or `sfx` on the binding. It does not classify the asset.
-Omitted settings inherit client or map defaults. Supported overrides include volume, loop, crossfadeMs, pitch, pan, and priority.
-Set music event routing through the map configuration API or the seed workflow.
-Changing only an event's audio code preserves its existing settings.
+A binding stated without settings keeps the settings it has, or takes the natural routing of its event: a music
+event loops on the music bus, and a one-shot plays once with no crossfade. Other omitted settings inherit client or
+map defaults. Supported overrides include volume, loop, crossfadeMs, pitch, pan, and priority.
 
 Record the bank and seed one instance from the engine repository root:
 

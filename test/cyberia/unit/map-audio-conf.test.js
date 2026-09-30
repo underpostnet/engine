@@ -65,15 +65,6 @@ describe('mergeEventBindings', () => {
     expect(mergeEventBindings(stored, [{ logicEventId: 'shoot', audioCode: 'shoot' }])).to.have.length(3);
   });
 
-  it('preserves playback settings when only the asset reference changes', () => {
-    expect(mergeEventBindings(
-      [{ logicEventId: 'combat', audioCode: 'combat', settings: { bus: 'music', loop: true } }],
-      [{ logicEventId: 'combat', audioCode: 'boss' }],
-    )).to.deep.equal([
-      { logicEventId: 'combat', audioCode: 'boss', settings: { bus: 'music', loop: true } },
-    ]);
-  });
-
   it('is a no-op with nothing incoming, and works from an empty map', () => {
     expect(mergeEventBindings(stored, [])).to.deep.equal(stored);
     expect(mergeEventBindings(undefined, [{ logicEventId: 'idle', audioCode: 'exploration' }])).to.deep.equal([

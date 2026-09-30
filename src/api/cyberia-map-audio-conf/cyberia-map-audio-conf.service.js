@@ -9,6 +9,7 @@ import { DataQuery } from '../../server/storage/data-query.js';
 import {
   DEFAULT_AUDIO_SETTINGS,
   DEFAULT_MAP_MUSIC,
+  audioEventRouting,
   buildAudioEventBindings,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
@@ -50,13 +51,14 @@ const mergeEventBindings = (current = [], incoming = []) => {
   for (const binding of incoming) {
     const index = merged.findIndex((entry) => entry.logicEventId === binding.logicEventId);
     if (index === -1) merged.push(binding);
-    else {
-      const settings = binding.settings ?? merged[index].settings;
-      merged[index] = { ...binding, ...(settings ? { settings } : {}) };
-    }
+    else merged[index] = binding;
   }
   return merged;
 };
+
+/** The settings of a binding stated without any: its stored settings, or the natural routing of its event. */
+const bindingSettings = (stored = [], logicEventId) =>
+  stored.find((binding) => binding.logicEventId === logicEventId)?.settings ?? audioEventRouting(logicEventId);
 
 /** Accepts a bare asset code or an object carrying one. */
 const readAudioCode = (input) => {
@@ -110,6 +112,7 @@ class CyberiaMapAudioConfService {
    * @param {string} rules.mapCode - Target CyberiaMap code.
    * @param {string|null} [rules.defaultMusic] - Default music asset code, or '' / null to clear it.
    * @param {Array<{logicEventId: string, audioCode: string, settings?: object}>} [rules.events] - Bindings.
+   *   A binding without settings keeps its stored settings, or takes the natural routing of its event.
    * @param {boolean} [rules.replaceEvents=false] - Make `events` the map's complete binding set.
    * @param {object} [rules.settings] - Map-wide volume/loop/crossfade defaults.
    * @param {{host: string, path: string}} options - Provider context.
@@ -118,22 +121,22 @@ class CyberiaMapAudioConfService {
   static assign = async ({ mapCode, defaultMusic, events = [], replaceEvents = false, settings }, options) => {
     if (!mapCode) throw new Error('mapCode is required to assign map audio rules');
     const CyberiaMapAudioConf = getConfModel(options);
+    const conf = (await CyberiaMapAudioConf.findOne({ mapCode })) || new CyberiaMapAudioConf({ mapCode });
 
     const bindings = await Promise.all(
       events.map(async ({ logicEventId, settings: entrySettings, ...reference }) => {
         if (!logicEventId) throw new Error(`Missing logicEventId for an audio binding on map "${mapCode}"`);
+        const id = `${logicEventId}`.trim();
         return {
-          logicEventId: `${logicEventId}`.trim(),
+          logicEventId: id,
           audioCode: await CyberiaMapAudioConfService.assertAudioCode(readAudioCode(reference), options),
-          ...(entrySettings ? { settings: entrySettings } : {}),
+          settings: entrySettings ?? bindingSettings(conf.events, id),
         };
       }),
     );
 
     const defaultMusicCode = defaultMusic === undefined ? undefined : readAudioCode(defaultMusic);
     if (defaultMusicCode) await CyberiaMapAudioConfService.assertAudioCode(defaultMusicCode, options);
-
-    const conf = (await CyberiaMapAudioConf.findOne({ mapCode })) || new CyberiaMapAudioConf({ mapCode });
 
     if (defaultMusicCode !== undefined) conf.defaultMusic = defaultMusicCode;
     if (settings) conf.settings = { ...(conf.settings?.toObject?.() ?? conf.settings ?? {}), ...settings };

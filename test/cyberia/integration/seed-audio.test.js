@@ -274,4 +274,24 @@ describe('audio pipeline', () => {
       expect(new CyberiaMapAudioConfModel({ mapCode: 'test', settings }).validateSync()).toBeDefined();
     }
   });
+
+  it('routes a new binding stated without settings by its event, and keeps a restated one as stored', async () => {
+    importBank();
+    const settingsOf = (conf, id) => conf.events.find(({ logicEventId }) => logicEventId === id).settings.toObject();
+    const fresh = await CyberiaMapAudioConfService.assign(
+      { mapCode: 'forest-1', events: [{ logicEventId: 'combat', audioCode: 'combat' }, { logicEventId: 'hit', audioCode: 'hit' }] },
+      options,
+    );
+    // A music event holds the bed in a loop; a one-shot plays once, with no crossfade.
+    expect(settingsOf(fresh, 'combat')).toEqual({ bus: AUDIO_BUS_MUSIC, loop: true });
+    expect(settingsOf(fresh, 'hit')).toEqual({ bus: AUDIO_BUS_SFX, loop: false, crossfadeMs: 0 });
+
+    const seeded = settingsOf(await CyberiaMapAudioConfService.seedDefault('forest-1', options), 'combat');
+    const edited = await CyberiaMapAudioConfService.assign(
+      { mapCode: 'forest-1', events: [{ logicEventId: 'combat', audioCode: 'boss' }], replaceEvents: true },
+      options,
+    );
+    expect(edited.events.map(({ logicEventId, audioCode }) => `${logicEventId}:${audioCode}`)).toEqual(['combat:boss']);
+    expect(settingsOf(edited, 'combat')).toEqual(seeded);
+  });
 });

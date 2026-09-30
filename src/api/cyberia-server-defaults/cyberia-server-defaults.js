@@ -313,26 +313,33 @@ if (!AUDIO_BANK_CODES.includes(DEFAULT_MAP_MUSIC)) {
 }
 
 /**
- * Expands {@link DEFAULT_AUDIO_BINDINGS} into `cyberia-map-audio-conf` event records.
+ * The natural routing of a binding for one runtime event.
  *
- * Routing is derived, not restated: an event's bus comes from the canonical audio registry
- * (a skill LogicId is a one-shot, so it falls back to sfx), music holds the bed in a loop unless
- * the binding is a one-shot cue, and only music crossfades.
+ * The bus comes from the canonical audio registry (a skill LogicId is a one-shot, so it falls back
+ * to sfx). Music holds the bed in a loop, and only music crossfades.
+ *
+ * @param {string} logicEventId
+ * @returns {{bus:string,loop:boolean,crossfadeMs?:number}}
+ */
+export function audioEventRouting(logicEventId) {
+  const bus = AUDIO_LOGIC_ID_BUSES[logicEventId] ?? AUDIO_BUS_SFX;
+  return AUDIO_BUS_MUSIC === bus ? { bus, loop: true } : { bus, loop: false, crossfadeMs: 0 };
+}
+
+/**
+ * Expands {@link DEFAULT_AUDIO_BINDINGS} into `cyberia-map-audio-conf` event records, each with the
+ * natural routing of its event.
  *
  * @param {{volume?:number,crossfadeMs?:number}} [settings=DEFAULT_AUDIO_SETTINGS]
  * @returns {Array<{logicEventId:string,audioCode:string,settings:object}>}
  */
 export function buildAudioEventBindings(settings = DEFAULT_AUDIO_SETTINGS) {
   const { volume, crossfadeMs } = { ...DEFAULT_AUDIO_SETTINGS, ...settings };
-  return DEFAULT_AUDIO_BINDINGS.map(({ logicEventId, audioCode }) => {
-    const bus = AUDIO_LOGIC_ID_BUSES[logicEventId] ?? AUDIO_BUS_SFX;
-    const music = AUDIO_BUS_MUSIC === bus;
-    return {
-      logicEventId,
-      audioCode,
-      settings: { bus, volume, loop: music, crossfadeMs: music ? crossfadeMs : 0 },
-    };
-  });
+  return DEFAULT_AUDIO_BINDINGS.map(({ logicEventId, audioCode }) => ({
+    logicEventId,
+    audioCode,
+    settings: { volume, crossfadeMs, ...audioEventRouting(logicEventId) },
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
