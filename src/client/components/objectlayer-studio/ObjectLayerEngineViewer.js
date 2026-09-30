@@ -39,9 +39,11 @@ const shortKey = (key) => (key.length > 18 ? `${key.slice(0, 10)}…${key.slice(
 class ObjectLayerEngineViewer {
   /**
    * What the host binds once, at boot: its store and router, the content profile that names and
-   * illustrates the stats, whether anything mutates, what its table adds, and its view titles.
+   * illustrates the stats, whether anything mutates, what its table adds, its view titles, and the
+   * list a view leads back to.
    * @type {{appStore: object, RouterInstance: object, profile: object|null, readOnly: boolean,
-   *   lifecycle: boolean, columns: () => object[], renderTitle: (text: string) => string}}
+   *   lifecycle: boolean, columns: () => object[], renderTitle: (text: string) => string,
+   *   openList: () => void}}
    */
   static host = {
     appStore: null,
@@ -51,6 +53,7 @@ class ObjectLayerEngineViewer {
     lifecycle: false,
     columns: () => [],
     renderTitle: (text) => renderViewTitle({ icon: html`<i class="fa-solid fa-cube"></i>`, text }),
+    openList: () => s('.main-btn-object-layer-engine-viewer').click(),
   };
 
   /** Binds the host. Call it once at boot, before the router renders a viewer route. */
@@ -71,11 +74,6 @@ class ObjectLayerEngineViewer {
     });
   }
 
-  /** Shows the list of definitions. */
-  static openList() {
-    s('.main-btn-object-layer-engine-viewer').click();
-  }
-
   /**
    * Opens the view of a definition at `/object-layer/:cid`: one view per cid, beside the list and
    * the other views. A view already open comes to the front.
@@ -88,7 +86,7 @@ class ObjectLayerEngineViewer {
   /** The `/object-layer` route: the view of the definition its path names, else the list. */
   static route() {
     const cid = getPublicRouteParam(VIEW_ROUTE);
-    return cid ? ObjectLayerEngineViewer.open({ cid }) : ObjectLayerEngineViewer.openList();
+    return cid ? ObjectLayerEngineViewer.open({ cid }) : ObjectLayerEngineViewer.host.openList();
   }
 }
 
@@ -98,13 +96,14 @@ class ObjectLayerEngineViewer {
  */
 class ObjectLayerViewer {
   /** @param {typeof ObjectLayerEngineViewer.host & { cid: string }} options */
-  constructor({ cid, appStore, RouterInstance, profile, readOnly, renderTitle }) {
+  constructor({ cid, appStore, RouterInstance, profile, readOnly, renderTitle, openList }) {
     this.cid = cid;
     this.appStore = appStore;
     this.RouterInstance = RouterInstance;
     this.profile = profile;
     this.readOnly = readOnly;
     this.renderTitle = renderTitle;
+    this.openList = openList;
     this.id = `object-layer-viewer-${cid}`;
     this.idModal = `modal-${this.id}`;
     this.data = {
@@ -780,7 +779,7 @@ class ObjectLayerViewer {
         </button>
       </div>`,
     );
-    EventsUI.onClick(`.${this.id}-list-btn`, () => ObjectLayerEngineViewer.openList());
+    EventsUI.onClick(`.${this.id}-list-btn`, () => this.openList());
   }
   /** Loads the definition and renders it. The ledger section fills in when the ledger answers. */
   async load({ skipWebp = false } = {}) {
