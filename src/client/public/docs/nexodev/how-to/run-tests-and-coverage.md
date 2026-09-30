@@ -112,6 +112,8 @@ underpost test cyberia:unit --grep shape      # one project, filtered by test na
 underpost test item-ledger:contract     # Solidity contracts, on Hardhat's EVM
 underpost test --watch --no-coverage    # local iteration
 underpost test --list                   # what a selector resolves to
+underpost test --footprint balanced     # two workers, on a machine with capacity to spare
+underpost test --diagnose               # peak memory and CPU of each batch
 ```
 
 An unknown selector fails with the list of valid ones. A mistyped selector must
@@ -150,8 +152,10 @@ widens to every domain rather than selecting none.
 ## Execution order
 
 Order is execution policy, so it lives in the project table and never in a
-directory name. Vitest sequences on `sequence.groupOrder`: equal values run in
-parallel, lower values run to completion first.
+directory name. The runner splits a selection into batches and runs them one at
+a time, in ascending `groupOrder`. A lower group completes before a higher group
+starts. In the `ci` footprint, Vitest sequences the groups itself, and equal
+values run in parallel.
 
 ```text
 groupOrder  1        2                    3                   4…8                      9              10
@@ -164,13 +168,99 @@ A gateway assertion that fails because SELinux denied a bind is a security
 failure surfacing at the ingress layer, so the lower area has to have run — and
 passed — before the higher one is worth reading.
 
-Unit and contract projects run their files in parallel. Every other project runs
-its files one at a time: those suites bind ports, drive databases, spawn
-processes or read the deploy tree, and cannot share a worker.
+Unit and contract projects can run their files in parallel (`parallel: true`).
+Every other project runs its files one at a time: those suites bind ports, drive
+databases, spawn processes or read the deploy tree, and cannot share a worker.
+The footprint decides if a parallel project uses that permission.
 
 > `groupOrder` starts at 1, never 0. Vitest routes a project left on the
 > default `0` with a single worker into a bucket it appends _after_ every
 > ordered group — which silently runs the first project last.
+
+---
+
+## Batches and footprints
+
+`underpost test` runs the full suite on a small workstation without exhausting
+its CPU or memory. Every batch runs in a fresh Vitest process. When the process
+exits, the operating system releases its memory, so the next batch starts clean.
+The runner itself only starts processes and records what happened.
+
+```text
+node bin test
+  → execution plan           testExecutionPlanFactory, src/server/build/testing.js
+  → batch 1 → fresh Vitest process → blob → exit
+  → batch 2 → fresh Vitest process → blob → exit
+  → …
+  → merge → final test report, coverage/lcov.info, coverage/<key>/, coverage threshold
+```
+
+The footprint sets how much of the machine a run can use:
+
+| Footprint        | Batch                   | Workers        | Files of one project              | Concurrent tests |
+| ---------------- | ----------------------- | -------------- | --------------------------------- | ---------------- |
+| `safe` (default) | one project per process | 1              | one at a time                     | 1                |
+| `balanced`       | one project per process | 2              | together where `parallel` permits | 2                |
+| `ci`             | the whole selection     | Vitest default | together where `parallel` permits | Vitest default   |
+
+```bash
+underpost test                          # safe: one project after another
+underpost test --footprint balanced     # a machine with capacity to spare
+underpost test --footprint ci           # a CI runner that owns its machine
+```
+
+`safe` puts machine stability before speed. The core count of the machine is
+never a local default. The footprint reaches Vitest through
+`UNDERPOST_TEST_FOOTPRINT`, so a direct `npx vitest run` also applies `safe`.
+
+### The run directory
+
+Each run writes to `.vitest/test-runs/<run-id>/`:
+
+```text
+.vitest/test-runs/20260930T180855.123Z-4242/
+  manifest.json          selector, footprint, batches, the status of each batch and of the merge
+  blobs/batch-001.blob   results and raw coverage of batch 1
+  blobs/batch-002.blob
+```
+
+The runner keeps the five newest runs. It deletes older runs before a new run
+starts. `manifest.json` records each batch before it starts and after it ends.
+An interrupted run leaves the batches it did not reach as `pending`, so a resume
+can continue from the manifest.
+
+### Failures
+
+A failed batch does not stop the run. The runner records it and continues with
+the next batch. After the last batch, the merge builds the final report from
+every blob. The run passes only when every batch and the merge passed.
+
+| Status        | Meaning                                                           |
+| ------------- | ----------------------------------------------------------------- |
+| `passed`      | The batch passed.                                                 |
+| `failed`      | Tests failed. The batch wrote its report.                         |
+| `error`       | The runner failed before it wrote a report.                       |
+| `killed`      | SIGKILL stopped the batch, often the kernel out-of-memory killer. |
+| `signaled`    | Another signal from outside stopped the batch.                    |
+| `timeout`     | The batch ran longer than `--batch-timeout` minutes.              |
+| `interrupted` | The operator stopped the run. The next batches stay `pending`.    |
+| `skipped`     | A delegated project whose directory this tree does not ship.      |
+
+At the end, the runner prints one row per batch: the batch, its projects, status,
+exit code, signal and duration. A killed batch writes no blob, so the merge of
+the other batches can pass. The run still fails.
+
+Ctrl+C stops the running batch and the run. A second Ctrl+C sends SIGKILL. When
+a batch ends, the runner kills every process the batch left behind.
+
+### Diagnosis
+
+`--diagnose` adds the peak resident memory and the CPU time of each batch to
+the manifest and to the final table. The runner samples them from `/proc`, for
+the batch process and all its descendants. It also passes `--logHeapUsage` to
+Vitest and `DEBUG=vitest:coverage` to each process, which logs the time of each
+coverage step. Use it to find the project that exhausts a machine, not on every
+run.
 
 ---
 
@@ -192,7 +282,7 @@ prove is proven there.
 ## Delegated projects
 
 A project with a `delegate` in the table runs on its own runner instead of as a
-Vitest project, after the Vitest pass. `item-ledger:contract` is one: Hardhat
+Vitest project, as a batch of the last group. `item-ledger:contract` is one: Hardhat
 owns Solidity compilation and the EVM the suites run against, so Vitest cannot
 collect them.
 
@@ -263,6 +353,14 @@ Two selections never overwrite each other's report on a host that publishes both
 Coverage is scoped to the files a run actually loads rather than all of `src`.
 The client bundles and generated assets under it are shipped, not executed by
 any suite, and instrumenting them would report a floor no test can move.
+
+Each batch measures the sources of the whole selection, not only those of its
+own project. A source that another project loads counts as it does in one
+process. A batch writes no coverage report: its blob holds the raw coverage, and
+the merge writes every report once. `COVERAGE_ENFORCE` and `COVERAGE_MIN` gate
+only the merge, because a batch holds partial coverage. The runner deletes
+`lcov.info` before the first batch, so Coveralls always reads the merge of the
+last run.
 
 ### The client docs block
 
@@ -412,6 +510,9 @@ path above covers dynamic triggering without it.
 | `coverall.cyberia.ci.yml`                | the same, plus `cyberia`                                       | `--changed` from the merge base |
 | `pwa-microservices-template-test.ci.yml` | `underpost,ecosystem`                                          | —                               |
 | `hardhat.ci.yml`                         | `npm test` in `hardhat/`                                       | —                               |
+
+The workflows run the default `safe` footprint. A workflow on a large runner can
+pass `--footprint ci`: one process for the whole selection.
 
 A pull request resolves its selector with `node bin test --changed <base> --print`,
 so CI reads the same impact model the CLI does and no workflow carries a path
