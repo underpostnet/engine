@@ -4,6 +4,8 @@ metadata:
   name: mongodb-service
 spec:
   clusterIP: None
+  # A member name resolves before readiness, so mongod finds itself in its replica config at start.
+  publishNotReadyAddresses: true
   selector:
     app: mongodb
   ports:

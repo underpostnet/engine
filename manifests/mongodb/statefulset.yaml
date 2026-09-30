@@ -44,7 +44,18 @@ spec:
       containers:
         - name: mongodb
           image: docker.io/library/mongo:latest
+          # mongod checks its member name only at start. Start it when that name resolves to this pod.
           command:
+            - sh
+            - -c
+            - |
+              self="$POD_NAME.mongodb-service"
+              for attempt in $(seq 60); do
+                getent ahosts "$self" | awk -v ip="$POD_IP" '$1 == ip { found = 1 } END { exit !found }' && exec mongod "$@"
+                sleep 1
+              done
+              echo "$self does not resolve to $POD_IP" >&2
+              exit 1
             - mongod
           args:
             - '--replSet'
@@ -70,6 +81,14 @@ spec:
             - name: mongodb-storage
               mountPath: /data/db
           env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: MONGO_REPLICA_SET_NAME
               value: rs0
             - name: MONGO_INITDB_ROOT_USERNAME
