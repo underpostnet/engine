@@ -188,18 +188,6 @@ class AppShellCyberiaPortal {
           })}
           <div class="abs menu-btn-container-children-docs"></div>
           ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-admin hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-user-tie"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('admin')}</span>`,
-            }),
-            attrs: `data-id="admin"`,
-            tabHref: `/admin`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('admin')),
-          })}
-          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -692,11 +680,6 @@ class AppShellCyberiaPortal {
         observer: true,
       });
     });
-
-    s(`.main-btn-admin`).onclick = () => {
-      const { protocol, hostname } = window.location;
-      return (location.href = `${protocol}//${hostname}/admin${['', 0][random(0, 1)]}`);
-    };
   }
 }
 
