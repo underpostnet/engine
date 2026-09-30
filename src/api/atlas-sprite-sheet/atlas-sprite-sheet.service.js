@@ -209,7 +209,7 @@ class AtlasSpriteSheetService {
    * One image derived from a definition's render, kept under the render's cid once produced.
    * @param {string} cid - Canonical Object Layer cid.
    * @param {Object} options - Router options.
-   * @param {string} kind - What is derived: `idle-<size>`, `upscaled`, `animation:<direction>`.
+   * @param {string} kind - What is derived: `idle-fill-<size>`, `upscaled`, `animation:<direction>`.
    * @param {(render: {renderCid: string, png: Buffer, layout: Object}) => Promise<Buffer|null>} produce
    * @returns {Promise<Buffer|null>} Null when the render has nothing to derive.
    * @throws {Error} `status` 404 when the definition names no render.
@@ -231,7 +231,7 @@ class AtlasSpriteSheetService {
    * @returns {Promise<{buffer: Buffer, mimetype: string, name: string}>}
    */
   static definitionIdlePreview = async (cid, options) => {
-    const still = await AtlasSpriteSheetService.derived(cid, options, `idle-${IDLE_PREVIEW_SIZE}`, (render) =>
+    const still = await AtlasSpriteSheetService.derived(cid, options, `idle-fill-${IDLE_PREVIEW_SIZE}`, (render) =>
       AtlasSpriteSheetGenerator.idlePreviewFromRender(render.png, render.layout),
     );
     if (!still) throw failure(404, `The render of ${cid} has no idle frame`);

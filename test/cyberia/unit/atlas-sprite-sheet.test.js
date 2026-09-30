@@ -128,15 +128,27 @@ describe('Cyberia derived renders', () => {
     expect(await Atlas.upscaledFromRender(upscaled, metadata)).toBeNull();
   });
 
-  it('centres the idle preview on the standard square, each cell one whole block', async () => {
-    // Three cells wide, one tall: 100 px per cell, with 100 px of transparency above and below.
+  it('scales the idle preview frame to the standard size, with no margin', async () => {
+    // Three cells wide, one tall: the longer side takes the standard size, 100 px per cell.
     const { primary, metadata } = await Atlas.generateAtlas(indexed({ down_idle: [[[0, 1, 0]]] }), 'wide');
     const preview = await pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
     const at = (x, y) => preview.data.readUInt32BE((y * preview.width + x) * 4);
 
+    expect([preview.width, preview.height]).toEqual([IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE / 3]);
+    expect([at(0, 0), at(150, 50), at(299, 99)]).toEqual([0xff0000ff, 0x00ff00ff, 0xff0000ff]);
+  });
+
+  it('fills the standard square with a square frame whose cells do not divide it', async () => {
+    const row = Array.from({ length: 24 }, () => 1);
+    const { primary, metadata } = await Atlas.generateAtlas(
+      indexed({ down_idle: [Array.from({ length: 24 }, () => row)] }),
+      'square',
+    );
+    const preview = await pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
+    const at = (x, y) => preview.data.readUInt32BE((y * preview.width + x) * 4);
+
     expect([preview.width, preview.height]).toEqual([IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE]);
-    expect([at(150, 99), at(150, 200)]).toEqual([0, 0]);
-    expect([at(0, 100), at(150, 150), at(299, 199)]).toEqual([0xff0000ff, 0x00ff00ff, 0xff0000ff]);
+    expect([at(0, 0), at(299, 299)]).toEqual([0x00ff00ff, 0x00ff00ff]);
   });
 
   it('refuses a render that is no whole multiple of its layout', () => {

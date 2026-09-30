@@ -33,7 +33,7 @@ export const DEFAULT_ATLAS_UPSCALE_FACTOR = 20;
 export const PRIMARY_CELL_PIXEL_DIM = 1;
 
 /**
- * Side, in pixels, of the square idle preview every client shows as an item's picture.
+ * Longer side, in pixels, of the idle preview every client shows as an item's picture.
  * @memberof CyberiaAtlasSpriteSheetGenerator
  */
 export const IDLE_PREVIEW_SIZE = 300;
@@ -448,8 +448,8 @@ export class AtlasSpriteSheetGenerator {
   }
 
   /**
-   * The idle preview of a render: its preview frame on a transparent {@link IDLE_PREVIEW_SIZE}
-   * square, centred, each cell a block of the largest whole size that fits.
+   * The idle preview of a render: its preview frame scaled nearest-neighbour until its longer side
+   * is {@link IDLE_PREVIEW_SIZE}, with no margin.
    * @static
    * @param {Buffer} render - PNG bytes of a render of the layout.
    * @param {Object} metadata - Atlas metadata as {@link generateAtlas} returns it.
@@ -460,28 +460,10 @@ export class AtlasSpriteSheetGenerator {
     const frame = AtlasSpriteSheetGenerator.idlePreviewFrame(metadata);
     if (!frame) return null;
     const cells = await AtlasSpriteSheetGenerator.cellBox(render, metadata, frame);
-    const factor = Math.floor(IDLE_PREVIEW_SIZE / Math.max(cells.width, cells.height));
-    const still = AtlasSpriteSheetGenerator.repeatPixels(cells, Math.max(1, factor));
-    const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-    const image = sharp(still.data, { raw: { width: still.width, height: still.height, channels: 4 } });
-    if (factor < 1)
-      image.resize(IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE, {
-        kernel: 'nearest',
-        fit: 'contain',
-        background: transparent,
-      });
-    else {
-      const left = Math.floor((IDLE_PREVIEW_SIZE - still.width) / 2);
-      const top = Math.floor((IDLE_PREVIEW_SIZE - still.height) / 2);
-      image.extend({
-        left,
-        top,
-        right: IDLE_PREVIEW_SIZE - still.width - left,
-        bottom: IDLE_PREVIEW_SIZE - still.height - top,
-        background: transparent,
-      });
-    }
-    return await image.png().toBuffer();
+    return await sharp(cells.data, { raw: { width: cells.width, height: cells.height, channels: 4 } })
+      .resize(IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE, { kernel: 'nearest', fit: 'inside' })
+      .png()
+      .toBuffer();
   }
 
   /**
