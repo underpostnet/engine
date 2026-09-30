@@ -1,6 +1,7 @@
 import { DefaultManagement } from '../default/default.management.js';
 import { ItemLedgerService } from './item-ledger.service.js';
 import { commonUserGuard } from '../../components/core/CommonJs.js';
+import { objectLayerViewColumn } from '../object-layer/object-layer.management.js';
 
 /** The registry: every on-chain registered asset, by the Object Layer CID it binds. */
 class ItemLedgerManagement {
@@ -23,6 +24,7 @@ class ItemLedgerManagement {
       { field: 'tokenId', headerName: 'Token ID', width: 200, editable: false, filter: 'agTextColumnFilter' },
       { field: 'standard', headerName: 'Standard', width: 110, editable: false, sortable: false, filter: false },
       { field: 'createdAt', headerName: 'Registered', cellDataType: 'date', width: 160, editable: false },
+      objectLayerViewColumn({ idModal, cidOf: (row) => row.objectLayerCid }),
     ];
 
     return await DefaultManagement.instance({
