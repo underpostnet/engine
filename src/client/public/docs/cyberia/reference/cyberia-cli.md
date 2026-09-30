@@ -410,6 +410,10 @@ exist and declare at least one map, or the run fails without writing anything.
 
 The seed states each map's whole configuration, so re-running converges rather than accumulating: a bed is
 reassigned and a binding the bank no longer declares is dropped.
+
+The Studio map editor edits the same configuration. Its Audio section picks one asset per event, with `idle` as the
+default music, and saves the complete binding set of the map. **Seed default** writes to one map what the seed writes
+to each map of an instance. It does not record or import the bank, so an asset the collection does not hold is refused.
 It reuses the existing engine environment resolution. Full seeding requires that deployment configuration and MongoDB.
 Use `--records-path` to select the output directory.
 An asset's generic File `_id` is derived from its code and the bytes themselves, so re-importing an unchanged

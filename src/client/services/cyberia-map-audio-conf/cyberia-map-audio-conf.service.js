@@ -122,5 +122,22 @@ class CyberiaMapAudioConfService {
           return reject(error);
         }),
     );
+  static seedDefault = (options = { mapCode: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(`${getApiBaseUrl({ endpoint })}/map-code/${options.mapCode}/seed-default`, {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
 }
 export { CyberiaMapAudioConfService };

@@ -102,8 +102,8 @@ class CyberiaMapAudioConfService {
   /**
    * Bulk-assigns map audio rules, upserting the map's configuration document.
    *
-   * Two callers with two intents share this: the CLI amends one binding at a time and must leave
-   * the others alone, while a seed states the whole configuration and must converge on it —
+   * Two intents share this: the CLI amends one binding at a time and must leave the others alone,
+   * while a seed or the Studio map editor states the whole configuration and must converge on it —
    * otherwise a binding whose logic event was renamed or dropped lives on forever, and the client
    * keeps asking for an asset nothing declares any more. `replaceEvents` is which of the two
    * this call is.

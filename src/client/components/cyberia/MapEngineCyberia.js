@@ -21,6 +21,7 @@ import { CommandHistory } from '../core/CommandHistory.js';
 import { EditorDraftStore } from '../core/EditorDraftStore.js';
 import { EditorLayout } from '../core/EditorLayout.js';
 import { MapStudioCyberia } from './MapStudioCyberia.js';
+import { MapAudioCyberia } from './MapAudioCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -1182,7 +1183,7 @@ class MapEngineCyberia {
       MapEngineCyberia.setEntities(nextEntities, { clearHistory: true });
       MapEngineCyberia.currentRevision = mapData.revision ?? 1;
       followDraft();
-      await MapStudioCyberia.loadContext(mapData.code);
+      await Promise.all([MapStudioCyberia.loadContext(mapData.code), MapAudioCyberia.load(mapData.code)]);
 
       // A draft newer than the stored map is offered back, as one command.
       const stored = await EditorDraftStore.get(draftKey());
@@ -1211,6 +1212,7 @@ class MapEngineCyberia {
       MapEngineCyberia.currentRevision = null;
       followDraft();
       MapStudioCyberia.loadContext(null);
+      MapAudioCyberia.load(null);
       setQueryParams({ mapCode: null }, { replace: true });
       MapEngineCyberia.currentThumbnailId = null;
       MapEngineCyberia.currentPreviewId = null;
@@ -1380,6 +1382,7 @@ class MapEngineCyberia {
           MapEngineCyberia.syncObjectLayerDropdownSelection(objectLayerItemIds);
         },
       });
+      MapAudioCyberia.mount();
       const container = s('.map-engine-container');
       EditorLayout.bind(container);
       EditorLayout.pin(container, 'map-engine-stage');
@@ -1673,6 +1676,7 @@ class MapEngineCyberia {
                 Instance Map.
               </div>
             </div>
+            ${await MapAudioCyberia.renderPanel()}
           </div>
           ${dynamicCol({ containerSelector: 'map-engine-tools', id: dcGridSize, type: 'a-50-b-50' })}
           <div class="fl">
