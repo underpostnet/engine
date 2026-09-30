@@ -5,7 +5,7 @@ import { Command } from 'commander';
 import { deployEnvFactory, getNpmRootPath, getUnderpostRootPath } from '../server/runtime/environment.js';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { registerDomainCommand } from './domains.js';
-import { TEST_PROJECTS, testDomainNames } from '../server/build/testing.js';
+import { TEST_FOOTPRINTS, TEST_PROJECTS, testDomainNames } from '../server/build/testing.js';
 import { EXECUTION_PROFILES, profileFromOptionsFactory, setExecutionProfile } from '../server/build/execution.js';
 import { SEVERITIES } from '../server/security/socketsecurity.js';
 
@@ -1142,6 +1142,15 @@ program
   .option('--grep <pattern>', 'Runs only tests whose name matches the pattern.')
   .option('--watch', 'Keeps the runner open and re-runs affected suites on change.')
   .option('--no-coverage', 'Skips coverage instrumentation and reporters.')
+  .option(
+    '--footprint <footprint>',
+    `How much of the machine the run can use. One of: ${Object.keys(TEST_FOOTPRINTS).join(', ')}.\n` +
+      Object.entries(TEST_FOOTPRINTS)
+        .map(([name, { description }]) => `  ${name.padEnd(9)} ${description}`)
+        .join('\n'),
+  )
+  .option('--batch-timeout <minutes>', 'Stops a batch that runs longer than this and records it as timeout.')
+  .option('--diagnose', 'Records peak memory and CPU per batch, and logs heap and coverage timings.')
   .option('--allure', 'Writes Allure results for the cluster dashboard alongside the run.')
   .option('--dashboard', 'Applies the Allure dashboard to the cluster and exits.')
   .option('--job', 'Runs the selected suite on the cluster as a Kubernetes Job (requires --image).')

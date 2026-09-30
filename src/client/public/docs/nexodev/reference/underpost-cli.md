@@ -1189,6 +1189,9 @@ Runs the test projects locally, inside deployment pods, or as a cluster Job with
 | `--grep <pattern>` | Runs only tests whose name matches the pattern. |
 | `--watch` | Keeps the runner open and re-runs affected suites on change. |
 | `--no-coverage` | Skips coverage instrumentation and reporters. |
+| `--footprint <footprint>` | How much of the machine the run can use. One of: safe, balanced, ci. safe One project per fresh process, one worker, one file and one test at a time. The default. balanced One project per fresh process, two workers, parallel files where the project permits. ci The whole selection in one process, on the Vitest default workers. For a runner that owns its machine. |
+| `--batch-timeout <minutes>` | Stops a batch that runs longer than this and records it as timeout. |
+| `--diagnose` | Records peak memory and CPU per batch, and logs heap and coverage timings. |
 | `--allure` | Writes Allure results for the cluster dashboard alongside the run. |
 | `--dashboard` | Applies the Allure dashboard to the cluster and exits. |
 | `--job` | Runs the selected suite on the cluster as a Kubernetes Job (requires --image). |
