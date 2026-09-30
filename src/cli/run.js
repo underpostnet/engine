@@ -490,8 +490,10 @@ class UnderpostRun {
         shellExec(`${baseCommand} cluster${clusterOptions} --reset`);
         shellExec(`${baseCommand} cluster${clusterOptions}`);
 
+        // A Kind rebuild starts MongoDB on empty data.
+        const mongoResetFlag = clusterType === 'kind' ? ' --reset-mongodb' : '';
         shellExec(
-          `${baseCommand} cluster${clusterOptions} --mongodb --service-host ${mongoHosts.join(',')} --pull-image`,
+          `${baseCommand} cluster${clusterOptions} --mongodb${mongoResetFlag} --service-host ${mongoHosts.join(',')} --pull-image`,
         );
         shellExec(`${baseCommand} cluster${clusterOptions} --valkey --pull-image`);
       }

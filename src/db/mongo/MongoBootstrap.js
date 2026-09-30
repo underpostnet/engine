@@ -590,7 +590,7 @@ class MongoBootstrap {
   /**
    * Full MongoDB replica set initialization.
    *
-   * Handles secret creation, PVC/hostPath cleanup, statefulset rollout, pod readiness
+   * Handles secret creation, PVC/hostPath cleanup on reset, statefulset rollout, pod readiness
    * wait, and idempotent replica set bootstrapping via mongosh.
    *
    * @param {MongoBootstrapOptions} options - Bootstrap configuration.
@@ -666,8 +666,8 @@ class MongoBootstrap {
     shellExec(`kubectl delete statefulset ${MONGODB_STATEFULSET_NAME} -n ${namespace} --ignore-not-found`);
     shellExec(`kubectl wait --for=delete pod -l app=mongodb -n ${namespace} --timeout=180s`, { silentOnError: true });
 
-    // Clean data if reset or kind
-    if (reset || isKind) {
+    // Only an explicit reset wipes claims, volumes and data. Every other run keeps them.
+    if (reset) {
       // Delete the StatefulSet's PVCs by name. A label selector cannot reach them: the
       // `volumeClaimTemplates` entry carries no labels, so `-l app=mongodb` matches nothing and
       // silently leaves the previous run's PVCs Bound. With `persistentVolumeReclaimPolicy:
