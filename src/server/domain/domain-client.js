@@ -10,7 +10,7 @@
  */
 import { loggerFactory } from '../ops/logger.js';
 import { hostPortsFactory } from '../network/router.js';
-import { deployConfServer, ownsApi } from './consumed-api.js';
+import { deployConfServer, ownerHostOf } from './consumed-api.js';
 import { API_BASE_PATH, DOMAIN_API_VERSION } from './api-contract.js';
 
 const logger = loggerFactory(import.meta);
@@ -38,7 +38,7 @@ const localDomainUrl = (domain) => {
   const confServer = deployConfServer();
   const api = DOMAIN_API[domain];
   if (!confServer || !api || !process.env.PORT) return '';
-  const host = Object.keys(confServer).find((name) => ownsApi(confServer[name]['/'], api));
+  const host = ownerHostOf(confServer, api);
   const port = host ? hostPortsFactory(confServer)[`${host}/`] : undefined;
   return port ? `http://127.0.0.1:${port}` : '';
 };

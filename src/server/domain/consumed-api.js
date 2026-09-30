@@ -61,6 +61,16 @@ export function deployConfServer() {
 }
 
 /**
+ * The host of a deploy that serves an API from its own authority, or '' when none does.
+ * @param {Object|null} confServer - The deploy's server conf.
+ * @param {string} api
+ * @returns {string}
+ * @memberof ConsumedApi
+ */
+export const ownerHostOf = (confServer, api) =>
+  (confServer && Object.keys(confServer).find((host) => ownsApi(confServer[host]['/'], api))) || '';
+
+/**
  * The consumed APIs of a host: from its router options, or, for a process that has only
  * `{ host, path }` such as the CLI, from the deploy's server conf.
  * @param {{host?:string,path?:string,consumes?:Object<string,string>}} [options]
