@@ -1,3 +1,4 @@
+import { getProxyPath } from '../../components/core/Router.js';
 import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
 import { commonUserGuard, commonModeratorGuard, commonAdminGuard } from '../../components/core/CommonJs.js';
@@ -170,7 +171,11 @@ class ObjectLayerManagement {
             <div
               style="position: absolute; top: 0; left: 0; width: 100px; height: 100px; display: ${placeholder}; align-items: center; justify-content: center; "
             >
-              <i class="fas fa-image" style="font-size: 48px; color: #999;"></i>
+              <img
+                src="${getProxyPath()}assets/ui-icons/empty-render.png"
+                alt="No render"
+                style="width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated;"
+              />
             </div>
           </div>
         `;

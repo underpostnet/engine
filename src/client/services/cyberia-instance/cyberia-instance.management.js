@@ -1,3 +1,4 @@
+import { getProxyPath } from '../../components/core/Router.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
 import { getId, commonModeratorGuard, commonAdminGuard } from '../../components/core/CommonJs.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
@@ -98,7 +99,11 @@ class CyberiaInstanceManagement {
             <div
               style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; display: none; align-items: center; justify-content: center;"
             >
-              <i class="fas fa-image" style="font-size: 24px; color: #999;"></i>
+              <img
+                src="${getProxyPath()}assets/ui-icons/empty-render.png"
+                alt="No render"
+                style="width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated;"
+              />
             </div>
           </div>
         `;

@@ -386,7 +386,11 @@ class EntityEngineCyberia {
     const size = EntityEngineCyberia.ITEM_PREVIEW_PX;
     const placeholder = (display) =>
       html`<div style="width:${size}px;height:${size}px;display:${display};align-items:center;justify-content:center;">
-        <i class="fas fa-image" style="font-size:${Math.round(size / 2)}px;color:#999;"></i>
+        <img
+          src="${getProxyPath()}assets/ui-icons/empty-render.png"
+          alt="Render unavailable"
+          style="width:${Math.round((size * 2) / 3)}px;height:${Math.round((size * 2) / 3)}px;object-fit:contain;image-rendering:pixelated;"
+        />
       </div>`;
     return html`<img
         src="${AtlasSpriteSheetService.idlePreviewUrl(itemId)}"
