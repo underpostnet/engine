@@ -303,6 +303,17 @@ const dynamicColTokens = {};
 // The column widths a layout type takes at a given container width.
 const dynamicColRules = ({ id, type, width, limitCol }) => {
   switch (type) {
+    case 'a-33-b-33-c-33': {
+      const columns = width < limitCol ? 1 : width < limitCol * 1.5 ? 2 : 3;
+      return css`
+        .${id}-col-a, .${id}-col-b {
+          width: ${100 / columns}%;
+        }
+        .${id}-col-c {
+          width: ${columns === 3 ? 100 / 3 : 100}%;
+        }
+      `;
+    }
     case 'a-50-b-50':
       return width < limitCol
         ? css`

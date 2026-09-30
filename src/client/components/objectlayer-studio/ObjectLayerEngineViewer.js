@@ -270,25 +270,106 @@ class ObjectLayerViewer {
         text-align: center;
         color: ${darkTheme ? '#aaa' : '#666'};
       }
-      .webp-placeholder i {
-        font-size: 48px;
-        opacity: 0.3;
-        margin-bottom: 16px;
+      .webp-canvas-container .webp-placeholder img {
+        width: 64px !important;
+        height: 64px !important;
+        margin: 0 auto 16px;
+        background: none;
+        box-shadow: none;
       }
       .webp-placeholder p {
         margin: 0;
         font-size: 14px;
       }
       .object-layer-viewer-container {
+        box-sizing: border-box;
+        width: 100%;
         max-width: 1600px;
         margin: 0 auto;
         padding: 20px;
         font-family: 'retro-font';
       }
 
+      .viewer-columns {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        margin: 0 -10px;
+      }
+
       .viewer-column {
+        display: flex;
+        flex-direction: column;
         box-sizing: border-box;
+        min-width: 0;
         padding: 0 10px;
+        overflow-wrap: anywhere;
+      }
+
+      .viewer-column > .control-group:last-child,
+      .viewer-column > .webp-display-area {
+        flex: 1;
+      }
+
+      .viewer-atlas-panel,
+      .viewer-atlas-panel > .button-group {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .viewer-atlas-panel .atlas-actions-grid {
+        margin-top: auto;
+      }
+
+      .object-layer-viewer-container .metadata-json-editor-container {
+        border-radius: 6px;
+        border: 1px solid ${darkTheme ? '#444' : '#ddd'};
+      }
+
+      .object-layer-viewer-container .metadata-json-editor-container .jse-main {
+        height: auto;
+        min-height: 400px;
+      }
+
+      .viewer-metadata-footer {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .object-layer-viewer-container .control-group,
+      .object-layer-viewer-container .atlas-img-wrapper {
+        box-sizing: border-box;
+        min-width: 0;
+      }
+
+      .object-layer-viewer-container .atlas-img-wrapper {
+        justify-content: safe center;
+      }
+
+      .object-layer-viewer-container .controls-container .button-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+
+      .object-layer-viewer-container button:focus-visible {
+        outline: 2px solid ${darkTheme ? '#8ecfff' : '#1565c0'};
+        outline-offset: 3px;
+      }
+
+      .object-layer-viewer-container .webp-download-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .object-layer-viewer-container .atlas-img-native {
+        flex-shrink: 0;
+      }
+
+      .object-layer-viewer-container .atlas-metadata-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .viewer-header {
@@ -379,13 +460,12 @@ class ObjectLayerViewer {
         border: 2px solid ${darkTheme ? '#444' : '#ddd'};
         border-radius: 12px;
         padding: 30px;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         display: flex;
         justify-content: center;
         align-items: center;
         min-height: 300px;
         height: auto;
-        max-height: 600px;
         position: relative;
         overflow: auto;
       }
@@ -396,7 +476,7 @@ class ObjectLayerViewer {
         justify-content: center;
         align-items: center;
         width: 100%;
-        height: 100%;
+        align-self: stretch;
       }
 
       .webp-canvas-container canvas,
@@ -465,7 +545,7 @@ class ObjectLayerViewer {
         background: ${darkTheme ? '#2a2a2a' : '#fff'};
         border: 1px solid ${darkTheme ? '#444' : '#ddd'};
         border-radius: 8px;
-        padding: 15px 20px;
+        padding: 16px;
       }
 
       .control-group h4 {
@@ -576,7 +656,6 @@ class ObjectLayerViewer {
 
       @media (max-width: 768px) {
         .webp-display-area {
-          max-height: 500px;
           min-height: 300px;
           padding: 20px;
         }
@@ -591,7 +670,6 @@ class ObjectLayerViewer {
 
       @media (max-width: 600px) {
         .webp-display-area {
-          max-height: 400px;
           min-height: 250px;
           padding: 15px;
         }
@@ -652,6 +730,7 @@ class ObjectLayerViewer {
         })()};
         margin-top: 8px;
         display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
         gap: 6px;
         line-height: 1.5;
@@ -670,6 +749,8 @@ class ObjectLayerViewer {
         font-size: 14px;
       }
       .ipfs-cid-label .ipfs-cid-value {
+        flex-basis: 100%;
+        min-width: 0;
         user-select: all;
         cursor: text;
         color: ${(() => {
@@ -971,6 +1052,7 @@ class ObjectLayerViewer {
         <div class="atlas-img-wrapper">
           <img
             src="${AtlasSpriteSheetService.renderUrl({ cid: objectLayer.cid, upscaled })}"
+            alt="${escapeHtml(itemId)} · ${label}"
             class="in atlas-img-preview ${native ? 'atlas-img-native' : ''}"
           />
         </div>
@@ -985,14 +1067,13 @@ class ObjectLayerViewer {
             : html`
                 <div class="viewer-header">
                   <div class="viewer-header-preview">
-                    <i class="fa-solid fa-image"></i>
                     ${objectLayer.data.render?.cid
                       ? html`<img
                           src="${AtlasSpriteSheetService.idlePreviewUrl(objectLayer.cid)}"
                           alt="${escapeHtml(itemId)}"
-                          onerror="this.remove()"
+                          onerror="this.onerror=null; this.src='${getProxyPath()}assets/ui-icons/empty-render.png'; this.alt='Render unavailable';"
                         />`
-                      : ''}
+                      : html`<img src="${getProxyPath()}assets/ui-icons/empty-render.png" alt="No render" />`}
                   </div>
                   <div class="viewer-header-body">
                     <h2>${escapeHtml(itemId)}</h2>
@@ -1023,10 +1104,14 @@ class ObjectLayerViewer {
                   </div>
                 </div>
 
-                ${dynamicCol({ containerSelector: this.id, id: columns, type: 'a-50-b-50' })}
-                <div class="fl">
-                  <div class="in fll viewer-column ${columns}-col-a">
-                    <!-- Identity Section -->
+                ${dynamicCol({
+                  containerSelector: this.id,
+                  id: columns,
+                  type: 'a-33-b-33-c-33',
+                  limit: 800,
+                })}
+                <div class="viewer-columns">
+                  <div class="viewer-column ${columns}-col-a">
                     <div class="control-group" style="margin-bottom: 20px;">
                       <h4><i class="fa-solid fa-fingerprint"></i> Identity</h4>
                       ${objectLayer.cid
@@ -1066,22 +1151,10 @@ class ObjectLayerViewer {
                         : ''}
                     </div>
 
-                    <!-- Metadata JSON Section -->
-                    <div class="control-group" style="margin-bottom: 20px;">
-                      <h4><i class="fa-solid fa-code"></i> Metadata JSON</h4>
-                      <div
-                        class="metadata-json-editor-container"
-                        style="height: 400px; border-radius: 6px; overflow: hidden; border: 1px solid ${darkTheme
-                          ? '#444'
-                          : '#ddd'};"
-                      ></div>
-                    </div>
-
-                    <!-- Stats Data Section -->
                     <div class="control-group" style="margin-bottom: 20px;">
                       <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
                       <div
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 15px; padding: 10px 0;"
                       >
                         ${Object.keys(stats).length > 0
                           ? Object.entries(stats)
@@ -1107,15 +1180,14 @@ class ObjectLayerViewer {
                       </div>
                     </div>
 
-                    <!-- ItemLedger Section: token bindings of this definition, read from the registry -->
                     <div class="control-group" style="margin-bottom: 20px;">
                       <h4><i class="fa-solid fa-link"></i> Ledger</h4>
                       <div class="object-layer-viewer-ledger">${this.ledgerHtml()}</div>
                     </div>
                   </div>
-                  <div class="in fll viewer-column ${columns}-col-b">
+                  <div class="viewer-column ${columns}-col-b">
                     <div class="webp-display-area">
-                      <button class="webp-download-btn">
+                      <button class="webp-download-btn" ${!this.data.webp ? 'disabled' : ''}>
                         <i class="fa-solid fa-download"></i>
                         <span>WebP</span>
                       </button>
@@ -1123,7 +1195,7 @@ class ObjectLayerViewer {
                         ${!this.data.webp
                           ? html`
                               <div class="webp-placeholder">
-                                <i class="fa-solid fa-image"></i>
+                                <img src="${getProxyPath()}assets/ui-icons/empty-render.png" alt="" />
                                 <p>
                                   ${this.data.objectLayer?.data?.render?.cid
                                     ? 'WebP preview will appear here'
@@ -1231,82 +1303,93 @@ class ObjectLayerViewer {
                           </button>
                         </div>
                       </div>
-
                       <div class="control-group">
-                        <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
-                        <div class="button-group" style="flex-direction: column; align-items: flex-start;">
-                          ${this.data.render
-                            ? html`
-                            <div class="atlas-preview-container">
-                              ${atlasRender({ label: 'Primary render', upscaled: false, native: true })}
-                              ${atlasRender({ label: 'Upscaled render', upscaled: true })}
-                              <div class="atlas-metadata-grid">
-                                <div style="grid-column: 1 / -1;">
-                                  <p style="padding: 2px"><strong class="item-data-key-label">Render CID:</strong></p>
-                                  <p class="ipfs-cid-value" style="padding: 2px;">
-                                    ${this.data.render.renderCid}
-                                  </p>
-                                </div>
-                                <div style="grid-column: 1 / -1;">
-                                  <p style="padding: 2px"><strong class="item-data-key-label">Metadata CID:</strong></p>
-                                  <p class="ipfs-cid-value" style="padding: 2px;">
-                                    ${this.data.render.metadataCid}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
-                                  <p style="padding: 2px">${this.data.render.layout.itemKey}</p>
-                                </div>
+                        <h4><i class="fa-solid fa-code"></i> Code</h4>
+                        <output class="viewer-direction-code" aria-live="polite"
+                          >${ObjectLayerViewer.getDirectionCode(this.data.currentDirection, this.data.currentMode) || '—'}</output
+                        >
+                      </div>
+                    </div>
+                  </div>
+                  <div class="viewer-column ${columns}-col-c">
+                    <div class="control-group viewer-atlas-panel" style="margin-bottom: 20px;">
+                      <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
+                      <div class="button-group" style="flex-direction: column; align-items: flex-start;">
+                        ${this.data.render
+                          ? html`
+                          <div class="atlas-preview-container">
+                            ${atlasRender({ label: 'Primary render', upscaled: false, native: true })}
+                            ${atlasRender({ label: 'Upscaled render', upscaled: true })}
+                            <div class="atlas-metadata-grid">
+                              <div style="grid-column: 1 / -1;">
+                                <p style="padding: 2px"><strong class="item-data-key-label">Render CID:</strong></p>
+                                <p class="ipfs-cid-value" style="padding: 2px;">
+                                  ${this.data.render.renderCid}
+                                </p>
+                              </div>
+                              <div style="grid-column: 1 / -1;">
+                                <p style="padding: 2px"><strong class="item-data-key-label">Metadata CID:</strong></p>
+                                <p class="ipfs-cid-value" style="padding: 2px;">
+                                  ${this.data.render.metadataCid}
+                                </p>
+                              </div>
+                              <div>
+                                <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
+                                <p style="padding: 2px">${this.data.render.layout.itemKey}</p>
                               </div>
                             </div>
-                            <div class="atlas-actions-grid">
-                              ${
-                                canMutate
-                                  ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
-                                      <i class="fa-solid fa-sync"></i>
-                                      <span>Update</span>
-                                    </button>`
-                                  : ''
-                              }
-                              <button class="default-viewer-btn download-atlas-png-btn">
-                                <i class="fa-solid fa-download"></i>
-                                <span>PNG</span>
-                              </button>
-                              <button class="default-viewer-btn download-atlas-json-btn">
-                                <i class="fa-solid fa-code"></i>
-                                <span>JSON</span>
-                              </button>
-                              ${
-                                canMutate
-                                  ? html`<button
-                                      class="default-viewer-btn ${this.id}-remove-atlas-btn"
-                                      style="background: #dc3545;"
-                                    >
-                                      <i class="fa-solid fa-trash"></i>
-                                      <span>Remove</span>
-                                    </button>`
-                                  : ''
-                              }
-                            </div>
-                          `
-                            : html`
-                                <p>
-                                  ${this.data.renderUnavailable
-                                    ? `The render is unavailable: ${escapeHtml(this.data.renderUnavailable)}`
-                                    : 'This definition names no render yet.'}
-                                </p>
-                                ${canMutate
-                                  ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
-                                      <i class="fa-solid fa-wand-magic-sparkles"></i>
-                                      <span>Generate Atlas</span>
-                                    </button>`
-                                  : ''}
-                              `}
-                        </div>
+                          </div>
+                          <div class="atlas-actions-grid">
+                            ${
+                              canMutate
+                                ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
+                                    <i class="fa-solid fa-sync"></i>
+                                    <span>Update</span>
+                                  </button>`
+                                : ''
+                            }
+                            <button class="default-viewer-btn download-atlas-png-btn">
+                              <i class="fa-solid fa-download"></i>
+                              <span>PNG</span>
+                            </button>
+                            <button class="default-viewer-btn download-atlas-json-btn">
+                              <i class="fa-solid fa-code"></i>
+                              <span>JSON</span>
+                            </button>
+                            ${
+                              canMutate
+                                ? html`<button
+                                    class="default-viewer-btn ${this.id}-remove-atlas-btn"
+                                    style="background: #dc3545;"
+                                  >
+                                    <i class="fa-solid fa-trash"></i>
+                                    <span>Remove</span>
+                                  </button>`
+                                : ''
+                            }
+                          </div>
+                        `
+                          : html`
+                              <p>
+                                ${this.data.renderUnavailable
+                                  ? `The render is unavailable: ${escapeHtml(this.data.renderUnavailable)}`
+                                  : 'This definition names no render yet.'}
+                              </p>
+                              ${canMutate
+                                ? html`<button class="default-viewer-btn ${this.id}-generate-atlas-btn">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    <span>Generate Atlas</span>
+                                  </button>`
+                                : ''}
+                            `}
                       </div>
                     </div>
                   </div>
                 </div>
+                <footer class="control-group viewer-metadata-footer">
+                  <h4><i class="fa-solid fa-code"></i> Metadata JSON</h4>
+                  <div class="metadata-json-editor-container"></div>
+                </footer>
               `}
         </div>
       `,
@@ -1323,7 +1406,7 @@ class ObjectLayerViewer {
   async displayWebp() {
     const { webp, webpMetadata } = this.data;
     if (!webp || !webpMetadata) return;
-    const { frameCount, frameDuration, currentDirection, currentMode, numericCode } = webpMetadata;
+    const { frameCount, frameDuration, currentDirection, currentMode } = webpMetadata;
     const container = this.el('.webp-canvas-container');
     if (!container) return;
     // Remove one-time placeholder without destroying the rest of the container
@@ -1357,9 +1440,7 @@ class ObjectLayerViewer {
         <span class="info-label" style="margin-left: 8px;">Direction:</span>
         <span>${currentDirection}</span><br />
         <span class="info-label" style="margin-left: 8px;">Mode:</span>
-        <span>${currentMode}</span><br />
-        <span class="info-label" style="margin-left: 8px;">Code:</span>
-        <span>${numericCode}</span>
+        <span>${currentMode}</span>
       `;
     }
   }
@@ -1680,6 +1761,8 @@ class ObjectLayerViewer {
    */
   updateControlsState() {
     const { currentDirection, currentMode, frameCounts } = this.data;
+    const code = this.el('.viewer-direction-code');
+    if (code) code.textContent = ObjectLayerViewer.getDirectionCode(currentDirection, currentMode) || '—';
     const hasFrames = (direction, mode) => {
       const code = ObjectLayerViewer.getDirectionCode(direction, mode);
       return !!(code && frameCounts && frameCounts[code] && frameCounts[code] > 0);
@@ -1716,7 +1799,7 @@ class ObjectLayerViewer {
     }
     const downloadBtn = this.el('.webp-download-btn');
     if (downloadBtn) {
-      downloadBtn.disabled = show;
+      downloadBtn.disabled = show || !this.data.webp;
     }
     // Keep existing info badge visible during loading (removes the layout-shift flicker)
   }
