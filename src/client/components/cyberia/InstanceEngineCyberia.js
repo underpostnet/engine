@@ -6,6 +6,9 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
+import { EditorCrud } from '../core/EditorCrud.js';
+import { EditorLayout } from '../core/EditorLayout.js';
+import { Tabs } from '../core/Tabs.js';
 import { CyberiaInstanceManagement } from '../../services/cyberia-instance/cyberia-instance.management.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
@@ -19,6 +22,7 @@ import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core
 class InstanceEngineCyberia {
   static currentInstanceId = null;
   static currentInstanceCode = null;
+  static crud = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
   static portals = [];
@@ -217,21 +221,12 @@ class InstanceEngineCyberia {
       } else {
         result = await CyberiaInstanceService.post({ body });
       }
-      if (notify) {
-        NotificationManager.Push({
-          html:
-            result.status === 'error'
-              ? result.message
-              : isUpdate
-                ? Translate.instance('success-update-item')
-                : Translate.instance('success-create-item'),
-          status: result.status,
-        });
-      }
+      if (notify) EditorCrud.notify(result, isUpdate ? 'success-update-item' : 'success-create-item');
       if (result.status === 'success') {
         if (result.data?._id) InstanceEngineCyberia.currentInstanceId = result.data._id;
         // A newly saved instance becomes the one the URL points at.
         InstanceEngineCyberia.currentInstanceCode = body.code || null;
+        InstanceEngineCyberia.crud?.refresh();
         setQueryParams({ instanceCode: body.code || null }, { replace: true });
         // The conf is auto-upserted on instance save; persist the AOI radius onto
         // it now that we know the instance code resolves to a conf document.
@@ -248,6 +243,7 @@ class InstanceEngineCyberia {
     const loadInstance = async (instanceData) => {
       InstanceEngineCyberia.currentInstanceId = instanceData._id || null;
       InstanceEngineCyberia.currentInstanceCode = instanceData.code || null;
+      InstanceEngineCyberia.crud?.refresh();
       setQueryParams({ instanceCode: instanceData.code || null }, { replace: true });
       if (s(`.${idCode}`)) s(`.${idCode}`).value = instanceData.code || '';
       if (s(`.${idName}`)) s(`.${idName}`).value = instanceData.name || '';
@@ -352,9 +348,10 @@ class InstanceEngineCyberia {
       if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = conf?.aoiRadius ?? '';
     };
 
-    const resetForm = () => {
+    const newInstance = () => {
       InstanceEngineCyberia.currentInstanceId = null;
       InstanceEngineCyberia.currentInstanceCode = null;
+      InstanceEngineCyberia.crud?.refresh();
       setQueryParams({ instanceCode: null }, { replace: true });
       InstanceEngineCyberia.currentThumbnailId = null;
       InstanceEngineCyberia.thumbnailDirty = false;
@@ -389,6 +386,14 @@ class InstanceEngineCyberia {
       if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = '';
     };
 
+    const resetInstance = async () => {
+      const { status, data, message } = await CyberiaInstanceService.get({
+        id: InstanceEngineCyberia.currentInstanceId,
+      });
+      if (status === 'success' && data) await loadInstance(data);
+      else NotificationManager.Push({ html: message, status: 'error' });
+    };
+
     // ?instanceCode=<code> loads that instance into the form on arrival.
     const loadInstanceByCode = async (code) => {
       if (!code || code === InstanceEngineCyberia.currentInstanceCode) return;
@@ -407,13 +412,24 @@ class InstanceEngineCyberia {
         if (!s(`.${idCode}`)) return;
         const code = queryParams.instanceCode || null;
         if (code) await loadInstanceByCode(code);
-        else if (InstanceEngineCyberia.currentInstanceCode) resetForm();
+        else if (InstanceEngineCyberia.currentInstanceCode) newInstance();
       },
     });
 
     setTimeout(async () => {
-      if (s(`.btn-instance-engine-save`)) s(`.btn-instance-engine-save`).onclick = () => saveInstance();
-      if (s(`.btn-instance-engine-new`)) s(`.btn-instance-engine-new`).onclick = () => resetForm();
+      EditorLayout.pin(s('.instance-engine-container'), 'instance-engine-stage');
+      Tabs.bind(s('.instance-engine-tabs'));
+      InstanceEngineCyberia.crud = EditorCrud.bind(s('.instance-engine-crud'), () => ({
+        subject: 'instance',
+        id: InstanceEngineCyberia.currentInstanceId,
+        name: InstanceEngineCyberia.currentInstanceCode,
+        new: () => {
+          newInstance();
+          Tabs.select(s('.instance-engine-tabs'), 'instance');
+        },
+        reset: resetInstance,
+        ...(canMutate && { save: saveInstance }),
+      }));
       await loadInstanceByCode(getQueryParams().instanceCode);
 
       if (s(`.btn-instance-engine-toggle-thumbnail`))
@@ -679,13 +695,18 @@ class InstanceEngineCyberia {
 
     const managementTableHtml = await CyberiaInstanceManagement.instance({
       idModal: managementId,
-      loadInstanceCallback: loadInstance,
+      loadInstanceCallback: async (instance) => {
+        await loadInstance(instance);
+        Tabs.select(s('.instance-engine-tabs'), 'instance');
+      },
       appStore,
       readyRowDataEvent: {
         'instance-engine-check-deleted': (rowData) => {
           if (InstanceEngineCyberia.currentInstanceId) {
             const stillExists = rowData.some((row) => row._id === InstanceEngineCyberia.currentInstanceId);
-            if (!stillExists) InstanceEngineCyberia.currentInstanceId = null;
+            if (stillExists) return;
+            InstanceEngineCyberia.currentInstanceId = null;
+            InstanceEngineCyberia.crud?.refresh();
           }
         },
       },
@@ -693,359 +714,380 @@ class InstanceEngineCyberia {
 
     const dcFields = 'instance-engine-dc-fields';
     const dcMetaFields = 'instance-engine-dc-meta';
-    const dcSaveNew = 'instance-engine-dc-save-new';
     const dcPortalSource = 'instance-engine-dc-portal-source';
     const dcPortalTarget = 'instance-engine-dc-portal-target';
     const dcPortalFilter = 'instance-engine-dc-portal-filter';
     const dcSpawn = 'instance-engine-dc-spawn';
 
     return html`<div class="in section-mp studio-editor instance-engine-container">
-      ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcFields, type: 'search-inputs' })}
-      <div class="fl">
-        <div class="in fll ${dcFields}-col-a">
-          ${await Input.instance({
-            id: idCode,
-            label: html`Code`,
-            containerClass: 'inl',
-            type: 'text',
-          })}
-        </div>
-        <div class="in fll ${dcFields}-col-b">
-          ${await Input.instance({
-            id: idName,
-            label: html`Name`,
-            containerClass: 'inl',
-            type: 'text',
-          })}
-        </div>
-        <div class="in fll ${dcFields}-col-c">
-          ${await Input.instance({
-            id: idDescription,
-            label: html`Description`,
-            containerClass: 'inl',
-            type: 'text',
-          })}
-        </div>
-      </div>
-      ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcMetaFields, type: 'search-inputs' })}
-      <div class="fl">
-        <div class="in fll ${dcMetaFields}-col-a">
-          ${await Input.instance({
-            id: idTags,
-            label: html`Tags (comma separated)`,
-            containerClass: 'inl',
-            type: 'text',
-          })}
-        </div>
-        <div class="in fll ${dcMetaFields}-col-b">
-          ${await DropDown.instance({
-            id: idStatus,
-            label: html`Status`,
-            data: statusOptions.map((opt) => ({ ...opt })),
-            value: 'unlisted',
-            containerClass: 'inl',
-          })}
-        </div>
-        <div class="in fll ${dcMetaFields}-col-c">
-          <div class="inl">
-            <div class="in input-label">Creator</div>
-            <div class="in instance-engine-creator-display">
-              <span style="color:#888;font-size:12px;">—</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="in section-mp" style="margin-top: 5px;">
-        <div class="in instance-engine-thumbnail-preview" style="margin-bottom: 5px;"></div>
-        ${await BtnIcon.instance({
-          class: 'wfa btn-instance-engine-toggle-thumbnail',
-          label: html`<i class="fa-solid fa-caret-right instance-engine-thumbnail-caret"></i> Thumbnail`,
-        })}
-        <div class="in instance-engine-thumbnail-body hide">
-          ${await InputFile.instance(
-            {
-              id: idThumbnail,
-              multiple: false,
-              extensionsAccept: ['image/png', 'image/jpeg'],
-            },
-            {
-              change: (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  InstanceEngineCyberia.thumbnailDirty = true;
-                  const url = URL.createObjectURL(file);
-                  const preview = s('.instance-engine-thumbnail-preview');
-                  if (preview)
-                    preview.innerHTML = html`<img
-                      src="${url}"
-                      class="in"
-                      style="max-width:300px;height:auto;border:1px solid #555;margin:auto"
-                    />`;
-                }
-              },
-              clear: () => {
-                InstanceEngineCyberia.thumbnailDirty = true;
-                InstanceEngineCyberia.currentThumbnailId = null;
-                const preview = s('.instance-engine-thumbnail-preview');
-                if (preview) preview.innerHTML = '';
-              },
-            },
-          )}
-        </div>
-      </div>
-      <div class="in section-mp" style="margin-top: 10px;">
-        ${await DropDown.instance({
-          id: idMapCodesDropdown,
-          label: html`Cyberia Map Codes`,
-          data: [],
-          type: 'checkbox',
-          containerClass: 'inl',
-          excludeSelected: true,
-          serviceProvider: async (q) => {
-            const result = await CyberiaMapService.searchCodes({ q });
-            if (result.status === 'success' && result.data?.codes) {
-              return result.data.codes.map((code) => ({
-                value: code,
-                display: code,
-                data: code,
-                onClick: () => {},
-              }));
-            }
-            return [];
+      ${EditorCrud.render({ id: 'instance-engine-crud', label: 'Instance' })}
+      ${Tabs.render({
+        id: 'instance-engine-tabs',
+        label: 'Instance tools',
+        tabs: [
+          {
+            id: 'instance',
+            label: 'Instance',
+            icon: 'fa-solid fa-circle-info',
+            content: html`
+              ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcFields, type: 'search-inputs' })}
+              <div class="fl">
+                <div class="in fll ${dcFields}-col-a">
+                  ${await Input.instance({
+                    id: idCode,
+                    label: html`Code`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in fll ${dcFields}-col-b">
+                  ${await Input.instance({
+                    id: idName,
+                    label: html`Name`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in fll ${dcFields}-col-c">
+                  ${await Input.instance({
+                    id: idDescription,
+                    label: html`Description`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+              </div>
+              ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcMetaFields, type: 'search-inputs' })}
+              <div class="fl">
+                <div class="in fll ${dcMetaFields}-col-a">
+                  ${await Input.instance({
+                    id: idTags,
+                    label: html`Tags (comma separated)`,
+                    containerClass: 'inl',
+                    type: 'text',
+                  })}
+                </div>
+                <div class="in fll ${dcMetaFields}-col-b">
+                  ${await DropDown.instance({
+                    id: idStatus,
+                    label: html`Status`,
+                    data: statusOptions.map((opt) => ({ ...opt })),
+                    value: 'unlisted',
+                    containerClass: 'inl',
+                  })}
+                </div>
+                <div class="in fll ${dcMetaFields}-col-c">
+                  <div class="inl">
+                    <div class="in input-label">Creator</div>
+                    <div class="in instance-engine-creator-display">
+                      <span style="color:#888;font-size:12px;">—</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="in section-mp" style="margin-top: 5px;">
+                <div class="in instance-engine-thumbnail-preview" style="margin-bottom: 5px;"></div>
+                ${await BtnIcon.instance({
+                  class: 'wfa btn-instance-engine-toggle-thumbnail',
+                  label: html`<i class="fa-solid fa-caret-right instance-engine-thumbnail-caret"></i> Thumbnail`,
+                })}
+                <div class="in instance-engine-thumbnail-body hide">
+                  ${await InputFile.instance(
+                    {
+                      id: idThumbnail,
+                      multiple: false,
+                      extensionsAccept: ['image/png', 'image/jpeg'],
+                    },
+                    {
+                      change: (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          InstanceEngineCyberia.thumbnailDirty = true;
+                          const url = URL.createObjectURL(file);
+                          const preview = s('.instance-engine-thumbnail-preview');
+                          if (preview)
+                            preview.innerHTML = html`<img
+                              src="${url}"
+                              class="in"
+                              style="max-width:300px;height:auto;border:1px solid #555;margin:auto"
+                            />`;
+                        }
+                      },
+                      clear: () => {
+                        InstanceEngineCyberia.thumbnailDirty = true;
+                        InstanceEngineCyberia.currentThumbnailId = null;
+                        const preview = s('.instance-engine-thumbnail-preview');
+                        if (preview) preview.innerHTML = '';
+                      },
+                    },
+                  )}
+                </div>
+              </div>
+            `,
           },
-        })}
-      </div>
-      <div class="in section-mp" style="margin-top: 10px;">
-        <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Portals</div>
-        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalSource, type: 'search-inputs' })}
-        <div class="fl">
-          <div class="in fll ${dcPortalSource}-col-a">
-            ${await Input.instance({
-              id: idSourceMapCode,
-              label: html`Source Map Code`,
-              containerClass: 'inl',
-              type: 'text',
-            })}
-          </div>
-          <div class="in fll ${dcPortalSource}-col-b">
-            ${await Input.instance({
-              id: idSourceCellX,
-              label: html`Source Cell X`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 0,
-              value: 0,
-            })}
-          </div>
-          <div class="in fll ${dcPortalSource}-col-c">
-            ${await Input.instance({
-              id: idSourceCellY,
-              label: html`Source Cell Y`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 0,
-              value: 0,
-            })}
-          </div>
-        </div>
-        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalTarget, type: 'search-inputs' })}
-        <div class="fl">
-          <div class="in fll ${dcPortalTarget}-col-a">
-            ${await Input.instance({
-              id: idTargetMapCode,
-              label: html`Target Map Code`,
-              containerClass: 'inl',
-              type: 'text',
-            })}
-          </div>
-          <div class="in fll ${dcPortalTarget}-col-b">
-            ${await Input.instance({
-              id: idTargetCellX,
-              label: html`Target Cell X`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 0,
-              value: 0,
-            })}
-          </div>
-          <div class="in fll ${dcPortalTarget}-col-c">
-            ${await Input.instance({
-              id: idTargetCellY,
-              label: html`Target Cell Y`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 0,
-              value: 0,
-            })}
-          </div>
-        </div>
-        <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;">
-          ${await BtnIcon.instance({
-            class: 'wfa btn-instance-engine-add-portal',
-            label: html`<i class="fa-solid fa-plus"></i> Add Portal`,
-          })}
-          ${await BtnIcon.instance({
-            class: 'wfa btn-instance-engine-portal-connect',
-            label: html`<i class="fa-solid fa-circle-nodes"></i> Portal Connector`,
-          })}
-        </div>
-        <div class="in" style="margin-top: 10px;">
-          ${await BtnIcon.instance({
-            class: 'wfa btn-instance-engine-toggle-portal-filter',
-            label: html`<i class="fa-solid fa-caret-right instance-engine-portal-filter-caret"></i> Filters`,
-          })}
-          <div class="in instance-engine-portal-filter-body hide">
-            ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalFilter, type: 'a-50-b-50' })}
-            <div class="fl">
-              <div class="in fll ${dcPortalFilter}-col-a">
-                ${await Input.instance({
-                  id: idFilterSource,
-                  label: html`Source Map Code`,
+          {
+            id: 'maps',
+            label: 'Maps',
+            icon: 'fa-solid fa-map',
+            content: html`
+              <div class="in section-mp" style="margin-top: 10px;">
+                ${await DropDown.instance({
+                  id: idMapCodesDropdown,
+                  label: html`Cyberia Map Codes`,
+                  data: [],
+                  type: 'checkbox',
                   containerClass: 'inl',
-                  type: 'text',
-                  placeholder: true,
+                  excludeSelected: true,
+                  serviceProvider: async (q) => {
+                    const result = await CyberiaMapService.searchCodes({ q });
+                    if (result.status === 'success' && result.data?.codes) {
+                      return result.data.codes.map((code) => ({
+                        value: code,
+                        display: code,
+                        data: code,
+                        onClick: () => {},
+                      }));
+                    }
+                    return [];
+                  },
                 })}
               </div>
-              <div class="in fll ${dcPortalFilter}-col-b">
-                ${await Input.instance({
-                  id: idFilterTarget,
-                  label: html`Target Map Code`,
-                  containerClass: 'inl',
-                  type: 'text',
-                  placeholder: true,
-                })}
+              <div class="in section-mp" style="margin-top: 10px;">
+                <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Portals</div>
+                ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalSource, type: 'search-inputs' })}
+                <div class="fl">
+                  <div class="in fll ${dcPortalSource}-col-a">
+                    ${await Input.instance({
+                      id: idSourceMapCode,
+                      label: html`Source Map Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dcPortalSource}-col-b">
+                    ${await Input.instance({
+                      id: idSourceCellX,
+                      label: html`Source Cell X`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                  <div class="in fll ${dcPortalSource}-col-c">
+                    ${await Input.instance({
+                      id: idSourceCellY,
+                      label: html`Source Cell Y`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                </div>
+                ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalTarget, type: 'search-inputs' })}
+                <div class="fl">
+                  <div class="in fll ${dcPortalTarget}-col-a">
+                    ${await Input.instance({
+                      id: idTargetMapCode,
+                      label: html`Target Map Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dcPortalTarget}-col-b">
+                    ${await Input.instance({
+                      id: idTargetCellX,
+                      label: html`Target Cell X`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                  <div class="in fll ${dcPortalTarget}-col-c">
+                    ${await Input.instance({
+                      id: idTargetCellY,
+                      label: html`Target Cell Y`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-instance-engine-add-portal',
+                    label: html`<i class="fa-solid fa-plus"></i> Add Portal`,
+                  })}
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-instance-engine-portal-connect',
+                    label: html`<i class="fa-solid fa-circle-nodes"></i> Portal Connector`,
+                  })}
+                </div>
+                <div class="in" style="margin-top: 10px;">
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-instance-engine-toggle-portal-filter',
+                    label: html`<i class="fa-solid fa-caret-right instance-engine-portal-filter-caret"></i> Filters`,
+                  })}
+                  <div class="in instance-engine-portal-filter-body hide">
+                    ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalFilter, type: 'a-50-b-50' })}
+                    <div class="fl">
+                      <div class="in fll ${dcPortalFilter}-col-a">
+                        ${await Input.instance({
+                          id: idFilterSource,
+                          label: html`Source Map Code`,
+                          containerClass: 'inl',
+                          type: 'text',
+                          placeholder: true,
+                        })}
+                      </div>
+                      <div class="in fll ${dcPortalFilter}-col-b">
+                        ${await Input.instance({
+                          id: idFilterTarget,
+                          label: html`Target Map Code`,
+                          containerClass: 'inl',
+                          type: 'text',
+                          placeholder: true,
+                        })}
+                      </div>
+                    </div>
+                    <div class="in" style="margin-top:5px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-instance-engine-clear-portal-filter',
+                        label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div class="in ${portalListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
               </div>
-            </div>
-            <div class="in" style="margin-top:5px;">
-              ${await BtnIcon.instance({
-                class: 'wfa btn-instance-engine-clear-portal-filter',
-                label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
-              })}
-            </div>
-          </div>
-        </div>
-        <div class="in ${portalListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
-      </div>
-      <div class="in section-mp" style="margin-top: 10px;">
-        <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Player Spawn &amp; World</div>
-        <div class="in" style="font-size:12px;color:#888;margin-bottom:6px;">
-          Fixed spawn places every new player at the cell below. Enable Random (or leave the map code blank) to spawn at
-          a random walkable cell on a random map.
-        </div>
-        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSpawn, type: 'search-inputs' })}
-        <div class="fl">
-          <div class="in fll ${dcSpawn}-col-a">
-            ${await Input.instance({
-              id: idSpawnMapCode,
-              label: html`Spawn Map Code`,
-              containerClass: 'inl',
-              type: 'text',
-            })}
-          </div>
-          <div class="in fll ${dcSpawn}-col-b">
-            ${await Input.instance({
-              id: idSpawnCellX,
-              label: html`Spawn Cell X`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 0,
-              value: 0,
-            })}
-          </div>
-          <div class="in fll ${dcSpawn}-col-c">
-            ${await Input.instance({
-              id: idSpawnCellY,
-              label: html`Spawn Cell Y`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 0,
-              value: 0,
-            })}
-          </div>
-        </div>
-        <div class="in" style="margin-top:6px;">
-          <label style="font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-            <input class="${idSpawnRandom}" type="checkbox" style="cursor:pointer;" /> Random spawn (ignore the fixed
-            cell)
-          </label>
-        </div>
-        <div class="in" style="margin-top:10px;">
-          ${await Input.instance({
-            id: idAoiRadius,
-            label: html`AOI Radius (cells)`,
-            containerClass: 'inl',
-            type: 'number',
-            min: 1,
-          })}
-        </div>
-      </div>
-      ${canMutate
-        ? html`<div class="in section-mp" style="margin-top: 10px;">
-            <div class="in" style="color:#888;font-size:12px;margin-bottom:6px;">
-              Points this instance's conf at every entity-type default the maps selected above actually place —
-              matched the way the runtime matches them, by live item ids — and at every skill their items trigger.
-              References whose document is gone, and skills nothing carries, are dropped. Saves the instance first,
-              so the maps it syncs against are the ones on screen.
-            </div>
-            ${await BtnIcon.instance({
-              class: 'wfa btn-instance-engine-sync-entities',
-              label: html`<i class="fa-solid fa-diagram-project"></i> Sync Entity Type Defaults`,
-            })}
-            <div class="in instance-engine-sync-entities-status" style="margin-top:5px;font-size:12px;"></div>
-          </div>
-          <div class="in section-mp" style="margin-top: 10px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-instance-engine-toggle-hot-reload',
-              label: html`<i class="fa-solid fa-caret-right instance-engine-hot-reload-caret"></i> Hot Reload`,
-            })}
-            <div class="in instance-engine-hot-reload-body hide">
-              <div class="in" style="color:#888;font-size:12px;margin:5px 0;">
-                Rebuilds the world of a running cyberia-server for this instance now, instead of waiting for its polling
-                interval. Tries the gRPC control service first and falls back to the REST endpoint. For a multi-instance
-                deployment, append the variant sub-path so the trigger reaches the right world (e.g.
-                <code>https://server.cyberiaonline.com/FOREST</code>); the default world uses the bare origin.
+            `,
+          },
+          {
+            id: 'world',
+            label: 'World',
+            icon: 'fa-solid fa-earth-americas',
+            content: html`
+              <div class="in section-mp" style="margin-top: 10px;">
+                <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Player Spawn &amp; World</div>
+                <div class="in" style="font-size:12px;color:#888;margin-bottom:6px;">
+                  Fixed spawn places every new player at the cell below. Enable Random (or leave the map code blank) to
+                  spawn at a random walkable cell on a random map.
+                </div>
+                ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSpawn, type: 'search-inputs' })}
+                <div class="fl">
+                  <div class="in fll ${dcSpawn}-col-a">
+                    ${await Input.instance({
+                      id: idSpawnMapCode,
+                      label: html`Spawn Map Code`,
+                      containerClass: 'inl',
+                      type: 'text',
+                    })}
+                  </div>
+                  <div class="in fll ${dcSpawn}-col-b">
+                    ${await Input.instance({
+                      id: idSpawnCellX,
+                      label: html`Spawn Cell X`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                  <div class="in fll ${dcSpawn}-col-c">
+                    ${await Input.instance({
+                      id: idSpawnCellY,
+                      label: html`Spawn Cell Y`,
+                      containerClass: 'inl',
+                      type: 'number',
+                      min: 0,
+                      value: 0,
+                    })}
+                  </div>
+                </div>
+                <div class="in" style="margin-top:6px;">
+                  <label style="font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                    <input class="${idSpawnRandom}" type="checkbox" style="cursor:pointer;" /> Random spawn (ignore the
+                    fixed cell)
+                  </label>
+                </div>
+                <div class="in" style="margin-top:10px;">
+                  ${await Input.instance({
+                    id: idAoiRadius,
+                    label: html`AOI Radius (cells)`,
+                    containerClass: 'inl',
+                    type: 'number',
+                    min: 1,
+                  })}
+                </div>
               </div>
-              ${await Input.instance({
-                id: idHotReloadUrl,
-                label: html`<i class="fa-solid fa-server"></i> Cyberia Server URL`,
-                containerClass: 'in',
-                placeholder: 'https://server.cyberiaonline.com/FOREST',
-                type: 'text',
-              })}
-              <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
-                ${await BtnIcon.instance({
-                  class: 'wfa btn-instance-engine-hot-reload',
-                  label: html`<i class="fa-solid fa-rotate"></i> Trigger Hot Reload`,
-                })}
-                ${await BtnIcon.instance({
-                  class: 'wfa btn-instance-engine-hot-reload-incremental',
-                  label: html`<i class="fa-solid fa-layer-group"></i> Incremental (assets only)`,
-                })}
-              </div>
-              <div class="in instance-engine-hot-reload-status" style="margin-top:5px;font-size:12px;"></div>
-            </div>
-          </div>`
-        : ''}
-      <div class="in section-mp" style="margin-top: 10px;">
-        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
-        <div class="fl">
-          ${canMutate
-            ? html`<div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
-                ${await BtnIcon.instance({
-                  class: 'wfa btn-instance-engine-save',
-                  label: html`<i class="fa-solid fa-floppy-disk"></i> Save Instance`,
-                })}
-              </div>`
-            : ''}
-          <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
-            ${await BtnIcon.instance({
-              class: 'wfa btn-instance-engine-new',
-              label: html`<i class="fa-solid fa-file"></i> New Instance`,
-            })}
-          </div>
-        </div>
-        <div class="in" style="margin-top: 10px;">${managementTableHtml}</div>
-      </div>
+            `,
+          },
+          ...(canMutate
+            ? [
+                {
+                  id: 'runtime',
+                  label: 'Runtime',
+                  icon: 'fa-solid fa-server',
+                  content: html`<div class="in section-mp" style="margin-top: 10px;">
+                      <div class="in" style="color:#888;font-size:12px;margin-bottom:6px;">
+                        Points this instance's conf at every entity-type default the maps of the Maps tab actually place
+                        — matched the way the runtime matches them, by live item ids — and at every skill their items
+                        trigger. References whose document is gone, and skills nothing carries, are dropped. Saves the
+                        instance first, so the maps it syncs against are the ones in the form.
+                      </div>
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-instance-engine-sync-entities',
+                        label: html`<i class="fa-solid fa-diagram-project"></i> Sync Entity Type Defaults`,
+                      })}
+                      <div class="in instance-engine-sync-entities-status" style="margin-top:5px;font-size:12px;"></div>
+                    </div>
+                    <div class="in section-mp" style="margin-top: 10px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-instance-engine-toggle-hot-reload',
+                        label: html`<i class="fa-solid fa-caret-right instance-engine-hot-reload-caret"></i> Hot Reload`,
+                      })}
+                      <div class="in instance-engine-hot-reload-body hide">
+                        <div class="in" style="color:#888;font-size:12px;margin:5px 0;">
+                          Rebuilds the world of a running cyberia-server for this instance now, instead of waiting for
+                          its polling interval. Tries the gRPC control service first and falls back to the REST
+                          endpoint. For a multi-instance deployment, append the variant sub-path so the trigger reaches
+                          the right world (e.g.
+                          <code>https://server.cyberiaonline.com/FOREST</code>); the default world uses the bare origin.
+                        </div>
+                        ${await Input.instance({
+                          id: idHotReloadUrl,
+                          label: html`<i class="fa-solid fa-server"></i> Cyberia Server URL`,
+                          containerClass: 'in',
+                          placeholder: 'https://server.cyberiaonline.com/FOREST',
+                          type: 'text',
+                        })}
+                        <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
+                          ${await BtnIcon.instance({
+                            class: 'wfa btn-instance-engine-hot-reload',
+                            label: html`<i class="fa-solid fa-rotate"></i> Trigger Hot Reload`,
+                          })}
+                          ${await BtnIcon.instance({
+                            class: 'wfa btn-instance-engine-hot-reload-incremental',
+                            label: html`<i class="fa-solid fa-layer-group"></i> Incremental (assets only)`,
+                          })}
+                        </div>
+                        <div class="in instance-engine-hot-reload-status" style="margin-top:5px;font-size:12px;"></div>
+                      </div>
+                    </div>`,
+                },
+              ]
+            : []),
+          {
+            id: 'library',
+            label: 'Library',
+            icon: 'fa-solid fa-folder-open',
+            content: html`${managementTableHtml}`,
+          },
+        ],
+      })}
     </div>`;
   }
 }

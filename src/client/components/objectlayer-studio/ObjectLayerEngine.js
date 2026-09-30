@@ -288,6 +288,24 @@ class ObjectLayerEngineElement extends HTMLElement {
           border-color: currentColor;
           box-shadow: 0 0 0 2px var(--ring);
         }
+        .text-btn {
+          appearance: none;
+          background: transparent;
+          border: 1px solid var(--rule);
+          border-radius: 6px;
+          color: inherit;
+          cursor: pointer;
+          font: inherit;
+          font-size: 13px;
+          padding: 5px 10px;
+        }
+        .text-btn:hover:not(:disabled) {
+          background: var(--hover);
+        }
+        .text-btn:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
 
         /* A rule between groups, so the toolbar reads as sections rather than one long row. */
         .sep {
@@ -402,7 +420,8 @@ class ObjectLayerEngineElement extends HTMLElement {
             </div>
           </div>
         </div>`,
-        tools: html`<div class="controls">
+        tools: html`<slot name="actions"></slot>
+          <div class="controls">
             <div class="toolbar">
               ${iconButton('undo', 'undo', 'Undo (Ctrl+Z)')} ${iconButton('redo', 'redo', 'Redo (Ctrl+Shift+Z)')}
 
@@ -499,17 +518,23 @@ class ObjectLayerEngineElement extends HTMLElement {
             <!-- Replace global color: both colors lock from the brush color. -->
             <div class="toolbar">
               <span class="hint">Replace global color</span>
-              <button part="lock-source" type="button" title="Lock the brush color as the color to replace">
+              <button
+                part="lock-source"
+                class="text-btn"
+                type="button"
+                title="Lock the brush color as the color to replace"
+              >
                 Lock Source Color
               </button>
               <span class="swatch" style="${renderChessPattern(8)}"><span part="source-swatch"></span></span>
               <span aria-hidden="true">→</span>
-              <button part="lock-target" type="button" title="Lock the brush color as the new color">
+              <button part="lock-target" class="text-btn" type="button" title="Lock the brush color as the new color">
                 Lock Target Color
               </button>
               <span class="swatch" style="${renderChessPattern(8)}"><span part="target-swatch"></span></span>
               <button
                 part="global-replace"
+                class="text-btn"
                 type="button"
                 title="Replace every cell of the source color on the canvas with the target color"
               >
@@ -528,9 +553,9 @@ class ObjectLayerEngineElement extends HTMLElement {
 
               <span class="sep"></span>
 
-              <button part="export">Export PNG</button>
-              <button part="export-json">Export JSON</button>
-              <button part="import-json">Import JSON</button>
+              <button part="export" class="text-btn" type="button">Export PNG</button>
+              <button part="export-json" class="text-btn" type="button">Export JSON</button>
+              <button part="import-json" class="text-btn" type="button">Import JSON</button>
             </div>
 
             <!-- Everything the selection can do, shown only while select mode is on. -->

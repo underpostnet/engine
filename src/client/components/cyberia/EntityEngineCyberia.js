@@ -1,11 +1,12 @@
+import { getProxyPath } from '../core/Router.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { Translate } from '../core/Translate.js';
 import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { AgGrid } from '../core/AgGrid.js';
+import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorLayout } from '../core/EditorLayout.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
@@ -28,6 +29,7 @@ const dropdownOption = (value) => ({ value, display: value, data: value, onClick
 class EntityEngineCyberia {
   static listCache = [];
   static currentId = null;
+  static crud = null;
 
   // Editable working copies of the array fields for the loaded document.
   static liveItemIds = [];
@@ -526,18 +528,6 @@ class EntityEngineCyberia {
     EntityEngineCyberia.renderInstanceList();
   }
 
-  static notifyResult(result, isUpdate) {
-    NotificationManager.Push({
-      html:
-        result.status === 'error'
-          ? result.message
-          : isUpdate
-            ? Translate.instance('success-update-item')
-            : Translate.instance('success-create-item'),
-      status: result.status,
-    });
-  }
-
   // ── Payload / load / persistence ──────────────────────────────────────────
   static getPayload() {
     return {
@@ -576,10 +566,11 @@ class EntityEngineCyberia {
     for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
     EntityEngineCyberia.renderOverrideList();
     EntityEngineCyberia.renderInstanceList();
+    EntityEngineCyberia.crud?.refresh();
     NotificationManager.Push({ html: `Entity default "${doc.entityType}" loaded`, status: 'success' });
   }
 
-  static reset() {
+  static newDefault() {
     EntityEngineCyberia.currentId = null;
     EntityEngineCyberia.liveItemIds = [];
     EntityEngineCyberia.deadItemIds = [];
@@ -592,6 +583,7 @@ class EntityEngineCyberia {
     for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
     EntityEngineCyberia.renderOverrideList();
     EntityEngineCyberia.renderInstanceList();
+    EntityEngineCyberia.crud?.refresh();
   }
 
   static validate(body) {
@@ -617,71 +609,51 @@ class EntityEngineCyberia {
     return true;
   }
 
-  // Save: create-or-update by whether a row is loaded. Use Update for an explicit
-  // update of the loaded row, or Clone to force a new copy.
+  /** The loaded default as the CRUD bar names it: its entity type and live item ids. */
+  static currentName() {
+    const doc = EntityEngineCyberia.listCache.find(({ _id }) => _id === EntityEngineCyberia.currentId);
+    return doc ? `${doc.entityType} (${(doc.liveItemIds || []).join(', ')})` : '';
+  }
+
+  /** Reloads the stored default over unsaved changes. */
+  static async reset() {
+    const { status, data, message } = await CyberiaEntityTypeDefaultService.get({ id: EntityEngineCyberia.currentId });
+    if (status === 'success' && data) EntityEngineCyberia.load(data);
+    else NotificationManager.Push({ html: message, status: 'error' });
+  }
+
   static async save() {
     const body = EntityEngineCyberia.getPayload();
     if (!EntityEngineCyberia.validate(body)) return;
-    const isUpdate = !!EntityEngineCyberia.currentId;
-    const result = isUpdate
-      ? await CyberiaEntityTypeDefaultService.put({ id: EntityEngineCyberia.currentId, body })
-      : await CyberiaEntityTypeDefaultService.post({ body });
-    EntityEngineCyberia.notifyResult(result, isUpdate);
-    if (result.status === 'success') {
-      if (result.data?._id) EntityEngineCyberia.currentId = result.data._id;
-      await EntityEngineCyberia.persistInstanceLinks();
-      await EntityEngineCyberia.refreshList();
-    }
+    const result = await EditorCrud.save(CyberiaEntityTypeDefaultService, { id: EntityEngineCyberia.currentId, body });
+    if (result.status !== 'success') return;
+    if (result.data?._id) EntityEngineCyberia.currentId = result.data._id;
+    await EntityEngineCyberia.persistInstanceLinks();
+    await EntityEngineCyberia.refreshList();
   }
 
   // Update: explicitly persist the loaded row (PUT). Requires a loaded document.
-  static async update() {
-    if (!EntityEngineCyberia.currentId) {
-      NotificationManager.Push({ html: 'Load an entity default to update first.', status: 'warning' });
-      return;
-    }
-    const body = EntityEngineCyberia.getPayload();
-    if (!EntityEngineCyberia.validate(body)) return;
-    const result = await CyberiaEntityTypeDefaultService.put({ id: EntityEngineCyberia.currentId, body });
-    EntityEngineCyberia.notifyResult(result, true);
-    if (result.status === 'success') {
-      await EntityEngineCyberia.persistInstanceLinks();
-      await EntityEngineCyberia.refreshList();
-    }
-  }
-
-  // Clone: create a NEW document from the current form values (POST), then load
-  // the created copy. Subset matching allows shared itemIds, so a near-duplicate
-  // default is valid — typically the author then tweaks behavior or live ids.
+  // Clone posts the form as a new default and holds the copy. Subset matching allows shared item
+  // ids, so a near duplicate is valid: the author then tweaks its behavior or live ids.
   static async clone() {
     const body = EntityEngineCyberia.getPayload();
     if (!EntityEngineCyberia.validate(body)) return;
-    EntityEngineCyberia.currentId = null;
-    const result = await CyberiaEntityTypeDefaultService.post({ body });
-    EntityEngineCyberia.notifyResult(result, false);
-    if (result.status === 'success') {
-      if (result.data?._id) EntityEngineCyberia.currentId = result.data._id;
-      await EntityEngineCyberia.persistInstanceLinks();
-      await EntityEngineCyberia.refreshList();
-      NotificationManager.Push({ html: 'Cloned into a new entity default.', status: 'success' });
-    }
+    const { result } = await EditorCrud.clone(CyberiaEntityTypeDefaultService, body);
+    if (result.status !== 'success') return;
+    EntityEngineCyberia.currentId = result.data?._id ?? null;
+    await EntityEngineCyberia.persistInstanceLinks();
+    await EntityEngineCyberia.refreshList();
   }
 
   static async delete() {
-    const targetId = EntityEngineCyberia.currentId;
-    if (!targetId) {
-      NotificationManager.Push({ html: 'Load an entity default to delete first.', status: 'warning' });
-      return;
-    }
-    const result = await CyberiaEntityTypeDefaultService.delete({ id: targetId });
-    NotificationManager.Push({
-      html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
-      status: result.status,
+    const result = await EditorCrud.remove(CyberiaEntityTypeDefaultService, {
+      id: EntityEngineCyberia.currentId,
+      subject: 'entity default',
+      name: EntityEngineCyberia.currentName(),
     });
-    if (result.status === 'success') {
-      EntityEngineCyberia.reset();
-      await EntityEngineCyberia.refreshList();
-    }
+    if (result?.status !== 'success') return;
+    EntityEngineCyberia.newDefault();
+    await EntityEngineCyberia.refreshList();
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -736,11 +708,18 @@ class EntityEngineCyberia {
         s('.btn-entity-engine-add-override').onclick = () => EntityEngineCyberia.addOverride();
       if (s('.btn-entity-engine-add-instance'))
         s('.btn-entity-engine-add-instance').onclick = () => EntityEngineCyberia.addInstance();
-      if (s('.btn-entity-engine-save')) s('.btn-entity-engine-save').onclick = () => EntityEngineCyberia.save();
-      if (s('.btn-entity-engine-update')) s('.btn-entity-engine-update').onclick = () => EntityEngineCyberia.update();
-      if (s('.btn-entity-engine-clone')) s('.btn-entity-engine-clone').onclick = () => EntityEngineCyberia.clone();
-      if (s('.btn-entity-engine-delete')) s('.btn-entity-engine-delete').onclick = () => EntityEngineCyberia.delete();
-      if (s('.btn-entity-engine-new')) s('.btn-entity-engine-new').onclick = () => EntityEngineCyberia.reset();
+      EntityEngineCyberia.crud = EditorCrud.bind(container.querySelector('.entity-engine-crud'), () => ({
+        subject: 'entity default',
+        id: EntityEngineCyberia.currentId,
+        name: EntityEngineCyberia.currentName(),
+        new: () => EntityEngineCyberia.newDefault(),
+        reset: () => EntityEngineCyberia.reset(),
+        ...(EntityEngineCyberia.canMutate && {
+          save: () => EntityEngineCyberia.save(),
+          clone: () => EntityEngineCyberia.clone(),
+          delete: () => EntityEngineCyberia.delete(),
+        }),
+      }));
       if (s('.btn-entity-engine-refresh'))
         s('.btn-entity-engine-refresh').onclick = () => EntityEngineCyberia.refreshList();
 
@@ -815,7 +794,8 @@ class EntityEngineCyberia {
             },
           },
         }),
-        tools: html`${group(
+        tools: html`${EditorCrud.render({ id: 'entity-engine-crud', label: 'Entity default' })}
+          ${group(
             'Entity Default',
             'fa-solid fa-circle-info',
             html`<div class="in" style="margin-bottom:8px;">
@@ -904,46 +884,6 @@ class EntityEngineCyberia {
                 </div>
               </div>
               <div class="in entity-engine-instance-list" style="margin-top:8px;"></div>`,
-          )}
-          ${group(
-            'Save Entity Default',
-            'fa-solid fa-floppy-disk',
-            html`<div class="fl" style="margin-top:4px;flex-wrap:wrap;">
-              ${
-                EntityEngineCyberia.canMutate
-                  ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
-                        ${await BtnIcon.instance({
-                        class: 'wfa btn-entity-engine-save',
-                        label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
-                      })}
-                      </div>
-                      <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                        ${await BtnIcon.instance({
-                        class: 'wfa btn-entity-engine-update',
-                        label: html`<i class="fa-solid fa-pen-to-square"></i> Update`,
-                      })}
-                      </div>
-                      <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                        ${await BtnIcon.instance({
-                        class: 'wfa btn-entity-engine-clone',
-                        label: html`<i class="fa-solid fa-clone"></i> Clone`,
-                      })}
-                      </div>
-                      <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                        ${await BtnIcon.instance({
-                        class: 'wfa btn-entity-engine-delete',
-                        label: html`<i class="fa-solid fa-trash"></i> Delete`,
-                      })}
-                      </div>`
-                  : ''
-              }
-              <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                ${await BtnIcon.instance({
-                  class: 'wfa btn-entity-engine-new',
-                  label: html`<i class="fa-solid fa-file"></i> New`,
-                })}
-              </div>
-            </div>`,
           )}`,
       })}
     </div>`;

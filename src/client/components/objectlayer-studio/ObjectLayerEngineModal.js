@@ -27,8 +27,10 @@ import { renderTemplate, templateSuits } from './PixelTemplate.js';
 import { transformImportedFrames } from './FrameMutation.js';
 import { contextPanelStyle, mountContextPanel } from './ObjectLayerContextPanel.js';
 import { ObjectLayerPalettePanel, palettePanelStyle } from './ObjectLayerPalettePanel.js';
+import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorDraftStore } from '../core/EditorDraftStore.js';
 import { EditorLayout } from '../core/EditorLayout.js';
+import { Tabs } from '../core/Tabs.js';
 import '../core/ColorPaletteElement.js';
 
 const CANVAS_BEHAVIOR_ICON = 'fa-solid fa-shapes';
@@ -979,7 +981,6 @@ class ObjectLayerEngineModal {
     const cellsH = loadedData?.renderSource?.height || 16;
     // const pixelSize = parseInt(320 / Math.max(cellsW, cellsH));
     const pixelSize = 30;
-    const idSectionA = 'template-section-a';
     const idSectionB = 'template-section-b';
     const colorPaletteClass = 'ol-color-palette';
     let directionPreviewRuntime = null;
@@ -1554,6 +1555,10 @@ class ObjectLayerEngineModal {
         canvas: editor.exportMatrixJSON(),
       });
       scheduleDraft = () => draft.save(draftState());
+      const discardDraft = async () => {
+        draft.cancel();
+        await EditorDraftStore.remove(draftKey);
+      };
       for (const type of ['command', 'undo', 'redo']) editor.addEventListener(type, scheduleDraft);
 
       const restoreDraft = async (value) => {
@@ -1582,7 +1587,7 @@ class ObjectLayerEngineModal {
           id: 'ol-draft-recover-confirm',
         });
         if (answer.status === 'confirm') await restoreDraft(stored.value);
-        else await EditorDraftStore.remove(draftKey);
+        else await discardDraft();
       }
 
       // Takes the frames of every direction and the frame duration from another object layer, in the
@@ -1820,8 +1825,7 @@ class ObjectLayerEngineModal {
           : await ObjectLayerService.post({ body });
 
         if (status === 'success') {
-          draft.cancel();
-          await EditorDraftStore.remove(draftKey);
+          await discardDraft();
           AtlasSpriteSheetService.invalidateIdlePreview(objectLayer.data.item.id);
           const successAction = clone ? 'cloned' : isUpdateMode ? 'updated' : 'created';
           NotificationManager.Push({
@@ -1838,49 +1842,26 @@ class ObjectLayerEngineModal {
         }
       };
 
-      EventsUI.onClick(`.ol-btn-save`, async () => {
-        await persistObjectLayer();
-      });
-
-      EventsUI.onClick(`.ol-btn-clone`, async () => {
-        await persistObjectLayer({ clone: true });
-      });
-
-      // Add reset button event listener
-      EventsUI.onClick(`.ol-btn-reset`, async () => {
-        const confirmResult = await Modal.RenderConfirm({
-          html: async () => {
-            return html`
-              <div class="in section-mp" style="text-align: center">
-                Are you sure you want to reset the form? All unsaved data will be lost.
-              </div>
-            `;
-          },
-          id: `reset-ol-modal-confirm`,
-        });
-
-        if (confirmResult.status === 'confirm') {
-          NotificationManager.Push({
-            html: 'Resetting form to create new object layer...',
-            status: 'info',
-          });
-
-          // Clear all data
-          draft.cancel();
-          await EditorDraftStore.remove(draftKey);
-          ObjectLayerEngineModal.clearData();
-
+      // New reopens the editor blank, Reset on the stored definition: both drop the draft.
+      Tabs.bind(s('.ol-tabs'));
+      EditorCrud.bind(s('.ol-crud'), () => ({
+        subject: 'object layer',
+        id: ObjectLayerEngineModal.existingObjectLayerId,
+        name: loadedData?.metadata?.data?.item?.id,
+        new: async () => {
+          await discardDraft();
           setPath(`${getProxyPath()}object-layer-engine`);
-
-          // Reload the modal
           await ObjectLayerEngineModal.Reload();
-
-          NotificationManager.Push({
-            html: 'Form reset! Ready to create new object layer.',
-            status: 'success',
-          });
-        }
-      });
+        },
+        reset: async () => {
+          await discardDraft();
+          await ObjectLayerEngineModal.Reload();
+        },
+        ...(canMutate && {
+          save: () => persistObjectLayer(),
+          clone: () => persistObjectLayer({ clone: true }),
+        }),
+      }));
     });
 
     return html`
@@ -1936,24 +1917,6 @@ class ObjectLayerEngineModal {
           background: none !important;
           color: #5ee6ff;
         }
-        .ol-btn-save {
-          width: 120px;
-          padding: 0.5rem;
-          font-size: 20px;
-          min-height: 50px;
-        }
-        .ol-btn-reset {
-          width: 120px;
-          padding: 0.5rem;
-          font-size: 20px;
-          min-height: 50px;
-        }
-        .ol-btn-clone {
-          width: 120px;
-          padding: 0.5rem;
-          font-size: 20px;
-          min-height: 50px;
-        }
         .ol-btn-randomize-stats {
           min-height: 50px;
           padding: 0.5rem 0.75rem;
@@ -2007,341 +1970,352 @@ class ObjectLayerEngineModal {
         <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
 
         <object-layer-engine id="ole" width="${cellsW}" height="${cellsH}" pixel-size="${pixelSize}">
+          ${EditorCrud.render({ id: 'ol-crud', label: 'Object layer', slot: 'actions' })}
           <div class="in ol-sections">
-            <div class="in section-mp-border" style="margin-top: 10px;">
-              <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
-              <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
-              <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
-                ${await ToggleSwitch.instance({
-                  id: UNIFORM_OPACITY_TOGGLE_ID,
-                  type: 'checkbox',
-                  displayMode: 'checkbox',
-                  containerClass: 'in fll',
-                  checked: ObjectLayerEngineModal.uniformOpacityEnabled,
-                  on: {
-                    checked: () => {
-                      ObjectLayerEngineModal.uniformOpacityEnabled = true;
-                      applyUniformOpacityToEditor({ captureUndo: true });
-                    },
-                    unchecked: () => {
-                      ObjectLayerEngineModal.uniformOpacityEnabled = false;
-                    },
-                  },
-                })}
-                <div class="section-mp" style="font-size: 14px;">
-                  Keep all visible cells at the current opacity bar value
-                </div>
-              </div>
-              <div class="in sub-title-modal" style="margin-top: 8px;">
-                <i class="fa-solid fa-swatchbook"></i> Palettes
-              </div>
-              <div class="in ol-palette-panel"></div>
-            </div>
-            <div class="in section-mp-border" style="margin-top: 10px;">
-              <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
-              <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
-                <div class="in fll" style="min-width: 240px;">
-                  ${await DropDown.instance({
-                    id: distortionDropdownId,
-                    value: ObjectLayerEngineModal.selectedDistortionType,
-                    label: html`Select behavior`,
-                    disableSearchBox: true,
-                    data: [
-                      {
-                        kind: 'group',
-                        value: 'group-distortion-behaviors',
-                        display: html`<div style="padding: 0 6px; color: #9d9d9d;">Distortion behaviors</div>`,
-                      },
-                      ...DISTORTION_TYPES.map((distortion) => ({
-                        value: distortion.value,
-                        display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${distortion.label}`,
-                        onClick: async () => {
-                          ObjectLayerEngineModal.selectedDistortionType = distortion.value;
-                          readDistortionFactorA();
-                          const statusNode = s(`.${distortionStatusClass}`);
-                          if (statusNode) {
-                            statusNode.style.color = '#888';
-                            statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. factorA controls local distortion density.`;
-                          }
-                        },
-                      })),
-                      {
-                        kind: 'group',
-                        value: 'group-mosaic-behaviors',
-                        display: html`<div style="padding: 0 6px; color: #9d9d9d;">Mosaic drawing behaviors</div>`,
-                      },
-                      ...MOSAIC_TYPES.map((mosaic) => ({
-                        value: mosaic.value,
-                        display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${mosaic.label}`,
-                        onClick: async () => {
-                          ObjectLayerEngineModal.selectedDistortionType = mosaic.value;
-                          readDistortionFactorA();
-                          const statusNode = s(`.${distortionStatusClass}`);
-                          if (statusNode) {
-                            statusNode.style.color = '#888';
-                            statusNode.innerHTML = `${mosaic.label} ready for direct canvas apply. factorA controls tile size and density.`;
-                          }
-                        },
-                      })),
-                    ],
-                  })}
-                </div>
-                <div class="in fll" style="width: 120px;">
-                  ${await Input.instance({
-                    id: `ol-input-distortion-factor-a`,
-                    label: html`factorA`,
-                    containerClass: 'inl',
-                    type: 'number',
-                    min: 0.01,
-                    max: 1,
-                    step: 0.01,
-                    value: ObjectLayerEngineModal.distortionFactorA,
-                  })}
-                </div>
-                <div class="in fll">
-                  ${await BtnIcon.instance({
-                    class: distortionApplyBtnClass,
-                    label: html`<i class="fa-solid fa-bolt"></i> Apply To Frame`,
-                  })}
-                </div>
-              </div>
-              <div class="in ${distortionStatusClass}" style="margin-top: 6px; font-size: 12px; color: #888;">
-                ${DEFAULT_DISTORTION_STATUS}
-              </div>
-            </div>
-            <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
-            ${
-              ObjectLayerEngineModal.studio
-                ? html`<div class="in section-mp section-mp-border">
-                    <div class="in sub-title-modal"><i class="fa-solid fa-book-atlas"></i> Foundation context</div>
-                    <div class="in ol-context-panel"></div>
-                  </div>`
-                : ''
-            }
-            <div class="in section-mp section-mp-border">
-              <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> render data</div>
-              ${dynamicCol({ containerSelector: 'ol-sections', id: idSectionA })}
-
-              <div class="fl">
-                <div class="in fll ${idSectionA}-col-a">
-                  <div class="in section-mp">
-                    ${await DropDown.instance({
-                      id: 'ol-dropdown-template',
-                      value: suitedFirst[0].id,
-                      label: html`${Translate.instance('select-template')}`,
-                      data: suitedFirst.map((template) => {
-                        const suited =
-                          template.itemTypes.length > 0 &&
-                          templateSuits(template, ObjectLayerEngineModal.selectItemType);
-                        return {
-                          value: template.id,
-                          display: html`<i class="fa-solid fa-paint-roller"></i>
-                            ${template.label}${suited ? ' ★' : ''}`,
-                          onClick: async () => {
-                            ObjectLayerEngineModal.RenderTemplate(template);
+            ${Tabs.render({
+              id: 'ol-tabs',
+              label: 'Object layer tools',
+              tabs: [
+                {
+                  id: 'paint',
+                  label: 'Paint',
+                  icon: 'fa-solid fa-paintbrush',
+                  content: html`
+                    <div class="in section-mp-border" style="margin-top: 10px;">
+                      <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
+                      <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
+                      <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
+                        ${await ToggleSwitch.instance({
+                          id: UNIFORM_OPACITY_TOGGLE_ID,
+                          type: 'checkbox',
+                          displayMode: 'checkbox',
+                          containerClass: 'in fll',
+                          checked: ObjectLayerEngineModal.uniformOpacityEnabled,
+                          on: {
+                            checked: () => {
+                              ObjectLayerEngineModal.uniformOpacityEnabled = true;
+                              applyUniformOpacityToEditor({ captureUndo: true });
+                            },
+                            unchecked: () => {
+                              ObjectLayerEngineModal.uniformOpacityEnabled = false;
+                            },
                           },
-                        };
-                      }),
-                    })}
-                  </div>
-                </div>
-                <div class="in fll ${idSectionA}-col-b">
-                  <div class="in section-mp-border" style="width: 135px;">
-                    ${await Input.instance({
-                      id: `ol-input-render-frame-duration`,
-                      label: html`<div class="inl ol-number-label">
-                        <i class="fa-solid fa-chart-simple"></i> Frame duration
-                      </div>`,
-                      containerClass: 'inl',
-                      type: 'number',
-                      min: 100,
-                      max: 1000,
-                      placeholder: true,
-                      value: ObjectLayerEngineModal.renderFrameDuration,
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap;">
-                <div class="in fll">
-                  ${await DropDown.instance({
-                    id: 'ol-dropdown-import-frames',
-                    label: html`Frames of object layer`,
-                    data: [],
-                    containerClass: 'inl',
-                    serviceProvider: async (q) => {
-                      const result = await ObjectLayerService.searchItemIds({ q });
-                      return result.status === 'success'
-                        ? (result.data?.items ?? []).map(({ id }) => ({
-                            value: id,
-                            display: id,
-                            data: id,
-                            onClick: () => {},
-                          }))
-                        : [];
-                    },
-                  })}
-                </div>
-                <div class="in fll">
-                  <div class="fl" style="align-items: center; gap: 8px;">
-                    ${await ToggleSwitch.instance({
-                      id: 'ol-toggle-import-mutate',
-                      type: 'checkbox',
-                      displayMode: 'checkbox',
-                      containerClass: 'in fll',
-                      checked: ObjectLayerEngineModal.mutateFrames,
-                      on: {
-                        checked: () => setMutateFrames(true),
-                        unchecked: () => setMutateFrames(false),
-                      },
-                    })}
-                    <div class="in fll">Mutate</div>
-                  </div>
-                </div>
-                <div class="in fll" style="width: 120px;">
-                  ${await Input.instance({
-                    id: 'ol-input-mutation-factor',
-                    label: html`Random factor`,
-                    containerClass: 'inl',
-                    type: 'number',
-                    min: 0,
-                    max: 1,
-                    step: 0.01,
-                    value: ObjectLayerEngineModal.mutationFactor,
-                    disabled: !ObjectLayerEngineModal.mutateFrames,
-                  })}
-                </div>
-                <div class="in fll">
-                  ${await BtnIcon.instance({
-                    class: 'ol-btn-import-frames',
-                    label: html`<i class="fa-solid fa-file-import"></i> Import frames`,
-                  })}
-                </div>
-              </div>
-              ${directionsCodeBarRender}
-            </div>
-            ${dynamicCol({ containerSelector: 'ol-sections', id: idSectionB, type: 'a-50-b-50' })}
+                        })}
+                        <div class="section-mp" style="font-size: 14px;">
+                          Keep all visible cells at the current opacity bar value
+                        </div>
+                      </div>
+                      <div class="in sub-title-modal" style="margin-top: 8px;">
+                        <i class="fa-solid fa-swatchbook"></i> Palettes
+                      </div>
+                      <div class="in ol-palette-panel"></div>
+                    </div>
 
-            <div class="fl">
-              <div class="in fll ${idSectionB}-col-a">
-                <div class="in section-mp section-mp-border">
-                  <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
-                  ${await Input.instance({
-                    id: `ol-input-item-id`,
-                    label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-id')}`,
-                    containerClass: '',
-                    placeholder: true,
-                    value: loadedData?.metadata?.data?.item?.id || '',
-                  })}
-                  ${await Input.instance({
-                    id: `ol-input-item-description`,
-                    label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-description')}`,
-                    containerClass: '',
-                    placeholder: true,
-                    value: loadedData?.metadata?.data?.item?.description || '',
-                  })}
-                  <div class="in section-mp">
-                    ${await DropDown.instance({
-                      id: 'ol-dropdown-item-type',
-                      value: ObjectLayerEngineModal.selectItemType,
-                      label: html`${Translate.instance('select-item-type')}`,
-                      data: itemTypes.map((itemType) => {
-                        return {
-                          value: itemType,
-                          display: html`${itemType}`,
-                          onClick: async () => {
-                            console.warn('itemType click', itemType);
-                            ObjectLayerEngineModal.selectItemType = itemType;
-                          },
-                        };
-                      }),
-                    })}
-                  </div>
-                  <div class="in section-mp">
-                    ${await ToggleSwitch.instance({
-                      id: 'ol-toggle-item-activable',
-                      wrapper: true,
-                      wrapperLabel: html`${Translate.instance('item-activable')}`,
-                      disabledOnClick: true,
-                      checked: ObjectLayerEngineModal.itemActivable,
-                      on: {
-                        unchecked: () => {
-                          ObjectLayerEngineModal.itemActivable = false;
-                          console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
-                        },
-                        checked: () => {
-                          ObjectLayerEngineModal.itemActivable = true;
-                          console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
-                        },
-                      },
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div class="in fll ${idSectionB}-col-b">
-                <div class="in section-mp section-mp-border">
-                  <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
-                  <div class="in">${statModifierMin} penalty ↔ 0 neutral ↔ +${statModifierMax} bonus</div>
-                  <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-                    <div class="in fll" style="width: 110px;">
+                    <div class="in section-mp section-mp-border">
+                      <div class="in sub-title-modal"><i class="fa-solid fa-paint-roller"></i> Template</div>
+                      <div class="in section-mp">
+                        ${await DropDown.instance({
+                          id: 'ol-dropdown-template',
+                          value: suitedFirst[0].id,
+                          label: html`${Translate.instance('select-template')}`,
+                          data: suitedFirst.map((template) => {
+                            const suited =
+                              template.itemTypes.length > 0 &&
+                              templateSuits(template, ObjectLayerEngineModal.selectItemType);
+                            return {
+                              value: template.id,
+                              display: html`<i class="fa-solid fa-paint-roller"></i>
+                                ${template.label}${suited ? ' ★' : ''}`,
+                              onClick: async () => {
+                                ObjectLayerEngineModal.RenderTemplate(template);
+                              },
+                            };
+                          }),
+                        })}
+                      </div>
+                    </div>
+                    <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
+                    <div class="in section-mp-border" style="margin-top: 10px;">
+                      <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
+                      <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+                        <div class="in fll" style="min-width: 240px;">
+                          ${await DropDown.instance({
+                            id: distortionDropdownId,
+                            value: ObjectLayerEngineModal.selectedDistortionType,
+                            label: html`Select behavior`,
+                            disableSearchBox: true,
+                            data: [
+                              {
+                                kind: 'group',
+                                value: 'group-distortion-behaviors',
+                                display: html`<div style="padding: 0 6px; color: #9d9d9d;">Distortion behaviors</div>`,
+                              },
+                              ...DISTORTION_TYPES.map((distortion) => ({
+                                value: distortion.value,
+                                display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${distortion.label}`,
+                                onClick: async () => {
+                                  ObjectLayerEngineModal.selectedDistortionType = distortion.value;
+                                  readDistortionFactorA();
+                                  const statusNode = s(`.${distortionStatusClass}`);
+                                  if (statusNode) {
+                                    statusNode.style.color = '#888';
+                                    statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. factorA controls local distortion density.`;
+                                  }
+                                },
+                              })),
+                              {
+                                kind: 'group',
+                                value: 'group-mosaic-behaviors',
+                                display: html`<div style="padding: 0 6px; color: #9d9d9d;">
+                                  Mosaic drawing behaviors
+                                </div>`,
+                              },
+                              ...MOSAIC_TYPES.map((mosaic) => ({
+                                value: mosaic.value,
+                                display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${mosaic.label}`,
+                                onClick: async () => {
+                                  ObjectLayerEngineModal.selectedDistortionType = mosaic.value;
+                                  readDistortionFactorA();
+                                  const statusNode = s(`.${distortionStatusClass}`);
+                                  if (statusNode) {
+                                    statusNode.style.color = '#888';
+                                    statusNode.innerHTML = `${mosaic.label} ready for direct canvas apply. factorA controls tile size and density.`;
+                                  }
+                                },
+                              })),
+                            ],
+                          })}
+                        </div>
+                        <div class="in fll" style="width: 120px;">
+                          ${await Input.instance({
+                            id: `ol-input-distortion-factor-a`,
+                            label: html`factorA`,
+                            containerClass: 'inl',
+                            type: 'number',
+                            min: 0.01,
+                            max: 1,
+                            step: 0.01,
+                            value: ObjectLayerEngineModal.distortionFactorA,
+                          })}
+                        </div>
+                        <div class="in fll">
+                          ${await BtnIcon.instance({
+                            class: distortionApplyBtnClass,
+                            label: html`<i class="fa-solid fa-bolt"></i> Apply To Frame`,
+                          })}
+                        </div>
+                      </div>
+                      <div class="in ${distortionStatusClass}" style="margin-top: 6px; font-size: 12px; color: #888;">
+                        ${DEFAULT_DISTORTION_STATUS}
+                      </div>
+                    </div>
+                  `,
+                },
+                {
+                  id: 'frames',
+                  label: 'Frames',
+                  icon: 'fa-solid fa-film',
+                  content: html`<div class="in section-mp section-mp-border">
+                    <div class="in sub-title-modal"><i class="fa-solid fa-film"></i> Frames</div>
+                    <div class="in section-mp-border" style="width: 135px;">
                       ${await Input.instance({
-                        id: statsRandomMinInputId,
-                        label: html`Random min`,
+                        id: `ol-input-render-frame-duration`,
+                        label: html`<div class="inl ol-number-label">
+                          <i class="fa-solid fa-chart-simple"></i> Frame duration
+                        </div>`,
                         containerClass: 'inl',
                         type: 'number',
-                        min: statModifierMin,
-                        max: statModifierMax,
+                        min: 100,
+                        max: 1000,
                         placeholder: true,
-                        value: statModifierMin,
+                        value: ObjectLayerEngineModal.renderFrameDuration,
                       })}
                     </div>
-                    <div class="in fll" style="width: 110px;">
-                      ${await Input.instance({
-                        id: statsRandomMaxInputId,
-                        label: html`Random max`,
-                        containerClass: 'inl',
-                        type: 'number',
-                        min: statModifierMin,
-                        max: statModifierMax,
-                        placeholder: true,
-                        value: statModifierMax,
-                      })}
+                    <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap;">
+                      <div class="in fll">
+                        ${await DropDown.instance({
+                          id: 'ol-dropdown-import-frames',
+                          label: html`Frames of object layer`,
+                          data: [],
+                          containerClass: 'inl',
+                          serviceProvider: async (q) => {
+                            const result = await ObjectLayerService.searchItemIds({ q });
+                            return result.status === 'success'
+                              ? (result.data?.items ?? []).map(({ id }) => ({
+                                  value: id,
+                                  display: id,
+                                  data: id,
+                                  onClick: () => {},
+                                }))
+                              : [];
+                          },
+                        })}
+                      </div>
+                      <div class="in fll">
+                        <div class="fl" style="align-items: center; gap: 8px;">
+                          ${await ToggleSwitch.instance({
+                            id: 'ol-toggle-import-mutate',
+                            type: 'checkbox',
+                            displayMode: 'checkbox',
+                            containerClass: 'in fll',
+                            checked: ObjectLayerEngineModal.mutateFrames,
+                            on: {
+                              checked: () => setMutateFrames(true),
+                              unchecked: () => setMutateFrames(false),
+                            },
+                          })}
+                          <div class="in fll">Mutate</div>
+                        </div>
+                      </div>
+                      <div class="in fll" style="width: 120px;">
+                        ${await Input.instance({
+                          id: 'ol-input-mutation-factor',
+                          label: html`Random factor`,
+                          containerClass: 'inl',
+                          type: 'number',
+                          min: 0,
+                          max: 1,
+                          step: 0.01,
+                          value: ObjectLayerEngineModal.mutationFactor,
+                          disabled: !ObjectLayerEngineModal.mutateFrames,
+                        })}
+                      </div>
+                      <div class="in fll">
+                        ${await BtnIcon.instance({
+                          class: 'ol-btn-import-frames',
+                          label: html`<i class="fa-solid fa-file-import"></i> Import frames`,
+                        })}
+                      </div>
                     </div>
-                    <div class="in fll">
-                      ${await BtnIcon.instance({
-                        label: html`<i class="fa-solid fa-dice"></i> Randomize`,
-                        class: statsRandomizeBtnClass,
-                      })}
-                    </div>
-                  </div>
-                  ${statsInputsRender}
-                </div>
-              </div>
-            </div>
+                    ${directionsCodeBarRender}
+                  </div>`,
+                },
+                {
+                  id: 'item',
+                  label: 'Item',
+                  icon: 'fa-solid fa-tag',
+                  content: html`
+                    ${dynamicCol({ containerSelector: 'ol-sections', id: idSectionB, type: 'a-50-b-50' })}
 
-            <div class="fl section-mp">
-              ${
-                canMutate
-                  ? await BtnIcon.instance({
-                      label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
-                        ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
-                      class: `in flr ol-btn-save`,
-                    })
-                  : ''
-              }
-              ${
-                canMutate && ObjectLayerEngineModal.existingObjectLayerId
-                  ? await BtnIcon.instance({
-                      label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
-                      class: `in flr ol-btn-clone`,
-                    })
-                  : ''
-              }
-              ${await BtnIcon.instance({
-                label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.instance('reset')}`,
-                class: `in flr ol-btn-reset`,
-              })}
-            </div>
+                    <div class="fl">
+                      <div class="in fll ${idSectionB}-col-a">
+                        <div class="in section-mp section-mp-border">
+                          <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
+                          ${await Input.instance({
+                            id: `ol-input-item-id`,
+                            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-id')}`,
+                            containerClass: '',
+                            placeholder: true,
+                            value: loadedData?.metadata?.data?.item?.id || '',
+                          })}
+                          ${await Input.instance({
+                            id: `ol-input-item-description`,
+                            label: html`<i class="fa-solid fa-pen-to-square"></i>
+                              ${Translate.instance('item-description')}`,
+                            containerClass: '',
+                            placeholder: true,
+                            value: loadedData?.metadata?.data?.item?.description || '',
+                          })}
+                          <div class="in section-mp">
+                            ${await DropDown.instance({
+                              id: 'ol-dropdown-item-type',
+                              value: ObjectLayerEngineModal.selectItemType,
+                              label: html`${Translate.instance('select-item-type')}`,
+                              data: itemTypes.map((itemType) => {
+                                return {
+                                  value: itemType,
+                                  display: html`${itemType}`,
+                                  onClick: async () => {
+                                    console.warn('itemType click', itemType);
+                                    ObjectLayerEngineModal.selectItemType = itemType;
+                                  },
+                                };
+                              }),
+                            })}
+                          </div>
+                          <div class="in section-mp">
+                            ${await ToggleSwitch.instance({
+                              id: 'ol-toggle-item-activable',
+                              wrapper: true,
+                              wrapperLabel: html`${Translate.instance('item-activable')}`,
+                              disabledOnClick: true,
+                              checked: ObjectLayerEngineModal.itemActivable,
+                              on: {
+                                unchecked: () => {
+                                  ObjectLayerEngineModal.itemActivable = false;
+                                  console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
+                                },
+                                checked: () => {
+                                  ObjectLayerEngineModal.itemActivable = true;
+                                  console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
+                                },
+                              },
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="in fll ${idSectionB}-col-b">
+                        <div class="in section-mp section-mp-border">
+                          <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
+                          <div class="in">${statModifierMin} penalty ↔ 0 neutral ↔ +${statModifierMax} bonus</div>
+                          <div
+                            class="fl"
+                            style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;"
+                          >
+                            <div class="in fll" style="width: 110px;">
+                              ${await Input.instance({
+                                id: statsRandomMinInputId,
+                                label: html`Random min`,
+                                containerClass: 'inl',
+                                type: 'number',
+                                min: statModifierMin,
+                                max: statModifierMax,
+                                placeholder: true,
+                                value: statModifierMin,
+                              })}
+                            </div>
+                            <div class="in fll" style="width: 110px;">
+                              ${await Input.instance({
+                                id: statsRandomMaxInputId,
+                                label: html`Random max`,
+                                containerClass: 'inl',
+                                type: 'number',
+                                min: statModifierMin,
+                                max: statModifierMax,
+                                placeholder: true,
+                                value: statModifierMax,
+                              })}
+                            </div>
+                            <div class="in fll">
+                              ${await BtnIcon.instance({
+                                label: html`<i class="fa-solid fa-dice"></i> Randomize`,
+                                class: statsRandomizeBtnClass,
+                              })}
+                            </div>
+                          </div>
+                          ${statsInputsRender}
+                        </div>
+                      </div>
+                    </div>
+                  `,
+                },
+                ...(ObjectLayerEngineModal.studio
+                  ? [
+                      {
+                        id: 'context',
+                        label: 'Context',
+                        icon: 'fa-solid fa-book-atlas',
+                        content: html`<div class="in section-mp section-mp-border">
+                          <div class="in sub-title-modal">
+                            <i class="fa-solid fa-book-atlas"></i> Foundation context
+                          </div>
+                          <div class="in ol-context-panel"></div>
+                        </div>`,
+                      },
+                    ]
+                  : []),
+              ],
+            })}
             <div class="in section-mp"></div>
           </div>
         </object-layer-engine>

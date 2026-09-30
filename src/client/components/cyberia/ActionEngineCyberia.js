@@ -3,9 +3,10 @@ import { Input } from '../core/Input.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { Translate } from '../core/Translate.js';
 import { darkTheme, dynamicCol, ThemeEvents } from '../core/Css.js';
+import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorLayout } from '../core/EditorLayout.js';
+import { Tabs } from '../core/Tabs.js';
 import { DropDown } from '../core/DropDown.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
@@ -40,10 +41,9 @@ class ActionEngineCyberia {
   static dialogueListCache = [];
   static skillListCache = [];
 
-  static currentQuestId = null;
-  static currentActionId = null;
-  static currentDialogueId = null;
-  static currentSkillId = null;
+  // The loaded document of each kind, `{ id, name }`, or null while its form holds a new one.
+  static current = { quest: null, action: null, dialogue: null, skill: null };
+  static crud = null;
 
   static questSteps = [];
   static questRewards = [];
@@ -288,34 +288,15 @@ class ActionEngineCyberia {
     htmls('.action-engine-assignment-review', out);
 
     container.querySelectorAll('.action-engine-assignment-row').forEach((rowEl) => {
-      rowEl.onclick = async () => {
-        const { kind, id } = rowEl.dataset;
-        if (kind === 'quest') {
-          ActionEngineCyberia.setMode('quest');
-          const res = await CyberiaQuestService.get({ id });
-          if (res.status === 'success' && res.data) ActionEngineCyberia.loadQuest(res.data);
-        } else {
-          ActionEngineCyberia.setMode('action');
-          const res = await CyberiaActionService.get({ id });
-          if (res.status === 'success' && res.data) ActionEngineCyberia.loadAction(res.data);
-        }
-      };
+      rowEl.onclick = () => ActionEngineCyberia.open(rowEl.dataset.kind, rowEl.dataset.id);
     });
   }
 
   // ── Mode switching ──────────────────────────────────────────────────────
   static setMode(mode) {
     ActionEngineCyberia.mode = mode;
-    for (const m of ['quest', 'action', 'dialogue', 'skill']) {
-      const panel = s(`.action-engine-panel-${m}`);
-      if (panel) panel.classList[m === mode ? 'remove' : 'add']('hide');
-      const tab = s(`.action-engine-tab-${m}`);
-      if (tab) {
-        tab.style.opacity = m === mode ? '1' : '0.5';
-        tab.style.fontWeight = m === mode ? 'bold' : 'normal';
-        tab.style.borderBottomColor = m === mode ? '#1fd11f' : 'transparent';
-      }
-    }
+    Tabs.select(s('.action-engine-tabs'), mode);
+    ActionEngineCyberia.crud?.refresh();
   }
 
   // Keeps the shared map surface in sync with the loaded document: reflects the
@@ -583,12 +564,9 @@ class ActionEngineCyberia {
     htmls('.action-engine-quest-cards', out);
     for (const doc of items) {
       if (s(`.btn-aeq-load-${doc._id}`))
-        s(`.btn-aeq-load-${doc._id}`).onclick = async () => {
-          const res = await CyberiaQuestService.get({ id: doc._id });
-          if (res.status === 'success' && res.data) ActionEngineCyberia.loadQuest(res.data);
-        };
+        s(`.btn-aeq-load-${doc._id}`).onclick = () => ActionEngineCyberia.open('quest', doc._id);
       if (s(`.btn-aeq-del-${doc._id}`))
-        s(`.btn-aeq-del-${doc._id}`).onclick = () => ActionEngineCyberia.deleteQuest(doc._id);
+        s(`.btn-aeq-del-${doc._id}`).onclick = () => ActionEngineCyberia.remove('quest', doc);
     }
   }
 
@@ -623,12 +601,9 @@ class ActionEngineCyberia {
     htmls('.action-engine-action-cards', out);
     for (const doc of items) {
       if (s(`.btn-aea-load-${doc._id}`))
-        s(`.btn-aea-load-${doc._id}`).onclick = async () => {
-          const res = await CyberiaActionService.get({ id: doc._id });
-          if (res.status === 'success' && res.data) ActionEngineCyberia.loadAction(res.data);
-        };
+        s(`.btn-aea-load-${doc._id}`).onclick = () => ActionEngineCyberia.open('action', doc._id);
       if (s(`.btn-aea-del-${doc._id}`))
-        s(`.btn-aea-del-${doc._id}`).onclick = () => ActionEngineCyberia.deleteAction(doc._id);
+        s(`.btn-aea-del-${doc._id}`).onclick = () => ActionEngineCyberia.remove('action', doc);
     }
   }
 
@@ -665,12 +640,9 @@ class ActionEngineCyberia {
     htmls('.action-engine-dialogue-cards', out);
     for (const doc of items) {
       if (s(`.btn-aed-load-${doc._id}`))
-        s(`.btn-aed-load-${doc._id}`).onclick = async () => {
-          const res = await CyberiaDialogueService.get({ id: doc._id });
-          if (res.status === 'success' && res.data) ActionEngineCyberia.loadDialogue(res.data);
-        };
+        s(`.btn-aed-load-${doc._id}`).onclick = () => ActionEngineCyberia.open('dialogue', doc._id);
       if (s(`.btn-aed-del-${doc._id}`))
-        s(`.btn-aed-del-${doc._id}`).onclick = () => ActionEngineCyberia.deleteDialogue(doc._id);
+        s(`.btn-aed-del-${doc._id}`).onclick = () => ActionEngineCyberia.remove('dialogue', doc);
     }
   }
 
@@ -692,16 +664,107 @@ class ActionEngineCyberia {
     await ActionEngineCyberia.renderDialogueCards();
   }
 
-  static notifyResult(result, isUpdate) {
-    NotificationManager.Push({
-      html:
-        result.status === 'error'
-          ? result.message
-          : isUpdate
-            ? Translate.instance('success-update-item')
-            : Translate.instance('success-create-item'),
-      status: result.status,
-    });
+  // The document each tab edits: its service, how its form reads, checks, clears and loads, and what
+  // a change refreshes. A kind with a `cloneKey` offers Clone under a fresh value of that field.
+  static KINDS = {
+    quest: {
+      subject: 'quest',
+      service: CyberiaQuestService,
+      cloneKey: 'code',
+      name: (doc) => doc.code,
+      payload: () => ActionEngineCyberia.getQuestPayload(),
+      check: (body) => (body.code && body.title ? '' : 'Quest code and title are required.'),
+      new: () => ActionEngineCyberia.newQuest(),
+      load: (doc) => ActionEngineCyberia.loadQuest(doc),
+      refresh: () => Promise.all([ActionEngineCyberia.refreshQuestList(), ActionEngineCyberia.refreshAssignments()]),
+    },
+    action: {
+      subject: 'action',
+      service: CyberiaActionService,
+      cloneKey: 'code',
+      name: (doc) => doc.code,
+      payload: () => ActionEngineCyberia.getActionPayload(),
+      check: (body) => (body.code ? '' : 'Action code is required.'),
+      new: () => ActionEngineCyberia.newAction(),
+      load: (doc) => ActionEngineCyberia.loadAction(doc),
+      refresh: () => Promise.all([ActionEngineCyberia.refreshActionList(), ActionEngineCyberia.refreshAssignments()]),
+    },
+    dialogue: {
+      subject: 'dialogue line',
+      service: CyberiaDialogueService,
+      name: (doc) => `${doc.code} #${doc.order ?? 0}`,
+      payload: () => ActionEngineCyberia.getDialoguePayload(),
+      check: (body) => (body.code && body.text ? '' : 'Dialogue code and text are required.'),
+      new: () => ActionEngineCyberia.newDialogue(),
+      load: (doc) => ActionEngineCyberia.loadDialogue(doc),
+      refresh: () => ActionEngineCyberia.refreshDialogueList(),
+    },
+    skill: {
+      subject: 'skill',
+      service: CyberiaSkillService,
+      name: (doc) => doc.triggerItemId,
+      payload: () => ActionEngineCyberia.getSkillPayload(),
+      check: (body) =>
+        !body.triggerItemId
+          ? 'Trigger item id is required.'
+          : body.skills.length === 0
+            ? 'Add at least one skill (logic event).'
+            : '',
+      new: () => ActionEngineCyberia.newSkill(),
+      load: (doc) => ActionEngineCyberia.loadSkill(doc),
+      refresh: () => ActionEngineCyberia.refreshSkillList(),
+    },
+  };
+
+  /** A document of a kind as the CRUD bar names it. */
+  static entry(kind, doc) {
+    return { id: doc._id, name: ActionEngineCyberia.KINDS[kind].name(doc) };
+  }
+
+  /** Holds `doc` as the loaded document of a kind; null holds a new one. */
+  static setCurrent(kind, doc) {
+    ActionEngineCyberia.current[kind] = doc?._id ? ActionEngineCyberia.entry(kind, doc) : null;
+    ActionEngineCyberia.crud?.refresh();
+  }
+
+  /** Loads the stored document `id` of a kind into its tab. */
+  static async open(kind, id) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    const { status, data, message } = await spec.service.get({ id });
+    if (status === 'success' && data) await spec.load(data);
+    else NotificationManager.Push({ html: message, status: 'error' });
+  }
+
+  static async save(kind) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    const body = spec.payload();
+    const problem = spec.check(body);
+    if (problem) return NotificationManager.Push({ html: problem, status: 'error' });
+    const id = ActionEngineCyberia.current[kind]?.id;
+    const result = await EditorCrud.save(spec.service, { id, body });
+    if (result.status !== 'success') return;
+    ActionEngineCyberia.setCurrent(kind, { ...body, _id: result.data?._id || id });
+    await spec.refresh();
+  }
+
+  static async clone(kind) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    const { result, body } = await EditorCrud.clone(spec.service, spec.payload(), spec.cloneKey);
+    if (result.status !== 'success') return;
+    const codeInput = s(`.action-engine-${kind}-${spec.cloneKey}`);
+    if (codeInput) codeInput.value = body[spec.cloneKey];
+    ActionEngineCyberia.setCurrent(kind, { ...body, _id: result.data?._id });
+    await spec.refresh();
+  }
+
+  /** Deletes `doc`, or the loaded document of the kind. */
+  static async remove(kind, doc) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    const { id, name } = doc ? ActionEngineCyberia.entry(kind, doc) : (ActionEngineCyberia.current[kind] ?? {});
+    const result = await EditorCrud.remove(spec.service, { id, subject: spec.subject, name });
+    if (result?.status !== 'success') return;
+    if (id === ActionEngineCyberia.current[kind]?.id) spec.new();
+    await spec.refresh();
   }
 
   // ── Quest payload / load / persistence ──────────────────────────────────
@@ -736,7 +799,7 @@ class ActionEngineCyberia {
 
   static async loadQuest(doc) {
     ActionEngineCyberia.setMode('quest');
-    ActionEngineCyberia.currentQuestId = doc._id || null;
+    ActionEngineCyberia.setCurrent('quest', doc);
     if (s('.action-engine-quest-code')) s('.action-engine-quest-code').value = doc.code || '';
     if (s('.action-engine-quest-title')) s('.action-engine-quest-title').value = doc.title || '';
     if (s('.action-engine-quest-description')) s('.action-engine-quest-description').value = doc.description || '';
@@ -762,8 +825,8 @@ class ActionEngineCyberia {
     NotificationManager.Push({ html: `Quest "${doc.code}" loaded`, status: 'success' });
   }
 
-  static resetQuest() {
-    ActionEngineCyberia.currentQuestId = null;
+  static newQuest() {
+    ActionEngineCyberia.setCurrent('quest', null);
     ActionEngineCyberia.questSteps = [];
     ActionEngineCyberia.questRewards = [];
     for (const cls of [
@@ -776,56 +839,6 @@ class ActionEngineCyberia {
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.renderStepList();
     ActionEngineCyberia.renderRewardList();
-  }
-
-  static async saveQuest() {
-    const body = ActionEngineCyberia.getQuestPayload();
-    if (!body.code || !body.title) {
-      NotificationManager.Push({ html: 'Quest code and title are required.', status: 'error' });
-      return;
-    }
-    const isUpdate = !!ActionEngineCyberia.currentQuestId;
-    const result = isUpdate
-      ? await CyberiaQuestService.put({ id: ActionEngineCyberia.currentQuestId, body })
-      : await CyberiaQuestService.post({ body });
-    ActionEngineCyberia.notifyResult(result, isUpdate);
-    if (result.status === 'success') {
-      if (result.data?._id) ActionEngineCyberia.currentQuestId = result.data._id;
-      await ActionEngineCyberia.refreshQuestList();
-      await ActionEngineCyberia.refreshAssignments();
-    }
-  }
-
-  static async cloneQuest() {
-    if (!ActionEngineCyberia.currentQuestId) {
-      NotificationManager.Push({ html: 'Load a quest to clone first.', status: 'warning' });
-      return;
-    }
-    const body = ActionEngineCyberia.getQuestPayload();
-    body.code = `${body.code}-clone`;
-    const result = await CyberiaQuestService.post({ body });
-    ActionEngineCyberia.notifyResult(result, false);
-    if (result.status === 'success') {
-      if (result.data?._id) ActionEngineCyberia.currentQuestId = result.data._id;
-      if (s('.action-engine-quest-code')) s('.action-engine-quest-code').value = body.code;
-      await ActionEngineCyberia.refreshQuestList();
-      await ActionEngineCyberia.refreshAssignments();
-    }
-  }
-
-  static async deleteQuest(id) {
-    const targetId = id || ActionEngineCyberia.currentQuestId;
-    if (!targetId) return;
-    const result = await CyberiaQuestService.delete({ id: targetId });
-    NotificationManager.Push({
-      html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
-      status: result.status,
-    });
-    if (result.status === 'success') {
-      if (targetId === ActionEngineCyberia.currentQuestId) ActionEngineCyberia.resetQuest();
-      await ActionEngineCyberia.refreshQuestList();
-      await ActionEngineCyberia.refreshAssignments();
-    }
   }
 
   // ── Action payload / load / persistence ─────────────────────────────────
@@ -848,7 +861,7 @@ class ActionEngineCyberia {
 
   static async loadAction(doc) {
     ActionEngineCyberia.setMode('action');
-    ActionEngineCyberia.currentActionId = doc._id || null;
+    ActionEngineCyberia.setCurrent('action', doc);
     // Out-of-scope payloads (shop/craft/storage) are preserved verbatim so
     // editing an action here never drops data the engine doesn't manage yet.
     const {
@@ -881,64 +894,14 @@ class ActionEngineCyberia {
     NotificationManager.Push({ html: `Action "${doc.code}" loaded`, status: 'success' });
   }
 
-  static resetAction() {
-    ActionEngineCyberia.currentActionId = null;
+  static newAction() {
+    ActionEngineCyberia.setCurrent('action', null);
     ActionEngineCyberia.actionQuestDialogues = [];
     ActionEngineCyberia.loadedActionPayloadExtras = {};
     for (const cls of ['action-engine-action-code', 'action-engine-action-label'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.actionDialogPicker, '');
     ActionEngineCyberia.renderQuestDialogueList();
-  }
-
-  static async saveAction() {
-    const body = ActionEngineCyberia.getActionPayload();
-    if (!body.code) {
-      NotificationManager.Push({ html: 'Action code is required.', status: 'error' });
-      return;
-    }
-    const isUpdate = !!ActionEngineCyberia.currentActionId;
-    const result = isUpdate
-      ? await CyberiaActionService.put({ id: ActionEngineCyberia.currentActionId, body })
-      : await CyberiaActionService.post({ body });
-    ActionEngineCyberia.notifyResult(result, isUpdate);
-    if (result.status === 'success') {
-      if (result.data?._id) ActionEngineCyberia.currentActionId = result.data._id;
-      await ActionEngineCyberia.refreshActionList();
-      await ActionEngineCyberia.refreshAssignments();
-    }
-  }
-
-  static async cloneAction() {
-    if (!ActionEngineCyberia.currentActionId) {
-      NotificationManager.Push({ html: 'Load an action to clone first.', status: 'warning' });
-      return;
-    }
-    const body = ActionEngineCyberia.getActionPayload();
-    body.code = `${body.code}-clone`;
-    const result = await CyberiaActionService.post({ body });
-    ActionEngineCyberia.notifyResult(result, false);
-    if (result.status === 'success') {
-      if (result.data?._id) ActionEngineCyberia.currentActionId = result.data._id;
-      if (s('.action-engine-action-code')) s('.action-engine-action-code').value = body.code;
-      await ActionEngineCyberia.refreshActionList();
-      await ActionEngineCyberia.refreshAssignments();
-    }
-  }
-
-  static async deleteAction(id) {
-    const targetId = id || ActionEngineCyberia.currentActionId;
-    if (!targetId) return;
-    const result = await CyberiaActionService.delete({ id: targetId });
-    NotificationManager.Push({
-      html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
-      status: result.status,
-    });
-    if (result.status === 'success') {
-      if (targetId === ActionEngineCyberia.currentActionId) ActionEngineCyberia.resetAction();
-      await ActionEngineCyberia.refreshActionList();
-      await ActionEngineCyberia.refreshAssignments();
-    }
   }
 
   // ── Dialogue line persistence ───────────────────────────────────────────
@@ -954,7 +917,7 @@ class ActionEngineCyberia {
 
   static loadDialogue(doc) {
     ActionEngineCyberia.setMode('dialogue');
-    ActionEngineCyberia.currentDialogueId = doc._id || null;
+    ActionEngineCyberia.setCurrent('dialogue', doc);
     if (s('.action-engine-dialogue-code')) s('.action-engine-dialogue-code').value = doc.code || '';
     if (s('.action-engine-dialogue-order')) s('.action-engine-dialogue-order').value = doc.order ?? 0;
     if (s('.action-engine-dialogue-speaker')) s('.action-engine-dialogue-speaker').value = doc.speaker || '';
@@ -963,44 +926,13 @@ class ActionEngineCyberia {
     NotificationManager.Push({ html: `Dialogue line "${doc.code}" loaded`, status: 'success' });
   }
 
-  static resetDialogue() {
-    ActionEngineCyberia.currentDialogueId = null;
+  static newDialogue() {
+    ActionEngineCyberia.setCurrent('dialogue', null);
     if (s('.action-engine-dialogue-code')) s('.action-engine-dialogue-code').value = '';
     if (s('.action-engine-dialogue-order')) s('.action-engine-dialogue-order').value = 0;
     if (s('.action-engine-dialogue-speaker')) s('.action-engine-dialogue-speaker').value = '';
     if (s('.action-engine-dialogue-text')) s('.action-engine-dialogue-text').value = '';
     if (s('.action-engine-dialogue-mood')) s('.action-engine-dialogue-mood').value = 'neutral';
-  }
-
-  static async saveDialogue() {
-    const body = ActionEngineCyberia.getDialoguePayload();
-    if (!body.code || !body.text) {
-      NotificationManager.Push({ html: 'Dialogue code and text are required.', status: 'error' });
-      return;
-    }
-    const isUpdate = !!ActionEngineCyberia.currentDialogueId;
-    const result = isUpdate
-      ? await CyberiaDialogueService.put({ id: ActionEngineCyberia.currentDialogueId, body })
-      : await CyberiaDialogueService.post({ body });
-    ActionEngineCyberia.notifyResult(result, isUpdate);
-    if (result.status === 'success') {
-      if (result.data?._id) ActionEngineCyberia.currentDialogueId = result.data._id;
-      await ActionEngineCyberia.refreshDialogueList();
-    }
-  }
-
-  static async deleteDialogue(id) {
-    const targetId = id || ActionEngineCyberia.currentDialogueId;
-    if (!targetId) return;
-    const result = await CyberiaDialogueService.delete({ id: targetId });
-    NotificationManager.Push({
-      html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
-      status: result.status,
-    });
-    if (result.status === 'success') {
-      if (targetId === ActionEngineCyberia.currentDialogueId) ActionEngineCyberia.resetDialogue();
-      await ActionEngineCyberia.refreshDialogueList();
-    }
   }
 
   // ── Skill list editor + persistence (own model: CyberiaSkill) ────────────
@@ -1093,12 +1025,9 @@ class ActionEngineCyberia {
     htmls('.action-engine-skill-cards', out);
     for (const doc of items) {
       if (s(`.btn-aes-load-${doc._id}`))
-        s(`.btn-aes-load-${doc._id}`).onclick = async () => {
-          const res = await CyberiaSkillService.get({ id: doc._id });
-          if (res.status === 'success' && res.data) ActionEngineCyberia.loadSkill(res.data);
-        };
+        s(`.btn-aes-load-${doc._id}`).onclick = () => ActionEngineCyberia.open('skill', doc._id);
       if (s(`.btn-aes-del-${doc._id}`))
-        s(`.btn-aes-del-${doc._id}`).onclick = () => ActionEngineCyberia.deleteSkill(doc._id);
+        s(`.btn-aes-del-${doc._id}`).onclick = () => ActionEngineCyberia.remove('skill', doc);
     }
   }
 
@@ -1124,7 +1053,7 @@ class ActionEngineCyberia {
 
   static loadSkill(doc) {
     ActionEngineCyberia.setMode('skill');
-    ActionEngineCyberia.currentSkillId = doc._id || null;
+    ActionEngineCyberia.setCurrent('skill', doc);
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, doc.triggerItemId || '');
     ActionEngineCyberia.skillDefs = (doc.skills || []).map((sk) => ({
       logicEventId: sk.logicEventId,
@@ -1136,8 +1065,8 @@ class ActionEngineCyberia {
     NotificationManager.Push({ html: `Skill "${doc.triggerItemId}" loaded`, status: 'success' });
   }
 
-  static resetSkill() {
-    ActionEngineCyberia.currentSkillId = null;
+  static newSkill() {
+    ActionEngineCyberia.setCurrent('skill', null);
     ActionEngineCyberia.skillDefs = [];
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, '');
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
@@ -1145,41 +1074,6 @@ class ActionEngineCyberia {
     for (const cls of ['action-engine-skill-name', 'action-engine-skill-description'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.renderSkillDefList();
-  }
-
-  static async saveSkill() {
-    const body = ActionEngineCyberia.getSkillPayload();
-    if (!body.triggerItemId) {
-      NotificationManager.Push({ html: 'Trigger item id is required.', status: 'error' });
-      return;
-    }
-    if (body.skills.length === 0) {
-      NotificationManager.Push({ html: 'Add at least one skill (logic event).', status: 'error' });
-      return;
-    }
-    const isUpdate = !!ActionEngineCyberia.currentSkillId;
-    const result = isUpdate
-      ? await CyberiaSkillService.put({ id: ActionEngineCyberia.currentSkillId, body })
-      : await CyberiaSkillService.post({ body });
-    ActionEngineCyberia.notifyResult(result, isUpdate);
-    if (result.status === 'success') {
-      if (result.data?._id) ActionEngineCyberia.currentSkillId = result.data._id;
-      await ActionEngineCyberia.refreshSkillList();
-    }
-  }
-
-  static async deleteSkill(id) {
-    const targetId = id || ActionEngineCyberia.currentSkillId;
-    if (!targetId) return;
-    const result = await CyberiaSkillService.delete({ id: targetId });
-    NotificationManager.Push({
-      html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
-      status: result.status,
-    });
-    if (result.status === 'success') {
-      if (targetId === ActionEngineCyberia.currentSkillId) ActionEngineCyberia.resetSkill();
-      await ActionEngineCyberia.refreshSkillList();
-    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -1195,10 +1089,7 @@ class ActionEngineCyberia {
     ActionEngineCyberia.actionListCache = [];
     ActionEngineCyberia.dialogueListCache = [];
     ActionEngineCyberia.skillListCache = [];
-    ActionEngineCyberia.currentQuestId = null;
-    ActionEngineCyberia.currentActionId = null;
-    ActionEngineCyberia.currentDialogueId = null;
-    ActionEngineCyberia.currentSkillId = null;
+    ActionEngineCyberia.current = { quest: null, action: null, dialogue: null, skill: null };
     ActionEngineCyberia.questSteps = [];
     ActionEngineCyberia.questRewards = [];
     ActionEngineCyberia.actionQuestDialogues = [];
@@ -1229,40 +1120,6 @@ class ActionEngineCyberia {
         ${inner}
       </div>`;
 
-    // Buttons grow equally and wrap to their own line once they drop below the
-    // flex-basis, which keeps them tappable on narrow / mobile widths.
-    const crudButtons = async (prefix, includeClone) =>
-      html`<div class="fl" style="margin-top:4px;flex-wrap:wrap;">
-        ${ActionEngineCyberia.canMutate
-          ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
-                ${await BtnIcon.instance({
-                  class: `wfa btn-action-engine-${prefix}-save`,
-                  label: html`<i class="fa-solid fa-floppy-disk"></i> Save`,
-                })}
-              </div>
-              ${includeClone
-                ? html`<div class="in fll" style="flex:1 1 120px;padding:3px;">
-                    ${await BtnIcon.instance({
-                      class: `wfa btn-action-engine-${prefix}-clone`,
-                      label: html`<i class="fa-solid fa-clone"></i> Clone`,
-                    })}
-                  </div>`
-                : ''}
-              <div class="in fll" style="flex:1 1 120px;padding:3px;">
-                ${await BtnIcon.instance({
-                  class: `wfa btn-action-engine-${prefix}-delete`,
-                  label: html`<i class="fa-solid fa-trash"></i> Delete`,
-                })}
-              </div>`
-          : ''}
-        <div class="in fll" style="flex:1 1 120px;padding:3px;">
-          ${await BtnIcon.instance({
-            class: `wfa btn-action-engine-${prefix}-new`,
-            label: html`<i class="fa-solid fa-file"></i> New`,
-          })}
-        </div>
-      </div>`;
-
     const listToolbar = async (prefix) =>
       html`<div class="fl" style="align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;">
         <div class="in fll" style="flex:1 1 160px;">
@@ -1288,9 +1145,24 @@ class ActionEngineCyberia {
       EditorLayout.bind(container);
       EditorLayout.pin(container, 'action-engine-stage');
 
-      for (const m of ['quest', 'action', 'dialogue', 'skill'])
-        if (s(`.action-engine-tab-${m}`)) s(`.action-engine-tab-${m}`).onclick = () => ActionEngineCyberia.setMode(m);
-      ActionEngineCyberia.setMode('quest');
+      Tabs.bind(container.querySelector('.action-engine-tabs'), {
+        onChange: (mode) => ActionEngineCyberia.setMode(mode),
+      });
+      ActionEngineCyberia.crud = EditorCrud.bind(container.querySelector('.action-engine-crud'), () => {
+        const kind = ActionEngineCyberia.mode;
+        const spec = ActionEngineCyberia.KINDS[kind];
+        return {
+          subject: spec.subject,
+          ...ActionEngineCyberia.current[kind],
+          new: spec.new,
+          reset: () => ActionEngineCyberia.open(kind, ActionEngineCyberia.current[kind].id),
+          ...(ActionEngineCyberia.canMutate && {
+            save: () => ActionEngineCyberia.save(kind),
+            ...(spec.cloneKey && { clone: () => ActionEngineCyberia.clone(kind) }),
+            delete: () => ActionEngineCyberia.remove(kind),
+          }),
+        };
+      });
 
       if (s('.btn-action-engine-load-map'))
         s('.btn-action-engine-load-map').onclick = () =>
@@ -1320,14 +1192,6 @@ class ActionEngineCyberia {
         s('.btn-action-engine-add-objective').onclick = () => ActionEngineCyberia.addObjective();
       if (s('.btn-action-engine-add-reward'))
         s('.btn-action-engine-add-reward').onclick = () => ActionEngineCyberia.addReward();
-      if (s('.btn-action-engine-quest-save'))
-        s('.btn-action-engine-quest-save').onclick = () => ActionEngineCyberia.saveQuest();
-      if (s('.btn-action-engine-quest-clone'))
-        s('.btn-action-engine-quest-clone').onclick = () => ActionEngineCyberia.cloneQuest();
-      if (s('.btn-action-engine-quest-delete'))
-        s('.btn-action-engine-quest-delete').onclick = () => ActionEngineCyberia.deleteQuest();
-      if (s('.btn-action-engine-quest-new'))
-        s('.btn-action-engine-quest-new').onclick = () => ActionEngineCyberia.resetQuest();
       if (s('.btn-action-engine-quest-refresh'))
         s('.btn-action-engine-quest-refresh').onclick = () => ActionEngineCyberia.refreshQuestList();
       if (s('.action-engine-quest-search'))
@@ -1345,26 +1209,12 @@ class ActionEngineCyberia {
           ActionEngineCyberia.actionQuestDialogues.push({ questCode, dialogCode });
           ActionEngineCyberia.renderQuestDialogueList();
         };
-      if (s('.btn-action-engine-action-save'))
-        s('.btn-action-engine-action-save').onclick = () => ActionEngineCyberia.saveAction();
-      if (s('.btn-action-engine-action-clone'))
-        s('.btn-action-engine-action-clone').onclick = () => ActionEngineCyberia.cloneAction();
-      if (s('.btn-action-engine-action-delete'))
-        s('.btn-action-engine-action-delete').onclick = () => ActionEngineCyberia.deleteAction();
-      if (s('.btn-action-engine-action-new'))
-        s('.btn-action-engine-action-new').onclick = () => ActionEngineCyberia.resetAction();
       if (s('.btn-action-engine-action-refresh'))
         s('.btn-action-engine-action-refresh').onclick = () => ActionEngineCyberia.refreshActionList();
       if (s('.action-engine-action-search'))
         s('.action-engine-action-search').addEventListener('input', () => ActionEngineCyberia.renderActionCards());
 
       // Dialogue wiring
-      if (s('.btn-action-engine-dialogue-save'))
-        s('.btn-action-engine-dialogue-save').onclick = () => ActionEngineCyberia.saveDialogue();
-      if (s('.btn-action-engine-dialogue-delete'))
-        s('.btn-action-engine-dialogue-delete').onclick = () => ActionEngineCyberia.deleteDialogue();
-      if (s('.btn-action-engine-dialogue-new'))
-        s('.btn-action-engine-dialogue-new').onclick = () => ActionEngineCyberia.resetDialogue();
       if (s('.btn-action-engine-dialogue-refresh'))
         s('.btn-action-engine-dialogue-refresh').onclick = () => ActionEngineCyberia.refreshDialogueList();
       if (s('.action-engine-dialogue-search'))
@@ -1373,12 +1223,6 @@ class ActionEngineCyberia {
       // Skill wiring
       if (s('.btn-action-engine-add-skill-def'))
         s('.btn-action-engine-add-skill-def').onclick = () => ActionEngineCyberia.addSkillDef();
-      if (s('.btn-action-engine-skill-save'))
-        s('.btn-action-engine-skill-save').onclick = () => ActionEngineCyberia.saveSkill();
-      if (s('.btn-action-engine-skill-delete'))
-        s('.btn-action-engine-skill-delete').onclick = () => ActionEngineCyberia.deleteSkill();
-      if (s('.btn-action-engine-skill-new'))
-        s('.btn-action-engine-skill-new').onclick = () => ActionEngineCyberia.resetSkill();
       if (s('.btn-action-engine-skill-refresh'))
         s('.btn-action-engine-skill-refresh').onclick = () => ActionEngineCyberia.refreshSkillList();
       if (s('.action-engine-skill-search'))
@@ -1394,14 +1238,6 @@ class ActionEngineCyberia {
       await ActionEngineCyberia.refreshDialogueList();
       await ActionEngineCyberia.refreshSkillList();
     });
-
-    const tabBtn = (mode, label) =>
-      html`<div
-        class="in fll action-engine-tab-${mode}"
-        style="cursor:pointer;padding:9px 16px;font-size:13px;border-bottom:3px solid transparent;text-align:center;"
-      >
-        ${label}
-      </div>`;
 
     return html`<div class="in section-mp studio-editor action-engine-container">
       ${EditorLayout.render({
@@ -1453,17 +1289,16 @@ class ActionEngineCyberia {
               </div>
               <div class="in action-engine-assignment-review" style="max-height:140px;overflow-y:auto;"></div>`,
           )}
-
-          <div class="fl" style="border-bottom:1px solid var(--studio-border);margin-bottom:14px;">
-            ${tabBtn('quest', html`<i class="fa-solid fa-scroll"></i> Quests`)}
-            ${tabBtn('action', html`<i class="fa-solid fa-handshake"></i> Actions`)}
-            ${tabBtn('dialogue', html`<i class="fa-solid fa-comments"></i> Dialogues`)}
-            ${tabBtn('skill', html`<i class="fa-solid fa-wand-sparkles"></i> Skills`)}
-          </div>
-
-          <!-- Quest panel -->
-          <div class="in action-engine-panel-quest">
-            ${group(
+          ${EditorCrud.render({ id: 'action-engine-crud', label: 'Document' })}
+          ${Tabs.render({
+            id: 'action-engine-tabs',
+            label: 'Action tools',
+            tabs: [
+              {
+                id: 'quest',
+                label: 'Quests',
+                icon: 'fa-solid fa-scroll',
+                content: html` ${group(
               'Quest Details',
               'fa-solid fa-circle-info',
               html`${dynamicCol({ containerSelector: cont, id: dc.questCt, type: 'a-50-b-50' })}
@@ -1502,121 +1337,123 @@ class ActionEngineCyberia {
                   })}
                 </div>`,
             )}
-            ${group(
-              'Quest Chain',
-              'fa-solid fa-diagram-project',
-              html`${dynamicCol({ containerSelector: cont, id: dc.questChain, type: 'a-50-b-50' })}
-                <div class="fl">
-                  <div class="in fll ${dc.questChain}-col-a" style="padding-right:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-quest-prerequisites',
-                      label: html`Prerequisite Codes (csv)`,
-                      containerClass: 'inl',
-                      type: 'text',
-                    })}
-                  </div>
-                  <div class="in fll ${dc.questChain}-col-b" style="padding-left:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-quest-unlocks',
-                      label: html`Unlocks Codes (csv)`,
-                      containerClass: 'inl',
-                      type: 'text',
-                    })}
-                  </div>
-                </div>`,
-            )}
-            ${group(
-              'Steps & Objectives',
-              'fa-solid fa-list-ol',
-              html`<div class="in" style="margin-bottom:8px;">
-                  ${await BtnIcon.instance({
-                    class: 'wfa btn-action-engine-add-step',
-                    label: html`<i class="fa-solid fa-plus"></i> Add Step`,
-                  })}
-                </div>
-                <div class="in action-engine-step-list" style="margin-bottom:10px;"></div>
-                <div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add objective to step</div>
-                ${dynamicCol({ containerSelector: cont, id: dc.objective, type: 'search-inputs' })}
-                <div class="fl" style="align-items:flex-end;">
-                  <div class="in fll ${dc.objective}-col-a" style="padding-right:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-objective-step',
-                      label: html`Step #`,
-                      containerClass: 'inl',
-                      type: 'number',
-                      min: 1,
-                      value: 1,
-                    })}
-                  </div>
-                  <div class="in fll ${dc.objective}-col-b" style="padding-right:4px;">
-                    ${await DropDown.instance({
-                      id: ids.objectiveType,
-                      label: html`Type`,
-                      data: objectiveTypeOptions,
-                      value: QUEST_STEPS_TYPES[0],
-                      containerClass: 'inl',
-                    })}
-                  </div>
-                  <div class="in fll ${dc.objective}-col-c" style="padding-right:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-objective-qty',
-                      label: html`Qty`,
-                      containerClass: 'inl',
-                      type: 'number',
-                      min: 1,
-                      value: 1,
-                    })}
-                  </div>
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await ActionEngineCyberia.buildItemIdDropdown(ids.objectiveItemPicker, html`Search itemId`)}
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await BtnIcon.instance({
-                    class: 'wfa btn-action-engine-add-objective',
-                    label: html`<i class="fa-solid fa-plus"></i> Add Objective`,
-                  })}
-                </div>`,
-            )}
-            ${group(
-              'Rewards',
-              'fa-solid fa-gift',
-              html`${dynamicCol({ containerSelector: cont, id: dc.reward, type: 'default' })}
-                <div class="fl" style="align-items:flex-end;">
-                  <div class="in fll ${dc.reward}-col-a" style="padding-right:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-reward-qty',
-                      label: html`Qty`,
-                      containerClass: 'inl',
-                      type: 'number',
-                      min: 1,
-                      value: 1,
-                    })}
-                  </div>
-                  <div class="in fll ${dc.reward}-col-b">
-                    ${await ActionEngineCyberia.buildItemIdDropdown(ids.rewardItemPicker, html`Search itemId`)}
-                  </div>
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await BtnIcon.instance({
-                    class: 'wfa btn-action-engine-add-reward',
-                    label: html`<i class="fa-solid fa-plus"></i> Add Reward`,
-                  })}
-                </div>
-                <div class="in action-engine-reward-list" style="margin-top:8px;"></div>`,
-            )}
-            ${group('Save Quest', 'fa-solid fa-floppy-disk', await crudButtons('quest', true))}
-            ${group(
-              'Existing Quests',
-              'fa-solid fa-scroll',
-              html`${await listToolbar('quest')}
-                <div class="in action-engine-quest-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-            )}
-          </div>
-
-          <!-- Action panel -->
-          <div class="in action-engine-panel-action hide">
-            ${group(
+                ${group(
+                  'Quest Chain',
+                  'fa-solid fa-diagram-project',
+                  html`${dynamicCol({ containerSelector: cont, id: dc.questChain, type: 'a-50-b-50' })}
+                    <div class="fl">
+                      <div class="in fll ${dc.questChain}-col-a" style="padding-right:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-quest-prerequisites',
+                          label: html`Prerequisite Codes (csv)`,
+                          containerClass: 'inl',
+                          type: 'text',
+                        })}
+                      </div>
+                      <div class="in fll ${dc.questChain}-col-b" style="padding-left:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-quest-unlocks',
+                          label: html`Unlocks Codes (csv)`,
+                          containerClass: 'inl',
+                          type: 'text',
+                        })}
+                      </div>
+                    </div>`,
+                )}
+                ${group(
+                  'Steps & Objectives',
+                  'fa-solid fa-list-ol',
+                  html`<div class="in" style="margin-bottom:8px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-action-engine-add-step',
+                        label: html`<i class="fa-solid fa-plus"></i> Add Step`,
+                      })}
+                    </div>
+                    <div class="in action-engine-step-list" style="margin-bottom:10px;"></div>
+                    <div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
+                      Add objective to step
+                    </div>
+                    ${dynamicCol({ containerSelector: cont, id: dc.objective, type: 'search-inputs' })}
+                    <div class="fl" style="align-items:flex-end;">
+                      <div class="in fll ${dc.objective}-col-a" style="padding-right:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-objective-step',
+                          label: html`Step #`,
+                          containerClass: 'inl',
+                          type: 'number',
+                          min: 1,
+                          value: 1,
+                        })}
+                      </div>
+                      <div class="in fll ${dc.objective}-col-b" style="padding-right:4px;">
+                        ${await DropDown.instance({
+                          id: ids.objectiveType,
+                          label: html`Type`,
+                          data: objectiveTypeOptions,
+                          value: QUEST_STEPS_TYPES[0],
+                          containerClass: 'inl',
+                        })}
+                      </div>
+                      <div class="in fll ${dc.objective}-col-c" style="padding-right:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-objective-qty',
+                          label: html`Qty`,
+                          containerClass: 'inl',
+                          type: 'number',
+                          min: 1,
+                          value: 1,
+                        })}
+                      </div>
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await ActionEngineCyberia.buildItemIdDropdown(ids.objectiveItemPicker, html`Search itemId`)}
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-action-engine-add-objective',
+                        label: html`<i class="fa-solid fa-plus"></i> Add Objective`,
+                      })}
+                    </div>`,
+                )}
+                ${group(
+                  'Rewards',
+                  'fa-solid fa-gift',
+                  html`${dynamicCol({ containerSelector: cont, id: dc.reward, type: 'default' })}
+                    <div class="fl" style="align-items:flex-end;">
+                      <div class="in fll ${dc.reward}-col-a" style="padding-right:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-reward-qty',
+                          label: html`Qty`,
+                          containerClass: 'inl',
+                          type: 'number',
+                          min: 1,
+                          value: 1,
+                        })}
+                      </div>
+                      <div class="in fll ${dc.reward}-col-b">
+                        ${await ActionEngineCyberia.buildItemIdDropdown(ids.rewardItemPicker, html`Search itemId`)}
+                      </div>
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-action-engine-add-reward',
+                        label: html`<i class="fa-solid fa-plus"></i> Add Reward`,
+                      })}
+                    </div>
+                    <div class="in action-engine-reward-list" style="margin-top:8px;"></div>`,
+                )}
+                ${group(
+                  'Existing Quests',
+                  'fa-solid fa-scroll',
+                  html`${await listToolbar('quest')}
+                    <div class="in action-engine-quest-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+                )}`,
+              },
+              {
+                id: 'action',
+                label: 'Actions',
+                icon: 'fa-solid fa-handshake',
+                content: html` ${group(
               'Action Details',
               'fa-solid fa-circle-info',
               html`${dynamicCol({ containerSelector: cont, id: dc.actionCl, type: 'a-50-b-50' })}
@@ -1653,43 +1490,43 @@ class ActionEngineCyberia {
                   )}
                 </div>`,
             )}
-            ${group(
-              'Per-quest Dialogue Mapping',
-              'fa-solid fa-comments',
-              html`${dynamicCol({ containerSelector: cont, id: dc.actionQd, type: 'a-50-b-50' })}
-                <div class="fl" style="align-items:flex-end;">
-                  <div class="in fll ${dc.actionQd}-col-a" style="padding-right:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-action-quest-code',
-                      label: html`Quest Code`,
-                      containerClass: 'inl',
-                      type: 'text',
-                    })}
-                  </div>
-                  <div class="in fll ${dc.actionQd}-col-b">
-                    ${await ActionEngineCyberia.buildDialogCodeDropdown(ids.actionQuestDialogPicker, html`Dialog Code`)}
-                  </div>
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await BtnIcon.instance({
-                    class: 'wfa btn-action-engine-add-quest-dialogue',
-                    label: html`<i class="fa-solid fa-plus"></i> Map Dialogue`,
-                  })}
-                </div>
-                <div class="in action-engine-quest-dialogue-list" style="margin-top:8px;"></div>`,
-            )}
-            ${group('Save Action', 'fa-solid fa-floppy-disk', await crudButtons('action', true))}
-            ${group(
-              'Existing Actions',
-              'fa-solid fa-handshake',
-              html`${await listToolbar('action')}
-                <div class="in action-engine-action-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-            )}
-          </div>
-
-          <!-- Dialogue panel -->
-          <div class="in action-engine-panel-dialogue hide">
-            ${group(
+                ${group(
+                  'Per-quest Dialogue Mapping',
+                  'fa-solid fa-comments',
+                  html`${dynamicCol({ containerSelector: cont, id: dc.actionQd, type: 'a-50-b-50' })}
+                    <div class="fl" style="align-items:flex-end;">
+                      <div class="in fll ${dc.actionQd}-col-a" style="padding-right:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-action-quest-code',
+                          label: html`Quest Code`,
+                          containerClass: 'inl',
+                          type: 'text',
+                        })}
+                      </div>
+                      <div class="in fll ${dc.actionQd}-col-b">
+                        ${await ActionEngineCyberia.buildDialogCodeDropdown(ids.actionQuestDialogPicker, html`Dialog Code`)}
+                      </div>
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-action-engine-add-quest-dialogue',
+                        label: html`<i class="fa-solid fa-plus"></i> Map Dialogue`,
+                      })}
+                    </div>
+                    <div class="in action-engine-quest-dialogue-list" style="margin-top:8px;"></div>`,
+                )}
+                ${group(
+                  'Existing Actions',
+                  'fa-solid fa-handshake',
+                  html`${await listToolbar('action')}
+                    <div class="in action-engine-action-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+                )}`,
+              },
+              {
+                id: 'dialogue',
+                label: 'Dialogues',
+                icon: 'fa-solid fa-comments',
+                content: html` ${group(
               'Dialogue Line',
               'fa-solid fa-comment-dots',
               html`${dynamicCol({ containerSelector: cont, id: dc.dialogue, type: 'search-inputs' })}
@@ -1738,18 +1575,18 @@ class ActionEngineCyberia {
                   })}
                 </div>`,
             )}
-            ${group('Save Dialogue Line', 'fa-solid fa-floppy-disk', await crudButtons('dialogue', false))}
-            ${group(
-              'Existing Dialogue Lines',
-              'fa-solid fa-comments',
-              html`${await listToolbar('dialogue')}
-                <div class="in action-engine-dialogue-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-            )}
-          </div>
-
-          <!-- Skill panel -->
-          <div class="in action-engine-panel-skill hide">
-            ${group(
+                ${group(
+                  'Existing Dialogue Lines',
+                  'fa-solid fa-comments',
+                  html`${await listToolbar('dialogue')}
+                    <div class="in action-engine-dialogue-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+                )}`,
+              },
+              {
+                id: 'skill',
+                label: 'Skills',
+                icon: 'fa-solid fa-wand-sparkles',
+                content: html` ${group(
               'Skill Definition',
               'fa-solid fa-circle-info',
               html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
@@ -1757,64 +1594,67 @@ class ActionEngineCyberia {
                 </div>
                 ${await ActionEngineCyberia.buildItemIdDropdown(ids.skillTriggerItemPicker, html`Search trigger itemId`)}`,
             )}
-            ${group(
-              'Logic Skills',
-              'fa-solid fa-bolt',
-              html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">Add logic event</div>
-                ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
-                <div class="fl">
-                  <div class="in fll ${dc.skillDef}-col-a" style="padding-right:4px;">
-                    ${await DropDown.instance({
-                      id: 'action-engine-skill-logic-event',
-                      label: html`Logic Event Id`,
-                      containerClass: 'inl',
-                      data: SKILL_LOGIC_IDS.map((l) => ({
-                        value: l.id,
-                        display: l.name ? `${l.id} — ${l.name}` : l.id,
-                        data: l.id,
-                        onClick: () => {},
-                      })),
-                    })}
-                  </div>
-                  <div class="in fll ${dc.skillDef}-col-b" style="padding-left:4px;">
-                    ${await Input.instance({
-                      id: 'action-engine-skill-name',
-                      label: html`Name`,
-                      containerClass: 'inl',
-                      type: 'text',
-                    })}
-                  </div>
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await Input.instance({
-                    id: 'action-engine-skill-description',
-                    label: html`Description`,
-                    containerClass: 'inl',
-                    type: 'text',
-                  })}
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await ActionEngineCyberia.buildItemIdDropdown(
-                    ids.skillSummonedItemPicker,
-                    html`Summoned entity itemId`,
-                  )}
-                </div>
-                <div class="in" style="margin-top:6px;">
-                  ${await BtnIcon.instance({
-                    class: 'wfa btn-action-engine-add-skill-def',
-                    label: html`<i class="fa-solid fa-plus"></i> Add Skill`,
-                  })}
-                </div>
-                <div class="in action-engine-skill-def-list" style="margin-top:8px;"></div>`,
-            )}
-            ${group('Save Skill', 'fa-solid fa-floppy-disk', await crudButtons('skill', false))}
-            ${group(
-              'Existing Skills',
-              'fa-solid fa-wand-sparkles',
-              html`${await listToolbar('skill')}
-                <div class="in action-engine-skill-cards" style="max-height:300px;overflow-y:auto;"></div>`,
-            )}
-          </div>
+                ${group(
+                  'Logic Skills',
+                  'fa-solid fa-bolt',
+                  html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
+                      Add logic event
+                    </div>
+                    ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
+                    <div class="fl">
+                      <div class="in fll ${dc.skillDef}-col-a" style="padding-right:4px;">
+                        ${await DropDown.instance({
+                          id: 'action-engine-skill-logic-event',
+                          label: html`Logic Event Id`,
+                          containerClass: 'inl',
+                          data: SKILL_LOGIC_IDS.map((l) => ({
+                            value: l.id,
+                            display: l.name ? `${l.id} — ${l.name}` : l.id,
+                            data: l.id,
+                            onClick: () => {},
+                          })),
+                        })}
+                      </div>
+                      <div class="in fll ${dc.skillDef}-col-b" style="padding-left:4px;">
+                        ${await Input.instance({
+                          id: 'action-engine-skill-name',
+                          label: html`Name`,
+                          containerClass: 'inl',
+                          type: 'text',
+                        })}
+                      </div>
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await Input.instance({
+                        id: 'action-engine-skill-description',
+                        label: html`Description`,
+                        containerClass: 'inl',
+                        type: 'text',
+                      })}
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await ActionEngineCyberia.buildItemIdDropdown(
+                        ids.skillSummonedItemPicker,
+                        html`Summoned entity itemId`,
+                      )}
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-action-engine-add-skill-def',
+                        label: html`<i class="fa-solid fa-plus"></i> Add Skill`,
+                      })}
+                    </div>
+                    <div class="in action-engine-skill-def-list" style="margin-top:8px;"></div>`,
+                )}
+                ${group(
+                  'Existing Skills',
+                  'fa-solid fa-wand-sparkles',
+                  html`${await listToolbar('skill')}
+                    <div class="in action-engine-skill-cards" style="max-height:300px;overflow-y:auto;"></div>`,
+                )}`,
+              },
+            ],
+          })}
         </div>`,
       })}
     </div>`;
