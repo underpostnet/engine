@@ -315,6 +315,20 @@ class ObjectLayerEngineElement extends HTMLElement {
           font-size: 12px;
           opacity: 0.7;
         }
+        /* A locked replace color over the chessboard, so its alpha shows. */
+        .swatch {
+          display: inline-block;
+          width: 22px;
+          height: 22px;
+          border: var(--border);
+          border-radius: 3px;
+          line-height: 0;
+        }
+        .swatch > span {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
 
         /* Right-click menu, positioned over the canvas frame at the pointer. */
         .ctx-menu {
@@ -482,6 +496,28 @@ class ObjectLayerEngineElement extends HTMLElement {
               <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
             </div>
 
+            <!-- Replace global color: both colors lock from the brush color. -->
+            <div class="toolbar">
+              <span class="hint">Replace global color</span>
+              <button part="lock-source" type="button" title="Lock the brush color as the color to replace">
+                Lock Source Color
+              </button>
+              <span class="swatch" style="${renderChessPattern(8)}"><span part="source-swatch"></span></span>
+              <span aria-hidden="true">→</span>
+              <button part="lock-target" type="button" title="Lock the brush color as the new color">
+                Lock Target Color
+              </button>
+              <span class="swatch" style="${renderChessPattern(8)}"><span part="target-swatch"></span></span>
+              <button
+                part="global-replace"
+                type="button"
+                title="Replace every cell of the source color on the canvas with the target color"
+              >
+                Global Replace
+              </button>
+              <span part="replace-info" class="hint"></span>
+            </div>
+
             <div class="toolbar">
               <label>pixel-size <input type="number" part="pixel-size" min="1" value="16" /></label>
               <label
@@ -579,6 +615,12 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._opacityRange = this.shadowRoot.querySelector('input[part="opacity"]');
     this._opacityNumber = this.shadowRoot.querySelector('input[part="opacity-num"]');
     this._shadeRange = this.shadowRoot.querySelector('input[part="shade"]');
+    this._lockSourceBtn = this.shadowRoot.querySelector('button[part="lock-source"]');
+    this._lockTargetBtn = this.shadowRoot.querySelector('button[part="lock-target"]');
+    this._globalReplaceBtn = this.shadowRoot.querySelector('button[part="global-replace"]');
+    this._sourceSwatch = this.shadowRoot.querySelector('span[part="source-swatch"]');
+    this._targetSwatch = this.shadowRoot.querySelector('span[part="target-swatch"]');
+    this._replaceInfo = this.shadowRoot.querySelector('span[part="replace-info"]');
 
     // undo/redo buttons
     this._undoBtn = this.shadowRoot.querySelector('button[part="undo"]');
@@ -606,6 +648,9 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._brushSize = 1;
     // brush color stored as [r,g,b,a]
     this._brushColor = [0, 0, 0, 255];
+    // The [r,g,b,a] colors a global replace reads, or null until locked.
+    this._replaceSource = null;
+    this._replaceTarget = null;
     this._matrix = this._createEmptyMatrix(this._width, this._height);
 
     this._pixelCtx = null;
@@ -760,6 +805,10 @@ class ObjectLayerEngineElement extends HTMLElement {
         this._applyBrushColor([...mixColor(this._shadeBase, target, Math.abs(share)), this._brushColor[3]]);
       });
 
+    if (this._lockSourceBtn) this._lockSourceBtn.addEventListener('click', () => this.lockSourceColor());
+    if (this._lockTargetBtn) this._lockTargetBtn.addEventListener('click', () => this.lockTargetColor());
+    if (this._globalReplaceBtn) this._globalReplaceBtn.addEventListener('click', () => this.globalReplace());
+
     // opacity controls - keep range and number in sync
     if (this._opacityRange) {
       this._opacityRange.addEventListener('input', (e) => {
@@ -859,6 +908,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._updateToolbarButtons();
     this._updateToolButtons();
     this._updateSelectionUI();
+    this._updateReplaceUI();
   }
 
   disconnectedCallback() {
@@ -1457,6 +1507,53 @@ class ObjectLayerEngineElement extends HTMLElement {
   _colorsEqual(a, b) {
     if (!a || !b) return false;
     return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+  }
+
+  /** Locks an rgba color, the brush color by default, as the color a global replace finds. */
+  lockSourceColor(rgba = this._brushColor) {
+    this._replaceSource = rgba.map((n) => this._clampInt(n));
+    this._updateReplaceUI();
+  }
+
+  /** Locks an rgba color, the brush color by default, as the color a global replace paints. */
+  lockTargetColor(rgba = this._brushColor) {
+    this._replaceTarget = rgba.map((n) => this._clampInt(n));
+    this._updateReplaceUI();
+  }
+
+  /** Paints every canvas cell of the source color with the target color, as one command. Returns the cell count. */
+  globalReplace() {
+    const source = this._replaceSource;
+    const target = this._replaceTarget;
+    if (!source || !target || this._colorsEqual(source, target)) return 0;
+    const cells = colorRegion(this._matrix, source);
+    this.command('GlobalReplace', () => {
+      this._matrix = fillRegion(this._matrix, cells, target);
+      this.render();
+    });
+    this._updateReplaceUI(cells.length ? `${cells.length} cells replaced` : 'no cell has the source color');
+    this.dispatchEvent(
+      new CustomEvent('globalreplace', {
+        detail: { source: source.slice(), target: target.slice(), count: cells.length },
+      }),
+    );
+    return cells.length;
+  }
+
+  _updateReplaceUI(info = '') {
+    const swatches = [
+      [this._sourceSwatch, this._replaceSource, 'source'],
+      [this._targetSwatch, this._replaceTarget, 'target'],
+    ];
+    for (const [swatch, rgba, role] of swatches) {
+      if (!swatch) continue;
+      swatch.style.background = rgba ? `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] / 255})` : 'transparent';
+      swatch.parentElement.title = rgba ? `${role}: ${this._rgbaToHexWithAlpha(rgba)}` : `${role}: not locked`;
+    }
+    if (this._globalReplaceBtn)
+      this._globalReplaceBtn.disabled =
+        !this._replaceSource || !this._replaceTarget || this._colorsEqual(this._replaceSource, this._replaceTarget);
+    if (this._replaceInfo) this._replaceInfo.textContent = info;
   }
 
   // ---------------- Pointer handling ----------------
