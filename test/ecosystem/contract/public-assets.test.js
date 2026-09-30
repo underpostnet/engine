@@ -10,14 +10,14 @@ const tracked = git('ls-files', 'src/client/public/cyberia', 'src/client/public/
 const conf = new URL('engine-private/conf/dd-cyberia/', root);
 const deployment = new URL('cyberia-deployment/', root);
 
-const privatePaths = [
-  ...['lore', 'custom-biome', 'skin', 'weapon', 'quest', 'joy'].map(
-    (name) => `src/client/public/cyberia/assets/${name}/private.png`,
+// The directories the storage manifests fill with private assets.
+const privateDirectories = [
+  ...['breastplate', 'coin', 'custom-biome', 'floor', 'joy', 'lore', 'quest', 'skill', 'skin', 'weapon'].map(
+    (name) => `src/client/public/cyberia/assets/${name}`,
   ),
-  ...['pixel-gif', 'background'].map((name) => `src/client/public/underpost/assets/${name}/private.png`),
-  'src/client/public/cyberia/assets/ui-icons/private.png',
-  'src/client/public/underpost/private.json',
+  ...['background', 'pixel-gif'].map((name) => `src/client/public/underpost/assets/${name}`),
 ];
+const privatePaths = privateDirectories.map((directory) => `${directory}/private.png`);
 
 describe('application asset ownership', () => {
   it.each(['cyberia', 'underpost'])('tracks the %s application source in engine', (client) => {
@@ -27,14 +27,29 @@ describe('application asset ownership', () => {
       expect(fs.statSync(new URL(`${base}/${file}`, root)).isFile()).toBe(true);
     }
     expect(fs.existsSync(new URL(`${base}/.git`, root))).toBe(false);
-    expect(tracked.some((file) => file.startsWith(`${base}/assets/splash/`))).toBe(true);
+    const head = read(`src/client/ssr/head/Pwa${client[0].toUpperCase()}${client.slice(1)}.js`);
+    const linked = [...head.matchAll(/href="\/([^"]+)"/g)].map(([, file]) => `${base}/${file}`);
+    expect(linked.length).toBeGreaterThan(0);
+    expect(linked.filter((file) => !tracked.includes(file))).toEqual([]);
   });
 
   it('excludes private files from Git', () => {
     expect(git('check-ignore', '--no-index', '--', ...privatePaths).split('\n')).toEqual(privatePaths);
-    expect(
-      tracked.some((file) => /\/assets\/(lore|custom-biome|skin|weapon|quest|joy|pixel-gif|background)\//.test(file)),
-    ).toBe(false);
+    expect(tracked.filter((file) => privateDirectories.some((directory) => file.startsWith(`${directory}/`)))).toEqual(
+      [],
+    );
+  });
+
+  it.skipIf(!fs.existsSync(conf))('excludes every asset of the storage manifests from Git', () => {
+    const keys = ['storage.json', 'storage.underpost.json'].flatMap((name) =>
+      Object.keys(JSON.parse(fs.readFileSync(new URL(name, conf), 'utf8'))),
+    );
+    const ignored = execFileSync('git', ['check-ignore', '--no-index', '--stdin'], {
+      cwd: root,
+      encoding: 'utf8',
+      input: keys.join('\n'),
+    });
+    expect(ignored.trim().split('\n')).toEqual(keys);
   });
 
   it('does not synchronize public source during deployment', () => {
@@ -47,19 +62,13 @@ describe('application asset ownership', () => {
     );
   });
 
-  it('refreshes application assets from engine source during cluster startup', () => {
-    const source = read('src/cli/run.js');
-    for (const client of ['cyberia', 'underpost'])
-      expect(source).toContain(
-        `cp -a ./engine-cyberia/src/client/public/${client}/. /home/dd/engine/src/client/public/${client}/`,
-      );
-  });
-
   it.each(['Dockerfile', 'Dockerfile.dev', 'Dockerfile.test'])('%s uses source assets and pinned content', (file) => {
     const source = read(`src/runtime/engine-cyberia/${file}`);
     expect(source).not.toMatch(/cyberia-deployment\/public|node bin fs|cloudinary_cloud_name|storage-id/);
     expect(source).toContain('content-lock.json').toContain('sourceRevision');
     expect(source).toContain('node bin/cyberia content status --lock');
+    // The engine-cyberia tree carries the application assets into the image.
+    expect(source).toContain('cp -a ./"$ENGINE_CYBERIA_REPO"/. /home/dd/engine/');
   });
 
   it.skipIf(!fs.existsSync(deployment))('keeps deployment state free of application and semantic content trees', () => {

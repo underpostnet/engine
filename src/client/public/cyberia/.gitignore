@@ -1,1 +1,11 @@
 *.log
+/assets/breastplate/
+/assets/coin/
+/assets/custom-biome/
+/assets/floor/
+/assets/joy/
+/assets/lore/
+/assets/quest/
+/assets/skill/
+/assets/skin/
+/assets/weapon/
