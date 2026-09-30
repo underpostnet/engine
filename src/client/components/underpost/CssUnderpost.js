@@ -1,9 +1,8 @@
 import { AgGrid } from '../core/AgGrid.js';
-import { borderChar, subThemeManager } from '../core/Css.js';
+import { borderChar, renderRetroFontFaces, subThemeManager } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { markdownStyle } from '../core/Markdown.js';
 import { Modal } from '../core/Modal.js';
-import { getProxyPath } from '../core/Router.js';
 
 /** The retro face every Markdown body of this client renders in. */
 const MARKDOWN_RETRO_TOKENS = {
@@ -38,7 +37,8 @@ const CssCommonUnderpost = async () => {
     },
   });
 
-  return html`<style>
+  return html`${renderRetroFontFaces()}
+    <style>
       /* Core variables: override in each theme */
       :root {
         --up-font-retro: 'retro-font';
@@ -47,22 +47,6 @@ const CssCommonUnderpost = async () => {
         --up-font-retro-cta: 'retro-font-cta';
       }
 
-      @font-face {
-        font-family: 'retro-font-title';
-        src: URL('${getProxyPath()}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
-      }
-      @font-face {
-        font-family: 'retro-font';
-        src: URL('${getProxyPath()}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
-      }
-      @font-face {
-        font-family: 'retro-font-sensitive';
-        src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
-      }
-      @font-face {
-        font-family: 'retro-font-cta';
-        src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
-      }
       .default-slide-menu-top-bar-fix-title-container {
         top: 10px;
       }

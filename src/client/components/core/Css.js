@@ -1095,6 +1095,27 @@ const imageShimmer = () =>
   </div>`;
 const renderChessPattern = (patternSize = 20) =>
   `background: repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / ${patternSize}px ${patternSize}px`;
+/** The pixel faces of the retro clients. The sensitive face has a small x-height, so it runs larger. */
+const renderRetroFontFaces = () =>
+  html`<style>
+    @font-face {
+      font-family: 'retro-font-title';
+      src: URL('${getProxyPath()}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'retro-font';
+      src: URL('${getProxyPath()}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'retro-font-sensitive';
+      src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
+      size-adjust: 120%;
+    }
+    @font-face {
+      font-family: 'retro-font-cta';
+      src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
+    }
+  </style>`;
 const extractBackgroundImageUrl = (element) => {
   const style = window.getComputedStyle(element);
   const imageString = style.backgroundImage;
@@ -1145,6 +1166,7 @@ export {
   simpleIconsRender,
   extractBackgroundImageUrl,
   renderChessPattern,
+  renderRetroFontFaces,
   subThemeManager,
   lightenHex,
   darkenHex,
