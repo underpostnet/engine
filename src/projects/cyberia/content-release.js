@@ -513,6 +513,18 @@ export async function pruneContentReleases({
 }
 
 /**
+ * The content database the runtime of a host serves: the active release's, else the workspace.
+ * @param {{host:string,path:string}} context - A context whose models hold the release ledger.
+ * @param {string} workspace - The workspace database name.
+ * @returns {Promise<{releaseId:string,database:string}>}
+ * @memberof CyberiaContentRelease
+ */
+export async function servedContent(context, workspace) {
+  const active = await DataBaseProviderService.getProvider(context, 'mongoose').models.CyberiaContentRelease.active();
+  return { releaseId: active?.releaseId ?? '', database: active?.database ?? workspace };
+}
+
+/**
  * Makes the content partition of a running host serve its active release. With no promotion
  * yet, it serves the workspace. Authoring keeps reading the workspace either way.
  * @param {{host:string,path:string}} context
@@ -522,25 +534,30 @@ export async function pruneContentReleases({
 export async function activateContentRelease(context) {
   const bucket = DataBaseProviderService.getProvider(context, 'mongoose');
   if (!bucket.partitions?.[CONTENT_PARTITION] || !bucket.models.CyberiaContentRelease) return null;
-  const active = await bucket.models.CyberiaContentRelease.active();
-  const target = active?.database ?? bucket.partitions[CONTENT_PARTITION].name;
-  const { previous, database } = await DataBaseProviderService.serveDatabase(context, CONTENT_PARTITION, target);
-  return { releaseId: active?.releaseId ?? '', database, changed: previous !== database };
+  const served = await servedContent(context, bucket.partitions[CONTENT_PARTITION].name);
+  const { previous, database } = await DataBaseProviderService.serveDatabase(
+    context,
+    CONTENT_PARTITION,
+    served.database,
+  );
+  return { releaseId: served.releaseId, database, changed: previous !== database };
 }
 
 /**
- * Asks every registered Cyberia server to rebuild its world from the content now served.
+ * Asks every registered Cyberia server to rebuild from the content now served: its whole world,
+ * or only its object layers with `incremental`.
  * @param {{host:string,path:string}} context
+ * @param {{mode?:'full'|'incremental'}} [params]
  * @returns {Promise<number>} Servers reached.
  * @memberof CyberiaContentRelease
  */
-export async function reloadContentServers(context) {
+export async function reloadContentServers(context, { mode = 'full' } = {}) {
   const Registry = DataBaseProviderService.getProvider(context, 'mongoose').models.CyberiaServerRegistry;
   if (!Registry) return 0;
   let reached = 0;
   for (const server of await Registry.find({}, { serverUrl: 1, instanceCode: 1 }).lean()) {
     try {
-      await triggerHotReload({ serverUrl: server.serverUrl, instanceCode: server.instanceCode, mode: 'full' });
+      await triggerHotReload({ serverUrl: server.serverUrl, instanceCode: server.instanceCode, mode });
       reached++;
     } catch (error) {
       logger.warn(`Hot reload of ${server.serverUrl} failed: ${error.message}`);

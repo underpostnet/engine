@@ -13,6 +13,7 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({ IpfsClient: {} }));
+vi.mock('../../../src/projects/cyberia/hot-reload-trigger.js', () => ({ triggerHotReload: vi.fn() }));
 
 const {
   assertReleaseId,
@@ -22,8 +23,11 @@ const {
   pruneContentReleases,
   releaseDatabaseName,
   releaseDbConf,
+  reloadContentServers,
+  servedContent,
   validateContentRelease,
 } = await import('../../../src/projects/cyberia/content-release.js');
+const { triggerHotReload } = await import('../../../src/projects/cyberia/hot-reload-trigger.js');
 const { CyberiaContentReleaseSchema } =
   await import('../../../src/api/cyberia-content-release/cyberia-content-release.model.js');
 const { objectLayerIdentity, renderContractOf } =
@@ -496,6 +500,35 @@ describe('content partition binding', () => {
     expect(loaded.CyberiaMap.db.name).toBe('cyberia-content-r1');
     expect(loaded.CyberiaQuestProgress.db.name).toBe('cyberia');
     expect(loaded.CyberiaContentRelease.db.name).toBe('cyberia');
+  });
+});
+
+describe('served content', () => {
+  it('names the active release database, else the workspace', async () => {
+    models.CyberiaContentRelease = { active: async () => null };
+    expect(await servedContent({}, 'cyberia-content')).toEqual({ releaseId: '', database: 'cyberia-content' });
+    models.CyberiaContentRelease = { active: async () => ({ releaseId: 'r1', database: 'cyberia-content-r1' }) };
+    expect(await servedContent({}, 'cyberia-content')).toEqual({ releaseId: 'r1', database: 'cyberia-content-r1' });
+    delete models.CyberiaContentRelease;
+  });
+
+  it('reloads every registered server in the mode asked, and counts the servers reached', async () => {
+    models.CyberiaServerRegistry = {
+      find: () => ({
+        lean: async () => [
+          { serverUrl: 'http://forest', instanceCode: 'FOREST' },
+          { serverUrl: 'http://gone', instanceCode: 'TEST' },
+        ],
+      }),
+    };
+    triggerHotReload.mockReset();
+    triggerHotReload.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('unreachable'));
+    expect(await reloadContentServers({}, { mode: 'incremental' })).toBe(1);
+    expect(triggerHotReload.mock.calls.map(([call]) => call)).toEqual([
+      { serverUrl: 'http://forest', instanceCode: 'FOREST', mode: 'incremental' },
+      { serverUrl: 'http://gone', instanceCode: 'TEST', mode: 'incremental' },
+    ]);
+    delete models.CyberiaServerRegistry;
   });
 });
 
