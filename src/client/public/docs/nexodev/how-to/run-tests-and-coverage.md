@@ -380,18 +380,20 @@ A client declares its whole documentation surface in `conf.client.json`, under
     { "id": "cyberia", "label": "Cyberia coverage", "suite": "cyberia" },
     { "id": "hardhat", "label": "Hardhat coverage", "path": "./hardhat" }
   ],
-  "references": ["./src/client/public/docs/cyberia", "./src/client/public/docs/ecosystem"],
+  "references": ["./src/client/public/docs"],
   "api": ["cyberia-entity", "cyberia-map", "object-layer", "item-ledger"]
 }
 ```
 
 - `typedoc` overrides the engine default `typedoc.json`, the only TypeDoc file
   the engine keeps. A product declares its own options here.
-- `references` names documentation directories, usually one domain each under
-  `src/client/public/docs`. The build reads them to any depth. A document's path is
-  its identity, `<domain>/<category>/<slug>`: the build publishes it at
+- `references` names the documentation tree, `src/client/public/docs`. The build
+  reads it to any depth. A document's path is its identity,
+  `<domain>/<category>/<slug>`: the build publishes it at
   `/docs/<domain>/<category>/<slug>.md` and writes the navigation to
-  `/docs/manifest.json`.
+  `/docs/manifest.json`. The navigation names the domains the client's `/docs` view
+  navigates: `DOCS_VIEWS` of `src/server/build/docs.js` declares them per client,
+  and every domain has exactly one view.
 - `canonical` marks the one client whose merged options `node bin/build <deploy-id>`
   writes to the product repository root as `typedoc.json`.
 - `coverage` declares the HTML reports the client publishes.
@@ -418,6 +420,12 @@ no workload container ever runs a test runner to obtain one.
 - `node bin/build <deploy-id> --coverage` runs `node bin test <suite>` for every
   suite the deploy ids' reports name, then assembles the template. Without the
   flag, whatever the run directories already hold is bundled as-is.
+- `node bin/build <deploy-id> --update-private` runs the same suites. It publishes
+  `engine-test-<id>`, the source a sync deploy runs (`deploy/dd-core/sync-deploy.sh`
+  runs `engine-test-core`), so that source carries the reports of its own run. A
+  failed suite stops the publish.
+- `--no-coverage` runs no suite. The build bundles the reports the run directories
+  already hold, and a report the run directories do not hold is not bundled.
 - Assembly copies each report into the artifact at `docs/coverage/<id>`, which
   is published with the deploy source (`engine-<id>` / `engine-test-<id>`).
 - The client build (`node bin client <deploy-id>`) publishes each report at

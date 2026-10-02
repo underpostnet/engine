@@ -5,16 +5,26 @@ import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import {
+  buildBadgeToolTipMenuOption,
+  isSubMenuOpen,
+  Modal,
+  SUBMENU_SELECTION_QUERY_KEY,
+  renderMenuLabel,
+  renderViewTitle,
+  sortableSubMenuEvents,
+  subMenuRender,
+} from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
+import { getProxyPath, getPublicRouteParam, setQueryParams } from '../core/Router.js';
 import { AppStoreUnderpost } from './AppStoreUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RouterUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
+import { Docs } from '../core/Docs.js';
 import { organizationUrl } from '../core/Repository.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
@@ -180,6 +190,25 @@ class AppShellUnderpost {
             tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.instance({
+            class: 'in wfa main-btn-menu main-btn-docs',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+              text: html`<span class="menu-label-text"
+                >${Translate.instance('docs')}
+                <i
+                  class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
+                  style="rotate: 0deg; transition: 0.4s;"
+                ></i
+              ></span>`,
+            }),
+            attrs: `data-id="docs"`,
+            tabHref: `${getProxyPath()}docs`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
+          })}
+          <div class="abs menu-btn-container-children-docs"></div>
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -330,12 +359,14 @@ class AppShellUnderpost {
       });
     });
 
+    const sortableSubMenus = sortableSubMenuEvents(['docs']);
     AppShellUnderpost.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
       fallbackOnBody: true,
       handle: '.handle-btn-container',
+      draggable: '.main-btn-menu',
       store: {
         /**
          * Get the order of elements. Called once during initialization.
@@ -360,6 +391,7 @@ class AppShellUnderpost {
       // ghostClass: 'css-class',
       // Element dragging ended
       onEnd: function (/**Event*/ evt) {
+        sortableSubMenus.onEnd();
         // console.log('Sortable onEnd', evt);
         // console.log('evt.oldIndex', evt.oldIndex);
         // console.log('evt.newIndex', evt.newIndex);
@@ -377,6 +409,36 @@ class AppShellUnderpost {
         // evt.clone; // the clone element
         // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
       },
+      onStart: sortableSubMenus.onStart,
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async (e) => {
+      if (!isSubMenuOpen('docs') || e.isTrusted) {
+        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
+        await subMenuRender('docs');
+      }
+
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-docs',
+        route: 'docs',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('docs')}</span>`,
+        }),
+        html: async () =>
+          await Docs.instance({
+            idModal: 'modal-docs',
+            ...Docs.uiIcons({ iconClass: 'underpost-menu-icon' }),
+          }),
+        handleType: 'bar',
+        observer: true,
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
     });
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {

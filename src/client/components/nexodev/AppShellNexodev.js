@@ -730,7 +730,6 @@ class AppShellNexodev {
         html: async () =>
           await Docs.instance({
             idModal: 'modal-docs',
-            domain: 'nexodev',
           }),
         handleType: 'bar',
         observer: true,

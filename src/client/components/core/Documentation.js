@@ -11,8 +11,9 @@ const logger = loggerFactory(import.meta);
  * writes from the documentation tree, never from links inside the prose. A document is addressed
  * by its identity, `<domain>/<category>/<slug>`, which is also its public path.
  *
- * A view navigates one domain: the one its shell owns. The instance publishes the whole tree, so
- * a link that leaves the domain still opens the document it names.
+ * A view navigates the domains the build names for its application, the `view` of the navigation,
+ * or every domain when it names none. The instance publishes the whole tree, so a link that leaves
+ * those domains still opens the document it names.
  */
 class Documentation {
   /** The published navigation, read once per page. */
@@ -84,7 +85,7 @@ class Documentation {
 
   /**
    * The navigation the build published.
-   * @returns {Promise<{domains: Array}>}
+   * @returns {Promise<{domains: Array, view: string[]}>}
    */
   static async navigation() {
     if (Documentation.manifest) return Documentation.manifest;
@@ -94,12 +95,13 @@ class Documentation {
     return Documentation.manifest;
   }
 
-  /** The domains a view navigates: the one it owns, or every published domain. */
-  static domains(manifest, domain = '') {
-    if (!domain) return manifest.domains;
-    const owned = manifest.domains.find((published) => published.id === domain);
-    if (!owned) throw new Error(`the instance publishes no domain "${domain}"`);
-    return [owned];
+  /** The domains the view navigates: the ones the build names for this application, or every domain. */
+  static domains(manifest) {
+    if (!Array.isArray(manifest.view)) throw new Error('the published navigation names no view: build the docs again');
+    if (manifest.view.length === 0) return manifest.domains;
+    const missing = manifest.view.filter((id) => !manifest.domains.some((published) => published.id === id));
+    if (missing.length > 0) throw new Error(`the instance publishes no domain "${missing.join('", "')}"`);
+    return manifest.domains.filter((published) => manifest.view.includes(published.id));
   }
 
   /** Every document of a domain list, in reading order: what previous and next step through. */
@@ -116,21 +118,20 @@ class Documentation {
    * @param {Object} options
    * @param {string} options.path - Document identity, `<domain>/<category>/<slug>`, or empty for
    *   the first document of the navigation.
-   * @param {string} [options.domain] - Domain the view navigates; every domain when empty.
    * @param {string} [options.id] - Container id, for a view that hosts more than one.
    * @param {string} [options.anchor] - Heading to scroll to once the document renders.
    * @param {boolean} [options.top] - Without an anchor, scroll to the top of the view, not to the
    *   document.
    */
-  static async render({ path, domain = '', id = 'documentation', anchor = '', top = false }) {
+  static async render({ path, id = 'documentation', anchor = '', top = false }) {
     Documentation.current = path;
     let heading = null;
     try {
       const manifest = await Documentation.navigation();
-      const domains = Documentation.domains(manifest, domain);
+      const domains = Documentation.domains(manifest);
       const documents = Documentation.order(domains);
-      // A link out of the domain opens the document it names: the instance publishes the tree.
-      const published = domain ? Documentation.order(manifest.domains) : documents;
+      // A link out of the view opens the document it names: the instance publishes the tree.
+      const published = Documentation.order(manifest.domains);
       const current = path ? published.find((document) => document.path === path) : documents[0];
       if (!current) throw new Error(path ? 'is not a published document' : 'the instance publishes no documents');
 
@@ -221,10 +222,9 @@ class Documentation {
 
   /**
    * @param {Object} [options]
-   * @param {string} [options.path] - Document to open; the first document of the domain by default.
-   * @param {string} [options.domain] - Domain the view navigates; every domain when empty.
+   * @param {string} [options.path] - Document to open; the first document of the view by default.
    */
-  static async instance({ path = '', domain = '' } = {}) {
+  static async instance({ path = '' } = {}) {
     const id = 'documentation';
     setTimeout(() => {
       const view = s(`.${id}`);
@@ -234,7 +234,7 @@ class Documentation {
         observer.observe(modal);
         if (bar) observer.observe(bar);
       }
-      Documentation.render({ path, domain, id, anchor: decodeURIComponent(location.hash.slice(1)), top: true });
+      Documentation.render({ path, id, anchor: decodeURIComponent(location.hash.slice(1)), top: true });
       // History back and forward change the URL under the view: it follows.
       listenQueryParamsChange({
         id: `${id}-query`,
@@ -242,7 +242,6 @@ class Documentation {
           if (s(`.${id}`) && (params.doc ?? '') !== (Documentation.current ?? ''))
             Documentation.render({
               id,
-              domain,
               path: params.doc ?? '',
               anchor: decodeURIComponent(location.hash.slice(1)),
             });
@@ -262,7 +261,7 @@ class Documentation {
             const render = s(`.${id}-render`);
             Documentation.reveal(id, (target.anchor && headingOf(render, target.anchor)) || render, 'smooth');
           } else {
-            Documentation.render({ id, domain, ...target });
+            Documentation.render({ id, ...target });
             setQueryParams({ doc: target.path }, { replace: false });
           }
           // The URL names the anchor of this document, never one left from the last.

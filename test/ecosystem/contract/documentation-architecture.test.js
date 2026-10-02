@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import {
   DOCS_CATEGORIES,
   DOCS_ROOT,
+  DOCS_VIEWS,
   anchorsOf,
   docsDocumentsFactory,
   docsNavigationFactory,
@@ -37,6 +38,18 @@ describe.skipIf(!fs.existsSync(DOCS_ROOT))('documentation architecture', () => {
   it('documents every ecosystem domain, each in its own directory', () => {
     const domains = new Set(documents().map((document) => document.domain));
     expect([...domains].sort()).to.deep.equal(Object.keys(DOMAINS).sort());
+  });
+
+  it('navigates every domain from exactly one documentation view, which its application opens', () => {
+    const viewed = Object.values(DOCS_VIEWS).flat();
+    expect([...viewed].sort()).to.deep.equal(Object.keys(DOMAINS).sort());
+    for (const client of Object.keys(DOCS_VIEWS)) {
+      const shell = `./src/client/components/${client}`;
+      const opens = fs
+        .readdirSync(shell)
+        .some((file) => fs.readFileSync(`${shell}/${file}`, 'utf8').includes('Docs.instance('));
+      expect(opens, `${client} opens the documentation view`).to.equal(true);
+    }
   });
 
   it('keeps every document in a category its domain uses', () => {

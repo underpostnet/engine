@@ -18,6 +18,7 @@ import {
 } from '../server/build/coverage.js';
 import {
   DEFAULT_TYPEDOC_CONFIG_PATH,
+  DOCS_VIEWS,
   apiDocsModulesFactory,
   docsDocumentsFactory,
   docsNavigationFactory,
@@ -25,7 +26,6 @@ import {
   frontMatterOf,
   typedocOptionsFactory,
 } from '../server/build/docs.js';
-import { JSONweb } from './client-formatted.js';
 import { documentationHref } from '../client/components/core/CommonJs.js';
 import { ssrFactory } from './ssr.js';
 import { API_BASE_PATH } from '../server/domain/api-contract.js';
@@ -543,19 +543,21 @@ const documentLinkFactory = (document, target, proxyPath) => {
  * A document is published at the path its identity gives it, `/docs/<domain>/<category>/<slug>.md`,
  * with its front matter removed and its links rewritten to the documentation view. The navigation
  * is written beside them as `/docs/manifest.json`, so the view derives its structure from the
- * documentation tree rather than from links inside the prose.
+ * documentation tree rather than from links inside the prose. Its `view` names the domains the
+ * client's documentation view navigates ({@link DOCS_VIEWS}); empty means every domain.
  * @function buildDocsReferences
  * @memberof clientBuildDocs
  * @param {Object} options - Reference publish options
  * @param {Object} options.docs - Documentation config from client conf
  * @param {string} options.docsDestination - Resolved `/docs/` output path of the host
  * @param {string} [options.proxyPath] - The instance's proxy path
+ * @param {string} [options.client] - The client id
  * @returns {{documents: number, navigation: object}} What was published
  */
-const buildDocsReferences = async ({ docs, docsDestination, proxyPath = '/' }) => {
+const buildDocsReferences = async ({ docs, docsDestination, proxyPath = '/', client = '' }) => {
   const logger = loggerFactory(import.meta);
   const documents = docsDocumentsFactory(docs);
-  if (documents.length === 0) return { documents: 0, navigation: { domains: [] } };
+  if (documents.length === 0) return { documents: 0, navigation: { domains: [], view: [] } };
 
   // The route holds exactly the declared documents: one dropped from the conf leaves with it.
   for (const domain of new Set(documents.map((document) => document.domain || 'references')))
@@ -570,7 +572,7 @@ const buildDocsReferences = async ({ docs, docsDestination, proxyPath = '/' }) =
     fs.outputFileSync(`${docsDestination}${document.url.replace(/^docs\//, '')}`, published.trimStart(), 'utf8');
   }
 
-  const navigation = docsNavigationFactory(documents);
+  const navigation = { ...docsNavigationFactory(documents), view: [...(DOCS_VIEWS[client] ?? [])] };
   fs.outputFileSync(`${docsDestination}manifest.json`, JSON.stringify(navigation, null, 2), 'utf8');
   logger.warn('build docs', {
     published: docsDestination,
@@ -594,6 +596,7 @@ const buildDocsReferences = async ({ docs, docsDestination, proxyPath = '/' }) =
  * @param {Array<string>} options.apis - The API modules the instance serves
  * @param {Object} options.packageData - Package.json data
  * @param {Object} options.docs - Documentation config from client conf
+ * @param {string} options.client - The client id
  */
 const buildDocs = async ({
   host,
@@ -607,6 +610,7 @@ const buildDocs = async ({
   apiExtensions = {},
   packageData,
   docs,
+  client,
 }) => {
   const pathPrefix = path === '/' ? '/' : `${path}/`;
   // TypeDoc output is versioned: served at /docs/engine/{version}/
@@ -616,7 +620,7 @@ const buildDocs = async ({
   const coverageBaseDestination = `./public/${host}${pathPrefix}docs/`;
   await buildJsDocs({ host, path, metadata, docs, docsDestination: jsDocsDestination });
   await buildCoverage({ docs, docsDestination: coverageBaseDestination });
-  await buildDocsReferences({ docs, docsDestination: coverageBaseDestination, proxyPath: pathPrefix });
+  await buildDocsReferences({ docs, docsDestination: coverageBaseDestination, proxyPath: pathPrefix, client });
   await buildApiDocs({
     host,
     path,

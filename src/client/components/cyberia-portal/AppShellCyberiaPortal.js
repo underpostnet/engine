@@ -493,7 +493,6 @@ class AppShellCyberiaPortal {
           await Docs.instance({
             idModal: 'modal-docs',
             ...Docs.uiIcons({ iconClass: 'cyberia-menu-icon' }),
-            domain: 'cyberia',
             demoUrl: () => `https://client.cyberiaonline.com/`,
             lastReleaseUrl: deployPackageReleaseUrl,
           }),

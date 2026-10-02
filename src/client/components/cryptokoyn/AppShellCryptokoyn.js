@@ -380,7 +380,6 @@ class AppShellCryptokoyn {
           await Docs.instance({
             idModal: 'modal-docs',
             ...Docs.uiIcons({ iconClass: 'cryptokoyn-menu-icon' }),
-            domain: 'cryptokoyn',
             disabled: ['demo'],
             lastReleaseUrl: deployPackageReleaseUrl,
           }),

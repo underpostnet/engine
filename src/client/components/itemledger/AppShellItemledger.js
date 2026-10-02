@@ -388,7 +388,6 @@ class AppShellItemledger {
           await Docs.instance({
             idModal: 'modal-docs',
             ...Docs.uiIcons({ iconClass: 'itemledger-menu-icon' }),
-            domain: 'item-ledger',
             disabled: ['demo'],
             lastReleaseUrl: deployPackageReleaseUrl,
           }),

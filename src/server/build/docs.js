@@ -71,6 +71,22 @@ const DOCS_CATEGORIES = Object.freeze({
   adr: 'ADR',
 });
 
+/**
+ * @constant DOCS_VIEWS
+ * @description The domains the documentation view of each application navigates, by client id.
+ * Every domain of the tree has exactly one view. An application not named here navigates every
+ * domain.
+ * @memberof UnderpostDocs
+ */
+const DOCS_VIEWS = Object.freeze({
+  underpost: Object.freeze(['ecosystem', 'underpost']),
+  objectlayer: Object.freeze(['object-layer']),
+  itemledger: Object.freeze(['item-ledger']),
+  'cyberia-portal': Object.freeze(['cyberia']),
+  cryptokoyn: Object.freeze(['cryptokoyn']),
+  nexodev: Object.freeze(['nexodev']),
+});
+
 /** Order categories appear in, ahead of any not named here. */
 const CATEGORY_ORDER = Object.keys(DOCS_CATEGORIES);
 
@@ -354,6 +370,7 @@ const canonicalDocsClient = (confClient = {}) => {
 export {
   DOCS_CATEGORIES,
   DOCS_ROOT,
+  DOCS_VIEWS,
   anchorsOf,
   docsDocumentsFactory,
   docsNavigationFactory,

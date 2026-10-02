@@ -2,7 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import { DOCS_ROOT, docsDocumentsFactory } from '../../../src/server/build/docs.js';
+import { DOCS_ROOT, DOCS_VIEWS } from '../../../src/server/build/docs.js';
 
 /**
  * The docs submenu is a contract split between core and each app shell: `Docs.instance` fills
@@ -71,22 +71,22 @@ describe.skipIf(!fs.existsSync(DOCS_ROOT))('docs submenu contract', () => {
     expect(missing).to.deep.equal([]);
   });
 
-  // The guide view lists one domain: the one the shell owns. A shell that names no domain has no
-  // documentation of its own, so it deploys no guide entry.
-  it('names a published domain in every shell that offers the guide', () => {
-    const published = new Set(docsDocumentsFactory({ references: [DOCS_ROOT] }).map((document) => document.domain));
+  // The guide lists the domains the build names for the application. An application with no
+  // documentation view has no documentation of its own, so it deploys no guide entry.
+  it('gives every shell that offers the guide a documentation view, and lands inside it', () => {
     const wrong = [];
     for (const { client, source } of shells) {
       const call = source.match(/Docs\.instance\(\{[\s\S]*?\n\s*\}\)/)?.[0];
       if (!call) continue;
-      const domain = call.match(/domain: '([^']+)'/)?.[1];
-      if (!domain) {
-        if (!/disabled: \[[^\]]*'guide'/.test(call)) wrong.push(`${client}: names no domain and offers the guide`);
+      const view = DOCS_VIEWS[client];
+      if (!view) {
+        if (!/disabled: \[[^\]]*'guide'/.test(call))
+          wrong.push(`${client}: has no documentation view and offers the guide`);
         continue;
       }
-      if (!published.has(domain)) wrong.push(`${client}: names unpublished domain "${domain}"`);
-      const landing = source.match(/MainBodyDocument\.instance\(\{ domain: '([^']+)' \}\)/)?.[1];
-      if (landing && landing !== domain) wrong.push(`${client}: lands on "${landing}" and guides "${domain}"`);
+      if (/domain: '/.test(call)) wrong.push(`${client}: names a domain; the build names the view`);
+      const landing = source.match(/MainBodyDocument\.instance\(\{ path: '([^/']+)\//)?.[1];
+      if (landing && !view.includes(landing)) wrong.push(`${client}: lands on "${landing}" outside its view`);
     }
     expect(wrong).to.deep.equal([]);
   });

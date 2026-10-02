@@ -217,10 +217,10 @@ class Docs {
         url: function () {
           return `${getProxyPath()}docs`;
         },
-        // The shell names the domain the view navigates; its documents are the only ones listed.
-        renderHtml: async ({ domain = '' } = {}) => {
+        // The build names the domains the view navigates; their documents are the only ones listed.
+        renderHtml: async () => {
           const { Documentation } = await import('./Documentation.js');
-          return await Documentation.instance({ path: getQueryParams().doc ?? '', domain });
+          return await Documentation.instance({ path: getQueryParams().doc ?? '' });
         },
       },
       {
@@ -334,7 +334,6 @@ class Docs {
    * The docs landing and submenu of one shell.
    * @param {object} options
    * @param {string} options.idModal - Id of the modal the landing renders in.
-   * @param {string} [options.domain] - Documentation domain the shell owns, e.g. `object-layer`.
    * @param {string[]} [options.disabled] - Entry types this shell does not deploy.
    */
   static async instance(options = {}) {

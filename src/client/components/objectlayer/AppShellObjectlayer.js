@@ -399,7 +399,6 @@ class AppShellObjectlayer {
           await Docs.instance({
             idModal: 'modal-docs',
             ...Docs.uiIcons({ iconClass: 'objectlayer-menu-icon' }),
-            domain: 'object-layer',
             disabled: ['demo'],
             lastReleaseUrl: deployPackageReleaseUrl,
           }),
