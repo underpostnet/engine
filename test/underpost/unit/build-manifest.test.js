@@ -24,6 +24,9 @@ import { ssrFactory } from '../../../src/client-builder/ssr.js';
 const INLINE = new RegExp(`<script id="${BUILD_MANIFEST_ELEMENT_ID}" type="application/json">([\\s\\S]*?)</script>`);
 const inlineTextOf = (html) => html.match(INLINE)[1];
 
+// A sliced tree carries only the views of its own deploy.
+const METRICS_VIEW = './src/client/ssr/views/CyberiaServerMetrics.js';
+
 const REPOSITORY = {
   owner: 'underpostnet',
   organization: 'underpost',
@@ -171,8 +174,8 @@ describe('the copies of the build manifest', () => {
     expect(inlineTextOf(minified)).toBe(inlineTextOf(html));
   });
 
-  it('is read by the static views under the same element id, once', () => {
-    const view = fs.readFileSync('./src/client/ssr/views/CyberiaServerMetrics.js', 'utf8');
+  it.skipIf(!fs.existsSync(METRICS_VIEW))('is read by the static views under the same element id, once', () => {
+    const view = fs.readFileSync(METRICS_VIEW, 'utf8');
     expect(view.match(new RegExp(`s\\('#${BUILD_MANIFEST_ELEMENT_ID}'\\)`, 'g'))).toHaveLength(1);
   });
 

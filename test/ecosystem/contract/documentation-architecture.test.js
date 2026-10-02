@@ -45,6 +45,7 @@ describe.skipIf(!fs.existsSync(DOCS_ROOT))('documentation architecture', () => {
     expect([...viewed].sort()).to.deep.equal(Object.keys(DOMAINS).sort());
     for (const client of Object.keys(DOCS_VIEWS)) {
       const shell = `./src/client/components/${client}`;
+      if (!fs.existsSync(shell)) continue; // A sliced tree carries only its own clients.
       const opens = fs
         .readdirSync(shell)
         .some((file) => fs.readFileSync(`${shell}/${file}`, 'utf8').includes('Docs.instance('));

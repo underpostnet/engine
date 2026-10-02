@@ -19,7 +19,10 @@ const privateDirectories = [
 ];
 const privatePaths = privateDirectories.map((directory) => `${directory}/private.png`);
 
-describe('application asset ownership', () => {
+// A sliced tree that carries no application source has no assets to own.
+const carriesApplications = fs.existsSync(new URL('src/client/public/cyberia', root));
+
+describe.skipIf(!carriesApplications)('application asset ownership', () => {
   it.each(['cyberia', 'underpost'])('tracks the %s application source in engine', (client) => {
     const base = `src/client/public/${client}`;
     for (const file of ['favicon.ico', 'browserconfig.xml', 'site.webmanifest', 'microdata.json', 'sitemap']) {
