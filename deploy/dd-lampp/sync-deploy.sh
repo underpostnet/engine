@@ -10,6 +10,10 @@ DEPLOY_ENV="${DEPLOY_ENV:-production}"
 # Empty: nothing is pinned, so the CLI resolves the node the deploy runs on.
 TARGET_NODE="${TARGET_NODE:-}"
 DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
+# The source the host and the pod both run: left unset, `run pull` resets the host to the monorepo
+# while the pod clones another repository.
+ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-lampp}"
+ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 
 main() {
     deploy_start "Starting remote sync and deploy"
@@ -17,7 +21,7 @@ main() {
     prepare_host "$ENGINE_ROOT"
 
     local pod_cmd
-    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV), \
+    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
     underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --skip-pull-repo-base"
 
     deploy_step "Sync $DEPLOY_ID cluster" \
