@@ -3236,11 +3236,8 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
   shellExec(`rm -rf ${toPath}/deploy`);
 
   fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
-  for (const restorePath of TEMPLATE_RESTORE_PATHS) {
-    const dest = `${toPath}/${restorePath}`;
-    if (fs.statSync(restorePath).isDirectory()) fs.copySync(restorePath, dest, { overwrite: true });
-    else fs.copyFileSync(restorePath, dest);
-  }
+  for (const restorePath of TEMPLATE_RESTORE_PATHS)
+    fs.copySync(restorePath, `${toPath}/${restorePath}`, { overwrite: true });
 
   // ── package.json: take engine deps/scripts/version, keep template identity. ──
   const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));

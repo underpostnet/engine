@@ -2,6 +2,7 @@
 
 import { execSync } from 'node:child_process';
 import os from 'node:os';
+import path from 'node:path';
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
@@ -16,7 +17,10 @@ import {
   templateGitignoreFactory,
   validateTemplatePath,
 } from '../../../src/server/runtime/conf.js';
-import { TEMPLATE_PRESERVED_ENTRIES } from '../../../src/projects/underpost/catalog-underpost.js';
+import {
+  TEMPLATE_PRESERVED_ENTRIES,
+  TEMPLATE_RESTORE_PATHS,
+} from '../../../src/projects/underpost/catalog-underpost.js';
 
 const gitCheckout = (originUrl) => {
   const path = fs.mkdtempSync(`${os.tmpdir()}/underpost-template-`);
@@ -125,6 +129,25 @@ describeBaseTemplate('template path selection', () => {
     expect(validateTemplatePath(`.//${confManifestPath().replace('./', '')}`)).to.equal(true);
     for (const deployId of ['dd-core', 'dd-cyberia'])
       expect(validateTemplatePath(`.//${confManifestPath(deployId).replace('./', '')}`), deployId).to.equal(false);
+  });
+
+  it('carries every module the server and the CLI import statically', () => {
+    // Every repository built on the template boots these two entrypoints.
+    const restored = TEMPLATE_RESTORE_PATHS.map((entry) => entry.replace('./', ''));
+    const carried = (file) =>
+      validateTemplatePath(`.//${file}`) || restored.some((entry) => file === entry || file.startsWith(`${entry}/`));
+    const relativeImport = /^\s*(?:import|export)\s(?:[^'";]*?\sfrom\s*)?['"](\.{1,2}\/[^'"]+)['"]/gm;
+    const visited = new Set();
+    const dropped = [];
+    const visit = (file) => {
+      if (visited.has(file)) return;
+      visited.add(file);
+      if (!carried(file)) return dropped.push(file);
+      for (const [, specifier] of fs.readFileSync(file, 'utf8').matchAll(relativeImport))
+        visit(path.posix.join(path.posix.dirname(file), specifier));
+    };
+    for (const entrypoint of ['src/server.js', 'bin/index.js']) visit(entrypoint);
+    expect(dropped).to.deep.equal([]);
   });
 });
 
