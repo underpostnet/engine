@@ -61,21 +61,20 @@ RUN --mount=type=secret,id=github_username \
     mkdir -p /home/dd/engine/engine-private/conf/dd-cyberia; \
     cp -a ./cyberia-deployment/conf/dd-cyberia/. /home/dd/engine/engine-private/conf/dd-cyberia/.; \
     cp -a /home/dd/engine/engine-private/conf/dd-cyberia/package.json /home/dd/engine/package.json; \
-    # The content artifact the deployment locks: cyberia-content at the locked source revision,
-    # packed by cyberia-content itself. The packed copy holds data only: nothing writes into it.
-    underpost clone "$GITHUB_USERNAME/cyberia-content"; \
-    git -C ./cyberia-content checkout --detach \
-      "$(node -p "require('/home/dd/cyberia-deployment/content-lock.json').sourceRevision")"; \
-    ( cd ./cyberia-content && npm ci && node bin/cyberia-content.js pack ); \
-    mkdir -p /home/dd/engine/cyberia-content; \
-    tar -xzf ./cyberia-content/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
-    rm -rf ./cyberia-content; \
     cd /home/dd/engine; \
     # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
-    # The content artifact must be the one the deployment locks: same version, source revision
-    # and digest. A mismatch fails the build.
-    node bin/cyberia content status --lock /home/dd/cyberia-deployment/content-lock.json; \
+    # The content artifact the deployment lock pins: cyberia-content at its locked revision, packed
+    # by cyberia-content itself, then checked against the lock. The packed copy holds data only.
+    CONTENT_REVISION="$(CYBERIA_DEPLOYMENT_ROOT=/home/dd/cyberia-deployment node bin/cyberia release list --locked \
+      | awk '$1 == "cyberia-content" { print $4 }')"; \
+    ( cd /home/dd && underpost clone "$GITHUB_USERNAME/cyberia-content" \
+      && git -C ./cyberia-content checkout --detach "$CONTENT_REVISION" \
+      && cd ./cyberia-content && npm ci && node bin/cyberia-content.js pack ); \
+    mkdir -p /home/dd/engine/cyberia-content; \
+    tar -xzf /home/dd/cyberia-content/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
+    rm -rf /home/dd/cyberia-content; \
+    CYBERIA_DEPLOYMENT_ROOT=/home/dd/cyberia-deployment node bin/cyberia release verify; \
     node bin app load --env production --args deploy-id=dd-cyberia; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     # --- build the client bundle (assets are now in place) --------------------

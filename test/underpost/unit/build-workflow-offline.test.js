@@ -60,7 +60,7 @@ describe('shellExec enforces the active execution profile', () => {
   });
 });
 
-describe('e2e-build runs without a cluster', () => {
+describe('the cluster deployment manifest build runs without a cluster', () => {
   const runSource = readSource('src/cli/run.js');
   const runner = runSource.slice(
     runSource.indexOf(`'build-cluster-deployment-manifests':`),

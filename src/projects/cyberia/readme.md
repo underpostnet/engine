@@ -247,9 +247,13 @@ cyberia content audit --dev
 cyberia content import --dev
 cyberia content import --saga <saga-code> --dev
 
+# Product repositories: build, pin in the deployment lock, publish
+cyberia release build --commit
+cyberia release lock --commit
+cyberia release publish
+
 # Named workflows
 cyberia run-workflow import-content
-cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard
 ```
 

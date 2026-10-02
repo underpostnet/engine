@@ -195,7 +195,7 @@ node bin/cyberia.js stat-contract --check
 
 The generator writes the Go contract, C header, REST test fixtures, the cyberia-server copy of the gRPC schema, and its Go protobuf output. Do not edit these outputs by hand.
 Edit the gRPC schema in `src/grpc/cyberia/cyberia.proto`. The generator compiles it with `go run` and pinned buf and plugin versions, so it needs Go only.
-`node bin/cyberia.js run-workflow e2e-build` runs the generator first.
+`node bin/cyberia.js release build` runs the generator first.
 
 Inspect and validate content with:
 

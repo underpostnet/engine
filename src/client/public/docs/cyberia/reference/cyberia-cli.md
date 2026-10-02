@@ -13,13 +13,14 @@ node bin/cyberia.js <command> [subcommand] [options]
 cyberia <command> [subcommand] [options]
 ```
 
-| Command        | Purpose                                                              |
-| -------------- | -------------------------------------------------------------------- |
-| `ol`           | object-layer content import, atlas/sprite work                       |
-| `instance`     | export / import / drop a Cyberia instance and its related documents  |
-| `client-hints` | per-instance presentation hints (palette, camera, status icons)      |
-| `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle     |
-| `run-workflow` | named operational scripts (seed defaults, build manifests/dashboard) |
+| Command        | Purpose                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `ol`           | object-layer content import, atlas/sprite work                      |
+| `instance`     | export / import / drop a Cyberia instance and its related documents |
+| `client-hints` | per-instance presentation hints (palette, camera, status icons)     |
+| `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle    |
+| `release`      | product repositories: build, lock and publish them                  |
+| `run-workflow` | named operational scripts (seed defaults, dashboard, status pages)  |
 
 Most data commands resolve the target DB from `DEFAULT_DEPLOY_ID` / `DEFAULT_DEPLOY_HOST` /
 `DEFAULT_DEPLOY_PATH` in the `--env-path` file (default `./.env`). Without that file, they come from the
@@ -96,7 +97,8 @@ cyberia ol hatchet --drop --confirm dd-cyberia --client-public
 `--drop` runs the same purge as the Object Layer management view's purge action
 (`src/api/object-layer/object-layer.purge.js`): the definition, its render frames, its atlas and
 render files, its IPFS pin records and MFS paths, and the labels bound to it. A definition
-ItemLedger registers is kept and reported.
+ItemLedger registers is kept and reported. When ItemLedger does not answer, the drop removes
+nothing and names the registration-safety policy.
 
 MongoDB holds every frame: the Object Layer editor and every `ol` action write there only.
 `--client-public` keeps `src/client/public/cyberia/assets/<type>/<item-id>/` and the host's built
@@ -138,7 +140,7 @@ Every flow that writes (`--import`, `--import-types`, `--sync`, `--to-atlas-spri
   so a rerun writes nothing.
 - It asks each registered game server to reload its object layers (`incremental`), when the
   runtime serves the content database the write went to. A workspace write behind an active
-  release reaches the worlds when a release that holds it is promoted.
+  release reaches no reader: the runtime serves the release.
 
 Pinned quest and action references keep the definition they name: a rebind never moves them. A
 browser keeps the item pictures it loaded until the page reloads.
@@ -151,7 +153,7 @@ Export / import / drop a game instance and its related maps, entities, actions, 
 layers and map audio in MongoDB.
 
 ```bash
-cyberia instance [instance-code] [options]
+cyberia instance <instance-code> [options]
 ```
 
 | Option                                                | Description                                                                               |
@@ -163,15 +165,11 @@ cyberia instance [instance-code] [options]
 | `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop all documents associated with the instance code                      |
 | `--release <release-id>`                              | Import into, or export from, one content release database                                 |
 | `--sync-entities`                                     | Sync the conf's entity-type default references and skill config                           |
-| `--publish-build`                                     | Build the `cyberia-deployment` checkout: conf, images, manifests and `content-lock.json`  |
-| `--publish` / `--revert`                              | Push the `cyberia-deployment` checkout / reset it and the server and client checkouts     |
 | `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                                  |
 
-With no instance code, the command runs on every instance of the content artifact. The default
-export writes into the instance sources of the `cyberia-content` checkout; the command fails when
-the content root is a packed artifact and no path is given. The publish options work on the
-`cyberia-deployment` checkout (`CYBERIA_DEPLOYMENT_ROOT`) and keep its remote; `--publish-build`
-clones it only when it is absent.
+The command works on the one instance it names. The default export writes into the instance
+sources of the `cyberia-content` checkout; the command fails when the content root is a packed
+artifact and no path is given.
 
 ```bash
 cyberia instance FOREST --import
@@ -197,6 +195,10 @@ metadata describes, or bytes that hash to another CID — is not restored. The i
 render from the backup's render frames and publishes the definition that names it. The quest and
 action references to the backup definition move to the rebuilt one. An item with neither a valid
 atlas nor render frames fails.
+
+The restored definition binds its label. No other definition of the label is removed: content
+that pins another cid keeps it, so two instances can run two definitions of one label. The import
+reads no ItemLedger.
 
 `instance --import`, `ol --instance --import` and `run-workflow import-content` use the same
 restore. It keeps the render frames in MongoDB only. With `--client-public`, `instance --import`
@@ -520,33 +522,81 @@ against the chain.
 
 ## `cyberia content-release` — versioned content
 
-A deploy never drops content. It builds a candidate release into its own database, validates it,
-and promotes it by pointer. [Content releases](../explanation/content-releases.md) holds the model;
+The data release of `cyberia-content`. A deploy never drops content: it builds a candidate release
+into its own database, validates it, and promotes it by pointer.
+[Content releases](../explanation/content-releases.md) holds the model;
 [Local content development](../how-to/develop-content-locally.md) the daily workflow around it.
 
-| Subcommand              | Description                                                                                                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build <release-id>`    | Fill the release database `--from backups` (the artifact instances, or `--instances`) or `--from workspace`, publish its definitions, validate it; `--bootstrap` promotes when no release is active |
-| `validate [release-id]` | Run every check again and record the report; with no release named, check the workspace                                                                                                             |
-| `promote <release-id>`  | Serve a validated release; running engines rebind and reload the game servers                                                                                                                       |
-| `rollback`              | Serve the release that was active before the current one                                                                                                                                            |
-| `retire`                | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                                              |
-| `status`                | List the ledger and the active release                                                                                                                                                              |
-| `prune [--keep n]`      | Drop retired release databases beyond `n`; never the active one or the rollback target                                                                                                              |
-| `activate`              | Bind this process to the active release                                                                                                                                                             |
+| Subcommand                                 | Description                                                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `prepare <release-id> --channel <channel>` | On the host: fetch the revision the deployment lock pins, from the channel's repository, into a read-only workspace (`--store`)                                                      |
+| `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance) and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace` |
+| `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                              |
+| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers                                                                                                        |
+| `rollback`                                 | Serve the release that was active before the current one                                                                                                                             |
+| `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                               |
+| `status`                                   | List the ledger and the active release                                                                                                                                               |
+| `prune [--keep n]`                         | Drop old releases: their databases and ledger entries; never a building, validated or active release, or the rollback target                                                         |
+| `activate`                                 | Bind this process to the active release                                                                                                                                              |
 
 ```bash
-cyberia content-release build v3-4-0-8b4d643
-cyberia content-release build v3-4-0-8b4d643 --instances FOREST,TEST
-cyberia content-release build v3-4-1-studio --from workspace
+cyberia content-release prepare v3-4-5-8b4d643-04f978b0 --channel private
+cyberia content-release build v3-4-5-8b4d643-04f978b0 --from source        # in the Release Job
+cyberia content-release build local-1 --from backups --instances test --dev
+cyberia content-release build local-2 --from workspace --dev
 cyberia content-release validate                      # the workspace, before any build
 cyberia content-release retire                        # back to the workspace after a local rehearsal
-cyberia content-release promote v3-4-0-8b4d643
+cyberia content-release promote v3-4-5-8b4d643-04f978b0
 cyberia content-release rollback
 ```
 
-A build from the backups records the content artifact it read in the ledger: `source.content` holds
-its repository, version, source revision and digest.
+`build --from source` runs the repository's own `npm ci`, `npm test` and `npm pack` on a copy of
+the workspace, with no Secret in their environment, then checks that the artifact has the locked
+digest and revision. A release carries the worlds the deploy serves: one instance per variant of
+`conf.instances.json`. `/` serves `amethyst-strata-expansion`, and `/test` serves `test`. A
+production runtime promotes only a release built from an exact source revision.
+
+## `cyberia release` — product repositories
+
+Builds the product repositories, pins them in the deployment lock and publishes them. Each
+repository and its release profile come from `releaseRepositories` in
+`src/projects/cyberia/catalog-cyberia.js`.
+
+| Repository           | Profile             | `release build` writes                                                                                     |
+| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `cyberia-content`    | `data-release`      | `dist/` and `artifacts/cyberia-content-<version>.tgz`, with its own `pack`                                 |
+| `cyberia-audio`      | `source-sync`       | nothing                                                                                                    |
+| `cyberia-deployment` | `source-sync`       | the `dd-cyberia` conf and package manifest, the runtime images and the manifests                           |
+| `cyberia-server`     | `container-release` | status pages, instance manifests, the dashboard, deploy scripts, `README.md`, Dockerfiles, the CD workflow |
+| `cyberia-client`     | `container-release` | status pages, instance manifests, deploy scripts, `README.md`, Dockerfiles, the CD workflow                |
+
+| Subcommand                        | Description                                                                                                                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `list [--profile <p>] [--locked]` | Print `<name> <repository> <profile>`; `--locked` prints only the repositories the lock pins, with the revision as a fourth field                                                                                                                            |
+| `build [names...]`                | Set the [release instances](../how-to/run-the-docker-stack-locally.md#release-instances) in `conf.instances.json`, then build the named repositories (`--dev`, `--node-name`). With no names: the runtime contract, every repository, then the secret scan   |
+| `lock`                            | Pin the committed revision of every repository but the deployment, and the content artifact, in `underpost.lock.json` of the deployment                                                                                                                      |
+| `verify`                          | Exit non-zero unless the installed content artifact is the one the lock pins                                                                                                                                                                                 |
+| `publish [names...]`              | Push the named checkouts (default: all of them) to the public repository, or with `--private` to the private mirror, and track it as origin; the deployment goes last. `--dry-run` tracks each target as origin and lists the commits it lacks, with no push |
+| `clean [names...]`                | Discard every change not committed in the checkouts a build writes: the game and deployment checkouts. Commits stay                                                                                                                                          |
+
+```bash
+cyberia release build --commit                        # the contract, every repository, the secret scan
+cyberia release lock --commit                         # pin what the build committed
+cyberia release publish --private                     # to the private mirrors
+cyberia release publish cyberia-server                 # one checkout, to its public repository
+cyberia release -f publish cyberia-server --private     # force push: it can rewrite the history
+cyberia release list --locked                         # <name> <repository> <profile> <revision>
+cyberia release build cyberia-server cyberia-client   # what a deploy node builds
+cyberia release verify                                # the content check of the image build
+```
+
+`-f`, before or after the subcommand, forces the operation; only `publish` reads it, and pushes with
+`-f`. `--commit` commits what a build or a lock writes. `lock` refuses a checkout with changes that are
+not committed, and a content artifact built at another revision than its checkout. The deployment
+holds the lock and pins no revision of its own: a deploy takes it at its branch tip, and every
+other repository at the revision it pins. `publish` pushes the deployment only after every
+other checkout it publishes. The lock format is the platform
+[source lock](../../nexodev/explanation/source-releases.md#the-source-lock).
 
 ## `cyberia catalog` — item bindings
 
@@ -569,7 +619,6 @@ CLI. A command that needs no content never resolves the content root.
 
 ```bash
 cyberia content status
-cyberia content status --lock ./cyberia-deployment/content-lock.json
 cyberia content audit --dev
 cyberia content audit --backup ./backups/FOREST,./backups/TEST
 cyberia content import --dev --dry-run
@@ -577,17 +626,18 @@ cyberia content import --dev
 cyberia content import --saga amethyst-strata-expansion --dev
 ```
 
-| Subcommand | Description                                                                                                 |
-| ---------- | ----------------------------------------------------------------------------------------------------------- |
-| `status`   | Print the artifact identity; `--lock <file>` exits non-zero unless the artifact is the one the lock records |
-| `audit`    | Classify every label the database (or `--backup <dirs>`) names or stores, and plan each artifact label      |
-| `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance  |
+| Subcommand | Description                                                                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`   | Print the artifact identity                                                                                                                                    |
+| `audit`    | Classify every label the database (or `--backup <dirs>`) names or stores, and plan each artifact label                                                         |
+| `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance; `--release <id>` writes into that release database |
 
 `import` writes Object Layer definitions and their catalog bindings, entity-type defaults, skills,
-maps, quests, dialogues and actions, in that order. A document that differs is reported and kept;
-`--rebind` moves it to the artifact. An Object Layer item whose item id a stored definition already
-carries is planned `exists` and skipped, even with `--rebind`; the plan logs the skipped item ids.
-Render, quest and action sources, and placed maps stay as Studio set them. `--dry-run` plans only.
+maps, quests, dialogues and actions, in that order. An Object Layer item is planned by identity
+against the definition its label is bound to: absent, in sync, or differs. A label or a document
+that differs is reported and kept; `--rebind` moves it to the artifact, and a rebound label gets a
+new definition beside the earlier one. Render, quest and action sources, and placed maps stay as
+Studio set them. `--dry-run` plans only.
 
 ## `cyberia cache` — platform cache
 
@@ -602,13 +652,14 @@ See [the development cache](../how-to/develop-content-locally.md#cache).
 
 Named scripts from the `scripts/` directory for seeding and build maintenance.
 
-| Subcommand               | Description                                                                                                                      |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `import-content`         | Import the content artifact: its sagas, its instance backups, then its foundation; `--clean --confirm <deploy-id>` drops instead |
-| `build-manifest`         | Build K8s Deployment + Service manifests for mmo-client / mmo-server                                                             |
-| `validate-domains`       | Check API ownership, content partitions, views and components (`--env production`)                                               |
-| `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`                                                      |
-| `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                              |
+| Subcommand               | Description                                                                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `import-content`         | Import the release content of the artifact: its foundation, the release sagas, then the release instance backups; `--clean --confirm <deploy-id>` drops instead |
+| `validate-domains`       | Check API ownership, content partitions, views and components (`--env production`)                                                                              |
+| `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`                                                                                     |
+| `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                                                             |
+| `dev-env [images...]`    | Reset the Docker stack, build its images from `--source local` or `clone`, then run it; `--test`, `--reset`, `--no-build`                                       |
+| `docker:<action>`        | The compose action on the Cyberia stack: `generate`, `up`, `down`, `restart`, `logs`, `status`, `reset` and more                                                |
 
 `import-content --clean` runs `drop-db`, then `ol --drop`. Both steps run even if one fails.
 If either step fails, the command exits with code 1 and lists each failed command to rerun.
@@ -616,9 +667,11 @@ If either step fails, the command exits with code 1 and lists each failed comman
 ```bash
 cyberia run-workflow import-content --clean --dev --confirm dd-cyberia
 cyberia run-workflow import-content --dev
-cyberia run-workflow build-manifest
 cyberia run-workflow build-server-dashboard
+cyberia run-workflow dev-env --source clone --channel private
 ```
+
+`dev-env` is described in [Run the Cyberia Docker stack locally](../how-to/run-the-docker-stack-locally.md).
 
 ---
 
@@ -647,7 +700,7 @@ node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server --dev
 node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server,mmo-client --dev
 ```
 
-Each id runs only where `dd-cyberia` declares it, and only once the portal workload has rolled out — `cyberia-server` dials the engine's gRPC ClusterIP for its world configuration at boot, so the content authority has to be serving first. `mmo-server` names the whole variant family (`amethyst-strata-expansion`, `FOREST`, `TEST`); `mmo-server-forest` names one variant.
+Each id runs only where `dd-cyberia` declares it, and only once the portal workload has rolled out — `cyberia-server` dials the engine's gRPC ClusterIP for its world configuration at boot, so the content authority has to be serving first. `mmo-server` names the whole variant family (`amethyst-strata-expansion`, `test`); `mmo-server-test` names one variant.
 
 `server.cyberiaonline.com` and `client.cyberiaonline.com` are issued the same self-signed certificates as the portal hosts and written into the same `/etc/hosts` pass, so the three services are reachable over TLS from a local browser without further setup. In production the same flag issues cert-manager certificates instead.
 

@@ -11,9 +11,10 @@
 
 import dotenv from 'dotenv';
 import { registerStatCommands } from '../src/projects/cyberia/stat-commands.js';
+import { generateStatContract } from '../src/projects/cyberia/stat-contract-generator.js';
 import { Command, InvalidArgumentError } from 'commander';
 import fs from 'fs-extra';
-import { shellExec } from '../src/server/runtime/process.js';
+import { shellArgumentFactory, shellExec, shellExecAsync } from '../src/server/runtime/process.js';
 import { cli } from '../src/server/build/execution.js';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
@@ -32,12 +33,7 @@ import {
   CyberiaMapAudioConfService,
   parseEventAudioBinding,
 } from '../src/api/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
-import {
-  deployEnvFilePath,
-  etcHostFactory,
-  instanceProjectPathFactory,
-  loadConfServerJson,
-} from '../src/server/runtime/conf.js';
+import { etcHostFactory, instanceProjectPathFactory, loadConfServerJson } from '../src/server/runtime/conf.js';
 import {
   ObjectLayerEngine,
   resolveItemIdentity,
@@ -61,6 +57,24 @@ import { ItemLedgerIndexer } from '../src/api/item-ledger/item-ledger.indexer.js
 import { CyberiaObjectLayerProfile } from '../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/projects/cyberia/instance-data.js';
 import {
+  releaseInstanceCodes,
+  selectReleaseContent,
+  withReleaseVariants,
+} from '../src/projects/cyberia/release-content.js';
+import { gatewayHostAliases } from '../src/projects/cyberia/compose-stack.js';
+import {
+  STACK_BUILDER_STAGE,
+  STACK_IMAGE_IDS,
+  STACK_WORKDIR,
+  assertStackImages,
+  assertStackSource,
+  engineCloneArgs,
+  localImage,
+  localImageEnv,
+  stackProbes,
+  stageLocalEngineSource,
+} from '../src/projects/cyberia/local-stack.js';
+import {
   atlasFileIdsOf,
   exportObjectLayerBackup,
   fileBackup,
@@ -74,8 +88,11 @@ import { fileRefFields } from '../src/api/file/file.ref.js';
 import {
   CONTENT_PARTITION,
   activateContentRelease,
-  assertReleaseId,
+  advanceContentRelease,
+  beginContentRelease,
   contentReleaseRowFactory,
+  failContentRelease,
+  importArtifactContent,
   materializeWorkspace,
   promoteContentRelease,
   publishContentRelease,
@@ -87,6 +104,15 @@ import {
   servedContent,
   validateContentRelease,
 } from '../src/projects/cyberia/content-release.js';
+import { RELEASE_PROFILES, assertReleaseId, assertSourceChannel } from '../src/server/release/source-release.js';
+import { RELEASE_STORE_ROOT, ReleaseWorkspace, fetchRevision } from '../src/server/release/release-workspace.js';
+import {
+  SOURCE_LOCK_FILE,
+  lockedSource,
+  readSourceLockFile,
+  verifyLockedSource,
+  writeSourceLockFile,
+} from '../src/server/release/source-lock.js';
 import { API_BASE_PATH } from '../src/server/domain/api-contract.js';
 import { dropConsumerCanonicalPins, isObjectLayerAuthority } from '../src/api/object-layer/object-layer.publication.js';
 import { purgeObjectLayers } from '../src/api/object-layer/object-layer.purge.js';
@@ -104,16 +130,18 @@ import cyberiaCatalog from '../src/projects/cyberia/catalog-cyberia.js';
 import {
   auditContent,
   contentArtifact,
-  contentSources,
-  contentLock,
+  contentLockEntry,
   contentRoot,
+  contentSources,
   deploymentRoot,
+  entityTypeDefaultKey,
   importContent,
   importSaga,
+  openContentArtifact,
   planContent,
   readBackupContent,
   readDatabaseContent,
-  verifyContentLock,
+  storeContentArtifact,
 } from '../src/projects/cyberia/content-artifact.js';
 
 import { ITEM_TYPES as itemTypes } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
@@ -321,6 +349,20 @@ function resolveDeployDb({ envPath, mongoHost, dev, release } = {}) {
 }
 
 /**
+ * Connects the Valkey of a deploy host, so the cache invalidations of a write reach the engine
+ * that serves from that cache. Without it the engine caches serve their values until they expire.
+ * @param {{host:string, path:string, valkey?:Object}} params - {@link resolveDeployDb} output.
+ * @returns {Promise<void>}
+ */
+async function connectEngineCache({ host, path, valkey }) {
+  if (!valkey) return;
+  await createValkeyConnection({ host, path }, valkey);
+  if (ValkeyAPI.isConnected({ host, path })) return;
+  closeValkeyConnection({ host, path });
+  logger.warn('Valkey is not reachable: the engine caches serve their values until they expire');
+}
+
+/**
  * Refuses a destructive action unless the caller confirmed it with the deploy id it targets.
  * @param {Object} options - Parsed command options.
  * @param {string} deployId - The deploy the action would touch.
@@ -482,8 +524,77 @@ const adoptEntityTypeDefaultRefs = async (confData, backupDir, CyberiaEntityType
 /** Default source of recorded `<name>.wav` + `<name>.json` pairs for `cyberia audio --import`. */
 const DEFAULT_AUDIO_RECORDS_PATH = './cyberia-audio/records';
 
-/** The deployment repository: conf, images, manifests and content-lock.json. */
-const DEPLOYMENT_REPOSITORY = 'underpostnet/cyberia-deployment';
+/** The product repositories whose checkouts the content and deployment roots name. */
+const CONTENT_SOURCE = 'cyberia-content';
+const DEPLOYMENT_SOURCE = 'cyberia-deployment';
+
+/**
+ * A product repository of the catalog.
+ * @param {string} name
+ * @returns {{name:string, repository:string, profile:string}}
+ */
+const releaseRepository = (name) => {
+  const entry = cyberiaCatalog.releaseRepositories.find((repository) => repository.name === name);
+  if (!entry) throw new Error(`${name} is not a product repository: see cyberia release list`);
+  return entry;
+};
+
+/** The product repositories the deployment lock pins: every one but the deployment, which holds it. */
+const lockedRepositories = () => cyberiaCatalog.releaseRepositories.filter(({ name }) => name !== DEPLOYMENT_SOURCE);
+
+/**
+ * The repository a checkout tracks, as `owner/repo`: its origin.
+ * @param {string} dir
+ * @returns {string}
+ */
+const checkoutRepository = (dir) =>
+  Underpost.repo.repoSlugFactory(
+    shellExec(`git -C ${dir} remote get-url origin`, { stdout: true, silent: true, disableLog: true }).trim(),
+  );
+
+/**
+ * The absolute checkout of a product repository: the content and deployment roots, else the nested checkout.
+ * @param {string} name - A `releaseRepositories` name.
+ * @returns {string}
+ */
+const checkoutDir = (name) =>
+  ({ [CONTENT_SOURCE]: contentRoot(), [DEPLOYMENT_SOURCE]: deploymentRoot() })[name] || nodePath.resolve(name);
+
+/**
+ * The commit a checkout stands at.
+ * @param {string} dir
+ * @returns {string}
+ */
+const headRevision = (dir) =>
+  shellExec(`git -C ${dir} rev-parse HEAD`, { stdout: true, silent: true, disableLog: true }).trim();
+
+const deploymentLockPath = (root = deploymentRoot()) => nodePath.join(root, SOURCE_LOCK_FILE);
+
+/**
+ * The lock of a deployment checkout, checked against the catalog: it pins each locked repository, under
+ * the same repository, and nothing else.
+ * @param {string} [root] - The deployment checkout; {@link deploymentRoot} by default.
+ * @returns {{lockVersion:number, sources:Object<string,Object>}}
+ */
+const deploymentLock = (root) => {
+  const file = deploymentLockPath(root);
+  let lock;
+  try {
+    lock = readSourceLockFile(file);
+  } catch (error) {
+    throw new Error(`${error.message}: run cyberia release lock --commit, then cyberia release publish`);
+  }
+  const names = lockedRepositories()
+    .map(({ name }) => name)
+    .sort();
+  const pinned = Object.keys(lock.sources);
+  if (pinned.join() !== names.join())
+    throw new Error(`${file} pins ${pinned.join(', ')}, not ${names.join(', ')}: run cyberia release lock`);
+  for (const { name, repository } of lockedRepositories())
+    if (lock.sources[name].repository !== repository)
+      throw new Error(`${file} pins ${name} from ${lock.sources[name].repository}, not ${repository}`);
+  return lock;
+};
 
 /**
  * Commander parser for the repeatable `<logic-event-id>:<audio-code>` flag.
@@ -603,22 +714,9 @@ const selectScopedItemIds = async ({ itemId, instance, host, path, action }) => 
   return itemIds;
 };
 
-/** Gateway names the compose stack publishes beside the deploy's own domains. */
-const CYBERIA_DOCKER_GATEWAY_ALIASES = ['cyberia-client', 'cyberia-server', 'engine-cyberia'];
-
-/**
- * The names a host resolves to the compose proxy: the gateway aliases and every domain the
- * deploy serves, read from the conf the engine itself boots from.
- * @returns {string[]}
- */
-const cyberiaDockerHostAliases = () => {
-  const confServerPath = './engine-private/conf/dd-cyberia/conf.server.json';
-  const domains = fs.existsSync(confServerPath) ? Object.keys(loadConfServerJson(confServerPath)) : [];
-  return [...CYBERIA_DOCKER_GATEWAY_ALIASES, ...domains];
-};
-
+/** Resolves every name of the compose gateway to this host, in one identified /etc/hosts block. */
 const installCyberiaDockerHostAliases = () => {
-  const aliases = cyberiaDockerHostAliases();
+  const aliases = gatewayHostAliases('dd-cyberia');
   try {
     const { changed } = etcHostFactory(aliases, {
       append: true,
@@ -853,13 +951,7 @@ try {
 
         if (writes) {
           // A write invalidates the engine caches it changes, so the running engine serves it at once.
-          if (valkey) {
-            await createValkeyConnection({ host, path }, valkey);
-            if (!ValkeyAPI.isConnected({ host, path })) {
-              closeValkeyConnection({ host, path });
-              logger.warn('Valkey is not reachable: the engine caches serve their values until they expire');
-            }
-          }
+          await connectEngineCache({ host, path, valkey });
           // Idempotent migration: every document carries its content identity and every label its
           // binding before a write lands. A read-only subcommand stays free of side effects.
           await runIdentityMigration(models(), contentModels(), { host, path });
@@ -1325,7 +1417,7 @@ try {
 
   // ── instance: Cyberia instance backup / restore ─────────────────────────
   program
-    .command('instance [instance-code]')
+    .command('instance <instance-code>')
     .option(
       '--export [path]',
       'Export instance and related documents to a backup directory (default: the instance sources of the ' +
@@ -1361,26 +1453,8 @@ try {
       '--sync-entities',
       'Point the instance conf at every entity-type default its maps place and every skill their items trigger, dropping what the world no longer carries',
     )
-    .option(
-      '--publish-build',
-      `Build the ${DEPLOYMENT_REPOSITORY} checkout: conf, images, manifests and content-lock.json`,
-    )
-    .option('--publish', `Push the ${DEPLOYMENT_REPOSITORY} checkout`)
-    .option('--revert', `Reset the ${DEPLOYMENT_REPOSITORY}, cyberia-server and cyberia-client checkouts`)
-    .option(
-      '--from-n-commit <n>',
-      'Number of latest engine commits to use for the publish commit message (default: 1).',
-    )
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
-      if (options.revert) {
-        const deployment = deploymentRoot();
-        Underpost.repo.declareSafeDirectory(deployment);
-        shellExec(`cd ${deployment} && ${cli()} cmt . reset && ${cli()} run clean .`);
-        shellExec(`cd /home/dd/engine/cyberia-server && ${cli()} cmt . reset && ${cli()} run clean .`);
-        shellExec(`cd /home/dd/engine/cyberia-client && ${cli()} cmt . reset && ${cli()} run clean .`);
-        return;
-      }
       if (options.clientPublic && options.import === undefined) {
         logger.error('--client-public requires --import');
         process.exit(1);
@@ -1413,156 +1487,7 @@ try {
         process.exit(1);
       }
 
-      if (options.publish || options.publishBuild) {
-        const deployment = deploymentRoot();
-        // The deployment checkout is cloned by the deploy user and driven by root during a deploy,
-        // and git refuses to touch a tree owned by someone else until it is declared safe.
-        Underpost.repo.declareSafeDirectory(deployment);
-        if (options.publishBuild) {
-          // An existing checkout is used as it is, its remote included.
-          if (!fs.existsSync(deployment))
-            Underpost.repo.syncCheckout({ path: deployment, repo: DEPLOYMENT_REPOSITORY });
-
-          fs.mkdirpSync(`${deployment}/conf/dd-cyberia`);
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/conf.server.json`,
-            `${deployment}/conf/dd-cyberia/conf.server.json`,
-          );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/conf.client.json`,
-            `${deployment}/conf/dd-cyberia/conf.client.json`,
-          );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/conf.cron.json`,
-            `${deployment}/conf/dd-cyberia/conf.cron.json`,
-          );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/conf.ssr.json`,
-            `${deployment}/conf/dd-cyberia/conf.ssr.json`,
-          );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/conf.volume.json`,
-            `${deployment}/conf/dd-cyberia/conf.volume.json`,
-          );
-          {
-            // The published manifest is the deploy's, under the product's own identity — one
-            // builder for every generated package.json in the project, so the deployment repo
-            // cannot drift from what the deploy and the product CLI declare.
-            const deployPackagePath = deployPackagePathFactory('dd-cyberia');
-            fs.writeFileSync(
-              `${deployment}/conf/dd-cyberia/package.json`,
-              `${JSON.stringify(
-                buildDeployPackageJson({
-                  deployId: 'dd-cyberia',
-                  enginePackageJson: JSON.parse(fs.readFileSync(`./package.json`, 'utf-8')),
-                  catalog: await loadDeployCatalog('dd-cyberia'),
-                  currentPackageJson: JSON.parse(fs.readFileSync(deployPackagePath, 'utf-8')),
-                  productIdentity: true,
-                }),
-                null,
-                DEPLOY_MANIFEST_INDENT,
-              )}\n`,
-              'utf8',
-            );
-          }
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
-            `${deployment}/conf/dd-cyberia/.env.production`,
-          );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
-            `${deployment}/conf/dd-cyberia/.env.development`,
-          );
-          fs.copyFileSync(
-            `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`,
-            `${deployment}/conf/dd-cyberia/.env.test`,
-          );
-
-          fs.mkdirpSync(`${deployment}/images`);
-          // The staged CLI package is a local image-build artifact, not a deployment manifest —
-          // it must never be published into the deployment repository.
-          fs.copySync(`./src/runtime/engine-cyberia`, `${deployment}/images/engine-cyberia`, {
-            filter: (src) => nodePath.basename(src) !== STAGED_CLI_PACKAGE,
-          });
-          fs.copySync(`./manifests/deployment/dd-cyberia-development/.`, `${deployment}/images/engine-cyberia/.`);
-          fs.copySync(`./src/runtime/cyberia-client`, `${deployment}/images/cyberia-client`);
-          fs.copySync(
-            `./engine-private/conf/dd-cyberia/instances/mmo-client/build/development/.`,
-            `${deployment}/images/cyberia-client/.`,
-          );
-          fs.copySync(`./src/runtime/cyberia-server`, `${deployment}/images/cyberia-server`);
-          fs.copySync(
-            `./engine-private/conf/dd-cyberia/instances/mmo-server/build/development/.`,
-            `${deployment}/images/cyberia-server/.`,
-          );
-          // The deployment records the content it ships; the content itself stays in the artifact.
-          fs.writeJsonSync(`${deployment}/content-lock.json`, contentLock(contentArtifact().manifest), {
-            spaces: 2,
-          });
-          if (fs.existsSync('./engine-private/conf/dd-cyberia/conf.instances.json'))
-            fs.copySync(
-              './engine-private/conf/dd-cyberia/conf.instances.json',
-              `${deployment}/conf/dd-cyberia/conf.instances.json`,
-            );
-
-          if (!fs.existsSync(`${deployment}/manifests`)) fs.mkdirSync(`${deployment}/manifests`);
-          fs.copySync('./cyberia-server/manifests', `${deployment}/manifests`, { overwrite: true });
-          fs.copySync('./cyberia-client/manifests', `${deployment}/manifests`, { overwrite: true });
-          if (!fs.existsSync(`${deployment}/manifests/deployments/dd-cyberia-development`))
-            fs.mkdirSync(`${deployment}/manifests/deployments/dd-cyberia-development`, {
-              recursive: true,
-            });
-          fs.copySync(
-            './manifests/deployment/dd-cyberia-development',
-            `${deployment}/manifests/deployments/dd-cyberia-development`,
-            { overwrite: true },
-          );
-          if (!fs.existsSync('./manifests/deployment/dd-cyberia-development/pv-pvc.yaml'))
-            for (const directory of ['images/engine-cyberia', 'manifests/deployments/dd-cyberia-development'])
-              fs.removeSync(`${deployment}/${directory}/pv-pvc.yaml`);
-          const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
-          const publishMessage =
-            shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
-              stdout: true,
-              silent: true,
-            }).trim() || 'Update deployment';
-          const instanceMessage = `Update build and deployment manifests`;
-          shellExec(
-            `cd ${deployment} \
-          && git add . \
-          && git commit -m "${publishMessage.replace(/"/g, '\\"')}"`,
-            {
-              silentOnError: true,
-            },
-          );
-          shellExec(
-            `cd /home/dd/engine/cyberia-server \
-          && git add . \
-          && git commit -m "${instanceMessage}"`,
-            {
-              silentOnError: true,
-            },
-          );
-          shellExec(
-            `cd /home/dd/engine/cyberia-client \
-          && git add . \
-          && git commit -m "${instanceMessage}"`,
-            {
-              silentOnError: true,
-            },
-          );
-          return;
-        }
-        shellExec(`cd ${deployment} && ${cli()} push . ${DEPLOYMENT_REPOSITORY}`);
-        return;
-      }
-
-      if (!instanceCode) {
-        instanceCode = contentArtifact().manifest.instances.join(',');
-        logger.warn(`No instance code provided, defaulting to the content artifact instances: ${instanceCode}`);
-      }
-
-      const { db, owns, releaseDatabase } = resolveDeployDb(options);
+      const { db, owns, releaseDatabase, valkey } = resolveDeployDb(options);
       if (options.drop) assertDestructiveConfirmation(options, deployId, 'instance --drop');
 
       logger.info('instance env', {
@@ -1959,14 +1884,14 @@ try {
         }
 
         logger.info('Importing instance', { code: instanceCode, backupDir });
+        // The engine serves a release database only once it is promoted, and a promotion reads fresh keys.
+        if (!options.release) await connectEngineCache({ host, path, valkey });
 
         // A restore writes object layers, so every stored document carries its content identity
         // and every label its binding first.
         await runIdentityMigration(models, { CyberiaQuest, CyberiaAction }, { host, path });
 
-        // Item ids of this instance, from the imported object layers and the
-        // instance doc. They backfill the foundation skills the backup does not carry.
-        const importedItemIds = new Set();
+        let restoredObjectLayers = 0;
         const restoreFailures = [];
         // Backup cid → the cid of the definition that replaced it: the content moves with it.
         const replacements = new Map();
@@ -2180,6 +2105,7 @@ try {
             backupDir,
             importedFiles: ['cyberia-instance.json', 'cyberia-instance-conf.json'],
           });
+          closeValkeyConnection({ host, path });
           await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
           return;
         }
@@ -2217,7 +2143,7 @@ try {
                 options: { host, path },
                 clientPublic: !!options.clientPublic,
               });
-              importedItemIds.add(olItemId);
+              restoredObjectLayers++;
               staticFiles += restored.staticFiles;
               if (restored.rebuilt) rebuilt++;
               if (restored.replaced) replacements.set(restored.replaced, restored.cid);
@@ -2229,7 +2155,7 @@ try {
           // The replaced atlases took their renders out of reach; prune what no atlas points at.
           await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });
           logger.info(
-            `Imported ${importedItemIds.size} ObjectLayer document(s) (${rebuilt} render(s) rebuilt), ${staticFiles} static frame PNG(s)`,
+            `Imported ${restoredObjectLayers} ObjectLayer document(s) (${rebuilt} render(s) rebuilt), ${staticFiles} static frame PNG(s)`,
           );
         }
 
@@ -2418,44 +2344,42 @@ try {
         }
 
         // 8d-bis. Import CyberiaEntityTypeDefault documents by _id (preserveUUID), which is how
-        //     the conf's references keep resolving after a restore. Only the documents this
-        //     backup carries are touched: overwriting by an (entityType, liveItemIds) "natural
-        //     key" clobbered another instance's document whenever two worlds shared a skin.
+        //     the conf's references keep resolving after a restore. A backup document replaces
+        //     each one of its entity type and live items that no other instance conf references:
+        //     the foundation or a saga made it. Another world's document stays.
         const entityDefaultsDir = `${backupDir}/cyberia-entity-type-defaults`;
         if (fs.existsSync(entityDefaultsDir)) {
           const entityDefaultFiles = fs.readdirSync(entityDefaultsDir).filter((f) => f.endsWith('.json'));
+          const otherWorlds = new Set(
+            (await CyberiaInstanceConf.find({ instanceCode: { $ne: instanceCode } }, { entityDefaults: 1 }).lean())
+              .flatMap(({ entityDefaults }) => entityDefaults || [])
+              .map((id) => String(id?._id ?? id)),
+          );
           let entityDefaultCount = 0;
+          let replacedCount = 0;
           for (const file of entityDefaultFiles) {
             const edData = fs.readJsonSync(`${entityDefaultsDir}/${file}`);
             if (!edData.entityType || !edData._id) {
               logger.warn(`Skipping CyberiaEntityTypeDefault backup without entityType or _id: ${file}`);
               continue;
             }
-            await CyberiaEntityTypeDefault.deleteOne({ _id: edData._id });
+            const replaced = (await CyberiaEntityTypeDefault.find(entityTypeDefaultKey(edData), { _id: 1 }).lean())
+              .map(({ _id }) => String(_id))
+              .filter((id) => id !== String(edData._id) && !otherWorlds.has(id));
+            await CyberiaEntityTypeDefault.deleteMany({ _id: { $in: [edData._id, ...replaced] } });
             await CyberiaEntityTypeDefault.create(edData);
             entityDefaultCount++;
+            replacedCount += replaced.length;
           }
-          logger.info(`Imported ${entityDefaultCount} CyberiaEntityTypeDefault document(s)`);
+          logger.info(`Imported ${entityDefaultCount} CyberiaEntityTypeDefault document(s)`, {
+            ...(replacedCount > 0 ? { replaced: replacedCount } : {}),
+          });
         }
 
         // A conf can reference a default this backup does not carry — an older backup, or one
         // exported before the reference existed. Restoring that reference would recreate the
         // orphan the export just removed, so the restored conf is compacted too.
         await CyberiaEntityTypeDefaultService.compactInstanceRefs({ host, path }, { instanceCode });
-
-        // 6e. Backfill the foundation skills of this instance's items that have no document yet:
-        //     a backup that ships no skills/ dir still runs the skills its items carry. Existing
-        //     skills are never overwritten.
-        let backfilledSkillCount = 0;
-        for (const skill of contentArtifact().foundation.skills) {
-          if (!importedItemIds.has(skill.triggerItemId)) continue;
-          if (await CyberiaSkill.exists({ triggerItemId: skill.triggerItemId })) continue;
-          await CyberiaSkill.create(skill);
-          backfilledSkillCount++;
-        }
-        if (backfilledSkillCount > 0) {
-          logger.info(`Backfilled ${backfilledSkillCount} CyberiaSkill document(s) from the content artifact`);
-        }
 
         // 6f. Import CyberiaSaga documents (overwrite by code).
         const sagasDir = `${backupDir}/cyberia-sagas`;
@@ -2617,6 +2541,7 @@ try {
         logger.error('Specify --export, --import, or --drop flag');
       }
 
+      closeValkeyConnection({ host, path });
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
 
@@ -3820,11 +3745,12 @@ try {
     });
 
   // ─── Content releases ───────────────────────────────────────────────────────
-  // A deploy builds a candidate into its own database, validates it there and promotes it by
-  // pointer. Nothing here drops a served database; `prune` removes retired ones only.
+  // The data release of cyberia-content. The host prepares a read-only workspace at the locked
+  // revision; a Release Job builds it with the repository's own commands, ingests it into its own
+  // database and validates it. Promotion switches the pointer. Nothing drops a served database.
   const contentRelease = program
     .command('content-release')
-    .description('Versioned Cyberia content: build a candidate release, validate, promote, roll back, prune');
+    .description('Versioned Cyberia content: prepare, build and validate a release, promote, roll back, prune');
 
   const RELEASE_APIS = [
     'cyberia-content-release',
@@ -3848,12 +3774,25 @@ try {
       .option('--mongo-host <mongo-host>', 'Mongo host override')
       .option('--dev', 'Force development environment');
 
+  const storeOption = (command) =>
+    command.option('--store <path>', `The release store (default: ${RELEASE_STORE_ROOT})`, RELEASE_STORE_ROOT);
+
   /** Opens the release ledger (runtime database) and, when a release is named, that release's content. */
   const openReleases = async (options, releaseId = '') => {
     const context = resolveDeployDb({ ...options, release: releaseId });
     await DataBaseProviderService.load({ apis: RELEASE_APIS, host: context.host, path: context.path, db: context.db });
     const provider = DataBaseProviderService.getProvider({ host: context.host, path: context.path }, 'mongoose');
-    return { ...context, models: provider.models, connection: provider.connection, provider };
+    // A reconnect replaces the connection and the models of the provider.
+    return {
+      ...context,
+      provider,
+      get models() {
+        return provider.models;
+      },
+      get connection() {
+        return provider.connection;
+      },
+    };
   };
 
   const printChecks = (validation) => {
@@ -3865,124 +3804,313 @@ try {
     }
   };
 
-  /** Validates the content the models read: a release, recorded in the ledger, or the workspace. */
-  const runValidation = async ({ models, host, path, consumes }, releaseId = '', { publish = false } = {}) => {
+  /** The database of the release a context names, through the driver: its artifact has no model. */
+  const releaseStore = (context) => context.connection.getClient().db(context.releaseDatabase);
+
+  /** Stores the content artifact of a root in the release database: an engine that serves the release reads it there. */
+  const storeReleaseArtifact = async (context, root) => {
+    const stored = await storeContentArtifact(releaseStore(context), openContentArtifact(root));
+    logger.info(`Stored ${stored} content artifact file(s) in ${context.releaseDatabase}`);
+  };
+
+  /** Validates the content the models read, after publishing its definitions when asked. */
+  const runValidation = async (context, { publish = false } = {}) => {
+    const { models, host, path, consumes, release } = context;
+    const artifact = release
+      ? {
+          db: releaseStore(context),
+          digest:
+            (await models.CyberiaContentRelease.findOne({ releaseId: release }, { content: 1 }).lean())?.content
+              ?.digest ?? '',
+        }
+      : undefined;
     const publication = publish ? await publishContentRelease(models, { options: { host, path, consumes } }) : null;
-    const validation = await validateContentRelease(models, { options: { host, path, consumes } });
+    const validation = await validateContentRelease(models, { options: { host, path, consumes }, artifact });
     if (publication) {
       validation.checks.unshift(publication);
       validation.ok = validation.ok && publication.ok;
       logger.info(`Published ${publication.created} new definition(s) to the Object Layer authority`);
     }
     printChecks(validation);
-    if (!releaseId) {
-      logger.info(`The workspace is ${validation.ok ? 'valid' : 'invalid'}`);
-      return validation;
-    }
-    const { manifest, dependencies, ...report } = validation;
-    await models.CyberiaContentRelease.updateOne(
-      { releaseId },
-      { $set: { validation: report, manifest, dependencies, status: validation.ok ? 'validated' : 'invalid' } },
-    );
-    logger.info(`Release ${releaseId} is ${validation.ok ? 'validated' : 'invalid'}`);
     return validation;
   };
 
-  releaseEnvOptions(
+  /** Records a validation report on a release. */
+  const recordValidation = async (models, releaseId, validation) => {
+    const { manifest, dependencies, ...report } = validation;
+    await models.CyberiaContentRelease.updateOne(
+      { releaseId },
+      { $set: { validation: report, manifest, dependencies } },
+    );
+  };
+
+  const codeList = (value) =>
+    `${value ?? ''}`
+      .split(',')
+      .map((code) => code.trim())
+      .filter(Boolean);
+
+  /**
+   * Runs one `cyberia` command line of an artifact import in a child process that reads the artifact
+   * of `root`, with the database options of this command. The event loop keeps running meanwhile.
+   * @param {string} root - The content root.
+   * @param {Object} options - `envPath`, `mongoHost` and `dev`.
+   * @returns {(args:string)=>Promise<void>}
+   */
+  const artifactImportRunner = (root, options) => {
+    const passthrough = [
+      options.envPath ? `--env-path ${options.envPath}` : '',
+      options.mongoHost ? `--mongo-host ${options.mongoHost}` : '',
+      options.dev ? '--dev' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return (args) =>
+      shellExecAsync(`${process.execPath} ${process.argv[1]} ${args} ${passthrough}`, {
+        env: { ...process.env, CYBERIA_CONTENT_ROOT: root },
+      });
+  };
+
+  /** The source checkouts the deploy resolved: the engine root and each product repository beside it. */
+  const resolvedSources = () =>
+    [
+      { name: 'engine', dir: '.' },
+      ...cyberiaCatalog.releaseRepositories.map(({ name }) => ({ name, dir: checkoutDir(name) })),
+    ]
+      .filter(({ dir }) => fs.existsSync(`${dir}/.git`))
+      .map(({ name, dir }) => ({
+        name,
+        repository: checkoutRepository(dir),
+        sourceRevision: headRevision(dir),
+      }));
+
+  /** Builds the content repository at its exact revision with its own commands, and no Secret in their environment. */
+  const runContentContract = async (sourceDir, buildDir) => {
+    shellExec(
+      `cp -a ${shellArgumentFactory(sourceDir)} ${shellArgumentFactory(buildDir)} && chmod -R u+w ${shellArgumentFactory(buildDir)}`,
+    );
+    const result = await shellExecAsync('npm ci && npm test && npm pack', {
+      cwd: buildDir,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, CI: 'true' },
+      silentOnError: true,
+    });
+    if (result.code !== 0) throw new Error(`npm ci, npm test and npm pack exited with ${result.code}`);
+  };
+
+  /**
+   * Builds one release through its lifecycle: `building` while its content is built, verified and
+   * ingested; `candidate` once its database holds it; `validated` or `failed` at the stage that stopped it.
+   */
+  const buildRelease = async (context, releaseId, { fields, build }) => {
+    const Model = context.models.CyberiaContentRelease;
+    const begun = await beginContentRelease(Model, {
+      releaseId,
+      holder: process.env.HOSTNAME || os.hostname(),
+      fields: {
+        ...fields,
+        database: context.releaseDatabase,
+        provenance: {
+          engineVersion: JSON.parse(fs.readFileSync('./package.json', 'utf8')).version,
+          engineCommit: shellExec('git rev-parse --short HEAD', {
+            stdout: true,
+            silent: true,
+            silentOnError: true,
+          }).trim(),
+          job: process.env.HOSTNAME || '',
+          builtAt: new Date(),
+          builtBy: os.userInfo().username,
+        },
+      },
+      reset: async (database) => context.connection.useDb(database, { useCache: true }).dropDatabase(),
+    });
+    if (begun.skipped) return begun.release;
+    let stage = 'build';
+    try {
+      await build((name) => (stage = name));
+      await advanceContentRelease(Model, releaseId, 'candidate');
+      stage = 'validate';
+      const validation = await runValidation(context, { publish: true });
+      await recordValidation(context.models, releaseId, validation);
+      if (!validation.ok)
+        throw new Error(
+          `failed checks: ${validation.checks
+            .filter((entry) => !entry.ok)
+            .map((entry) => entry.name)
+            .join(', ')}`,
+        );
+      return await advanceContentRelease(Model, releaseId, 'validated');
+    } catch (error) {
+      await failContentRelease(Model, releaseId, stage, error);
+      throw new Error(`Release ${releaseId} failed at ${stage}: ${error.message}`);
+    }
+  };
+
+  /** Promotes when asked: always with `--promote`, with `--bootstrap` only while no release is active. */
+  const promoteWhenAsked = async (context, releaseId, options) => {
+    const Model = context.models.CyberiaContentRelease;
+    if (options.promote || (options.bootstrap && !(await Model.active()))) {
+      const { active, retired } = await promoteContentRelease(Model, releaseId);
+      logger.info(`Active release: ${active.releaseId}${retired ? `; rollback target: ${retired.releaseId}` : ''}`);
+    }
+  };
+
+  /** Ends a content-release command: the provider closes and the exit code says whether it succeeded. */
+  const endRelease = async (context, ok) => {
+    await context.provider.close();
+    process.exit(ok ? 0 : 1);
+  };
+
+  storeOption(
     contentRelease
-      .command('build <release-id>')
-      .option('--bootstrap', 'Promote the release when it validates and no release is active yet (first deploy)')
-      .option(
-        '--from <source>',
-        'backups (the instance backups of the content artifact) or workspace (what the portal authored)',
-        'backups',
+      .command('prepare <release-id>')
+      .requiredOption(
+        '--channel <channel>',
+        'The source channel the locked revision is fetched from: public or private',
       )
-      .option(
-        '--instances <codes>',
-        'Comma-separated instance codes to import from the backups (default: every content artifact instance)',
-      )
-      .description('Build the release database from its source, publish its definitions, then validate it'),
-  ).action(async (releaseId, options = {}) => {
-    const id = assertReleaseId(releaseId);
-    if (!['backups', 'workspace'].includes(options.from)) {
-      logger.error(`--from takes backups or workspace, not "${options.from}"`);
+      .description(
+        `On the host: fetch the content revision the deployment ${SOURCE_LOCK_FILE} pins into a read-only release workspace`,
+      ),
+  ).action((releaseId, options = {}) => {
+    try {
+      const { repository, revision, artifact } = lockedSource(deploymentLock(), CONTENT_SOURCE);
+      if (!artifact) throw new Error(`${deploymentLockPath()} pins no ${CONTENT_SOURCE} artifact`);
+      const sourceRepository = Underpost.repo.sourceRepoFactory(repository, assertSourceChannel(options.channel));
+      const workspace = ReleaseWorkspace.materialize({
+        root: options.store,
+        releaseId,
+        record: {
+          repository,
+          sourceRevision: revision,
+          version: artifact.version,
+          digest: artifact.digest,
+          channel: options.channel,
+          sourceRepository,
+          sources: resolvedSources(),
+        },
+        remote: Underpost.repo.gitAuthFactory(sourceRepository),
+      });
+      logger.info(`Release ${releaseId} prepared at ${workspace.dir}`, { sourceRepository, revision });
+      process.exit(0);
+    } catch (error) {
+      logger.error(error.message);
       process.exit(1);
     }
-    const fromBackups = options.from === 'backups';
-    const artifactManifest = fromBackups ? contentArtifact().manifest : null;
-    const release = await openReleases(options, id);
-    const { models, host, path, deployId, releaseDatabase, workspaceDatabase } = release;
-    const instances = options.instances
-      ? options.instances
-          .split(',')
-          .map((code) => code.trim())
-          .filter(Boolean)
-      : (artifactManifest?.instances ?? []);
-    const existing = await models.CyberiaContentRelease.findOne({ releaseId: id }).lean();
-    // A promoted release is immutable: a rerun of the same deploy finds it built and leaves it.
-    if (existing && (existing.status === 'active' || existing.status === 'retired')) {
-      logger.info(`Release ${id} is ${existing.status}; already built, nothing to do`);
-      await release.provider.close();
-      process.exit(0);
+  });
+
+  storeOption(
+    releaseEnvOptions(
+      contentRelease
+        .command('build <release-id>')
+        .option(
+          '--from <source>',
+          'source (the prepared workspace), backups (the local content artifact) or workspace (what the portal authored)',
+          'backups',
+        )
+        .option('--instances <codes>', 'Comma-separated instance codes (default: every instance the release serves)')
+        .option('--promote', 'Promote the release once it is validated')
+        .option('--bootstrap', 'Promote the release once it is validated, only while no release is active')
+        .description('Build a release into its own database, then validate it'),
+    ),
+  ).action(async (releaseId, options = {}) => {
+    const id = assertReleaseId(releaseId);
+    if (!['source', 'backups', 'workspace'].includes(options.from)) {
+      logger.error(`--from takes source, backups or workspace, not "${options.from}"`);
+      process.exit(1);
     }
-    const commit = shellExec('git rev-parse --short HEAD', { stdout: true, silent: true, silentOnError: true }).trim();
-    await models.CyberiaContentRelease.updateOne(
-      { releaseId: id },
-      {
-        $set: {
-          database: releaseDatabase,
-          status: 'candidate',
-          instances,
-          source: {
-            from: options.from,
-            engineVersion: JSON.parse(fs.readFileSync('./package.json', 'utf8')).version,
-            commit,
-            ...(artifactManifest ? { content: contentLock(artifactManifest) } : {}),
-            builtAt: new Date(),
-            builtBy: os.userInfo().username,
+    const context = await openReleases(options, id);
+    const instances = releaseInstanceCodes(codeList(options.instances));
+    try {
+      let release;
+      if (options.from === 'source') {
+        const workspace = new ReleaseWorkspace({ root: options.store, releaseId: id });
+        const record = workspace.record();
+        const buildDir = fs.mkdtempSync(nodePath.join(os.tmpdir(), `content-release-${id}-`));
+        try {
+          release = await buildRelease(context, id, {
+            fields: {
+              instances,
+              source: {
+                from: 'source',
+                channel: record.channel,
+                repository: record.repository,
+                sourceRevision: record.sourceRevision,
+              },
+              sources: record.sources,
+              content: { version: record.version, digest: record.digest },
+            },
+            build: async (stage) => {
+              stage('contract');
+              workspace.verify();
+              await runContentContract(workspace.sourceDir, `${buildDir}/source`);
+              stage('verify');
+              const built = openContentArtifact(`${buildDir}/source`).manifest;
+              if (built.contentDigest !== record.digest || built.sourceRevision !== record.sourceRevision)
+                throw new Error(
+                  `built ${built.contentDigest} at ${built.sourceRevision}; the lock names ${record.digest} at ${record.sourceRevision}`,
+                );
+              stage('artifact');
+              await storeReleaseArtifact(context, `${buildDir}/source`);
+              stage('ingest');
+              await importArtifactContent({
+                run: artifactImportRunner(`${buildDir}/source`, options),
+                ...selectReleaseContent({ manifest: built, instances }),
+                releaseId: id,
+              });
+            },
+          });
+        } finally {
+          fs.removeSync(buildDir);
+        }
+      } else if (options.from === 'backups') {
+        const { manifest } = contentArtifact();
+        release = await buildRelease(context, id, {
+          fields: {
+            instances,
+            source: { from: 'backups' },
+            content: { version: manifest.contentVersion, digest: manifest.contentDigest },
           },
-        },
-        $setOnInsert: { releaseId: id },
-      },
-      { upsert: true },
-    );
-    logger.info(
-      `Building release ${id} of ${deployId} into ${releaseDatabase} from the ${options.from}`,
-      options.from === 'workspace' ? { workspace: workspaceDatabase } : { instances },
-    );
-
-    if (options.from === 'workspace') {
-      const copied = await materializeWorkspace({
-        connection: release.connection,
-        workspace: workspaceDatabase,
-        database: releaseDatabase,
-        apis: release.db.partitions[CONTENT_PARTITION].apis,
-      });
-      logger.info('Copied the workspace', copied);
-      // The release carries the instances the workspace holds, not the backup list.
-      await models.CyberiaContentRelease.updateOne(
-        { releaseId: id },
-        { $set: { instances: (await models.CyberiaInstance.find({}, { code: 1 }).lean()).map((doc) => doc.code) } },
-      );
-    } else {
-      const passthrough = [
-        options.envPath ? `--env-path ${options.envPath}` : '',
-        options.mongoHost ? `--mongo-host ${options.mongoHost}` : '',
-        options.dev ? '--dev' : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
-      // `instance --import` restores one backup directory per call.
-      for (const code of instances)
-        shellExec(`${process.execPath} ${process.argv[1]} instance ${code} --import --release ${id} ${passthrough}`);
+          build: async (stage) => {
+            stage('artifact');
+            await storeReleaseArtifact(context, contentRoot());
+            stage('ingest');
+            await importArtifactContent({
+              run: artifactImportRunner(contentRoot(), options),
+              ...selectReleaseContent({ manifest, instances }),
+              releaseId: id,
+            });
+          },
+        });
+      } else {
+        // The workspace holds what the content artifact on disk imported: the release carries that artifact.
+        const { manifest } = openContentArtifact(contentRoot());
+        release = await buildRelease(context, id, {
+          fields: {
+            source: { from: 'workspace' },
+            content: { version: manifest.contentVersion, digest: manifest.contentDigest },
+          },
+          build: async (stage) => {
+            stage('artifact');
+            await storeReleaseArtifact(context, contentRoot());
+            stage('ingest');
+            const copied = await materializeWorkspace({
+              connection: context.connection,
+              workspace: context.workspaceDatabase,
+              database: context.releaseDatabase,
+              apis: context.db.partitions[CONTENT_PARTITION].apis,
+            });
+            logger.info('Copied the workspace', copied);
+            const codes = (await context.models.CyberiaInstance.find({}, { code: 1 }).lean()).map((doc) => doc.code);
+            await context.models.CyberiaContentRelease.updateOne({ releaseId: id }, { $set: { instances: codes } });
+          },
+        });
+      }
+      logger.info(`Release ${id} is ${release.status}`);
+      await promoteWhenAsked(context, id, options);
+      await endRelease(context, true);
+    } catch (error) {
+      logger.error(error.message);
+      await endRelease(context, false);
     }
-
-    const validation = await runValidation(release, id, { publish: true });
-    // A first deploy has no release to keep serving, so a validated one goes live at once.
-    if (validation.ok && options.bootstrap && !(await models.CyberiaContentRelease.active()))
-      await promoteContentRelease(models.CyberiaContentRelease, id);
-    await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
-    process.exit(validation.ok ? 0 : 1);
   });
 
   releaseEnvOptions(
@@ -3991,14 +4119,15 @@ try {
       .description('Run every check on a release and record the report; on the workspace when no release is named'),
   ).action(async (releaseId, options = {}) => {
     const id = releaseId ? assertReleaseId(releaseId) : '';
-    const release = await openReleases(options, id);
-    if (id && !(await release.models.CyberiaContentRelease.exists({ releaseId: id }))) {
+    const context = await openReleases(options, id);
+    if (id && !(await context.models.CyberiaContentRelease.exists({ releaseId: id }))) {
       logger.error(`Release ${id} does not exist`);
-      process.exit(1);
+      await endRelease(context, false);
     }
-    const validation = await runValidation(release, id);
-    await release.provider.close();
-    process.exit(validation.ok ? 0 : 1);
+    const validation = await runValidation(context);
+    if (id) await recordValidation(context.models, id, validation);
+    logger.info(`${id ? `Release ${id}` : 'The workspace'} is ${validation.ok ? 'valid' : 'invalid'}`);
+    await endRelease(context, validation.ok);
   });
 
   releaseEnvOptions(
@@ -4006,11 +4135,11 @@ try {
       .command('retire')
       .description('Stop serving the active release: the runtime serves the workspace, and rollback re-promotes it'),
   ).action(async (options = {}) => {
-    const release = await openReleases(options);
-    const retired = await retireContentRelease(release.models.CyberiaContentRelease);
-    const base = release.db.partitions?.[CONTENT_PARTITION]?.name ?? '';
+    const context = await openReleases(options);
+    const retired = await retireContentRelease(context.models.CyberiaContentRelease);
+    const base = context.db.partitions?.[CONTENT_PARTITION]?.name ?? '';
     logger.info(`Retired release: ${retired.releaseId}; the runtime serves ${base}`);
-    await release.provider.close();
+    await context.provider.close();
   });
 
   releaseEnvOptions(
@@ -4018,60 +4147,67 @@ try {
       .command('promote <release-id>')
       .description('Serve a validated release. Running engines rebind and reload the game servers'),
   ).action(async (releaseId, options = {}) => {
-    const release = await openReleases(options);
-    const { active, retired } = await promoteContentRelease(release.models.CyberiaContentRelease, releaseId);
+    const context = await openReleases(options);
+    const { active, retired } = await promoteContentRelease(context.models.CyberiaContentRelease, releaseId);
     logger.info(
       `Active release: ${active.releaseId} (${active.database})${retired ? `; rollback target: ${retired.releaseId}` : ''}`,
     );
-    await release.provider.close();
+    await context.provider.close();
   });
 
   releaseEnvOptions(
-    contentRelease.command('rollback').description('Serve the release that was active before the current one'),
+    contentRelease
+      .command('rollback')
+      .option('--from <release-id>', 'Roll back only while this release is the active one')
+      .description('Serve the release that was active before the current one'),
   ).action(async (options = {}) => {
-    const release = await openReleases(options);
-    const { active, retired } = await rollbackContentRelease(release.models.CyberiaContentRelease);
-    logger.info(
-      `Active release: ${active.releaseId} (${active.database})${retired ? `; retired: ${retired.releaseId}` : ''}`,
-    );
-    await release.provider.close();
+    const context = await openReleases(options);
+    const result = await rollbackContentRelease(context.models.CyberiaContentRelease, { from: options.from });
+    if (!result) logger.info(`Release ${options.from} is not active; nothing to roll back`);
+    else
+      logger.info(
+        `Active release: ${result.active.releaseId} (${result.active.database})${
+          result.retired ? `; retired: ${result.retired.releaseId}` : ''
+        }`,
+      );
+    await context.provider.close();
   });
 
   releaseEnvOptions(
     contentRelease.command('status').description('The active release and what this ledger holds'),
   ).action(async (options = {}) => {
-    const release = await openReleases(options);
-    const active = await release.models.CyberiaContentRelease.active();
-    const base = release.db.partitions?.[CONTENT_PARTITION]?.name ?? '';
+    const context = await openReleases(options);
+    const active = await context.models.CyberiaContentRelease.active();
+    const base = context.db.partitions?.[CONTENT_PARTITION]?.name ?? '';
     logger.info(
       active
         ? `Active release: ${active.releaseId} (${active.database})`
         : `No release promoted; the runtime serves ${base}`,
     );
     // Ledger rows are data, so they go to stdout plainly, never through the logger.
-    for (const entry of await release.models.CyberiaContentRelease.find({}).sort({ createdAt: -1 }).lean())
+    for (const entry of await context.models.CyberiaContentRelease.find({}).sort({ createdAt: -1 }).lean())
       console.log(contentReleaseRowFactory(entry));
-    await release.provider.close();
+    await context.provider.close();
   });
 
   releaseEnvOptions(
     contentRelease
       .command('prune')
-      .option('--keep <n>', 'Retired releases to keep, newest first', parseInt, 2)
+      .option('--keep <n>', 'Releases to keep beyond the protected ones, newest first', parseInt, 2)
       .description(
-        'Drop the databases of retired releases beyond --keep. The active release and the rollback target always stay',
+        'Drop old releases: their databases and ledger entries. Never a building, validated or active release, or the rollback target',
       ),
   ).action(async (options = {}) => {
-    const release = await openReleases(options);
+    const context = await openReleases(options);
     const removed = await pruneContentReleases({
-      CyberiaContentRelease: release.models.CyberiaContentRelease,
-      connection: release.connection,
-      context: { host: release.host, path: release.path },
-      baseDatabase: release.db.partitions?.[CONTENT_PARTITION]?.name ?? '',
+      CyberiaContentRelease: context.models.CyberiaContentRelease,
+      connection: context.connection,
+      context: { host: context.host, path: context.path },
+      baseDatabase: context.db.partitions?.[CONTENT_PARTITION]?.name ?? '',
       keep: options.keep,
     });
     logger.info(removed.length ? `Pruned: ${removed.join(', ')}` : 'Nothing to prune');
-    await release.provider.close();
+    await context.provider.close();
   });
 
   releaseEnvOptions(
@@ -4079,12 +4215,12 @@ try {
       .command('activate')
       .description('Bind this process to the active release (what a running engine does on start and on promotion)'),
   ).action(async (options = {}) => {
-    const release = await openReleases(options);
-    const result = await activateContentRelease({ host: release.host, path: release.path });
+    const context = await openReleases(options);
+    const result = await activateContentRelease({ host: context.host, path: context.path });
     logger.info(
       result ? `Serving ${result.releaseId || '(base)'} from ${result.database}` : 'No content partition on this host',
     );
-    await release.provider.close();
+    await context.provider.close();
   });
 
   const catalog = program.command('catalog').description('The Cyberia item catalog: the definition each label runs on');
@@ -4123,32 +4259,25 @@ try {
 
   /** Opens the content models of the deploy host. */
   const openContent = async (options) => {
-    const { host, path, db } = resolveDeployDb(options);
+    const { host, path, db, valkey } = resolveDeployDb(options);
     await DataBaseProviderService.load({ apis: CONTENT_APIS, host, path, db });
-    return { host, path, provider: DataBaseProviderService.getProvider({ host, path }, 'mongoose') };
+    return { host, path, valkey, provider: DataBaseProviderService.getProvider({ host, path }, 'mongoose') };
   };
 
   content
     .command('status')
-    .option('--lock <file>', 'Fail unless the artifact is the one this content-lock.json records')
-    .description('Show the identity of the installed content artifact, and check it against a lock')
-    .action((options = {}) => {
+    .description('Show the identity of the installed content artifact')
+    .action(() => {
       const { manifest } = contentArtifact();
       logger.info('Content artifact', {
-        ...contentLock(manifest),
+        repository: manifest.repository,
+        version: manifest.contentVersion,
+        sourceRevision: manifest.sourceRevision,
+        digest: manifest.contentDigest,
         schemaVersion: manifest.schemaVersion,
         instances: manifest.instances,
         sagas: manifest.sagas,
       });
-      if (options.lock) {
-        try {
-          verifyContentLock(fs.readJsonSync(options.lock), manifest);
-        } catch (error) {
-          logger.error(error.message);
-          process.exit(1);
-        }
-        logger.info(`The content artifact matches ${options.lock}`);
-      }
       process.exit(0);
     });
 
@@ -4201,14 +4330,14 @@ try {
   /** Logs a content plan: Object Layer labels, then each family by status. */
   const printPlan = ({ objectLayers, documents }, rebind) => {
     const counts = (entries) =>
-      ['absent', 'in-sync', 'differs', 'exists']
+      ['absent', 'in-sync', 'differs']
         .map((status) => [status, entries.filter((entry) => entry.status === status).length])
         .filter(([, count]) => count > 0)
         .map(([status, count]) => `${status} ${count}`)
         .join(', ');
     logger.info(`object layers: ${counts(objectLayers) || 'none'}`);
-    const skipped = objectLayers.filter(({ status }) => status === 'exists').map(({ itemId }) => itemId);
-    if (skipped.length > 0) logger.info(`  skipped ${skipped.length} stored item id(s): ${skipped.join(', ')}`);
+    for (const entry of objectLayers.filter(({ status }) => status === 'differs'))
+      logger.info(`  ${entry.itemId} differs in ${entry.fields.join(', ')}${rebind ? '' : ' — kept'}`);
     for (const [family, entries] of Object.entries(documents))
       logger.info(
         `${family}: ${counts(entries) || 'none'}${!rebind && entries.some(({ status }) => status === 'differs') ? ' — differing kept' : ''}`,
@@ -4219,7 +4348,8 @@ try {
     content
       .command('import')
       .option('--saga <code>', 'Import this saga of the artifact instead of the foundation')
-      .option('--rebind', 'Move differing documents to the artifact; stored item ids, render and placement stay')
+      .option('--release <release-id>', 'Import into the content release database of this id instead of the workspace')
+      .option('--rebind', 'Move differing labels and documents to the artifact; render and placement stay')
       .option('--dry-run', 'Plan only; write nothing')
       .description(
         'Import the content artifact: Object Layer definitions and their catalog bindings, entity-type ' +
@@ -4230,10 +4360,12 @@ try {
     const saga = options.saga ? artifact.saga(options.saga) : null;
     const families = saga ? saga.families : artifact.foundation;
     const rebind = !!options.rebind;
-    const { host, path, provider } = await openContent(options);
+    const { host, path, valkey, provider } = await openContent(options);
     const { models } = provider;
     if (options.dryRun) printPlan(await planContent({ families, models }), rebind);
     else {
+      // The engine serves a release database only once it is promoted, and a promotion reads fresh keys.
+      if (!options.release) await connectEngineCache({ host, path, valkey });
       // A write stores definitions, so the collection migrates first.
       await runIdentityMigration(
         catalogModels({ host, path }),
@@ -4303,10 +4435,12 @@ try {
     .option('--mongo-host <mongo-host>', 'Mongo host override, forwarded to every import')
     .option('--clean', 'Drop the Object Layers and the content collections instead; needs --confirm <deploy-id>')
     .option('--confirm <deploy-id>', 'Confirm --clean against this deploy id')
-    .description('Import the content artifact: its sagas, its instances, then its foundation')
+    .description(
+      'Import the release content of the artifact: its foundation, the release sagas, then the release instances',
+    )
     .action(async (options) => {
-      const flags = `${options.dev ? ' --dev' : ''}${options.mongoHost ? ` --mongo-host ${options.mongoHost}` : ''}`;
       if (options.clean) {
+        const flags = `${options.dev ? ' --dev' : ''}${options.mongoHost ? ` --mongo-host ${options.mongoHost}` : ''}`;
         // Each drop checks the confirmation against its own deploy id.
         if (!options.confirm) {
           logger.error('--clean destroys data. Pass --confirm <deploy-id> to run it. It is never part of a deploy.');
@@ -4323,13 +4457,11 @@ try {
         }
         return;
       }
-      // The sagas first, so the authored backups win over what they generated; the foundation
-      // last, so it only adds what no world carries and reports what differs.
       const { manifest } = contentArtifact();
-      for (const sagaCode of manifest.sagas) shellExec(`node bin/cyberia content import --saga ${sagaCode}${flags}`);
-      for (const instanceCode of manifest.instances)
-        shellExec(`node bin/cyberia instance ${instanceCode} --import${flags}`);
-      shellExec(`node bin/cyberia content import${flags}`);
+      await importArtifactContent({
+        run: artifactImportRunner(contentRoot(), options),
+        ...selectReleaseContent({ manifest }),
+      });
     });
 
   runner
@@ -4337,49 +4469,6 @@ try {
     .option('--output-path <output-path>', "Build context to stage the package in (default: '.')")
     .description('Packs this engine checkout as underpost-cli.tgz for a runtime image build context')
     .action((options) => stageCliPackage(options.outputPath || '.'));
-
-  // Every file mirrored between this engine and a product checkout, engine path first. One
-  // table for both directions, so a pair cannot be synced one way and forgotten the other.
-  const cyberiaSrcSyncPairs = [
-    ['./src/client/public/docs/cyberia/explanation/game-server.md', './cyberia-server/README.md'],
-    ['./src/runtime/cyberia-server/Dockerfile', './cyberia-server/Dockerfile'],
-    ['./src/runtime/cyberia-server/Dockerfile.dev', './cyberia-server/Dockerfile.dev'],
-    ['./src/client/public/docs/cyberia/explanation/game-client.md', './cyberia-client/README.md'],
-    ['./src/runtime/cyberia-client/Dockerfile', './cyberia-client/Dockerfile'],
-    ['./src/runtime/cyberia-client/Dockerfile.dev', './cyberia-client/Dockerfile.dev'],
-  ];
-
-  runner
-    .command('sync-src')
-    .option('--from-repo', 'Copy from the product checkouts into this engine instead of out to them')
-    .option('--dry-run', 'Report what would be copied without writing it')
-    .description(
-      'Mirrors the cyberia product READMEs and runtime Dockerfiles between this engine and the product checkouts',
-    )
-    .action((options) => {
-      const fromRepo = options.fromRepo === true;
-      const dryRun = options.dryRun === true;
-      const copied = [];
-      const missing = [];
-
-      for (const [enginePath, repoPath] of cyberiaSrcSyncPairs) {
-        const [source, target] = fromRepo ? [repoPath, enginePath] : [enginePath, repoPath];
-        // A product checkout `setup-workspace` has not cloned yet must not leave the run
-        // half applied, so a missing source is reported rather than thrown on.
-        if (!fs.existsSync(source)) {
-          missing.push(source);
-          continue;
-        }
-        if (!dryRun) fs.copySync(source, target);
-        copied.push(`${source} -> ${target}`);
-      }
-
-      logger.info(`Cyberia sources synced ${fromRepo ? 'from' : 'to'} the product checkouts`, {
-        copied,
-        missing,
-        dryRun,
-      });
-    });
 
   runner
     .command('validate-domains')
@@ -4406,106 +4495,171 @@ try {
     if (!fs.existsSync('./cyberia-client')) shellExec(`${cli()} clone underpostnet/cyberia-client`);
   });
 
-  runner.command('e2e-build').action(() => {
-    shellExec(`node bin/cyberia stat-contract`);
-    shellExec(`node bin/cyberia run-workflow sync-src`);
-    shellExec(`node bin run build-cluster-deployment-manifests`);
-    shellExec(`node bin/cyberia run-workflow build-manifest`);
-    shellExec(`node bin/cyberia run-workflow publish --dry-run`);
-    shellExec(`npm run security:secrets:ci`);
-    shellExec(`sudo rm -rf ./underpost.config.dd*.js`);
-  });
-
   runner.command('cluster').action(() => {
     shellExec(`node bin run cluster --runtime-image express --deploy-id dd-cyberia --instance-id mmo-server --dev`);
   });
 
-  runner
-    .command('dev-env')
-    .option('--run', 'Run docker:reset, cluster --dev --reset, docker-image, and docker:up after updating compose.env')
-    .option(
-      '--clean',
-      'Restore repositories to canonical state (git checkout Dockerfile, etc.) before updating compose.env',
-    )
-    .option('--test', 'Test DNS connectivity accross cyberia deployments')
-    .option('--reset', 'Reset the development environment before updating compose.env')
-    .action((options) => {
-      if (options.reset) {
-        shellExec('node bin/cyberia run-workflow docker:reset');
-        shellExec('node bin cluster --dev --reset');
-        return;
-      }
-      if (options.clean) {
-        shellExec(`node bin run clean`);
-        shellExec(`node bin run clean ./cyberia-server`);
-        shellExec(`node bin run clean ./cyberia-client`);
-        return;
-      }
-      if (options.test) {
-        const testHosts = [
-          'localhost',
-          'localhost:4005',
-          'localhost:8081',
-          'localhost:8082',
-          'engine-cyberia',
-          'cyberia-server',
-          'cyberia-client',
-        ];
-        const testPaths = ['/', '/TEST', '/FOREST'];
-        for (const host of testHosts) {
-          for (const path of testPaths) {
-            shellExec(`curl -L -v -i -s http://${host}${path} | head -n 10`, {
-              silentOnError: true,
-            });
-          }
-        }
-      }
-      const envPath = `./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env`;
-      const canonicalDevDockerfile = './src/runtime/engine-cyberia/Dockerfile.dev';
-      fs.writeFileSync(
-        canonicalDevDockerfile,
-        fs
-          .readFileSync(canonicalDevDockerfile, 'utf8')
-          .replace('ENGINE_CYBERIA_REPO="engine-cyberia"', 'ENGINE_CYBERIA_REPO="engine-test-cyberia"')
-          .replace(`    # --mount=type=secret,id=github_token`, `    --mount=type=secret,id=github_token`)
-          .replace(
-            `    # export GITHUB_TOKEN="$(cat /run/secrets/github_token)";`,
-            `    export GITHUB_TOKEN="$(cat /run/secrets/github_token)";`,
-          )
-          .replace(`    for _secret in "$GITHUB_USERNAME"; do`, `    # for _secret in "$GITHUB_USERNAME"; do`)
-          .replace(`    unset GITHUB_USERNAME;`, `    # unset GITHUB_USERNAME;`)
-          .replace(
-            `    # for _secret in "$GITHUB_USERNAME" "$GITHUB_TOKEN"; do`,
-            `    for _secret in "$GITHUB_USERNAME" "$GITHUB_TOKEN"; do`,
-          )
-          .replace(`    # unset GITHUB_TOKEN GITHUB_USERNAME;`, `    unset GITHUB_TOKEN GITHUB_USERNAME;`),
+  /** The release builds whose output a stack image takes when it builds from this workspace. */
+  const STACK_IMAGE_BUILDS = {
+    'engine-cyberia': [CONTENT_SOURCE, DEPLOYMENT_SOURCE],
+    'cyberia-server': ['cyberia-server'],
+    'cyberia-client': ['cyberia-client'],
+  };
 
-        'utf8',
+  /**
+   * A fresh checkout of a product repository of a source channel, at one revision, in the stack work directory.
+   * @param {string} name - A product repository.
+   * @param {string} channel
+   * @param {string} revision - A commit, or `HEAD` for the branch tip.
+   * @returns {string} The checkout.
+   */
+  const fetchChannelCheckout = (name, channel, revision) => {
+    const dir = nodePath.join(STACK_WORKDIR, 'sources', name);
+    fs.removeSync(dir);
+    fs.mkdirpSync(dir);
+    const repository = Underpost.repo.sourceRepoFactory(releaseRepository(name).repository, channel);
+    fetchRevision(dir, Underpost.repo.gitAuthFactory(`https://github.com/${repository}.git`), revision);
+    return dir;
+  };
+
+  /**
+   * The build context and build args of one stack image. The engine image clones its sources in its
+   * own build, or takes them staged from this workspace; a game image builds a checkout: this
+   * workspace's, or a clone at the revision the lock pins.
+   * @param {string} id - A stack image.
+   * @param {{source:string, channel:string, lock?:Object}} params
+   * @returns {{context:string, buildArgs?:Object<string,string>}}
+   */
+  const stackImageContext = (id, { source, channel, lock }) => {
+    if (id === 'engine-cyberia') {
+      const context = nodePath.join(STACK_WORKDIR, id);
+      fs.removeSync(context);
+      // A clone build leaves source/ empty; the context holds it in every mode.
+      fs.mkdirpSync(nodePath.join(context, 'source'));
+      fs.copyFileSync('./src/runtime/engine-cyberia/Dockerfile.dev', nodePath.join(context, 'Dockerfile.dev'));
+      if (source === 'local') {
+        stageLocalEngineSource({
+          context,
+          engineRoot: '.',
+          deploymentRoot: deploymentRoot(),
+          contentRoot: contentRoot(),
+        });
+        return { context, buildArgs: { CYBERIA_SOURCE: 'local' } };
+      }
+      return {
+        context,
+        buildArgs: engineCloneArgs({
+          channel,
+          deploymentRepository: releaseRepository(DEPLOYMENT_SOURCE).repository,
+          contentRepository: releaseRepository(CONTENT_SOURCE).repository,
+        }),
+      };
+    }
+    if (source === 'local') return { context: checkoutDir(id) };
+    return { context: fetchChannelCheckout(id, channel, lock.sources[id].revision) };
+  };
+
+  /** Removes the untagged images of podman and Docker: what a newer build or load replaced. */
+  const pruneSupersededImages = () => {
+    shellExec('sudo podman image prune -f');
+    shellExec('sudo docker image prune -f');
+  };
+
+  /**
+   * Builds the dev images of the stack from one source and loads them into Docker. A local build runs
+   * the release builds its images take first; a clone build reads the lock of the channel's deployment.
+   * Each image leaves on the host only its Docker copy and the tagged builder stage, its build cache.
+   * @param {{ids:string[], source:string, channel:string}} params
+   */
+  const buildStackImages = ({ ids, source, channel }) => {
+    pruneSupersededImages();
+    if (source === 'local') {
+      const builds = Object.keys(RELEASE_BUILDS).filter((name) =>
+        ids.some((id) => STACK_IMAGE_BUILDS[id].includes(name)),
       );
-      fs.writeFileSync(
-        './src/cli/image.js',
-        fs
-          .readFileSync('./src/cli/image.js', 'utf8')
-          .replace(
-            `      // addBuildSecret('github_token', process.env.GITHUB_TOKEN);`,
-            `      addBuildSecret('github_token', process.env.GITHUB_TOKEN);`,
-          ),
-        'utf8',
-      );
-      fs.writeFileSync(
-        envPath,
-        fs
-          .readFileSync(envPath, 'utf8')
-          .replaceAll('underpost/', 'localhost/')
-          .replaceAll('TAG=latest', 'TAG=' + Underpost.version),
-        'utf8',
-      );
-      if (options.run) {
-        shellExec('node bin/cyberia run-workflow dev-env --reset');
-        shellExec('node bin/cyberia run-workflow docker-image engine-cyberia');
-        shellExec('node bin/cyberia run-workflow docker-image cyberia-server');
-        shellExec('node bin/cyberia run-workflow docker-image cyberia-client');
-        shellExec('node bin/cyberia run-workflow docker:up');
+      shellExec(`node bin/cyberia release build ${builds.join(' ')} --dev`);
+    }
+    const lock =
+      source === 'clone' && ids.some((id) => id !== 'engine-cyberia')
+        ? deploymentLock(fetchChannelCheckout(DEPLOYMENT_SOURCE, channel, 'HEAD'))
+        : null;
+    const cliPackage = stageCliPackage(STACK_WORKDIR);
+    const archives = nodePath.join(STACK_WORKDIR, 'images');
+    Underpost.image.pullBaseImages();
+    for (const id of ids) {
+      const { context, buildArgs } = stackImageContext(id, { source, channel, lock });
+      fs.copyFileSync(cliPackage, nodePath.join(context, STAGED_CLI_PACKAGE));
+      const image = localImage(id);
+      const build = {
+        path: context,
+        dockerfileName: 'Dockerfile.dev',
+        buildArgs,
+        buildSecrets: source === 'clone' ? { github_token: process.env.GITHUB_TOKEN } : {},
+      };
+      Underpost.image.build({ ...build, imageName: image.builder, target: STACK_BUILDER_STAGE });
+      Underpost.image.build({ ...build, imageName: image.name, imageOutPath: archives, dockerCompose: true });
+      // Docker holds the image the stack runs: the podman copy and the archive are leftovers.
+      shellExec(`sudo podman rmi ${shellArgumentFactory(`${image.repository}:${image.tag}`)}`);
+      fs.removeSync(archives);
+      pruneSupersededImages();
+    }
+  };
+
+  /**
+   * Requests every probe of the running stack through the gateway names.
+   * @returns {Promise<boolean>} Whether every probe answered below 400.
+   */
+  const probeStack = async () => {
+    const results = await Promise.all(
+      stackProbes().map(async ({ name, url }) => {
+        try {
+          const { status } = await fetch(url, { signal: AbortSignal.timeout(10000) });
+          return { name, url, status, ok: status < 400 };
+        } catch (error) {
+          return { name, url, status: error.cause?.code || error.name, ok: false };
+        }
+      }),
+    );
+    for (const { name, url, status, ok } of results) logger[ok ? 'info' : 'error'](`${name}: ${status} ${url}`);
+    return results.every(({ ok }) => ok);
+  };
+
+  runner
+    .command('dev-env [images...]')
+    .option(
+      '--source <source>',
+      'local: the working trees of this workspace; clone: the repositories of --channel',
+      'local',
+    )
+    .option('--channel <channel>', 'The source channel a clone fetches from: public or private', 'private')
+    .option('--no-build', 'Run the stack on the dev images already loaded')
+    .option('--reset', 'Only tear the stack down: its containers, network and volumes')
+    .option('--test', 'Only probe the gateway routes of the running stack')
+    .description(
+      `Reset the Docker stack, build its dev images (${STACK_IMAGE_IDS.join(', ')}; default: all) from one source, ` +
+        'then run the stack on them. Nothing is committed or published',
+    )
+    .action(async (images = [], options = {}) => {
+      try {
+        if (options.reset) {
+          shellExec(cyberiaCatalog.packageScripts['docker:reset']);
+          return;
+        }
+        if (options.test) {
+          if (!(await probeStack())) process.exit(1);
+          return;
+        }
+        const ids = assertStackImages(images);
+        const source = assertStackSource(options.source);
+        const channel = assertSourceChannel(options.channel);
+        shellExec(cyberiaCatalog.packageScripts['docker:reset']);
+        if (options.build) buildStackImages({ ids, source, channel });
+        const { aliases, changed } = installCyberiaDockerHostAliases();
+        logger.info(`Docker host aliases ${changed ? 'installed' : 'already configured'}`, { aliases });
+        shellExec(cyberiaCatalog.packageScripts['docker:up'], { env: { ...process.env, ...localImageEnv() } });
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
       }
     });
 
@@ -4585,11 +4739,9 @@ try {
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
     });
 
-  const dockerImageIds = ['engine-cyberia', 'cyberia-server', 'cyberia-client'];
-
   runner.command('deploy [id]').action((id) => {
-    if (!dockerImageIds.includes(id)) {
-      logger.error(`Invalid deploy id: ${id}. Must be one of: ${dockerImageIds.join(', ')}`);
+    if (!STACK_IMAGE_IDS.includes(id)) {
+      logger.error(`Invalid deploy id: ${id}. Must be one of: ${STACK_IMAGE_IDS.join(', ')}`);
       process.exit(1);
     }
     shellExec(`gh workflow run ${id}.cd.yml -R underpostnet/${id} -f job=deploy`);
@@ -4620,55 +4772,6 @@ CYBERIA_LOAD_DURATION_MS=${options.duration ?? 1000 * 60 * 30} \
 node bin test cyberia --grep 'Cyberia load'`);
     });
 
-  runner
-    .command('docker-image [id]')
-    .option('--load-tar', 'Load a pre-built image tar archive into the enabled target(s) without building.')
-    .action((id, options) => {
-      // no funca
-      if (options.loadTar) {
-        for (const imageId of dockerImageIds)
-          if (imageId === id || id === '.') shellExec(`docker load -i ./${imageId}-dev_v3.4.5.tar`);
-        return;
-      }
-      switch (id) {
-        case 'engine-cyberia':
-          stageCliPackage(`./src/runtime/engine-cyberia`);
-          shellExec(`
-node bin/build dd-cyberia --conf
-node bin/build dd-cyberia --update-private
-node bin image --path src/runtime/engine-cyberia \
-  --docker-compose --pull-base --build \
-  --dockerfile-name Dockerfile.dev \
-  --image-name engine-cyberia-dev:v3.4.5 \
-  --image-out-path .
-`);
-          break;
-
-        case 'cyberia-server':
-          stageCliPackage(`./cyberia-server`);
-          shellExec(`
-cp -f src/runtime/cyberia-server/Dockerfile.dev cyberia-server/Dockerfile.dev
-node bin image --path cyberia-server \
-  --docker-compose --pull-base --build \
-  --dockerfile-name Dockerfile.dev \
-  --image-name cyberia-server-dev:v3.4.5 \
-  --image-out-path .
-`);
-          break;
-        case 'cyberia-client':
-          stageCliPackage(`./cyberia-client`);
-          shellExec(`
-cp -f src/runtime/cyberia-client/Dockerfile.dev cyberia-client/Dockerfile.dev
-node bin image --path cyberia-client \
-  --docker-compose --pull-base --build \
-  --dockerfile-name Dockerfile.dev \
-  --image-name cyberia-client-dev:v3.4.5 \
-  --image-out-path .
-`);
-          break;
-      }
-    });
-
   for (const [cmd, action] of Object.entries(cyberiaCatalog.packageScripts))
     runner.command(cmd).action(() => {
       if (cmd === 'docker:up' || cmd === 'docker:up:build' || cmd === 'docker:restart') {
@@ -4678,12 +4781,8 @@ node bin image --path cyberia-client \
       shellExec(action);
     });
 
-  // Instance id → project root. Single source of truth for the workloads this
-  // workflow builds: both the k8s manifests and the status page artifacts each
-  // project ships are resolved from this list plus conf.instances.json.
-  // The template instances this deploy builds artifacts for. Where each one publishes is not
-  // listed here: instanceProjectPathFactory reads it off the conf entry, the same rule
-  // instance-build-manifest applies, so the two can never name different checkouts.
+  // The instance families `release build` sets the release variants of and writes manifests and status
+  // pages for. instanceProjectPathFactory reads the checkout each one publishes to off its conf entry.
   const CYBERIA_INSTANCE_IDS = ['mmo-client', 'mmo-server'];
   const CYBERIA_CONF_INSTANCES_PATH = './engine-private/conf/dd-cyberia/conf.instances.json';
   const CYBERIA_CONF_SSR_PATH = './engine-private/conf/dd-cyberia/conf.ssr.json';
@@ -4730,11 +4829,12 @@ node bin image --path cyberia-client \
    * gateway config by `run instance-build-manifest`, so this only has to place
    * it at the `hostPath` the instance declares.
    * @param {string} status - HTTP status code.
-   * @param {string} outputPath - Destination HTML path.
+   * @param {string} outputPath - Destination HTML path, `<site root>/<status>/index.html` as an SSR view.
+   * @param {string} application - The application the build manifest of the page names.
    * @param {boolean} [dev] - Render the development variant.
    * @returns {boolean} True when the artifact was rendered.
    */
-  const buildCyberiaStatusPage = ({ status, outputPath, dev = false }) => {
+  const buildCyberiaStatusPage = ({ status, outputPath, application, dev = false }) => {
     const view = resolveStatusPageView(status);
     const pagePath = `./src/client/ssr/views/${view?.client || `Cyberia${status}`}.js`;
     if (!fs.existsSync(pagePath)) {
@@ -4747,6 +4847,8 @@ node bin image --path cyberia-client \
     shellExec(
       `node bin static --page ${pagePath}` +
         ` --output-path ${outputPath}` +
+        ` --site-root ${nodePath.dirname(nodePath.dirname(outputPath))}` +
+        ` --application ${application}` +
         ` --title '${title}'` +
         ` --favicon /favicon.ico` +
         ` --description '${description}'` +
@@ -4755,132 +4857,6 @@ node bin image --path cyberia-client \
     );
     return true;
   };
-
-  runner
-    .command('build-manifest')
-    .option(
-      '--dev',
-      'Build dev-variant manifests (kind cluster, Dockerfile.dev). Default builds prod (kubeadm, Dockerfile).',
-    )
-    .option(
-      '--node-name <node-name>',
-      'Target kubeadm/k3s node for hostPath PV nodeAffinity (production). ' +
-        'Overrides the UNDERPOST_DEPLOY_NODE env and os.hostname() fallback — set it when building outside the target node (CI/container) so nodeSelector is not the build box hostname.',
-    )
-    .description(
-      'Build k8s resource manifests for the Cyberia mmo-server + mmo-client instances. ' +
-        'Each expands into one deployment per variant declared in the conf.instances.json multiInstance block. ' +
-        'Without --dev: production manifests (Dockerfile, kubeadm). With --dev: dev manifests (Dockerfile.dev, kind).',
-    )
-    .action((options) => {
-      const isDev = !!options.dev;
-      const nodeFlag = options.nodeName ? ` --node-name ${options.nodeName}` : '';
-      const confInstancesEntries = readCyberiaConfInstances();
-
-      // ── Build SSR views ──────────────────────────────────────────────────
-      // Status pages are rendered BEFORE the manifests: the gateway manifests
-      // embed each document declared under an instance's `customStatusPages`,
-      // so the artifact has to exist at its `hostPath` by manifest time.
-      const statusPagesBuilt = [];
-      for (const id of CYBERIA_INSTANCE_IDS) {
-        const instance = confInstancesEntries.find((entry) => entry.id === id);
-        for (const page of instance?.customStatusPages || []) {
-          if (!page?.status || !page?.hostPath) continue;
-          const outputPath = nodePath.normalize(`${instanceProjectPathFactory(instance)}/${page.hostPath}`);
-          if (buildCyberiaStatusPage({ status: page.status, outputPath, dev: isDev }))
-            statusPagesBuilt.push({ instance: id, status: page.status, outputPath });
-        }
-      }
-      logger.info('[build-manifest] Custom status pages built', statusPagesBuilt);
-      shellExec(
-        `node bin/cyberia run-workflow build-server-dashboard --output-path ./cyberia-server/public/index.html`,
-      );
-
-      // ── Build dev manifests (always --kind --dev) ────────────────────────
-      {
-        const flags = `--kind --dev${nodeFlag}`;
-        for (const id of CYBERIA_INSTANCE_IDS)
-          shellExec(`node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id ${id} ${flags}`);
-      }
-      // ── Build prod manifests (--kubeadm, no --dev) ───────────────────────
-      if (!isDev) {
-        const flags = `--kubeadm${nodeFlag}`;
-        for (const id of CYBERIA_INSTANCE_IDS)
-          shellExec(`node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id ${id} ${flags}`);
-      }
-
-      // Copy canonical doc sources into the generated project READMEs.
-      // Edit the canonical sources; never hand-edit these generated outputs.
-      // The mirrored deploy tree is generated, and rebuilt from scratch so a file
-      // renamed upstream cannot linger. It keeps the engine layout, the
-      // <deploy-id> directory beside lib/, because every deploy script sources
-      // `$SCRIPT_DIR/../lib/logging.sh`.
-      for (const project of ['cyberia-client', 'cyberia-server']) {
-        const scripts = `./deploy/${project}`;
-        // A tree assembled before these scripts were packaged does not carry them; mirroring is
-        // what publishes them, so say so and continue rather than failing the whole manifest build.
-        if (!fs.existsSync(scripts)) {
-          logger.warn(`[build-manifest] No deploy scripts to mirror for ${project}`, { path: scripts });
-          continue;
-        }
-        fs.removeSync(`./${project}/deploy`);
-        fs.copySync('./deploy/lib', `./${project}/deploy/lib`);
-        fs.copySync(scripts, `./${project}/deploy/${project}`);
-      }
-      fs.copyFileSync('./src/client/public/docs/cyberia/explanation/game-client.md', './cyberia-client/README.md');
-      fs.copyFileSync('./src/client/public/docs/cyberia/explanation/game-server.md', './cyberia-server/README.md');
-      fs.copyFileSync(
-        './.github/workflows/cyberia-client.cd.yml',
-        './cyberia-client/.github/workflows/cyberia-client.cd.yml',
-      );
-      fs.copyFileSync(
-        './.github/workflows/cyberia-server.cd.yml',
-        './cyberia-server/.github/workflows/cyberia-server.cd.yml',
-      );
-      shellExec('cp -a ./engine-private/conf/dd-cyberia/docker-compose/cyberia/. ./src/runtime/engine-cyberia/');
-      // Scope the publish to the deployment this workflow builds: read
-      // dd-cyberia's own environment, not the working-tree `./.env`.
-      shellExec(
-        `node bin/cyberia.js instance --publish-build --env-path ${deployEnvFilePath(
-          'dd-cyberia',
-          isDev ? 'development' : 'production',
-        )}`,
-      );
-      logger.info(`run-workflow build-manifest complete (${isDev ? 'dev' : 'prod'})`);
-    });
-
-  runner
-    .command('publish')
-    .option('--dry-run', 'Dry run: show commands without executing them')
-    .action((options) => {
-      if (options.dryRun) {
-        shellExec('node bin cmt --log --unpush cyberia-server');
-        shellExec('node bin cmt --log --unpush cyberia-client');
-        shellExec('node bin cmt --log --unpush cyberia-audio');
-        shellExec(`node bin cmt --log --unpush ${contentRoot()}`);
-        shellExec('node bin cmt --log --unpush');
-        shellExec(`node bin cmt --log --unpush ${deploymentRoot()}`);
-      } else {
-        shellExec('node bin/cyberia.js instance --publish', {
-          silentOnError: true,
-        });
-        shellExec('node bin push cyberia-server underpostnet/cyberia-server', {
-          silentOnError: true,
-        });
-        shellExec('node bin push cyberia-client underpostnet/cyberia-client', {
-          silentOnError: true,
-        });
-        shellExec('node bin push cyberia-audio underpostnet/cyberia-audio', {
-          silentOnError: true,
-        });
-        shellExec(`node bin push ${contentRoot()} underpostnet/cyberia-content`, {
-          silentOnError: true,
-        });
-        shellExec('node bin run template-deploy', {
-          silentOnError: true,
-        });
-      }
-    });
 
   runner
     .command('build-server-dashboard')
@@ -4900,6 +4876,7 @@ node bin image --path cyberia-client \
       shellExec(
         `node bin static --page ./src/client/ssr/views/CyberiaServerMetrics.js` +
           ` --output-path ${outputPath}` +
+          ` --application cyberia-server` +
           ` --title 'Metrics | CYBERIA MMO'` +
           ` --favicon /favicon.ico` +
           ` --description 'Operational dashboard for the cyberia-server MMO runtime.'` +
@@ -4917,7 +4894,7 @@ node bin image --path cyberia-client \
     .option('--dev', 'Build a development variant of the status page.')
     .option(
       '--output-path <path>',
-      'Output path for the rendered HTML. Defaults to the `hostPath` the mmo-server instance declares for the status.',
+      'Output path for the rendered HTML, `<site root>/<status>/index.html`. Defaults to the `hostPath` the mmo-server instance declares for the status.',
     )
     .description(
       'Build one custom status page artifact. The SSR view is resolved from the conf.ssr.json route whose path is ' +
@@ -4934,7 +4911,7 @@ node bin image --path cyberia-client \
         logger.error(`[build-status-page] No --output-path and no customStatusPages entry for status ${status}`);
         return;
       }
-      buildCyberiaStatusPage({ status, outputPath, dev: !!options.dev });
+      buildCyberiaStatusPage({ status, outputPath, application: 'cyberia-server', dev: !!options.dev });
     });
 
   runner
@@ -4942,7 +4919,7 @@ node bin image --path cyberia-client \
     .option('--dev', 'Build a development variant of the 404 page.')
     .option(
       '--output-path <path>',
-      'Output path for the rendered 404.html (default: ./cyberia-server/public/404.html). ' +
+      'Output path for the rendered 404 page (default: ./cyberia-server/public/404/index.html). ' +
         'The same page is served, sub-path aware, by the gateway for every instance variant of both the ' +
         'cyberia-server and cyberia-client workloads.',
     )
@@ -4953,9 +4930,354 @@ node bin image --path cyberia-client \
     .action((options) => {
       buildCyberiaStatusPage({
         status: '404',
-        outputPath: options.outputPath || './cyberia-server/public/404.html',
+        outputPath: options.outputPath || './cyberia-server/public/404/index.html',
+        application: 'cyberia-server',
         dev: !!options.dev,
       });
+    });
+
+  /** Writes the release instances into conf.instances.json: every game instance family serves their paths. */
+  const writeReleaseVariants = () => {
+    const confInstances = withReleaseVariants(readCyberiaConfInstances(), CYBERIA_INSTANCE_IDS);
+    fs.writeFileSync(CYBERIA_CONF_INSTANCES_PATH, `${JSON.stringify(confInstances, null, 2)}\n`, 'utf8');
+  };
+
+  /**
+   * Writes what a game checkout carries from this engine: its status pages, its instance manifests, the
+   * deploy scripts in the engine layout, and the mirrored files.
+   * @param {string} name - `cyberia-server` or `cyberia-client`.
+   * @param {{dev?:boolean, nodeName?:string}} options
+   */
+  const buildGameCheckout = (name, options) => {
+    const dir = checkoutDir(name);
+    const conf = readCyberiaConfInstances();
+    const instances = CYBERIA_INSTANCE_IDS.map((id) => {
+      const instance = conf.find((entry) => entry.id === id);
+      if (!instance) throw new Error(`${CYBERIA_CONF_INSTANCES_PATH} declares no ${id}`);
+      return instance;
+    }).filter((instance) => nodePath.resolve(instanceProjectPathFactory(instance)) === dir);
+    // The gateway manifests embed each status page, so the pages come first.
+    for (const instance of instances)
+      for (const page of instance.customStatusPages || [])
+        if (page?.status && page?.hostPath)
+          buildCyberiaStatusPage({
+            status: page.status,
+            outputPath: nodePath.join(dir, page.hostPath),
+            application: name,
+            dev: options.dev,
+          });
+    const nodeFlag = options.nodeName ? ` --node-name ${options.nodeName}` : '';
+    for (const flags of options.dev ? ['--kind --dev'] : ['--kind --dev', '--kubeadm'])
+      for (const { id } of instances)
+        shellExec(
+          `node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id ${id} ${flags}${nodeFlag}`,
+        );
+    fs.removeSync(`${dir}/deploy`);
+    fs.copySync('./deploy/lib', `${dir}/deploy/lib`);
+    fs.copySync(`./deploy/${name}`, `${dir}/deploy/${name}`);
+    const docs = { 'cyberia-server': 'game-server.md', 'cyberia-client': 'game-client.md' };
+    fs.copyFileSync(`./src/client/public/docs/cyberia/explanation/${docs[name]}`, `${dir}/README.md`);
+    for (const dockerfile of ['Dockerfile', 'Dockerfile.dev'])
+      fs.copyFileSync(`./src/runtime/${name}/${dockerfile}`, `${dir}/${dockerfile}`);
+    fs.copyFileSync(`./.github/workflows/${name}.cd.yml`, `${dir}/.github/workflows/${name}.cd.yml`);
+  };
+
+  /**
+   * Writes the deployment checkout: the dd-cyberia conf and package manifest, the runtime images and the
+   * manifests. Each of the three trees is rebuilt whole, so nothing the topology no longer declares stays.
+   */
+  const buildDeploymentCheckout = async () => {
+    const deployment = deploymentRoot();
+    if (!fs.existsSync(deployment))
+      Underpost.repo.syncCheckout({ path: deployment, repo: releaseRepository(DEPLOYMENT_SOURCE).repository });
+    for (const tree of ['conf', 'images', 'manifests']) fs.removeSync(`${deployment}/${tree}`);
+    shellExec('node bin run build-cluster-deployment-manifests');
+    shellExec('sudo rm -rf ./underpost.config.dd*.js');
+    shellExec(cyberiaCatalog.packageScripts['docker:generate']);
+    shellExec('cp -a ./engine-private/conf/dd-cyberia/docker-compose/cyberia/. ./src/runtime/engine-cyberia/');
+    const conf = `${deployment}/conf/dd-cyberia`;
+    fs.mkdirpSync(conf);
+    for (const file of [
+      'conf.server.json',
+      'conf.client.json',
+      'conf.cron.json',
+      'conf.ssr.json',
+      'conf.volume.json',
+      'conf.instances.json',
+    ])
+      fs.copyFileSync(`./engine-private/conf/dd-cyberia/${file}`, `${conf}/${file}`);
+    // The deploy's package manifest under the product identity, from the builder of every generated manifest.
+    fs.writeFileSync(
+      `${conf}/package.json`,
+      `${JSON.stringify(
+        buildDeployPackageJson({
+          deployId: 'dd-cyberia',
+          enginePackageJson: fs.readJsonSync('./package.json'),
+          catalog: await loadDeployCatalog('dd-cyberia'),
+          currentPackageJson: fs.readJsonSync(deployPackagePathFactory('dd-cyberia')),
+          productIdentity: true,
+        }),
+        null,
+        DEPLOY_MANIFEST_INDENT,
+      )}\n`,
+    );
+    for (const env of ['production', 'development', 'test'])
+      fs.copyFileSync('./engine-private/conf/dd-cyberia/docker-compose/cyberia/compose.env', `${conf}/.env.${env}`);
+    // The staged CLI package is a build-context artifact, never deployment state.
+    fs.copySync('./src/runtime/engine-cyberia', `${deployment}/images/engine-cyberia`, {
+      filter: (src) => nodePath.basename(src) !== STAGED_CLI_PACKAGE,
+    });
+    fs.copySync('./manifests/deployment/dd-cyberia-development/.', `${deployment}/images/engine-cyberia/.`);
+    for (const [name, id] of [
+      ['cyberia-client', 'mmo-client'],
+      ['cyberia-server', 'mmo-server'],
+    ]) {
+      fs.copySync(`./src/runtime/${name}`, `${deployment}/images/${name}`);
+      fs.copySync(
+        `./engine-private/conf/dd-cyberia/instances/${id}/build/development/.`,
+        `${deployment}/images/${name}/.`,
+      );
+    }
+    fs.copySync(`${checkoutDir('cyberia-server')}/manifests`, `${deployment}/manifests`);
+    fs.copySync(`${checkoutDir('cyberia-client')}/manifests`, `${deployment}/manifests`);
+    fs.copySync(
+      './manifests/deployment/dd-cyberia-development',
+      `${deployment}/manifests/deployments/dd-cyberia-development`,
+    );
+  };
+
+  const GAME_BUILD_MESSAGE = 'Update build and deployment manifests';
+
+  /**
+   * The build of each product repository, in build order: the deployment copies the game manifests. A
+   * build with a commit message writes tracked files; the content build writes only its ignored artifact.
+   */
+  const RELEASE_BUILDS = {
+    'cyberia-server': {
+      build: (options) => {
+        buildGameCheckout('cyberia-server', options);
+        shellExec(
+          `node bin/cyberia run-workflow build-server-dashboard --output-path ${checkoutDir('cyberia-server')}/public/index.html`,
+        );
+      },
+      message: () => GAME_BUILD_MESSAGE,
+    },
+    'cyberia-client': {
+      build: (options) => buildGameCheckout('cyberia-client', options),
+      message: () => GAME_BUILD_MESSAGE,
+    },
+    [CONTENT_SOURCE]: {
+      build: () => shellExec(`cd ${contentRoot()} && node bin/cyberia-content.js pack`),
+    },
+    [DEPLOYMENT_SOURCE]: {
+      build: buildDeploymentCheckout,
+      message: (options) =>
+        shellExec(`node bin cmt --changelog-msg --from-n-commit ${options.fromNCommit} --changelog-no-hash`, {
+          stdout: true,
+          silent: true,
+        }).trim() || 'Update deployment',
+    },
+  };
+
+  /**
+   * Commits the changes of a checkout under a path, when there are any.
+   * @param {string} dir
+   * @param {string} message
+   * @param {string} [path='.']
+   */
+  const commitCheckout = (dir, message, path = '.') => {
+    Underpost.repo.declareSafeDirectory(dir);
+    if (
+      !shellExec(`git -C ${dir} status --porcelain -- ${path}`, { stdout: true, silent: true, disableLog: true }).trim()
+    )
+      return;
+    shellExec(`git -C ${dir} add -- ${path} && git -C ${dir} commit -q -m ${shellArgumentFactory(message)} -- ${path}`);
+    logger.info(`Committed ${dir}: ${message.split('\n')[0]}`);
+  };
+
+  /**
+   * Pushes a checkout to a repository, then tracks that repository as origin.
+   * @param {{dir:string, target:string}} checkout
+   * @param {boolean} [force] - Push with `-f`, which can rewrite the history of the repository.
+   * @returns {boolean} False when the push fails; the origin then stays.
+   */
+  const publishCheckout = ({ dir, target }, force = false) => {
+    Underpost.repo.declareSafeDirectory(dir);
+    if (shellExec(`node bin push ${dir} ${target}${force ? ' -f' : ''}`, { silentOnError: true }).code !== 0) {
+      logger.error(`${dir} not pushed to ${target}: its origin stays`);
+      return false;
+    }
+    Underpost.repo.setOrigin({ path: dir, repository: target });
+    return true;
+  };
+
+  const release = program
+    .command('release')
+    .option('-f, --force', 'Force the operation: publish pushes with -f')
+    .description(`The product repositories: profiles, builds, the deployment ${SOURCE_LOCK_FILE} and publication`);
+
+  release
+    .command('list')
+    .option('--profile <profile>', `Only one profile: ${Object.keys(RELEASE_PROFILES).join(', ')}`)
+    .option(
+      '--locked',
+      `Only the repositories the deployment ${SOURCE_LOCK_FILE} pins, with the revision as a fourth field`,
+    )
+    .description('Print `<name> <repository> <profile>` for each product repository')
+    .action((options = {}) => {
+      try {
+        const lock = options.locked ? deploymentLock() : null;
+        for (const { name, repository, profile } of lock ? lockedRepositories() : cyberiaCatalog.releaseRepositories) {
+          if (!RELEASE_PROFILES[profile]) throw new Error(`${name}: unknown release profile "${profile}"`);
+          if (options.profile && options.profile !== profile) continue;
+          console.log(`${name} ${repository} ${profile}${lock ? ` ${lock.sources[name].revision}` : ''}`);
+        }
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
+      }
+    });
+
+  release
+    .command('build [names...]')
+    .option('--dev', 'Write only the development manifests of the game checkouts')
+    .option(
+      '--node-name <node-name>',
+      'The node the hostPath volumes of the game manifests bind to (default: UNDERPOST_DEPLOY_NODE, then this host)',
+    )
+    .option('--commit', 'Commit what each build writes to the game and deployment checkouts')
+    .option('--from-n-commit <n>', 'The engine commits the deployment commit message sums up', '1')
+    .description(
+      'Set the release instances in conf.instances.json, then build the named product repositories. ' +
+        'With no names: the shared runtime contract, every repository, then the secret scan',
+    )
+    .action(async (names = [], options = {}) => {
+      try {
+        for (const name of names)
+          if (!RELEASE_BUILDS[name]) throw new Error(`${releaseRepository(name).name} has nothing to build`);
+        writeReleaseVariants();
+        if (!names.length) logger.info('Runtime contract', await generateStatContract());
+        for (const [name, { build, message }] of Object.entries(RELEASE_BUILDS)) {
+          if (names.length && !names.includes(name)) continue;
+          await build(options);
+          if (options.commit && message) commitCheckout(checkoutDir(name), message(options));
+        }
+        if (!names.length) shellExec('npm run security:secrets:ci');
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
+      }
+    });
+
+  release
+    .command('lock')
+    .option('--commit', `Commit ${SOURCE_LOCK_FILE} in the deployment checkout`)
+    .description(
+      `Pin the committed revision of each product repository, and the content artifact, in the deployment ${SOURCE_LOCK_FILE}`,
+    )
+    .action((options = {}) => {
+      try {
+        const sources = {};
+        for (const { name, repository } of lockedRepositories()) {
+          const dir = checkoutDir(name);
+          if (!fs.existsSync(`${dir}/.git`)) throw new Error(`${dir} is not a checkout of ${repository}`);
+          if (shellExec(`git -C ${dir} status --porcelain`, { stdout: true, silent: true, disableLog: true }).trim())
+            throw new Error(`${dir} has uncommitted changes: commit them before a lock`);
+          sources[name] = { repository, revision: headRevision(dir) };
+        }
+        const content = contentLockEntry(contentArtifact().manifest);
+        const checkout = sources[CONTENT_SOURCE];
+        if (content.repository !== checkout.repository || content.revision !== checkout.revision)
+          throw new Error(
+            `The content artifact is ${content.repository} at ${content.revision}, not ${checkout.revision}: build ${CONTENT_SOURCE} first`,
+          );
+        sources[CONTENT_SOURCE] = content;
+        const lock = writeSourceLockFile(deploymentLockPath(), sources);
+        logger.info(
+          `Locked ${deploymentLockPath()}`,
+          Object.fromEntries(Object.entries(lock.sources).map(([name, { revision }]) => [name, revision])),
+        );
+        if (options.commit) commitCheckout(deploymentRoot(), 'Lock the deployment sources', SOURCE_LOCK_FILE);
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
+      }
+    });
+
+  release
+    .command('verify')
+    .description(`Check that the installed content artifact is the one the deployment ${SOURCE_LOCK_FILE} pins`)
+    .action(() => {
+      try {
+        verifyLockedSource(deploymentLock(), CONTENT_SOURCE, contentLockEntry(contentArtifact().manifest));
+        logger.info(`The content artifact is the one ${deploymentLockPath()} pins`);
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
+      }
+    });
+
+  release
+    .command('publish [names...]')
+    .option(
+      '--private',
+      'Push each checkout to its private mirror (<repository>-private) instead of the public repository',
+    )
+    .option('--dry-run', 'Track each target repository as origin and list the commits it lacks; push nothing')
+    .description(
+      'Push the named product checkouts (default: all of them) to the repository of their source channel, and ' +
+        'track it as origin. The deployment goes last, once every other named checkout is pushed',
+    )
+    .action((names = [], options = {}, command) => {
+      const { force } = command.optsWithGlobals();
+      try {
+        for (const name of names) releaseRepository(name);
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
+      }
+      const channel = options.private ? 'private' : 'public';
+      const checkouts = [...lockedRepositories(), releaseRepository(DEPLOYMENT_SOURCE)]
+        .filter(({ name }) => !names.length || names.includes(name))
+        .map(({ name, repository }) => ({
+          name,
+          dir: checkoutDir(name),
+          target: Underpost.repo.sourceRepoFactory(repository, channel),
+        }));
+      if (options.dryRun) {
+        for (const { dir, target } of checkouts) {
+          logger.info(`${dir} → ${target}${force ? ' (force)' : ''}`);
+          Underpost.repo.declareSafeDirectory(dir);
+          Underpost.repo.setOrigin({ path: dir, repository: target });
+          shellExec(`node bin cmt --log --unpush ${dir}`);
+        }
+        return;
+      }
+      const failed = [];
+      for (const checkout of checkouts) {
+        if (checkout.name === DEPLOYMENT_SOURCE && failed.length) {
+          logger.error(`${checkout.dir} not pushed: its lock pins ${failed.join(', ')}`);
+          failed.push(checkout.dir);
+        } else if (!publishCheckout(checkout, force)) failed.push(checkout.dir);
+      }
+      if (failed.length) process.exit(1);
+    });
+
+  release
+    .command('clean [names...]')
+    .description(
+      'Discard every change not committed in the named checkouts a build writes (default: all of them); commits stay',
+    )
+    .action((names = []) => {
+      const written = Object.keys(RELEASE_BUILDS).filter((name) => RELEASE_BUILDS[name].message);
+      const unknown = names.filter((name) => !written.includes(name));
+      if (unknown.length) {
+        logger.error(`A build writes no tracked file of ${unknown.join(', ')}: name ${written.join(', ')}`);
+        process.exit(1);
+      }
+      const dirs = (names.length ? names : written).map(checkoutDir);
+      for (const dir of dirs) Underpost.repo.declareSafeDirectory(dir);
+      shellExec(`node bin run clean ${dirs.join(',')}`);
     });
 
   // Passthrough check: if the user invoked a command that is OWNED by the

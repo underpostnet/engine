@@ -11,7 +11,7 @@ where it is (placement). Nothing else is left to a human.
 ```
 workspace (engine root)
 ├── cyberia-content      authored content ──build──► dist/ (the content artifact)
-├── cyberia-deployment   deployment state and content-lock.json
+├── cyberia-deployment   deployment state and underpost.lock.json
 └── engine               content-artifact.js
                              │
                              ├── cyberia instance --import / --export
@@ -29,7 +29,7 @@ One owner for each concept. No module holds a second answer.
 | Owner                      | Owns                                                                    |
 | -------------------------- | ----------------------------------------------------------------------- |
 | `cyberia-content`          | Foundation, instances, sagas, generator, compiler, validation, artifact |
-| `cyberia-deployment`       | Deployment conf, runtime images, manifests and `content-lock.json`      |
+| `cyberia-deployment`       | Deployment conf, runtime images, manifests and `underpost.lock.json`    |
 | Object Layer               | Canonical, content-addressed item definitions                           |
 | `CyberiaItemCatalog`       | The binding of a Cyberia item label to an Object Layer CID              |
 | `CyberiaEntity`            | An entity of a map: item stack, runtime properties and cell             |
@@ -105,10 +105,12 @@ so nothing writes into it.
 
 ## Verification
 
-`cyberia instance --publish-build` writes `content-lock.json` into the deployment checkout: the
-repository, version, source revision and digest of the artifact. The image build checks out that
-source revision of `cyberia-content`, packs it, and runs `cyberia content status --lock` against
-the lock before anything reads content.
+`cyberia release lock` pins the content in `underpost.lock.json` of the deployment checkout: the
+repository, the source revision, and the version and digest of the artifact. Nothing else writes
+it, so a deploy consumes the lock as it is. The lock names no source channel: a deploy fetches the
+pinned revision from the channel it runs on, and the image build from the public repository. The
+image build checks out that revision, packs it, and runs `cyberia release verify` before anything
+reads content.
 
 `src/projects/cyberia/content-artifact.js` opens the artifact once per process. It fails, and
 never falls back, when:
@@ -120,6 +122,22 @@ never falls back, when:
 - a lock names another artifact.
 
 Every file is verified when it is read. The runtime data is frozen: one process shares it.
+
+## The release copy
+
+A release database holds a copy of the files a running engine reads: the manifest, the context
+index, the foundation and the sagas. It holds no instance backup: only an import reads them.
+
+A running engine reads the artifact of the content it serves:
+
+- While a release is active, it reads the copy that release holds. A promotion and a rollback
+  change the copy with the database.
+- While the workspace serves, it reads the artifact on disk.
+
+The copy is verified as the artifact on disk is. Its content digest must be the one the release
+records. A release whose copy does not load fails every read of the artifact, and
+`GET /api/v1/cyberia-content-release/active` reports it as not serving. The engine loads the copy
+again on the next watch.
 
 ## Document families
 
@@ -155,22 +173,76 @@ Each document has a natural key: a label, an entity type and its live items, a t
 code, or a dialogue code with all of its lines. A document that is absent is inserted. A document
 that holds the same content is in sync. A document that differs is kept and reported; `--rebind`
 moves it to the artifact. `--dry-run` prints the plan and writes nothing. Every run is idempotent.
+`--release <id>` writes into that content release database instead of the workspace.
 
-The import never overwrites what is stored or what Studio authored:
+An Object Layer definition is identified by its cid, never by its item id: an item id is a label,
+and several definitions can carry it. The catalog binds each label to one cid. The import plans
+each artifact item against the definition its label is bound to:
 
-- An Object Layer item whose item id is stored is skipped, even with `--rebind`, and the plan logs
-  the skipped item ids. Only an absent item id gets a new definition and its catalog binding.
-- A quest or an action keeps its source map and cell.
-- A map keeps its entities. A compiled map holds none: Studio places them.
+- **absent**: the label has no binding. The import writes the definition and binds the label.
+- **in sync**: the bound definition holds the same content.
+- **differs**: the bound definition holds other content. It is kept and reported; `--rebind`
+  publishes the artifact content as a new definition and moves the label. The earlier definition
+  stays.
+
+Studio's work stays: a written definition keeps the render of the bound one, a quest or an action
+keeps its source map and cell, and a map keeps its entities. A compiled map holds none: Studio
+places them.
 
 `--saga <code>` imports one compiled saga the same way, then its `CyberiaSaga` record and its
 instance. The instance conf references the entity-type defaults of every entity the saga places.
 Only an insert writes the instance portal graph.
 
-`cyberia instance <code> --import` restores an instance backup of the artifact.
-`cyberia run-workflow import-content` imports every saga, every instance, then the foundation.
-`cyberia content-release build` imports the artifact instances into a candidate release and records
-the artifact identity in the ledger.
+`cyberia instance <code> --import` restores an instance backup of the artifact, and it needs the
+foundation in the store:
+
+- An Object Layer item of the backup is published under its cid, and the label binds to it. No
+  other definition of the label is removed: a quest or an action of another instance that pins
+  another cid keeps it.
+- A map, quest, action, skill, dialogue, saga, audio asset, instance and instance conf of the
+  backup replaces the stored document of its key.
+- An entity-type default of the backup replaces each stored default of the same entity type and
+  live items that no other instance conf references. Another world keeps its own default.
+
+## Release content
+
+`src/projects/cyberia/release-content.js` declares what a release carries: the foundation, the
+release sagas and the release instances, each instance with the public path that serves it.
+
+```json
+{
+  "foundation": true,
+  "sagas": ["amethyst-strata-expansion"],
+  "instances": [
+    { "path": "/", "instanceCode": "amethyst-strata-expansion" },
+    { "path": "/test", "instanceCode": "test" }
+  ]
+}
+```
+
+Every content initialization imports this set, in one order:
+
+1. The foundation.
+2. The release sagas, with `--rebind`: each one moves what it holds to the artifact.
+3. The release instances: each one restores what it holds.
+
+The import takes only the declared sagas and instances. It fails before it writes when the
+artifact lacks one of them, and it never imports another saga or instance that the artifact holds.
+An import starts only once the one before it succeeded, so a failed foundation import stops the
+instances. `src/projects/cyberia/content-release.js` holds that order, and every path runs it:
+
+| Path                                  | Store                       | Imports                                                                        |
+| ------------------------------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| `cyberia content-release build`       | An empty candidate database | The release copy, the foundation, the release sagas, then the served instances |
+| `cyberia run-workflow import-content` | The workspace               | The foundation, the release sagas, then the release instances                  |
+| The content job of the Docker stack   | The workspace               | As `import-content`                                                            |
+
+A release build always starts from an empty candidate database, so the release is a function of
+the source revision, the release content and the release configuration alone. The workspace is a
+mutable development store: there an import upserts, and the plan statuses decide what it writes.
+
+`cyberia content-release` builds the artifact from the locked revision in a release workspace and
+records its source and the artifact in the ledger. See [Content releases](content-releases.md).
 
 ## Audit
 
@@ -187,8 +259,9 @@ label it names or stores:
 1. Author in the portal, then `cyberia instance <code> --export`. The export lands in the
    `cyberia-content` checkout as source content.
 2. In `cyberia-content`: validate, commit, increment the version, build.
-3. `cyberia instance --publish-build` records the new `content-lock.json` in the deployment
-   checkout. Push both repositories: the image build reads the locked revision.
+3. `cyberia release lock --commit` pins the new revision in the deployment lock, and
+   `cyberia release publish` pushes the checkouts, the deployment last. A deploy from the private
+   channel mirrors the pinned revision to the public repository once the release serves.
 
 ## Studio authoring
 

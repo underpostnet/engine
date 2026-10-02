@@ -1475,6 +1475,23 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Points the `origin` of a checkout at a GitHub repository, over SSH when a GitHub origin uses SSH, else HTTPS.
+     * @param {object} opts
+     * @param {string} [opts.path='.'] - Path to the git repository.
+     * @param {string} opts.repository - Repository `owner/repo` slug or clone URL.
+     * @memberof UnderpostRepository
+     */
+    setOrigin({ path: repoPath = '.', repository }) {
+      const slug = Underpost.repo.repoSlugFactory(repository);
+      const current = Underpost.repo.getRemoteUrl({ path: repoPath });
+      const github = /^(?:git@github\.com:|https:\/\/github\.com\/)/.exec(current)?.[0];
+      if (github && Underpost.repo.repoSlugFactory(current) === slug) return;
+      const url = github === 'git@github.com:' ? `git@github.com:${slug}.git` : `https://github.com/${slug}.git`;
+      shellExec(`cd "${repoPath}" && git remote ${current ? 'set-url' : 'add'} origin "${url}"`);
+      logger.info('setOrigin', { path: repoPath, url });
+    },
+
+    /**
      * Switches a local repository onto a different remote and force-syncs its
      * working tree to a target branch, discarding local commits and tracked
      * changes — effectively "switch repo to <url>#<branch>".
