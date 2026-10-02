@@ -17,6 +17,7 @@
  *   - `packageBin`        — bin map of the standalone product CLI.
  *   - `packageDependencies` — runtime dependencies this product adds to the engine's.
  *   - `packageScripts`    — npm scripts this product adds to the engine's.
+ *   - `releaseRepositories` — each product repository and its release profile.
  *
  * The `package*` fields are the single declaration of what this product's manifests carry:
  * every generated manifest — the deploy's `engine-private/conf/<id>/package.json`, the product
@@ -56,6 +57,14 @@ export default {
     'docker:status': dockerScript('status'),
     'docker:reset': dockerScript('reset'),
   },
+  // The release profile of each product repository; its build stays in its own scripts and Dockerfile.
+  releaseRepositories: [
+    { name: 'cyberia-content', repository: 'underpostnet/cyberia-content', profile: 'data-release' },
+    { name: 'cyberia-audio', repository: 'underpostnet/cyberia-audio', profile: 'source-sync' },
+    { name: 'cyberia-deployment', repository: 'underpostnet/cyberia-deployment', profile: 'source-sync' },
+    { name: 'cyberia-server', repository: 'underpostnet/cyberia-server', profile: 'container-release' },
+    { name: 'cyberia-client', repository: 'underpostnet/cyberia-client', profile: 'container-release' },
+  ],
   sourceMoves: [],
   privateConfPaths: [],
   templatePaths: [
@@ -78,7 +87,7 @@ export default {
     '/.github/workflows/coverall.cyberia.ci.yml',
     '/bin/cyberia.js',
     '/hardhat',
-    // The deploy scripts `run-workflow build-manifest` mirrors into each generated instance
+    // The deploy scripts `release build` mirrors into each generated instance
     // repository. The base template drops the whole `deploy/` tree, so the product CLI only has
     // them if it packages them here.
     '/deploy/cyberia-client',

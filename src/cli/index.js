@@ -1515,4 +1515,36 @@ program
     );
   });
 
+program
+  .command('source-release')
+  .argument(
+    '<operation>',
+    'repository: the repository of a source channel; mirror: publish a private revision; job: run a Release Job; ' +
+      'prune: remove the release workspaces of the store.',
+  )
+  .argument(
+    '<subject>',
+    'The public repository (repository, mirror), the release id (job), or the release to keep (prune).',
+  )
+  .option('--channel <channel>', 'For repository: the source channel, public or private.', 'public')
+  .option('--revision <sha>', 'For mirror: the exact source revision to publish.')
+  .option('--branch <branch>', 'For mirror: the public branch (default: the private repository default branch).')
+  .option('--deploy-id <deploy-id>', 'For job: the deployment the release belongs to.')
+  .option('--image <image>', 'For job: the container image the Job runs.')
+  .option('--cmd <command>', 'For job: the shell command line the Job runs.')
+  .option('--env <env>', 'For job: the deployment environment.', 'production')
+  .option(
+    '--scope <scope>',
+    'For job: the configuration scope whose `app apply` Secret the Job reads, e.g. data-release.',
+  )
+  .option('--set-env <list>', 'For job: plain environment values, as KEY=value,KEY=value.')
+  .option('--node-name <node-name>', 'For job: pins the Job to the node that holds the release store.')
+  .option('--namespace <namespace>', 'For job: the Kubernetes namespace.', 'default')
+  .option('--store <path>', 'For job and prune: the release store path on the node.')
+  .option('--timeout <seconds>', 'For job: the deadline of the Job, in seconds.', '3600')
+  .option('--image-pull-policy <policy>', 'For job: Always, IfNotPresent or Never.', 'IfNotPresent')
+  .option('--dry-run', 'For job: print the Job manifest and run nothing.')
+  .description('Source channels, the private-to-public mirror, the Release Job and the release store.')
+  .action(Underpost.sourceRelease.callback);
+
 export { program };

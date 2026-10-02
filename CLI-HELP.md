@@ -52,6 +52,7 @@
 | [`package`](#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
 | [`socketsecurity`](#underpost-socketsecurity) | Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
 | [`release`](#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
+| [`source-release`](#underpost-source-release) | Source channels, the private-to-public mirror, the Release Job and the release store. |
 
 ## Command reference
 
@@ -1447,6 +1448,42 @@ Release orchestrator for building new versions and deploying releases of the Und
 | `--mongo-user <user>` | For --build: override DB_USER in the template .env.example for the smoke test. |
 | `--mongo-password <password>` | For --build: override DB_PASSWORD in the template .env.example for the smoke test. |
 | `--valkey-host <host>` | For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82"). |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost source-release
+
+Source channels, the private-to-public mirror, the Release Job and the release store.
+
+**Usage:** `underpost source-release [options] <operation> <subject>`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `operation` | repository: the repository of a source channel; mirror: publish a private revision; job: run a Release Job; prune: remove the release workspaces of the store. |
+| `subject` | The public repository (repository, mirror), the release id (job), or the release to keep (prune). |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--channel <channel>` | For repository: the source channel, public or private. (default: "public") |
+| `--revision <sha>` | For mirror: the exact source revision to publish. |
+| `--branch <branch>` | For mirror: the public branch (default: the private repository default branch). |
+| `--deploy-id <deploy-id>` | For job: the deployment the release belongs to. |
+| `--image <image>` | For job: the container image the Job runs. |
+| `--cmd <command>` | For job: the shell command line the Job runs. |
+| `--env <env>` | For job: the deployment environment. (default: "production") |
+| `--scope <scope>` | For job: the configuration scope whose `app apply` Secret the Job reads, e.g. data-release. |
+| `--set-env <list>` | For job: plain environment values, as KEY=value,KEY=value. |
+| `--node-name <node-name>` | For job: pins the Job to the node that holds the release store. |
+| `--namespace <namespace>` | For job: the Kubernetes namespace. (default: "default") |
+| `--store <path>` | For job and prune: the release store path on the node. |
+| `--timeout <seconds>` | For job: the deadline of the Job, in seconds. (default: "3600") |
+| `--image-pull-policy <policy>` | For job: Always, IfNotPresent or Never. (default: "IfNotPresent") |
+| `--dry-run` | For job: print the Job manifest and run nothing. |
 | `-h, --help` | display help for command |
 
 ---

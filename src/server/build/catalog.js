@@ -38,6 +38,7 @@ const EMPTY_CATALOG = {
   packageBin: {},
   packageDependencies: {},
   packageScripts: {},
+  releaseRepositories: [],
 };
 
 /**

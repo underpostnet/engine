@@ -150,5 +150,6 @@ npm run dev
 | [`package`](CLI-HELP.md#underpost-package)               | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins.                                                                |
 | [`socketsecurity`](CLI-HELP.md#underpost-socketsecurity) | Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code).                  |
 | [`release`](CLI-HELP.md#underpost-release)               | Release orchestrator for building new versions and deploying releases of the Underpost CLI.                                                                                                                                  |
+| [`source-release`](CLI-HELP.md#underpost-source-release) | Source channels, the private-to-public mirror, the Release Job and the release store.                                                                                                                                        |
 
 <!-- cli-index-end -->

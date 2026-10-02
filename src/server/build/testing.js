@@ -1142,6 +1142,8 @@ const TEST_IMPACT = [
   { match: ['src/client/components/', 'src/client/public/', 'src/client/ssr/'], domains: ['ecosystem', 'underpost'] },
   // Persistence every product domain stores through.
   { match: ['src/db/'], domains: ['underpost', 'object-layer', 'cyberia'] },
+  // The release primitive: Cyberia content releases run on it.
+  { match: ['src/server/release/'], domains: ['underpost', 'cyberia'] },
   // The engineering record at the tree root: the release tooling rewrites it and asserts it.
   { match: ['README.md', 'AGENTS.md', 'CLI-HELP.md', 'LICENSE'], domains: ['underpost'] },
   // The platform itself.

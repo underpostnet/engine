@@ -31,6 +31,7 @@ import UnderpostState from './cli/state.js';
 import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
 import UnderpostRelease from './cli/release.js';
+import UnderpostSourceRelease from './cli/source-release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
 import UnderpostVultr from './cli/vultr.js';
 import UnderpostWireguard from './cli/wireguard.js';
@@ -364,6 +365,16 @@ class Underpost {
    */
   static get release() {
     return UnderpostRelease.API;
+  }
+
+  /**
+   * Source release primitive cli API
+   * @static
+   * @type {UnderpostSourceRelease.API}
+   * @memberof Underpost
+   */
+  static get sourceRelease() {
+    return UnderpostSourceRelease.API;
   }
 
   /**
