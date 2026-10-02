@@ -24,6 +24,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   delete process.env.ITEM_LEDGER_API_ORIGIN;
   delete process.env.DOMAIN_API_SERVICE_KEY;
 });
@@ -82,6 +83,8 @@ describe('cross-domain reads', () => {
   });
 
   it('refuses a domain with no configured base URL: no database is a fallback', async () => {
+    vi.stubEnv('DEFAULT_DEPLOY_ID', '');
+    vi.stubEnv('CYBERIA_API_ORIGIN', '');
     await expect(domainRead({ domain: 'cyberia', path: 'anything' })).rejects.toThrow(/No API origin/);
   });
 });
