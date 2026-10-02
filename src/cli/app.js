@@ -34,16 +34,18 @@ import { readDeployRoutes } from '../server/network/router.js';
 import { shellExec } from '../server/runtime/process.js';
 import { writeEnv } from '../server/runtime/environment.js';
 import { isReservedEnvKey } from './host.js';
+import { SCOPE_ENTITLEMENTS, scopeReceivesKey } from '../server/runtime/config-scope.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
 /**
  * Name of the Kubernetes Secret a deployment's environment is projected into. An instance carries
- * its own, under the `<deployId>-<instanceId>` prefix every other instance object already uses.
+ * its own, under the `<deployId>-<instanceId>` prefix every other instance object already uses; a
+ * scoped projection is named by its scope.
  */
-const appSecretName = (deployId, env, instanceId = '') =>
-  `${instanceId ? `${deployId}-${instanceId}` : deployId}-${env}-env`;
+const appSecretName = (deployId, env, instanceId = '', scope = '') =>
+  `${instanceId ? `${deployId}-${instanceId}` : deployId}-${env}-${scope || 'env'}`;
 
 // This domain's local runtime: the working-tree file `loadConf` materializes and the server
 // reads. `publish` is the inverse of `load`, so both ends name the same file.
@@ -260,7 +262,8 @@ class UnderpostApp {
 
     /**
      * Projects the deployment environment into the cluster as its own Secret, so a workload can
-     * inject it with `envFrom` alongside the host configuration.
+     * inject it with `envFrom` alongside the host configuration. With `--args scope=<scope>`, only
+     * the keys that scope is entitled to, into the scope's own Secret.
      * Idempotent — delete-then-apply converges on the current source.
      * @param {object} context - Normalized domain context.
      * @returns {{secret: string, namespace: string, env: string}} What was projected.
@@ -271,7 +274,9 @@ class UnderpostApp {
       const deployId = UnderpostApp.API.deployId(context);
       const envFilePath = UnderpostApp.API.envPath(context);
       if (!fs.existsSync(envFilePath)) throw new Error(`[app] deployment environment not found: ${envFilePath}`);
-      const secret = appSecretName(deployId, context.env, UnderpostApp.API.instanceId(context));
+      const scope = `${context.args?.scope ?? ''}`.trim();
+      if (scope && !SCOPE_ENTITLEMENTS[scope]) throw new Error(`[app] scope ${scope} entitles no key`);
+      const secret = appSecretName(deployId, context.env, UnderpostApp.API.instanceId(context), scope);
       // This Secret is consumed only by container workloads, so the OCI overlay is applied
       // unconditionally here — the host projecting it is not the runtime that reads it.
       const { overlay, content } = UnderpostApp.API.ociEnv(context);
@@ -295,6 +300,7 @@ class UnderpostApp {
             const trimmed = line.trimStart();
             if (!trimmed || trimmed.startsWith('#')) return true;
             const key = line.slice(0, line.indexOf('=')).trim();
+            if (scope) return !!key && scopeReceivesKey(key, scope);
             return !key || !isReservedEnvKey(key);
           })
           .join('\n'),

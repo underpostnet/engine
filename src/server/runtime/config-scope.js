@@ -39,6 +39,7 @@ const CONFIG_SCOPES = Object.freeze({
   baremetal: 'Machine provisioning: MAAS, its database, and the network a commissioned node boots on.',
   publishing: 'Release identities: the registries and package indexes a publish authenticates to.',
   app: "A deployment's own runtime: its database, its sessions, its integrations.",
+  'data-release': 'A data release Job: the database it writes and the authority it publishes to.',
 });
 
 /**
@@ -67,6 +68,7 @@ const CONFIG_OWNERSHIP = Object.freeze([
   { match: /^(JWT_SECRET|ACCESS_EXPIRE_MINUTES|REFRESH_EXPIRE_MINUTES|PORT|DEPLOY_ID)$/, owner: 'app' },
   { match: /^(DEFAULT_ADMIN_|CLOUDINARY_|WP_)/, owner: 'app' },
   { match: /^(GEMINI_API_KEY|NVIDIA_API_KEY)$/, owner: 'app' },
+  { match: /^DOMAIN_API_SERVICE_KEY$/, owner: 'app' },
 ]);
 
 /**
@@ -105,6 +107,22 @@ const SCOPE_ENTITLEMENTS = Object.freeze({
     'DDNS_USER',
     'HTTP_PLAIN_IP_URL',
     'DEFAULT_DEPLOY_HOST',
+  ]),
+  'data-release': Object.freeze([
+    // The host the release belongs to.
+    'DEFAULT_DEPLOY_ID',
+    'DEFAULT_DEPLOY_HOST',
+    'DEFAULT_DEPLOY_PATH',
+    // Its database: the release ledger and the content partition it writes.
+    'DB_HOST',
+    'DB_USER',
+    'DB_PASSWORD',
+    'DB_REPLICA_SET',
+    'DB_AUTH_SOURCE',
+    'DB_NAME_CYBERIA',
+    'DB_NAME_CYBERIA_CONTENT',
+    // The write it makes to the Object Layer authority.
+    'DOMAIN_API_SERVICE_KEY',
   ]),
 });
 
