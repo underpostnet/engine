@@ -34,6 +34,7 @@ import {
   loadConfServerJson,
   resolveEnvScoped,
   selectConfInstances,
+  undeclaredInstanceBuildsFactory,
   waitForPort,
   clusterInstancesFactory,
   deployTrafficEntriesFactory,
@@ -2318,6 +2319,19 @@ EOF
         logger.error(`Instance with id '${id}' not found in conf.instances.json for deployId '${deployId}'`);
         return;
       }
+      // A world of the family the topology no longer declares leaves no build behind: neither its
+      // manifests in the project nor its build in the private conf.
+      if (!options.instanceOnly) {
+        const removed = undeclaredInstanceBuildsFactory({
+          family: id,
+          instances: confInstances,
+          env,
+          deploymentsPath: `${instanceProjectPathFactory(selected[0])}/manifests/deployments`,
+          buildsPath: `./engine-private/conf/${deployId}/instances`,
+        });
+        for (const target of removed) fs.removeSync(target);
+        if (removed.length) logger.info('[instance-build-manifest] Removed the builds of undeclared worlds', removed);
+      }
       if (!options.instanceOnly && (selected.length > 1 || selected[0].id !== id)) {
         for (const instance of selected)
           await UnderpostRun.RUNNERS['instance-build-manifest']('', {
@@ -2602,15 +2616,14 @@ EOF
       // deploy-specific builders may then derive application env from the
       // normalized instance path/code.
       //
-      // A derived instance's env dir is generated in full: both development.env
-      // and production.env are written on every build, so a deploy in either
-      // environment always finds the env file its `cmd` sources, no matter which
-      // mode this build ran. The default/template instance owns the committed
-      // source files, so only its current-mode file is idempotently refreshed.
+      // Both development.env and production.env are written on every build, so a
+      // deploy in either environment finds the env file its `cmd` sources, no
+      // matter which mode this build ran. The default instance's files are their
+      // own template, so its refresh is idempotent.
       if (instance.templateId) {
         const instanceEnvDir = nodePath.dirname(instanceEnvFilePath(deployId, _id, env));
         fs.mkdirpSync(instanceEnvDir);
-        const envsToWrite = isDefaultInstance ? [env] : ['development', 'production'];
+        const envsToWrite = ['development', 'production'];
         for (const targetEnv of envsToWrite) {
           const templateEnvPath = instanceEnvFilePath(deployId, instance.templateId, targetEnv);
           if (!fs.existsSync(templateEnvPath))

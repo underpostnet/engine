@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import { readFileSync } from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
 import shell from 'shelljs';
 import {
   DEFAULT_DEPLOY_ID,
@@ -39,6 +40,7 @@ import {
   syncDeployIdSources,
   syncDeployIdSourcesBack,
   syncPrivateConf,
+  undeclaredInstanceBuildsFactory,
   updatePrivateEngineTestRepo,
   updatePrivateTemplateRepo,
   waitForPort,
@@ -669,6 +671,46 @@ describe('client public trees', () => {
     expect(publicClientIdFactory('underpost', confClient.underpost)).to.equal('underpost');
     expect(clientPublicTreesFactory(confClient)).to.deep.equal(['underpost', 'cyberia', 'objectlayer']);
     expect(clientPublicTreesFactory()).to.deep.equal([]);
+  });
+});
+
+describe('instance topology builds', () => {
+  it('names the builds of a family world the topology no longer declares, and nothing else', () => {
+    const root = fs.mkdtempSync(`${os.tmpdir()}/instance-builds-`);
+    try {
+      const deploymentsPath = `${root}/cyberia-server/manifests/deployments`;
+      const buildsPath = `${root}/instances`;
+      for (const name of [
+        'mmo-server-development',
+        'mmo-server-test-development',
+        'mmo-server-forest-development',
+        'mmo-server-forest-production',
+      ])
+        fs.mkdirpSync(`${deploymentsPath}/${name}`);
+      for (const name of ['mmo-server', 'mmo-server-test', 'mmo-server-forest', 'mmo-client-forest'])
+        fs.mkdirpSync(`${buildsPath}/${name}`);
+      const instances = [{ id: 'mmo-server' }, { id: 'mmo-server-test' }, { id: 'mmo-client' }];
+      expect(
+        undeclaredInstanceBuildsFactory({
+          family: 'mmo-server',
+          instances,
+          env: 'development',
+          deploymentsPath,
+          buildsPath,
+        }),
+      ).to.deep.equal([`${deploymentsPath}/mmo-server-forest-development`, `${buildsPath}/mmo-server-forest`]);
+      expect(
+        undeclaredInstanceBuildsFactory({
+          family: 'mmo-server',
+          instances,
+          env: 'production',
+          deploymentsPath: `${root}/absent`,
+          buildsPath: `${root}/absent`,
+        }),
+      ).to.deep.equal([]);
+    } finally {
+      fs.removeSync(root);
+    }
   });
 });
 

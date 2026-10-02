@@ -1895,20 +1895,6 @@ const selectConfInstances = (instances, id) =>
   instances.filter((instance) => instance.id === id || instance.templateId === id);
 
 /**
- * @method resolveEnvScoped
- * @description Resolves a conf value that may be declared either shared or
- * env-scoped. An instance block is written as `{ ...spec }` when both
- * environments share it and as `{ development: {...}, production: {...} }` when
- * they do not; both shapes reach the manifest factories, which expect the
- * resolved one.
- * @param {object|undefined} value - Shared or env-scoped block.
- * @param {string} env - `development` | `production`.
- * @returns {object|undefined} The block for `env`, or the value unchanged when it is shared.
- * @memberof ServerConfBuilder
- */
-const resolveEnvScoped = (value, env) => (value && (value.development || value.production) ? value[env] : value);
-
-/**
  * @method publicClientIdFactory
  * @description The public tree a client builds from: `src/client/public/<id>`, by its `publicRef`,
  * else its own id.
@@ -1934,6 +1920,48 @@ const clientPublicTreesFactory = (confClient = {}) => [
     ),
   ),
 ];
+
+/**
+ * @method undeclaredInstanceBuildsFactory
+ * @description The builds of a template family that the topology no longer declares: each
+ * `<id>-<env>` manifest directory of the project and each private instance build of a world
+ * `<family>-<variant>` that no instance has.
+ * @param {object} params
+ * @param {string} params.family - The template id.
+ * @param {Array<object>} params.instances - The expanded instances of the deploy.
+ * @param {string} params.env - `development` | `production`.
+ * @param {string} params.deploymentsPath - `<project>/manifests/deployments`.
+ * @param {string} params.buildsPath - `engine-private/conf/<deploy-id>/instances`.
+ * @returns {string[]} The paths to remove.
+ * @memberof ServerConfBuilder
+ */
+const undeclaredInstanceBuildsFactory = ({ family, instances, env, deploymentsPath, buildsPath }) => {
+  const declared = new Set(instances.map((instance) => instance.id));
+  const undeclared = (name) => name.startsWith(`${family}-`) && !declared.has(name);
+  const entries = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []);
+  return [
+    ...entries(deploymentsPath)
+      .filter((entry) => entry.endsWith(`-${env}`) && undeclared(entry.slice(0, -`-${env}`.length)))
+      .map((entry) => `${deploymentsPath}/${entry}`),
+    ...entries(buildsPath)
+      .filter(undeclared)
+      .map((entry) => `${buildsPath}/${entry}`),
+  ];
+};
+
+/**
+ * @method resolveEnvScoped
+ * @description Resolves a conf value that may be declared either shared or
+ * env-scoped. An instance block is written as `{ ...spec }` when both
+ * environments share it and as `{ development: {...}, production: {...} }` when
+ * they do not; both shapes reach the manifest factories, which expect the
+ * resolved one.
+ * @param {object|undefined} value - Shared or env-scoped block.
+ * @param {string} env - `development` | `production`.
+ * @returns {object|undefined} The block for `env`, or the value unchanged when it is shared.
+ * @memberof ServerConfBuilder
+ */
+const resolveEnvScoped = (value, env) => (value && (value.development || value.production) ? value[env] : value);
 
 /**
  * @method instancePortFactory
@@ -3475,6 +3503,7 @@ export {
   clientPublicTreesFactory,
   publicClientIdFactory,
   selectConfInstances,
+  undeclaredInstanceBuildsFactory,
   loadReplicas,
   cloneConf,
   getCapVariableName,
